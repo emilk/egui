@@ -246,6 +246,20 @@ pub struct ViewportState {
 
     /// Viewport rotation (0/90/180/270 degrees).
     pub viewport_rotation: emath::ViewportRotation,
+
+    /// Previous physical mouse position (for computing deltas in rotated mode).
+    pub prev_physical_pointer_pos: Option<Pos2>,
+
+    /// Virtual cursor position in logical space (used when rotation is active).
+    pub virtual_cursor_pos: Option<Pos2>,
+
+    /// Whether the software cursor is currently captured (OS cursor hidden, warp active).
+    /// Set to false when the virtual cursor reaches the window edge.
+    pub cursor_captured: bool,
+
+    /// When releasing capture, warp the OS cursor to this physical position.
+    pub release_cursor_to: Option<Pos2>,
+
 }
 
 /// What called [`Context::request_repaint`] or [`Context::request_discard`]?
@@ -449,23 +463,90 @@ impl ContextImpl {
         if !rotation.is_none() {
             if let Some(physical_rect) = &new_raw_input.screen_rect {
                 let physical_size = physical_rect.size();
-                new_raw_input.screen_rect = Some(rotation.transform_screen_rect(*physical_rect));
+                let logical_rect = rotation.transform_screen_rect(*physical_rect);
+                new_raw_input.screen_rect = Some(logical_rect);
+                let logical_size = logical_rect.size();
 
+                let edge_margin = 1.0;
+
+                // First pass: update virtual cursor and capture state
+                for event in &new_raw_input.events {
+                    match event {
+                        crate::Event::MouseMoved(delta) => {
+                            if viewport.cursor_captured {
+                                let virtual_pos = viewport.virtual_cursor_pos
+                                    .unwrap_or_else(|| logical_rect.center());
+                                let new_x = virtual_pos.x + delta.x;
+                                let new_y = virtual_pos.y + delta.y;
+
+                                // Check if we hit an edge → release
+                                let at_edge = new_x <= 0.0
+                                    || new_x >= logical_size.x
+                                    || new_y <= 0.0
+                                    || new_y >= logical_size.y;
+
+                                if at_edge {
+                                    // Release: warp OS cursor 3px outside the window edge
+                                    let overshoot = 3.0;
+                                    let edge_pos = Pos2::new(
+                                        if new_x <= 0.0 { -overshoot }
+                                        else if new_x >= logical_size.x { logical_size.x + overshoot }
+                                        else { new_x },
+                                        if new_y <= 0.0 { -overshoot }
+                                        else if new_y >= logical_size.y { logical_size.y + overshoot }
+                                        else { new_y },
+                                    );
+                                    viewport.release_cursor_to = Some(
+                                        rotation.inverse_transform_pos(edge_pos, logical_size),
+                                    );
+                                    viewport.cursor_captured = false;
+                                    viewport.virtual_cursor_pos = None;
+                                } else {
+                                    let new_virtual_pos = Pos2::new(
+                                        new_x.clamp(edge_margin, logical_size.x - edge_margin),
+                                        new_y.clamp(edge_margin, logical_size.y - edge_margin),
+                                    );
+                                    viewport.virtual_cursor_pos = Some(new_virtual_pos);
+                                }
+                            }
+                        }
+                        crate::Event::PointerMoved(pos) => {
+                            // Pointer entered or is in window — capture at entry point
+                            if !viewport.cursor_captured && viewport.virtual_cursor_pos.is_none() {
+                                let entry_pos = rotation.transform_pos(*pos, physical_size);
+                                viewport.cursor_captured = true;
+                                viewport.virtual_cursor_pos = Some(entry_pos);
+                            }
+                        }
+                        crate::Event::PointerGone => {
+                            viewport.cursor_captured = false;
+                            viewport.virtual_cursor_pos = None;
+                        }
+                        _ => {}
+                    }
+                }
+
+                // Second pass: remap all position-based events
                 for event in &mut new_raw_input.events {
                     match event {
                         crate::Event::PointerMoved(pos) => {
-                            *pos = rotation.transform_pos(*pos, physical_size);
+                            if let Some(virtual_pos) = viewport.virtual_cursor_pos {
+                                *pos = virtual_pos;
+                            } else {
+                                *pos = rotation.transform_pos(*pos, physical_size);
+                            }
                         }
                         crate::Event::PointerButton { pos, .. } => {
-                            *pos = rotation.transform_pos(*pos, physical_size);
+                            if let Some(virtual_pos) = viewport.virtual_cursor_pos {
+                                *pos = virtual_pos;
+                            } else {
+                                *pos = rotation.transform_pos(*pos, physical_size);
+                            }
                         }
                         crate::Event::Touch { pos, .. } => {
                             *pos = rotation.transform_pos(*pos, physical_size);
                         }
                         crate::Event::MouseWheel { delta, .. } => {
-                            *delta = rotation.transform_vec(*delta);
-                        }
-                        crate::Event::MouseMoved(delta) => {
                             *delta = rotation.transform_vec(*delta);
                         }
                         _ => {}
@@ -2577,10 +2658,35 @@ impl ContextImpl {
 
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
-        // Rotate cursor icon to match viewport rotation
+        // Rotate cursor icon and draw software cursor when viewport is rotated
         let rotation = viewport.viewport_rotation;
         if !rotation.is_none() {
-            platform_output.cursor_icon = platform_output.cursor_icon.rotate(rotation);
+            // Save the original cursor before hiding it
+            let original_cursor = platform_output.cursor_icon;
+            if viewport.cursor_captured {
+                // Captured: hide OS cursor, warp to center, draw software cursor
+                platform_output.cursor_icon = CursorIcon::None;
+                let logical_vp = viewport.input.viewport_rect();
+                let physical_center = if rotation.swaps_axes() {
+                    Pos2::new(logical_vp.height() / 2.0, logical_vp.width() / 2.0)
+                } else {
+                    logical_vp.center()
+                };
+                viewport.commands.push(ViewportCommand::CursorPosition(physical_center));
+
+                if let Some(pos) = viewport.virtual_cursor_pos {
+                    let cursor_layer = LayerId::new(Order::Debug, Id::new("software_cursor"));
+                    paint_software_cursor(
+                        viewport.graphics.entry(cursor_layer),
+                        original_cursor,
+                        pos,
+                    );
+                }
+            }
+            // When releasing, warp OS cursor to the edge position
+            if let Some(release_pos) = viewport.release_cursor_to.take() {
+                viewport.commands.push(ViewportCommand::CursorPosition(release_pos));
+            }
         }
 
         if self.memory.should_interrupt_ime()
@@ -4445,5 +4551,118 @@ mod test {
                 "The request should have been cleared when fulfilled"
             );
         }
+    }
+}
+
+/// Paint a software cursor on the given paint list.
+///
+/// This is used when viewport rotation is active: the OS cursor is hidden
+/// and we draw our own cursor in logical (rotated) space.
+fn paint_software_cursor(
+    paint_list: &mut crate::layers::PaintList,
+    cursor: CursorIcon,
+    pos: Pos2,
+) {
+    use epaint::{Color32, PathShape, Shape, Stroke};
+
+    let (shapes, clip_rect) = match cursor {
+        CursorIcon::None => return,
+
+        CursorIcon::Text => {
+            // Vertical text caret bar
+            let half_h = 8.0;
+            let shapes = vec![
+                Shape::line_segment(
+                    [pos + vec2(0.0, -half_h), pos + vec2(0.0, half_h)],
+                    Stroke::new(2.0, Color32::WHITE),
+                ),
+                Shape::line_segment(
+                    [pos + vec2(-3.0, -half_h), pos + vec2(3.0, -half_h)],
+                    Stroke::new(1.5, Color32::WHITE),
+                ),
+                Shape::line_segment(
+                    [pos + vec2(-3.0, half_h), pos + vec2(3.0, half_h)],
+                    Stroke::new(1.5, Color32::WHITE),
+                ),
+            ];
+            (shapes, Rect::from_center_size(pos, vec2(20.0, 24.0)))
+        }
+
+        CursorIcon::VerticalText => {
+            // Horizontal text caret bar
+            let half_w = 8.0;
+            let shapes = vec![
+                Shape::line_segment(
+                    [pos + vec2(-half_w, 0.0), pos + vec2(half_w, 0.0)],
+                    Stroke::new(2.0, Color32::WHITE),
+                ),
+                Shape::line_segment(
+                    [pos + vec2(-half_w, -3.0), pos + vec2(-half_w, 3.0)],
+                    Stroke::new(1.5, Color32::WHITE),
+                ),
+                Shape::line_segment(
+                    [pos + vec2(half_w, -3.0), pos + vec2(half_w, 3.0)],
+                    Stroke::new(1.5, Color32::WHITE),
+                ),
+            ];
+            (shapes, Rect::from_center_size(pos, vec2(24.0, 20.0)))
+        }
+
+        CursorIcon::PointingHand | CursorIcon::Grab | CursorIcon::Grabbing => {
+            // Simple filled circle for hand-like cursors
+            let shapes = vec![
+                Shape::circle_filled(pos, 6.0, Color32::WHITE),
+                Shape::circle_stroke(pos, 6.0, Stroke::new(1.5, Color32::BLACK)),
+            ];
+            (shapes, Rect::from_center_size(pos, vec2(20.0, 20.0)))
+        }
+
+        CursorIcon::Crosshair => {
+            let s = 8.0;
+            let shapes = vec![
+                Shape::line_segment(
+                    [pos + vec2(-s, 0.0), pos + vec2(s, 0.0)],
+                    Stroke::new(1.5, Color32::WHITE),
+                ),
+                Shape::line_segment(
+                    [pos + vec2(0.0, -s), pos + vec2(0.0, s)],
+                    Stroke::new(1.5, Color32::WHITE),
+                ),
+            ];
+            (shapes, Rect::from_center_size(pos, vec2(24.0, 24.0)))
+        }
+
+        CursorIcon::NotAllowed | CursorIcon::NoDrop => {
+            // Circle with a line through it
+            let shapes = vec![
+                Shape::circle_stroke(pos, 8.0, Stroke::new(2.0, Color32::RED)),
+                Shape::line_segment(
+                    [pos + vec2(-5.0, -5.0), pos + vec2(5.0, 5.0)],
+                    Stroke::new(2.0, Color32::RED),
+                ),
+            ];
+            (shapes, Rect::from_center_size(pos, vec2(24.0, 24.0)))
+        }
+
+        _ => {
+            // Default arrow cursor: a triangle pointing up-left
+            let tip = pos;
+            let left = pos + vec2(0.0, 16.0);
+            let right = pos + vec2(11.0, 11.0);
+
+            let arrow = PathShape::convex_polygon(
+                vec![tip, left, right],
+                Color32::WHITE,
+                Stroke::new(1.5, Color32::BLACK),
+            );
+            (
+                vec![Shape::Path(arrow)],
+                Rect::from_min_size(pos, vec2(16.0, 20.0)),
+            )
+        }
+    };
+
+    for shape in shapes {
+        paint_list.add(clip_rect, shape);
     }
 }
