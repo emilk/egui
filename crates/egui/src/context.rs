@@ -2577,6 +2577,12 @@ impl ContextImpl {
 
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
+        // Rotate cursor icon to match viewport rotation
+        let rotation = viewport.viewport_rotation;
+        if !rotation.is_none() {
+            platform_output.cursor_icon = platform_output.cursor_icon.rotate(rotation);
+        }
+
         if self.memory.should_interrupt_ime()
             && let Some(ime) = &mut platform_output.ime
         {

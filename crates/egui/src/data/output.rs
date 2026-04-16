@@ -428,6 +428,110 @@ impl CursorIcon {
         Self::ZoomIn,
         Self::ZoomOut,
     ];
+
+    /// Rotate a cursor icon to match a [`emath::ViewportRotation`].
+    ///
+    /// Directional cursors (resize arrows, etc.) are remapped so they
+    /// visually point in the correct direction after rotation.
+    pub fn rotate(self, rotation: emath::ViewportRotation) -> Self {
+        use emath::ViewportRotation;
+        if rotation.is_none() {
+            return self;
+        }
+
+        match self {
+            // Bidirectional resize cursors
+            Self::ResizeHorizontal => match rotation {
+                ViewportRotation::CW90 | ViewportRotation::CW270 => Self::ResizeVertical,
+                _ => self,
+            },
+            Self::ResizeVertical => match rotation {
+                ViewportRotation::CW90 | ViewportRotation::CW270 => Self::ResizeHorizontal,
+                _ => self,
+            },
+            Self::ResizeNeSw => match rotation {
+                ViewportRotation::CW90 | ViewportRotation::CW270 => Self::ResizeNwSe,
+                _ => self,
+            },
+            Self::ResizeNwSe => match rotation {
+                ViewportRotation::CW90 | ViewportRotation::CW270 => Self::ResizeNeSw,
+                _ => self,
+            },
+
+            // Column/Row resize
+            Self::ResizeColumn => match rotation {
+                ViewportRotation::CW90 | ViewportRotation::CW270 => Self::ResizeRow,
+                _ => self,
+            },
+            Self::ResizeRow => match rotation {
+                ViewportRotation::CW90 | ViewportRotation::CW270 => Self::ResizeColumn,
+                _ => self,
+            },
+
+            // Text cursors
+            Self::Text => match rotation {
+                ViewportRotation::CW90 | ViewportRotation::CW270 => Self::VerticalText,
+                _ => self,
+            },
+            Self::VerticalText => match rotation {
+                ViewportRotation::CW90 | ViewportRotation::CW270 => Self::Text,
+                _ => self,
+            },
+
+            // Directional (single-direction) resize cursors: rotate clockwise
+            Self::ResizeEast => match rotation {
+                ViewportRotation::CW90 => Self::ResizeSouth,
+                ViewportRotation::CW180 => Self::ResizeWest,
+                ViewportRotation::CW270 => Self::ResizeNorth,
+                _ => self,
+            },
+            Self::ResizeSouthEast => match rotation {
+                ViewportRotation::CW90 => Self::ResizeSouthWest,
+                ViewportRotation::CW180 => Self::ResizeNorthWest,
+                ViewportRotation::CW270 => Self::ResizeNorthEast,
+                _ => self,
+            },
+            Self::ResizeSouth => match rotation {
+                ViewportRotation::CW90 => Self::ResizeWest,
+                ViewportRotation::CW180 => Self::ResizeNorth,
+                ViewportRotation::CW270 => Self::ResizeEast,
+                _ => self,
+            },
+            Self::ResizeSouthWest => match rotation {
+                ViewportRotation::CW90 => Self::ResizeNorthWest,
+                ViewportRotation::CW180 => Self::ResizeNorthEast,
+                ViewportRotation::CW270 => Self::ResizeSouthEast,
+                _ => self,
+            },
+            Self::ResizeWest => match rotation {
+                ViewportRotation::CW90 => Self::ResizeNorth,
+                ViewportRotation::CW180 => Self::ResizeEast,
+                ViewportRotation::CW270 => Self::ResizeSouth,
+                _ => self,
+            },
+            Self::ResizeNorthWest => match rotation {
+                ViewportRotation::CW90 => Self::ResizeNorthEast,
+                ViewportRotation::CW180 => Self::ResizeSouthEast,
+                ViewportRotation::CW270 => Self::ResizeSouthWest,
+                _ => self,
+            },
+            Self::ResizeNorth => match rotation {
+                ViewportRotation::CW90 => Self::ResizeEast,
+                ViewportRotation::CW180 => Self::ResizeSouth,
+                ViewportRotation::CW270 => Self::ResizeWest,
+                _ => self,
+            },
+            Self::ResizeNorthEast => match rotation {
+                ViewportRotation::CW90 => Self::ResizeSouthEast,
+                ViewportRotation::CW180 => Self::ResizeSouthWest,
+                ViewportRotation::CW270 => Self::ResizeNorthWest,
+                _ => self,
+            },
+
+            // All other cursors are rotation-invariant
+            _ => self,
+        }
+    }
 }
 
 /// Things that happened during this frame that the integration may be interested in.
