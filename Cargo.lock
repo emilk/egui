@@ -1326,6 +1326,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui_demo_app_90"
+version = "0.34.1"
+dependencies = [
+ "accesskit",
+ "accesskit_consumer",
+ "bytemuck",
+ "eframe",
+ "egui",
+ "egui_demo_lib",
+ "egui_extras",
+ "egui_kittest",
+ "ehttp",
+ "env_logger",
+ "image",
+ "jiff",
+ "log",
+ "mimalloc",
+ "poll-promise",
+ "profiling",
+ "puffin",
+ "puffin_http",
+ "rfd",
+ "serde",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "egui_demo_lib"
 version = "0.34.1"
 dependencies = [
@@ -2083,6 +2112,24 @@ dependencies = [
 
 [[package]]
 name = "hello_world"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "env_logger",
+]
+
+[[package]]
+name = "hello_world_90_glow"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "env_logger",
+]
+
+[[package]]
+name = "hello_world_90_wgpu"
 version = "0.1.0"
 dependencies = [
  "eframe",

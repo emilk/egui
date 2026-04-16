@@ -243,6 +243,9 @@ pub struct ViewportState {
     // ----------------------
     // Cross-frame statistics:
     pub num_multipass_in_row: usize,
+
+    /// Viewport rotation (0/90/180/270 degrees).
+    pub viewport_rotation: emath::ViewportRotation,
 }
 
 /// What called [`Context::request_repaint`] or [`Context::request_discard`]?
@@ -441,6 +444,36 @@ impl ContextImpl {
             // We should really scale everything else in the input too,
             // but the `screen_rect` is the most important part.
         }
+        // Apply viewport rotation to input coordinates
+        let rotation = viewport.viewport_rotation;
+        if !rotation.is_none() {
+            if let Some(physical_rect) = &new_raw_input.screen_rect {
+                let physical_size = physical_rect.size();
+                new_raw_input.screen_rect = Some(rotation.transform_screen_rect(*physical_rect));
+
+                for event in &mut new_raw_input.events {
+                    match event {
+                        crate::Event::PointerMoved(pos) => {
+                            *pos = rotation.transform_pos(*pos, physical_size);
+                        }
+                        crate::Event::PointerButton { pos, .. } => {
+                            *pos = rotation.transform_pos(*pos, physical_size);
+                        }
+                        crate::Event::Touch { pos, .. } => {
+                            *pos = rotation.transform_pos(*pos, physical_size);
+                        }
+                        crate::Event::MouseWheel { delta, .. } => {
+                            *delta = rotation.transform_vec(*delta);
+                        }
+                        crate::Event::MouseMoved(delta) => {
+                            *delta = rotation.transform_vec(*delta);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         let native_pixels_per_point = new_raw_input
             .viewport()
             .native_pixels_per_point
@@ -2224,6 +2257,22 @@ impl Context {
         });
     }
 
+    /// Get the current viewport rotation.
+    pub fn viewport_rotation(&self) -> emath::ViewportRotation {
+        self.write(|ctx| ctx.viewport().viewport_rotation)
+    }
+
+    /// Set the viewport rotation for the current viewport.
+    ///
+    /// This rotates the entire UI by the given angle (0/90/180/270 degrees).
+    /// Input coordinates are automatically remapped, so application code
+    /// works in a normal coordinate space.
+    pub fn set_viewport_rotation(&self, rotation: emath::ViewportRotation) {
+        self.write(|ctx| {
+            ctx.viewport().viewport_rotation = rotation;
+        });
+    }
+
     /// Allocate a texture.
     ///
     /// This is for advanced users.
@@ -2724,7 +2773,7 @@ impl Context {
             };
 
             let paint_stats = PaintStats::from_shapes(&shapes);
-            let clipped_primitives = {
+            let mut clipped_primitives = {
                 profiling::scope!("tessellator::tessellate_shapes");
                 tessellator::Tessellator::new(
                     pixels_per_point,
@@ -2735,6 +2784,36 @@ impl Context {
                 .tessellate_shapes(shapes)
             };
             ctx.paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
+
+            // Apply viewport rotation: transform from logical UI space back to physical screen space
+            let rotation = ctx.viewport().viewport_rotation;
+            if !rotation.is_none() {
+                let logical_size = ctx.viewport().input.viewport_rect().size();
+                for primitive in &mut clipped_primitives {
+                    // Rotate clip_rect back to physical space
+                    let min = rotation.inverse_transform_pos(
+                        primitive.clip_rect.min,
+                        logical_size,
+                    );
+                    let max = rotation.inverse_transform_pos(
+                        primitive.clip_rect.max,
+                        logical_size,
+                    );
+                    primitive.clip_rect = Rect::from_two_pos(min, max);
+
+                    // Rotate mesh vertices back to physical space
+                    if let epaint::Primitive::Mesh(mesh) = &mut primitive.primitive {
+                        for vertex in &mut mesh.vertices {
+                            let pos = rotation.inverse_transform_pos(
+                                Pos2::new(vertex.pos.x, vertex.pos.y),
+                                logical_size,
+                            );
+                            vertex.pos = pos;
+                        }
+                    }
+                }
+            }
+
             clipped_primitives
         })
     }

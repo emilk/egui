@@ -333,6 +333,12 @@ pub struct ViewportBuilder {
     // X11
     pub window_type: Option<X11WindowType>,
     pub override_redirect: Option<bool>,
+
+    /// Viewport rotation in 90-degree increments.
+    ///
+    /// When set, the entire UI is rendered rotated and all input coordinates
+    /// are automatically remapped. The application sees a normal coordinate space.
+    pub rotation: Option<crate::emath::ViewportRotation>,
 }
 
 impl ViewportBuilder {
@@ -680,6 +686,16 @@ impl ViewportBuilder {
         self
     }
 
+    /// Sets the viewport rotation in 90-degree increments.
+    ///
+    /// When set, the entire UI is rendered rotated and all input coordinates
+    /// are automatically remapped. The application sees a normal coordinate space.
+    #[inline]
+    pub fn with_rotation(mut self, rotation: crate::emath::ViewportRotation) -> Self {
+        self.rotation = Some(rotation);
+        self
+    }
+
     /// Update this `ViewportBuilder` with a delta,
     /// returning a list of commands and a bool indicating if the window needs to be recreated.
     #[must_use]
@@ -717,6 +733,7 @@ impl ViewportBuilder {
             taskbar: new_taskbar,
             window_type: new_window_type,
             override_redirect: new_override_redirect,
+            rotation: new_rotation,
         } = new_vp_builder;
 
         let mut commands = Vec::new();
@@ -917,6 +934,11 @@ impl ViewportBuilder {
         if new_override_redirect.is_some() && self.override_redirect != new_override_redirect {
             self.override_redirect = new_override_redirect;
             recreate_window = true;
+        }
+
+        // Rotation is handled by egui (input/output transform), no window command needed.
+        if new_rotation.is_some() && self.rotation != new_rotation {
+            self.rotation = new_rotation;
         }
 
         (commands, recreate_window)

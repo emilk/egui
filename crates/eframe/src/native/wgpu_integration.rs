@@ -330,6 +330,11 @@ impl<'app> WgpuWinitApp<'app> {
             resized_viewport: None,
         }));
 
+        // Apply viewport rotation from builder
+        if let Some(rotation) = self.native_options.viewport.rotation {
+            shared.borrow().egui_ctx.set_viewport_rotation(rotation);
+        }
+
         {
             // Create a weak pointer so that we don't keep state alive for too long.
             let shared = Rc::downgrade(&shared);

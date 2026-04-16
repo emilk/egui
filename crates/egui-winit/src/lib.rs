@@ -1828,6 +1828,7 @@ pub fn create_winit_window_attributes(
 
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
         clamp_size_to_monitor_size: _, // Handled in `viewport_builder` in `epi_integration.rs`
+        rotation: _, // Handled by egui Context (input/output transform)
     } = viewport_builder;
 
     let mut window_attributes = winit::window::WindowAttributes::default()

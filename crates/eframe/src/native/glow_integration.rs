@@ -277,6 +277,11 @@ impl<'app> GlowWinitApp<'app> {
             }
         }
 
+        // Apply viewport rotation from builder
+        if let Some(rotation) = self.native_options.viewport.rotation {
+            integration.egui_ctx.set_viewport_rotation(rotation);
+        }
+
         if self
             .native_options
             .viewport

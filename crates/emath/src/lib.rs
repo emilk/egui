@@ -41,6 +41,7 @@ pub mod smart_aim;
 mod ts_transform;
 mod vec2;
 mod vec2b;
+mod viewport_rotation;
 
 pub use self::{
     align::{Align, Align2},
@@ -57,6 +58,7 @@ pub use self::{
     ts_transform::*,
     vec2::*,
     vec2b::*,
+    viewport_rotation::*,
 };
 
 // ----------------------------------------------------------------------------
