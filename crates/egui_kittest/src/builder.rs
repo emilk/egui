@@ -159,45 +159,9 @@ impl<State> HarnessBuilder<State> {
         self.renderer(crate::wgpu::WgpuTestRenderer::from_setup(setup))
     }
 
-    /// Create a new Harness with the given app closure and a state.
-    ///
-    /// The app closure will immediately be called once to create the initial ui.
-    ///
-    /// If you don't need to create Windows / Panels, you can use [`HarnessBuilder::build_ui`] instead.
-    ///
-    /// # Example
-    /// ```rust
-    /// # use egui::CentralPanel;
-    /// # use egui_kittest::{Harness, kittest::Queryable};
-    /// let checked = false;
-    /// let mut harness = Harness::builder()
-    ///     .with_size(egui::Vec2::new(300.0, 200.0))
-    ///     .build_state(|ctx, checked| {
-    ///         CentralPanel::default().show(ctx, |ui| {
-    ///             ui.checkbox(checked, "Check me!");
-    ///         });
-    ///     }, checked);
-    ///
-    /// harness.get_by_label("Check me!").click();
-    /// harness.run();
-    ///
-    /// assert_eq!(*harness.state(), true);
-    /// ```
-    #[track_caller]
-    #[deprecated = "use `build_ui_state` instead"]
-    pub fn build_state<'a>(
-        self,
-        app: impl FnMut(&egui::Context, &mut State) + 'a,
-        state: State,
-    ) -> Harness<'a, State> {
-        Harness::from_builder(self, AppKind::ContextState(Box::new(app)), state, None)
-    }
-
     /// Create a new Harness with the given ui closure and a state.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
-    ///
-    /// If you need to create Windows / Panels, you can use [`HarnessBuilder::build`] instead.
     ///
     /// # Example
     /// ```rust
@@ -249,36 +213,9 @@ impl<State> HarnessBuilder<State> {
 }
 
 impl HarnessBuilder {
-    /// Create a new Harness with the given app closure.
-    ///
-    /// The app closure will immediately be called once to create the initial ui.
-    ///
-    /// If you don't need to create Windows / Panels, you can use [`HarnessBuilder::build_ui`] instead.
-    ///
-    /// # Example
-    /// ```rust
-    /// # use egui::CentralPanel;
-    /// # use egui_kittest::{Harness, kittest::Queryable};
-    /// let mut harness = Harness::builder()
-    ///     .with_size(egui::Vec2::new(300.0, 200.0))
-    ///     .build(|ctx| {
-    ///         CentralPanel::default().show(ctx, |ui| {
-    ///             ui.label("Hello, world!");
-    ///         });
-    ///     });
-    /// ```
-    #[must_use]
-    #[track_caller]
-    #[deprecated = "use `build_ui` instead"]
-    pub fn build<'a>(self, app: impl FnMut(&egui::Context) + 'a) -> Harness<'a> {
-        Harness::from_builder(self, AppKind::Context(Box::new(app)), (), None)
-    }
-
     /// Create a new Harness with the given ui closure.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
-    ///
-    /// If you need to create Windows / Panels, you can use [`HarnessBuilder::build`] instead.
     ///
     /// # Example
     /// ```rust

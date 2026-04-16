@@ -200,12 +200,6 @@ impl<'a> Button<'a> {
         self
     }
 
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
-    }
-
     /// If true, the tint of the image is multiplied by the widget text color.
     ///
     /// This makes sense for images that are white, that should have the same color as the text color.

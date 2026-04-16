@@ -12,7 +12,7 @@ use crate::{
 /// Set the values that make sense, leave the rest at their `Default::default()`.
 ///
 /// You can check if `egui` is using the inputs using
-/// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
+/// [`crate::Context::egui_wants_pointer_input`] and [`crate::Context::egui_wants_keyboard_input`].
 ///
 /// All coordinates are in points (logical pixels) with origin (0, 0) in the top left .corner.
 ///
@@ -64,8 +64,8 @@ pub struct RawInput {
     /// In-order events received this frame.
     ///
     /// There is currently no way to know if egui handles a particular event,
-    /// but you can check if egui is using the keyboard with [`crate::Context::wants_keyboard_input`]
-    /// and/or the pointer (mouse/touch) with [`crate::Context::is_using_pointer`].
+    /// but you can check if egui is using the keyboard with [`crate::Context::egui_wants_keyboard_input`]
+    /// and/or the pointer (mouse/touch) with [`crate::Context::egui_is_using_pointer`].
     pub events: Vec<Event>,
 
     /// Dragged files hovering over egui.

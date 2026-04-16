@@ -1201,7 +1201,7 @@ impl ViewportCommand {
 
 /// Describes a viewport, i.e. a native window.
 ///
-/// This is returned by [`crate::Context::run`] on each frame, and should be applied
+/// This is returned by [`crate::Context::run_ui`] on each frame, and should be applied
 /// by the integration.
 #[derive(Clone)]
 pub struct ViewportOutput {

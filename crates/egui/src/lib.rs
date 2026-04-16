@@ -112,8 +112,8 @@
 //! loop {
 //!     let raw_input: egui::RawInput = gather_input();
 //!
-//!     let full_output = ctx.run(raw_input, |ctx| {
-//!         egui::CentralPanel::default().show(&ctx, |ui| {
+//!     let full_output = ctx.run_ui(raw_input, |ui| {
+//!         egui::CentralPanel::default().show_inside(ui, |ui| {
 //!             ui.label("Hello world!");
 //!             if ui.button("Click me").clicked() {
 //!                 // take some action here
@@ -407,8 +407,6 @@ pub mod layers;
 mod layout;
 pub mod load;
 mod memory;
-#[deprecated = "Use `egui::containers::menu` instead"]
-pub mod menu;
 pub mod os;
 mod painter;
 mod pass_state;
@@ -433,9 +431,6 @@ pub mod widgets;
 mod callstack;
 
 pub use accesskit;
-
-#[deprecated = "Use the ahash crate directly."]
-pub use ahash;
 
 pub use epaint;
 pub use epaint::ecolor;
@@ -498,9 +493,6 @@ pub use self::{
     widget_text::{RichText, WidgetText},
     widgets::*,
 };
-
-#[deprecated = "Renamed to CornerRadius"]
-pub type Rounding = CornerRadius;
 
 // ----------------------------------------------------------------------------
 

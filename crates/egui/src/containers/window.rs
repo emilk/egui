@@ -262,7 +262,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Constrains this window to [`Context::screen_rect`].
+    /// Constrains this window to [`Context::content_rect`].
     ///
     /// To change the area to constrain to, use [`Self::constrain_to`].
     ///
@@ -275,7 +275,7 @@ impl<'open> Window<'open> {
 
     /// Constrain the movement of the window to the given rectangle.
     ///
-    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    /// For instance: `.constrain_to(ctx.content_rect())`.
     #[inline]
     pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.area = self.area.constrain_to(constrain_rect);
@@ -427,7 +427,7 @@ impl<'open> Window<'open> {
 
     /// Enable/disable scrolling on the window by dragging with the pointer. `true` by default.
     ///
-    /// See [`ScrollArea::drag_to_scroll`] for more.
+    /// See [`ScrollArea::scroll_source`] for more.
     #[inline]
     pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll = self.scroll.scroll_source(ScrollSource {

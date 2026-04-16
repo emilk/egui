@@ -6,7 +6,7 @@
 //! To get started, see the [examples](https://github.com/emilk/egui/tree/main/examples).
 //! To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 //!
-//! In short, you implement [`App`] (especially [`App::update`]) and then
+//! In short, you implement [`App`] (especially [`App::ui`]) and then
 //! call [`crate::run_native`] from your `main.rs`, and/or use `eframe::WebRunner` from your `lib.rs`.
 //!
 //! ## Compiling for web
@@ -19,7 +19,7 @@
 //!
 //! ## Simplified usage
 //! If your app is only for native, and you don't need advanced features like state persistence,
-//! then you can use the simpler function [`run_simple_native`].
+//! then you can use the simpler function [`run_ui_native`].
 //!
 //! ## Usage, native:
 //! ``` no_run
@@ -443,67 +443,6 @@ pub fn run_ui_native(
         app_name,
         native_options,
         Box::new(|_cc| Ok(Box::new(SimpleApp { ui_fun }))),
-    )
-}
-
-/// The simplest way to get started when writing a native app.
-///
-/// This does NOT support persistence of custom user data. For that you need to use [`run_native`].
-/// However, it DOES support persistence of egui data (window positions and sizes, how far the user has scrolled in a
-/// [`ScrollArea`](egui::ScrollArea), etc.) if the persistence feature is enabled.
-///
-/// # Example
-/// ``` no_run
-/// fn main() -> eframe::Result {
-///     // Our application state:
-///     let mut name = "Arthur".to_owned();
-///     let mut age = 42;
-///
-///     let options = eframe::NativeOptions::default();
-///     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
-///         egui::CentralPanel::default().show(ctx, |ui| {
-///             ui.heading("My egui Application");
-///             ui.horizontal(|ui| {
-///                 let name_label = ui.label("Your name: ");
-///                 ui.text_edit_singleline(&mut name)
-///                     .labelled_by(name_label.id);
-///             });
-///             ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
-///             if ui.button("Increment").clicked() {
-///                 age += 1;
-///             }
-///             ui.label(format!("Hello '{name}', age {age}"));
-///         });
-///     })
-/// }
-/// ```
-///
-/// # Errors
-/// This function can fail if we fail to set up a graphics context.
-#[deprecated = "Use run_ui_native instead"]
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-pub fn run_simple_native(
-    app_name: &str,
-    native_options: NativeOptions,
-    update_fun: impl FnMut(&egui::Context, &mut Frame) + 'static,
-) -> Result {
-    struct SimpleApp<U> {
-        update_fun: U,
-    }
-
-    impl<U: FnMut(&egui::Context, &mut Frame) + 'static> App for SimpleApp<U> {
-        fn ui(&mut self, _ui: &mut egui::Ui, _frame: &mut Frame) {}
-
-        fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
-            (self.update_fun)(ctx, frame);
-        }
-    }
-
-    run_native(
-        app_name,
-        native_options,
-        Box::new(|_cc| Ok(Box::new(SimpleApp { update_fun }))),
     )
 }
 

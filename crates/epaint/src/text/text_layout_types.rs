@@ -1255,7 +1255,8 @@ impl Galley {
 
             let new_layout_cursor = {
                 // keep same X coord
-                let column = self.rows[new_row].char_at(h_pos);
+                // char_at is Row-relative, so subtract the row's position
+                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
                 LayoutCursor {
                     row: new_row,
                     column,
@@ -1277,7 +1278,8 @@ impl Galley {
 
             let new_layout_cursor = {
                 // keep same X coord
-                let column = self.rows[new_row].char_at(h_pos);
+                // char_at is Row-relative, so subtract the row's position
+                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
                 LayoutCursor {
                     row: new_row,
                     column,

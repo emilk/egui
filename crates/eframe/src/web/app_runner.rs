@@ -284,9 +284,6 @@ impl AppRunner {
             self.app.logic(ui.ctx(), &mut self.frame);
 
             if is_visible {
-                #[expect(deprecated)]
-                self.app.update(ui.ctx(), &mut self.frame);
-
                 self.app.ui(ui, &mut self.frame);
             }
         });

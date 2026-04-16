@@ -4,8 +4,8 @@ use emath::{Rect, TSTransform};
 use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
-    Align, Align2, Atom, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon,
-    Event, EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, IntoSizedResult, Key,
+    Align, Align2, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon, Event,
+    EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, IntoSizedResult, Key,
     KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, SizedAtomKind, TextBuffer,
     TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
     os::OperatingSystem,
@@ -485,6 +485,7 @@ impl TextEdit<'_> {
             } else {
                 LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
             };
+            layout_job.halign = align.x();
             // We want to keep the trailing whitespace, since hiding it feels really weird when typing
             layout_job.keep_trailing_whitespace = true;
             ui.fonts_mut(|f| f.layout_job(layout_job))
@@ -593,6 +594,7 @@ impl TextEdit<'_> {
                     if !shrunk && matches!(atom.kind, AtomKind::Text(_)) {
                         // elide the hint_text if needed
                         atom = atom.atom_shrink(true);
+                        atom = atom.atom_grow(true);
                         shrunk = true;
                     }
 
@@ -621,6 +623,11 @@ impl TextEdit<'_> {
 
                 get_galley = Some(galley);
             } else {
+                // We need to shrink when clip_text, so that we don't exceed the available size
+                // and thus clip. We also need to shrink in multi line text edits, so text can
+                // wrap appropriately.
+                let should_shrink = clip_text || multiline;
+
                 // We need a closure here, so we can calculate the galley based on the available
                 // width (after adding suffix and prefix), for correct wrapping in multi line text
                 // edits
@@ -647,14 +654,11 @@ impl TextEdit<'_> {
                             sized: SizedAtomKind::Empty { size: Some(size) },
                         }
                     })
+                    .atom_grow(true)
+                    .atom_align(self.align)
                     .atom_id(inner_rect_id)
-                    .atom_shrink(clip_text),
+                    .atom_shrink(should_shrink),
                 );
-            }
-
-            // Ensure the suffix is always right-aligned
-            if !suffix.is_empty() {
-                atoms.push_right(Atom::grow());
             }
 
             // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have
@@ -681,7 +685,7 @@ impl TextEdit<'_> {
                 .max_width(allocate_width)
                 .sense(sense)
                 .frame(frame)
-                .align2(Align2::LEFT_TOP)
+                .align2(align)
                 .wrap_mode(wrap_mode)
                 .allocate(ui);
 
@@ -742,16 +746,18 @@ impl TextEdit<'_> {
 
             // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
 
-            let cursor_at_pointer =
-                galley.cursor_from_pos(pointer_pos - inner_rect.min + state.text_offset);
+            let cursor_at_pointer = galley.cursor_from_pos(
+                pointer_pos - inner_rect.min + state.text_offset + vec2(galley.rect.left(), 0.0),
+            );
 
             if ui.visuals().text_cursor.preview
                 && response.hovered()
                 && ui.input(|i| i.pointer.is_moving())
             {
                 // text cursor preview:
-                let cursor_rect = TSTransform::from_translation(inner_rect.min.to_vec2())
-                    * cursor_rect(&galley, &cursor_at_pointer, row_height);
+                let cursor_rect = TSTransform::from_translation(
+                    inner_rect.min.to_vec2() - vec2(galley.rect.left(), 0.0),
+                ) * cursor_rect(&galley, &cursor_at_pointer, row_height);
                 text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
             }
 
@@ -837,7 +843,7 @@ impl TextEdit<'_> {
 
             if has_focus && let Some(cursor_range) = state.cursor.range(&galley) {
                 let primary_cursor_rect = cursor_rect(&galley, &cursor_range.primary, row_height)
-                    .translate(galley_pos.to_vec2());
+                    .translate(galley_pos.to_vec2() - vec2(galley.rect.left(), 0.0));
 
                 if response.changed() || selection_changed {
                     // Scroll to keep primary cursor in view:
