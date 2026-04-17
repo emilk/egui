@@ -793,6 +793,28 @@ impl Frame {
     pub fn wgpu_render_state(&self) -> Option<&egui_wgpu::RenderState> {
         self.wgpu_render_state.as_ref()
     }
+
+    /// The currently-applied runtime surface config (present mode, frame latency)
+    /// used by the `wgpu` renderer, if any.
+    ///
+    /// Returns `None` when not using the `wgpu` backend.
+    #[cfg(feature = "wgpu_no_default_features")]
+    pub fn wgpu_surface_config(&self) -> Option<egui_wgpu::SurfaceConfig> {
+        self.wgpu_render_state
+            .as_ref()
+            .map(|state| state.surface_config)
+    }
+
+    /// Set the runtime surface config (present mode, frame latency) for the `wgpu`
+    /// renderer. The surface is reconfigured on the next paint.
+    ///
+    /// No-op when not using the `wgpu` backend.
+    #[cfg(feature = "wgpu_no_default_features")]
+    pub fn set_wgpu_surface_config(&mut self, config: egui_wgpu::SurfaceConfig) {
+        if let Some(state) = &mut self.wgpu_render_state {
+            state.surface_config = config;
+        }
+    }
 }
 
 /// Information about the web environment (if applicable).
