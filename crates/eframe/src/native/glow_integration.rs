@@ -184,7 +184,7 @@ impl<'app> GlowWinitApp<'app> {
         let painter = egui_glow::Painter::new(
             gl,
             "",
-            native_options.shader_version,
+            native_options.glow_options.shader_version,
             native_options.dithering,
         )?;
 
@@ -952,12 +952,12 @@ impl GlutinWindowContext {
 
         use glutin::prelude::*;
         // convert native options to glutin options
-        let hardware_acceleration = match native_options.hardware_acceleration {
-            crate::HardwareAcceleration::Required => Some(true),
-            crate::HardwareAcceleration::Preferred => None,
-            crate::HardwareAcceleration::Off => Some(false),
+        let hardware_acceleration = match native_options.glow_options.hardware_acceleration {
+            egui_glow::HardwareAcceleration::Required => Some(true),
+            egui_glow::HardwareAcceleration::Preferred => None,
+            egui_glow::HardwareAcceleration::Off => Some(false),
         };
-        let swap_interval = if native_options.glow_vsync {
+        let swap_interval = if native_options.glow_options.vsync {
             glutin::surface::SwapInterval::Wait(NonZeroU32::MIN)
         } else {
             glutin::surface::SwapInterval::DontWait

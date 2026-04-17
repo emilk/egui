@@ -259,22 +259,6 @@ pub trait App {
     fn raw_input_hook(&mut self, _ctx: &egui::Context, _raw_input: &mut egui::RawInput) {}
 }
 
-/// Selects the level of hardware graphics acceleration.
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum HardwareAcceleration {
-    /// Require graphics acceleration.
-    Required,
-
-    /// Prefer graphics acceleration, but fall back to software.
-    Preferred,
-
-    /// Do NOT use graphics acceleration.
-    ///
-    /// On some platforms (macOS) this is ignored and treated the same as [`Self::Preferred`].
-    Off,
-}
-
 /// Options controlling the behavior of a native window.
 ///
 /// Additional windows can be opened using (egui viewports)[`egui::viewport`].
@@ -298,13 +282,6 @@ pub struct NativeOptions {
     /// To avoid this, set the icon to [`egui::IconData::default`].
     pub viewport: egui::ViewportBuilder,
 
-    /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
-    ///
-    /// The default is `true`.
-    ///
-    /// Only affects the `glow` backend.
-    pub glow_vsync: bool,
-
     /// Set the level of the multisampling anti-aliasing (MSAA).
     ///
     /// Must be a power-of-two. Higher = more smooth 3D.
@@ -325,13 +302,6 @@ pub struct NativeOptions {
     ///
     /// `egui` doesn't need the stencil buffer, so the default value is 0.
     pub stencil_buffer: u8,
-
-    /// Specify whether or not hardware acceleration is preferred, required, or not.
-    ///
-    /// Default: [`HardwareAcceleration::Preferred`].
-    ///
-    /// Only affects the `glow` backend.
-    pub hardware_acceleration: HardwareAcceleration,
 
     /// What rendering backend to use.
     #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
@@ -369,19 +339,16 @@ pub struct NativeOptions {
     #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
     pub window_builder: Option<WindowBuilderHook>,
 
-    #[cfg(feature = "glow")]
-    /// Needed for cross compiling for VirtualBox VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
-    /// See <https://github.com/emilk/egui/pull/1993>.
-    ///
-    /// For OpenGL ES 2.0: set this to [`egui_glow::ShaderVersion::Es100`] to solve blank texture problem (by using the "fallback shader").
-    pub shader_version: Option<egui_glow::ShaderVersion>,
-
     /// On desktop: make the window position to be centered at initialization.
     ///
     /// Platform specific:
     ///
     /// Wayland desktop currently not supported.
     pub centered: bool,
+
+    /// Configures glow instance.
+    #[cfg(feature = "glow")]
+    pub glow_options: egui_glow::GlowConfiguration,
 
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu_no_default_features")]
@@ -427,6 +394,9 @@ impl Clone for NativeOptions {
             #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             window_builder: None, // Skip any builder callbacks if cloning
 
+            #[cfg(feature = "glow")]
+            glow_options: self.glow_options.clone(),
+
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_options: self.wgpu_options.clone(),
 
@@ -446,11 +416,9 @@ impl Default for NativeOptions {
         Self {
             viewport: Default::default(),
 
-            glow_vsync: true,
             multisampling: 0,
             depth_buffer: 0,
             stencil_buffer: 0,
-            hardware_acceleration: HardwareAcceleration::Preferred,
 
             #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             renderer: Renderer::default(),
@@ -463,10 +431,10 @@ impl Default for NativeOptions {
             #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             window_builder: None,
 
-            #[cfg(feature = "glow")]
-            shader_version: None,
-
             centered: false,
+
+            #[cfg(feature = "glow")]
+            glow_options: egui_glow::GlowConfiguration::default(),
 
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default()
