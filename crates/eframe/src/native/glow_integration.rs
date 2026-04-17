@@ -106,6 +106,7 @@ struct Viewport {
     ids: ViewportIdPair,
     class: ViewportClass,
     builder: ViewportBuilder,
+    window_attributes: Option<winit::window::WindowAttributes>,
     deferred_commands: Vec<egui::viewport::ViewportCommand>,
     info: ViewportInfo,
     actions_requested: Vec<egui_winit::ActionRequested>,
@@ -942,7 +943,7 @@ impl GlutinWindowContext {
     unsafe fn new(
         egui_ctx: &egui::Context,
         viewport_builder: ViewportBuilder,
-        native_options: &NativeOptions,
+        native_options: &mut NativeOptions,
         event_loop: &ActiveEventLoop,
     ) -> Result<Self> {
         profiling::function_scope!();
@@ -988,16 +989,19 @@ impl GlutinWindowContext {
 
         log::debug!("trying to create glutin Display with config: {config_template_builder:?}");
 
+        let root_window_attributes = epi_integration::create_winit_window_attributes(
+            egui_ctx,
+            viewport_builder.clone(),
+            native_options,
+        );
+
         // Create GL display. This may probably create a window too on most platforms. Definitely on `MS windows`. Never on Android.
         let display_builder = glutin_winit::DisplayBuilder::new()
             // we might want to expose this option to users in the future. maybe using an env var or using native_options.
             //
             // The justification for FallbackEgl over PreferEgl is at https://github.com/emilk/egui/pull/2526#issuecomment-1400229576 .
             .with_preference(glutin_winit::ApiPreference::FallbackEgl)
-            .with_window_attributes(Some(egui_winit::create_winit_window_attributes(
-                egui_ctx,
-                viewport_builder.clone(),
-            )));
+            .with_window_attributes(Some(root_window_attributes.clone()));
 
         let (window, gl_config) = {
             profiling::scope!("DisplayBuilder::build");
@@ -1095,6 +1099,7 @@ impl GlutinWindowContext {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder: viewport_builder,
+                window_attributes: Some(root_window_attributes),
                 deferred_commands: vec![],
                 info: viewport_info,
                 actions_requested: Default::default(),
@@ -1161,10 +1166,9 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
-            let window_attributes = egui_winit::create_winit_window_attributes(
-                &self.egui_ctx,
-                viewport.builder.clone(),
-            );
+            let window_attributes = viewport.window_attributes.take().unwrap_or_else(|| {
+                egui_winit::create_winit_window_attributes(&self.egui_ctx, viewport.builder.clone())
+            });
             if window_attributes.transparent()
                 && self.gl_config.supports_transparency() == Some(false)
             {
@@ -1411,6 +1415,7 @@ fn initialize_or_update_viewport(
                 ids,
                 class,
                 builder,
+                window_attributes: None,
                 deferred_commands: vec![],
                 info: Default::default(),
                 actions_requested: Default::default(),

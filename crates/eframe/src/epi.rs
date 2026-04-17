@@ -41,6 +41,14 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
+/// Hook into the building of the winit native window.
+///
+/// You can configure any platform specific details required on top of the default configuration
+/// done by `eframe`.
+#[cfg(not(target_arch = "wasm32"))]
+pub type WinitWindowAttributeBuilderHook =
+    Box<dyn FnOnce(winit::window::WindowAttributes) -> winit::window::WindowAttributes>;
+
 type DynError = Box<dyn std::error::Error + Send + Sync>;
 
 /// This is how your app is created.
@@ -369,6 +377,14 @@ pub struct NativeOptions {
     #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
     pub window_builder: Option<WindowBuilderHook>,
 
+    /// Hook into the building of the winit native window.
+    ///
+    /// Specify a callback here in case you need to make platform specific changes to the
+    /// native window before it is created.
+    ///
+    /// Note: A [`NativeOptions`] clone will not include any `native_window_builder` hook.
+    pub winit_window_attribute_builder: Option<WinitWindowAttributeBuilderHook>,
+
     #[cfg(feature = "glow")]
     /// Needed for cross compiling for VirtualBox VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
     /// See <https://github.com/emilk/egui/pull/1993>.
@@ -427,6 +443,8 @@ impl Clone for NativeOptions {
             #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             window_builder: None, // Skip any builder callbacks if cloning
 
+            winit_window_attribute_builder: None, // Skip any builder callbacks if cloning
+
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_options: self.wgpu_options.clone(),
 
@@ -462,6 +480,8 @@ impl Default for NativeOptions {
 
             #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             window_builder: None,
+
+            winit_window_attribute_builder: None,
 
             #[cfg(feature = "glow")]
             shader_version: None,
