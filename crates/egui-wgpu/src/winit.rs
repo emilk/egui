@@ -3,7 +3,7 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 #![expect(unsafe_code)]
 
-use crate::{RenderState, SurfaceErrorAction, WgpuConfiguration, renderer};
+use crate::{RenderState, SurfaceConfig, SurfaceErrorAction, WgpuConfiguration, renderer};
 use crate::{
     RendererOptions,
     capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
@@ -27,7 +27,7 @@ struct SurfaceState {
 /// NOTE: all egui viewports share the same painter.
 pub struct Painter {
     context: Context,
-    configuration: WgpuConfiguration,
+    config: WgpuConfiguration,
     options: RendererOptions,
     support_transparent_backbuffer: bool,
     screen_capture_state: Option<CaptureState>,
@@ -58,16 +58,16 @@ impl Painter {
     /// associated.
     pub async fn new(
         context: Context,
-        configuration: WgpuConfiguration,
+        config: WgpuConfiguration,
         support_transparent_backbuffer: bool,
         options: RendererOptions,
     ) -> Self {
         let (capture_tx, capture_rx) = capture_channel();
-        let instance = configuration.wgpu_setup.new_instance().await;
+        let instance = config.wgpu_setup.new_instance().await;
 
         Self {
             context,
-            configuration,
+            config,
             options,
             support_transparent_backbuffer,
             screen_capture_state: None,
@@ -94,9 +94,14 @@ impl Painter {
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
-        config: &WgpuConfiguration,
+        config: &SurfaceConfig,
     ) {
         profiling::function_scope!();
+
+        let SurfaceConfig {
+            present_mode,
+            desired_maximum_frame_latency,
+        } = *config;
 
         let width = surface_state.width;
         let height = surface_state.height;
@@ -104,7 +109,7 @@ impl Painter {
         let mut surf_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: render_state.target_format,
-            present_mode: config.present_mode,
+            present_mode,
             alpha_mode: surface_state.alpha_mode,
             view_formats: vec![render_state.target_format],
             ..surface_state
@@ -113,7 +118,7 @@ impl Painter {
                 .expect("The surface isn't supported by this adapter")
         };
 
-        if let Some(desired_maximum_frame_latency) = config.desired_maximum_frame_latency {
+        if let Some(desired_maximum_frame_latency) = desired_maximum_frame_latency {
             surf_config.desired_maximum_frame_latency = desired_maximum_frame_latency;
         }
 
@@ -201,13 +206,9 @@ impl Painter {
         let render_state = if let Some(render_state) = &self.render_state {
             render_state
         } else {
-            let render_state = RenderState::create(
-                &self.configuration,
-                &self.instance,
-                Some(&surface),
-                self.options,
-            )
-            .await?;
+            let render_state =
+                RenderState::create(&self.config, &self.instance, Some(&surface), self.options)
+                    .await?;
             self.render_state.get_or_insert(render_state)
         };
         let alpha_mode = if self.support_transparent_backbuffer {
@@ -278,7 +279,7 @@ impl Painter {
         surface_state.width = width;
         surface_state.height = height;
 
-        Self::configure_surface(surface_state, render_state, &self.configuration);
+        Self::configure_surface(surface_state, render_state, &self.config.surface);
 
         if let Some(depth_format) = self.options.depth_stencil_format {
             self.depth_texture_view.insert(
@@ -375,7 +376,7 @@ impl Painter {
                     Self::configure_surface(
                         state,
                         self.render_state.as_ref().unwrap(),
-                        &self.configuration,
+                        &self.config.surface,
                     );
                 }
             }
@@ -449,6 +450,20 @@ impl Painter {
         let capture = !capture_data.is_empty();
         let mut vsync_sec = 0.0;
 
+        // Apply any runtime changes requested via `RenderState::surface_config`.
+        // We diff against the already-applied values in `self.config.surface`
+        // and, if anything differs, mark every surface as needing reconfiguration so
+        // the existing `needs_reconfigure` pathway below picks them up.
+        if let Some(render_state) = self.render_state.as_ref()
+            && render_state.surface_config != self.config.surface
+        {
+            self.config.surface = render_state.surface_config;
+            #[expect(clippy::iter_over_hash_type)]
+            for surface in self.surfaces.values_mut() {
+                surface.needs_reconfigure = true;
+            }
+        }
+
         let Some(render_state) = self.render_state.as_mut() else {
             return vsync_sec;
         };
@@ -496,7 +511,7 @@ impl Painter {
         };
 
         if surface_state.needs_reconfigure {
-            Self::configure_surface(surface_state, render_state, &self.configuration);
+            Self::configure_surface(surface_state, render_state, &self.config.surface);
             surface_state.needs_reconfigure = false;
         }
 
@@ -516,9 +531,9 @@ impl Painter {
                 frame
             }
             other => {
-                match (*self.configuration.on_surface_status)(&other) {
+                match (*self.config.on_surface_status)(&other) {
                     SurfaceErrorAction::RecreateSurface => {
-                        Self::configure_surface(surface_state, render_state, &self.configuration);
+                        Self::configure_surface(surface_state, render_state, &self.config.surface);
                     }
                     SurfaceErrorAction::SkipFrame => {}
                 }
