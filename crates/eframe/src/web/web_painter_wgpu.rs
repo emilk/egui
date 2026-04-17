@@ -118,7 +118,7 @@ impl WebPainterWgpu {
 
         let surface_configuration = wgpu::SurfaceConfiguration {
             format: render_state.target_format,
-            present_mode: wgpu_options.present_mode,
+            present_mode: wgpu_options.surface.present_mode,
             view_formats: vec![render_state.target_format],
             ..default_configuration
         };

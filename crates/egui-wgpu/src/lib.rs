@@ -64,6 +64,43 @@ pub enum WgpuError {
     HandleError(#[from] ::winit::raw_window_handle::HandleError),
 }
 
+/// Runtime-mutable subset of [`WgpuConfiguration`].
+///
+/// Edit any field to have the surface reconfigured on the next paint.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct SurfaceConfig {
+    /// Present mode used for the primary surface.
+    pub present_mode: wgpu::PresentMode,
+
+    /// Desired maximum number of frames that the presentation engine should queue in advance.
+    ///
+    /// Use `1` for low-latency, and `2` for high-throughput.
+    ///
+    /// See [`wgpu::SurfaceConfiguration::desired_maximum_frame_latency`] for details.
+    ///
+    /// `None` => Let `wgpu` pick a default (currently `2`).
+    pub desired_maximum_frame_latency: Option<u32>,
+}
+
+impl SurfaceConfig {
+    /// Good default for GUIs with very little (or no) extra GPU work.
+    pub const LOW_LATENCY: Self = Self {
+        present_mode: wgpu::PresentMode::AutoVsync,
+        desired_maximum_frame_latency: if cfg!(target_os = "ios") {
+            None // The default is good on iOS, while `Some(1)` cuts FPS in half
+        } else {
+            Some(1) // Low-latency by default.
+        },
+    };
+
+    /// Good default for GUIs with a lot of extra GPU work,
+    /// or that want to prioritize smoothness over latency.
+    pub const HIGH_THROUGHPUT: Self = Self {
+        present_mode: wgpu::PresentMode::AutoVsync,
+        desired_maximum_frame_latency: Some(2), // High-throughput.
+    };
+}
+
 /// Access to the render state for egui.
 #[derive(Clone)]
 pub struct RenderState {
@@ -88,6 +125,11 @@ pub struct RenderState {
 
     /// Egui renderer responsible for drawing the UI.
     pub renderer: Arc<RwLock<Renderer>>,
+
+    /// Runtime-mutable subset of the wgpu configuration.
+    ///
+    /// Update this to have the surface reconfigured on the next paint.
+    pub surface_config: SurfaceConfig,
 }
 
 async fn request_adapter(
@@ -243,6 +285,7 @@ impl RenderState {
             queue,
             target_format,
             renderer: Arc::new(RwLock::new(renderer)),
+            surface_config: config.surface,
         })
     }
 }
@@ -273,17 +316,11 @@ pub enum SurfaceErrorAction {
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
 #[derive(Clone)]
 pub struct WgpuConfiguration {
-    /// Present mode used for the primary surface.
-    pub present_mode: wgpu::PresentMode,
-
-    /// Desired maximum number of frames that the presentation engine should queue in advance.
+    /// Runtime-mutable configuration for the surface (present mode, frame latency).
     ///
-    /// Use `1` for low-latency, and `2` for high-throughput.
-    ///
-    /// See [`wgpu::SurfaceConfiguration::desired_maximum_frame_latency`] for details.
-    ///
-    /// `None` = `wgpu` default.
-    pub desired_maximum_frame_latency: Option<u32>,
+    /// These are the fields exposed via [`RenderState::surface_config`] for live
+    /// reconfiguration at runtime.
+    pub surface: SurfaceConfig,
 
     /// How to create the wgpu adapter & device
     pub wgpu_setup: WgpuSetup,
@@ -308,31 +345,29 @@ fn wgpu_config_impl_send_sync() {
 impl std::fmt::Debug for WgpuConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
-            present_mode,
-            desired_maximum_frame_latency,
+            surface,
             wgpu_setup,
             on_surface_status: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
-            .field("present_mode", &present_mode)
-            .field(
-                "desired_maximum_frame_latency",
-                &desired_maximum_frame_latency,
-            )
+            .field("surface", &surface)
             .field("wgpu_setup", &wgpu_setup)
             .finish_non_exhaustive()
+    }
+}
+
+impl WgpuConfiguration {
+    #[inline]
+    pub fn with_surface_config(mut self, surface_config: SurfaceConfig) -> Self {
+        self.surface = surface_config;
+        self
     }
 }
 
 impl Default for WgpuConfiguration {
     fn default() -> Self {
         Self {
-            present_mode: wgpu::PresentMode::AutoVsync,
-            desired_maximum_frame_latency: if cfg!(target_os = "ios") {
-                None // The default is good on iOS, while `Some(1)` cuts FPS in half
-            } else {
-                Some(1) // Low-latency by default.
-            },
+            surface: SurfaceConfig::HIGH_THROUGHPUT,
 
             // No display handle available at this point — callers should replace this with
             // `WgpuSetup::from_display_handle(...)` before creating the instance if one is available.
