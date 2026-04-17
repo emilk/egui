@@ -469,7 +469,8 @@ impl Default for NativeOptions {
             centered: false,
 
             #[cfg(feature = "wgpu_no_default_features")]
-            wgpu_options: egui_wgpu::WgpuConfiguration::default(),
+            wgpu_options: egui_wgpu::WgpuConfiguration::default()
+                .with_surface_config(egui_wgpu::SurfaceConfig::LOW_LATENCY),
 
             persist_window: true,
 

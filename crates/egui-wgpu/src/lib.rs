@@ -78,21 +78,27 @@ pub struct SurfaceConfig {
     ///
     /// See [`wgpu::SurfaceConfiguration::desired_maximum_frame_latency`] for details.
     ///
-    /// `None` = `wgpu` default.
+    /// `None` => Let `wgpu` pick a default (currently `2`).
     pub desired_maximum_frame_latency: Option<u32>,
 }
 
-impl Default for SurfaceConfig {
-    fn default() -> Self {
-        Self {
-            present_mode: wgpu::PresentMode::AutoVsync,
-            desired_maximum_frame_latency: if cfg!(target_os = "ios") {
-                None // The default is good on iOS, while `Some(1)` cuts FPS in half
-            } else {
-                Some(1) // Low-latency by default.
-            },
-        }
-    }
+impl SurfaceConfig {
+    /// Good default for GUIs with very little (or no) extra GPU work.
+    pub const LOW_LATENCY: Self = Self {
+        present_mode: wgpu::PresentMode::AutoVsync,
+        desired_maximum_frame_latency: if cfg!(target_os = "ios") {
+            None // The default is good on iOS, while `Some(1)` cuts FPS in half
+        } else {
+            Some(1) // Low-latency by default.
+        },
+    };
+
+    /// Good default for GUIs with a lot of extra GPU work,
+    /// or that want to prioritize smoothness over latency.
+    pub const HIGH_THROUGHPUT: Self = Self {
+        present_mode: wgpu::PresentMode::AutoVsync,
+        desired_maximum_frame_latency: Some(2), // High-throughput.
+    };
 }
 
 /// Access to the render state for egui.
@@ -350,10 +356,18 @@ impl std::fmt::Debug for WgpuConfiguration {
     }
 }
 
+impl WgpuConfiguration {
+    #[inline]
+    pub fn with_surface_config(mut self, surface_config: SurfaceConfig) -> Self {
+        self.surface = surface_config;
+        self
+    }
+}
+
 impl Default for WgpuConfiguration {
     fn default() -> Self {
         Self {
-            surface: SurfaceConfig::default(),
+            surface: SurfaceConfig::HIGH_THROUGHPUT,
 
             // No display handle available at this point — callers should replace this with
             // `WgpuSetup::from_display_handle(...)` before creating the instance if one is available.
