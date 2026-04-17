@@ -473,6 +473,10 @@ pub struct WebOptions {
     #[cfg(feature = "glow")]
     pub webgl_context_option: WebGlContextOption,
 
+    /// Configures glow instance.
+    #[cfg(feature = "glow")]
+    pub glow_options: egui_glow::GlowConfiguration,
+
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu_no_default_features")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
@@ -516,6 +520,9 @@ impl Default for WebOptions {
 
             #[cfg(feature = "glow")]
             webgl_context_option: WebGlContextOption::BestFirst,
+
+            #[cfg(feature = "glow")]
+            glow_options: egui_glow::GlowConfiguration::default(),
 
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),

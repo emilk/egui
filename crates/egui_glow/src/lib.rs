@@ -97,6 +97,7 @@ pub fn check_for_gl_error_impl(gl: &glow::Context, file: &str, line: u32, contex
 }
 
 /// Selects the level of hardware graphics acceleration.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HardwareAcceleration {
     /// Require graphics acceleration.
@@ -118,11 +119,13 @@ pub struct GlowConfiguration {
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
     /// The default is `true`.
+    #[cfg(not(target_arch = "wasm32"))]
     pub vsync: bool,
 
     /// Specify whether or not hardware acceleration is preferred, required, or not.
     ///
     /// Default: [`HardwareAcceleration::Preferred`].
+    #[cfg(not(target_arch = "wasm32"))]
     pub hardware_acceleration: HardwareAcceleration,
 
     /// Needed for cross compiling for VirtualBox VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
@@ -135,7 +138,9 @@ pub struct GlowConfiguration {
 impl Default for GlowConfiguration {
     fn default() -> Self {
         Self {
+            #[cfg(not(target_arch = "wasm32"))]
             vsync: true,
+            #[cfg(not(target_arch = "wasm32"))]
             hardware_acceleration: HardwareAcceleration::Preferred,
             shader_version: None,
         }
