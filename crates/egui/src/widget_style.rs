@@ -147,7 +147,7 @@ impl Style {
         let mut visuals = *self.visuals.widgets.state(state);
         let mut ws = self.widget_style(classes, state);
 
-        if classes.has("selected") {
+        if classes.has(SELECTED_CLASS) {
             visuals.weak_bg_fill = self.visuals.selection.bg_fill;
             visuals.bg_fill = self.visuals.selection.bg_fill;
             visuals.fg_stroke = self.visuals.selection.stroke;
