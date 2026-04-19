@@ -333,6 +333,19 @@ pub struct ViewportBuilder {
     // X11
     pub window_type: Option<X11WindowType>,
     pub override_redirect: Option<bool>,
+
+    /// Target monitor index for borderless fullscreen.
+    ///
+    /// When set, the window is placed in borderless fullscreen on the monitor at
+    /// the given index in `available_monitors()` order (same order returned by
+    /// winit). Works on Windows, macOS, and Linux (X11 + Wayland).
+    ///
+    /// If the index is out of range, it is ignored and a warning is logged.
+    ///
+    /// Takes precedence over [`Self::with_position`] / [`Self::with_fullscreen`]
+    /// for monitor selection: if both are set, the window will be fullscreen on
+    /// the chosen monitor.
+    pub monitor: Option<usize>,
 }
 
 impl ViewportBuilder {
@@ -680,6 +693,20 @@ impl ViewportBuilder {
         self
     }
 
+    /// Place the window in borderless fullscreen on the monitor at `index`.
+    ///
+    /// The index refers to the order returned by winit's `available_monitors()`.
+    /// Works cross-platform (Windows, macOS, Linux X11 + Wayland). On Wayland
+    /// this is the only reliable way to target a specific output, since
+    /// absolute window positions are not exposed.
+    ///
+    /// If the index is out of range, the flag is ignored at window creation time.
+    #[inline]
+    pub fn with_monitor(mut self, index: usize) -> Self {
+        self.monitor = Some(index);
+        self
+    }
+
     /// Update this `ViewportBuilder` with a delta,
     /// returning a list of commands and a bool indicating if the window needs to be recreated.
     #[must_use]
@@ -717,6 +744,7 @@ impl ViewportBuilder {
             taskbar: new_taskbar,
             window_type: new_window_type,
             override_redirect: new_override_redirect,
+            monitor: new_monitor,
         } = new_vp_builder;
 
         let mut commands = Vec::new();
@@ -919,6 +947,13 @@ impl ViewportBuilder {
             recreate_window = true;
         }
 
+        if let Some(new_monitor) = new_monitor
+            && Some(new_monitor) != self.monitor
+        {
+            self.monitor = Some(new_monitor);
+            commands.push(ViewportCommand::SetMonitor(new_monitor));
+        }
+
         (commands, recreate_window)
     }
 }
@@ -1104,6 +1139,12 @@ pub enum ViewportCommand {
 
     /// Turn borderless fullscreen on/off.
     Fullscreen(bool),
+
+    /// Move the window to borderless fullscreen on the monitor at the given index.
+    ///
+    /// Index refers to winit's `available_monitors()` order. If out of range, the
+    /// command is ignored (logged as a warning).
+    SetMonitor(usize),
 
     /// Show window decorations, i.e. the chrome around the content
     /// with the title bar, close buttons, resize handles, etc.
