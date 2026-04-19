@@ -678,7 +678,9 @@ impl GlowWinitRunning<'_> {
         egui_winit.handle_platform_output(&window, platform_output);
 
         if is_visible {
-            let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
+            let clipped_primitives = integration
+                .egui_ctx
+                .tessellate_for_viewport(viewport_id, shapes, pixels_per_point);
 
             {
                 // We may need to switch contexts again, because of immediate viewports:
@@ -1533,7 +1535,8 @@ fn render_immediate_viewport(
 
     // ---------------------------------------------------
 
-    let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+    let clipped_primitives =
+        egui_ctx.tessellate_for_viewport(viewport_id, shapes, pixels_per_point);
 
     let mut glutin = glutin.borrow_mut();
 

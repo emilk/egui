@@ -2884,6 +2884,23 @@ impl Context {
         shapes: Vec<ClippedShape>,
         pixels_per_point: f32,
     ) -> Vec<ClippedPrimitive> {
+        self.tessellate_for_viewport(ViewportId::ROOT, shapes, pixels_per_point)
+    }
+
+    /// Same as [`Self::tessellate`] but applies the viewport rotation of the
+    /// given `viewport_id` instead of the currently-active viewport.
+    ///
+    /// Required because [`Self::tessellate`] is typically called by the
+    /// integration **after** the viewport pass has ended (so `viewport_stack`
+    /// is already popped). Without explicit targeting, the current-viewport
+    /// fallback resolves to `ROOT`, which causes the root's rotation to leak
+    /// into all other viewports' rendering.
+    pub fn tessellate_for_viewport(
+        &self,
+        viewport_id: ViewportId,
+        shapes: Vec<ClippedShape>,
+        pixels_per_point: f32,
+    ) -> Vec<ClippedPrimitive> {
         profiling::function_scope!();
 
         // A tempting optimization is to reuse the tessellation from last frame if the
@@ -2917,9 +2934,10 @@ impl Context {
             ctx.paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
 
             // Apply viewport rotation: transform from logical UI space back to physical screen space
-            let rotation = ctx.viewport().viewport_rotation;
+            let viewport = ctx.viewport_for(viewport_id);
+            let rotation = viewport.viewport_rotation;
             if !rotation.is_none() {
-                let logical_size = ctx.viewport().input.viewport_rect().size();
+                let logical_size = viewport.input.viewport_rect().size();
                 for primitive in &mut clipped_primitives {
                     // Rotate clip_rect back to physical space
                     let min = rotation.inverse_transform_pos(

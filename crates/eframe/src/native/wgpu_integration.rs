@@ -709,7 +709,8 @@ impl WgpuWinitRunning<'_> {
         egui_winit.handle_platform_output(window, platform_output);
 
         let vsync_secs = if is_visible {
-            let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+            let clipped_primitives =
+                egui_ctx.tessellate_for_viewport(viewport_id, shapes, pixels_per_point);
 
             let mut screenshot_commands = vec![];
             viewport.actions_requested.retain(|cmd| {
@@ -1109,7 +1110,7 @@ fn render_immediate_viewport(
         }
     }
 
-    let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+    let clipped_primitives = egui_ctx.tessellate_for_viewport(ids.this, shapes, pixels_per_point);
     painter.paint_and_update_textures(
         ids.this,
         pixels_per_point,
