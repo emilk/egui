@@ -195,6 +195,8 @@ impl<'app> WgpuWinitApp<'app> {
         {
             create_new.display_handle = Some(Box::new(event_loop.owned_display_handle()));
         }
+        // All native WGPU viewports share one painter/render state, so root transparency decides
+        // whether the shared renderer is configured for transparent surfaces.
         let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
             wgpu_options,
@@ -956,7 +958,12 @@ impl Viewport {
 
         let viewport_id = self.ids.this;
 
-        match egui_winit::create_window(egui_ctx, event_loop, &self.builder) {
+        match egui_winit::create_window_with_attributes(
+            egui_ctx,
+            event_loop,
+            &self.builder,
+            |window_attributes| configure_wgpu_window_attributes(&self.builder, window_attributes),
+        ) {
             Ok(window) => {
                 windows_id.insert(window.id(), viewport_id);
 
@@ -987,6 +994,27 @@ impl Viewport {
     }
 }
 
+fn configure_wgpu_window_attributes(
+    viewport_builder: &ViewportBuilder,
+    window_attributes: winit::window::WindowAttributes,
+) -> winit::window::WindowAttributes {
+    #[cfg(target_os = "windows")]
+    {
+        use winit::platform::windows::WindowAttributesExtWindows as _;
+
+        if viewport_builder.transparent.unwrap_or(false)
+            && viewport_builder.decorations.unwrap_or(true)
+        {
+            // Transparent decorated WGPU windows present through DirectComposition. Opt out of the
+            // DWM redirection bitmap so the compositor does not keep an opaque fallback surface
+            // behind the swapchain content.
+            return window_attributes.with_no_redirection_bitmap(true);
+        }
+    }
+
+    window_attributes
+}
+
 fn create_window(
     egui_ctx: &egui::Context,
     event_loop: &ActiveEventLoop,
@@ -1004,7 +1032,12 @@ fn create_window(
     )
     .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
 
-    let window = egui_winit::create_window(egui_ctx, event_loop, &viewport_builder)?;
+    let window = egui_winit::create_window_with_attributes(
+        egui_ctx,
+        event_loop,
+        &viewport_builder,
+        |window_attributes| configure_wgpu_window_attributes(&viewport_builder, window_attributes),
+    )?;
     epi_integration::apply_window_settings(&window, window_settings);
     Ok((window, viewport_builder))
 }
