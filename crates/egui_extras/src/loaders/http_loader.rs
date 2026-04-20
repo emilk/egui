@@ -48,6 +48,7 @@ pub struct EhttpLoader {
 impl EhttpLoader {
     pub const ID: &'static str = egui::generate_loader_id!(EhttpLoader);
 
+    /// Add additional headers to be sent with each request.
     pub fn with_headers(mut self, headers: &[(&str, &str)]) -> Self {
         self.headers = ehttp::Headers::new(headers);
         self
