@@ -4,8 +4,6 @@
 //! Communication is over stdin/stdout: the harness pipes [`HarnessMessage`]s into our stdin
 //! and reads [`InspectorReply`]s from our stdout. All logging goes to stderr.
 
-#![expect(clippy::print_stderr)] // The inspector binary's only logging channel is stderr.
-
 use std::io::{self, BufReader, BufWriter};
 use std::sync::mpsc;
 use std::thread;
@@ -47,6 +45,15 @@ impl SkipState {
 }
 
 fn main() -> eframe::Result<()> {
+    // Install a panic hook that writes to our own log file (not the inherited — and
+    // potentially captured — stderr of the harness). Whatever the main thread or a spawned
+    // worker does, we always get a breadcrumb on disk.
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        log_diag(&format!("PANIC: {info}"));
+        default(info);
+    }));
+
     // Cross-process single-instance guard. If another inspector is already running, block
     // here until that window closes. Held for the lifetime of `_lock`; the OS releases the
     // flock when the file descriptor is dropped on exit.
@@ -91,7 +98,7 @@ fn run_io(ui_tx: &mpsc::Sender<WorkerEvent>, release_rx: &ReleaseRx) {
                     return;
                 };
                 if let Err(err) = write_message(&mut writer, &InspectorReply::Continue { events }) {
-                    eprintln!("kittest_inspector: write failed: {err}");
+                    log_diag(&format!("write failed: {err}"));
                     return;
                 }
             }
@@ -101,7 +108,7 @@ fn run_io(ui_tx: &mpsc::Sender<WorkerEvent>, release_rx: &ReleaseRx) {
             }
             Err(err) => {
                 if err.kind() != io::ErrorKind::UnexpectedEof {
-                    eprintln!("kittest_inspector: read failed: {err}");
+                    log_diag(&format!("read failed: {err}"));
                 }
                 let _ = ui_tx.send(WorkerEvent::Disconnected);
                 return;
@@ -423,20 +430,27 @@ fn controls_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
             if ui
                 .add_enabled(total > 0, egui::Button::new("📋 Copy as GIF"))
                 .on_hover_text(
-                    "Encode the whole history as a GIF, write it to the system temp dir, \
-                     and copy the resulting path to the clipboard.",
+                    "Encode the whole history as a GIF and put it on the system clipboard \
+                     as a file reference — paste into Slack / Discord / Finder etc.",
                 )
                 .clicked()
             {
-                let message = match save_history_as_gif(&app.history, 10.0) {
-                    Ok(path) => {
-                        ui.ctx().copy_text(path.display().to_string());
-                        format!("Copied path to clipboard: {}", path.display())
-                    }
-                    Err(err) => format!("Failed to save GIF: {err}"),
-                };
-                eprintln!("kittest_inspector: {message}");
-                app.status_message = Some(message);
+                log_diag("Copy as GIF clicked");
+                // Run the copy on a detached worker so a slow encode doesn't stall the UI.
+                // (We can't `catch_unwind` under `panic = abort`, but the panic hook still
+                // logs what happened, and the real broken-pipe cause is fixed upstream.)
+                let history = app.history.clone();
+                let _ = std::thread::Builder::new()
+                    .name("kittest_inspector_copy_gif".into())
+                    .spawn(move || match copy_history_as_gif(&history, 10.0) {
+                        Ok(path) => log_diag(&format!(
+                            "Copied GIF to clipboard: {}",
+                            path.display()
+                        )),
+                        Err(err) => log_diag(&format!("Failed to copy GIF: {err}")),
+                    });
+                app.status_message =
+                    Some("Encoding + copying GIF on background thread — see log".into());
             }
             if let Some(msg) = app.status_message.as_deref() {
                 ui.weak(msg);
@@ -1023,9 +1037,11 @@ fn widget_details(ui: &mut egui::Ui, id: NodeId, node: &Node) {
 }
 
 /// Encode the entire history as a looping GIF, write it to a timestamped file in the system
-/// temp dir, and return the path. Mirrors the recorder's GIF behaviour: animation plays at
-/// `frame_rate`, last frame held for one second so the loop point is obvious.
-fn save_history_as_gif(
+/// temp dir, and put a *file reference* for that path onto the system clipboard via arboard.
+/// Pasting into Slack / Discord / GitHub / Finder etc. attaches the GIF with animation intact.
+/// Mirrors the recorder's GIF behaviour: animation plays at `frame_rate`, last frame held
+/// for one second so the loop point is obvious.
+fn copy_history_as_gif(
     history: &[Frame],
     frame_rate: f32,
 ) -> Result<std::path::PathBuf, String> {
@@ -1034,6 +1050,10 @@ fn save_history_as_gif(
     if history.is_empty() {
         return Err("history is empty".into());
     }
+    log_diag(&format!(
+        "encoding {} frame(s) @ {frame_rate} fps",
+        history.len()
+    ));
 
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1042,6 +1062,7 @@ fn save_history_as_gif(
     // Stable-across-processes temp path is fine here: each invocation wants a fresh file.
     #[expect(clippy::disallowed_methods)]
     let path = std::env::temp_dir().join(format!("kittest_inspector_{ts}.gif"));
+    log_diag(&format!("writing to {}", path.display()));
 
     let file = std::fs::File::create(&path)
         .map_err(|err| format!("couldn't create {}: {err}", path.display()))?;
@@ -1078,6 +1099,18 @@ fn save_history_as_gif(
             .encode_frame(anim_frame)
             .map_err(|err| format!("encode frame {i}: {err}"))?;
     }
+    // Finalise the GIF write before handing the path to the clipboard.
+    drop(encoder);
+    log_diag("GIF encoded, opening clipboard…");
+
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|err| format!("open clipboard: {err}"))?;
+    log_diag("clipboard opened, setting file_list…");
+    clipboard
+        .set()
+        .file_list(&[&path])
+        .map_err(|err| format!("set clipboard file list: {err}"))?;
+    log_diag("clipboard file_list set");
 
     Ok(path)
 }
@@ -1102,10 +1135,10 @@ fn acquire_single_instance_lock() -> Option<std::fs::File> {
     {
         Ok(f) => f,
         Err(err) => {
-            eprintln!(
-                "kittest_inspector: couldn't open lock file {}: {err} (running without single-instance guard)",
+            log_diag(&format!(
+                "couldn't open lock file {}: {err} (running without single-instance guard)",
                 path.display()
-            );
+            ));
             return None;
         }
     };
@@ -1113,8 +1146,29 @@ fn acquire_single_instance_lock() -> Option<std::fs::File> {
     match FileExt::lock_exclusive(&file) {
         Ok(()) => Some(file),
         Err(err) => {
-            eprintln!("kittest_inspector: failed to acquire lock: {err}");
+            log_diag(&format!("failed to acquire lock: {err}"));
             None
         }
+    }
+}
+
+/// Append a diagnostic line to `{temp}/kittest_inspector.log`. We do NOT write to stderr —
+/// when the harness's captured stderr pipe closes mid-run, `eprintln!` panics with
+/// "failed printing to stderr: Broken pipe" and kills the window.
+fn log_diag(msg: &str) {
+    use std::io::Write as _;
+
+    #[expect(clippy::disallowed_methods)]
+    let path = std::env::temp_dir().join("kittest_inspector.log");
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0);
+        let _ = writeln!(f, "[{ts}] {msg}");
     }
 }

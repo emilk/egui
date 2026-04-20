@@ -2532,6 +2532,7 @@ name = "kittest_inspector"
 version = "0.34.1"
 dependencies = [
  "accesskit",
+ "arboard",
  "bincode 2.0.1",
  "eframe",
  "egui",

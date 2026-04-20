@@ -70,10 +70,15 @@ impl Inspector {
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("kittest_inspector"));
 
+        // Important: do NOT inherit stderr. The cargo-test / nextest stderr capture pipe
+        // can close between tests while the inspector is still alive; a later `eprintln!`
+        // in the inspector would then panic ("failed printing to stderr: Broken pipe") and
+        // take the window down. The inspector keeps its own log file at
+        // `{temp}/kittest_inspector.log` for diagnostics.
         let mut child = Command::new(&bin)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::null())
             .spawn()
             .map_err(InspectorError::Launch)?;
 
