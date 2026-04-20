@@ -55,6 +55,10 @@ pub struct GlowWinitApp<'app> {
     // re-initializing the `GlowWinitRunning` state on Android if the application
     // suspends and resumes.
     app_creator: Option<AppCreator<'app>>,
+
+    /// An optional pre-existing egui context. If `Some`, it is used instead of
+    /// creating a new one via [`create_egui_context`]. Taken during initialization.
+    egui_ctx: Option<egui::Context>,
 }
 
 /// State that is initialized when the application is first starts running via
@@ -128,6 +132,7 @@ impl<'app> GlowWinitApp<'app> {
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
+        egui_ctx: Option<egui::Context>,
         app_creator: AppCreator<'app>,
     ) -> Self {
         profiling::function_scope!();
@@ -137,6 +142,7 @@ impl<'app> GlowWinitApp<'app> {
             native_options,
             running: None,
             app_creator: Some(app_creator),
+            egui_ctx,
         }
     }
 
@@ -209,7 +215,10 @@ impl<'app> GlowWinitApp<'app> {
             )
         };
 
-        let egui_ctx = create_egui_context(storage.as_deref());
+        let egui_ctx = self
+            .egui_ctx
+            .take()
+            .unwrap_or_else(|| create_egui_context(storage.as_deref()));
 
         let (mut glutin, painter) = Self::create_glutin_windowed_context(
             &egui_ctx,

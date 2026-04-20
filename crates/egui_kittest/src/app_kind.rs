@@ -4,17 +4,21 @@ type AppKindUiState<'a, State> = Box<dyn FnMut(&mut egui::Ui, &mut State) + 'a>;
 type AppKindUi<'a> = Box<dyn FnMut(&mut egui::Ui) + 'a>;
 
 /// In order to access the [`eframe::App`] trait from the generic `State`, we store a function pointer
-/// here that will return the dyn trait from the struct. In the builder we have the correct where
-/// clause to be able to create this.
+/// here that will return the dyn trait from the struct.
+/// In the builder we have the correct `where`-clause to be able to create this.
 /// Later we can use it anywhere to get the [`eframe::App`] from the `State`.
 #[cfg(feature = "eframe")]
-type AppKindEframe<'a, State> = (fn(&mut State) -> &mut dyn eframe::App, eframe::Frame);
+pub(crate) struct AppKindEframe<State> {
+    pub get_app: fn(&mut State) -> &mut dyn eframe::App,
+    pub take_app: fn(State) -> Box<dyn eframe::App>,
+    pub frame: eframe::Frame,
+}
 
 pub(crate) enum AppKind<'a, State> {
     Ui(AppKindUi<'a>),
     UiState(AppKindUiState<'a, State>),
     #[cfg(feature = "eframe")]
-    Eframe(AppKindEframe<'a, State>),
+    Eframe(AppKindEframe<State>),
 }
 
 impl<State> AppKind<'_, State> {
@@ -26,13 +30,10 @@ impl<State> AppKind<'_, State> {
     ) -> Option<egui::Response> {
         match self {
             #[cfg(feature = "eframe")]
-            AppKind::Eframe((get_app, frame)) => {
+            AppKind::Eframe(AppKindEframe { get_app, frame, .. }) => {
                 let app = get_app(state);
-
                 app.logic(ui, frame);
-
                 app.ui(ui, frame);
-
                 None
             }
             kind_ui => Some(kind_ui.run_ui(ui, state, sizing_pass)),

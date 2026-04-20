@@ -258,7 +258,26 @@ pub mod icon_data;
 #[allow(clippy::allow_attributes, clippy::needless_pass_by_value)]
 pub fn run_native(
     app_name: &str,
+    native_options: NativeOptions,
+    app_creator: AppCreator<'_>,
+) -> Result {
+    run_native_ext(app_name, native_options, None, app_creator)
+}
+
+/// Like [`run_native`], but lets you supply a pre-existing [`egui::Context`].
+///
+/// If `egui_ctx` is `Some`, that context will be used by eframe instead of creating a fresh one.
+/// If it is `None`, eframe creates a new context (same behavior as [`run_native`]).
+///
+/// # Errors
+/// This function can fail if we fail to set up a graphics context.
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+#[allow(clippy::allow_attributes, clippy::needless_pass_by_value)]
+pub fn run_native_ext(
+    app_name: &str,
     mut native_options: NativeOptions,
+    egui_ctx: Option<egui::Context>,
     app_creator: AppCreator<'_>,
 ) -> Result {
     let renderer = init_native(app_name, &mut native_options);
@@ -267,13 +286,13 @@ pub fn run_native(
         #[cfg(feature = "glow")]
         Renderer::Glow => {
             log::debug!("Using the glow renderer");
-            native::run::run_glow(app_name, native_options, app_creator)
+            native::run::run_glow(app_name, native_options, egui_ctx, app_creator)
         }
 
         #[cfg(feature = "wgpu_no_default_features")]
         Renderer::Wgpu => {
             log::debug!("Using the wgpu renderer");
-            native::run::run_wgpu(app_name, native_options, app_creator)
+            native::run::run_wgpu(app_name, native_options, egui_ctx, app_creator)
         }
     }
 }
