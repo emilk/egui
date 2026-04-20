@@ -1392,6 +1392,7 @@ dependencies = [
 name = "egui_kittest"
 version = "0.34.1"
 dependencies = [
+ "backtrace",
  "dify",
  "document-features",
  "eframe",

@@ -19,7 +19,7 @@ use accesskit::{Node, NodeId, Rect as AkRect};
 
 /// Internal worker → UI message.
 enum WorkerEvent {
-    Frame(Frame),
+    Frame(Box<Frame>),
     Disconnected,
 }
 
@@ -144,7 +144,7 @@ impl InspectorApp {
                     self.received_count += 1;
                     self.upload_frame(ctx, &frame);
                     // Keep the selection sticky across frames (same NodeId may still exist).
-                    self.current_frame = Some(frame);
+                    self.current_frame = Some(*frame);
                     self.worker_waiting = true;
                 }
                 WorkerEvent::Disconnected => {
@@ -271,6 +271,12 @@ fn details_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
                     ui.weak("Waiting for frames...");
                     return;
                 };
+
+                egui::CollapsingHeader::new("Source")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        source_section(ui, &frame);
+                    });
 
                 egui::CollapsingHeader::new("Frame")
                     .default_open(true)
@@ -522,6 +528,89 @@ fn kv_grid(ui: &mut egui::Ui, id: &str, body: impl FnOnce(&mut egui::Ui)) {
         .num_columns(2)
         .striped(true)
         .show(ui, body);
+}
+
+/// Render the "Source" section: the test file (topmost common ancestor across the call and
+/// its events), with the relevant lines highlighted and the view scrolled to them.
+fn source_section(ui: &mut egui::Ui, frame: &kittest_inspector::Frame) {
+    let Some(source) = &frame.source else {
+        ui.weak("No source location for this frame.");
+        return;
+    };
+
+    ui.horizontal(|ui| {
+        ui.monospace(shorten_path(&source.path));
+        if let Some(line) = source.call_site_line {
+            ui.weak(format!("(producer: line {line})"));
+        }
+    });
+
+    let Some(contents) = source.contents.as_deref() else {
+        ui.weak(format!("(couldn't read {})", source.path));
+        return;
+    };
+
+    let call_site_line = source.call_site_line;
+    let event_lines: std::collections::HashSet<u32> = source.event_lines.iter().copied().collect();
+    let focus_line = call_site_line.or_else(|| source.event_lines.first().copied());
+
+    // Fixed-height viewport with auto-scroll to the focused line.
+    let row_height = ui.text_style_height(&egui::TextStyle::Monospace);
+    let scroll_area = egui::ScrollArea::both()
+        .auto_shrink([false, false])
+        .max_height(320.0);
+    let output = scroll_area.show_rows(ui, row_height, contents.lines().count(), |ui, range| {
+        for (idx, line) in contents.lines().enumerate().skip(range.start).take(range.len()) {
+            let line_no = idx as u32 + 1;
+            let is_call = Some(line_no) == call_site_line;
+            let is_event = event_lines.contains(&line_no);
+            let bg = if is_call {
+                Some(egui::Color32::from_rgb(30, 70, 120))
+            } else if is_event {
+                Some(egui::Color32::from_rgb(90, 60, 20))
+            } else {
+                None
+            };
+            source_line_row(ui, line_no, line, bg);
+        }
+    });
+
+    // Scroll the focused line into view on the first render of each new frame.
+    if let Some(focus) = focus_line {
+        let target_y = output.inner_rect.min.y + (focus.saturating_sub(1) as f32) * row_height;
+        let target = egui::Rect::from_min_size(
+            egui::pos2(output.inner_rect.min.x, target_y),
+            egui::vec2(1.0, row_height),
+        );
+        ui.scroll_to_rect(target, Some(egui::Align::Center));
+    }
+}
+
+fn source_line_row(ui: &mut egui::Ui, line_no: u32, text: &str, bg: Option<egui::Color32>) {
+    let row = ui.horizontal(|ui| {
+        ui.set_min_width(ui.available_width());
+        ui.add(egui::Label::new(
+            egui::RichText::new(format!("{line_no:>4} "))
+                .monospace()
+                .weak(),
+        ));
+        ui.add(egui::Label::new(egui::RichText::new(text).monospace()).wrap_mode(egui::TextWrapMode::Extend));
+    });
+    if let Some(color) = bg {
+        ui.painter().rect_filled(row.response.rect, 2.0, color);
+    }
+}
+
+/// Shorten a `rustc`-reported path for display — keep the last two components so we show
+/// `tests/menu.rs` instead of a long absolute path, while still disambiguating.
+fn shorten_path(path: &str) -> String {
+    let components: Vec<&str> = path.split(['/', '\\']).collect();
+    if components.len() <= 2 {
+        path.to_owned()
+    } else {
+        let n = components.len();
+        format!("{}/{}", components[n - 2], components[n - 1])
+    }
 }
 
 /// Render the inspector grid for a single accesskit node, mimicking egui's `inspection_ui`.

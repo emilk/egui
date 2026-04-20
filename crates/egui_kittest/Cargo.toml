@@ -30,7 +30,7 @@ snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 recording = ["dep:image", "image/gif", "image/png"]
 
 ## Stream frames + accesskit tree to a `kittest_inspector` window for live debugging.
-inspector = ["dep:image", "dep:kittest_inspector"]
+inspector = ["dep:image", "dep:kittest_inspector", "dep:backtrace"]
 
 ## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]
@@ -58,6 +58,7 @@ dify = { workspace = true, optional = true }
 
 # inspector dependencies
 kittest_inspector = { workspace = true, default-features = false, optional = true }
+backtrace = { workspace = true, optional = true }
 
 # Enable this when generating docs.
 document-features = { workspace = true, optional = true }

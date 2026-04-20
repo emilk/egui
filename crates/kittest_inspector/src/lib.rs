@@ -11,6 +11,24 @@
 
 use std::io::{self, Read, Write};
 
+/// One source file plus the test-source lines the inspector should highlight inside it.
+///
+/// The harness walks each captured backtrace (for the `.run()` call that produced the frame
+/// and each event consumed by it), finds the topmost common test-source file across all of
+/// them, reads that file, and emits its contents here. Highlights are line numbers within
+/// that file: [`call_site_line`] for the runner call, [`event_lines`] for each event.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SourceView {
+    /// Absolute or crate-relative path as reported by the backtrace resolver.
+    pub path: String,
+    /// Entire file contents, lines separated by `\n`. `None` if the file couldn't be read.
+    pub contents: Option<String>,
+    /// Line number of the `.run()` / `.step()` call that produced this frame.
+    pub call_site_line: Option<u32>,
+    /// Line numbers of events consumed by this frame's step, in queue order.
+    pub event_lines: Vec<u32>,
+}
+
 /// A single rendered frame plus the accesskit tree update produced by the harness step.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Frame {
@@ -29,13 +47,15 @@ pub struct Frame {
     pub accesskit: Option<accesskit::TreeUpdate>,
     /// Optional human-readable label (e.g. test name).
     pub label: Option<String>,
+    /// The test source file associated with this frame + the lines to highlight inside it.
+    pub source: Option<SourceView>,
 }
 
 /// Sent harness → inspector after every step, and once when the harness disconnects.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum HarnessMessage {
     /// A new frame is available.
-    Frame(Frame),
+    Frame(Box<Frame>),
     /// The harness is shutting down (e.g. `Drop`).
     Goodbye,
 }

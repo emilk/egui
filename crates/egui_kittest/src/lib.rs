@@ -105,6 +105,13 @@ pub struct Harness<'a, State = ()> {
     inspector: Option<inspector::Inspector>,
     #[cfg(feature = "inspector")]
     last_accesskit_update: Option<egui::accesskit::TreeUpdate>,
+    /// Backtrace captured at the most recent public runner call (e.g. `.run()` / `.step()`).
+    /// Used to find the topmost common test-source file across the call and its events.
+    #[cfg(feature = "inspector")]
+    current_call_site: node::EventSite,
+    /// Backtraces of events consumed in the step that produced the current frame.
+    #[cfg(feature = "inspector")]
+    consumed_event_sites: Vec<node::EventSite>,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -200,6 +207,10 @@ impl<'a, State> Harness<'a, State> {
             inspector: None,
             #[cfg(feature = "inspector")]
             last_accesskit_update: None,
+            #[cfg(feature = "inspector")]
+            current_call_site: node::empty_site(),
+            #[cfg(feature = "inspector")]
+            consumed_event_sites: Vec::new(),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -296,17 +307,30 @@ impl<'a, State> Harness<'a, State> {
     /// Run a frame for each queued event (or a single frame if there are no events).
     /// This will call the app closure with each queued event and
     /// update the Harness.
+    #[track_caller]
     pub fn step(&mut self) {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         let events = std::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
+            #[cfg(feature = "inspector")]
+            self.consumed_event_sites.clear();
             self._step(false);
         }
         for event in events {
+            #[cfg(feature = "inspector")]
+            self.consumed_event_sites.clear();
             match event {
-                EventType::Event(event) => {
+                EventType::Event(event, _site) => {
+                    #[cfg(feature = "inspector")]
+                    self.consumed_event_sites.push(_site);
                     self.input.events.push(event);
                 }
-                EventType::Modifiers(modifiers) => {
+                EventType::Modifiers(modifiers, _site) => {
+                    #[cfg(feature = "inspector")]
+                    self.consumed_event_sites.push(_site);
                     self.input.modifiers = modifiers;
                 }
             }
@@ -376,7 +400,12 @@ impl<'a, State> Harness<'a, State> {
     /// Resize the test harness to fit the contents. This only works when creating the Harness via
     /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
     /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
+    #[track_caller]
     pub fn fit_contents(&mut self) {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         self._step(true);
 
         // Calculate size including all content (main UI + popups + tooltips)
@@ -405,6 +434,10 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     #[track_caller]
     pub fn run(&mut self) -> u64 {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         match self.try_run() {
             Ok(steps) => steps,
             Err(err) => {
@@ -457,7 +490,12 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
+    #[track_caller]
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         self._try_run(false)
     }
 
@@ -474,7 +512,12 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
+    #[track_caller]
     pub fn run_ok(&mut self) -> Option<u64> {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         self.try_run().ok()
     }
 
@@ -497,13 +540,23 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run`].
+    #[track_caller]
     pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         self._try_run(true)
     }
 
     /// Run a number of steps.
     /// Equivalent to calling [`Harness::step`] x times.
+    #[track_caller]
     pub fn run_steps(&mut self, steps: usize) {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         for _ in 0..steps {
             self.step();
         }
@@ -541,7 +594,9 @@ impl<'a, State> Harness<'a, State> {
 
     /// Queue an event to be processed in the next frame.
     pub fn event(&self, event: egui::Event) {
-        self.queued_events.lock().push(EventType::Event(event));
+        self.queued_events
+            .lock()
+            .push(EventType::Event(event, node::capture_site()));
     }
 
     /// Queue an event with modifiers.
@@ -549,17 +604,18 @@ impl<'a, State> Harness<'a, State> {
     /// Queues the modifiers to be pressed, then the event, then the modifiers to be released.
     pub fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
         let mut queue = self.queued_events.lock();
-        queue.push(EventType::Modifiers(modifiers));
-        queue.push(EventType::Event(event));
-        queue.push(EventType::Modifiers(Modifiers::default()));
+        queue.push(EventType::Modifiers(modifiers, node::capture_site()));
+        queue.push(EventType::Event(event, node::capture_site()));
+        queue.push(EventType::Modifiers(Modifiers::default(), node::capture_site()));
     }
 
     fn modifiers(&self, modifiers: Modifiers) {
         self.queued_events
             .lock()
-            .push(EventType::Modifiers(modifiers));
+            .push(EventType::Modifiers(modifiers, node::capture_site()));
     }
 
+    #[track_caller]
     pub fn key_down(&self, key: egui::Key) {
         self.event(egui::Event::Key {
             key,
@@ -570,6 +626,7 @@ impl<'a, State> Harness<'a, State> {
         });
     }
 
+    #[track_caller]
     pub fn key_down_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.event_modifiers(
             egui::Event::Key {
@@ -583,6 +640,7 @@ impl<'a, State> Harness<'a, State> {
         );
     }
 
+    #[track_caller]
     pub fn key_up(&self, key: egui::Key) {
         self.event(egui::Event::Key {
             key,
@@ -593,6 +651,7 @@ impl<'a, State> Harness<'a, State> {
         });
     }
 
+    #[track_caller]
     pub fn key_up_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.event_modifiers(
             egui::Event::Key {
@@ -613,6 +672,7 @@ impl<'a, State> Harness<'a, State> {
     /// - Press [`Key::B`]
     /// - Release [`Key::B`]
     /// - Release [`Key::A`]
+    #[track_caller]
     pub fn key_combination(&self, keys: &[Key]) {
         for key in keys {
             self.key_down(*key);
@@ -631,6 +691,7 @@ impl<'a, State> Harness<'a, State> {
     /// - Release [`Key::B`]
     /// - Release [`Key::A`]
     /// - Release [`Modifiers::COMMAND`]
+    #[track_caller]
     pub fn key_combination_modifiers(&self, modifiers: Modifiers, keys: &[Key]) {
         self.modifiers(modifiers);
 
@@ -652,6 +713,7 @@ impl<'a, State> Harness<'a, State> {
     /// Press a key.
     ///
     /// This will create a key down event and a key up event.
+    #[track_caller]
     pub fn key_press(&self, key: egui::Key) {
         self.key_combination(&[key]);
     }
@@ -663,16 +725,19 @@ impl<'a, State> Harness<'a, State> {
     /// - create a key down event
     /// - create a key up event
     /// - reset the modifiers
+    #[track_caller]
     pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.key_combination_modifiers(modifiers, &[key]);
     }
 
     /// Move mouse cursor to this position.
+    #[track_caller]
     pub fn hover_at(&self, pos: egui::Pos2) {
         self.event(egui::Event::PointerMoved(pos));
     }
 
     /// Start dragging from a position.
+    #[track_caller]
     pub fn drag_at(&self, pos: egui::Pos2) {
         self.event(egui::Event::PointerButton {
             pos,
@@ -683,6 +748,7 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Stop dragging and remove cursor.
+    #[track_caller]
     pub fn drop_at(&self, pos: egui::Pos2) {
         self.event(egui::Event::PointerButton {
             pos,
@@ -699,6 +765,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// If you click a button and then take a snapshot, the button will be shown as hovered.
     /// If you don't want that, you can call this method after clicking.
+    #[track_caller]
     pub fn remove_cursor(&self) {
         self.event(egui::Event::PointerGone);
     }
@@ -848,8 +915,10 @@ impl<'a, State> Harness<'a, State> {
             };
             let tree = self.last_accesskit_update.clone();
             let ppp = self.ctx.pixels_per_point();
+            let call_site = self.current_call_site.clone();
+            let event_sites: Vec<_> = self.consumed_event_sites.clone();
             let events = if let Some(inspector) = self.inspector.as_mut() {
-                inspector.send_step(&image, ppp, tree)
+                inspector.send_step(&image, ppp, tree, &call_site, &event_sites)
             } else {
                 return;
             };
@@ -860,6 +929,8 @@ impl<'a, State> Harness<'a, State> {
             for event in events {
                 self.input.events.push(event);
             }
+            // Events driven by the inspector itself don't have a test-source location.
+            self.consumed_event_sites.clear();
             self._step_inner(false);
             #[cfg(feature = "recording")]
             self.capture_frame_if_recording(false);
