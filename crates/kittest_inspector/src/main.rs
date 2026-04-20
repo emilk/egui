@@ -144,6 +144,8 @@ struct InspectorApp {
     last_image_rect: Option<egui::Rect>,
     /// Display-pixel-per-physical-pixel ratio from the previous frame.
     last_image_scale: f32,
+    /// Transient status line (e.g. "Copied to /tmp/...") shown next to the Copy-GIF button.
+    status_message: Option<String>,
 }
 
 impl InspectorApp {
@@ -191,6 +193,7 @@ impl InspectorApp {
             skip: SkipState::Inactive,
             last_image_rect: None,
             last_image_scale: 1.0,
+            status_message: None,
         }
     }
 
@@ -417,6 +420,28 @@ fn controls_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
                 }
             }
 
+            if ui
+                .add_enabled(total > 0, egui::Button::new("📋 Copy as GIF"))
+                .on_hover_text(
+                    "Encode the whole history as a GIF, write it to the system temp dir, \
+                     and copy the resulting path to the clipboard.",
+                )
+                .clicked()
+            {
+                let message = match save_history_as_gif(&app.history, 10.0) {
+                    Ok(path) => {
+                        ui.ctx().copy_text(path.display().to_string());
+                        format!("Copied path to clipboard: {}", path.display())
+                    }
+                    Err(err) => format!("Failed to save GIF: {err}"),
+                };
+                eprintln!("kittest_inspector: {message}");
+                app.status_message = Some(message);
+            }
+            if let Some(msg) = app.status_message.as_deref() {
+                ui.weak(msg);
+            }
+
             ui.separator();
 
             let prev_control = app.control_enabled;
@@ -471,6 +496,11 @@ fn details_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
                 });
 
             egui::ScrollArea::vertical().show(ui, |ui| {
+                // Make long values (file paths, labels, stringified values in the widget
+                // details grid, accesskit node names…) wrap inside the fixed-width side panel
+                // instead of overflowing to the right.
+                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+
                 egui::CollapsingHeader::new("Frame")
                     .default_open(true)
                     .show(ui, |ui| {
@@ -736,6 +766,13 @@ fn source_section(ui: &mut egui::Ui, frame: &kittest_inspector::Frame, scroll_pe
     let lines: Vec<&str> = contents.lines().collect();
     let total_height = lines.len() as f32 * row_height;
 
+    // Estimated monospace advance width. For fixed-pitch fonts (like Hack) the ratio between
+    // character height and advance is ~0.55; being slightly generous avoids clipping.
+    let char_width = row_height * 0.6_f32;
+    let longest_chars = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0) as f32;
+    let gutter_width = char_width * 5.0 + ui.spacing().item_spacing.x; // "{:>4} " column
+    let content_width: f32 = gutter_width + char_width * longest_chars + 16.0;
+
     // Expand to fill the enclosing (resizable) panel — the user's drag on the panel handle
     // determines how tall the source view is.
     let scroll_area = egui::ScrollArea::both().auto_shrink([false, false]);
@@ -744,7 +781,9 @@ fn source_section(ui: &mut egui::Ui, frame: &kittest_inspector::Frame, scroll_pe
     // focus line whether or not it's currently visible, and `scroll_to_rect` will animate
     // the scroll area towards it smoothly.
     scroll_area.show_viewport(ui, |ui, viewport| {
+        let row_width = content_width.max(viewport.width());
         ui.set_height(total_height);
+        ui.set_width(row_width);
         let content_top = ui.min_rect().top();
         let content_left = ui.min_rect().left();
         let start = (viewport.min.y / row_height).floor().max(0.0) as usize;
@@ -757,7 +796,7 @@ fn source_section(ui: &mut egui::Ui, frame: &kittest_inspector::Frame, scroll_pe
             let y = idx as f32 * row_height;
             let row_rect = egui::Rect::from_min_size(
                 egui::pos2(content_left, content_top + y),
-                egui::vec2(ui.available_width(), row_height),
+                egui::vec2(row_width, row_height),
             );
             let is_call = Some(line_no) == call_site_line;
             let is_event = event_lines.contains(&line_no);
@@ -981,6 +1020,66 @@ fn widget_details(ui: &mut egui::Ui, id: NodeId, node: &Node) {
             ui.end_row();
         }
     });
+}
+
+/// Encode the entire history as a looping GIF, write it to a timestamped file in the system
+/// temp dir, and return the path. Mirrors the recorder's GIF behaviour: animation plays at
+/// `frame_rate`, last frame held for one second so the loop point is obvious.
+fn save_history_as_gif(
+    history: &[Frame],
+    frame_rate: f32,
+) -> Result<std::path::PathBuf, String> {
+    use image::codecs::gif::{GifEncoder, Repeat};
+
+    if history.is_empty() {
+        return Err("history is empty".into());
+    }
+
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    // Stable-across-processes temp path is fine here: each invocation wants a fresh file.
+    #[expect(clippy::disallowed_methods)]
+    let path = std::env::temp_dir().join(format!("kittest_inspector_{ts}.gif"));
+
+    let file = std::fs::File::create(&path)
+        .map_err(|err| format!("couldn't create {}: {err}", path.display()))?;
+    let writer = std::io::BufWriter::new(file);
+    let mut encoder = GifEncoder::new(writer);
+    encoder
+        .set_repeat(Repeat::Infinite)
+        .map_err(|err| format!("set_repeat: {err}"))?;
+
+    let denom = frame_rate
+        .max(0.1)
+        .round()
+        .clamp(1.0, u32::MAX as f32) as u32;
+    let frame_delay = image::Delay::from_numer_denom_ms(1000, denom);
+    let hold_delay = image::Delay::from_numer_denom_ms(1000, 1);
+
+    let last_idx = history.len() - 1;
+    for (i, frame) in history.iter().enumerate() {
+        let Some(buffer) =
+            image::RgbaImage::from_raw(frame.width, frame.height, frame.rgba.clone())
+        else {
+            return Err(format!(
+                "frame {i} has inconsistent rgba size for {}×{}",
+                frame.width, frame.height
+            ));
+        };
+        let delay = if i == last_idx {
+            hold_delay
+        } else {
+            frame_delay
+        };
+        let anim_frame = image::Frame::from_parts(buffer, 0, 0, delay);
+        encoder
+            .encode_frame(anim_frame)
+            .map_err(|err| format!("encode frame {i}: {err}"))?;
+    }
+
+    Ok(path)
 }
 
 /// Try to acquire a cross-process exclusive lock on a well-known file so that only one

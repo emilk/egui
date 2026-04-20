@@ -25,7 +25,7 @@ required-features = ["app"]
 default = ["app"]
 
 ## Build the eframe inspector binary.
-app = ["dep:eframe", "dep:egui_extras", "dep:fs4"]
+app = ["dep:eframe", "dep:egui_extras", "dep:fs4", "dep:image"]
 
 [dependencies]
 accesskit = { workspace = true, features = ["serde"] }
@@ -37,6 +37,7 @@ serde = { workspace = true }
 eframe = { workspace = true, features = ["default_fonts", "wgpu"], optional = true }
 egui_extras = { workspace = true, features = ["image"], optional = true }
 fs4 = { workspace = true, optional = true }
+image = { workspace = true, optional = true, features = ["gif"] }
 
 [lints]
 workspace = true
