@@ -41,10 +41,11 @@ pub enum HarnessMessage {
 }
 
 /// Sent inspector → harness in response to a [`HarnessMessage::Frame`].
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum InspectorReply {
-    /// Resume the harness (it will continue running steps and may send another frame soon).
-    Continue,
+    /// Resume the harness. `events` contains any user input captured in the inspector
+    /// (via Control mode) that should be queued for the next step.
+    Continue { events: Vec<egui::Event> },
 }
 
 const MAX_MESSAGE_BYTES: usize = 256 * 1024 * 1024; // 256 MiB sanity cap

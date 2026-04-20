@@ -24,8 +24,9 @@ enum WorkerEvent {
 }
 
 /// UI → worker message: "you may send `Continue` to the harness now".
-type ReleaseTx = mpsc::Sender<()>;
-type ReleaseRx = mpsc::Receiver<()>;
+/// Carries any egui events captured in Control mode that the harness should queue.
+type ReleaseTx = mpsc::Sender<Vec<egui::Event>>;
+type ReleaseRx = mpsc::Receiver<Vec<egui::Event>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PlayState {
@@ -35,7 +36,7 @@ enum PlayState {
 
 fn main() -> eframe::Result<()> {
     let (worker_tx, worker_rx) = mpsc::channel::<WorkerEvent>();
-    let (release_tx, release_rx) = mpsc::channel::<()>();
+    let (release_tx, release_rx) = mpsc::channel::<Vec<egui::Event>>();
 
     thread::Builder::new()
         .name("kittest_inspector_io".into())
@@ -69,10 +70,12 @@ fn run_io(ui_tx: &mpsc::Sender<WorkerEvent>, release_rx: &ReleaseRx) {
                 if ui_tx.send(WorkerEvent::Frame(frame)).is_err() {
                     return;
                 }
-                if release_rx.recv().is_err() {
+                let Ok(events) = release_rx.recv() else {
                     return;
-                }
-                if let Err(err) = write_message(&mut writer, &InspectorReply::Continue) {
+                };
+                if let Err(err) =
+                    write_message(&mut writer, &InspectorReply::Continue { events })
+                {
                     eprintln!("kittest_inspector: write failed: {err}");
                     return;
                 }
@@ -106,6 +109,10 @@ struct InspectorApp {
     hovered_node: Option<NodeId>,
     /// Last clicked widget (sticky).
     selected_node: Option<NodeId>,
+    /// When on, pointer + keyboard events are forwarded to the harness.
+    control_enabled: bool,
+    /// Events accumulated since the last release; drained when we send Continue.
+    queued_events: Vec<egui::Event>,
 }
 
 impl InspectorApp {
@@ -125,6 +132,8 @@ impl InspectorApp {
             connected: true,
             hovered_node: None,
             selected_node: None,
+            control_enabled: false,
+            queued_events: Vec::new(),
         }
     }
 
@@ -137,9 +146,6 @@ impl InspectorApp {
                     // Keep the selection sticky across frames (same NodeId may still exist).
                     self.current_frame = Some(frame);
                     self.worker_waiting = true;
-                    if self.play_state == PlayState::Playing {
-                        self.send_release();
-                    }
                 }
                 WorkerEvent::Disconnected => {
                     self.connected = false;
@@ -160,7 +166,8 @@ impl InspectorApp {
         if !self.worker_waiting {
             return;
         }
-        if self.release_tx.send(()).is_ok() {
+        let events = std::mem::take(&mut self.queued_events);
+        if self.release_tx.send(events).is_ok() {
             self.worker_waiting = false;
         }
     }
@@ -177,6 +184,19 @@ impl eframe::App for InspectorApp {
         details_panel(self, ui);
         central_panel(self, ui);
 
+        // End-of-frame auto-release policy:
+        // - Control mode: stay blocked, but advance one step whenever the user generates events
+        //   (each click / keypress = one harness step).
+        // - Otherwise, Playing mode runs freely; Paused mode waits for Next/Play.
+        let auto_release = if self.control_enabled {
+            !self.queued_events.is_empty()
+        } else {
+            self.play_state == PlayState::Playing
+        };
+        if self.worker_waiting && auto_release {
+            self.send_release();
+        }
+
         ctx.request_repaint_after(std::time::Duration::from_millis(50));
     }
 }
@@ -185,7 +205,13 @@ fn controls_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
     egui::Panel::top("controls").show_inside(ui, |ui| {
         ui.horizontal(|ui| {
             let playing = app.play_state == PlayState::Playing;
-            if ui.selectable_label(playing, "▶ Play").clicked() {
+            let play_response = ui
+                .add_enabled_ui(!app.control_enabled, |ui| {
+                    ui.selectable_label(playing, "▶ Play")
+                })
+                .inner
+                .on_disabled_hover_text("Disabled while Control mode is on");
+            if play_response.clicked() {
                 app.play_state = PlayState::Playing;
                 app.send_release();
             }
@@ -203,6 +229,17 @@ fn controls_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
                 .clicked()
             {
                 app.send_release();
+            }
+
+            ui.separator();
+
+            let prev_control = app.control_enabled;
+            ui.checkbox(&mut app.control_enabled, "🎮 Control")
+                .on_hover_text(
+                    "Forward pointer and keyboard events on the rendered frame to the harness",
+                );
+            if prev_control && !app.control_enabled {
+                app.queued_events.clear();
             }
 
             ui.separator();
@@ -371,50 +408,113 @@ fn central_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
             )
         };
 
-        // Hit test: smallest containing widget wins.
-        if let (Some(pos), Some(update)) = (response.hover_pos(), &frame.accesskit) {
-            let (lx, ly) = screen_to_logical(pos);
-            let mut best: Option<(NodeId, f64)> = None;
-            for (id, node) in &update.nodes {
-                let Some(b) = node.bounds() else { continue };
-                if lx >= b.x0 && lx <= b.x1 && ly >= b.y0 && ly <= b.y1 {
-                    let area = (b.x1 - b.x0).max(0.0) * (b.y1 - b.y0).max(0.0);
-                    if best.is_none_or(|(_, a)| area < a) {
-                        best = Some((*id, area));
+        if app.control_enabled {
+            // In Control mode clicks/hovers drive the harness, not the inspector.
+            forward_events(app, ui, image_rect, frame.pixels_per_point, scale, &response);
+        } else {
+            // Inspection mode: hit test (smallest containing widget wins) + draw overlays.
+            if let (Some(pos), Some(update)) = (response.hover_pos(), &frame.accesskit) {
+                let (lx, ly) = screen_to_logical(pos);
+                let mut best: Option<(NodeId, f64)> = None;
+                for (id, node) in &update.nodes {
+                    let Some(b) = node.bounds() else { continue };
+                    if lx >= b.x0 && lx <= b.x1 && ly >= b.y0 && ly <= b.y1 {
+                        let area = (b.x1 - b.x0).max(0.0) * (b.y1 - b.y0).max(0.0);
+                        if best.is_none_or(|(_, a)| area < a) {
+                            best = Some((*id, area));
+                        }
                     }
                 }
+                app.hovered_node = best.map(|(id, _)| id);
             }
-            app.hovered_node = best.map(|(id, _)| id);
-        }
-        if response.clicked() {
-            app.selected_node = app.hovered_node;
-        }
+            if response.clicked() {
+                app.selected_node = app.hovered_node;
+            }
 
-        let painter = ui.painter_at(image_rect);
-        if let Some(update) = &frame.accesskit {
-            // Highlight selection (blue) and hover (yellow).
-            let draw = |id: NodeId, color: egui::Color32| {
-                if let Some((_, node)) = update.nodes.iter().find(|(nid, _)| *nid == id)
-                    && let Some(b) = node.bounds()
-                {
-                    painter.rect_stroke(
-                        logical_to_screen(b),
-                        2.0,
-                        egui::Stroke::new(1.5, color),
-                        egui::StrokeKind::Outside,
-                    );
+            let painter = ui.painter_at(image_rect);
+            if let Some(update) = &frame.accesskit {
+                let draw = |id: NodeId, color: egui::Color32| {
+                    if let Some((_, node)) = update.nodes.iter().find(|(nid, _)| *nid == id)
+                        && let Some(b) = node.bounds()
+                    {
+                        painter.rect_stroke(
+                            logical_to_screen(b),
+                            2.0,
+                            egui::Stroke::new(1.5, color),
+                            egui::StrokeKind::Outside,
+                        );
+                    }
+                };
+                if let Some(id) = app.selected_node {
+                    draw(id, egui::Color32::from_rgb(80, 180, 255));
                 }
-            };
-            if let Some(id) = app.selected_node {
-                draw(id, egui::Color32::from_rgb(80, 180, 255));
-            }
-            if let Some(id) = app.hovered_node
-                && app.hovered_node != app.selected_node
-            {
-                draw(id, egui::Color32::from_rgb(255, 220, 90));
+                if let Some(id) = app.hovered_node
+                    && app.hovered_node != app.selected_node
+                {
+                    draw(id, egui::Color32::from_rgb(255, 220, 90));
+                }
             }
         }
     });
+}
+
+/// Inspect the inspector's own input events and forward those relevant to the harness.
+///
+/// Pointer events only forward when their position is inside the rendered-image rect and their
+/// coordinates are translated to harness logical space. Keyboard / text events always forward.
+fn forward_events(
+    app: &mut InspectorApp,
+    ui: &egui::Ui,
+    image_rect: egui::Rect,
+    pixels_per_point: f32,
+    scale: f32,
+    image_response: &egui::Response,
+) {
+    let to_logical = |pos: egui::Pos2| -> egui::Pos2 {
+        let f = pixels_per_point * scale;
+        egui::pos2(
+            (pos.x - image_rect.min.x) / f,
+            (pos.y - image_rect.min.y) / f,
+        )
+    };
+
+    let input_events = ui.ctx().input(|i| i.events.clone());
+    for ev in input_events {
+        match ev {
+            egui::Event::PointerMoved(pos) if image_rect.contains(pos) => {
+                app.queued_events
+                    .push(egui::Event::PointerMoved(to_logical(pos)));
+            }
+            egui::Event::PointerButton {
+                pos,
+                button,
+                pressed,
+                modifiers,
+            } if image_rect.contains(pos) => {
+                app.queued_events.push(egui::Event::PointerButton {
+                    pos: to_logical(pos),
+                    button,
+                    pressed,
+                    modifiers,
+                });
+            }
+            egui::Event::PointerGone => {
+                app.queued_events.push(egui::Event::PointerGone);
+            }
+            mw @ egui::Event::MouseWheel { .. } if image_response.hovered() => {
+                app.queued_events.push(mw);
+            }
+            ev @ (egui::Event::Text(_)
+            | egui::Event::Key { .. }
+            | egui::Event::Copy
+            | egui::Event::Cut
+            | egui::Event::Paste(_)
+            | egui::Event::Ime(_)) => {
+                app.queued_events.push(ev);
+            }
+            _ => {}
+        }
+    }
 }
 
 fn kv_grid(ui: &mut egui::Ui, id: &str, body: impl FnOnce(&mut egui::Ui)) {

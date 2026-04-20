@@ -92,15 +92,15 @@ impl Inspector {
     }
 
     /// Send the current frame + accesskit tree and block until the inspector replies.
-    /// Returns silently on send/receive failure (e.g. the inspector window was closed).
+    /// Returns any user events captured by the inspector (empty on failure / no control input).
     pub fn send_step(
         &mut self,
         image: &image::RgbaImage,
         pixels_per_point: f32,
         accesskit: Option<accesskit::TreeUpdate>,
-    ) {
+    ) -> Vec<egui::Event> {
         if self.broken {
-            return;
+            return Vec::new();
         }
         self.step = self.step.saturating_add(1);
         let frame = Frame {
@@ -118,16 +118,17 @@ impl Inspector {
                 eprintln!("egui_kittest inspector: send failed: {err}");
             }
             self.broken = true;
-            return;
+            return Vec::new();
         }
         match read_message::<_, InspectorReply>(&mut self.reader) {
-            Ok(InspectorReply::Continue) => {}
+            Ok(InspectorReply::Continue { events }) => events,
             Err(err) => {
                 #[expect(clippy::print_stderr)]
                 {
                     eprintln!("egui_kittest inspector: read failed: {err}");
                 }
                 self.broken = true;
+                Vec::new()
             }
         }
     }

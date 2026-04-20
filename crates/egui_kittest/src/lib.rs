@@ -316,6 +316,22 @@ impl<'a, State> Harness<'a, State> {
 
     /// Run a single step. This will not process any events.
     fn _step(&mut self, sizing_pass: bool) {
+        self._step_inner(sizing_pass);
+
+        #[cfg(feature = "recording")]
+        self.capture_frame_if_recording(false);
+
+        // Inspector Control mode: each event the user triggers in the inspector drives one
+        // extra `_step_inner` so the UI re-renders, but the outer test caller stays parked
+        // inside this method until the inspector replies with an empty event list
+        // (i.e. user clicked Next/Play, or has Control off and we're just forwarding).
+        #[cfg(feature = "inspector")]
+        self.drive_inspector();
+    }
+
+    /// The core of `_step`: run egui once and update internal state. Does not touch the
+    /// inspector or the recording hook, so it can be called in a loop from those.
+    fn _step_inner(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
@@ -333,12 +349,6 @@ impl<'a, State> Harness<'a, State> {
         self.kittest.update(accesskit_update);
         self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
-
-        #[cfg(feature = "recording")]
-        self.capture_frame_if_recording(false);
-
-        #[cfg(feature = "inspector")]
-        self.send_to_inspector_if_attached();
     }
 
     /// Calculate the rect that includes all popups and tooltips.
@@ -812,25 +822,47 @@ impl<'a, State> Harness<'a, State> {
         self.inspector = None;
     }
 
+    /// Block at the inspector until it tells us to resume, re-rendering after each batch of
+    /// events it sends. Events drive an internal `_step_inner` (and recording capture), but
+    /// do NOT return control to the outer test — the test advances only when the inspector
+    /// replies with no events *and* egui has no pending repaint (i.e. user hit Next/Play with
+    /// a settled UI, or Control mode is off).
+    ///
+    /// While paused in Control mode, any `request_repaint` from the app (animations, async
+    /// image loads, etc.) also drives another internal step so the user sees the UI tick.
     #[cfg(feature = "inspector")]
-    fn send_to_inspector_if_attached(&mut self) {
+    fn drive_inspector(&mut self) {
         if self.inspector.is_none() {
             return;
         }
-        let image = match self.render() {
-            Ok(img) => img,
-            Err(err) => {
-                #[expect(clippy::print_stderr)]
-                {
-                    eprintln!("egui_kittest inspector: render failed, skipping frame: {err}");
+        loop {
+            let image = match self.render() {
+                Ok(img) => img,
+                Err(err) => {
+                    #[expect(clippy::print_stderr)]
+                    {
+                        eprintln!("egui_kittest inspector: render failed: {err}");
+                    }
+                    return;
                 }
+            };
+            let tree = self.last_accesskit_update.clone();
+            let ppp = self.ctx.pixels_per_point();
+            let events = if let Some(inspector) = self.inspector.as_mut() {
+                inspector.send_step(&image, ppp, tree)
+            } else {
+                return;
+            };
+            let wants_repaint = self.root_viewport_output().repaint_delay == Duration::ZERO;
+            if events.is_empty() && !wants_repaint {
                 return;
             }
-        };
-        let tree = self.last_accesskit_update.clone();
-        let ppp = self.ctx.pixels_per_point();
-        if let Some(inspector) = self.inspector.as_mut() {
-            inspector.send_step(&image, ppp, tree);
+            for event in events {
+                self.input.events.push(event);
+            }
+            self._step_inner(false);
+            #[cfg(feature = "recording")]
+            self.capture_frame_if_recording(false);
         }
     }
 

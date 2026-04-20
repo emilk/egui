@@ -30,6 +30,7 @@ app = ["dep:eframe", "dep:egui_extras"]
 [dependencies]
 accesskit = { workspace = true, features = ["serde"] }
 bincode = { workspace = true }
+egui = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 
 # `app` feature dependencies:
