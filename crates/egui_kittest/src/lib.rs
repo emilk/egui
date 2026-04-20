@@ -460,6 +460,11 @@ impl<'a, State> Harness<'a, State> {
         &mut self.state
     }
 
+    /// Consume the harness and return the state.
+    pub fn into_state(self) -> State {
+        self.state
+    }
+
     /// Queue an event to be processed in the next frame.
     pub fn event(&self, event: egui::Event) {
         self.queued_events.lock().push(EventType::Event(event));
