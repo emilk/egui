@@ -218,13 +218,18 @@ impl Style {
     }
 }
 
-/// The root class is present on every top-level ui
+/// The root class is a special class present on every top-level [`Ui`].
 pub const ROOT_CLASS: &str = "root";
+/// The selected class is a special class present on selected [`Button`].
 pub const SELECTED_CLASS: &str = "selected";
 
+/// A class is a static string identifier.
 pub type ClassName = Cow<'static, str>;
 
-/// The classes assigned to a widget
+/// Classes are string identifier that can be set on widget/Ui.
+///
+/// This can be used by styling engine to compute a different style
+/// based on the set of classes present on the widget/Ui.
 #[derive(Debug, Default, Clone)]
 pub struct Classes {
     classes: SmallVec<[ClassName; 5]>,
