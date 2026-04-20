@@ -399,6 +399,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, winit_app: impl WinitApp) -> R
 pub fn run_glow(
     app_name: &str,
     mut native_options: epi::NativeOptions,
+    egui_ctx: Option<egui::Context>,
     app_creator: epi::AppCreator<'_>,
 ) -> Result {
     use super::glow_integration::GlowWinitApp;
@@ -406,13 +407,15 @@ pub fn run_glow(
     #[cfg(not(target_os = "ios"))]
     if native_options.run_and_return {
         return with_event_loop(native_options, |event_loop, native_options| {
-            let glow_eframe = GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
+            let glow_eframe =
+                GlowWinitApp::new(event_loop, app_name, native_options, egui_ctx, app_creator);
             run_and_return(event_loop, glow_eframe)
         })?;
     }
 
     let event_loop = create_event_loop(&mut native_options)?;
-    let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
+    let glow_eframe =
+        GlowWinitApp::new(&event_loop, app_name, native_options, egui_ctx, app_creator);
     run_and_exit(event_loop, glow_eframe)
 }
 
@@ -425,7 +428,7 @@ pub fn create_glow<'a>(
 ) -> impl ApplicationHandler<UserEvent> + 'a {
     use super::glow_integration::GlowWinitApp;
 
-    let glow_eframe = GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
+    let glow_eframe = GlowWinitApp::new(event_loop, app_name, native_options, None, app_creator);
     WinitAppWrapper::new(glow_eframe, true)
 }
 
@@ -435,6 +438,7 @@ pub fn create_glow<'a>(
 pub fn run_wgpu(
     app_name: &str,
     mut native_options: epi::NativeOptions,
+    egui_ctx: Option<egui::Context>,
     app_creator: epi::AppCreator<'_>,
 ) -> Result {
     use super::wgpu_integration::WgpuWinitApp;
@@ -442,13 +446,15 @@ pub fn run_wgpu(
     #[cfg(not(target_os = "ios"))]
     if native_options.run_and_return {
         return with_event_loop(native_options, |event_loop, native_options| {
-            let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
+            let wgpu_eframe =
+                WgpuWinitApp::new(event_loop, app_name, native_options, egui_ctx, app_creator);
             run_and_return(event_loop, wgpu_eframe)
         })?;
     }
 
     let event_loop = create_event_loop(&mut native_options)?;
-    let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
+    let wgpu_eframe =
+        WgpuWinitApp::new(&event_loop, app_name, native_options, egui_ctx, app_creator);
     run_and_exit(event_loop, wgpu_eframe)
 }
 
@@ -461,7 +467,7 @@ pub fn create_wgpu<'a>(
 ) -> impl ApplicationHandler<UserEvent> + 'a {
     use super::wgpu_integration::WgpuWinitApp;
 
-    let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
+    let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, None, app_creator);
     WinitAppWrapper::new(wgpu_eframe, true)
 }
 

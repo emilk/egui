@@ -214,15 +214,17 @@ impl EpiIntegration {
         Self {
             frame,
             last_auto_save: Instant::now(),
-            egui_ctx,
             pending_full_output: Default::default(),
             close: false,
             can_drag_window: false,
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
             app_icon_setter,
-            beginning: Instant::now(),
+            beginning: Instant::now()
+                .checked_sub(web_time::Duration::from_secs_f64(egui_ctx.time()))
+                .unwrap_or_else(Instant::now),
             is_first_frame: true,
+            egui_ctx,
         }
     }
 
