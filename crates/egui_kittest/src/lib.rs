@@ -214,7 +214,7 @@ impl<'a, State> Harness<'a, State> {
     #[track_caller]
     pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext<'a>) -> State) -> Self
     where
-        State: eframe::App,
+        State: eframe::App + 'static,
     {
         Self::builder().build_eframe(builder)
     }
@@ -685,6 +685,110 @@ impl<'a, State> Harness<'a, State> {
             accesskit_node: self.kittest.root(),
             queue: &self.queued_events,
         }
+    }
+
+    /// Spawn a real native eframe window running this harness's app, reusing its [`egui::Context`].
+    ///
+    /// Blocks until the window is closed.
+    ///
+    /// Useful for interactively debugging a failing test: add a call to this before the failing
+    /// assertion to poke at the UI yourself.
+    ///
+    /// # macOS: must be called on the main thread
+    /// `AppKit` requires UI work to happen on the main thread, but by default cargo's test harness
+    /// runs each test on a spawned worker thread, so this function will panic on macOS unless
+    /// you opt out of the default harness.
+    ///
+    /// To fix this, disable the default libtest harness for your test target and run tests on
+    /// the main thread yourself. In `Cargo.toml`:
+    ///
+    /// ```toml
+    /// [[test]]
+    /// name = "your_test"
+    /// harness = false
+    /// ```
+    ///
+    /// Then write a `fn main()` in the test file that invokes your test directly.
+    ///
+    /// See also: <https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field>
+    #[cfg(feature = "eframe")]
+    #[deprecated = "Only for debugging, don't commit this."]
+    pub fn spawn_eframe_app(self)
+    where
+        'a: 'static,
+        State: 'static,
+    {
+        #[cfg(target_os = "macos")]
+        {
+            // AppKit requires UI work to happen on the main thread, but by default cargo's
+            // test harness runs each test on a spawned worker thread.
+            #[expect(unsafe_code)]
+            // SAFETY: `pthread_main_np` is a thread-safe libc query with no arguments.
+            let is_main_thread = unsafe {
+                unsafe extern "C" {
+                    fn pthread_main_np() -> std::ffi::c_int;
+                }
+                pthread_main_np() != 0
+            };
+            assert!(
+                is_main_thread,
+                "spawn_eframe_app must be called on the main thread on macOS, \
+                 but the default `cargo test` harness runs each test on a worker thread.\n\
+                 \n\
+                 To fix this, disable the default libtest harness for your test target and run \
+                 tests on the main thread yourself. In Cargo.toml:\n\
+                 \n\
+                     [[test]]\n\
+                     name = \"your_test\"\n\
+                     harness = false\n\
+                 \n\
+                 Then write a `fn main()` in the test file that invokes your test directly.\n\
+                 \n\
+                 See: https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field"
+            );
+        }
+
+        struct UiApp {
+            f: Box<dyn FnMut(&mut egui::Ui)>,
+        }
+
+        impl eframe::App for UiApp {
+            fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+                (self.f)(ui);
+            }
+        }
+
+        struct UiStateApp<State> {
+            f: Box<dyn FnMut(&mut egui::Ui, &mut State)>,
+            state: State,
+        }
+
+        impl<State: 'static> eframe::App for UiStateApp<State> {
+            fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+                let Self { f, state } = self;
+                f(ui, state);
+            }
+        }
+
+        use crate::app_kind::AppKindEframe;
+
+        let Self {
+            ctx, state, app, ..
+        } = self;
+
+        let eframe_app: Box<dyn eframe::App> = match app {
+            AppKind::Ui(f) => Box::new(UiApp { f }),
+            AppKind::UiState(f) => Box::new(UiStateApp { f, state }),
+            AppKind::Eframe(AppKindEframe { take_app, .. }) => take_app(state),
+        };
+
+        eframe::run_native_ext(
+            "egui_kittest",
+            eframe::NativeOptions::default(),
+            Some(ctx),
+            Box::new(|_cc| Ok(eframe_app)),
+        )
+        .unwrap();
     }
 }
 

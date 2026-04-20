@@ -198,7 +198,7 @@ impl<State> HarnessBuilder<State> {
         build: impl FnOnce(&mut eframe::CreationContext<'a>) -> State,
     ) -> Harness<'a, State>
     where
-        State: eframe::App,
+        State: eframe::App + 'static,
     {
         let ctx = egui::Context::default();
 
@@ -211,6 +211,7 @@ impl<State> HarnessBuilder<State> {
 
         let kind = AppKind::Eframe(AppKindEframe {
             get_app: |state| state,
+            take_app: |state| Box::new(state),
             frame,
         });
         Harness::from_builder(self, kind, app, Some(ctx))
