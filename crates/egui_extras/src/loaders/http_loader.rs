@@ -41,11 +41,17 @@ type Entry = Poll<Result<File, String>>;
 
 #[derive(Default)]
 pub struct EhttpLoader {
+    headers: ehttp::Headers,
     cache: Arc<Mutex<HashMap<String, Entry>>>,
 }
 
 impl EhttpLoader {
     pub const ID: &'static str = egui::generate_loader_id!(EhttpLoader);
+
+    pub fn with_headers(mut self, headers: &[(&str, &str)]) -> Self {
+        self.headers = ehttp::Headers::new(headers);
+        self
+    }
 }
 
 const PROTOCOLS: &[&str] = &["http://", "https://"];
@@ -82,41 +88,44 @@ impl BytesLoader for EhttpLoader {
             cache.insert(uri.clone(), Poll::Pending);
             drop(cache);
 
-            ehttp::fetch(ehttp::Request::get(uri.clone()), {
-                let ctx = ctx.clone();
-                let cache = Arc::clone(&self.cache);
-                move |response| {
-                    let result = match response {
-                        Ok(response) => File::from_response(&uri, response),
-                        Err(err) => {
-                            // Log details; return summary
-                            log::error!("Failed to load {uri:?}: {err}");
-                            Err(format!("Failed to load {uri:?}"))
+            ehttp::fetch(
+                ehttp::Request::get(uri.clone()).with_headers(self.headers.clone()),
+                {
+                    let ctx = ctx.clone();
+                    let cache = Arc::clone(&self.cache);
+                    move |response| {
+                        let result = match response {
+                            Ok(response) => File::from_response(&uri, response),
+                            Err(err) => {
+                                // Log details; return summary
+                                log::error!("Failed to load {uri:?}: {err}");
+                                Err(format!("Failed to load {uri:?}"))
+                            }
+                        };
+                        let repaint = {
+                            let mut cache = cache.lock();
+                            if let std::collections::hash_map::Entry::Occupied(mut entry) =
+                                cache.entry(uri.clone())
+                            {
+                                let entry = entry.get_mut();
+                                *entry = Poll::Ready(result);
+                                log::trace!("Finished loading {uri:?}");
+                                true
+                            } else {
+                                log::trace!(
+                                    "Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading."
+                                );
+                                false
+                            }
+                        };
+                        // We may not lock Context while the cache lock is held (see ImageLoader::load
+                        // for details).
+                        if repaint {
+                            ctx.request_repaint();
                         }
-                    };
-                    let repaint = {
-                        let mut cache = cache.lock();
-                        if let std::collections::hash_map::Entry::Occupied(mut entry) =
-                            cache.entry(uri.clone())
-                        {
-                            let entry = entry.get_mut();
-                            *entry = Poll::Ready(result);
-                            log::trace!("Finished loading {uri:?}");
-                            true
-                        } else {
-                            log::trace!(
-                                "Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading."
-                            );
-                            false
-                        }
-                    };
-                    // We may not lock Context while the cache lock is held (see ImageLoader::load
-                    // for details).
-                    if repaint {
-                        ctx.request_repaint();
                     }
-                }
-            });
+                },
+            );
 
             Ok(BytesPoll::Pending { size: None })
         }
