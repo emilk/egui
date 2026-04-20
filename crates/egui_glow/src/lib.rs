@@ -95,3 +95,60 @@ pub fn check_for_gl_error_impl(gl: &glow::Context, file: &str, line: u32, contex
         }
     }
 }
+
+/// Selects the level of hardware graphics acceleration.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum HardwareAcceleration {
+    /// Require graphics acceleration.
+    Required,
+
+    /// Prefer graphics acceleration, but fall back to software.
+    Preferred,
+
+    /// Do NOT use graphics acceleration.
+    ///
+    /// On some platforms (macOS) this is ignored and treated the same as [`Self::Preferred`].
+    Off,
+}
+
+/// Configuration for using glow with eframe or the egui-glow winit feature.
+#[derive(Clone)]
+pub struct GlowConfiguration {
+    /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
+    ///
+    /// The default is `true`.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub vsync: bool,
+
+    /// Specify whether or not hardware acceleration is preferred, required, or not.
+    ///
+    /// Default: [`HardwareAcceleration::Preferred`].
+    #[cfg(not(target_arch = "wasm32"))]
+    pub hardware_acceleration: HardwareAcceleration,
+
+    /// Needed for cross compiling for VirtualBox VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
+    /// See <https://github.com/emilk/egui/pull/1993>.
+    ///
+    /// For OpenGL ES 2.0: set this to [`ShaderVersion::Es100`] to solve blank texture problem (by using the "fallback shader").
+    pub shader_version: Option<ShaderVersion>,
+}
+
+#[cfg_attr(target_arch = "wasm32", expect(clippy::derivable_impls))]
+impl Default for GlowConfiguration {
+    fn default() -> Self {
+        Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            vsync: true,
+            #[cfg(not(target_arch = "wasm32"))]
+            hardware_acceleration: HardwareAcceleration::Preferred,
+            shader_version: None,
+        }
+    }
+}
+
+#[test]
+fn glow_config_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<GlowConfiguration>();
+}
