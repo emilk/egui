@@ -1,4 +1,6 @@
 use crate::app_kind::AppKind;
+#[cfg(feature = "eframe")]
+use crate::app_kind::AppKindEframe;
 use crate::{Harness, LazyRenderer, TestRenderer};
 use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
@@ -207,7 +209,10 @@ impl<State> HarnessBuilder<State> {
 
         let app = build(&mut cc);
 
-        let kind = AppKind::Eframe((|state| state, frame));
+        let kind = AppKind::Eframe(AppKindEframe {
+            get_app: |state| state,
+            frame,
+        });
         Harness::from_builder(self, kind, app, Some(ctx))
     }
 }
