@@ -13,6 +13,8 @@ pub use crate::snapshot::*;
 
 mod app_kind;
 mod config;
+#[cfg(feature = "inspector")]
+mod inspector;
 mod node;
 #[cfg(feature = "recording")]
 mod recording;
@@ -24,6 +26,9 @@ pub mod wgpu;
 
 #[cfg(feature = "recording")]
 pub use crate::recording::{RecordKind, RecordingError, RecordingOptions, RecordingTrigger};
+
+#[cfg(feature = "inspector")]
+pub use crate::inspector::{INSPECTOR_ENV_VAR, INSPECTOR_PATH_ENV_VAR, InspectorError};
 
 // re-exports:
 pub use {
@@ -95,6 +100,11 @@ pub struct Harness<'a, State = ()> {
 
     #[cfg(feature = "recording")]
     recording: Option<recording::RecordingState>,
+
+    #[cfg(feature = "inspector")]
+    inspector: Option<inspector::Inspector>,
+    #[cfg(feature = "inspector")]
+    last_accesskit_update: Option<egui::accesskit::TreeUpdate>,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -185,9 +195,27 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(feature = "recording")]
             recording: None,
+
+            #[cfg(feature = "inspector")]
+            inspector: None,
+            #[cfg(feature = "inspector")]
+            last_accesskit_update: None,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
+
+        #[cfg(feature = "inspector")]
+        if inspector::env_enabled() {
+            match inspector::Inspector::launch(std::thread::current().name().map(String::from)) {
+                Ok(insp) => harness.inspector = Some(insp),
+                Err(err) => {
+                    #[expect(clippy::print_stderr)]
+                    {
+                        eprintln!("egui_kittest: failed to launch inspector: {err}");
+                    }
+                }
+            }
+        }
 
         #[cfg(all(feature = "recording", feature = "snapshot"))]
         {
@@ -293,18 +321,24 @@ impl<'a, State> Harness<'a, State> {
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
             self.response = self.app.run(ui, &mut self.state, sizing_pass);
         });
-        self.kittest.update(
-            output
-                .platform_output
-                .accesskit_update
-                .take()
-                .expect("AccessKit was disabled"),
-        );
+        let accesskit_update = output
+            .platform_output
+            .accesskit_update
+            .take()
+            .expect("AccessKit was disabled");
+        #[cfg(feature = "inspector")]
+        {
+            self.last_accesskit_update = Some(accesskit_update.clone());
+        }
+        self.kittest.update(accesskit_update);
         self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
 
         #[cfg(feature = "recording")]
         self.capture_frame_if_recording(false);
+
+        #[cfg(feature = "inspector")]
+        self.send_to_inspector_if_attached();
     }
 
     /// Calculate the rect that includes all popups and tooltips.
@@ -675,7 +709,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
-    #[cfg(any(feature = "wgpu", feature = "snapshot", feature = "recording"))]
+    #[cfg(any(feature = "wgpu", feature = "snapshot", feature = "recording", feature = "inspector"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
         let mut output = self.output.clone();
 
@@ -754,6 +788,49 @@ impl<'a, State> Harness<'a, State> {
                     eprintln!("egui_kittest recording: render failed, skipping frame: {err}");
                 }
             }
+        }
+    }
+
+    /// Launch a `kittest_inspector` process and attach this harness to it.
+    ///
+    /// After this call, every [`Self::step`] sends the rendered frame + accesskit tree to the
+    /// inspector and blocks until the inspector replies. When paused, the harness blocks until
+    /// the user clicks Play or Next in the inspector.
+    ///
+    /// # Errors
+    /// If the inspector binary cannot be launched or the connection fails.
+    #[cfg(feature = "inspector")]
+    pub fn launch_inspector(&mut self) -> Result<(), InspectorError> {
+        let label = std::thread::current().name().map(String::from);
+        self.inspector = Some(inspector::Inspector::launch(label)?);
+        Ok(())
+    }
+
+    /// Detach the inspector if attached. The inspector window will close on next message.
+    #[cfg(feature = "inspector")]
+    pub fn detach_inspector(&mut self) {
+        self.inspector = None;
+    }
+
+    #[cfg(feature = "inspector")]
+    fn send_to_inspector_if_attached(&mut self) {
+        if self.inspector.is_none() {
+            return;
+        }
+        let image = match self.render() {
+            Ok(img) => img,
+            Err(err) => {
+                #[expect(clippy::print_stderr)]
+                {
+                    eprintln!("egui_kittest inspector: render failed, skipping frame: {err}");
+                }
+                return;
+            }
+        };
+        let tree = self.last_accesskit_update.clone();
+        let ppp = self.ctx.pixels_per_point();
+        if let Some(inspector) = self.inspector.as_mut() {
+            inspector.send_step(&image, ppp, tree);
         }
     }
 

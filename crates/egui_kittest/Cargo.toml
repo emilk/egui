@@ -29,6 +29,9 @@ snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 ## Record a test session as an animated GIF or PNG sequence.
 recording = ["dep:image", "image/gif", "image/png"]
 
+## Stream frames + accesskit tree to a `kittest_inspector` window for live debugging.
+inspector = ["dep:image", "dep:kittest_inspector"]
+
 ## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]
 
@@ -52,6 +55,9 @@ wgpu = { workspace = true, features = ["metal", "dx12", "vulkan", "gles"], optio
 
 # snapshot dependencies
 dify = { workspace = true, optional = true }
+
+# inspector dependencies
+kittest_inspector = { workspace = true, default-features = false, optional = true }
 
 # Enable this when generating docs.
 document-features = { workspace = true, optional = true }

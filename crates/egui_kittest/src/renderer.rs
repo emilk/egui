@@ -12,7 +12,7 @@ pub trait TestRenderer {
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
-    #[cfg(any(feature = "wgpu", feature = "snapshot", feature = "recording"))]
+    #[cfg(any(feature = "wgpu", feature = "snapshot", feature = "recording", feature = "inspector"))]
     fn render(
         &mut self,
         ctx: &egui::Context,
@@ -62,7 +62,7 @@ impl TestRenderer for LazyRenderer {
         }
     }
 
-    #[cfg(any(feature = "wgpu", feature = "snapshot", feature = "recording"))]
+    #[cfg(any(feature = "wgpu", feature = "snapshot", feature = "recording", feature = "inspector"))]
     fn render(
         &mut self,
         ctx: &egui::Context,

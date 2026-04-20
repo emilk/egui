@@ -7,6 +7,7 @@ members = [
   "crates/egui_extras",
   "crates/egui_glow",
   "crates/egui_kittest",
+  "crates/kittest_inspector",
   "crates/egui-wgpu",
   "crates/egui-winit",
   "crates/egui",
@@ -67,6 +68,7 @@ egui_demo_lib = { version = "0.34.1", path = "crates/egui_demo_lib", default-fea
 egui_glow = { version = "0.34.1", path = "crates/egui_glow", default-features = false }
 egui_kittest = { version = "0.34.1", path = "crates/egui_kittest", default-features = false }
 eframe = { version = "0.34.1", path = "crates/eframe", default-features = false }
+kittest_inspector = { version = "0.34.1", path = "crates/kittest_inspector", default-features = false }
 
 accesskit = "0.24.0"
 accesskit_consumer = "0.35.0"
@@ -78,6 +80,7 @@ ahash = { version = "0.8.12", default-features = false, features = [
 android_logger = "0.15.1"
 arboard = { version = "3.6.1", default-features = false }
 backtrace = "0.3.76"
+bincode = { version = "2.0.1", default-features = false, features = ["std", "serde"] }
 bitflags = "2.9.4"
 bytemuck = "1.24.0"
 cint = "0.3.1"

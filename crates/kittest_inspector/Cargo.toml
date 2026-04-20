@@ -1,0 +1,40 @@
+[package]
+name = "kittest_inspector"
+version.workspace = true
+authors = ["Lucas Meurer <hi@lucasmerlin.me>"]
+description = "Live inspector eframe app for egui_kittest tests (frame + accesskit tree + step controls)"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository = "https://github.com/emilk/egui"
+categories = ["gui", "development-tools::testing"]
+keywords = ["egui", "kittest", "testing", "inspector"]
+readme = "./README.md"
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+[lib]
+name = "kittest_inspector"
+path = "src/lib.rs"
+
+[[bin]]
+name = "kittest_inspector"
+path = "src/main.rs"
+required-features = ["app"]
+
+[features]
+default = ["app"]
+
+## Build the eframe inspector binary.
+app = ["dep:eframe", "dep:egui_extras"]
+
+[dependencies]
+accesskit = { workspace = true, features = ["serde"] }
+bincode = { workspace = true }
+serde = { workspace = true }
+
+# `app` feature dependencies:
+eframe = { workspace = true, features = ["default_fonts", "wgpu"], optional = true }
+egui_extras = { workspace = true, features = ["image"], optional = true }
+
+[lints]
+workspace = true
