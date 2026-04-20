@@ -11,9 +11,7 @@ use std::sync::mpsc;
 use std::thread;
 
 use eframe::egui;
-use kittest_inspector::{
-    Frame, HarnessMessage, InspectorReply, read_message, write_message,
-};
+use kittest_inspector::{read_message, write_message, Frame, HarnessMessage, InspectorReply};
 
 use accesskit::{Node, NodeId, Rect as AkRect};
 
@@ -92,9 +90,7 @@ fn run_io(ui_tx: &mpsc::Sender<WorkerEvent>, release_rx: &ReleaseRx) {
                 let Ok(events) = release_rx.recv() else {
                     return;
                 };
-                if let Err(err) =
-                    write_message(&mut writer, &InspectorReply::Continue { events })
-                {
+                if let Err(err) = write_message(&mut writer, &InspectorReply::Continue { events }) {
                     eprintln!("kittest_inspector: write failed: {err}");
                     return;
                 }
@@ -120,9 +116,14 @@ struct InspectorApp {
     play_state: PlayState,
     /// True when the worker is blocked waiting for a release.
     worker_waiting: bool,
-    current_frame: Option<Frame>,
+    /// Every frame the harness has ever sent, in order. Supports back/forward replay.
+    history: Vec<Frame>,
+    /// Index into `history` of the currently-displayed frame.
+    view_index: usize,
+    /// `Frame::step` currently uploaded to `current_texture` — used to decide whether the
+    /// texture needs regenerating when `view_index` changes.
+    textured_step: Option<u64>,
     current_texture: Option<egui::TextureHandle>,
-    received_count: u64,
     connected: bool,
     /// Currently hovered widget (cleared every frame, set during central-panel paint).
     hovered_node: Option<NodeId>,
@@ -132,11 +133,32 @@ struct InspectorApp {
     control_enabled: bool,
     /// Events accumulated since the last release; drained when we send Continue.
     queued_events: Vec<egui::Event>,
-    /// Set when a new frame arrives; the Source section consumes it to scroll once per frame.
+    /// Set when the viewed frame changes; the Source section consumes it to scroll once.
     scroll_pending: bool,
     /// While `UntilNewCallLine`, auto-release every incoming frame until we see one with a
     /// different `call_site_line` — i.e. until the test moves past the current runner call.
     skip: SkipState,
+}
+
+impl InspectorApp {
+    /// The frame currently being displayed. `None` only before the first frame ever arrives.
+    fn view_frame(&self) -> Option<&Frame> {
+        self.history.get(self.view_index)
+    }
+
+    /// True when `view_index` points at the most recent frame (so new arrivals keep scrolling
+    /// the view forward).
+    fn is_live_view(&self) -> bool {
+        !self.history.is_empty() && self.view_index + 1 == self.history.len()
+    }
+
+    fn set_view_index(&mut self, idx: usize) {
+        let idx = idx.min(self.history.len().saturating_sub(1));
+        if idx != self.view_index {
+            self.view_index = idx;
+            self.scroll_pending = true;
+        }
+    }
 }
 
 impl InspectorApp {
@@ -150,9 +172,10 @@ impl InspectorApp {
             release_tx,
             play_state: PlayState::Paused,
             worker_waiting: false,
-            current_frame: None,
+            history: Vec::new(),
+            view_index: 0,
+            textured_step: None,
             current_texture: None,
-            received_count: 0,
             connected: true,
             hovered_node: None,
             selected_node: None,
@@ -163,18 +186,16 @@ impl InspectorApp {
         }
     }
 
-    fn pump_worker(&mut self, ctx: &egui::Context) {
+    fn pump_worker(&mut self) {
         while let Ok(event) = self.worker_rx.try_recv() {
             match event {
                 WorkerEvent::Frame(frame) => {
-                    self.received_count += 1;
-                    self.upload_frame(ctx, &frame);
-                    let new_call_line = frame
-                        .source
-                        .as_ref()
-                        .and_then(|s| s.call_site_line);
-                    // Keep the selection sticky across frames (same NodeId may still exist).
-                    self.current_frame = Some(*frame);
+                    let new_call_line = frame.source.as_ref().and_then(|s| s.call_site_line);
+                    let was_live = self.is_live_view() || self.history.is_empty();
+                    self.history.push(*frame);
+                    if was_live {
+                        self.view_index = self.history.len() - 1;
+                    }
                     self.worker_waiting = true;
 
                     // If we're fast-forwarding to the next `run()` call, stop once the
@@ -188,7 +209,11 @@ impl InspectorApp {
                         // past; the user will see the first settled frame at the new call.
                     } else {
                         self.skip = SkipState::Inactive;
-                        self.scroll_pending = true;
+                        // Only scroll the source panel for the frame the user will actually
+                        // see (i.e. when we're following the live edge).
+                        if was_live {
+                            self.scroll_pending = true;
+                        }
                     }
                 }
                 WorkerEvent::Disconnected => {
@@ -200,10 +225,19 @@ impl InspectorApp {
         }
     }
 
-    fn upload_frame(&mut self, ctx: &egui::Context, frame: &Frame) {
+    /// (Re-)upload `view_frame()`'s pixels to `current_texture` if the texture is missing or
+    /// represents a different step than what we're viewing.
+    fn ensure_texture_uploaded(&mut self, ctx: &egui::Context) {
+        let Some(frame) = self.view_frame() else {
+            return;
+        };
+        if self.textured_step == Some(frame.step) {
+            return;
+        }
         let size = [frame.width as usize, frame.height as usize];
         let color_image = egui::ColorImage::from_rgba_unmultiplied(size, &frame.rgba);
         let texture = ctx.load_texture("kittest_inspector_frame", color_image, Default::default());
+        self.textured_step = Some(frame.step);
         self.current_texture = Some(texture);
     }
 
@@ -221,7 +255,8 @@ impl InspectorApp {
 impl eframe::App for InspectorApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
-        self.pump_worker(&ctx);
+        self.pump_worker();
+        self.ensure_texture_uploaded(&ctx);
         // Reset hover each frame — central panel will set it again if mouse is over the image.
         self.hovered_node = None;
 
@@ -285,9 +320,11 @@ fn controls_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
                 )
                 .clicked()
             {
+                // "From" is the *live* frame's call_site — the harness is blocked there, not
+                // at wherever the user is currently browsing in history.
                 let current_line = app
-                    .current_frame
-                    .as_ref()
+                    .history
+                    .last()
                     .and_then(|f| f.source.as_ref())
                     .and_then(|s| s.call_site_line);
                 app.skip = SkipState::UntilNewCallLine(current_line);
@@ -296,30 +333,72 @@ fn controls_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
 
             ui.separator();
 
-            let prev_control = app.control_enabled;
-            ui.checkbox(&mut app.control_enabled, "🎮 Control")
-                .on_hover_text(
-                    "Forward pointer and keyboard events on the rendered frame to the harness",
+            // History navigation.
+            let total = app.history.len();
+            let can_back = app.view_index > 0;
+            let can_forward = app.view_index + 1 < total;
+            if ui
+                .add_enabled(can_back, egui::Button::new("⏴"))
+                .on_hover_text("Previous frame in history")
+                .clicked()
+            {
+                app.set_view_index(app.view_index.saturating_sub(1));
+            }
+            if ui
+                .add_enabled(can_forward, egui::Button::new("⏵"))
+                .on_hover_text("Next frame in history")
+                .clicked()
+            {
+                app.set_view_index(app.view_index + 1);
+            }
+            if ui
+                .add_enabled(can_forward, egui::Button::new("⏩ Live"))
+                .on_hover_text("Jump to the newest frame (follow live updates)")
+                .clicked()
+            {
+                app.set_view_index(total.saturating_sub(1));
+            }
+            if total > 0 {
+                // Both the slider value and the label are 1-indexed for display.
+                let mut scrub = app.view_index + 1;
+                let response = ui.add(
+                    egui::Slider::new(&mut scrub, 1..=total)
+                        .text(format!("/ {total}"))
+                        .clamping(egui::SliderClamping::Always),
                 );
+                if response.changed() {
+                    app.set_view_index(scrub.saturating_sub(1));
+                }
+            }
+
+            ui.separator();
+
+            let prev_control = app.control_enabled;
+            if !app.connected {
+                // Nothing to drive if the harness is gone.
+                app.control_enabled = false;
+            }
+            ui.add_enabled_ui(app.connected, |ui| {
+                ui.checkbox(&mut app.control_enabled, "🎮 Control")
+                    .on_hover_text(
+                        "Forward pointer and keyboard events on the rendered frame to the harness",
+                    )
+                    .on_disabled_hover_text("Harness disconnected");
+            });
             if prev_control && !app.control_enabled {
                 app.queued_events.clear();
             }
 
             ui.separator();
-            ui.label(format!(
-                "frames: {}  |  state: {:?}  |  {}",
-                app.received_count,
-                app.play_state,
-                if app.connected {
-                    if app.worker_waiting {
-                        "harness blocked"
-                    } else {
-                        "harness running"
-                    }
+            ui.label(if app.connected {
+                if app.worker_waiting {
+                    "harness blocked"
                 } else {
-                    "harness disconnected"
+                    "harness running"
                 }
-            ));
+            } else {
+                "harness disconnected"
+            });
         });
     });
 }
@@ -330,7 +409,7 @@ fn details_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
         .default_size(380.0)
         .show_inside(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                let Some(frame) = app.current_frame.clone() else {
+                let Some(frame) = app.view_frame().cloned() else {
                     ui.weak("Waiting for frames...");
                     return;
                 };
@@ -360,10 +439,7 @@ fn details_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
                             ui.label("Pixels per point:");
                             ui.monospace(format!("{:.2}", frame.pixels_per_point));
                             ui.end_row();
-                            let node_count = frame
-                                .accesskit
-                                .as_ref()
-                                .map_or(0, |u| u.nodes.len());
+                            let node_count = frame.accesskit.as_ref().map_or(0, |u| u.nodes.len());
                             ui.label("AccessKit nodes:");
                             ui.monospace(node_count.to_string());
                             ui.end_row();
@@ -441,13 +517,15 @@ fn central_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
             });
             return;
         };
-        let Some(frame) = app.current_frame.clone() else {
+        let Some(frame) = app.view_frame().cloned() else {
             return;
         };
 
         let physical = tex.size_vec2(); // physical pixels of the rendered frame
         let avail = ui.available_size();
-        let scale = (avail.x / physical.x).min(avail.y / physical.y).clamp(0.05, 1.0);
+        let scale = (avail.x / physical.x)
+            .min(avail.y / physical.y)
+            .clamp(0.05, 1.0);
         let display_size = physical * scale;
 
         let (image_rect, response) = ui.allocate_exact_size(
@@ -480,7 +558,14 @@ fn central_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
 
         if app.control_enabled {
             // In Control mode clicks/hovers drive the harness, not the inspector.
-            forward_events(app, ui, image_rect, frame.pixels_per_point, scale, &response);
+            forward_events(
+                app,
+                ui,
+                image_rect,
+                frame.pixels_per_point,
+                scale,
+                &response,
+            );
         } else {
             // Inspection mode: hit test (smallest containing widget wins) + draw overlays.
             if let (Some(pos), Some(update)) = (response.hover_pos(), &frame.accesskit) {
@@ -668,9 +753,7 @@ fn source_section(ui: &mut egui::Ui, frame: &kittest_inspector::Frame, scroll_pe
             source_line_row(&mut row_ui, line_no, line, bg, row_rect);
         }
 
-        if scroll_pending
-            && let Some(focus) = focus_line
-        {
+        if scroll_pending && let Some(focus) = focus_line {
             let y = focus.saturating_sub(1) as f32 * row_height;
             let target = egui::Rect::from_min_size(
                 egui::pos2(content_left, content_top + y),
