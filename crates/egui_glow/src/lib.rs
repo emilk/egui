@@ -112,7 +112,6 @@ pub enum HardwareAcceleration {
     Off,
 }
 
-
 /// Configuration for using glow with eframe or the egui-glow winit feature.
 #[derive(Clone)]
 pub struct GlowConfiguration {
