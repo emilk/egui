@@ -892,11 +892,12 @@ impl<'a, State> Harness<'a, State> {
     /// Block at the inspector until it tells us to resume, re-rendering after each batch of
     /// events it sends. Events drive an internal `_step_inner` (and recording capture), but
     /// do NOT return control to the outer test — the test advances only when the inspector
-    /// replies with no events *and* egui has no pending repaint (i.e. user hit Next/Play with
-    /// a settled UI, or Control mode is off).
+    /// replies with no events (i.e. user hit Next/Play/Step, or Control mode is off).
     ///
-    /// While paused in Control mode, any `request_repaint` from the app (animations, async
-    /// image loads, etc.) also drives another internal step so the user sees the UI tick.
+    /// We only loop while the inspector is *feeding events back* (Control mode) — animation
+    /// frames driven by `request_repaint` are handled by the outer `try_run` loop calling
+    /// `step()` again, so we don't need to drive them here. Doing so would send extra "no
+    /// event highlighted" frames between each event and confuse the Step UX.
     #[cfg(feature = "inspector")]
     fn drive_inspector(&mut self) {
         if self.inspector.is_none() {
@@ -922,8 +923,7 @@ impl<'a, State> Harness<'a, State> {
             } else {
                 return;
             };
-            let wants_repaint = self.root_viewport_output().repaint_delay == Duration::ZERO;
-            if events.is_empty() && !wants_repaint {
+            if events.is_empty() {
                 return;
             }
             for event in events {
@@ -931,6 +931,13 @@ impl<'a, State> Harness<'a, State> {
             }
             // Events driven by the inspector itself don't have a test-source location.
             self.consumed_event_sites.clear();
+            self._step_inner(false);
+            #[cfg(feature = "recording")]
+            self.capture_frame_if_recording(false);
+
+            // Run one more step so effects of the just-delivered events are visible in the
+            // next frame we send (e.g. a clicked button's state change). Without this we'd
+            // show the frame *during* the click but not *after*.
             self._step_inner(false);
             #[cfg(feature = "recording")]
             self.capture_frame_if_recording(false);

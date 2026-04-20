@@ -34,7 +34,26 @@ enum PlayState {
     Paused,
 }
 
+/// Fast-forward state for the ⏭ Next button.
+#[derive(Debug, Clone, Copy)]
+enum SkipState {
+    Inactive,
+    /// Auto-release every incoming frame until `call_site_line` differs from this value.
+    UntilNewCallLine(Option<u32>),
+}
+
+impl SkipState {
+    fn is_active(self) -> bool {
+        matches!(self, Self::UntilNewCallLine(_))
+    }
+}
+
 fn main() -> eframe::Result<()> {
+    // Cross-process single-instance guard. If another inspector is already running, block
+    // here until that window closes. Held for the lifetime of `_lock`; the OS releases the
+    // flock when the file descriptor is dropped on exit.
+    let _lock = acquire_single_instance_lock();
+
     let (worker_tx, worker_rx) = mpsc::channel::<WorkerEvent>();
     let (release_tx, release_rx) = mpsc::channel::<Vec<egui::Event>>();
 
@@ -115,6 +134,9 @@ struct InspectorApp {
     queued_events: Vec<egui::Event>,
     /// Set when a new frame arrives; the Source section consumes it to scroll once per frame.
     scroll_pending: bool,
+    /// While `UntilNewCallLine`, auto-release every incoming frame until we see one with a
+    /// different `call_site_line` — i.e. until the test moves past the current runner call.
+    skip: SkipState,
 }
 
 impl InspectorApp {
@@ -137,6 +159,7 @@ impl InspectorApp {
             control_enabled: false,
             queued_events: Vec::new(),
             scroll_pending: false,
+            skip: SkipState::Inactive,
         }
     }
 
@@ -146,14 +169,32 @@ impl InspectorApp {
                 WorkerEvent::Frame(frame) => {
                     self.received_count += 1;
                     self.upload_frame(ctx, &frame);
+                    let new_call_line = frame
+                        .source
+                        .as_ref()
+                        .and_then(|s| s.call_site_line);
                     // Keep the selection sticky across frames (same NodeId may still exist).
                     self.current_frame = Some(*frame);
                     self.worker_waiting = true;
-                    self.scroll_pending = true;
+
+                    // If we're fast-forwarding to the next `run()` call, stop once the
+                    // call_site line differs from the one we started from.
+                    let still_skipping = matches!(
+                        self.skip,
+                        SkipState::UntilNewCallLine(from) if new_call_line == from
+                    );
+                    if still_skipping {
+                        // Don't auto-scroll / flash for in-between frames we're about to blow
+                        // past; the user will see the first settled frame at the new call.
+                    } else {
+                        self.skip = SkipState::Inactive;
+                        self.scroll_pending = true;
+                    }
                 }
                 WorkerEvent::Disconnected => {
                     self.connected = false;
                     self.worker_waiting = false;
+                    self.skip = SkipState::Inactive;
                 }
             }
         }
@@ -189,10 +230,13 @@ impl eframe::App for InspectorApp {
         central_panel(self, ui);
 
         // End-of-frame auto-release policy:
+        // - Fast-forwarding to the next `run()` call: always release.
         // - Control mode: stay blocked, but advance one step whenever the user generates events
         //   (each click / keypress = one harness step).
-        // - Otherwise, Playing mode runs freely; Paused mode waits for Next/Play.
-        let auto_release = if self.control_enabled {
+        // - Otherwise, Playing mode runs freely; Paused mode waits for Next/Play/Step.
+        let auto_release = if self.skip.is_active() {
+            true
+        } else if self.control_enabled {
             !self.queued_events.is_empty()
         } else {
             self.play_state == PlayState::Playing
@@ -228,10 +272,25 @@ fn controls_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
             }
             let can_step = app.play_state == PlayState::Paused && app.worker_waiting;
             if ui
-                .add_enabled(can_step, egui::Button::new("⏭ Next"))
-                .on_hover_text("Advance one harness step")
+                .add_enabled(can_step, egui::Button::new("⏩ Step"))
+                .on_hover_text("Advance one harness internal step")
                 .clicked()
             {
+                app.send_release();
+            }
+            if ui
+                .add_enabled(can_step, egui::Button::new("⏭ Next"))
+                .on_hover_text(
+                    "Fast-forward until the test reaches the next `run()` / `step()` call",
+                )
+                .clicked()
+            {
+                let current_line = app
+                    .current_frame
+                    .as_ref()
+                    .and_then(|f| f.source.as_ref())
+                    .and_then(|s| s.call_site_line);
+                app.skip = SkipState::UntilNewCallLine(current_line);
                 app.send_release();
             }
 
@@ -731,4 +790,41 @@ fn widget_details(ui: &mut egui::Ui, id: NodeId, node: &Node) {
             ui.end_row();
         }
     });
+}
+
+/// Try to acquire a cross-process exclusive lock on a well-known file so that only one
+/// inspector window can be open on the machine at a time. Blocks here (before we open any
+/// windows or touch stdio beyond this stderr line) if another inspector is already running.
+fn acquire_single_instance_lock() -> Option<std::fs::File> {
+    use fs4::fs_std::FileExt;
+
+    // We specifically need a stable, cross-process path here — tempfile's per-process dir
+    // can't serve as a system-wide mutex.
+    #[expect(clippy::disallowed_methods)]
+    let path = std::env::temp_dir().join("kittest_inspector.lock");
+
+    let file = match std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)
+    {
+        Ok(f) => f,
+        Err(err) => {
+            eprintln!(
+                "kittest_inspector: couldn't open lock file {}: {err} (running without single-instance guard)",
+                path.display()
+            );
+            return None;
+        }
+    };
+
+    match FileExt::lock_exclusive(&file) {
+        Ok(()) => Some(file),
+        Err(err) => {
+            eprintln!("kittest_inspector: failed to acquire lock: {err}");
+            None
+        }
+    }
 }
