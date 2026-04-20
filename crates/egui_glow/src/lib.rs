@@ -134,6 +134,7 @@ pub struct GlowConfiguration {
     pub shader_version: Option<ShaderVersion>,
 }
 
+#[cfg_attr(target_arch = "wasm32", expect(clippy::derivable_impls))]
 impl Default for GlowConfiguration {
     fn default() -> Self {
         Self {
