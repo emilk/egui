@@ -138,6 +138,12 @@ struct InspectorApp {
     /// While `UntilNewCallLine`, auto-release every incoming frame until we see one with a
     /// different `call_site_line` — i.e. until the test moves past the current runner call.
     skip: SkipState,
+    /// Screen rect of the rendered image from the previous frame. We hit-test against this
+    /// at the start of the next `ui()` (before panels render) so the details tree can see
+    /// `hovered_node` in the same frame as the image highlight.
+    last_image_rect: Option<egui::Rect>,
+    /// Display-pixel-per-physical-pixel ratio from the previous frame.
+    last_image_scale: f32,
 }
 
 impl InspectorApp {
@@ -183,7 +189,44 @@ impl InspectorApp {
             queued_events: Vec::new(),
             scroll_pending: false,
             skip: SkipState::Inactive,
+            last_image_rect: None,
+            last_image_scale: 1.0,
         }
+    }
+
+    /// Hit-test the current cursor position against the cached image rect + the viewed
+    /// frame's accesskit bounds and set `hovered_node`. Called at the top of `ui()` so the
+    /// tree (rendered before the image) picks up the same hover state in this frame.
+    fn hit_test_pointer(&mut self, ctx: &egui::Context) {
+        if self.control_enabled {
+            return; // In control mode we forward events, we don't inspect on hover.
+        }
+        let (Some(image_rect), Some(frame)) = (self.last_image_rect, self.view_frame()) else {
+            return;
+        };
+        let Some(update) = frame.accesskit.as_ref() else {
+            return;
+        };
+        let Some(pos) = ctx.input(|i| i.pointer.hover_pos()) else {
+            return;
+        };
+        if !image_rect.contains(pos) {
+            return;
+        }
+        let f = (frame.pixels_per_point * self.last_image_scale) as f64;
+        let lx = ((pos.x - image_rect.min.x) as f64) / f;
+        let ly = ((pos.y - image_rect.min.y) as f64) / f;
+        let mut best: Option<(NodeId, f64)> = None;
+        for (id, node) in &update.nodes {
+            let Some(b) = node.bounds() else { continue };
+            if lx >= b.x0 && lx <= b.x1 && ly >= b.y0 && ly <= b.y1 {
+                let area = (b.x1 - b.x0).max(0.0) * (b.y1 - b.y0).max(0.0);
+                if best.is_none_or(|(_, a)| area < a) {
+                    best = Some((*id, area));
+                }
+            }
+        }
+        self.hovered_node = best.map(|(id, _)| id);
     }
 
     fn pump_worker(&mut self) {
@@ -257,8 +300,11 @@ impl eframe::App for InspectorApp {
         let ctx = ui.ctx().clone();
         self.pump_worker();
         self.ensure_texture_uploaded(&ctx);
-        // Reset hover each frame — central panel will set it again if mouse is over the image.
+        // Reset hover each frame — either the pre-hit-test below (using the cached image
+        // rect from the previous frame) or the tree's own hover detection, or the central
+        // panel's live hit-test will set it again.
         self.hovered_node = None;
+        self.hit_test_pointer(&ctx);
 
         controls_panel(self, ui);
         details_panel(self, ui);
@@ -408,19 +454,23 @@ fn details_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
         .resizable(true)
         .default_size(380.0)
         .show_inside(ui, |ui| {
+            let Some(frame) = app.view_frame().cloned() else {
+                ui.weak("Waiting for frames...");
+                return;
+            };
+
+            // The Source view sits in its own resizable top panel so the user can drop it out
+            // of the way when they want more room for the widget / AccessKit sections below.
+            egui::Panel::top("details_source")
+                .resizable(true)
+                .default_size(280.0)
+                .show_inside(ui, |ui| {
+                    ui.heading("Source");
+                    let scroll_pending = std::mem::take(&mut app.scroll_pending);
+                    source_section(ui, &frame, scroll_pending);
+                });
+
             egui::ScrollArea::vertical().show(ui, |ui| {
-                let Some(frame) = app.view_frame().cloned() else {
-                    ui.weak("Waiting for frames...");
-                    return;
-                };
-
-                let scroll_pending = std::mem::take(&mut app.scroll_pending);
-                egui::CollapsingHeader::new("Source")
-                    .default_open(true)
-                    .show(ui, |ui| {
-                        source_section(ui, &frame, scroll_pending);
-                    });
-
                 egui::CollapsingHeader::new("Frame")
                     .default_open(true)
                     .show(ui, |ui| {
@@ -479,28 +529,16 @@ fn details_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
                     app.selected_node = None;
                 }
 
-                egui::CollapsingHeader::new("All AccessKit nodes")
+                egui::CollapsingHeader::new("AccessKit tree")
                     .default_open(false)
                     .show(ui, |ui| {
                         if let Some(update) = &frame.accesskit {
-                            for (id, node) in &update.nodes {
-                                let role = format!("{:?}", node.role());
-                                let label = node
-                                    .label()
-                                    .map(str::to_owned)
-                                    .or_else(|| node.value().map(str::to_owned))
-                                    .unwrap_or_default();
-                                let selected = Some(*id) == app.selected_node;
-                                if ui
-                                    .selectable_label(
-                                        selected,
-                                        format!("{:?}  {role}  {label:?}", id.0),
-                                    )
-                                    .clicked()
-                                {
-                                    app.selected_node = Some(*id);
-                                }
-                            }
+                            accesskit_tree(
+                                ui,
+                                update,
+                                &mut app.selected_node,
+                                &mut app.hovered_node,
+                            );
                         } else {
                             ui.weak("(no accesskit tree)");
                         }
@@ -538,6 +576,10 @@ fn central_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
             egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
             egui::Color32::WHITE,
         );
+        // Cache the image placement so the next frame's `hit_test_pointer` can run before
+        // the tree is rendered and keep the two in sync.
+        app.last_image_rect = Some(image_rect);
+        app.last_image_scale = scale;
 
         // logical_point → screen_position:
         //     screen = image_rect.min + ak_rect * pixels_per_point * scale
@@ -546,13 +588,6 @@ fn central_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
             egui::Rect::from_min_max(
                 image_rect.min + egui::vec2(r.x0 as f32 * f, r.y0 as f32 * f),
                 image_rect.min + egui::vec2(r.x1 as f32 * f, r.y1 as f32 * f),
-            )
-        };
-        let screen_to_logical = |p: egui::Pos2| -> (f64, f64) {
-            let f = (frame.pixels_per_point * scale) as f64;
-            (
-                ((p.x - image_rect.min.x) as f64) / f,
-                ((p.y - image_rect.min.y) as f64) / f,
             )
         };
 
@@ -567,21 +602,9 @@ fn central_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
                 &response,
             );
         } else {
-            // Inspection mode: hit test (smallest containing widget wins) + draw overlays.
-            if let (Some(pos), Some(update)) = (response.hover_pos(), &frame.accesskit) {
-                let (lx, ly) = screen_to_logical(pos);
-                let mut best: Option<(NodeId, f64)> = None;
-                for (id, node) in &update.nodes {
-                    let Some(b) = node.bounds() else { continue };
-                    if lx >= b.x0 && lx <= b.x1 && ly >= b.y0 && ly <= b.y1 {
-                        let area = (b.x1 - b.x0).max(0.0) * (b.y1 - b.y0).max(0.0);
-                        if best.is_none_or(|(_, a)| area < a) {
-                            best = Some((*id, area));
-                        }
-                    }
-                }
-                app.hovered_node = best.map(|(id, _)| id);
-            }
+            // Inspection mode: hover was already resolved in `hit_test_pointer` at the top
+            // of `ui()` so the tree and the image stay in sync — we only need to handle the
+            // click here.
             if response.clicked() {
                 app.selected_node = app.hovered_node;
             }
@@ -713,9 +736,9 @@ fn source_section(ui: &mut egui::Ui, frame: &kittest_inspector::Frame, scroll_pe
     let lines: Vec<&str> = contents.lines().collect();
     let total_height = lines.len() as f32 * row_height;
 
-    let scroll_area = egui::ScrollArea::both()
-        .auto_shrink([false, false])
-        .max_height(320.0);
+    // Expand to fill the enclosing (resizable) panel — the user's drag on the panel handle
+    // determines how tall the source view is.
+    let scroll_area = egui::ScrollArea::both().auto_shrink([false, false]);
     // `show_viewport` lets us decide ourselves which rows to render + lets us reason in the
     // content's *virtual* coordinate space. That means we can build a target rect for the
     // focus line whether or not it's currently visible, and `scroll_to_rect` will animate
@@ -795,6 +818,91 @@ fn shorten_path(path: &str) -> String {
         let n = components.len();
         format!("{}/{}", components[n - 2], components[n - 1])
     }
+}
+
+/// Render the accesskit tree recursively, similar in style to the egui demo's `inspection_ui`
+/// — collapsible parents with their children indented below, leaves as selectable labels.
+fn accesskit_tree(
+    ui: &mut egui::Ui,
+    update: &accesskit::TreeUpdate,
+    selected: &mut Option<NodeId>,
+    hovered: &mut Option<NodeId>,
+) {
+    use std::collections::{HashMap, HashSet};
+
+    let nodes: HashMap<NodeId, &Node> = update.nodes.iter().map(|(id, n)| (*id, n)).collect();
+
+    // Prefer the tree's declared root. If this update doesn't carry tree-level info (diff-only
+    // updates can omit it), fall back to any node that no other node lists as a child.
+    let root = update.tree.as_ref().map(|t| t.root).or_else(|| {
+        let mut children: HashSet<NodeId> = HashSet::new();
+        for (_, node) in &update.nodes {
+            for c in node.children() {
+                children.insert(*c);
+            }
+        }
+        update.nodes.iter().map(|(id, _)| *id).find(|id| !children.contains(id))
+    });
+
+    match root {
+        Some(root_id) => render_ak_node(ui, root_id, &nodes, selected, hovered),
+        None => {
+            // Shouldn't normally happen; degrade to a flat list.
+            for (id, _) in &update.nodes {
+                render_ak_node(ui, *id, &nodes, selected, hovered);
+            }
+        }
+    }
+}
+
+fn render_ak_node(
+    ui: &mut egui::Ui,
+    id: NodeId,
+    nodes: &std::collections::HashMap<NodeId, &Node>,
+    selected: &mut Option<NodeId>,
+    hovered: &mut Option<NodeId>,
+) {
+    let Some(node) = nodes.get(&id).copied() else {
+        ui.weak(format!("(missing {:?})", id.0));
+        return;
+    };
+    let role = format!("{:?}", node.role());
+    let text = match node.label().or_else(|| node.value()) {
+        Some(label) if !label.is_empty() => format!("{role}  {label:?}"),
+        _ => role,
+    };
+    // Both the image's hovered state and the tree's selection light up the same row — a row
+    // shown highlighted in the tree corresponds to the rect drawn on the image.
+    let highlight = *selected == Some(id) || *hovered == Some(id);
+    let children = node.children();
+
+    if children.is_empty() {
+        let response = ui.selectable_label(highlight, text);
+        if response.clicked() {
+            *selected = Some(id);
+        }
+        if response.hovered() {
+            *hovered = Some(id);
+        }
+        return;
+    }
+
+    let header_id = ui.make_persistent_id(("ak_node", id.0));
+    egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), header_id, true)
+        .show_header(ui, |ui| {
+            let response = ui.selectable_label(highlight, text);
+            if response.clicked() {
+                *selected = Some(id);
+            }
+            if response.hovered() {
+                *hovered = Some(id);
+            }
+        })
+        .body(|ui| {
+            for child_id in children {
+                render_ak_node(ui, *child_id, nodes, selected, hovered);
+            }
+        });
 }
 
 /// Render the inspector grid for a single accesskit node, mimicking egui's `inspection_ui`.
