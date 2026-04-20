@@ -113,6 +113,8 @@ struct InspectorApp {
     control_enabled: bool,
     /// Events accumulated since the last release; drained when we send Continue.
     queued_events: Vec<egui::Event>,
+    /// Set when a new frame arrives; the Source section consumes it to scroll once per frame.
+    scroll_pending: bool,
 }
 
 impl InspectorApp {
@@ -134,6 +136,7 @@ impl InspectorApp {
             selected_node: None,
             control_enabled: false,
             queued_events: Vec::new(),
+            scroll_pending: false,
         }
     }
 
@@ -146,6 +149,7 @@ impl InspectorApp {
                     // Keep the selection sticky across frames (same NodeId may still exist).
                     self.current_frame = Some(*frame);
                     self.worker_waiting = true;
+                    self.scroll_pending = true;
                 }
                 WorkerEvent::Disconnected => {
                     self.connected = false;
@@ -272,10 +276,11 @@ fn details_panel(app: &mut InspectorApp, ui: &mut egui::Ui) {
                     return;
                 };
 
+                let scroll_pending = std::mem::take(&mut app.scroll_pending);
                 egui::CollapsingHeader::new("Source")
                     .default_open(true)
                     .show(ui, |ui| {
-                        source_section(ui, &frame);
+                        source_section(ui, &frame, scroll_pending);
                     });
 
                 egui::CollapsingHeader::new("Frame")
@@ -531,8 +536,9 @@ fn kv_grid(ui: &mut egui::Ui, id: &str, body: impl FnOnce(&mut egui::Ui)) {
 }
 
 /// Render the "Source" section: the test file (topmost common ancestor across the call and
-/// its events), with the relevant lines highlighted and the view scrolled to them.
-fn source_section(ui: &mut egui::Ui, frame: &kittest_inspector::Frame) {
+/// its events), with the relevant lines highlighted and (once per new frame) the view
+/// scrolled to them.
+fn source_section(ui: &mut egui::Ui, frame: &kittest_inspector::Frame, scroll_pending: bool) {
     let Some(source) = &frame.source else {
         ui.weak("No source location for this frame.");
         return;
@@ -554,51 +560,87 @@ fn source_section(ui: &mut egui::Ui, frame: &kittest_inspector::Frame) {
     let event_lines: std::collections::HashSet<u32> = source.event_lines.iter().copied().collect();
     let focus_line = call_site_line.or_else(|| source.event_lines.first().copied());
 
-    // Fixed-height viewport with auto-scroll to the focused line.
+    // Semi-transparent tints so the highlight works in both light and dark themes without
+    // darkening the text. Alpha ~72/255 keeps the underlying text fully legible.
+    let call_bg = egui::Color32::from_rgba_unmultiplied(80, 160, 255, 72);
+    let event_bg = egui::Color32::from_rgba_unmultiplied(255, 180, 60, 72);
+
     let row_height = ui.text_style_height(&egui::TextStyle::Monospace);
+    let lines: Vec<&str> = contents.lines().collect();
+    let total_height = lines.len() as f32 * row_height;
+
     let scroll_area = egui::ScrollArea::both()
         .auto_shrink([false, false])
         .max_height(320.0);
-    let output = scroll_area.show_rows(ui, row_height, contents.lines().count(), |ui, range| {
-        for (idx, line) in contents.lines().enumerate().skip(range.start).take(range.len()) {
+    // `show_viewport` lets us decide ourselves which rows to render + lets us reason in the
+    // content's *virtual* coordinate space. That means we can build a target rect for the
+    // focus line whether or not it's currently visible, and `scroll_to_rect` will animate
+    // the scroll area towards it smoothly.
+    scroll_area.show_viewport(ui, |ui, viewport| {
+        ui.set_height(total_height);
+        let content_top = ui.min_rect().top();
+        let content_left = ui.min_rect().left();
+        let start = (viewport.min.y / row_height).floor().max(0.0) as usize;
+        let end = ((viewport.max.y / row_height).ceil() as usize)
+            .min(lines.len())
+            .max(start);
+
+        for (idx, line) in lines.iter().enumerate().take(end).skip(start) {
             let line_no = idx as u32 + 1;
+            let y = idx as f32 * row_height;
+            let row_rect = egui::Rect::from_min_size(
+                egui::pos2(content_left, content_top + y),
+                egui::vec2(ui.available_width(), row_height),
+            );
             let is_call = Some(line_no) == call_site_line;
             let is_event = event_lines.contains(&line_no);
             let bg = if is_call {
-                Some(egui::Color32::from_rgb(30, 70, 120))
+                Some(call_bg)
             } else if is_event {
-                Some(egui::Color32::from_rgb(90, 60, 20))
+                Some(event_bg)
             } else {
                 None
             };
-            source_line_row(ui, line_no, line, bg);
+            let mut row_ui = ui.new_child(
+                egui::UiBuilder::new()
+                    .max_rect(row_rect)
+                    .layout(egui::Layout::left_to_right(egui::Align::Center)),
+            );
+            source_line_row(&mut row_ui, line_no, line, bg, row_rect);
+        }
+
+        if scroll_pending
+            && let Some(focus) = focus_line
+        {
+            let y = focus.saturating_sub(1) as f32 * row_height;
+            let target = egui::Rect::from_min_size(
+                egui::pos2(content_left, content_top + y),
+                egui::vec2(1.0, row_height),
+            );
+            ui.scroll_to_rect(target, Some(egui::Align::Center));
         }
     });
-
-    // Scroll the focused line into view on the first render of each new frame.
-    if let Some(focus) = focus_line {
-        let target_y = output.inner_rect.min.y + (focus.saturating_sub(1) as f32) * row_height;
-        let target = egui::Rect::from_min_size(
-            egui::pos2(output.inner_rect.min.x, target_y),
-            egui::vec2(1.0, row_height),
-        );
-        ui.scroll_to_rect(target, Some(egui::Align::Center));
-    }
 }
 
-fn source_line_row(ui: &mut egui::Ui, line_no: u32, text: &str, bg: Option<egui::Color32>) {
-    let row = ui.horizontal(|ui| {
-        ui.set_min_width(ui.available_width());
-        ui.add(egui::Label::new(
-            egui::RichText::new(format!("{line_no:>4} "))
-                .monospace()
-                .weak(),
-        ));
-        ui.add(egui::Label::new(egui::RichText::new(text).monospace()).wrap_mode(egui::TextWrapMode::Extend));
-    });
+fn source_line_row(
+    ui: &mut egui::Ui,
+    line_no: u32,
+    text: &str,
+    bg: Option<egui::Color32>,
+    row_rect: egui::Rect,
+) {
     if let Some(color) = bg {
-        ui.painter().rect_filled(row.response.rect, 2.0, color);
+        ui.painter().rect_filled(row_rect, 2.0, color);
     }
+    ui.add(egui::Label::new(
+        egui::RichText::new(format!("{line_no:>4} "))
+            .monospace()
+            .weak(),
+    ));
+    ui.add(
+        egui::Label::new(egui::RichText::new(text).monospace())
+            .wrap_mode(egui::TextWrapMode::Extend),
+    );
 }
 
 /// Shorten a `rustc`-reported path for display — keep the last two components so we show
