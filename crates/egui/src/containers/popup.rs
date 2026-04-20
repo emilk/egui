@@ -623,8 +623,10 @@ impl<'a> Popup<'a> {
         // - Explicit per-instance override takes priority
         // - Otherwise, fall back to global style
         // - Submenus (parent layer is Foreground) never show a backdrop
+        // - Tooltips never show a backdrop
         let is_submenu = layer_id.order == Order::Foreground;
         let show_backdrop = !is_submenu
+            && kind != PopupKind::Tooltip
             && backdrop.unwrap_or_else(|| ctx.global_style().visuals.popup_backdrop);
 
         let mut backdrop_clicked = false;
