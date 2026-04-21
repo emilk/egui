@@ -14,7 +14,7 @@ Android application require you to have toolchains and Android SDK installed:
 3. Install command line tools:
   ```
   mkdir -p "${ANDROID_HOME}/cmdline-tools"
-  curl -Lso /tmp/clt.zip https://dl.google.com/android/repository/commandlinetools-linux-14742923_latest.zip
+  curl -sLo /tmp/clt.zip https://dl.google.com/android/repository/commandlinetools-linux-14742923_latest.zip
   unzip -d "${ANDROID_HOME}" /tmp/clt.zip
   ```
 4. Install SDK components: `sdkmanager --sdk_root="${ANDROID_HOME}" --install "build-tools;36.0.0" "ndk;29.0.14206865" "platforms;android-35"`
