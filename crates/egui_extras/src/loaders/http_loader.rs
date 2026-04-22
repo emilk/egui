@@ -42,7 +42,7 @@ type Entry = Poll<Result<File, String>>;
 #[derive(Default)]
 pub struct EhttpLoader {
     cache: Arc<Mutex<HashMap<String, Entry>>>,
-    request_template: Option<Box<dyn Fn(&mut ehttp::Request)>>,
+    request_template: Option<Box<dyn Fn(ehttp::Request) -> ehttp::Request + Send + Sync>>,
 }
 
 impl EhttpLoader {
@@ -50,7 +50,9 @@ impl EhttpLoader {
 
     /// Provide a request template to modify requests before they're sent,
     /// e.g. to add headers.
-    pub fn with_request_template<F: Fn(&mut ehttp::Request) + 'static>(
+    pub fn with_request_template<
+        F: Fn(ehttp::Request) -> ehttp::Request + Send + Sync + 'static,
+    >(
         mut self,
         request_template: F,
     ) -> Self {
@@ -95,11 +97,7 @@ impl BytesLoader for EhttpLoader {
 
             ehttp::fetch(
                 match &self.request_template {
-                    Some(templ) => {
-                        let mut req = ehttp::Request::get(uri.clone());
-                        templ(&mut req);
-                        req
-                    }
+                    Some(templ) => templ(ehttp::Request::get(uri.clone())),
                     None => ehttp::Request::get(uri.clone()),
                 },
                 {
