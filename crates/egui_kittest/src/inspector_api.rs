@@ -1,15 +1,22 @@
-//! Wire protocol for `kittest_inspector`.
+//! Wire protocol shared between [`crate::Harness`] and the external `kittest_inspector`
+//! binary (lives at <https://github.com/rerun-io/kittest_inspector>).
 //!
-//! The harness launches `kittest_inspector` as a child process with piped stdin/stdout.
-//! For each step, the harness writes a [`HarnessMessage`] to the child's stdin and reads an
+//! The harness spawns the inspector as a child process with piped stdin/stdout. For each
+//! step, the harness writes a [`HarnessMessage`] to the child's stdin and reads an
 //! [`InspectorReply`] from its stdout. The inspector decides whether to reply immediately
 //! (playing) or to wait for the user to click Play/Next (paused).
 //!
 //! Messages are framed as a 4-byte big-endian length followed by a bincode-encoded body.
 //! Anything the inspector wants to log goes to stderr (which the harness inherits), keeping
 //! stdout reserved for protocol traffic.
+//!
+//! Living inside `egui_kittest` (rather than the inspector crate) lets the inspector be
+//! released independently — it just consumes whichever protocol version ships with the
+//! egui release it was built against.
 
 use std::io::{self, Read, Write};
+
+use egui::accesskit;
 
 /// One source file plus the test-source lines the inspector should highlight inside it.
 ///

@@ -1393,6 +1393,7 @@ name = "egui_kittest"
 version = "0.34.1"
 dependencies = [
  "backtrace",
+ "bincode 2.0.1",
  "dify",
  "document-features",
  "eframe",
@@ -1401,7 +1402,6 @@ dependencies = [
  "egui_extras",
  "image",
  "kittest",
- "kittest_inspector",
  "open",
  "pollster",
  "serde",
@@ -1790,16 +1790,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "fs4"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8640e34b88f7652208ce9e88b1a37a2ae95227d84abec377ccd3c5cfeb141ed4"
-dependencies = [
- "rustix 1.1.4",
- "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2525,21 +2515,6 @@ checksum = "90ceaa75eb0036a32b6b9833962eb18137449e9817e2e586006471925b727fd5"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
-]
-
-[[package]]
-name = "kittest_inspector"
-version = "0.34.1"
-dependencies = [
- "accesskit",
- "arboard",
- "bincode 2.0.1",
- "eframe",
- "egui",
- "egui_extras",
- "fs4",
- "image",
- "serde",
 ]
 
 [[package]]

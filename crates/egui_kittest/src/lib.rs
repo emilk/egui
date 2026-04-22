@@ -15,6 +15,8 @@ mod app_kind;
 mod config;
 #[cfg(feature = "inspector")]
 mod inspector;
+#[cfg(feature = "inspector_api")]
+pub mod inspector_api;
 mod node;
 #[cfg(feature = "recording")]
 mod recording;

@@ -29,8 +29,13 @@ snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 ## Record a test session as an animated GIF or PNG sequence.
 recording = ["dep:image", "image/gif", "image/png"]
 
+## Expose the [`inspector_api`] wire protocol used to talk to the external
+## `kittest_inspector` binary. Pull this in if you're building a tool that consumes
+## the same stream — the binary itself enables this transitively.
+inspector_api = ["dep:bincode", "egui/serde"]
+
 ## Stream frames + accesskit tree to a `kittest_inspector` window for live debugging.
-inspector = ["dep:image", "dep:kittest_inspector", "dep:backtrace"]
+inspector = ["inspector_api", "dep:image", "dep:backtrace"]
 
 ## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]
@@ -57,7 +62,7 @@ wgpu = { workspace = true, features = ["metal", "dx12", "vulkan", "gles"], optio
 dify = { workspace = true, optional = true }
 
 # inspector dependencies
-kittest_inspector = { workspace = true, default-features = false, optional = true }
+bincode = { workspace = true, optional = true }
 backtrace = { workspace = true, optional = true }
 
 # Enable this when generating docs.

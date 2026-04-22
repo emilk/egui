@@ -7,7 +7,6 @@ members = [
   "crates/egui_extras",
   "crates/egui_glow",
   "crates/egui_kittest",
-  "crates/kittest_inspector",
   "crates/egui-wgpu",
   "crates/egui-winit",
   "crates/egui",
@@ -68,7 +67,6 @@ egui_demo_lib = { version = "0.34.1", path = "crates/egui_demo_lib", default-fea
 egui_glow = { version = "0.34.1", path = "crates/egui_glow", default-features = false }
 egui_kittest = { version = "0.34.1", path = "crates/egui_kittest", default-features = false }
 eframe = { version = "0.34.1", path = "crates/eframe", default-features = false }
-kittest_inspector = { version = "0.34.1", path = "crates/kittest_inspector", default-features = false }
 
 accesskit = "0.24.0"
 accesskit_consumer = "0.35.0"

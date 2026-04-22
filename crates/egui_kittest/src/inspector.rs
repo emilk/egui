@@ -12,10 +12,10 @@ use std::sync::LazyLock;
 
 use egui::accesskit;
 use egui::mutex::Mutex;
-use kittest_inspector::{
+
+use crate::inspector_api::{
     Frame, HarnessMessage, InspectorReply, SourceView, read_message, write_message,
 };
-
 use crate::node::EventSite;
 
 /// Environment variable: when set to a truthy value, every harness auto-launches an inspector.
@@ -238,7 +238,6 @@ fn is_user_code(path: &str) -> bool {
         "/.cargo/registry/",
         "/.cargo/git/",
         "egui_kittest/src/",
-        "kittest_inspector/src/",
     ];
     !EXCLUDE.iter().any(|needle| path.contains(needle))
 }
