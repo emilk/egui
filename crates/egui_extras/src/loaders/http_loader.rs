@@ -41,16 +41,20 @@ type Entry = Poll<Result<File, String>>;
 
 #[derive(Default)]
 pub struct EhttpLoader {
-    headers: ehttp::Headers,
     cache: Arc<Mutex<HashMap<String, Entry>>>,
+    request_template: Option<Box<dyn Fn(&mut ehttp::Request)>>,
 }
 
 impl EhttpLoader {
     pub const ID: &'static str = egui::generate_loader_id!(EhttpLoader);
 
-    /// Add additional headers to be sent with each request.
-    pub fn with_headers(mut self, headers: &[(&str, &str)]) -> Self {
-        self.headers = ehttp::Headers::new(headers);
+    /// Provide a request template to modify requests before they're sent,
+    /// e.g. to add headers.
+    pub fn with_request_template<F: Fn(&mut ehttp::Request) + 'static>(
+        mut self,
+        request_template: F,
+    ) -> Self {
+        self.request_template = Some(Box::new(request_template));
         self
     }
 }
@@ -90,7 +94,14 @@ impl BytesLoader for EhttpLoader {
             drop(cache);
 
             ehttp::fetch(
-                ehttp::Request::get(uri.clone()).with_headers(self.headers.clone()),
+                match &self.request_template {
+                    Some(templ) => {
+                        let mut req = ehttp::Request::get(uri.clone());
+                        templ(&mut req);
+                        req
+                    }
+                    None => ehttp::Request::get(uri.clone()),
+                },
                 {
                     let ctx = ctx.clone();
                     let cache = Arc::clone(&self.cache);
