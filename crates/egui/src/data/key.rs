@@ -188,6 +188,38 @@ pub enum Key {
     /// Android sends this key on Back button press.
     /// Does not work on Web.
     BrowserBack,
+
+    // ----------------------------------------------
+    // Modifier keys (exposed as distinct left/right variants so that
+    // games and input-capture UIs can bind them independently). egui's
+    // `Modifiers` struct still collapses both sides for the common case
+    // (e.g. "Ctrl+C"); these variants are emitted only as physical
+    // `Event::Key` presses.
+    /// Left Shift key.
+    ShiftLeft,
+    /// Right Shift key.
+    ShiftRight,
+    /// Left Control key.
+    ControlLeft,
+    /// Right Control key.
+    ControlRight,
+    /// Left Alt / Option key.
+    AltLeft,
+    /// Right Alt / AltGr / Option key.
+    AltRight,
+    /// Left Super / Meta / Command / Windows key.
+    SuperLeft,
+    /// Right Super / Meta / Command / Windows key.
+    SuperRight,
+
+    // ----------------------------------------------
+    // International keys — physical positions that only exist on
+    // non-US keyboards.
+    /// ISO 102nd key: physically located between the left Shift and Z
+    /// on ISO layouts. On French AZERTY it produces `<>|`; on UK
+    /// QWERTY a secondary `\` / `|`. Missing from US ANSI keyboards.
+    IntlBackslash,
+
     // When adding keys, remember to also update:
     // * crates/egui-winit/src/lib.rs
     // * Key::ALL
@@ -314,6 +346,17 @@ impl Key {
         Self::F35,
         // Navigation keys:
         Self::BrowserBack,
+        // Modifier keys (physical L/R):
+        Self::ShiftLeft,
+        Self::ShiftRight,
+        Self::ControlLeft,
+        Self::ControlRight,
+        Self::AltLeft,
+        Self::AltRight,
+        Self::SuperLeft,
+        Self::SuperRight,
+        // International keys:
+        Self::IntlBackslash,
     ];
 
     /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
@@ -443,6 +486,17 @@ impl Key {
             "F35" => Self::F35,
 
             "BrowserBack" => Self::BrowserBack,
+
+            "ShiftLeft" => Self::ShiftLeft,
+            "ShiftRight" => Self::ShiftRight,
+            "ControlLeft" => Self::ControlLeft,
+            "ControlRight" => Self::ControlRight,
+            "AltLeft" => Self::AltLeft,
+            "AltRight" => Self::AltRight,
+            "SuperLeft" => Self::SuperLeft,
+            "SuperRight" => Self::SuperRight,
+
+            "IntlBackslash" => Self::IntlBackslash,
 
             _ => return None,
         })
@@ -599,6 +653,17 @@ impl Key {
             Self::F35 => "F35",
 
             Self::BrowserBack => "BrowserBack",
+
+            Self::ShiftLeft => "ShiftLeft",
+            Self::ShiftRight => "ShiftRight",
+            Self::ControlLeft => "ControlLeft",
+            Self::ControlRight => "ControlRight",
+            Self::AltLeft => "AltLeft",
+            Self::AltRight => "AltRight",
+            Self::SuperLeft => "SuperLeft",
+            Self::SuperRight => "SuperRight",
+
+            Self::IntlBackslash => "IntlBackslash",
         }
     }
 }
@@ -607,7 +672,7 @@ impl Key {
 fn test_key_from_name() {
     assert_eq!(
         Key::ALL.len(),
-        Key::BrowserBack as usize + 1,
+        Key::IntlBackslash as usize + 1,
         "Some keys are missing in Key::ALL"
     );
 
