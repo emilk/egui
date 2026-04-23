@@ -6,13 +6,13 @@ Android application require you to have toolchains and Android SDK installed:
 
 1. `rustup target add armv7-linux-androideabi aarch64-linux-android` - install targets for android
 2. Set environment variables (these variables are required each time for `cargo apk`):
-  ```
+  ```sh
   export ANDROID_HOME="$HOME/tools/android"
   export ANDROID_NDK_ROOT="${ANDROID_HOME}/ndk/29.0.14206865"
   export PATH="$PATH:${ANDROID_NDK_ROOT}:${ANDROID_HOME}/build-tools/${BUILDTOOLS_VERSION}:${ANDROID_HOME}/cmdline-tools/bin"
   ```
 3. Install command line tools:
-  ```
+  ```sh
   mkdir -p "${ANDROID_HOME}/cmdline-tools"
   curl -sLo /tmp/clt.zip https://dl.google.com/android/repository/commandlinetools-linux-14742923_latest.zip
   unzip -d "${ANDROID_HOME}" /tmp/clt.zip
