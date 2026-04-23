@@ -32,10 +32,14 @@ impl<'a> Checkbox<'a> {
             atoms: atoms.into_atoms(),
             indeterminate: false,
         }
-    }
 
+    
     pub fn without_text(checked: &'a mut bool) -> Self {
         Self::new(checked, ())
+    }
+
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.atoms
     }
 
     /// Display an indeterminate state (neither checked nor unchecked)
