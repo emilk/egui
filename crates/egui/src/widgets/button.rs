@@ -272,6 +272,7 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// Output the button's Atoms.
     pub fn atoms(&self) -> &Atoms<'a> {
         &self.layout.atoms
     }
