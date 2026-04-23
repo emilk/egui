@@ -36,6 +36,9 @@ impl<'a> RadioButton<'a> {
         }
     }
 
+    /// Outputs the RadioButton's atoms
+    ///
+    /// This includes images you have on the RadioButton
     pub fn atoms(&self) -> &Atoms<'a> {
         &self.atoms
     }
