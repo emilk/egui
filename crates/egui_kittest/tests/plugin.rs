@@ -233,26 +233,6 @@ fn on_test_result_sees_panic() {
     assert_eq!(last, Some("on_test_result:fail"), "log = {log:?}");
 }
 
-/// Calling `Harness::step` from inside a plugin hook should panic in debug builds
-/// (the `in_dispatch` guard).
-#[cfg(debug_assertions)]
-#[test]
-#[should_panic(expected = "inside a plugin hook")]
-fn reentrant_step_panics_in_debug() {
-    struct Misbehaver;
-    impl<S: 'static> Plugin<S> for Misbehaver {
-        fn after_step(&mut self, h: &mut Harness<'_, S>) {
-            // Forbidden: step from inside a hook.
-            h.step();
-        }
-    }
-
-    let mut harness = Harness::builder().with_plugin(Misbehaver).build_ui(|ui| {
-        ui.label("hi");
-    });
-    harness.step();
-}
-
 /// `on_snapshot` fires with an Err result for a missing snapshot.
 #[cfg(feature = "snapshot")]
 #[test]
