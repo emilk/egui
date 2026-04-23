@@ -39,6 +39,9 @@ impl<'a> Checkbox<'a> {
         Self::new(checked, ())
     }
 
+    /// Output the checkboxes atoms
+    ///
+    /// This includes images you have on the checkbox
     pub fn atoms(&self) -> &Atoms<'a> {
         &self.atoms
     }
