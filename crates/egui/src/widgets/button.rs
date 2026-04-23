@@ -272,7 +272,7 @@ impl<'a> Button<'a> {
         self
     }
 
-    pub fn text(&self) -> &Atoms<'a> {
+    pub fn atoms(&self) -> &Atoms<'a> {
         &self.layout.atoms
     }
 
