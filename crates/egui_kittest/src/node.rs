@@ -5,8 +5,8 @@ use kittest::{AccessKitNode, NodeT, debug_fmt_node};
 use std::fmt::{Debug, Formatter};
 
 pub(crate) enum EventType {
-    Event(egui::Event),
-    Modifiers(Modifiers),
+    Event(egui::Event, &'static std::panic::Location<'static>),
+    Modifiers(Modifiers, &'static std::panic::Location<'static>),
 }
 
 pub(crate) type EventQueue = Mutex<Vec<EventType>>;
@@ -37,27 +37,38 @@ impl<'tree> NodeT<'tree> for Node<'tree> {
 }
 
 impl Node<'_> {
+    #[track_caller]
     fn event(&self, event: egui::Event) {
-        self.queue.lock().push(EventType::Event(event));
+        self.queue
+            .lock()
+            .push(EventType::Event(event, std::panic::Location::caller()));
     }
 
+    #[track_caller]
     fn modifiers(&self, modifiers: Modifiers) {
-        self.queue.lock().push(EventType::Modifiers(modifiers));
+        self.queue.lock().push(EventType::Modifiers(
+            modifiers,
+            std::panic::Location::caller(),
+        ));
     }
 
+    #[track_caller]
     pub fn hover(&self) {
         self.event(egui::Event::PointerMoved(self.rect().center()));
     }
 
     /// Click at the node center with the primary button.
+    #[track_caller]
     pub fn click(&self) {
         self.click_button(PointerButton::Primary);
     }
 
+    #[track_caller]
     pub fn click_secondary(&self) {
         self.click_button(PointerButton::Secondary);
     }
 
+    #[track_caller]
     pub fn click_button(&self, button: PointerButton) {
         self.hover();
         for pressed in [true, false] {
@@ -70,10 +81,12 @@ impl Node<'_> {
         }
     }
 
+    #[track_caller]
     pub fn click_modifiers(&self, modifiers: Modifiers) {
         self.click_button_modifiers(PointerButton::Primary, modifiers);
     }
 
+    #[track_caller]
     pub fn click_button_modifiers(&self, button: PointerButton, modifiers: Modifiers) {
         self.hover();
         self.modifiers(modifiers);
@@ -92,6 +105,7 @@ impl Node<'_> {
     ///
     /// This will trigger a [`accesskit::Action::Click`] action.
     /// In contrast to `click()`, this can also click widgets that are not currently visible.
+    #[track_caller]
     pub fn click_accesskit(&self) {
         let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(
@@ -115,6 +129,7 @@ impl Node<'_> {
         }
     }
 
+    #[track_caller]
     pub fn focus(&self) {
         let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
@@ -125,6 +140,7 @@ impl Node<'_> {
         }));
     }
 
+    #[track_caller]
     pub fn type_text(&self, text: &str) {
         self.event(egui::Event::Text(text.to_owned()));
     }
@@ -138,6 +154,7 @@ impl Node<'_> {
     }
 
     /// Scroll the node into view.
+    #[track_caller]
     pub fn scroll_to_me(&self) {
         let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
@@ -149,6 +166,7 @@ impl Node<'_> {
     }
 
     /// Scroll the [`egui::ScrollArea`] containing this node down (100px).
+    #[track_caller]
     pub fn scroll_down(&self) {
         let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
@@ -160,6 +178,7 @@ impl Node<'_> {
     }
 
     /// Scroll the [`egui::ScrollArea`] containing this node up (100px).
+    #[track_caller]
     pub fn scroll_up(&self) {
         let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
@@ -171,6 +190,7 @@ impl Node<'_> {
     }
 
     /// Scroll the [`egui::ScrollArea`] containing this node left (100px).
+    #[track_caller]
     pub fn scroll_left(&self) {
         let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
@@ -182,6 +202,7 @@ impl Node<'_> {
     }
 
     /// Scroll the [`egui::ScrollArea`] containing this node right (100px).
+    #[track_caller]
     pub fn scroll_right(&self) {
         let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(ActionRequest {
