@@ -409,6 +409,10 @@ impl<'a> DragValue<'a> {
         self.update_while_editing = update;
         self
     }
+
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.atoms
+    }
 }
 
 impl Widget for DragValue<'_> {
