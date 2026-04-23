@@ -71,12 +71,6 @@ impl<S> Plugin<S> for CountingPlugin {
             TestResult::Fail { .. } => "on_test_result:fail",
         });
     }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
 }
 
 /// Lifecycle ordering: a simple run+drop cycle fires the expected hooks in order.
@@ -141,12 +135,6 @@ fn advance_frame_skips_hooks() {
                 h.advance_frame();
             }
         }
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
-        }
-        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-            self
-        }
     }
 
     let log: Log = Arc::default();
@@ -187,12 +175,6 @@ fn mid_dispatch_registration_is_deferred() {
                 let _ = latecomer_log; // dropped
                 h.add_plugin(latecomer);
             }
-        }
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
-        }
-        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-            self
         }
     }
 
@@ -262,12 +244,6 @@ fn reentrant_step_panics_in_debug() {
         fn after_step(&mut self, h: &mut Harness<'_, S>) {
             // Forbidden: step from inside a hook.
             h.step();
-        }
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
-        }
-        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-            self
         }
     }
 

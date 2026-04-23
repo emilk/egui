@@ -220,19 +220,22 @@ impl<'a, State: 'static> Harness<'a, State> {
     pub fn plugin<P: Plugin<State>>(&self) -> Option<&P> {
         self.plugins
             .iter()
-            .find_map(|p| p.as_any().downcast_ref::<P>())
+            .find_map(|p| (&**p as &dyn std::any::Any).downcast_ref::<P>())
     }
 
     /// Mutably borrow a registered plugin by type.
     pub fn plugin_mut<P: Plugin<State>>(&mut self) -> Option<&mut P> {
         self.plugins
             .iter_mut()
-            .find_map(|p| p.as_any_mut().downcast_mut::<P>())
+            .find_map(|p| (&mut **p as &mut dyn std::any::Any).downcast_mut::<P>())
     }
 
     /// Remove and return the first plugin of the given type.
     pub fn take_plugin<P: Plugin<State>>(&mut self) -> Option<Box<P>> {
-        let idx = self.plugins.iter().position(|p| p.as_any().is::<P>())?;
+        let idx = self
+            .plugins
+            .iter()
+            .position(|p| (&**p as &dyn std::any::Any).is::<P>())?;
         let boxed = self.plugins.remove(idx);
         let raw: *mut dyn Plugin<State> = Box::into_raw(boxed);
         // SAFETY: `is::<P>()` confirmed the concrete type is `P`. Fat-to-thin pointer
