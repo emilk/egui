@@ -10,7 +10,6 @@ type AppKindUi<'a> = Box<dyn FnMut(&mut egui::Ui) + 'a>;
 #[cfg(feature = "eframe")]
 pub(crate) struct AppKindEframe<State> {
     pub get_app: fn(&mut State) -> &mut dyn eframe::App,
-    pub take_app: fn(State) -> Box<dyn eframe::App>,
     pub frame: eframe::Frame,
 }
 
@@ -30,7 +29,7 @@ impl<State> AppKind<'_, State> {
     ) -> Option<egui::Response> {
         match self {
             #[cfg(feature = "eframe")]
-            AppKind::Eframe(AppKindEframe { get_app, frame, .. }) => {
+            AppKind::Eframe(AppKindEframe { get_app, frame }) => {
                 let app = get_app(state);
                 app.logic(ui, frame);
                 app.ui(ui, frame);
