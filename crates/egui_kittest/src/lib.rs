@@ -87,8 +87,6 @@ pub struct Harness<'a, State: 'static = ()> {
     queued_events: EventQueue,
 
     plugins: Vec<Box<dyn Plugin<State>>>,
-    pending_plugins: Vec<Box<dyn Plugin<State>>>,
-    in_dispatch: bool,
     entry_location: Option<&'static std::panic::Location<'static>>,
     consumed_event_locations: Vec<&'static std::panic::Location<'static>>,
     last_accesskit_update: Option<egui::accesskit::TreeUpdate>,
@@ -181,8 +179,6 @@ impl<'a, State: 'static> Harness<'a, State> {
             queued_events: Default::default(),
 
             plugins,
-            pending_plugins: Vec::new(),
-            in_dispatch: false,
             entry_location: None,
             consumed_event_locations: Vec::new(),
             last_accesskit_update: Some(initial_accesskit),
@@ -206,13 +202,12 @@ impl<'a, State: 'static> Harness<'a, State> {
     /// Register a [`Plugin`] after construction.
     ///
     /// See [`HarnessBuilder::with_plugin`] to register before the first frame runs.
+    ///
+    /// Calling this from inside a plugin hook is allowed — the new plugin is appended to
+    /// the list but does not receive the currently-dispatching hook; it starts firing on
+    /// the next dispatch.
     pub fn add_plugin(&mut self, plugin: impl Plugin<State>) {
-        let boxed: Box<dyn Plugin<State>> = Box::new(plugin);
-        if self.in_dispatch {
-            self.pending_plugins.push(boxed);
-        } else {
-            self.plugins.push(boxed);
-        }
+        self.plugins.push(Box::new(plugin));
     }
 
     /// Borrow a registered plugin by type. Returns the first plugin of the matching type
@@ -246,11 +241,9 @@ impl<'a, State: 'static> Harness<'a, State> {
 
     /// Advance the harness by one frame without firing plugin hooks.
     ///
-    /// Use this from inside a plugin hook when the plugin needs to drive additional
-    /// frames — e.g. an inspector plugin that blocks on user input and re-renders
-    /// after each injected event. Calling [`Self::step`] or [`Self::run`] from inside
-    /// a hook would recurse infinitely through that plugin's own `after_step`.
-    pub fn advance_frame(&mut self) {
+    /// This is useful for running steps within a plugin, without ending in an infinite loop where
+    /// the plugin is called again.
+    pub fn step_no_side_effects(&mut self) {
         self._step_inner(false);
     }
 
@@ -276,17 +269,13 @@ impl<'a, State: 'static> Harness<'a, State> {
             return;
         }
         let mut plugins = std::mem::take(&mut self.plugins);
-        self.in_dispatch = true;
         for p in &mut plugins {
             f(p.as_mut(), self);
         }
-        self.in_dispatch = false;
+        // Handle the case where a plugin is registered within some other plugin
+        let added = std::mem::take(&mut self.plugins);
         self.plugins = plugins;
-        // Promote any plugins registered mid-dispatch to the end of the active list.
-        if !self.pending_plugins.is_empty() {
-            let pending = std::mem::take(&mut self.pending_plugins);
-            self.plugins.extend(pending);
-        }
+        self.plugins.extend(added);
     }
 
     /// Create a new Harness with the given ui closure and a state.
@@ -346,10 +335,6 @@ impl<'a, State: 'static> Harness<'a, State> {
     /// update the Harness.
     #[track_caller]
     pub fn step(&mut self) {
-        debug_assert!(
-            !self.in_dispatch,
-            "Harness::step called from inside a plugin hook — use Harness::advance_frame instead to avoid infinite recursion"
-        );
         self.entry_location = Some(std::panic::Location::caller());
         let events = std::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
@@ -381,7 +366,7 @@ impl<'a, State: 'static> Harness<'a, State> {
     }
 
     /// Core frame advance. Does NOT fire plugin hooks — callable from within
-    /// hooks via [`Self::advance_frame`] without recursing.
+    /// hooks via [`Self::step_no_side_effects`] without recursing.
     fn _step_inner(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
@@ -465,10 +450,6 @@ impl<'a, State: 'static> Harness<'a, State> {
     }
 
     fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
-        debug_assert!(
-            !self.in_dispatch,
-            "Harness::run / Harness::try_run called from inside a plugin hook — use Harness::advance_frame instead to avoid infinite recursion"
-        );
         self.dispatch(|p, h| p.before_run(h));
 
         let mut steps = 0;
