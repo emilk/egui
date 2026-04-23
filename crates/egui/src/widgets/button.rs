@@ -273,6 +273,8 @@ impl<'a> Button<'a> {
     }
 
     /// Output the button's Atoms.
+    ///
+    /// This includes images you have on the button
     pub fn atoms(&self) -> &Atoms<'a> {
         &self.layout.atoms
     }
