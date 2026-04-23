@@ -34,10 +34,9 @@ use crate::{ExceededMaxStepsError, Harness};
 /// # Re-entrancy
 ///
 /// Plugin hooks receive `&mut Harness`. Calling [`Harness::step`] / [`Harness::run`] /
-/// etc. from inside a hook is forbidden (it would recurse infinitely through your own
-/// `after_step`) and is caught by a `debug_assert!`. If a plugin needs to advance the
-/// harness from inside a hook — e.g. an inspector that blocks on user input — use
-/// [`Harness::advance_frame`] instead.
+/// etc. from inside a hook will recurse infinitely through your own `after_step`. If
+/// a plugin needs to advance the harness from inside a hook — e.g. an inspector that
+/// blocks on user input — use [`Harness::advance_frame`] instead.
 #[expect(unused_variables, reason = "default no-op impls")]
 pub trait Plugin<State = ()>: Send + Any {
     /// Called once at the start of every `run()` / `try_run()` / `try_run_realtime()` /
