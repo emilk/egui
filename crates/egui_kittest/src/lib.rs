@@ -14,11 +14,14 @@ pub use crate::snapshot::*;
 mod app_kind;
 mod config;
 mod node;
+mod plugin;
 mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
+
+pub use crate::plugin::{PanicLocation, Plugin, TestResult, install_panic_hook};
 
 // re-exports:
 pub use {
@@ -69,7 +72,7 @@ impl Display for ExceededMaxStepsError {
 /// Some egui style options are changed from the defaults:
 /// - The cursor blinking is disabled
 /// - The scroll animation is disabled
-pub struct Harness<'a, State = ()> {
+pub struct Harness<'a, State: 'static = ()> {
     pub ctx: egui::Context,
     input: egui::RawInput,
     kittest: kittest::State,
@@ -83,10 +86,17 @@ pub struct Harness<'a, State = ()> {
     wait_for_pending_images: bool,
     queued_events: EventQueue,
 
+    plugins: Vec<Box<dyn Plugin<State>>>,
+    pending_plugins: Vec<Box<dyn Plugin<State>>>,
+    in_dispatch: bool,
+    entry_location: Option<&'static std::panic::Location<'static>>,
+    consumed_event_locations: Vec<&'static std::panic::Location<'static>>,
+    last_accesskit_update: Option<egui::accesskit::TreeUpdate>,
+
     #[cfg(feature = "snapshot")]
     default_snapshot_options: SnapshotOptions,
     #[cfg(feature = "snapshot")]
-    snapshot_results: SnapshotResults,
+    snapshot_results: Option<SnapshotResults>,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -95,7 +105,7 @@ impl<State> Debug for Harness<'_, State> {
     }
 }
 
-impl<'a, State> Harness<'a, State> {
+impl<'a, State: 'static> Harness<'a, State> {
     #[track_caller]
     pub(crate) fn from_builder(
         builder: HarnessBuilder<State>,
@@ -113,6 +123,7 @@ impl<'a, State> Harness<'a, State> {
             state: _,
             mut renderer,
             wait_for_pending_images,
+            plugins,
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
@@ -149,17 +160,17 @@ impl<'a, State> Harness<'a, State> {
 
         renderer.handle_delta(&output.textures_delta);
 
+        let initial_accesskit = output
+            .platform_output
+            .accesskit_update
+            .take()
+            .expect("AccessKit was disabled");
+
         let mut harness = Self {
             app,
             ctx,
             input,
-            kittest: kittest::State::new(
-                output
-                    .platform_output
-                    .accesskit_update
-                    .take()
-                    .expect("AccessKit was disabled"),
-            ),
+            kittest: kittest::State::new(initial_accesskit.clone()),
             output,
             response,
             state,
@@ -169,11 +180,18 @@ impl<'a, State> Harness<'a, State> {
             wait_for_pending_images,
             queued_events: Default::default(),
 
+            plugins,
+            pending_plugins: Vec::new(),
+            in_dispatch: false,
+            entry_location: None,
+            consumed_event_locations: Vec::new(),
+            last_accesskit_update: Some(initial_accesskit),
+
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
 
             #[cfg(feature = "snapshot")]
-            snapshot_results: SnapshotResults::default(),
+            snapshot_results: Some(SnapshotResults::default()),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -183,6 +201,89 @@ impl<'a, State> Harness<'a, State> {
     /// Create a [`Harness`] via a [`HarnessBuilder`].
     pub fn builder() -> HarnessBuilder<State> {
         HarnessBuilder::default()
+    }
+
+    /// Register a [`Plugin`] after construction.
+    ///
+    /// See [`HarnessBuilder::with_plugin`] to register before the first frame runs.
+    pub fn add_plugin(&mut self, plugin: impl Plugin<State>) {
+        let boxed: Box<dyn Plugin<State>> = Box::new(plugin);
+        if self.in_dispatch {
+            self.pending_plugins.push(boxed);
+        } else {
+            self.plugins.push(boxed);
+        }
+    }
+
+    /// Borrow a registered plugin by type. Returns the first plugin of the matching type
+    /// in registration order, or `None` if no plugin of that type is registered.
+    pub fn plugin<P: Plugin<State>>(&self) -> Option<&P> {
+        self.plugins
+            .iter()
+            .find_map(|p| p.as_any().downcast_ref::<P>())
+    }
+
+    /// Mutably borrow a registered plugin by type.
+    pub fn plugin_mut<P: Plugin<State>>(&mut self) -> Option<&mut P> {
+        self.plugins
+            .iter_mut()
+            .find_map(|p| p.as_any_mut().downcast_mut::<P>())
+    }
+
+    /// Remove and return the first plugin of the given type.
+    pub fn take_plugin<P: Plugin<State>>(&mut self) -> Option<Box<P>> {
+        let idx = self.plugins.iter().position(|p| p.as_any().is::<P>())?;
+        let boxed = self.plugins.remove(idx);
+        let raw: *mut dyn Plugin<State> = Box::into_raw(boxed);
+        // SAFETY: `is::<P>()` confirmed the concrete type is `P`. Fat-to-thin pointer
+        // cast preserves the data pointer, which is the address of the underlying `P`.
+        #[expect(unsafe_code)]
+        Some(unsafe { Box::from_raw(raw.cast::<P>()) })
+    }
+
+    /// Advance the harness by one frame without firing plugin hooks.
+    ///
+    /// Use this from inside a plugin hook when the plugin needs to drive additional
+    /// frames — e.g. an inspector plugin that blocks on user input and re-renders
+    /// after each injected event. Calling [`Self::step`] or [`Self::run`] from inside
+    /// a hook would recurse infinitely through that plugin's own `after_step`.
+    pub fn advance_frame(&mut self) {
+        self._step_inner(false);
+    }
+
+    /// The most recent AccessKit tree update, if any. Useful for plugins that mirror
+    /// the accessibility tree to an external debugger.
+    pub fn accesskit_tree_update(&self) -> Option<&egui::accesskit::TreeUpdate> {
+        self.last_accesskit_update.as_ref()
+    }
+
+    /// [`std::panic::Location`] of the most recent public `#[track_caller]` entry point
+    /// (e.g. the caller of `step()` / `run()`), or `None` if no such call has been made yet.
+    pub fn entry_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        self.entry_location
+    }
+
+    /// Locations of the events consumed during the most recent step, in order.
+    pub fn consumed_event_locations(&self) -> &[&'static std::panic::Location<'static>] {
+        &self.consumed_event_locations
+    }
+
+    fn dispatch(&mut self, mut f: impl FnMut(&mut dyn Plugin<State>, &mut Self)) {
+        if self.plugins.is_empty() {
+            return;
+        }
+        let mut plugins = std::mem::take(&mut self.plugins);
+        self.in_dispatch = true;
+        for p in &mut plugins {
+            f(p.as_mut(), self);
+        }
+        self.in_dispatch = false;
+        self.plugins = plugins;
+        // Promote any plugins registered mid-dispatch to the end of the active list.
+        if !self.pending_plugins.is_empty() {
+            let pending = std::mem::take(&mut self.pending_plugins);
+            self.plugins.extend(pending);
+        }
     }
 
     /// Create a new Harness with the given ui closure and a state.
@@ -240,17 +341,28 @@ impl<'a, State> Harness<'a, State> {
     /// Run a frame for each queued event (or a single frame if there are no events).
     /// This will call the app closure with each queued event and
     /// update the Harness.
+    #[track_caller]
     pub fn step(&mut self) {
+        debug_assert!(
+            !self.in_dispatch,
+            "Harness::step called from inside a plugin hook — use Harness::advance_frame instead to avoid infinite recursion"
+        );
+        self.entry_location = Some(std::panic::Location::caller());
         let events = std::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
+            self.consumed_event_locations.clear();
             self._step(false);
         }
         for event in events {
+            self.consumed_event_locations.clear();
             match event {
-                EventType::Event(event) => {
-                    self.input.events.push(event);
+                EventType::Event(event, loc) => {
+                    self.consumed_event_locations.push(loc);
+                    self.input.events.push(event.clone());
+                    self.dispatch(|p, h| p.on_event(h, &event));
                 }
-                EventType::Modifiers(modifiers) => {
+                EventType::Modifiers(modifiers, loc) => {
+                    self.consumed_event_locations.push(loc);
                     self.input.modifiers = modifiers;
                 }
             }
@@ -258,20 +370,28 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    /// Run a single step. This will not process any events.
+    /// Run a single step, firing `before_step` / `after_step` plugin hooks.
     fn _step(&mut self, sizing_pass: bool) {
+        self.dispatch(|p, h| p.before_step(h));
+        self._step_inner(sizing_pass);
+        self.dispatch(|p, h| p.after_step(h));
+    }
+
+    /// Core frame advance. Does NOT fire plugin hooks — callable from within
+    /// hooks via [`Self::advance_frame`] without recursing.
+    fn _step_inner(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
             self.response = self.app.run(ui, &mut self.state, sizing_pass);
         });
-        self.kittest.update(
-            output
-                .platform_output
-                .accesskit_update
-                .take()
-                .expect("AccessKit was disabled"),
-        );
+        let accesskit_update = output
+            .platform_output
+            .accesskit_update
+            .take()
+            .expect("AccessKit was disabled");
+        self.last_accesskit_update = Some(accesskit_update.clone());
+        self.kittest.update(accesskit_update);
         self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
     }
@@ -301,7 +421,9 @@ impl<'a, State> Harness<'a, State> {
     /// Resize the test harness to fit the contents. This only works when creating the Harness via
     /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
     /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
+    #[track_caller]
     pub fn fit_contents(&mut self) {
+        self.entry_location = Some(std::panic::Location::caller());
         self._step(true);
 
         // Calculate size including all content (main UI + popups + tooltips)
@@ -330,7 +452,8 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     #[track_caller]
     pub fn run(&mut self) -> u64 {
-        match self.try_run() {
+        self.entry_location = Some(std::panic::Location::caller());
+        match self._try_run(false) {
             Ok(steps) => steps,
             Err(err) => {
                 panic!("{err}");
@@ -339,8 +462,14 @@ impl<'a, State> Harness<'a, State> {
     }
 
     fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+        debug_assert!(
+            !self.in_dispatch,
+            "Harness::run / Harness::try_run called from inside a plugin hook — use Harness::advance_frame instead to avoid infinite recursion"
+        );
+        self.dispatch(|p, h| p.before_run(h));
+
         let mut steps = 0;
-        loop {
+        let result = loop {
             steps += 1;
             self.step();
 
@@ -348,18 +477,19 @@ impl<'a, State> Harness<'a, State> {
 
             // We only care about immediate repaints
             if self.root_viewport_output().repaint_delay != Duration::ZERO && !wait_for_images {
-                break;
+                break Ok(steps);
             } else if sleep || wait_for_images {
                 std::thread::sleep(Duration::from_secs_f32(self.step_dt));
             }
             if steps > self.max_steps {
-                return Err(ExceededMaxStepsError {
+                break Err(ExceededMaxStepsError {
                     max_steps: self.max_steps,
                     repaint_causes: self.ctx.repaint_causes(),
                 });
             }
-        }
-        Ok(steps)
+        };
+        self.dispatch(|p, h| p.after_run(h, result.as_ref().map(|s| *s)));
+        result
     }
 
     /// Run until
@@ -378,7 +508,9 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
+    #[track_caller]
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        self.entry_location = Some(std::panic::Location::caller());
         self._try_run(false)
     }
 
@@ -395,8 +527,10 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
+    #[track_caller]
     pub fn run_ok(&mut self) -> Option<u64> {
-        self.try_run().ok()
+        self.entry_location = Some(std::panic::Location::caller());
+        self._try_run(false).ok()
     }
 
     /// Run multiple frames, sleeping for [`HarnessBuilder::with_step_dt`] between frames.
@@ -418,13 +552,17 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run`].
+    #[track_caller]
     pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        self.entry_location = Some(std::panic::Location::caller());
         self._try_run(true)
     }
 
     /// Run a number of steps.
     /// Equivalent to calling [`Harness::step`] x times.
+    #[track_caller]
     pub fn run_steps(&mut self, steps: usize) {
+        self.entry_location = Some(std::panic::Location::caller());
         for _ in 0..steps {
             self.step();
         }
@@ -460,32 +598,35 @@ impl<'a, State> Harness<'a, State> {
         &mut self.state
     }
 
-    /// Consume the harness and return the state.
-    pub fn into_state(self) -> State {
-        self.state
-    }
-
     /// Queue an event to be processed in the next frame.
+    #[track_caller]
     pub fn event(&self, event: egui::Event) {
-        self.queued_events.lock().push(EventType::Event(event));
+        self.queued_events
+            .lock()
+            .push(EventType::Event(event, std::panic::Location::caller()));
     }
 
     /// Queue an event with modifiers.
     ///
     /// Queues the modifiers to be pressed, then the event, then the modifiers to be released.
+    #[track_caller]
     pub fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
+        let caller = std::panic::Location::caller();
         let mut queue = self.queued_events.lock();
-        queue.push(EventType::Modifiers(modifiers));
-        queue.push(EventType::Event(event));
-        queue.push(EventType::Modifiers(Modifiers::default()));
+        queue.push(EventType::Modifiers(modifiers, caller));
+        queue.push(EventType::Event(event, caller));
+        queue.push(EventType::Modifiers(Modifiers::default(), caller));
     }
 
+    #[track_caller]
     fn modifiers(&self, modifiers: Modifiers) {
-        self.queued_events
-            .lock()
-            .push(EventType::Modifiers(modifiers));
+        self.queued_events.lock().push(EventType::Modifiers(
+            modifiers,
+            std::panic::Location::caller(),
+        ));
     }
 
+    #[track_caller]
     pub fn key_down(&self, key: egui::Key) {
         self.event(egui::Event::Key {
             key,
@@ -496,6 +637,7 @@ impl<'a, State> Harness<'a, State> {
         });
     }
 
+    #[track_caller]
     pub fn key_down_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.event_modifiers(
             egui::Event::Key {
@@ -509,6 +651,7 @@ impl<'a, State> Harness<'a, State> {
         );
     }
 
+    #[track_caller]
     pub fn key_up(&self, key: egui::Key) {
         self.event(egui::Event::Key {
             key,
@@ -519,6 +662,7 @@ impl<'a, State> Harness<'a, State> {
         });
     }
 
+    #[track_caller]
     pub fn key_up_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.event_modifiers(
             egui::Event::Key {
@@ -539,6 +683,7 @@ impl<'a, State> Harness<'a, State> {
     /// - Press [`Key::B`]
     /// - Release [`Key::B`]
     /// - Release [`Key::A`]
+    #[track_caller]
     pub fn key_combination(&self, keys: &[Key]) {
         for key in keys {
             self.key_down(*key);
@@ -557,6 +702,7 @@ impl<'a, State> Harness<'a, State> {
     /// - Release [`Key::B`]
     /// - Release [`Key::A`]
     /// - Release [`Modifiers::COMMAND`]
+    #[track_caller]
     pub fn key_combination_modifiers(&self, modifiers: Modifiers, keys: &[Key]) {
         self.modifiers(modifiers);
 
@@ -578,6 +724,7 @@ impl<'a, State> Harness<'a, State> {
     /// Press a key.
     ///
     /// This will create a key down event and a key up event.
+    #[track_caller]
     pub fn key_press(&self, key: egui::Key) {
         self.key_combination(&[key]);
     }
@@ -589,16 +736,19 @@ impl<'a, State> Harness<'a, State> {
     /// - create a key down event
     /// - create a key up event
     /// - reset the modifiers
+    #[track_caller]
     pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.key_combination_modifiers(modifiers, &[key]);
     }
 
     /// Move mouse cursor to this position.
+    #[track_caller]
     pub fn hover_at(&self, pos: egui::Pos2) {
         self.event(egui::Event::PointerMoved(pos));
     }
 
     /// Start dragging from a position.
+    #[track_caller]
     pub fn drag_at(&self, pos: egui::Pos2) {
         self.event(egui::Event::PointerButton {
             pos,
@@ -609,6 +759,7 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Stop dragging and remove cursor.
+    #[track_caller]
     pub fn drop_at(&self, pos: egui::Pos2) {
         self.event(egui::Event::PointerButton {
             pos,
@@ -625,6 +776,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// If you click a button and then take a snapshot, the button will be shown as hovered.
     /// If you don't want that, you can call this method after clicking.
+    #[track_caller]
     pub fn remove_cursor(&self) {
         self.event(egui::Event::PointerGone);
     }
@@ -668,7 +820,9 @@ impl<'a, State> Harness<'a, State> {
             });
         }
 
-        self.renderer.render(&self.ctx, &output)
+        let image = self.renderer.render(&self.ctx, &output)?;
+        self.dispatch(|p, h| p.on_render(h, &image));
+        Ok(image)
     }
 
     /// Get the root viewport output
@@ -748,39 +902,36 @@ impl<'a, State> Harness<'a, State> {
             );
         }
 
-        struct UiApp {
-            f: Box<dyn FnMut(&mut egui::Ui)>,
+        // Wrap the whole `Harness` in an `eframe::App` adapter so we don't need to
+        // destructure `self` (which we can't, since `Harness` implements `Drop`).
+        // The adapter delegates `ui`/`logic` through the stored `AppKind`.
+        struct HarnessAsApp<State: 'static> {
+            harness: Harness<'static, State>,
         }
 
-        impl eframe::App for UiApp {
-            fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-                (self.f)(ui);
+        impl<State: 'static> eframe::App for HarnessAsApp<State> {
+            fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+                if let AppKind::Eframe(crate::app_kind::AppKindEframe { get_app, .. }) =
+                    &mut self.harness.app
+                {
+                    get_app(&mut self.harness.state).logic(ctx, frame);
+                }
+            }
+
+            fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+                let harness = &mut self.harness;
+                match &mut harness.app {
+                    AppKind::Ui(f) => f(ui),
+                    AppKind::UiState(f) => f(ui, &mut harness.state),
+                    AppKind::Eframe(crate::app_kind::AppKindEframe { get_app, .. }) => {
+                        get_app(&mut harness.state).ui(ui, frame);
+                    }
+                }
             }
         }
 
-        struct UiStateApp<State> {
-            f: Box<dyn FnMut(&mut egui::Ui, &mut State)>,
-            state: State,
-        }
-
-        impl<State: 'static> eframe::App for UiStateApp<State> {
-            fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-                let Self { f, state } = self;
-                f(ui, state);
-            }
-        }
-
-        use crate::app_kind::AppKindEframe;
-
-        let Self {
-            ctx, state, app, ..
-        } = self;
-
-        let eframe_app: Box<dyn eframe::App> = match app {
-            AppKind::Ui(f) => Box::new(UiApp { f }),
-            AppKind::UiState(f) => Box::new(UiStateApp { f, state }),
-            AppKind::Eframe(AppKindEframe { take_app, .. }) => take_app(state),
-        };
+        let ctx = self.ctx.clone();
+        let eframe_app: Box<dyn eframe::App> = Box::new(HarnessAsApp { harness: self });
 
         eframe::run_native_ext(
             "egui_kittest",
@@ -814,11 +965,48 @@ impl<'a> Harness<'a> {
     }
 }
 
-impl<'tree, 'node, State> Queryable<'tree, 'node, Node<'tree>> for Harness<'_, State>
+impl<'tree, 'node, State: 'static> Queryable<'tree, 'node, Node<'tree>> for Harness<'_, State>
 where
     'node: 'tree,
 {
     fn queryable_node(&'node self) -> Node<'tree> {
         self.root()
+    }
+}
+
+impl<State: 'static> Drop for Harness<'_, State> {
+    fn drop(&mut self) {
+        // Consume SnapshotResults first so its own panic-check runs under our control,
+        // and so `std::thread::panicking()` reflects snapshot failures when plugins observe
+        // the final outcome.
+        #[cfg(feature = "snapshot")]
+        if let Some(results) = self.snapshot_results.take() {
+            // Drop may panic; if so, the panic propagates and plugins still see Fail.
+            drop(results);
+        }
+
+        if self.plugins.is_empty() {
+            return;
+        }
+
+        if std::thread::panicking() {
+            plugin::with_fail_test_result(|result| {
+                self.dispatch(|p, h| p.on_test_result(h, fail_ref(&result)));
+            });
+        } else {
+            self.dispatch(|p, h| p.on_test_result(h, TestResult::Pass));
+        }
+    }
+}
+
+// Helper: reborrow a `TestResult::Fail` so it can be passed to multiple plugins from
+// inside `dispatch`'s FnMut closure.
+fn fail_ref<'a>(result: &'a TestResult<'a>) -> TestResult<'a> {
+    match result {
+        TestResult::Pass => TestResult::Pass,
+        TestResult::Fail { message, location } => TestResult::Fail {
+            message: *message,
+            location: *location,
+        },
     }
 }

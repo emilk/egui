@@ -590,7 +590,7 @@ pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
 }
 
 #[cfg(any(feature = "wgpu", feature = "snapshot"))]
-impl<State> Harness<'_, State> {
+impl<State: 'static> Harness<'_, State> {
     /// The default options used for snapshot tests.
     /// set by [`crate::HarnessBuilder::with_options`].
     pub fn options(&self) -> &SnapshotOptions {
@@ -622,10 +622,14 @@ impl<State> Harness<'_, State> {
         name: impl Into<String>,
         options: &SnapshotOptions,
     ) -> SnapshotResult {
-        let image = self
-            .render()
-            .map_err(|err| SnapshotError::RenderError { err })?;
-        try_image_snapshot_options(&image, name.into(), options)
+        let name = name.into();
+        let image = match self.render() {
+            Ok(img) => img,
+            Err(err) => return Err(SnapshotError::RenderError { err }),
+        };
+        let result = try_image_snapshot_options(&image, name.clone(), options);
+        self.dispatch(|p, h| p.on_snapshot(h, &name, &image, &result));
+        result
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
@@ -640,10 +644,8 @@ impl<State> Harness<'_, State> {
     /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
     pub fn try_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
-        let image = self
-            .render()
-            .map_err(|err| SnapshotError::RenderError { err })?;
-        try_image_snapshot_options(&image, name.into(), &self.default_snapshot_options)
+        let options = self.default_snapshot_options.clone();
+        self.try_snapshot_options(name, &options)
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot
@@ -673,7 +675,10 @@ impl<State> Harness<'_, State> {
     #[track_caller]
     pub fn snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
         let result = self.try_snapshot_options(name, options);
-        self.snapshot_results.add(result);
+        self.snapshot_results
+            .as_mut()
+            .expect("SnapshotResults already taken")
+            .add(result);
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
@@ -690,7 +695,10 @@ impl<State> Harness<'_, State> {
     #[track_caller]
     pub fn snapshot(&mut self, name: impl Into<String>) {
         let result = self.try_snapshot(name);
-        self.snapshot_results.add(result);
+        self.snapshot_results
+            .as_mut()
+            .expect("SnapshotResults already taken")
+            .add(result);
     }
 
     /// Render a snapshot, save it to a temp file and open it in the default image viewer.
@@ -743,7 +751,10 @@ impl<State> Harness<'_, State> {
     /// This removes the snapshot results from the harness. Useful if you e.g. want to merge it
     /// with the results from another harness (using [`SnapshotResults::add`]).
     pub fn take_snapshot_results(&mut self) -> SnapshotResults {
-        std::mem::take(&mut self.snapshot_results)
+        // Replace with a fresh SnapshotResults so subsequent snapshot calls don't panic.
+        self.snapshot_results
+            .replace(SnapshotResults::default())
+            .expect("SnapshotResults already taken")
     }
 }
 
