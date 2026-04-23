@@ -2178,11 +2178,16 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    ///
+    /// See also [`Self::scope_builder`] for more options.
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.scope_dyn(UiBuilder::new(), Box::new(add_contents))
     }
 
-    /// Create a child, add content to it, and then allocate only what was used in the parent `Ui`.
+    /// Create a scoped child ui, inheriting properties from the parent as specified by the [`UiBuilder`].
+    /// In contrast to [`Self::new_child`], this allocates the space used by the child.
+    ///
+    /// See also [`Self::scope`] and [`Self::scope_dyn`].
     pub fn scope_builder<R>(
         &mut self,
         ui_builder: UiBuilder,
@@ -2191,7 +2196,7 @@ impl Ui {
         self.scope_dyn(ui_builder, Box::new(add_contents))
     }
 
-    /// Create a child, add content to it, and then allocate only what was used in the parent `Ui`.
+    /// [`Self::scope_builder`] but with dynamic dispatch.
     pub fn scope_dyn<'c, R>(
         &mut self,
         ui_builder: UiBuilder,
