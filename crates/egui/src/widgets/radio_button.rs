@@ -35,6 +35,10 @@ impl<'a> RadioButton<'a> {
             atoms: atoms.into_atoms(),
         }
     }
+
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.atoms
+    }
 }
 
 impl Widget for RadioButton<'_> {
