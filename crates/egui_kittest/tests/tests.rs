@@ -165,9 +165,10 @@ fn test_scroll_down() {
 #[test]
 fn test_masking() {
     let mut harness = Harness::new_ui(|ui| {
-        // Use a fixed value rather than `SystemTime::now()` to keep the
-        // rendered width deterministic across runs.
-        let timestamp: u128 = 1_700_000_000_000;
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
 
         ui.label("I should not be masked.");
         ui.label(format!("Timestamp: {timestamp}"));
