@@ -171,7 +171,9 @@ fn test_masking() {
             .as_millis();
 
         ui.label("I should not be masked.");
-        ui.label(format!("Timestamp: {timestamp}"));
+        // Render the timestamp with a monospace font so that the layout width
+        // does not depend on which digits the current time happens to contain.
+        ui.monospace(format!("Timestamp: {timestamp}"));
         ui.label("I should also not be masked.");
     });
 
