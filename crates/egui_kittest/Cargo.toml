@@ -26,6 +26,15 @@ wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image", "dep:wgpu", "eframe?/wgpu"
 ## Adds a dify-based image snapshot utility.
 snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 
+## Expose the [`inspector_api`] wire protocol used to talk to the external
+## `kittest_inspector` binary. Pull this in if you're building a tool that consumes the
+## same stream — the binary itself enables this transitively.
+inspector_api = ["dep:bincode", "egui/serde"]
+
+## Stream frames + accesskit tree to a `kittest_inspector` window for live debugging.
+## Auto-launches when the `KITTEST_INSPECTOR` env var is truthy.
+inspector = ["inspector_api", "dep:image"]
+
 ## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]
 
@@ -49,6 +58,9 @@ wgpu = { workspace = true, features = ["metal", "dx12", "vulkan", "gles"], optio
 
 # snapshot dependencies
 dify = { workspace = true, optional = true }
+
+# inspector dependencies
+bincode = { workspace = true, optional = true }
 
 # Enable this when generating docs.
 document-features = { workspace = true, optional = true }
