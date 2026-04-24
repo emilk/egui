@@ -36,7 +36,7 @@ use crate::{ExceededMaxStepsError, Harness};
 /// Plugin hooks receive `&mut Harness`. Calling [`Harness::step`] / [`Harness::run`] /
 /// etc. from inside a hook will recurse infinitely through your own `after_step`. If
 /// a plugin needs to advance the harness from inside a hook — e.g. an inspector that
-/// blocks on user input — use [`Harness::advance_frame`] instead.
+/// blocks on user input — use [`Harness::step_no_side_effects`] instead.
 #[expect(unused_variables, reason = "default no-op impls")]
 pub trait Plugin<State = ()>: Send + Any {
     /// Called once at the start of every `run()` / `try_run()` / `try_run_realtime()` /
@@ -57,6 +57,18 @@ pub trait Plugin<State = ()>: Send + Any {
 
     /// Called immediately after each single-frame step.
     fn after_step(&mut self, harness: &mut Harness<'_, State>) {}
+
+    /// Called after each single-frame step with the AccessKit tree update egui produced
+    /// for that frame, before it's applied to the internal kittest state.
+    ///
+    /// Plugins that need the tree (e.g. to stream it to an external debugger) should
+    /// clone it here — the harness no longer retains it after this hook returns.
+    fn on_accesskit_update(
+        &mut self,
+        harness: &mut Harness<'_, State>,
+        tree: &egui::accesskit::TreeUpdate,
+    ) {
+    }
 
     /// Called after a queued event has been pushed into the harness input, before the
     /// frame runs that consumes it.
