@@ -41,7 +41,11 @@ impl<S> Plugin<S> for CountingPlugin {
     fn before_step(&mut self, _h: &mut Harness<'_, S>) {
         self.push("before_step");
     }
-    fn after_step(&mut self, _h: &mut Harness<'_, S>) {
+    fn after_step(
+        &mut self,
+        _h: &mut Harness<'_, S>,
+        _tree: &egui::accesskit::TreeUpdate,
+    ) {
         self.push("after_step");
     }
     fn on_event(&mut self, _h: &mut Harness<'_, S>, _event: &egui::Event) {
@@ -127,7 +131,7 @@ fn step_no_side_effects_skips_hooks() {
         drove: bool,
     }
     impl<S: 'static> Plugin<S> for DrivingPlugin {
-        fn after_step(&mut self, h: &mut Harness<'_, S>) {
+        fn after_step(&mut self, h: &mut Harness<'_, S>, _tree: &egui::accesskit::TreeUpdate) {
             self.log.lock().unwrap().push("after_step".into());
             if !self.drove {
                 self.drove = true;
@@ -164,7 +168,7 @@ fn mid_dispatch_registration_is_deferred() {
         registered: bool,
     }
     impl<S: 'static> Plugin<S> for Registrar {
-        fn after_step(&mut self, h: &mut Harness<'_, S>) {
+        fn after_step(&mut self, h: &mut Harness<'_, S>, _tree: &egui::accesskit::TreeUpdate) {
             self.log.lock().unwrap().push("registrar:after_step".into());
             if !self.registered {
                 self.registered = true;
