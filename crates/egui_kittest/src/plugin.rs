@@ -13,11 +13,12 @@ use crate::{ExceededMaxStepsError, Harness};
 /// State-agnostic plugins should impl for all `State` so they're reusable across harnesses:
 /// ```
 /// use egui_kittest::{Harness, Plugin};
+/// use egui::accesskit::TreeUpdate;
 ///
 /// struct MyPlugin;
 ///
 /// impl<S> Plugin<S> for MyPlugin {
-///     fn after_step(&mut self, _harness: &mut Harness<'_, S>) {
+///     fn after_step(&mut self, _harness: &mut Harness<'_, S>, _tree: &TreeUpdate) {
 ///         // ...
 ///     }
 /// }
@@ -48,17 +49,15 @@ pub trait Plugin<State = ()>: Send + 'static {
     fn before_step(&mut self, harness: &mut Harness<'_, State>) {}
 
     /// Called immediately after each single-frame step.
-    fn after_step(&mut self, harness: &mut Harness<'_, State>) {}
-
-    /// Called after each single-frame step with the AccessKit tree update egui produced
-    /// for that frame, before it's applied to the internal kittest state.
     ///
-    /// Plugins that need the tree (e.g. to stream it to an external debugger) should
-    /// clone it here — the harness no longer retains it after this hook returns.
-    fn on_accesskit_update(
+    /// `accesskit_update` is the AccessKit tree update egui produced for the frame that
+    /// just ran. Plugins that need to retain it (e.g. to stream it to an external
+    /// debugger) should clone it here — the harness doesn't hold on to it after this hook
+    /// returns.
+    fn after_step(
         &mut self,
         harness: &mut Harness<'_, State>,
-        tree: &egui::accesskit::TreeUpdate,
+        accesskit_update: &egui::accesskit::TreeUpdate,
     ) {
     }
 
