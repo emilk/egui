@@ -4,8 +4,6 @@
 //! renders, snapshots, and final pass/fail. Register plugins via
 //! [`crate::HarnessBuilder::with_plugin`] or [`crate::Harness::add_plugin`].
 
-use std::any::Any;
-
 use crate::{ExceededMaxStepsError, Harness};
 
 /// A plugin observes the test-harness lifecycle and can drive additional frames.
@@ -25,12 +23,6 @@ use crate::{ExceededMaxStepsError, Harness};
 /// }
 /// ```
 ///
-/// # Downcasting
-///
-/// [`Any`] is a supertrait, so [`Harness::plugin`] / [`Harness::plugin_mut`] /
-/// [`Harness::take_plugin`] downcast registered plugins back to their concrete type via
-/// trait upcasting. No boilerplate needed on your end.
-///
 /// # Re-entrancy
 ///
 /// Plugin hooks receive `&mut Harness`. Calling [`Harness::step`] / [`Harness::run`] /
@@ -38,7 +30,7 @@ use crate::{ExceededMaxStepsError, Harness};
 /// a plugin needs to advance the harness from inside a hook — e.g. an inspector that
 /// blocks on user input — use [`Harness::step_no_side_effects`] instead.
 #[expect(unused_variables, reason = "default no-op impls")]
-pub trait Plugin<State = ()>: Send + Any {
+pub trait Plugin<State = ()>: Send + 'static {
     /// Called once at the start of every `run()` / `try_run()` / `try_run_realtime()` /
     /// `run_ok()` invocation, before the first step.
     fn before_run(&mut self, harness: &mut Harness<'_, State>) {}
