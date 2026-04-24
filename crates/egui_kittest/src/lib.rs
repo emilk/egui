@@ -210,10 +210,13 @@ impl<'a, State: 'static> Harness<'a, State> {
 
     /// Advance the harness by one frame without firing plugin hooks.
     ///
-    /// This is useful for running steps within a plugin, without ending in an infinite loop where
-    /// the plugin is called again.
-    pub fn step_no_side_effects(&mut self) {
-        self._step_no_side_effects(false);
+    /// Returns the AccessKit tree update produced by the frame. Useful for plugins driving
+    /// the harness from inside a hook: `after_step` normally delivers the tree, but nested
+    /// hook dispatches are suppressed, so plugins that call this from within their own
+    /// `after_step` need the return value to see the fresh tree.
+    #[track_caller]
+    pub fn step_no_side_effects(&mut self) -> egui::accesskit::TreeUpdate {
+        self._step_no_side_effects(false)
     }
 
     /// [`std::panic::Location`] of the most recent public `#[track_caller]` entry point
@@ -322,15 +325,17 @@ impl<'a, State: 'static> Harness<'a, State> {
     }
 
     /// Run a single step, firing `before_step` / `after_step` plugin hooks.
+    #[track_caller]
     fn _step(&mut self, sizing_pass: bool) {
         self.plugin_dispatch(|p, h| p.before_step(h));
-        self._step_no_side_effects(sizing_pass);
-        self.plugin_dispatch(|p, h| p.after_step(h));
+        let accesskit_update = self._step_no_side_effects(sizing_pass);
+        self.plugin_dispatch(|p, h| p.after_step(h, &accesskit_update));
     }
 
     /// Core frame advance. Does NOT fire plugin hooks — callable from within
     /// hooks via [`Self::step_no_side_effects`] without recursing.
-    fn _step_no_side_effects(&mut self, sizing_pass: bool) {
+    #[track_caller]
+    fn _step_no_side_effects(&mut self, sizing_pass: bool) -> egui::accesskit::TreeUpdate {
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
@@ -341,10 +346,10 @@ impl<'a, State: 'static> Harness<'a, State> {
             .accesskit_update
             .take()
             .expect("AccessKit was disabled");
-        self.plugin_dispatch(|p, h| p.on_accesskit_update(h, &accesskit_update));
-        self.kittest.update(accesskit_update);
+        self.kittest.update(accesskit_update.clone());
         self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
+        accesskit_update
     }
 
     /// Calculate the rect that includes all popups and tooltips.
@@ -412,6 +417,7 @@ impl<'a, State: 'static> Harness<'a, State> {
         }
     }
 
+    #[track_caller]
     fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
         self.plugin_dispatch(|p, h| p.before_run(h));
 
