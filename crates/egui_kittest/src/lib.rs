@@ -79,7 +79,7 @@ pub struct Harness<'a, State: 'static = ()> {
     output: egui::FullOutput,
     app: AppKind<'a, State>,
     response: Option<egui::Response>,
-    state: State,
+    state: Option<State>,
     renderer: Box<dyn TestRenderer>,
     max_steps: u64,
     step_dt: f32,
@@ -170,7 +170,7 @@ impl<'a, State: 'static> Harness<'a, State> {
             kittest: kittest::State::new(initial_accesskit),
             output,
             response,
-            state,
+            state: Some(state),
             renderer,
             max_steps,
             step_dt,
@@ -208,41 +208,12 @@ impl<'a, State: 'static> Harness<'a, State> {
         self.plugins.push(Box::new(plugin));
     }
 
-    /// Borrow a registered plugin by type. Returns the first plugin of the matching type
-    /// in registration order, or `None` if no plugin of that type is registered.
-    pub fn plugin<P: Plugin<State>>(&self) -> Option<&P> {
-        self.plugins
-            .iter()
-            .find_map(|p| (&**p as &dyn std::any::Any).downcast_ref::<P>())
-    }
-
-    /// Mutably borrow a registered plugin by type.
-    pub fn plugin_mut<P: Plugin<State>>(&mut self) -> Option<&mut P> {
-        self.plugins
-            .iter_mut()
-            .find_map(|p| (&mut **p as &mut dyn std::any::Any).downcast_mut::<P>())
-    }
-
-    /// Remove and return the first plugin of the given type.
-    pub fn take_plugin<P: Plugin<State>>(&mut self) -> Option<Box<P>> {
-        let idx = self
-            .plugins
-            .iter()
-            .position(|p| (&**p as &dyn std::any::Any).is::<P>())?;
-        let boxed = self.plugins.remove(idx);
-        let raw: *mut dyn Plugin<State> = Box::into_raw(boxed);
-        // SAFETY: `is::<P>()` confirmed the concrete type is `P`. Fat-to-thin pointer
-        // cast preserves the data pointer, which is the address of the underlying `P`.
-        #[expect(unsafe_code)]
-        Some(unsafe { Box::from_raw(raw.cast::<P>()) })
-    }
-
     /// Advance the harness by one frame without firing plugin hooks.
     ///
     /// This is useful for running steps within a plugin, without ending in an infinite loop where
     /// the plugin is called again.
     pub fn step_no_side_effects(&mut self) {
-        self._step_inner(false);
+        self._step_no_side_effects(false);
     }
 
     /// [`std::panic::Location`] of the most recent public `#[track_caller]` entry point
@@ -256,7 +227,7 @@ impl<'a, State: 'static> Harness<'a, State> {
         &self.consumed_event_locations
     }
 
-    fn dispatch(&mut self, mut f: impl FnMut(&mut dyn Plugin<State>, &mut Self)) {
+    fn plugin_dispatch(&mut self, mut f: impl FnMut(&mut dyn Plugin<State>, &mut Self)) {
         if self.plugins.is_empty() {
             return;
         }
@@ -339,7 +310,7 @@ impl<'a, State: 'static> Harness<'a, State> {
                 EventType::Event(event, loc) => {
                     self.consumed_event_locations.push(loc);
                     self.input.events.push(event.clone());
-                    self.dispatch(|p, h| p.on_event(h, &event));
+                    self.plugin_dispatch(|p, h| p.on_event(h, &event));
                 }
                 EventType::Modifiers(modifiers, loc) => {
                     self.consumed_event_locations.push(loc);
@@ -352,25 +323,25 @@ impl<'a, State: 'static> Harness<'a, State> {
 
     /// Run a single step, firing `before_step` / `after_step` plugin hooks.
     fn _step(&mut self, sizing_pass: bool) {
-        self.dispatch(|p, h| p.before_step(h));
-        self._step_inner(sizing_pass);
-        self.dispatch(|p, h| p.after_step(h));
+        self.plugin_dispatch(|p, h| p.before_step(h));
+        self._step_no_side_effects(sizing_pass);
+        self.plugin_dispatch(|p, h| p.after_step(h));
     }
 
     /// Core frame advance. Does NOT fire plugin hooks — callable from within
     /// hooks via [`Self::step_no_side_effects`] without recursing.
-    fn _step_inner(&mut self, sizing_pass: bool) {
+    fn _step_no_side_effects(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
-            self.response = self.app.run(ui, &mut self.state, sizing_pass);
+            self.response = self.app.run(ui, self.state.as_mut().unwrap(), sizing_pass);
         });
         let accesskit_update = output
             .platform_output
             .accesskit_update
             .take()
             .expect("AccessKit was disabled");
-        self.dispatch(|p, h| p.on_accesskit_update(h, &accesskit_update));
+        self.plugin_dispatch(|p, h| p.on_accesskit_update(h, &accesskit_update));
         self.kittest.update(accesskit_update);
         self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
@@ -442,7 +413,7 @@ impl<'a, State: 'static> Harness<'a, State> {
     }
 
     fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
-        self.dispatch(|p, h| p.before_run(h));
+        self.plugin_dispatch(|p, h| p.before_run(h));
 
         let mut steps = 0;
         let result = loop {
@@ -464,7 +435,7 @@ impl<'a, State: 'static> Harness<'a, State> {
                 });
             }
         };
-        self.dispatch(|p, h| p.after_run(h, result.as_ref().map(|s| *s)));
+        self.plugin_dispatch(|p, h| p.after_run(h, result.as_ref().map(|s| *s)));
         result
     }
 
@@ -566,12 +537,17 @@ impl<'a, State: 'static> Harness<'a, State> {
 
     /// Access the state.
     pub fn state(&self) -> &State {
-        &self.state
+        self.state.as_ref().expect("state already taken via into_state")
     }
 
     /// Access the state mutably.
     pub fn state_mut(&mut self) -> &mut State {
-        &mut self.state
+        self.state.as_mut().expect("state already taken via into_state")
+    }
+
+    /// Consume the harness and return the state.
+    pub fn into_state(mut self) -> State {
+        self.state.take().expect("state already taken via into_state")
     }
 
     /// Queue an event to be processed in the next frame.
@@ -797,7 +773,7 @@ impl<'a, State: 'static> Harness<'a, State> {
         }
 
         let image = self.renderer.render(&self.ctx, &output)?;
-        self.dispatch(|p, h| p.on_render(h, &image));
+        self.plugin_dispatch(|p, h| p.on_render(h, &image));
         Ok(image)
     }
 
@@ -890,7 +866,7 @@ impl<'a, State: 'static> Harness<'a, State> {
                 if let AppKind::Eframe(crate::app_kind::AppKindEframe { get_app, .. }) =
                     &mut self.harness.app
                 {
-                    get_app(&mut self.harness.state).logic(ctx, frame);
+                    get_app(self.harness.state.as_mut().unwrap()).logic(ctx, frame);
                 }
             }
 
@@ -898,9 +874,9 @@ impl<'a, State: 'static> Harness<'a, State> {
                 let harness = &mut self.harness;
                 match &mut harness.app {
                     AppKind::Ui(f) => f(ui),
-                    AppKind::UiState(f) => f(ui, &mut harness.state),
+                    AppKind::UiState(f) => f(ui, harness.state.as_mut().unwrap()),
                     AppKind::Eframe(crate::app_kind::AppKindEframe { get_app, .. }) => {
-                        get_app(&mut harness.state).ui(ui, frame);
+                        get_app(harness.state.as_mut().unwrap()).ui(ui, frame);
                     }
                 }
             }
@@ -967,10 +943,10 @@ impl<State: 'static> Drop for Harness<'_, State> {
 
         if std::thread::panicking() {
             plugin::with_fail_test_result(|result| {
-                self.dispatch(|p, h| p.on_test_result(h, fail_ref(&result)));
+                self.plugin_dispatch(|p, h| p.on_test_result(h, fail_ref(&result)));
             });
         } else {
-            self.dispatch(|p, h| p.on_test_result(h, TestResult::Pass));
+            self.plugin_dispatch(|p, h| p.on_test_result(h, TestResult::Pass));
         }
     }
 }
