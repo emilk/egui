@@ -89,7 +89,6 @@ pub struct Harness<'a, State: 'static = ()> {
     plugins: Vec<Box<dyn Plugin<State>>>,
     entry_location: Option<&'static std::panic::Location<'static>>,
     consumed_event_locations: Vec<&'static std::panic::Location<'static>>,
-    last_accesskit_update: Option<egui::accesskit::TreeUpdate>,
 
     #[cfg(feature = "snapshot")]
     default_snapshot_options: SnapshotOptions,
@@ -168,7 +167,7 @@ impl<'a, State: 'static> Harness<'a, State> {
             app,
             ctx,
             input,
-            kittest: kittest::State::new(initial_accesskit.clone()),
+            kittest: kittest::State::new(initial_accesskit),
             output,
             response,
             state,
@@ -181,7 +180,6 @@ impl<'a, State: 'static> Harness<'a, State> {
             plugins,
             entry_location: None,
             consumed_event_locations: Vec::new(),
-            last_accesskit_update: Some(initial_accesskit),
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
@@ -245,12 +243,6 @@ impl<'a, State: 'static> Harness<'a, State> {
     /// the plugin is called again.
     pub fn step_no_side_effects(&mut self) {
         self._step_inner(false);
-    }
-
-    /// The most recent AccessKit tree update, if any. Useful for plugins that mirror
-    /// the accessibility tree to an external debugger.
-    pub fn accesskit_tree_update(&self) -> Option<&egui::accesskit::TreeUpdate> {
-        self.last_accesskit_update.as_ref()
     }
 
     /// [`std::panic::Location`] of the most recent public `#[track_caller]` entry point
@@ -378,7 +370,7 @@ impl<'a, State: 'static> Harness<'a, State> {
             .accesskit_update
             .take()
             .expect("AccessKit was disabled");
-        self.last_accesskit_update = Some(accesskit_update.clone());
+        self.dispatch(|p, h| p.on_accesskit_update(h, &accesskit_update));
         self.kittest.update(accesskit_update);
         self.renderer.handle_delta(&output.textures_delta);
         self.output = output;

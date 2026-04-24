@@ -119,20 +119,20 @@ fn on_event_fires_per_event() {
     assert_eq!(events, 2, "expected 2 on_event calls, got log: {log:?}");
 }
 
-/// `advance_frame` does NOT fire `before_step`/`after_step`.
+/// `step_no_side_effects` does NOT fire `before_step`/`after_step`.
 #[test]
-fn advance_frame_skips_hooks() {
+fn step_no_side_effects_skips_hooks() {
     struct DrivingPlugin {
         log: Log,
         drove: bool,
     }
-    impl<S> Plugin<S> for DrivingPlugin {
+    impl<S: 'static> Plugin<S> for DrivingPlugin {
         fn after_step(&mut self, h: &mut Harness<'_, S>) {
             self.log.lock().unwrap().push("after_step".into());
             if !self.drove {
                 self.drove = true;
-                // Call advance_frame from inside a hook — must not recurse.
-                h.advance_frame();
+                // Call step_no_side_effects from inside a hook — must not recurse.
+                h.step_no_side_effects();
             }
         }
     }
@@ -152,7 +152,7 @@ fn advance_frame_skips_hooks() {
 
     let log = log.lock().unwrap();
     // Exactly one after_step from the user's step(), plus any from construction-time run_ok
-    // (cleared above). advance_frame must NOT have produced another after_step.
+    // (cleared above). step_no_side_effects must NOT have produced another after_step.
     assert_eq!(log.iter().filter(|s| s == &"after_step").count(), 1);
 }
 
