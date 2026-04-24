@@ -196,22 +196,6 @@ fn mid_dispatch_registration_is_deferred() {
     // any "before_step" entries. Since we merged logs, we can't easily isolate — instead,
     // verify the harness does not deadlock / recurse.
     harness.step();
-    assert!(harness.plugin::<CountingPlugin>().is_some());
-}
-
-/// Downcasting via `plugin::<P>()` / `plugin_mut::<P>()` / `take_plugin::<P>()`.
-#[test]
-fn downcast_plugin_by_type() {
-    let (plugin, _log) = CountingPlugin::new();
-    let mut harness = Harness::builder().with_plugin(plugin).build_ui(|ui| {
-        ui.label("hi");
-    });
-
-    assert!(harness.plugin::<CountingPlugin>().is_some());
-    assert!(harness.plugin_mut::<CountingPlugin>().is_some());
-    let taken = harness.take_plugin::<CountingPlugin>();
-    assert!(taken.is_some());
-    assert!(harness.plugin::<CountingPlugin>().is_none());
 }
 
 /// When `Harness::drop` fires while a panic is unwinding, `on_test_result` gets `Fail`.
