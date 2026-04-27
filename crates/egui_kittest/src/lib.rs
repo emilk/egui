@@ -93,7 +93,7 @@ pub struct Harness<'a, State: 'static = ()> {
     #[cfg(feature = "snapshot")]
     default_snapshot_options: SnapshotOptions,
     #[cfg(feature = "snapshot")]
-    snapshot_results: Option<SnapshotResults>,
+    snapshot_results: SnapshotResults,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -185,7 +185,7 @@ impl<'a, State: 'static> Harness<'a, State> {
             default_snapshot_options,
 
             #[cfg(feature = "snapshot")]
-            snapshot_results: Some(SnapshotResults::default()),
+            snapshot_results: SnapshotResults::default(),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -934,12 +934,10 @@ impl<State: 'static> Drop for Harness<'_, State> {
     fn drop(&mut self) {
         // Consume SnapshotResults first so its own panic-check runs under our control,
         // and so `std::thread::panicking()` reflects snapshot failures when plugins observe
-        // the final outcome.
+        // the final outcome. Drop may panic; if so, the panic propagates and plugins still
+        // see Fail.
         #[cfg(feature = "snapshot")]
-        if let Some(results) = self.snapshot_results.take() {
-            // Drop may panic; if so, the panic propagates and plugins still see Fail.
-            drop(results);
-        }
+        drop(std::mem::take(&mut self.snapshot_results));
 
         if self.plugins.is_empty() {
             return;

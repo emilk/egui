@@ -675,10 +675,7 @@ impl<State: 'static> Harness<'_, State> {
     #[track_caller]
     pub fn snapshot_options(&mut self, name: impl Into<String>, options: &SnapshotOptions) {
         let result = self.try_snapshot_options(name, options);
-        self.snapshot_results
-            .as_mut()
-            .expect("SnapshotResults already taken")
-            .add(result);
+        self.snapshot_results.add(result);
     }
 
     /// Render an image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
@@ -695,10 +692,7 @@ impl<State: 'static> Harness<'_, State> {
     #[track_caller]
     pub fn snapshot(&mut self, name: impl Into<String>) {
         let result = self.try_snapshot(name);
-        self.snapshot_results
-            .as_mut()
-            .expect("SnapshotResults already taken")
-            .add(result);
+        self.snapshot_results.add(result);
     }
 
     /// Render a snapshot, save it to a temp file and open it in the default image viewer.
@@ -751,10 +745,7 @@ impl<State: 'static> Harness<'_, State> {
     /// This removes the snapshot results from the harness. Useful if you e.g. want to merge it
     /// with the results from another harness (using [`SnapshotResults::add`]).
     pub fn take_snapshot_results(&mut self) -> SnapshotResults {
-        // Replace with a fresh SnapshotResults so subsequent snapshot calls don't panic.
-        self.snapshot_results
-            .replace(SnapshotResults::default())
-            .expect("SnapshotResults already taken")
+        std::mem::take(&mut self.snapshot_results)
     }
 }
 
