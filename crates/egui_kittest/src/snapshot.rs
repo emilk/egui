@@ -628,7 +628,7 @@ impl<State: 'static> Harness<'_, State> {
             Err(err) => return Err(SnapshotError::RenderError { err }),
         };
         let result = try_image_snapshot_options(&image, name.clone(), options);
-        self.plugin_dispatch(|p, h| p.on_snapshot(h, &name, &image, &result));
+        self.dispatch(|p, h| p.on_snapshot(h, &name, &image, &result));
         result
     }
 

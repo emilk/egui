@@ -103,7 +103,7 @@ pub struct PanicLocation {
 }
 
 /// Outcome of a test, as seen by [`Plugin::on_test_result`].
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TestResult<'a> {
     /// No panic in progress on this thread when `on_test_result` fired.
     Pass,
