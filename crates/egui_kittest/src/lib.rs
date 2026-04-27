@@ -230,15 +230,13 @@ impl<'a, State: 'static> Harness<'a, State> {
         &self.consumed_event_locations
     }
 
-    fn plugin_dispatch(&mut self, mut f: impl FnMut(&mut dyn Plugin<State>, &mut Self)) {
-        if self.plugins.is_empty() {
-            return;
-        }
+    fn dispatch(&mut self, mut f: impl FnMut(&mut dyn Plugin<State>, &mut Self)) {
         let mut plugins = std::mem::take(&mut self.plugins);
         for p in &mut plugins {
             f(p.as_mut(), self);
         }
-        // Handle the case where a plugin is registered within some other plugin
+        // A plugin's hook is allowed to call `add_plugin`; those land in the now-empty
+        // `self.plugins`. Append them after the swap so they fire on the next dispatch.
         let added = std::mem::take(&mut self.plugins);
         self.plugins = plugins;
         self.plugins.extend(added);
@@ -313,7 +311,7 @@ impl<'a, State: 'static> Harness<'a, State> {
                 EventType::Event(event, loc) => {
                     self.consumed_event_locations.push(loc);
                     self.input.events.push(event.clone());
-                    self.plugin_dispatch(|p, h| p.on_event(h, &event));
+                    self.dispatch(|p, h| p.on_event(h, &event));
                 }
                 EventType::Modifiers(modifiers, loc) => {
                     self.consumed_event_locations.push(loc);
@@ -327,9 +325,9 @@ impl<'a, State: 'static> Harness<'a, State> {
     /// Run a single step, firing `before_step` / `after_step` plugin hooks.
     #[track_caller]
     fn _step(&mut self, sizing_pass: bool) {
-        self.plugin_dispatch(|p, h| p.before_step(h));
+        self.dispatch(|p, h| p.before_step(h));
         let accesskit_update = self._step_no_side_effects(sizing_pass);
-        self.plugin_dispatch(|p, h| p.after_step(h, &accesskit_update));
+        self.dispatch(|p, h| p.after_step(h, &accesskit_update));
     }
 
     /// Core frame advance. Does NOT fire plugin hooks — callable from within
@@ -419,7 +417,7 @@ impl<'a, State: 'static> Harness<'a, State> {
 
     #[track_caller]
     fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
-        self.plugin_dispatch(|p, h| p.before_run(h));
+        self.dispatch(|p, h| p.before_run(h));
 
         let mut steps = 0;
         let result = loop {
@@ -441,7 +439,7 @@ impl<'a, State: 'static> Harness<'a, State> {
                 });
             }
         };
-        self.plugin_dispatch(|p, h| p.after_run(h, result.as_ref().map(|s| *s)));
+        self.dispatch(|p, h| p.after_run(h, result.as_ref().map(|s| *s)));
         result
     }
 
@@ -779,7 +777,7 @@ impl<'a, State: 'static> Harness<'a, State> {
         }
 
         let image = self.renderer.render(&self.ctx, &output)?;
-        self.plugin_dispatch(|p, h| p.on_render(h, &image));
+        self.dispatch(|p, h| p.on_render(h, &image));
         Ok(image)
     }
 
@@ -949,22 +947,10 @@ impl<State: 'static> Drop for Harness<'_, State> {
 
         if std::thread::panicking() {
             plugin::with_fail_test_result(|result| {
-                self.plugin_dispatch(|p, h| p.on_test_result(h, fail_ref(&result)));
+                self.dispatch(|p, h| p.on_test_result(h, result));
             });
         } else {
-            self.plugin_dispatch(|p, h| p.on_test_result(h, TestResult::Pass));
+            self.dispatch(|p, h| p.on_test_result(h, TestResult::Pass));
         }
-    }
-}
-
-// Helper: reborrow a `TestResult::Fail` so it can be passed to multiple plugins from
-// inside `dispatch`'s FnMut closure.
-fn fail_ref<'a>(result: &'a TestResult<'a>) -> TestResult<'a> {
-    match result {
-        TestResult::Pass => TestResult::Pass,
-        TestResult::Fail { message, location } => TestResult::Fail {
-            message: *message,
-            location: *location,
-        },
     }
 }
