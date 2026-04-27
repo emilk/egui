@@ -1,5 +1,6 @@
 //! Example that shows how to create a `egui_kittest` Plugin that ensures each button has a label.
 
+use egui::accesskit;
 use egui_kittest::kittest::{NodeT as _, Queryable as _};
 use egui_kittest::{Harness, Plugin};
 
@@ -7,7 +8,11 @@ use egui_kittest::{Harness, Plugin};
 pub struct RequireButtonLabels;
 
 impl<S> Plugin<S> for RequireButtonLabels {
-    fn after_step(&mut self, harness: &mut Harness<'_, S>) {
+    fn after_step(
+        &mut self,
+        harness: &mut Harness<'_, S>,
+        _accesskit_update: &egui::accesskit::TreeUpdate,
+    ) {
         for button in harness.query_all_by_role(egui::accesskit::Role::Button) {
             let node = button.accesskit_node();
 
