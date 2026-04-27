@@ -24,7 +24,7 @@ use egui::mutex::Mutex;
 use crate::inspector_api::{
     Frame, HarnessMessage, InspectorCommand, SourceView, read_message, write_message,
 };
-use crate::{Harness, Plugin};
+use crate::{Harness, Plugin, TestResult};
 
 /// Environment variable: when set to a truthy value, every harness auto-launches an inspector.
 pub const INSPECTOR_ENV_VAR: &str = "KITTEST_INSPECTOR";
@@ -115,16 +115,48 @@ impl<S> Plugin<S> for InspectorPlugin {
             self.block_until_resume(harness);
         }
     }
+
+    /// Test ended — send `Finished` (carrying the panic location in its `SourceView` when
+    /// the panic's file matches the test entry), then block until the user dismisses with a
+    /// Step / Run / Play command. The dismiss unblocks us; the harness finishes dropping on
+    /// the way out.
+    fn on_test_result(&mut self, harness: &mut Harness<'_, S>, result: TestResult<'_>) {
+        if self.conn.broken {
+            return;
+        }
+
+        let (ok, message, panic_loc) = match result {
+            TestResult::Pass => (true, None, None),
+            TestResult::Fail { message, location } => (
+                false,
+                message.map(str::to_owned),
+                location.map(|loc| (loc.file.clone(), loc.line)),
+            ),
+        };
+
+        let source = build_source_view(
+            harness.entry_location(),
+            harness.consumed_event_locations(),
+            panic_loc.as_ref(),
+        );
+        self.conn.write(&HarnessMessage::Finished {
+            ok,
+            message,
+            source,
+        });
+        // Park here until the user dismisses with Step/Run/Play. `block_until_resume` exits
+        // on any of those (they all transition out of `Paused`); `Pause` is a no-op; `Handle`
+        // still works so the user can poke at the final UI on failure. The mode mutation it
+        // leaves behind is harmless — the plugin is about to drop.
+        self.mode = Mode::Paused;
+        self.block_until_resume(harness);
+    }
 }
 
 impl InspectorPlugin {
     /// Send a frame for this step and apply the current mode's blocking / draining policy.
     /// `after_run` is handled separately — it only transitions `RunOnce → Paused`.
-    fn handle_after_step<S>(
-        &mut self,
-        harness: &mut Harness<'_, S>,
-        tree: &accesskit::TreeUpdate,
-    ) {
+    fn handle_after_step<S>(&mut self, harness: &mut Harness<'_, S>, tree: &accesskit::TreeUpdate) {
         if self.conn.broken {
             return;
         }
@@ -209,7 +241,7 @@ impl InspectorPlugin {
             harness.input_mut().events.push(event);
         }
         // `step_no_side_effects` returns the tree directly — we can't receive it via
-        // `on_accesskit_update` because we're inside an outer `plugin_dispatch`.
+        // `after_step` because nested plugin dispatches are suppressed.
         let tree = harness.step_no_side_effects();
         self.send_frame(harness, Some(tree));
     }
@@ -231,10 +263,12 @@ impl InspectorPlugin {
             }
         };
         let ppp = harness.ctx.pixels_per_point();
-        let call_site = harness.entry_location();
-        let event_sites = harness.consumed_event_locations().to_vec();
-        self.conn
-            .send_frame(&image, ppp, tree, call_site, &event_sites);
+        let source = build_source_view(
+            harness.entry_location(),
+            harness.consumed_event_locations(),
+            None,
+        );
+        self.conn.send_frame(&image, ppp, tree, source);
     }
 }
 
@@ -298,8 +332,7 @@ impl Connection {
         image: &image::RgbaImage,
         pixels_per_point: f32,
         accesskit: Option<accesskit::TreeUpdate>,
-        call_site: Option<&'static Location<'static>>,
-        event_sites: &[&'static Location<'static>],
+        source: Option<SourceView>,
     ) {
         if self.broken {
             return;
@@ -313,7 +346,7 @@ impl Connection {
             rgba: image.as_raw().clone(),
             accesskit,
             label: self.label.clone(),
-            source: build_source_view(call_site, event_sites),
+            source,
         };
         self.write(&HarnessMessage::Frame(Box::new(frame)));
     }
@@ -353,13 +386,16 @@ fn run_reader(mut reader: BufReader<ChildStdout>, tx: &mpsc::Sender<InspectorCom
 }
 
 /// Build the [`SourceView`] payload for a frame: pick the `.run()`/`.step()` caller's file
-/// as the anchor, and record each event's line within that same file.
+/// as the anchor, and record each event's line within that same file. `panic_loc` is set
+/// only on the final frame after a failed test — and only included in the output if the
+/// panic's file matches the anchor (otherwise there's no highlight to attach).
 ///
 /// `#[track_caller]` chains through the entire event-queuing API, so each `Location` points
 /// directly at the user's test source — no backtrace walking needed.
 fn build_source_view(
     call_site: Option<&'static Location<'static>>,
     event_sites: &[&'static Location<'static>],
+    panic_loc: Option<&(String, u32)>,
 ) -> Option<SourceView> {
     let call = call_site?;
     let path = call.file().to_owned();
@@ -368,23 +404,51 @@ fn build_source_view(
         .filter(|loc| loc.file() == path)
         .map(|loc| loc.line())
         .collect();
+    let panic_line = panic_loc
+        .filter(|(file, _)| file == &path)
+        .map(|(_, line)| *line);
     Some(SourceView {
         path: path.clone(),
         contents: read_source_file(&path),
         call_site_line: Some(call.line()),
         event_lines,
+        panic_line,
     })
 }
 
 /// Read the full contents of a source file, cached per path (including negative results).
+///
+/// `path` comes from `std::panic::Location::file()`, which the compiler reports relative to
+/// the *workspace* root. Cargo runs tests with CWD set to the *crate* root, so for a
+/// workspace crate at `<workspace>/crates/foo/` the compiler-reported path is
+/// `crates/foo/src/…` but CWD is `<workspace>/crates/foo/`. We try as-is first (handles
+/// absolute paths and single-crate layouts), then walk up from CWD looking for an ancestor
+/// where `ancestor.join(path)` resolves.
 fn read_source_file(path: &str) -> Option<String> {
     static CACHE: LazyLock<Mutex<HashMap<String, Option<String>>>> =
         LazyLock::new(|| Mutex::new(HashMap::new()));
     let mut cache = CACHE.lock();
     cache
         .entry(path.to_owned())
-        .or_insert_with(|| std::fs::read_to_string(path).ok())
+        .or_insert_with(|| resolve_and_read(path))
         .clone()
+}
+
+fn resolve_and_read(path: &str) -> Option<String> {
+    if let Ok(contents) = std::fs::read_to_string(path) {
+        return Some(contents);
+    }
+    if std::path::Path::new(path).is_absolute() {
+        return None;
+    }
+    let mut cursor = std::env::current_dir().ok()?;
+    // `pop()` returns false once we've hit the root, which terminates the search.
+    while cursor.pop() {
+        if let Ok(contents) = std::fs::read_to_string(cursor.join(path)) {
+            return Some(contents);
+        }
+    }
+    None
 }
 
 /// Read [`INSPECTOR_ENV_VAR`] once and cache. Exposed to [`crate::Harness::from_builder`]

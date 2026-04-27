@@ -78,7 +78,7 @@ ahash = { version = "0.8.12", default-features = false, features = [
 android_logger = "0.15.1"
 arboard = { version = "3.6.1", default-features = false }
 backtrace = "0.3.76"
-bincode = { version = "2.0.1", default-features = false, features = ["std", "serde"] }
+rmp-serde = "1.3.1"
 bitflags = "2.9.4"
 bytemuck = "1.24.0"
 cint = "0.3.1"
