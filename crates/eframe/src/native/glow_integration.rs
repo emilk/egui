@@ -654,12 +654,16 @@ impl GlowWinitRunning<'_> {
         let mut painter = painter.borrow_mut();
 
         let egui::FullOutput {
-            platform_output,
+            mut platform_output,
             textures_delta,
             shapes,
             pixels_per_point,
             viewport_output,
         } = full_output;
+
+        // Hook: let the user inspect / mutate the platform output before it
+        // is dispatched to the OS (cursor icon, IME, clipboard, etc.).
+        app.post_platform_output(&integration.egui_ctx, viewport_id, &mut platform_output);
 
         glutin.remove_viewports_not_in(&viewport_output);
 
@@ -682,7 +686,11 @@ impl GlowWinitRunning<'_> {
         egui_winit.handle_platform_output(&window, platform_output);
 
         if is_visible {
-            let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
+            let mut clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
+
+            // Hook: let the user inspect / transform the tessellated primitives
+            // before they are submitted to the GPU painter.
+            app.transform_primitives(&integration.egui_ctx, viewport_id, &mut clipped_primitives);
 
             {
                 // We may need to switch contexts again, because of immediate viewports:
