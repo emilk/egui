@@ -2,7 +2,7 @@ use egui::accesskit::{self, Role};
 use egui::{Button, ComboBox, Image, Modifiers, Popup, Rect, Vec2, Widget as _};
 #[cfg(all(feature = "wgpu", feature = "snapshot"))]
 use egui_kittest::SnapshotResults;
-use egui_kittest::{kittest::Queryable as _, Harness};
+use egui_kittest::{Harness, kittest::Queryable as _};
 
 #[test]
 pub fn focus_should_skip_over_disabled_buttons() {
@@ -338,10 +338,11 @@ pub fn keyboard_should_close_nested_submenu_with_second_enter() {
 }
 
 /// Regression test for a bug in `horizontal_wrapped` layouts where text wraps but does not
-/// move to the next line, causing overlapping text. Sweeps the available width from 200
-/// down to 50 (one frame per width) and asserts that no two `TextRun` accesskit nodes
-/// (one per laid-out row) have overlapping bounds, and that all accesskit text runs
-/// and painted text shapes stay within the `horizontal_wrapped` rect.
+/// move to the next line, causing overlapping text.
+///
+/// Sweeps the available width from 200 down to 50 (one frame per width) and asserts that no
+/// two `TextRun` accesskit nodes (one per laid-out row) have overlapping bounds, and that
+/// all accesskit text runs and painted text shapes stay within the `horizontal_wrapped` rect.
 #[test]
 pub fn horizontal_wrapped_text_should_not_overlap() {
     struct State {
@@ -383,10 +384,7 @@ pub fn horizontal_wrapped_text_should_not_overlap() {
         harness.state_mut().width = width;
         harness.step();
 
-        let container_rect = harness
-            .state()
-            .rect
-            .expand(1.0);
+        let container_rect = harness.state().rect.expand(1.0);
 
         let runs: Vec<_> = harness
             .query_all_by_role(accesskit::Role::TextRun)
