@@ -506,16 +506,10 @@ impl WinitApp for GlowWinitApp<'_> {
                 .and_then(|viewport| glutin.viewports.get_mut(&viewport))
                 && let Some(window) = viewport.window.as_ref()
             {
-                if !window.has_focus()
-                    && !viewport
-                        .egui_winit
-                        .as_ref()
-                        .map(|state| state.is_any_pointer_button_down())
-                        .unwrap_or(false)
-                {
-                    return Ok(EventResult::Wait);
-                }
-
+                // Forward MouseMotion deltas unconditionally. The previous
+                // guard `!window.has_focus() && !any_pointer_button_down`
+                // silently dropped every relative-motion event on Wayland
+                // kiosk setups (see matching change in wgpu_integration.rs).
                 if let Some(egui_winit) = viewport.egui_winit.as_mut()
                     && egui_winit.on_mouse_motion(delta)
                 {

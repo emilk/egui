@@ -503,16 +503,17 @@ impl WinitApp for WgpuWinitApp<'_> {
                 .and_then(|viewport| shared.viewports.get_mut(&viewport))
                 && let Some(window) = viewport.window.as_ref()
             {
-                if !window.has_focus()
-                    && !viewport
-                        .egui_winit
-                        .as_ref()
-                        .map(|state| state.is_any_pointer_button_down())
-                        .unwrap_or(false)
-                {
-                    return Ok(EventResult::Wait);
-                }
-
+                // Forward MouseMotion deltas unconditionally. The previous
+                // guard `!window.has_focus() && !any_pointer_button_down`
+                // silently dropped every relative-motion event on Wayland
+                // kiosk setups: under Mutter with multiple deferred viewports
+                // the playfield viewport regularly reports `has_focus() ==
+                // false` (with_active is a Wayland no-op, ViewportCommand::
+                // Focus likewise without an xdg_activation_v1 token), so
+                // `egui::Event::MouseMoved` would never reach egui's input
+                // pipeline. Downstream consumers (egui pointer system,
+                // egui-rotate's SoftwareCursor) gate on their own state, so
+                // over-forwarding is harmless.
                 if let Some(egui_winit) = viewport.egui_winit.as_mut()
                     && egui_winit.on_mouse_motion(delta)
                 {
