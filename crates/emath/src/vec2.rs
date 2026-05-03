@@ -157,11 +157,9 @@ impl Vec2 {
     #[inline]
     #[must_use]
     pub fn from_iter(iter: impl Iterator<Item = f32>) -> Option<Vec2> {
-        if iter.len() != 2 {
-            return None;
-        }
-        let x = iter.next();
-        let y = iter.next();
+        let x = iter.next()?;
+        let y = iter.next()?;
+        if iter.next() != None { return None };
         Some(Self { x, y })
     }
 
