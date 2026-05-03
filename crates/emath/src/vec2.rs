@@ -149,6 +149,22 @@ impl Vec2 {
         Self { x, y }
     }
 
+    /// Create a Vec2 from something
+    /// that implements the Iterator trait.
+
+    /// Returns a None value if the iterator is either too long
+    /// or too short.
+    #[inline]
+    #[must_use]
+    pub fn from_iter(iter: impl Iterator<Item = f32>) -> Option<Vec2> {
+        if iter.len() != 2 {
+            return None;
+        }
+        let x = iter.next();
+        let y = iter.next();
+        Some(Self { x, y })
+    }
+
     /// Set both `x` and `y` to the same value.
     #[inline(always)]
     pub const fn splat(v: f32) -> Self {
