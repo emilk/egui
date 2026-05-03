@@ -500,16 +500,13 @@ impl WinitApp for GlowWinitApp<'_> {
         if let winit::event::DeviceEvent::MouseMotion { delta } = event
             && let Some(running) = &mut self.running
         {
+            // Route MouseMotion deltas to the ROOT viewport rather than to
+            // `focused_viewport` (see matching change + rationale in
+            // wgpu_integration.rs).
             let mut glutin = running.glutin.borrow_mut();
-            if let Some(viewport) = glutin
-                .focused_viewport
-                .and_then(|viewport| glutin.viewports.get_mut(&viewport))
+            if let Some(viewport) = glutin.viewports.get_mut(&egui::ViewportId::ROOT)
                 && let Some(window) = viewport.window.as_ref()
             {
-                // Forward MouseMotion deltas unconditionally. The previous
-                // guard `!window.has_focus() && !any_pointer_button_down`
-                // silently dropped every relative-motion event on Wayland
-                // kiosk setups (see matching change in wgpu_integration.rs).
                 if let Some(egui_winit) = viewport.egui_winit.as_mut()
                     && egui_winit.on_mouse_motion(delta)
                 {
