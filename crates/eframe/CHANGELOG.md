@@ -7,6 +7,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+
+### ⭐ Added
+* Add `App::transform_primitives` and `App::post_platform_output` hooks to inspect/transform tessellated primitives and platform output before they are dispatched.
+
+
 ## 0.34.1 - 2026-03-27
 * `wgpu` backend: Enable WebGL fallback [#8038](https://github.com/emilk/egui/pull/8038) by [@emilk](https://github.com/emilk)
 * Only apply cursor style to the `<canvas>` [#8036](https://github.com/emilk/egui/pull/8036) by [@mkeeter](https://github.com/mkeeter)

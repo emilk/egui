@@ -257,6 +257,69 @@ pub trait App {
     ///
     /// This function does not return a value. Any changes to the input should be made directly to `_raw_input`.
     fn raw_input_hook(&mut self, _ctx: &egui::Context, _raw_input: &mut egui::RawInput) {}
+
+    /// A hook for inspecting or transforming tessellated primitives before they are
+    /// handed to the GPU painter, on every frame.
+    ///
+    /// This runs **after** [`egui::Context::tessellate`] and **before** the painter
+    /// (glow / wgpu) submits draw calls. The primitives are in the same coordinate
+    /// space the painter expects (logical pixels). You can rewrite vertex positions,
+    /// modify clip rects, replace meshes, or strip primitives entirely.
+    ///
+    /// Fires once per viewport per frame. Use `_viewport_id` to filter on the root
+    /// (`egui::ViewportId::ROOT`) or on a specific child viewport — `_ctx.viewport_id()`
+    /// is unreliable here because the viewport stack is already popped by the time
+    /// the hook fires.
+    ///
+    /// Use cases:
+    /// - viewport-level transforms applied uniformly to the whole frame (rotation,
+    ///   mirroring, custom projections) without touching individual widgets
+    /// - debugging / instrumentation: dump primitive counts, log overdraw, inject
+    ///   debug overlays
+    /// - custom render passes that need access to the final primitive list
+    ///
+    /// # Arguments
+    ///
+    /// * `_ctx` - The egui context, useful to read state such as `content_rect()`.
+    /// * `_viewport_id` - The viewport these primitives belong to.
+    /// * `_primitives` - The tessellated primitives. Mutate in place to alter what
+    ///   the painter draws.
+    fn transform_primitives(
+        &mut self,
+        _ctx: &egui::Context,
+        _viewport_id: egui::ViewportId,
+        _primitives: &mut Vec<egui::epaint::ClippedPrimitive>,
+    ) {
+    }
+
+    /// A hook for inspecting [`egui::PlatformOutput`] **after** the egui pass completes,
+    /// before it is consumed by the integration (cursor icon dispatch, IME state,
+    /// clipboard writes, accessibility updates).
+    ///
+    /// You can read fields such as `cursor_icon` or `ime`, or modify them to override
+    /// what the integration sees (e.g. force a cursor icon). Mutating the field in
+    /// place changes what is dispatched to the OS.
+    ///
+    /// Fires once per viewport per frame. Use `_viewport_id` to filter on the root
+    /// (`egui::ViewportId::ROOT`) or on a specific child viewport.
+    ///
+    /// Use cases:
+    /// - capture the cursor icon for a custom software cursor
+    /// - intercept clipboard writes for instrumentation
+    /// - override platform output for kiosk/embedded scenarios
+    ///
+    /// # Arguments
+    ///
+    /// * `_ctx` - The egui context.
+    /// * `_viewport_id` - The viewport this output belongs to.
+    /// * `_platform_output` - The platform output for this frame. May be mutated.
+    fn post_platform_output(
+        &mut self,
+        _ctx: &egui::Context,
+        _viewport_id: egui::ViewportId,
+        _platform_output: &mut egui::PlatformOutput,
+    ) {
+    }
 }
 
 /// Options controlling the behavior of a native window.
