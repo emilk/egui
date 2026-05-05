@@ -13,6 +13,10 @@ pub use crate::snapshot::*;
 
 mod app_kind;
 mod config;
+#[cfg(feature = "inspector")]
+mod inspector;
+#[cfg(feature = "inspector_api")]
+pub mod inspector_api;
 mod node;
 mod plugin;
 mod renderer;
@@ -22,6 +26,11 @@ mod texture_to_image;
 pub mod wgpu;
 
 pub use crate::plugin::{PanicLocation, Plugin, TestResult, install_panic_hook};
+
+#[cfg(feature = "inspector")]
+pub use crate::inspector::{
+    INSPECTOR_ENV_VAR, INSPECTOR_PATH_ENV_VAR, InspectorError, InspectorPlugin,
+};
 
 // re-exports:
 pub use {
@@ -93,7 +102,7 @@ pub struct Harness<'a, State: 'static = ()> {
     #[cfg(feature = "snapshot")]
     default_snapshot_options: SnapshotOptions,
     #[cfg(feature = "snapshot")]
-    snapshot_results: Option<SnapshotResults>,
+    snapshot_results: SnapshotResults,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -185,8 +194,26 @@ impl<'a, State: 'static> Harness<'a, State> {
             default_snapshot_options,
 
             #[cfg(feature = "snapshot")]
-            snapshot_results: Some(SnapshotResults::default()),
+            snapshot_results: SnapshotResults::default(),
         };
+
+        // Auto-register the Inspector plugin when the env var is set. Done before `run_ok`
+        // so the inspector sees the initial stabilization frames.
+        #[cfg(feature = "inspector")]
+        if inspector::env_enabled() {
+            match inspector::InspectorPlugin::launch(
+                std::thread::current().name().map(String::from),
+            ) {
+                Ok(plugin) => harness.add_plugin(plugin),
+                Err(err) => {
+                    #[expect(clippy::print_stderr)]
+                    {
+                        eprintln!("egui_kittest: failed to launch inspector: {err}");
+                    }
+                }
+            }
+        }
+
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
         harness
@@ -753,7 +780,7 @@ impl<'a, State: 'static> Harness<'a, State> {
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
-    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[cfg(any(feature = "wgpu", feature = "snapshot", feature = "inspector"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
         let mut output = self.output.clone();
 
@@ -934,12 +961,10 @@ impl<State: 'static> Drop for Harness<'_, State> {
     fn drop(&mut self) {
         // Consume SnapshotResults first so its own panic-check runs under our control,
         // and so `std::thread::panicking()` reflects snapshot failures when plugins observe
-        // the final outcome.
+        // the final outcome. Drop may panic; if so, the panic propagates and plugins still
+        // see Fail.
         #[cfg(feature = "snapshot")]
-        if let Some(results) = self.snapshot_results.take() {
-            // Drop may panic; if so, the panic propagates and plugins still see Fail.
-            drop(results);
-        }
+        drop(std::mem::take(&mut self.snapshot_results));
 
         if self.plugins.is_empty() {
             return;

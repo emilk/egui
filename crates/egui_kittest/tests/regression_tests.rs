@@ -1,5 +1,5 @@
 use egui::accesskit::{self, Role};
-use egui::{Button, ComboBox, Image, Modifiers, Popup, Vec2, Widget as _};
+use egui::{Button, ComboBox, Image, Modifiers, Popup, Rect, Vec2, Widget as _};
 #[cfg(all(feature = "wgpu", feature = "snapshot"))]
 use egui_kittest::SnapshotResults;
 use egui_kittest::{Harness, kittest::Queryable as _};
@@ -335,6 +335,100 @@ pub fn keyboard_should_close_nested_submenu_with_second_enter() {
         harness.query_by_label("Goal").is_none(),
         "Expected nested submenu to close when pressing Enter again"
     );
+}
+
+/// Regression test for a bug in `horizontal_wrapped` layouts where text wraps but does not
+/// move to the next line, causing overlapping text.
+///
+/// Sweeps the available width from 200 down to 50 (one frame per width) and asserts that no
+/// two `TextRun` accesskit nodes (one per laid-out row) have overlapping bounds, and that
+/// all accesskit text runs and painted text shapes stay within the `horizontal_wrapped` rect.
+#[test]
+pub fn horizontal_wrapped_text_should_not_overlap() {
+    struct State {
+        width: f32,
+        rect: egui::Rect,
+    }
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(300.0, 400.0))
+        .build_ui_state(
+            |ui, state: &mut State| {
+                ui.set_width(state.width);
+                state.rect = egui::Frame::popup(ui.style())
+                    .show(ui, |ui| {
+                        ui.horizontal_wrapped(|ui| {
+                            ui.set_width(ui.available_width());
+                            for i in 0..20 {
+                                ui.label(format!("Hello{i}"));
+                            }
+                        })
+                        .response
+                        .rect
+                    })
+                    .inner;
+            },
+            State {
+                width: 200.0,
+                rect: Rect::NAN,
+            },
+        );
+
+    let min_width = 50.0;
+
+    loop {
+        let width = harness.state().width - 1.0;
+        if width < min_width {
+            break;
+        }
+        harness.state_mut().width = width;
+        harness.step();
+
+        let container_rect = harness.state().rect.expand(1.0);
+
+        let runs: Vec<_> = harness
+            .query_all_by_role(accesskit::Role::TextRun)
+            .map(|node| (node.rect(), node.value().unwrap_or_default()))
+            .collect();
+
+        for (rect, text) in &runs {
+            assert!(
+                container_rect.contains_rect(*rect),
+                "TextRun rect at available width = {width} is outside horizontal_wrapped rect: \
+                 {text:?} {rect:?} outside {container_rect:?}"
+            );
+        }
+
+        for clipped in &harness.output().shapes {
+            if let egui::epaint::Shape::Text(text_shape) = &clipped.shape {
+                let shape_rect = text_shape.visual_bounding_rect();
+                assert!(
+                    container_rect.contains_rect(shape_rect),
+                    "TextShape rect at available width = {width} is outside horizontal_wrapped rect: \
+                     {:?} {shape_rect:?} outside {container_rect:?}",
+                    text_shape.galley.text()
+                );
+            }
+        }
+
+        for i in 0..runs.len() {
+            for j in (i + 1)..runs.len() {
+                let (a, ta) = &runs[i];
+                let (b, tb) = &runs[j];
+                let inter = a.intersect(*b);
+                // Allow tiny floating-point slop for rects that just touch.
+                let overlaps = inter.width() > 0.5 && inter.height() > 0.5;
+                assert!(
+                    !overlaps,
+                    "TextRun rects overlap at available width = {width}: \
+                     {ta:?} {a:?} vs {tb:?} {b:?} \
+                     (overlap = {}x{})",
+                    inter.width(),
+                    inter.height()
+                );
+            }
+        }
+    }
 }
 
 #[test]

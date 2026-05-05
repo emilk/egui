@@ -67,7 +67,7 @@ pub trait Plugin<State = ()>: Send + 'static {
 
     /// Called from inside [`Harness::render`] after the image is produced. Lets a plugin
     /// observe every rendered frame without triggering a second render pass.
-    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[cfg(any(feature = "wgpu", feature = "snapshot", feature = "inspector"))]
     fn on_render(&mut self, harness: &mut Harness<'_, State>, image: &image::RgbaImage) {}
 
     /// Called from [`Harness::try_snapshot`] / [`Harness::try_snapshot_options`] after
