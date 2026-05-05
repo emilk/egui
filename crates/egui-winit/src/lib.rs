@@ -1680,6 +1680,16 @@ fn process_viewport_command(
         ViewportCommand::Fullscreen(v) => {
             window.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
         }
+        ViewportCommand::SetMonitor(idx) => {
+            if let Some(monitor) = window.available_monitors().nth(idx) {
+                window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(Some(monitor))));
+            } else {
+                log::warn!(
+                    "ViewportCommand::SetMonitor({idx}): index out of range ({} monitors available)",
+                    window.available_monitors().count()
+                );
+            }
+        }
         ViewportCommand::Decorations(v) => window.set_decorations(v),
         ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
@@ -1778,7 +1788,24 @@ pub fn create_window(
 ) -> Result<Window, winit::error::OsError> {
     profiling::function_scope!();
 
-    let window_attributes = create_winit_window_attributes(egui_ctx, viewport_builder.clone());
+    let mut window_attributes = create_winit_window_attributes(egui_ctx, viewport_builder.clone());
+
+    // Resolve target monitor index → MonitorHandle, so the window is created
+    // directly in borderless fullscreen on the requested output. This is the
+    // only reliable way to target a specific monitor under Wayland, and also
+    // avoids the Mutter race where OuterPosition is ignored pre-mapping.
+    if let Some(idx) = viewport_builder.monitor {
+        if let Some(monitor) = event_loop.available_monitors().nth(idx) {
+            window_attributes = window_attributes
+                .with_fullscreen(Some(winit::window::Fullscreen::Borderless(Some(monitor))));
+        } else {
+            log::warn!(
+                "ViewportBuilder::with_monitor({idx}): index out of range ({} monitors available)",
+                event_loop.available_monitors().count()
+            );
+        }
+    }
+
     let window = event_loop.create_window(window_attributes)?;
     apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
     Ok(window)
@@ -1830,6 +1857,7 @@ pub fn create_winit_window_attributes(
 
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
         clamp_size_to_monitor_size: _, // Handled in `viewport_builder` in `epi_integration.rs`
+        monitor: _, // Handled in `create_window` (needs ActiveEventLoop for monitor handle)
     } = viewport_builder;
 
     let mut window_attributes = winit::window::WindowAttributes::default()
