@@ -149,6 +149,17 @@ impl Vec2 {
         Self { x, y }
     }
 
+	/// Create a Vec2 from an iterator with f32 values.
+    /// Returns a None value if the iterator length is not 2. The first should be is x and the second should be y.
+    #[inline]
+    #[must_use]
+    pub fn from_iter(mut iter: impl Iterator<Item = f32>) -> Option<Vec2> {	
+		let x = iter.next()?;
+		let y = iter.next()?;
+		if iter.next() != None { return None; }
+		return Some(Self { x, y });
+    }
+
     /// Set both `x` and `y` to the same value.
     #[inline(always)]
     pub const fn splat(v: f32) -> Self {
