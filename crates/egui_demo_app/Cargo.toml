@@ -41,6 +41,12 @@ wgpu = ["eframe/wgpu", "bytemuck"]
 wayland = ["eframe/wayland"]
 x11 = ["eframe/x11"]
 
+portable-atomic = [
+  "egui/portable-atomic",
+  "egui_demo_lib/portable-atomic",
+  "egui_extras/portable-atomic",
+]
+
 [dependencies]
 eframe = { workspace = true, default-features = false, features = ["web_screen_reader"] }
 egui = { workspace = true, features = ["callstack", "default"] }
@@ -68,7 +74,6 @@ poll-promise = { workspace = true, optional = true }
 
 # feature "persistence":
 serde = { workspace = true, optional = true }
-
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

@@ -47,6 +47,11 @@ mint = ["emath/mint"]
 ## This can help performance for graphics-intense applications.
 rayon = ["dep:rayon"]
 
+## Uses the [`portable-atomic`](https://docs.rs/portable-atomic) crate instead of `std::sync::atomic`.
+##
+## This is useful for platforms that may lack certain types of atomics, i.e 32-bit platforms lacking `AtomicU64`.
+portable-atomic = ["dep:portable-atomic"]
+
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = [
   "dep:serde",
@@ -94,6 +99,8 @@ rayon = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
 
 epaint_default_fonts = { workspace = true, optional = true }
+
+portable-atomic = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion.workspace = true

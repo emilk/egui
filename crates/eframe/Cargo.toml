@@ -62,6 +62,11 @@ glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 ## Enable saving app state to disk.
 persistence = ["dep:home", "egui-winit/serde", "egui/persistence", "ron", "serde"]
 
+## Uses the [`portable-atomic`](https://docs.rs/portable-atomic) crate instead of `std::sync::atomic`.
+##
+## This is useful for platforms that may lack certain types of atomics, i.e 32-bit platforms lacking `AtomicU64`.
+portable-atomic = ["egui/portable-atomic"]
+
 ## Enables wayland support and fixes clipboard issue.
 ##
 ## If you are compiling for Linux (or want to test on a CI system using Linux), you should enable this feature.

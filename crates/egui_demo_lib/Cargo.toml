@@ -37,6 +37,10 @@ serde = ["egui/serde", "dep:serde", "egui_extras/serde"]
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["egui_extras/syntect"]
 
+## Uses the [`portable-atomic`](https://docs.rs/portable-atomic) crate instead of `std::sync::atomic`.
+##
+## This is useful for platforms that may lack certain types of atomics, i.e 32-bit platforms lacking `AtomicU64`.
+portable-atomic = ["egui/portable-atomic", "egui_extras/portable-atomic"]
 
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["color-hex"] }
