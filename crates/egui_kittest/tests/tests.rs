@@ -148,8 +148,9 @@ fn test_scroll_down() {
     let mut harness = test_scroll_harness();
 
     let button = harness.get_by_label("Hidden Button");
-    button.scroll_down();
-    button.scroll_down();
+    for _ in 0..10 {
+        button.scroll_down();
+    }
     harness.run();
 
     harness.get_by_label("Hidden Button").click();
@@ -170,7 +171,9 @@ fn test_masking() {
             .as_millis();
 
         ui.label("I should not be masked.");
-        ui.label(format!("Timestamp: {timestamp}"));
+        // Render the timestamp with a monospace font so that the layout width
+        // does not depend on which digits the current time happens to contain.
+        ui.monospace(format!("Timestamp: {timestamp}"));
         ui.label("I should also not be masked.");
     });
 
