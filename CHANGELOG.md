@@ -14,6 +14,20 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.2 - 2026-05-04
+### ⭐ Added
+* Add regression test for O(n²) word boundary scan [#8077](https://github.com/emilk/egui/pull/8077) by [@hallyhaa](https://github.com/hallyhaa)
+
+### 🐛 Fixed
+* Fix wrong color of last glyph of selected text [#8075](https://github.com/emilk/egui/pull/8075) by [@emilk](https://github.com/emilk)
+* Fix text selection of centered and right-aligned text [#8076](https://github.com/emilk/egui/pull/8076) by [@emilk](https://github.com/emilk)
+* Fix `Context::is_pointer_over_egui` and `Context::egui_wants_pointer_input` [#8081](https://github.com/emilk/egui/pull/8081) by [@emilk](https://github.com/emilk)
+* Fix centered & right aligned `TextEdit` [#8082](https://github.com/emilk/egui/pull/8082) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🚀 Performance
+* Optimize text selection performance for large documents [#7917](https://github.com/emilk/egui/pull/7917) by [@rustbasic](https://github.com/rustbasic)
+
+
 ## 0.34.1 - 2026-03-27
 Nothing new
 

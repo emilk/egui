@@ -726,18 +726,19 @@ fn line_break(
         if job.wrap.max_rows <= out_rows.len() {
             *elided = true; // can't fit another row
         } else {
+            let paragraph_min_x = paragraph.glyphs[row_start_idx].pos.x - row_start_x;
+            let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x() - row_start_x;
+
             let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..]
                 .iter()
                 .copied()
                 .map(|mut glyph| {
-                    glyph.pos.x -= row_start_x;
+                    glyph.pos.x -= row_start_x + paragraph_min_x;
                     glyph
                 })
                 .collect();
 
             let section_index_at_start = glyphs[0].section_index;
-            let paragraph_min_x = glyphs[0].pos.x;
-            let paragraph_max_x = glyphs.last().unwrap().max_x();
 
             out_rows.push(PlacedRow {
                 pos: pos2(paragraph_min_x, 0.0),
