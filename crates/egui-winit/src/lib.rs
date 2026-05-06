@@ -1481,6 +1481,22 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::F34 => Key::F34,
         KeyCode::F35 => Key::F35,
 
+        // Modifier keys — egui now surfaces them as distinct physical
+        // variants so games / capture UIs can bind them independently.
+        // The collapsed `Modifiers.shift/ctrl/alt/command` booleans still
+        // track just the "any side is pressed" state for shortcut matching.
+        KeyCode::ShiftLeft => Key::ShiftLeft,
+        KeyCode::ShiftRight => Key::ShiftRight,
+        KeyCode::ControlLeft => Key::ControlLeft,
+        KeyCode::ControlRight => Key::ControlRight,
+        KeyCode::AltLeft => Key::AltLeft,
+        KeyCode::AltRight => Key::AltRight,
+        KeyCode::SuperLeft => Key::SuperLeft,
+        KeyCode::SuperRight => Key::SuperRight,
+
+        // ISO 102nd key — `<>|` on French AZERTY, `\|` on UK QWERTY.
+        KeyCode::IntlBackslash => Key::IntlBackslash,
+
         _ => {
             return None;
         }
