@@ -1,7 +1,7 @@
 use crate::app_kind::AppKind;
 #[cfg(feature = "eframe")]
 use crate::app_kind::AppKindEframe;
-use crate::{Harness, LazyRenderer, TestRenderer};
+use crate::{Harness, LazyRenderer, Plugin, TestRenderer};
 use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
 
@@ -17,6 +17,7 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) state: PhantomData<State>,
     pub(crate) renderer: Box<dyn TestRenderer>,
     pub(crate) wait_for_pending_images: bool,
+    pub(crate) plugins: Vec<Box<dyn Plugin<State>>>,
 
     #[cfg(feature = "snapshot")]
     pub(crate) default_snapshot_options: crate::SnapshotOptions,
@@ -37,6 +38,7 @@ impl<State> Default for HarnessBuilder<State> {
             step_dt: 1.0 / 4.0,
             wait_for_pending_images: true,
             os: egui::os::OperatingSystem::Nix,
+            plugins: Vec::new(),
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options: crate::SnapshotOptions::default(),
@@ -47,7 +49,7 @@ impl<State> Default for HarnessBuilder<State> {
     }
 }
 
-impl<State> HarnessBuilder<State> {
+impl<State: 'static> HarnessBuilder<State> {
     /// Set the size of the window.
     #[inline]
     pub fn with_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -161,6 +163,16 @@ impl<State> HarnessBuilder<State> {
         self.renderer(crate::wgpu::WgpuTestRenderer::from_setup(setup))
     }
 
+    /// Register a [`Plugin`] on this harness.
+    ///
+    /// Plugins observe the harness lifecycle (`before_step`, `after_step`, `on_snapshot`,
+    /// `on_test_result`, etc.) and are dispatched in registration order.
+    #[inline]
+    pub fn with_plugin(mut self, plugin: impl Plugin<State>) -> Self {
+        self.plugins.push(Box::new(plugin));
+        self
+    }
+
     /// Create a new Harness with the given ui closure and a state.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
@@ -211,7 +223,6 @@ impl<State> HarnessBuilder<State> {
 
         let kind = AppKind::Eframe(AppKindEframe {
             get_app: |state| state,
-            take_app: |state| Box::new(state),
             frame,
         });
         Harness::from_builder(self, kind, app, Some(ctx))
