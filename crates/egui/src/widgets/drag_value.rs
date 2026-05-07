@@ -409,6 +409,13 @@ impl<'a> DragValue<'a> {
         self.update_while_editing = update;
         self
     }
+
+    /// Outputs the DragValue's atoms
+    ///
+    /// This includes images you have on the DragValue
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.atoms
+    }
 }
 
 impl Widget for DragValue<'_> {

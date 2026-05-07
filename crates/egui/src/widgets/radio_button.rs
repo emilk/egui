@@ -35,6 +35,13 @@ impl<'a> RadioButton<'a> {
             atoms: atoms.into_atoms(),
         }
     }
+
+    /// Outputs the RadioButton's atoms
+    ///
+    /// This includes images you have on the RadioButton
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.atoms
+    }
 }
 
 impl Widget for RadioButton<'_> {

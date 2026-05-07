@@ -1,7 +1,7 @@
 use epaint::Margin;
 
 use crate::{
-    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
+    Atom, Atoms, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
     Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
     Widget, WidgetInfo, WidgetText, WidgetType,
     widget_style::{ButtonStyle, WidgetState},
@@ -270,6 +270,13 @@ impl<'a> Button<'a> {
     pub fn gap(mut self, gap: f32) -> Self {
         self.layout = self.layout.gap(gap);
         self
+    }
+
+    /// Output the button's Atoms.
+    ///
+    /// This includes images you have on the button
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.layout.atoms
     }
 
     /// Show the button and return a [`AtomLayoutResponse`] for painting custom contents.
