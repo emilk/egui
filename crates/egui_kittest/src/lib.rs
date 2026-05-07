@@ -14,11 +14,16 @@ pub use crate::snapshot::*;
 mod app_kind;
 mod config;
 mod node;
+#[cfg(feature = "recording")]
+mod recording;
 mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
+
+#[cfg(feature = "recording")]
+pub use crate::recording::{RecordKind, RecordingError, RecordingOptions, RecordingTrigger};
 
 // re-exports:
 pub use {
@@ -87,6 +92,9 @@ pub struct Harness<'a, State = ()> {
     default_snapshot_options: SnapshotOptions,
     #[cfg(feature = "snapshot")]
     snapshot_results: SnapshotResults,
+
+    #[cfg(feature = "recording")]
+    recording: Option<recording::RecordingState>,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -174,9 +182,29 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(feature = "snapshot")]
             snapshot_results: SnapshotResults::default(),
+
+            #[cfg(feature = "recording")]
+            recording: None,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
+
+        #[cfg(all(feature = "recording", feature = "snapshot"))]
+        {
+            // Env var takes precedence (always saves), then config (only saves on failure).
+            let auto_mode = if recording::record_env_enabled() {
+                Some(recording::AutoSaveMode::Always)
+            } else if config::config().save_gif_on_failure() {
+                Some(recording::AutoSaveMode::OnFailure)
+            } else {
+                None
+            };
+            if let Some(mode) = auto_mode {
+                let options = recording::RecordingOptions::gif(std::path::PathBuf::new(), 10.0);
+                harness.recording = Some(recording::RecordingState::new(options).with_auto_save(mode));
+            }
+        }
+
         harness
     }
 
@@ -274,6 +302,9 @@ impl<'a, State> Harness<'a, State> {
         );
         self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
+
+        #[cfg(feature = "recording")]
+        self.capture_frame_if_recording(false);
     }
 
     /// Calculate the rect that includes all popups and tooltips.
@@ -359,6 +390,10 @@ impl<'a, State> Harness<'a, State> {
                 });
             }
         }
+
+        #[cfg(feature = "recording")]
+        self.capture_frame_if_recording(true);
+
         Ok(steps)
     }
 
@@ -645,7 +680,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
-    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[cfg(any(feature = "wgpu", feature = "snapshot", feature = "recording"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
         let mut output = self.output.clone();
 
@@ -669,6 +704,62 @@ impl<'a, State> Harness<'a, State> {
         }
 
         self.renderer.render(&self.ctx, &output)
+    }
+
+    /// Start recording the test session.
+    ///
+    /// Captures one frame per [`Self::step`] (or per [`Self::run`], depending on the
+    /// configured [`RecordingTrigger`]). Replaces any previously active recording.
+    /// Call [`Self::finish_recording`] to write the output.
+    ///
+    /// Requires a renderer (e.g. enable the `wgpu` feature, or set one via
+    /// [`HarnessBuilder::renderer`]).
+    #[cfg(feature = "recording")]
+    pub fn start_recording(&mut self, options: RecordingOptions) {
+        self.recording = Some(recording::RecordingState::new(options));
+    }
+
+    /// Stop the active recording and write its output (GIF or PNG sequence).
+    ///
+    /// # Errors
+    /// Returns [`RecordingError::NotRecording`] if no recording is active, or an I/O / encode
+    /// error if writing fails.
+    #[cfg(feature = "recording")]
+    pub fn finish_recording(&mut self) -> Result<(), RecordingError> {
+        let state = self.recording.take().ok_or(RecordingError::NotRecording)?;
+        state.save()
+    }
+
+    /// Whether a recording is currently active.
+    #[cfg(feature = "recording")]
+    pub fn is_recording(&self) -> bool {
+        self.recording.is_some()
+    }
+
+    /// Render the current frame and append it to the active recording according to its trigger.
+    /// Called from [`Self::_step`] (with `after_run = false`) and at the end of [`Self::_try_run`]
+    /// (with `after_run = true`).
+    #[cfg(feature = "recording")]
+    fn capture_frame_if_recording(&mut self, after_run: bool) {
+        let Some(state) = self.recording.as_mut() else {
+            return;
+        };
+        if !state.should_capture(after_run) {
+            return;
+        }
+        match self.render() {
+            Ok(image) => {
+                if let Some(state) = self.recording.as_mut() {
+                    state.push_frame(image);
+                }
+            }
+            Err(err) => {
+                #[expect(clippy::print_stderr)]
+                {
+                    eprintln!("egui_kittest recording: render failed, skipping frame: {err}");
+                }
+            }
+        }
     }
 
     /// Get the root viewport output
@@ -790,6 +881,77 @@ impl<'a, State> Harness<'a, State> {
         )
         .unwrap();
     }
+}
+
+/// Save the in-progress recording (auto-started by `save_gif_on_failure` or `KITTEST_RECORD`)
+/// when the harness is dropped.
+///
+/// Recordings started by an explicit `start_recording` call are *not* saved here — the user
+/// is expected to call `finish_recording`.
+#[cfg(all(feature = "recording", feature = "snapshot"))]
+#[expect(clippy::print_stderr)] // Drop path: stderr is the only signal we have.
+impl<State> Drop for Harness<'_, State> {
+    fn drop(&mut self) {
+        let Some(mut state) = self.recording.take() else {
+            return;
+        };
+        let Some(mode) = state.auto_save_mode else {
+            // Explicit recording — discard if not finished.
+            return;
+        };
+
+        let should_save = match mode {
+            recording::AutoSaveMode::Always => true,
+            recording::AutoSaveMode::OnFailure => {
+                std::thread::panicking() || self.snapshot_results.has_errors()
+            }
+        };
+        if !should_save {
+            return;
+        }
+
+        let subdir = match mode {
+            recording::AutoSaveMode::Always => "recordings",
+            recording::AutoSaveMode::OnFailure => "failures",
+        };
+        let name = std::thread::current()
+            .name()
+            .map(sanitize_thread_name)
+            .unwrap_or_else(default_recording_name);
+        let resolved_path = config::config()
+            .output_path()
+            .join(subdir)
+            .join(format!("{name}.gif"));
+
+        // Replace the placeholder path with the resolved one.
+        if let recording::RecordKind::Gif { path, .. } = &mut state.options.kind {
+            *path = resolved_path.clone();
+        }
+
+        match state.save() {
+            Ok(()) => eprintln!("egui_kittest: saved GIF to {}", resolved_path.display()),
+            Err(err) => eprintln!(
+                "egui_kittest: failed to save GIF to {}: {err}",
+                resolved_path.display()
+            ),
+        }
+    }
+}
+
+#[cfg(all(feature = "recording", feature = "snapshot"))]
+fn sanitize_thread_name(name: &str) -> String {
+    // Test thread names look like `module::tests::name` — make that filesystem-safe.
+    name.replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-', "_")
+}
+
+#[cfg(all(feature = "recording", feature = "snapshot"))]
+fn default_recording_name() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    format!("recording-{ts}")
 }
 
 /// Utilities for stateless harnesses.

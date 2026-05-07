@@ -26,6 +26,9 @@ wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image", "dep:wgpu", "eframe?/wgpu"
 ## Adds a dify-based image snapshot utility.
 snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 
+## Record a test session as an animated GIF or PNG sequence.
+recording = ["dep:image", "image/gif", "image/png"]
+
 ## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]
 
@@ -62,6 +65,7 @@ tempfile = { workspace = true, optional = true }
 egui = { workspace = true, features = ["default_fonts"] }
 image = { workspace = true, features = ["png"] }
 egui_extras = { workspace = true, features = ["image", "http"] }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true
