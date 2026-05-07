@@ -476,6 +476,12 @@ impl EguiWindows {
             .open(settings)
             .vscroll(true)
             .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add(egui::github_link_file_line!(
+                        "https://github.com/emilk/egui/blob/main/",
+                        egui::RichText::new("(source code)").small()
+                    ));
+                });
                 ctx.settings_ui(ui);
             });
 
@@ -483,6 +489,12 @@ impl EguiWindows {
             .open(inspection)
             .vscroll(true)
             .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add(egui::github_link_file_line!(
+                        "https://github.com/emilk/egui/blob/main/",
+                        egui::RichText::new("(source code)").small()
+                    ));
+                });
                 ctx.inspection_ui(ui);
             });
 
@@ -490,6 +502,12 @@ impl EguiWindows {
             .open(memory)
             .resizable(false)
             .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add(egui::github_link_file_line!(
+                        "https://github.com/emilk/egui/blob/main/",
+                        egui::RichText::new("(source code)").small()
+                    ));
+                });
                 ctx.memory_ui(ui);
             });
 
@@ -498,6 +516,12 @@ impl EguiWindows {
             .resizable(true)
             .default_width(520.0)
             .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add(egui::github_link_file_line!(
+                        "https://github.com/emilk/egui/blob/main/",
+                        egui::RichText::new("(source code)").small()
+                    ));
+                });
                 ui.label(
                     "Recent output events from egui. \
             These are emitted when you interact with widgets, or move focus between them with TAB. \
