@@ -25,6 +25,14 @@ pub struct Config {
     /// Default is 0.
     failed_pixel_count_threshold: usize,
 
+    /// When `true`, every harness automatically records itself and writes a GIF to
+    /// `{output_path}/failures/{test_name}.gif` on test failure.
+    ///
+    /// Requires the `recording` feature; ignored otherwise.
+    /// Default is `false`.
+    #[cfg_attr(not(feature = "recording"), allow(dead_code))]
+    save_gif_on_failure: bool,
+
     windows: OsConfig,
     mac: OsConfig,
     linux: OsConfig,
@@ -36,6 +44,7 @@ impl Default for Config {
             output_path: PathBuf::from("tests/snapshots"),
             threshold: 0.6,
             failed_pixel_count_threshold: 0,
+            save_gif_on_failure: false,
             windows: Default::default(),
             mac: Default::default(),
             linux: Default::default(),
@@ -112,6 +121,15 @@ impl Config {
     /// Default is "tests/snapshots".
     pub fn output_path(&self) -> PathBuf {
         self.output_path.clone()
+    }
+
+    /// Whether harnesses should automatically record themselves and save a GIF on test failure.
+    ///
+    /// Configurable via `kittest.toml`. Requires the `recording` feature; ignored otherwise.
+    /// Default is `false`.
+    #[cfg(feature = "recording")]
+    pub fn save_gif_on_failure(&self) -> bool {
+        self.save_gif_on_failure
     }
 }
 

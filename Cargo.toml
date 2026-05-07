@@ -78,6 +78,7 @@ ahash = { version = "0.8.12", default-features = false, features = [
 android_logger = "0.15.1"
 arboard = { version = "3.6.1", default-features = false }
 backtrace = "0.3.76"
+bincode = { version = "2.0.1", default-features = false, features = ["std", "serde"] }
 bitflags = "2.9.4"
 bytemuck = "1.24.0"
 cint = "0.3.1"
@@ -90,6 +91,7 @@ ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7.3"
 env_logger = { version = "0.11.8", default-features = false }
 font-types = { version = "0.11.0", default-features = false, features = ["std"] }
+fs4 = { version = "0.13.1", default-features = false, features = ["sync"] }
 glow = "0.17.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }

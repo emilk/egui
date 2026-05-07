@@ -13,12 +13,24 @@ pub use crate::snapshot::*;
 
 mod app_kind;
 mod config;
+#[cfg(feature = "inspector")]
+mod inspector;
+#[cfg(feature = "inspector_api")]
+pub mod inspector_api;
 mod node;
+#[cfg(feature = "recording")]
+mod recording;
 mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
+
+#[cfg(feature = "recording")]
+pub use crate::recording::{RecordKind, RecordingError, RecordingOptions, RecordingTrigger};
+
+#[cfg(feature = "inspector")]
+pub use crate::inspector::{INSPECTOR_ENV_VAR, INSPECTOR_PATH_ENV_VAR, InspectorError};
 
 // re-exports:
 pub use {
@@ -87,6 +99,21 @@ pub struct Harness<'a, State = ()> {
     default_snapshot_options: SnapshotOptions,
     #[cfg(feature = "snapshot")]
     snapshot_results: SnapshotResults,
+
+    #[cfg(feature = "recording")]
+    recording: Option<recording::RecordingState>,
+
+    #[cfg(feature = "inspector")]
+    inspector: Option<inspector::Inspector>,
+    #[cfg(feature = "inspector")]
+    last_accesskit_update: Option<egui::accesskit::TreeUpdate>,
+    /// Backtrace captured at the most recent public runner call (e.g. `.run()` / `.step()`).
+    /// Used to find the topmost common test-source file across the call and its events.
+    #[cfg(feature = "inspector")]
+    current_call_site: node::EventSite,
+    /// Backtraces of events consumed in the step that produced the current frame.
+    #[cfg(feature = "inspector")]
+    consumed_event_sites: Vec<node::EventSite>,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -174,9 +201,51 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(feature = "snapshot")]
             snapshot_results: SnapshotResults::default(),
+
+            #[cfg(feature = "recording")]
+            recording: None,
+
+            #[cfg(feature = "inspector")]
+            inspector: None,
+            #[cfg(feature = "inspector")]
+            last_accesskit_update: None,
+            #[cfg(feature = "inspector")]
+            current_call_site: node::empty_site(),
+            #[cfg(feature = "inspector")]
+            consumed_event_sites: Vec::new(),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
+
+        #[cfg(feature = "inspector")]
+        if inspector::env_enabled() {
+            match inspector::Inspector::launch(std::thread::current().name().map(String::from)) {
+                Ok(insp) => harness.inspector = Some(insp),
+                Err(err) => {
+                    #[expect(clippy::print_stderr)]
+                    {
+                        eprintln!("egui_kittest: failed to launch inspector: {err}");
+                    }
+                }
+            }
+        }
+
+        #[cfg(all(feature = "recording", feature = "snapshot"))]
+        {
+            // Env var takes precedence (always saves), then config (only saves on failure).
+            let auto_mode = if recording::record_env_enabled() {
+                Some(recording::AutoSaveMode::Always)
+            } else if config::config().save_gif_on_failure() {
+                Some(recording::AutoSaveMode::OnFailure)
+            } else {
+                None
+            };
+            if let Some(mode) = auto_mode {
+                let options = recording::RecordingOptions::gif(std::path::PathBuf::new(), 10.0);
+                harness.recording = Some(recording::RecordingState::new(options).with_auto_save(mode));
+            }
+        }
+
         harness
     }
 
@@ -240,17 +309,30 @@ impl<'a, State> Harness<'a, State> {
     /// Run a frame for each queued event (or a single frame if there are no events).
     /// This will call the app closure with each queued event and
     /// update the Harness.
+    #[track_caller]
     pub fn step(&mut self) {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         let events = std::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
+            #[cfg(feature = "inspector")]
+            self.consumed_event_sites.clear();
             self._step(false);
         }
         for event in events {
+            #[cfg(feature = "inspector")]
+            self.consumed_event_sites.clear();
             match event {
-                EventType::Event(event) => {
+                EventType::Event(event, _site) => {
+                    #[cfg(feature = "inspector")]
+                    self.consumed_event_sites.push(_site);
                     self.input.events.push(event);
                 }
-                EventType::Modifiers(modifiers) => {
+                EventType::Modifiers(modifiers, _site) => {
+                    #[cfg(feature = "inspector")]
+                    self.consumed_event_sites.push(_site);
                     self.input.modifiers = modifiers;
                 }
             }
@@ -260,18 +342,37 @@ impl<'a, State> Harness<'a, State> {
 
     /// Run a single step. This will not process any events.
     fn _step(&mut self, sizing_pass: bool) {
+        self._step_inner(sizing_pass);
+
+        #[cfg(feature = "recording")]
+        self.capture_frame_if_recording(false);
+
+        // Inspector Control mode: each event the user triggers in the inspector drives one
+        // extra `_step_inner` so the UI re-renders, but the outer test caller stays parked
+        // inside this method until the inspector replies with an empty event list
+        // (i.e. user clicked Next/Play, or has Control off and we're just forwarding).
+        #[cfg(feature = "inspector")]
+        self.drive_inspector();
+    }
+
+    /// The core of `_step`: run egui once and update internal state. Does not touch the
+    /// inspector or the recording hook, so it can be called in a loop from those.
+    fn _step_inner(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
             self.response = self.app.run(ui, &mut self.state, sizing_pass);
         });
-        self.kittest.update(
-            output
-                .platform_output
-                .accesskit_update
-                .take()
-                .expect("AccessKit was disabled"),
-        );
+        let accesskit_update = output
+            .platform_output
+            .accesskit_update
+            .take()
+            .expect("AccessKit was disabled");
+        #[cfg(feature = "inspector")]
+        {
+            self.last_accesskit_update = Some(accesskit_update.clone());
+        }
+        self.kittest.update(accesskit_update);
         self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
     }
@@ -301,7 +402,12 @@ impl<'a, State> Harness<'a, State> {
     /// Resize the test harness to fit the contents. This only works when creating the Harness via
     /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
     /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
+    #[track_caller]
     pub fn fit_contents(&mut self) {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         self._step(true);
 
         // Calculate size including all content (main UI + popups + tooltips)
@@ -330,6 +436,10 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     #[track_caller]
     pub fn run(&mut self) -> u64 {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         match self.try_run() {
             Ok(steps) => steps,
             Err(err) => {
@@ -359,6 +469,10 @@ impl<'a, State> Harness<'a, State> {
                 });
             }
         }
+
+        #[cfg(feature = "recording")]
+        self.capture_frame_if_recording(true);
+
         Ok(steps)
     }
 
@@ -378,7 +492,12 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
+    #[track_caller]
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         self._try_run(false)
     }
 
@@ -395,7 +514,12 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
+    #[track_caller]
     pub fn run_ok(&mut self) -> Option<u64> {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         self.try_run().ok()
     }
 
@@ -418,13 +542,23 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run`].
+    #[track_caller]
     pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         self._try_run(true)
     }
 
     /// Run a number of steps.
     /// Equivalent to calling [`Harness::step`] x times.
+    #[track_caller]
     pub fn run_steps(&mut self, steps: usize) {
+        #[cfg(feature = "inspector")]
+        {
+            self.current_call_site = node::capture_site();
+        }
         for _ in 0..steps {
             self.step();
         }
@@ -467,7 +601,9 @@ impl<'a, State> Harness<'a, State> {
 
     /// Queue an event to be processed in the next frame.
     pub fn event(&self, event: egui::Event) {
-        self.queued_events.lock().push(EventType::Event(event));
+        self.queued_events
+            .lock()
+            .push(EventType::Event(event, node::capture_site()));
     }
 
     /// Queue an event with modifiers.
@@ -475,17 +611,18 @@ impl<'a, State> Harness<'a, State> {
     /// Queues the modifiers to be pressed, then the event, then the modifiers to be released.
     pub fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
         let mut queue = self.queued_events.lock();
-        queue.push(EventType::Modifiers(modifiers));
-        queue.push(EventType::Event(event));
-        queue.push(EventType::Modifiers(Modifiers::default()));
+        queue.push(EventType::Modifiers(modifiers, node::capture_site()));
+        queue.push(EventType::Event(event, node::capture_site()));
+        queue.push(EventType::Modifiers(Modifiers::default(), node::capture_site()));
     }
 
     fn modifiers(&self, modifiers: Modifiers) {
         self.queued_events
             .lock()
-            .push(EventType::Modifiers(modifiers));
+            .push(EventType::Modifiers(modifiers, node::capture_site()));
     }
 
+    #[track_caller]
     pub fn key_down(&self, key: egui::Key) {
         self.event(egui::Event::Key {
             key,
@@ -496,6 +633,7 @@ impl<'a, State> Harness<'a, State> {
         });
     }
 
+    #[track_caller]
     pub fn key_down_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.event_modifiers(
             egui::Event::Key {
@@ -509,6 +647,7 @@ impl<'a, State> Harness<'a, State> {
         );
     }
 
+    #[track_caller]
     pub fn key_up(&self, key: egui::Key) {
         self.event(egui::Event::Key {
             key,
@@ -519,6 +658,7 @@ impl<'a, State> Harness<'a, State> {
         });
     }
 
+    #[track_caller]
     pub fn key_up_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.event_modifiers(
             egui::Event::Key {
@@ -539,6 +679,7 @@ impl<'a, State> Harness<'a, State> {
     /// - Press [`Key::B`]
     /// - Release [`Key::B`]
     /// - Release [`Key::A`]
+    #[track_caller]
     pub fn key_combination(&self, keys: &[Key]) {
         for key in keys {
             self.key_down(*key);
@@ -557,6 +698,7 @@ impl<'a, State> Harness<'a, State> {
     /// - Release [`Key::B`]
     /// - Release [`Key::A`]
     /// - Release [`Modifiers::COMMAND`]
+    #[track_caller]
     pub fn key_combination_modifiers(&self, modifiers: Modifiers, keys: &[Key]) {
         self.modifiers(modifiers);
 
@@ -578,6 +720,7 @@ impl<'a, State> Harness<'a, State> {
     /// Press a key.
     ///
     /// This will create a key down event and a key up event.
+    #[track_caller]
     pub fn key_press(&self, key: egui::Key) {
         self.key_combination(&[key]);
     }
@@ -589,16 +732,19 @@ impl<'a, State> Harness<'a, State> {
     /// - create a key down event
     /// - create a key up event
     /// - reset the modifiers
+    #[track_caller]
     pub fn key_press_modifiers(&self, modifiers: Modifiers, key: egui::Key) {
         self.key_combination_modifiers(modifiers, &[key]);
     }
 
     /// Move mouse cursor to this position.
+    #[track_caller]
     pub fn hover_at(&self, pos: egui::Pos2) {
         self.event(egui::Event::PointerMoved(pos));
     }
 
     /// Start dragging from a position.
+    #[track_caller]
     pub fn drag_at(&self, pos: egui::Pos2) {
         self.event(egui::Event::PointerButton {
             pos,
@@ -609,6 +755,7 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Stop dragging and remove cursor.
+    #[track_caller]
     pub fn drop_at(&self, pos: egui::Pos2) {
         self.event(egui::Event::PointerButton {
             pos,
@@ -625,6 +772,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// If you click a button and then take a snapshot, the button will be shown as hovered.
     /// If you don't want that, you can call this method after clicking.
+    #[track_caller]
     pub fn remove_cursor(&self) {
         self.event(egui::Event::PointerGone);
     }
@@ -645,7 +793,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
-    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[cfg(any(feature = "wgpu", feature = "snapshot", feature = "recording", feature = "inspector"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
         let mut output = self.output.clone();
 
@@ -669,6 +817,138 @@ impl<'a, State> Harness<'a, State> {
         }
 
         self.renderer.render(&self.ctx, &output)
+    }
+
+    /// Start recording the test session.
+    ///
+    /// Captures one frame per [`Self::step`] (or per [`Self::run`], depending on the
+    /// configured [`RecordingTrigger`]). Replaces any previously active recording.
+    /// Call [`Self::finish_recording`] to write the output.
+    ///
+    /// Requires a renderer (e.g. enable the `wgpu` feature, or set one via
+    /// [`HarnessBuilder::renderer`]).
+    #[cfg(feature = "recording")]
+    pub fn start_recording(&mut self, options: RecordingOptions) {
+        self.recording = Some(recording::RecordingState::new(options));
+    }
+
+    /// Stop the active recording and write its output (GIF or PNG sequence).
+    ///
+    /// # Errors
+    /// Returns [`RecordingError::NotRecording`] if no recording is active, or an I/O / encode
+    /// error if writing fails.
+    #[cfg(feature = "recording")]
+    pub fn finish_recording(&mut self) -> Result<(), RecordingError> {
+        let state = self.recording.take().ok_or(RecordingError::NotRecording)?;
+        state.save()
+    }
+
+    /// Whether a recording is currently active.
+    #[cfg(feature = "recording")]
+    pub fn is_recording(&self) -> bool {
+        self.recording.is_some()
+    }
+
+    /// Render the current frame and append it to the active recording according to its trigger.
+    /// Called from [`Self::_step`] (with `after_run = false`) and at the end of [`Self::_try_run`]
+    /// (with `after_run = true`).
+    #[cfg(feature = "recording")]
+    fn capture_frame_if_recording(&mut self, after_run: bool) {
+        let Some(state) = self.recording.as_mut() else {
+            return;
+        };
+        if !state.should_capture(after_run) {
+            return;
+        }
+        match self.render() {
+            Ok(image) => {
+                if let Some(state) = self.recording.as_mut() {
+                    state.push_frame(image);
+                }
+            }
+            Err(err) => {
+                #[expect(clippy::print_stderr)]
+                {
+                    eprintln!("egui_kittest recording: render failed, skipping frame: {err}");
+                }
+            }
+        }
+    }
+
+    /// Launch a `kittest_inspector` process and attach this harness to it.
+    ///
+    /// After this call, every [`Self::step`] sends the rendered frame + accesskit tree to the
+    /// inspector and blocks until the inspector replies. When paused, the harness blocks until
+    /// the user clicks Play or Next in the inspector.
+    ///
+    /// # Errors
+    /// If the inspector binary cannot be launched or the connection fails.
+    #[cfg(feature = "inspector")]
+    pub fn launch_inspector(&mut self) -> Result<(), InspectorError> {
+        let label = std::thread::current().name().map(String::from);
+        self.inspector = Some(inspector::Inspector::launch(label)?);
+        Ok(())
+    }
+
+    /// Detach the inspector if attached. The inspector window will close on next message.
+    #[cfg(feature = "inspector")]
+    pub fn detach_inspector(&mut self) {
+        self.inspector = None;
+    }
+
+    /// Block at the inspector until it tells us to resume, re-rendering after each batch of
+    /// events it sends. Events drive an internal `_step_inner` (and recording capture), but
+    /// do NOT return control to the outer test — the test advances only when the inspector
+    /// replies with no events (i.e. user hit Next/Play/Step, or Control mode is off).
+    ///
+    /// We only loop while the inspector is *feeding events back* (Control mode) — animation
+    /// frames driven by `request_repaint` are handled by the outer `try_run` loop calling
+    /// `step()` again, so we don't need to drive them here. Doing so would send extra "no
+    /// event highlighted" frames between each event and confuse the Step UX.
+    #[cfg(feature = "inspector")]
+    fn drive_inspector(&mut self) {
+        if self.inspector.is_none() {
+            return;
+        }
+        loop {
+            let image = match self.render() {
+                Ok(img) => img,
+                Err(err) => {
+                    #[expect(clippy::print_stderr)]
+                    {
+                        eprintln!("egui_kittest inspector: render failed: {err}");
+                    }
+                    return;
+                }
+            };
+            let tree = self.last_accesskit_update.clone();
+            let ppp = self.ctx.pixels_per_point();
+            let call_site = self.current_call_site.clone();
+            let event_sites: Vec<_> = self.consumed_event_sites.clone();
+            let events = if let Some(inspector) = self.inspector.as_mut() {
+                inspector.send_step(&image, ppp, tree, &call_site, &event_sites)
+            } else {
+                return;
+            };
+            if events.is_empty() {
+                return;
+            }
+            for event in events {
+                self.input.events.push(event);
+            }
+            // Events driven by the inspector itself don't have a test-source location.
+            self.consumed_event_sites.clear();
+            self._step_inner(false);
+            #[cfg(feature = "recording")]
+            self.capture_frame_if_recording(false);
+
+            // Run one more step so effects of the just-delivered events are visible in the
+            // next frame we send (e.g. a clicked button's state change). Without this we'd
+            // show the frame *during* the click but not *after*.
+            self._step_inner(false);
+            #[cfg(feature = "recording")]
+            self.capture_frame_if_recording(false);
+        }
     }
 
     /// Get the root viewport output
@@ -790,6 +1070,77 @@ impl<'a, State> Harness<'a, State> {
         )
         .unwrap();
     }
+}
+
+/// Save the in-progress recording (auto-started by `save_gif_on_failure` or `KITTEST_RECORD`)
+/// when the harness is dropped.
+///
+/// Recordings started by an explicit `start_recording` call are *not* saved here — the user
+/// is expected to call `finish_recording`.
+#[cfg(all(feature = "recording", feature = "snapshot"))]
+#[expect(clippy::print_stderr)] // Drop path: stderr is the only signal we have.
+impl<State> Drop for Harness<'_, State> {
+    fn drop(&mut self) {
+        let Some(mut state) = self.recording.take() else {
+            return;
+        };
+        let Some(mode) = state.auto_save_mode else {
+            // Explicit recording — discard if not finished.
+            return;
+        };
+
+        let should_save = match mode {
+            recording::AutoSaveMode::Always => true,
+            recording::AutoSaveMode::OnFailure => {
+                std::thread::panicking() || self.snapshot_results.has_errors()
+            }
+        };
+        if !should_save {
+            return;
+        }
+
+        let subdir = match mode {
+            recording::AutoSaveMode::Always => "recordings",
+            recording::AutoSaveMode::OnFailure => "failures",
+        };
+        let name = std::thread::current()
+            .name()
+            .map(sanitize_thread_name)
+            .unwrap_or_else(default_recording_name);
+        let resolved_path = config::config()
+            .output_path()
+            .join(subdir)
+            .join(format!("{name}.gif"));
+
+        // Replace the placeholder path with the resolved one.
+        if let recording::RecordKind::Gif { path, .. } = &mut state.options.kind {
+            *path = resolved_path.clone();
+        }
+
+        match state.save() {
+            Ok(()) => eprintln!("egui_kittest: saved GIF to {}", resolved_path.display()),
+            Err(err) => eprintln!(
+                "egui_kittest: failed to save GIF to {}: {err}",
+                resolved_path.display()
+            ),
+        }
+    }
+}
+
+#[cfg(all(feature = "recording", feature = "snapshot"))]
+fn sanitize_thread_name(name: &str) -> String {
+    // Test thread names look like `module::tests::name` — make that filesystem-safe.
+    name.replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-', "_")
+}
+
+#[cfg(all(feature = "recording", feature = "snapshot"))]
+fn default_recording_name() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    format!("recording-{ts}")
 }
 
 /// Utilities for stateless harnesses.

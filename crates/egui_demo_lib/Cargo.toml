@@ -55,7 +55,7 @@ serde = { workspace = true, optional = true }
 criterion.workspace = true
 egui = { workspace = true, features = ["default_fonts"] }
 egui_extras = { workspace = true, features = ["image", "svg"] }
-egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
+egui_kittest = { workspace = true, features = ["wgpu", "snapshot", "inspector"] }
 image = { workspace = true, features = ["png"] }
 mimalloc.workspace = true # for benchmarks
 rand.workspace = true
