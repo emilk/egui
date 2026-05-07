@@ -407,3 +407,44 @@ fn horizontal_wrapped_multiline_row_height_reference() {
 
     harness.snapshot("horizontal_wrapped_multiline_row_height_reference");
 }
+
+#[test]
+fn animated_scroll_beats_sticky_bottom() {
+    let mut harness = Harness::builder()
+        .with_size((200.0, 120.0))
+        .with_max_steps(8)
+        .build_ui_state(
+            |ui, state: &mut (bool, f32, f32)| {
+                ui.style_mut().scroll_animation = ScrollAnimation::duration(0.5);
+
+                let output = ScrollArea::vertical()
+                    .max_height(60.0)
+                    .stick_to_bottom(true)
+                    .animated(true)
+                    .show(ui, |ui| {
+                        for row in 0..40 {
+                            let response = ui.label(format!("Row {row}"));
+                            if state.0 && row == 0 {
+                                response.scroll_to_me(Some(Align::TOP));
+                                state.0 = false;
+                            }
+                        }
+                    });
+
+                state.1 = output.state.offset.y;
+                state.2 = (output.content_size.y - output.inner_rect.height()).max(0.0);
+            },
+            (false, 0.0, 0.0),
+        );
+
+    assert!((harness.state().1 - harness.state().2).abs() <= 1.0);
+
+    harness.state_mut().0 = true;
+    harness.step();
+    harness.run();
+
+    assert!(
+        harness.state().1 + 1.0 < harness.state().2,
+        "animated explicit scroll should leave the sticky bottom"
+    );
+}
