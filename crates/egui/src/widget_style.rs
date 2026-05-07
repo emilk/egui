@@ -1,8 +1,11 @@
+use std::{borrow::Cow, fmt};
+
 use emath::Vec2;
 use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
+use smallvec::SmallVec;
 
 use crate::{
-    Frame, Response, Style, TextStyle,
+    Frame, Response, Style, TextBuffer as _, TextStyle,
     style::{WidgetVisuals, Widgets},
 };
 
@@ -28,11 +31,13 @@ pub struct WidgetStyle {
     pub stroke: Stroke,
 }
 
+/// Dedicated button style
 pub struct ButtonStyle {
     pub frame: Frame,
     pub text_style: TextVisuals,
 }
 
+/// Dedicated checkbox style
 pub struct CheckboxStyle {
     /// Frame around
     pub frame: Frame,
@@ -53,6 +58,7 @@ pub struct CheckboxStyle {
     pub check_stroke: Stroke,
 }
 
+/// Dedicated label style
 pub struct LabelStyle {
     /// Frame around
     pub frame: Frame,
@@ -64,6 +70,7 @@ pub struct LabelStyle {
     pub wrap_mode: TextWrapMode,
 }
 
+/// Dedicated separator style
 pub struct SeparatorStyle {
     /// How much space is allocated in the layout direction
     pub spacing: f32,
@@ -72,6 +79,7 @@ pub struct SeparatorStyle {
     pub stroke: Stroke,
 }
 
+/// The different state of a widget can be
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WidgetState {
     Noninteractive,
@@ -82,6 +90,7 @@ pub enum WidgetState {
 }
 
 impl Widgets {
+    /// The widget visuals according to the state
     pub fn state(&self, state: WidgetState) -> &WidgetVisuals {
         match state {
             WidgetState::Noninteractive => &self.noninteractive,
@@ -107,7 +116,8 @@ impl Response {
 }
 
 impl Style {
-    pub fn widget_style(&self, state: WidgetState) -> WidgetStyle {
+    /// The general widget style. The style is computed according to the classes and state of the widget.
+    pub fn widget_style(&self, _classes: &Classes, state: WidgetState) -> WidgetStyle {
         let visuals = self.visuals.widgets.state(state);
         let font_id = self.override_font_id.clone();
         WidgetStyle {
@@ -131,11 +141,13 @@ impl Style {
         }
     }
 
-    pub fn button_style(&self, state: WidgetState, selected: bool) -> ButtonStyle {
+    /// The dedicated button style. The style is computed according to the classes and state of the widget.
+    /// It depend on the general widget style.
+    pub fn button_style(&self, classes: &Classes, state: WidgetState) -> ButtonStyle {
         let mut visuals = *self.visuals.widgets.state(state);
-        let mut ws = self.widget_style(state);
+        let mut ws = self.widget_style(classes, state);
 
-        if selected {
+        if classes.has(SELECTED_CLASS) {
             visuals.weak_bg_fill = self.visuals.selection.bg_fill;
             visuals.bg_fill = self.visuals.selection.bg_fill;
             visuals.fg_stroke = self.visuals.selection.stroke;
@@ -157,9 +169,11 @@ impl Style {
         }
     }
 
-    pub fn checkbox_style(&self, state: WidgetState) -> CheckboxStyle {
+    /// The dedicated checkbox style. The style is computed according to the classes and state of the widget.
+    /// It depend on the general widget style.
+    pub fn checkbox_style(&self, classes: &Classes, state: WidgetState) -> CheckboxStyle {
         let visuals = self.visuals.widgets.state(state);
-        let ws = self.widget_style(state);
+        let ws = self.widget_style(classes, state);
         CheckboxStyle {
             frame: Frame::new(),
             checkbox_size: self.spacing.icon_width,
@@ -168,8 +182,6 @@ impl Style {
                 fill: visuals.bg_fill,
                 corner_radius: visuals.corner_radius,
                 stroke: visuals.bg_stroke,
-                // Use the inner_margin for the expansion
-                inner_margin: visuals.expansion.into(),
                 ..Default::default()
             },
             text_style: ws.text,
@@ -177,8 +189,10 @@ impl Style {
         }
     }
 
-    pub fn label_style(&self, state: WidgetState) -> LabelStyle {
-        let ws = self.widget_style(state);
+    /// The dedicated label style. The style is computed according to the classes and state of the widget.
+    /// It depend on the general widget style.
+    pub fn label_style(&self, classes: &Classes, state: WidgetState) -> LabelStyle {
+        let ws = self.widget_style(classes, state);
         LabelStyle {
             frame: Frame {
                 fill: ws.frame.fill,
@@ -193,11 +207,112 @@ impl Style {
         }
     }
 
-    pub fn separator_style(&self, _state: WidgetState) -> SeparatorStyle {
+    /// The dedicated separator style. The style is computed according to the classes and state of the widget.
+    /// It depend on the general widget style.
+    pub fn separator_style(&self, _classes: &Classes, _state: WidgetState) -> SeparatorStyle {
         let visuals = self.visuals.noninteractive();
         SeparatorStyle {
             spacing: 6.0,
             stroke: visuals.bg_stroke,
         }
+    }
+}
+
+/// The root class is a special class present on every top-level [`Ui`].
+pub const ROOT_CLASS: &str = "root";
+
+/// The selected class is a special class present on selected [`Button`].
+pub const SELECTED_CLASS: &str = "selected";
+
+/// A class is a static string identifier.
+pub type ClassName = Cow<'static, str>;
+
+/// Classes are string identifier that can be set on widget/Ui.
+///
+/// This can be used by styling engine to compute a different style
+/// based on the set of classes present on the widget/Ui.
+#[derive(Debug, Default, Clone)]
+pub struct Classes {
+    classes: SmallVec<[ClassName; 5]>,
+}
+
+impl Classes {
+    /// Add a class to the list if the condition is true
+    #[inline]
+    fn add_if(&mut self, class: impl Into<ClassName>, condition: bool) {
+        if condition {
+            self.classes.push(class.into());
+        }
+    }
+}
+
+impl HasClasses for Classes {
+    fn classes(&self) -> &Classes {
+        self
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        self
+    }
+}
+
+impl std::fmt::Display for Classes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.classes.iter().for_each(|class| {
+            let _ = f.write_str(class.as_str());
+        });
+        f.write_str("")
+    }
+}
+
+/// Any widgets supporting [`Classes`] must implement this trait
+pub trait HasClasses {
+    fn classes(&self) -> &Classes;
+
+    fn classes_mut(&mut self) -> &mut Classes;
+
+    /// Add the given class by consuming [`self`]
+    #[inline]
+    fn with_class(mut self, class: impl Into<ClassName>) -> Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().add_if(class.into(), true);
+        self
+    }
+
+    /// Add the given class by consuming [`self`] if the condition is true
+    #[inline]
+    fn with_class_if(mut self, class: impl Into<ClassName>, condition: bool) -> Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().add_if(class.into(), condition);
+        self
+    }
+
+    /// Add the given class in-place
+    #[inline]
+    fn add_class(&mut self, class: impl Into<ClassName>) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().add_if(class.into(), true);
+        self
+    }
+
+    /// Add the given class in-place if the condition is true
+    #[inline]
+    fn add_class_if(&mut self, class: impl Into<ClassName>, condition: bool) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().add_if(class.into(), condition);
+        self
+    }
+
+    /// True if the class is present
+    fn has(&self, class: impl Into<ClassName>) -> bool {
+        self.classes().classes.contains(&class.into())
     }
 }

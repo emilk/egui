@@ -4,6 +4,7 @@
 use std::{any::Any, hash::Hash, ops::Deref, sync::Arc};
 
 use crate::containers::menu;
+use crate::widget_style::{HasClasses as _, ROOT_CLASS};
 use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 use emath::GuiRounding as _;
 // ----------------------------------------------------------------------------
@@ -117,6 +118,7 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            classes,
         } = ui_builder;
 
         let layer_id = layer_id.unwrap_or_else(LayerId::background);
@@ -132,6 +134,7 @@ impl Ui {
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
+        let classes = classes.with_class(ROOT_CLASS);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -141,7 +144,9 @@ impl Ui {
             parent: None,
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
+            classes,
         };
+
         let mut ui = Ui {
             id,
             unique_id: id,
@@ -214,6 +219,7 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            classes,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
@@ -262,7 +268,9 @@ impl Ui {
             parent: Some(Arc::clone(&self.stack)),
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
+            classes,
         };
+
         let mut child_ui = Ui {
             id: stable_id,
             unique_id,
