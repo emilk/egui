@@ -24,7 +24,10 @@ mod renderer;
 mod setup;
 
 pub use renderer::*;
-pub use setup::{NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
+pub use setup::{
+    EguiDisplayHandle, NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew,
+    WgpuSetupExisting,
+};
 
 /// Helpers for capturing screenshots of the UI.
 #[cfg(feature = "capture")]
@@ -61,6 +64,43 @@ pub enum WgpuError {
     HandleError(#[from] ::winit::raw_window_handle::HandleError),
 }
 
+/// Runtime-mutable subset of [`WgpuConfiguration`].
+///
+/// Edit any field to have the surface reconfigured on the next paint.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct SurfaceConfig {
+    /// Present mode used for the primary surface.
+    pub present_mode: wgpu::PresentMode,
+
+    /// Desired maximum number of frames that the presentation engine should queue in advance.
+    ///
+    /// Use `1` for low-latency, and `2` for high-throughput.
+    ///
+    /// See [`wgpu::SurfaceConfiguration::desired_maximum_frame_latency`] for details.
+    ///
+    /// `None` => Let `wgpu` pick a default (currently `2`).
+    pub desired_maximum_frame_latency: Option<u32>,
+}
+
+impl SurfaceConfig {
+    /// Good default for GUIs with very little (or no) extra GPU work.
+    pub const LOW_LATENCY: Self = Self {
+        present_mode: wgpu::PresentMode::AutoVsync,
+        desired_maximum_frame_latency: if cfg!(target_os = "ios") {
+            None // The default is good on iOS, while `Some(1)` cuts FPS in half
+        } else {
+            Some(1) // Low-latency by default.
+        },
+    };
+
+    /// Good default for GUIs with a lot of extra GPU work,
+    /// or that want to prioritize smoothness over latency.
+    pub const HIGH_THROUGHPUT: Self = Self {
+        present_mode: wgpu::PresentMode::AutoVsync,
+        desired_maximum_frame_latency: Some(2), // High-throughput.
+    };
+}
+
 /// Access to the render state for egui.
 #[derive(Clone)]
 pub struct RenderState {
@@ -85,6 +125,11 @@ pub struct RenderState {
 
     /// Egui renderer responsible for drawing the UI.
     pub renderer: Arc<RwLock<Renderer>>,
+
+    /// Runtime-mutable subset of the wgpu configuration.
+    ///
+    /// Update this to have the surface reconfigured on the next paint.
+    pub surface_config: SurfaceConfig,
 }
 
 async fn request_adapter(
@@ -135,29 +180,12 @@ async fn request_adapter(
             }
         })?;
 
-    if cfg!(target_arch = "wasm32") {
-        log::debug!(
-            "Picked wgpu adapter: {}",
-            adapter_info_summary(&adapter.get_info())
+    if 1 < available_adapters.len() {
+        log::info!(
+            "There are {} available wgpu adapters: {}",
+            available_adapters.len(),
+            describe_adapters(available_adapters)
         );
-    } else {
-        // native:
-        if available_adapters.len() == 1 {
-            log::debug!(
-                "Picked the only available wgpu adapter: {}",
-                adapter_info_summary(&adapter.get_info())
-            );
-        } else {
-            log::info!(
-                "There were {} available wgpu adapters: {}",
-                available_adapters.len(),
-                describe_adapters(available_adapters)
-            );
-            log::debug!(
-                "Picked wgpu adapter: {}",
-                adapter_info_summary(&adapter.get_info())
-            );
-        }
     }
 
     Ok(adapter)
@@ -191,6 +219,7 @@ impl RenderState {
         let (adapter, device, queue) = match config.wgpu_setup.clone() {
             WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 instance_descriptor: _,
+                display_handle: _,
                 power_preference,
                 native_adapter_selector: _native_adapter_selector,
                 device_descriptor,
@@ -232,6 +261,8 @@ impl RenderState {
             }) => (adapter, device, queue),
         };
 
+        log_adapter_info(&adapter.get_info());
+
         let surface_formats = {
             profiling::scope!("get_capabilities");
             compatible_surface.map_or_else(
@@ -254,6 +285,7 @@ impl RenderState {
             queue,
             target_format,
             renderer: Arc::new(RwLock::new(renderer)),
+            surface_config: config.surface,
         })
     }
 }
@@ -272,7 +304,7 @@ fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
     }
 }
 
-/// Specifies which action should be taken as consequence of a [`wgpu::SurfaceError`]
+/// Specifies which action should be taken as consequence of a surface error.
 pub enum SurfaceErrorAction {
     /// Do nothing and skip the current frame.
     SkipFrame,
@@ -284,23 +316,24 @@ pub enum SurfaceErrorAction {
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
 #[derive(Clone)]
 pub struct WgpuConfiguration {
-    /// Present mode used for the primary surface.
-    pub present_mode: wgpu::PresentMode,
-
-    /// Desired maximum number of frames that the presentation engine should queue in advance.
+    /// Runtime-mutable configuration for the surface (present mode, frame latency).
     ///
-    /// Use `1` for low-latency, and `2` for high-throughput.
-    ///
-    /// See [`wgpu::SurfaceConfiguration::desired_maximum_frame_latency`] for details.
-    ///
-    /// `None` = `wgpu` default.
-    pub desired_maximum_frame_latency: Option<u32>,
+    /// These are the fields exposed via [`RenderState::surface_config`] for live
+    /// reconfiguration at runtime.
+    pub surface: SurfaceConfig,
 
     /// How to create the wgpu adapter & device
     pub wgpu_setup: WgpuSetup,
 
-    /// Callback for surface errors.
-    pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction + Send + Sync>,
+    /// Callback for surface status changes.
+    ///
+    /// Called with the [`wgpu::CurrentSurfaceTexture`] result whenever acquiring a frame
+    /// does not return [`wgpu::CurrentSurfaceTexture::Success`]. For
+    /// [`wgpu::CurrentSurfaceTexture::Suboptimal`], egui uses the frame as-is and
+    /// defers surface reconfiguration to the next frame — the callback is not invoked
+    /// in that case either.
+    pub on_surface_status:
+        Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
 }
 
 #[test]
@@ -312,36 +345,49 @@ fn wgpu_config_impl_send_sync() {
 impl std::fmt::Debug for WgpuConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
-            present_mode,
-            desired_maximum_frame_latency,
+            surface,
             wgpu_setup,
-            on_surface_error: _,
+            on_surface_status: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
-            .field("present_mode", &present_mode)
-            .field(
-                "desired_maximum_frame_latency",
-                &desired_maximum_frame_latency,
-            )
+            .field("surface", &surface)
             .field("wgpu_setup", &wgpu_setup)
             .finish_non_exhaustive()
+    }
+}
+
+impl WgpuConfiguration {
+    #[inline]
+    pub fn with_surface_config(mut self, surface_config: SurfaceConfig) -> Self {
+        self.surface = surface_config;
+        self
     }
 }
 
 impl Default for WgpuConfiguration {
     fn default() -> Self {
         Self {
-            present_mode: wgpu::PresentMode::AutoVsync,
-            desired_maximum_frame_latency: None,
-            wgpu_setup: Default::default(),
-            on_surface_error: Arc::new(|err| {
-                if err == wgpu::SurfaceError::Outdated {
-                    // This error occurs when the app is minimized on Windows.
-                    // Silently return here to prevent spamming the console with:
-                    // "The underlying surface has changed, and therefore the swap chain must be updated"
-                } else {
-                    log::warn!("Dropped frame with error: {err}");
+            surface: SurfaceConfig::HIGH_THROUGHPUT,
+
+            // No display handle available at this point — callers should replace this with
+            // `WgpuSetup::from_display_handle(...)` before creating the instance if one is available.
+            wgpu_setup: WgpuSetup::without_display_handle(),
+            on_surface_status: Arc::new(|status| {
+                match status {
+                    wgpu::CurrentSurfaceTexture::Outdated => {
+                        // This error occurs when the app is minimized on Windows.
+                        // Silently return here to prevent spamming the console with:
+                        // "The underlying surface has changed, and therefore the swap chain must be updated"
+                    }
+                    wgpu::CurrentSurfaceTexture::Occluded => {
+                        // This error occurs when the application is occluded (e.g. minimized or behind another window).
+                        log::debug!("Dropped frame with error: {status:?}");
+                    }
+                    _ => {
+                        log::warn!("Dropped frame with error: {status:?}");
+                    }
                 }
+
                 SurfaceErrorAction::SkipFrame
             }),
         }
@@ -385,6 +431,18 @@ pub fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wg
 
 // ---------------------------------------------------------------------------
 
+fn log_adapter_info(info: &wgpu::AdapterInfo) {
+    let summary = adapter_info_summary(info);
+
+    let is_test = cfg!(test); // Software rasterizers are expected (and preferred) during testing!
+
+    if info.device_type == wgpu::DeviceType::Cpu && !is_test {
+        log::warn!("Software rasterizer detected - loss of performance expected. {summary}");
+    } else {
+        log::debug!("wgpu adapter: {summary}");
+    }
+}
+
 /// A human-readable summary about an adapter
 pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
     let wgpu::AdapterInfo {
@@ -406,37 +464,52 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
     // > name: "Apple M1 Pro", device_type: IntegratedGpu, backend: Metal, driver: "", driver_info: ""
     // > name: "ANGLE (Apple, Apple M1 Pro, OpenGL 4.1)", device_type: IntegratedGpu, backend: Gl, driver: "", driver_info: ""
 
+    use std::fmt::Write as _;
+
     let mut summary = format!("backend: {backend:?}, device_type: {device_type:?}");
 
     if !name.is_empty() {
-        summary += &format!(", name: {name:?}");
+        write!(summary, ", name: {name:?}").ok();
     }
     if !driver.is_empty() {
-        summary += &format!(", driver: {driver:?}");
+        write!(summary, ", driver: {driver:?}").ok();
     }
     if !driver_info.is_empty() {
-        summary += &format!(", driver_info: {driver_info:?}");
+        write!(summary, ", driver_info: {driver_info:?}").ok();
     }
     if *vendor != 0 {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            summary += &format!(", vendor: {} (0x{vendor:04X})", parse_vendor_id(*vendor));
+            write!(
+                summary,
+                ", vendor: {} (0x{vendor:04X})",
+                parse_vendor_id(*vendor)
+            )
+            .ok();
         }
         #[cfg(target_arch = "wasm32")]
         {
-            summary += &format!(", vendor: 0x{vendor:04X}");
+            write!(summary, ", vendor: 0x{vendor:04X}").ok();
         }
     }
     if *device != 0 {
-        summary += &format!(", device: 0x{device:02X}");
+        write!(summary, ", device: 0x{device:02X}").ok();
     }
     if !device_pci_bus_id.is_empty() {
-        summary += &format!(", pci_bus_id: {device_pci_bus_id:?}");
+        write!(summary, ", pci_bus_id: {device_pci_bus_id:?}").ok();
     }
     if *subgroup_min_size != 0 || *subgroup_max_size != 0 {
-        summary += &format!(", subgroup_size: {subgroup_min_size}..={subgroup_max_size}");
+        write!(
+            summary,
+            ", subgroup_size: {subgroup_min_size}..={subgroup_max_size}"
+        )
+        .ok();
     }
-    summary += &format!(", transient_saves_memory: {transient_saves_memory}");
+    write!(
+        summary,
+        ", transient_saves_memory: {transient_saves_memory}"
+    )
+    .ok();
 
     summary
 }

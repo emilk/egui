@@ -10,8 +10,8 @@ publish = false
 workspace = true
 
 
-[package.metadata.cargo-machete]
-ignored = ["image"] # We need the .png feature
+[package.metadata.cargo-shear]
+ignored = ["image"] # We need the png feature
 
 
 [dependencies]

@@ -3,7 +3,7 @@
 use eframe::{CreationContext, egui};
 
 #[cfg(target_os = "android")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 fn android_main(app: winit::platform::android::activity::AndroidApp) {
     // Log to android output
     android_logger::init_once(

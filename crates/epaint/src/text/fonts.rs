@@ -188,11 +188,29 @@ pub struct FontTweak {
 
     /// Override the global font hinting setting for this specific font.
     ///
-    /// `None` means use the global setting.
-    pub hinting_override: Option<bool>,
+    /// `None` means use the global setting in [`TextOptions::font_hinting`].
+    pub hinting: Option<bool>,
+
+    /// Override the global sub-pixel binning setting for this specific font.
+    ///
+    /// `None` means use the global setting in [`TextOptions::subpixel_binning`].
+    pub subpixel_binning: Option<bool>,
 
     /// Override the font's default variation coordinates.
     pub coords: VariationCoords,
+
+    /// Width of a thin space (`\u{2009}`) and narrow no-break space (`\u{202F}`),
+    /// as a fraction of the normal space width.
+    ///
+    /// Thin space is often used as a thousands separator: `1 234 567`.
+    ///
+    /// Default: `0.5` (half a normal space).
+    pub thin_space_width: f32,
+
+    /// Width of a tab character (`\t`), measured in number of space widths.
+    ///
+    /// Default: `4.0`.
+    pub tab_size: f32,
 }
 
 impl Default for FontTweak {
@@ -201,8 +219,11 @@ impl Default for FontTweak {
             scale: 1.0,
             y_offset_factor: 0.0,
             y_offset: 0.0,
-            hinting_override: None,
+            hinting: None,
+            subpixel_binning: None,
             coords: VariationCoords::default(),
+            thin_space_width: 0.5,
+            tab_size: 4.0,
         }
     }
 }
@@ -765,6 +786,9 @@ pub struct FontsImpl {
     fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
+
+    /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
+    shape_buffer: Option<harfrust::UnicodeBuffer>,
 }
 
 impl FontsImpl {
@@ -798,11 +822,22 @@ impl FontsImpl {
             fonts_by_id,
             fonts_by_name,
             family_cache: Default::default(),
+            shape_buffer: Some(harfrust::UnicodeBuffer::new()),
         }
     }
 
     pub fn options(&self) -> &TextOptions {
         self.atlas.options()
+    }
+
+    /// Take the recycled shaping buffer (or create a new one if already taken).
+    pub fn take_shape_buffer(&mut self) -> harfrust::UnicodeBuffer {
+        self.shape_buffer.take().unwrap_or_default()
+    }
+
+    /// Return a shaping buffer for reuse.
+    pub fn return_shape_buffer(&mut self, buffer: harfrust::UnicodeBuffer) {
+        self.shape_buffer = Some(buffer);
     }
 
     /// Get the right font implementation from [`FontFamily`].
@@ -1000,6 +1035,7 @@ impl GalleyCache {
                     0.0
                 },
                 round_output_to_gui: job.round_output_to_gui,
+                keep_trailing_whitespace: job.keep_trailing_whitespace,
             };
 
             // Add overlapping sections:

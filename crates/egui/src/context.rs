@@ -300,7 +300,7 @@ impl RepaintCause {
 struct ViewportRepaintInfo {
     /// Monotonically increasing counter.
     ///
-    /// Incremented at the end of [`Context::run`].
+    /// Incremented at the end of [`Context::run_ui`].
     /// This can be smaller than [`Self::cumulative_pass_nr`],
     /// but never larger.
     cumulative_frame_nr: u64,
@@ -463,7 +463,7 @@ impl ContextImpl {
 
         let content_rect = viewport.input.content_rect();
 
-        viewport.this_pass.begin_pass(content_rect);
+        viewport.this_pass.begin_pass();
 
         {
             let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
@@ -697,8 +697,8 @@ impl ContextImpl {
 /// // Game loop:
 /// loop {
 ///     let raw_input = egui::RawInput::default();
-///     let full_output = ctx.run(raw_input, |ctx| {
-///         egui::CentralPanel::default().show(&ctx, |ui| {
+///     let full_output = ctx.run_ui(raw_input, |ui| {
+///         egui::CentralPanel::default().show_inside(ui, |ui| {
 ///             ui.label("Hello world!");
 ///             if ui.button("Click me").clicked() {
 ///                 // take some action here
@@ -780,9 +780,6 @@ impl Context {
     /// });
     /// // handle full_output
     /// ```
-    ///
-    /// ## See also
-    /// * [`Self::run`]
     #[must_use]
     pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
         self.run_ui_dyn(new_input, &mut run_ui)
@@ -791,58 +788,26 @@ impl Context {
     #[must_use]
     fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
-        #[expect(deprecated)]
-        self.run(new_input, |ctx| {
-            let mut top_ui = Ui::new(
+        self.run_dyn(new_input, &mut |ctx| {
+            let mut root_ui = Ui::new(
                 ctx.clone(),
                 Id::new((ctx.viewport_id(), "__top_ui")),
                 UiBuilder::new()
                     .layer_id(LayerId::background())
-                    .max_rect(ctx.available_rect()),
+                    .max_rect(ctx.viewport_rect()),
             );
 
             {
-                plugins.on_begin_pass(&mut top_ui);
-                run_ui(&mut top_ui);
-                plugins.on_end_pass(&mut top_ui);
+                plugins.on_begin_pass(&mut root_ui);
+                run_ui(&mut root_ui);
+                plugins.on_end_pass(&mut root_ui);
             }
 
-            // Inform ctx about what we actually used, so we can shrink the native window to fit.
-            // TODO(emilk): make better use of this somehow
-            ctx.pass_state_mut(|state| state.allocate_central_panel(top_ui.min_rect()));
+            ctx.pass_state_mut(|state| {
+                state.root_ui_available_rect = Some(root_ui.available_rect_before_wrap());
+                state.root_ui_min_rect = Some(root_ui.min_rect());
+            });
         })
-    }
-
-    /// Run the ui code for one frame.
-    ///
-    /// At most [`Options::max_passes`] calls will be issued to `run_ui`,
-    /// and only on the rare occasion that [`Context::request_discard`] is called.
-    /// Usually, it `run_ui` will only be called once.
-    ///
-    /// Put your widgets into a [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
-    ///
-    /// Instead of calling `run`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
-    ///
-    /// ```
-    /// // One egui context that you keep reusing:
-    /// let mut ctx = egui::Context::default();
-    ///
-    /// // Each frame:
-    /// let input = egui::RawInput::default();
-    /// let full_output = ctx.run(input, |ctx| {
-    ///     egui::CentralPanel::default().show(&ctx, |ui| {
-    ///         ui.label("Hello egui!");
-    ///     });
-    /// });
-    /// // handle full_output
-    /// ```
-    ///
-    /// ## See also
-    /// * [`Self::run_ui`]
-    #[must_use]
-    #[deprecated = "Call run_ui instead"]
-    pub fn run(&self, new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
-        self.run_dyn(new_input, &mut run_ui)
     }
 
     #[must_use]
@@ -914,10 +879,10 @@ impl Context {
         output
     }
 
-    /// An alternative to calling [`Self::run`].
+    /// An alternative to calling [`Self::run_ui`].
     ///
-    /// It is usually better to use [`Self::run`], because
-    /// `run` supports multi-pass layout using [`Self::request_discard`].
+    /// It is usually better to use [`Self::run_ui`], because
+    /// `run_ui` supports multi-pass layout using [`Self::request_discard`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -927,9 +892,7 @@ impl Context {
     /// let input = egui::RawInput::default();
     /// ctx.begin_pass(input);
     ///
-    /// egui::CentralPanel::default().show(&ctx, |ui| {
-    ///     ui.label("Hello egui!");
-    /// });
+    /// // … add panels and windows here …
     ///
     /// let full_output = ctx.end_pass();
     /// // handle full_output
@@ -941,12 +904,6 @@ impl Context {
         plugins.on_input(&mut new_input);
 
         self.write(|ctx| ctx.begin_pass(new_input));
-    }
-
-    /// See [`Self::begin_pass`].
-    #[deprecated = "Renamed begin_pass"]
-    pub fn begin_frame(&self, new_input: RawInput) {
-        self.begin_pass(new_input);
     }
 }
 
@@ -1048,7 +1005,7 @@ impl Context {
 
     /// Read-only access to [`PassState`].
     ///
-    /// This is only valid during the call to [`Self::run`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
+    /// This is only valid during the call to [`Self::run_ui`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
     #[inline]
     pub(crate) fn pass_state<R>(&self, reader: impl FnOnce(&PassState) -> R) -> R {
         self.write(move |ctx| reader(&ctx.viewport().this_pass))
@@ -1056,7 +1013,7 @@ impl Context {
 
     /// Read-write access to [`PassState`].
     ///
-    /// This is only valid during the call to [`Self::run`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
+    /// This is only valid during the call to [`Self::run_ui`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
     #[inline]
     pub(crate) fn pass_state_mut<R>(&self, writer: impl FnOnce(&mut PassState) -> R) -> R {
         self.write(move |ctx| writer(&mut ctx.viewport().this_pass))
@@ -1072,7 +1029,7 @@ impl Context {
 
     /// Read-only access to [`Fonts`].
     ///
-    /// Not valid until first call to [`Context::run()`].
+    /// Not valid until first call to [`Context::run_ui()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
     pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
@@ -1089,7 +1046,7 @@ impl Context {
 
     /// Read-write access to [`Fonts`].
     ///
-    /// Not valid until first call to [`Context::run()`].
+    /// Not valid until first call to [`Context::run_ui()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
     pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
@@ -1360,6 +1317,7 @@ impl Context {
 
         let WidgetRect {
             id,
+            parent_id: _,
             layer_id,
             rect,
             interact_rect,
@@ -1378,8 +1336,8 @@ impl Context {
             interact_rect,
             sense,
             flags: Flags::empty(),
-            interact_pointer_pos: None,
-            intrinsic_size: None,
+            interact_pointer_pos_or_nan: Pos2::NAN,
+            intrinsic_size_or_nan: Vec2::NAN,
         };
 
         res.flags.set(Flags::ENABLED, enabled);
@@ -1470,14 +1428,11 @@ impl Context {
                 || res.long_touched()
                 || clicked
                 || res.drag_stopped();
-            if is_interacted_with {
-                res.interact_pointer_pos = input.pointer.interact_pos();
-                if let (Some(to_global), Some(pos)) = (
-                    memory.to_global.get(&res.layer_id),
-                    &mut res.interact_pointer_pos,
-                ) {
-                    *pos = to_global.inverse() * *pos;
+            if is_interacted_with && let Some(mut pos) = input.pointer.interact_pos() {
+                if let Some(to_global) = memory.to_global.get(&res.layer_id) {
+                    pos = to_global.inverse() * pos;
                 }
+                res.interact_pointer_pos_or_nan = pos;
             }
 
             if input.pointer.any_down() && !is_interacted_with {
@@ -1545,6 +1500,11 @@ impl Context {
     #[track_caller]
     pub fn debug_text(&self, text: impl Into<WidgetText>) {
         crate::debug_text::print(self, text);
+    }
+
+    /// Current time in seconds, relative to some unknown epoch.
+    pub fn time(&self) -> f64 {
+        self.input(|i| i.time)
     }
 
     /// What operating system are we running on?
@@ -1662,7 +1622,7 @@ impl Context {
 
     /// The total number of completed frames.
     ///
-    /// Starts at zero, and is incremented once at the end of each call to [`Self::run`].
+    /// Starts at zero, and is incremented once at the end of each call to [`Self::run_ui`].
     ///
     /// This is always smaller or equal to [`Self::cumulative_pass_nr`].
     pub fn cumulative_frame_nr(&self) -> u64 {
@@ -1671,7 +1631,7 @@ impl Context {
 
     /// The total number of completed frames.
     ///
-    /// Starts at zero, and is incremented once at the end of each call to [`Self::run`].
+    /// Starts at zero, and is incremented once at the end of each call to [`Self::run_ui`].
     ///
     /// This is always smaller or equal to [`Self::cumulative_pass_nr_for`].
     pub fn cumulative_frame_nr_for(&self, id: ViewportId) -> u64 {
@@ -1691,7 +1651,7 @@ impl Context {
 
     /// The total number of completed passes (usually there is one pass per rendered frame).
     ///
-    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run`] (usually once).
+    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run_ui`] (usually once).
     ///
     /// If you instead want to know which pass index this is within the current frame,
     /// use [`Self::current_pass_index`].
@@ -1701,7 +1661,7 @@ impl Context {
 
     /// The total number of completed passes (usually there is one pass per rendered frame).
     ///
-    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run`] (usually once).
+    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run_ui`] (usually once).
     pub fn cumulative_pass_nr_for(&self, id: ViewportId) -> u64 {
         self.read(|ctx| {
             ctx.viewports
@@ -1935,7 +1895,7 @@ impl Context {
     }
 }
 
-/// Callbacks
+/// Plugins
 impl Context {
     /// Call the given callback at the start of each pass of each viewport.
     ///
@@ -2076,7 +2036,7 @@ impl Context {
         self.options(|opt| opt.theme())
     }
 
-    /// The [`Theme`] used to select between dark and light [`Self::style`]
+    /// The [`Theme`] used to select between dark and light [`Self::global_style`]
     /// as the active style used by all subsequent popups, menus, etc.
     ///
     /// Example:
@@ -2090,12 +2050,6 @@ impl Context {
 
     /// The currently active [`Style`] used by all subsequent popups, menus, etc.
     pub fn global_style(&self) -> Arc<Style> {
-        self.options(|opt| Arc::clone(opt.style()))
-    }
-
-    /// The currently active [`Style`] used by all subsequent popups, menus, etc.
-    #[deprecated = "Renamed to `global_style` to avoid confusion with `ui.style()`"]
-    pub fn style(&self) -> Arc<Style> {
         self.options(|opt| Arc::clone(opt.style()))
     }
 
@@ -2113,21 +2067,6 @@ impl Context {
         self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
     }
 
-    /// Mutate the currently active [`Style`] used by all subsequent popups, menus, etc.
-    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
-    ///
-    /// Example:
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.global_style_mut(|style| {
-    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
-    /// });
-    /// ```
-    #[deprecated = "Renamed to `global_style_mut` to avoid confusion with `ui.style_mut()`"]
-    pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
-        self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
-    }
-
     /// The currently active [`Style`] used by all new popups, menus, etc.
     ///
     /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
@@ -2136,18 +2075,6 @@ impl Context {
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_global_style(&self, style: impl Into<Arc<Style>>) {
-        self.options_mut(|opt| *opt.style_mut() = style.into());
-    }
-
-    /// The currently active [`Style`] used by all new popups, menus, etc.
-    ///
-    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
-    ///
-    /// You can also change this using [`Self::style_mut`].
-    ///
-    /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
-    #[deprecated = "Renamed to `set_global_style` to avoid confusion with `ui.set_style()`"]
-    pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.options_mut(|opt| *opt.style_mut() = style.into());
     }
 
@@ -2397,6 +2324,12 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
+        for shortcut in self.options(|o| o.quit_shortcuts.clone()) {
+            if self.input_mut(|i| i.consume_shortcut(&shortcut)) {
+                self.send_viewport_cmd(ViewportCommand::Close);
+            }
+        }
+
         #[cfg(debug_assertions)]
         self.debug_painting();
 
@@ -2408,17 +2341,11 @@ impl Context {
         output
     }
 
-    /// Call at the end of each frame if you called [`Context::begin_pass`].
-    #[must_use]
-    #[deprecated = "Renamed end_pass"]
-    pub fn end_frame(&self) -> FullOutput {
-        self.end_pass()
-    }
-
     /// Called at the end of the pass.
     #[cfg(debug_assertions)]
     fn debug_painting(&self) {
         #![expect(clippy::iter_over_hash_type)] // ok to be sloppy in debug painting
+        use std::fmt::Write as _;
 
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
             let rect = widget.interact_rect;
@@ -2491,13 +2418,17 @@ impl Context {
                     for id in contains_pointer {
                         let mut widget_text = format!("{id:?}");
                         if let Some(rect) = widget_rects.get(id) {
-                            widget_text +=
-                                &format!(" {:?} {:?} {:?}", rect.layer_id, rect.rect, rect.sense);
+                            write!(
+                                widget_text,
+                                " {:?} {:?} {:?}",
+                                rect.layer_id, rect.rect, rect.sense
+                            )
+                            .ok();
                         }
                         if let Some(info) = widget_rects.info(id) {
-                            widget_text += &format!(" {info:?}");
+                            write!(widget_text, " {info:?}").ok();
                         }
-                        debug_text += &format!("{widget_text}\n");
+                        writeln!(debug_text, "{widget_text}").ok();
                     }
                     self.debug_text(debug_text);
                 }
@@ -2562,7 +2493,7 @@ impl Context {
             );
             self.viewport(|vp| {
                 for reason in &vp.output.request_discard_reasons {
-                    warning += &format!("\n  {reason}");
+                    write!(warning, "\n  {reason}").ok();
                 }
             });
 
@@ -2596,6 +2527,12 @@ impl ContextImpl {
         let textures_delta = self.tex_manager.0.write().take_delta();
 
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
+
+        if self.memory.should_interrupt_ime()
+            && let Some(ime) = &mut platform_output.ime
+        {
+            ime.should_interrupt_composition = true;
+        }
 
         {
             profiling::scope!("accesskit");
@@ -2635,6 +2572,19 @@ impl ContextImpl {
                 repaint_needed = true; // Some widget has moved
             }
         }
+
+        #[cfg(debug_assertions)]
+        let shapes = if self.memory.options.style().debug.warn_if_rect_changes_id {
+            let mut shapes = shapes;
+            warn_if_rect_changes_id(
+                &mut shapes,
+                &viewport.prev_pass.widgets,
+                &viewport.this_pass.widgets,
+            );
+            shapes
+        } else {
+            shapes
+        };
 
         std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
 
@@ -2815,24 +2765,14 @@ impl Context {
         self.input(|i| i.viewport_rect()).round_ui()
     }
 
-    /// Position and size of the egui area.
-    #[deprecated(
-        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
-    )]
-    pub fn screen_rect(&self) -> Rect {
-        self.input(|i| i.content_rect()).round_ui()
-    }
-
-    /// How much space is still available after panels have been added.
-    #[deprecated = "Use content_rect (or viewport_rect) instead"]
-    pub fn available_rect(&self) -> Rect {
-        self.pass_state(|s| s.available_rect()).round_ui()
-    }
-
     /// How much space is used by windows and the top-level [`Ui`].
     pub fn globally_used_rect(&self) -> Rect {
         self.write(|ctx| {
-            let mut used = ctx.viewport().this_pass.used_by_panels;
+            let viewport = ctx.viewport();
+            let root_ui_min_rect =
+                (viewport.this_pass.root_ui_min_rect).or(viewport.prev_pass.root_ui_min_rect);
+
+            let mut used = root_ui_min_rect.unwrap_or(Rect::NOTHING);
             for (_id, window) in ctx.memory.areas().visible_windows() {
                 used |= window.rect();
             }
@@ -2840,44 +2780,31 @@ impl Context {
         })
     }
 
-    /// How much space is used by windows and the top-level [`Ui`].
-    #[deprecated = "Renamed to globally_used_rect"]
-    pub fn used_rect(&self) -> Rect {
-        self.globally_used_rect()
-    }
-
-    /// How much space is used by windows and the top-level [`Ui`].
-    ///
-    /// You can shrink your egui area to this size and still fit all egui components.
-    #[deprecated = "Use globally_used_rect instead"]
-    pub fn used_size(&self) -> Vec2 {
-        (self.globally_used_rect().max - Pos2::ZERO).round_ui()
-    }
-
     // ---------------------------------------------------------------------
 
     /// Is the pointer (mouse/touch) over any egui area?
     pub fn is_pointer_over_egui(&self) -> bool {
         let pointer_pos = self.input(|i| i.pointer.interact_pos());
-        if let Some(pointer_pos) = pointer_pos {
-            if let Some(layer) = self.layer_id_at(pointer_pos) {
-                if layer.order == Order::Background {
-                    !self.pass_state(|state| state.unused_rect.contains(pointer_pos))
-                } else {
-                    true
-                }
+        let Some(pointer_pos) = pointer_pos else {
+            return false;
+        };
+        let Some(layer) = self.layer_id_at(pointer_pos) else {
+            return false;
+        };
+        if layer.order == Order::Background {
+            let root_ui_available_rect = self
+                .pass_state(|state| state.root_ui_available_rect)
+                .or_else(|| self.prev_pass_state(|state| state.root_ui_available_rect));
+
+            if let Some(root_ui_available_rect) = root_ui_available_rect {
+                // Modern `run_ui` code
+                !root_ui_available_rect.contains(pointer_pos)
             } else {
-                false
+                true // We shouldn't get here, but who knows
             }
         } else {
-            false
+            true
         }
-    }
-
-    /// Is the pointer (mouse/touch) over any egui area?
-    #[deprecated = "Renamed to is_pointer_over_egui"]
-    pub fn is_pointer_over_area(&self) -> bool {
-        self.is_pointer_over_egui()
     }
 
     /// True if egui is currently interested in the pointer (mouse or touch).
@@ -2891,17 +2818,6 @@ impl Context {
             || (self.is_pointer_over_egui() && !self.input(|i| i.pointer.any_down()))
     }
 
-    /// True if egui is currently interested in the pointer (mouse or touch).
-    ///
-    /// Could be the pointer is hovering over a [`crate::Window`] or the user is dragging a widget.
-    /// If `false`, the pointer is outside of any egui area and so
-    /// you may be interested in what it is doing (e.g. controlling your game).
-    /// Returns `false` if a drag started outside of egui and then moved over an egui area.
-    #[deprecated = "Renamed to egui_wants_pointer_input"]
-    pub fn wants_pointer_input(&self) -> bool {
-        self.egui_wants_pointer_input()
-    }
-
     /// Is egui currently using the pointer position (e.g. dragging a slider)?
     ///
     /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
@@ -2909,23 +2825,18 @@ impl Context {
         self.memory(|m| m.interaction().is_using_pointer())
     }
 
-    /// Is egui currently using the pointer position (e.g. dragging a slider)?
-    ///
-    /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
-    #[deprecated = "Renamed to egui_is_using_pointer"]
-    pub fn is_using_pointer(&self) -> bool {
-        self.egui_is_using_pointer()
-    }
-
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
     pub fn egui_wants_keyboard_input(&self) -> bool {
         self.memory(|m| m.focused().is_some())
     }
 
-    /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
-    #[deprecated = "Renamed to egui_wants_keyboard_input"]
-    pub fn wants_keyboard_input(&self) -> bool {
-        self.egui_wants_keyboard_input()
+    /// Is the currently focused widget a text edit?
+    pub fn text_edit_focused(&self) -> bool {
+        if let Some(id) = self.memory(|mem| mem.focused()) {
+            crate::text_edit::TextEditState::load(self, id).is_some()
+        } else {
+            false
+        }
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -2938,34 +2849,10 @@ impl Context {
         self.pass_state_mut(|fs| fs.highlight_next_pass.insert(id));
     }
 
-    /// Is an egui context menu open?
-    ///
-    /// This only works with the old, deprecated [`crate::menu`] API.
-    #[expect(deprecated)]
-    #[deprecated = "Use `any_popup_open` instead"]
-    pub fn is_context_menu_open(&self) -> bool {
-        self.data(|d| {
-            d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR.into())
-                .is_some_and(|state| state.has_root())
-        })
-    }
-
     /// Is a popup or (context) menu open?
     ///
     /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
     pub fn any_popup_open(&self) -> bool {
-        self.pass_state_mut(|fs| {
-            fs.layers
-                .values()
-                .any(|layer| !layer.open_popups.is_empty())
-        })
-    }
-
-    /// Is a popup or (context) menu open?
-    ///
-    /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
-    #[deprecated = "Renamed to any_popup_open"]
-    pub fn is_popup_open(&self) -> bool {
         self.pass_state_mut(|fs| {
             fs.layers
                 .values()
@@ -3586,17 +3473,6 @@ impl Context {
             }
         });
 
-        #[expect(deprecated)]
-        ui.horizontal(|ui| {
-            ui.label(format!(
-                "{} menu bars",
-                self.data(|d| d.count::<crate::menu::BarState>())
-            ));
-            if ui.button("Reset").clicked() {
-                self.data_mut(|d| d.remove_by_type::<crate::menu::BarState>());
-            }
-        });
-
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} scroll areas",
@@ -3949,8 +3825,8 @@ impl Context {
     /// When called, the integration needs to:
     /// * Check if there already is a window for this viewport id, and if not open one
     /// * Set the window attributes (position, size, …) based on [`ImmediateViewport::builder`].
-    /// * Call [`Context::run`] with [`ImmediateViewport::viewport_ui_cb`].
-    /// * Handle the output from [`Context::run`], including rendering
+    /// * Call [`Context::run_ui`] with [`ImmediateViewport::viewport_ui_cb`].
+    /// * Handle the output from [`Context::run_ui`], including rendering
     pub fn set_immediate_viewport_renderer(
         callback: impl for<'a> Fn(&Self, ImmediateViewport<'a>) + 'static,
     ) {
@@ -4235,6 +4111,112 @@ impl Context {
 fn context_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
+}
+
+/// Check if any [`Rect`] appears with different [`Id`]s between two passes.
+///
+/// This helps detect cases where the same screen area is claimed by different widget ids
+/// across passes, which is often a sign of id instability.
+#[cfg(debug_assertions)]
+fn warn_if_rect_changes_id(
+    out_shapes: &mut Vec<ClippedShape>,
+    prev_widgets: &crate::WidgetRects,
+    new_widgets: &crate::WidgetRects,
+) {
+    profiling::function_scope!();
+
+    use std::collections::BTreeMap;
+
+    /// A wrapper around [`Rect`] that implements [`Ord`] using the bit representation of its floats.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    struct OrderedRect(Rect);
+
+    impl PartialOrd for OrderedRect {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl Ord for OrderedRect {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            let lhs = self.0;
+            let rhs = other.0;
+            lhs.min
+                .x
+                .to_bits()
+                .cmp(&rhs.min.x.to_bits())
+                .then(lhs.min.y.to_bits().cmp(&rhs.min.y.to_bits()))
+                .then(lhs.max.x.to_bits().cmp(&rhs.max.x.to_bits()))
+                .then(lhs.max.y.to_bits().cmp(&rhs.max.y.to_bits()))
+        }
+    }
+
+    fn create_lookup<'a>(
+        widgets: impl Iterator<Item = &'a WidgetRect>,
+    ) -> BTreeMap<OrderedRect, Vec<&'a WidgetRect>> {
+        let mut lookup: BTreeMap<OrderedRect, Vec<&'a WidgetRect>> = BTreeMap::default();
+        for w in widgets {
+            lookup.entry(OrderedRect(w.rect)).or_default().push(w);
+        }
+        lookup
+    }
+
+    for (layer_id, new_layer_widgets) in new_widgets.layers() {
+        let prev = create_lookup(prev_widgets.get_layer(*layer_id));
+        let new = create_lookup(new_layer_widgets.iter());
+
+        for (hashable_rect, new_at_rect) in new {
+            let Some(prev_at_rect) = prev.get(&hashable_rect) else {
+                continue; // this rect did not exist in the previous pass
+            };
+
+            if prev_at_rect
+                .iter()
+                .any(|w| new_at_rect.iter().any(|nw| nw.id == w.id))
+            {
+                continue; // at least one id stayed the same, so this is not an id change
+            }
+
+            // Only warn if at least one of the previous ids is gone from this layer entirely.
+            // If they all still exist (just at a different rect), then the rect match
+            // is just a coincidence caused by widgets shifting (e.g. a window being dragged).
+            if prev_at_rect.iter().all(|w| new_widgets.contains(w.id)) {
+                continue;
+            }
+
+            // Only warn if at least one widget has the same parent_id in both frames.
+            // If all parent_ids changed too, this is a cascading id shift, not a widget bug.
+            if !prev_at_rect
+                .iter()
+                .any(|pw| new_at_rect.iter().any(|nw| nw.parent_id == pw.parent_id))
+            {
+                continue;
+            }
+
+            let rect = new_at_rect[0].rect;
+
+            log::warn!(
+                "Widget rect {rect:?} changed id between passes: prev ids: {:?}, new ids: {:?}",
+                prev_at_rect
+                    .iter()
+                    .map(|w| w.id.short_debug_format())
+                    .collect::<Vec<_>>(),
+                new_at_rect
+                    .iter()
+                    .map(|w| w.id.short_debug_format())
+                    .collect::<Vec<_>>(),
+            );
+            out_shapes.push(ClippedShape {
+                clip_rect: Rect::EVERYTHING,
+                shape: epaint::Shape::rect_stroke(
+                    rect,
+                    0,
+                    (2.0, Color32::RED),
+                    StrokeKind::Outside,
+                ),
+            });
+        }
+    }
 }
 
 #[cfg(test)]

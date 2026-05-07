@@ -8,12 +8,14 @@ use core::any::Any;
 
 use crate::DemoApp;
 
+#[cfg(feature = "easymark")]
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct EasyMarkApp {
     editor: egui_demo_lib::easy_mark::EasyMarkEditor,
 }
 
+#[cfg(feature = "easymark")]
 impl DemoApp for EasyMarkApp {
     fn demo_ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.editor.panels(ui);
@@ -152,12 +154,18 @@ enum Command {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct State {
     demo: DemoWindows,
+
+    #[cfg(feature = "easymark")]
     easy_mark_editor: EasyMarkApp,
+
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
+
     #[cfg(feature = "image_viewer")]
     image_viewer: crate::apps::ImageViewer,
+
     pub clock: FractalClockApp,
+
     rendering_test: ColorTestApp,
 
     selected_anchor: Anchor,
@@ -212,6 +220,7 @@ impl WrapApp {
                 Anchor::Demo,
                 &mut self.state.demo as &mut dyn DemoApp,
             ),
+            #[cfg(feature = "easymark")]
             (
                 "🖹 EasyMark editor",
                 Anchor::EasyMarkEditor,
@@ -400,6 +409,8 @@ impl WrapApp {
     }
 
     fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame, cmd: &mut Command) {
+        ui.add_space(8.0);
+
         egui::widgets::global_theme_preference_switch(ui);
 
         ui.separator();
@@ -455,10 +466,10 @@ impl WrapApp {
                 for file in &i.raw.hovered_files {
                     if let Some(path) = &file.path {
                         write!(text, "\n{}", path.display()).ok();
-                    } else if !file.mime.is_empty() {
-                        write!(text, "\n{}", file.mime).ok();
-                    } else {
+                    } else if file.mime.is_empty() {
                         text += "\n???";
+                    } else {
+                        write!(text, "\n{}", file.mime).ok();
                     }
                 }
                 text
@@ -494,10 +505,10 @@ impl WrapApp {
                     for file in &self.dropped_files {
                         let mut info = if let Some(path) = &file.path {
                             path.display().to_string()
-                        } else if !file.name.is_empty() {
-                            file.name.clone()
-                        } else {
+                        } else if file.name.is_empty() {
                             "???".to_owned()
+                        } else {
+                            file.name.clone()
                         };
 
                         let mut additional_info = vec![];
@@ -508,7 +519,8 @@ impl WrapApp {
                             additional_info.push(format!("{} bytes", bytes.len()));
                         }
                         if !additional_info.is_empty() {
-                            info += &format!(" ({})", additional_info.join(", "));
+                            use std::fmt::Write as _;
+                            write!(info, " ({})", additional_info.join(", ")).ok();
                         }
 
                         ui.label(info);

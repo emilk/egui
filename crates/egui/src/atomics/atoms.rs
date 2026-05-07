@@ -8,6 +8,15 @@ use std::ops::{Deref, DerefMut};
 pub(crate) const ATOMS_SMALL_VEC_SIZE: usize = 2;
 
 /// A list of [`Atom`]s.
+///
+/// Many widgets take an `impl` [`IntoAtoms`] parameter,
+/// which allows you to easily create atoms from tuples of text, images, and other atoms:
+/// ```
+/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, Vec2};
+/// # egui::__run_test_ui(|ui| {
+/// let image = egui::include_image!("../../../eframe/data/icon.png");
+/// ui.button((image, "Click me!"));
+/// # });
 #[derive(Clone, Debug, Default)]
 pub struct Atoms<'a>(SmallVec<[Atom<'a>; ATOMS_SMALL_VEC_SIZE]>);
 
@@ -67,6 +76,11 @@ impl<'a> Atoms<'a> {
         }
 
         string
+    }
+
+    /// Do any of the atoms have shrink set to `true`?
+    pub fn any_shrink(&self) -> bool {
+        self.iter().any(|a| a.shrink)
     }
 
     pub fn iter_kinds(&self) -> impl Iterator<Item = &AtomKind<'a>> {
@@ -187,6 +201,16 @@ where
 }
 
 /// Trait for turning a tuple of [`Atom`]s into [`Atoms`].
+///
+/// Many widgets take an `impl` [`IntoAtoms`] parameter,
+/// which allows you to easily create atoms from tuples of text, images, and other atoms:
+/// ```
+/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, Vec2};
+/// # egui::__run_test_ui(|ui| {
+/// let image = egui::include_image!("../../../eframe/data/icon.png");
+/// ui.button((image, "Click me!"));
+/// # });
+/// ```
 pub trait IntoAtoms<'a> {
     fn collect(self, atoms: &mut Atoms<'a>);
 

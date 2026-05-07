@@ -262,7 +262,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Constrains this window to [`Context::screen_rect`].
+    /// Constrains this window to [`Context::content_rect`].
     ///
     /// To change the area to constrain to, use [`Self::constrain_to`].
     ///
@@ -275,7 +275,7 @@ impl<'open> Window<'open> {
 
     /// Constrain the movement of the window to the given rectangle.
     ///
-    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    /// For instance: `.constrain_to(ctx.content_rect())`.
     #[inline]
     pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.area = self.area.constrain_to(constrain_rect);
@@ -427,7 +427,7 @@ impl<'open> Window<'open> {
 
     /// Enable/disable scrolling on the window by dragging with the pointer. `true` by default.
     ///
-    /// See [`ScrollArea::drag_to_scroll`] for more.
+    /// See [`ScrollArea::scroll_source`] for more.
     #[inline]
     pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll = self.scroll.scroll_source(ScrollSource {
@@ -673,7 +673,7 @@ impl Window<'_> {
 
                 title_bar.ui(
                     &mut area_content_ui,
-                    &content_response,
+                    content_response.as_ref(),
                     open.as_deref_mut(),
                     &mut collapsing,
                     collapsible,
@@ -962,6 +962,7 @@ fn do_resize_interaction(
             WidgetRect {
                 layer_id,
                 id,
+                parent_id: layer_id.id,
                 rect,
                 interact_rect: rect,
                 sense: Sense::DRAG, // Don't use Sense::drag() since we don't want these to be focusable
@@ -1255,7 +1256,7 @@ impl TitleBar {
     fn ui(
         self,
         ui: &mut Ui,
-        content_response: &Option<Response>,
+        content_response: Option<&Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
         collapsible: bool,
@@ -1299,7 +1300,7 @@ impl TitleBar {
             ui.visuals().text_color(),
         );
 
-        if let Some(content_response) = &content_response {
+        if let Some(content_response) = content_response {
             // Paint separator between title and content:
             let content_rect = content_response.rect;
             if false {

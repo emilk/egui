@@ -202,12 +202,6 @@ impl<'a> Button<'a> {
         self
     }
 
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
-    }
-
     /// If true, the tint of the image is multiplied by the widget text color.
     ///
     /// This makes sense for images that are white, that should have the same color as the text color.
@@ -237,6 +231,18 @@ impl<'a> Button<'a> {
                 other => other,
             };
             self.layout.push_right(atom);
+        }
+
+        self
+    }
+
+    /// Show some text on the left side of the button.
+    #[inline]
+    pub fn left_text(mut self, left_text: impl IntoAtoms<'a>) -> Self {
+        self.layout.push_left(Atom::grow());
+
+        for atom in left_text.into_atoms() {
+            self.layout.push_left(atom);
         }
 
         self
@@ -363,6 +369,12 @@ impl<'a> Button<'a> {
         } else {
             AtomLayoutResponse::empty(prepared.response)
         };
+
+        if let Some(cursor) = ui.visuals().interact_cursor
+            && response.response.hovered()
+        {
+            ui.ctx().set_cursor_icon(cursor);
+        }
 
         response.response.widget_info(|| {
             if let Some(text) = &text {

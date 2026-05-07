@@ -11,7 +11,7 @@ publish = false
 workspace = true
 
 
-[package.metadata.cargo-machete]
+[package.metadata.cargo-shear]
 ignored = ["winit"] # Just enable some features of it; see below
 
 

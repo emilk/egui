@@ -60,7 +60,7 @@ impl Display for ExceededMaxStepsError {
 
 /// The test Harness. This contains everything needed to run the test.
 ///
-/// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
+/// Create a new Harness using [`Harness::new_ui`] or [`Harness::builder`].
 ///
 /// The [Harness] has a optional generic state that can be used to pass data to the app / ui closure.
 /// In _most cases_ it should be fine to just store the state in the closure itself.
@@ -116,6 +116,11 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
+
+            // rustfmt adds this weird indentation below.
+            // See: https://github.com/rust-lang/rustfmt/issues/5920
+            #[cfg(feature = "wgpu")]
+                render_options: _,
         } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.set_theme(theme);
@@ -180,42 +185,9 @@ impl<'a, State> Harness<'a, State> {
         HarnessBuilder::default()
     }
 
-    /// Create a new Harness with the given app closure and a state.
-    ///
-    /// The app closure will immediately be called once to create the initial ui.
-    ///
-    /// If you don't need to create Windows / Panels, you can use [`Harness::new_ui`] instead.
-    ///
-    /// If you e.g. want to customize the size of the window, you can use [`Harness::builder`].
-    ///
-    /// # Example
-    /// ```rust
-    /// # use egui::CentralPanel;
-    /// # use egui_kittest::{Harness, kittest::Queryable};
-    /// let mut checked = false;
-    /// let mut harness = Harness::new_state(|ctx, checked| {
-    ///     CentralPanel::default().show(ctx, |ui| {
-    ///         ui.checkbox(checked, "Check me!");
-    ///     });
-    /// }, checked);
-    ///
-    /// harness.get_by_label("Check me!").click();
-    /// harness.run();
-    ///
-    /// assert_eq!(*harness.state(), true);
-    /// ```
-    #[track_caller]
-    #[deprecated = "use `new_ui_state` instead"]
-    pub fn new_state(app: impl FnMut(&egui::Context, &mut State) + 'a, state: State) -> Self {
-        #[expect(deprecated)]
-        Self::builder().build_state(app, state)
-    }
-
     /// Create a new Harness with the given ui closure and a state.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
-    ///
-    /// If you need to create Windows / Panels, you can use [`Harness::new`] instead.
     ///
     /// If you e.g. want to customize the size of the ui, you can use [`Harness::builder`].
     ///
@@ -242,7 +214,7 @@ impl<'a, State> Harness<'a, State> {
     #[track_caller]
     pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext<'a>) -> State) -> Self
     where
-        State: eframe::App,
+        State: eframe::App + 'static,
     {
         Self::builder().build_eframe(builder)
     }
@@ -488,6 +460,11 @@ impl<'a, State> Harness<'a, State> {
         &mut self.state
     }
 
+    /// Consume the harness and return the state.
+    pub fn into_state(self) -> State {
+        self.state
+    }
+
     /// Queue an event to be processed in the next frame.
     pub fn event(&self, event: egui::Event) {
         self.queued_events.lock().push(EventType::Event(event));
@@ -710,46 +687,117 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    #[deprecated = "Use `Harness::root` instead."]
-    pub fn node(&self) -> Node<'_> {
-        self.root()
+    /// Spawn a real native eframe window running this harness's app, reusing its [`egui::Context`].
+    ///
+    /// Blocks until the window is closed.
+    ///
+    /// Useful for interactively debugging a failing test: add a call to this before the failing
+    /// assertion to poke at the UI yourself.
+    ///
+    /// # macOS: must be called on the main thread
+    /// `AppKit` requires UI work to happen on the main thread, but by default cargo's test harness
+    /// runs each test on a spawned worker thread, so this function will panic on macOS unless
+    /// you opt out of the default harness.
+    ///
+    /// To fix this, disable the default libtest harness for your test target and run tests on
+    /// the main thread yourself. In `Cargo.toml`:
+    ///
+    /// ```toml
+    /// [[test]]
+    /// name = "your_test"
+    /// harness = false
+    /// ```
+    ///
+    /// Then write a `fn main()` in the test file that invokes your test directly.
+    ///
+    /// See also: <https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field>
+    #[cfg(feature = "eframe")]
+    #[deprecated = "Only for debugging, don't commit this."]
+    pub fn spawn_eframe_app(self)
+    where
+        'a: 'static,
+        State: 'static,
+    {
+        #[cfg(target_os = "macos")]
+        {
+            // AppKit requires UI work to happen on the main thread, but by default cargo's
+            // test harness runs each test on a spawned worker thread.
+            #[expect(unsafe_code)]
+            // SAFETY: `pthread_main_np` is a thread-safe libc query with no arguments.
+            let is_main_thread = unsafe {
+                unsafe extern "C" {
+                    fn pthread_main_np() -> std::ffi::c_int;
+                }
+                pthread_main_np() != 0
+            };
+            assert!(
+                is_main_thread,
+                "spawn_eframe_app must be called on the main thread on macOS, \
+                 but the default `cargo test` harness runs each test on a worker thread.\n\
+                 \n\
+                 To fix this, disable the default libtest harness for your test target and run \
+                 tests on the main thread yourself. In Cargo.toml:\n\
+                 \n\
+                     [[test]]\n\
+                     name = \"your_test\"\n\
+                     harness = false\n\
+                 \n\
+                 Then write a `fn main()` in the test file that invokes your test directly.\n\
+                 \n\
+                 See: https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field"
+            );
+        }
+
+        struct UiApp {
+            f: Box<dyn FnMut(&mut egui::Ui)>,
+        }
+
+        impl eframe::App for UiApp {
+            fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+                (self.f)(ui);
+            }
+        }
+
+        struct UiStateApp<State> {
+            f: Box<dyn FnMut(&mut egui::Ui, &mut State)>,
+            state: State,
+        }
+
+        impl<State: 'static> eframe::App for UiStateApp<State> {
+            fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+                let Self { f, state } = self;
+                f(ui, state);
+            }
+        }
+
+        use crate::app_kind::AppKindEframe;
+
+        let Self {
+            ctx, state, app, ..
+        } = self;
+
+        let eframe_app: Box<dyn eframe::App> = match app {
+            AppKind::Ui(f) => Box::new(UiApp { f }),
+            AppKind::UiState(f) => Box::new(UiStateApp { f, state }),
+            AppKind::Eframe(AppKindEframe { take_app, .. }) => take_app(state),
+        };
+
+        eframe::run_native_ext(
+            "egui_kittest",
+            eframe::NativeOptions::default(),
+            Some(ctx),
+            Box::new(|_cc| Ok(eframe_app)),
+        )
+        .unwrap();
     }
 }
 
 /// Utilities for stateless harnesses.
 impl<'a> Harness<'a> {
-    /// Create a new Harness with the given app closure.
-    /// Use the [`Harness::run`], [`Harness::step`], etc... methods to run the app.
-    ///
-    /// The app closure will immediately be called once to create the initial ui.
-    ///
-    /// If you don't need to create Windows / Panels, you can use [`Harness::new_ui`] instead.
-    ///
-    /// If you e.g. want to customize the size of the window, you can use [`Harness::builder`].
-    ///
-    /// # Example
-    /// ```rust
-    /// # use egui::CentralPanel;
-    /// # use egui_kittest::Harness;
-    /// let mut harness = Harness::new(|ctx| {
-    ///     CentralPanel::default().show(ctx, |ui| {
-    ///         ui.label("Hello, world!");
-    ///     });
-    /// });
-    /// ```
-    #[track_caller]
-    #[deprecated = "use `new_ui` instead"]
-    pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
-        #[expect(deprecated)]
-        Self::builder().build(app)
-    }
-
     /// Create a new Harness with the given ui closure.
     /// Use the [`Harness::run`], [`Harness::step`], etc... methods to run the app.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
-    ///
-    /// If you need to create Windows / Panels, you can use [`Harness::new`] instead.
     ///
     /// If you e.g. want to customize the size of the ui, you can use [`Harness::builder`].
     ///

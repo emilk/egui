@@ -1,4 +1,6 @@
 use crate::app_kind::AppKind;
+#[cfg(feature = "eframe")]
+use crate::app_kind::AppKindEframe;
 use crate::{Harness, LazyRenderer, TestRenderer};
 use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
@@ -18,6 +20,9 @@ pub struct HarnessBuilder<State = ()> {
 
     #[cfg(feature = "snapshot")]
     pub(crate) default_snapshot_options: crate::SnapshotOptions,
+
+    #[cfg(feature = "wgpu")]
+    pub(crate) render_options: egui_wgpu::RendererOptions,
 }
 
 impl<State> Default for HarnessBuilder<State> {
@@ -35,6 +40,9 @@ impl<State> Default for HarnessBuilder<State> {
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options: crate::SnapshotOptions::default(),
+
+            #[cfg(feature = "wgpu")]
+            render_options: egui_wgpu::RendererOptions::PREDICTABLE,
         }
     }
 }
@@ -119,6 +127,16 @@ impl<State> HarnessBuilder<State> {
         self
     }
 
+    /// Configures the [`egui_wgpu::RendererOptions`] used by this harness.
+    ///
+    /// The default is [`egui_wgpu::RendererOptions::PREDICTABLE`].
+    #[cfg(feature = "wgpu")]
+    #[inline]
+    pub fn with_render_options(mut self, options: egui_wgpu::RendererOptions) -> Self {
+        self.render_options = options;
+        self
+    }
+
     /// Set the [`TestRenderer`] to use for rendering.
     ///
     /// By default, a [`LazyRenderer`] is used.
@@ -133,7 +151,8 @@ impl<State> HarnessBuilder<State> {
     /// This sets up a [`crate::wgpu::WgpuTestRenderer`] with the default setup.
     #[cfg(feature = "wgpu")]
     pub fn wgpu(self) -> Self {
-        self.renderer(crate::wgpu::WgpuTestRenderer::default())
+        let test_renderer = crate::wgpu::WgpuTestRenderer::with_render_options(self.render_options);
+        self.renderer(test_renderer)
     }
 
     /// Enable wgpu rendering with the given setup.
@@ -142,45 +161,9 @@ impl<State> HarnessBuilder<State> {
         self.renderer(crate::wgpu::WgpuTestRenderer::from_setup(setup))
     }
 
-    /// Create a new Harness with the given app closure and a state.
-    ///
-    /// The app closure will immediately be called once to create the initial ui.
-    ///
-    /// If you don't need to create Windows / Panels, you can use [`HarnessBuilder::build_ui`] instead.
-    ///
-    /// # Example
-    /// ```rust
-    /// # use egui::CentralPanel;
-    /// # use egui_kittest::{Harness, kittest::Queryable};
-    /// let checked = false;
-    /// let mut harness = Harness::builder()
-    ///     .with_size(egui::Vec2::new(300.0, 200.0))
-    ///     .build_state(|ctx, checked| {
-    ///         CentralPanel::default().show(ctx, |ui| {
-    ///             ui.checkbox(checked, "Check me!");
-    ///         });
-    ///     }, checked);
-    ///
-    /// harness.get_by_label("Check me!").click();
-    /// harness.run();
-    ///
-    /// assert_eq!(*harness.state(), true);
-    /// ```
-    #[track_caller]
-    #[deprecated = "use `build_ui_state` instead"]
-    pub fn build_state<'a>(
-        self,
-        app: impl FnMut(&egui::Context, &mut State) + 'a,
-        state: State,
-    ) -> Harness<'a, State> {
-        Harness::from_builder(self, AppKind::ContextState(Box::new(app)), state, None)
-    }
-
     /// Create a new Harness with the given ui closure and a state.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
-    ///
-    /// If you need to create Windows / Panels, you can use [`HarnessBuilder::build`] instead.
     ///
     /// # Example
     /// ```rust
@@ -215,7 +198,7 @@ impl<State> HarnessBuilder<State> {
         build: impl FnOnce(&mut eframe::CreationContext<'a>) -> State,
     ) -> Harness<'a, State>
     where
-        State: eframe::App,
+        State: eframe::App + 'static,
     {
         let ctx = egui::Context::default();
 
@@ -226,42 +209,19 @@ impl<State> HarnessBuilder<State> {
 
         let app = build(&mut cc);
 
-        let kind = AppKind::Eframe((|state| state, frame));
+        let kind = AppKind::Eframe(AppKindEframe {
+            get_app: |state| state,
+            take_app: |state| Box::new(state),
+            frame,
+        });
         Harness::from_builder(self, kind, app, Some(ctx))
     }
 }
 
 impl HarnessBuilder {
-    /// Create a new Harness with the given app closure.
-    ///
-    /// The app closure will immediately be called once to create the initial ui.
-    ///
-    /// If you don't need to create Windows / Panels, you can use [`HarnessBuilder::build_ui`] instead.
-    ///
-    /// # Example
-    /// ```rust
-    /// # use egui::CentralPanel;
-    /// # use egui_kittest::{Harness, kittest::Queryable};
-    /// let mut harness = Harness::builder()
-    ///     .with_size(egui::Vec2::new(300.0, 200.0))
-    ///     .build(|ctx| {
-    ///         CentralPanel::default().show(ctx, |ui| {
-    ///             ui.label("Hello, world!");
-    ///         });
-    ///     });
-    /// ```
-    #[must_use]
-    #[track_caller]
-    #[deprecated = "use `build_ui` instead"]
-    pub fn build<'a>(self, app: impl FnMut(&egui::Context) + 'a) -> Harness<'a> {
-        Harness::from_builder(self, AppKind::Context(Box::new(app)), (), None)
-    }
-
     /// Create a new Harness with the given ui closure.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
-    ///
-    /// If you need to create Windows / Panels, you can use [`HarnessBuilder::build`] instead.
     ///
     /// # Example
     /// ```rust

@@ -5,7 +5,7 @@
 use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
 use emath::GuiRounding as _;
-use epaint::Margin;
+use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
     Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Response, Sense, Ui, UiBuilder,
@@ -423,13 +423,6 @@ impl ScrollArea {
         self
     }
 
-    /// A source for the unique [`Id`], e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
-    #[inline]
-    #[deprecated = "Renamed id_salt"]
-    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt(id_salt)
-    }
-
     /// A source for the unique [`Id`], e.g. `.id_salt("second_scroll_area")` or `.id_salt(loop_index)`.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
@@ -530,32 +523,6 @@ impl ScrollArea {
     /// This can be used, for example, to optionally freeze scrolling while the user
     /// is typing text in a [`crate::TextEdit`] widget contained within the scroll area.
     ///
-    /// This controls both scrolling directions.
-    #[deprecated = "Use `ScrollArea::scroll_source()"]
-    #[inline]
-    pub fn enable_scrolling(mut self, enable: bool) -> Self {
-        self.scroll_source = if enable {
-            ScrollSource::ALL
-        } else {
-            ScrollSource::NONE
-        };
-        self
-    }
-
-    /// Can the user drag the scroll area to scroll?
-    ///
-    /// This is useful for touch screens.
-    ///
-    /// If `true`, the [`ScrollArea`] will sense drags.
-    ///
-    /// Default: `true`.
-    #[deprecated = "Use `ScrollArea::scroll_source()"]
-    #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
-        self.scroll_source.drag = drag_to_scroll;
-        self
-    }
-
     /// What sources does the [`ScrollArea`] use for scrolling the contents.
     #[inline]
     pub fn scroll_source(mut self, scroll_source: ScrollSource) -> Self {
@@ -1019,13 +986,17 @@ impl ScrollArea {
             .inner;
 
         let (content_size, state) = prepared.end(ui);
-        ScrollAreaOutput {
+        let output = ScrollAreaOutput {
             inner,
             id,
             state,
             content_size,
             inner_rect,
-        }
+        };
+
+        paint_fade_areas(ui, &output);
+
+        output
     }
 }
 
@@ -1502,5 +1473,90 @@ impl Prepared {
         state.store(ui.ctx(), id);
 
         (content_size, state)
+    }
+}
+
+/// Paint fade-out gradients at the top and/or bottom of a scroll area to
+/// indicate that more content is available beyond the visible region.
+fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
+    let crate::style::ScrollFadeStyle {
+        strength,
+        size: fade_size,
+    } = ui.spacing().scroll.fade;
+
+    if strength <= 0.0 {
+        return;
+    }
+
+    let bg = ui.stack().bg_color();
+
+    let offset = scroll_output.state.offset;
+    let overflow = scroll_output.content_size - scroll_output.inner_rect.size();
+
+    let paint_rect = scroll_output
+        .inner_rect
+        .intersect(ui.min_rect())
+        .expand(ui.visuals().clip_rect_margin);
+
+    // Top fade: animate opacity based on how far we've scrolled down.
+    if 0.0 < offset.y {
+        let t = (offset.y / fade_size).clamp(0.0, 1.0) * strength;
+        let bg_faded = bg.gamma_multiply(t);
+        let rect = Rect::from_min_max(
+            paint_rect.left_top(),
+            pos2(paint_rect.right(), paint_rect.top() + fade_size),
+        );
+        ui.painter().add(Shape::gradient_rect(
+            rect,
+            Direction::TopDown,
+            [bg_faded, Color32::TRANSPARENT],
+        ));
+    }
+
+    // Bottom fade: animate opacity based on distance from the bottom.
+    let distance_from_bottom = overflow.y - offset.y;
+    if 0.0 < distance_from_bottom {
+        let t = (distance_from_bottom / fade_size).clamp(0.0, 1.0) * strength;
+        let bg_faded = bg.gamma_multiply(t);
+        let rect = Rect::from_min_max(
+            pos2(paint_rect.left(), paint_rect.bottom() - fade_size),
+            paint_rect.right_bottom(),
+        );
+        ui.painter().add(Shape::gradient_rect(
+            rect,
+            Direction::BottomUp,
+            [bg_faded, Color32::TRANSPARENT],
+        ));
+    }
+
+    // Left fade: animate opacity based on how far we've scrolled right.
+    if 0.0 < offset.x {
+        let t = (offset.x / fade_size).clamp(0.0, 1.0) * strength;
+        let bg_faded = bg.gamma_multiply(t);
+        let rect = Rect::from_min_max(
+            paint_rect.left_top(),
+            pos2(paint_rect.left() + fade_size, paint_rect.bottom()),
+        );
+        ui.painter().add(Shape::gradient_rect(
+            rect,
+            Direction::LeftToRight,
+            [bg_faded, Color32::TRANSPARENT],
+        ));
+    }
+
+    // Right fade: animate opacity based on distance from the right edge.
+    let distance_from_right = overflow.x - offset.x;
+    if 0.0 < distance_from_right {
+        let t = (distance_from_right / fade_size).clamp(0.0, 1.0) * strength;
+        let bg_faded = bg.gamma_multiply(t);
+        let rect = Rect::from_min_max(
+            pos2(paint_rect.right() - fade_size, paint_rect.top()),
+            paint_rect.right_bottom(),
+        );
+        ui.painter().add(Shape::gradient_rect(
+            rect,
+            Direction::RightToLeft,
+            [bg_faded, Color32::TRANSPARENT],
+        ));
     }
 }

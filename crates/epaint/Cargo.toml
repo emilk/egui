@@ -11,7 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/epaint"
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
-include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [lints]
 workspace = true
@@ -48,7 +48,14 @@ mint = ["emath/mint"]
 rayon = ["dep:rayon"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde", "font-types/serde", "smallvec/serde"]
+serde = [
+  "dep:serde",
+  "ahash/serde",
+  "ecolor/serde",
+  "emath/serde",
+  "font-types/serde",
+  "smallvec/serde",
+]
 
 ## Change Vertex layout to be compatible with unity
 unity = []
@@ -63,6 +70,7 @@ ecolor.workspace = true
 
 ahash.workspace = true
 font-types.workspace = true
+harfrust.workspace = true
 log.workspace = true
 nohash-hasher.workspace = true
 parking_lot.workspace = true # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
@@ -70,6 +78,8 @@ profiling.workspace = true
 self_cell.workspace = true
 skrifa.workspace = true
 smallvec.workspace = true
+unicode-general-category.workspace = true
+unicode-segmentation.workspace = true
 vello_cpu.workspace = true
 
 #! ### Optional dependencies

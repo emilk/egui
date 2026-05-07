@@ -27,7 +27,10 @@ use winit_integration::UserEvent;
 
 use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
-    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
+    native::{
+        epi_integration::EpiIntegration,
+        winit_integration::{EventResult, is_invisible_or_minimized},
+    },
 };
 
 use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
@@ -45,6 +48,10 @@ pub struct WgpuWinitApp<'app> {
 
     /// Set when we are actually up and running.
     running: Option<WgpuWinitRunning<'app>>,
+
+    /// An optional pre-existing egui context. If `Some`, it is used instead of
+    /// creating a new one via [`winit_integration::create_egui_context`]. Taken during initialization.
+    egui_ctx: Option<egui::Context>,
 }
 
 /// State that is initialized when the application is first starts running via
@@ -102,6 +109,7 @@ impl<'app> WgpuWinitApp<'app> {
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
+        egui_ctx: Option<egui::Context>,
         app_creator: AppCreator<'app>,
     ) -> Self {
         profiling::function_scope!();
@@ -118,6 +126,7 @@ impl<'app> WgpuWinitApp<'app> {
             native_options,
             running: None,
             app_creator: Some(app_creator),
+            egui_ctx,
         }
     }
 
@@ -184,9 +193,17 @@ impl<'app> WgpuWinitApp<'app> {
         builder: ViewportBuilder,
     ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
         profiling::function_scope!();
+        // Inject the display handle into the wgpu setup so that wgpu can create
+        // surfaces on platforms that require it (e.g. GLES on Wayland).
+        let mut wgpu_options = self.native_options.wgpu_options.clone();
+        if let egui_wgpu::WgpuSetup::CreateNew(ref mut create_new) = wgpu_options.wgpu_setup
+            && create_new.display_handle.is_none()
+        {
+            create_new.display_handle = Some(Box::new(event_loop.owned_display_handle()));
+        }
         let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
-            self.native_options.wgpu_options.clone(),
+            wgpu_options,
             self.native_options.viewport.transparent.unwrap_or(false),
             egui_wgpu::RendererOptions {
                 msaa_samples: self.native_options.multisampling as _,
@@ -417,7 +434,10 @@ impl WinitApp for WgpuWinitApp<'_> {
                         .unwrap_or(&self.app_name),
                 )
             };
-            let egui_ctx = winit_integration::create_egui_context(storage.as_deref());
+            let egui_ctx = self
+                .egui_ctx
+                .take()
+                .unwrap_or_else(|| winit_integration::create_egui_context(storage.as_deref()));
             let (window, builder) = create_window(
                 &egui_ctx,
                 event_loop,
@@ -711,6 +731,7 @@ impl WgpuWinitRunning<'_> {
                 &clipped_primitives,
                 &textures_delta,
                 screenshot_commands,
+                window,
             );
 
             for action in viewport.actions_requested.drain(..) {
@@ -770,10 +791,12 @@ impl WgpuWinitRunning<'_> {
         integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
 
         if let Some(window) = window
-            && window.is_minimized() == Some(true)
+            && is_invisible_or_minimized(window)
         {
             // On Mac, a minimized Window uses up all CPU:
             // https://github.com/emilk/egui/issues/325
+            // On Windows, an invisible window also uses up all CPU:
+            // https://github.com/emilk/egui/issues/7776
             profiling::scope!("minimized_sleep");
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
@@ -1098,6 +1121,7 @@ fn render_immediate_viewport(
         &clipped_primitives,
         &textures_delta,
         vec![],
+        window,
     );
 
     egui_winit.handle_platform_output(window, platform_output);

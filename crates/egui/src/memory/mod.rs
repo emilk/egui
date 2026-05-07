@@ -116,6 +116,11 @@ pub struct Memory {
     /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
     popups: ViewportIdMap<OpenPopup>,
+
+    /// Whether to inform the backend to interrupt any ongoing IME composition
+    /// this pass.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    requested_interrupt_ime: bool,
 }
 
 impl Default for Memory {
@@ -133,6 +138,7 @@ impl Default for Memory {
             popups: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
+            requested_interrupt_ime: Default::default(),
         };
         slf.interactions.entry(slf.viewport_id).or_default();
         slf.areas.entry(slf.viewport_id).or_default();
@@ -193,7 +199,7 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub light_style: std::sync::Arc<Style>,
 
-    /// Preference for selection between dark and light [`crate::Context::style`]
+    /// Preference for selection between dark and light [`crate::Context::global_style`]
     /// as the active style used by all subsequent windows, panels, etc.
     ///
     /// Default: `ThemePreference::System`.
@@ -234,6 +240,16 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub zoom_with_keyboard: bool,
 
+    /// Keyboard shortcuts to close the application.
+    ///
+    /// Pressing any of these will send [`crate::ViewportCommand::Close`]
+    /// to the root viewport.
+    ///
+    /// Defaults to `Cmd-Q` (which is Ctrl-Q on Linux/Windows, Cmd-Q on Mac).
+    /// Set to empty to disable.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub quit_shortcuts: Vec<crate::KeyboardShortcut>,
+
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
 
@@ -256,7 +272,7 @@ pub struct Options {
     ///
     /// If this is `1`, [`crate::Context::request_discard`] will be ignored.
     ///
-    /// Multi-pass is supported by [`crate::Context::run`].
+    /// Multi-pass is supported by [`crate::Context::run_ui`].
     ///
     /// See [`crate::Context::request_discard`] for more.
     pub max_passes: NonZeroUsize,
@@ -304,6 +320,10 @@ impl Default for Options {
             system_theme: None,
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
+            quit_shortcuts: vec![crate::KeyboardShortcut::new(
+                crate::Modifiers::COMMAND,
+                crate::Key::Q,
+            )],
             tessellation_options: Default::default(),
             repaint_on_widget_change: false,
 
@@ -363,6 +383,7 @@ impl Options {
             system_theme: _,
             zoom_factor,
             zoom_with_keyboard,
+            quit_shortcuts: _, // not shown in ui
             tessellation_options,
             repaint_on_widget_change,
             max_passes,
@@ -746,6 +767,8 @@ impl Memory {
 
         self.areas.entry(self.viewport_id).or_default();
 
+        self.requested_interrupt_ime = false;
+
         // self.interactions  is handled elsewhere
 
         self.options.begin_pass(new_raw_input);
@@ -795,12 +818,6 @@ impl Memory {
         } else {
             self.top_modal_layer()
         }
-    }
-
-    /// The currently set transform of a layer.
-    #[deprecated = "Use `Context::layer_transform_to_global` instead"]
-    pub fn layer_transforms(&self, layer_id: LayerId) -> Option<TSTransform> {
-        self.to_global.get(&layer_id).copied()
     }
 
     /// An iterator over all layers. Back-to-front, top is last.
@@ -860,9 +877,12 @@ impl Memory {
 
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
+    ///
+    /// Calling this will interrupt IME composition.
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
         self.focus_mut().focused_widget = Some(FocusWidget::new(id));
+        self.interrupt_ime();
     }
 
     /// Surrender keyboard focus for a specific widget.
@@ -978,6 +998,28 @@ impl Memory {
     pub(crate) fn focus_mut(&mut self) -> &mut Focus {
         self.focus.entry(self.viewport_id).or_default()
     }
+
+    /// Check if the widget owns IME events.
+    ///
+    /// A widget should only consume IME events if this returns `true`. At most
+    /// one widget can own IME events for each frame.
+    #[inline(always)]
+    pub fn owns_ime_events(&self, id: Id) -> bool {
+        // Note: Even if the IME is being interrupted in the current frame, we
+        // should not return `false` here, since we still need
+        // `PlatformOutput::ime` to be set in such cases.
+
+        self.has_focus(id)
+    }
+
+    /// Interrupt the current IME composition, if any.
+    pub fn interrupt_ime(&mut self) {
+        self.requested_interrupt_ime = true;
+    }
+
+    pub(crate) fn should_interrupt_ime(&self) -> bool {
+        self.requested_interrupt_ime
+    }
 }
 
 /// State of an open popup.
@@ -1004,40 +1046,27 @@ impl OpenPopup {
     }
 }
 
-/// ## Deprecated popup API
-/// Use [`crate::Popup`] instead.
+/// ## Popup state (internal API)
+///
+/// Used by [`crate::Popup`].
 impl Memory {
-    /// Is the given popup open?
-    #[deprecated = "Use Popup::is_id_open instead"]
-    pub fn is_popup_open(&self, popup_id: Id) -> bool {
+    pub(crate) fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popups
             .get(&self.viewport_id)
             .is_some_and(|state| state.id == popup_id)
             || self.everything_is_visible()
     }
 
-    /// Is any popup open?
-    #[deprecated = "Use Popup::is_any_open instead"]
-    pub fn any_popup_open(&self) -> bool {
+    pub(crate) fn any_popup_open(&self) -> bool {
         self.popups.contains_key(&self.viewport_id) || self.everything_is_visible()
     }
 
-    /// Open the given popup and close all others.
-    ///
-    /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
-    #[deprecated = "Use Popup::open_id instead"]
-    pub fn open_popup(&mut self, popup_id: Id) {
+    pub(crate) fn open_popup(&mut self, popup_id: Id) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, None));
     }
 
-    /// Popups must call this every frame while open.
-    ///
-    /// This is needed because in some cases popups can go away without `close_popup` being
-    /// called. For example, when a context menu is open and the underlying widget stops
-    /// being rendered.
-    #[deprecated = "Use Popup::show instead"]
-    pub fn keep_popup_open(&mut self, popup_id: Id) {
+    pub(crate) fn keep_popup_open(&mut self, popup_id: Id) {
         if let Some(state) = self.popups.get_mut(&self.viewport_id)
             && state.id == popup_id
         {
@@ -1045,43 +1074,27 @@ impl Memory {
         }
     }
 
-    /// Open the popup and remember its position.
-    #[deprecated = "Use Popup with PopupAnchor::Position instead"]
-    pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
+    pub(crate) fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, pos.into()));
     }
 
-    /// Get the position for this popup.
-    #[deprecated = "Use Popup::position_of_id instead"]
-    pub fn popup_position(&self, id: Id) -> Option<Pos2> {
+    pub(crate) fn popup_position(&self, id: Id) -> Option<Pos2> {
         let state = self.popups.get(&self.viewport_id)?;
         if state.id == id { state.pos } else { None }
     }
 
-    /// Close any currently open popup.
-    #[deprecated = "Use Popup::close_all instead"]
-    pub fn close_all_popups(&mut self) {
+    pub(crate) fn close_all_popups(&mut self) {
         self.popups.clear();
     }
 
-    /// Close the given popup, if it is open.
-    ///
-    /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
-    #[deprecated = "Use Popup::close_id instead"]
-    pub fn close_popup(&mut self, popup_id: Id) {
-        #[expect(deprecated)]
+    pub(crate) fn close_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
             self.popups.remove(&self.viewport_id);
         }
     }
 
-    /// Toggle the given popup between closed and open.
-    ///
-    /// Note: At most, only one popup can be open at a time.
-    #[deprecated = "Use Popup::toggle_id instead"]
-    pub fn toggle_popup(&mut self, popup_id: Id) {
-        #[expect(deprecated)]
+    pub(crate) fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
             self.close_popup(popup_id);
         } else {

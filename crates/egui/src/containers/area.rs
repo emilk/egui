@@ -280,7 +280,7 @@ impl Area {
         self
     }
 
-    /// Constrains this area to [`Context::screen_rect`]?
+    /// Constrains this area to [`Context::content_rect`]?
     ///
     /// Default: `true`.
     #[inline]
@@ -291,7 +291,7 @@ impl Area {
 
     /// Constrain the movement of the window to the given rectangle.
     ///
-    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    /// For instance: `.constrain_to(ctx.content_rect())`.
     #[inline]
     pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.constrain = true;
@@ -516,6 +516,7 @@ impl Area {
             let move_response = ctx.create_widget(
                 WidgetRect {
                     id: interact_id,
+                    parent_id: id,
                     layer_id,
                     rect: state.rect(),
                     interact_rect: state.rect().intersect(constrain_rect),

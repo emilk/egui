@@ -30,6 +30,10 @@ struct MyTestApp {}
 
 impl eframe::App for MyTestApp {
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        egui::Panel::top("top").show_inside(ui, |ui| {
+            ui.label("This is a test of painting directly with glow.");
+        });
+
         use glow::HasContext as _;
         let gl = frame.gl().unwrap();
 
@@ -43,6 +47,21 @@ impl eframe::App for MyTestApp {
 
         egui::Window::new("Floating Window").show(ui.ctx(), |ui| {
             ui.label("The background should be purple.");
+            ui.label(format!(
+                "is_pointer_over_egui: {}",
+                ui.is_pointer_over_egui()
+            ));
+            ui.label(format!(
+                "egui_wants_pointer_input: {}",
+                ui.egui_wants_pointer_input()
+            ));
+            ui.label(format!(
+                "egui_is_using_pointer: {}",
+                ui.egui_is_using_pointer()
+            ));
+            if let Some(pos) = ui.pointer_latest_pos() {
+                ui.label(format!("layer_id_at: {:?}", ui.layer_id_at(pos)));
+            }
         });
     }
 }

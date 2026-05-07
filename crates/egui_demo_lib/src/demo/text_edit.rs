@@ -1,15 +1,21 @@
+use egui::{Align, Align2, AtomExt as _};
+
 /// Showcase [`egui::TextEdit`].
 #[derive(PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextEditDemo {
     pub text: String,
+    halign: egui::Align,
+    valign: egui::Align,
 }
 
 impl Default for TextEditDemo {
     fn default() -> Self {
         Self {
             text: "Edit this text".to_owned(),
+            halign: egui::Align::LEFT,
+            valign: egui::Align::TOP,
         }
     }
 }
@@ -37,7 +43,11 @@ impl crate::View for TextEditDemo {
             ui.add(crate::egui_github_link_file!());
         });
 
-        let Self { text } = self;
+        let Self {
+            text,
+            halign,
+            valign,
+        } = self;
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
@@ -46,9 +56,39 @@ impl crate::View for TextEditDemo {
             ui.label(".");
         });
 
+        ui.horizontal(|ui| {
+            ui.label("Horizontal align:");
+            ui.selectable_value(halign, egui::Align::LEFT, "Left");
+            ui.selectable_value(halign, egui::Align::Center, "Center");
+            ui.selectable_value(halign, egui::Align::RIGHT, "Right");
+        });
+        ui.horizontal(|ui| {
+            ui.label("Vertical align:");
+            ui.selectable_value(valign, egui::Align::TOP, "Top");
+            ui.selectable_value(valign, egui::Align::Center, "Center");
+            ui.selectable_value(valign, egui::Align::BOTTOM, "Bottom");
+        });
+
+        let clear_id = egui::Id::new("clear_button");
+        let clear_size = egui::Vec2::splat(ui.spacing().interact_size.y);
+
         let output = egui::TextEdit::multiline(text)
             .hint_text("Type something!")
+            // Atoms are centered by default, so we need to pass the right align here:
+            .prefix("🔎".atom_align(Align2([Align::LEFT, *valign])))
+            .suffix(
+                egui::Atom::custom(clear_id, clear_size)
+                    .atom_align(Align2([Align::RIGHT, *valign])),
+            )
+            .horizontal_align(*halign)
+            .vertical_align(*valign)
             .show(ui);
+
+        if let Some(rect) = output.response.rect(clear_id)
+            && ui.place(rect, egui::Button::new("❌")).clicked()
+        {
+            text.clear();
+        }
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;

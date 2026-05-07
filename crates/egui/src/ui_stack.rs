@@ -2,6 +2,8 @@ use std::sync::Arc;
 use std::{any::Any, iter::FusedIterator};
 
 use crate::widget_style::Classes;
+use epaint::Color32;
+
 use crate::{Direction, Frame, Id, Rect};
 
 /// What kind is this [`crate::Ui`]?
@@ -254,6 +256,25 @@ impl UiStack {
     #[inline]
     pub fn has_visible_frame(&self) -> bool {
         !self.info.frame.stroke.is_empty()
+    }
+
+    /// The background color of this [`crate::Ui`].
+    ///
+    /// This blend together all [`Frame::fill`] colors
+    /// up to the root.
+    #[inline]
+    pub fn bg_color(&self) -> Color32 {
+        let mut total = Color32::TRANSPARENT;
+        for node in self.iter() {
+            let fill = node.frame().fill;
+            if fill != Color32::TRANSPARENT {
+                total = fill.blend(total);
+                if total.is_opaque() {
+                    break;
+                }
+            }
+        }
+        total
     }
 }
 

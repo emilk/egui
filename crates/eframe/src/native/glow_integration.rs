@@ -34,7 +34,7 @@ use egui_winit::accesskit_winit;
 
 use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
-    native::epi_integration::EpiIntegration,
+    native::{epi_integration::EpiIntegration, winit_integration::is_invisible_or_minimized},
 };
 
 use super::{
@@ -55,6 +55,10 @@ pub struct GlowWinitApp<'app> {
     // re-initializing the `GlowWinitRunning` state on Android if the application
     // suspends and resumes.
     app_creator: Option<AppCreator<'app>>,
+
+    /// An optional pre-existing egui context. If `Some`, it is used instead of
+    /// creating a new one via [`create_egui_context`]. Taken during initialization.
+    egui_ctx: Option<egui::Context>,
 }
 
 /// State that is initialized when the application is first starts running via
@@ -128,6 +132,7 @@ impl<'app> GlowWinitApp<'app> {
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
+        egui_ctx: Option<egui::Context>,
         app_creator: AppCreator<'app>,
     ) -> Self {
         profiling::function_scope!();
@@ -137,6 +142,7 @@ impl<'app> GlowWinitApp<'app> {
             native_options,
             running: None,
             app_creator: Some(app_creator),
+            egui_ctx,
         }
     }
 
@@ -184,7 +190,7 @@ impl<'app> GlowWinitApp<'app> {
         let painter = egui_glow::Painter::new(
             gl,
             "",
-            native_options.shader_version,
+            native_options.glow_options.shader_version,
             native_options.dithering,
         )?;
 
@@ -209,7 +215,10 @@ impl<'app> GlowWinitApp<'app> {
             )
         };
 
-        let egui_ctx = create_egui_context(storage.as_deref());
+        let egui_ctx = self
+            .egui_ctx
+            .take()
+            .unwrap_or_else(|| create_egui_context(storage.as_deref()));
 
         let (mut glutin, painter) = Self::create_glutin_windowed_context(
             &egui_ctx,
@@ -761,9 +770,11 @@ impl GlowWinitRunning<'_> {
 
         integration.maybe_autosave(app.as_mut(), Some(&window));
 
-        if window.is_minimized() == Some(true) {
+        if is_invisible_or_minimized(&window) {
             // On Mac, a minimized Window uses up all CPU:
             // https://github.com/emilk/egui/issues/325
+            // On Windows, an invisible window also uses up all CPU:
+            // https://github.com/emilk/egui/issues/7776
             profiling::scope!("minimized_sleep");
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
@@ -950,12 +961,12 @@ impl GlutinWindowContext {
 
         use glutin::prelude::*;
         // convert native options to glutin options
-        let hardware_acceleration = match native_options.hardware_acceleration {
-            crate::HardwareAcceleration::Required => Some(true),
-            crate::HardwareAcceleration::Preferred => None,
-            crate::HardwareAcceleration::Off => Some(false),
+        let hardware_acceleration = match native_options.glow_options.hardware_acceleration {
+            egui_glow::HardwareAcceleration::Required => Some(true),
+            egui_glow::HardwareAcceleration::Preferred => None,
+            egui_glow::HardwareAcceleration::Off => Some(false),
         };
-        let swap_interval = if native_options.vsync {
+        let swap_interval = if native_options.glow_options.vsync {
             glutin::surface::SwapInterval::Wait(NonZeroU32::MIN)
         } else {
             glutin::surface::SwapInterval::DontWait

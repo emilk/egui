@@ -112,8 +112,8 @@
 //! loop {
 //!     let raw_input: egui::RawInput = gather_input();
 //!
-//!     let full_output = ctx.run(raw_input, |ctx| {
-//!         egui::CentralPanel::default().show(&ctx, |ui| {
+//!     let full_output = ctx.run_ui(raw_input, |ui| {
+//!         egui::CentralPanel::default().show_inside(ui, |ui| {
 //!             ui.label("Hello world!");
 //!             if ui.button("Click me").clicked() {
 //!                 // take some action here
@@ -407,8 +407,6 @@ pub mod layers;
 mod layout;
 pub mod load;
 mod memory;
-#[deprecated = "Use `egui::containers::menu` instead"]
-pub mod menu;
 pub mod os;
 mod painter;
 mod pass_state;
@@ -434,9 +432,6 @@ mod callstack;
 
 pub use accesskit;
 
-#[deprecated = "Use the ahash crate directly."]
-pub use ahash;
-
 pub use epaint;
 pub use epaint::ecolor;
 pub use epaint::emath;
@@ -449,7 +444,7 @@ pub use emath::{
     remap_clamp, vec2,
 };
 pub use epaint::{
-    ClippedPrimitive, ColorImage, CornerRadius, ImageData, Margin, Mesh, PaintCallback,
+    ClippedPrimitive, ColorImage, CornerRadius, Direction, ImageData, Margin, Mesh, PaintCallback,
     PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
@@ -458,8 +453,8 @@ pub use epaint::{
 pub mod text {
     pub use crate::text_selection::CCursorRange;
     pub use epaint::text::{
-        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TAB_SIZE,
-        TextFormat, TextWrapping, cursor::CCursor,
+        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TextFormat,
+        TextWrapping, cursor::CCursor,
     };
 }
 
@@ -478,7 +473,7 @@ pub use self::{
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,
     grid::Grid,
-    id::{Id, IdMap},
+    id::{Id, IdMap, IdSet},
     input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
     layers::{LayerId, Order},
     layout::*,
@@ -498,9 +493,6 @@ pub use self::{
     widget_text::{RichText, WidgetText},
     widgets::*,
 };
-
-#[deprecated = "Renamed to CornerRadius"]
-pub type Rounding = CornerRadius;
 
 // ----------------------------------------------------------------------------
 

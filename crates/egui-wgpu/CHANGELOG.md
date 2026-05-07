@@ -6,6 +6,29 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.2 - 2026-05-04
+* Update to wgpu 29.0.1 [#8073](https://github.com/emilk/egui/pull/8073) by [@emilk](https://github.com/emilk)
+* Warn if using a software rasterizer [#8101](https://github.com/emilk/egui/pull/8101) by [@emilk](https://github.com/emilk)
+
+
+## 0.34.1 - 2026-03-27
+* `wgpu` backend: Enable WebGL fallback [#8038](https://github.com/emilk/egui/pull/8038) by [@emilk](https://github.com/emilk)
+
+
+## 0.34.0 - 2026-03-26
+### ⭐ Added
+* Add error message when calling `.render()` without `.update_buffers()` [#8005](https://github.com/emilk/egui/pull/8005) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Put the `capture` module behind a feature flag, make the `egui` dependency optional [#7698](https://github.com/emilk/egui/pull/7698) by [@StT191](https://github.com/StT191)
+* Attach stencil buffer [#7702](https://github.com/emilk/egui/pull/7702) by [@jgraef](https://github.com/jgraef)
+* Update wgpu to 28.0.0 [#7853](https://github.com/emilk/egui/pull/7853) by [@SuchAFuriousDeath](https://github.com/SuchAFuriousDeath)
+* Update to wgpu 29 [#7990](https://github.com/emilk/egui/pull/7990) by [@cwfitzgerald](https://github.com/cwfitzgerald)
+
+### 🐛 Fixed
+* Fix wgpu memory leak leading to panic when window is minimized (#7434) [#7928](https://github.com/emilk/egui/pull/7928) by [@landaire](https://github.com/landaire)
+
+
 ## 0.33.3 - 2025-12-11
 Nothing new
 

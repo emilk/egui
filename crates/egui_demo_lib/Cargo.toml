@@ -11,7 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/egui_demo_lib"
 categories = ["gui", "graphics"]
 keywords = ["glow", "egui", "gui", "gamedev"]
-include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml", "data/*"]
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml", "data/*"]
 
 [lints]
 workspace = true
@@ -20,13 +20,16 @@ workspace = true
 all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
+[package.metadata.cargo-shear]
+ignored = ["image"] # We need the png feature
+
 [lib]
 
 
 [features]
 default = []
 
-chrono = ["egui_extras/datepicker", "dep:chrono"]
+jiff = ["egui_extras/datepicker", "dep:jiff"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde", "egui_extras/serde"]
@@ -42,7 +45,7 @@ egui_extras = { workspace = true, features = ["image", "svg"] }
 unicode_names2.workspace = true # this old version has fewer dependencies
 
 #! ### Optional dependencies
-chrono = { workspace = true, optional = true, features = ["js-sys", "wasmbind"] }
+jiff = { workspace = true, optional = true, features = ["std", "js"] }
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }

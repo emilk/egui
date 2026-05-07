@@ -2,7 +2,7 @@
 
 use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
 
-/// What egui emits each frame from [`crate::Context::run`].
+/// What egui emits each frame from [`crate::Context::run_ui`].
 ///
 /// The backend should use this.
 #[derive(Clone, Default)]
@@ -79,6 +79,9 @@ pub struct IMEOutput {
     ///
     /// This is a very thin rectangle.
     pub cursor_rect: crate::Rect,
+
+    /// Whether any ongoing IME composition should be interrupted.
+    pub should_interrupt_composition: bool,
 }
 
 /// Commands that the egui integration should execute at the end of a frame.
@@ -123,6 +126,9 @@ pub struct PlatformOutput {
     /// This is set if, and only if, the user is currently editing text.
     ///
     /// Useful for IME.
+    ///
+    /// This field should only be set by the widget that currently owns IME
+    /// events (see [`crate::Memory::owns_ime_events`]).
     pub ime: Option<IMEOutput>,
 
     /// The difference in the widget tree since last frame.
