@@ -1220,6 +1220,14 @@ fn events(
 
                         Some(CCursorRange::one(ccursor))
                     }
+                    ImeEvent::DeleteSurrounding {
+                        before_chars,
+                        after_chars,
+                    } => Some(text.delete_surrounding_chars(
+                        cursor_range,
+                        *before_chars,
+                        *after_chars,
+                    )),
                 }
             }
 

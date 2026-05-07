@@ -30,6 +30,11 @@ pub(crate) fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> 
 
 fn paint_if_needed(runner: &mut AppRunner) {
     if runner.needs_repaint.needs_repaint() {
+        #[cfg(debug_assertions)]
+        if !runner.input.raw.events.is_empty() {
+            runner.update_custom_debug_information();
+        }
+
         if runner.has_outstanding_paint_data() {
             // We have already run the logic, e.g. in an on-click event,
             // so let's only present the results:
@@ -167,11 +172,6 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
 pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let has_focus = runner.input.raw.focused;
     if !has_focus {
-        return;
-    }
-
-    if event.is_composing() || event.key_code() == 229 {
-        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
         return;
     }
 

@@ -405,6 +405,9 @@ struct ContextImpl {
     is_accesskit_enabled: bool,
 
     loaders: Arc<Loaders>,
+
+    #[cfg(debug_assertions)]
+    custom_debug_information: CustomDebugInformation,
 }
 
 impl ContextImpl {
@@ -452,6 +455,15 @@ impl ContextImpl {
         let viewport = self.viewports.entry(self.viewport_id()).or_default();
 
         self.memory.begin_pass(&new_raw_input, &all_viewport_ids);
+
+        #[cfg(debug_assertions)]
+        for ev in &new_raw_input.events {
+            if let crate::Event::CustomDebugInformationUpdated { name, value } = ev {
+                self.custom_debug_information
+                    .0
+                    .insert(name.clone(), value.clone());
+            }
+        }
 
         viewport.input = std::mem::take(&mut viewport.input).begin_pass(
             new_raw_input,
@@ -3287,6 +3299,13 @@ impl Context {
                 let interact_widgets = self.write(|ctx| ctx.viewport().interact_widgets.clone());
                 interact_widgets.ui(ui);
             });
+
+        #[cfg(debug_assertions)]
+        CollapsingHeader::new("Custom debug information")
+            .default_open(false)
+            .show(ui, |ui| {
+                self.read(|ctx| ctx.custom_debug_information.clone()).ui(ui);
+            });
     }
 
     /// Show stats about the allocated textures.
@@ -4215,6 +4234,26 @@ fn warn_if_rect_changes_id(
                     StrokeKind::Outside,
                 ),
             });
+        }
+    }
+}
+
+#[cfg(debug_assertions)]
+#[derive(Default, Clone)]
+struct CustomDebugInformation(std::collections::HashMap<String, String>);
+
+#[cfg(debug_assertions)]
+impl CustomDebugInformation {
+    fn ui(&self, ui: &mut Ui) {
+        let mut names = self.0.keys().cloned().collect::<Vec<_>>();
+        names.sort();
+        for name in names {
+            let value = &self.0[&name];
+            crate::CollapsingHeader::new(name)
+                .default_open(true)
+                .show(ui, |ui| {
+                    ui.label(value);
+                });
         }
     }
 }

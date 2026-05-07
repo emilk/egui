@@ -1,7 +1,10 @@
 //! The text agent is a hidden `<input>` element used to capture
 //! IME and mobile keyboard input events.
 
-use std::cell::Cell;
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, Node};
@@ -10,13 +13,129 @@ use super::{AppRunner, WebRunner};
 
 pub struct TextAgent {
     input: web_sys::HtmlInputElement,
+    input_state: Rc<RefCell<InputState>>,
     prev_ime_output: Cell<Option<egui::output::IMEOutput>>,
+}
+
+struct InputState {
+    input: web_sys::HtmlInputElement,
+    last_text: String,
+}
+
+impl InputState {
+    fn new(input: web_sys::HtmlInputElement) -> Self {
+        Self {
+            input,
+            last_text: String::new(),
+        }
+    }
+
+    fn clear(&mut self) {
+        self.input.set_value("");
+        self.last_text.clear();
+    }
+
+    fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
+        if !event.is_composing() && event.input_type() != "insertText" {
+            self.clear();
+
+            return;
+        }
+
+        let text = self.input.value();
+
+        let prefix_len = longest_common_prefix_length(&text, &self.last_text);
+        let last_text_len = self.last_text.chars().count();
+        if prefix_len < last_text_len {
+            let out_event = egui::Event::Ime(egui::ImeEvent::DeleteSurrounding {
+                before_chars: last_text_len - prefix_len,
+                after_chars: 0,
+            });
+            runner.input.raw.events.push(out_event);
+        }
+
+        let preedit_text = text.chars().skip(prefix_len).collect();
+        let out_event = if event.is_composing() {
+            egui::Event::Ime(egui::ImeEvent::Preedit(preedit_text))
+        } else {
+            egui::Event::Text(preedit_text)
+        };
+        runner.input.raw.events.push(out_event);
+
+        if event.is_composing() {
+            self.last_text = text.chars().take(prefix_len).collect();
+        } else {
+            self.last_text = text;
+        }
+
+        runner.needs_repaint.repaint_asap();
+    }
+
+    fn handle_composition_end_event(&mut self, runner: &mut AppRunner) {
+        let text = self.input.value();
+
+        let commit_text = {
+            let prefix_len = self.last_text.chars().count();
+            text.chars().skip(prefix_len).collect::<String>()
+        };
+        let out_event = egui::Event::Ime(egui::ImeEvent::Commit(commit_text));
+        runner.input.raw.events.push(out_event);
+
+        self.last_text = text;
+
+        runner.needs_repaint.repaint_asap();
+    }
+
+    /// ## Returns
+    /// Whether the event is consumed. If `true`, the caller should not do
+    /// further processing for this event.
+    fn handle_keydown_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
+        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
+        if event.is_composing() || event.key_code() == 229 {
+            true
+        } else {
+            if event.key().chars().count() > 1
+                || event.ctrl_key()
+                || event.alt_key()
+                || event.meta_key()
+            {
+                input_state.borrow_mut().clear();
+            }
+            false
+        }
+    }
+
+    /// ## Returns
+    /// Whether the event is consumed. If `true`, the caller should not do
+    /// further processing for this event.
+    fn handle_keyup_event(event: &web_sys::KeyboardEvent) -> bool {
+        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
+        event.is_composing() || event.key_code() == 229
+    }
+
+    #[cfg(debug_assertions)]
+    fn update_custom_debug_information(&self, input: &mut crate::web::WebInput) {
+        input
+            .raw
+            .events
+            .push(egui::Event::CustomDebugInformationUpdated {
+                name: "eframe::web::text_agent::InputState".to_owned(),
+                value: format!(
+                    "
+last_text: {:?}
+input.value: {:?}",
+                    self.last_text,
+                    self.input.value(),
+                ),
+            });
+    }
 }
 
 impl TextAgent {
     /// Attach the agent to the document.
     pub fn attach(runner_ref: &WebRunner, root: Node) -> Result<Self, JsValue> {
-        let document = web_sys::window().unwrap().document().unwrap();
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
 
         // create an `<input>` element
         let input = document
@@ -26,6 +145,7 @@ impl TextAgent {
         let input = input.dyn_into::<web_sys::HtmlInputElement>()?;
         input.set_type("text");
         input.set_attribute("autocapitalize", "off")?;
+        let input_state = Rc::new(RefCell::new(InputState::new(input.clone())));
 
         // append it to `<body>` and hide it outside of the viewport
         let style = input.style();
@@ -52,73 +172,56 @@ impl TextAgent {
 
         // attach event listeners
 
-        let on_input = {
-            let input = input.clone();
-            move |event: web_sys::InputEvent, runner: &mut AppRunner| {
-                let text = input.value();
-                // Workaround for an Android Gboard issue: after typing a word,
-                // the user has to delete invisible characters (whose count
-                // matches the length of the current suggestion) before actual
-                // characters are deleted, unless the focus has been reset.
-                //
-                // this issue appears to have been fixed in Gboard sometime
-                // between versions 14.7.09 and 17.0.12.
-                if !event.is_composing() {
-                    input.blur().ok();
-                    input.focus().ok();
-                }
-                // if `is_composing` is true, then user is using IME, for example: emoji, pinyin, kanji, hangul, etc.
-                // In that case, the browser emits both `input` and `compositionupdate` events,
-                // and we need to ignore the `input` event.
-                if !text.is_empty() && !event.is_composing() {
-                    input.set_value("");
-                    let event = egui::Event::Text(text);
-                    runner.input.raw.events.push(event);
-                    runner.needs_repaint.repaint_asap();
-                }
-            }
-        };
-
-        let on_composition_start = {
+        runner_ref.add_event_listener(
+            &input,
+            "compositionstart",
             move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 // Repaint moves the text agent into place,
                 // see `move_to` in `AppRunner::handle_platform_output`.
                 runner.needs_repaint.repaint_asap();
+            },
+        )?;
+
+        runner_ref.add_event_listener(&input, "input", {
+            let input_state = Rc::clone(&input_state);
+            move |event: web_sys::InputEvent, runner: &mut AppRunner| {
+                input_state.borrow_mut().handle_input_event(&event, runner);
             }
-        };
-
-        let on_composition_update = {
-            move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                let Some(text) = event.data() else { return };
-                let event = egui::Event::Ime(egui::ImeEvent::Preedit(text));
-                runner.input.raw.events.push(event);
-                runner.needs_repaint.repaint_asap();
+        })?;
+        runner_ref.add_event_listener(&input, "compositionend", {
+            let input_state = Rc::clone(&input_state);
+            move |_event: web_sys::CompositionEvent, runner: &mut AppRunner| {
+                input_state
+                    .borrow_mut()
+                    .handle_composition_end_event(runner);
             }
-        };
+        })?;
 
-        let on_composition_end = {
-            let input = input.clone();
-            move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                let Some(text) = event.data() else { return };
-                input.set_value("");
-                let event = egui::Event::Ime(egui::ImeEvent::Commit(text));
-                runner.input.raw.events.push(event);
-                runner.needs_repaint.repaint_asap();
+        runner_ref.add_event_listener(&input, "keydown", {
+            let input_state = Rc::clone(&input_state);
+            move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
+                let is_consumed = InputState::handle_keydown_event(&input_state, &event);
+                if !is_consumed {
+                    // The canvas doesn't get keydown/keyup events when the text agent is focused,
+                    // so we need to forward them to the runner:
+                    super::events::on_keydown(event, runner);
+                }
             }
-        };
-
-        runner_ref.add_event_listener(&input, "input", on_input)?;
-        runner_ref.add_event_listener(&input, "compositionstart", on_composition_start)?;
-        runner_ref.add_event_listener(&input, "compositionupdate", on_composition_update)?;
-        runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
-
-        // The canvas doesn't get keydown/keyup events when the text agent is focused,
-        // so we need to forward them to the runner:
-        runner_ref.add_event_listener(&input, "keydown", super::events::on_keydown)?;
-        runner_ref.add_event_listener(&input, "keyup", super::events::on_keyup)?;
+        })?;
+        runner_ref.add_event_listener(&input, "keyup", {
+            move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
+                let is_consumed = InputState::handle_keyup_event(&event);
+                if !is_consumed {
+                    // The canvas doesn't get keydown/keyup events when the text agent is focused,
+                    // so we need to forward them to the runner:
+                    super::events::on_keyup(event, runner);
+                }
+            }
+        })?;
 
         Ok(Self {
             input,
+            input_state,
             prev_ime_output: Default::default(),
         })
     }
@@ -199,6 +302,14 @@ impl TextAgent {
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
         }
+        self.input_state.borrow_mut().clear();
+    }
+
+    #[cfg(debug_assertions)]
+    pub(crate) fn update_custom_debug_information(&self, input: &mut crate::web::WebInput) {
+        self.input_state
+            .borrow_mut()
+            .update_custom_debug_information(input);
     }
 }
 
@@ -219,4 +330,8 @@ fn is_mobile_safari() -> bool {
         Some(is_ios && is_safari)
     })()
     .unwrap_or(false)
+}
+
+fn longest_common_prefix_length(a: &str, b: &str) -> usize {
+    a.chars().zip(b.chars()).take_while(|(a, b)| a == b).count()
 }

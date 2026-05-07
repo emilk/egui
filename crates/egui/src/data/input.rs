@@ -596,6 +596,11 @@ pub enum Event {
 
         image: std::sync::Arc<ColorImage>,
     },
+
+    /// Custom debug information. They can be viewed in the inspection UI in
+    /// debug builds.
+    #[cfg(debug_assertions)]
+    CustomDebugInformationUpdated { name: String, value: String },
 }
 
 /// IME event.
@@ -618,6 +623,15 @@ pub enum ImeEvent {
     ///
     /// The IME is considered dismissed after this event.
     Commit(String),
+
+    /// Notifies when the text surrounding the cursor should be deleted.
+    ///
+    /// `before_chars` and `after_chars` are the number of characters (not
+    /// bytes) to delete before and after the cursor, respectively.
+    DeleteSurrounding {
+        before_chars: usize,
+        after_chars: usize,
+    },
 
     /// Notifies when the IME was disabled.
     #[deprecated = "No longer used by egui"]

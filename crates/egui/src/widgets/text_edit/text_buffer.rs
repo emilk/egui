@@ -149,6 +149,30 @@ pub trait TextBuffer {
         self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
     }
 
+    /// Deletes characters surrounding the current cursor range.
+    ///
+    /// Removes `before_chars` characters before the selection start and
+    /// `after_chars` characters after the selection end.
+    /// The returned [`CCursorRange`] is adjusted to account for the removed
+    /// characters before the selection.
+    fn delete_surrounding_chars(
+        &mut self,
+        mut cursor_range: CCursorRange,
+        before_chars: usize,
+        after_chars: usize,
+    ) -> CCursorRange {
+        let [min, max] = cursor_range.sorted_cursors();
+        if after_chars > 0 {
+            self.delete_selected_ccursor_range([max, max + after_chars]);
+        }
+        if before_chars > 0 {
+            self.delete_selected_ccursor_range([min - before_chars, min]);
+            cursor_range.primary -= before_chars;
+            cursor_range.secondary -= before_chars;
+        }
+        cursor_range
+    }
+
     fn delete_paragraph_before_cursor(
         &mut self,
         galley: &Galley,
@@ -313,5 +337,111 @@ impl TextBuffer for &str {
 
     fn type_id(&self) -> std::any::TypeId {
         std::any::TypeId::of::<&str>()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn txt_n_sel(input: &str) -> (String, CCursorRange) {
+        assert!(
+            input.matches('[').count() == 1 && input.matches(']').count() == 1,
+            "`input` must contain exactly one `[` and one `]` to indicate the selection (cursor range)"
+        );
+        let mut primary_index = input.chars().position(|c| c == ']').unwrap();
+        let mut secondary_index = input.chars().position(|c| c == '[').unwrap();
+        let text = input.replace(['[', ']'], "");
+        if primary_index > secondary_index {
+            primary_index -= 1;
+        } else {
+            secondary_index -= 1;
+        }
+        let cursor_range = CCursorRange {
+            primary: CCursor::new(primary_index),
+            secondary: CCursor::new(secondary_index),
+            h_pos: None,
+        };
+        (text, cursor_range)
+    }
+
+    #[test]
+    fn test_txt_n_sel() {
+        assert_eq!(
+            txt_n_sel("<<L[]R>>"),
+            ("<<LR>>".to_owned(), CCursorRange::one(CCursor::new(3)))
+        );
+        assert_eq!(
+            txt_n_sel("<<L[_]R>>"),
+            (
+                "<<L_R>>".to_owned(),
+                CCursorRange::two(CCursor::new(3), CCursor::new(4))
+            )
+        );
+        assert_eq!(
+            txt_n_sel("<<左[_]右>>"),
+            (
+                "<<左_右>>".to_owned(),
+                CCursorRange::two(CCursor::new(3), CCursor::new(4))
+            )
+        );
+        assert_eq!(
+            txt_n_sel("<<L]_[R>>"),
+            (
+                "<<L_R>>".to_owned(),
+                CCursorRange::two(CCursor::new(4), CCursor::new(3))
+            )
+        );
+    }
+
+    #[test]
+    fn test_delete_surrounding_chars() {
+        fn test_case(
+            (mut input_text, input_cursor_range): (String, CCursorRange),
+            before_chars: usize,
+            after_chars: usize,
+            (expected_text, expected_cursor_range): (String, CCursorRange),
+        ) {
+            let new_cursor_range =
+                input_text.delete_surrounding_chars(input_cursor_range, before_chars, after_chars);
+            assert_eq!(input_text, expected_text);
+            assert_eq!(new_cursor_range, expected_cursor_range);
+        }
+
+        // 1 byte per char
+        test_case(txt_n_sel("<<L[]R>>"), 1, 1, txt_n_sel("<<[]>>"));
+        test_case(txt_n_sel("<<L[_]R>>"), 1, 0, txt_n_sel("<<[_]R>>"));
+        test_case(txt_n_sel("<<L[_]R>>"), 0, 1, txt_n_sel("<<L[_]>>"));
+        test_case(txt_n_sel("<<L[_]R>>"), 1, 1, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<L[__]R>>"), 1, 1, txt_n_sel("<<[__]>>"));
+        test_case(txt_n_sel("<<LL[_]RR>>"), 2, 2, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<L]_[R>>"), 1, 0, txt_n_sel("<<]_[R>>"));
+        test_case(txt_n_sel("<<L]_[R>>"), 0, 1, txt_n_sel("<<L]_[>>"));
+        test_case(txt_n_sel("<<L]_[R>>"), 1, 1, txt_n_sel("<<]_[>>"));
+
+        // 2 bytes per char: `˻` = `0xCB 0xBB`, `˼` = `0xCB 0xBC`
+        test_case(txt_n_sel("<<˻[]˼>>"), 1, 1, txt_n_sel("<<[]>>"));
+        test_case(txt_n_sel("<<˻[_]˼>>"), 1, 0, txt_n_sel("<<[_]˼>>"));
+        test_case(txt_n_sel("<<˻[_]˼>>"), 0, 1, txt_n_sel("<<˻[_]>>"));
+        test_case(txt_n_sel("<<˻[_]˼>>"), 1, 1, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<˻[__]˼>>"), 1, 1, txt_n_sel("<<[__]>>"));
+        test_case(txt_n_sel("<<˻˻[_]˼˼>>"), 2, 2, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<˻]_[˼>>"), 1, 0, txt_n_sel("<<]_[˼>>"));
+        test_case(txt_n_sel("<<˻]_[˼>>"), 0, 1, txt_n_sel("<<˻]_[>>"));
+        test_case(txt_n_sel("<<˻]_[˼>>"), 1, 1, txt_n_sel("<<]_[>>"));
+
+        // 3 bytes per char: `左` = `0xE5 0xB7 0xA6`, `右` = `0xE5 0x8F 0xB3`
+        test_case(txt_n_sel("<<左[]右>>"), 1, 1, txt_n_sel("<<[]>>"));
+        test_case(txt_n_sel("<<左[_]右>>"), 1, 0, txt_n_sel("<<[_]右>>"));
+        test_case(txt_n_sel("<<左[_]右>>"), 0, 1, txt_n_sel("<<左[_]>>"));
+        test_case(txt_n_sel("<<左[_]右>>"), 1, 1, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<左[__]右>>"), 1, 1, txt_n_sel("<<[__]>>"));
+        test_case(txt_n_sel("<<左左[_]右右>>"), 2, 2, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<左]_[右>>"), 1, 0, txt_n_sel("<<]_[右>>"));
+        test_case(txt_n_sel("<<左]_[右>>"), 0, 1, txt_n_sel("<<左]_[>>"));
+        test_case(txt_n_sel("<<左]_[右>>"), 1, 1, txt_n_sel("<<]_[>>"));
+
+        // mixed
+        test_case(txt_n_sel("<<L˻左[_]R˼右>>"), 3, 3, txt_n_sel("<<[_]>>"));
     }
 }
