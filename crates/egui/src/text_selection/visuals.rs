@@ -1,6 +1,14 @@
 use std::sync::Arc;
 
-use crate::{Galley, Painter, Rect, Ui, Visuals, pos2, vec2};
+use emath::Pos2;
+use epaint::{
+    Stroke,
+    text::cursor::{CCursor, LayoutCursor},
+};
+
+use crate::{
+    Galley, Painter, Rect, Ui, Visuals, pos2, text_selection::text_cursor_state::cursor_rect, vec2,
+};
 
 use super::CCursorRange;
 
@@ -121,6 +129,130 @@ pub fn paint_text_selection(
     }
 }
 
+#[expect(clippy::too_many_arguments)]
+pub(crate) fn paint_ime_preedit_text_visuals(
+    pos: Pos2,
+    ui: &Ui,
+    painter: &Painter,
+    galley: &Arc<Galley>,
+    row_height: f32,
+    preedit_range: std::ops::Range<CCursor>,
+    mut relative_active_range: Option<std::ops::Range<CCursor>>,
+    time_since_last_interaction: f64,
+) {
+    if preedit_range.is_empty() {
+        return;
+    }
+
+    if matches!(ui.ctx().os(), crate::os::OperatingSystem::Windows)
+        && let Some(r) = &relative_active_range
+        && r.start.index == 0
+        && r.end.index == 0
+    {
+        // Workaround for a bug on Windows where `winit` incorrectly reports
+        // the cursor position at the start of the preedit text during
+        // composition with the builtin Korean IME.
+        // See: https://github.com/emilk/egui/pull/8083#issuecomment-4206742668
+        // TODO(umajho): Remove this workaround once the `winit` bug is fixed
+        // and we've updated to a version that includes the fix.
+        relative_active_range = None;
+    }
+
+    let visuals = ui.visuals();
+    let active_underline_stroke = visuals.ime_composition.active_underline_stroke;
+    let inactive_underline_stroke = visuals.ime_composition.inactive_underline_stroke;
+
+    if let Some(relative_active_range) = &relative_active_range
+        && !relative_active_range.is_empty()
+    {
+        if relative_active_range.start.index > 0 {
+            paint_underlines(
+                pos,
+                painter,
+                galley,
+                galley.layout_from_cursor(preedit_range.start),
+                galley.layout_from_cursor(preedit_range.start + relative_active_range.start.index),
+                inactive_underline_stroke,
+            );
+        }
+
+        paint_underlines(
+            pos,
+            painter,
+            galley,
+            galley.layout_from_cursor(preedit_range.start + relative_active_range.start.index),
+            galley.layout_from_cursor(preedit_range.start + relative_active_range.end.index),
+            active_underline_stroke,
+        );
+
+        if relative_active_range.end < preedit_range.end - preedit_range.start.index {
+            paint_underlines(
+                pos,
+                painter,
+                galley,
+                galley.layout_from_cursor(preedit_range.start + relative_active_range.end.index),
+                galley.layout_from_cursor(preedit_range.end),
+                inactive_underline_stroke,
+            );
+        }
+    } else {
+        paint_underlines(
+            pos,
+            painter,
+            galley,
+            galley.layout_from_cursor(preedit_range.start),
+            galley.layout_from_cursor(preedit_range.end),
+            inactive_underline_stroke,
+        );
+    }
+
+    if let Some(relative_active_range) = relative_active_range
+        && relative_active_range.is_empty()
+    {
+        let active_cursor = preedit_range.start + relative_active_range.start.index;
+        let cursor_rect = cursor_rect(galley, &active_cursor, row_height);
+
+        paint_text_cursor(
+            ui,
+            painter,
+            cursor_rect.translate(pos.to_vec2()),
+            time_since_last_interaction,
+        );
+    }
+}
+
+fn paint_underlines(
+    pos: Pos2,
+    painter: &Painter,
+    galley: &Arc<Galley>,
+    min: LayoutCursor,
+    max: LayoutCursor,
+    stroke: Stroke,
+) {
+    for ri in min.row..=max.row {
+        let placed_row = &galley.rows[ri];
+        let row = &placed_row.row;
+
+        let left = if ri == min.row {
+            row.x_offset(min.column)
+        } else {
+            0.0
+        };
+        let right = if ri == max.row {
+            row.x_offset(max.column)
+        } else {
+            row.size.x
+        };
+
+        let offset_y = placed_row.pos.y + row.size.y;
+
+        painter.line_segment(
+            [pos + vec2(left, offset_y), pos + vec2(right, offset_y)],
+            stroke,
+        );
+    }
+}
+
 /// Paint one end of the selection, e.g. the primary cursor.
 ///
 /// This will never blink.
@@ -130,7 +262,7 @@ pub fn paint_cursor_end(painter: &Painter, visuals: &Visuals, cursor_rect: Rect)
     let top = cursor_rect.center_top();
     let bottom = cursor_rect.center_bottom();
 
-    painter.line_segment([top, bottom], (stroke.width, stroke.color));
+    painter.line_segment([top, bottom], stroke);
 
     if false {
         // Roof/floor:

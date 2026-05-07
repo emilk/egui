@@ -69,6 +69,13 @@ impl std::ops::SubAssign<usize> for CCursor {
     }
 }
 
+impl PartialOrd for CCursor {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.index.partial_cmp(&other.index)
+    }
+}
+
 /// Row/column cursor.
 ///
 /// This refers to rows and columns in layout terms--text wrapping creates multiple rows.

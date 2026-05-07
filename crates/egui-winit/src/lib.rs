@@ -690,10 +690,18 @@ impl State {
             // Wayland, but it doesn't matter to us.
             // See <https://github.com/rust-windowing/winit/issues/2498>
             winit::event::Ime::Enabled | winit::event::Ime::Disabled => {}
-            winit::event::Ime::Preedit(text, _) => {
+            winit::event::Ime::Preedit(text, active_range_bytes) => {
                 self.egui_input
                     .events
-                    .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
+                    .push(egui::Event::Ime(egui::ImeEvent::Preedit {
+                        text: text.clone(),
+                        active_range_chars: active_range_bytes.map(|(start_bytes, end_bytes)| {
+                            let start_char = text[..start_bytes].chars().count();
+                            let end_char =
+                                start_char + text[start_bytes..end_bytes].chars().count();
+                            start_char..end_char
+                        }),
+                    }));
             }
             winit::event::Ime::Commit(text) => {
                 self.egui_input
