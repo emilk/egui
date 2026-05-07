@@ -41,6 +41,14 @@ impl<T> Mutex<T> {
             self.0.lock()
         }
     }
+
+    /// Try to acquire the lock without blocking.
+    ///
+    /// Returns `None` if the lock can't be acquired immediately.
+    #[inline(always)]
+    pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
+        self.0.try_lock()
+    }
 }
 
 // ----------------------------------------------------------------------------
