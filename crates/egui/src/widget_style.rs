@@ -220,6 +220,7 @@ impl Style {
 
 /// The root class is a special class present on every top-level [`Ui`].
 pub const ROOT_CLASS: &str = "root";
+
 /// The selected class is a special class present on selected [`Button`].
 pub const SELECTED_CLASS: &str = "selected";
 
