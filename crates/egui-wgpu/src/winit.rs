@@ -24,12 +24,13 @@ struct SurfaceState {
 ///
 /// Alternatively you can use [`crate::Renderer`] directly.
 ///
-/// NOTE: all egui viewports share the same painter.
+/// NOTE: all egui viewports share the same painter and render state.
+/// Transparent-surface support is therefore chosen once, from the root/shared initialization path.
 pub struct Painter {
     context: Context,
     config: WgpuConfiguration,
     options: RendererOptions,
-    support_transparent_backbuffer: bool,
+    shared_transparent_surface_support: bool,
     screen_capture_state: Option<CaptureState>,
 
     instance: wgpu::Instance,
@@ -44,6 +45,49 @@ pub struct Painter {
 }
 
 impl Painter {
+    #[cfg(target_os = "windows")]
+    fn configure_windows_transparent_surface_support(
+        configuration: &mut WgpuConfiguration,
+        shared_transparent_surface_support: bool,
+    ) {
+        if !shared_transparent_surface_support {
+            return;
+        }
+
+        let crate::WgpuSetup::CreateNew(create_new) = &mut configuration.wgpu_setup else {
+            return;
+        };
+
+        if !create_new
+            .instance_descriptor
+            .backends
+            .contains(wgpu::Backends::DX12)
+        {
+            return;
+        }
+
+        if std::env::var_os("WGPU_DX12_PRESENTATION_SYSTEM").is_none() {
+            // This is configured before adapter selection so that a later DX12 choice can use
+            // DirectComposition-backed presentation for transparent windows. Other backends will
+            // ignore this setting.
+            create_new
+                .instance_descriptor
+                .backend_options
+                .dx12
+                .presentation_system = wgpu::Dx12SwapchainKind::DxgiFromVisual;
+            log::info!(
+                "Transparent window requested on Windows; enabling DX12 DirectComposition presentation"
+            );
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn configure_windows_transparent_surface_support(
+        _configuration: &mut WgpuConfiguration,
+        _shared_transparent_surface_support: bool,
+    ) {
+    }
+
     /// Manages [`wgpu`] state, including surface state, required to render egui.
     ///
     /// Only the [`wgpu::Instance`] is initialized here. Device selection and the initialization
@@ -59,17 +103,22 @@ impl Painter {
     pub async fn new(
         context: Context,
         config: WgpuConfiguration,
-        support_transparent_backbuffer: bool,
+        shared_transparent_surface_support: bool,
         options: RendererOptions,
     ) -> Self {
         let (capture_tx, capture_rx) = capture_channel();
+        let mut config = config;
+        Self::configure_windows_transparent_surface_support(
+            &mut config,
+            shared_transparent_surface_support,
+        );
         let instance = config.wgpu_setup.new_instance().await;
 
         Self {
             context,
             config,
             options,
-            support_transparent_backbuffer,
+            shared_transparent_surface_support,
             screen_capture_state: None,
 
             instance,
@@ -89,6 +138,14 @@ impl Painter {
     /// Will return [`None`] if the render state has not been initialized yet.
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
+    }
+
+    /// Whether the shared render state was configured for transparent surfaces.
+    ///
+    /// All viewports reuse the same painter and render state, so later windows cannot upgrade this
+    /// after the root/shared initialization path has chosen an opaque configuration.
+    pub fn shared_transparent_surface_support(&self) -> bool {
+        self.shared_transparent_surface_support
     }
 
     fn configure_surface(
@@ -206,14 +263,18 @@ impl Painter {
         let render_state = if let Some(render_state) = &self.render_state {
             render_state
         } else {
-            let render_state =
-                RenderState::create(&self.config, &self.instance, Some(&surface), self.options)
-                    .await?;
+            let render_state = RenderState::create(
+                &self.config,
+                &self.instance,
+                Some(&surface),
+                self.shared_transparent_surface_support,
+                self.options,
+            )
+            .await?;
             self.render_state.get_or_insert(render_state)
         };
-        let alpha_mode = if self.support_transparent_backbuffer {
-            let supported_alpha_modes = surface.get_capabilities(&render_state.adapter).alpha_modes;
-
+        let supported_alpha_modes = surface.get_capabilities(&render_state.adapter).alpha_modes;
+        let alpha_mode = if self.shared_transparent_surface_support {
             // Prefer pre multiplied over post multiplied!
             if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
                 wgpu::CompositeAlphaMode::PreMultiplied
@@ -221,7 +282,7 @@ impl Painter {
                 wgpu::CompositeAlphaMode::PostMultiplied
             } else {
                 log::warn!(
-                    "Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
+                    "Transparent window was requested for viewport {viewport_id:?}, but the active wgpu surface does not support a transparent CompositeAlphaMode."
                 );
                 wgpu::CompositeAlphaMode::Auto
             }
