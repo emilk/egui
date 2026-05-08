@@ -29,11 +29,17 @@ default = [
   "accesskit",
   "default_fonts",
   "wayland", # Required for Linux support (including CI!)
+  "web_clipboard_image",
   "web_screen_reader",
   "wgpu",
   "winit/default",
   "x11",
 ]
+
+## Enable PNG-encoding `egui::ColorImage`s for the web clipboard via the
+## [`image`](https://docs.rs/image) crate. Disable on the web to drop the
+## image (and image-webp / moxcms / ...) crates from the wasm bundle.
+web_clipboard_image = ["dep:image"]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["egui-winit/accesskit"]
@@ -195,7 +201,10 @@ windows-sys = { workspace = true, features = [
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 bytemuck.workspace = true
-image = { workspace = true, features = ["png"] } # For copying images
+# `image` is only needed for the "copy image to clipboard" path on the web.
+# Behind `web_clipboard_image` (default-on) so apps that don't care can drop
+# the image crate (and ~600 KB of png/webp/moxcms compressed code with it).
+image = { workspace = true, features = ["png"], optional = true }
 js-sys.workspace = true
 percent-encoding.workspace = true
 wasm-bindgen.workspace = true

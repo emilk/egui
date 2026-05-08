@@ -385,7 +385,16 @@ impl AppRunner {
                     super::set_clipboard_text(&text);
                 }
                 egui::OutputCommand::CopyImage(image) => {
+                    #[cfg(feature = "web_clipboard_image")]
                     super::set_clipboard_image(&image);
+                    #[cfg(not(feature = "web_clipboard_image"))]
+                    {
+                        let _ = image;
+                        log::warn!(
+                            "CopyImage requested but eframe was built without the \
+                             `web_clipboard_image` feature; ignoring."
+                        );
+                    }
                 }
                 egui::OutputCommand::OpenUrl(open_url) => {
                     super::open_url(&open_url.url, open_url.new_tab);

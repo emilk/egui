@@ -207,6 +207,7 @@ fn set_clipboard_text(s: &str) {
 }
 
 /// Set the clipboard image.
+#[cfg(feature = "web_clipboard_image")]
 fn set_clipboard_image(image: &egui::ColorImage) {
     if let Some(window) = web_sys::window() {
         if !window.is_secure_context() {
@@ -250,6 +251,7 @@ fn set_clipboard_image(image: &egui::ColorImage) {
     }
 }
 
+#[cfg(feature = "web_clipboard_image")]
 fn to_image(image: &egui::ColorImage) -> Result<image::RgbaImage, String> {
     profiling::function_scope!();
     image::RgbaImage::from_raw(
@@ -260,6 +262,7 @@ fn to_image(image: &egui::ColorImage) -> Result<image::RgbaImage, String> {
     .ok_or_else(|| "Invalid IconData".to_owned())
 }
 
+#[cfg(feature = "web_clipboard_image")]
 fn to_png_bytes(image: &image::RgbaImage) -> Result<Vec<u8>, String> {
     profiling::function_scope!();
     let mut png_bytes: Vec<u8> = Vec::new();
@@ -272,6 +275,7 @@ fn to_png_bytes(image: &image::RgbaImage) -> Result<Vec<u8>, String> {
     Ok(png_bytes)
 }
 
+#[cfg(feature = "web_clipboard_image")]
 fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardItem, JsValue> {
     let array = js_sys::Uint8Array::from(bytes);
     let blob_parts = js_sys::Array::new();
