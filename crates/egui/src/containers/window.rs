@@ -33,9 +33,9 @@ use super::{Area, Frame, Resize, ScrollArea, area, resize};
 /// Note that this is NOT a native OS window.
 /// To create a new native OS window, use [`crate::Context::show_viewport_deferred`].
 #[must_use = "You should call .show()"]
-pub struct Window<'open> {
-    title: WidgetText,
-    open: Option<&'open mut bool>,
+pub struct Window<'a> {
+    title: Atoms<'a>,
+    open: Option<&'a mut bool>,
     area: Area,
     frame: Option<Frame>,
     resize: Resize,
@@ -46,12 +46,12 @@ pub struct Window<'open> {
     fade_out: bool,
 }
 
-impl<'open> Window<'open> {
+impl<'a> Window<'a> {
     /// The window title is used as a unique [`Id`] and must be unique, and should not change.
     /// This is true even if you disable the title bar with `.title_bar(false)`.
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
-    pub fn new(title: impl Into<WidgetText>) -> Self {
-        let title = title.into().fallback_text_style(TextStyle::Heading);
+    pub fn new(title: impl IntoAtoms<'a>) -> Self {
+        let title: Atoms = title.into_atoms();
         let area = Area::new(Id::new(title.text())).kind(UiKind::Window);
         Self {
             title,
@@ -118,7 +118,7 @@ impl<'open> Window<'open> {
     /// * If `*open == true`, the window will have a close button.
     /// * If the close button is pressed, `*open` will be set to `false`.
     #[inline]
-    pub fn open(mut self, open: &'open mut bool) -> Self {
+    pub fn open(mut self, open: &'a mut bool) -> Self {
         self.open = Some(open);
         self
     }
@@ -507,34 +507,14 @@ impl Window<'_> {
         let on_top = Some(area_layer_id) == ctx.top_layer_id();
         let mut area = area.begin(ctx);
 
-        area.with_widget_info(|| WidgetInfo::labeled(WidgetType::Window, true, title.text()));
-
-        // Calculate roughly how much larger the full window inner size is compared to the content rect
-        let (title_bar_height_with_margin, title_content_spacing) = if with_title_bar {
-            let title_bar_inner_height = ctx
-                .fonts_mut(|fonts| title.font_height(fonts, &style))
-                .at_least(style.spacing.interact_size.y);
-            let title_bar_inner_height = title_bar_inner_height + window_frame.inner_margin.sum().y;
-            let half_height = (title_bar_inner_height / 2.0).round() as _;
-            window_frame.corner_radius.ne = window_frame.corner_radius.ne.clamp(0, half_height);
-            window_frame.corner_radius.nw = window_frame.corner_radius.nw.clamp(0, half_height);
-
-            let title_content_spacing = if is_collapsed {
-                0.0
-            } else {
-                window_frame.stroke.width
-            };
-            (title_bar_inner_height, title_content_spacing)
-        } else {
-            (0.0, 0.0)
-        };
+        area.with_widget_info(|| WidgetInfo::labeled(WidgetType::Window, true, title.text().as_deref().unwrap_or("")));
 
         {
             // Prevent window from becoming larger than the constrain rect.
             let constrain_rect = area.constrain_rect();
             let max_width = constrain_rect.width();
             let max_height =
-                constrain_rect.height() - title_bar_height_with_margin - title_content_spacing;
+                constrain_rect.height();
             resize.max_size.x = resize.max_size.x.min(max_width);
             resize.max_size.y = resize.max_size.y.min(max_height);
         }
@@ -551,8 +531,7 @@ impl Window<'_> {
         );
 
         {
-            let margins = window_frame.total_margin().sum()
-                + vec2(0.0, title_bar_height_with_margin + title_content_spacing);
+            let margins = window_frame.total_margin().sum();
 
             resize_response(
                 resize_interaction,
@@ -565,6 +544,7 @@ impl Window<'_> {
         }
 
         let mut area_content_ui = area.content_ui(ctx);
+
         if is_open {
             // `Area` already takes care of fade-in animations,
             // so we only need to handle fade-out animations here.
@@ -579,39 +559,43 @@ impl Window<'_> {
             let show_close_button = open.is_some();
 
             let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
+            // let sized_atoms = AtomLayout::new(title).into_sized(&area_content_ui, area.constrain_rect().size());
 
-            let title_bar = if with_title_bar {
-                let title_bar = TitleBar::new(
-                    &frame.content_ui,
-                    title,
-                    show_close_button,
-                    collapsible,
-                    window_frame,
-                    title_bar_height_with_margin,
-                );
-                resize.min_size.x = resize.min_size.x.at_least(title_bar.inner_rect.width()); // Prevent making window smaller than title bar width
 
-                frame.content_ui.set_min_size(title_bar.inner_rect.size());
-
-                // Skip the title bar (and separator):
-                if is_collapsed {
-                    frame.content_ui.add_space(title_bar.inner_rect.height());
-                } else {
-                    frame.content_ui.add_space(
-                        title_bar.inner_rect.height()
-                            + title_content_spacing
-                            + window_frame.inner_margin.sum().y,
-                    );
-                }
-
-                Some(title_bar)
-            } else {
-                None
-            };
+            // let title_bar = if with_title_bar {
+            //     let title_bar = TitleBar::new(
+            //         &frame.content_ui,
+            //         title,
+            //         show_close_button,
+            //         collapsible,
+            //         window_frame,
+            //         title_bar_height_with_margin,
+            //     );
+            //     resize.min_size.x = resize.min_size.x.at_least(title_bar.inner_rect.width()); // Prevent making window smaller than title bar width
+            //
+            //     frame.content_ui.set_min_size(title_bar.inner_rect.size());
+            //
+            //     // Skip the title bar (and separator):
+            //     if is_collapsed {
+            //         frame.content_ui.add_space(title_bar.inner_rect.height());
+            //     } else {
+            //         frame.content_ui.add_space(
+            //             title_bar.inner_rect.height()
+            //                 + title_content_spacing
+            //                 + window_frame.inner_margin.sum().y,
+            //         );
+            //     }
+            //
+            //     Some(title_bar)
+            // } else {
+            //     None
+            // };
 
             let (content_inner, content_response) = collapsing
                 .show_body_unindented(&mut frame.content_ui, |ui| {
                     resize.show(ui, |ui| {
+                        let title_bar = TitleBar::title_ui(ui, title, collapsible, Frame::new(), open.is_some());
+                        // TitleBar::paint(ui, title_bar);
                         if scroll.is_any_scroll_enabled() {
                             scroll.show(ui, add_contents).inner
                         } else {
@@ -643,42 +627,42 @@ impl Window<'_> {
 
             // END FRAME --------------------------------
 
-            if let Some(mut title_bar) = title_bar {
-                title_bar.inner_rect = outer_rect.shrink(window_frame.stroke.width);
-                title_bar.inner_rect.max.y =
-                    title_bar.inner_rect.min.y + title_bar_height_with_margin;
-
-                if on_top && area_content_ui.visuals().window_highlight_topmost {
-                    let mut round =
-                        window_frame.corner_radius - window_frame.stroke.width.round() as u8;
-
-                    if !is_collapsed {
-                        round.se = 0;
-                        round.sw = 0;
-                    }
-
-                    area_content_ui.painter().set(
-                        *where_to_put_header_background,
-                        RectShape::filled(title_bar.inner_rect, round, header_color),
-                    );
-                }
-
-                if false {
-                    ctx.debug_painter().debug_rect(
-                        title_bar.inner_rect,
-                        Color32::LIGHT_BLUE,
-                        "title_bar.rect",
-                    );
-                }
-
-                title_bar.ui(
-                    &mut area_content_ui,
-                    content_response.as_ref(),
-                    open.as_deref_mut(),
-                    &mut collapsing,
-                    collapsible,
-                );
-            }
+            // if let Some(mut title_bar) = title_bar {
+            //     title_bar.inner_rect = outer_rect.shrink(window_frame.stroke.width);
+            //     title_bar.inner_rect.max.y =
+            //         title_bar.inner_rect.min.y + title_bar_height_with_margin;
+            //
+            //     if on_top && area_content_ui.visuals().window_highlight_topmost {
+            //         let mut round =
+            //             window_frame.corner_radius - window_frame.stroke.width.round() as u8;
+            //
+            //         if !is_collapsed {
+            //             round.se = 0;
+            //             round.sw = 0;
+            //         }
+            //
+            //         area_content_ui.painter().set(
+            //             *where_to_put_header_background,
+            //             RectShape::filled(title_bar.inner_rect, round, header_color),
+            //         );
+            //     }
+            //
+            //     if false {
+            //         ctx.debug_painter().debug_rect(
+            //             title_bar.inner_rect,
+            //             Color32::LIGHT_BLUE,
+            //             "title_bar.rect",
+            //         );
+            //     }
+            //
+            //     title_bar.ui(
+            //         &mut area_content_ui,
+            //         content_response.as_ref(),
+            //         open.as_deref_mut(),
+            //         &mut collapsing,
+            //         collapsible,
+            //     );
+            // }
 
             collapsing.store(ctx);
 
@@ -1190,7 +1174,55 @@ struct TitleBar {
     inner_rect: Rect,
 }
 
-impl TitleBar {
+impl<'a> TitleBar {
+
+    fn title_ui(ui: &mut Ui, mut title: Atoms<'a>, collapsible: bool, window_frame: Frame, show_close_button: bool) -> Response {
+
+        ui.debug_painter().debug_rect(ui.max_rect(), Color32::RED, "");
+
+        let mut atoms = Atoms::default();
+
+        let button_size = Vec2::splat(ui.spacing().icon_width);
+
+        if collapsible {
+            atoms.push_left(Atom::custom(Id::new("collapsible"), button_size));
+        }
+
+        atoms.push_right(Atom::grow());
+
+        if !title.any_shrink() {
+            if let Some(first) = title.first_mut() {
+                first.shrink = true;
+            }
+        }
+        atoms.extend_right(title);
+
+        atoms.push_right(Atom::grow());
+
+        if show_close_button {
+            atoms.push_right(Atom::custom(Id::new("close"), button_size));
+        }
+
+        dbg!(&atoms);
+
+        let spacing = ui.spacing().item_spacing.x;
+
+        let layout = AtomLayout::new(atoms).gap(spacing).fallback_font(TextStyle::Heading)
+            .min_size(Vec2::new(ui.available_width(), 0.0))
+            .wrap_mode(TextWrapMode::Truncate);
+        let response = layout.allocate(ui).paint(ui);
+    // }
+    //
+    // fn paint(ui: &mut Ui, layout: SizedAtomLayout) {
+    //     let response = layout.allocate(ui).paint(ui);
+
+        if let Some(close) = response.rect(Id::new("close")) {
+            ui.place(close, Button::new("x"));
+        }
+
+response.response
+    }
+
     fn new(
         ui: &Ui,
         title: WidgetText,
