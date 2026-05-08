@@ -3,13 +3,13 @@
 use std::sync::Arc;
 
 use emath::GuiRounding as _;
-use epaint::{CornerRadiusF32, RectShape};
+use epaint::CornerRadiusF32;
 
 use crate::collapsing_header::CollapsingState;
 use crate::*;
 
 use super::scroll_area::{ScrollBarVisibility, ScrollSource};
-use super::{Area, Frame, Resize, ScrollArea, area, resize};
+use super::{area, resize, Area, Frame, Resize, ScrollArea};
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///
@@ -507,14 +507,19 @@ impl Window<'_> {
         let on_top = Some(area_layer_id) == ctx.top_layer_id();
         let mut area = area.begin(ctx);
 
-        area.with_widget_info(|| WidgetInfo::labeled(WidgetType::Window, true, title.text().as_deref().unwrap_or("")));
+        area.with_widget_info(|| {
+            WidgetInfo::labeled(
+                WidgetType::Window,
+                true,
+                title.text().as_deref().unwrap_or(""),
+            )
+        });
 
         {
             // Prevent window from becoming larger than the constrain rect.
             let constrain_rect = area.constrain_rect();
             let max_width = constrain_rect.width();
-            let max_height =
-                constrain_rect.height();
+            let max_height = constrain_rect.height();
             resize.max_size.x = resize.max_size.x.min(max_width);
             resize.max_size.y = resize.max_size.y.min(max_height);
         }
@@ -561,7 +566,6 @@ impl Window<'_> {
             let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
             // let sized_atoms = AtomLayout::new(title).into_sized(&area_content_ui, area.constrain_rect().size());
 
-
             // let title_bar = if with_title_bar {
             //     let title_bar = TitleBar::new(
             //         &frame.content_ui,
@@ -591,11 +595,16 @@ impl Window<'_> {
             //     None
             // };
 
-            let (content_inner, content_response) = collapsing
-                .show_body_unindented(&mut frame.content_ui, |ui| {
-                    resize.show(ui, |ui| {
-                        let title_bar = TitleBar::title_ui(ui, title, collapsible, Frame::new(), open.is_some());
-                        // TitleBar::paint(ui, title_bar);
+            let (content_inner, content_response) = resize
+                .show(&mut frame.content_ui, |ui| {
+                    let _title_bar = TitleBar::title_ui(
+                        ui,
+                        title,
+                        &mut collapsing,
+                        collapsible,
+                        open.as_deref_mut(),
+                    );
+                    collapsing.show_body_unindented(ui, |ui| {
                         if scroll.is_any_scroll_enabled() {
                             scroll.show(ui, add_contents).inner
                         } else {
@@ -1175,23 +1184,32 @@ struct TitleBar {
 }
 
 impl<'a> TitleBar {
-
-    fn title_ui(ui: &mut Ui, mut title: Atoms<'a>, collapsible: bool, window_frame: Frame, show_close_button: bool) -> Response {
-
-        ui.debug_painter().debug_rect(ui.max_rect(), Color32::RED, "");
-
+    fn title_ui(
+        ui: &mut Ui,
+        mut title: Atoms<'a>,
+        collapsing: &mut CollapsingState,
+        collapsible: bool,
+        mut open: Option<&mut bool>,
+    ) -> Response {
         let mut atoms = Atoms::default();
 
         let button_size = Vec2::splat(ui.spacing().icon_width);
+        let collapse_id = Id::new("__window_collapse_button");
+        let close_id = Id::new("__window_close_button");
+
+        let expanded = collapsing.openness(ui.ctx()) > 0.0;
 
         if collapsible {
-            atoms.push_left(Atom::custom(Id::new("collapsible"), button_size));
+            atoms.push_right(Atom::custom(collapse_id, button_size));
         }
 
         atoms.push_right(Atom::grow());
 
         if !title.any_shrink() {
-            if let Some(first) = title.first_mut() {
+            if let Some(first) = title
+                .iter_mut()
+                .find(|a| matches!(a.kind, AtomKind::Text(..)))
+            {
                 first.shrink = true;
             }
         }
@@ -1199,28 +1217,61 @@ impl<'a> TitleBar {
 
         atoms.push_right(Atom::grow());
 
-        if show_close_button {
-            atoms.push_right(Atom::custom(Id::new("close"), button_size));
+        if open.is_some() {
+            atoms.push_right(Atom::custom(close_id, button_size));
         }
-
-        dbg!(&atoms);
 
         let spacing = ui.spacing().item_spacing.x;
 
-        let layout = AtomLayout::new(atoms).gap(spacing).fallback_font(TextStyle::Heading)
-            .min_size(Vec2::new(ui.available_width(), 0.0))
+        let mut layout = AtomLayout::new(atoms)
+            .gap(spacing)
+            .fallback_font(TextStyle::Heading)
             .wrap_mode(TextWrapMode::Truncate);
-        let response = layout.allocate(ui).paint(ui);
-    // }
-    //
-    // fn paint(ui: &mut Ui, layout: SizedAtomLayout) {
-    //     let response = layout.allocate(ui).paint(ui);
 
-        if let Some(close) = response.rect(Id::new("close")) {
-            ui.place(close, Button::new("x"));
+        if expanded {
+            layout = layout.min_size(Vec2::new(ui.available_width(), 0.0));
+        }
+        let layout_response = layout.allocate(ui).paint(ui);
+
+        // Collapse triangle icon
+        if collapsible && let Some(rect) = layout_response.rect(collapse_id) {
+            let icon_response =
+                ui.interact(rect, ui.auto_id_with("collapse_button"), Sense::click());
+            icon_response.widget_info(|| {
+                WidgetInfo::labeled(
+                    WidgetType::Button,
+                    ui.is_enabled(),
+                    if collapsing.is_open() { "Hide" } else { "Show" },
+                )
+            });
+            if icon_response.clicked() {
+                collapsing.toggle(ui);
+            }
+            let openness = collapsing.openness(ui.ctx());
+            crate::collapsing_header::paint_default_icon(ui, openness, &icon_response);
         }
 
-response.response
+        // Close button
+        if let Some(open) = open.as_deref_mut()
+            && let Some(rect) = layout_response.rect(close_id)
+            && close_button(ui, rect).clicked()
+        {
+            *open = false;
+        }
+
+        // Double-click anywhere on the title bar (excluding the buttons) to toggle:
+        let title_rect = layout_response.response.rect;
+        let double_click_rect = title_rect.shrink2(vec2(button_size.x + spacing, 0.0));
+        let dbl_id = ui.unique_id().with("__window_title_bar");
+        if collapsible
+            && ui
+                .interact(double_click_rect, dbl_id, Sense::CLICK)
+                .double_clicked()
+        {
+            collapsing.toggle(ui);
+        }
+
+        layout_response.response
     }
 
     fn new(
