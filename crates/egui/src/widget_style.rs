@@ -218,10 +218,10 @@ impl Style {
     }
 }
 
-/// The root class is a special class present on every top-level [`Ui`].
+/// The root class is a special class present on every top-level [`crate::Ui`].
 pub const ROOT_CLASS: &str = "root";
 
-/// The selected class is a special class present on selected [`Button`].
+/// The selected class is a special class present on selected [`crate::Button`].
 pub const SELECTED_CLASS: &str = "selected";
 
 /// A class is a static string identifier.
