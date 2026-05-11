@@ -237,6 +237,7 @@ pub fn menus_should_close_even_if_submenu_disappears() {
             button: egui::PointerButton::Primary,
             pressed: true,
             modifiers: Modifiers::default(),
+            force: None,
         });
         harness.step();
 
@@ -252,6 +253,7 @@ pub fn menus_should_close_even_if_submenu_disappears() {
             button: egui::PointerButton::Primary,
             pressed: false,
             modifiers: Modifiers::default(),
+            force: None,
         });
 
         harness.run();

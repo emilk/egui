@@ -335,6 +335,7 @@ impl<'a> VisualTests<'a> {
                 pos: rect.center(),
                 pressed: true,
                 modifiers: Default::default(),
+                force: None,
             });
         });
         self.add_node("focussed", |node| {

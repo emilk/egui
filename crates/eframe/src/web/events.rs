@@ -15,6 +15,27 @@ use web_sys::{Document, EventTarget, ShadowRoot};
 
 // ------------------------------------------------------------------------
 
+/// Returns `true` if the browser supports Pointer Events.
+/// If so, we can rely on `pointermove` instead of `mousemove`.
+fn pointer_events_supported() -> bool {
+    Reflect::get(&web_sys::window().unwrap(), &"PointerEvent".into())
+        .map(|v| !v.is_undefined())
+        .unwrap_or(false)
+}
+
+/// Returns pressure only for pen or touch pointer types.
+/// Mouse devices always report 0.0 pressure, which we treat as "not available".
+fn pointer_pressure(event: &web_sys::PointerEvent) -> Option<f32> {
+    let pointer_type = event.pointer_type();
+    if pointer_type == "pen" || pointer_type == "touch" {
+        Some(event.pressure())
+    } else {
+        None
+    }
+}
+
+// ------------------------------------------------------------------------
+
 /// Calls `request_animation_frame` to schedule repaint.
 ///
 /// It will only paint if needed, but will always call `request_animation_frame` immediately.
@@ -89,7 +110,12 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
 
     // Use `document` here to notice if the user releases a drag outside of the canvas:
     // See https://github.com/emilk/egui/issues/3157
-    install_mousemove(runner_ref, &document)?;
+    // If the browser supports Pointer Events, we rely on pointermove and skip mousemove
+    // to avoid duplicate PointerMoved events.
+    if !pointer_events_supported() {
+        install_mousemove(runner_ref, &document)?;
+    }
+    install_pointermove(runner_ref, &document)?;
     install_pointerup(runner_ref, &document)?;
     install_pointerdown(runner_ref, &canvas)?;
     install_mouseleave(runner_ref, &canvas)?;
@@ -520,11 +546,13 @@ fn install_pointerdown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
                 let modifiers = runner.input.raw.modifiers;
+                let force = pointer_pressure(&event);
                 let egui_event = egui::Event::PointerButton {
                     pos,
                     button,
                     pressed: true,
                     modifiers,
+                    force,
                 };
                 should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
                 runner.input.raw.events.push(egui_event);
@@ -562,11 +590,13 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
             ) && let Some(button) = button_from_mouse_event(&event)
             {
                 let modifiers = runner.input.raw.modifiers;
+                let force = pointer_pressure(&event);
                 let egui_event = egui::Event::PointerButton {
                     pos,
                     button,
                     pressed: false,
                     modifiers,
+                    force,
                 };
                 let should_stop_propagation =
                     (runner.web_options.should_stop_propagation)(&egui_event);
@@ -635,13 +665,42 @@ fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
             runner,
             egui::pos2(event.client_x() as f32, event.client_y() as f32),
         ) {
-            let egui_event = egui::Event::PointerMoved(pos);
+            let egui_event = egui::Event::PointerMoved { pos, force: None };
             let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
             let should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
             runner.input.raw.events.push(egui_event);
             runner.needs_repaint.repaint();
 
             // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
+            if should_stop_propagation {
+                event.stop_propagation();
+            }
+
+            if should_prevent_default {
+                event.prevent_default();
+            }
+        }
+    })
+}
+
+fn install_pointermove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
+    runner_ref.add_event_listener(target, "pointermove", |event: web_sys::PointerEvent, runner| {
+        let modifiers = modifiers_from_mouse_event(&event);
+        runner.input.raw.modifiers = modifiers;
+
+        let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
+
+        if is_interested_in_pointer_event(
+            runner,
+            egui::pos2(event.client_x() as f32, event.client_y() as f32),
+        ) {
+            let force = pointer_pressure(&event);
+            let egui_event = egui::Event::PointerMoved { pos, force };
+            let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
+            let should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
+            runner.input.raw.events.push(egui_event);
+            runner.needs_repaint.repaint();
+
             if should_stop_propagation {
                 event.stop_propagation();
             }
@@ -680,12 +739,14 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
         |event: web_sys::TouchEvent, runner| {
             let mut should_stop_propagation = true;
             let mut should_prevent_default = true;
-            if let Some((pos, _)) = primary_touch_pos(runner, &event) {
+            if let Some((pos, touch)) = primary_touch_pos(runner, &event) {
+                let force = Some(touch.force());
                 let egui_event = egui::Event::PointerButton {
                     pos,
                     button: egui::PointerButton::Primary,
                     pressed: true,
                     modifiers: runner.input.raw.modifiers,
+                    force,
                 };
                 should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
                 should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
@@ -715,7 +776,8 @@ fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 egui::pos2(touch.client_x() as f32, touch.client_y() as f32),
             )
         {
-            let egui_event = egui::Event::PointerMoved(pos);
+            let force = Some(touch.force());
+            let egui_event = egui::Event::PointerMoved { pos, force };
             let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
             let should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
             runner.input.raw.events.push(egui_event);
@@ -746,11 +808,13 @@ fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), 
             // First release mouse to click:
             let mut should_stop_propagation = true;
             let mut should_prevent_default = true;
+            let force = Some(touch.force());
             let egui_event = egui::Event::PointerButton {
                 pos,
                 button: egui::PointerButton::Primary,
                 pressed: false,
                 modifiers: runner.input.raw.modifiers,
+                force,
             };
             should_stop_propagation &= (runner.web_options.should_stop_propagation)(&egui_event);
             should_prevent_default &= (runner.web_options.should_prevent_default)(&egui_event);

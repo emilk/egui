@@ -483,7 +483,15 @@ pub enum Event {
     },
 
     /// The mouse or touch moved to a new place.
-    PointerMoved(Pos2),
+    PointerMoved {
+        /// Where is the pointer?
+        pos: Pos2,
+
+        /// Describes how hard the pointer device was pressed. May always be `None` if the platform does
+        /// not support pressure sensitivity.
+        /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
+        force: Option<f32>,
+    },
 
     /// The mouse moved, the units are unspecified.
     /// Represents the actual movement of the mouse, without acceleration or clamped by screen edges.
@@ -504,6 +512,11 @@ pub enum Event {
 
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
+
+        /// Describes how hard the pointer device was pressed. May always be `None` if the platform does
+        /// not support pressure sensitivity.
+        /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
+        force: Option<f32>,
     },
 
     /// The mouse left the screen, or the last/primary touch input disappeared.

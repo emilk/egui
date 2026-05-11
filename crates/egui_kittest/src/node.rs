@@ -46,7 +46,10 @@ impl Node<'_> {
     }
 
     pub fn hover(&self) {
-        self.event(egui::Event::PointerMoved(self.rect().center()));
+        self.event(egui::Event::PointerMoved {
+            pos: self.rect().center(),
+            force: None,
+        });
     }
 
     /// Click at the node center with the primary button.
@@ -66,6 +69,7 @@ impl Node<'_> {
                 button,
                 pressed,
                 modifiers: Modifiers::default(),
+                force: None,
             });
         }
     }
@@ -83,6 +87,7 @@ impl Node<'_> {
                 button,
                 pressed,
                 modifiers,
+                force: None,
             });
         }
         self.modifiers(Modifiers::default());
