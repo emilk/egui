@@ -113,7 +113,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 .insert(window_id, Instant::now());
 
             // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-            event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
+            event_result = self.winit_app.run_ui_and_paint(window_id, event_loop);
         }
 
         let combined_result = event_result.map(|event_result| match event_result {
@@ -219,7 +219,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         // RedrawRequested events on Windows. This ensures that viewport
         // commands like Visible(true) are still processed.
         for window_id in &invisible_window_ids {
-            let event_result = self.winit_app.run_ui_and_paint(event_loop, *window_id);
+            let event_result = self.winit_app.run_ui_and_paint(*window_id, event_loop);
             self.handle_event_result(event_loop, event_result);
         }
 
@@ -360,7 +360,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         event_loop_context::with_event_loop_context(event_loop, move || {
             let event_result = match event {
                 winit::event::WindowEvent::RedrawRequested => {
-                    self.winit_app.run_ui_and_paint(event_loop, window_id)
+                    self.winit_app.run_ui_and_paint(window_id, event_loop)
                 }
                 _ => self.winit_app.window_event(event_loop, window_id, event),
             };

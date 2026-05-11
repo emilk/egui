@@ -403,13 +403,13 @@ impl WinitApp for WgpuWinitApp<'_> {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        event_loop: &ActiveEventLoop,
     ) -> Result<EventResult> {
         self.initialized_all_windows(event_loop);
 
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id)
+            running.run_ui_and_paint(window_id, event_loop)
         } else {
             Ok(EventResult::Wait)
         }
@@ -569,7 +569,11 @@ impl WgpuWinitRunning<'_> {
     }
 
     /// This is called both for the root viewport, and all deferred viewports
-    fn run_ui_and_paint(&mut self, window_id: WindowId) -> Result<EventResult> {
+    fn run_ui_and_paint(
+        &mut self,
+        window_id: WindowId,
+        event_loop: &ActiveEventLoop,
+    ) -> Result<EventResult> {
         profiling::function_scope!();
 
         let Some(viewport_id) = self
@@ -710,7 +714,11 @@ impl WgpuWinitRunning<'_> {
             return Ok(EventResult::Wait);
         };
 
-        egui_winit.handle_platform_output(window, platform_output);
+        egui_winit.handle_platform_output_with_event_loop(
+            window,
+            event_loop,
+            platform_output,
+        );
 
         let vsync_secs = if is_visible {
             let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);

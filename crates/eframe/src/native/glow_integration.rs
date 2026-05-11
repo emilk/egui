@@ -409,11 +409,11 @@ impl WinitApp for GlowWinitApp<'_> {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        event_loop: &ActiveEventLoop,
     ) -> Result<EventResult> {
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(event_loop, window_id)
+            running.run_ui_and_paint(window_id, event_loop)
         } else {
             Ok(EventResult::Wait)
         }
@@ -518,8 +518,8 @@ impl WinitApp for GlowWinitApp<'_> {
 impl GlowWinitRunning<'_> {
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        event_loop: &ActiveEventLoop,
     ) -> Result<EventResult> {
         profiling::function_scope!();
 
@@ -679,7 +679,11 @@ impl GlowWinitRunning<'_> {
         let gl_surface = viewport.gl_surface.as_ref().unwrap();
         let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
-        egui_winit.handle_platform_output(&window, platform_output);
+        egui_winit.handle_platform_output_with_event_loop(
+            &window,
+            event_loop,
+            platform_output,
+        );
 
         if is_visible {
             let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);

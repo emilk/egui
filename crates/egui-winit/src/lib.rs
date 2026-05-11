@@ -32,7 +32,7 @@ use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::ElementState,
     event_loop::ActiveEventLoop,
-    window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
+    window::{CursorGrabMode, CustomCursor, Window, WindowButtons, WindowLevel},
 };
 
 pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
@@ -87,6 +87,13 @@ pub struct State {
     pointer_pos_in_points: Option<egui::Pos2>,
     any_pointer_button_down: bool,
     current_cursor_icon: Option<egui::CursorIcon>,
+    /// Cached `CustomCursor` for the last RGBA bitmap pushed through
+    /// `PlatformOutput::cursor_image`. We dedupe by `Arc::as_ptr` so the
+    /// integration only re-uploads the bitmap to the OS when the app
+    /// switches sprite, not every frame the cursor moves. `usize` is the
+    /// raw pointer of the source `Arc<[u8]>` — opaque, only used as a
+    /// cache key.
+    current_custom_cursor: Option<(usize, CustomCursor)>,
 
     clipboard: clipboard::Clipboard,
 
@@ -141,6 +148,7 @@ impl State {
             pointer_pos_in_points: None,
             any_pointer_button_down: false,
             current_cursor_icon: None,
+            current_custom_cursor: None,
 
             clipboard: clipboard::Clipboard::new(
                 display_target.display_handle().ok().map(|h| h.as_raw()),
@@ -1021,11 +1029,37 @@ impl State {
         window: &Window,
         platform_output: egui::PlatformOutput,
     ) {
+        self.handle_platform_output_inner(window, None, platform_output);
+    }
+
+    /// Same as [`Self::handle_platform_output`] but threads the
+    /// `ActiveEventLoop` so we can register a `winit::CustomCursor` from
+    /// `PlatformOutput::cursor_image`. Integration paths that don't have
+    /// access to the event loop (e.g. immediate viewports) should call
+    /// [`Self::handle_platform_output`] instead — any custom cursor
+    /// request is silently dropped there and the standard `cursor_icon`
+    /// path still runs.
+    pub fn handle_platform_output_with_event_loop(
+        &mut self,
+        window: &Window,
+        event_loop: &ActiveEventLoop,
+        platform_output: egui::PlatformOutput,
+    ) {
+        self.handle_platform_output_inner(window, Some(event_loop), platform_output);
+    }
+
+    fn handle_platform_output_inner(
+        &mut self,
+        window: &Window,
+        event_loop: Option<&ActiveEventLoop>,
+        platform_output: egui::PlatformOutput,
+    ) {
         profiling::function_scope!();
 
         let egui::PlatformOutput {
             commands,
             cursor_icon,
+            cursor_image,
             events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
             ime,
@@ -1048,7 +1082,7 @@ impl State {
             }
         }
 
-        self.set_cursor_icon(window, cursor_icon);
+        self.apply_cursor(window, event_loop, cursor_icon, cursor_image.as_ref());
 
         let allow_ime = ime.is_some();
         let is_toggling_ime = self.allow_ime != allow_ime;
@@ -1111,26 +1145,92 @@ impl State {
         let _ = accesskit_update;
     }
 
-    fn set_cursor_icon(&mut self, window: &Window, cursor_icon: egui::CursorIcon) {
+    /// Apply either a bitmap cursor (preferred when both `cursor_image`
+    /// and `event_loop` are `Some`) or the standard `cursor_icon` to the
+    /// window. Mirrors the no-flicker dedupe the old `set_cursor_icon`
+    /// did, on the appropriate cache key for whichever path is active.
+    fn apply_cursor(
+        &mut self,
+        window: &Window,
+        event_loop: Option<&ActiveEventLoop>,
+        cursor_icon: egui::CursorIcon,
+        cursor_image: Option<&egui::CustomCursorImage>,
+    ) {
+        let is_pointer_in_window = self.pointer_pos_in_points.is_some();
+        if !is_pointer_in_window {
+            // Drop both caches so the cursor gets re-applied (and the
+            // bitmap re-checked for staleness) once the pointer comes
+            // back. Same contract the old `set_cursor_icon` followed.
+            self.current_cursor_icon = None;
+            self.current_custom_cursor = None;
+            return;
+        }
+
+        // Bitmap cursor wins over CursorIcon when both are present and we
+        // have an event loop to register it with. Otherwise the bitmap is
+        // dropped and we fall through to the icon path — this is the
+        // documented fallback for integrations that didn't opt in.
+        if let (Some(image), Some(event_loop)) = (cursor_image, event_loop) {
+            let key = std::sync::Arc::as_ptr(&image.rgba).cast::<u8>() as usize;
+            let cached = self
+                .current_custom_cursor
+                .as_ref()
+                .filter(|(k, _)| *k == key)
+                .map(|(_, c)| c.clone());
+
+            let custom = match cached {
+                Some(c) => c,
+                None => match winit::window::CustomCursor::from_rgba(
+                    image.rgba.to_vec(),
+                    image.size[0],
+                    image.size[1],
+                    image.hotspot[0],
+                    image.hotspot[1],
+                ) {
+                    Ok(source) => {
+                        let c = event_loop.create_custom_cursor(source);
+                        self.current_custom_cursor = Some((key, c.clone()));
+                        c
+                    }
+                    Err(err) => {
+                        log::warn!(
+                            "egui-winit: invalid cursor bitmap, falling back to cursor_icon: {err:?}"
+                        );
+                        self.current_custom_cursor = None;
+                        self.set_cursor_icon_inner(window, cursor_icon);
+                        return;
+                    }
+                },
+            };
+
+            window.set_cursor_visible(true);
+            window.set_cursor(custom);
+            // Resync `current_cursor_icon` so the next icon-only path
+            // notices a real change rather than dedupe-skipping it.
+            self.current_cursor_icon = None;
+            return;
+        }
+
+        self.current_custom_cursor = None;
+        self.set_cursor_icon_inner(window, cursor_icon);
+    }
+
+    /// Icon-only path, factored out so `apply_cursor` can fall back to it
+    /// when the bitmap path bails. Preserves the original dedupe.
+    fn set_cursor_icon_inner(&mut self, window: &Window, cursor_icon: egui::CursorIcon) {
         if self.current_cursor_icon == Some(cursor_icon) {
             // Prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing.
             // On other platforms: just early-out to save CPU.
             return;
         }
 
-        let is_pointer_in_window = self.pointer_pos_in_points.is_some();
-        if is_pointer_in_window {
-            self.current_cursor_icon = Some(cursor_icon);
+        self.current_cursor_icon = Some(cursor_icon);
 
-            if let Some(winit_cursor_icon) = translate_cursor(cursor_icon) {
-                window.set_cursor_visible(true);
-                window.set_cursor(winit_cursor_icon);
-            } else {
-                window.set_cursor_visible(false);
-            }
+        if let Some(winit_cursor_icon) = translate_cursor(cursor_icon) {
+            window.set_cursor_visible(true);
+            window.set_cursor(winit_cursor_icon);
         } else {
-            // Remember to set the cursor again once the cursor returns to the screen:
-            self.current_cursor_icon = None;
+            window.set_cursor_visible(false);
         }
     }
 }
