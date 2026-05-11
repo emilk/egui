@@ -524,29 +524,6 @@ impl Window<'_> {
             resize.max_size.y = resize.max_size.y.min(max_height);
         }
 
-        // First check for resize to avoid frame delay:
-        let last_frame_outer_rect = area.state().rect();
-        let resize_interaction = do_resize_interaction(
-            ctx,
-            possible,
-            area.id(),
-            area_layer_id,
-            last_frame_outer_rect,
-            window_frame,
-        );
-
-        {
-            let margins = window_frame.total_margin().sum();
-
-            resize_response(
-                resize_interaction,
-                ctx,
-                margins,
-                area_layer_id,
-                &mut area,
-                resize_id,
-            );
-        }
 
         let mut area_content_ui = area.content_ui(ctx);
 
@@ -558,63 +535,46 @@ impl Window<'_> {
         }
 
         let content_inner = {
-            // BEGIN FRAME --------------------------------
-            let mut frame = window_frame.begin(&mut area_content_ui);
+            let outer_response = window_frame.show(&mut area_content_ui, |ui| {
+                let mut title_bar_rect: Option<Rect> = None;
 
-            let show_close_button = open.is_some();
+                resize.show(ui, |ui| {
+                    if with_title_bar {
+                        let title_response = TitleBar::title_ui(
+                            ui,
+                            title,
+                            window_frame,
+                            &mut collapsing,
+                            collapsible,
+                            true,
+                            open.as_deref_mut(),
+                        );
+                        title_bar_rect = Some(title_response.rect);
 
-            let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
-            // let sized_atoms = AtomLayout::new(title).into_sized(&area_content_ui, area.constrain_rect().size());
-
-            // let title_bar = if with_title_bar {
-            //     let title_bar = TitleBar::new(
-            //         &frame.content_ui,
-            //         title,
-            //         show_close_button,
-            //         collapsible,
-            //         window_frame,
-            //         title_bar_height_with_margin,
-            //     );
-            //     resize.min_size.x = resize.min_size.x.at_least(title_bar.inner_rect.width()); // Prevent making window smaller than title bar width
-            //
-            //     frame.content_ui.set_min_size(title_bar.inner_rect.size());
-            //
-            //     // Skip the title bar (and separator):
-            //     if is_collapsed {
-            //         frame.content_ui.add_space(title_bar.inner_rect.height());
-            //     } else {
-            //         frame.content_ui.add_space(
-            //             title_bar.inner_rect.height()
-            //                 + title_content_spacing
-            //                 + window_frame.inner_margin.sum().y,
-            //         );
-            //     }
-            //
-            //     Some(title_bar)
-            // } else {
-            //     None
-            // };
-
-            let (content_inner, content_response) = resize
-                .show(&mut frame.content_ui, |ui| {
-                    let _title_bar = TitleBar::title_ui(
-                        ui,
-                        title,
-                        &mut collapsing,
-                        collapsible,
-                        open.as_deref_mut(),
-                    );
-                    collapsing.show_body_unindented(ui, |ui| {
-                        if scroll.is_any_scroll_enabled() {
-                            scroll.show(ui, add_contents).inner
-                        } else {
-                            add_contents(ui)
+                        // Reserve room for the title bar's bottom padding, the
+                        // separator stroke, and the body's top padding so that
+                        // body content doesn't overlap any of those.
+                        if !is_collapsed {
+                            let item_spacing_y = ui.spacing().item_spacing.y;
+                            let needed = window_frame.inner_margin.bottom as f32
+                                + window_frame.stroke.width
+                                + window_frame.inner_margin.top as f32;
+                            ui.add_space((needed - item_spacing_y).max(0.0));
                         }
-                    })
+                    }
+                    collapsing
+                        .show_body_unindented(ui, |ui| {
+                            if scroll.is_any_scroll_enabled() {
+                                scroll.show(ui, add_contents).inner
+                            } else {
+                                add_contents(ui)
+                            }
+                        })
+                        .map(|(inner)| inner.inner)
                 })
-                .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
+            });
 
-            let outer_rect = frame.end(&mut area_content_ui).rect;
+            let outer_rect = outer_response.response.rect;
 
             // Do resize interaction _again_, to move their widget rectangles on TOP of the rest of the window.
             let resize_interaction = do_resize_interaction(
@@ -622,7 +582,7 @@ impl Window<'_> {
                 possible,
                 area.id(),
                 area_layer_id,
-                last_frame_outer_rect,
+                outer_rect,
                 window_frame,
             );
 
@@ -634,12 +594,24 @@ impl Window<'_> {
                 resize_interaction,
             );
 
+            {
+                let margins = window_frame.total_margin().sum();
+
+                resize_response(
+                    resize_interaction,
+                    ctx,
+                    margins,
+                    area_layer_id,
+                    &mut area,
+                    resize_id,
+                );
+            }
             // END FRAME --------------------------------
 
-            // if let Some(mut title_bar) = title_bar {
-            //     title_bar.inner_rect = outer_rect.shrink(window_frame.stroke.width);
-            //     title_bar.inner_rect.max.y =
-            //         title_bar.inner_rect.min.y + title_bar_height_with_margin;
+            // if let Some(title_rect) = title_bar_rect {
+            //     let inner_rect = outer_rect.shrink(window_frame.stroke.width);
+            //     let title_bar_bottom =
+            //         title_rect.bottom() + window_frame.inner_margin.bottom as f32;
             //
             //     if on_top && area_content_ui.visuals().window_highlight_topmost {
             //         let mut round =
@@ -650,34 +622,31 @@ impl Window<'_> {
             //             round.sw = 0;
             //         }
             //
+            //         let bg_rect = Rect::from_min_max(
+            //             inner_rect.min,
+            //             pos2(inner_rect.max.x, title_bar_bottom),
+            //         );
+            //
             //         area_content_ui.painter().set(
-            //             *where_to_put_header_background,
-            //             RectShape::filled(title_bar.inner_rect, round, header_color),
+            //             where_to_put_header_background,
+            //             RectShape::filled(bg_rect, round, header_color),
             //         );
             //     }
             //
-            //     if false {
-            //         ctx.debug_painter().debug_rect(
-            //             title_bar.inner_rect,
-            //             Color32::LIGHT_BLUE,
-            //             "title_bar.rect",
-            //         );
+            //     // Separator between title bar and content
+            //     if !is_collapsed {
+            //         let y = title_bar_bottom + window_frame.stroke.width / 2.0;
+            //         area_content_ui
+            //             .painter()
+            //             .hline(inner_rect.x_range(), y, window_frame.stroke);
             //     }
-            //
-            //     title_bar.ui(
-            //         &mut area_content_ui,
-            //         content_response.as_ref(),
-            //         open.as_deref_mut(),
-            //         &mut collapsing,
-            //         collapsible,
-            //     );
             // }
 
             collapsing.store(ctx);
 
             paint_frame_interaction(&area_content_ui, outer_rect, resize_interaction);
 
-            content_inner
+            outer_response.inner
         };
 
         let full_response = area.end(ctx, area_content_ui);
@@ -687,6 +656,19 @@ impl Window<'_> {
         {
             *open = false;
         }
+
+
+        // First check for resize to avoid frame delay:
+        // let last_frame_outer_rect = area.state().rect();
+        // let resize_interaction = do_resize_interaction(
+        //     ctx,
+        //     possible,
+        //     area.id(),
+        //     area_layer_id,
+        //     last_frame_outer_rect,
+        //     window_frame,
+        // );
+
 
         let inner_response = InnerResponse {
             inner: content_inner,
@@ -1187,10 +1169,14 @@ impl<'a> TitleBar {
     fn title_ui(
         ui: &mut Ui,
         mut title: Atoms<'a>,
+        frame: Frame,
         collapsing: &mut CollapsingState,
         collapsible: bool,
+        active: bool,
         mut open: Option<&mut bool>,
     ) -> Response {
+        let shape_idx = ui.painter().add(Shape::Noop);
+
         let mut atoms = Atoms::default();
 
         let button_size = Vec2::splat(ui.spacing().icon_width);
@@ -1229,14 +1215,24 @@ impl<'a> TitleBar {
             .wrap_mode(TextWrapMode::Truncate);
 
         if expanded {
-            layout = layout.min_size(Vec2::new(ui.available_width(), 0.0));
+            layout = layout.min_size(Vec2::new(
+                ui.available_width().at_least(ui.response().rect.width()),
+                0.0,
+            ));
         }
-        let layout_response = layout.allocate(ui).paint(ui);
+
+        let mut child_ui = ui.new_child(UiBuilder::new());
+
+        let layout_response = layout.allocate(&mut child_ui).paint(&child_ui);
+        ui.advance_cursor_after_rect(Rect::from_min_size(
+            layout_response.rect.min,
+            Vec2::new(0.0, layout_response.rect.height()),
+        ));
 
         // Collapse triangle icon
         if collapsible && let Some(rect) = layout_response.rect(collapse_id) {
             let icon_response =
-                ui.interact(rect, ui.auto_id_with("collapse_button"), Sense::click());
+                child_ui.interact(rect, ui.auto_id_with("collapse_button"), Sense::click());
             icon_response.widget_info(|| {
                 WidgetInfo::labeled(
                     WidgetType::Button,
@@ -1254,7 +1250,7 @@ impl<'a> TitleBar {
         // Close button
         if let Some(open) = open.as_deref_mut()
             && let Some(rect) = layout_response.rect(close_id)
-            && close_button(ui, rect).clicked()
+            && close_button(&mut child_ui, rect).clicked()
         {
             *open = false;
         }
@@ -1264,12 +1260,22 @@ impl<'a> TitleBar {
         let double_click_rect = title_rect.shrink2(vec2(button_size.x + spacing, 0.0));
         let dbl_id = ui.unique_id().with("__window_title_bar");
         if collapsible
-            && ui
+            && child_ui
                 .interact(double_click_rect, dbl_id, Sense::CLICK)
                 .double_clicked()
         {
             collapsing.toggle(ui);
         }
+
+        child_ui.set_clip_rect(Rect::EVERYTHING);
+        let mut header_frame = frame.shadow(Shadow::NONE);
+        if expanded {
+            header_frame.corner_radius.sw = 0;
+            header_frame.corner_radius.se = 0;
+        }
+        child_ui
+            .painter()
+            .set(shape_idx, header_frame.paint(layout_response.rect));
 
         layout_response.response
     }
