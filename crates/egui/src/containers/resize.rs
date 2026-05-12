@@ -326,7 +326,7 @@ impl Resize {
         // any previous wrapping content from shrinking further.
         // 4.0 is a bit of safety margin to ensure we don't prevent shrinking on rounding errors.
         let overflowed_x = state.last_content_size.x > state.desired_size.x + 4.0;
-        if overflowed_x && state .observed_min_content_width.is_none() {
+        if overflowed_x && state.observed_min_content_width.is_none() {
             state.observed_min_content_width = Some(state.last_content_size.x);
         }
 
