@@ -1086,7 +1086,6 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
 
 // ----------------------------------------------------------------------------
 
-
 /// Show the window titlebar.
 ///
 /// Should be placed inside a `Frame::window`. The [`Frame`] it was placed inside should be passed as
