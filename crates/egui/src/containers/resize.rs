@@ -23,6 +23,7 @@ pub(crate) struct State {
     /// `last_content_size.x` here and clamp `desired_size.x` against it for the
     /// rest of the drag, so wrapping/centered widgets see the same width the window will
     /// end up clamped to. Reset to `None` whenever a drag is not in progress.
+    #[cfg_attr(feature = "serde", serde(default))]
     observed_min_content_width: Option<f32>,
 }
 

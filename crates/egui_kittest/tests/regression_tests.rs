@@ -457,7 +457,7 @@ pub fn pointer_click_on_open_submenu_button_should_not_close_it() {
     );
 }
 
-/// This test checks if we correctly handle wrapping content preceeding non wrapping content
+/// This test checks if we correctly handle wrapping content proceeding non-wrapping content
 /// during window resize. When the window is resized past non-wrapping content, the wrapping content
 /// above should stay at that non wrapping width and not wrap any further.
 #[test]
