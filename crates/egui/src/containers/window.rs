@@ -531,11 +531,9 @@ impl Window<'_> {
 
         let content_inner = {
             let outer_response = window_frame.show(&mut area_content_ui, |ui| {
-                let mut title_bar_rect: Option<Rect> = None;
-
                 resize.show(ui, |ui| {
                     if with_title_bar {
-                        let title_response = title_ui(
+                        title_ui(
                             ui,
                             title,
                             window_frame,
@@ -544,18 +542,6 @@ impl Window<'_> {
                             on_top,
                             open.as_deref_mut(),
                         );
-                        title_bar_rect = Some(title_response.rect);
-
-                        // Reserve room for the title bar's bottom padding, the
-                        // separator stroke, and the body's top padding so that
-                        // body content doesn't overlap any of those.
-                        if !is_collapsed {
-                            let item_spacing_y = ui.spacing().item_spacing.y;
-                            let needed = window_frame.inner_margin.bottom as f32
-                                + window_frame.stroke.width
-                                + window_frame.inner_margin.top as f32;
-                            ui.add_space((needed - item_spacing_y).max(0.0));
-                        }
                     }
                     collapsing
                         .show_body_unindented(ui, |ui| {
@@ -1100,45 +1086,44 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
 
 // ----------------------------------------------------------------------------
 
-fn title_ui<'a>(
+fn title_ui(
     ui: &mut Ui,
-    mut title: Atoms<'a>,
+    mut title: Atoms<'_>,
     frame: Frame,
     collapsing: &mut CollapsingState,
     collapsible: bool,
     active: bool,
-    mut open: Option<&mut bool>,
+    open: Option<&mut bool>,
 ) -> Response {
     let shape_idx = ui.painter().add(Shape::Noop);
 
     let mut atoms = Atoms::default();
 
     let button_size = Vec2::splat(ui.spacing().icon_width);
-    let collapse_id = Id::new("__window_collapse_button");
-    let close_id = Id::new("__window_close_button");
+    let collapse_atom_id = Id::new("__window_collapse_button");
+    let close_atom_id = Id::new("__window_close_button");
 
     let expanded = collapsing.openness(ui.ctx()) > 0.0;
 
     if collapsible {
-        atoms.push_right(Atom::custom(collapse_id, button_size));
+        atoms.push_right(Atom::custom(collapse_atom_id, button_size));
     }
 
     atoms.push_right(Atom::grow());
 
-    if !title.any_shrink() {
-        if let Some(first) = title
+    if !title.any_shrink()
+        && let Some(first_text) = title
             .iter_mut()
             .find(|a| matches!(a.kind, AtomKind::Text(..)))
-        {
-            first.shrink = true;
-        }
+    {
+        first_text.shrink = true;
     }
     atoms.extend_right(title);
 
     atoms.push_right(Atom::grow());
 
     if open.is_some() {
-        atoms.push_right(Atom::custom(close_id, button_size));
+        atoms.push_right(Atom::custom(close_atom_id, button_size));
     }
 
     let spacing = ui.spacing().item_spacing.x;
@@ -1154,8 +1139,11 @@ fn title_ui<'a>(
 
     let layout_response = layout.show(ui);
 
+    let mut title_click_rect = layout_response.response.rect;
+
     // Collapse triangle icon
-    if collapsible && let Some(rect) = layout_response.rect(collapse_id) {
+    if collapsible && let Some(rect) = layout_response.rect(collapse_atom_id) {
+        title_click_rect = title_click_rect.with_min_x(rect.max.x);
         let icon_response = ui.interact(rect, ui.auto_id_with("collapse_button"), Sense::click());
         icon_response.widget_info(|| {
             WidgetInfo::labeled(
@@ -1172,24 +1160,30 @@ fn title_ui<'a>(
     }
 
     // Close button
-    if let Some(open) = open.as_deref_mut()
-        && let Some(rect) = layout_response.rect(close_id)
-        && close_button(ui, rect).clicked()
+    if let Some(open) = open
+        && let Some(rect) = layout_response.rect(close_atom_id)
     {
-        *open = false;
+        title_click_rect = title_click_rect.with_max_x(rect.min.x);
+        if close_button(ui, rect).clicked() {
+            *open = false;
+        }
     }
 
-    // Double-click anywhere on the title bar (excluding the buttons) to toggle:
-    let title_rect = layout_response.response.rect;
-    let double_click_rect = title_rect.shrink2(vec2(button_size.x + spacing, 0.0));
-    let dbl_id = ui.unique_id().with("__window_title_bar");
+    if expanded {
+        // Add space to ensure the Windows contents aren't inside the Frame
+        title_click_rect.max.y += frame.inner_margin.bottom as f32;
+    }
     if collapsible
         && ui
-            .interact(double_click_rect, dbl_id, Sense::CLICK)
+            .allocate_rect(title_click_rect, Sense::click())
             .double_clicked()
     {
         collapsing.toggle(ui);
     }
+
+    ui.ctx()
+        .debug_painter()
+        .debug_rect(title_click_rect, Color32::RED, "");
 
     let previous_clip = ui.clip_rect();
     ui.set_clip_rect(Rect::EVERYTHING);

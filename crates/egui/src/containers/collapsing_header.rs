@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use crate::{
     Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
-    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetText, WidgetType,
+    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, WidgetType,
     emath, epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
@@ -79,30 +79,6 @@ impl CollapsingState {
         } else {
             ctx.animate_bool_responsive(self.id, self.state.open)
         }
-    }
-
-    /// Will toggle when clicked, etc.
-    pub(crate) fn show_default_button_with_size(
-        &mut self,
-        ui: &mut Ui,
-        button_size: Vec2,
-    ) -> Response {
-        let (_id, rect) = ui.allocate_space(button_size);
-        let response = ui.interact(rect, self.id, Sense::click());
-        response.widget_info(|| {
-            WidgetInfo::labeled(
-                WidgetType::Button,
-                ui.is_enabled(),
-                if self.is_open() { "Hide" } else { "Show" },
-            )
-        });
-
-        if response.clicked() {
-            self.toggle(ui);
-        }
-        let openness = self.openness(ui.ctx());
-        paint_default_icon(ui, openness, &response);
-        response
     }
 
     /// Will toggle when clicked, etc.
