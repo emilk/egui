@@ -17,7 +17,7 @@ use crate::{
 use emath::{NumExt as _, OrderedFloat};
 
 #[cfg(feature = "default_fonts")]
-use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
+use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, INTER_REGULAR, NOTO_EMOJI_REGULAR};
 
 // ----------------------------------------------------------------------------
 
@@ -255,7 +255,7 @@ fn blob_from_font_data(data: &FontData) -> Blob {
 /// fonts.font_data.insert("my_font".to_owned(),
 ///    std::sync::Arc::new(
 ///        // .ttf and .otf supported
-///        FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/Ubuntu-Light.ttf"))
+///        FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/Inter-Regular.ttf"))
 ///    )
 /// );
 ///
@@ -362,8 +362,8 @@ impl Default for FontDefinitions {
         );
 
         font_data.insert(
-            "Ubuntu-Light".to_owned(),
-            Arc::new(FontData::from_static(UBUNTU_LIGHT)),
+            "Inter-Regular".to_owned(),
+            Arc::new(FontData::from_static(INTER_REGULAR)),
         );
 
         // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
@@ -379,7 +379,7 @@ impl Default for FontDefinitions {
             FontFamily::Monospace,
             vec![
                 "Hack".to_owned(),
-                "Ubuntu-Light".to_owned(), // fallback for √ etc
+                "Inter-Regular".to_owned(), // fallback for glyphs missing from Hack
                 "NotoEmoji-Regular".to_owned(),
                 "emoji-icon-font".to_owned(),
             ],
@@ -387,7 +387,7 @@ impl Default for FontDefinitions {
         families.insert(
             FontFamily::Proportional,
             vec![
-                "Ubuntu-Light".to_owned(),
+                "Inter-Regular".to_owned(),
                 "NotoEmoji-Regular".to_owned(),
                 "emoji-icon-font".to_owned(),
             ],
@@ -417,7 +417,7 @@ impl FontDefinitions {
     #[cfg(feature = "default_fonts")]
     pub fn builtin_font_names() -> &'static [&'static str] {
         &[
-            "Ubuntu-Light",
+            "Inter-Regular",
             "NotoEmoji-Regular",
             "emoji-icon-font",
             "Hack",

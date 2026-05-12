@@ -26,14 +26,13 @@ pub const HACK_REGULAR: &[u8] = include_bytes!("../fonts/Hack-Regular.ttf");
 /// more information.
 pub const NOTO_EMOJI_REGULAR: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular.ttf");
 
-/// A typeface designed for use by Ubuntu.
+/// A typeface designed for user interfaces on computer screens.
 ///
-/// The Ubuntu typeface has been specially created to complement the Ubuntu tone
-/// of voice. It has a contemporary style and contains characteristics unique to
-/// the Ubuntu brand that convey a precise, reliable and free attitude.
+/// Inter has a tall x-height to aid readability of mixed-case and lower-case
+/// text at small sizes.
 ///
-/// See [Ubuntu design](https://design.ubuntu.com/font) for more information.
-pub const UBUNTU_LIGHT: &[u8] = include_bytes!("../fonts/Ubuntu-Light.ttf");
+/// See [the Inter project page](https://rsms.me/inter/) for more information.
+pub const INTER_REGULAR: &[u8] = include_bytes!("../fonts/Inter-Regular.ttf");
 
 /// An experimental typeface that uses standardized
 /// [UNICODE planes](http://en.wikipedia.org/wiki/Plane_(Unicode))

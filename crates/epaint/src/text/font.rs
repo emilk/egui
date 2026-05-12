@@ -406,10 +406,7 @@ impl FontFace {
         matches!(
             chr,
             // Strip out a religious symbol with secondary nefarious interpretation:
-            '\u{534d}' | '\u{5350}' |
-
-            // Ignore ubuntu-specific stuff in `Ubuntu-Light.ttf`:
-            '\u{E0FF}' | '\u{EFFD}' | '\u{F0FF}' | '\u{F200}'
+            '\u{534d}' | '\u{5350}'
         )
     }
 

@@ -6,7 +6,7 @@ description = "Default fonts for use in epaint / egui"
 edition.workspace = true
 rust-version.workspace = true
 homepage = "https://github.com/emilk/egui/tree/main/crates/epaint_default_fonts"
-license = "(MIT OR Apache-2.0) AND OFL-1.1 AND Ubuntu-font-1.0" # OFL and UFL are from the font files themselves.
+license = "(MIT OR Apache-2.0) AND OFL-1.1" # OFL is from the font files themselves.
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/epaint_default_fonts"
 categories = ["graphics", "gui"]
@@ -19,7 +19,7 @@ include = [
   "fonts/*.ttf",
   "fonts/*.txt",
   "fonts/OFL.txt",
-  "fonts/UFL.txt",
+  "fonts/Inter-OFL.txt",
 ]
 
 [lints]
