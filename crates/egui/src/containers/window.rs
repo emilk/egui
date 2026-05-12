@@ -1086,6 +1086,12 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
 
 // ----------------------------------------------------------------------------
 
+
+/// Show the window titlebar.
+///
+/// Should be placed inside a `Frame::window`. The [`Frame`] it was placed inside should be passed as
+/// an arg and will be used to paint the divider line at the bottom and the highlighted background
+/// when `active` is true.
 fn title_ui(
     ui: &mut Ui,
     mut title: Atoms<'_>,
@@ -1171,7 +1177,7 @@ fn title_ui(
 
     if expanded {
         // Add space to ensure the Windows contents aren't inside the Frame
-        title_click_rect.max.y += frame.inner_margin.bottom as f32;
+        title_click_rect.max.y += frame.total_margin().bottom;
     }
     if collapsible
         && ui
@@ -1180,10 +1186,6 @@ fn title_ui(
     {
         collapsing.toggle(ui);
     }
-
-    ui.ctx()
-        .debug_painter()
-        .debug_rect(title_click_rect, Color32::RED, "");
 
     let previous_clip = ui.clip_rect();
     ui.set_clip_rect(Rect::EVERYTHING);

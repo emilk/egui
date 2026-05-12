@@ -2,8 +2,8 @@ use std::hash::Hash;
 
 use crate::{
     Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
-    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, WidgetType,
-    emath, epaint, pos2, remap, remap_clamp, vec2,
+    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, WidgetType, emath,
+    epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
 use epaint::{Shape, StrokeKind};
