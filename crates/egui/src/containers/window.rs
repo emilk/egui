@@ -7,7 +7,7 @@ use crate::collapsing_header::CollapsingState;
 use crate::*;
 
 use super::scroll_area::{ScrollBarVisibility, ScrollSource};
-use super::{Area, Frame, Resize, ScrollArea, area, resize};
+use super::{area, resize, Area, Frame, Resize, ScrollArea};
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///
@@ -1105,13 +1105,22 @@ fn title_ui(
     let mut atoms = Atoms::default();
 
     let button_size = Vec2::splat(ui.spacing().icon_width);
+
+    // Since the heading height is higher than the button size, we need to allocate the buttons
+    // with the headers height as size, otherwise they'd look slightly off-center.
+    // The shrink is then used to render the buttons with the right size.
+    let heading_font_height =
+        ui.fonts_mut(|f| f.row_height(&TextStyle::Heading.resolve(ui.style())));
+    let button_allocation_size = Vec2::splat(heading_font_height);
+    let button_shrink = (button_allocation_size - button_size) / 2.0;
+
     let collapse_atom_id = Id::new("__window_collapse_button");
     let close_atom_id = Id::new("__window_close_button");
 
     let expanded = collapsing.openness(ui.ctx()) > 0.0;
 
     if collapsible {
-        atoms.push_right(Atom::custom(collapse_atom_id, button_size));
+        atoms.push_right(Atom::custom(collapse_atom_id, button_allocation_size));
     }
 
     atoms.push_right(Atom::grow());
@@ -1128,7 +1137,7 @@ fn title_ui(
     atoms.push_right(Atom::grow());
 
     if open.is_some() {
-        atoms.push_right(Atom::custom(close_atom_id, button_size));
+        atoms.push_right(Atom::custom(close_atom_id, button_allocation_size));
     }
 
     let spacing = ui.spacing().item_spacing.x;
@@ -1144,10 +1153,11 @@ fn title_ui(
 
     let layout_response = layout.show(ui);
 
-    let mut title_click_rect = layout_response.response.rect;
+    let mut title_click_rect = layout_response.response.rect + frame.total_margin();
 
     // Collapse triangle icon
     if collapsible && let Some(rect) = layout_response.rect(collapse_atom_id) {
+        let rect = rect.shrink2(button_shrink);
         title_click_rect = title_click_rect.with_min_x(rect.max.x);
         let icon_response = ui.interact(rect, ui.auto_id_with("collapse_button"), Sense::click());
         icon_response.widget_info(|| {
@@ -1168,22 +1178,32 @@ fn title_ui(
     if let Some(open) = open
         && let Some(rect) = layout_response.rect(close_atom_id)
     {
+        let rect = rect.shrink2(button_shrink);
         title_click_rect = title_click_rect.with_max_x(rect.min.x);
         if close_button(ui, rect).clicked() {
             *open = false;
         }
     }
 
-    if expanded {
-        // Add space to ensure the Windows contents aren't inside the Frame
-        title_click_rect.max.y += frame.total_margin().bottom;
-    }
     if collapsible
         && ui
-            .allocate_rect(title_click_rect, Sense::click())
+            .interact(
+                title_click_rect,
+                ui.auto_id_with("window_title_click"),
+                Sense::click(),
+            )
             .double_clicked()
     {
         collapsing.toggle(ui);
+    }
+
+    if expanded {
+        // Account for the margin of the title frame + the margin of the window contents
+        // - the default ui spacing egui would add on this call
+        ui.add_space(
+            frame.total_margin().bottom + frame.inner_margin.top as f32
+                - ui.spacing().item_spacing.y,
+        );
     }
 
     let previous_clip = ui.clip_rect();
