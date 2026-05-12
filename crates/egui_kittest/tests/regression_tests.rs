@@ -1,5 +1,7 @@
 use egui::accesskit::{self, Role};
-use egui::{Button, ComboBox, Image, Modifiers, Popup, Rect, Vec2, Widget as _};
+use egui::{
+    Button, ComboBox, Image, Label, Modifiers, Popup, Pos2, Rect, Vec2, Widget as _, Window,
+};
 #[cfg(all(feature = "wgpu", feature = "snapshot"))]
 use egui_kittest::SnapshotResults;
 use egui_kittest::{Harness, kittest::Queryable as _};
@@ -452,5 +454,60 @@ pub fn pointer_click_on_open_submenu_button_should_not_close_it() {
     assert!(
         harness.query_by_label("Goal").is_some(),
         "Expected submenu to remain open on repeated pointer click"
+    );
+}
+
+/// This test checks if we correctly handle wrapping content proceeding non-wrapping content
+/// during window resize. When the window is resized past non-wrapping content, the wrapping content
+/// above should stay at that non wrapping width and not wrap any further.
+#[test]
+fn window_resize_wraps_to_content_min_width() {
+    let wrap_text = "This label should wrap as the window is narrowed. \
+    It should not shrink smaller than the bottom labels width though.";
+    let non_wrap_text = "This is the bottom non-wrapping label which is wider.";
+
+    let window_title = "resize_wrap_regression";
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(move |ui| {
+            Window::new(window_title)
+                .default_pos([20.0, 20.0])
+                .default_size([400.0, 200.0])
+                .show(ui.ctx(), |ui| {
+                    ui.add(Label::new(wrap_text).wrap());
+                    ui.add(Label::new(non_wrap_text).extend());
+                });
+        });
+
+    harness.run();
+
+    let window_rect = harness
+        .get_by_role_and_label(Role::Window, window_title)
+        .rect();
+
+    // Drag the right edge inward, well past the non-wrapping label's natural
+    // width, so the non-wrapping label pins the window's minimum width while
+    // the wrapping label would (without the fix) keep shrinking.
+    let grab = Pos2::new(window_rect.right(), window_rect.center().y);
+    let target = Pos2::new(window_rect.left() + 80.0, window_rect.center().y);
+
+    harness.drag_at(grab);
+    harness.run();
+    harness.hover_at(target);
+
+    harness.run();
+
+    let wrap_width = harness.get_by_label(wrap_text).rect().width();
+    let non_wrap_width = harness.get_by_label(non_wrap_text).rect().width();
+
+    // Wrapped text won't perfectly fill the available width — each line ends
+    // wherever the next word stops fitting. The tolerance absorbs that
+    // word-break slack while still catching the bug, where the wrap label
+    // would be substantially narrower than the non-wrapping label.
+    assert!(
+        non_wrap_width - wrap_width < 40.0,
+        "wrapping label width ({wrap_width}) is much narrower than the \
+         non-wrapping label width ({non_wrap_width}) after shrinking the \
+         window past the non-wrapping label's natural width"
     );
 }
