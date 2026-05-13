@@ -191,6 +191,75 @@ async fn request_adapter(
     Ok(adapter)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn transparent_alpha_mode_supported(alpha_modes: &[wgpu::CompositeAlphaMode]) -> bool {
+    alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied)
+        || alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn supports_transparent_surface_alpha(
+    surface: &wgpu::Surface<'_>,
+    adapter: &wgpu::Adapter,
+) -> bool {
+    let capabilities = surface.get_capabilities(adapter);
+    !capabilities.formats.is_empty() && transparent_alpha_mode_supported(&capabilities.alpha_modes)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn adapter_device_type_order(
+    device_type: wgpu::DeviceType,
+    power_preference: wgpu::PowerPreference,
+) -> u8 {
+    match power_preference {
+        wgpu::PowerPreference::LowPower => match device_type {
+            wgpu::DeviceType::IntegratedGpu => 1,
+            wgpu::DeviceType::DiscreteGpu => 2,
+            wgpu::DeviceType::Other => 3,
+            wgpu::DeviceType::VirtualGpu => 4,
+            wgpu::DeviceType::Cpu => 5,
+        },
+        wgpu::PowerPreference::HighPerformance => match device_type {
+            wgpu::DeviceType::DiscreteGpu => 1,
+            wgpu::DeviceType::IntegratedGpu => 2,
+            wgpu::DeviceType::Other => 3,
+            wgpu::DeviceType::VirtualGpu => 4,
+            wgpu::DeviceType::Cpu => 5,
+        },
+        wgpu::PowerPreference::None => 0,
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn select_adapter_with_existing_policy(
+    mut adapters: Vec<wgpu::Adapter>,
+    power_preference: wgpu::PowerPreference,
+) -> Option<wgpu::Adapter> {
+    if adapters.is_empty() {
+        return None;
+    }
+
+    if power_preference != wgpu::PowerPreference::None {
+        adapters.sort_by_key(|adapter| {
+            adapter_device_type_order(adapter.get_info().device_type, power_preference)
+        });
+    }
+
+    adapters.into_iter().next()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn collect_transparent_surface_adapters(
+    available_adapters: &[wgpu::Adapter],
+    surface: &wgpu::Surface<'_>,
+) -> Vec<wgpu::Adapter> {
+    available_adapters
+        .iter()
+        .filter(|adapter| supports_transparent_surface_alpha(surface, adapter))
+        .cloned()
+        .collect()
+}
+
 impl RenderState {
     /// Creates a new [`RenderState`], containing everything needed for drawing egui with wgpu.
     ///
@@ -200,6 +269,7 @@ impl RenderState {
         config: &WgpuConfiguration,
         instance: &wgpu::Instance,
         compatible_surface: Option<&wgpu::Surface<'static>>,
+        prefer_transparent_surface: bool,
         options: RendererOptions,
     ) -> Result<Self, WgpuError> {
         profiling::scope!("RenderState::create"); // async yield give bad names using `profile_function`
@@ -234,13 +304,45 @@ impl RenderState {
                         native_adapter_selector(&available_adapters, compatible_surface)
                             .map_err(WgpuError::CustomNativeAdapterSelectionError)
                     } else {
-                        request_adapter(
+                        let default_adapter = request_adapter(
                             instance,
                             power_preference,
                             compatible_surface,
                             &available_adapters,
                         )
-                        .await
+                        .await?;
+
+                        if prefer_transparent_surface
+                            && let Some(surface) = compatible_surface
+                            && !supports_transparent_surface_alpha(surface, &default_adapter)
+                        {
+                            let transparent_capable_adapters =
+                                collect_transparent_surface_adapters(&available_adapters, surface);
+
+                            // Ideally wgpu would expose its adapter ordering so we could apply the
+                            // same selection logic to a filtered candidate set. For now we mirror
+                            // the power-preference ordering here and only use it when the original
+                            // adapter cannot satisfy transparent alpha for the root surface.
+                            if let Some(transparent_adapter) = select_adapter_with_existing_policy(
+                                transparent_capable_adapters,
+                                power_preference,
+                            ) {
+                                log::info!(
+                                    "Transparent surface requested; using wgpu adapter {} instead of {} because the original selection does not support transparent alpha for the root surface",
+                                    adapter_info_summary(&transparent_adapter.get_info()),
+                                    adapter_info_summary(&default_adapter.get_info())
+                                );
+                                Ok(transparent_adapter)
+                            } else {
+                                log::warn!(
+                                    "Transparent surface was requested, but no compatible wgpu adapter supports transparent alpha for the root surface. Continuing with {}",
+                                    adapter_info_summary(&default_adapter.get_info())
+                                );
+                                Ok(default_adapter)
+                            }
+                        } else {
+                            Ok(default_adapter)
+                        }
                     }
                 }?;
 
@@ -250,7 +352,6 @@ impl RenderState {
                         .request_device(&(*device_descriptor)(&adapter))
                         .await?
                 };
-
                 (adapter, device, queue)
             }
             WgpuSetup::Existing(WgpuSetupExisting {
@@ -437,9 +538,11 @@ fn log_adapter_info(info: &wgpu::AdapterInfo) {
     let is_test = cfg!(test); // Software rasterizers are expected (and preferred) during testing!
 
     if info.device_type == wgpu::DeviceType::Cpu && !is_test {
-        log::warn!("Software rasterizer detected - loss of performance expected. {summary}");
+        log::warn!(
+            "Final wgpu adapter for render state is a software rasterizer; loss of performance expected. {summary}"
+        );
     } else {
-        log::debug!("wgpu adapter: {summary}");
+        log::info!("Final wgpu adapter for render state: {summary}");
     }
 }
 

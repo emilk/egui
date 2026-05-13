@@ -1767,7 +1767,8 @@ fn process_viewport_command(
 
 /// Build and intitlaize a window.
 ///
-/// Wrapper around `create_winit_window_builder` and `apply_viewport_builder_to_window`.
+/// Wrapper around [`create_winit_window_attributes`] and
+/// [`apply_viewport_builder_to_window`].
 ///
 /// # Errors
 /// Possible causes of error include denied permission, incompatible system, and lack of memory.
@@ -1778,7 +1779,36 @@ pub fn create_window(
 ) -> Result<Window, winit::error::OsError> {
     profiling::function_scope!();
 
-    let window_attributes = create_winit_window_attributes(egui_ctx, viewport_builder.clone());
+    create_window_with_attributes(
+        egui_ctx,
+        event_loop,
+        viewport_builder,
+        |window_attributes| window_attributes,
+    )
+}
+
+/// Build and initialize a window after customizing its creation attributes.
+///
+/// This is the same as [`create_window`], except callers may mutate the
+/// [`winit::window::WindowAttributes`] before the native window is created while
+/// still reusing egui-winit's normal post-create initialization.
+///
+/// # Errors
+/// Possible causes of error include denied permission, incompatible system, and lack of memory.
+pub fn create_window_with_attributes(
+    egui_ctx: &egui::Context,
+    event_loop: &ActiveEventLoop,
+    viewport_builder: &ViewportBuilder,
+    mutate_window_attributes: impl FnOnce(
+        winit::window::WindowAttributes,
+    ) -> winit::window::WindowAttributes,
+) -> Result<Window, winit::error::OsError> {
+    profiling::function_scope!();
+
+    let window_attributes = mutate_window_attributes(create_winit_window_attributes(
+        egui_ctx,
+        viewport_builder.clone(),
+    ));
     let window = event_loop.create_window(window_attributes)?;
     apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
     Ok(window)
