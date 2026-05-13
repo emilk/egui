@@ -594,10 +594,6 @@ fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
 }
 
 impl Prepared {
-    pub(crate) fn state(&self) -> &AreaState {
-        &self.state
-    }
-
     pub(crate) fn state_mut(&mut self) -> &mut AreaState {
         &mut self.state
     }

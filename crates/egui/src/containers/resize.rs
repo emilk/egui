@@ -50,7 +50,7 @@ pub struct Resize {
     pub(crate) min_size: Vec2,
     pub(crate) max_size: Vec2,
 
-    default_size: Vec2,
+    pub(crate) default_size: Vec2,
 
     with_stroke: bool,
 }

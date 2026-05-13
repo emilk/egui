@@ -1,6 +1,7 @@
 use egui::accesskit::{self, Role};
 use egui::{
-    Button, ComboBox, Image, Label, Modifiers, Popup, Pos2, Rect, Vec2, Widget as _, Window,
+    Align2, Button, ComboBox, FontId, Image, Label, Modifiers, Popup, Pos2, Rect, Stroke,
+    StrokeKind, Vec2, Widget as _, Window,
 };
 #[cfg(all(feature = "wgpu", feature = "snapshot"))]
 use egui_kittest::SnapshotResults;
@@ -509,5 +510,93 @@ fn window_resize_wraps_to_content_min_width() {
         "wrapping label width ({wrap_width}) is much narrower than the \
          non-wrapping label width ({non_wrap_width}) after shrinking the \
          window past the non-wrapping label's natural width"
+    );
+}
+
+/// Ensure that the size passed to window is actually treated as outer size (including
+/// margins and borders).
+#[test]
+fn window_fixed_size_is_outer_size() {
+    use egui::{Color32, Frame, Margin, Pos2, Shape};
+
+    let outer_pos = Pos2::new(50.0, 50.0);
+    let outer_size = Vec2::new(300.0, 200.0);
+    let outer_margin = Margin::same(10);
+    let expected_rect = Rect::from_min_size(outer_pos, outer_size);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(move |ui| {
+            let frame = Frame::window(ui.style()).outer_margin(outer_margin);
+            Window::new("size_test")
+                .frame(frame)
+                .fixed_pos(outer_pos)
+                .fixed_size(outer_size)
+                .show(ui.ctx(), |ui| {
+                    // Fill the available space so `Resize` doesn't auto-shrink the window
+                    // below the requested fixed size.
+                    ui.allocate_space(ui.available_size());
+                });
+
+            // Paint a debug rect on top of everything that marks the expected outer
+            // window rect. In the snapshot this should line up exactly with the
+            // painted window frame.
+            let painter = ui.ctx().debug_painter();
+            painter.rect_stroke(
+                expected_rect,
+                0.0,
+                Stroke::new(2.0, Color32::RED),
+                StrokeKind::Outside,
+            );
+            painter.text(
+                expected_rect.left_top() + Vec2::new(0.0, -4.0),
+                Align2::LEFT_BOTTOM,
+                "should perfectly match the outer window size/position",
+                FontId::default(),
+                Color32::RED,
+            );
+
+            // Also paint the expected *visible frame* rect (outer rect shrunk by the
+            // frame's outer_margin). In the snapshot this should line up exactly with
+            // the painted window frame.
+            let expected_frame_rect = expected_rect - outer_margin;
+            painter.debug_rect(
+                expected_frame_rect,
+                Color32::GREEN,
+                "should perfectly match the painted window frame",
+            );
+        });
+
+    harness.run();
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    harness.snapshot("window_outer_size");
+
+    fn collect_filled_rect_sizes(shape: &Shape, out: &mut Vec<Vec2>) {
+        match shape {
+            // Skip stroke-only rects (fill == TRANSPARENT), so the debug overlay
+            // doesn't trivially satisfy the size check.
+            Shape::Rect(r) if r.fill != Color32::TRANSPARENT => out.push(r.rect.size()),
+            Shape::Vec(v) => v.iter().for_each(|s| collect_filled_rect_sizes(s, out)),
+            _ => {}
+        }
+    }
+
+    let mut sizes = Vec::new();
+    for clipped in &harness.output().shapes {
+        collect_filled_rect_sizes(&clipped.shape, &mut sizes);
+    }
+
+    // The shape will have the inner size
+    let painted_size = outer_size - outer_margin.sum();
+    let found = sizes
+        .iter()
+        .any(|s| (s.x - painted_size.x).abs() < 0.5 && (s.y - painted_size.y).abs() < 0.5);
+
+    assert!(
+        found,
+        "expected a filled RectShape with size {painted_size:?} (outer size {outer_size:?} \
+         minus outer margin {outer_margin:?}) in the paint output, but no painted rect matched. \
+         Found filled-rect sizes: {sizes:?}"
     );
 }
