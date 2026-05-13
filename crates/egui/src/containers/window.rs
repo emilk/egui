@@ -7,7 +7,7 @@ use crate::collapsing_header::CollapsingState;
 use crate::*;
 
 use super::scroll_area::{ScrollBarVisibility, ScrollSource};
-use super::{area, resize, Area, Frame, Resize, ScrollArea};
+use super::{Area, Frame, Resize, ScrollArea, area, resize};
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///
@@ -1120,6 +1120,7 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
 /// Should be placed inside a `Frame::window`. The [`Frame`] it was placed inside should be passed as
 /// an arg and will be used to paint the divider line at the bottom and the highlighted background
 /// when `active` is true.
+#[expect(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
 fn title_ui(
     ui: &mut Ui,
     mut title: Atoms<'_>,
@@ -1214,7 +1215,7 @@ fn title_ui(
             )
         });
         if icon_response.clicked() {
-            collapsing.toggle(&mut child_ui);
+            collapsing.toggle(&child_ui);
         }
         let openness = collapsing.openness(child_ui.ctx());
         crate::collapsing_header::paint_default_icon(&mut child_ui, openness, &icon_response);
@@ -1240,7 +1241,7 @@ fn title_ui(
             )
             .double_clicked()
     {
-        collapsing.toggle(&mut child_ui);
+        collapsing.toggle(&child_ui);
     }
 
     if expanded {
