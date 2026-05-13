@@ -59,7 +59,7 @@ impl<'a> Window<'a> {
             resize: Resize::default()
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
-                .default_size([340.0, 420.0]), // Default inner size of a window
+                .default_size([340.0, 420.0]), // Default outer size of a window (includes frame margins, stroke, and title bar)
             scroll: ScrollArea::neither().auto_shrink(false),
             collapsible: true,
             default_open: true,
@@ -211,6 +211,9 @@ impl<'a> Window<'a> {
     }
 
     /// Set minimum size of the window, equivalent to calling both `min_width` and `min_height`.
+    ///
+    /// The size refers to the *outer* window size, including frame margins, stroke,
+    /// and the title bar.
     #[inline]
     pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.min_size(min_size);
@@ -232,6 +235,9 @@ impl<'a> Window<'a> {
     }
 
     /// Set maximum size of the window, equivalent to calling both `max_width` and `max_height`.
+    ///
+    /// The size refers to the *outer* window size, including frame margins, stroke,
+    /// and the title bar.
     #[inline]
     pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.max_size(max_size);
@@ -318,6 +324,9 @@ impl<'a> Window<'a> {
     }
 
     /// Set initial size of the window.
+    ///
+    /// The size refers to the *outer* window size, including frame margins, stroke,
+    /// and the title bar.
     #[inline]
     pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
         let default_size: Vec2 = default_size.into();
@@ -343,6 +352,9 @@ impl<'a> Window<'a> {
     }
 
     /// Sets the window size and prevents it from being resized by dragging its edges.
+    ///
+    /// The size refers to the *outer* window size, including frame margins, stroke,
+    /// and the title bar.
     #[inline]
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
@@ -513,11 +525,22 @@ impl Window<'_> {
 
         {
             // Prevent window from becoming larger than the constrain rect.
+            // `resize.max_size` is still in outer-window coordinates here, matching `constrain_rect`.
             let constrain_rect = area.constrain_rect();
             let max_width = constrain_rect.width();
             let max_height = constrain_rect.height();
             resize.max_size.x = resize.max_size.x.min(max_width);
             resize.max_size.y = resize.max_size.y.min(max_height);
+        }
+
+        // The user-supplied min/max/default sizes on `Window` refer to the *outer* window size
+        // (the total footprint, including frame margins and stroke). `Resize` sizes the window
+        // title and inner content area, so we subtract the extra frame margin.
+        {
+            let frame_margin = window_frame.total_margin().sum();
+            resize.min_size = (resize.min_size - frame_margin).at_least(Vec2::ZERO);
+            resize.max_size = (resize.max_size - frame_margin).at_least(Vec2::ZERO);
+            resize.default_size = (resize.default_size - frame_margin).at_least(Vec2::ZERO);
         }
 
         let mut area_content_ui = area.content_ui(ctx);
