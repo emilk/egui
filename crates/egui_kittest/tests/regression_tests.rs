@@ -516,9 +516,7 @@ fn window_resize_wraps_to_content_min_width() {
 /// margins and borders).
 #[test]
 fn window_fixed_size_is_outer_size() {
-    use egui::{
-        Align2, Color32, FontId, Id, LayerId, Order, Pos2, Shape, Stroke, StrokeKind,
-    };
+    use egui::{Align2, Color32, FontId, Id, LayerId, Order, Pos2, Shape, Stroke, StrokeKind};
 
     let outer_pos = Pos2::new(50.0, 50.0);
     let outer_size = Vec2::new(300.0, 200.0);
