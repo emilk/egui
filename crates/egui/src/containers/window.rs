@@ -7,7 +7,7 @@ use crate::collapsing_header::CollapsingState;
 use crate::*;
 
 use super::scroll_area::{ScrollBarVisibility, ScrollSource};
-use super::{Area, Frame, Resize, ScrollArea, area, resize};
+use super::{area, resize, Area, Frame, Resize, ScrollArea};
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///
@@ -42,6 +42,7 @@ pub struct Window<'a> {
     default_open: bool,
     with_title_bar: bool,
     fade_out: bool,
+    auto_sized: bool,
 }
 
 impl<'a> Window<'a> {
@@ -65,6 +66,7 @@ impl<'a> Window<'a> {
             default_open: true,
             with_title_bar: true,
             fade_out: true,
+            auto_sized: false,
         }
     }
 
@@ -409,6 +411,7 @@ impl<'a> Window<'a> {
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = ScrollArea::neither();
+        self.auto_sized = true;
         self
     }
 
@@ -483,6 +486,7 @@ impl Window<'_> {
             default_open,
             with_title_bar,
             fade_out,
+            auto_sized,
         } = self;
 
         let style = ctx.global_style();
@@ -534,8 +538,9 @@ impl Window<'_> {
         }
 
         // The user-supplied min/max/default sizes on `Window` refer to the *outer* window size
-        // (the total footprint, including frame margins and stroke). `Resize` sizes the window
-        // title and inner content area, so we subtract the extra frame margin.
+        // (the total footprint, including frame margins, stroke, and title bar). `Resize` sizes
+        // the title bar + inner content area, so we subtract the extra frame margin (the part
+        // outside of `Resize`).
         {
             let frame_margin = window_frame.total_margin().sum();
             resize.min_size = (resize.min_size - frame_margin).at_least(Vec2::ZERO);
@@ -564,6 +569,7 @@ impl Window<'_> {
                             collapsible,
                             on_top,
                             open.as_deref_mut(),
+                            auto_sized,
                         );
                     }
                     collapsing
@@ -1122,6 +1128,7 @@ fn title_ui(
     collapsible: bool,
     active: bool,
     open: Option<&mut bool>,
+    auto_sized: bool,
 ) -> Response {
     let shape_idx = ui.painter().add(Shape::Noop);
 
@@ -1148,7 +1155,8 @@ fn title_ui(
 
     atoms.push_right(Atom::grow());
 
-    if !title.any_shrink()
+    if !auto_sized
+        && !title.any_shrink()
         && let Some(first_text) = title
             .iter_mut()
             .find(|a| matches!(a.kind, AtomKind::Text(..)))
@@ -1165,16 +1173,27 @@ fn title_ui(
 
     let spacing = ui.spacing().item_spacing.x;
 
+    let mut child_ui = ui.new_child(UiBuilder::new());
+
     let mut layout = AtomLayout::new(atoms)
         .gap(spacing)
         .fallback_font(TextStyle::Heading)
         .wrap_mode(TextWrapMode::Truncate);
 
     if expanded {
-        layout = layout.min_size(Vec2::new(ui.available_width(), 0.0));
+        let min_width = if auto_sized {
+            // During auto size, the resize is essentially disabled, meaning we don't get an
+            // available_width we can rely on. Instead, check of large the content grew last frame
+            // and use that for sizing the title bar. Unfortunately this adds a frame delay.
+            ui.response().rect.width()
+        } else {
+            child_ui.available_width()
+        };
+
+        layout = layout.min_size(Vec2::new(min_width, 0.0));
     }
 
-    let layout_response = layout.show(ui);
+    let layout_response = layout.show(&mut child_ui);
 
     let mut title_click_rect = layout_response.response.rect + frame.total_margin();
 
@@ -1182,19 +1201,23 @@ fn title_ui(
     if collapsible && let Some(rect) = layout_response.rect(collapse_atom_id) {
         let rect = rect.shrink2(button_shrink);
         title_click_rect = title_click_rect.with_min_x(rect.max.x);
-        let icon_response = ui.interact(rect, ui.auto_id_with("collapse_button"), Sense::click());
+        let icon_response = child_ui.interact(
+            rect,
+            child_ui.auto_id_with("collapse_button"),
+            Sense::click(),
+        );
         icon_response.widget_info(|| {
             WidgetInfo::labeled(
                 WidgetType::Button,
-                ui.is_enabled(),
+                child_ui.is_enabled(),
                 if collapsing.is_open() { "Hide" } else { "Show" },
             )
         });
         if icon_response.clicked() {
-            collapsing.toggle(ui);
+            collapsing.toggle(&mut child_ui);
         }
-        let openness = collapsing.openness(ui.ctx());
-        crate::collapsing_header::paint_default_icon(ui, openness, &icon_response);
+        let openness = collapsing.openness(child_ui.ctx());
+        crate::collapsing_header::paint_default_icon(&mut child_ui, openness, &icon_response);
     }
 
     // Close button
@@ -1203,34 +1226,33 @@ fn title_ui(
     {
         let rect = rect.shrink2(button_shrink);
         title_click_rect = title_click_rect.with_max_x(rect.min.x);
-        if close_button(ui, rect).clicked() {
+        if close_button(&mut child_ui, rect).clicked() {
             *open = false;
         }
     }
 
     if collapsible
-        && ui
+        && child_ui
             .interact(
                 title_click_rect,
-                ui.auto_id_with("window_title_click"),
+                child_ui.auto_id_with("window_title_click"),
                 Sense::click(),
             )
             .double_clicked()
     {
-        collapsing.toggle(ui);
+        collapsing.toggle(&mut child_ui);
     }
 
     if expanded {
         // Account for the margin of the title frame + the margin of the window contents
         // - the default ui spacing egui would add on this call
-        ui.add_space(
+        child_ui.add_space(
             frame.total_margin().bottom + frame.inner_margin.top as f32
-                - ui.spacing().item_spacing.y,
+                - child_ui.spacing().item_spacing.y,
         );
     }
 
-    let previous_clip = ui.clip_rect();
-    ui.set_clip_rect(Rect::EVERYTHING);
+    child_ui.set_clip_rect(Rect::EVERYTHING);
     let mut header_frame = frame.shadow(Shadow::NONE);
     if active {
         header_frame = header_frame.fill(ui.visuals().widgets.open.weak_bg_fill);
@@ -1239,9 +1261,17 @@ fn title_ui(
         header_frame.corner_radius.sw = 0;
         header_frame.corner_radius.se = 0;
     }
-    ui.painter()
+    child_ui
+        .painter()
         .set(shape_idx, header_frame.paint(layout_response.rect));
-    ui.set_clip_rect(previous_clip);
+
+    if auto_sized {
+        // We may not allocate in the horizontal direction as that would break auto sizing.
+        // Allocate a rect with 0 width:
+        ui.advance_cursor_after_rect(child_ui.min_rect().with_max_x(child_ui.min_rect().min.x));
+    } else {
+        ui.advance_cursor_after_rect(child_ui.min_rect());
+    }
 
     layout_response.response
 }
