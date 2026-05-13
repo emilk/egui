@@ -357,6 +357,7 @@ impl<'a> Window<'a> {
     ///
     /// The size refers to the *outer* window size, including the frame's `inner_margin`,
     /// `outer_margin`, `stroke`, and the title bar.
+    #[inline]
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
         self
