@@ -1858,10 +1858,10 @@ impl Ui {
     ///
     /// Usage: `if ui.small_button("Click me").clicked() { … }`
     ///
-    /// Shortcut for `add(Button::new(text).small())`
+    /// Shortcut for `add(Button::new(atoms).small())`
     #[must_use = "You should check if the user clicked this with `if ui.small_button(…).clicked() { … } "]
-    pub fn small_button(&mut self, text: impl Into<WidgetText>) -> Response {
-        Button::new(text).small().ui(self)
+    pub fn small_button<'a>(&mut self, atoms: impl IntoAtoms<'a>) -> Response {
+        Button::new(atoms).small().ui(self)
     }
 
     /// Show a checkbox.
