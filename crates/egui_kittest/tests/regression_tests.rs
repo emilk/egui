@@ -1,7 +1,5 @@
 use egui::accesskit::{self, Role};
-use egui::{
-    Button, ComboBox, Image, Label, Modifiers, Popup, Pos2, Rect, Vec2, Widget as _, Window,
-};
+use egui::{Align2, Button, ComboBox, FontId, Image, Label, LayerId, Modifiers, Order, Popup, Pos2, Rect, Stroke, StrokeKind, Vec2, Widget as _, Window};
 #[cfg(all(feature = "wgpu", feature = "snapshot"))]
 use egui_kittest::SnapshotResults;
 use egui_kittest::{Harness, kittest::Queryable as _};
@@ -516,16 +514,19 @@ fn window_resize_wraps_to_content_min_width() {
 /// margins and borders).
 #[test]
 fn window_fixed_size_is_outer_size() {
-    use egui::{Align2, Color32, FontId, Id, LayerId, Order, Pos2, Shape, Stroke, StrokeKind};
+    use egui::{Color32, Frame, Margin, Pos2, Shape};
 
     let outer_pos = Pos2::new(50.0, 50.0);
     let outer_size = Vec2::new(300.0, 200.0);
+    let outer_margin = Margin::same(10);
     let expected_rect = Rect::from_min_size(outer_pos, outer_size);
 
     let mut harness = Harness::builder()
         .with_size(Vec2::new(800.0, 600.0))
         .build_ui(move |ui| {
+            let frame = Frame::window(ui.style()).outer_margin(outer_margin);
             Window::new("size_test")
+                .frame(frame)
                 .fixed_pos(outer_pos)
                 .fixed_size(outer_size)
                 .show(ui.ctx(), |ui| {
@@ -539,7 +540,7 @@ fn window_fixed_size_is_outer_size() {
             // painted window frame.
             let painter = ui
                 .ctx()
-                .layer_painter(LayerId::new(Order::Debug, Id::new("debug_outer_rect")));
+                .debug_painter();
             painter.rect_stroke(
                 expected_rect,
                 0.0,
@@ -552,6 +553,16 @@ fn window_fixed_size_is_outer_size() {
                 "should perfectly match the outer window size/position",
                 FontId::default(),
                 Color32::RED,
+            );
+
+            // Also paint the expected *visible frame* rect (outer rect shrunk by the
+            // frame's outer_margin). In the snapshot this should line up exactly with
+            // the painted window frame.
+            let expected_frame_rect = expected_rect - outer_margin;
+            painter.debug_rect(
+                expected_frame_rect,
+                Color32::GREEN,
+                "should perfectly match the painted window frame",
             );
         });
 
@@ -575,13 +586,16 @@ fn window_fixed_size_is_outer_size() {
         collect_filled_rect_sizes(&clipped.shape, &mut sizes);
     }
 
+    // The shape will have the inner size
+    let painted_size = outer_size - outer_margin.sum();
     let found = sizes
         .iter()
-        .any(|s| (s.x - outer_size.x).abs() < 0.5 && (s.y - outer_size.y).abs() < 0.5);
+        .any(|s| (s.x - painted_size.x).abs() < 0.5 && (s.y - painted_size.y).abs() < 0.5);
 
     assert!(
         found,
-        "expected a filled RectShape with outer size {outer_size:?} in the paint output, \
-         but no painted rect matched. Found filled-rect sizes: {sizes:?}"
+        "expected a filled RectShape with size {painted_size:?} (outer size {outer_size:?} \
+         minus outer margin {outer_margin:?}) in the paint output, but no painted rect matched. \
+         Found filled-rect sizes: {sizes:?}"
     );
 }

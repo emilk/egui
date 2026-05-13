@@ -214,8 +214,8 @@ impl<'a> Window<'a> {
 
     /// Set minimum size of the window, equivalent to calling both `min_width` and `min_height`.
     ///
-    /// The size refers to the *outer* window size, including frame margins, stroke,
-    /// and the title bar.
+    /// The size refers to the *outer* window size, including the frame's `inner_margin`,
+    /// `outer_margin`, `stroke`, and the title bar.
     #[inline]
     pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.min_size(min_size);
@@ -238,8 +238,8 @@ impl<'a> Window<'a> {
 
     /// Set maximum size of the window, equivalent to calling both `max_width` and `max_height`.
     ///
-    /// The size refers to the *outer* window size, including frame margins, stroke,
-    /// and the title bar.
+    /// The size refers to the *outer* window size, including the frame's `inner_margin`,
+    /// `outer_margin`, `stroke`, and the title bar.
     #[inline]
     pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.max_size(max_size);
@@ -355,9 +355,8 @@ impl<'a> Window<'a> {
 
     /// Sets the window size and prevents it from being resized by dragging its edges.
     ///
-    /// The size refers to the *outer* window size, including frame margins, stroke,
-    /// and the title bar.
-    #[inline]
+    /// The size refers to the *outer* window size, including the frame's `inner_margin`,
+    /// `outer_margin`, `stroke`, and the title bar.
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
         self
