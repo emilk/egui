@@ -1,5 +1,8 @@
 use egui::accesskit::{self, Role};
-use egui::{Align2, Button, ComboBox, FontId, Image, Label, LayerId, Modifiers, Order, Popup, Pos2, Rect, Stroke, StrokeKind, Vec2, Widget as _, Window};
+use egui::{
+    Align2, Button, ComboBox, FontId, Image, Label, Modifiers, Popup, Pos2, Rect, Stroke,
+    StrokeKind, Vec2, Widget as _, Window,
+};
 #[cfg(all(feature = "wgpu", feature = "snapshot"))]
 use egui_kittest::SnapshotResults;
 use egui_kittest::{Harness, kittest::Queryable as _};
@@ -538,9 +541,7 @@ fn window_fixed_size_is_outer_size() {
             // Paint a debug rect on top of everything that marks the expected outer
             // window rect. In the snapshot this should line up exactly with the
             // painted window frame.
-            let painter = ui
-                .ctx()
-                .debug_painter();
+            let painter = ui.ctx().debug_painter();
             painter.rect_stroke(
                 expected_rect,
                 0.0,

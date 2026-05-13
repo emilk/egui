@@ -1243,15 +1243,6 @@ fn title_ui(
         collapsing.toggle(&child_ui);
     }
 
-    if expanded {
-        // Account for the margin of the title frame + the margin of the window contents
-        // - the default ui spacing egui would add on this call
-        child_ui.add_space(
-            frame.total_margin().bottom + frame.inner_margin.top as f32
-                - child_ui.spacing().item_spacing.y,
-        );
-    }
-
     child_ui.set_clip_rect(Rect::EVERYTHING);
     let mut header_frame = frame.shadow(Shadow::NONE);
     if active {
@@ -1265,13 +1256,21 @@ fn title_ui(
         .painter()
         .set(shape_idx, header_frame.paint(layout_response.rect));
 
+    let mut advance_rect = child_ui.min_rect();
+
     if auto_sized {
         // We may not allocate in the horizontal direction as that would break auto sizing.
         // Allocate a rect with 0 width:
-        ui.advance_cursor_after_rect(child_ui.min_rect().with_max_x(child_ui.min_rect().min.x));
-    } else {
-        ui.advance_cursor_after_rect(child_ui.min_rect());
+        advance_rect = advance_rect.with_max_x(advance_rect.min.x);
     }
+    if expanded {
+        // Account for the margin of the title frame + the margin of the window contents
+        // - the default ui spacing egui would add on this call
+        advance_rect.max.y += frame.total_margin().bottom + frame.inner_margin.top as f32
+            - child_ui.spacing().item_spacing.y;
+    }
+
+    ui.advance_cursor_after_rect(advance_rect);
 
     layout_response.response
 }
