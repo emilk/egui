@@ -1029,6 +1029,15 @@ pub struct PointerState {
     /// `None` if no mouse button is down.
     press_start_time: Option<f64>,
 
+    /// The click-count (1/2/3) of the most recent press, computed at PRESS time.
+    ///
+    /// `count` on a [`Click`] is normally only known at release time, but for
+    /// double-/triple-click-and-drag text selection we need to know, while the
+    /// button is still held, whether the in-progress press is the 2nd or 3rd of
+    /// a sequence. This is set when a press event is handled and reflects the
+    /// most recent press.
+    pub(crate) press_click_count: Option<u32>,
+
     /// Set to `true` if the pointer has moved too much (since being pressed)
     /// for it to be registered as a click.
     pub(crate) has_moved_too_much_for_a_click: bool,
@@ -1077,6 +1086,7 @@ impl Default for PointerState {
             down: Default::default(),
             press_origin: None,
             press_start_time: None,
+            press_click_count: None,
             has_moved_too_much_for_a_click: false,
             started_decidedly_dragging: false,
             last_click_pos: None,
@@ -1146,6 +1156,30 @@ impl PointerState {
                         self.press_origin = Some(pos);
                         self.press_start_time = Some(time);
                         self.has_moved_too_much_for_a_click = false;
+
+                        // Compute the click-count of this in-progress press, using the
+                        // same double-/triple-click logic the release path uses below.
+                        // This lets text widgets know, while the button is still held,
+                        // whether this press starts a double-/triple-click-and-drag.
+                        let click_dist_sq = self
+                            .last_click_pos
+                            .map_or(0.0, |last_pos| last_pos.distance_sq(pos));
+                        let within_dist = click_dist_sq
+                            < self.options.max_click_dist * self.options.max_click_dist;
+                        let double_click = (time - self.last_click_time)
+                            < self.options.max_double_click_delay
+                            && within_dist;
+                        let triple_click = (time - self.last_last_click_time)
+                            < (self.options.max_double_click_delay * 2.0)
+                            && within_dist;
+                        self.press_click_count = Some(if triple_click {
+                            3
+                        } else if double_click {
+                            2
+                        } else {
+                            1
+                        });
+
                         self.pointer_events.push(PointerEvent::Pressed {
                             position: pos,
                             button,
@@ -1299,6 +1333,16 @@ impl PointerState {
     #[inline(always)]
     pub fn press_start_time(&self) -> Option<f64> {
         self.press_start_time
+    }
+
+    /// The click-count (1, 2 or 3) of the most recent press, computed at press time.
+    ///
+    /// Unlike a [`Click`]'s `count` (only known on release), this is available
+    /// while the button is still held, which is needed for
+    /// double-/triple-click-and-drag text selection.
+    #[inline(always)]
+    pub(crate) fn press_click_count(&self) -> Option<u32> {
+        self.press_click_count
     }
 
     /// Latest reported pointer position.
@@ -1653,6 +1697,7 @@ impl PointerState {
             down,
             press_origin,
             press_start_time,
+            press_click_count,
             has_moved_too_much_for_a_click,
             started_decidedly_dragging,
             last_click_pos,
@@ -1675,6 +1720,7 @@ impl PointerState {
         ui.label(format!("down: {down:#?}"));
         ui.label(format!("press_origin: {press_origin:?}"));
         ui.label(format!("press_start_time: {press_start_time:?} s"));
+        ui.label(format!("press_click_count: {press_click_count:?}"));
         ui.label(format!(
             "has_moved_too_much_for_a_click: {has_moved_too_much_for_a_click}"
         ));

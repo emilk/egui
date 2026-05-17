@@ -7,6 +7,49 @@ use crate::{NumExt as _, Rect, Response, Ui, epaint};
 
 use super::CCursorRange;
 
+/// How a drag-selection extends the selection.
+///
+/// A plain click-and-drag selects character-by-character. Double-click-and-drag
+/// selects word-by-word, and triple-click-and-drag selects line-by-line.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum SelectionMode {
+    /// Select character-by-character (plain click-and-drag).
+    #[default]
+    Char,
+
+    /// Select word-by-word (double-click-and-drag).
+    Word,
+
+    /// Select line-by-line (triple-click-and-drag).
+    Line,
+}
+
+impl SelectionMode {
+    /// Derive the selection mode from a press click-count (1 => Char, 2 => Word, >=3 => Line).
+    pub fn from_click_count(count: u32) -> Self {
+        match count {
+            2 => Self::Word,
+            3.. => Self::Line,
+            _ => Self::Char,
+        }
+    }
+
+    /// Returns the unit (word/line/char) range containing `ccursor` in `text`.
+    pub(crate) fn unit_at(self, text: &str, ccursor: CCursor) -> CCursorRange {
+        match self {
+            Self::Char => CCursorRange::one(ccursor),
+            Self::Word => select_word_at(text, ccursor),
+            Self::Line => select_line_at(text, ccursor),
+        }
+    }
+
+    /// Returns the `(min, max)` char range of the unit containing `ccursor`.
+    pub(crate) fn unit_bounds_at(self, text: &str, ccursor: CCursor) -> (usize, usize) {
+        range_bounds(&self.unit_at(text, ccursor))
+    }
+}
+
 /// The state of a text cursor selection.
 ///
 /// Used for [`crate::TextEdit`] and [`crate::Label`].
@@ -15,12 +58,23 @@ use super::CCursorRange;
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextCursorState {
     ccursor_range: Option<CCursorRange>,
+
+    /// The granularity of the current drag-selection.
+    selection_mode: SelectionMode,
+
+    /// The unit (word/line) range the current drag started in.
+    ///
+    /// Used in [`SelectionMode::Word`] / [`SelectionMode::Line`] so that dragging
+    /// back and forth across the anchor re-derives the selection correctly.
+    /// Stored as `(min, max)` character indices.
+    drag_anchor_unit: Option<(usize, usize)>,
 }
 
 impl From<CCursorRange> for TextCursorState {
     fn from(ccursor_range: CCursorRange) -> Self {
         Self {
             ccursor_range: Some(ccursor_range),
+            ..Default::default()
         }
     }
 }
@@ -48,6 +102,43 @@ impl TextCursorState {
     /// Sets the currently selected range of characters.
     pub fn set_char_range(&mut self, ccursor_range: Option<CCursorRange>) {
         self.ccursor_range = ccursor_range;
+    }
+
+    /// The granularity of the current drag-selection (char/word/line).
+    pub fn selection_mode(&self) -> SelectionMode {
+        self.selection_mode
+    }
+
+    /// Begin a drag-selection in the given `mode`, anchoring on the unit
+    /// (word/line/char) under `cursor_at_pointer`.
+    ///
+    /// Returns the initial [`CCursorRange`] for the selection.
+    fn begin_drag(
+        &mut self,
+        text: &str,
+        cursor_at_pointer: CCursor,
+        mode: SelectionMode,
+    ) -> CCursorRange {
+        self.selection_mode = mode;
+        let unit = mode.unit_at(text, cursor_at_pointer);
+        self.drag_anchor_unit = Some(range_bounds(&unit));
+        unit
+    }
+
+    /// Extend the current word/line drag-selection to the pointer position.
+    ///
+    /// Returns the new [`CCursorRange`], or `None` if not in a word/line drag.
+    fn extend_word_line_drag(
+        &self,
+        text: &str,
+        cursor_at_pointer: CCursor,
+    ) -> Option<CCursorRange> {
+        if self.selection_mode == SelectionMode::Char {
+            return None;
+        }
+        let anchor_unit = self.drag_anchor_unit?;
+        let pointer_unit = range_bounds(&self.selection_mode.unit_at(text, cursor_at_pointer));
+        Some(combine_units(anchor_unit, pointer_unit))
     }
 }
 
@@ -79,6 +170,9 @@ impl TextCursorState {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
                 // The start of a drag (or a click).
                 if ui.input(|i| i.modifiers.shift) {
+                    // Shift-click extends the current selection; keep char granularity.
+                    self.selection_mode = SelectionMode::Char;
+                    self.drag_anchor_unit = None;
                     if let Some(mut cursor_range) = self.range(galley) {
                         cursor_range.primary = cursor_at_pointer;
                         self.set_char_range(Some(cursor_range));
@@ -86,12 +180,22 @@ impl TextCursorState {
                         self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
                     }
                 } else {
-                    self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
+                    // Use the press click-count to decide the drag granularity:
+                    // 2 => word-by-word, >=3 => line-by-line, else char-by-char.
+                    let mode = ui
+                        .input(|i| i.pointer.press_click_count())
+                        .map_or(SelectionMode::Char, SelectionMode::from_click_count);
+                    let ccursor_range = self.begin_drag(text, cursor_at_pointer, mode);
+                    self.set_char_range(Some(ccursor_range));
                 }
                 true
             } else if is_being_dragged {
                 // Drag to select text:
-                if let Some(mut cursor_range) = self.range(galley) {
+                if let Some(ccursor_range) = self.extend_word_line_drag(text, cursor_at_pointer) {
+                    // Word-/line-by-word drag (double-/triple-click-and-drag).
+                    self.set_char_range(Some(ccursor_range));
+                } else if let Some(mut cursor_range) = self.range(galley) {
+                    // Plain character-by-character drag.
                     cursor_range.primary = cursor_at_pointer;
                     self.set_char_range(Some(cursor_range));
                 }
@@ -103,6 +207,50 @@ impl TextCursorState {
             false
         }
     }
+}
+
+/// Extend a drag-selection from an anchored unit to the unit under the pointer.
+///
+/// `anchor_unit` is the `(min, max)` character range of the word/line the drag
+/// started in. `pointer_unit` is the `(min, max)` range of the word/line under
+/// the current pointer position. The result is the union of the two units, with
+/// `primary` placed at the moving (pointer) end and `secondary` at the anchored
+/// end, so the selection extends in the direction the user drags and shrinks
+/// back when dragging towards the anchor.
+pub(crate) fn combine_units(
+    anchor_unit: (usize, usize),
+    pointer_unit: (usize, usize),
+) -> CCursorRange {
+    let (anchor_min, anchor_max) = anchor_unit;
+    let (pointer_min, pointer_max) = pointer_unit;
+
+    let union_min = anchor_min.min(pointer_min);
+    let union_max = anchor_max.max(pointer_max);
+
+    // If the pointer unit is at or before the anchor, the selection extends to
+    // the left, so the moving (primary) end is the union's minimum.
+    // Otherwise the selection extends to the right.
+    if pointer_min < anchor_min {
+        CCursorRange {
+            primary: CCursor::new(union_min),
+            secondary: CCursor::new(union_max),
+            h_pos: None,
+        }
+    } else {
+        CCursorRange {
+            primary: CCursor::new(union_max),
+            secondary: CCursor::new(union_min),
+            h_pos: None,
+        }
+    }
+}
+
+/// Returns the `(min, max)` character indices of a [`CCursorRange`].
+fn range_bounds(range: &CCursorRange) -> (usize, usize) {
+    (
+        range.primary.index.min(range.secondary.index),
+        range.primary.index.max(range.secondary.index),
+    )
 }
 
 fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
@@ -390,6 +538,102 @@ mod test {
         );
         assert_eq!(lo, 6);
         assert_eq!(hi, 11);
+    }
+
+    /// Helper mirroring `extend_word_line_drag`: given an anchor cursor and a
+    /// pointer cursor, return the `(min, max)` of the resulting selection.
+    fn drag_select(
+        mode: SelectionMode,
+        text: &str,
+        anchor: usize,
+        pointer: usize,
+    ) -> (usize, usize) {
+        let anchor_unit = mode.unit_bounds_at(text, CCursor::new(anchor));
+        let pointer_unit = mode.unit_bounds_at(text, CCursor::new(pointer));
+        let range = combine_units(anchor_unit, pointer_unit);
+        range_bounds(&range)
+    }
+
+    #[test]
+    fn test_combine_units_directions() {
+        // Anchor on the middle word, drag forward and backward.
+        let anchor = (6, 11); // "world" in "hello world again"
+
+        // Pointer in the same unit -> selection is just the anchor unit.
+        let same = combine_units(anchor, (6, 11));
+        assert_eq!(range_bounds(&same), (6, 11));
+
+        // Pointer unit fully after the anchor -> extends right,
+        // primary (moving end) at the maximum.
+        let forward = combine_units(anchor, (12, 17));
+        assert_eq!(range_bounds(&forward), (6, 17));
+        assert_eq!(forward.primary.index, 17);
+        assert_eq!(forward.secondary.index, 6);
+
+        // Pointer unit fully before the anchor -> extends left,
+        // primary (moving end) at the minimum.
+        let backward = combine_units(anchor, (0, 5));
+        assert_eq!(range_bounds(&backward), (0, 11));
+        assert_eq!(backward.primary.index, 0);
+        assert_eq!(backward.secondary.index, 11);
+    }
+
+    #[test]
+    fn test_word_drag_extension() {
+        let text = "hello world again now";
+        //          0     6     12    18
+
+        // Double-click on "world", then drag forward into "again":
+        // whole words should be selected.
+        assert_eq!(drag_select(SelectionMode::Word, text, 8, 14), (6, 17));
+
+        // Keep dragging forward into "now".
+        assert_eq!(drag_select(SelectionMode::Word, text, 8, 20), (6, 21));
+
+        // Drag back onto the anchor word -> only the anchor word selected.
+        assert_eq!(drag_select(SelectionMode::Word, text, 8, 7), (6, 11));
+
+        // Drag backward, before the anchor, into "hello".
+        assert_eq!(drag_select(SelectionMode::Word, text, 8, 2), (0, 11));
+    }
+
+    #[test]
+    fn test_line_drag_extension() {
+        let text = "first line\nsecond line\nthird line";
+        //          0          11         23
+
+        // Triple-click on the first line, drag down into the second line:
+        // both whole lines selected.
+        let sel = drag_select(SelectionMode::Line, text, 3, 15);
+        assert_eq!(sel.0, 0);
+        assert_eq!(sel.1, 22); // end of "second line" (before the newline)
+
+        // Drag further down into the third line.
+        let sel = drag_select(SelectionMode::Line, text, 3, 27);
+        assert_eq!(sel.0, 0);
+        assert_eq!(sel.1, text.chars().count());
+
+        // Anchor on the last line, drag backward (upward) into the first line.
+        let sel = drag_select(SelectionMode::Line, text, 27, 3);
+        assert_eq!(sel.0, 0);
+        assert_eq!(sel.1, text.chars().count());
+
+        // Drag back onto the anchor line only.
+        let sel = drag_select(SelectionMode::Line, text, 15, 13);
+        assert_eq!(sel.0, 11);
+        assert_eq!(sel.1, 22);
+    }
+
+    #[test]
+    fn test_char_mode_is_single_cursor() {
+        // Char mode units are a single cursor; combining them just yields a range.
+        let text = "hello world";
+        let anchor = SelectionMode::Char.unit_bounds_at(text, CCursor::new(2));
+        let pointer = SelectionMode::Char.unit_bounds_at(text, CCursor::new(8));
+        assert_eq!(anchor, (2, 2));
+        assert_eq!(pointer, (8, 8));
+        let range = combine_units(anchor, pointer);
+        assert_eq!(range_bounds(&range), (2, 8));
     }
 
     #[test]

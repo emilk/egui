@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     TextCursorState,
-    text_cursor_state::cursor_rect,
+    text_cursor_state::{SelectionMode, cursor_rect},
     visuals::{RowVertexIndices, paint_text_selection},
 };
 
@@ -95,6 +95,17 @@ pub struct LabelSelectionState {
     /// Are we in drag-to-select state?
     is_dragging: bool,
 
+    /// The granularity of the current drag-to-select (char/word/line).
+    ///
+    /// Set when a drag begins, from the press click-count.
+    selection_mode: SelectionMode,
+
+    /// The widget and `(min, max)` char range of the word/line the current
+    /// word-/line-drag was anchored on.
+    ///
+    /// `None` for plain character drags.
+    drag_anchor: Option<(Id, usize, usize)>,
+
     /// Have we reached the widget containing the primary selection?
     has_reached_primary: bool,
 
@@ -119,6 +130,8 @@ impl Default for LabelSelectionState {
             selection_bbox_this_frame: Rect::NOTHING,
             any_hovered: Default::default(),
             is_dragging: Default::default(),
+            selection_mode: Default::default(),
+            drag_anchor: Default::default(),
             has_reached_primary: Default::default(),
             has_reached_secondary: Default::default(),
             text_to_copy: Default::default(),
@@ -372,23 +385,88 @@ impl LabelSelectionState {
             };
 
             if let Some(new_primary) = new_primary {
+                // We don't want the latency of `drag_started`.
+                let drag_started = ui.input(|i| i.pointer.any_pressed());
+                let shift = ui.input(|i| i.modifiers.shift);
+
+                if drag_started && !shift {
+                    // Decide the drag granularity from the press click-count:
+                    // 2 => word-by-word, >=3 => line-by-line, else char-by-char.
+                    self.selection_mode = ui
+                        .input(|i| i.pointer.press_click_count())
+                        .map_or(SelectionMode::Char, SelectionMode::from_click_count);
+                    self.drag_anchor = None;
+                }
+
+                // For word/line drags, snap the moving cursor to whole-word /
+                // whole-line boundaries. The anchor unit lives in the galley
+                // where the drag began; we snap per galley so the single-galley
+                // case is fully correct. Cross-galley drags snap each galley's
+                // moving end and rely on the begin/end fallbacks in the
+                // `(Some, None)` / `(None, Some)` match arms below.
+                let new_primary = if self.selection_mode != SelectionMode::Char
+                    && response.contains_pointer()
+                {
+                    let text = galley.text();
+                    let pointer_unit = self.selection_mode.unit_bounds_at(text, new_primary);
+
+                    if drag_started && !shift {
+                        // Anchor the drag on the unit under the initial press.
+                        self.drag_anchor = Some((response.id, pointer_unit.0, pointer_unit.1));
+                    }
+
+                    match self.drag_anchor {
+                        // Dragging within the galley the drag was anchored in:
+                        // take the union of the anchor unit and the pointer unit.
+                        Some((anchor_id, anchor_min, anchor_max)) if anchor_id == response.id => {
+                            let range = super::text_cursor_state::combine_units(
+                                (anchor_min, anchor_max),
+                                pointer_unit,
+                            );
+                            selection.secondary = WidgetTextCursor::new(
+                                response.id,
+                                range.secondary,
+                                global_from_galley,
+                                galley,
+                            );
+                            range.primary
+                        }
+                        // Dragging in a different galley: snap the moving end of
+                        // this galley to a word/line boundary. Whether we snap to
+                        // the start or end depends on the drag direction.
+                        _ => {
+                            let primary_pos =
+                                global_from_galley * pos_in_galley(galley, new_primary);
+                            if selection.secondary.pos.y <= primary_pos.y {
+                                CCursor::new(pointer_unit.1)
+                            } else {
+                                CCursor::new(pointer_unit.0)
+                            }
+                        }
+                    }
+                } else {
+                    new_primary
+                };
+
                 selection.primary =
                     WidgetTextCursor::new(response.id, new_primary, global_from_galley, galley);
 
-                // We don't want the latency of `drag_started`.
-                let drag_started = ui.input(|i| i.pointer.any_pressed());
                 if drag_started {
                     if selection.layer_id == response.layer_id {
-                        if ui.input(|i| i.modifiers.shift) {
+                        if shift {
                             // A continuation of a previous selection.
-                        } else {
+                        } else if self.selection_mode == SelectionMode::Char {
                             // A new selection in the same layer.
                             selection.secondary = selection.primary;
                         }
+                        // For word/line mode the secondary was already set to the
+                        // far end of the anchor unit above.
                     } else {
                         // A new selection in a new layer.
                         selection.layer_id = response.layer_id;
-                        selection.secondary = selection.primary;
+                        if self.selection_mode == SelectionMode::Char {
+                            selection.secondary = selection.primary;
+                        }
                     }
                 }
             }
