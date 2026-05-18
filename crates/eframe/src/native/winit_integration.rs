@@ -87,8 +87,8 @@ pub trait WinitApp {
 
     fn run_ui_and_paint(
         &mut self,
-        window_id: WindowId,
         event_loop: &ActiveEventLoop,
+        window_id: WindowId,
     ) -> crate::Result<EventResult>;
 
     fn suspended(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;

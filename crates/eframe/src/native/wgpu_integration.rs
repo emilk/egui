@@ -403,8 +403,8 @@ impl WinitApp for WgpuWinitApp<'_> {
 
     fn run_ui_and_paint(
         &mut self,
-        window_id: WindowId,
         event_loop: &ActiveEventLoop,
+        window_id: WindowId,
     ) -> Result<EventResult> {
         self.initialized_all_windows(event_loop);
 

@@ -409,11 +409,11 @@ impl WinitApp for GlowWinitApp<'_> {
 
     fn run_ui_and_paint(
         &mut self,
-        window_id: WindowId,
         event_loop: &ActiveEventLoop,
+        window_id: WindowId,
     ) -> Result<EventResult> {
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id, event_loop)
+            running.run_ui_and_paint(event_loop, window_id)
         } else {
             Ok(EventResult::Wait)
         }
@@ -518,8 +518,8 @@ impl WinitApp for GlowWinitApp<'_> {
 impl GlowWinitRunning<'_> {
     fn run_ui_and_paint(
         &mut self,
-        window_id: WindowId,
         event_loop: &ActiveEventLoop,
+        window_id: WindowId,
     ) -> Result<EventResult> {
         profiling::function_scope!();
 
