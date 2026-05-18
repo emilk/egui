@@ -8,8 +8,8 @@ use crate::{
 };
 
 use super::{
-    TextCursorState,
-    text_cursor_state::{SelectionMode, cursor_rect},
+    SelectionMode, TextCursorState,
+    text_cursor_state::cursor_rect,
     visuals::{RowVertexIndices, paint_text_selection},
 };
 

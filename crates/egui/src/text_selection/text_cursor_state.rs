@@ -5,50 +5,7 @@ use unicode_segmentation::UnicodeSegmentation as _;
 
 use crate::{NumExt as _, Rect, Response, Ui, epaint};
 
-use super::CCursorRange;
-
-/// How a drag-selection extends the selection.
-///
-/// A plain click-and-drag selects character-by-character. Double-click-and-drag
-/// selects word-by-word, and triple-click-and-drag selects line-by-line.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) enum SelectionMode {
-    /// Select character-by-character (plain click-and-drag).
-    #[default]
-    Char,
-
-    /// Select word-by-word (double-click-and-drag).
-    Word,
-
-    /// Select line-by-line (triple-click-and-drag).
-    Line,
-}
-
-impl SelectionMode {
-    /// Derive the selection mode from a press click-count (1 => Char, 2 => Word, >=3 => Line).
-    pub(crate) fn from_click_count(count: u32) -> Self {
-        match count {
-            2 => Self::Word,
-            3.. => Self::Line,
-            _ => Self::Char,
-        }
-    }
-
-    /// Returns the unit (word/line/char) range containing `ccursor` in `text`.
-    pub(crate) fn unit_at(self, text: &str, ccursor: CCursor) -> CCursorRange {
-        match self {
-            Self::Char => CCursorRange::one(ccursor),
-            Self::Word => select_word_at(text, ccursor),
-            Self::Line => select_line_at(text, ccursor),
-        }
-    }
-
-    /// Returns the `(min, max)` char range of the unit containing `ccursor`.
-    pub(crate) fn unit_bounds_at(self, text: &str, ccursor: CCursor) -> (usize, usize) {
-        range_bounds(&self.unit_at(text, ccursor))
-    }
-}
+use super::{CCursorRange, SelectionMode};
 
 /// The state of a text cursor selection.
 ///
@@ -335,14 +292,14 @@ pub(crate) fn anchor_secondary_index(
 }
 
 /// Returns the `(min, max)` character indices of a [`CCursorRange`].
-fn range_bounds(range: &CCursorRange) -> (usize, usize) {
+pub(crate) fn range_bounds(range: &CCursorRange) -> (usize, usize) {
     (
         range.primary.index.min(range.secondary.index),
         range.primary.index.max(range.secondary.index),
     )
 }
 
-fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
+pub(crate) fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
     if text.is_empty() {
         return CCursorRange::one(ccursor);
     }
@@ -365,7 +322,7 @@ fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
     )
 }
 
-fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
+pub(crate) fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
     if ccursor.index == 0 {
         CCursorRange::two(ccursor, ccursor_next_line(text, ccursor))
     } else {
@@ -869,15 +826,6 @@ mod test {
             range_bounds(&cached_b),
             "same-length text is treated as unchanged (documented limitation)"
         );
-    }
-
-    #[test]
-    fn test_from_click_count() {
-        assert_eq!(SelectionMode::from_click_count(0), SelectionMode::Char);
-        assert_eq!(SelectionMode::from_click_count(1), SelectionMode::Char);
-        assert_eq!(SelectionMode::from_click_count(2), SelectionMode::Word);
-        assert_eq!(SelectionMode::from_click_count(3), SelectionMode::Line);
-        assert_eq!(SelectionMode::from_click_count(4), SelectionMode::Line);
     }
 
     #[test]
