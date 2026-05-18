@@ -1077,6 +1077,7 @@ pub struct Visuals {
     /// Allow widgets to paint this much outside the scroll area rect.
     ///
     /// Legacy. Should not be used anymore.
+    /// Use [`ScrollArea::content_margin`] instead.
     pub clip_rect_margin: f32,
 
     /// Show a background behind buttons.
