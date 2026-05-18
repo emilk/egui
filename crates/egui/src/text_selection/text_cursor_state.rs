@@ -68,6 +68,14 @@ pub struct TextCursorState {
     /// back and forth across the anchor re-derives the selection correctly.
     /// Stored as `(min, max)` character indices.
     drag_anchor_unit: Option<(usize, usize)>,
+
+    /// Stationary-pointer cache for the word/line unit lookup.
+    ///
+    /// `extend_word_line_drag` runs every frame while dragging and does an O(n)
+    /// word/line scan. This caches the pointer's char index and the resulting
+    /// range from the previous frame, so the scan is skipped while the pointer
+    /// stays on the same character. Cleared when a new drag begins.
+    last_drag_pointer: Option<(usize, CCursorRange)>,
 }
 
 impl From<CCursorRange> for TextCursorState {
@@ -122,14 +130,19 @@ impl TextCursorState {
         self.selection_mode = mode;
         let unit = mode.unit_at(text, cursor_at_pointer);
         self.drag_anchor_unit = Some(range_bounds(&unit));
+        // A fresh drag must never reuse a stale cached range.
+        self.last_drag_pointer = None;
         unit
     }
 
     /// Extend the current word/line drag-selection to the pointer position.
     ///
     /// Returns the new [`CCursorRange`], or `None` if not in a word/line drag.
+    ///
+    /// The O(n) word/line scan is skipped while the pointer's char index is
+    /// unchanged from the previous frame (see [`Self::last_drag_pointer`]).
     fn extend_word_line_drag(
-        &self,
+        &mut self,
         text: &str,
         cursor_at_pointer: CCursor,
     ) -> Option<CCursorRange> {
@@ -137,8 +150,18 @@ impl TextCursorState {
             return None;
         }
         let anchor_unit = self.drag_anchor_unit?;
+
+        // Stationary-pointer fast path: same char index as last frame.
+        if let Some((cached_index, cached_range)) = self.last_drag_pointer
+            && cached_index == cursor_at_pointer.index
+        {
+            return Some(cached_range);
+        }
+
         let pointer_unit = range_bounds(&self.selection_mode.unit_at(text, cursor_at_pointer));
-        Some(combine_units(anchor_unit, pointer_unit))
+        let range = combine_units(anchor_unit, pointer_unit);
+        self.last_drag_pointer = Some((cursor_at_pointer.index, range));
+        Some(range)
     }
 }
 
@@ -242,6 +265,31 @@ pub(crate) fn combine_units(
             secondary: CCursor::new(union_min),
             h_pos: None,
         }
+    }
+}
+
+/// Pick which end of an anchor unit the selection's `secondary` should point to.
+///
+/// During a cross-galley word/line drag, `secondary` must always sit at the
+/// *far* end of the anchor unit relative to the moving (primary) end, so the
+/// whole anchor word/line stays selected regardless of drag direction.
+///
+/// `anchor_unit` is the `(min, max)` char range of the anchored word/line.
+/// `primary_before_anchor` is `true` when the moving end has been dragged
+/// upward/leftward past the anchor (i.e. the selection extends backwards).
+///
+/// When the primary is before the anchor, the selection extends backwards, so
+/// `secondary` must be at the anchor's `max`; otherwise it is at the anchor's
+/// `min`.
+pub(crate) fn anchor_secondary_index(
+    anchor_unit: (usize, usize),
+    primary_before_anchor: bool,
+) -> usize {
+    let (anchor_min, anchor_max) = anchor_unit;
+    if primary_before_anchor {
+        anchor_max
+    } else {
+        anchor_min
     }
 }
 
@@ -660,6 +708,66 @@ mod test {
             elapsed.as_secs() < 5,
             "Word boundary operations on 1MB text took {elapsed:?}, expected < 5s"
         );
+    }
+
+    #[test]
+    fn test_anchor_secondary_index_directions() {
+        let anchor = (6, 11); // "world" in "hello world again"
+
+        // Dragging forward/downward: primary is after the anchor, so the
+        // secondary sits at the anchor's MIN, keeping the anchor word selected.
+        assert_eq!(anchor_secondary_index(anchor, false), 6);
+
+        // Dragging upward/leftward: primary is before the anchor, so the
+        // secondary must sit at the anchor's MAX, keeping the anchor selected.
+        assert_eq!(anchor_secondary_index(anchor, true), 11);
+    }
+
+    #[test]
+    fn test_extend_word_line_drag_cache() {
+        let text = "hello world again now";
+        let mut state = TextCursorState::default();
+
+        // Begin a word drag anchored on "world".
+        let initial = state.begin_drag(text, CCursor::new(8), SelectionMode::Word);
+        assert_eq!(range_bounds(&initial), (6, 11));
+        assert!(state.last_drag_pointer.is_none(), "begin_drag clears cache");
+
+        // First extension into "again": fresh computation, fills the cache.
+        let first = state
+            .extend_word_line_drag(text, CCursor::new(14))
+            .expect("word drag active");
+        assert_eq!(range_bounds(&first), (6, 17));
+        assert_eq!(state.last_drag_pointer.map(|(i, _)| i), Some(14));
+
+        // Repeated pointer index: cached path returns the same range.
+        let cached = state
+            .extend_word_line_drag(text, CCursor::new(14))
+            .expect("word drag active");
+        assert_eq!(range_bounds(&cached), range_bounds(&first));
+
+        // A different index recomputes a fresh (different) range.
+        let moved = state
+            .extend_word_line_drag(text, CCursor::new(20))
+            .expect("word drag active");
+        assert_eq!(range_bounds(&moved), (6, 21));
+        assert_ne!(range_bounds(&moved), range_bounds(&first));
+        assert_eq!(state.last_drag_pointer.map(|(i, _)| i), Some(20));
+
+        // The cached range must match a fresh computation for that same index.
+        let fresh_for_14 = {
+            let anchor_unit = state.drag_anchor_unit.unwrap();
+            let pointer_unit = range_bounds(&SelectionMode::Word.unit_at(text, CCursor::new(14)));
+            combine_units(anchor_unit, pointer_unit)
+        };
+        let cached_again = state
+            .extend_word_line_drag(text, CCursor::new(14))
+            .expect("word drag active");
+        assert_eq!(range_bounds(&cached_again), range_bounds(&fresh_for_14));
+
+        // begin_drag clears the cache so a new drag never reuses a stale range.
+        state.begin_drag(text, CCursor::new(8), SelectionMode::Word);
+        assert!(state.last_drag_pointer.is_none());
     }
 }
 

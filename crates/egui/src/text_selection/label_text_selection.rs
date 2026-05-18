@@ -472,6 +472,45 @@ impl LabelSelectionState {
             }
         }
 
+        // Cross-galley word/line drag: keep the anchor unit fully selected.
+        //
+        // `selection.secondary` is set once at drag start (via `combine_units`)
+        // to the anchor unit's MIN, which is only correct while dragging
+        // forward/downward. If the user drags UPWARD out of the anchor widget,
+        // `secondary` must instead sit at the anchor unit's MAX so the anchor
+        // word/line itself stays selected. Within a single galley the
+        // `combine_units` path above already recomputes both ends every frame,
+        // so we only handle the cross-galley case here.
+        //
+        // Galleys are visited in layout order, so `selection.primary` may be one
+        // frame stale when the anchor galley is processed before the pointer's
+        // galley. That one-frame lag is acceptable; the steady state is correct.
+        if self.is_dragging
+            && self.selection_mode != SelectionMode::Char
+            && let Some((anchor_id, anchor_min, anchor_max)) = self.drag_anchor
+            && anchor_id == response.id
+            && selection.primary.widget_id != anchor_id
+        {
+            // The primary is in a different galley than the anchor. Decide drag
+            // direction by comparing the primary's screen position against the
+            // anchor unit's position within this (the anchor's) galley.
+            let anchor_min_pos =
+                global_from_galley * pos_in_galley(galley, CCursor::new(anchor_min));
+            let primary_before_anchor = selection.primary.pos.y < anchor_min_pos.y
+                || (selection.primary.pos.y == anchor_min_pos.y
+                    && selection.primary.pos.x < anchor_min_pos.x);
+            let secondary_index = super::text_cursor_state::anchor_secondary_index(
+                (anchor_min, anchor_max),
+                primary_before_anchor,
+            );
+            selection.secondary = WidgetTextCursor::new(
+                anchor_id,
+                CCursor::new(secondary_index),
+                global_from_galley,
+                galley,
+            );
+        }
+
         let has_primary = response.id == selection.primary.widget_id;
         let has_secondary = response.id == selection.secondary.widget_id;
 
