@@ -306,8 +306,7 @@ impl Resize {
             .ui_stack_info(UiStackInfo::new(UiKind::Resize))
             .max_rect(inner_rect);
         if needs_sizing_pass {
-            ui_builder = ui_builder
-                .sizing_pass();
+            ui_builder = ui_builder.sizing_pass();
         }
         let mut content_ui = ui.new_child(ui_builder);
         content_ui.set_clip_rect(content_clip_rect);
