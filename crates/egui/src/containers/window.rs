@@ -519,8 +519,6 @@ impl Window<'_> {
         let on_top = Some(area_layer_id) == ctx.top_layer_id();
         let mut area = area.begin(ctx);
 
-        let window_margin = style.spacing.window_margin;
-
         area.with_widget_info(|| {
             WidgetInfo::labeled(
                 WidgetType::Window,
@@ -560,37 +558,40 @@ impl Window<'_> {
         }
 
         let content_inner = {
-            let outer_response = window_frame.show(&mut area_content_ui, |ui| {
-                resize.show(ui, |ui| {
-                    if with_title_bar {
-                        title_ui(
-                            ui,
-                            title,
-                            window_frame,
-                            &mut collapsing,
-                            collapsible,
-                            on_top,
-                            open.as_deref_mut(),
-                            auto_sized,
-                        );
-                    }
-                    collapsing
-                        .show_body_unindented(ui, |ui| {
-                            if scroll.is_any_scroll_enabled() {
-                                scroll
-                                    .content_margin(window_margin)
-                                    .show(ui, add_contents)
-                                    .inner
-                            } else {
-                                crate::Frame::NONE
-                                    .inner_margin(window_margin)
-                                    .show(ui, add_contents)
-                                    .inner
-                            }
-                        })
-                        .map(|inner| inner.inner)
-                })
-            });
+            let window_margin = window_frame.inner_margin;
+            let outer_response = window_frame
+                .inner_margin(0.0) // it should be applied inside of the scroll area
+                .show(&mut area_content_ui, |ui| {
+                    resize.show(ui, |ui| {
+                        if with_title_bar {
+                            title_ui(
+                                ui,
+                                title,
+                                window_frame,
+                                &mut collapsing,
+                                collapsible,
+                                on_top,
+                                open.as_deref_mut(),
+                                auto_sized,
+                            );
+                        }
+                        collapsing
+                            .show_body_unindented(ui, |ui| {
+                                if scroll.is_any_scroll_enabled() {
+                                    scroll
+                                        .content_margin(window_margin)
+                                        .show(ui, add_contents)
+                                        .inner
+                                } else {
+                                    crate::Frame::NONE
+                                        .inner_margin(window_margin)
+                                        .show(ui, add_contents)
+                                        .inner
+                                }
+                            })
+                            .map(|inner| inner.inner)
+                    })
+                });
 
             let outer_rect = outer_response.response.rect;
 
@@ -1188,7 +1189,9 @@ fn title_ui(
         .gap(spacing)
         .fallback_font(TextStyle::Heading)
         .wrap_mode(TextWrapMode::Truncate)
-        .frame(Frame::NONE.inner_margin(ui.spacing().window_margin));
+        .frame(Frame::NONE.inner_margin(frame.inner_margin));
+
+    let frame = frame.inner_margin(0); // Only applied to the atoms; done above.
 
     if expanded {
         let min_width = if auto_sized {
