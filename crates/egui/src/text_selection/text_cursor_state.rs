@@ -78,13 +78,23 @@ pub struct TextCursorState {
     /// Stationary-pointer cache for the word/line unit lookup.
     ///
     /// `extend_word_line_drag` runs every frame while dragging and does an O(n)
-    /// word/line scan. This caches the pointer's char index and the resulting
-    /// range from the previous frame, so the scan is skipped while the pointer
-    /// stays on the same character. Cleared when a new drag begins.
+    /// word/line scan. This caches the pointer's char index, the galley text
+    /// length and the resulting range from the previous frame, so the scan is
+    /// skipped while the pointer stays on the same character. Cleared when a new
+    /// drag begins.
+    ///
+    /// The text length is part of the key: if the galley text changes mid-drag
+    /// (IME composition, programmatic edit) while the pointer char index stays
+    /// the same, a length-only key would return a stale range. `text.len()` is
+    /// cheap and a reliable change signal here.
     ///
     /// Ephemeral drag state; not persisted.
     #[cfg_attr(feature = "serde", serde(skip))]
-    last_drag_pointer: Option<(usize, CCursorRange)>,
+    last_drag_pointer: Option<(
+        usize, /* pointer index */
+        usize, /* text len */
+        CCursorRange,
+    )>,
 }
 
 impl From<CCursorRange> for TextCursorState {
@@ -155,16 +165,20 @@ impl TextCursorState {
         }
         let anchor_unit = self.drag_anchor_unit?;
 
-        // Stationary-pointer fast path: same char index as last frame.
-        if let Some((cached_index, cached_range)) = self.last_drag_pointer
+        // Stationary-pointer fast path: same char index AND same text length
+        // as last frame. A differing text length means the galley text changed
+        // mid-drag (IME, programmatic edit), so the cached range may be stale
+        // and must be treated as a miss.
+        if let Some((cached_index, cached_text_len, cached_range)) = self.last_drag_pointer
             && cached_index == cursor_at_pointer.index
+            && cached_text_len == text.len()
         {
             return Some(cached_range);
         }
 
         let pointer_unit = range_bounds(&self.selection_mode.unit_at(text, cursor_at_pointer));
         let range = combine_units(anchor_unit, pointer_unit);
-        self.last_drag_pointer = Some((cursor_at_pointer.index, range));
+        self.last_drag_pointer = Some((cursor_at_pointer.index, text.len(), range));
         Some(range)
     }
 }
@@ -217,7 +231,30 @@ impl TextCursorState {
                 }
                 true
             } else if is_being_dragged {
-                // Drag to select text:
+                // Drag to select text.
+                //
+                // Reachability note (egui issue #2550 follow-up): this branch
+                // reads `selection_mode`/`drag_anchor_unit`, which are set by
+                // the press branch above (via `begin_drag` or the shift path).
+                // It is *guaranteed* that the press branch ran first for this
+                // widget in the current gesture, so the state is never stale:
+                //
+                //  * `is_being_dragged` is true only when `dragged_id() ==
+                //    response.id`, which requires `potential_drag_id` to equal
+                //    this widget's id.
+                //  * `potential_drag_id` is only ever assigned from a press-time
+                //    drag hit (`hits.drag`) on a `PointerEvent::Pressed` frame.
+                //  * On that press frame `any_pressed()` is true and the hit
+                //    widget is in the `hovered` set, so `response.hovered() &&
+                //    any_pressed()` holds and the press branch runs.
+                //  * Every gesture's press branch unconditionally overwrites
+                //    `selection_mode`/`drag_anchor_unit`, so no value from an
+                //    earlier gesture can leak in.
+                //
+                // Hence no defensive reset is needed here. (Labels never reach
+                // this branch at all: `LabelSelectionState` always calls
+                // `pointer_interaction` with `is_being_dragged = false` and
+                // drives drag-selection through its own code path.)
                 if let Some(ccursor_range) = self.extend_word_line_drag(text, cursor_at_pointer) {
                     // Word-/line-by-word drag (double-/triple-click-and-drag).
                     self.set_char_range(Some(ccursor_range));
@@ -742,7 +779,7 @@ mod test {
             .extend_word_line_drag(text, CCursor::new(14))
             .expect("word drag active");
         assert_eq!(range_bounds(&first), (6, 17));
-        assert_eq!(state.last_drag_pointer.map(|(i, _)| i), Some(14));
+        assert_eq!(state.last_drag_pointer.map(|(i, _, _)| i), Some(14));
 
         // Repeated pointer index: cached path returns the same range.
         let cached = state
@@ -756,7 +793,7 @@ mod test {
             .expect("word drag active");
         assert_eq!(range_bounds(&moved), (6, 21));
         assert_ne!(range_bounds(&moved), range_bounds(&first));
-        assert_eq!(state.last_drag_pointer.map(|(i, _)| i), Some(20));
+        assert_eq!(state.last_drag_pointer.map(|(i, _, _)| i), Some(20));
 
         // The cached range must match a fresh computation for that same index.
         let fresh_for_14 = {
@@ -772,6 +809,66 @@ mod test {
         // begin_drag clears the cache so a new drag never reuses a stale range.
         state.begin_drag(text, CCursor::new(8), SelectionMode::Word);
         assert!(state.last_drag_pointer.is_none());
+    }
+
+    #[test]
+    fn test_extend_word_line_drag_cache_invalidated_on_text_change() {
+        // If the galley text changes mid-drag (IME composition, programmatic
+        // edit) while the pointer's char index stays the same, the cache must
+        // be treated as a miss so the returned range matches the new text.
+        let text_a = "hello world again now";
+        let text_b = "hello WORLD again now"; // same length, different content
+        let text_c = "hello worldX again now"; // different length
+
+        let mut state = TextCursorState::default();
+        state.begin_drag(text_a, CCursor::new(8), SelectionMode::Word);
+
+        // Fill the cache at pointer index 14 against `text_a`.
+        let first = state
+            .extend_word_line_drag(text_a, CCursor::new(14))
+            .expect("word drag active");
+        assert_eq!(range_bounds(&first), (6, 17));
+        assert_eq!(
+            state.last_drag_pointer.map(|(_, len, _)| len),
+            Some(text_a.len())
+        );
+
+        // Same pointer index but the text changed to one of a DIFFERENT length:
+        // the cache must miss and the range must be recomputed against `text_c`.
+        let after_len_change = state
+            .extend_word_line_drag(text_c, CCursor::new(14))
+            .expect("word drag active");
+        let fresh_for_c = {
+            let anchor_unit = state.drag_anchor_unit.unwrap();
+            let pointer_unit = range_bounds(&SelectionMode::Word.unit_at(text_c, CCursor::new(14)));
+            combine_units(anchor_unit, pointer_unit)
+        };
+        assert_eq!(
+            range_bounds(&after_len_change),
+            range_bounds(&fresh_for_c),
+            "cache must miss when the text length changes mid-drag"
+        );
+        assert_eq!(
+            state.last_drag_pointer.map(|(_, len, _)| len),
+            Some(text_c.len())
+        );
+
+        // A same-length change is NOT detected by the length key: this is the
+        // documented limitation. `text.len()` is a cheap, reliable signal for
+        // the common case (IME / programmatic edits change the length); a
+        // same-length swap is rare and not worth a more expensive key.
+        state.begin_drag(text_a, CCursor::new(8), SelectionMode::Word);
+        let cached_a = state
+            .extend_word_line_drag(text_a, CCursor::new(14))
+            .expect("word drag active");
+        let cached_b = state
+            .extend_word_line_drag(text_b, CCursor::new(14))
+            .expect("word drag active");
+        assert_eq!(
+            range_bounds(&cached_a),
+            range_bounds(&cached_b),
+            "same-length text is treated as unchanged (documented limitation)"
+        );
     }
 
     #[test]

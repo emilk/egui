@@ -512,23 +512,40 @@ impl LabelSelectionState {
         // `combine_units` path above already recomputes both ends every frame,
         // so we only handle the cross-galley case here.
         //
-        // Galleys are visited in layout order, so `selection.primary` may be one
+        // Drag direction is decided from the LIVE pointer position
+        // (`pointer_interact_pos`), not from `selection.primary.pos`. The latter
+        // is updated as galleys are visited in layout order, so it can be one
         // frame stale when the anchor galley is processed before the pointer's
-        // galley. That one-frame lag is acceptable; the steady state is correct.
+        // galley, which caused a one-frame flicker on a fast direction reversal.
+        // The live pointer position has no such lag.
+        //
+        // Pre-existing egui limitation (see the `cursor_for` comment about
+        // "encountering both ends of the cursor"): this flip can only run on the
+        // frame the anchor galley is actually visited (`anchor_id ==
+        // response.id`). If the anchor galley scrolls out of the visible scroll
+        // area, this block does not run, so `selection.secondary` simply freezes
+        // at its last computed value — a valid char index inside the anchor
+        // widget. There is no crash, panic or cross-galley index misuse:
+        // `secondary.pos` is only ever recomputed where `response.id ==
+        // selection.secondary.widget_id`. This degrades no worse than `main`'s
+        // char-mode multi-widget selection, which has the identical "endpoint
+        // outside the visible scroll areas" failure mode. Fixing it properly
+        // would require a rewrite of egui's multi-widget selection, which is out
+        // of scope here.
         if self.is_dragging
             && self.selection_mode != SelectionMode::Char
             && let Some((anchor_id, anchor_min, anchor_max)) = self.drag_anchor
             && anchor_id == response.id
             && selection.primary.widget_id != anchor_id
+            && let Some(pointer_pos) = ui.ctx().pointer_interact_pos()
         {
             // The primary is in a different galley than the anchor. Decide drag
-            // direction by comparing the primary's screen position against the
+            // direction by comparing the live pointer position against the
             // anchor unit's position within this (the anchor's) galley.
             let anchor_min_pos =
                 global_from_galley * pos_in_galley(galley, CCursor::new(anchor_min));
-            let primary_before_anchor = selection.primary.pos.y < anchor_min_pos.y
-                || (selection.primary.pos.y == anchor_min_pos.y
-                    && selection.primary.pos.x < anchor_min_pos.x);
+            let primary_before_anchor = pointer_pos.y < anchor_min_pos.y
+                || (pointer_pos.y == anchor_min_pos.y && pointer_pos.x < anchor_min_pos.x);
             let secondary_index = super::text_cursor_state::anchor_secondary_index(
                 (anchor_min, anchor_max),
                 primary_before_anchor,
