@@ -202,9 +202,6 @@ struct Prepared {
     corner_id: Option<Id>,
     state: State,
     content_ui: Ui,
-    /// True if this frame is a Resize-initiated sizing pass to discover the
-    /// content's true minimum width. The frame is rendered invisibly and
-    /// discarded; the measured size populates `min_content_width`.
     sizing_pass: bool,
 }
 
