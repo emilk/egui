@@ -1187,7 +1187,8 @@ fn title_ui(
     let mut layout = AtomLayout::new(atoms)
         .gap(spacing)
         .fallback_font(TextStyle::Heading)
-        .wrap_mode(TextWrapMode::Truncate);
+        .wrap_mode(TextWrapMode::Truncate)
+        .frame(Frame::NONE.inner_margin(ui.spacing().window_margin));
 
     if expanded {
         let min_width = if auto_sized {
@@ -1252,18 +1253,18 @@ fn title_ui(
         collapsing.toggle(&child_ui);
     }
 
-    child_ui.set_clip_rect(Rect::EVERYTHING);
-    let mut header_frame = frame.shadow(Shadow::NONE);
-    if active {
-        header_frame = header_frame.fill(ui.visuals().widgets.open.weak_bg_fill);
+    {
+        let mut header_frame = frame.shadow(Shadow::NONE);
+        if active {
+            header_frame = header_frame.fill(ui.visuals().widgets.open.weak_bg_fill);
+        }
+        if expanded {
+            header_frame.corner_radius.sw = 0;
+            header_frame.corner_radius.se = 0;
+        }
+        ui.painter()
+            .set(shape_idx, header_frame.paint(layout_response.rect));
     }
-    if expanded {
-        header_frame.corner_radius.sw = 0;
-        header_frame.corner_radius.se = 0;
-    }
-    child_ui
-        .painter()
-        .set(shape_idx, header_frame.paint(layout_response.rect));
 
     let mut advance_rect = child_ui.min_rect();
 
