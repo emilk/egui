@@ -1680,7 +1680,14 @@ fn process_viewport_command(
         ViewportCommand::Fullscreen(v) => {
             window.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
         }
-        ViewportCommand::Decorations(v) => window.set_decorations(v),
+        ViewportCommand::Decorations(v) => {
+            window.set_decorations(v);
+            #[cfg(target_os = "windows")]
+            {
+                use winit::platform::windows::WindowExtWindows as _;
+                window.set_undecorated_shadow(!v);
+            }
+        }
         ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
             egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
@@ -1960,6 +1967,7 @@ pub fn create_winit_window_attributes(
         if let Some(show) = _taskbar {
             window_attributes = window_attributes.with_skip_taskbar(!show);
         }
+        window_attributes = window_attributes.with_undecorated_shadow(!decorations.unwrap_or(true));
     }
 
     #[cfg(target_os = "macos")]
