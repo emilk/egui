@@ -18,13 +18,12 @@ pub(crate) struct State {
     /// Externally requested size (e.g. by Window) for the next frame
     pub(crate) requested_size: Option<Vec2>,
 
-    /// Minimum content width observed during the current interactive resize.
-    /// `None` until content overflows the offered rect. At that point we record
-    /// `last_content_size.x` here and clamp `desired_size.x` against it for the
-    /// rest of the drag, so wrapping/centered widgets see the same width the window will
-    /// end up clamped to. Reset to `None` whenever a drag is not in progress.
+    /// Minimum content width measured by a sizing pass at the start of the current
+    /// interactive resize. We clamp `desired_size.x` against this for the rest of
+    /// the drag so the user can't shrink the window past what the content actually
+    /// needs. Reset to `None` whenever a drag is not in progress.
     #[cfg_attr(feature = "serde", serde(default))]
-    observed_min_content_width: Option<f32>,
+    min_content_width: Option<f32>,
 }
 
 impl State {
@@ -203,6 +202,7 @@ struct Prepared {
     corner_id: Option<Id>,
     state: State,
     content_ui: Ui,
+    sizing_pass: bool,
 }
 
 impl Resize {
@@ -229,7 +229,7 @@ impl Resize {
                 desired_size: default_size,
                 last_content_size: vec2(0.0, 0.0),
                 requested_size: None,
-                observed_min_content_width: None,
+                min_content_width: None,
             }
         });
 
@@ -251,10 +251,15 @@ impl Resize {
             user_requested_size = Some(pointer_pos - position + 0.5 * corner_response.rect.size());
         }
 
+        let is_actively_resizing = user_requested_size.is_some();
+
+        // Drag just started: we don't yet know what the content's minimum width is.
+        // Run a one-frame sizing pass below to discover it.
+        let needs_sizing_pass = is_actively_resizing && state.min_content_width.is_none();
+
         if let Some(mut user_requested_size) = user_requested_size {
-            // We know the minimum width from a previous frame, so lets not shrink past that
-            if let Some(observed_min) = state.observed_min_content_width {
-                user_requested_size.x = user_requested_size.x.at_least(observed_min);
+            if let Some(min_width) = state.min_content_width {
+                user_requested_size.x = user_requested_size.x.at_least(min_width);
             }
             state.desired_size = user_requested_size;
         } else {
@@ -262,9 +267,9 @@ impl Resize {
             // This prevents auto-shrinking if the contents contain width-filling widgets (separators etc)
             // but it makes a lot of interactions with [`Window`]s nicer.
             state.desired_size = state.desired_size.max(state.last_content_size);
-            // No active drag, discard the observed min width, we'll rediscover on next drag,
+            // Drag ended (if any). Forget the cached min so the next drag re-measures it,
             // in case content changed.
-            state.observed_min_content_width = None;
+            state.min_content_width = None;
         }
 
         state.desired_size = state
@@ -274,7 +279,15 @@ impl Resize {
 
         // ------------------------------
 
-        let inner_rect = Rect::from_min_size(position, state.desired_size);
+        // For the sizing pass, offer the tightest possible rect so widgets shrink to
+        // their natural minimum. We render the frame invisibly and discard it so the
+        // user never sees the squished layout; the measured min then clamps drags.
+        let inner_rect = if needs_sizing_pass {
+            ui.ctx().request_discard("Resize sizing pass");
+            Rect::from_min_size(position, Vec2::new(self.min_size.x, state.desired_size.y))
+        } else {
+            Rect::from_min_size(position, state.desired_size)
+        };
 
         let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
 
@@ -289,11 +302,13 @@ impl Resize {
 
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
 
-        let mut content_ui = ui.new_child(
-            UiBuilder::new()
-                .ui_stack_info(UiStackInfo::new(UiKind::Resize))
-                .max_rect(inner_rect),
-        );
+        let mut ui_builder = UiBuilder::new()
+            .ui_stack_info(UiStackInfo::new(UiKind::Resize))
+            .max_rect(inner_rect);
+        if needs_sizing_pass {
+            ui_builder = ui_builder.sizing_pass();
+        }
+        let mut content_ui = ui.new_child(ui_builder);
         content_ui.set_clip_rect(content_clip_rect);
 
         Prepared {
@@ -301,6 +316,7 @@ impl Resize {
             corner_id,
             state,
             content_ui,
+            sizing_pass: needs_sizing_pass,
         }
     }
 
@@ -317,17 +333,16 @@ impl Resize {
             corner_id,
             mut state,
             content_ui,
+            sizing_pass,
         } = prepared;
 
-        state.last_content_size = content_ui.min_size();
-
-        // The content overflowed the rect we provided. This means last_content_size.x is now at the
-        // very minimum size the content will allow to shrink to. We remember this so we can prevent
-        // any previous wrapping content from shrinking further.
-        // 4.0 is a bit of safety margin to ensure we don't prevent shrinking on rounding errors.
-        let overflowed_x = state.last_content_size.x > state.desired_size.x + 4.0;
-        if overflowed_x && state.observed_min_content_width.is_none() {
-            state.observed_min_content_width = Some(state.last_content_size.x);
+        if sizing_pass {
+            // Remember the measured minimum so we can clamp the user's drag on subsequent frames.
+            // Don't touch `last_content_size`, it should keep reflecting the previously
+            // rendered content.
+            state.min_content_width = Some(content_ui.min_size().x);
+        } else {
+            state.last_content_size = content_ui.min_size();
         }
 
         // ------------------------------
