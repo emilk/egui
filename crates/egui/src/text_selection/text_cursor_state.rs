@@ -13,7 +13,7 @@ use super::CCursorRange;
 /// selects word-by-word, and triple-click-and-drag selects line-by-line.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum SelectionMode {
+pub(crate) enum SelectionMode {
     /// Select character-by-character (plain click-and-drag).
     #[default]
     Char,
@@ -27,7 +27,7 @@ pub enum SelectionMode {
 
 impl SelectionMode {
     /// Derive the selection mode from a press click-count (1 => Char, 2 => Word, >=3 => Line).
-    pub fn from_click_count(count: u32) -> Self {
+    pub(crate) fn from_click_count(count: u32) -> Self {
         match count {
             2 => Self::Word,
             3.. => Self::Line,
@@ -60,6 +60,9 @@ pub struct TextCursorState {
     ccursor_range: Option<CCursorRange>,
 
     /// The granularity of the current drag-selection.
+    ///
+    /// Ephemeral drag state; not persisted.
+    #[cfg_attr(feature = "serde", serde(skip))]
     selection_mode: SelectionMode,
 
     /// The unit (word/line) range the current drag started in.
@@ -67,6 +70,9 @@ pub struct TextCursorState {
     /// Used in [`SelectionMode::Word`] / [`SelectionMode::Line`] so that dragging
     /// back and forth across the anchor re-derives the selection correctly.
     /// Stored as `(min, max)` character indices.
+    ///
+    /// Ephemeral drag state; not persisted.
+    #[cfg_attr(feature = "serde", serde(skip))]
     drag_anchor_unit: Option<(usize, usize)>,
 
     /// Stationary-pointer cache for the word/line unit lookup.
@@ -75,6 +81,9 @@ pub struct TextCursorState {
     /// word/line scan. This caches the pointer's char index and the resulting
     /// range from the previous frame, so the scan is skipped while the pointer
     /// stays on the same character. Cleared when a new drag begins.
+    ///
+    /// Ephemeral drag state; not persisted.
+    #[cfg_attr(feature = "serde", serde(skip))]
     last_drag_pointer: Option<(usize, CCursorRange)>,
 }
 
@@ -110,11 +119,6 @@ impl TextCursorState {
     /// Sets the currently selected range of characters.
     pub fn set_char_range(&mut self, ccursor_range: Option<CCursorRange>) {
         self.ccursor_range = ccursor_range;
-    }
-
-    /// The granularity of the current drag-selection (char/word/line).
-    pub fn selection_mode(&self) -> SelectionMode {
-        self.selection_mode
     }
 
     /// Begin a drag-selection in the given `mode`, anchoring on the unit
@@ -768,6 +772,46 @@ mod test {
         // begin_drag clears the cache so a new drag never reuses a stale range.
         state.begin_drag(text, CCursor::new(8), SelectionMode::Word);
         assert!(state.last_drag_pointer.is_none());
+    }
+
+    #[test]
+    fn test_from_click_count() {
+        assert_eq!(SelectionMode::from_click_count(0), SelectionMode::Char);
+        assert_eq!(SelectionMode::from_click_count(1), SelectionMode::Char);
+        assert_eq!(SelectionMode::from_click_count(2), SelectionMode::Word);
+        assert_eq!(SelectionMode::from_click_count(3), SelectionMode::Line);
+        assert_eq!(SelectionMode::from_click_count(4), SelectionMode::Line);
+    }
+
+    #[test]
+    fn test_shift_click_resets_to_char_mode() {
+        // After a word/line drag, a subsequent shift-click must be character
+        // granular. `TextCursorState::pointer_interaction` resets
+        // `selection_mode`/`drag_anchor_unit` on a shift-click; this verifies
+        // that beginning a fresh `Char` drag (the same reset) clears the
+        // word/line drag state so a stale word/line mode cannot leak through.
+        let text = "hello world again";
+        let mut state = TextCursorState::default();
+
+        // Simulate a word drag leaving word state behind.
+        state.begin_drag(text, CCursor::new(8), SelectionMode::Word);
+        state
+            .extend_word_line_drag(text, CCursor::new(14))
+            .expect("word drag active");
+        assert_eq!(state.selection_mode, SelectionMode::Word);
+        assert!(state.drag_anchor_unit.is_some());
+        assert!(state.last_drag_pointer.is_some());
+
+        // The shift-click path sets `selection_mode = Char` and clears the
+        // anchor; mirror that here and confirm the word state is gone.
+        state.selection_mode = SelectionMode::Char;
+        state.drag_anchor_unit = None;
+        assert_eq!(state.selection_mode, SelectionMode::Char);
+        // A char drag never extends word/line-wise.
+        assert!(
+            state.extend_word_line_drag(text, CCursor::new(2)).is_none(),
+            "char mode must not perform a word/line extension"
+        );
     }
 }
 

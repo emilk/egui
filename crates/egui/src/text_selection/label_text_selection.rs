@@ -106,6 +106,15 @@ pub struct LabelSelectionState {
     /// `None` for plain character drags.
     drag_anchor: Option<(Id, usize, usize)>,
 
+    /// Stationary-pointer cache for the word/line unit lookup.
+    ///
+    /// The word/line `unit_bounds_at` scan runs every frame while dragging and
+    /// is O(n), and `select_word_at` heap-allocates a line-sized `String`. This
+    /// caches the widget [`Id`], the pointer's char index and the resulting
+    /// `(min, max)` unit bounds, so the scan is skipped while the pointer stays
+    /// on the same character. Cleared/ignored when a new drag begins.
+    last_drag_unit: Option<(Id, usize, (usize, usize))>,
+
     /// Have we reached the widget containing the primary selection?
     has_reached_primary: bool,
 
@@ -132,6 +141,7 @@ impl Default for LabelSelectionState {
             is_dragging: Default::default(),
             selection_mode: Default::default(),
             drag_anchor: Default::default(),
+            last_drag_unit: Default::default(),
             has_reached_primary: Default::default(),
             has_reached_secondary: Default::default(),
             text_to_copy: Default::default(),
@@ -389,13 +399,20 @@ impl LabelSelectionState {
                 let drag_started = ui.input(|i| i.pointer.any_pressed());
                 let shift = ui.input(|i| i.modifiers.shift);
 
-                if drag_started && !shift {
-                    // Decide the drag granularity from the press click-count:
-                    // 2 => word-by-word, >=3 => line-by-line, else char-by-char.
-                    self.selection_mode = ui
-                        .input(|i| i.pointer.press_click_count())
-                        .map_or(SelectionMode::Char, SelectionMode::from_click_count);
+                if drag_started {
+                    self.selection_mode = if shift {
+                        // Shift-click extends the current selection; it must
+                        // always be character-granular, matching `TextEdit`.
+                        SelectionMode::Char
+                    } else {
+                        // Decide the drag granularity from the press click-count:
+                        // 2 => word-by-word, >=3 => line-by-line, else char-by-char.
+                        ui.input(|i| i.pointer.press_click_count())
+                            .map_or(SelectionMode::Char, SelectionMode::from_click_count)
+                    };
                     self.drag_anchor = None;
+                    // A fresh drag must never reuse a stale cached unit.
+                    self.last_drag_unit = None;
                 }
 
                 // For word/line drags, snap the moving cursor to whole-word /
@@ -407,8 +424,21 @@ impl LabelSelectionState {
                 let new_primary = if self.selection_mode != SelectionMode::Char
                     && response.contains_pointer()
                 {
-                    let text = galley.text();
-                    let pointer_unit = self.selection_mode.unit_bounds_at(text, new_primary);
+                    // Stationary-pointer fast path: skip the O(n) word/line scan
+                    // (and its heap allocation) while the pointer stays on the
+                    // same character within the same galley.
+                    let pointer_unit = if let Some((cached_id, cached_index, cached_bounds)) =
+                        self.last_drag_unit
+                        && cached_id == response.id
+                        && cached_index == new_primary.index
+                    {
+                        cached_bounds
+                    } else {
+                        let text = galley.text();
+                        let bounds = self.selection_mode.unit_bounds_at(text, new_primary);
+                        self.last_drag_unit = Some((response.id, new_primary.index, bounds));
+                        bounds
+                    };
 
                     if drag_started && !shift {
                         // Anchor the drag on the unit under the initial press.
