@@ -493,6 +493,10 @@ impl Window<'_> {
 
         let window_frame = frame.unwrap_or_else(|| Frame::window(&style));
 
+        // We apply the window margin by using the `ScrollArea::content_margin`.
+        let window_margin = window_frame.inner_margin;
+        let window_frame = window_frame.inner_margin(0.0);
+
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
         let opacity = ctx.animate_bool_with_easing(
@@ -558,40 +562,37 @@ impl Window<'_> {
         }
 
         let content_inner = {
-            let window_margin = window_frame.inner_margin;
-            let outer_response = window_frame
-                .inner_margin(0.0) // it should be applied inside of the scroll area
-                .show(&mut area_content_ui, |ui| {
-                    resize.show(ui, |ui| {
-                        if with_title_bar {
-                            title_ui(
-                                ui,
-                                title,
-                                window_frame,
-                                &mut collapsing,
-                                collapsible,
-                                on_top,
-                                open.as_deref_mut(),
-                                auto_sized,
-                            );
-                        }
-                        collapsing
-                            .show_body_unindented(ui, |ui| {
-                                if scroll.is_any_scroll_enabled() {
-                                    scroll
-                                        .content_margin(window_margin)
-                                        .show(ui, add_contents)
-                                        .inner
-                                } else {
-                                    crate::Frame::NONE
-                                        .inner_margin(window_margin)
-                                        .show(ui, add_contents)
-                                        .inner
-                                }
-                            })
-                            .map(|inner| inner.inner)
-                    })
-                });
+            let outer_response = window_frame.show(&mut area_content_ui, |ui| {
+                resize.show(ui, |ui| {
+                    if with_title_bar {
+                        title_ui(
+                            ui,
+                            title,
+                            window_frame.inner_margin(window_margin),
+                            &mut collapsing,
+                            collapsible,
+                            on_top,
+                            open.as_deref_mut(),
+                            auto_sized,
+                        );
+                    }
+                    collapsing
+                        .show_body_unindented(ui, |ui| {
+                            if scroll.is_any_scroll_enabled() {
+                                scroll
+                                    .content_margin(window_margin)
+                                    .show(ui, add_contents)
+                                    .inner
+                            } else {
+                                crate::Frame::NONE
+                                    .inner_margin(window_margin)
+                                    .show(ui, add_contents)
+                                    .inner
+                            }
+                        })
+                        .map(|inner| inner.inner)
+                })
+            });
 
             let outer_rect = outer_response.response.rect;
 
