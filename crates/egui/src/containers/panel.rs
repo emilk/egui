@@ -722,7 +722,7 @@ impl Panel {
             // Show a fake panel in this in-between animation state:
             // TODO(emilk): move the panel out-of-screen instead of changing its width.
             // Then we can actually paint it as it animates.
-            let expanded_size = Self::animated_size(ctx, &self);
+            let expanded_size = self.panel_size(ctx);
             let fake_size = how_expanded * expanded_size;
             Some(
                 Self {
@@ -750,8 +750,8 @@ impl Panel {
         if 0.0 == how_expanded {
             collapsed_panel
         } else if how_expanded < 1.0 {
-            let collapsed_size = Self::animated_size(ctx, &collapsed_panel);
-            let expanded_size = Self::animated_size(ctx, &expanded_panel);
+            let collapsed_size = collapsed_panel.panel_size(ctx);
+            let expanded_size = expanded_panel.panel_size(ctx);
 
             let fake_size = lerp(collapsed_size..=expanded_size, how_expanded);
 
@@ -766,21 +766,21 @@ impl Panel {
         }
     }
 
-    fn animated_size(ctx: &Context, panel: &Self) -> f32 {
-        let get_rect_state_size = |state: PanelState| match panel.side {
-            PanelSide::Vertical(_) => state.rect.width(),
-            PanelSide::Horizontal(_) => state.rect.height(),
-        };
-
-        let get_spacing_size = || match panel.side {
-            PanelSide::Vertical(_) => ctx.global_style().spacing.interact_size.x,
-            PanelSide::Horizontal(_) => ctx.global_style().spacing.interact_size.y,
-        };
-
-        PanelState::load(ctx, panel.id)
-            .map(get_rect_state_size)
-            .or(panel.default_size)
-            .unwrap_or_else(get_spacing_size)
+    /// Get the current width or height of the panel,
+    /// or fall back to some default.
+    fn panel_size(&self, ctx: &Context) -> f32 {
+        if let Some(state) = PanelState::load(ctx, self.id) {
+            match self.side {
+                PanelSide::Vertical(_) => state.rect.width(),
+                PanelSide::Horizontal(_) => state.rect.height(),
+            }
+        } else {
+            let fallback_size = ctx.global_style().spacing.interact_size;
+            match self.side {
+                PanelSide::Vertical(_) => fallback_size.x,
+                PanelSide::Horizontal(_) => fallback_size.y,
+            }
+        }
     }
 }
 
