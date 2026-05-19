@@ -714,11 +714,7 @@ impl WgpuWinitRunning<'_> {
             return Ok(EventResult::Wait);
         };
 
-        egui_winit.handle_platform_output_with_event_loop(
-            window,
-            event_loop,
-            platform_output,
-        );
+        egui_winit.handle_platform_output_with_event_loop(window, event_loop, platform_output);
 
         let vsync_secs = if is_visible {
             let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
