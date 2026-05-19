@@ -61,7 +61,7 @@ impl<'a> Window<'a> {
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
                 .default_size([340.0, 420.0]), // Default outer size of a window (includes frame margins, stroke, and title bar)
-            scroll: ScrollArea::neither().auto_shrink(false),
+            scroll: ScrollArea::neither().auto_shrink(false).content_margin(0.0),
             collapsible: true,
             default_open: true,
             with_title_bar: true,
@@ -493,6 +493,10 @@ impl Window<'_> {
 
         let window_frame = frame.unwrap_or_else(|| Frame::window(&style));
 
+        // We apply the window margin by using the `ScrollArea::content_margin`.
+        let window_margin = window_frame.inner_margin;
+        let window_frame = window_frame.inner_margin(0.0);
+
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
         let opacity = ctx.animate_bool_with_easing(
@@ -564,7 +568,7 @@ impl Window<'_> {
                         title_ui(
                             ui,
                             title,
-                            window_frame,
+                            window_frame.inner_margin(window_margin),
                             &mut collapsing,
                             collapsible,
                             on_top,
@@ -575,9 +579,15 @@ impl Window<'_> {
                     collapsing
                         .show_body_unindented(ui, |ui| {
                             if scroll.is_any_scroll_enabled() {
-                                scroll.show(ui, add_contents).inner
+                                scroll
+                                    .content_margin(window_margin)
+                                    .show(ui, add_contents)
+                                    .inner
                             } else {
-                                add_contents(ui)
+                                crate::Frame::NONE
+                                    .inner_margin(window_margin)
+                                    .show(ui, add_contents)
+                                    .inner
                             }
                         })
                         .map(|inner| inner.inner)
@@ -1179,7 +1189,10 @@ fn title_ui(
     let mut layout = AtomLayout::new(atoms)
         .gap(spacing)
         .fallback_font(TextStyle::Heading)
-        .wrap_mode(TextWrapMode::Truncate);
+        .wrap_mode(TextWrapMode::Truncate)
+        .frame(Frame::NONE.inner_margin(frame.inner_margin));
+
+    let frame = frame.inner_margin(0); // Only applied to the atoms; done above.
 
     if expanded {
         let min_width = if auto_sized {
@@ -1244,18 +1257,18 @@ fn title_ui(
         collapsing.toggle(&child_ui);
     }
 
-    child_ui.set_clip_rect(Rect::EVERYTHING);
-    let mut header_frame = frame.shadow(Shadow::NONE);
-    if active {
-        header_frame = header_frame.fill(ui.visuals().widgets.open.weak_bg_fill);
+    {
+        let mut header_frame = frame.shadow(Shadow::NONE);
+        if active {
+            header_frame = header_frame.fill(ui.visuals().widgets.open.weak_bg_fill);
+        }
+        if expanded {
+            header_frame.corner_radius.sw = 0;
+            header_frame.corner_radius.se = 0;
+        }
+        ui.painter()
+            .set(shape_idx, header_frame.paint(layout_response.rect));
     }
-    if expanded {
-        header_frame.corner_radius.sw = 0;
-        header_frame.corner_radius.se = 0;
-    }
-    child_ui
-        .painter()
-        .set(shape_idx, header_frame.paint(layout_response.rect));
 
     let mut advance_rect = child_ui.min_rect();
 
