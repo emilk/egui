@@ -65,7 +65,7 @@ impl PanelSide {
     /// The axis the panel grows along: `0` (x) for left/right panels,
     /// `1` (y) for top/bottom panels.
     ///
-    /// Useful as an index into [`Vec2`]/[`Pos2`]/[`Rect::size`].
+    /// Useful as an index into `Vec2`/`Pos2`.
     fn axis(self) -> usize {
         match self {
             Self::Left | Self::Right => 0,
