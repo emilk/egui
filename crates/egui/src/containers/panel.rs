@@ -392,11 +392,9 @@ impl Panel {
         let show_separator_line = self.show_separator_line;
         let outer_size_range = self.outer_size_range;
 
-        let frame = self
-            .frame
-            .unwrap_or_else(|| Frame::side_top_panel(parent_ui.style()));
+        let frame = self.resolve_frame(parent_ui);
         let available_rect = parent_ui.available_rect_before_wrap();
-        let mut outer_size = self.initial_outer_size(parent_ui, frame);
+        let mut outer_size = self.outer_size(parent_ui);
         let mut outer_rect = self.compute_outer_rect(available_rect, outer_size);
 
         // Check for duplicate id
@@ -505,15 +503,23 @@ impl Panel {
         inner_response
     }
 
-    /// Outer size to start the frame with: from persisted state, or a sensible default.
-    fn initial_outer_size(&self, ui: &Ui, frame: Frame) -> f32 {
+    /// The configured [`Frame`], or the default side/top panel frame for this [`Ui`].
+    fn resolve_frame(&self, ui: &Ui) -> Frame {
+        self.frame
+            .unwrap_or_else(|| Frame::side_top_panel(ui.style()))
+    }
+
+    /// Get the current _outer_ width or height of the panel (from previous frame),
+    /// including the [`Frame`] margin & border, or fall back to some default.
+    fn outer_size(&self, ui: &Ui) -> f32 {
         let axis = self.side.axis();
         if let Some(state) = PanelState::load(ui, self.id) {
             state.outer_rect.size_along(axis)
+        } else if let Some(default_outer_size) = self.default_outer_size {
+            default_outer_size
         } else {
-            self.default_outer_size.unwrap_or_else(|| {
-                ui.style().spacing.interact_size[axis] + frame.total_margin().sum()[axis]
-            })
+            let frame = self.resolve_frame(ui);
+            ui.style().spacing.interact_size[axis] + frame.total_margin().sum()[axis]
         }
     }
 
@@ -580,18 +586,6 @@ impl Panel {
         }
         .resizable(false)
         .exact_size(outer_size)
-    }
-
-    /// Get the current _outer_ width or height of the panel (from previous frame),
-    /// including the [`Frame`] margin & border,
-    /// or fall back to some default.
-    fn outer_size(&self, ctx: &Context) -> f32 {
-        let axis = self.side.axis();
-        if let Some(state) = PanelState::load(ctx, self.id) {
-            state.outer_rect.size_along(axis)
-        } else {
-            ctx.global_style().spacing.interact_size[axis]
-        }
     }
 }
 
