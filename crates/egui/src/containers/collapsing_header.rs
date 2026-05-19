@@ -189,6 +189,8 @@ impl CollapsingState {
             self.store(ui.ctx()); // we store any earlier toggling as promised in the docstring
             None
         } else if openness < 1.0 {
+            ui.add_space((openness - 1.0) * ui.spacing().item_spacing.y); // animate spacing too
+
             Some(ui.scope_builder(builder, |child_ui| {
                 let max_height = if self.state.open && self.state.open_height.is_none() {
                     // First frame of expansion.
