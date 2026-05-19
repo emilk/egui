@@ -173,6 +173,17 @@ impl PanelSide {
         }
     }
 
+    /// The axis the panel grows along: `0` (x) for vertical panels (left/right),
+    /// `1` (y) for horizontal panels (top/bottom).
+    ///
+    /// Useful as an index into [`Vec2`]/[`Pos2`]/[`Rect::size`].
+    fn axis(self) -> usize {
+        match self {
+            Self::Vertical(_) => 0,
+            Self::Horizontal(_) => 1,
+        }
+    }
+
     fn ui_kind(self) -> UiKind {
         match self {
             Self::Vertical(side) => match side {
@@ -466,15 +477,14 @@ impl Panel {
                 && resize_response.dragged()
                 && let Some(pointer) = resize_response.interact_pointer_pos()
             {
-                outer_size = match side {
-                    PanelSide::Vertical(s) => (pointer.x - s.side_x(outer_rect)).abs(),
-                    PanelSide::Horizontal(s) => (pointer.y - s.side_y(outer_rect)).abs(),
+                let axis = side.axis();
+                let fixed_side_pos = match side {
+                    PanelSide::Vertical(s) => s.side_x(outer_rect),
+                    PanelSide::Horizontal(s) => s.side_y(outer_rect),
                 };
-                let available = match side {
-                    PanelSide::Vertical(_) => available_rect.width(),
-                    PanelSide::Horizontal(_) => available_rect.height(),
-                };
-                outer_size = clamp_to_range(outer_size, outer_size_range).at_most(available);
+                outer_size = (pointer[axis] - fixed_side_pos).abs();
+                outer_size = clamp_to_range(outer_size, outer_size_range)
+                    .at_most(available_rect.size()[axis]);
                 side.set_rect_size(&mut outer_rect, outer_size);
             }
         }
@@ -493,19 +503,20 @@ impl Panel {
         panel_ui.expand_to_include_rect(outer_rect);
         panel_ui.set_clip_rect(outer_rect); // If we overflow, don't do so visibly (#4475)
 
+        let axis = side.axis();
+        let panel_axis_min =
+            (outer_size_range.min - frame.total_margin().sum()[axis]).at_least(0.0);
         let inner_response = frame.show(&mut panel_ui, |content_ui| {
+            // Make sure the frame fills the cross-axis fully:
+            let cross_axis_size = content_ui.max_rect().size()[1 - axis];
             match side {
                 PanelSide::Vertical(_) => {
-                    content_ui.set_min_height(content_ui.max_rect().height()); // Make sure the frame fills the full height
-                    content_ui.set_min_width(
-                        (outer_size_range.min - frame.total_margin().sum().x).at_least(0.0),
-                    );
+                    content_ui.set_min_height(cross_axis_size);
+                    content_ui.set_min_width(panel_axis_min);
                 }
                 PanelSide::Horizontal(_) => {
-                    content_ui.set_min_width(content_ui.max_rect().width()); // Make the frame fill full width
-                    content_ui.set_min_height(
-                        (outer_size_range.min - frame.total_margin().sum().y).at_least(0.0),
-                    );
+                    content_ui.set_min_width(cross_axis_size);
+                    content_ui.set_min_height(panel_axis_min);
                 }
             }
 
@@ -518,14 +529,14 @@ impl Panel {
         {
             let mut cursor = parent_ui.cursor();
             match side {
-                PanelSide::Vertical(side) => match side {
-                    VerticalSide::Left => cursor.min.x = outer_rect.max.x,
-                    VerticalSide::Right => cursor.max.x = outer_rect.min.x,
-                },
-                PanelSide::Horizontal(side) => match side {
-                    HorizontalSide::Top => cursor.min.y = outer_rect.max.y,
-                    HorizontalSide::Bottom => cursor.max.y = outer_rect.min.y,
-                },
+                PanelSide::Vertical(VerticalSide::Left)
+                | PanelSide::Horizontal(HorizontalSide::Top) => {
+                    cursor.min[axis] = outer_rect.max[axis];
+                }
+                PanelSide::Vertical(VerticalSide::Right)
+                | PanelSide::Horizontal(HorizontalSide::Bottom) => {
+                    cursor.max[axis] = outer_rect.min[axis];
+                }
             }
             parent_ui.set_cursor(cursor);
         }
@@ -576,32 +587,21 @@ impl Panel {
 
     /// Outer size to start the frame with: from persisted state, or a sensible default.
     fn initial_outer_size(&self, ui: &Ui, frame: Frame) -> f32 {
+        let axis = self.side.axis();
         if let Some(state) = PanelState::load(ui, self.id) {
-            match self.side {
-                PanelSide::Vertical(_) => state.outer_rect.width(),
-                PanelSide::Horizontal(_) => state.outer_rect.height(),
-            }
+            state.outer_rect.size()[axis]
         } else {
-            let default_size = ui.style().spacing.interact_size;
-            match self.side {
-                PanelSide::Vertical(_) => self
-                    .default_outer_size
-                    .unwrap_or_else(|| default_size.x + frame.total_margin().sum().x),
-                PanelSide::Horizontal(_) => self
-                    .default_outer_size
-                    .unwrap_or_else(|| default_size.y + frame.total_margin().sum().y),
-            }
+            self.default_outer_size.unwrap_or_else(|| {
+                ui.style().spacing.interact_size[axis] + frame.total_margin().sum()[axis]
+            })
         }
     }
 
     /// Clamp `outer_size` to the allowed range / available space, then compute the panel rect.
     fn compute_outer_rect(&self, available_rect: Rect, mut outer_size: f32) -> Rect {
         let mut outer_rect = available_rect;
-        let available = match self.side {
-            PanelSide::Vertical(_) => available_rect.width(),
-            PanelSide::Horizontal(_) => available_rect.height(),
-        };
-        outer_size = clamp_to_range(outer_size, self.outer_size_range).at_most(available);
+        outer_size = clamp_to_range(outer_size, self.outer_size_range)
+            .at_most(available_rect.size()[self.side.axis()]);
         self.side.set_rect_size(&mut outer_rect, outer_size);
         outer_rect
     }
@@ -724,18 +724,11 @@ impl Panel {
     /// including the [`Frame`] margin & border,
     /// or fall back to some default.
     fn outer_size(&self, ctx: &Context) -> f32 {
+        let axis = self.side.axis();
         if let Some(state) = PanelState::load(ctx, self.id) {
-            match self.side {
-                PanelSide::Vertical(_) => state.outer_rect.width(),
-                PanelSide::Horizontal(_) => state.outer_rect.height(),
-            }
+            state.outer_rect.size()[axis]
         } else {
-            let default_size = ctx.global_style().spacing.interact_size;
-            // let default_size = Vec2::ZERO;
-            match self.side {
-                PanelSide::Vertical(_) => default_size.x,
-                PanelSide::Horizontal(_) => default_size.y,
-            }
+            ctx.global_style().spacing.interact_size[axis]
         }
     }
 }
