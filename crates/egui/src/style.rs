@@ -1401,7 +1401,7 @@ impl Default for Style {
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
-            animation_time: 6.0 / 60.0, // If we make this too slow, it will be too obvious that our panel animations look like shit :(
+            animation_time: 0.2,
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
