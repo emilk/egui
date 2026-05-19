@@ -671,6 +671,7 @@ impl Panel {
     }
 
     /// Slide the panel toward its fixed edge. `1.0` = fully visible, `0.0` = fully off-screen.
+    #[inline]
     fn with_slide_fraction(mut self, slide_fraction: f32) -> Self {
         self.slide_fraction = slide_fraction;
         self
