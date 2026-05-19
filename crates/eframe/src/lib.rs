@@ -389,6 +389,9 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
     if native_options.viewport.title.is_none() {
         native_options.viewport.title = Some(app_name.to_owned());
     }
+    if native_options.viewport.app_id.is_none() {
+        native_options.viewport.app_id = Some(app_name.to_owned());
+    }
 
     let renderer = native_options.renderer;
 
