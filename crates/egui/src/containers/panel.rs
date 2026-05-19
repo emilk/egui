@@ -183,6 +183,15 @@ impl PanelSide {
             },
         }
     }
+
+    /// Left <-> Right, Top <-> Bottom.
+    #[expect(dead_code)]
+    fn opposite(&self) -> Self {
+        match self {
+            Self::Vertical(side) => Self::Vertical(side.opposite()),
+            Self::Horizontal(side) => Self::Horizontal(side.opposite()),
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
