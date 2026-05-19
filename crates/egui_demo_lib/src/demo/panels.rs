@@ -1,6 +1,22 @@
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Panels {}
+pub struct Panels {
+    left: bool,
+    right: bool,
+    top: bool,
+    bottom: bool,
+}
+
+impl Default for Panels {
+    fn default() -> Self {
+        Self {
+            left: true,
+            right: true,
+            top: true,
+            bottom: false,
+        }
+    }
+}
 
 impl crate::Demo for Panels {
     fn name(&self) -> &'static str {
@@ -11,7 +27,7 @@ impl crate::Demo for Panels {
         use crate::View as _;
         egui::Window::new("Panels")
             .default_width(600.0)
-            .default_height(400.0)
+            .default_height(600.0)
             .vscroll(false)
             .open(open)
             .constrain_to(ui.available_rect_before_wrap())
@@ -23,10 +39,17 @@ impl crate::View for Panels {
     fn ui(&mut self, ui: &mut egui::Ui) {
         // Note that the order we add the panels is very important!
 
+        let Self {
+            left,
+            right,
+            top,
+            bottom,
+        } = self;
+
         egui::Panel::top("top_panel")
             .resizable(true)
             .min_size(32.0)
-            .show_inside(ui, |ui| {
+            .show_animated_inside(ui, *top, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical_centered(|ui| {
                         ui.heading("Expandable Upper Panel");
@@ -39,7 +62,7 @@ impl crate::View for Panels {
             .resizable(true)
             .default_size(150.0)
             .size_range(80.0..=200.0)
-            .show_inside(ui, |ui| {
+            .show_animated_inside(ui, *left, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Left Panel");
                 });
@@ -52,7 +75,7 @@ impl crate::View for Panels {
             .resizable(true)
             .default_size(150.0)
             .size_range(80.0..=200.0)
-            .show_inside(ui, |ui| {
+            .show_animated_inside(ui, *right, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Right Panel");
                 });
@@ -61,23 +84,45 @@ impl crate::View for Panels {
                 });
             });
 
-        egui::Panel::bottom("bottom_panel")
-            .resizable(false)
-            .min_size(0.0)
-            .show_inside(ui, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.heading("Bottom Panel");
-                });
-                ui.vertical_centered(|ui| {
-                    ui.add(crate::egui_github_link_file!());
-                });
-            });
+        egui::Panel::show_animated_between_inside(
+            ui,
+            *bottom,
+            egui::Panel::bottom("bottom_panel_collapsed"),
+            egui::Panel::bottom("bottom_panel_expanded"),
+            |ui, expanded| {
+                if expanded {
+                    ui.vertical_centered(|ui| {
+                        if ui.button("Collapse bottom panel").clicked() {
+                            *bottom = false;
+                        }
+                    });
+                    ui.label(egui::RichText::new(crate::LOREM_IPSUM_LONG).small().weak());
+                } else {
+                    ui.vertical_centered(|ui| {
+                        if ui.button("Expand bottom panel").clicked() {
+                            *bottom = true;
+                        }
+                    });
+                }
+            },
+        );
 
         // TODO(emilk): This extra panel is superfluous - just use what's left of `ui` instead
         egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.vertical_centered(|ui| {
                 ui.heading("Central Panel");
             });
+
+            ui.horizontal(|ui| {
+                ui.label("Panel toggles:");
+                ui.toggle_value(left, "⬅");
+                ui.toggle_value(top, "⬆");
+                ui.toggle_value(bottom, "⬇");
+                ui.toggle_value(right, "➡");
+            });
+
+            ui.separator();
+
             egui::ScrollArea::vertical().show(ui, |ui| {
                 lorem_ipsum(ui);
             });

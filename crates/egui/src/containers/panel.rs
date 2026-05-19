@@ -87,6 +87,13 @@ impl PanelSide {
         }
     }
 
+    /// Outward unit vector from the fixed edge:
+    /// `(-1, 0)` for [`Left`](Self::Left), `(+1, 0)` for [`Right`](Self::Right),
+    /// `(0, -1)` for [`Top`](Self::Top), `(0, +1)` for [`Bottom`](Self::Bottom).
+    fn dir_vec2(self) -> Vec2 {
+        self.sign() * self.axis_unit()
+    }
+
     /// `-1` for sides at the near edge ([`Left`](Self::Left), [`Top`](Self::Top)),
     /// `+1` for sides at the far edge ([`Right`](Self::Right), [`Bottom`](Self::Bottom)).
     fn sign(self) -> f32 {
@@ -172,6 +179,13 @@ pub struct Panel {
     /// _Outer_ size range (including [`Frame`] margin & border):
     /// the width for a vertical panel, or the height for a horizontal panel.
     outer_size_range: Rangef,
+
+    /// `1.0` = panel fully visible (the normal case),
+    /// `0.0` = panel fully slid off-screen toward its fixed edge.
+    ///
+    /// Used by [`Self::show_animated_inside`] to animate a panel sliding in/out.
+    /// While `slide_fraction != 1.0` the panel does _not_ persist its [`PanelState`].
+    slide_fraction: f32,
 }
 
 impl Panel {
@@ -229,6 +243,7 @@ impl Panel {
             show_separator_line: true,
             default_outer_size,
             outer_size_range,
+            slide_fraction: 1.0,
         }
     }
 
@@ -325,7 +340,11 @@ impl Panel {
     }
 
     /// Show the panel if `is_expanded` is `true`,
-    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    /// otherwise hide it, with a slide animation in between.
+    ///
+    /// During the animation `add_contents` runs against the real panel, and the
+    /// panel slides off-screen toward its fixed edge (clipped against the parent).
+    /// The parent only reserves the _visible_ portion, so neighboring widgets follow.
     pub fn show_animated_inside<R>(
         self,
         ui: &mut Ui,
@@ -340,41 +359,92 @@ impl Panel {
             return None;
         }
 
-        if how_expanded < 1.0 {
-            // Show a fake panel in this in-between animation state:
-            // TODO(emilk): move the panel out-of-screen instead of changing its width.
-            // Then we can actually paint it as it animates.
-            let fake_size = how_expanded * self.outer_size(ui);
-            self.into_fake_animating(fake_size)
-                .show_inside(ui, |_ui| {});
-            return None;
-        }
+        let panel = if how_expanded < 1.0 {
+            // Mid-animation: slide the panel toward its fixed edge.
+            // Resizing a moving boundary is too awkward, so disable it during the slide.
+            self.with_slide_fraction(how_expanded).resizable(false)
+        } else {
+            self
+        };
 
-        Some(self.show_inside(ui, add_contents))
+        Some(panel.show_inside(ui, add_contents))
     }
 
-    /// Show either a collapsed or a expanded panel, with a nice animation between.
+    /// Show either a collapsed or expanded panel, with a nice slide animation between.
+    ///
+    /// The `collapsed_panel` is shown only when fully collapsed; during the
+    /// animation, the `expanded_panel` slides in/out toward its fixed edge,
+    /// interpolating its visible size between the two panels' sizes.
+    /// `add_contents` receives `expanded = true` whenever the expanded panel is
+    /// rendered (including mid-animation), and `false` for the collapsed view.
+    ///
+    /// Give the two panels distinct ids so their persisted sizes don't
+    /// overwrite each other.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut is_expanded = true;
+    /// let collapsed = egui::Panel::top("top_collapsed").exact_size(28.0);
+    /// let expanded = egui::Panel::top("top_expanded")
+    ///     .resizable(true)
+    ///     .default_size(120.0);
+    /// egui::Panel::show_animated_between_inside(
+    ///     ui,
+    ///     is_expanded,
+    ///     collapsed,
+    ///     expanded,
+    ///     |ui, expanded| {
+    ///         if expanded {
+    ///             ui.heading("Expanded");
+    ///             ui.label("More content here…");
+    ///         } else {
+    ///             ui.label("Collapsed toolbar");
+    ///         }
+    ///     },
+    /// );
+    /// ui.toggle_value(&mut is_expanded, "Expand");
+    /// # });
+    /// ```
     pub fn show_animated_between_inside<R>(
         ui: &mut Ui,
         is_expanded: bool,
         collapsed_panel: Self,
         expanded_panel: Self,
-        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+        add_contents: impl FnOnce(&mut Ui, bool) -> R,
     ) -> InnerResponse<R> {
         let how_expanded = animate_expansion(ui, expanded_panel.id.with("animation"), is_expanded);
 
-        let panel = if how_expanded == 0.0 {
-            collapsed_panel
-        } else if how_expanded < 1.0 {
-            let collapsed_size = collapsed_panel.outer_size(ui);
-            let expanded_size = expanded_panel.outer_size(ui);
-            let fake_size = lerp(collapsed_size..=expanded_size, how_expanded);
-            expanded_panel.into_fake_animating(fake_size)
+        // When expanding, the user sees the expanded content the moment animation starts.
+        // When collapsing, keep showing the expanded content until past the midpoint,
+        // then swap to the collapsed content for the rest of the slide-out.
+        let show_expanded_contents = if is_expanded {
+            true
         } else {
-            expanded_panel
+            0.5 < how_expanded
         };
 
-        panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+        if how_expanded == 0.0 {
+            collapsed_panel.show_inside(ui, |ui| add_contents(ui, false))
+        } else {
+            let panel = if how_expanded < 1.0 {
+                // Animate the visible size from collapsed_size to expanded_size,
+                // so the slide picks up where the collapsed panel left off.
+                let collapsed_size = collapsed_panel.outer_size(ui);
+                let expanded_size = expanded_panel.outer_size(ui);
+                let visible_size = lerp(collapsed_size..=expanded_size, how_expanded);
+                let slide_fraction = if 0.0 < expanded_size {
+                    visible_size / expanded_size
+                } else {
+                    1.0
+                };
+                expanded_panel
+                    .with_slide_fraction(slide_fraction)
+                    .resizable(false)
+            } else {
+                expanded_panel
+            };
+            panel.show_inside(ui, |ui| add_contents(ui, show_expanded_contents))
+        }
     }
 }
 
@@ -392,11 +462,9 @@ impl Panel {
         let show_separator_line = self.show_separator_line;
         let outer_size_range = self.outer_size_range;
 
-        let frame = self
-            .frame
-            .unwrap_or_else(|| Frame::side_top_panel(parent_ui.style()));
+        let frame = self.resolve_frame(parent_ui);
         let available_rect = parent_ui.available_rect_before_wrap();
-        let mut outer_size = self.initial_outer_size(parent_ui, frame);
+        let mut outer_size = self.outer_size(parent_ui);
         let mut outer_rect = self.compute_outer_rect(available_rect, outer_size);
 
         // Check for duplicate id
@@ -421,15 +489,29 @@ impl Panel {
         // may change and round_ui() uses the size.
         outer_rect = outer_rect.round_ui();
 
+        // Slide animation: translate the panel off-screen toward its fixed edge.
+        // When `slide_fraction == 1.0` this is a no-op.
+        let slide_distance = (1.0 - self.slide_fraction) * outer_size;
+        let shifted_outer_rect = if slide_distance == 0.0 {
+            outer_rect
+        } else {
+            outer_rect
+                .translate(slide_distance * side.dir_vec2())
+                .round_ui()
+        };
+        // The portion of the panel actually visible inside the parent's available area.
+        // The parent only allocates this much; neighbors follow the slide.
+        let visible_outer_rect = shifted_outer_rect.intersect(available_rect);
+
         let mut panel_ui = parent_ui.new_child(
             UiBuilder::new()
                 .id_salt(id)
                 .ui_stack_info(UiStackInfo::new(side.ui_kind()))
-                .max_rect(outer_rect)
+                .max_rect(shifted_outer_rect)
                 .layout(Layout::top_down(Align::Min)),
         );
-        panel_ui.expand_to_include_rect(outer_rect);
-        panel_ui.set_clip_rect(outer_rect); // If we overflow, don't do so visibly (#4475)
+        panel_ui.expand_to_include_rect(shifted_outer_rect);
+        panel_ui.set_clip_rect(visible_outer_rect); // Hides the off-screen part during a slide; also prevents overflow (#4475).
 
         let axis = side.axis();
         let panel_axis_min =
@@ -448,29 +530,30 @@ impl Panel {
             add_contents(content_ui)
         });
 
-        // `Frame::show` returns the _outer_ rect (including margin & border).
-        let outer_rect = inner_response.response.rect;
+        // `Frame::show` returns the panel's (shifted) _outer_ rect, including margin & border.
+        let shifted_outer_rect = inner_response.response.rect;
+        let visible_outer_rect = shifted_outer_rect.intersect(available_rect);
 
         {
             let mut cursor = parent_ui.cursor();
             match side {
                 PanelSide::Left | PanelSide::Top => {
-                    cursor.min[axis] = outer_rect.max[axis];
+                    cursor.min[axis] = visible_outer_rect.max[axis];
                 }
                 PanelSide::Right | PanelSide::Bottom => {
-                    cursor.max[axis] = outer_rect.min[axis];
+                    cursor.max[axis] = visible_outer_rect.min[axis];
                 }
             }
             parent_ui.set_cursor(cursor);
         }
 
-        parent_ui.expand_to_include_rect(outer_rect);
+        parent_ui.expand_to_include_rect(visible_outer_rect);
 
         let (resize_hover, is_resizing) = if resizable {
             // Now we do the actual resize interaction, on top of all the contents,
             // otherwise its input could be eaten by the contents, e.g. a
             // `ScrollArea` on either side of the panel boundary.
-            self.resize_panel(outer_rect, parent_ui)
+            self.resize_panel(shifted_outer_rect, parent_ui)
         } else {
             (false, false)
         };
@@ -479,9 +562,18 @@ impl Panel {
             parent_ui.set_cursor_icon(self.cursor_icon(outer_size));
         }
 
-        PanelState { outer_rect }.store(parent_ui, id);
+        if self.slide_fraction == 1.0 {
+            // Only persist the panel's rect when it's fully expanded —
+            // skip while sliding so the stored rect always reflects the real layout.
+            PanelState {
+                outer_rect: shifted_outer_rect,
+            }
+            .store(parent_ui, id);
+        }
 
-        {
+        // Hide the separator once the panel is mostly slid off — at that point
+        // the line would just be a stray dash hovering near the parent edge.
+        if 0.01 < self.slide_fraction {
             let stroke = if is_resizing {
                 parent_ui.style().visuals.widgets.active.fg_stroke // highly visible
             } else if resize_hover {
@@ -493,8 +585,8 @@ impl Panel {
                 Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            let line_pos = side.resize_pos(outer_rect) + 0.5 * side.sign() * stroke.width;
-            let cross_range = outer_rect.range_along(side.cross_axis());
+            let line_pos = side.resize_pos(shifted_outer_rect) + 0.5 * side.sign() * stroke.width;
+            let cross_range = shifted_outer_rect.range_along(side.cross_axis());
             if axis == 0 {
                 parent_ui.painter().vline(line_pos, cross_range, stroke);
             } else {
@@ -505,15 +597,23 @@ impl Panel {
         inner_response
     }
 
-    /// Outer size to start the frame with: from persisted state, or a sensible default.
-    fn initial_outer_size(&self, ui: &Ui, frame: Frame) -> f32 {
+    /// The configured [`Frame`], or the default side/top panel frame for this [`Ui`].
+    fn resolve_frame(&self, ui: &Ui) -> Frame {
+        self.frame
+            .unwrap_or_else(|| Frame::side_top_panel(ui.style()))
+    }
+
+    /// Get the current _outer_ width or height of the panel (from previous frame),
+    /// including the [`Frame`] margin & border, or fall back to some default.
+    fn outer_size(&self, ui: &Ui) -> f32 {
         let axis = self.side.axis();
         if let Some(state) = PanelState::load(ui, self.id) {
             state.outer_rect.size_along(axis)
+        } else if let Some(default_outer_size) = self.default_outer_size {
+            default_outer_size
         } else {
-            self.default_outer_size.unwrap_or_else(|| {
-                ui.style().spacing.interact_size[axis] + frame.total_margin().sum()[axis]
-            })
+            let frame = self.resolve_frame(ui);
+            ui.style().spacing.interact_size[axis] + frame.total_margin().sum()[axis]
         }
     }
 
@@ -570,28 +670,11 @@ impl Panel {
         }
     }
 
-    /// Build a non-resizable, fixed-size clone of this panel for animating between sizes.
-    ///
-    /// Uses a distinct id so the resulting panel doesn't clash with the real one.
-    fn into_fake_animating(self, outer_size: f32) -> Self {
-        Self {
-            id: self.id.with("animating_panel"),
-            ..self
-        }
-        .resizable(false)
-        .exact_size(outer_size)
-    }
-
-    /// Get the current _outer_ width or height of the panel (from previous frame),
-    /// including the [`Frame`] margin & border,
-    /// or fall back to some default.
-    fn outer_size(&self, ctx: &Context) -> f32 {
-        let axis = self.side.axis();
-        if let Some(state) = PanelState::load(ctx, self.id) {
-            state.outer_rect.size_along(axis)
-        } else {
-            ctx.global_style().spacing.interact_size[axis]
-        }
+    /// Slide the panel toward its fixed edge. `1.0` = fully visible, `0.0` = fully off-screen.
+    #[inline]
+    fn with_slide_fraction(mut self, slide_fraction: f32) -> Self {
+        self.slide_fraction = slide_fraction;
+        self
     }
 }
 
