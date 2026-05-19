@@ -50,13 +50,13 @@ impl crate::View for Panels {
             .resizable(true)
             .min_size(32.0)
             .show_animated_inside(ui, *top, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.vertical_centered(|ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.vertical_centered(|ui| {
                         ui.heading("Expandable Upper Panel");
+                        });
+                        lorem_ipsum(ui);
                     });
-                    lorem_ipsum(ui);
-                });
-            });
+                    });
 
         egui::Panel::left("left_panel")
             .resizable(true)
@@ -84,17 +84,28 @@ impl crate::View for Panels {
                 });
             });
 
-        egui::Panel::bottom("bottom_panel")
-            .resizable(false)
-            .min_size(0.0)
-            .show_animated_inside(ui, *bottom, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.heading("Bottom Panel");
-                });
-                ui.vertical_centered(|ui| {
-                    ui.add(crate::egui_github_link_file!());
-                });
-            });
+        egui::Panel::show_animated_between_inside(
+            ui,
+            *bottom,
+            egui::Panel::bottom("bottom_panel_collapsed"),
+            egui::Panel::bottom("bottom_panel_expanded"),
+            |ui, expanded| {
+                if expanded {
+                    ui.vertical_centered(|ui| {
+                        if ui.button("Collapse bottom panel").clicked() {
+                            *bottom = false;
+                        }
+                    });
+                    ui.label(egui::RichText::new(crate::LOREM_IPSUM_LONG).small().weak());
+                } else {
+                    ui.vertical_centered(|ui| {
+                        if ui.button("Expand bottom panel").clicked() {
+                            *bottom = true;
+                        }
+                    });
+                }
+            },
+        );
 
         // TODO(emilk): This extra panel is superfluous - just use what's left of `ui` instead
         egui::CentralPanel::default().show_inside(ui, |ui| {

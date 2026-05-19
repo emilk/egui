@@ -370,28 +370,81 @@ impl Panel {
         Some(panel.show_inside(ui, add_contents))
     }
 
-    /// Show either a collapsed or a expanded panel, with a nice animation between.
+    /// Show either a collapsed or expanded panel, with a nice slide animation between.
+    ///
+    /// The `collapsed_panel` is shown only when fully collapsed; during the
+    /// animation, the `expanded_panel` slides in/out toward its fixed edge,
+    /// interpolating its visible size between the two panels' sizes.
+    /// `add_contents` receives `expanded = true` whenever the expanded panel is
+    /// rendered (including mid-animation), and `false` for the collapsed view.
+    ///
+    /// Give the two panels distinct ids so their persisted sizes don't
+    /// overwrite each other.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut is_expanded = true;
+    /// let collapsed = egui::Panel::top("top_collapsed").exact_size(28.0);
+    /// let expanded = egui::Panel::top("top_expanded")
+    ///     .resizable(true)
+    ///     .default_size(120.0);
+    /// egui::Panel::show_animated_between_inside(
+    ///     ui,
+    ///     is_expanded,
+    ///     collapsed,
+    ///     expanded,
+    ///     |ui, expanded| {
+    ///         if expanded {
+    ///             ui.heading("Expanded");
+    ///             ui.label("More content here…");
+    ///         } else {
+    ///             ui.label("Collapsed toolbar");
+    ///         }
+    ///     },
+    /// );
+    /// ui.toggle_value(&mut is_expanded, "Expand");
+    /// # });
+    /// ```
     pub fn show_animated_between_inside<R>(
         ui: &mut Ui,
         is_expanded: bool,
         collapsed_panel: Self,
         expanded_panel: Self,
-        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+        add_contents: impl FnOnce(&mut Ui, bool) -> R,
     ) -> InnerResponse<R> {
         let how_expanded = animate_expansion(ui, expanded_panel.id.with("animation"), is_expanded);
 
-        let panel = if how_expanded == 0.0 {
-            collapsed_panel
-        } else if how_expanded < 1.0 {
-            let collapsed_size = collapsed_panel.outer_size(ui);
-            let expanded_size = expanded_panel.outer_size(ui);
-            let fake_size = lerp(collapsed_size..=expanded_size, how_expanded);
-            expanded_panel.into_fake_animating(fake_size)
+        // When expanding, the user sees the expanded content the moment animation starts.
+        // When collapsing, keep showing the expanded content until past the midpoint,
+        // then swap to the collapsed content for the rest of the slide-out.
+        let show_expanded_contents = if is_expanded {
+            true
         } else {
-            expanded_panel
+            0.5 < how_expanded
         };
 
-        panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+        if how_expanded == 0.0 {
+            collapsed_panel.show_inside(ui, |ui| add_contents(ui, false))
+        } else {
+            let panel = if how_expanded < 1.0 {
+                // Animate the visible size from collapsed_size to expanded_size,
+                // so the slide picks up where the collapsed panel left off.
+                let collapsed_size = collapsed_panel.outer_size(ui);
+                let expanded_size = expanded_panel.outer_size(ui);
+                let visible_size = lerp(collapsed_size..=expanded_size, how_expanded);
+                let slide_fraction = if 0.0 < expanded_size {
+                    visible_size / expanded_size
+                } else {
+                    1.0
+                };
+                expanded_panel
+                    .with_slide_fraction(slide_fraction)
+                    .resizable(false)
+            } else {
+                expanded_panel
+            };
+            panel.show_inside(ui, |ui| add_contents(ui, show_expanded_contents))
+        }
     }
 }
 
@@ -615,18 +668,6 @@ impl Panel {
                 PanelSide::Bottom => CursorIcon::ResizeSouth,
             }
         }
-    }
-
-    /// Build a non-resizable, fixed-size clone of this panel for animating between sizes.
-    ///
-    /// Uses a distinct id so the resulting panel doesn't clash with the real one.
-    fn into_fake_animating(self, outer_size: f32) -> Self {
-        Self {
-            id: self.id.with("animating_panel"),
-            ..self
-        }
-        .resizable(false)
-        .exact_size(outer_size)
     }
 
     /// Slide the panel toward its fixed edge. `1.0` = fully visible, `0.0` = fully off-screen.
