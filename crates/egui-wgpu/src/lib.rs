@@ -391,7 +391,7 @@ impl Default for WgpuConfiguration {
                     // The compositor changed the surface (resize, scale, output, …). wgpu
                     // requires us to reconfigure before the next acquire. Skipping would mean
                     // we are stuck in `Outdated` forever.
-                    log::debug!("Dropped frame with error: {status:?}");
+                    log::trace!("Dropped frame with error: {status:?}");
                     SurfaceErrorAction::Reconfigure
                 }
                 wgpu::CurrentSurfaceTexture::Lost => {
@@ -401,7 +401,7 @@ impl Default for WgpuConfiguration {
                 }
                 wgpu::CurrentSurfaceTexture::Occluded => {
                     // App is hidden (minimized / behind another window). Skip silently.
-                    log::debug!("Skipping frame due to occlusion.");
+                    log::trace!("Skipping frame due to occlusion.");
                     SurfaceErrorAction::SkipFrame
                 }
                 _ => {
