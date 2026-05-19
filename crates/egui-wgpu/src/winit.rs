@@ -145,39 +145,13 @@ impl Painter {
         };
 
         let surface = self.instance.create_surface(Arc::clone(window))?;
-
-        let render_state = self
-            .render_state
-            .as_ref()
-            .expect("recreate_surface called before render_state initialization");
-
-        let alpha_mode = if self.support_transparent_backbuffer {
-            let supported = surface.get_capabilities(&render_state.adapter).alpha_modes;
-            if supported.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
-                wgpu::CompositeAlphaMode::PreMultiplied
-            } else if supported.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
-                wgpu::CompositeAlphaMode::PostMultiplied
-            } else {
-                wgpu::CompositeAlphaMode::Auto
-            }
-        } else {
-            wgpu::CompositeAlphaMode::Auto
-        };
-
-        self.surfaces.insert(
+        self.install_surface(
+            surface,
             viewport_id,
-            SurfaceState {
-                surface,
-                alpha_mode,
-                width: old_state.width,
-                height: old_state.height,
-                resizing: old_state.resizing,
-                // We have just recreated the surface, make sure it gets configured too.
-                needs_reconfigure: true,
-                needs_recreate: false,
-            },
+            old_state.width,
+            old_state.height,
+            old_state.resizing,
         );
-
         Ok(())
     }
 
@@ -257,53 +231,74 @@ impl Painter {
         viewport_id: ViewportId,
         size: winit::dpi::PhysicalSize<u32>,
     ) -> Result<(), crate::WgpuError> {
-        let render_state = if let Some(render_state) = &self.render_state {
-            render_state
-        } else {
+        if self.render_state.is_none() {
             let render_state =
                 RenderState::create(&self.config, &self.instance, Some(&surface), self.options)
                     .await?;
-            self.render_state.get_or_insert(render_state)
-        };
-        let alpha_mode = if self.support_transparent_backbuffer {
-            let supported_alpha_modes = surface.get_capabilities(&render_state.adapter).alpha_modes;
+            self.render_state = Some(render_state);
+        }
+        self.install_surface(surface, viewport_id, size.width, size.height, false);
+        Ok(())
+    }
 
-            // Prefer pre multiplied over post multiplied!
-            if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
-                wgpu::CompositeAlphaMode::PreMultiplied
-            } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
-                wgpu::CompositeAlphaMode::PostMultiplied
+    /// Inserts a freshly created surface into [`Self::surfaces`] and configures it.
+    ///
+    /// Render state must already be initialised before calling this.
+    // NOTE: The same assumption is already required by `resize_and_generate_depth_texture_view_and_msaa_view`.
+    fn install_surface(
+        &mut self,
+        surface: wgpu::Surface<'static>,
+        viewport_id: ViewportId,
+        width: u32,
+        height: u32,
+        resizing: bool,
+    ) {
+        let alpha_mode = {
+            // Panic: We use the same failure mode as ``
+            let render_state = self
+                .render_state
+                .as_ref()
+                .expect("install_surface called before render_state initialization");
+            if self.support_transparent_backbuffer {
+                let supported_alpha_modes =
+                    surface.get_capabilities(&render_state.adapter).alpha_modes;
+                // Prefer pre multiplied over post multiplied!
+                if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+                    wgpu::CompositeAlphaMode::PreMultiplied
+                } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied)
+                {
+                    wgpu::CompositeAlphaMode::PostMultiplied
+                } else {
+                    log::warn!(
+                        "Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
+                    );
+                    wgpu::CompositeAlphaMode::Auto
+                }
             } else {
-                log::warn!(
-                    "Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
-                );
                 wgpu::CompositeAlphaMode::Auto
             }
-        } else {
-            wgpu::CompositeAlphaMode::Auto
         };
         self.surfaces.insert(
             viewport_id,
             SurfaceState {
                 surface,
-                width: size.width,
-                height: size.height,
+                width,
+                height,
                 alpha_mode,
-                resizing: false,
+                resizing,
                 needs_reconfigure: false,
                 needs_recreate: false,
             },
         );
-        let Some(width) = NonZeroU32::new(size.width) else {
+        let Some(width) = NonZeroU32::new(width) else {
             log::debug!("The window width was zero; skipping generate textures");
-            return Ok(());
+            return;
         };
-        let Some(height) = NonZeroU32::new(size.height) else {
+        let Some(height) = NonZeroU32::new(height) else {
             log::debug!("The window height was zero; skipping generate textures");
-            return Ok(());
+            return;
         };
         self.resize_and_generate_depth_texture_view_and_msaa_view(viewport_id, width, height);
-        Ok(())
     }
 
     /// Returns the maximum texture dimension supported if known
