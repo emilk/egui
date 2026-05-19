@@ -18,6 +18,7 @@ struct SurfaceState {
     height: u32,
     resizing: bool,
     needs_reconfigure: bool,
+    needs_recreate: bool,
 }
 
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
@@ -127,6 +128,33 @@ impl Painter {
             .configure(&render_state.device, &surf_config);
     }
 
+    /// Drop the existing [`wgpu::Surface`] for `viewport_id` and create a fresh one for the
+    /// given window via [`wgpu::Instance::create_surface`], then configure it.
+    ///
+    /// Used to recover from [`wgpu::CurrentSurfaceTexture::Lost`], where reconfiguring the
+    /// existing surface object cannot recover.
+    fn recreate_surface(
+        &mut self,
+        viewport_id: ViewportId,
+        window: &Arc<winit::window::Window>,
+    ) -> Result<(), crate::WgpuError> {
+        profiling::function_scope!();
+
+        let Some(old_state) = self.surfaces.remove(&viewport_id) else {
+            return Ok(());
+        };
+
+        let surface = self.instance.create_surface(Arc::clone(window))?;
+        self.install_surface(
+            surface,
+            viewport_id,
+            old_state.width,
+            old_state.height,
+            old_state.resizing,
+        );
+        Ok(())
+    }
+
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
     ///
     /// This creates a [`wgpu::Surface`] for the given Window (as well as initializing render
@@ -203,52 +231,74 @@ impl Painter {
         viewport_id: ViewportId,
         size: winit::dpi::PhysicalSize<u32>,
     ) -> Result<(), crate::WgpuError> {
-        let render_state = if let Some(render_state) = &self.render_state {
-            render_state
-        } else {
+        if self.render_state.is_none() {
             let render_state =
                 RenderState::create(&self.config, &self.instance, Some(&surface), self.options)
                     .await?;
-            self.render_state.get_or_insert(render_state)
-        };
-        let alpha_mode = if self.support_transparent_backbuffer {
-            let supported_alpha_modes = surface.get_capabilities(&render_state.adapter).alpha_modes;
+            self.render_state = Some(render_state);
+        }
+        self.install_surface(surface, viewport_id, size.width, size.height, false);
+        Ok(())
+    }
 
-            // Prefer pre multiplied over post multiplied!
-            if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
-                wgpu::CompositeAlphaMode::PreMultiplied
-            } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
-                wgpu::CompositeAlphaMode::PostMultiplied
+    /// Inserts a freshly created surface into [`Self::surfaces`] and configures it.
+    ///
+    /// Render state must already be initialised before calling this.
+    // NOTE: The same assumption is already required by `resize_and_generate_depth_texture_view_and_msaa_view`.
+    fn install_surface(
+        &mut self,
+        surface: wgpu::Surface<'static>,
+        viewport_id: ViewportId,
+        width: u32,
+        height: u32,
+        resizing: bool,
+    ) {
+        let alpha_mode = {
+            // Panic: We use the same failure mode as `resize_and_generate_depth_texture_view_and_msaa_view`
+            let render_state = self
+                .render_state
+                .as_ref()
+                .expect("install_surface called before render_state initialization");
+            if self.support_transparent_backbuffer {
+                let supported_alpha_modes =
+                    surface.get_capabilities(&render_state.adapter).alpha_modes;
+                // Prefer pre multiplied over post multiplied!
+                if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+                    wgpu::CompositeAlphaMode::PreMultiplied
+                } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied)
+                {
+                    wgpu::CompositeAlphaMode::PostMultiplied
+                } else {
+                    log::warn!(
+                        "Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
+                    );
+                    wgpu::CompositeAlphaMode::Auto
+                }
             } else {
-                log::warn!(
-                    "Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency."
-                );
                 wgpu::CompositeAlphaMode::Auto
             }
-        } else {
-            wgpu::CompositeAlphaMode::Auto
         };
         self.surfaces.insert(
             viewport_id,
             SurfaceState {
                 surface,
-                width: size.width,
-                height: size.height,
+                width,
+                height,
                 alpha_mode,
-                resizing: false,
+                resizing,
                 needs_reconfigure: false,
+                needs_recreate: false,
             },
         );
-        let Some(width) = NonZeroU32::new(size.width) else {
+        let Some(width) = NonZeroU32::new(width) else {
             log::debug!("The window width was zero; skipping generate textures");
-            return Ok(());
+            return;
         };
-        let Some(height) = NonZeroU32::new(size.height) else {
+        let Some(height) = NonZeroU32::new(height) else {
             log::debug!("The window height was zero; skipping generate textures");
-            return Ok(());
+            return;
         };
         self.resize_and_generate_depth_texture_view_and_msaa_view(viewport_id, width, height);
-        Ok(())
     }
 
     /// Returns the maximum texture dimension supported if known
@@ -421,7 +471,7 @@ impl Painter {
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
         capture_data: Vec<UserData>,
-        window: &winit::window::Window,
+        window: &Arc<winit::window::Window>,
     ) -> f32 {
         profiling::function_scope!();
 
@@ -449,6 +499,19 @@ impl Painter {
 
         let capture = !capture_data.is_empty();
         let mut vsync_sec = 0.0;
+
+        // If the previous frame produced `CurrentSurfaceTexture::Lost`, the action match
+        // below set `needs_recreate`. Recreate the surface now, before re-borrowing
+        // `self.render_state` / `self.surfaces` for the rest of the paint.
+        if self
+            .surfaces
+            .get(&viewport_id)
+            .is_some_and(|s| s.needs_recreate)
+            && let Err(err) = self.recreate_surface(viewport_id, window)
+        {
+            log::error!("Failed to recreate surface for {viewport_id:?}: {err}");
+            return vsync_sec;
+        }
 
         // Apply any runtime changes requested via `RenderState::surface_config`.
         // We diff against the already-applied values in `self.config.surface`
@@ -532,8 +595,18 @@ impl Painter {
             }
             other => {
                 match (*self.config.on_surface_status)(&other) {
-                    SurfaceErrorAction::RecreateSurface => {
+                    SurfaceErrorAction::Reconfigure => {
                         Self::configure_surface(surface_state, render_state, &self.config.surface);
+                        self.context.request_repaint_of(viewport_id);
+                    }
+                    SurfaceErrorAction::RecreateSurface => {
+                        // Because of ownership, I could not find an easy way to do a full recovery here,
+                        // as that would involve dropping the old surface and creating a new one.
+                        // For now, we defer the recreation to the beginning of the next frame (which
+                        // we ensure to arrive via `request_repaint_of`). A cleaner solution would be
+                        // to untangle the ownership of `RenderState`.
+                        surface_state.needs_recreate = true;
+                        self.context.request_repaint_of(viewport_id);
                     }
                     SurfaceErrorAction::SkipFrame => {}
                 }
