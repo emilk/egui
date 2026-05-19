@@ -381,7 +381,7 @@ pub struct NativeOptions {
     #[cfg(target_os = "android")]
     pub android_app: Option<winit::platform::android::activity::AndroidApp>,
 
-    /// Optional handle for programmatic automation (e.g. test harnesses).
+    /// Optional handle for programmatic app control.
     ///
     /// When set, the running app will:
     /// - drain [`egui::Event`]s pushed via
@@ -389,9 +389,6 @@ pub struct NativeOptions {
     ///   [`egui::RawInput`], and
     /// - forward every AccessKit [`egui::accesskit::TreeUpdate`] it produces
     ///   to the handle so an external controller can observe the UI state.
-    ///
-    /// Hand the same `Arc<AutomationHandle>` to your controller thread to
-    /// drive the app from outside the winit event loop.
     #[cfg(feature = "accesskit")]
     pub automation: Option<std::sync::Arc<crate::automation::AutomationHandle>>,
 }

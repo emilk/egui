@@ -1,7 +1,7 @@
 //! Drive a real eframe app through [`eframe::AutomationHandle`].
 //!
 //! Where [`crate::Harness`] owns its own [`egui::Context`] and runs the
-//! frame loop itself, [`RemoteHarness`] talks to an eframe app running on
+//! frame loop itself, [`AutomationHarness`] talks to an eframe app running on
 //! another thread (typically the main thread) via an automation channel.
 //! The query API is the same — `harness.get_by_label("Save").click()` etc.
 //! — but every event is sent to the live app and every observation comes
@@ -23,20 +23,20 @@ use crate::node::{EventQueue, EventType, Node};
 /// generous deadline tolerates the OS scheduler and the first-frame setup.
 const DEFAULT_FRAME_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// Idle interval used by [`RemoteHarness::run`] to decide that the remote
+/// Idle interval used by [`AutomationHarness::run`] to decide that the remote
 /// app has settled. If no new tree updates arrive within this window after
 /// the last one, the run loop returns.
 const DEFAULT_SETTLE_TIMEOUT: Duration = Duration::from_millis(100);
 
-/// Errors returned by [`RemoteHarness::attach`] and friends.
+/// Errors returned by [`AutomationHarness::attach`] and friends.
 #[derive(Debug)]
-pub enum RemoteHarnessError {
+pub enum AutomationHarnessError {
     /// The remote app never produced its first AccessKit tree update within
     /// the timeout, so the harness has nothing to query.
     TimedOut,
 }
 
-impl std::fmt::Display for RemoteHarnessError {
+impl std::fmt::Display for AutomationHarnessError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::TimedOut => write!(
@@ -47,18 +47,18 @@ impl std::fmt::Display for RemoteHarnessError {
     }
 }
 
-impl std::error::Error for RemoteHarnessError {}
+impl std::error::Error for AutomationHarnessError {}
 
 /// Harness that drives a running eframe app through an
 /// [`eframe::AutomationHandle`].
 ///
 /// Build one by handing the same `Arc<AutomationHandle>` to both
-/// [`eframe::NativeOptions::automation`] and [`RemoteHarness::attach`]:
+/// [`eframe::NativeOptions::automation`] and [`AutomationHarness::attach`]:
 ///
 /// ```no_run
 /// # use std::sync::Arc;
 /// # use eframe::AutomationHandle;
-/// # use egui_kittest::{RemoteHarness, kittest::Queryable as _};
+/// # use egui_kittest::{AutomationHarness, kittest::Queryable as _};
 /// let automation = Arc::new(AutomationHandle::new());
 /// let controller = Arc::clone(&automation);
 ///
@@ -76,7 +76,7 @@ impl std::error::Error for RemoteHarnessError {}
 ///     ).unwrap();
 /// });
 ///
-/// let mut harness = RemoteHarness::attach(automation).unwrap();
+/// let mut harness = AutomationHarness::attach(automation).unwrap();
 /// harness.get_by_label("Click me").click();
 /// harness.run();
 /// assert!(harness.query_by_label("Clicked!").is_some());
@@ -85,7 +85,7 @@ impl std::error::Error for RemoteHarnessError {}
 /// #     fn ui(&mut self, _: &mut eframe::egui::Ui, _: &mut eframe::Frame) {}
 /// # }
 /// ```
-pub struct RemoteHarness {
+pub struct AutomationHarness {
     handle: Arc<AutomationHandle>,
     ctx: egui::Context,
     kittest: kittest::State,
@@ -95,18 +95,18 @@ pub struct RemoteHarness {
     max_steps: u32,
 }
 
-impl std::fmt::Debug for RemoteHarness {
+impl std::fmt::Debug for AutomationHarness {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.kittest.fmt(f)
     }
 }
 
-impl RemoteHarness {
+impl AutomationHarness {
     /// Attach to a running eframe app via the shared automation handle.
     ///
     /// Blocks until the app has produced its first AccessKit tree update or
-    /// [`RemoteHarness::frame_timeout`] elapses.
-    pub fn attach(handle: Arc<AutomationHandle>) -> Result<Self, RemoteHarnessError> {
+    /// [`AutomationHarness::frame_timeout`] elapses.
+    pub fn attach(handle: Arc<AutomationHandle>) -> Result<Self, AutomationHarnessError> {
         Self::attach_with_timeout(handle, DEFAULT_FRAME_TIMEOUT)
     }
 
@@ -115,17 +115,17 @@ impl RemoteHarness {
     pub fn attach_with_timeout(
         handle: Arc<AutomationHandle>,
         timeout: Duration,
-    ) -> Result<Self, RemoteHarnessError> {
+    ) -> Result<Self, AutomationHarnessError> {
         let deadline = Instant::now() + timeout;
         let ctx = handle
             .wait_for_ctx(timeout)
-            .ok_or(RemoteHarnessError::TimedOut)?;
+            .ok_or(AutomationHarnessError::TimedOut)?;
         let remaining = deadline.saturating_duration_since(Instant::now());
         let updates = handle
             .wait_for_tree_update(remaining)
-            .ok_or(RemoteHarnessError::TimedOut)?;
+            .ok_or(AutomationHarnessError::TimedOut)?;
         let mut iter = updates.into_iter();
-        let first = iter.next().ok_or(RemoteHarnessError::TimedOut)?;
+        let first = iter.next().ok_or(AutomationHarnessError::TimedOut)?;
         let mut kittest = kittest::State::new(first);
         for update in iter {
             kittest.update(update);
@@ -250,6 +250,7 @@ impl RemoteHarness {
     /// for [`Self::settle_timeout`], or [`Self::max_steps`] is exhausted.
     ///
     /// Returns the number of steps that ran.
+    // TODO: find a way to wait for the app to settle even if it renders continuously
     pub fn run(&mut self) -> u32 {
         let mut steps = 0;
         // First step: deliver any queued events.
@@ -277,7 +278,7 @@ impl RemoteHarness {
     }
 }
 
-impl<'tree, 'node> Queryable<'tree, 'node, Node<'tree>> for RemoteHarness
+impl<'tree, 'node> Queryable<'tree, 'node, Node<'tree>> for AutomationHarness
 where
     'node: 'tree,
 {

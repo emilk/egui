@@ -29,7 +29,7 @@ pub use {
 };
 
 #[cfg(feature = "eframe")]
-pub use crate::remote::{RemoteHarness, RemoteHarnessError};
+pub use crate::remote::{AutomationHarness, AutomationHarnessError};
 
 use std::{
     fmt::{Debug, Display, Formatter},

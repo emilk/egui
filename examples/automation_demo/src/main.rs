@@ -78,7 +78,7 @@ fn run_controller(handle: Arc<AutomationHandle>) {
 
     let started = Instant::now();
     let mut presses = 0;
-    while started.elapsed() < Duration::from_secs(5) {
+    while started.elapsed() < Duration::from_secs(20) {
         std::thread::sleep(Duration::from_millis(700));
 
         // Push a synthetic Space press + release.
