@@ -10,6 +10,7 @@ type AppKindUi<'a> = Box<dyn FnMut(&mut egui::Ui) + 'a>;
 #[cfg(feature = "eframe")]
 pub(crate) struct AppKindEframe<State> {
     pub get_app: fn(&mut State) -> &mut dyn eframe::App,
+    #[cfg(not(target_arch = "wasm32"))]
     pub take_app: fn(State) -> Box<dyn eframe::App>,
     pub frame: eframe::Frame,
 }

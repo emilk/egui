@@ -711,7 +711,7 @@ impl<'a, State> Harness<'a, State> {
     /// Then write a `fn main()` in the test file that invokes your test directly.
     ///
     /// See also: <https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field>
-    #[cfg(feature = "eframe")]
+    #[cfg(all(feature = "eframe", not(target_arch = "wasm32")))]
     #[deprecated = "Only for debugging, don't commit this."]
     pub fn spawn_eframe_app(self)
     where
