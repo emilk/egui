@@ -15,7 +15,7 @@
 //!
 //! Add your [`crate::Window`]:s after any top-level panels.
 
-use emath::{GuiRounding as _, Pos2};
+use emath::GuiRounding as _;
 
 use crate::{
     Align, Context, CursorIcon, Frame, Id, InnerResponse, Layout, NumExt as _, Rangef, Rect, Sense,
@@ -192,105 +192,6 @@ impl PanelSide {
         match self {
             Self::Vertical(side) => Self::Vertical(side.opposite()),
             Self::Horizontal(side) => Self::Horizontal(side.opposite()),
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Intermediate structure to abstract some portion of [`Panel::show_inside`](Panel::show_inside).
-///
-/// All sizes/rects here are _outer_, i.e. including the [`Frame`] margin & border.
-struct PanelSizer<'a> {
-    panel: &'a Panel,
-    frame: Frame,
-    available_rect: Rect,
-
-    /// Outer size of the panel (width for a vertical panel, height for a horizontal panel),
-    /// including the [`Frame`] margin & border.
-    outer_size: f32,
-
-    /// Outer rect of the panel, including the [`Frame`] margin & border.
-    outer_rect: Rect,
-}
-
-impl<'a> PanelSizer<'a> {
-    fn new(panel: &'a Panel, ui: &Ui) -> Self {
-        let frame = panel
-            .frame
-            .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
-        let available_rect = ui.available_rect_before_wrap();
-        let outer_size = PanelSizer::outer_size_from_state_or_default(panel, ui, frame);
-        let outer_rect = PanelSizer::compute_outer_rect(panel, available_rect, outer_size);
-
-        Self {
-            panel,
-            frame,
-            available_rect,
-            outer_size,
-            outer_rect,
-        }
-    }
-
-    fn outer_size_from_state_or_default(panel: &Panel, ui: &Ui, frame: Frame) -> f32 {
-        if let Some(state) = PanelState::load(ui, panel.id) {
-            match panel.side {
-                PanelSide::Vertical(_) => state.outer_rect.width(),
-                PanelSide::Horizontal(_) => state.outer_rect.height(),
-            }
-        } else {
-            let default_size = ui.style().spacing.interact_size;
-            // let default_size = Vec2::ZERO;
-            match panel.side {
-                PanelSide::Vertical(_) => panel
-                    .default_outer_size
-                    .unwrap_or_else(|| default_size.x + frame.total_margin().sum().x),
-                PanelSide::Horizontal(_) => panel
-                    .default_outer_size
-                    .unwrap_or_else(|| default_size.y + frame.total_margin().sum().y),
-            }
-        }
-    }
-
-    fn compute_outer_rect(panel: &Panel, available_rect: Rect, mut outer_size: f32) -> Rect {
-        let side = panel.side;
-        let outer_size_range = panel.outer_size_range;
-
-        let mut outer_rect = available_rect;
-
-        match side {
-            PanelSide::Vertical(_) => {
-                outer_size =
-                    clamp_to_range(outer_size, outer_size_range).at_most(available_rect.width());
-            }
-            PanelSide::Horizontal(_) => {
-                outer_size =
-                    clamp_to_range(outer_size, outer_size_range).at_most(available_rect.height());
-            }
-        }
-        side.set_rect_size(&mut outer_rect, outer_size);
-        outer_rect
-    }
-
-    fn prepare_resizing_response(&mut self, is_resizing: bool, pointer: Option<Pos2>) {
-        let side = self.panel.side;
-        let outer_size_range = self.panel.outer_size_range;
-
-        if is_resizing && let Some(pointer) = pointer {
-            match side {
-                PanelSide::Vertical(side) => {
-                    self.outer_size = (pointer.x - side.side_x(self.outer_rect)).abs();
-                    self.outer_size = clamp_to_range(self.outer_size, outer_size_range)
-                        .at_most(self.available_rect.width());
-                }
-                PanelSide::Horizontal(side) => {
-                    self.outer_size = (pointer.y - side.side_y(self.outer_rect)).abs();
-                    self.outer_size = clamp_to_range(self.outer_size, outer_size_range)
-                        .at_most(self.available_rect.height());
-                }
-            }
-
-            side.set_rect_size(&mut self.outer_rect, self.outer_size);
         }
     }
 }
@@ -548,45 +449,62 @@ impl Panel {
         let show_separator_line = self.show_separator_line;
         let outer_size_range = self.outer_size_range;
 
-        // Define the sizing of the panel.
-        let mut panel_sizer = PanelSizer::new(&self, parent_ui);
+        let frame = self
+            .frame
+            .unwrap_or_else(|| Frame::side_top_panel(parent_ui.style()));
+        let available_rect = parent_ui.available_rect_before_wrap();
+        let mut outer_size = self.initial_outer_size(parent_ui, frame);
+        let mut outer_rect = self.compute_outer_rect(available_rect, outer_size);
 
         // Check for duplicate id
-        parent_ui.check_for_id_clash(id, panel_sizer.outer_rect, "Panel");
+        parent_ui.check_for_id_clash(id, outer_rect, "Panel");
 
-        if self.resizable {
-            // Prepare the resizable panel to avoid frame latency in the resize
-            self.prepare_resizable_panel(&mut panel_sizer, parent_ui);
+        if resizable {
+            // Resolve the resize interaction first to avoid frame latency in the resize.
+            let resize_id = id.with("__resize");
+            if let Some(resize_response) = parent_ui.read_response(resize_id)
+                && resize_response.dragged()
+                && let Some(pointer) = resize_response.interact_pointer_pos()
+            {
+                outer_size = match side {
+                    PanelSide::Vertical(s) => (pointer.x - s.side_x(outer_rect)).abs(),
+                    PanelSide::Horizontal(s) => (pointer.y - s.side_y(outer_rect)).abs(),
+                };
+                let available = match side {
+                    PanelSide::Vertical(_) => available_rect.width(),
+                    PanelSide::Horizontal(_) => available_rect.height(),
+                };
+                outer_size = clamp_to_range(outer_size, outer_size_range).at_most(available);
+                side.set_rect_size(&mut outer_rect, outer_size);
+            }
         }
 
         // NOTE(shark98): This must be **after** the resizable preparation, as the size
         // may change and round_ui() uses the size.
-        panel_sizer.outer_rect = panel_sizer.outer_rect.round_ui();
+        outer_rect = outer_rect.round_ui();
 
         let mut panel_ui = parent_ui.new_child(
             UiBuilder::new()
                 .id_salt(id)
                 .ui_stack_info(UiStackInfo::new(side.ui_kind()))
-                .max_rect(panel_sizer.outer_rect)
+                .max_rect(outer_rect)
                 .layout(Layout::top_down(Align::Min)),
         );
-        panel_ui.expand_to_include_rect(panel_sizer.outer_rect);
-        panel_ui.set_clip_rect(panel_sizer.outer_rect); // If we overflow, don't do so visibly (#4475)
+        panel_ui.expand_to_include_rect(outer_rect);
+        panel_ui.set_clip_rect(outer_rect); // If we overflow, don't do so visibly (#4475)
 
-        let inner_response = panel_sizer.frame.show(&mut panel_ui, |content_ui| {
+        let inner_response = frame.show(&mut panel_ui, |content_ui| {
             match side {
                 PanelSide::Vertical(_) => {
                     content_ui.set_min_height(content_ui.max_rect().height()); // Make sure the frame fills the full height
                     content_ui.set_min_width(
-                        (outer_size_range.min - panel_sizer.frame.total_margin().sum().x)
-                            .at_least(0.0),
+                        (outer_size_range.min - frame.total_margin().sum().x).at_least(0.0),
                     );
                 }
                 PanelSide::Horizontal(_) => {
                     content_ui.set_min_width(content_ui.max_rect().width()); // Make the frame fill full width
                     content_ui.set_min_height(
-                        (outer_size_range.min - panel_sizer.frame.total_margin().sum().y)
-                            .at_least(0.0),
+                        (outer_size_range.min - frame.total_margin().sum().y).at_least(0.0),
                     );
                 }
             }
@@ -614,17 +532,17 @@ impl Panel {
 
         parent_ui.expand_to_include_rect(outer_rect);
 
-        let mut resize_hover = false;
-        let mut is_resizing = false;
-        if resizable {
+        let (resize_hover, is_resizing) = if resizable {
             // Now we do the actual resize interaction, on top of all the contents,
             // otherwise its input could be eaten by the contents, e.g. a
             // `ScrollArea` on either side of the panel boundary.
-            (resize_hover, is_resizing) = self.resize_panel(&panel_sizer, parent_ui);
-        }
+            self.resize_panel(outer_rect, parent_ui)
+        } else {
+            (false, false)
+        };
 
         if resize_hover || is_resizing {
-            parent_ui.set_cursor_icon(self.cursor_icon(&panel_sizer));
+            parent_ui.set_cursor_icon(self.cursor_icon(outer_size));
         }
 
         PanelState { outer_rect }.store(parent_ui, id);
@@ -644,15 +562,11 @@ impl Panel {
             match side {
                 PanelSide::Vertical(side) => {
                     let x = side.opposite().side_x(outer_rect) + 0.5 * side.sign() * stroke.width;
-                    parent_ui
-                        .painter()
-                        .vline(x, panel_sizer.outer_rect.y_range(), stroke);
+                    parent_ui.painter().vline(x, outer_rect.y_range(), stroke);
                 }
                 PanelSide::Horizontal(side) => {
                     let y = side.opposite().side_y(outer_rect) + 0.5 * side.sign() * stroke.width;
-                    parent_ui
-                        .painter()
-                        .hline(panel_sizer.outer_rect.x_range(), y, stroke);
+                    parent_ui.painter().hline(outer_rect.x_range(), y, stroke);
                 }
             }
         }
@@ -660,24 +574,43 @@ impl Panel {
         inner_response
     }
 
-    fn prepare_resizable_panel(&self, panel_sizer: &mut PanelSizer<'_>, ui: &Ui) {
-        let resize_id = self.id.with("__resize");
-        let resize_response = ui.read_response(resize_id);
-
-        if let Some(resize_response) = resize_response {
-            // NOTE(sharky98): The original code was initializing to
-            // false first, but it doesn't seem necessary.
-            let is_resizing = resize_response.dragged();
-            let pointer = resize_response.interact_pointer_pos();
-            panel_sizer.prepare_resizing_response(is_resizing, pointer);
+    /// Outer size to start the frame with: from persisted state, or a sensible default.
+    fn initial_outer_size(&self, ui: &Ui, frame: Frame) -> f32 {
+        if let Some(state) = PanelState::load(ui, self.id) {
+            match self.side {
+                PanelSide::Vertical(_) => state.outer_rect.width(),
+                PanelSide::Horizontal(_) => state.outer_rect.height(),
+            }
+        } else {
+            let default_size = ui.style().spacing.interact_size;
+            match self.side {
+                PanelSide::Vertical(_) => self
+                    .default_outer_size
+                    .unwrap_or_else(|| default_size.x + frame.total_margin().sum().x),
+                PanelSide::Horizontal(_) => self
+                    .default_outer_size
+                    .unwrap_or_else(|| default_size.y + frame.total_margin().sum().y),
+            }
         }
     }
 
-    fn resize_panel(&self, panel_sizer: &PanelSizer<'_>, ui: &Ui) -> (bool, bool) {
+    /// Clamp `outer_size` to the allowed range / available space, then compute the panel rect.
+    fn compute_outer_rect(&self, available_rect: Rect, mut outer_size: f32) -> Rect {
+        let mut outer_rect = available_rect;
+        let available = match self.side {
+            PanelSide::Vertical(_) => available_rect.width(),
+            PanelSide::Horizontal(_) => available_rect.height(),
+        };
+        outer_size = clamp_to_range(outer_size, self.outer_size_range).at_most(available);
+        self.side.set_rect_size(&mut outer_rect, outer_size);
+        outer_rect
+    }
+
+    fn resize_panel(&self, outer_rect: Rect, ui: &Ui) -> (bool, bool) {
         let (resize_x, resize_y, amount): (Rangef, Rangef, Vec2) = match self.side {
             PanelSide::Vertical(side) => {
-                let resize_x = side.opposite().side_x(panel_sizer.outer_rect);
-                let resize_y = panel_sizer.outer_rect.y_range();
+                let resize_x = side.opposite().side_x(outer_rect);
+                let resize_y = outer_rect.y_range();
                 (
                     Rangef::from(resize_x..=resize_x),
                     resize_y,
@@ -685,8 +618,8 @@ impl Panel {
                 )
             }
             PanelSide::Horizontal(side) => {
-                let resize_x = panel_sizer.outer_rect.x_range();
-                let resize_y = side.opposite().side_y(panel_sizer.outer_rect);
+                let resize_x = outer_rect.x_range();
+                let resize_y = side.opposite().side_y(outer_rect);
                 (
                     resize_x,
                     Rangef::from(resize_y..=resize_y),
@@ -702,8 +635,8 @@ impl Panel {
         (resize_response.hovered(), resize_response.dragged())
     }
 
-    fn cursor_icon(&self, panel_sizer: &PanelSizer<'_>) -> CursorIcon {
-        if panel_sizer.outer_size <= self.outer_size_range.min {
+    fn cursor_icon(&self, outer_size: f32) -> CursorIcon {
+        if outer_size <= self.outer_size_range.min {
             match self.side {
                 PanelSide::Vertical(side) => match side {
                     VerticalSide::Left => CursorIcon::ResizeEast,
@@ -714,7 +647,7 @@ impl Panel {
                     HorizontalSide::Bottom => CursorIcon::ResizeNorth,
                 },
             }
-        } else if panel_sizer.outer_size < self.outer_size_range.max {
+        } else if outer_size < self.outer_size_range.max {
             match self.side {
                 PanelSide::Vertical(_) => CursorIcon::ResizeHorizontal,
                 PanelSide::Horizontal(_) => CursorIcon::ResizeVertical,
