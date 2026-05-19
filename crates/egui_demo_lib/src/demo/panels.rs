@@ -50,13 +50,13 @@ impl crate::View for Panels {
             .resizable(true)
             .min_size(32.0)
             .show_animated_inside(ui, *top, |ui| {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        ui.vertical_centered(|ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.vertical_centered(|ui| {
                         ui.heading("Expandable Upper Panel");
-                        });
-                        lorem_ipsum(ui);
                     });
-                    });
+                    lorem_ipsum(ui);
+                });
+            });
 
         egui::Panel::left("left_panel")
             .resizable(true)
@@ -116,9 +116,9 @@ impl crate::View for Panels {
             ui.horizontal(|ui| {
                 ui.label("Panel toggles:");
                 ui.toggle_value(left, "⬅");
-                ui.toggle_value(right, "➡");
                 ui.toggle_value(top, "⬆");
                 ui.toggle_value(bottom, "⬇");
+                ui.toggle_value(right, "➡");
             });
 
             ui.separator();
