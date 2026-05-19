@@ -333,21 +333,23 @@ impl Panel {
     ) -> Option<InnerResponse<R>> {
         let how_expanded = animate_expansion(ui, self.id.with("animation"), is_expanded);
 
-        // Get either the fake or the real panel to animate
-        let Some(animated_panel) = self.get_animated_panel(ui, is_expanded) else {
+        if how_expanded == 0.0 {
             // Make sure the ids of the next widgets are the same whether we show the panel or not:
             ui.skip_ahead_auto_ids(1);
             return None;
-        };
+        }
 
         if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
-            animated_panel.show_inside(ui, |_ui| {});
-            None
-        } else {
-            // Show the real panel:
-            Some(animated_panel.show_inside(ui, add_contents))
+            // TODO(emilk): move the panel out-of-screen instead of changing its width.
+            // Then we can actually paint it as it animates.
+            let fake_size = how_expanded * self.outer_size(ui);
+            self.into_fake_animating(fake_size)
+                .show_inside(ui, |_ui| {});
+            return None;
         }
+
+        Some(self.show_inside(ui, add_contents))
     }
 
     /// Show either a collapsed or a expanded panel, with a nice animation between.
@@ -360,17 +362,18 @@ impl Panel {
     ) -> InnerResponse<R> {
         let how_expanded = animate_expansion(ui, expanded_panel.id.with("animation"), is_expanded);
 
-        let animated_between_panel =
-            Self::get_animated_between_panel(ui, is_expanded, collapsed_panel, expanded_panel);
-
-        if 0.0 == how_expanded {
-            animated_between_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+        let panel = if how_expanded == 0.0 {
+            collapsed_panel
         } else if how_expanded < 1.0 {
-            // Show animation:
-            animated_between_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+            let collapsed_size = collapsed_panel.outer_size(ui);
+            let expanded_size = expanded_panel.outer_size(ui);
+            let fake_size = lerp(collapsed_size..=expanded_size, how_expanded);
+            expanded_panel.into_fake_animating(fake_size)
         } else {
-            animated_between_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
-        }
+            expanded_panel
+        };
+
+        panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
     }
 }
 
@@ -566,58 +569,16 @@ impl Panel {
         }
     }
 
-    /// Get the real or fake panel to animate if `is_expanded` is `true`.
-    fn get_animated_panel(self, ctx: &Context, is_expanded: bool) -> Option<Self> {
-        let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
-
-        if 0.0 == how_expanded {
-            None
-        } else if how_expanded < 1.0 {
-            // Show a fake panel in this in-between animation state:
-            // TODO(emilk): move the panel out-of-screen instead of changing its width.
-            // Then we can actually paint it as it animates.
-            let expanded_outer_size = self.outer_size(ctx);
-            let fake_outer_size = how_expanded * expanded_outer_size;
-            Some(
-                Self {
-                    id: self.id.with("animating_panel"),
-                    ..self
-                }
-                .resizable(false)
-                .exact_size(fake_outer_size),
-            )
-        } else {
-            // Show the real panel:
-            Some(self)
+    /// Build a non-resizable, fixed-size clone of this panel for animating between sizes.
+    ///
+    /// Uses a distinct id so the resulting panel doesn't clash with the real one.
+    fn into_fake_animating(self, outer_size: f32) -> Self {
+        Self {
+            id: self.id.with("animating_panel"),
+            ..self
         }
-    }
-
-    /// Get either the collapsed or expended panel to animate.
-    fn get_animated_between_panel(
-        ctx: &Context,
-        is_expanded: bool,
-        collapsed_panel: Self,
-        expanded_panel: Self,
-    ) -> Self {
-        let how_expanded = animate_expansion(ctx, expanded_panel.id.with("animation"), is_expanded);
-
-        if 0.0 == how_expanded {
-            collapsed_panel
-        } else if how_expanded < 1.0 {
-            let collapsed_outer_size = collapsed_panel.outer_size(ctx);
-            let expanded_outer_size = expanded_panel.outer_size(ctx);
-
-            let fake_outer_size = lerp(collapsed_outer_size..=expanded_outer_size, how_expanded);
-
-            Self {
-                id: expanded_panel.id.with("animating_panel"),
-                ..expanded_panel
-            }
-            .resizable(false)
-            .exact_size(fake_outer_size)
-        } else {
-            expanded_panel
-        }
+        .resizable(false)
+        .exact_size(outer_size)
     }
 
     /// Get the current _outer_ width or height of the panel (from previous frame),
