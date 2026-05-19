@@ -19,7 +19,7 @@ use emath::GuiRounding as _;
 
 use crate::{
     Align, Context, CursorIcon, Frame, Id, InnerResponse, Layout, NumExt as _, Rangef, Rect, Sense,
-    Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp, vec2,
+    Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -70,6 +70,19 @@ impl PanelSide {
         match self {
             Self::Left | Self::Right => 0,
             Self::Top | Self::Bottom => 1,
+        }
+    }
+
+    /// The axis perpendicular to [`Self::axis`].
+    fn cross_axis(self) -> usize {
+        1 - self.axis()
+    }
+
+    /// Unit vector along [`Self::axis`]: `(1, 0)` for left/right, `(0, 1)` for top/bottom.
+    fn axis_unit(self) -> Vec2 {
+        match self {
+            Self::Left | Self::Right => Vec2::X,
+            Self::Top | Self::Bottom => Vec2::Y,
         }
     }
 
@@ -395,7 +408,7 @@ impl Panel {
                 let axis = side.axis();
                 outer_size = (pointer[axis] - side.fixed_pos(outer_rect)).abs();
                 outer_size = clamp_to_range(outer_size, outer_size_range)
-                    .at_most(available_rect.size()[axis]);
+                    .at_most(available_rect.size_along(axis));
                 side.set_rect_size(&mut outer_rect, outer_size);
             }
         }
@@ -419,7 +432,7 @@ impl Panel {
             (outer_size_range.min - frame.total_margin().sum()[axis]).at_least(0.0);
         let inner_response = frame.show(&mut panel_ui, |content_ui| {
             // Make sure the frame fills the cross-axis fully:
-            let cross_axis_size = content_ui.max_rect().size()[1 - axis];
+            let cross_axis_size = content_ui.max_rect().size_along(side.cross_axis());
             if axis == 0 {
                 content_ui.set_min_height(cross_axis_size);
                 content_ui.set_min_width(panel_axis_min);
@@ -477,14 +490,11 @@ impl Panel {
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let line_pos = side.resize_pos(outer_rect) + 0.5 * side.sign() * stroke.width;
+            let cross_range = outer_rect.range_along(side.cross_axis());
             if axis == 0 {
-                parent_ui
-                    .painter()
-                    .vline(line_pos, outer_rect.y_range(), stroke);
+                parent_ui.painter().vline(line_pos, cross_range, stroke);
             } else {
-                parent_ui
-                    .painter()
-                    .hline(outer_rect.x_range(), line_pos, stroke);
+                parent_ui.painter().hline(cross_range, line_pos, stroke);
             }
         }
 
@@ -495,7 +505,7 @@ impl Panel {
     fn initial_outer_size(&self, ui: &Ui, frame: Frame) -> f32 {
         let axis = self.side.axis();
         if let Some(state) = PanelState::load(ui, self.id) {
-            state.outer_rect.size()[axis]
+            state.outer_rect.size_along(axis)
         } else {
             self.default_outer_size.unwrap_or_else(|| {
                 ui.style().spacing.interact_size[axis] + frame.total_margin().sum()[axis]
@@ -507,27 +517,21 @@ impl Panel {
     fn compute_outer_rect(&self, available_rect: Rect, mut outer_size: f32) -> Rect {
         let mut outer_rect = available_rect;
         outer_size = clamp_to_range(outer_size, self.outer_size_range)
-            .at_most(available_rect.size()[self.side.axis()]);
+            .at_most(available_rect.size_along(self.side.axis()));
         self.side.set_rect_size(&mut outer_rect, outer_size);
         outer_rect
     }
 
     fn resize_panel(&self, outer_rect: Rect, ui: &Ui) -> (bool, bool) {
         let resize_pos = self.side.resize_pos(outer_rect);
-        let grab = ui.style().interaction.resize_grab_radius_side;
-        let (resize_x, resize_y, amount) = if self.side.axis() == 0 {
-            (
-                Rangef::from(resize_pos..=resize_pos),
-                outer_rect.y_range(),
-                vec2(grab, 0.0),
-            )
+        let panel_axis_range = Rangef::point(resize_pos);
+        let cross_range = outer_rect.range_along(self.side.cross_axis());
+        let (resize_x, resize_y) = if self.side.axis() == 0 {
+            (panel_axis_range, cross_range)
         } else {
-            (
-                outer_rect.x_range(),
-                Rangef::from(resize_pos..=resize_pos),
-                vec2(0.0, grab),
-            )
+            (cross_range, panel_axis_range)
         };
+        let amount = ui.style().interaction.resize_grab_radius_side * self.side.axis_unit();
 
         let resize_id = self.id.with("__resize");
         let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
@@ -622,7 +626,7 @@ impl Panel {
     fn outer_size(&self, ctx: &Context) -> f32 {
         let axis = self.side.axis();
         if let Some(state) = PanelState::load(ctx, self.id) {
-            state.outer_rect.size()[axis]
+            state.outer_rect.size_along(axis)
         } else {
             ctx.global_style().spacing.interact_size[axis]
         }
