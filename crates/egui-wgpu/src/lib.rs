@@ -313,7 +313,17 @@ pub enum SurfaceErrorAction {
     /// Do nothing and skip the current frame.
     SkipFrame,
 
-    /// Instructs egui to recreate the surface, then skip the current frame.
+    /// Reconfigure the existing surface, then skip the current frame.
+    ///
+    /// Cheap: calls [`wgpu::Surface::configure`] on the current surface object.
+    /// Use for [`wgpu::CurrentSurfaceTexture::Outdated`].
+    Reconfigure,
+
+    /// Drop the surface, create a new one via [`wgpu::Instance::create_surface`], configure it,
+    /// then skip the current frame.
+    ///
+    /// Use for [`wgpu::CurrentSurfaceTexture::Lost`], where reconfiguring the same surface
+    /// object cannot recover.
     RecreateSurface,
 }
 
@@ -376,23 +386,28 @@ impl Default for WgpuConfiguration {
             // No display handle available at this point — callers should replace this with
             // `WgpuSetup::from_display_handle(...)` before creating the instance if one is available.
             wgpu_setup: WgpuSetup::without_display_handle(),
-            on_surface_status: Arc::new(|status| {
-                match status {
-                    wgpu::CurrentSurfaceTexture::Outdated => {
-                        // This error occurs when the app is minimized on Windows.
-                        // Silently return here to prevent spamming the console with:
-                        // "The underlying surface has changed, and therefore the swap chain must be updated"
-                    }
-                    wgpu::CurrentSurfaceTexture::Occluded => {
-                        // This error occurs when the application is occluded (e.g. minimized or behind another window).
-                        log::debug!("Dropped frame with error: {status:?}");
-                    }
-                    _ => {
-                        log::warn!("Dropped frame with error: {status:?}");
-                    }
+            on_surface_status: Arc::new(|status| match status {
+                wgpu::CurrentSurfaceTexture::Outdated => {
+                    // The compositor changed the surface (resize, scale, output, …). wgpu
+                    // requires us to reconfigure before the next acquire. Skipping would mean
+                    // we are stuck in `Outdated` forever.
+                    log::debug!("Dropped frame with error: {status:?}");
+                    SurfaceErrorAction::Reconfigure
                 }
-
-                SurfaceErrorAction::SkipFrame
+                wgpu::CurrentSurfaceTexture::Lost => {
+                    // The underlying surface is gone and we need a fresh one from the `wgpu::Instance`.
+                    log::debug!("Dropped frame with error: {status:?}");
+                    SurfaceErrorAction::RecreateSurface
+                }
+                wgpu::CurrentSurfaceTexture::Occluded => {
+                    // App is hidden (minimized / behind another window). Skip silently.
+                    log::debug!("Skipping frame due to occlusion.");
+                    SurfaceErrorAction::SkipFrame
+                }
+                _ => {
+                    log::warn!("Dropped frame with error: {status:?}");
+                    SurfaceErrorAction::SkipFrame
+                }
             }),
         }
     }

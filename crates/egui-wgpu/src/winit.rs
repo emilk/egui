@@ -18,6 +18,7 @@ struct SurfaceState {
     height: u32,
     resizing: bool,
     needs_reconfigure: bool,
+    needs_recreate: bool,
 }
 
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
@@ -125,6 +126,59 @@ impl Painter {
         surface_state
             .surface
             .configure(&render_state.device, &surf_config);
+    }
+
+    /// Drop the existing [`wgpu::Surface`] for `viewport_id` and create a fresh one for the
+    /// given window via [`wgpu::Instance::create_surface`], then configure it.
+    ///
+    /// Used to recover from [`wgpu::CurrentSurfaceTexture::Lost`], where reconfiguring the
+    /// existing surface object cannot recover.
+    fn recreate_surface(
+        &mut self,
+        viewport_id: ViewportId,
+        window: &Arc<winit::window::Window>,
+    ) -> Result<(), crate::WgpuError> {
+        profiling::function_scope!();
+
+        let Some(old_state) = self.surfaces.remove(&viewport_id) else {
+            return Ok(());
+        };
+
+        let surface = self.instance.create_surface(Arc::clone(window))?;
+
+        let render_state = self
+            .render_state
+            .as_ref()
+            .expect("recreate_surface called before render_state initialization");
+
+        let alpha_mode = if self.support_transparent_backbuffer {
+            let supported = surface.get_capabilities(&render_state.adapter).alpha_modes;
+            if supported.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+                wgpu::CompositeAlphaMode::PreMultiplied
+            } else if supported.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
+                wgpu::CompositeAlphaMode::PostMultiplied
+            } else {
+                wgpu::CompositeAlphaMode::Auto
+            }
+        } else {
+            wgpu::CompositeAlphaMode::Auto
+        };
+
+        self.surfaces.insert(
+            viewport_id,
+            SurfaceState {
+                surface,
+                alpha_mode,
+                width: old_state.width,
+                height: old_state.height,
+                resizing: old_state.resizing,
+                // We have just recreated the surface, make sure it gets configured too.
+                needs_reconfigure: true,
+                needs_recreate: false,
+            },
+        );
+
+        Ok(())
     }
 
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
@@ -237,6 +291,7 @@ impl Painter {
                 alpha_mode,
                 resizing: false,
                 needs_reconfigure: false,
+                needs_recreate: false,
             },
         );
         let Some(width) = NonZeroU32::new(size.width) else {
@@ -421,7 +476,7 @@ impl Painter {
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
         capture_data: Vec<UserData>,
-        window: &winit::window::Window,
+        window: &Arc<winit::window::Window>,
     ) -> f32 {
         profiling::function_scope!();
 
@@ -449,6 +504,19 @@ impl Painter {
 
         let capture = !capture_data.is_empty();
         let mut vsync_sec = 0.0;
+
+        // If the previous frame produced `CurrentSurfaceTexture::Lost`, the action match
+        // below set `needs_recreate`. Recreate the surface now, before re-borrowing
+        // `self.render_state` / `self.surfaces` for the rest of the paint.
+        if self
+            .surfaces
+            .get(&viewport_id)
+            .is_some_and(|s| s.needs_recreate)
+            && let Err(err) = self.recreate_surface(viewport_id, window)
+        {
+            log::error!("Failed to recreate surface for {viewport_id:?}: {err}");
+            return vsync_sec;
+        }
 
         // Apply any runtime changes requested via `RenderState::surface_config`.
         // We diff against the already-applied values in `self.config.surface`
@@ -532,8 +600,17 @@ impl Painter {
             }
             other => {
                 match (*self.config.on_surface_status)(&other) {
-                    SurfaceErrorAction::RecreateSurface => {
+                    SurfaceErrorAction::Reconfigure => {
                         Self::configure_surface(surface_state, render_state, &self.config.surface);
+                    }
+                    SurfaceErrorAction::RecreateSurface => {
+                        // Because of ownership, I could not find an easy way to do a full recovery here,
+                        // as that would involve dropping the old surface and creating a new one.
+                        // For now, we defer the recreation to the beginning of the next frame (which
+                        // we ensure to arrive via `request_repaint_of`). A cleaner solution would be
+                        // to untangle the ownership of `RenderState`.
+                        surface_state.needs_recreate = true;
+                        self.context.request_repaint_of(viewport_id);
                     }
                     SurfaceErrorAction::SkipFrame => {}
                 }
