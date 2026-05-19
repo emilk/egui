@@ -315,7 +315,7 @@ pub enum SurfaceErrorAction {
 
     /// Reconfigure the existing surface, then skip the current frame.
     ///
-    /// Cheap: calls [`wgpu::Surface::configure`] on the current surface object.
+    /// Calls [`wgpu::Surface::configure`] on the current surface object.
     /// Use for [`wgpu::CurrentSurfaceTexture::Outdated`].
     Reconfigure,
 

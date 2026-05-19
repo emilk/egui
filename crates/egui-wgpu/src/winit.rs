@@ -254,7 +254,7 @@ impl Painter {
         resizing: bool,
     ) {
         let alpha_mode = {
-            // Panic: We use the same failure mode as ``
+            // Panic: We use the same failure mode as `resize_and_generate_depth_texture_view_and_msaa_view`
             let render_state = self
                 .render_state
                 .as_ref()
@@ -597,6 +597,7 @@ impl Painter {
                 match (*self.config.on_surface_status)(&other) {
                     SurfaceErrorAction::Reconfigure => {
                         Self::configure_surface(surface_state, render_state, &self.config.surface);
+                        self.context.request_repaint_of(viewport_id);
                     }
                     SurfaceErrorAction::RecreateSurface => {
                         // Because of ownership, I could not find an easy way to do a full recovery here,

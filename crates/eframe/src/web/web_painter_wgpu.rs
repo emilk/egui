@@ -269,7 +269,7 @@ impl WebPainter for WebPainterWgpu {
                             // Full recovery needs `&mut self`, which conflicts with the live
                             // `render_state` / `self.surface` borrows here. Defer to the top
                             // of the next paint via the `needs_recreate` flag, and request a
-                            // repaint so the next rAF actually invokes `paint` to consume it.
+                            // repaint so the next frame actually invokes `paint` to consume it.
                             self.needs_recreate = true;
                             self.ctx.request_repaint();
                         }
