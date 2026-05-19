@@ -15,6 +15,8 @@ mod app_kind;
 mod config;
 mod node;
 mod renderer;
+#[cfg(feature = "eframe")]
+mod remote;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
@@ -25,6 +27,9 @@ pub use {
     self::{builder::*, node::*, renderer::*},
     kittest,
 };
+
+#[cfg(feature = "eframe")]
+pub use crate::remote::{RemoteHarness, RemoteHarnessError};
 
 use std::{
     fmt::{Debug, Display, Formatter},

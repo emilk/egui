@@ -11,6 +11,7 @@
 
 #[cfg(target_os = "windows")]
 use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
@@ -19,6 +20,13 @@ pub use egui;
 use egui::accesskit;
 use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
 pub use winit;
+
+/// Callback invoked with every AccessKit [`accesskit::TreeUpdate`] produced by egui.
+///
+/// Used by [`State`] to expose the AccessKit tree to external automation
+/// consumers in addition to the platform accessibility adapter.
+#[cfg(feature = "accesskit")]
+pub type AccessKitObserver = Box<dyn Fn(&accesskit::TreeUpdate) + Send>;
 
 pub mod clipboard;
 mod safe_area;
@@ -112,6 +120,16 @@ pub struct State {
     /// for details.
     #[cfg(target_os = "windows")]
     pressed_processed_physical_keys: HashSet<winit::keyboard::PhysicalKey>,
+
+    /// Shared queue of events pushed by automation/test code outside the
+    /// winit loop. Drained into [`egui::RawInput::events`] each frame by
+    /// [`State::take_egui_input`].
+    external_events: Arc<Mutex<Vec<egui::Event>>>,
+
+    /// Optional observer called with every AccessKit tree update produced by
+    /// egui, in addition to forwarding the update to the platform adapter.
+    #[cfg(feature = "accesskit")]
+    accesskit_observer: Option<AccessKitObserver>,
 }
 
 impl State {
@@ -156,6 +174,10 @@ impl State {
             ime_rect_px: None,
             #[cfg(target_os = "windows")]
             pressed_processed_physical_keys: HashSet::new(),
+
+            external_events: Arc::new(Mutex::new(Vec::new())),
+            #[cfg(feature = "accesskit")]
+            accesskit_observer: None,
         };
 
         slf.egui_input
@@ -264,7 +286,47 @@ impl State {
             .or_default()
             .native_pixels_per_point = Some(window.scale_factor() as f32);
 
+        // Drain any events that automation/test code pushed via the
+        // external event sink (see [`State::external_event_sink`]).
+        if let Ok(mut external) = self.external_events.lock()
+            && !external.is_empty()
+        {
+            self.egui_input.events.append(&mut external);
+        }
+
         self.egui_input.take()
+    }
+
+    /// Handle to a shared queue of [`egui::Event`]s. Events pushed here from
+    /// any thread are appended to [`egui::RawInput::events`] the next time
+    /// [`State::take_egui_input`] is called, before the input is handed to
+    /// egui for the frame.
+    ///
+    /// This is the splice point used by automation/test harnesses to inject
+    /// synthetic input into a running app.
+    #[inline]
+    pub fn external_event_sink(&self) -> Arc<Mutex<Vec<egui::Event>>> {
+        Arc::clone(&self.external_events)
+    }
+
+    /// Replace the external event sink (see [`Self::external_event_sink`])
+    /// with a queue supplied by the caller. Allows an automation handle to
+    /// share its `Arc<Mutex<Vec<Event>>>` with this viewport.
+    #[inline]
+    pub fn set_external_event_sink(&mut self, sink: Arc<Mutex<Vec<egui::Event>>>) {
+        self.external_events = sink;
+    }
+
+    /// Install (or remove) a callback that observes every AccessKit
+    /// [`accesskit::TreeUpdate`] produced by egui for this viewport.
+    ///
+    /// The callback runs on the UI thread inside
+    /// [`State::handle_platform_output`], in addition to the update being
+    /// routed to the platform accessibility adapter (if any). Keep work in
+    /// the callback short — e.g. clone the update onto a queue.
+    #[cfg(feature = "accesskit")]
+    pub fn set_accesskit_observer(&mut self, observer: Option<AccessKitObserver>) {
+        self.accesskit_observer = observer;
     }
 
     /// Call this when there is a new event.
@@ -1100,11 +1162,15 @@ impl State {
         }
 
         #[cfg(feature = "accesskit")]
-        if let Some(accesskit) = self.accesskit.as_mut()
-            && let Some(update) = accesskit_update
-        {
-            profiling::scope!("accesskit");
-            accesskit.update_if_active(|| update);
+        if let Some(update) = accesskit_update {
+            if let Some(observer) = self.accesskit_observer.as_ref() {
+                profiling::scope!("accesskit_observer");
+                observer(&update);
+            }
+            if let Some(accesskit) = self.accesskit.as_mut() {
+                profiling::scope!("accesskit");
+                accesskit.update_if_active(|| update);
+            }
         }
 
         #[cfg(not(feature = "accesskit"))]

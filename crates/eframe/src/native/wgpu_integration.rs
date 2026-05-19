@@ -287,6 +287,10 @@ impl<'app> WgpuWinitApp<'app> {
         {
             let event_loop_proxy = self.repaint_proxy.lock().clone();
             egui_winit.init_accesskit(event_loop, &window, event_loop_proxy);
+
+            if let Some(automation) = self.native_options.automation.as_ref() {
+                automation.install(&mut egui_winit, &egui_ctx);
+            }
         }
 
         let app_creator = std::mem::take(&mut self.app_creator)

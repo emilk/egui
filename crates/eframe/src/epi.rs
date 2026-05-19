@@ -380,6 +380,20 @@ pub struct NativeOptions {
     /// [`with_android_app`]: winit::platform::android::EventLoopBuilderExtAndroid::with_android_app
     #[cfg(target_os = "android")]
     pub android_app: Option<winit::platform::android::activity::AndroidApp>,
+
+    /// Optional handle for programmatic automation (e.g. test harnesses).
+    ///
+    /// When set, the running app will:
+    /// - drain [`egui::Event`]s pushed via
+    ///   [`crate::AutomationHandle::push_event`] into the next frame's
+    ///   [`egui::RawInput`], and
+    /// - forward every AccessKit [`egui::accesskit::TreeUpdate`] it produces
+    ///   to the handle so an external controller can observe the UI state.
+    ///
+    /// Hand the same `Arc<AutomationHandle>` to your controller thread to
+    /// drive the app from outside the winit event loop.
+    #[cfg(feature = "accesskit")]
+    pub automation: Option<std::sync::Arc<crate::automation::AutomationHandle>>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -404,6 +418,9 @@ impl Clone for NativeOptions {
 
             #[cfg(target_os = "android")]
             android_app: self.android_app.clone(),
+
+            #[cfg(feature = "accesskit")]
+            automation: self.automation.clone(),
 
             ..*self
         }
@@ -448,6 +465,9 @@ impl Default for NativeOptions {
 
             #[cfg(target_os = "android")]
             android_app: None,
+
+            #[cfg(feature = "accesskit")]
+            automation: None,
         }
     }
 }

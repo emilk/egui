@@ -27,7 +27,7 @@ wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image", "dep:wgpu", "eframe?/wgpu"
 snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 
 ## Allows testing eframe::App
-eframe = ["dep:eframe", "eframe/accesskit"]
+eframe = ["dep:eframe", "eframe/accesskit", "eframe/wgpu"]
 
 # This is just so it compiles with `--all-features` on Linux
 x11 = ["eframe?/x11"]

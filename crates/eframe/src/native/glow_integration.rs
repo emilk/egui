@@ -283,6 +283,10 @@ impl<'app> GlowWinitApp<'app> {
             } = viewport
             {
                 egui_winit.init_accesskit(event_loop, window, event_loop_proxy);
+
+                if let Some(automation) = self.native_options.automation.as_ref() {
+                    automation.install(egui_winit, &integration.egui_ctx);
+                }
             }
         }
 
