@@ -233,7 +233,7 @@ impl<'a> PanelSizer<'a> {
     }
 
     fn outer_size_from_state_or_default(panel: &Panel, ui: &Ui, frame: Frame) -> f32 {
-        if let Some(state) = PanelState::load(ui.ctx(), panel.id) {
+        if let Some(state) = PanelState::load(ui, panel.id) {
             match panel.side {
                 PanelSide::Vertical(_) => state.outer_rect.width(),
                 PanelSide::Horizontal(_) => state.outer_rect.height(),
@@ -491,10 +491,10 @@ impl Panel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ui, self.id.with("animation"), is_expanded);
 
         // Get either the fake or the real panel to animate
-        let Some(animated_panel) = self.get_animated_panel(ui.ctx(), is_expanded) else {
+        let Some(animated_panel) = self.get_animated_panel(ui, is_expanded) else {
             // Make sure the ids of the next widgets are the same whether we show the panel or not:
             ui.skip_ahead_auto_ids(1);
             return None;
@@ -518,15 +518,10 @@ impl Panel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> InnerResponse<R> {
-        let how_expanded =
-            animate_expansion(ui.ctx(), expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ui, expanded_panel.id.with("animation"), is_expanded);
 
-        let animated_between_panel = Self::get_animated_between_panel(
-            ui.ctx(),
-            is_expanded,
-            collapsed_panel,
-            expanded_panel,
-        );
+        let animated_between_panel =
+            Self::get_animated_between_panel(ui, is_expanded, collapsed_panel, expanded_panel);
 
         if 0.0 == how_expanded {
             animated_between_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
@@ -557,9 +552,7 @@ impl Panel {
         let mut panel_sizer = PanelSizer::new(&self, parent_ui);
 
         // Check for duplicate id
-        parent_ui
-            .ctx()
-            .check_for_id_clash(id, panel_sizer.outer_rect, "Panel");
+        parent_ui.check_for_id_clash(id, panel_sizer.outer_rect, "Panel");
 
         if self.resizable {
             // Prepare the resizable panel to avoid frame latency in the resize
@@ -634,7 +627,7 @@ impl Panel {
             parent_ui.set_cursor_icon(self.cursor_icon(&panel_sizer));
         }
 
-        PanelState { outer_rect }.store(parent_ui.ctx(), id);
+        PanelState { outer_rect }.store(parent_ui, id);
 
         {
             let stroke = if is_resizing {
@@ -669,7 +662,7 @@ impl Panel {
 
     fn prepare_resizable_panel(&self, panel_sizer: &mut PanelSizer<'_>, ui: &Ui) {
         let resize_id = self.id.with("__resize");
-        let resize_response = ui.ctx().read_response(resize_id);
+        let resize_response = ui.read_response(resize_id);
 
         if let Some(resize_response) = resize_response {
             // NOTE(sharky98): The original code was initializing to
