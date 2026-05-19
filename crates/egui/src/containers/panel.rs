@@ -31,6 +31,7 @@ fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PanelState {
     /// The _outer_ rect of the panel, i.e. including the [`Frame`] margin & border.
+    #[cfg_attr(feature = "serde", serde(alias = "rect"))]
     pub outer_rect: Rect,
 }
 
