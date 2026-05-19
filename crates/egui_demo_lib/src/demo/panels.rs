@@ -13,7 +13,7 @@ impl Default for Panels {
             left: true,
             right: true,
             top: true,
-            bottom: true,
+            bottom: false,
         }
     }
 }
@@ -27,7 +27,7 @@ impl crate::Demo for Panels {
         use crate::View as _;
         egui::Window::new("Panels")
             .default_width(600.0)
-            .default_height(400.0)
+            .default_height(600.0)
             .vscroll(false)
             .open(open)
             .constrain_to(ui.available_rect_before_wrap())
