@@ -753,7 +753,7 @@ impl Panel {
     /// drag survives, and reopen if they drag back past the minimum size.
     fn keep_drag_alive_for_reopen(&self, ui: &Ui, is_expanded: &mut bool) {
         let resize_id = self.id.with("__resize");
-        let Some(resize_response) = ui.ctx().read_response(resize_id) else {
+        let Some(resize_response) = ui.read_response(resize_id) else {
             return;
         };
         if !resize_response.dragged() {
@@ -776,6 +776,11 @@ impl Panel {
         let grab = ui.style().interaction.resize_grab_radius_side;
         let resize_rect = resize_rect.expand2(grab * self.side.axis_unit());
         ui.interact(resize_rect, resize_id, Sense::drag());
+
+        // Keep the resize cursor while the user is still holding the drag.
+        // Otherwise the cursor would snap back to the default the moment the
+        // panel closed, even though the gesture is still ongoing.
+        ui.set_cursor_icon(self.cursor_icon(0.0));
 
         // Signed distance from the fixed edge to the pointer along the panel's
         // axis. Only counts as "pulled outward" while positive — going past the
