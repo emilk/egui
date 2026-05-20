@@ -186,6 +186,21 @@ pub struct Panel {
     /// Used by [`Self::show_animated_inside`] to animate a panel sliding in/out.
     /// While `slide_fraction != 1.0` the panel does _not_ persist its [`PanelState`].
     slide_fraction: f32,
+
+    /// Override for the [`Id`] under which the resize-handle widget is registered.
+    ///
+    /// Used by [`Self::show_animated_between_inside`] so the collapsed and
+    /// expanded panels share a single resize widget — that way a drag on either
+    /// one can flip `is_expanded` and the gesture survives the swap.
+    resize_id_source: Option<Id>,
+
+    /// Size below which drag-to-collapse fires, when set.
+    ///
+    /// Defaults to `outer_size_range.min`. Used by
+    /// [`Self::show_animated_between_inside`] to set the threshold at the
+    /// collapsed panel's size, so the swap happens exactly when the slide
+    /// matches the collapsed size visually.
+    collapse_threshold: Option<f32>,
 }
 
 impl Panel {
@@ -244,6 +259,8 @@ impl Panel {
             default_outer_size,
             outer_size_range,
             slide_fraction: 1.0,
+            resize_id_source: None,
+            collapse_threshold: None,
         }
     }
 
@@ -336,38 +353,57 @@ impl Panel {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_inside_dyn(ui, Box::new(add_contents))
+        self.show_inside_dyn(ui, None, Box::new(add_contents))
     }
 
-    /// Show the panel if `is_expanded` is `true`,
+    /// Show the panel if `*is_expanded` is `true`,
     /// otherwise hide it, with a slide animation in between.
     ///
     /// During the animation `add_contents` runs against the real panel, and the
     /// panel slides off-screen toward its fixed edge (clipped against the parent).
     /// The parent only reserves the _visible_ portion, so neighboring widgets follow.
+    ///
+    /// `is_expanded` is taken by `&mut` so the panel can flip it to `false` when
+    /// the user drags the resize handle past the panel's minimum size, and back
+    /// to `true` if the user drags the handle outward while the panel is closed.
     pub fn show_animated_inside<R>(
         self,
         ui: &mut Ui,
-        is_expanded: bool,
+        is_expanded: &mut bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ui, self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ui, self.id.with("animation"), *is_expanded);
 
         if how_expanded == 0.0 {
+            // Panel is fully closed. If the user is still dragging the resize handle
+            // from a previous frame, keep its widget id alive so they can drag the
+            // panel back out without releasing.
+            self.keep_drag_alive_for_reopen(ui, is_expanded);
+
             // Make sure the ids of the next widgets are the same whether we show the panel or not:
             ui.skip_ahead_auto_ids(1);
             return None;
         }
 
-        let panel = if how_expanded < 1.0 {
-            // Mid-animation: slide the panel toward its fixed edge.
-            // Resizing a moving boundary is too awkward, so disable it during the slide.
+        // Don't lose the drag during the slide-back-open animation:
+        let drag_in_progress = ui
+            .ctx()
+            .read_response(self.id.with("__resize"))
+            .is_some_and(|r| r.dragged());
+
+        let panel = if how_expanded < 1.0 && !drag_in_progress {
+            // Mid-animation, no drag: slide the panel toward its fixed edge.
+            // Resizing a moving boundary is awkward, so disable it during the slide.
             self.with_slide_fraction(how_expanded).resizable(false)
+        } else if how_expanded < 1.0 {
+            // Mid-animation but the user is dragging — keep resize live so the
+            // drag-to-reopen gesture flows straight into a normal resize.
+            self.with_slide_fraction(how_expanded)
         } else {
             self
         };
 
-        Some(panel.show_inside(ui, add_contents))
+        Some(panel.show_inside_dyn(ui, Some(is_expanded), Box::new(add_contents)))
     }
 
     /// Show either a collapsed or expanded panel, with a nice slide animation between.
@@ -378,19 +414,38 @@ impl Panel {
     /// `add_contents` receives `expanded = true` whenever the expanded panel is
     /// rendered (including mid-animation), and `false` for the collapsed view.
     ///
-    /// Give the two panels distinct ids so their persisted sizes don't
+    /// **Give the two panels distinct ids** so their persisted sizes don't
     /// overwrite each other.
+    ///
+    /// # Drag-to-collapse / drag-to-expand
+    ///
+    /// The user can resize the panel by dragging its edge. Pulling that edge
+    /// past the size limits flips `*is_expanded`:
+    ///
+    /// * `.resizable(true)` on the **expanded** panel enables **drag-to-collapse**:
+    ///   shrinking past `min_size` sets `*is_expanded = false`.
+    /// * `.resizable(true)` on the **collapsed** panel enables **drag-to-expand**:
+    ///   growing past `max_size` sets `*is_expanded = true`. (Use
+    ///   [`Self::exact_size`] or [`Self::max_size`] to set a tight cap so a small
+    ///   outward drag is enough to trigger the swap.)
+    ///
+    /// Both panels share a single resize-handle widget under the hood (keyed to
+    /// the expanded panel's id), so a single uninterrupted drag can collapse and
+    /// re-expand the panel without releasing.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let mut is_expanded = true;
-    /// let collapsed = egui::Panel::top("top_collapsed").exact_size(28.0);
+    /// // `.resizable(true)` on both panels enables drag-to-collapse + drag-to-expand:
+    /// let collapsed = egui::Panel::top("top_collapsed")
+    ///     .resizable(true)
+    ///     .exact_size(28.0);
     /// let expanded = egui::Panel::top("top_expanded")
     ///     .resizable(true)
     ///     .default_size(120.0);
     /// egui::Panel::show_animated_between_inside(
     ///     ui,
-    ///     is_expanded,
+    ///     &mut is_expanded,
     ///     collapsed,
     ///     expanded,
     ///     |ui, expanded| {
@@ -407,43 +462,94 @@ impl Panel {
     /// ```
     pub fn show_animated_between_inside<R>(
         ui: &mut Ui,
-        is_expanded: bool,
+        is_expanded: &mut bool,
         collapsed_panel: Self,
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, bool) -> R,
     ) -> InnerResponse<R> {
-        let how_expanded = animate_expansion(ui, expanded_panel.id.with("animation"), is_expanded);
+        debug_assert!(
+            collapsed_panel.id != expanded_panel.id,
+            "show_animated_between_inside: the collapsed and expanded panels must have distinct ids \
+             (their persisted sizes are stored per-id, and sharing one id would let the collapsed \
+             size overwrite the expanded size)."
+        );
+        // Share one resize-handle widget across the collapsed and expanded panels
+        // by routing both through the expanded panel's id. A drag that starts on
+        // either panel survives the swap to the other view.
+        let resize_id_source = expanded_panel.id;
+        // Drag-to-collapse fires when the drag crosses the collapsed panel's
+        // size, so the swap lines up with the visual size at that moment.
+        let collapse_threshold = collapsed_panel.outer_size(ui);
+
+        // Is the resize handle currently being dragged?
+        let drag_in_progress = ui
+            .ctx()
+            .read_response(resize_id_source.with("__resize"))
+            .is_some_and(|r| r.dragged());
+
+        let animation_id = expanded_panel.id.with("animation");
+        // While the user is dragging, snap the animation to the target so the
+        // drag (which sets `outer_size` directly from the pointer) doesn't fight
+        // a simultaneous slide. Without this, drag-to-expand visibly jumps as
+        // the slide animation tries to grow from 0 while the pointer is already
+        // at the expanded size.
+        let how_expanded = if drag_in_progress {
+            ui.ctx()
+                .animate_bool_with_time(animation_id, *is_expanded, 0.0)
+        } else {
+            animate_expansion(ui, animation_id, *is_expanded)
+        };
 
         // When expanding, the user sees the expanded content the moment animation starts.
         // When collapsing, keep showing the expanded content until past the midpoint,
         // then swap to the collapsed content for the rest of the slide-out.
-        let show_expanded_contents = if is_expanded {
+        let show_expanded_contents = if *is_expanded {
             true
         } else {
             0.5 < how_expanded
         };
 
         if how_expanded == 0.0 {
-            collapsed_panel.show_inside(ui, |ui| add_contents(ui, false))
+            // Fully collapsed. The collapsed panel registers the shared resize
+            // widget so drag-to-expand works, and `is_expanded` is flipped to
+            // `true` when the user drags past its `max_size`.
+            collapsed_panel
+                .with_resize_id_source(resize_id_source)
+                .show_inside_dyn(
+                    ui,
+                    Some(is_expanded),
+                    Box::new(|ui| add_contents(ui, false)),
+                )
         } else {
+            let expanded_panel = expanded_panel.with_collapse_threshold(collapse_threshold);
             let panel = if how_expanded < 1.0 {
                 // Animate the visible size from collapsed_size to expanded_size,
                 // so the slide picks up where the collapsed panel left off.
-                let collapsed_size = collapsed_panel.outer_size(ui);
                 let expanded_size = expanded_panel.outer_size(ui);
-                let visible_size = lerp(collapsed_size..=expanded_size, how_expanded);
+                let visible_size = lerp(collapse_threshold..=expanded_size, how_expanded);
                 let slide_fraction = if 0.0 < expanded_size {
                     visible_size / expanded_size
                 } else {
                     1.0
                 };
-                expanded_panel
-                    .with_slide_fraction(slide_fraction)
-                    .resizable(false)
+                let panel = expanded_panel.with_slide_fraction(slide_fraction);
+                // Keep the resize handle live during the slide if the drag is
+                // ongoing — otherwise disabling it would kill the gesture.
+                if drag_in_progress {
+                    panel
+                } else {
+                    panel.resizable(false)
+                }
             } else {
                 expanded_panel
             };
-            panel.show_inside(ui, |ui| add_contents(ui, show_expanded_contents))
+            // Pass `is_expanded` so dragging the resize handle past the
+            // collapsed panel's size collapses to `collapsed_panel`.
+            panel.show_inside_dyn(
+                ui,
+                Some(is_expanded),
+                Box::new(|ui| add_contents(ui, show_expanded_contents)),
+            )
         }
     }
 }
@@ -451,9 +557,15 @@ impl Panel {
 // Private methods to support the various show methods
 impl Panel {
     /// Show the panel inside a [`Ui`].
+    ///
+    /// `is_expanded` is `Some` for the animated entry points
+    /// ([`Self::show_animated_inside`], [`Self::show_animated_between_inside`]);
+    /// when present, dragging the resize handle past the minimum size collapses
+    /// the panel by setting `*is_expanded = false`.
     fn show_inside_dyn<'c, R>(
         self,
         parent_ui: &mut Ui,
+        is_expanded: Option<&mut bool>,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let side = self.side;
@@ -470,18 +582,56 @@ impl Panel {
         // Check for duplicate id
         parent_ui.check_for_id_clash(id, outer_rect, "Panel");
 
+        // True iff the user is currently dragging the resize handle (set in the block below).
+        let mut resize_drag_in_progress = false;
+
         if resizable {
             // Resolve the resize interaction first to avoid frame latency in the resize.
-            let resize_id = id.with("__resize");
+            // We also recompute the size on the release frame (`drag_stopped`) so the
+            // released size gets persisted into [`PanelState`] — without this the
+            // store-skipped-during-drag rule would leave the stored size at the
+            // pre-drag value.
+            let resize_id = self.resize_id_source.unwrap_or(id).with("__resize");
             if let Some(resize_response) = parent_ui.read_response(resize_id)
-                && resize_response.dragged()
+                && (resize_response.dragged() || resize_response.drag_stopped())
                 && let Some(pointer) = resize_response.interact_pointer_pos()
             {
+                resize_drag_in_progress = resize_response.dragged();
                 let axis = side.axis();
-                outer_size = (pointer[axis] - side.fixed_pos(outer_rect)).abs();
-                outer_size = clamp_to_range(outer_size, outer_size_range)
+                let prev_outer_size = outer_size;
+                // Signed distance from the fixed edge to the pointer along the
+                // panel's axis. Going past the fixed edge yields a negative size,
+                // which `clamp_to_range` then snaps up to `min` — DON'T use
+                // `.abs()` here, that would mirror the drag and spuriously
+                // trigger drag-to-expand once the pointer crosses the edge.
+                let raw_outer_size = -side.sign() * (pointer[axis] - side.fixed_pos(outer_rect));
+                outer_size = clamp_to_range(raw_outer_size, outer_size_range)
                     .at_most(available_rect.size_along(axis));
                 side.set_rect_size(&mut outer_rect, outer_size);
+
+                if let Some(is_expanded) = is_expanded {
+                    // Drag-to-collapse: shrink past the threshold → close.
+                    // The threshold defaults to `min_size`, but
+                    // `show_animated_between_inside` overrides it to the
+                    // collapsed panel's size so the swap happens exactly when
+                    // the drag visually crosses the collapsed size.
+                    // Use `raw_outer_size` (pre-clamp) so a tight `exact_size`
+                    // panel can still detect inward overshoot.
+                    let collapse_threshold =
+                        self.collapse_threshold.unwrap_or(outer_size_range.min);
+                    if raw_outer_size < collapse_threshold && raw_outer_size < prev_outer_size {
+                        *is_expanded = false;
+                    }
+                    // Drag-to-expand: pointer pulled outward past `max_size` → open.
+                    // Triggers when this panel is acting as the collapsed view of
+                    // `show_animated_between_inside`, with `resize_id_source` set
+                    // to the expanded panel's id. `raw_outer_size` is required
+                    // because `outer_size` is clamped to `max` and would never
+                    // exceed it (so `exact_size` panels couldn't otherwise expand).
+                    if outer_size_range.max < raw_outer_size {
+                        *is_expanded = true;
+                    }
+                }
             }
         }
 
@@ -562,9 +712,11 @@ impl Panel {
             parent_ui.set_cursor_icon(self.cursor_icon(outer_size));
         }
 
-        if self.slide_fraction == 1.0 {
-            // Only persist the panel's rect when it's fully expanded —
-            // skip while sliding so the stored rect always reflects the real layout.
+        if self.slide_fraction == 1.0 && !resize_drag_in_progress {
+            // Only persist the panel's rect when it's fully expanded and the user
+            // isn't actively dragging the resize handle. Skipping during a drag
+            // means the stored size reflects the panel's pre-drag size — so a
+            // drag-to-close followed by a drag-to-reopen restores the original size.
             PanelState {
                 outer_rect: shifted_outer_rect,
             }
@@ -603,6 +755,45 @@ impl Panel {
             .unwrap_or_else(|| Frame::side_top_panel(ui.style()))
     }
 
+    /// Panel is fully closed. If the user is still dragging the resize handle
+    /// from the frame the panel closed on, keep its widget id registered so the
+    /// drag survives, and reopen if they drag back past the minimum size.
+    fn keep_drag_alive_for_reopen(&self, ui: &Ui, is_expanded: &mut bool) {
+        let resize_id = self.id.with("__resize");
+        let Some(resize_response) = ui.ctx().read_response(resize_id) else {
+            return;
+        };
+        if !resize_response.dragged() {
+            return;
+        }
+        let Some(pointer) = resize_response.interact_pointer_pos() else {
+            return;
+        };
+
+        // Re-register the resize widget at the (now collapsed) fixed edge so its
+        // id stays alive in egui's interaction state.
+        let available_rect = ui.available_rect_before_wrap();
+        let fixed_edge_pos = self.side.fixed_pos(available_rect);
+        let cross_range = available_rect.range_along(self.side.cross_axis());
+        let resize_rect = if self.side.axis() == 0 {
+            Rect::from_x_y_ranges(Rangef::point(fixed_edge_pos), cross_range)
+        } else {
+            Rect::from_x_y_ranges(cross_range, Rangef::point(fixed_edge_pos))
+        };
+        let grab = ui.style().interaction.resize_grab_radius_side;
+        let resize_rect = resize_rect.expand2(grab * self.side.axis_unit());
+        ui.interact(resize_rect, resize_id, Sense::drag());
+
+        // Signed distance from the fixed edge to the pointer along the panel's
+        // axis. Only counts as "pulled outward" while positive — going past the
+        // fixed edge gives a negative value, NOT a mirrored positive one (no
+        // `.abs()`), so dragging past the screen edge can't spuriously reopen.
+        let dragged_size = -self.side.sign() * (pointer[self.side.axis()] - fixed_edge_pos);
+        if self.outer_size_range.min < dragged_size {
+            *is_expanded = true;
+        }
+    }
+
     /// Get the current _outer_ width or height of the panel (from previous frame),
     /// including the [`Frame`] margin & border, or fall back to some default.
     fn outer_size(&self, ui: &Ui) -> f32 {
@@ -637,7 +828,9 @@ impl Panel {
         };
         let amount = ui.style().interaction.resize_grab_radius_side * self.side.axis_unit();
 
-        let resize_id = self.id.with("__resize");
+        // Use `resize_id_source` so collapsed/expanded panels in
+        // `show_animated_between_inside` share one resize widget.
+        let resize_id = self.resize_id_source.unwrap_or(self.id).with("__resize");
         let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
         let resize_response = ui.interact(resize_rect, resize_id, Sense::drag());
 
@@ -674,6 +867,21 @@ impl Panel {
     #[inline]
     fn with_slide_fraction(mut self, slide_fraction: f32) -> Self {
         self.slide_fraction = slide_fraction;
+        self
+    }
+
+    /// Register the resize-handle widget under this `Id` instead of `self.id`.
+    ///
+    /// Used by [`Self::show_animated_between_inside`] to share one widget across
+    /// the collapsed and expanded panels.
+    fn with_resize_id_source(mut self, id: Id) -> Self {
+        self.resize_id_source = Some(id);
+        self
+    }
+
+    /// Override the drag-to-collapse threshold (defaults to `min_size`).
+    fn with_collapse_threshold(mut self, threshold: f32) -> Self {
+        self.collapse_threshold = Some(threshold);
         self
     }
 }
