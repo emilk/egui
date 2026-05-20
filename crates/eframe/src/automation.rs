@@ -10,9 +10,12 @@
 //! Enable it by attaching an [`AutomationHandle`] to
 //! [`crate::NativeOptions::automation`] before calling [`crate::run_native`].
 
-use std::sync::{Arc, Condvar, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
 
 use egui::accesskit;
+use egui::mutex::Mutex;
+use parking_lot::Condvar;
 
 /// Shared automation channel between a running eframe app and an external
 /// controller (e.g. a test thread).
@@ -56,10 +59,7 @@ impl AutomationHandle {
     /// Queue a synthetic event to be delivered on the next frame, then
     /// request a repaint so the running app picks it up.
     pub fn push_event(&self, event: egui::Event) {
-        self.events
-            .lock()
-            .expect("events lock poisoned")
-            .push(event);
+        self.events.lock().push(event);
         if let Some(ctx) = self.ctx.get() {
             ctx.request_repaint();
         }
@@ -68,9 +68,7 @@ impl AutomationHandle {
     /// Queue multiple events in a single batch (cheaper than calling
     /// [`Self::push_event`] in a loop).
     pub fn push_events(&self, events: impl IntoIterator<Item = egui::Event>) {
-        let mut queue = self.events.lock().expect("events lock poisoned");
-        queue.extend(events);
-        drop(queue);
+        self.events.lock().extend(events);
         if let Some(ctx) = self.ctx.get() {
             ctx.request_repaint();
         }
@@ -80,25 +78,19 @@ impl AutomationHandle {
     /// since the last drain, in arrival order. Returns an empty `Vec` if
     /// none are pending.
     pub fn drain_tree_updates(&self) -> Vec<accesskit::TreeUpdate> {
-        std::mem::take(&mut *self.tree_updates.lock().expect("tree lock poisoned"))
+        std::mem::take(&mut *self.tree_updates.lock())
     }
 
     /// Block the calling thread until at least one tree update is available,
     /// then drain and return all queued updates in order.
     ///
     /// Returns `None` if `timeout` elapses with no update.
-    pub fn wait_for_tree_update(
-        &self,
-        timeout: std::time::Duration,
-    ) -> Option<Vec<accesskit::TreeUpdate>> {
-        let mut updates = self.tree_updates.lock().expect("tree lock poisoned");
+    pub fn wait_for_tree_update(&self, timeout: Duration) -> Option<Vec<accesskit::TreeUpdate>> {
+        let mut updates = self.tree_updates.lock();
         if !updates.is_empty() {
             return Some(std::mem::take(&mut *updates));
         }
-        let (mut updates, wait) = self
-            .tree_update_signal
-            .wait_timeout(updates, timeout)
-            .expect("tree lock poisoned");
+        let wait = self.tree_update_signal.wait_for(&mut updates, timeout);
         if wait.timed_out() && updates.is_empty() {
             None
         } else {
@@ -115,21 +107,17 @@ impl AutomationHandle {
 
     /// Block until the eframe app has rendered its first frame and the
     /// [`egui::Context`] is available. Returns `None` on timeout.
-    pub fn wait_for_ctx(&self, timeout: std::time::Duration) -> Option<egui::Context> {
-        let deadline = std::time::Instant::now() + timeout;
+    pub fn wait_for_ctx(&self, timeout: Duration) -> Option<egui::Context> {
+        let deadline = Instant::now() + timeout;
         // The context is populated alongside the first tree update, so we
         // can piggyback on the same condvar.
-        let mut updates = self.tree_updates.lock().expect("tree lock poisoned");
+        let mut updates = self.tree_updates.lock();
         while self.ctx.get().is_none() {
-            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            let remaining = deadline.saturating_duration_since(Instant::now());
             if remaining.is_zero() {
                 return None;
             }
-            let (next, wait) = self
-                .tree_update_signal
-                .wait_timeout(updates, remaining)
-                .expect("tree lock poisoned");
-            updates = next;
+            let wait = self.tree_update_signal.wait_for(&mut updates, remaining);
             if wait.timed_out() && self.ctx.get().is_none() {
                 return None;
             }
@@ -161,10 +149,7 @@ impl AutomationHandle {
     /// update. Not part of the public API.
     #[doc(hidden)]
     pub fn _push_tree_update(&self, update: accesskit::TreeUpdate) {
-        self.tree_updates
-            .lock()
-            .expect("tree lock poisoned")
-            .push(update);
+        self.tree_updates.lock().push(update);
         self.tree_update_signal.notify_all();
     }
 }
@@ -178,15 +163,9 @@ impl Default for AutomationHandle {
 impl std::fmt::Debug for AutomationHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AutomationHandle")
-            .field(
-                "queued_events",
-                &self.events.lock().map(|q| q.len()).unwrap_or(0),
-            )
-            .field(
-                "queued_tree_updates",
-                &self.tree_updates.lock().map(|q| q.len()).unwrap_or(0),
-            )
+            .field("queued_events", &self.events.lock().len())
+            .field("queued_tree_updates", &self.tree_updates.lock().len())
             .field("ctx_attached", &self.ctx.get().is_some())
-            .finish()
+            .finish_non_exhaustive()
     }
 }

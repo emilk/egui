@@ -6,7 +6,7 @@
 //! frame. After a few seconds it requests the app to close.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![expect(rustdoc::missing_crate_level_docs)]
+#![expect(clippy::print_stderr)]
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -20,7 +20,10 @@ fn main() -> eframe::Result {
     let controller_handle = Arc::clone(&automation);
 
     // The controller drives the app from outside the winit event loop.
-    let controller = std::thread::spawn(move || run_controller(controller_handle));
+    let controller = std::thread::Builder::new()
+        .name("controller".into())
+        .spawn(move || run_controller(&controller_handle))
+        .expect("failed to spawn controller thread");
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 200.0]),
@@ -59,7 +62,7 @@ impl eframe::App for DemoApp {
     }
 }
 
-fn run_controller(handle: Arc<AutomationHandle>) {
+fn run_controller(handle: &AutomationHandle) {
     let Some(ctx) = handle.wait_for_ctx(Duration::from_secs(5)) else {
         eprintln!("controller: timed out waiting for app to start");
         return;
@@ -103,10 +106,7 @@ fn run_controller(handle: Arc<AutomationHandle>) {
         // Wait until the app paints the frame that consumed our events.
         if let Some(updates) = handle.wait_for_tree_update(Duration::from_secs(1)) {
             let nodes: usize = updates.iter().map(|u| u.nodes.len()).sum();
-            eprintln!(
-                "controller: press #{presses} delivered, observed {} node update(s)",
-                nodes
-            );
+            eprintln!("controller: press #{presses} delivered, observed {nodes} node update(s)");
         }
     }
 

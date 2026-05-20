@@ -11,13 +11,14 @@
 
 #[cfg(target_os = "windows")]
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
+use egui::mutex::Mutex;
 use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
 pub use winit;
 
@@ -288,9 +289,8 @@ impl State {
 
         // Drain any events that automation/test code pushed via the
         // external event sink (see [`State::external_event_sink`]).
-        if let Ok(mut external) = self.external_events.lock()
-            && !external.is_empty()
-        {
+        let mut external = self.external_events.lock();
+        if !external.is_empty() {
             self.egui_input.events.append(&mut external);
         }
 

@@ -6,7 +6,7 @@
 //! — all against the live, visible app rather than a test-only harness.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![expect(rustdoc::missing_crate_level_docs)]
+#![expect(clippy::print_stderr)]
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,7 +20,10 @@ fn main() -> eframe::Result {
     let automation = Arc::new(AutomationHandle::new());
     let controller_handle = Arc::clone(&automation);
 
-    let controller = std::thread::spawn(move || run_controller(controller_handle));
+    let controller = std::thread::Builder::new()
+        .name("controller".into())
+        .spawn(move || run_controller(controller_handle))
+        .expect("failed to spawn controller thread");
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 200.0]),

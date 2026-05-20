@@ -106,12 +106,21 @@ impl AutomationHarness {
     ///
     /// Blocks until the app has produced its first AccessKit tree update or
     /// [`AutomationHarness::frame_timeout`] elapses.
+    ///
+    /// # Errors
+    /// Returns [`AutomationHarnessError::TimedOut`] if the remote app does
+    /// not produce its first AccessKit tree update within the default
+    /// timeout.
     pub fn attach(handle: Arc<AutomationHandle>) -> Result<Self, AutomationHarnessError> {
         Self::attach_with_timeout(handle, DEFAULT_FRAME_TIMEOUT)
     }
 
     /// Like [`Self::attach`], but with a caller-supplied timeout for the
     /// initial wait.
+    ///
+    /// # Errors
+    /// Returns [`AutomationHarnessError::TimedOut`] if the remote app does
+    /// not produce its first AccessKit tree update within `timeout`.
     pub fn attach_with_timeout(
         handle: Arc<AutomationHandle>,
         timeout: Duration,

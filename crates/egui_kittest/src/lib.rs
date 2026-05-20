@@ -14,9 +14,9 @@ pub use crate::snapshot::*;
 mod app_kind;
 mod config;
 mod node;
-mod renderer;
 #[cfg(feature = "eframe")]
 mod remote;
+mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
