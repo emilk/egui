@@ -5,7 +5,7 @@
 
 use egui::{
     Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
-    scroll_area::{ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
+    scroll_area::{DragScroll, ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
 use crate::{
@@ -180,7 +180,7 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
 
 struct TableScrollOptions {
     vscroll: bool,
-    drag_to_scroll: bool,
+    drag_to_scroll: DragScroll,
     stick_to_bottom: bool,
     scroll_to_row: Option<(usize, Option<Align>)>,
     scroll_offset_y: Option<f32>,
@@ -195,7 +195,7 @@ impl Default for TableScrollOptions {
     fn default() -> Self {
         Self {
             vscroll: true,
-            drag_to_scroll: true,
+            drag_to_scroll: DragScroll::OnTouch,
             stick_to_bottom: false,
             scroll_to_row: None,
             scroll_offset_y: None,
@@ -318,11 +318,13 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    /// Enables scrolling the table's contents using mouse drag (default: `true`).
+    /// Controls scrolling the table's contents by dragging with the pointer.
     ///
-    /// See [`ScrollArea::scroll_source`] for more.
+    /// Defaults to [`DragScroll::OnTouch`] — only active when a touch screen is detected.
+    ///
+    /// See [`ScrollArea::scroll_source`] and [`DragScroll`] for more.
     #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+    pub fn drag_to_scroll(mut self, drag_to_scroll: DragScroll) -> Self {
         self.scroll_options.drag_to_scroll = drag_to_scroll;
         self
     }

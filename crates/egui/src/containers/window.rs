@@ -6,7 +6,7 @@ use epaint::CornerRadiusF32;
 use crate::collapsing_header::CollapsingState;
 use crate::*;
 
-use super::scroll_area::{ScrollBarVisibility, ScrollSource};
+use super::scroll_area::{DragScroll, ScrollBarVisibility, ScrollSource};
 use super::{Area, Frame, Resize, ScrollArea, area, resize};
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
@@ -438,11 +438,13 @@ impl<'a> Window<'a> {
         self
     }
 
-    /// Enable/disable scrolling on the window by dragging with the pointer. `true` by default.
+    /// Controls scrolling the window by dragging the contents with the pointer.
     ///
-    /// See [`ScrollArea::scroll_source`] for more.
+    /// Defaults to [`DragScroll::OnTouch`] — only active when a touch screen is detected.
+    ///
+    /// See [`ScrollArea::scroll_source`] and [`DragScroll`] for more.
     #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+    pub fn drag_to_scroll(mut self, drag_to_scroll: DragScroll) -> Self {
         self.scroll = self.scroll.scroll_source(ScrollSource {
             drag: drag_to_scroll,
             ..Default::default()
