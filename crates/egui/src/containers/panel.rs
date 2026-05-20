@@ -387,18 +387,17 @@ impl Panel {
 
         // Don't lose the drag during the slide-back-open animation:
         let drag_in_progress = ui
-            .ctx()
             .read_response(self.id.with("__resize"))
             .is_some_and(|r| r.dragged());
 
-        let panel = if how_expanded < 1.0 && !drag_in_progress {
-            // Mid-animation, no drag: slide the panel toward its fixed edge.
-            // Resizing a moving boundary is awkward, so disable it during the slide.
-            self.with_slide_fraction(how_expanded).resizable(false)
-        } else if how_expanded < 1.0 {
-            // Mid-animation but the user is dragging — keep resize live so the
-            // drag-to-reopen gesture flows straight into a normal resize.
-            self.with_slide_fraction(how_expanded)
+        let panel = if how_expanded < 1.0 {
+            if drag_in_progress {
+                // Mid-animation but the user is dragging — keep resize live so the
+                // drag-to-reopen gesture flows straight into a normal resize.
+                self.with_slide_fraction(how_expanded)
+            } else {
+                self.with_slide_fraction(how_expanded).resizable(false) // avoid flicker when the handle moved under the pointer during the animation
+            }
         } else {
             self
         };
@@ -483,7 +482,6 @@ impl Panel {
 
         // Is the resize handle currently being dragged?
         let drag_in_progress = ui
-            .ctx()
             .read_response(resize_id_source.with("__resize"))
             .is_some_and(|r| r.dragged());
 
@@ -494,8 +492,7 @@ impl Panel {
         // the slide animation tries to grow from 0 while the pointer is already
         // at the expanded size.
         let how_expanded = if drag_in_progress {
-            ui.ctx()
-                .animate_bool_with_time(animation_id, *is_expanded, 0.0)
+            ui.animate_bool_with_time(animation_id, *is_expanded, 0.0)
         } else {
             animate_expansion(ui, animation_id, *is_expanded)
         };
@@ -503,11 +500,7 @@ impl Panel {
         // When expanding, the user sees the expanded content the moment animation starts.
         // When collapsing, keep showing the expanded content until past the midpoint,
         // then swap to the collapsed content for the rest of the slide-out.
-        let show_expanded_contents = if *is_expanded {
-            true
-        } else {
-            0.5 < how_expanded
-        };
+        let show_expanded_contents = *is_expanded || 0.5 < how_expanded;
 
         if how_expanded == 0.0 {
             // Fully collapsed. The collapsed panel registers the shared resize
@@ -538,7 +531,7 @@ impl Panel {
                 if drag_in_progress {
                     panel
                 } else {
-                    panel.resizable(false)
+                    panel.resizable(false) // avoid flicker when the handle moved under the pointer during the animation
                 }
             } else {
                 expanded_panel
