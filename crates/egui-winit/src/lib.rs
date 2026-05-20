@@ -87,6 +87,7 @@ pub struct State {
     pointer_pos_in_points: Option<egui::Pos2>,
     any_pointer_button_down: bool,
     current_cursor_icon: Option<egui::CursorIcon>,
+
     /// Cached `CustomCursor` for the last RGBA bitmap pushed through
     /// `PlatformOutput::cursor_image`. We dedupe by `Arc::as_ptr` so the
     /// integration only re-uploads the bitmap to the OS when the app
