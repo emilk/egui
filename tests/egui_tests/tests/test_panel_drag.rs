@@ -93,9 +93,11 @@ fn drag_to_close_and_reopen_animated_between() {
                             ui.heading("Expanded panel");
                             ui.separator();
                             for i in 0..6 {
-                                ui.label(format!("Row {i}: filler content so the \
+                                ui.label(format!(
+                                    "Row {i}: filler content so the \
                                     expanded panel is clearly taller than the \
-                                    collapsed one in the snapshot."));
+                                    collapsed one in the snapshot."
+                                ));
                             }
                         } else {
                             ui.label("Collapsed");
