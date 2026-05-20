@@ -3,7 +3,7 @@ use egui::{
     load::{Bytes, BytesLoadResult, BytesLoader, BytesPoll, LoadError},
     mutex::Mutex,
 };
-use std::{sync::Arc, task::Poll, thread, path::PathBuf};
+use std::{path::PathBuf, sync::Arc, task::Poll, thread};
 
 #[derive(Clone)]
 struct File {
@@ -54,7 +54,7 @@ fn convert_uri_to_path(s: &str) -> Result<PathBuf, egui::load::LoadError> {
         // These file uris need to be converted into UNC correct and so need to have the leading
         // two backslashes prepended.
         let path = PathBuf::from(format!("\\\\{s}"));
-        return Ok(path)
+        return Ok(path);
     }
 
     Ok(PathBuf::from(s))
