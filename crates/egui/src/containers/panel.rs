@@ -872,12 +872,14 @@ impl Panel {
     ///
     /// Used by [`Self::show_animated_between_inside`] to share one widget across
     /// the collapsed and expanded panels.
+    #[inline]
     fn with_resize_id_source(mut self, id: Id) -> Self {
         self.resize_id_source = Some(id);
         self
     }
 
     /// Override the drag-to-collapse threshold (defaults to `min_size`).
+    #[inline]
     fn with_collapse_threshold(mut self, threshold: f32) -> Self {
         self.collapse_threshold = Some(threshold);
         self
