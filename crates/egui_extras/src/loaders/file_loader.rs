@@ -3,7 +3,7 @@ use egui::{
     load::{Bytes, BytesLoadResult, BytesLoader, BytesPoll, LoadError},
     mutex::Mutex,
 };
-use std::{sync::Arc, task::Poll, thread, path::Path, path::PathBuf};
+use std::{sync::Arc, task::Poll, thread, path::PathBuf};
 
 #[derive(Clone)]
 struct File {
@@ -25,7 +25,7 @@ impl FileLoader {
 
 const PROTOCOL: &str = "file://";
 
-/// Converts a hopefully uri encoded string into a PathBuf
+/// Converts a hopefully uri encoded string into a `PathBuf`
 ///
 /// Note that there is only minimal transation of the uri string into a path to support windows
 /// file and unc paths. Other translations like percent un-encoding are not handled.
@@ -42,8 +42,8 @@ fn convert_uri_to_path(s: &str) -> Result<PathBuf, egui::load::LoadError> {
         //
         // in which the hostname field is left out. Check for this by looking at the next character
         // after the schema, if it's a slash then we likely have a standard file path.
-        if s.starts_with("/") {
-            let path = PathBuf::from(&s[1..]);
+        if let Some(stripped) = s.strip_prefix("/") {
+            let path = PathBuf::from(stripped);
             return Ok(path);
         }
 
@@ -53,7 +53,7 @@ fn convert_uri_to_path(s: &str) -> Result<PathBuf, egui::load::LoadError> {
         //
         // These file uris need to be converted into UNC correct and so need to have the leading
         // two backslashes prepended.
-        let path = PathBuf::from(format!("\\\\{}", s));
+        let path = PathBuf::from(format!("\\\\{s}"));
         return Ok(path)
     }
 
