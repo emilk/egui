@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 #[expect(unused_imports)] // Used for doclinks
 use crate::Ui;
-use crate::{AsId, widget_style::HasClasses};
-use crate::{ClosableTag, widget_style::Classes};
-use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
+use crate::{
+    AsId, ClosableTag, Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo,
+    widget_style::{Classes, HasClasses},
+};
 
 /// Build a [`Ui`] as the child of another [`Ui`].
 ///
@@ -14,8 +15,7 @@ use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 #[must_use]
 #[derive(Clone, Default)]
 pub struct UiBuilder {
-    pub id_salt: Option<Id>,
-    pub global_scope: bool,
+    pub lineage: Option<UiLineage>,
     pub ui_stack_info: UiStackInfo,
     pub layer_id: Option<LayerId>,
     pub max_rect: Option<Rect>,
@@ -27,6 +27,13 @@ pub struct UiBuilder {
     pub sense: Option<Sense>,
     pub accessibility_parent: Option<Id>,
     pub classes: Classes,
+}
+
+/// Is this [`Ui`] a root or a child of another [`Ui`]?
+#[derive(Clone)]
+pub enum UiLineage {
+    Root(Id),
+    Child(Id),
 }
 
 impl UiBuilder {
@@ -42,7 +49,7 @@ impl UiBuilder {
     /// within the parent, or give it none at all.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl AsId) -> Self {
-        self.id_salt = Some(Id::new(id_salt));
+        self.lineage = Some(UiLineage::Child(Id::new(id_salt)));
         self
     }
 
@@ -57,20 +64,7 @@ impl UiBuilder {
     /// This is a shortcut for `.id_salt(my_id).global_scope(true)`.
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
-        self.id_salt = Some(id);
-        self.global_scope = true;
-        self
-    }
-
-    /// Make the new `Ui` child ids independent of the parent `Ui`.
-    /// This way child widgets can be moved in the ui tree without losing state.
-    /// You have to ensure that in a frame the child widgets do not get rendered in multiple places.
-    ///
-    /// You should set the same globally unique `id_salt` at every place in the ui tree where you want the
-    /// child widgets to share state.
-    #[inline]
-    pub fn global_scope(mut self, global_scope: bool) -> Self {
-        self.global_scope = global_scope;
+        self.lineage = Some(UiLineage::Root(id));
         self
     }
 

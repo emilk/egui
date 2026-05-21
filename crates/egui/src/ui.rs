@@ -5,8 +5,9 @@ use std::{any::Any, ops::Deref, sync::Arc};
 
 use crate::containers::menu;
 use crate::widget_style::{HasClasses as _, ROOT_CLASS};
-use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
+use crate::{UiLineage, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 use emath::GuiRounding as _;
+
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -106,8 +107,7 @@ impl Ui {
     /// [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            id_salt,
-            global_scope: _,
+            lineage: id_salt,
             ui_stack_info,
             layer_id,
             max_rect,
@@ -207,8 +207,7 @@ impl Ui {
     /// [`Ui::advance_cursor_after_rect`].
     pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            id_salt,
-            global_scope,
+            lineage,
             ui_stack_info,
             layer_id,
             max_rect,
@@ -224,7 +223,6 @@ impl Ui {
 
         let mut painter = self.painter.clone();
 
-        let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or_else(|| *self.layout());
         let enabled = self.enabled && !disabled && !invisible;
@@ -248,13 +246,15 @@ impl Ui {
         }
 
         debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
-        let (stable_id, unique_id) = if global_scope {
-            (id_salt, id_salt)
-        } else {
-            let stable_id = self.id.with(id_salt);
-            let unique_id = stable_id.with(self.next_auto_id_salt);
 
-            (stable_id, unique_id)
+        let lineage = lineage.unwrap_or_else(|| UiLineage::Child(Id::new("child")));
+        let (stable_id, unique_id) = match lineage {
+            UiLineage::Root(id) => (id, id),
+            UiLineage::Child(id_salt) => {
+                let stable_id = self.id.with(id_salt);
+                let unique_id = stable_id.with(self.next_auto_id_salt);
+                (stable_id, unique_id)
+            }
         };
         let next_auto_id_salt = unique_id.value().wrapping_add(1);
 
