@@ -1422,6 +1422,7 @@ dependencies = [
  "egui",
  "egui-wgpu",
  "egui_extras",
+ "egui_inspection",
  "image",
  "kittest",
  "open",
