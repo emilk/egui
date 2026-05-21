@@ -27,7 +27,7 @@ const PROTOCOL: &str = "file://";
 
 /// Converts a hopefully uri encoded string into a `PathBuf`
 ///
-/// Note that there is only minimal transation of the uri string into a path to support windows
+/// Note that there is only minimal translation of the uri string into a path to support windows
 /// file and unc paths. Other translations like percent un-encoding are not handled.
 fn convert_uri_to_path(s: &str) -> Result<PathBuf, egui::load::LoadError> {
     // File loader only supports the `file` protocol.
