@@ -1,9 +1,9 @@
 use epaint::Shape;
 
 use crate::{
-    Align2, AsId, Context, Id, InnerResponse, NumExt as _, Painter, Popup, PopupCloseBehavior,
-    Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui, UiBuilder, Vec2,
-    WidgetInfo, WidgetText, WidgetType, epaint,
+    Align2, AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Popup,
+    PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui,
+    UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType, epaint,
     style::{StyleModifier, WidgetVisuals},
     vec2,
 };
@@ -38,7 +38,7 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
 /// ```
 #[must_use = "You should call .show*"]
 pub struct ComboBox {
-    id_salt: Id,
+    id_salt: IdSalt,
     label: Option<WidgetText>,
     selected_text: WidgetText,
     width: Option<f32>,
@@ -51,9 +51,9 @@ pub struct ComboBox {
 
 impl ComboBox {
     /// Create new [`ComboBox`] with id and label
-    pub fn new(id_salt: impl AsId, label: impl Into<WidgetText>) -> Self {
+    pub fn new(id_salt: impl AsIdSalt, label: impl Into<WidgetText>) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: IdSalt::new(id_salt),
             label: Some(label.into()),
             selected_text: Default::default(),
             width: None,
@@ -69,7 +69,7 @@ impl ComboBox {
     pub fn from_label(label: impl Into<WidgetText>) -> Self {
         let label = label.into();
         Self {
-            id_salt: Id::new(label.text()),
+            id_salt: IdSalt::new(label.text()),
             label: Some(label),
             selected_text: Default::default(),
             width: None,
@@ -82,9 +82,9 @@ impl ComboBox {
     }
 
     /// Without label.
-    pub fn from_id_salt(id_salt: impl AsId) -> Self {
+    pub fn from_id_salt(id_salt: impl AsIdSalt) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: IdSalt::new(id_salt),
             label: Default::default(),
             selected_text: Default::default(),
             width: None,

@@ -400,6 +400,7 @@ pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
 mod id;
+mod id_salt;
 mod input_state;
 mod interaction;
 pub mod introspection;
@@ -474,6 +475,7 @@ pub use self::{
     epaint::text::TextWrapMode,
     grid::Grid,
     id::{AsId, Id, IdMap, IdSet},
+    id_salt::{AsIdSalt, IdSalt},
     input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
     layers::{LayerId, Order},
     layout::*,

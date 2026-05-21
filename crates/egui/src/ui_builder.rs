@@ -3,7 +3,7 @@ use std::sync::Arc;
 #[expect(unused_imports)] // Used for doclinks
 use crate::Ui;
 use crate::{
-    AsId, ClosableTag, Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo,
+    AsIdSalt, ClosableTag, Id, IdSalt, LayerId, Layout, Rect, Sense, Style, UiStackInfo,
     widget_style::{Classes, HasClasses},
 };
 
@@ -33,7 +33,7 @@ pub struct UiBuilder {
 #[derive(Clone)]
 pub enum UiLineage {
     Root(Id),
-    Child(Id),
+    Child(IdSalt),
 }
 
 impl UiBuilder {
@@ -48,8 +48,8 @@ impl UiBuilder {
     /// You should give each [`Ui`] an `id_salt` that is unique
     /// within the parent, or give it none at all.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl AsId) -> Self {
-        self.lineage = Some(UiLineage::Child(Id::new(id_salt)));
+    pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
+        self.lineage = Some(UiLineage::Child(IdSalt::new(id_salt)));
         self
     }
 

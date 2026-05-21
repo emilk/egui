@@ -2,6 +2,8 @@
 
 use std::num::NonZeroU64;
 
+use crate::{AsIdSalt, IdSalt};
+
 /// Types that can be converted to an [`Id`].
 ///
 /// This is all types implementing `Hash` and `Debug`,
@@ -67,11 +69,11 @@ impl Id {
     }
 
     /// Generate a child [`Id`] by salting the parent [`Id`] with the given argument.
-    pub fn with(self, child: impl AsId) -> Self {
+    pub fn with(self, salt: impl AsIdSalt) -> Self {
         use std::hash::{BuildHasher as _, Hasher as _};
         let mut hasher = ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
-        hasher.write_u64(self.0.get());
-        child.hash(&mut hasher);
+        hasher.write_u64(self.value());
+        hasher.write_u64(IdSalt::new(salt).value());
         Self::from_hash(hasher.finish())
     }
 

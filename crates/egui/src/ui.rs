@@ -247,7 +247,7 @@ impl Ui {
 
         debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
 
-        let lineage = lineage.unwrap_or_else(|| UiLineage::Child(Id::new("child")));
+        let lineage = lineage.unwrap_or_else(|| UiLineage::Child(IdSalt::new("child")));
         let (stable_id, unique_id) = match lineage {
             UiLineage::Root(id) => (id, id),
             UiLineage::Child(id_salt) => {
@@ -880,11 +880,8 @@ impl Ui {
 /// # [`Id`] creation
 impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
-    pub fn make_persistent_id<IdSource>(&self, id_salt: IdSource) -> Id
-    where
-        IdSource: AsId,
-    {
-        self.id.with(&id_salt)
+    pub fn make_persistent_id(&self, id_salt: impl AsIdSalt) -> Id {
+        self.id.with(id_salt)
     }
 
     /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
@@ -893,10 +890,7 @@ impl Ui {
     }
 
     /// Same as `ui.next_auto_id().with(id_salt)`
-    pub fn auto_id_with<IdSource>(&self, id_salt: IdSource) -> Id
-    where
-        IdSource: AsId,
-    {
+    pub fn auto_id_with(&self, id_salt: impl AsIdSalt) -> Id {
         Id::new(self.next_auto_id_salt).with(id_salt)
     }
 
@@ -2168,7 +2162,7 @@ impl Ui {
     /// ```
     pub fn push_id<R>(
         &mut self,
-        id_salt: impl AsId,
+        id_salt: impl AsIdSalt,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope_dyn(UiBuilder::new().id_salt(id_salt), Box::new(add_contents))
@@ -2233,7 +2227,7 @@ impl Ui {
     #[inline]
     pub fn indent<R>(
         &mut self,
-        id_salt: impl AsId,
+        id_salt: impl AsIdSalt,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.indent_dyn(id_salt, Box::new(add_contents))
@@ -2241,7 +2235,7 @@ impl Ui {
 
     fn indent_dyn<'c, R>(
         &mut self,
-        id_salt: impl AsId,
+        id_salt: impl AsIdSalt,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         assert!(
