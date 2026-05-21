@@ -1,4 +1,4 @@
-use egui::{UiKind, Vec2b};
+use egui::{UiKind, Vec2b, WindowDrag};
 
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -15,6 +15,8 @@ pub struct WindowOptions {
     anchored: bool,
     anchor: egui::Align2,
     anchor_offset: egui::Vec2,
+
+    drag_area: WindowDrag,
 }
 
 impl Default for WindowOptions {
@@ -31,6 +33,7 @@ impl Default for WindowOptions {
             anchored: false,
             anchor: egui::Align2::RIGHT_TOP,
             anchor_offset: egui::Vec2::ZERO,
+            drag_area: WindowDrag::default(),
         }
     }
 }
@@ -53,6 +56,7 @@ impl crate::Demo for WindowOptions {
             anchored,
             anchor,
             anchor_offset,
+            drag_area,
         } = self.clone();
 
         let enabled = ui.input(|i| i.time) - disabled_time > 2.0;
@@ -67,6 +71,7 @@ impl crate::Demo for WindowOptions {
             .constrain(constrain)
             .collapsible(collapsible)
             .title_bar(title_bar)
+            .drag_area(drag_area)
             .scroll(scroll2)
             .constrain_to(ui.available_rect_before_wrap())
             .enabled(enabled);
@@ -94,6 +99,7 @@ impl crate::View for WindowOptions {
             anchored,
             anchor,
             anchor_offset,
+            drag_area,
         } = self;
         ui.horizontal(|ui| {
             ui.label("title:");
@@ -138,6 +144,17 @@ impl crate::View for WindowOptions {
                     });
                 });
             });
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Drag to move:")
+                .on_hover_text("Where the user can grab the window to move it");
+            ui.selectable_value(drag_area, WindowDrag::OnTouch, "OnTouch")
+                .on_hover_text("Anywhere on touch screens, title-bar only otherwise (default)");
+            ui.selectable_value(drag_area, WindowDrag::TitleBar, "TitleBar")
+                .on_hover_text("Only the title bar moves the window");
+            ui.selectable_value(drag_area, WindowDrag::Anywhere, "Anywhere")
+                .on_hover_text("Drag anywhere on the window to move it");
         });
 
         ui.separator();

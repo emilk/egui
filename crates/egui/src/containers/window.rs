@@ -9,6 +9,48 @@ use crate::*;
 use super::scroll_area::{DragScroll, ScrollBarVisibility, ScrollSource};
 use super::{Area, Frame, Resize, ScrollArea, area, resize};
 
+/// Where the user can drag to move a [`Window`].
+///
+/// See [`Window::drag_area`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum WindowDrag {
+    /// The user can drag the window from anywhere on its surface.
+    ///
+    /// Good for touch screens, but can interfere with selecting / dragging
+    /// content inside the window when used with a mouse.
+    Anywhere,
+
+    /// Only the title bar accepts the move-drag gesture.
+    ///
+    /// Windows without a title bar (see [`Window::title_bar`]) silently fall
+    /// back to [`Self::Anywhere`] — otherwise they'd be unmovable.
+    TitleBar,
+
+    /// [`Self::Anywhere`] when a touch screen is detected (see
+    /// [`crate::InputState::has_touch_screen`]); [`Self::TitleBar`] otherwise.
+    /// The recommended default.
+    #[default]
+    OnTouch,
+}
+
+impl WindowDrag {
+    /// Resolve [`Self::OnTouch`] to either [`Self::Anywhere`] or [`Self::TitleBar`]
+    /// based on whether a touch screen was detected.
+    fn resolve(self, ctx: &Context) -> Self {
+        match self {
+            Self::OnTouch => {
+                if ctx.input(|i| i.has_touch_screen()) {
+                    Self::Anywhere
+                } else {
+                    Self::TitleBar
+                }
+            }
+            other => other,
+        }
+    }
+}
+
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///
 /// You can customize:
@@ -43,6 +85,7 @@ pub struct Window<'a> {
     with_title_bar: bool,
     fade_out: bool,
     auto_sized: bool,
+    drag_area: WindowDrag,
 }
 
 impl<'a> Window<'a> {
@@ -67,6 +110,7 @@ impl<'a> Window<'a> {
             with_title_bar: true,
             fade_out: true,
             auto_sized: false,
+            drag_area: WindowDrag::default(),
         }
     }
 
@@ -145,6 +189,19 @@ impl<'a> Window<'a> {
     #[inline]
     pub fn movable(mut self, movable: bool) -> Self {
         self.area = self.area.movable(movable);
+        self
+    }
+
+    /// Where the user can grab the window to move it.
+    ///
+    /// Defaults to [`WindowDrag::OnTouch`]: drag anywhere on touch screens,
+    /// title bar only otherwise. See [`WindowDrag`] for details.
+    ///
+    /// Has no effect if [`Self::movable`] is `false`. Windows without a title
+    /// bar (see [`Self::title_bar`]) fall back to [`WindowDrag::Anywhere`].
+    #[inline]
+    pub fn drag_area(mut self, drag_area: WindowDrag) -> Self {
+        self.drag_area = drag_area;
         self
     }
 
@@ -489,7 +546,48 @@ impl Window<'_> {
             with_title_bar,
             fade_out,
             auto_sized,
+            drag_area: drag_area_setting,
         } = self;
+
+        // Without a title bar, restrict-to-title-bar makes the window unmovable,
+        // so silently fall back to drag-anywhere.
+        let effective_drag = if with_title_bar {
+            drag_area_setting.resolve(ctx)
+        } else {
+            WindowDrag::Anywhere
+        };
+
+        // Apply the previous frame's title-bar drag _before_ `Area::begin`
+        // loads the state. We can't apply it inside the content closure because
+        // `Area::end` writes the locally-captured `AreaState` back, overwriting
+        // any in-frame mutation.
+        //
+        // We deliberately leave `Area` with its normal `Sense::DRAG`: that way
+        // the area's widget still absorbs drag hit-tests over the body, so the
+        // resize-edge widgets aren't picked as the "closest drag" target when
+        // hovering anywhere in the window. The drag-from-anywhere move that
+        // `Area::begin` would then apply is undone right after `begin` for
+        // `WindowDrag::TitleBar`.
+        let title_drag_mode = effective_drag == WindowDrag::TitleBar;
+        let pivot_pos_before_begin = if title_drag_mode {
+            if let Some(resp) = ctx.read_response(area.id.with("__title_click"))
+                && resp.dragged()
+            {
+                let delta = ctx.input(|i| i.pointer.delta());
+                if delta != Vec2::ZERO {
+                    ctx.memory_mut(|mem| {
+                        if let Some(state) = mem.areas_mut().get_mut(area.id)
+                            && let Some(pivot_pos) = state.pivot_pos.as_mut()
+                        {
+                            *pivot_pos += delta;
+                        }
+                    });
+                }
+            }
+            area::AreaState::load(ctx, area.id).and_then(|s| s.pivot_pos)
+        } else {
+            None
+        };
 
         let style = ctx.global_style();
 
@@ -524,6 +622,13 @@ impl Window<'_> {
 
         let on_top = Some(area_layer_id) == ctx.top_layer_id();
         let mut area = area.begin(ctx);
+
+        // Title-bar-drag mode: throw away any drag-from-anywhere movement
+        // `Area::begin` may have applied. The title-bar pre-begin step above
+        // already accounted for the title drag.
+        if let Some(pre_begin_pivot) = pivot_pos_before_begin {
+            area.state_mut().pivot_pos = Some(pre_begin_pivot);
+        }
 
         area.with_widget_info(|| {
             WidgetInfo::labeled(
@@ -576,6 +681,8 @@ impl Window<'_> {
                             on_top,
                             open.as_deref_mut(),
                             auto_sized,
+                            effective_drag == WindowDrag::TitleBar,
+                            area_id,
                         );
                     }
                     collapsing
@@ -1142,6 +1249,8 @@ fn title_ui(
     active: bool,
     open: Option<&mut bool>,
     auto_sized: bool,
+    drag_to_move: bool,
+    area_id: Id,
 ) -> Response {
     let shape_idx = ui.painter().add(Shape::Noop);
 
@@ -1247,16 +1356,21 @@ fn title_ui(
         }
     }
 
-    if collapsible
-        && child_ui
-            .interact(
-                title_click_rect,
-                child_ui.auto_id_with("window_title_click"),
-                Sense::click(),
-            )
-            .double_clicked()
-    {
-        collapsing.toggle(&child_ui);
+    if collapsible || drag_to_move {
+        // Single widget covers double-click-to-toggle (when collapsible) and
+        // drag-to-move (in title-bar-drag mode). The move itself is applied in
+        // `Window::show_dyn` _before_ `Area::begin` next frame, since
+        // `Area::end` overwrites any in-frame mutation of `AreaState`.
+        let sense = if drag_to_move {
+            Sense::click_and_drag()
+        } else {
+            Sense::click()
+        };
+        let response = child_ui.interact(title_click_rect, area_id.with("__title_click"), sense);
+
+        if collapsible && response.double_clicked() {
+            collapsing.toggle(&child_ui);
+        }
     }
 
     {
