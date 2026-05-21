@@ -31,6 +31,9 @@ fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PanelState {
     /// The _outer_ rect of the panel, i.e. including the [`Frame`] margin & border.
+    ///
+    /// When animating, this will be a shifted in the animation direction,
+    /// so it is really only the size that you can count on.
     #[cfg_attr(feature = "serde", serde(alias = "rect"))]
     pub outer_rect: Rect,
 }
@@ -705,9 +708,8 @@ impl Panel {
             parent_ui.set_cursor_icon(self.cursor_icon(outer_size));
         }
 
-        if self.slide_fraction == 1.0 && !resize_drag_in_progress {
-            // Only persist the panel's rect when it's fully expanded and the user
-            // isn't actively dragging the resize handle. Skipping during a drag
+        if !resize_drag_in_progress {
+            // Skipping during a drag
             // means the stored size reflects the panel's pre-drag size — so a
             // drag-to-close followed by a drag-to-reopen restores the original size.
             PanelState {
