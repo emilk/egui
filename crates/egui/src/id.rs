@@ -51,6 +51,7 @@ impl Id {
     /// though obviously it will lead to a lot of collisions if you do use it!
     pub const NULL: Self = Self(NonZeroU64::MAX);
 
+    /// Create a new root [`Id`] from a high-entropy hash.
     #[inline]
     const fn from_hash(hash: u64) -> Self {
         if let Some(nonzero) = NonZeroU64::new(hash) {
@@ -60,12 +61,12 @@ impl Id {
         }
     }
 
-    /// Generate a new [`Id`] by hashing some source (e.g. a string or integer).
+    /// Generate a new root [`Id`] by hashing some source (e.g. a string or integer).
     pub fn new(source: impl AsId) -> Self {
         Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(source))
     }
 
-    /// Generate a new [`Id`] by hashing the parent [`Id`] and the given argument.
+    /// Generate a child [`Id`] by salting the parent [`Id`] with the given argument.
     pub fn with(self, child: impl AsId) -> Self {
         use std::hash::{BuildHasher as _, Hasher as _};
         let mut hasher = ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
