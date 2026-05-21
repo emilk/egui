@@ -10,15 +10,15 @@ impl<T: std::hash::Hash + std::fmt::Debug> AsIdSalt for T {}
 
 /// Uniquely identifies a child widget within a parent widget.
 ///
-/// An [`IdSalt`] is only unique within a parent [`Id`].
+/// An [`IdSalt`] is only unique within a parent [`crate::Id`].
 /// An [`IdSalt`] is NOT globally unique.
 ///
-/// You combine a parent [`Id`] with an [`IdSalt`] to get a child [`Id`],
-/// using [`Id::with`].
+/// You combine a parent [`crate::Id`] with an [`IdSalt`] to get a child [`crate::Id`],
+/// using [`crate::Id::with`].
 ///
 /// An [`IdSalt`] is usually a string, an integer, or similar.
 ///
-/// An [`IdSalt`] should NOT be produced from an [`Id`].
+/// An [`IdSalt`] should NOT be produced from an [`crate::Id`].
 ///
 /// This is niche-optimized to that `Option<IdSalt>` is the same size as `IdSalt`.
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
