@@ -1,0 +1,45 @@
+[package]
+name = "egui_inspection"
+version.workspace = true
+authors = [
+  "Lucas Meurer <hi@lucasmerlin.me>",
+  "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
+]
+description = "Wire protocol and egui::Plugin for live inspection of running egui apps and kittest harnesses"
+edition.workspace = true
+rust-version.workspace = true
+homepage = "https://github.com/emilk/egui"
+license.workspace = true
+readme = "./README.md"
+repository = "https://github.com/emilk/egui"
+categories = ["gui", "development-tools::testing", "accessibility"]
+keywords = ["gui", "egui", "inspector", "accesskit", "testing"]
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
+
+[features]
+default = ["protocol"]
+
+## Wire-protocol types (`HarnessMessage`, `InspectorCommand`, …) plus length-prefixed
+## MessagePack framing helpers. No `egui` dependency beyond `egui::accesskit`.
+protocol = ["dep:rmp-serde", "dep:serde", "dep:serde_bytes", "egui/serde"]
+
+## `InspectionPlugin` — an `egui::Plugin` impl that streams frames + accesskit tree to
+## an inspector over a unix socket and applies received commands. Auto-attaches when
+## the [`INSPECTION_SOCKET_ENV_VAR`] env var is set.
+plugin = ["protocol", "dep:image"]
+
+[dependencies]
+egui.workspace = true
+serde = { workspace = true, optional = true }
+serde_bytes = { version = "0.11.17", optional = true }
+rmp-serde = { workspace = true, optional = true }
+image = { workspace = true, optional = true }
+
+document-features = { workspace = true, optional = true }
+
+[lints]
+workspace = true

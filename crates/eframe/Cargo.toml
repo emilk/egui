@@ -116,6 +116,12 @@ x11 = [
 ## This is used to generate images for examples.
 __screenshot = []
 
+## Enable the [`egui_inspection`] plugin. When the `EGUI_INSPECTION_SOCKET` env var points
+## at a unix socket, eframe attaches an `InspectionPlugin` to the egui context on startup
+## that streams the AccessKit tree and applies received commands. Unix-only; no-op on
+## non-unix targets.
+inspection = ["dep:egui_inspection", "accesskit"]
+
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 
@@ -131,6 +137,7 @@ web-time.workspace = true
 # Optional dependencies
 
 egui_glow = { workspace = true, optional = true, default-features = false }
+egui_inspection = { workspace = true, optional = true, features = ["plugin"] }
 glow = { workspace = true, optional = true }
 ron = { workspace = true, optional = true, features = ["integer128"] }
 serde = { workspace = true, optional = true }
