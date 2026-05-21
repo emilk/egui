@@ -1,8 +1,8 @@
-use std::{hash::Hash, sync::Arc};
+use std::sync::Arc;
 
 #[expect(unused_imports)] // Used for doclinks
 use crate::Ui;
-use crate::widget_style::HasClasses;
+use crate::{AsId, widget_style::HasClasses};
 use crate::{ClosableTag, widget_style::Classes};
 use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 
@@ -41,7 +41,7 @@ impl UiBuilder {
     /// You should give each [`Ui`] an `id_salt` that is unique
     /// within the parent, or give it none at all.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl Hash) -> Self {
+    pub fn id_salt(mut self, id_salt: impl AsId) -> Self {
         self.id_salt = Some(Id::new(id_salt));
         self
     }

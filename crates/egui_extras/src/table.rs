@@ -4,7 +4,7 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    Align, AsId, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
     scroll_area::{DragScroll, ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
@@ -274,7 +274,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// This is required if you have multiple tables in the same [`Ui`].
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+    pub fn id_salt(mut self, id_salt: impl AsId) -> Self {
         self.id_salt = Id::new(id_salt);
         self
     }

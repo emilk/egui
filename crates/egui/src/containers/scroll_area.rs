@@ -8,7 +8,7 @@ use emath::GuiRounding as _;
 use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
-    Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Response, Sense, Ui, UiBuilder,
+    AsId, Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Response, Sense, Ui, UiBuilder,
     UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp, pass_state, pos2, remap,
     remap_clamp,
 };
@@ -479,7 +479,7 @@ impl ScrollArea {
 
     /// A source for the unique [`Id`], e.g. `.id_salt("second_scroll_area")` or `.id_salt(loop_index)`.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+    pub fn id_salt(mut self, id_salt: impl AsId) -> Self {
         self.id_salt = Some(Id::new(id_salt));
         self
     }

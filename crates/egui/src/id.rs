@@ -2,6 +2,14 @@
 
 use std::num::NonZeroU64;
 
+/// Types that can be converted to an [`Id`].
+///
+/// This is all types implementing `Hash` and `Debug`,
+/// which includes things like string, integers, tuples of those, etc.
+pub trait AsId: std::hash::Hash + std::fmt::Debug {}
+
+impl<T: std::hash::Hash + std::fmt::Debug> AsId for T {}
+
 /// egui tracks widgets frame-to-frame using [`Id`]s.
 ///
 /// For instance, if you start dragging a slider one frame, egui stores
@@ -53,12 +61,12 @@ impl Id {
     }
 
     /// Generate a new [`Id`] by hashing some source (e.g. a string or integer).
-    pub fn new(source: impl std::hash::Hash) -> Self {
+    pub fn new(source: impl AsId) -> Self {
         Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(source))
     }
 
     /// Generate a new [`Id`] by hashing the parent [`Id`] and the given argument.
-    pub fn with(self, child: impl std::hash::Hash) -> Self {
+    pub fn with(self, child: impl AsId) -> Self {
         use std::hash::{BuildHasher as _, Hasher as _};
         let mut hasher = ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
         hasher.write_u64(self.0.get());

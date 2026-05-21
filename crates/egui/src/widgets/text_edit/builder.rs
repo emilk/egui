@@ -4,8 +4,8 @@ use emath::{Rect, TSTransform};
 use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
-    Align, Align2, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon, Event,
-    EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, IntoSizedResult, Key,
+    Align, Align2, AsId, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context, CursorIcon,
+    Event, EventFilter, FontSelection, Frame, Id, ImeEvent, IntoAtoms, IntoSizedResult, Key,
     KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, SizedAtomKind, TextBuffer,
     TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
     os::OperatingSystem,
@@ -171,13 +171,13 @@ impl<'t> TextEdit<'t> {
 
     /// A source for the unique [`Id`], e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
     #[inline]
-    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
+    pub fn id_source(self, id_salt: impl AsId) -> Self {
         self.id_salt(id_salt)
     }
 
     /// A source for the unique [`Id`], e.g. `.id_salt("second_text_edit_field")` or `.id_salt(loop_index)`.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+    pub fn id_salt(mut self, id_salt: impl AsId) -> Self {
         self.id_salt = Some(Id::new(id_salt));
         self
     }
