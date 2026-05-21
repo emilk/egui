@@ -220,6 +220,9 @@ impl<'a> Window<'a> {
     #[inline]
     pub fn drag_area(mut self, drag_area: WindowDrag) -> Self {
         self.drag_area = drag_area;
+        if drag_area == WindowDrag::Off {
+            self.area = self.area.movable(false);
+        }
         self
     }
 

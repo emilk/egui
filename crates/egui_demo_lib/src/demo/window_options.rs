@@ -156,6 +156,8 @@ impl crate::View for WindowOptions {
         ui.horizontal(|ui| {
             ui.label("Drag to move:")
                 .on_hover_text("Where the user can grab the window to move it");
+            ui.selectable_value(drag_area, WindowDrag::Off, "Off")
+                .on_hover_text("The window cannot be dragged to move it (same as movable = false)");
             ui.selectable_value(drag_area, WindowDrag::OnTouch, "OnTouch")
                 .on_hover_text("Anywhere on touch screens, title-bar only otherwise (default)");
             ui.selectable_value(drag_area, WindowDrag::TitleBar, "TitleBar")
