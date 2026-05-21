@@ -94,8 +94,10 @@ impl crate::View for Panels {
             bottom,
             egui::Panel::bottom("bottom_panel_collapsed")
                 .resizable(true)
-                .exact_size(28.0),
-            egui::Panel::bottom("bottom_panel_expanded").resizable(true),
+                .exact_size(16.0),
+            egui::Panel::bottom("bottom_panel_expanded")
+                .resizable(true)
+                .max_size(128.0),
             |ui, expanded| {
                 if expanded {
                     ui.vertical_centered(|ui| {

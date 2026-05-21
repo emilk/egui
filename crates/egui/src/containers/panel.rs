@@ -438,7 +438,7 @@ impl Panel {
     /// // `.resizable(true)` on both panels enables drag-to-collapse + drag-to-expand:
     /// let collapsed = egui::Panel::top("top_collapsed")
     ///     .resizable(true)
-    ///     .exact_size(28.0);
+    ///     .exact_size(20.0);
     /// let expanded = egui::Panel::top("top_expanded")
     ///     .resizable(true)
     ///     .default_size(120.0);
@@ -794,16 +794,21 @@ impl Panel {
 
     /// Get the current _outer_ width or height of the panel (from previous frame),
     /// including the [`Frame`] margin & border, or fall back to some default.
+    ///
+    /// Always clamped to [`Self::outer_size_range`] so callers get the size the
+    /// panel would actually render at — never a stale persisted size from a
+    /// previous build with a different range.
     fn outer_size(&self, ui: &Ui) -> f32 {
         let axis = self.side.axis();
-        if let Some(state) = PanelState::load(ui, self.id) {
+        let raw = if let Some(state) = PanelState::load(ui, self.id) {
             state.outer_rect.size_along(axis)
         } else if let Some(default_outer_size) = self.default_outer_size {
             default_outer_size
         } else {
             let frame = self.resolve_frame(ui);
             ui.style().spacing.interact_size[axis] + frame.total_margin().sum()[axis]
-        }
+        };
+        clamp_to_range(raw, self.outer_size_range)
     }
 
     /// Clamp `outer_size` to the allowed range / available space, then compute the panel rect.
@@ -836,6 +841,18 @@ impl Panel {
     }
 
     fn cursor_icon(&self, outer_size: f32) -> CursorIcon {
+        // When this panel is the collapsed view of `show_animated_between_inside`
+        // (`resize_id_source` is set), dragging past `max_size` triggers
+        // drag-to-expand — so the user can always grow further. Treat the cap
+        // as `INFINITY` for cursor purposes, otherwise we'd advertise
+        // "can only shrink" while sitting on a drag-to-expand affordance.
+        let can_drag_to_expand = self.resize_id_source.is_some();
+        let max_for_cursor = if can_drag_to_expand {
+            f32::INFINITY
+        } else {
+            self.outer_size_range.max
+        };
+
         if outer_size <= self.outer_size_range.min {
             // Can only grow (toward the resizable side):
             match self.side {
@@ -844,7 +861,7 @@ impl Panel {
                 PanelSide::Top => CursorIcon::ResizeSouth,
                 PanelSide::Bottom => CursorIcon::ResizeNorth,
             }
-        } else if outer_size < self.outer_size_range.max {
+        } else if outer_size < max_for_cursor {
             if self.side.axis() == 0 {
                 CursorIcon::ResizeHorizontal
             } else {
