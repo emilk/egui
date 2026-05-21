@@ -7,6 +7,7 @@ pub struct WindowOptions {
     title_bar: bool,
     closable: bool,
     collapsible: bool,
+    movable: bool,
     resizable: bool,
     constrain: bool,
     scroll2: Vec2b,
@@ -26,6 +27,7 @@ impl Default for WindowOptions {
             title_bar: true,
             closable: true,
             collapsible: true,
+            movable: true,
             resizable: true,
             constrain: true,
             scroll2: Vec2b::TRUE,
@@ -49,6 +51,7 @@ impl crate::Demo for WindowOptions {
             title_bar,
             closable,
             collapsible,
+            movable,
             resizable,
             constrain,
             scroll2,
@@ -70,6 +73,7 @@ impl crate::Demo for WindowOptions {
             .resizable(resizable)
             .constrain(constrain)
             .collapsible(collapsible)
+            .movable(movable)
             .title_bar(title_bar)
             .drag_area(drag_area)
             .scroll(scroll2)
@@ -92,6 +96,7 @@ impl crate::View for WindowOptions {
             title_bar,
             closable,
             collapsible,
+            movable,
             resizable,
             constrain,
             scroll2,
@@ -112,6 +117,8 @@ impl crate::View for WindowOptions {
                     ui.checkbox(title_bar, "title_bar");
                     ui.checkbox(closable, "closable");
                     ui.checkbox(collapsible, "collapsible");
+                    ui.checkbox(movable, "movable")
+                        .on_hover_text("Can the window be moved by dragging?");
                     ui.checkbox(resizable, "resizable");
                     ui.checkbox(constrain, "constrain")
                         .on_hover_text("Constrain window to the screen");

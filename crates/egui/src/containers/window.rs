@@ -15,6 +15,12 @@ use super::{Area, Frame, Resize, ScrollArea, area, resize};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WindowDrag {
+    /// Window cannot be moved by dragging.
+    ///
+    /// [`Window::movable(false)`](Window::movable) forces this regardless of
+    /// what was passed to [`Window::drag_area`].
+    Off,
+
     /// The user can drag the window from anywhere on its surface.
     ///
     /// Good for touch screens, but can interfere with selecting / dragging
@@ -186,9 +192,18 @@ impl<'a> Window<'a> {
     }
 
     /// If `false` the window will be immovable.
+    ///
+    /// If `true`, you can move the window by dragging it.
+    /// Where you can drag to move the window is determined by [`Self::drag_area`].
     #[inline]
     pub fn movable(mut self, movable: bool) -> Self {
         self.area = self.area.movable(movable);
+        if !movable {
+            // Make sure `drag_area` agrees: otherwise the title-bar drag path
+            // would still move the window even when the caller asked for no
+            // movement.
+            self.drag_area = WindowDrag::Off;
+        }
         self
     }
 
@@ -197,8 +212,11 @@ impl<'a> Window<'a> {
     /// Defaults to [`WindowDrag::OnTouch`]: drag anywhere on touch screens,
     /// title bar only otherwise. See [`WindowDrag`] for details.
     ///
-    /// Has no effect if [`Self::movable`] is `false`. Windows without a title
-    /// bar (see [`Self::title_bar`]) fall back to [`WindowDrag::Anywhere`].
+    /// [`Self::movable(false)`](Self::movable) forces [`WindowDrag::Off`]
+    /// regardless of this setting. Windows without a title bar (see
+    /// [`Self::title_bar`]) fall back to [`WindowDrag::Anywhere`].
+    ///
+    /// If [`Self::movable`] is `false`, the [`WindowDrag`] setting is ignored.
     #[inline]
     pub fn drag_area(mut self, drag_area: WindowDrag) -> Self {
         self.drag_area = drag_area;
@@ -549,12 +567,16 @@ impl Window<'_> {
             drag_area: drag_area_setting,
         } = self;
 
-        // Without a title bar, restrict-to-title-bar makes the window unmovable,
-        // so silently fall back to drag-anywhere.
-        let effective_drag = if with_title_bar {
-            drag_area_setting.resolve(ctx)
-        } else {
+        // `Window::movable(false)` (and `Area::movable(false)`) takes
+        // precedence over the drag-area setting. Without a title bar,
+        // `TitleBar` mode would leave the window unmovable, so silently fall
+        // back to drag-anywhere instead.
+        let effective_drag = if !area.is_movable() {
+            WindowDrag::Off
+        } else if !with_title_bar {
             WindowDrag::Anywhere
+        } else {
+            drag_area_setting.resolve(ctx)
         };
 
         // Apply the previous frame's title-bar drag _before_ `Area::begin`
