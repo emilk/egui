@@ -93,7 +93,7 @@ font-types = { version = "0.11.0", default-features = false, features = ["std"] 
 glow = "0.17.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
-harfrust = "0.5.2"
+harfrust = "0.7.0"
 home = "0.5.9"
 image = { version = "0.25.6", default-features = false }
 jiff = { version = "0.2.23", default-features = false }
@@ -126,7 +126,7 @@ ron = "0.12.0"
 self_cell = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
 similar-asserts = "1.7.0"
-skrifa = { version = "0.40.0", default-features = false, features = ["std", "autohint_shaping"] }
+skrifa = { version = "0.42.1", default-features = false, features = ["std", "autohint_shaping"] }
 smallvec = "1.15.1"
 smithay-clipboard = "0.7.2"
 static_assertions = "1.1.0"
@@ -139,7 +139,7 @@ type-map = "0.5.1"
 unicode_names2 = { version = "2.0.0", default-features = false }
 unicode-general-category = "1.1.0"
 unicode-segmentation = "1.12.0"
-vello_cpu = { version = "0.0.7", default-features = false, features = [
+vello_cpu = { version = "0.0.8", default-features = false, features = [
   "std",
   "u8_pipeline",
   "f32_pipeline",

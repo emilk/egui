@@ -240,7 +240,8 @@ impl FontCell {
         ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
         ctx.fill_path(&path);
         let mut dest = vello_cpu::Pixmap::new(width, height);
-        ctx.render_to_pixmap(&mut dest);
+        let mut resources = vello_cpu::Resources::new();
+        ctx.render_to_pixmap(&mut resources, &mut dest);
         let uv_rect = if width == 0 || height == 0 {
             UvRect::default()
         } else {
