@@ -194,9 +194,12 @@ impl CaptureState {
         let format = self.texture.format();
         let tex_extent = self.texture.size();
         let padding = self.padding;
-        let to_rgba = match format {
-            wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
-            wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
+        // Dispatch on format once outside the hot loop. Using constant indices for the swizzle
+        // (instead of a runtime `[usize; 4]` table) lets LLVM auto-vectorize the per-pixel
+        // path, and the Rgba8 case skips the swizzle entirely via a row-wise bytemuck copy.
+        let is_bgra = match format {
+            wgpu::TextureFormat::Rgba8Unorm => false,
+            wgpu::TextureFormat::Bgra8Unorm => true,
             _ => {
                 log::error!(
                     "Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {format:?}"
@@ -209,37 +212,82 @@ impl CaptureState {
                 log::error!("Failed to map buffer for reading: {err}");
                 return;
             }
-            let buffer_slice = buffer.slice(..);
-
-            let mut pixels = Vec::with_capacity((tex_extent.width * tex_extent.height) as usize);
-            for padded_row in buffer_slice
-                .get_mapped_range()
-                .chunks(padding.padded_bytes_per_row as usize)
+            // The `map_async` callback is fired by wgpu on the render thread inside
+            // `Queue::submit`. The pixel swizzle on a full-screen buffer is CPU-bound and
+            // would block the next frame's GPU dispatch. Off-load to a worker thread so
+            // submit returns immediately. On wasm we can't move `Arc<Buffer>` across
+            // threads (and there are no real threads anyway), so we keep the work inline.
+            #[cfg(not(target_arch = "wasm32"))]
             {
-                let row = &padded_row[..padding.unpadded_bytes_per_row as usize];
-                for color in row.chunks(4) {
-                    pixels.push(epaint::Color32::from_rgba_premultiplied(
-                        color[to_rgba[0]],
-                        color[to_rgba[1]],
-                        color[to_rgba[2]],
-                        color[to_rgba[3]],
-                    ));
-                }
+                let _ = std::thread::Builder::new()
+                    .name("egui_wgpu_capture_decode".into())
+                    .spawn(move || {
+                        decode_and_send(
+                            buffer, padding, tex_extent, is_bgra, ctx, tx, data, viewport_id,
+                        );
+                    });
             }
-            buffer.unmap();
-
-            tx.send((
-                viewport_id,
-                data,
-                ColorImage::new(
-                    [tex_extent.width as usize, tex_extent.height as usize],
-                    pixels,
-                ),
-            ))
-            .ok();
-            ctx.request_repaint();
+            #[cfg(target_arch = "wasm32")]
+            decode_and_send(
+                buffer, padding, tex_extent, is_bgra, ctx, tx, data, viewport_id,
+            );
         });
     }
+}
+
+/// Map the captured buffer, swizzle BGRA → RGBA if needed, ship the resulting
+/// [`ColorImage`] through `tx`, and wake the UI thread. Called either inline (wasm) or on
+/// a dedicated worker thread (native) — never on the render thread, so the per-pixel work
+/// can't backpressure GPU submission.
+fn decode_and_send(
+    buffer: Arc<wgpu::Buffer>,
+    padding: BufferPadding,
+    tex_extent: wgpu::Extent3d,
+    is_bgra: bool,
+    ctx: egui::Context,
+    tx: CaptureSender,
+    data: Vec<UserData>,
+    viewport_id: ViewportId,
+) {
+    let buffer_slice = buffer.slice(..);
+    let total_pixels = (tex_extent.width * tex_extent.height) as usize;
+    let mut pixels: Vec<epaint::Color32> = Vec::with_capacity(total_pixels);
+    let padded_bpr = padding.padded_bytes_per_row as usize;
+    let unpadded_bpr = padding.unpadded_bytes_per_row as usize;
+    let mapped = buffer_slice.get_mapped_range();
+    if is_bgra {
+        // Byte-by-byte swizzle BGRA → RGBA. `chunks_exact` is faster than `chunks`
+        // (no remainder/Option dance) and literal indices vectorize well.
+        for padded_row in mapped.chunks_exact(padded_bpr) {
+            let row = &padded_row[..unpadded_bpr];
+            for px in row.chunks_exact(4) {
+                pixels.push(epaint::Color32::from_rgba_premultiplied(
+                    px[2], px[1], px[0], px[3],
+                ));
+            }
+        }
+    } else {
+        // RGBA already → pure memcpy per row into the Vec<Color32> via bytemuck.
+        // `Color32` is `#[repr(C)] [u8; 4]` with a `bytemuck::Pod` impl, so this is a
+        // straight reinterpretation.
+        for padded_row in mapped.chunks_exact(padded_bpr) {
+            let row = &padded_row[..unpadded_bpr];
+            pixels.extend_from_slice(bytemuck::cast_slice::<u8, epaint::Color32>(row));
+        }
+    }
+    drop(mapped);
+    buffer.unmap();
+
+    tx.send((
+        viewport_id,
+        data,
+        ColorImage::new(
+            [tex_extent.width as usize, tex_extent.height as usize],
+            pixels,
+        ),
+    ))
+    .ok();
+    ctx.request_repaint();
 }
 
 #[derive(Copy, Clone)]
