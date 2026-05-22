@@ -508,12 +508,7 @@ impl FontFace {
         let axes = font_data.skrifa.axes();
         // Override the default coordinates with ones specified via FontTweak, then the ones specified directly via the
         // argument (probably from TextFormat).
-        let settings = self
-            .tweak
-            .coords
-            .as_ref()
-            .iter()
-            .chain(coords.as_ref().iter());
+        let settings = std::iter::chain(self.tweak.coords.as_ref(), coords.as_ref());
         let location = axes.location(settings);
 
         StyledMetrics {

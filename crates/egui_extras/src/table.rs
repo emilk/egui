@@ -619,11 +619,8 @@ impl TableState {
             // to take up the remainder of the current available width.
             // Also handles changing item spacing.
             let mut sizing = crate::sizing::Sizing::default();
-            for ((prev_width, max_used), column) in state
-                .column_widths
-                .iter()
-                .zip(&state.max_used_widths)
-                .zip(columns)
+            for (prev_width, max_used, column) in
+                itertools::izip!(&state.column_widths, &state.max_used_widths, columns)
             {
                 use crate::Size;
 
