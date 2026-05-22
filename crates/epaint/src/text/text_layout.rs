@@ -244,11 +244,7 @@ fn layout_shaped_run(
     let mut cluster_start_byte: usize = 0;
     let mut cluster_glyph_count: usize = 0;
 
-    for (info, pos) in glyph_buffer
-        .glyph_infos()
-        .iter()
-        .zip(glyph_buffer.glyph_positions())
-    {
+    for (info, pos) in std::iter::zip(glyph_buffer.glyph_infos(), glyph_buffer.glyph_positions()) {
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         let cluster = info.cluster;
         let mut advance_width_px = pos.x_advance as f32 * px_scale;

@@ -96,6 +96,7 @@ glutin-winit = { version = "0.5.0", default-features = false }
 harfrust = "0.7.0"
 home = "0.5.9"
 image = { version = "0.25.6", default-features = false }
+itertools = "0.13.0"
 jiff = { version = "0.2.23", default-features = false }
 js-sys = "0.3.77"
 kittest = { version = "0.4.0" }

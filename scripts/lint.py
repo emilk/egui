@@ -72,6 +72,11 @@ def lint_lines(filepath, lines_in):
                 f"{filepath}:{line_nr}: write 'TODO(username):' instead"
             )
 
+        if re.search(r"\.zip\(", line):
+            errors.append(
+                f"{filepath}:{line_nr}: use `std::iter::zip` or `itertools::izip!` instead of `.zip(`"
+            )
+
         if (
             "(target_os" in line
             and filepath.startswith("./crates/egui/")
@@ -105,6 +110,8 @@ def test_lint():
             self
         }
         """,
+        "for (a, b) in std::iter::zip(xs, ys) {}",
+        "for (a, b, c) in itertools::izip!(xs, ys, zs) {}",
     ]
 
     should_fail = [
@@ -121,6 +128,7 @@ def test_lint():
             self
         }
         """,
+        "for (a, b) in xs.iter().zip(ys) {}",
     ]
 
     for code in should_pass:

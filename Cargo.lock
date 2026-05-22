@@ -1363,6 +1363,7 @@ dependencies = [
  "ehttp",
  "enum-map",
  "image",
+ "itertools 0.13.0",
  "jiff",
  "log",
  "mime_guess2",
