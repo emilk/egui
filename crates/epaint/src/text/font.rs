@@ -82,8 +82,14 @@ pub(crate) struct LocationHash(u64);
 impl nohash_hasher::IsEnabled for LocationHash {}
 
 impl LocationHash {
+    #[inline]
     pub fn new(location: &skrifa::instance::Location) -> Self {
-        Self(crate::util::hash(location))
+        if location.coords().is_empty() {
+            // Fast path for the (common) default-coords case.
+            Self(0)
+        } else {
+            Self(crate::util::hash(location))
+        }
     }
 }
 
@@ -160,6 +166,7 @@ struct GlyphCacheKey(u64);
 impl nohash_hasher::IsEnabled for GlyphCacheKey {}
 
 impl GlyphCacheKey {
+    #[inline]
     fn new(glyph_id: GlyphId, metrics: &StyledMetrics, bin: SubpixelBin) -> Self {
         let StyledMetrics {
             pixels_per_point,
@@ -722,14 +729,25 @@ impl Font<'_> {
     ///
     /// Location-independent — fallback choice depends only on charmap support.
     /// Falls back to the replacement-glyph face when no fallback face has `c`.
+    #[inline]
     pub(crate) fn resolve_face(&mut self, c: char) -> FontFaceKey {
         if let Some(font_key) = self.cached_family.face_cache.get(&c) {
             return *font_key;
         }
-        let font_key = self
+        self.resolve_face_slow(c)
+    }
+
+    #[cold]
+    fn resolve_face_slow(&mut self, c: char) -> FontFaceKey {
+        // `resolve_face_no_cache_or_fallback` already inserts into `face_cache`
+        // on success — only cache the replacement-face fallback ourselves.
+        if let Some(font_key) = self
             .cached_family
             .resolve_face_no_cache_or_fallback(c, self.fonts_by_id)
-            .unwrap_or(self.cached_family.replacement_face_key);
+        {
+            return font_key;
+        }
+        let font_key = self.cached_family.replacement_face_key;
         self.cached_family.face_cache.insert(c, font_key);
         font_key
     }
