@@ -82,7 +82,7 @@ bitflags = "2.9.4"
 bytemuck = "1.24.0"
 cint = "0.3.1"
 color-hex = "0.2.0"
-criterion = { version = "0.7.0", default-features = false }
+criterion = { version = "0.8.2", default-features = false }
 dify = { version = "0.8", default-features = false }
 directories = "6.0.0"
 document-features = "0.2.11"
