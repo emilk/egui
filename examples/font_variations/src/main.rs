@@ -20,12 +20,16 @@ fn main() -> eframe::Result {
 struct MyApp {
     /// Weight axis (wght): 300..1000
     weight: f32,
+
     /// Casual axis (CASL): 0..1
     casual: f32,
+
     /// Monospace axis (MONO): 0..1
     mono: f32,
+
     /// Slant axis (slnt): -15..0
     slant: f32,
+
     /// Cursive axis (CRSV): 0..1
     cursive: f32,
 
