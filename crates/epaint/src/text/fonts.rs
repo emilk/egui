@@ -500,10 +500,10 @@ impl CachedFamily {
         };
 
         let (replacement_face_key, replacement_char) = slf
-            .resolve_face_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
+            .find_face_for_char(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
             .map(|key| (key, PRIMARY_REPLACEMENT_CHAR))
             .or_else(|| {
-                slf.resolve_face_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR, fonts_by_id)
+                slf.find_face_for_char(FALLBACK_REPLACEMENT_CHAR, fonts_by_id)
                     .map(|key| (key, FALLBACK_REPLACEMENT_CHAR))
             })
             .unwrap_or_else(|| {
@@ -520,16 +520,16 @@ impl CachedFamily {
 
     /// Walk the fallback chain and return the first face whose charmap supports `c`.
     ///
-    /// Result is cached in [`Self::face_cache`] as a side-effect.
-    pub(crate) fn resolve_face_no_cache_or_fallback(
-        &mut self,
+    /// Pure — does not touch any cache. Callers that want memoisation should
+    /// insert into [`Self::face_cache`] themselves.
+    pub(crate) fn find_face_for_char(
+        &self,
         c: char,
         fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     ) -> Option<FontFaceKey> {
         for font_key in &self.fonts {
             let font_face = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
             if font_face.glyph_id_resolution(c).is_some() {
-                self.face_cache.insert(c, *font_key);
                 return Some(*font_key);
             }
         }

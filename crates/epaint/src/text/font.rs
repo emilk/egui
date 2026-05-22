@@ -485,26 +485,21 @@ impl FontFace {
             return None; // these will result in the replacement character when rendering
         }
 
-        // `\t` and thin spaces are rendered as a space glyph with a custom advance.
-        if c == '\t' || c == '\u{2009}' || c == '\u{202F}' {
-            let resolution = self.glyph_id_resolution(' ')?;
-            self.glyph_id_cache.insert(c, resolution);
-            return Some(resolution);
-        }
+        let resolution = if c == '\t' || c == '\u{2009}' || c == '\u{202F}' {
+            // `\t` and thin spaces are rendered as a space glyph with a custom advance.
+            self.glyph_id_resolution(' ')?
+        } else if invisible_char(c) {
+            GlyphIdResolution::Invisible
+        } else {
+            let glyph_id = self
+                .font
+                .borrow_dependent()
+                .charmap
+                .map(c)
+                .filter(|id| *id != GlyphId::NOTDEF)?;
+            GlyphIdResolution::Glyph(glyph_id)
+        };
 
-        if invisible_char(c) {
-            let resolution = GlyphIdResolution::Invisible;
-            self.glyph_id_cache.insert(c, resolution);
-            return Some(resolution);
-        }
-
-        let font_data = self.font.borrow_dependent();
-        let glyph_id = font_data
-            .charmap
-            .map(c)
-            .filter(|id| *id != GlyphId::NOTDEF)?;
-
-        let resolution = GlyphIdResolution::Glyph(glyph_id);
         self.glyph_id_cache.insert(c, resolution);
         Some(resolution)
     }
@@ -739,15 +734,10 @@ impl Font<'_> {
 
     #[cold]
     fn resolve_face_slow(&mut self, c: char) -> FontFaceKey {
-        // `resolve_face_no_cache_or_fallback` already inserts into `face_cache`
-        // on success — only cache the replacement-face fallback ourselves.
-        if let Some(font_key) = self
+        let font_key = self
             .cached_family
-            .resolve_face_no_cache_or_fallback(c, self.fonts_by_id)
-        {
-            return font_key;
-        }
-        let font_key = self.cached_family.replacement_face_key;
+            .find_face_for_char(c, self.fonts_by_id)
+            .unwrap_or(self.cached_family.replacement_face_key);
         self.cached_family.face_cache.insert(c, font_key);
         font_key
     }
