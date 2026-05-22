@@ -198,12 +198,6 @@ impl<'a> Window<'a> {
     #[inline]
     pub fn movable(mut self, movable: bool) -> Self {
         self.area = self.area.movable(movable);
-        if !movable {
-            // Make sure `drag_area` agrees: otherwise the title-bar drag path
-            // would still move the window even when the caller asked for no
-            // movement.
-            self.drag_area = WindowDrag::Off;
-        }
         self
     }
 
@@ -215,14 +209,9 @@ impl<'a> Window<'a> {
     /// [`Self::movable(false)`](Self::movable) forces [`WindowDrag::Off`]
     /// regardless of this setting. Windows without a title bar (see
     /// [`Self::title_bar`]) fall back to [`WindowDrag::Anywhere`].
-    ///
-    /// If [`Self::movable`] is `false`, the [`WindowDrag`] setting is ignored.
     #[inline]
     pub fn drag_area(mut self, drag_area: WindowDrag) -> Self {
         self.drag_area = drag_area;
-        if drag_area == WindowDrag::Off {
-            self.area = self.area.movable(false);
-        }
         self
     }
 
@@ -570,16 +559,27 @@ impl Window<'_> {
             drag_area: drag_area_setting,
         } = self;
 
-        // `Window::movable(false)` (and `Area::movable(false)`) takes
-        // precedence over the drag-area setting. Without a title bar,
-        // `TitleBar` mode would leave the window unmovable, so silently fall
-        // back to drag-anywhere instead.
-        let effective_drag = if !area.is_movable() {
+        // `Window::movable(false)` (and `Area::movable(false)`) and
+        // `WindowDrag::Off` both mean "this window cannot be moved by
+        // dragging". Without a title bar, `TitleBar` mode would leave the
+        // window unmovable, so silently fall back to drag-anywhere instead.
+        let effective_drag = if !area.is_movable() || drag_area_setting == WindowDrag::Off {
             WindowDrag::Off
         } else if !with_title_bar {
             WindowDrag::Anywhere
         } else {
             drag_area_setting.resolve(ctx)
+        };
+
+        // Make the area itself agree: keep its movable flag in sync with
+        // the resolved drag mode so resize behavior and `Area::begin`'s
+        // drag-from-anywhere handling don't disagree with the title-bar
+        // path. (Builder order shouldn't matter — `.drag_area(Off)` after
+        // `.movable(true)` and vice versa both end up here.)
+        let area = if effective_drag == WindowDrag::Off {
+            area.movable(false)
+        } else {
+            area
         };
 
         // Apply the previous frame's title-bar drag _before_ `Area::begin`
@@ -650,9 +650,20 @@ impl Window<'_> {
 
         // Title-bar-drag mode: throw away any drag-from-anywhere movement
         // `Area::begin` may have applied. The title-bar pre-begin step above
-        // already accounted for the title drag.
+        // already accounted for the title drag. We then re-run the same
+        // constrain+round step `Area::begin` does so the title-bar drag
+        // can't escape `constrain_rect` or reintroduce sub-pixel jitter.
         if let Some(pre_begin_pivot) = pivot_pos_before_begin {
-            area.state_mut().pivot_pos = Some(pre_begin_pivot);
+            let constrain = area.constrain();
+            let constrain_rect = area.constrain_rect();
+            let state = area.state_mut();
+            state.pivot_pos = Some(pre_begin_pivot);
+            if constrain {
+                state.set_left_top_pos(
+                    Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min,
+                );
+            }
+            state.set_left_top_pos(area::round_area_position(ctx, state.left_top_pos()));
         }
 
         area.with_widget_info(|| {
