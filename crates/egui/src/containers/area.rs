@@ -583,7 +583,7 @@ impl Area {
     }
 }
 
-fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
+pub(crate) fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
     // We round a lot of rendering to pixels, so we round the whole
     // area positions to pixels too, so avoid widgets appearing to float
     // around independently of each other when the area is dragged.
