@@ -77,6 +77,11 @@ def lint_lines(filepath, lines_in):
                 f"{filepath}:{line_nr}: use `std::iter::zip` or `itertools::izip!` instead of `.zip(`"
             )
 
+        if re.search(r"\.chain\(", line):
+            errors.append(
+                f"{filepath}:{line_nr}: use `std::iter::chain` or `itertools::chain!` instead of `.chain(`"
+            )
+
         if (
             "(target_os" in line
             and filepath.startswith("./crates/egui/")
@@ -112,6 +117,8 @@ def test_lint():
         """,
         "for (a, b) in std::iter::zip(xs, ys) {}",
         "for (a, b, c) in itertools::izip!(xs, ys, zs) {}",
+        "for x in std::iter::chain(xs, ys) {}",
+        "for x in itertools::chain!(xs, ys, zs) {}",
     ]
 
     should_fail = [
@@ -129,6 +136,7 @@ def test_lint():
         }
         """,
         "for (a, b) in xs.iter().zip(ys) {}",
+        "for x in xs.iter().chain(ys) {}",
     ]
 
     for code in should_pass:

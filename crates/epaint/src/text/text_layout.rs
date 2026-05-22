@@ -1,7 +1,7 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
-use std::ops::Range;
 use std::sync::Arc;
+use std::{iter, ops::Range};
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
@@ -244,7 +244,7 @@ fn layout_shaped_run(
     let mut cluster_start_byte: usize = 0;
     let mut cluster_glyph_count: usize = 0;
 
-    for (info, pos) in std::iter::zip(glyph_buffer.glyph_infos(), glyph_buffer.glyph_positions()) {
+    for (info, pos) in iter::zip(glyph_buffer.glyph_infos(), glyph_buffer.glyph_positions()) {
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         let cluster = info.cluster;
         let mut advance_width_px = pos.x_advance as f32 * px_scale;
@@ -521,7 +521,7 @@ fn layout_section(
 /// Avoids `Box<dyn Iterator>` and `Vec<&str>` allocation.
 enum SplitOrWhole<'a> {
     Split(std::str::Split<'a, char>),
-    Whole(std::iter::Once<&'a str>),
+    Whole(iter::Once<&'a str>),
 }
 
 impl<'a> SplitOrWhole<'a> {
@@ -529,7 +529,7 @@ impl<'a> SplitOrWhole<'a> {
         if split {
             Self::Split(text.split('\n'))
         } else {
-            Self::Whole(std::iter::once(text))
+            Self::Whole(iter::once(text))
         }
     }
 }
@@ -1402,13 +1402,10 @@ fn shape_text(
     let tweak = font_face.tweak();
 
     // Build shaper with variable font instance if variation coordinates are set.
-    let variations: Vec<harfrust::Variation> = tweak
-        .coords
-        .as_ref()
-        .iter()
-        .chain(coords.as_ref().iter())
-        .map(|&(tag, value)| harfrust::Variation { tag, value })
-        .collect();
+    let variations: Vec<harfrust::Variation> =
+        iter::chain(tweak.coords.as_ref().iter(), coords.as_ref().iter())
+            .map(|&(tag, value)| harfrust::Variation { tag, value })
+            .collect();
 
     let instance = if variations.is_empty() {
         None
@@ -1435,6 +1432,7 @@ fn shape_text(
 
 #[cfg(test)]
 mod tests {
+    use std::iter;
 
     use super::{super::*, *};
     use crate::text::cursor::CCursor;
@@ -1571,10 +1569,11 @@ mod tests {
                     &mut fonts,
                     pixels_per_point,
                     Arc::new(LayoutJob::single_section(
-                        (0..elided_galley.rows[0].char_count_excluding_newline())
-                            .map(|_| ch)
-                            .chain(std::iter::once('…'))
-                            .collect::<String>(),
+                        iter::chain(
+                            (0..elided_galley.rows[0].char_count_excluding_newline()).map(|_| ch),
+                            iter::once('…'),
+                        )
+                        .collect::<String>(),
                         TextFormat::default(),
                     )),
                 );

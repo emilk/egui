@@ -1257,6 +1257,7 @@ dependencies = [
  "document-features",
  "emath",
  "epaint",
+ "itertools 0.13.0",
  "log",
  "nohash-hasher",
  "profiling",

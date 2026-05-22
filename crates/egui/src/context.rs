@@ -641,11 +641,7 @@ impl ContextImpl {
     }
 
     fn all_viewport_ids(&self) -> ViewportIdSet {
-        self.viewports
-            .keys()
-            .copied()
-            .chain([ViewportId::ROOT])
-            .collect()
+        std::iter::chain(self.viewports.keys().copied(), [ViewportId::ROOT]).collect()
     }
 
     /// The current active viewport
