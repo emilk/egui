@@ -158,17 +158,22 @@ fn find_active_monitor(
         return None; // no monitors 🤷
     };
 
+    let mut active_monitor_overlap = 0.0;
     for monitor in monitors {
         let window_size_px = window_size_pts * (egui_zoom_factor * monitor.scale_factor() as f32);
-        let monitor_x_range = (monitor.position().x - window_size_px.x as i32)
-            ..(monitor.position().x + monitor.size().width as i32);
-        let monitor_y_range = (monitor.position().y - window_size_px.y as i32)
-            ..(monitor.position().y + monitor.size().height as i32);
+        let monitor_position = monitor.position();
+        let monitor_size = monitor.size();
+        let x_overlap = (position_px.x + window_size_px.x)
+            .min(monitor_position.x as f32 + monitor_size.width as f32)
+            - position_px.x.max(monitor_position.x as f32);
+        let y_overlap = (position_px.y + window_size_px.y)
+            .min(monitor_position.y as f32 + monitor_size.height as f32)
+            - position_px.y.max(monitor_position.y as f32);
+        let overlap = x_overlap.max(0.0) * y_overlap.max(0.0);
 
-        if monitor_x_range.contains(&(position_px.x as i32))
-            && monitor_y_range.contains(&(position_px.y as i32))
-        {
+        if active_monitor_overlap < overlap {
             active_monitor = monitor;
+            active_monitor_overlap = overlap;
         }
     }
 
