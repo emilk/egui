@@ -30,7 +30,7 @@ impl nohash_hasher::IsEnabled for IdSalt {}
 impl IdSalt {
     /// Create a new [`IdSalt`] by hashing some source (e.g. a string or integer).
     pub fn new(source: impl AsIdSalt) -> Self {
-        let id_salt = Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(&source));
+        let id_salt = Self::from_hash(ahash::RandomState::with_seeds(5, 6, 7, 8).hash_one(&source));
 
         #[cfg(debug_assertions)]
         id_salt_source::maybe_insert(id_salt, &source);
