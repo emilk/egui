@@ -1402,10 +1402,9 @@ fn shape_text(
     let tweak = font_face.tweak();
 
     // Build shaper with variable font instance if variation coordinates are set.
-    let variations: Vec<harfrust::Variation> =
-        iter::chain(tweak.coords.as_ref().iter(), coords.as_ref().iter())
-            .map(|&(tag, value)| harfrust::Variation { tag, value })
-            .collect();
+    let variations: Vec<harfrust::Variation> = iter::chain(tweak.coords.as_ref(), coords.as_ref())
+        .map(|&(tag, value)| harfrust::Variation { tag, value })
+        .collect();
 
     let instance = if variations.is_empty() {
         None
