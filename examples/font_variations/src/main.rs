@@ -41,7 +41,12 @@ impl MyApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         cc.egui_ctx.add_font(FontInsert::new(
             "Recursive",
-            egui::FontData::from_static(include_bytes!("../data/Recursive-VariableFont.ttf")),
+            egui::FontData::from_static({
+                #[expect(clippy::large_include_file, reason = "intentional for the example")]
+                {
+                    include_bytes!("../data/Recursive-VariableFont.ttf")
+                }
+            }),
             vec![
                 InsertFontFamily {
                     family: egui::FontFamily::Proportional,
