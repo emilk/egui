@@ -1,9 +1,7 @@
-use std::hash::Hash;
-
 use crate::{
-    Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
-    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, WidgetType, emath,
-    epaint, pos2, remap, remap_clamp, vec2,
+    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke,
+    TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText,
+    WidgetType, emath, epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
 use epaint::{Shape, StrokeKind};
@@ -371,7 +369,7 @@ pub struct CollapsingHeader {
     text: WidgetText,
     default_open: bool,
     open: Option<bool>,
-    id_salt: Id,
+    id_salt: IdSalt,
     enabled: bool,
     selectable: bool,
     selected: bool,
@@ -388,7 +386,7 @@ impl CollapsingHeader {
     /// you need to provide a unique id source with [`Self::id_salt`].
     pub fn new(text: impl Into<WidgetText>) -> Self {
         let text = text.into();
-        let id_salt = Id::new(text.text());
+        let id_salt = IdSalt::new(text.text());
         Self {
             text,
             default_open: false,
@@ -424,8 +422,8 @@ impl CollapsingHeader {
     /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
     /// This is useful if the title label is dynamic or not unique.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl Hash) -> Self {
-        self.id_salt = Id::new(id_salt);
+    pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
+        self.id_salt = IdSalt::new(id_salt);
         self
     }
 

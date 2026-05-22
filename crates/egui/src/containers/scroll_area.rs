@@ -8,9 +8,9 @@ use emath::GuiRounding as _;
 use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
-    Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Response, Sense, Ui, UiBuilder,
-    UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp, pass_state, pos2, remap,
-    remap_clamp,
+    AsIdSalt, Context, CursorIcon, Id, IdSalt, NumExt as _, Pos2, Rangef, Rect, Response, Sense,
+    Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp, pass_state,
+    pos2, remap, remap_clamp,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -344,7 +344,7 @@ pub struct ScrollArea {
     min_scrolled_size: Vec2,
     scroll_bar_visibility: ScrollBarVisibility,
     scroll_bar_rect: Option<Rect>,
-    id_salt: Option<Id>,
+    id_salt: Option<IdSalt>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
     on_hover_cursor: Option<CursorIcon>,
@@ -479,8 +479,8 @@ impl ScrollArea {
 
     /// A source for the unique [`Id`], e.g. `.id_salt("second_scroll_area")` or `.id_salt(loop_index)`.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt = Some(Id::new(id_salt));
+    pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
+        self.id_salt = Some(IdSalt::new(id_salt));
         self
     }
 
@@ -730,7 +730,7 @@ impl ScrollArea {
 
         let ctx = ui.ctx().clone();
 
-        let id_salt = id_salt.unwrap_or_else(|| Id::new("scroll_area"));
+        let id_salt = id_salt.unwrap_or_else(|| IdSalt::new("scroll_area"));
         let id = ui.make_persistent_id(id_salt);
         ctx.check_for_id_clash(
             id,

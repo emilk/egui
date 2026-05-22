@@ -400,6 +400,7 @@ pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
 mod id;
+mod id_salt;
 mod input_state;
 mod interaction;
 pub mod introspection;
@@ -473,7 +474,8 @@ pub use self::{
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,
     grid::Grid,
-    id::{Id, IdMap, IdSet},
+    id::{AsId, Id, IdMap, IdSet},
+    id_salt::{AsIdSalt, IdSalt},
     input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
     layers::{LayerId, Order},
     layout::*,
@@ -486,7 +488,7 @@ pub use self::{
     style::{FontSelection, Spacing, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
-    ui_builder::UiBuilder,
+    ui_builder::{IdSource, UiBuilder},
     ui_stack::*,
     viewport::*,
     widget_rect::{InteractOptions, WidgetRect, WidgetRects},

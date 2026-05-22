@@ -4,7 +4,7 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    Align, AsIdSalt, IdSalt, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
     scroll_area::{DragScroll, ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
@@ -246,7 +246,7 @@ impl Default for TableScrollOptions {
 /// ```
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
-    id_salt: Id,
+    id_salt: IdSalt,
     columns: Vec<Column>,
     striped: Option<bool>,
     resizable: bool,
@@ -260,7 +260,7 @@ impl<'a> TableBuilder<'a> {
         let cell_layout = *ui.layout();
         Self {
             ui,
-            id_salt: Id::new("__table_state"),
+            id_salt: IdSalt::new("__table_state"),
             columns: Default::default(),
             striped: None,
             resizable: false,
@@ -270,12 +270,12 @@ impl<'a> TableBuilder<'a> {
         }
     }
 
-    /// Give this table a unique id within the parent [`Ui`].
+    /// Give this table a unique salt within the parent [`Ui`].
     ///
     /// This is required if you have multiple tables in the same [`Ui`].
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt = Id::new(id_salt);
+    pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
+        self.id_salt = IdSalt::new(id_salt);
         self
     }
 
