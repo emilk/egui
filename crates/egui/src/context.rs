@@ -1533,6 +1533,19 @@ impl Context {
         self.output_mut(|o| o.cursor_icon = cursor_icon);
     }
 
+    /// Request that the integration display this RGBA bitmap as the OS
+    /// cursor for the next frame, instead of the standard `cursor_icon`.
+    /// Backends that don't support custom cursors (web, eframe with
+    /// non-winit integrations) silently fall back to the icon.
+    ///
+    /// Pass `None` to clear and revert to `cursor_icon` selection.
+    ///
+    /// The integration is expected to dedupe by `Arc` pointer identity,
+    /// so reusing the same `Arc<[u8]>` across frames is cheap.
+    pub fn set_cursor_image(&self, image: Option<crate::CustomCursorImage>) {
+        self.output_mut(|o| o.cursor_image = image);
+    }
+
     /// Add a command to [`PlatformOutput::commands`],
     /// for the integration to execute at the end of the frame.
     pub fn send_cmd(&self, cmd: crate::OutputCommand) {
