@@ -11,7 +11,7 @@ use crate::{
     TextureAtlas,
     text::{
         Galley, LayoutJob, LayoutSection, TextOptions, VariationCoords,
-        font::{Font, FontFace, GlyphInfo},
+        font::{Font, FontFace},
     },
 };
 use emath::{NumExt as _, OrderedFloat};
@@ -457,9 +457,20 @@ pub(super) struct CachedFamily {
     /// Lazily calculated.
     pub characters: Option<BTreeMap<char, Vec<String>>>,
 
-    pub replacement_glyph: (FontFaceKey, GlyphInfo),
+    /// The face used when no face in [`Self::fonts`] supports a char.
+    pub replacement_face_key: FontFaceKey,
 
-    pub glyph_info_cache: ahash::HashMap<char, (FontFaceKey, GlyphInfo)>,
+    /// The char that [`Self::replacement_face_key`] actually contains.
+    ///
+    /// When the user asks about a char that no fallback face supports we
+    /// render this char in its place.
+    pub replacement_char: char,
+
+    /// Cache: `char → which face in the fallback chain owns this char`.
+    ///
+    /// Location-independent (fallback choice depends only on charmap support,
+    /// not on variation coordinates).
+    pub face_cache: ahash::HashMap<char, FontFaceKey>,
 }
 
 impl CachedFamily {
@@ -467,49 +478,59 @@ impl CachedFamily {
         fonts: Vec<FontFaceKey>,
         fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     ) -> Self {
+        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
+        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
+
         if fonts.is_empty() {
             return Self {
                 fonts,
                 characters: None,
-                replacement_glyph: (FontFaceKey::INVALID, GlyphInfo::INVISIBLE),
-                glyph_info_cache: Default::default(),
+                replacement_face_key: FontFaceKey::INVALID,
+                replacement_char: PRIMARY_REPLACEMENT_CHAR,
+                face_cache: Default::default(),
             };
         }
 
         let mut slf = Self {
             fonts,
             characters: None,
-            replacement_glyph: (FontFaceKey::INVALID, GlyphInfo::INVISIBLE),
-            glyph_info_cache: Default::default(),
+            replacement_face_key: FontFaceKey::INVALID,
+            replacement_char: PRIMARY_REPLACEMENT_CHAR,
+            face_cache: Default::default(),
         };
 
-        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
-        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
-
-        let replacement_glyph = slf
-            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
-            .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR, fonts_by_id))
+        let (replacement_face_key, replacement_char) = slf
+            .resolve_face_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
+            .map(|key| (key, PRIMARY_REPLACEMENT_CHAR))
+            .or_else(|| {
+                slf.resolve_face_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR, fonts_by_id)
+                    .map(|key| (key, FALLBACK_REPLACEMENT_CHAR))
+            })
             .unwrap_or_else(|| {
                 log::warn!(
                     "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
                 );
-                (FontFaceKey::INVALID, GlyphInfo::INVISIBLE)
+                (FontFaceKey::INVALID, PRIMARY_REPLACEMENT_CHAR)
             });
-        slf.replacement_glyph = replacement_glyph;
+        slf.replacement_face_key = replacement_face_key;
+        slf.replacement_char = replacement_char;
 
         slf
     }
 
-    pub(crate) fn glyph_info_no_cache_or_fallback(
+    /// Walk the fallback chain and return the first face whose charmap supports `c`.
+    ///
+    /// Result is cached in [`Self::face_cache`] as a side-effect.
+    pub(crate) fn resolve_face_no_cache_or_fallback(
         &mut self,
         c: char,
         fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
-    ) -> Option<(FontFaceKey, GlyphInfo)> {
+    ) -> Option<FontFaceKey> {
         for font_key in &self.fonts {
             let font_face = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
-            if let Some(glyph_info) = font_face.glyph_info(c) {
-                self.glyph_info_cache.insert(c, (*font_key, glyph_info));
-                return Some((*font_key, glyph_info));
+            if font_face.glyph_id_resolution(c).is_some() {
+                self.face_cache.insert(c, *font_key);
+                return Some(*font_key);
             }
         }
         None

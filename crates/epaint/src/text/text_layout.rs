@@ -261,7 +261,7 @@ fn layout_shaped_run(
         if chr == '\t' {
             let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
             let tab_size = tweak.map_or(4.0, |t| t.tab_size);
-            let (_, space_info) = font.glyph_info(' ');
+            let (_, space_info) = font.glyph_info(' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
             advance_width_px = tab_size * space_width_px;
         }
@@ -271,7 +271,7 @@ fn layout_shaped_run(
         if chr == '\u{2009}' || chr == '\u{202F}' {
             let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
             let thin_space_width = tweak.map_or(0.5, |t| t.thin_space_width);
-            let (_, space_info) = font.glyph_info(' ');
+            let (_, space_info) = font.glyph_info(' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
             advance_width_px = thin_space_width * space_width_px;
         }
@@ -308,7 +308,7 @@ fn layout_shaped_run(
             }
 
             // Use the fallback font face (not run.font_key which returned NOTDEF).
-            let (fallback_key, glyph_info) = font.glyph_info(chr);
+            let fallback_key = font.resolve_face(chr);
             let fallback_metrics = font
                 .fonts_by_id
                 .get(&fallback_key)
@@ -316,6 +316,7 @@ fn layout_shaped_run(
                     ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
                 })
                 .unwrap_or_default();
+            let (_, glyph_info) = font.glyph_info(chr, &fallback_metrics);
             let advance_width_px =
                 glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
             let (glyph_alloc, physical_x) =
@@ -774,12 +775,14 @@ fn replace_last_glyph_with_overflow_character(
         let mut font = fonts.font(&section.format.font_id.family);
         let font_size = section.format.font_id.size;
 
-        let (font_id, glyph_info) = font.glyph_info(overflow_character);
-        let mut font_face = font.fonts_by_id.get_mut(&font_id);
-        let font_face_metrics = font_face
-            .as_mut()
+        let font_id = font.resolve_face(overflow_character);
+        let font_face_metrics = font
+            .fonts_by_id
+            .get(&font_id)
             .map(|f| f.styled_metrics(pixels_per_point, font_size, &section.format.coords))
             .unwrap_or_default();
+        let (_, glyph_info) = font.glyph_info(overflow_character, &font_face_metrics);
+        let mut font_face = font.fonts_by_id.get_mut(&font_id);
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
             prev_glyph.max_x() + extra_letter_spacing
@@ -1371,7 +1374,7 @@ fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
         let byte_end = byte_offset + grapheme_str.len();
 
         let base_char = grapheme_str.chars().next().unwrap_or(' ');
-        let (font_key, _) = font.glyph_info(base_char);
+        let font_key = font.resolve_face(base_char);
 
         if let Some(last_run) = out.last_mut()
             && last_run.font_key == font_key
