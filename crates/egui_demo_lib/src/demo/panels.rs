@@ -49,7 +49,7 @@ impl crate::View for Panels {
         egui::Panel::top("top_panel")
             .resizable(true)
             .min_size(32.0)
-            .show_animated_inside(ui, *top, |ui| {
+            .show_animated_inside(ui, top, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical_centered(|ui| {
                         ui.heading("Expandable Upper Panel");
@@ -62,7 +62,7 @@ impl crate::View for Panels {
             .resizable(true)
             .default_size(150.0)
             .size_range(80.0..=200.0)
-            .show_animated_inside(ui, *left, |ui| {
+            .show_animated_inside(ui, left, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Left Panel");
                 });
@@ -75,7 +75,7 @@ impl crate::View for Panels {
             .resizable(true)
             .default_size(150.0)
             .size_range(80.0..=200.0)
-            .show_animated_inside(ui, *right, |ui| {
+            .show_animated_inside(ui, right, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Right Panel");
                 });
@@ -84,24 +84,31 @@ impl crate::View for Panels {
                 });
             });
 
+        // Bottom panel: drag the top edge down past the expanded panel's min size
+        // to collapse; drag it back up past the collapsed panel's max size to
+        // re-expand. Both panels are `.resizable(true)` so each one's edge accepts
+        // the gesture; the collapsed panel uses `exact_size` so even a tiny
+        // outward drag is enough to trigger the swap.
         egui::Panel::show_animated_between_inside(
             ui,
-            *bottom,
-            egui::Panel::bottom("bottom_panel_collapsed"),
-            egui::Panel::bottom("bottom_panel_expanded"),
+            bottom,
+            egui::Panel::bottom("bottom_panel_collapsed")
+                .resizable(true)
+                .exact_size(16.0),
+            egui::Panel::bottom("bottom_panel_expanded")
+                .resizable(true)
+                .max_size(128.0),
             |ui, expanded| {
                 if expanded {
                     ui.vertical_centered(|ui| {
-                        if ui.button("Collapse bottom panel").clicked() {
-                            *bottom = false;
-                        }
+                        ui.heading("Bottom panel");
                     });
-                    ui.label(egui::RichText::new(crate::LOREM_IPSUM_LONG).small().weak());
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        lorem_ipsum(ui);
+                    });
                 } else {
                     ui.vertical_centered(|ui| {
-                        if ui.button("Expand bottom panel").clicked() {
-                            *bottom = true;
-                        }
+                        ui.label("Bottom panel (collapsed)");
                     });
                 }
             },

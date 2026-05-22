@@ -343,13 +343,14 @@ impl WrapApp {
     fn backend_panel(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) -> Command {
         // The backend-panel can be toggled on/off.
         // We show a little animation when the user switches it.
-        let is_open = self.state.backend_panel.open || ui.memory(|mem| mem.everything_is_visible());
+        let mut is_open =
+            self.state.backend_panel.open || ui.memory(|mem| mem.everything_is_visible());
 
         let mut cmd = Command::Nothing;
 
         egui::Panel::left("backend_panel")
             .resizable(false)
-            .show_animated_inside(ui, is_open, |ui| {
+            .show_animated_inside(ui, &mut is_open, |ui| {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
                     ui.heading("💻 Backend");
@@ -358,6 +359,9 @@ impl WrapApp {
                 ui.separator();
                 self.backend_panel_contents(ui, frame, &mut cmd);
             });
+
+        // Allow drag-to-close to close the backend panel:
+        self.state.backend_panel.open = is_open;
 
         cmd
     }
