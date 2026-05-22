@@ -488,7 +488,7 @@ pub use self::{
     style::{FontSelection, Spacing, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
-    ui_builder::{UiBuilder, UiLineage},
+    ui_builder::{IdSource, UiBuilder},
     ui_stack::*,
     viewport::*,
     widget_rect::{InteractOptions, WidgetRect, WidgetRects},

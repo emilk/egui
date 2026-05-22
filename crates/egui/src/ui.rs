@@ -5,7 +5,7 @@ use std::{any::Any, ops::Deref, sync::Arc};
 
 use crate::containers::menu;
 use crate::widget_style::{HasClasses as _, ROOT_CLASS};
-use crate::{UiLineage, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
+use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 use emath::GuiRounding as _;
 
 // ----------------------------------------------------------------------------
@@ -107,7 +107,7 @@ impl Ui {
     /// [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            lineage: id_salt,
+            id_source,
             ui_stack_info,
             layer_id,
             max_rect,
@@ -124,8 +124,8 @@ impl Ui {
         let layer_id = layer_id.unwrap_or_else(LayerId::background);
 
         debug_assert!(
-            id_salt.is_none(),
-            "Top-level Ui:s should not have an id_salt"
+            id_source.is_none(),
+            "Top-level Ui:s should not have an UiBuilder::id_source"
         );
 
         let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
@@ -207,7 +207,7 @@ impl Ui {
     /// [`Ui::advance_cursor_after_rect`].
     pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            lineage,
+            id_source,
             ui_stack_info,
             layer_id,
             max_rect,
@@ -247,10 +247,10 @@ impl Ui {
 
         debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
 
-        let lineage = lineage.unwrap_or_else(|| UiLineage::Child(IdSalt::new("child")));
-        let (stable_id, unique_id) = match lineage {
-            UiLineage::Root(id) => (id, id),
-            UiLineage::Child(id_salt) => {
+        let id_source = id_source.unwrap_or_else(|| IdSource::Child(IdSalt::new("child")));
+        let (stable_id, unique_id) = match id_source {
+            IdSource::Explicit(id) => (id, id),
+            IdSource::Child(id_salt) => {
                 let stable_id = self.id.with(id_salt);
                 let unique_id = stable_id.with(self.next_auto_id_salt);
                 (stable_id, unique_id)

@@ -15,7 +15,7 @@ use crate::{
 #[must_use]
 #[derive(Clone, Default)]
 pub struct UiBuilder {
-    pub lineage: Option<UiLineage>,
+    pub id_source: Option<IdSource>,
     pub ui_stack_info: UiStackInfo,
     pub layer_id: Option<LayerId>,
     pub max_rect: Option<Rect>,
@@ -31,8 +31,11 @@ pub struct UiBuilder {
 
 /// Is this [`Ui`] a root or a child of another [`Ui`]?
 #[derive(Clone)]
-pub enum UiLineage {
-    Root(Id),
+pub enum IdSource {
+    /// Explicitly use this [`Id`]
+    Explicit(Id),
+
+    /// Salt the parent [`Id`] with this.
     Child(IdSalt),
 }
 
@@ -49,7 +52,7 @@ impl UiBuilder {
     /// within the parent, or give it none at all.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
-        self.lineage = Some(UiLineage::Child(IdSalt::new(id_salt)));
+        self.id_source = Some(IdSource::Child(IdSalt::new(id_salt)));
         self
     }
 
@@ -64,7 +67,7 @@ impl UiBuilder {
     /// This is a shortcut for `.id_salt(my_id).global_scope(true)`.
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
-        self.lineage = Some(UiLineage::Root(id));
+        self.id_source = Some(IdSource::Explicit(id));
         self
     }
 
