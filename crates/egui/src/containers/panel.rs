@@ -384,6 +384,8 @@ impl Panel {
     /// `is_expanded` is taken by `&mut` so the panel can flip it to `false` when
     /// the user drags the resize handle past the panel's minimum size, and back
     /// to `true` if the user drags the handle outward while the panel is closed.
+    /// When [`Self::resizable`] is `true`, double-clicking the resize edge also
+    /// flips `*is_expanded`.
     pub fn show_collapsible<R>(
         self,
         ui: &mut Ui,
@@ -464,6 +466,9 @@ impl Panel {
     /// Both panels share a single resize-handle widget under the hood (keyed to
     /// the expanded panel's id), so a single uninterrupted drag can collapse and
     /// re-expand the panel without releasing.
+    ///
+    /// Double-clicking the resize edge also flips `*is_expanded` (whichever
+    /// panel is currently shown is the one whose edge you click).
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -615,7 +620,7 @@ impl Panel {
     fn show_inside_dyn<'c, R>(
         self,
         parent_ui: &mut Ui,
-        is_expanded: Option<&mut bool>,
+        mut is_expanded: Option<&mut bool>,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let side = self.side;
@@ -642,7 +647,18 @@ impl Panel {
             // store-skipped-during-drag rule would leave the stored size at the
             // pre-drag value.
             let resize_id = self.resize_id_source.unwrap_or(id).with("__resize");
-            if let Some(resize_response) = parent_ui.read_response(resize_id)
+            let resize_response = parent_ui.read_response(resize_id);
+
+            // Double-click on the resize edge toggles `*is_expanded` for the
+            // animated entry points (`show_collapsible` / `show_switched`).
+            if let Some(resize_response) = resize_response.as_ref()
+                && resize_response.double_clicked()
+                && let Some(is_expanded) = is_expanded.as_deref_mut()
+            {
+                *is_expanded = !*is_expanded;
+            }
+
+            if let Some(resize_response) = resize_response
                 && (resize_response.dragged() || resize_response.drag_stopped())
                 && let Some(pointer) = resize_response.interact_pointer_pos()
             {
@@ -891,7 +907,7 @@ impl Panel {
         // `show_switched` share one resize widget.
         let resize_id = self.resize_id_source.unwrap_or(self.id).with("__resize");
         let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
-        let resize_response = ui.interact(resize_rect, resize_id, Sense::drag());
+        let resize_response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
 
         (resize_response.hovered(), resize_response.dragged())
     }
