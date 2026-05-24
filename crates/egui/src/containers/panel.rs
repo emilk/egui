@@ -424,14 +424,18 @@ impl Panel {
     }
 
     /// Renamed to [`Self::show_collapsible`].
+    ///
+    /// Note: [`Self::show_collapsible`] takes `is_expanded` by `&mut` so it can
+    /// flip it to `false` when the user drags the panel closed. To opt in,
+    /// migrate to the new name.
     #[deprecated = "Renamed to `show_collapsible`"]
     pub fn show_animated_inside<R>(
         self,
         ui: &mut Ui,
-        is_expanded: &mut bool,
+        mut is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        self.show_collapsible(ui, is_expanded, add_contents)
+        self.show_collapsible(ui, &mut is_expanded, add_contents)
     }
 
     /// Show either a collapsed or expanded panel, with a nice slide animation between.
@@ -576,20 +580,26 @@ impl Panel {
     }
 
     /// Renamed to [`Self::show_switched`].
+    ///
+    /// Note: [`Self::show_switched`] takes `is_expanded` by `&mut` (to allow
+    /// drag-to-collapse / drag-to-expand to flip it) and passes a `bool` to
+    /// `add_contents` instead of an `f32` animation fraction. To opt in,
+    /// migrate to the new name.
     #[deprecated = "Renamed to `show_switched`"]
     pub fn show_animated_between_inside<R>(
         ui: &mut Ui,
-        is_expanded: &mut bool,
+        is_expanded: bool,
         collapsed_panel: Self,
         expanded_panel: Self,
-        add_contents: impl FnOnce(&mut Ui, bool) -> R,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> InnerResponse<R> {
+        let mut is_expanded = is_expanded;
         Self::show_switched(
             ui,
-            is_expanded,
+            &mut is_expanded,
             collapsed_panel,
             expanded_panel,
-            add_contents,
+            |ui, expanded| add_contents(ui, if expanded { 1.0 } else { 0.0 }),
         )
     }
 }
