@@ -418,7 +418,7 @@ mod tests {
 
             if name == "Bézier Curve" {
                 // The Bézier Curve demo needs a threshold of 2.1 to pass on linux:
-                options = options.threshold(OsThreshold::new(0.0).linux(2.1));
+                options = options.threshold(OsThreshold::new(0.0).linux(2.1).into());
             }
 
             results.add(harness.try_snapshot_options(format!("demos/{name}"), &options));
