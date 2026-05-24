@@ -49,7 +49,7 @@ impl crate::View for Panels {
         egui::Panel::top("top_panel")
             .resizable(true)
             .min_size(32.0)
-            .show_animated_inside(ui, top, |ui| {
+            .show_collapsible(ui, top, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical_centered(|ui| {
                         ui.heading("Expandable Upper Panel");
@@ -62,7 +62,7 @@ impl crate::View for Panels {
             .resizable(true)
             .default_size(150.0)
             .size_range(80.0..=200.0)
-            .show_animated_inside(ui, left, |ui| {
+            .show_collapsible(ui, left, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Left Panel");
                 });
@@ -75,7 +75,7 @@ impl crate::View for Panels {
             .resizable(true)
             .default_size(150.0)
             .size_range(80.0..=200.0)
-            .show_animated_inside(ui, right, |ui| {
+            .show_collapsible(ui, right, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Right Panel");
                 });
@@ -89,7 +89,7 @@ impl crate::View for Panels {
         // re-expand. Both panels are `.resizable(true)` so each one's edge accepts
         // the gesture; the collapsed panel uses `exact_size` so even a tiny
         // outward drag is enough to trigger the swap.
-        egui::Panel::show_animated_between_inside(
+        egui::Panel::show_switched(
             ui,
             bottom,
             egui::Panel::bottom("bottom_panel_collapsed")
@@ -115,7 +115,7 @@ impl crate::View for Panels {
         );
 
         // TODO(emilk): This extra panel is superfluous - just use what's left of `ui` instead
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.vertical_centered(|ui| {
                 ui.heading("Central Panel");
             });

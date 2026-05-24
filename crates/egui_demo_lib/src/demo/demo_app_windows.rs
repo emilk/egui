@@ -245,7 +245,7 @@ impl DemoWindows {
     }
 
     fn mobile_top_bar(&mut self, ui: &mut egui::Ui) {
-        egui::Panel::top("menu_bar").show_inside(ui, |ui| {
+        egui::Panel::top("menu_bar").show(ui, |ui| {
             menu::MenuBar::new()
                 .config(menu::MenuConfig::new().style(StyleModifier::default()))
                 .ui(ui, |ui| {
@@ -275,7 +275,7 @@ impl DemoWindows {
             .resizable(false)
             .default_size(160.0)
             .min_size(160.0)
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 ui.vertical_centered_justified(|ui| {
                     ui.add_space(4.0);
                     ui.add(
@@ -296,7 +296,7 @@ impl DemoWindows {
                 self.demo_list_ui(ui);
             });
 
-        egui::Panel::top("menu_bar").show_inside(ui, |ui| {
+        egui::Panel::top("menu_bar").show(ui, |ui| {
             menu::MenuBar::new().ui(ui, |ui| {
                 file_menu_button(ui);
             });

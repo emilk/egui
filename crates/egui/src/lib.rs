@@ -113,7 +113,7 @@
 //!     let raw_input: egui::RawInput = gather_input();
 //!
 //!     let full_output = ctx.run_ui(raw_input, |ui| {
-//!         egui::CentralPanel::default().show_inside(ui, |ui| {
+//!         egui::CentralPanel::default().show(ui, |ui| {
 //!             ui.label("Hello world!");
 //!             if ui.button("Click me").clicked() {
 //!                 // take some action here

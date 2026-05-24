@@ -160,14 +160,23 @@ impl PanelSide {
 ///
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
+/// # Showing the panel
+///
+/// Pick the variant that matches the behavior you want:
+///
+/// * [`Panel::show`]: always show the panel.
+/// * [`Panel::show_collapsible`]: show or hide the panel, with a slide animation in between.
+/// * [`Panel::show_switched`]: animate between two different panels:
+///   a thin/collapsed one and a thick/expanded one.
+///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// egui::Panel::left("my_left_panel").show_inside(ui, |ui| {
+/// egui::Panel::left("my_left_panel").show(ui, |ui| {
 ///    ui.label("Hello World!");
 /// });
 /// # });
 /// ```
-#[must_use = "You should call .show_inside()"]
+#[must_use = "You should call .show()"]
 pub struct Panel {
     side: PanelSide,
     id: Id,
@@ -186,13 +195,13 @@ pub struct Panel {
     /// `1.0` = panel fully visible (the normal case),
     /// `0.0` = panel fully slid off-screen toward its fixed edge.
     ///
-    /// Used by [`Self::show_animated_inside`] to animate a panel sliding in/out.
+    /// Used by [`Self::show_collapsible`] to animate a panel sliding in/out.
     /// While `slide_fraction != 1.0` the panel does _not_ persist its [`PanelState`].
     slide_fraction: f32,
 
     /// Override for the [`Id`] under which the resize-handle widget is registered.
     ///
-    /// Used by [`Self::show_animated_between_inside`] so the collapsed and
+    /// Used by [`Self::show_switched`] so the collapsed and
     /// expanded panels share a single resize widget — that way a drag on either
     /// one can flip `is_expanded` and the gesture survives the swap.
     resize_id_source: Option<Id>,
@@ -200,7 +209,7 @@ pub struct Panel {
     /// Size below which drag-to-collapse fires, when set.
     ///
     /// Defaults to `outer_size_range.min`. Used by
-    /// [`Self::show_animated_between_inside`] to set the threshold at the
+    /// [`Self::show_switched`] to set the threshold at the
     /// collapsed panel's size, so the swap happens exactly when the slide
     /// matches the collapsed size visually.
     collapse_threshold: Option<f32>,
@@ -351,12 +360,18 @@ impl Panel {
 // Public showing methods
 impl Panel {
     /// Show the panel inside a [`Ui`].
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.show_inside_dyn(ui, None, Box::new(add_contents))
+    }
+
+    /// Renamed to [`Self::show`].
+    #[deprecated = "Renamed to `show`"]
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_inside_dyn(ui, None, Box::new(add_contents))
+        self.show(ui, add_contents)
     }
 
     /// Show the panel if `*is_expanded` is `true`,
@@ -369,7 +384,7 @@ impl Panel {
     /// `is_expanded` is taken by `&mut` so the panel can flip it to `false` when
     /// the user drags the resize handle past the panel's minimum size, and back
     /// to `true` if the user drags the handle outward while the panel is closed.
-    pub fn show_animated_inside<R>(
+    pub fn show_collapsible<R>(
         self,
         ui: &mut Ui,
         is_expanded: &mut bool,
@@ -406,6 +421,21 @@ impl Panel {
         };
 
         Some(panel.show_inside_dyn(ui, Some(is_expanded), Box::new(add_contents)))
+    }
+
+    /// Renamed to [`Self::show_collapsible`].
+    ///
+    /// Note: [`Self::show_collapsible`] takes `is_expanded` by `&mut` so it can
+    /// flip it to `false` when the user drags the panel closed. To opt in,
+    /// migrate to the new name.
+    #[deprecated = "Renamed to `show_collapsible`"]
+    pub fn show_animated_inside<R>(
+        self,
+        ui: &mut Ui,
+        mut is_expanded: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
+        self.show_collapsible(ui, &mut is_expanded, add_contents)
     }
 
     /// Show either a collapsed or expanded panel, with a nice slide animation between.
@@ -445,7 +475,7 @@ impl Panel {
     /// let expanded = egui::Panel::top("top_expanded")
     ///     .resizable(true)
     ///     .default_size(120.0);
-    /// egui::Panel::show_animated_between_inside(
+    /// egui::Panel::show_switched(
     ///     ui,
     ///     &mut is_expanded,
     ///     collapsed,
@@ -462,7 +492,7 @@ impl Panel {
     /// ui.toggle_value(&mut is_expanded, "Expand");
     /// # });
     /// ```
-    pub fn show_animated_between_inside<R>(
+    pub fn show_switched<R>(
         ui: &mut Ui,
         is_expanded: &mut bool,
         collapsed_panel: Self,
@@ -471,7 +501,7 @@ impl Panel {
     ) -> InnerResponse<R> {
         debug_assert!(
             collapsed_panel.id != expanded_panel.id,
-            "show_animated_between_inside: the collapsed and expanded panels must have distinct ids \
+            "show_switched: the collapsed and expanded panels must have distinct ids \
              (their persisted sizes are stored per-id, and sharing one id would let the collapsed \
              size overwrite the expanded size)."
         );
@@ -548,6 +578,30 @@ impl Panel {
             )
         }
     }
+
+    /// Renamed to [`Self::show_switched`].
+    ///
+    /// Note: [`Self::show_switched`] takes `is_expanded` by `&mut` (to allow
+    /// drag-to-collapse / drag-to-expand to flip it) and passes a `bool` to
+    /// `add_contents` instead of an `f32` animation fraction. To opt in,
+    /// migrate to the new name.
+    #[deprecated = "Renamed to `show_switched`"]
+    pub fn show_animated_between_inside<R>(
+        ui: &mut Ui,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> InnerResponse<R> {
+        let mut is_expanded = is_expanded;
+        Self::show_switched(
+            ui,
+            &mut is_expanded,
+            collapsed_panel,
+            expanded_panel,
+            |ui, expanded| add_contents(ui, if expanded { 1.0 } else { 0.0 }),
+        )
+    }
 }
 
 // Private methods to support the various show methods
@@ -555,7 +609,7 @@ impl Panel {
     /// Show the panel inside a [`Ui`].
     ///
     /// `is_expanded` is `Some` for the animated entry points
-    /// ([`Self::show_animated_inside`], [`Self::show_animated_between_inside`]);
+    /// ([`Self::show_collapsible`], [`Self::show_switched`]);
     /// when present, dragging the resize handle past the minimum size collapses
     /// the panel by setting `*is_expanded = false`.
     fn show_inside_dyn<'c, R>(
@@ -608,7 +662,7 @@ impl Panel {
                 if let Some(is_expanded) = is_expanded {
                     // Drag-to-collapse: shrink past the threshold → close.
                     // The threshold defaults to `min_size`, but
-                    // `show_animated_between_inside` overrides it to the
+                    // `show_switched` overrides it to the
                     // collapsed panel's size so the swap happens exactly when
                     // the drag visually crosses the collapsed size.
                     // Use `raw_outer_size` (pre-clamp) so a tight `exact_size`
@@ -620,7 +674,7 @@ impl Panel {
                     }
                     // Drag-to-expand: pointer pulled outward past `max_size` → open.
                     // Triggers when this panel is acting as the collapsed view of
-                    // `show_animated_between_inside`, with `resize_id_source` set
+                    // `show_switched`, with `resize_id_source` set
                     // to the expanded panel's id. `raw_outer_size` is required
                     // because `outer_size` is clamped to `max` and would never
                     // exceed it (so `exact_size` panels couldn't otherwise expand).
@@ -834,7 +888,7 @@ impl Panel {
         let amount = ui.style().interaction.resize_grab_radius_side * self.side.axis_unit();
 
         // Use `resize_id_source` so collapsed/expanded panels in
-        // `show_animated_between_inside` share one resize widget.
+        // `show_switched` share one resize widget.
         let resize_id = self.resize_id_source.unwrap_or(self.id).with("__resize");
         let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
         let resize_response = ui.interact(resize_rect, resize_id, Sense::drag());
@@ -843,7 +897,7 @@ impl Panel {
     }
 
     fn cursor_icon(&self, outer_size: f32) -> CursorIcon {
-        // When this panel is the collapsed view of `show_animated_between_inside`
+        // When this panel is the collapsed view of `show_switched`
         // (`resize_id_source` is set), dragging past `max_size` triggers
         // drag-to-expand — so the user can always grow further. Treat the cap
         // as `INFINITY` for cursor purposes, otherwise we'd advertise
@@ -889,7 +943,7 @@ impl Panel {
 
     /// Register the resize-handle widget under this `Id` instead of `self.id`.
     ///
-    /// Used by [`Self::show_animated_between_inside`] to share one widget across
+    /// Used by [`Self::show_switched`] to share one widget across
     /// the collapsed and expanded panels.
     #[inline]
     fn with_resize_id_source(mut self, id: Id) -> Self {
@@ -924,15 +978,15 @@ impl Panel {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// egui::Panel::top("my_panel").show_inside(ui, |ui| {
+/// egui::Panel::top("my_panel").show(ui, |ui| {
 ///    ui.label("Hello World! From `Panel`, that must be before `CentralPanel`!");
 /// });
-/// egui::CentralPanel::default().show_inside(ui, |ui| {
+/// egui::CentralPanel::default().show(ui, |ui| {
 ///    ui.label("Hello World!");
 /// });
 /// # });
 /// ```
-#[must_use = "You should call .show_inside()"]
+#[must_use = "You should call .show()"]
 #[derive(Default)]
 pub struct CentralPanel {
     frame: Option<Frame>,
@@ -959,12 +1013,18 @@ impl CentralPanel {
     }
 
     /// Show the panel inside a [`Ui`].
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.show_inside_dyn(ui, Box::new(add_contents))
+    }
+
+    /// Renamed to [`Self::show`].
+    #[deprecated = "Renamed to `show`"]
     pub fn show_inside<R>(
         self,
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.show_inside_dyn(ui, Box::new(add_contents))
+        self.show(ui, add_contents)
     }
 
     /// Show the panel inside a [`Ui`].

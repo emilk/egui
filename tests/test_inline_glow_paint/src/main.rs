@@ -30,7 +30,7 @@ struct MyTestApp {}
 
 impl eframe::App for MyTestApp {
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        egui::Panel::top("top").show_inside(ui, |ui| {
+        egui::Panel::top("top").show(ui, |ui| {
             ui.label("This is a test of painting directly with glow.");
         });
 

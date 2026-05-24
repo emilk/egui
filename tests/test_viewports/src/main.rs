@@ -154,7 +154,7 @@ impl Default for App {
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.heading("Root viewport");
             {
                 let mut embed_viewports = ui.embed_viewports();
@@ -182,7 +182,7 @@ fn show_as_popup(
         // Not a real viewport - already has a frame
         content(ui);
     } else {
-        egui::CentralPanel::default().show_inside(ui, content);
+        egui::CentralPanel::default().show(ui, content);
     }
 }
 
