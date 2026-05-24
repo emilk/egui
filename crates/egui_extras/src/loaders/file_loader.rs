@@ -216,7 +216,7 @@ mod tests {
             checks.append(&mut more_checks);
         }
         for (uri_s, path, reason) in checks {
-            assert_eq!(convert_uri_to_path(uri_s), path, "{}", reason);
+            assert_eq!(convert_uri_to_path(uri_s), path, "{reason}");
         }
     }
 }
