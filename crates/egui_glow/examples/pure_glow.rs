@@ -59,7 +59,7 @@ impl GlutinWindowContext {
                 )
                 .expect("failed to create gl_config");
         let gl_display = gl_config.display();
-        log::debug!("found gl_config: {:?}", &gl_config);
+        log::debug!("found gl_config: {gl_config:?}");
 
         let raw_window_handle = window.as_ref().map(|w| {
             w.window_handle()
@@ -77,9 +77,7 @@ impl GlutinWindowContext {
             gl_display
                     .create_context(&gl_config, &context_attributes)
                     .unwrap_or_else(|_| {
-                        log::debug!("failed to create gl_context with attributes: {:?}. retrying with fallback context attributes: {:?}",
-                            &context_attributes,
-                            &fallback_context_attributes);
+                        log::debug!("failed to create gl_context with attributes: {context_attributes:?}. retrying with fallback context attributes: {fallback_context_attributes:?}");
                         gl_config
                             .display()
                             .create_context(&gl_config, &fallback_context_attributes)
@@ -106,10 +104,7 @@ impl GlutinWindowContext {
                     width,
                     height,
                 );
-        log::debug!(
-            "creating surface with attributes: {:?}",
-            &surface_attributes
-        );
+        log::debug!("creating surface with attributes: {surface_attributes:?}");
         let gl_surface = unsafe {
             gl_display
                 .create_window_surface(&gl_config, &surface_attributes)
