@@ -164,3 +164,33 @@ impl BytesLoader for FileLoader {
         self.cache.lock().values().any(|entry| entry.is_pending())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_convert_uri_to_path() {
+        let mut checks:Vec<(&str, Result<PathBuf, egui::load::LoadError>, &str)> = vec![
+            ("http://host/path/to/image.jpg", Err(egui::load::LoadError::NotSupported), "Schemas other than file are rejected."),
+            ("https://host/path/to/image.jpg", Err(egui::load::LoadError::NotSupported), "Schemas other than file are rejected."),
+            ("ftp://host/path/to/image.jpg", Err(egui::load::LoadError::NotSupported), "Schemas other than file are rejected."),
+        ];
+        if cfg!(target_os = "windows") {
+            let mut windows_checks = vec![
+                ("file:///path/to/image.jpg", Ok(PathBuf::from("path\\to\\image.jpg")), "file uris with no hosts and no drive letter are turned into bare paths on windows."),
+                ("file:///c:/path/to/image.jpg", Ok(PathBuf::from("c:\\path\\to\\image.jpg")), "file uris with no hosts and drive letters are turned into absolute paths on windows."),
+                ("file://host/share/path/to/image.jpg", Ok(PathBuf::from("\\\\host\\share\\path\\to\\image.jpg")), "file uris with a host are turned into UNC paths with leading backslashes on windows."),
+            ];
+            checks.append(&mut windows_checks);
+        } else {
+            let mut more_checks = vec![
+                ("file://path/to/image.jpg", Ok(PathBuf::from("path/to/image.jpg")), "file uris are turned into bare paths."),
+            ];
+            checks.append(&mut more_checks);
+        }
+        for (uri_s, path, reason) in checks {
+            assert_eq!(convert_uri_to_path(uri_s), path, "{}", reason);
+        }
+    }
+}
