@@ -72,7 +72,7 @@ use crate::Context;
 pub use self::{bytes_loader::DefaultBytesLoader, texture_loader::DefaultTextureLoader};
 
 /// Represents a failed attempt at loading an image.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LoadError {
     /// Programmer error: There are no image loaders installed.
     NoImageLoaders,
