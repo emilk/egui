@@ -160,6 +160,15 @@ impl PanelSide {
 ///
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
+/// # Showing the panel
+///
+/// Pick the variant that matches the behavior you want:
+///
+/// * [`Panel::show`]: always show the panel.
+/// * [`Panel::show_collapsible`]: show or hide the panel, with a slide animation in between.
+/// * [`Panel::show_switched`]: animate between two different panels:
+///   a thin/collapsed one and a thick/expanded one.
+///
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// egui::Panel::left("my_left_panel").show(ui, |ui| {
