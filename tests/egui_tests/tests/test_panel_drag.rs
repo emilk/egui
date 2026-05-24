@@ -1,8 +1,8 @@
 //! Snapshot tests for `Panel`'s drag-to-close and drag-to-expand gestures.
 //!
 //! Covers:
-//! * [`Panel::show_animated_inside`] — drag-to-close on a `Left` panel.
-//! * [`Panel::show_animated_between_inside`] — drag-to-close on the expanded panel
+//! * [`Panel::show_collapsible`] — drag-to-close on a `Left` panel.
+//! * [`Panel::show_switched`] — drag-to-close on the expanded panel
 //!   followed by drag-to-expand on the collapsed panel, both via the shared
 //!   resize handle.
 
@@ -27,10 +27,10 @@ fn drag_to_close_animated_inside() {
                     .resizable(true)
                     .default_size(120.0)
                     .min_size(60.0)
-                    .show_animated_inside(ui, &mut state.is_expanded, |ui| {
+                    .show_collapsible(ui, &mut state.is_expanded, |ui| {
                         ui.label("Left panel content");
                     });
-                egui::CentralPanel::default().show_inside(ui, |ui| {
+                egui::CentralPanel::default().show(ui, |ui| {
                     ui.label("Central");
                 });
             },
@@ -83,7 +83,7 @@ fn drag_to_close_and_reopen_animated_between() {
                 let expanded = Panel::bottom("between_expanded")
                     .resizable(true)
                     .default_size(expanded_size);
-                Panel::show_animated_between_inside(
+                Panel::show_switched(
                     ui,
                     &mut state.is_expanded,
                     collapsed,
@@ -104,7 +104,7 @@ fn drag_to_close_and_reopen_animated_between() {
                         }
                     },
                 );
-                egui::CentralPanel::default().show_inside(ui, |ui| {
+                egui::CentralPanel::default().show(ui, |ui| {
                     ui.label("Central");
                 });
             },

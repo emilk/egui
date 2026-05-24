@@ -164,7 +164,7 @@ mod tests {
         let text = "Hello, world!".to_owned();
         let mut harness = Harness::new_ui_state(
             move |ui, text| {
-                CentralPanel::default().show_inside(ui, |ui| {
+                CentralPanel::default().show(ui, |ui| {
                     ui.text_edit_singleline(text);
                 });
             },

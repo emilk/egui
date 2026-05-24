@@ -271,7 +271,7 @@ fn keyboard_submenu_harness() -> Harness<'static, bool> {
         .with_size(Vec2::new(400.0, 240.0))
         .build_ui_state(
             |ui, checked| {
-                egui::Panel::top("menu_bar").show_inside(ui, |ui| {
+                egui::Panel::top("menu_bar").show(ui, |ui| {
                     egui::MenuBar::new().ui(ui, |ui| {
                         ui.menu_button("X", |ui| {
                             ui.menu_button("Y", |ui| {
