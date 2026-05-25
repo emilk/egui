@@ -778,10 +778,19 @@ impl Panel {
             parent_ui.set_cursor_icon(self.cursor_icon(outer_size));
         }
 
-        if !resize_drag_in_progress {
-            // Skipping during a drag
-            // means the stored size reflects the panel's pre-drag size — so a
-            // drag-to-close followed by a drag-to-reopen restores the original size.
+        let is_animating = 0.0 < self.slide_fraction && self.slide_fraction < 1.0;
+        if !resize_drag_in_progress && !is_animating || PanelState::load(parent_ui, id).is_none() {
+            // We skip stoing state during a drag, so that the
+            // stored size reflects the panel's pre-drag size.
+            // This is so that drag-to-close followed by a drag-to-reopen restores the original size.
+
+            // Skipping when `!persist_state` keeps interpolated sizes (set by the
+            // collapse animation in `show_switched`) from polluting the panel's
+            // natural persisted size.
+
+            // Finally, we always store the state if it's not already stored,
+            // so we get a good estimate for the final size when first expanding a panel.
+
             PanelState {
                 outer_rect: shifted_outer_rect,
             }
