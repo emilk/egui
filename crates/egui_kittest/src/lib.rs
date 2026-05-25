@@ -279,11 +279,7 @@ impl<'a, State> Harness<'a, State> {
     /// Calculate the rect that includes all popups and tooltips.
     fn compute_total_rect_with_popups(&self) -> Option<Rect> {
         // Start with the standard response rect
-        let mut used = if let Some(response) = self.response.as_ref() {
-            response.rect
-        } else {
-            return None;
-        };
+        let mut used = self.response.as_ref()?.rect;
 
         // Add all visible areas from other orders (popups, tooltips, etc.)
         self.ctx.memory(|mem| {

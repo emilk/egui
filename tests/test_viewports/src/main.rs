@@ -334,7 +334,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             assert!(col < COLS, "The coll should be less than: {COLS}");
 
             let value: String = value.into();
-            let id = Id::new(format!("%{}% {}", self.counter, &value));
+            let id = Id::new(format!("%{}% {}", self.counter, value));
             self.data.insert(id, value);
             let viewport_data = self.containers_data.entry(container).or_insert_with(|| {
                 let mut res = Vec::new();
