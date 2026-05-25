@@ -769,7 +769,8 @@ impl Panel {
             // Now we do the actual resize interaction, on top of all the contents,
             // otherwise its input could be eaten by the contents, e.g. a
             // `ScrollArea` on either side of the panel boundary.
-            self.resize_panel(shifted_outer_rect, parent_ui)
+            let resize_response = self.resize_panel(shifted_outer_rect, parent_ui);
+            (resize_response.hovered(), resize_response.dragged())
         } else {
             (false, false)
         };
@@ -901,7 +902,7 @@ impl Panel {
         outer_rect
     }
 
-    fn resize_panel(&self, outer_rect: Rect, ui: &Ui) -> (bool, bool) {
+    fn resize_panel(&self, outer_rect: Rect, ui: &Ui) -> Response {
         let resize_pos = self.side.resize_pos(outer_rect);
         let panel_axis_range = Rangef::point(resize_pos);
         let cross_range = outer_rect.range_along(self.side.cross_axis());
@@ -916,9 +917,7 @@ impl Panel {
         // `show_switched` share one resize widget.
         let resize_id = self.resize_id_source.unwrap_or(self.id).with("__resize");
         let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
-        let resize_response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
-
-        (resize_response.hovered(), resize_response.dragged())
+        ui.interact(resize_rect, resize_id, Sense::click_and_drag())
     }
 
     fn cursor_icon(&self, outer_size: f32) -> CursorIcon {
