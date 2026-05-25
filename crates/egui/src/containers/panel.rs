@@ -476,7 +476,7 @@ impl Panel {
     /// // `.resizable(true)` on both panels enables drag-to-collapse + drag-to-expand:
     /// let collapsed = egui::Panel::top("top_collapsed")
     ///     .resizable(true)
-    ///     .exact_size(20.0);
+    ///     .default_size(20.0);
     /// let expanded = egui::Panel::top("top_expanded")
     ///     .resizable(true)
     ///     .default_size(120.0);
