@@ -600,3 +600,116 @@ fn window_fixed_size_is_outer_size() {
          Found filled-rect sizes: {sizes:?}"
     );
 }
+
+/// Regression test for <https://github.com/emilk/egui/issues/8055>:
+/// when content overflows a `Panel`, the returned response (and the panel's
+/// stored size, resize handle, and separator) must stay clamped to the panel's
+/// allowed size — they used to inherit the overflowing content rect.
+#[test]
+fn panel_rect_clamped_when_content_overflows() {
+    use std::cell::RefCell;
+
+    let side_panel_width = 100.0_f32;
+    let top_panel_height = 80.0_f32;
+
+    let side_response: RefCell<Option<egui::Response>> = RefCell::new(None);
+    let top_response: RefCell<Option<egui::Response>> = RefCell::new(None);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(400.0, 300.0))
+        .build_ui(|ui| {
+            let r = egui::Panel::left("left_panel")
+                .exact_size(side_panel_width)
+                .show(ui, |ui| {
+                    // Allocate way more than the panel — would overflow without the clamp.
+                    ui.allocate_space(Vec2::new(1000.0, 10.0));
+                });
+            *side_response.borrow_mut() = Some(r.response);
+
+            let r = egui::Panel::top("top_panel")
+                .exact_size(top_panel_height)
+                .show(ui, |ui| {
+                    ui.allocate_space(Vec2::new(10.0, 1000.0));
+                });
+            *top_response.borrow_mut() = Some(r.response);
+        });
+
+    harness.run();
+
+    let sr = side_response.borrow();
+    let sr = sr.as_ref().expect("left panel response was captured");
+    assert!(
+        sr.rect.width() <= side_panel_width + 1.0,
+        "left panel rect.width()={} exceeded the configured panel width {side_panel_width}",
+        sr.rect.width()
+    );
+    assert!(
+        sr.interact_rect.width() <= side_panel_width + 1.0,
+        "left panel interact_rect.width()={} exceeded the configured panel width {side_panel_width}",
+        sr.interact_rect.width()
+    );
+
+    let tr = top_response.borrow();
+    let tr = tr.as_ref().expect("top panel response was captured");
+    assert!(
+        tr.rect.height() <= top_panel_height + 1.0,
+        "top panel rect.height()={} exceeded the configured panel height {top_panel_height}",
+        tr.rect.height()
+    );
+    assert!(
+        tr.interact_rect.height() <= top_panel_height + 1.0,
+        "top panel interact_rect.height()={} exceeded the configured panel height {top_panel_height}",
+        tr.interact_rect.height()
+    );
+}
+
+/// Regression test: when an animated panel slides off-screen (collapsing), the
+/// enclosing parent (e.g. a `Window`) must not be grown to include the slid-off
+/// portion of the panel.
+#[test]
+fn collapsing_panel_must_not_grow_enclosing_window() {
+    use std::cell::RefCell;
+
+    let window_rect: RefCell<Option<Rect>> = RefCell::new(None);
+    let is_expanded: RefCell<bool> = RefCell::new(true);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(|ui| {
+            let resp = egui::Window::new("panels_window")
+                .vscroll(false)
+                .show(ui.ctx(), |ui| {
+                    egui::Panel::bottom("bottom_panel")
+                        .resizable(false)
+                        .min_size(60.0)
+                        .show_collapsible(ui, &mut is_expanded.borrow_mut(), |ui| {
+                            ui.label("bottom content");
+                        });
+                    egui::CentralPanel::default().show(ui, |ui| {
+                        ui.label("central");
+                    });
+                });
+            if let Some(resp) = resp {
+                *window_rect.borrow_mut() = Some(resp.response.rect);
+            }
+        });
+
+    harness.run();
+    let initial = window_rect.borrow().expect("window rect captured");
+
+    // Trigger the collapse animation.
+    *is_expanded.borrow_mut() = false;
+
+    // Step through the animation frames; the window must never grow taller than
+    // its initial height (slid-off panel portion must not push the window out).
+    for i in 0..30 {
+        harness.step();
+        let r = window_rect.borrow().expect("window rect captured");
+        assert!(
+            r.height() <= initial.height() + 0.5,
+            "frame {i}: window grew during panel collapse: initial h={}, now h={}",
+            initial.height(),
+            r.height(),
+        );
+    }
+}
