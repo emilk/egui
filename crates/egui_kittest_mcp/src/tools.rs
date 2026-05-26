@@ -441,7 +441,7 @@ impl Server {
                 "an app is already running — call `kill` first before attaching",
             ));
         }
-        let (socket_dir, listener, socket_path) = match Bridge::prepare_attach().await {
+        let (listener, socket_target) = match Bridge::prepare_attach().await {
             Ok(t) => t,
             Err(e) => return Ok(text_error(format!("attach prepare failed: {e:#}"))),
         };
@@ -450,7 +450,7 @@ impl Server {
         if let Some(bin) = args.bin.clone() {
             let mut cmd = tokio::process::Command::new(&bin);
             cmd.args(&args.args)
-                .env(egui_inspection::INSPECTION_SOCKET_ENV_VAR, &socket_path)
+                .env(egui_inspection::INSPECTION_SOCKET_ENV_VAR, &socket_target.name)
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
@@ -468,14 +468,7 @@ impl Server {
         }
 
         let timeout = Duration::from_secs(args.timeout_secs);
-        let bridge = match Bridge::accept_pending(
-            socket_dir,
-            listener,
-            socket_path.clone(),
-            spawned,
-            timeout,
-        )
-        .await
+        let bridge = match Bridge::accept_pending(listener, socket_target, spawned, timeout).await
         {
             Ok(b) => b,
             Err(e) => return Ok(text_error(format!("attach failed: {e:#}"))),

@@ -18,8 +18,9 @@ path = "src/main.rs"
 
 [dependencies]
 egui_kittest = { workspace = true, features = ["inspector_api", "wgpu", "snapshot"] }
-egui_inspection = { workspace = true, features = ["protocol"] }
+egui_inspection = { workspace = true, features = ["protocol", "transport"] }
 egui.workspace = true
+interprocess = { version = "2.4", features = ["tokio"] }
 accesskit.workspace = true
 accesskit_consumer.workspace = true
 image = { workspace = true, features = ["png"] }
@@ -28,7 +29,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"
 schemars = "1.0"
 rmcp = { version = "1.7", features = ["server", "macros", "transport-io", "schemars"] }
-tempfile.workspace = true
 tokio = { version = "1.49", features = [
     "rt-multi-thread",
     "io-std",
