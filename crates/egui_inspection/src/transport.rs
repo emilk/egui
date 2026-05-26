@@ -7,11 +7,15 @@
 
 use std::io;
 
-use interprocess::local_socket::Name;
+use interprocess::local_socket::{ListenerOptions, Name, prelude::*};
 #[cfg(windows)]
-use interprocess::local_socket::{GenericNamespaced, ToNsName as _};
+use interprocess::local_socket::GenericNamespaced;
 #[cfg(not(windows))]
-use interprocess::local_socket::{GenericFilePath, ToFsName as _};
+use interprocess::local_socket::GenericFilePath;
+
+/// The two halves of a connected local-socket stream, re-exported so consumers build
+/// reader/writer threads without depending on `interprocess` directly.
+pub use interprocess::local_socket::{RecvHalf, SendHalf};
 
 /// Build a platform-appropriate local-socket [`Name`] from the env-var string produced by
 /// [`generate_socket_target`].
@@ -66,5 +70,44 @@ pub fn generate_socket_target() -> io::Result<SocketTarget> {
             .map_or(0, |d| d.as_nanos());
         let name = format!("egui-inspection-{}-{nonce}.sock", std::process::id());
         Ok(SocketTarget { name })
+    }
+}
+
+/// Dial an already-listening inspection socket and split the stream into read / write halves.
+///
+/// The connector side of the connection: the live plugin, or the kittest harness when
+/// [`crate::INSPECTION_SOCKET_ENV_VAR`] is set.
+///
+/// # Errors
+/// When `raw` isn't a valid local-socket name, or the socket can't be dialed.
+pub fn connect(raw: &str) -> io::Result<(RecvHalf, SendHalf)> {
+    use interprocess::local_socket::Stream;
+    let stream = Stream::connect(socket_name(raw)?)?;
+    Ok(stream.split())
+}
+
+/// A bound synchronous local-socket listener — the listener side of the connection (kittest
+/// harness in spawn mode, where it binds and then spawns an inspector pointed at the socket).
+///
+/// The MCP server uses the tokio listener directly; this sync wrapper exists for the
+/// thread-based kittest harness.
+pub struct Listener(interprocess::local_socket::Listener);
+
+impl Listener {
+    /// Bind a listener at the given target name (from [`generate_socket_target`]).
+    ///
+    /// # Errors
+    /// When `raw` isn't a valid local-socket name, or the socket can't be bound.
+    pub fn bind(raw: &str) -> io::Result<Self> {
+        let listener = ListenerOptions::new().name(socket_name(raw)?).create_sync()?;
+        Ok(Self(listener))
+    }
+
+    /// Block until a peer connects, then split the accepted stream into read / write halves.
+    ///
+    /// # Errors
+    /// When accepting the inbound connection fails.
+    pub fn accept(&self) -> io::Result<(RecvHalf, SendHalf)> {
+        Ok(self.0.accept()?.split())
     }
 }

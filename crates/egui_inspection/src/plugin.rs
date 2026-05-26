@@ -30,10 +30,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 
 use egui::{Context, FullOutput, RawInput};
-use interprocess::local_socket::{RecvHalf, SendHalf, Stream, prelude::*};
 
 use crate::INSPECTION_SOCKET_ENV_VAR;
-use crate::transport::socket_name;
+use crate::transport::{self, RecvHalf, SendHalf};
 use crate::protocol::{
     Capabilities, Frame, FrameScreenshot, HarnessMessage, InspectorCommand, PROTOCOL_VERSION,
     PeerHello, PeerKind, read_message, write_message,
@@ -122,9 +121,8 @@ impl InspectionPlugin {
     /// # Errors
     /// When the socket can't be dialed or a thread can't be spawned.
     pub fn attach(socket: &str, label: Option<String>) -> Result<Self, InspectionError> {
-        let name = socket_name(socket).map_err(InspectionError::Connect)?;
-        let stream = Stream::connect(name).map_err(InspectionError::Connect)?;
-        let (reader_stream, writer_stream) = stream.split();
+        let (reader_stream, writer_stream) =
+            transport::connect(socket).map_err(InspectionError::Connect)?;
 
         let shared_ctx: SharedCtx = Arc::new(OnceLock::new());
 
