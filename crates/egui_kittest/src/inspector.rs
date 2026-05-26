@@ -1,19 +1,25 @@
-//! [`InspectorPlugin`] — connect a [`crate::Harness`] to a `kittest_inspector` process for
-//! live debugging.
+//! [`InspectorPlugin`] — connect a [`crate::Harness`] to an inspector for live debugging.
 //!
-//! The plugin spawns the inspector as a child process and communicates over stdin/stdout
-//! using the [`crate::inspector_api`] wire protocol. A background reader thread receives
-//! [`InspectorCommand`]s from the inspector and pushes them into an mpsc channel, so the
-//! plugin can check for commands non-blockingly during `Play` mode and block for them in
-//! `Paused` mode.
+//! The plugin speaks the [`crate::inspector_api`] wire protocol over a local socket — the
+//! same transport the live [`egui_inspection::InspectionPlugin`] uses. Two topologies:
 //!
-//! Auto-registered on harness creation when the [`INSPECTOR_ENV_VAR`] env var is truthy.
+//! - **connect** ([`egui_inspection::INSPECTION_SOCKET_ENV_VAR`] set): the harness dials an
+//!   already-listening socket (e.g. the kittest MCP bridge).
+//! - **spawn** ([`INSPECTOR_ENV_VAR`] truthy, no socket var): the harness binds a socket,
+//!   spawns the `kittest_inspector` binary pointed at it, and accepts — standalone "pop up
+//!   an inspector" debugging.
+//!
+//! A background reader thread receives [`InspectorCommand`]s from the inspector and pushes
+//! them into an mpsc channel, so the plugin can check for commands non-blockingly during
+//! `Play` mode and block for them in `Paused` mode.
+//!
+//! Auto-registered on harness creation when either env var requests it (see [`env_enabled`]).
 
 use std::collections::HashMap;
 use std::io::{BufReader, BufWriter};
 use std::panic::Location;
 use std::path::PathBuf;
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::sync::{LazyLock, OnceLock};
 use std::thread;
@@ -25,6 +31,7 @@ use egui_inspection::protocol::{
     Capabilities, Frame, FrameScreenshot, HarnessMessage, InspectorCommand, PROTOCOL_VERSION,
     PeerHello, PeerKind, SourceView, read_message, write_message,
 };
+use egui_inspection::transport::{self, RecvHalf, SendHalf, SocketTarget};
 use crate::{Harness, Plugin, TestResult};
 
 /// Environment variable: when set to a truthy value, every harness auto-launches an inspector.
@@ -36,18 +43,21 @@ pub const INSPECTOR_PATH_ENV_VAR: &str = "KITTEST_INSPECTOR_PATH";
 /// Errors that can occur attaching or talking to the inspector.
 #[derive(Debug)]
 pub enum InspectorError {
-    /// Failed to launch the `kittest_inspector` binary.
-    Launch(std::io::Error),
-    /// Failed to set up the child's stdio pipes.
+    /// Failed to set up the connection: dial the socket (connect mode), or bind + spawn the
+    /// `kittest_inspector` binary (spawn mode).
+    Connect(std::io::Error),
+    /// Failed to set up the reader/writer or send the initial handshake.
     Pipe(String),
 }
 
 impl std::fmt::Display for InspectorError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Launch(err) => write!(
+            Self::Connect(err) => write!(
                 f,
-                "failed to launch kittest_inspector (set {INSPECTOR_PATH_ENV_VAR} or put it on PATH): {err}"
+                "failed to connect to inspector \
+                 (set {} to dial a socket, or {INSPECTOR_PATH_ENV_VAR} / PATH to spawn one): {err}",
+                egui_inspection::INSPECTION_SOCKET_ENV_VAR,
             ),
             Self::Pipe(msg) => write!(f, "inspector pipe setup failed: {msg}"),
         }
@@ -90,10 +100,13 @@ pub struct InspectorPlugin {
 }
 
 impl InspectorPlugin {
-    /// Launch a `kittest_inspector` child process and attach this plugin to it.
+    /// Connect this plugin to an inspector: dial the socket in
+    /// [`egui_inspection::INSPECTION_SOCKET_ENV_VAR`] (connect mode), or bind a socket and
+    /// spawn a `kittest_inspector` child (spawn mode).
     ///
     /// # Errors
-    /// If the inspector binary cannot be launched or its stdio pipes fail to set up.
+    /// If the socket can't be dialed/bound, the inspector binary can't be spawned, or the
+    /// handshake fails.
     pub fn launch(label: Option<String>) -> Result<Self, InspectorError> {
         Ok(Self {
             conn: Connection::launch(label)?,
@@ -316,50 +329,66 @@ impl InspectorPlugin {
     }
 }
 
-/// The inspector's child-process connection + step counter. Private — [`InspectorPlugin`] is
+/// The inspector connection (local socket) + step counter. Private — [`InspectorPlugin`] is
 /// the public wrapper.
 struct Connection {
-    writer: BufWriter<ChildStdin>,
+    writer: BufWriter<SendHalf>,
     command_rx: mpsc::Receiver<InspectorCommand>,
     _reader_thread: thread::JoinHandle<()>,
-    _child: Child,
+    /// Spawn mode only: the `kittest_inspector` child we started. Kept alive so the inspector
+    /// window outlives the connection. `None` in connect mode (we don't own the peer).
+    _child: Option<Child>,
+    /// Spawn mode only: owns the socket file (on unix). Kept alive for the socket's lifetime.
+    /// `None` in connect mode.
+    _socket_target: Option<SocketTarget>,
     step: u64,
     broken: bool,
 }
 
 impl Connection {
     fn launch(label: Option<String>) -> Result<Self, InspectorError> {
-        let bin = std::env::var(INSPECTOR_PATH_ENV_VAR)
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("kittest_inspector"));
+        // Two topologies, both ending in a split local-socket stream. Connect mode wins when
+        // the socket var is set (the inspector/bridge already bound it).
+        let (reader, writer, child, socket_target) =
+            if let Ok(socket) = std::env::var(egui_inspection::INSPECTION_SOCKET_ENV_VAR) {
+                // Connect mode: dial the already-listening socket.
+                let (r, w) = transport::connect(&socket).map_err(InspectorError::Connect)?;
+                (r, w, None, None)
+            } else {
+                // Spawn mode: bind a socket, spawn the inspector pointed at it, accept.
+                let target =
+                    transport::generate_socket_target().map_err(InspectorError::Connect)?;
+                let listener =
+                    transport::Listener::bind(&target.name).map_err(InspectorError::Connect)?;
 
-        // Important: do NOT inherit stderr. The cargo-test / nextest stderr capture pipe can
-        // close between tests while the inspector is still alive; a later `eprintln!` in the
-        // inspector would then panic ("failed printing to stderr: Broken pipe") and take the
-        // window down. The inspector keeps its own log file for diagnostics.
-        let mut child = Command::new(&bin)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(InspectorError::Launch)?;
+                let bin = std::env::var(INSPECTOR_PATH_ENV_VAR)
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|_| PathBuf::from("kittest_inspector"));
 
-        let stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| InspectorError::Pipe("missing child stdin".into()))?;
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| InspectorError::Pipe("missing child stdout".into()))?;
+                // Important: do NOT inherit stderr. The cargo-test / nextest stderr capture
+                // pipe can close between tests while the inspector is still alive; a later
+                // `eprintln!` in the inspector would then panic ("failed printing to stderr:
+                // Broken pipe") and take the window down. The inspector keeps its own log
+                // file for diagnostics.
+                let child = Command::new(&bin)
+                    .env(egui_inspection::INSPECTION_SOCKET_ENV_VAR, &target.name)
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .map_err(InspectorError::Connect)?;
+
+                let (r, w) = listener.accept().map_err(InspectorError::Connect)?;
+                (r, w, Some(child), Some(target))
+            };
 
         let (command_tx, command_rx) = mpsc::channel::<InspectorCommand>();
         let reader_thread = thread::Builder::new()
             .name("kittest_inspector_reader".into())
-            .spawn(move || run_reader(BufReader::new(stdout), &command_tx))
+            .spawn(move || run_reader(BufReader::new(reader), &command_tx))
             .map_err(|err| InspectorError::Pipe(format!("spawn reader thread: {err}")))?;
 
-        let mut writer = BufWriter::new(stdin);
+        let mut writer = BufWriter::new(writer);
 
         // Hello must be the first message on the wire — the inspector reads it before any
         // Frame to decide which controls to render.
@@ -380,6 +409,7 @@ impl Connection {
             command_rx,
             _reader_thread: reader_thread,
             _child: child,
+            _socket_target: socket_target,
             step: 0,
             broken: false,
         })
@@ -445,7 +475,7 @@ impl Connection {
 
 /// Reader-thread entry point: forward every decoded [`InspectorCommand`] into the mpsc
 /// channel until EOF or the receiver is dropped.
-fn run_reader(mut reader: BufReader<ChildStdout>, tx: &mpsc::Sender<InspectorCommand>) {
+fn run_reader(mut reader: BufReader<RecvHalf>, tx: &mpsc::Sender<InspectorCommand>) {
     loop {
         match read_message::<_, InspectorCommand>(&mut reader) {
             Ok(cmd) => {
@@ -524,15 +554,24 @@ fn resolve_and_read(path: &str) -> Option<String> {
     None
 }
 
-/// Read [`INSPECTOR_ENV_VAR`] once and cache. Exposed to [`crate::Harness::from_builder`]
-/// so it can auto-register an [`InspectorPlugin`].
+/// Whether to auto-register an [`InspectorPlugin`], read once and cached. Exposed to
+/// [`crate::Harness::from_builder`].
+///
+/// Enabled when either: [`egui_inspection::INSPECTION_SOCKET_ENV_VAR`] is set (connect mode —
+/// an inspector/bridge already bound a socket for us), or [`INSPECTOR_ENV_VAR`] is truthy
+/// (spawn mode — pop up an inspector ourselves).
 pub(crate) fn env_enabled() -> bool {
     static ENABLED: OnceLock<bool> = OnceLock::new();
-    *ENABLED.get_or_init(|| match std::env::var(INSPECTOR_ENV_VAR) {
-        Ok(value) => matches!(
-            value.trim().to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        ),
-        Err(_) => false,
+    *ENABLED.get_or_init(|| {
+        if std::env::var_os(egui_inspection::INSPECTION_SOCKET_ENV_VAR).is_some() {
+            return true;
+        }
+        match std::env::var(INSPECTOR_ENV_VAR) {
+            Ok(value) => matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            ),
+            Err(_) => false,
+        }
     })
 }
