@@ -358,12 +358,6 @@ impl Shape {
     }
 
     #[inline]
-    #[deprecated = "Use `Shape::galley` or `Shape::galley_with_override_text_color` instead"]
-    pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {
-        Self::galley_with_override_text_color(pos, galley, text_color)
-    }
-
-    #[inline]
     pub fn mesh(mesh: impl Into<Arc<Mesh>>) -> Self {
         let mesh = mesh.into();
         debug_assert!(mesh.is_valid(), "Invalid mesh: {mesh:#?}");

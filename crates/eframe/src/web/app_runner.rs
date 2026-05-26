@@ -284,9 +284,6 @@ impl AppRunner {
             self.app.logic(ui.ctx(), &mut self.frame);
 
             if is_visible {
-                #[expect(deprecated)]
-                self.app.update(ui.ctx(), &mut self.frame);
-
                 self.app.ui(ui, &mut self.frame);
             }
         });
@@ -371,7 +368,8 @@ impl AppRunner {
         let egui::PlatformOutput {
             commands,
             cursor_icon,
-            events: _,                    // already handled
+            cursor_image: _, // TODO(alextournai): support custom bitmap cursors on the web (via CSS `url(...)`)
+            events: _,       // already handled
             mutable_text_under_cursor: _, // TODO(#4569): https://github.com/emilk/egui/issues/4569
             ime,
             accesskit_update: _,        // not currently implemented

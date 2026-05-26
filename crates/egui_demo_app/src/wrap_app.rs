@@ -64,7 +64,7 @@ pub struct ColorTestApp {
 
 impl DemoApp for ColorTestApp {
     fn demo_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             if frame.is_web() {
                 ui.label(
                         "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
@@ -302,7 +302,7 @@ impl eframe::App for WrapApp {
         let mut cmd = Command::Nothing;
         egui::Panel::top("wrap_app_top_bar")
             .frame(egui::Frame::new().inner_margin(4))
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     ui.visuals_mut().button_frame = false;
                     self.bar_contents(ui, frame, &mut cmd);
@@ -311,7 +311,7 @@ impl eframe::App for WrapApp {
 
         self.state.backend_panel.update(ui.ctx(), frame);
 
-        egui::CentralPanel::no_frame().show_inside(ui, |ui| {
+        egui::CentralPanel::no_frame().show(ui, |ui| {
             if !is_mobile(ui.ctx()) {
                 cmd = self.backend_panel(ui, frame);
             }
@@ -343,13 +343,14 @@ impl WrapApp {
     fn backend_panel(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) -> Command {
         // The backend-panel can be toggled on/off.
         // We show a little animation when the user switches it.
-        let is_open = self.state.backend_panel.open || ui.memory(|mem| mem.everything_is_visible());
+        let mut is_open =
+            self.state.backend_panel.open || ui.memory(|mem| mem.everything_is_visible());
 
         let mut cmd = Command::Nothing;
 
         egui::Panel::left("backend_panel")
             .resizable(false)
-            .show_animated_inside(ui, is_open, |ui| {
+            .show_collapsible(ui, &mut is_open, |ui| {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
                     ui.heading("💻 Backend");
@@ -358,6 +359,9 @@ impl WrapApp {
                 ui.separator();
                 self.backend_panel_contents(ui, frame, &mut cmd);
             });
+
+        // Allow drag-to-close to close the backend panel:
+        self.state.backend_panel.open = is_open;
 
         cmd
     }

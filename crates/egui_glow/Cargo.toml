@@ -66,10 +66,6 @@ document-features = { workspace = true, optional = true }
 # Native:
 winit = { workspace = true, optional = true, default-features = false, features = ["rwh_06"] }
 
-# Web:
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-web-sys = { workspace = true, features = ["console"] }
-wasm-bindgen.workspace = true
 
 [dev-dependencies]
 glutin = { workspace = true, default-features = true } # examples/pure_glow

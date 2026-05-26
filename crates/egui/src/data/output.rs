@@ -2,7 +2,7 @@
 
 use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
 
-/// What egui emits each frame from [`crate::Context::run`].
+/// What egui emits each frame from [`crate::Context::run_ui`].
 ///
 /// The backend should use this.
 #[derive(Clone, Default)]
@@ -116,6 +116,16 @@ pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
 
+    /// If set, the integration should display this RGBA image as the OS
+    /// cursor (via e.g. `winit::window::CustomCursor`) instead of the
+    /// standard `cursor_icon`. Set per frame; integrations that don't
+    /// support custom cursors fall back to `cursor_icon`.
+    ///
+    /// Skipped from serde because the bitmap is ephemeral and shouldn't
+    /// roundtrip through persisted state.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub cursor_image: Option<CustomCursorImage>,
+
     /// Events that may be useful to e.g. a screen reader.
     pub events: Vec<OutputEvent>,
 
@@ -177,6 +187,7 @@ impl PlatformOutput {
         let Self {
             mut commands,
             cursor_icon,
+            cursor_image,
             mut events,
             mutable_text_under_cursor,
             ime,
@@ -187,6 +198,7 @@ impl PlatformOutput {
 
         self.commands.append(&mut commands);
         self.cursor_icon = cursor_icon;
+        self.cursor_image = cursor_image;
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
@@ -198,10 +210,12 @@ impl PlatformOutput {
         self.accesskit_update = accesskit_update;
     }
 
-    /// Take everything ephemeral (everything except `cursor_icon` currently)
+    /// Take everything ephemeral (everything except `cursor_icon` and
+    /// `cursor_image` currently)
     pub fn take(&mut self) -> Self {
         let taken = std::mem::take(self);
-        self.cursor_icon = taken.cursor_icon; // everything else is ephemeral
+        self.cursor_icon = taken.cursor_icon; // sticky between frames
+        self.cursor_image = taken.cursor_image.clone(); // sticky between frames
         taken
     }
 
@@ -259,6 +273,39 @@ pub enum UserAttentionType {
 
     /// Reset the attention request and interrupt related animations and flashes.
     Reset,
+}
+
+/// A bitmap cursor pushed to the integration via [`PlatformOutput::cursor_image`].
+///
+/// The integration is expected to upload this to the OS as a real cursor
+/// (so the image is not clipped by the egui window — what `egui::Painter`
+/// drawn cursors suffer from). Backends that don't support it should fall
+/// back to [`PlatformOutput::cursor_icon`].
+///
+/// `rgba` is straight (non-premultiplied) RGBA — same encoding as
+/// `winit::window::CustomCursor::from_rgba`. The buffer length must be
+/// exactly `size[0] * size[1] * 4` bytes. `size` and `hotspot` use
+/// `u16` to match winit's native types and avoid a lossy cast in the
+/// integration layer.
+///
+/// `Arc<[u8]>` is used so integrations can dedupe / cache by pointer
+/// identity (`Arc::ptr_eq`) and avoid re-uploading the same bitmap to
+/// the OS every frame.
+#[derive(Clone, PartialEq, Eq)]
+pub struct CustomCursorImage {
+    pub rgba: std::sync::Arc<[u8]>,
+    pub size: [u16; 2],
+    pub hotspot: [u16; 2],
+}
+
+impl std::fmt::Debug for CustomCursorImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CustomCursorImage")
+            .field("size", &self.size)
+            .field("hotspot", &self.hotspot)
+            .field("rgba_len", &self.rgba.len())
+            .finish()
+    }
 }
 
 /// A mouse cursor icon.

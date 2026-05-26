@@ -222,7 +222,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
 
         self.render_state
             .queue
-            .submit(user_buffers.into_iter().chain(once(encoder.finish())));
+            .submit(std::iter::chain(user_buffers, once(encoder.finish())));
 
         self.render_state
             .device

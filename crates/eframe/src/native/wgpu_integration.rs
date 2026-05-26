@@ -48,6 +48,10 @@ pub struct WgpuWinitApp<'app> {
 
     /// Set when we are actually up and running.
     running: Option<WgpuWinitRunning<'app>>,
+
+    /// An optional pre-existing egui context. If `Some`, it is used instead of
+    /// creating a new one via [`winit_integration::create_egui_context`]. Taken during initialization.
+    egui_ctx: Option<egui::Context>,
 }
 
 /// State that is initialized when the application is first starts running via
@@ -105,6 +109,7 @@ impl<'app> WgpuWinitApp<'app> {
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
+        egui_ctx: Option<egui::Context>,
         app_creator: AppCreator<'app>,
     ) -> Self {
         profiling::function_scope!();
@@ -121,6 +126,7 @@ impl<'app> WgpuWinitApp<'app> {
             native_options,
             running: None,
             app_creator: Some(app_creator),
+            egui_ctx,
         }
     }
 
@@ -294,6 +300,7 @@ impl<'app> WgpuWinitApp<'app> {
             #[cfg(feature = "glow")]
             get_proc_address: None,
             wgpu_render_state,
+            window: Some(Arc::clone(&window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
         };
@@ -403,7 +410,7 @@ impl WinitApp for WgpuWinitApp<'_> {
         self.initialized_all_windows(event_loop);
 
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id)
+            running.run_ui_and_paint(window_id, event_loop)
         } else {
             Ok(EventResult::Wait)
         }
@@ -428,7 +435,10 @@ impl WinitApp for WgpuWinitApp<'_> {
                         .unwrap_or(&self.app_name),
                 )
             };
-            let egui_ctx = winit_integration::create_egui_context(storage.as_deref());
+            let egui_ctx = self
+                .egui_ctx
+                .take()
+                .unwrap_or_else(|| winit_integration::create_egui_context(storage.as_deref()));
             let (window, builder) = create_window(
                 &egui_ctx,
                 event_loop,
@@ -560,7 +570,11 @@ impl WgpuWinitRunning<'_> {
     }
 
     /// This is called both for the root viewport, and all deferred viewports
-    fn run_ui_and_paint(&mut self, window_id: WindowId) -> Result<EventResult> {
+    fn run_ui_and_paint(
+        &mut self,
+        window_id: WindowId,
+        event_loop: &ActiveEventLoop,
+    ) -> Result<EventResult> {
         profiling::function_scope!();
 
         let Some(viewport_id) = self
@@ -701,7 +715,7 @@ impl WgpuWinitRunning<'_> {
             return Ok(EventResult::Wait);
         };
 
-        egui_winit.handle_platform_output(window, platform_output);
+        egui_winit.handle_platform_output_with_event_loop(window, event_loop, platform_output);
 
         let vsync_secs = if is_visible {
             let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);

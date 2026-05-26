@@ -4,7 +4,7 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { … }`
 
-use crate::{Response, Ui, epaint};
+use crate::{Response, Ui};
 
 mod button;
 mod checkbox;
@@ -12,19 +12,14 @@ pub mod color_picker;
 pub(crate) mod drag_value;
 mod hyperlink;
 mod image;
-mod image_button;
 mod label;
 mod progress_bar;
 mod radio_button;
-mod selected_label;
 mod separator;
 mod slider;
 mod spinner;
 pub mod text_edit;
 
-#[expect(deprecated)]
-pub use self::selected_label::SelectableLabel;
-#[expect(deprecated, reason = "Deprecated in egui 0.33.0")]
 pub use self::{
     button::Button,
     checkbox::Checkbox,
@@ -34,7 +29,6 @@ pub use self::{
         FrameDurations, Image, ImageFit, ImageOptions, ImageSize, ImageSource,
         decode_animated_image_uri, has_gif_magic_header, has_webp_header, paint_texture_at,
     },
-    image_button::ImageButton,
     label::Label,
     progress_bar::ProgressBar,
     radio_button::RadioButton,
@@ -126,14 +120,6 @@ pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, text: &str, r
 
 // ----------------------------------------------------------------------------
 
-#[deprecated = "Use `ui.add(&mut stroke)` instead"]
-pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
-    ui.horizontal(|ui| {
-        ui.label(text);
-        ui.add(stroke);
-    });
-}
-
 /// Show a small button to switch to/from dark/light mode (globally).
 pub fn global_theme_preference_switch(ui: &mut Ui) {
     if let Some(new_theme) = ui.ctx().theme().small_toggle_button(ui) {
@@ -146,16 +132,4 @@ pub fn global_theme_preference_buttons(ui: &mut Ui) {
     let mut theme_preference = ui.options(|opt| opt.theme_preference);
     theme_preference.radio_buttons(ui);
     ui.ctx().set_theme(theme_preference);
-}
-
-/// Show a small button to switch to/from dark/light mode (globally).
-#[deprecated = "Use global_theme_preference_switch instead"]
-pub fn global_dark_light_mode_switch(ui: &mut Ui) {
-    global_theme_preference_switch(ui);
-}
-
-/// Show larger buttons for switching between light and dark mode (globally).
-#[deprecated = "Use global_theme_preference_buttons instead"]
-pub fn global_dark_light_mode_buttons(ui: &mut Ui) {
-    global_theme_preference_buttons(ui);
 }

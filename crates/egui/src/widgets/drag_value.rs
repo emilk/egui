@@ -91,16 +91,6 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    /// Sets valid range for the value.
-    ///
-    /// By default all values are clamped to this range, even when not interacted with.
-    /// You can change this behavior by passing `false` to [`Self::clamp_existing_to_range`].
-    #[deprecated = "Use `range` instead"]
-    #[inline]
-    pub fn clamp_range<Num: emath::Numeric>(self, range: RangeInclusive<Num>) -> Self {
-        self.range(range)
-    }
-
     /// Sets valid range for dragging the value.
     ///
     /// By default all values are clamped to this range, even when not interacted with.
@@ -155,12 +145,6 @@ impl<'a> DragValue<'a> {
     pub fn clamp_existing_to_range(mut self, clamp_existing_to_range: bool) -> Self {
         self.clamp_existing_to_range = clamp_existing_to_range;
         self
-    }
-
-    #[inline]
-    #[deprecated = "Renamed clamp_existing_to_range"]
-    pub fn clamp_to_range(self, clamp_to_range: bool) -> Self {
-        self.clamp_existing_to_range(clamp_to_range)
     }
 
     /// Show a prefix before the number, e.g. "x: "

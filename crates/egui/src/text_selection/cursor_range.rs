@@ -97,12 +97,6 @@ impl CCursorRange {
         }
     }
 
-    #[inline]
-    #[deprecated = "Use `self.sorted_cursors` instead."]
-    pub fn sorted(&self) -> [CCursor; 2] {
-        self.sorted_cursors()
-    }
-
     pub fn slice_str<'s>(&self, text: &'s str) -> &'s str {
         let [min, max] = self.sorted_cursors();
         slice_char_range(text, min.index..max.index)
