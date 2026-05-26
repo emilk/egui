@@ -691,14 +691,15 @@ impl State {
             winit::event::Ime::Preedit(text, active_range_bytes) => {
                 let active_range_chars = match *active_range_bytes {
                     Some((start_bytes, end_bytes)) => {
-                        let (Some(start_chars), Some(middle_chars)) = (
+                        if let (Some(start_chars), Some(middle_chars)) = (
                             text.get(..start_bytes).map(|s| s.chars().count()),
                             text.get(start_bytes..end_bytes).map(|s| s.chars().count()),
-                        ) else {
-                            log::warn!("{ime:?} is ignored due to invalid range");
-                            return;
-                        };
-                        Some(start_chars..start_chars + middle_chars)
+                        ) {
+                            Some(start_chars..start_chars + middle_chars)
+                        } else {
+                            log::warn!("ignoring {ime:?}'s range because it is invalid");
+                            None
+                        }
                     }
                     None => None,
                 };
