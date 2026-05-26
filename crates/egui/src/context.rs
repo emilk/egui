@@ -4039,7 +4039,7 @@ impl Context {
 
 /// ## Interaction
 impl Context {
-    /// Read you what widgets are currently being interacted with.
+    /// Read which widgets are currently being interacted with.
     pub fn interaction_snapshot<R>(&self, reader: impl FnOnce(&InteractionSnapshot) -> R) -> R {
         self.write(|w| reader(&w.viewport().interact_widgets))
     }
