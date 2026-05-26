@@ -1,9 +1,9 @@
 //! [`InspectionPlugin`] — an [`egui::Plugin`] that streams frames + AccessKit tree updates
-//! to an inspector over a unix domain socket and applies received commands back into the
+//! to an inspector over a local socket and applies received commands back into the
 //! running app.
 //!
 //! Connection model:
-//! - The inspector binds a unix socket. The egui peer dials it.
+//! - The inspector binds a local socket. The egui peer dials it.
 //! - The plugin spawns one reader thread and one writer thread, each owning one half of the
 //!   stream. UI-thread hooks (`input_hook` / `output_hook`) only touch in-process channels
 //!   and the reader-side command queue.
@@ -25,15 +25,15 @@
 //! process, then exit." For deterministic shutdown, kill the process.
 
 use std::io::{BufReader, BufWriter};
-use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 
 use egui::{Context, FullOutput, RawInput};
+use interprocess::local_socket::{RecvHalf, SendHalf, Stream, prelude::*};
 
 use crate::INSPECTION_SOCKET_ENV_VAR;
+use crate::transport::socket_name;
 use crate::protocol::{
     Capabilities, Frame, FrameScreenshot, HarnessMessage, InspectorCommand, PROTOCOL_VERSION,
     PeerHello, PeerKind, read_message, write_message,
@@ -111,22 +111,20 @@ impl InspectionPlugin {
     /// # Errors
     /// When the env var is set but the socket can't be dialed.
     pub fn from_env(label: Option<String>) -> Result<Option<Self>, InspectionError> {
-        let Ok(path) = std::env::var(INSPECTION_SOCKET_ENV_VAR) else {
+        let Ok(name) = std::env::var(INSPECTION_SOCKET_ENV_VAR) else {
             return Ok(None);
         };
-        Self::attach(PathBuf::from(path), label).map(Some)
+        Self::attach(&name, label).map(Some)
     }
 
-    /// Dial the given unix socket and attach.
+    /// Dial the given local socket (see [`crate::transport::socket_name`]) and attach.
     ///
     /// # Errors
     /// When the socket can't be dialed or a thread can't be spawned.
-    pub fn attach(socket_path: PathBuf, label: Option<String>) -> Result<Self, InspectionError> {
-        let stream = UnixStream::connect(&socket_path).map_err(InspectionError::Connect)?;
-        let reader_stream = stream
-            .try_clone()
-            .map_err(InspectionError::Connect)?;
-        let writer_stream = stream;
+    pub fn attach(socket: &str, label: Option<String>) -> Result<Self, InspectionError> {
+        let name = socket_name(socket).map_err(InspectionError::Connect)?;
+        let stream = Stream::connect(name).map_err(InspectionError::Connect)?;
+        let (reader_stream, writer_stream) = stream.split();
 
         let shared_ctx: SharedCtx = Arc::new(OnceLock::new());
 
@@ -324,7 +322,7 @@ impl egui::Plugin for InspectionPlugin {
 /// until EOF or the receiver is dropped. After each enqueue, wake the UI thread so an
 /// otherwise-idle app actually processes the command on its next frame.
 fn run_reader(
-    mut reader: BufReader<UnixStream>,
+    mut reader: BufReader<RecvHalf>,
     tx: &mpsc::Sender<InspectorCommand>,
     ctx: &SharedCtx,
 ) {
@@ -345,7 +343,7 @@ fn run_reader(
 
 /// Writer-thread entry point: drain the outbound queue, framing each message to the socket.
 fn run_writer(
-    mut writer: BufWriter<UnixStream>,
+    mut writer: BufWriter<SendHalf>,
     rx: mpsc::Receiver<HarnessMessage>,
 ) {
     while let Ok(msg) = rx.recv() {

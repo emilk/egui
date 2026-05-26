@@ -27,10 +27,15 @@ default = ["protocol"]
 ## MessagePack framing helpers. No `egui` dependency beyond `egui::accesskit`.
 protocol = ["dep:rmp-serde", "dep:serde", "dep:serde_bytes", "egui/serde"]
 
+## Cross-platform local-socket name helpers ([`transport::socket_name`],
+## [`transport::generate_socket_target`]) built on `interprocess`: unix domain sockets on
+## unix, named pipes on Windows. Shared by both ends of the connection.
+transport = ["dep:interprocess", "dep:tempfile"]
+
 ## `InspectionPlugin` — an `egui::Plugin` impl that streams frames + accesskit tree to
-## an inspector over a unix socket and applies received commands. Auto-attaches when
+## an inspector over a local socket and applies received commands. Auto-attaches when
 ## the [`INSPECTION_SOCKET_ENV_VAR`] env var is set.
-plugin = ["protocol", "dep:image"]
+plugin = ["protocol", "transport", "dep:image"]
 
 [dependencies]
 egui.workspace = true
@@ -38,6 +43,8 @@ serde = { workspace = true, optional = true }
 serde_bytes = { version = "0.11.17", optional = true }
 rmp-serde = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
+interprocess = { version = "2.4", optional = true }
+tempfile = { workspace = true, optional = true }
 
 document-features = { workspace = true, optional = true }
 
