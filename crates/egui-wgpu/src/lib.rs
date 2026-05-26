@@ -91,9 +91,7 @@ impl SurfaceConfig {
         desired_maximum_frame_latency: if cfg!(target_os = "ios") {
             None // The default is good on iOS, while `Some(1)` cuts FPS in half
         } else {
-            // TODO(emilk): We would like yo use `Some(1)` here, but
-            // that causes bugs when resizing the window on macOS.
-            None
+            Some(1)
         },
     };
 

@@ -414,20 +414,27 @@ impl Painter {
         // See https://github.com/emilk/egui/issues/903
         #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
         {
-            // SAFETY: The cast is checked with if condition. If the used backend is not metal
-            // it gracefully fails.
-            unsafe {
-                if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>() {
-                    hal_surface
-                        .render_layer()
-                        .lock()
-                        .setPresentsWithTransaction(resizing);
+            // setPresentsWithTransaction causes hangs when desired_maximum_frame_latency == 1
+            let is_low_latency = self
+                .render_state
+                .as_ref()
+                .is_some_and(|rs| rs.surface_config.desired_maximum_frame_latency == Some(1));
+            if !is_low_latency {
+                // SAFETY: The cast is checked with if condition. If the used backend is not metal
+                // it gracefully fails.
+                unsafe {
+                    if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>() {
+                        hal_surface
+                            .render_layer()
+                            .lock()
+                            .setPresentsWithTransaction(resizing);
 
-                    Self::configure_surface(
-                        state,
-                        self.render_state.as_ref().unwrap(),
-                        &self.config.surface,
-                    );
+                        Self::configure_surface(
+                            state,
+                            self.render_state.as_ref().unwrap(),
+                            &self.config.surface,
+                        );
+                    }
                 }
             }
         }
