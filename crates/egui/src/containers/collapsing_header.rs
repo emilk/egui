@@ -187,22 +187,31 @@ impl CollapsingState {
             self.store(ui.ctx()); // we store any earlier toggling as promised in the docstring
             None
         } else if openness < 1.0 {
-            ui.add_space((openness - 1.0) * ui.spacing().item_spacing.y); // animate spacing too
+            // The spacing between the header and the body. We animate this too.
+            let item_spacing = ui.spacing().item_spacing.y;
+
+            let fallback_height_guess = 10.0; // Just use a placeholder value that shows some movement for the first frame
+            let full_height = self.state.open_height.unwrap_or(fallback_height_guess);
+
+            let clipped_child_height =
+                (remap_clamp(openness, 0.0..=1.0, 0.0..=full_height + item_spacing) - item_spacing)
+                    .round_ui();
+
+            if clipped_child_height < 0.0 {
+                ui.add_space(clipped_child_height); // animate the spacing!
+            }
 
             Some(ui.scope_builder(builder, |child_ui| {
-                let max_height = if self.state.open && self.state.open_height.is_none() {
-                    // First frame of expansion.
-                    // We don't know full height yet, but we will next frame.
-                    // Just use a placeholder value that shows some movement:
-                    10.0
-                } else {
-                    let full_height = self.state.open_height.unwrap_or_default();
-                    remap_clamp(openness, 0.0..=1.0, 0.0..=full_height).round_ui()
-                };
+                let clipped_child_height = clipped_child_height.at_least(0.0);
 
-                let mut clip_rect = child_ui.clip_rect();
-                clip_rect.max.y = clip_rect.max.y.min(child_ui.max_rect().top() + max_height);
-                child_ui.set_clip_rect(clip_rect);
+                {
+                    let mut clip_rect = child_ui.clip_rect();
+                    clip_rect.max.y = f32::min(
+                        clip_rect.max.y,
+                        child_ui.max_rect().top() + clipped_child_height,
+                    );
+                    child_ui.set_clip_rect(clip_rect);
+                }
 
                 let ret = add_body(child_ui);
 
@@ -213,8 +222,8 @@ impl CollapsingState {
                 }
                 self.store(child_ui.ctx()); // remember the height
 
-                // Pretend children took up at most `max_height` space:
-                min_rect.max.y = min_rect.max.y.at_most(min_rect.top() + max_height);
+                // Pretend children took up at most `clipped_child_height` space:
+                min_rect.max.y = f32::min(min_rect.max.y, min_rect.top() + clipped_child_height);
                 child_ui.force_set_min_rect(min_rect);
                 ret
             }))
