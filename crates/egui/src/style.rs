@@ -2,7 +2,7 @@
 
 use emath::Align;
 use epaint::{
-    AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions,
+    CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
     mutex::Mutex,
     text::{FontTweak, Tag},
 };
@@ -1461,7 +1461,7 @@ impl Visuals {
         Self {
             dark_mode: true,
             text_options: TextOptions {
-                alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
+                color_transfer_function: FontColorTransferFunction::DARK_MODE_DEFAULT,
                 ..Default::default()
             },
             override_text_color: None,
@@ -1527,7 +1527,7 @@ impl Visuals {
         Self {
             dark_mode: false,
             text_options: TextOptions {
-                alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
+                color_transfer_function: FontColorTransferFunction::LIGHT_MODE_DEFAULT,
                 ..Default::default()
             },
             widgets: Widgets::light(),
@@ -2318,12 +2318,12 @@ impl Visuals {
 
             let TextOptions {
                 max_texture_side: _,
-                alpha_from_coverage,
+                color_transfer_function,
                 font_hinting,
                 subpixel_binning,
             } = text_options;
 
-            text_alpha_from_coverage_ui(ui, alpha_from_coverage);
+            color_transfer_function_ui(ui, color_transfer_function);
 
             ui.checkbox(font_hinting, "Font hinting (sharper text)");
             ui.checkbox(subpixel_binning, "Sub-pixel binning (more even kerning)");
@@ -2437,23 +2437,29 @@ impl Visuals {
     }
 }
 
-fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromCoverage) {
-    let mut dark_mode_special =
-        *alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
-
+fn color_transfer_function_ui(
+    ui: &mut Ui,
+    color_transfer_function: &mut FontColorTransferFunction,
+) {
     ui.horizontal(|ui| {
-        ui.label("Text rendering:");
+        ui.label("Opacity tweaking:");
 
-        ui.checkbox(&mut dark_mode_special, "Dark-mode special");
+        ui.radio_value(
+            color_transfer_function,
+            FontColorTransferFunction::Off,
+            "Off",
+        );
+        ui.radio_value(
+            color_transfer_function,
+            FontColorTransferFunction::DARK_MODE_DEFAULT,
+            "Dark-mode special",
+        );
 
-        if dark_mode_special {
-            *alpha_from_coverage = AlphaFromCoverage::DARK_MODE_DEFAULT;
-        } else {
-            let mut gamma = match alpha_from_coverage {
-                AlphaFromCoverage::Linear => 1.0,
-                AlphaFromCoverage::Gamma(gamma) => *gamma,
-                AlphaFromCoverage::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
-            };
+        let mut use_gamma = matches!(color_transfer_function, FontColorTransferFunction::Gamma(_));
+        ui.radio_value(&mut use_gamma, true, "Gamma function");
+
+        if use_gamma {
+            let mut gamma = color_transfer_function.to_gamma();
 
             ui.add(
                 DragValue::new(&mut gamma)
@@ -2462,11 +2468,7 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromC
                     .prefix("Gamma: "),
             );
 
-            if gamma == 1.0 {
-                *alpha_from_coverage = AlphaFromCoverage::Linear;
-            } else {
-                *alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
-            }
+            *color_transfer_function = FontColorTransferFunction::Gamma(gamma);
         }
     });
 }
