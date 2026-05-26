@@ -243,7 +243,7 @@ impl<'app> WgpuWinitApp<'app> {
 
         let integration = EpiIntegration::new(
             egui_ctx.clone(),
-            &window,
+            window.clone(),
             &self.app_name,
             &self.native_options,
             storage,

@@ -240,7 +240,7 @@ impl<'app> GlowWinitApp<'app> {
 
         let integration = EpiIntegration::new(
             egui_ctx,
-            &glutin.window(ViewportId::ROOT),
+            glutin.window(ViewportId::ROOT),
             &self.app_name,
             &self.native_options,
             storage,

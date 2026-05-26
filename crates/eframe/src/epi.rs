@@ -659,6 +659,9 @@ pub struct Frame {
     #[doc(hidden)]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) window: Option<std::sync::Arc<winit::window::Window>>,
+
     /// Raw platform window handle
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) raw_window_handle: Result<RawWindowHandle, HandleError>,
@@ -704,6 +707,8 @@ impl Frame {
             raw_display_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
             raw_window_handle: Err(HandleError::NotSupported),
+            #[cfg(not(target_arch = "wasm32"))]
+            window: None,
             storage: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: None,
@@ -731,6 +736,14 @@ impl Frame {
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub fn storage_mut(&mut self) -> Option<&mut (dyn Storage + 'static)> {
         self.storage.as_deref_mut()
+    }
+
+    /// Access to the underlying [`winit::window::Window`].
+    ///
+    /// `None` for headless (tests etc).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn winit_window(&self) -> Option<&std::sync::Arc<winit::window::Window>> {
+        self.window.as_ref()
     }
 
     /// A reference to the underlying [`glow`] (OpenGL) context.
