@@ -20,7 +20,7 @@ use egui::accesskit;
 /// non-additive change is made to [`HarnessMessage`] / [`InspectorCommand`] / their
 /// payload structs. The inspector should refuse peers with a higher major version than
 /// it understands.
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// What kind of egui peer the inspector is talking to. Determines which controls the
 /// inspector UI should render (Step / Pause buttons make no sense against a live app).
@@ -132,11 +132,13 @@ pub struct FrameScreenshot {
     pub width: u32,
     /// Image height in physical pixels.
     pub height: u32,
-    /// Tightly packed RGBA8 pixels (length = `width * height * 4`). `serde_bytes` encodes
-    /// this as a msgpack `bin` blob (one type tag + raw bytes) instead of the default
-    /// `Vec<u8>` path of one type tag *per byte*, which would roughly double on-wire size.
+    /// PNG-encoded image bytes. PNG compression keeps high-resolution captures off the
+    /// hot path of unix-socket throughput — a 1550×2114 RGBA8 buffer is ~13 MiB raw but
+    /// typically <1 MiB as PNG. `serde_bytes` encodes this as a msgpack `bin` blob (one
+    /// type tag + raw bytes) instead of the default `Vec<u8>` path of one type tag *per
+    /// byte*, which would roughly double on-wire size.
     #[serde(with = "serde_bytes")]
-    pub rgba: Vec<u8>,
+    pub png: Vec<u8>,
 }
 
 /// A single update from the egui peer: accesskit tree + optional screenshot.

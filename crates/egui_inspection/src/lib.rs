@@ -3,10 +3,8 @@
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 
-#[cfg(feature = "protocol")]
 pub mod protocol;
 
-#[cfg(feature = "protocol")]
 pub use protocol::{
     Capabilities, Frame, FrameScreenshot, HarnessMessage, InspectorCommand, MAX_MESSAGE_BYTES,
     PROTOCOL_VERSION, PeerHello, PeerKind, SourceView, read_message, write_message,
@@ -23,6 +21,12 @@ pub const INSPECTION_SOCKET_ENV_VAR: &str = "EGUI_INSPECTION_SOCKET";
 
 #[cfg(feature = "transport")]
 pub mod transport;
+
+#[cfg(feature = "png")]
+mod png;
+
+#[cfg(feature = "png")]
+pub use png::encode_png;
 
 #[cfg(feature = "plugin")]
 mod plugin;

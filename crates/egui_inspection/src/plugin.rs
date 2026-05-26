@@ -211,11 +211,26 @@ impl egui::Plugin for InspectionPlugin {
                 if let Some(mut frame) = self.pending_frame.take() {
                     let [w, h] = [image.size[0] as u32, image.size[1] as u32];
                     let rgba: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
-                    frame.screenshot = Some(FrameScreenshot {
-                        width: w,
-                        height: h,
-                        rgba,
-                    });
+                    match crate::encode_png(w, h, &rgba) {
+                        Ok(png) => {
+                            frame.screenshot = Some(FrameScreenshot {
+                                width: w,
+                                height: h,
+                                png,
+                            });
+                        }
+                        Err(err) => {
+                            eprintln!("[INSP] PNG encode failed: {err}");
+                        }
+                    }
+                    // Re-stamp the frame with the *current* step. The stashed `step` was
+                    // captured when we dispatched the screenshot command; in the meantime
+                    // intervening frames (without screenshot) may have been emitted with
+                    // higher step numbers. Inspectors that wait for `step > prev_step` would
+                    // otherwise reject the screenshot-bearing frame because its step has
+                    // regressed.
+                    self.step = self.step.saturating_add(1);
+                    frame.step = self.step;
                     self.send(HarnessMessage::Frame(Box::new(frame)));
                 }
                 break;
@@ -296,6 +311,17 @@ impl egui::Plugin for InspectionPlugin {
         if !want_screenshot {
             // No screenshot needed — emit immediately.
             self.send(HarnessMessage::Frame(Box::new(frame)));
+            // If we're still waiting on a screenshot from a previous dispatch, keep
+            // pumping repaints from the end of the frame too. `input_hook` already
+            // does this at frame start, but on reactive apps the GPU readback can
+            // take several frames to fulfill — without a tail-side repaint the
+            // integration may go idle between `input_hook` ticks once the captured
+            // frame finishes presenting.
+            if self.awaiting_screenshot {
+                if let Some(ctx) = self.shared_ctx.get() {
+                    ctx.request_repaint();
+                }
+            }
             return;
         }
 
