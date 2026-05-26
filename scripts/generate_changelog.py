@@ -6,21 +6,22 @@ Summarizes recent PRs based on their GitHub labels.
 The result can be copy-pasted into CHANGELOG.md,
 though it often needs some manual editing too.
 
-Setup:  pip install GitPython requests tqdm
+Setup:  pip install GitPython tqdm
+Also requires the `gh` CLI (https://cli.github.com/) authenticated via `gh auth login`.
 """
 
 import argparse
+import json
 import multiprocessing
 import os
 import re
-import sys
+import subprocess
 
 from collections import defaultdict
 from datetime import date
 from dataclasses import dataclass
 from typing import Any, List, Optional
 
-import requests
 from git import Repo  # pip install GitPython
 from tqdm import tqdm
 
@@ -44,29 +45,6 @@ class CommitInfo:
     pr_number: Optional[int]
 
 
-def get_github_token() -> str:
-    import os
-
-    token = os.environ.get("GH_ACCESS_TOKEN", "")
-    if token != "":
-        return token
-
-    home_dir = os.path.expanduser("~")
-    token_file = os.path.join(home_dir, ".githubtoken")
-
-    try:
-        with open(token_file, "r") as f:
-            token = f.read().strip()
-        return token
-    except Exception:
-        pass
-
-    print(
-        "ERROR: expected a GitHub token in the environment variable GH_ACCESS_TOKEN or in ~/.githubtoken"
-    )
-    sys.exit(1)
-
-
 # Slow
 def fetch_pr_info_from_commit_info(commit_info: CommitInfo) -> Optional[PrInfo]:
     if commit_info.pr_number is None:
@@ -77,25 +55,34 @@ def fetch_pr_info_from_commit_info(commit_info: CommitInfo) -> Optional[PrInfo]:
 
 # Slow
 def fetch_pr_info(pr_number: int) -> Optional[PrInfo]:
-    url = f"https://api.github.com/repos/{OWNER}/{REPO}/pulls/{pr_number}"
-    gh_access_token = get_github_token()
-    headers = {"Authorization": f"Token {gh_access_token}"}
-    response = requests.get(url, headers=headers)
-    json = response.json()
+    result = subprocess.run(
+        [
+            "gh",
+            "pr",
+            "view",
+            str(pr_number),
+            "--repo",
+            f"{OWNER}/{REPO}",
+            "--json",
+            "number,title,labels,author",
+        ],
+        capture_output=True,
+        text=True,
+    )
 
-    # Check if the request was successful (status code 200)
-    if response.status_code == 200:
-        labels = [label["name"] for label in json["labels"]]
-        gh_user_name = json["user"]["login"]
-        return PrInfo(
-            pr_number=pr_number,
-            gh_user_name=gh_user_name,
-            title=json["title"],
-            labels=labels,
-        )
-    else:
-        print(f"ERROR {url}: {response.status_code} - {json['message']}")
+    if result.returncode != 0:
+        print(f"ERROR fetching PR #{pr_number}: {result.stderr.strip()}")
         return None
+
+    data = json.loads(result.stdout)
+    labels = [label["name"] for label in data["labels"]]
+    gh_user_name = data["author"]["login"]
+    return PrInfo(
+        pr_number=pr_number,
+        gh_user_name=gh_user_name,
+        title=data["title"],
+        labels=labels,
+    )
 
 
 def get_commit_info(commit: Any) -> CommitInfo:

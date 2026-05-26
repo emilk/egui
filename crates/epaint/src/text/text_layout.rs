@@ -1,7 +1,7 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
-use std::ops::Range;
 use std::sync::Arc;
+use std::{iter, ops::Range};
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
@@ -244,11 +244,7 @@ fn layout_shaped_run(
     let mut cluster_start_byte: usize = 0;
     let mut cluster_glyph_count: usize = 0;
 
-    for (info, pos) in glyph_buffer
-        .glyph_infos()
-        .iter()
-        .zip(glyph_buffer.glyph_positions())
-    {
+    for (info, pos) in iter::zip(glyph_buffer.glyph_infos(), glyph_buffer.glyph_positions()) {
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         let cluster = info.cluster;
         let mut advance_width_px = pos.x_advance as f32 * px_scale;
@@ -265,7 +261,7 @@ fn layout_shaped_run(
         if chr == '\t' {
             let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
             let tab_size = tweak.map_or(4.0, |t| t.tab_size);
-            let (_, space_info) = font.glyph_info(' ');
+            let (_, space_info) = font.glyph_info(' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
             advance_width_px = tab_size * space_width_px;
         }
@@ -275,7 +271,7 @@ fn layout_shaped_run(
         if chr == '\u{2009}' || chr == '\u{202F}' {
             let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
             let thin_space_width = tweak.map_or(0.5, |t| t.thin_space_width);
-            let (_, space_info) = font.glyph_info(' ');
+            let (_, space_info) = font.glyph_info(' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
             advance_width_px = thin_space_width * space_width_px;
         }
@@ -312,7 +308,7 @@ fn layout_shaped_run(
             }
 
             // Use the fallback font face (not run.font_key which returned NOTDEF).
-            let (fallback_key, glyph_info) = font.glyph_info(chr);
+            let fallback_key = font.resolve_face(chr);
             let fallback_metrics = font
                 .fonts_by_id
                 .get(&fallback_key)
@@ -320,6 +316,7 @@ fn layout_shaped_run(
                     ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
                 })
                 .unwrap_or_default();
+            let (_, glyph_info) = font.glyph_info(chr, &fallback_metrics);
             let advance_width_px =
                 glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
             let (glyph_alloc, physical_x) =
@@ -525,7 +522,7 @@ fn layout_section(
 /// Avoids `Box<dyn Iterator>` and `Vec<&str>` allocation.
 enum SplitOrWhole<'a> {
     Split(std::str::Split<'a, char>),
-    Whole(std::iter::Once<&'a str>),
+    Whole(iter::Once<&'a str>),
 }
 
 impl<'a> SplitOrWhole<'a> {
@@ -533,7 +530,7 @@ impl<'a> SplitOrWhole<'a> {
         if split {
             Self::Split(text.split('\n'))
         } else {
-            Self::Whole(std::iter::once(text))
+            Self::Whole(iter::once(text))
         }
     }
 }
@@ -726,18 +723,19 @@ fn line_break(
         if job.wrap.max_rows <= out_rows.len() {
             *elided = true; // can't fit another row
         } else {
+            let paragraph_min_x = paragraph.glyphs[row_start_idx].pos.x - row_start_x;
+            let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x() - row_start_x;
+
             let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..]
                 .iter()
                 .copied()
                 .map(|mut glyph| {
-                    glyph.pos.x -= row_start_x;
+                    glyph.pos.x -= row_start_x + paragraph_min_x;
                     glyph
                 })
                 .collect();
 
             let section_index_at_start = glyphs[0].section_index;
-            let paragraph_min_x = glyphs[0].pos.x;
-            let paragraph_max_x = glyphs.last().unwrap().max_x();
 
             out_rows.push(PlacedRow {
                 pos: pos2(paragraph_min_x, 0.0),
@@ -777,12 +775,14 @@ fn replace_last_glyph_with_overflow_character(
         let mut font = fonts.font(&section.format.font_id.family);
         let font_size = section.format.font_id.size;
 
-        let (font_id, glyph_info) = font.glyph_info(overflow_character);
-        let mut font_face = font.fonts_by_id.get_mut(&font_id);
-        let font_face_metrics = font_face
-            .as_mut()
+        let font_id = font.resolve_face(overflow_character);
+        let font_face_metrics = font
+            .fonts_by_id
+            .get(&font_id)
             .map(|f| f.styled_metrics(pixels_per_point, font_size, &section.format.coords))
             .unwrap_or_default();
+        let (_, glyph_info) = font.glyph_info(overflow_character, &font_face_metrics);
+        let mut font_face = font.fonts_by_id.get_mut(&font_id);
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
             prev_glyph.max_x() + extra_letter_spacing
@@ -1374,7 +1374,7 @@ fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
         let byte_end = byte_offset + grapheme_str.len();
 
         let base_char = grapheme_str.chars().next().unwrap_or(' ');
-        let (font_key, _) = font.glyph_info(base_char);
+        let font_key = font.resolve_face(base_char);
 
         if let Some(last_run) = out.last_mut()
             && last_run.font_key == font_key
@@ -1405,11 +1405,7 @@ fn shape_text(
     let tweak = font_face.tweak();
 
     // Build shaper with variable font instance if variation coordinates are set.
-    let variations: Vec<harfrust::Variation> = tweak
-        .coords
-        .as_ref()
-        .iter()
-        .chain(coords.as_ref().iter())
+    let variations: Vec<harfrust::Variation> = iter::chain(tweak.coords.as_ref(), coords.as_ref())
         .map(|&(tag, value)| harfrust::Variation { tag, value })
         .collect();
 
@@ -1438,6 +1434,7 @@ fn shape_text(
 
 #[cfg(test)]
 mod tests {
+    use std::iter;
 
     use super::{super::*, *};
     use crate::text::cursor::CCursor;
@@ -1574,10 +1571,11 @@ mod tests {
                     &mut fonts,
                     pixels_per_point,
                     Arc::new(LayoutJob::single_section(
-                        (0..elided_galley.rows[0].char_count_excluding_newline())
-                            .map(|_| ch)
-                            .chain(std::iter::once('…'))
-                            .collect::<String>(),
+                        iter::chain(
+                            (0..elided_galley.rows[0].char_count_excluding_newline()).map(|_| ch),
+                            iter::once('…'),
+                        )
+                        .collect::<String>(),
                         TextFormat::default(),
                     )),
                 );

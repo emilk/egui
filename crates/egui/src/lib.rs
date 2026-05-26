@@ -113,7 +113,7 @@
 //!     let raw_input: egui::RawInput = gather_input();
 //!
 //!     let full_output = ctx.run_ui(raw_input, |ui| {
-//!         egui::CentralPanel::default().show_inside(ui, |ui| {
+//!         egui::CentralPanel::default().show(ui, |ui| {
 //!             ui.label("Hello world!");
 //!             if ui.button("Click me").clicked() {
 //!                 // take some action here
@@ -400,6 +400,7 @@ pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
 mod id;
+mod id_salt;
 mod input_state;
 mod interaction;
 pub mod introspection;
@@ -466,14 +467,15 @@ pub use self::{
         Key, UserData,
         input::*,
         output::{
-            self, CursorIcon, FullOutput, OpenUrl, OutputCommand, PlatformOutput,
-            UserAttentionType, WidgetInfo,
+            self, CursorIcon, CustomCursorImage, FullOutput, OpenUrl, OutputCommand,
+            PlatformOutput, UserAttentionType, WidgetInfo,
         },
     },
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,
     grid::Grid,
-    id::{Id, IdMap, IdSet},
+    id::{AsId, Id, IdMap, IdSet},
+    id_salt::{AsIdSalt, IdSalt},
     input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
     layers::{LayerId, Order},
     layout::*,
@@ -486,7 +488,7 @@ pub use self::{
     style::{FontSelection, Spacing, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
-    ui_builder::UiBuilder,
+    ui_builder::{IdSource, UiBuilder},
     ui_stack::*,
     viewport::*,
     widget_rect::{InteractOptions, WidgetRect, WidgetRects},

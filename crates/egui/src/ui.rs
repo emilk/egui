@@ -1,11 +1,13 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![expect(clippy::use_self)]
 
-use std::{any::Any, hash::Hash, ops::Deref, sync::Arc};
+use std::{any::Any, ops::Deref, sync::Arc};
 
 use crate::containers::menu;
-use crate::{containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
+use crate::widget_style::{HasClasses as _, ROOT_CLASS};
+use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
 use emath::GuiRounding as _;
+
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -105,8 +107,7 @@ impl Ui {
     /// [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            id_salt,
-            global_scope: _,
+            id_source,
             ui_stack_info,
             layer_id,
             max_rect,
@@ -117,13 +118,14 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            classes,
         } = ui_builder;
 
         let layer_id = layer_id.unwrap_or_else(LayerId::background);
 
         debug_assert!(
-            id_salt.is_none(),
-            "Top-level Ui:s should not have an id_salt"
+            id_source.is_none(),
+            "Top-level Ui:s should not have an UiBuilder::id_source"
         );
 
         let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
@@ -132,6 +134,7 @@ impl Ui {
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
+        let classes = classes.with_class(ROOT_CLASS);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -141,7 +144,9 @@ impl Ui {
             parent: None,
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
+            classes,
         };
+
         let mut ui = Ui {
             id,
             unique_id: id,
@@ -202,8 +207,7 @@ impl Ui {
     /// [`Ui::advance_cursor_after_rect`].
     pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            id_salt,
-            global_scope,
+            id_source,
             ui_stack_info,
             layer_id,
             max_rect,
@@ -214,11 +218,11 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            classes,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
 
-        let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or_else(|| *self.layout());
         let enabled = self.enabled && !disabled && !invisible;
@@ -242,13 +246,15 @@ impl Ui {
         }
 
         debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
-        let (stable_id, unique_id) = if global_scope {
-            (id_salt, id_salt)
-        } else {
-            let stable_id = self.id.with(id_salt);
-            let unique_id = stable_id.with(self.next_auto_id_salt);
 
-            (stable_id, unique_id)
+        let id_source = id_source.unwrap_or_else(|| IdSource::Child(IdSalt::new("child")));
+        let (stable_id, unique_id) = match id_source {
+            IdSource::Explicit(id) => (id, id),
+            IdSource::Child(id_salt) => {
+                let stable_id = self.id.with(id_salt);
+                let unique_id = stable_id.with(self.next_auto_id_salt);
+                (stable_id, unique_id)
+            }
         };
         let next_auto_id_salt = unique_id.value().wrapping_add(1);
 
@@ -262,7 +268,9 @@ impl Ui {
             parent: Some(Arc::clone(&self.stack)),
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
+            classes,
         };
+
         let mut child_ui = Ui {
             id: stable_id,
             unique_id,
@@ -872,11 +880,8 @@ impl Ui {
 /// # [`Id`] creation
 impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
-    pub fn make_persistent_id<IdSource>(&self, id_salt: IdSource) -> Id
-    where
-        IdSource: Hash,
-    {
-        self.id.with(&id_salt)
+    pub fn make_persistent_id(&self, id_salt: impl AsIdSalt) -> Id {
+        self.id.with(id_salt)
     }
 
     /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
@@ -885,10 +890,7 @@ impl Ui {
     }
 
     /// Same as `ui.next_auto_id().with(id_salt)`
-    pub fn auto_id_with<IdSource>(&self, id_salt: IdSource) -> Id
-    where
-        IdSource: Hash,
-    {
+    pub fn auto_id_with(&self, id_salt: impl AsIdSalt) -> Id {
         Id::new(self.next_auto_id_salt).with(id_salt)
     }
 
@@ -1850,10 +1852,10 @@ impl Ui {
     ///
     /// Usage: `if ui.small_button("Click me").clicked() { … }`
     ///
-    /// Shortcut for `add(Button::new(text).small())`
+    /// Shortcut for `add(Button::new(atoms).small())`
     #[must_use = "You should check if the user clicked this with `if ui.small_button(…).clicked() { … } "]
-    pub fn small_button(&mut self, text: impl Into<WidgetText>) -> Response {
-        Button::new(text).small().ui(self)
+    pub fn small_button<'a>(&mut self, atoms: impl IntoAtoms<'a>) -> Response {
+        Button::new(atoms).small().ui(self)
     }
 
     /// Show a checkbox.
@@ -2160,7 +2162,7 @@ impl Ui {
     /// ```
     pub fn push_id<R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl AsIdSalt,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope_dyn(UiBuilder::new().id_salt(id_salt), Box::new(add_contents))
@@ -2225,7 +2227,7 @@ impl Ui {
     #[inline]
     pub fn indent<R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl AsIdSalt,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.indent_dyn(id_salt, Box::new(add_contents))
@@ -2233,7 +2235,7 @@ impl Ui {
 
     fn indent_dyn<'c, R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl AsIdSalt,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         assert!(
