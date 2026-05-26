@@ -140,8 +140,25 @@ pub(crate) fn paint_ime_preedit_text_visuals(
     mut relative_active_range: Option<std::ops::Range<CCursor>>,
     time_since_last_interaction: f64,
 ) {
-    if preedit_range.is_empty() {
+    /// Instead of implementing [`PartialOrd`] and [`Ord`] for [`CCursor`] to
+    /// make [`std::ops::Range::is_empty`] available, we use this helper
+    /// function instead.
+    ///
+    /// These traits are intentionally not implemented because
+    /// [`CCursor::prefer_next_row`] makes it difficult to define a clear
+    /// ordering between two [`CCursor`]s.
+    fn is_cursor_range_empty(range: &std::ops::Range<CCursor>) -> bool {
+        range.start.index == range.end.index
+    }
+
+    if is_cursor_range_empty(&preedit_range) {
         return;
+    }
+
+    if let Some(relative_active_range) = &mut relative_active_range
+        && relative_active_range.end.index > preedit_range.end.index - preedit_range.start.index
+    {
+        relative_active_range.end.index = preedit_range.end.index - preedit_range.start.index;
     }
 
     if matches!(ui.ctx().os(), crate::os::OperatingSystem::Windows)
@@ -163,7 +180,7 @@ pub(crate) fn paint_ime_preedit_text_visuals(
     let inactive_underline_stroke = visuals.ime_composition.inactive_underline_stroke;
 
     if let Some(relative_active_range) = &relative_active_range
-        && !relative_active_range.is_empty()
+        && !is_cursor_range_empty(relative_active_range)
     {
         if relative_active_range.start.index > 0 {
             paint_underlines(
@@ -185,7 +202,9 @@ pub(crate) fn paint_ime_preedit_text_visuals(
             active_underline_stroke,
         );
 
-        if relative_active_range.end < preedit_range.end - preedit_range.start.index {
+        if !is_cursor_range_empty(
+            &(relative_active_range.end..(preedit_range.end - preedit_range.start.index)),
+        ) {
             paint_underlines(
                 pos,
                 painter,
@@ -207,7 +226,7 @@ pub(crate) fn paint_ime_preedit_text_visuals(
     }
 
     if let Some(relative_active_range) = relative_active_range
-        && relative_active_range.is_empty()
+        && is_cursor_range_empty(&relative_active_range)
     {
         let active_cursor = preedit_range.start + relative_active_range.start.index;
         let cursor_rect = cursor_rect(galley, &active_cursor, row_height);

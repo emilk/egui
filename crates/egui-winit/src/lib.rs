@@ -689,16 +689,25 @@ impl State {
             // See <https://github.com/rust-windowing/winit/issues/2498>
             winit::event::Ime::Enabled | winit::event::Ime::Disabled => {}
             winit::event::Ime::Preedit(text, active_range_bytes) => {
+                let active_range_chars = match active_range_bytes.clone() {
+                    Some((start_bytes, end_bytes)) => {
+                        let (Some(start_chars), Some(middle_chars)) = (
+                            text.get(..start_bytes).map(|s| s.chars().count()),
+                            text.get(start_bytes..end_bytes).map(|s| s.chars().count()),
+                        ) else {
+                            log::warn!("{ime:?} is ignored due to invalid range");
+                            return;
+                        };
+                        Some(start_chars..start_chars + middle_chars)
+                    }
+                    None => None,
+                };
+
                 self.egui_input
                     .events
                     .push(egui::Event::Ime(egui::ImeEvent::Preedit {
                         text: text.clone(),
-                        active_range_chars: active_range_bytes.map(|(start_bytes, end_bytes)| {
-                            let start_char = text[..start_bytes].chars().count();
-                            let end_char =
-                                start_char + text[start_bytes..end_bytes].chars().count();
-                            start_char..end_char
-                        }),
+                        active_range_chars,
                     }));
             }
             winit::event::Ime::Commit(text) => {

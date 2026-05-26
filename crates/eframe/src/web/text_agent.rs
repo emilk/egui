@@ -105,19 +105,17 @@ impl TextAgent {
                         active_range_chars,
                     });
                     runner.input.raw.events.push(event);
-                    runner.needs_repaint.repaint_asap();
                 } else {
                     if text.is_empty() {
                         return;
                     }
 
-                    if !event.is_composing() {
-                        input.set_value("");
-                        let event = egui::Event::Text(text);
-                        runner.input.raw.events.push(event);
-                        runner.needs_repaint.repaint_asap();
-                    }
+                    input.set_value("");
+                    let event = egui::Event::Text(text);
+                    runner.input.raw.events.push(event);
                 }
+
+                runner.needs_repaint.repaint_asap();
             }
         };
 

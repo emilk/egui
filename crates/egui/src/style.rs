@@ -1641,7 +1641,7 @@ impl ImeComposition {
             color: active_underline_stroke.color.linear_multiply(0.5),
         };
         Self {
-            active_underline_stroke: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
+            active_underline_stroke,
             inactive_underline_stroke,
         }
     }
