@@ -18,12 +18,11 @@ path = "src/main.rs"
 
 [dependencies]
 egui_kittest = { workspace = true, features = ["inspector_api", "wgpu", "snapshot"] }
-egui_inspection = { workspace = true, features = ["protocol", "transport"] }
+egui_inspection = { workspace = true, features = ["transport"] }
 egui.workspace = true
 interprocess = { version = "2.4", features = ["tokio"] }
 accesskit.workspace = true
 accesskit_consumer.workspace = true
-image = { workspace = true, features = ["png"] }
 rmp-serde.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"

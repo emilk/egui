@@ -453,7 +453,7 @@ impl Server {
                 .env(egui_inspection::INSPECTION_SOCKET_ENV_VAR, &socket_target.name)
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
+                .stderr(std::process::Stdio::inherit())
                 .kill_on_drop(true);
             for (k, v) in &args.env {
                 cmd.env(k, v);
@@ -871,8 +871,7 @@ async fn screenshot_inner(bridge: &Bridge) -> anyhow::Result<(ScreenshotMeta, St
                 height: shot.height,
                 pixels_per_point: frame.pixels_per_point,
             };
-            let png = encode_png(shot).context("encode PNG")?;
-            return Ok((meta, base64::engine::general_purpose::STANDARD.encode(png)));
+            return Ok((meta, base64::engine::general_purpose::STANDARD.encode(&shot.png)));
         }
     }
 
@@ -899,7 +898,6 @@ async fn screenshot_inner(bridge: &Bridge) -> anyhow::Result<(ScreenshotMeta, St
         }
     };
     let shot = frame.screenshot.as_ref().expect("checked above");
-    let png = encode_png(shot).context("encode PNG")?;
     let meta = ScreenshotMeta {
         step: frame.step,
         width: shot.width,
@@ -908,16 +906,8 @@ async fn screenshot_inner(bridge: &Bridge) -> anyhow::Result<(ScreenshotMeta, St
     };
     Ok((
         meta,
-        base64::engine::general_purpose::STANDARD.encode(png),
+        base64::engine::general_purpose::STANDARD.encode(&shot.png),
     ))
-}
-
-fn encode_png(shot: &egui_inspection::protocol::FrameScreenshot) -> anyhow::Result<Vec<u8>> {
-    let img = image::RgbaImage::from_raw(shot.width, shot.height, shot.rgba.clone())
-        .ok_or_else(|| anyhow!("frame rgba length mismatch"))?;
-    let mut out = std::io::Cursor::new(Vec::new());
-    img.write_to(&mut out, image::ImageFormat::Png)?;
-    Ok(out.into_inner())
 }
 
 fn parse_pointer_button(name: &str) -> anyhow::Result<egui::PointerButton> {

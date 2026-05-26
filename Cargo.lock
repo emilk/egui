@@ -1496,7 +1496,6 @@ dependencies = [
  "egui",
  "egui_inspection",
  "egui_kittest",
- "image",
  "interprocess",
  "rmcp",
  "rmp-serde",
