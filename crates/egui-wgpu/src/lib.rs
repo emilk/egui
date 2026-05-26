@@ -87,7 +87,6 @@ impl SurfaceConfig {
     pub const LOW_LATENCY: Self = Self {
         present_mode: wgpu::PresentMode::AutoVsync,
 
-        #[expect(clippy::branches_sharing_code)]
         desired_maximum_frame_latency: if cfg!(target_os = "ios") {
             None // The default is good on iOS, while `Some(1)` cuts FPS in half
         } else {
