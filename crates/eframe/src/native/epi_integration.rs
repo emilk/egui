@@ -171,7 +171,7 @@ impl EpiIntegration {
     #[allow(clippy::allow_attributes, clippy::too_many_arguments)]
     pub fn new(
         egui_ctx: egui::Context,
-        window: Arc<winit::window::Window>,
+        window: &Arc<winit::window::Window>,
         app_name: &str,
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
@@ -192,7 +192,7 @@ impl EpiIntegration {
             glow_register_native_texture,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
-            window: Some(window.clone()),
+            window: Some(Arc::clone(window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
         };
