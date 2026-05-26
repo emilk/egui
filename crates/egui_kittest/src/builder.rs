@@ -211,6 +211,7 @@ impl<State> HarnessBuilder<State> {
 
         let kind = AppKind::Eframe(AppKindEframe {
             get_app: |state| state,
+            #[cfg(not(target_arch = "wasm32"))]
             take_app: |state| Box::new(state),
             frame,
         });

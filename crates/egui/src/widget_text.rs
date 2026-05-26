@@ -1,4 +1,3 @@
-use emath::GuiRounding as _;
 use epaint::text::{IntoTag, TextFormat, VariationCoords};
 use std::fmt::Formatter;
 use std::{borrow::Cow, sync::Arc};
@@ -690,22 +689,6 @@ impl WidgetText {
     #[inline]
     pub fn background_color(self, background_color: impl Into<Color32>) -> Self {
         self.map_rich_text(|text| text.background_color(background_color))
-    }
-
-    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub(crate) fn font_height(&self, fonts: &mut epaint::FontsView<'_>, style: &Style) -> f32 {
-        match self {
-            Self::Text(_) => fonts.row_height(&FontSelection::Default.resolve(style)),
-            Self::RichText(text) => text.font_height(fonts, style),
-            Self::LayoutJob(job) => job.font_height(fonts),
-            Self::Galley(galley) => {
-                if let Some(placed_row) = galley.rows.first() {
-                    placed_row.height().round_ui()
-                } else {
-                    galley.size().y.round_ui()
-                }
-            }
-        }
     }
 
     pub fn into_layout_job(

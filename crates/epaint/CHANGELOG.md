@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.2 - 2026-05-04
+* Fix text layout bugs in wrapped texts [#8137](https://github.com/emilk/egui/pull/8137) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
 ## 0.34.1 - 2026-03-27
 Nothing new
 

@@ -45,7 +45,7 @@
 //!
 //! impl eframe::App for MyEguiApp {
 //!    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-//!        egui::CentralPanel::default().show_inside(ui, |ui| {
+//!        egui::CentralPanel::default().show(ui, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
 //!    }
@@ -244,7 +244,7 @@ pub mod icon_data;
 ///
 /// impl eframe::App for MyEguiApp {
 ///    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-///        egui::CentralPanel::default().show_inside(ui, |ui| {
+///        egui::CentralPanel::default().show(ui, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
@@ -334,7 +334,7 @@ pub fn run_native_ext(
 ///
 /// impl eframe::App for MyEguiApp {
 ///    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-///        egui::CentralPanel::default().show_inside(ui, |ui| {
+///        egui::CentralPanel::default().show(ui, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
@@ -389,6 +389,9 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
     if native_options.viewport.title.is_none() {
         native_options.viewport.title = Some(app_name.to_owned());
     }
+    if native_options.viewport.app_id.is_none() {
+        native_options.viewport.app_id = Some(app_name.to_owned());
+    }
 
     let renderer = native_options.renderer;
 
@@ -422,7 +425,7 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
 ///     let options = eframe::NativeOptions::default();
 ///     eframe::run_ui_native("My egui App", options, move |ui, _frame| {
 ///         // Wrap everything in a CentralPanel so we get some margins and a background color:
-///         egui::CentralPanel::default().show_inside(ui, |ui| {
+///         egui::CentralPanel::default().show(ui, |ui| {
 ///             ui.heading("My egui Application");
 ///             ui.horizontal(|ui| {
 ///                 let name_label = ui.label("Your name: ");

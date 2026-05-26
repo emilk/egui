@@ -120,8 +120,9 @@ impl TextureAtlas {
                     let distance_to_center = ((dx * dx + dy * dy) as f32).sqrt();
                     let coverage =
                         remap_clamp(distance_to_center, (r - 0.5)..=(r + 0.5), 1.0..=0.0);
-                    image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] =
-                        options.alpha_from_coverage.color_from_coverage(coverage);
+                    image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] = options
+                        .color_transfer_function
+                        .color_from_coverage(coverage);
                 }
             }
             atlas.discs.push(PrerasterizedDisc {
