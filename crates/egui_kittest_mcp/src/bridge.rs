@@ -1,9 +1,10 @@
-//! Bridge between the MCP server and a running kittest harness child process.
+//! Bridge between the MCP server and a running egui peer (a spawned kittest harness or an
+//! attached live app), both reached over the same `egui_inspection` local socket.
 //!
 //! Lifecycle:
-//! 1. [`Bridge::launch`] binds a local socket, spawns the target binary with
-//!    [`crate::HANDSHAKE_ENV_VAR`] + `KITTEST_INSPECTOR=1` +
-//!    `KITTEST_INSPECTOR_PATH=<self>`, and waits for the shim to connect.
+//! 1. [`Bridge::launch`] (kittest harness) / [`Bridge::prepare_attach`] + [`Bridge::accept_pending`]
+//!    (live app) bind a local socket and point the peer at it via
+//!    [`egui_inspection::INSPECTION_SOCKET_ENV_VAR`]; the peer dials in directly.
 //! 2. A reader task decodes [`HarnessMessage`]s from the socket and updates [`SharedState`].
 //! 3. A writer task drains [`InspectorCommand`]s queued by MCP tool handlers and writes
 //!    them to the socket.
@@ -28,6 +29,10 @@ use tokio::time::timeout;
 
 /// Hard cap matching `inspector_api::MAX_MESSAGE_BYTES` so framing-level DoS is bounded.
 const MAX_MESSAGE_BYTES: usize = 256 * 1024 * 1024;
+
+/// Accept timeout for [`Bridge::launch`]. Generous because the spawned `cargo test` / `cargo
+/// run` child typically compiles before its harness dials in.
+const LAUNCH_ACCEPT_TIMEOUT_SECS: u64 = 120;
 
 /// One in-flight peer (a spawned kittest harness or an attached live app) + the tasks
 /// that talk to it.
@@ -141,34 +146,26 @@ impl SharedState {
 }
 
 impl Bridge {
+    /// Spawn a kittest harness binary and bridge to it. Binds a local socket, spawns the
+    /// child with [`egui_inspection::INSPECTION_SOCKET_ENV_VAR`] pointed at it, and accepts
+    /// the harness's inbound connection — the same mechanism as [`Self::prepare_attach`] +
+    /// [`Self::accept_pending`], which it reuses.
     pub async fn launch(
         bin: PathBuf,
         args: Vec<String>,
         env: Vec<(String, String)>,
         cwd: Option<PathBuf>,
     ) -> anyhow::Result<Self> {
-        let self_path = std::env::current_exe()
-            .context("get current_exe for KITTEST_INSPECTOR_PATH")?;
-
-        let socket_target =
-            generate_socket_target().context("allocate handshake socket")?;
-        let name = socket_name(&socket_target.name)
-            .with_context(|| format!("parse socket name {}", socket_target.name))?;
-        let listener = ListenerOptions::new()
-            .name(name)
-            .create_tokio()
-            .with_context(|| format!("bind {}", socket_target.name))?;
+        let (listener, socket_target) = Self::prepare_attach().await?;
 
         let mut cmd = Command::new(&bin);
         cmd.args(&args)
-            .env("KITTEST_INSPECTOR", "1")
-            .env("KITTEST_INSPECTOR_PATH", &self_path)
-            .env(crate::HANDSHAKE_ENV_VAR, &socket_target.name)
+            .env(egui_inspection::INSPECTION_SOCKET_ENV_VAR, &socket_target.name)
             .stdin(std::process::Stdio::null())
-            // Harness inspector path: the child's stdout/stderr aren't ours — they get
-            // captured by the shim. We don't need them in the MCP server.
             .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
+            // Inherit stderr so harness panics and cargo build errors surface where the
+            // operator can see them, instead of being silently swallowed.
+            .stderr(std::process::Stdio::inherit())
             .kill_on_drop(true);
         for (k, v) in &env {
             cmd.env(k, v);
@@ -177,47 +174,18 @@ impl Bridge {
             cmd.current_dir(d);
         }
 
-        let mut child = cmd
+        let child = cmd
             .spawn()
             .with_context(|| format!("spawn {}", bin.display()))?;
         let pid = child.id().unwrap_or(0);
 
-        // Accept with a short timeout. If the binary fails to start, exits early, or
-        // doesn't have the inspector wired up, we surface that instead of hanging forever.
-        let stream = match timeout(Duration::from_secs(10), listener.accept()).await {
-            Ok(Ok(stream)) => stream,
-            Ok(Err(e)) => {
-                let _ = child.kill().await;
-                bail!("accept on handshake socket: {e}");
-            }
-            Err(_) => {
-                let _ = child.kill().await;
-                // Try to report the child's exit status if it died early.
-                let status_hint = match child.try_wait() {
-                    Ok(Some(s)) => format!(" (child exited {s})"),
-                    _ => String::new(),
-                };
-                bail!("timed out waiting for inspector handshake{status_hint}");
-            }
-        };
-
-        let (reader, writer) = stream.split();
-        let state = SharedState::new();
-        let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
-        let child_arc: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(Some(child)));
-
-        let reader_task = tokio::spawn(read_loop(reader, state.clone(), child_arc.clone()));
-        let writer_task = tokio::spawn(write_loop(writer, cmd_rx));
-
-        Ok(Self {
-            state,
-            cmd_tx,
-            _reader_task: reader_task,
-            _writer_task: writer_task,
-            child: child_arc,
-            _socket_target: socket_target,
-            peer_info: PeerInfo::Launched { bin, args, pid },
-        })
+        // The child usually compiles before it runs (cargo test/run), so allow a generous
+        // window before giving up on the handshake.
+        let accept_timeout = Duration::from_secs(LAUNCH_ACCEPT_TIMEOUT_SECS);
+        let mut bridge =
+            Self::accept_pending(listener, socket_target, Some(child), accept_timeout).await?;
+        bridge.peer_info = PeerInfo::Launched { bin, args, pid };
+        Ok(bridge)
     }
 
     /// Bind a local socket and return it immediately. The caller is responsible for
@@ -454,15 +422,15 @@ mod tests {
     use interprocess::local_socket::prelude::*;
 
     /// Full cross-platform transport round-trip: a tokio `interprocess` listener (the bridge
-    /// side) accepts a connection from a sync `interprocess` client (the plugin / shim side),
-    /// and a framed `Hello` is decoded into shared state. Runs against whatever local-socket
+    /// side) accepts a connection from a sync `interprocess` client (the egui peer side), and
+    /// a framed `Hello` is decoded into shared state. Runs against whatever local-socket
     /// backend the host uses (unix domain socket on unix, named pipe on Windows).
     #[tokio::test]
     async fn handshake_roundtrip() {
         let (listener, target) = Bridge::prepare_attach().await.unwrap();
         let name = target.name.clone();
 
-        // Connect + write from a blocking thread, mirroring how the plugin/shim dial in.
+        // Connect + write from a blocking thread, mirroring how an egui peer dials in.
         let client = std::thread::spawn(move || {
             let n = socket_name(&name).unwrap();
             let mut stream = Stream::connect(n).unwrap();

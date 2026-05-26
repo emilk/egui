@@ -392,8 +392,9 @@ pub struct BatchAction {
 impl Server {
     #[tool(
         description = "Spawn a kittest harness binary as a child process. The binary must \
-                        link `egui_kittest` and call `Harness::run()` — `InspectorPlugin` \
-                        auto-attaches via the `KITTEST_INSPECTOR` env var this tool sets."
+                        link `egui_kittest` (with the `inspector` feature) and call \
+                        `Harness::run()` — `InspectorPlugin` auto-connects to the \
+                        `EGUI_INSPECTION_SOCKET` this tool binds and sets."
     )]
     async fn launch(
         &self,
