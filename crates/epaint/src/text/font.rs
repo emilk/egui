@@ -1,5 +1,6 @@
 #![expect(clippy::mem_forget)]
 
+use ecolor::Color32;
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
 use self_cell::self_cell;
 use skrifa::{GlyphId, MetadataProvider as _};
@@ -274,26 +275,31 @@ impl FontCell {
         let width = bounds.width() as u16;
         let height = bounds.height() as u16;
 
-        let mut ctx = vello_cpu::RenderContext::new(width, height);
-        ctx.set_transform(kurbo::Affine::translate((-bounds.x0, -bounds.y0)));
-        ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
-        ctx.fill_path(&path);
-        let mut dest = vello_cpu::Pixmap::new(width, height);
-        let mut resources = vello_cpu::Resources::new();
-        ctx.render_to_pixmap(&mut resources, &mut dest);
         let uv_rect = if width == 0 || height == 0 {
             UvRect::default()
         } else {
+            let mut ctx = vello_cpu::RenderContext::new(width, height);
+            ctx.set_transform(kurbo::Affine::translate((-bounds.x0, -bounds.y0)));
+            ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
+            ctx.fill_path(&path);
+            let mut dest = vello_cpu::Pixmap::new(width, height);
+            let mut resources = vello_cpu::Resources::new();
+            ctx.render_to_pixmap(&mut resources, &mut dest);
+
             let glyph_pos = {
-                let alpha_from_coverage = atlas.options().alpha_from_coverage;
+                let color_transfer_function = atlas.options().color_transfer_function;
                 let (glyph_pos, image) = atlas.allocate((width as usize, height as usize));
                 let pixels = dest.data_as_u8_slice();
                 for y in 0..height as usize {
                     for x in 0..width as usize {
-                        image[(x + glyph_pos.0, y + glyph_pos.1)] = alpha_from_coverage
-                            .color_from_coverage(
-                                pixels[((y * width as usize) + x) * 4 + 3] as f32 / 255.0,
-                            );
+                        let pixel_offset = 4 * ((y * width as usize) + x);
+                        image[(x + glyph_pos.0, y + glyph_pos.1)] = color_transfer_function
+                            .to_atlas_color(Color32::from_rgba_premultiplied(
+                                pixels[pixel_offset],
+                                pixels[pixel_offset + 1],
+                                pixels[pixel_offset + 2],
+                                pixels[pixel_offset + 3],
+                            ));
                     }
                 }
                 glyph_pos

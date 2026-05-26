@@ -25,8 +25,8 @@ pub struct TextOptions {
     /// Maximum size of the font texture.
     pub max_texture_side: usize,
 
-    /// Controls how to convert glyph coverage to alpha.
-    pub alpha_from_coverage: crate::AlphaFromCoverage,
+    /// Controls how to convert glyph colors when writing to the font atlas.
+    pub color_transfer_function: crate::FontColorTransferFunction,
 
     /// Whether to enable font hinting
     ///
@@ -54,7 +54,7 @@ impl Default for TextOptions {
     fn default() -> Self {
         Self {
             max_texture_side: 2048, // Small but portable
-            alpha_from_coverage: crate::AlphaFromCoverage::default(),
+            color_transfer_function: crate::FontColorTransferFunction::default(),
             font_hinting: true,
             subpixel_binning: true,
         }
