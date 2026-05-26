@@ -7,11 +7,13 @@ use crate::{
     widget_style::{Classes, HasClasses},
 };
 
-/// Build a [`Ui`] as the child of another [`Ui`].
+/// The properties specified when creating a top-level or child [`Ui`].
 ///
 /// By default, everything is inherited from the parent,
 /// except for `max_rect` which by default is set to
 /// the parent [`Ui::available_rect_before_wrap`].
+///
+/// See also [`Ui::new`] and [`Ui::new_child`] for uses.
 #[must_use]
 #[derive(Clone, Default)]
 pub struct UiBuilder {
