@@ -689,7 +689,7 @@ impl State {
             // See <https://github.com/rust-windowing/winit/issues/2498>
             winit::event::Ime::Enabled | winit::event::Ime::Disabled => {}
             winit::event::Ime::Preedit(text, active_range_bytes) => {
-                let active_range_chars = match active_range_bytes.clone() {
+                let active_range_chars = match *active_range_bytes {
                     Some((start_bytes, end_bytes)) => {
                         let (Some(start_chars), Some(middle_chars)) = (
                             text.get(..start_bytes).map(|s| s.chars().count()),
