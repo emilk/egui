@@ -3,7 +3,7 @@
 use eframe::{CreationContext, egui};
 
 #[cfg(target_os = "android")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 fn android_main(app: winit::platform::android::activity::AndroidApp) {
     // Log to android output
     android_logger::init_once(
@@ -41,11 +41,11 @@ impl eframe::App for MyApp {
         // TODO(lucasmerlin): This is a pretty big hack, should be fixed once safe_area implemented
         // for android:
         // https://github.com/rust-windowing/winit/issues/3910
-        egui::Panel::top("status_bar_space").show_inside(ui, |ui| {
+        egui::Panel::top("status_bar_space").show(ui, |ui| {
             ui.set_height(32.0);
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             self.demo.ui(ui);
         });
     }

@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
 use std::sync::Arc;
+use std::{iter, ops::Range};
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
@@ -161,6 +162,7 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
                 job.halign,
                 job.wrap.max_width,
                 justify_row,
+                job.keep_trailing_whitespace,
             );
         }
     }
@@ -217,6 +219,11 @@ struct TextRun {
 }
 
 /// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
+///
+/// When a cluster maps multiple characters to fewer glyphs (e.g. flag emojis,
+/// ligatures), zero-width "continuation" glyphs are emitted for the extra
+/// characters so that `glyphs.len() == char_count` — an invariant that all
+/// cursor and selection code relies on.
 fn layout_shaped_run(
     font: &mut Font<'_>,
     run: &TextRun,
@@ -232,11 +239,12 @@ fn layout_shaped_run(
     // so they are not comparable across runs.
     ctx.prev_cluster = None;
 
-    for (info, pos) in glyph_buffer
-        .glyph_infos()
-        .iter()
-        .zip(glyph_buffer.glyph_positions())
-    {
+    // Track how many glyphs we emit per cluster so we can add zero-width
+    // continuation glyphs when a cluster has more chars than glyphs.
+    let mut cluster_start_byte: usize = 0;
+    let mut cluster_glyph_count: usize = 0;
+
+    for (info, pos) in iter::zip(glyph_buffer.glyph_infos(), glyph_buffer.glyph_positions()) {
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         let cluster = info.cluster;
         let mut advance_width_px = pos.x_advance as f32 * px_scale;
@@ -253,7 +261,7 @@ fn layout_shaped_run(
         if chr == '\t' {
             let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
             let tab_size = tweak.map_or(4.0, |t| t.tab_size);
-            let (_, space_info) = font.glyph_info(' ');
+            let (_, space_info) = font.glyph_info(' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
             advance_width_px = tab_size * space_width_px;
         }
@@ -263,7 +271,7 @@ fn layout_shaped_run(
         if chr == '\u{2009}' || chr == '\u{202F}' {
             let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
             let thin_space_width = tweak.map_or(0.5, |t| t.thin_space_width);
-            let (_, space_info) = font.glyph_info(' ');
+            let (_, space_info) = font.glyph_info(' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
             advance_width_px = thin_space_width * space_width_px;
         }
@@ -271,10 +279,22 @@ fn layout_shaped_run(
         // Apply extra_letter_spacing only at cluster boundaries,
         // never between glyphs within the same cluster (e.g. base + mark).
         let is_new_cluster = ctx.prev_cluster.is_none_or(|pc| pc != cluster);
-        if !ctx.is_first_glyph_in_section && is_new_cluster {
-            paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
-        }
         if is_new_cluster {
+            if ctx.prev_cluster.is_some() {
+                emit_continuation_glyphs(
+                    ctx,
+                    paragraph,
+                    run_text,
+                    cluster_start_byte..cluster as usize,
+                    cluster_glyph_count,
+                    face_metrics,
+                );
+            }
+            if !ctx.is_first_glyph_in_section {
+                paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
+            }
+            cluster_start_byte = cluster as usize;
+            cluster_glyph_count = 0;
             ctx.is_first_glyph_in_section = false;
         }
         ctx.prev_cluster = Some(cluster);
@@ -288,7 +308,7 @@ fn layout_shaped_run(
             }
 
             // Use the fallback font face (not run.font_key which returned NOTDEF).
-            let (fallback_key, glyph_info) = font.glyph_info(chr);
+            let fallback_key = font.resolve_face(chr);
             let fallback_metrics = font
                 .fonts_by_id
                 .get(&fallback_key)
@@ -296,6 +316,7 @@ fn layout_shaped_run(
                     ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
                 })
                 .unwrap_or_default();
+            let (_, glyph_info) = font.glyph_info(chr, &fallback_metrics);
             let advance_width_px =
                 glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
             let (glyph_alloc, physical_x) =
@@ -353,6 +374,50 @@ fn layout_shaped_run(
             )
         };
         paragraph.glyphs.push(glyph);
+        cluster_glyph_count += 1;
+    }
+
+    // Emit continuation glyphs for the last cluster in the run.
+    if ctx.prev_cluster.is_some() {
+        emit_continuation_glyphs(
+            ctx,
+            paragraph,
+            run_text,
+            cluster_start_byte..run_text.len(),
+            cluster_glyph_count,
+            face_metrics,
+        );
+    }
+}
+
+/// Emit zero-width continuation glyphs when a cluster has more characters than
+/// shaped glyphs.
+///
+/// This preserves the invariant `glyphs.len() == char_count` that all cursor
+/// and text-selection code depends on. Continuation glyphs have
+/// [`UvRect::default()`] so [`tessellate_glyphs`] skips them entirely.
+fn emit_continuation_glyphs(
+    ctx: &ShapingContext,
+    paragraph: &mut Paragraph,
+    run_text: &str,
+    cluster_bytes: Range<usize>,
+    cluster_glyph_count: usize,
+    face_metrics: &StyledMetrics,
+) {
+    let Some(cluster_text) = run_text.get(cluster_bytes) else {
+        return;
+    };
+    let char_count = cluster_text.chars().count();
+    if char_count <= cluster_glyph_count {
+        return;
+    }
+
+    let physical_x = paragraph.cursor_x_px.round() as i32;
+
+    for chr in cluster_text.chars().skip(cluster_glyph_count) {
+        paragraph
+            .glyphs
+            .push(ctx.glyph(chr, physical_x, 0.0, face_metrics, UvRect::default()));
     }
 }
 
@@ -457,7 +522,7 @@ fn layout_section(
 /// Avoids `Box<dyn Iterator>` and `Vec<&str>` allocation.
 enum SplitOrWhole<'a> {
     Split(std::str::Split<'a, char>),
-    Whole(std::iter::Once<&'a str>),
+    Whole(iter::Once<&'a str>),
 }
 
 impl<'a> SplitOrWhole<'a> {
@@ -465,7 +530,7 @@ impl<'a> SplitOrWhole<'a> {
         if split {
             Self::Split(text.split('\n'))
         } else {
-            Self::Whole(std::iter::once(text))
+            Self::Whole(iter::once(text))
         }
     }
 }
@@ -658,18 +723,19 @@ fn line_break(
         if job.wrap.max_rows <= out_rows.len() {
             *elided = true; // can't fit another row
         } else {
+            let paragraph_min_x = paragraph.glyphs[row_start_idx].pos.x - row_start_x;
+            let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x() - row_start_x;
+
             let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..]
                 .iter()
                 .copied()
                 .map(|mut glyph| {
-                    glyph.pos.x -= row_start_x;
+                    glyph.pos.x -= row_start_x + paragraph_min_x;
                     glyph
                 })
                 .collect();
 
             let section_index_at_start = glyphs[0].section_index;
-            let paragraph_min_x = glyphs[0].pos.x;
-            let paragraph_max_x = glyphs.last().unwrap().max_x();
 
             out_rows.push(PlacedRow {
                 pos: pos2(paragraph_min_x, 0.0),
@@ -709,12 +775,14 @@ fn replace_last_glyph_with_overflow_character(
         let mut font = fonts.font(&section.format.font_id.family);
         let font_size = section.format.font_id.size;
 
-        let (font_id, glyph_info) = font.glyph_info(overflow_character);
-        let mut font_face = font.fonts_by_id.get_mut(&font_id);
-        let font_face_metrics = font_face
-            .as_mut()
+        let font_id = font.resolve_face(overflow_character);
+        let font_face_metrics = font
+            .fonts_by_id
+            .get(&font_id)
             .map(|f| f.styled_metrics(pixels_per_point, font_size, &section.format.coords))
             .unwrap_or_default();
+        let (_, glyph_info) = font.glyph_info(overflow_character, &font_face_metrics);
+        let mut font_face = font.fonts_by_id.get_mut(&font_id);
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
             prev_glyph.max_x() + extra_letter_spacing
@@ -788,6 +856,7 @@ fn halign_and_justify_row(
     halign: Align,
     wrap_width: f32,
     justify: bool,
+    keep_trailing_whitespace: bool,
 ) {
     #![expect(clippy::useless_let_if_seq)] // False positive
 
@@ -806,6 +875,8 @@ fn halign_and_justify_row(
     let glyph_range = if num_leading_spaces == row.glyphs.len() {
         // There is only whitespace
         (0, row.glyphs.len())
+    } else if keep_trailing_whitespace {
+        (num_leading_spaces, row.glyphs.len())
     } else {
         let num_trailing_spaces = row
             .glyphs
@@ -1303,7 +1374,7 @@ fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
         let byte_end = byte_offset + grapheme_str.len();
 
         let base_char = grapheme_str.chars().next().unwrap_or(' ');
-        let (font_key, _) = font.glyph_info(base_char);
+        let font_key = font.resolve_face(base_char);
 
         if let Some(last_run) = out.last_mut()
             && last_run.font_key == font_key
@@ -1334,11 +1405,7 @@ fn shape_text(
     let tweak = font_face.tweak();
 
     // Build shaper with variable font instance if variation coordinates are set.
-    let variations: Vec<harfrust::Variation> = tweak
-        .coords
-        .as_ref()
-        .iter()
-        .chain(coords.as_ref().iter())
+    let variations: Vec<harfrust::Variation> = iter::chain(tweak.coords.as_ref(), coords.as_ref())
         .map(|&(tag, value)| harfrust::Variation { tag, value })
         .collect();
 
@@ -1367,8 +1434,10 @@ fn shape_text(
 
 #[cfg(test)]
 mod tests {
+    use std::iter;
 
     use super::{super::*, *};
+    use crate::text::cursor::CCursor;
 
     #[test]
     fn test_zero_max_width() {
@@ -1502,10 +1571,11 @@ mod tests {
                     &mut fonts,
                     pixels_per_point,
                     Arc::new(LayoutJob::single_section(
-                        (0..elided_galley.rows[0].char_count_excluding_newline())
-                            .map(|_| ch)
-                            .chain(std::iter::once('…'))
-                            .collect::<String>(),
+                        iter::chain(
+                            (0..elided_galley.rows[0].char_count_excluding_newline()).map(|_| ch),
+                            iter::once('…'),
+                        )
+                        .collect::<String>(),
                         TextFormat::default(),
                     )),
                 );
@@ -1734,6 +1804,113 @@ mod tests {
                 "GPOS kerning for '{pair}': expected pair to be noticeably tighter \
                  than sum of individuals. pair_width={pair_w:.2}, sum={sum:.2}, \
                  kern_adjustment={kern_adjustment:.2} (should be > 0.5)",
+            );
+        }
+    }
+
+    /// Regression test for <https://github.com/emilk/egui/issues/8087>.
+    ///
+    /// Multi-codepoint grapheme clusters (flag emojis, combining marks) must
+    /// produce exactly as many glyphs as characters so that cursor positioning
+    /// and text selection remain correct.
+    #[test]
+    fn test_grapheme_cluster_glyph_count() {
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let font_id = FontId::default();
+
+        // Each test case: (input text, expected char count)
+        let cases: &[(&str, usize)] = &[
+            // Flag emoji: two Regional Indicator codepoints → one visual glyph
+            ("\u{1F1EF}\u{1F1F5}", 2), // 🇯🇵
+            // Flag surrounded by ASCII
+            ("A\u{1F1EB}\u{1F1F7}B", 4), // A🇫🇷B
+            // Base char + combining acute accent
+            ("e\u{0301}", 2), // é as decomposed
+            // Multiple combining marks
+            ("o\u{0302}\u{0323}", 3), // ộ
+            // Plain ASCII (sanity check)
+            ("Hello", 5),
+        ];
+
+        for &(text, expected_chars) in cases {
+            let job = LayoutJob::simple(
+                text.to_owned(),
+                font_id.clone(),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+            let total_glyphs: usize = galley.rows.iter().map(|r| r.row.glyphs.len()).sum();
+
+            assert_eq!(
+                total_glyphs,
+                expected_chars,
+                "Glyph count mismatch for {text:?}: \
+                 expected {expected_chars} glyphs (one per char), got {total_glyphs}. \
+                 Glyphs: {:?}",
+                galley.rows[0]
+                    .row
+                    .glyphs
+                    .iter()
+                    .map(|g| (g.chr, g.advance_width))
+                    .collect::<Vec<_>>(),
+            );
+
+            // Verify that Row::text() reconstructs the input text.
+            let row_text: String = galley.rows.iter().map(|r| r.text()).collect();
+            assert_eq!(row_text, text, "Row::text() mismatch for {text:?}",);
+
+            // Verify cursor round-trip: end cursor index == char count.
+            assert_eq!(
+                galley.end().index,
+                expected_chars,
+                "Galley::end().index mismatch for {text:?}",
+            );
+        }
+    }
+
+    /// Verify that cursor positioning round-trips correctly for text
+    /// containing multi-codepoint grapheme clusters (regression test for #8087).
+    #[test]
+    fn test_grapheme_cluster_cursor_roundtrip() {
+        let pixels_per_point = 1.0;
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let font_id = FontId::default();
+
+        // "A" + flag emoji (2 codepoints) + "B" = 4 chars
+        let text = "A\u{1F1EF}\u{1F1F5}B";
+        let job = LayoutJob::simple(
+            text.to_owned(),
+            font_id.clone(),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+        // Walking through every cursor index should produce valid positions.
+        for i in 0..=galley.end().index {
+            let cursor = CCursor {
+                index: i,
+                prefer_next_row: false,
+            };
+            let rect = galley.pos_from_cursor(cursor);
+            assert!(
+                rect.is_finite(),
+                "pos_from_cursor returned non-finite rect for index {i}",
+            );
+
+            // Round-trip: position → cursor → position should be stable.
+            let cursor2 = galley.cursor_from_pos(Vec2::new(rect.center().x, rect.center().y));
+            let rect2 = galley.pos_from_cursor(cursor2);
+            assert!(
+                (rect.min.x - rect2.min.x).abs() < 1.0,
+                "Cursor round-trip unstable at index {i}: \
+                 first={}, second={}, cursor2.index={}",
+                rect.min.x,
+                rect2.min.x,
+                cursor2.index,
             );
         }
     }

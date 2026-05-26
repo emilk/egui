@@ -226,7 +226,7 @@ impl<'a> AtomLayout<'a> {
             max_size.x = f32::INFINITY;
         }
 
-        let available_size = ui.available_size().at_most(max_size);
+        let available_size = ui.available_size().at_most(max_size).at_least(min_size);
 
         // The size available for the content
         let available_inner_size = available_size - frame.total_margin().sum();

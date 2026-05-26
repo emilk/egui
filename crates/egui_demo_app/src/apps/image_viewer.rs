@@ -50,7 +50,7 @@ impl Default for ImageViewer {
 
 impl crate::DemoApp for ImageViewer {
     fn demo_ui(&mut self, ui: &mut egui::Ui, _: &mut eframe::Frame) {
-        egui::Panel::top("url bar").show_inside(ui, |ui| {
+        egui::Panel::top("url bar").show(ui, |ui| {
             ui.horizontal_centered(|ui| {
                 let label = ui.label("URI:");
                 ui.text_edit_singleline(&mut self.uri_edit_text)
@@ -71,7 +71,7 @@ impl crate::DemoApp for ImageViewer {
             });
         });
 
-        egui::Panel::left("controls").show_inside(ui, |ui| {
+        egui::Panel::left("controls").show(ui, |ui| {
             // uv
             ui.label("UV");
             ui.add(Slider::new(&mut self.image_options.uv.min.x, 0.0..=1.0).text("min x"));
@@ -197,7 +197,7 @@ impl crate::DemoApp for ImageViewer {
             }
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 let mut image = egui::Image::from_uri(&self.current_uri);
                 image = image.uv(self.image_options.uv);

@@ -310,6 +310,11 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 ui.end_row();
             }
         });
+
+        if let Some(mut cfg) = _frame.wgpu_surface_config() {
+            wgpu_surface_config_ui(ui, &mut cfg);
+            _frame.set_wgpu_surface_config(cfg);
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -355,6 +360,52 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             }
         });
     }
+}
+
+#[cfg(feature = "wgpu")]
+fn wgpu_surface_config_ui(ui: &mut egui::Ui, cfg: &mut eframe::SurfaceConfig) {
+    use eframe::wgpu::PresentMode;
+
+    egui::Grid::new("wgpu_surface_config")
+        .num_columns(2)
+        .show(ui, |ui| {
+            ui.label("Present mode:");
+            egui::ComboBox::from_id_salt("wgpu_present_mode")
+                .selected_text(format!("{:?}", cfg.present_mode))
+                .show_ui(ui, |ui| {
+                    for mode in [
+                        PresentMode::AutoVsync,
+                        PresentMode::AutoNoVsync,
+                        PresentMode::Fifo,
+                        PresentMode::FifoRelaxed,
+                        PresentMode::Immediate,
+                        PresentMode::Mailbox,
+                    ] {
+                        ui.selectable_value(&mut cfg.present_mode, mode, format!("{mode:?}"));
+                    }
+                });
+            ui.end_row();
+
+            ui.label("Desired max frame latency:");
+            egui::ComboBox::from_id_salt("wgpu_desired_max_frame_latency")
+                .selected_text(match cfg.desired_maximum_frame_latency {
+                    None => "Default".to_owned(),
+                    Some(n) => n.to_string(),
+                })
+                .show_ui(ui, |ui| {
+                    ui.weak("Lower value = lower latency");
+                    ui.selectable_value(&mut cfg.desired_maximum_frame_latency, None, "Default");
+                    for n in [0_u32, 1, 2, 3] {
+                        ui.selectable_value(
+                            &mut cfg.desired_maximum_frame_latency,
+                            Some(n),
+                            n.to_string(),
+                        );
+                    }
+                    ui.weak("Higher value = higher throughput/FPS");
+                });
+            ui.end_row();
+        });
 }
 
 // ----------------------------------------------------------------------------

@@ -45,7 +45,7 @@
 //!
 //! impl eframe::App for MyEguiApp {
 //!    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-//!        egui::CentralPanel::default().show_inside(ui, |ui| {
+//!        egui::CentralPanel::default().show(ui, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
 //!    }
@@ -159,7 +159,7 @@ pub use {egui, egui::emath, egui::epaint};
 pub use {egui_glow, glow};
 
 #[cfg(feature = "wgpu_no_default_features")]
-pub use {egui_wgpu, egui_wgpu::wgpu};
+pub use {egui_wgpu, egui_wgpu::SurfaceConfig, egui_wgpu::WgpuConfiguration, egui_wgpu::wgpu};
 
 mod epi;
 
@@ -244,7 +244,7 @@ pub mod icon_data;
 ///
 /// impl eframe::App for MyEguiApp {
 ///    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-///        egui::CentralPanel::default().show_inside(ui, |ui| {
+///        egui::CentralPanel::default().show(ui, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
@@ -258,7 +258,26 @@ pub mod icon_data;
 #[allow(clippy::allow_attributes, clippy::needless_pass_by_value)]
 pub fn run_native(
     app_name: &str,
+    native_options: NativeOptions,
+    app_creator: AppCreator<'_>,
+) -> Result {
+    run_native_ext(app_name, native_options, None, app_creator)
+}
+
+/// Like [`run_native`], but lets you supply a pre-existing [`egui::Context`].
+///
+/// If `egui_ctx` is `Some`, that context will be used by eframe instead of creating a fresh one.
+/// If it is `None`, eframe creates a new context (same behavior as [`run_native`]).
+///
+/// # Errors
+/// This function can fail if we fail to set up a graphics context.
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+#[allow(clippy::allow_attributes, clippy::needless_pass_by_value)]
+pub fn run_native_ext(
+    app_name: &str,
     mut native_options: NativeOptions,
+    egui_ctx: Option<egui::Context>,
     app_creator: AppCreator<'_>,
 ) -> Result {
     let renderer = init_native(app_name, &mut native_options);
@@ -267,13 +286,13 @@ pub fn run_native(
         #[cfg(feature = "glow")]
         Renderer::Glow => {
             log::debug!("Using the glow renderer");
-            native::run::run_glow(app_name, native_options, app_creator)
+            native::run::run_glow(app_name, native_options, egui_ctx, app_creator)
         }
 
         #[cfg(feature = "wgpu_no_default_features")]
         Renderer::Wgpu => {
             log::debug!("Using the wgpu renderer");
-            native::run::run_wgpu(app_name, native_options, app_creator)
+            native::run::run_wgpu(app_name, native_options, egui_ctx, app_creator)
         }
     }
 }
@@ -315,7 +334,7 @@ pub fn run_native(
 ///
 /// impl eframe::App for MyEguiApp {
 ///    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-///        egui::CentralPanel::default().show_inside(ui, |ui| {
+///        egui::CentralPanel::default().show(ui, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
@@ -370,6 +389,9 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
     if native_options.viewport.title.is_none() {
         native_options.viewport.title = Some(app_name.to_owned());
     }
+    if native_options.viewport.app_id.is_none() {
+        native_options.viewport.app_id = Some(app_name.to_owned());
+    }
 
     let renderer = native_options.renderer;
 
@@ -403,7 +425,7 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
 ///     let options = eframe::NativeOptions::default();
 ///     eframe::run_ui_native("My egui App", options, move |ui, _frame| {
 ///         // Wrap everything in a CentralPanel so we get some margins and a background color:
-///         egui::CentralPanel::default().show_inside(ui, |ui| {
+///         egui::CentralPanel::default().show(ui, |ui| {
 ///             ui.heading("My egui Application");
 ///             ui.horizontal(|ui| {
 ///                 let name_label = ui.label("Your name: ");

@@ -1171,6 +1171,10 @@ impl Areas {
         self.areas.get(&id)
     }
 
+    pub(crate) fn get_mut(&mut self, id: Id) -> Option<&mut area::AreaState> {
+        self.areas.get_mut(&id)
+    }
+
     /// All layers back-to-front, top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
@@ -1232,11 +1236,12 @@ impl Areas {
     }
 
     pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
-        self.visible_areas_last_frame
-            .iter()
-            .copied()
-            .chain(self.visible_areas_current_frame.iter().copied())
-            .collect()
+        std::iter::chain(
+            &self.visible_areas_last_frame,
+            &self.visible_areas_current_frame,
+        )
+        .copied()
+        .collect()
     }
 
     pub(crate) fn visible_windows(&self) -> impl Iterator<Item = (LayerId, &area::AreaState)> {
