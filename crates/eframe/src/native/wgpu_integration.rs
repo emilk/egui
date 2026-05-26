@@ -294,6 +294,7 @@ impl<'app> WgpuWinitApp<'app> {
             #[cfg(feature = "glow")]
             get_proc_address: None,
             wgpu_render_state,
+            window: Some(Arc::clone(&window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
         };
