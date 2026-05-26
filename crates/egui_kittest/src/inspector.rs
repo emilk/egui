@@ -396,14 +396,28 @@ impl Connection {
             return;
         }
         self.step = self.step.saturating_add(1);
+        let screenshot = image.and_then(|img| match egui_inspection::encode_png(
+            img.width(),
+            img.height(),
+            img.as_raw(),
+        ) {
+            Ok(png) => Some(FrameScreenshot {
+                width: img.width(),
+                height: img.height(),
+                png,
+            }),
+            Err(err) => {
+                #[expect(clippy::print_stderr)]
+                {
+                    eprintln!("[kittest] PNG encode failed: {err}");
+                }
+                None
+            }
+        });
         let frame = Frame {
             step: self.step,
             pixels_per_point,
-            screenshot: image.map(|img| FrameScreenshot {
-                width: img.width(),
-                height: img.height(),
-                rgba: img.as_raw().clone(),
-            }),
+            screenshot,
             accesskit,
             source,
         };

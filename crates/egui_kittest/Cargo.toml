@@ -29,11 +29,11 @@ snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 ## Expose the [`inspector_api`] wire protocol used to talk to the external
 ## `kittest_inspector` binary. Pull this in if you're building a tool that consumes the
 ## same stream — the binary itself enables this transitively.
-inspector_api = ["dep:egui_inspection", "egui_inspection/protocol", "egui/serde"]
+inspector_api = ["dep:egui_inspection", "egui/serde"]
 
 ## Stream frames + accesskit tree to a `kittest_inspector` window for live debugging.
 ## Auto-launches when the `KITTEST_INSPECTOR` env var is truthy.
-inspector = ["inspector_api", "dep:image"]
+inspector = ["inspector_api", "egui_inspection/png", "dep:image", "image/png"]
 
 ## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]
