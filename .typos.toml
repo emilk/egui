@@ -4,6 +4,7 @@
 
 [default.extend-words]
 ime = "ime" # Input Method Editor
+abou = "abou" # part of @AmmarAbouZor username
 nknown = "nknown" # part of @55nknown username
 isse = "isse" # part of @IsseW username
 tye = "tye" # part of @tye-exe username

@@ -14,6 +14,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.34.3 - 2026-05-27
+* Fix `ScrollArea::scroll_to_*` calls when `stick_to_bottom` is Active [#8033](https://github.com/emilk/egui/pull/8033) by [@AmmarAbouZor](https://github.com/AmmarAbouZor)
+
+
 ## 0.34.2 - 2026-05-04
 ### ⭐ Added
 * Add regression test for O(n²) word boundary scan [#8077](https://github.com/emilk/egui/pull/8077) by [@hallyhaa](https://github.com/hallyhaa)
