@@ -256,7 +256,8 @@ impl Painter {
                 // Prefer pre multiplied over post multiplied!
                 if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
                     wgpu::CompositeAlphaMode::PreMultiplied
-                } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
+                } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied)
+                {
                     wgpu::CompositeAlphaMode::PostMultiplied
                 } else {
                     log::warn!(
