@@ -5,12 +5,12 @@
 use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
 use emath::GuiRounding as _;
-use epaint::Margin;
+use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
-    Context, CursorIcon, Id, NumExt as _, Pos2, Rangef, Rect, Response, Sense, Ui, UiBuilder,
-    UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp, pass_state, pos2, remap,
-    remap_clamp,
+    AsIdSalt, Context, CursorIcon, Id, IdSalt, NumExt as _, Pos2, Rangef, Rect, Response, Sense,
+    Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp, pass_state,
+    pos2, remap, remap_clamp,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -141,6 +141,51 @@ impl ScrollBarVisibility {
     ];
 }
 
+/// When [`ScrollArea`] should let the user scroll by dragging the content.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum DragScroll {
+    /// Never scroll on pointer drag.
+    Never,
+
+    /// Only allow drag-to-scroll when a touch screen is detected
+    /// (see [`crate::InputState::has_touch_screen`]). The recommended default.
+    #[default]
+    OnTouch,
+
+    /// Always allow drag-to-scroll, even with a mouse.
+    Always,
+}
+
+impl DragScroll {
+    /// Whether drag-to-scroll is currently active.
+    ///
+    /// Checks if we have a touch screen (via [`crate::InputState::has_touch_screen`])
+    /// when `self` is [`Self::OnTouch`].
+    pub fn enabled(self, ctx: &Context) -> bool {
+        match self {
+            Self::Never => false,
+            Self::OnTouch => ctx.input(|i| i.has_touch_screen()),
+            Self::Always => true,
+        }
+    }
+}
+
+impl BitOr for DragScroll {
+    type Output = Self;
+
+    /// Combine two settings, picking the more permissive one.
+    /// `Always > OnTouch > Never`.
+    #[inline]
+    fn bitor(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Self::Always, _) | (_, Self::Always) => Self::Always,
+            (Self::OnTouch, _) | (_, Self::OnTouch) => Self::OnTouch,
+            (Self::Never, Self::Never) => Self::Never,
+        }
+    }
+}
+
 /// What is the source of scrolling for a [`ScrollArea`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -152,7 +197,11 @@ pub struct ScrollSource {
     pub scroll_bar: bool,
 
     /// Scroll the area by dragging the contents.
-    pub drag: bool,
+    ///
+    /// Defaults to [`DragScroll::OnTouch`]: only active when a touch screen is
+    /// detected. Set to [`DragScroll::Always`] to force it on, or
+    /// [`DragScroll::Never`] to disable.
+    pub drag: DragScroll,
 
     /// Scroll the area by scrolling (or shift scrolling) the mouse wheel with
     /// the mouse cursor over the [`ScrollArea`].
@@ -160,35 +209,40 @@ pub struct ScrollSource {
 }
 
 impl Default for ScrollSource {
+    /// `scroll_bar` and `mouse_wheel` enabled; `drag` set to [`DragScroll::OnTouch`].
     fn default() -> Self {
-        Self::ALL
+        Self {
+            scroll_bar: true,
+            drag: DragScroll::OnTouch,
+            mouse_wheel: true,
+        }
     }
 }
 
 impl ScrollSource {
     pub const NONE: Self = Self {
         scroll_bar: false,
-        drag: false,
+        drag: DragScroll::Never,
         mouse_wheel: false,
     };
     pub const ALL: Self = Self {
         scroll_bar: true,
-        drag: true,
+        drag: DragScroll::Always,
         mouse_wheel: true,
     };
     pub const SCROLL_BAR: Self = Self {
         scroll_bar: true,
-        drag: false,
+        drag: DragScroll::Never,
         mouse_wheel: false,
     };
     pub const DRAG: Self = Self {
         scroll_bar: false,
-        drag: true,
+        drag: DragScroll::Always,
         mouse_wheel: false,
     };
     pub const MOUSE_WHEEL: Self = Self {
         scroll_bar: false,
-        drag: false,
+        drag: DragScroll::Never,
         mouse_wheel: true,
     };
 
@@ -201,13 +255,13 @@ impl ScrollSource {
     /// Is anything enabled?
     #[inline]
     pub fn any(&self) -> bool {
-        self.scroll_bar | self.drag | self.mouse_wheel
+        self.scroll_bar || self.drag != DragScroll::Never || self.mouse_wheel
     }
 
     /// Is everything enabled?
     #[inline]
     pub fn is_all(&self) -> bool {
-        self.scroll_bar & self.drag & self.mouse_wheel
+        self.scroll_bar && self.drag == DragScroll::Always && self.mouse_wheel
     }
 }
 
@@ -290,7 +344,7 @@ pub struct ScrollArea {
     min_scrolled_size: Vec2,
     scroll_bar_visibility: ScrollBarVisibility,
     scroll_bar_rect: Option<Rect>,
-    id_salt: Option<Id>,
+    id_salt: Option<IdSalt>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
     on_hover_cursor: Option<CursorIcon>,
@@ -423,17 +477,10 @@ impl ScrollArea {
         self
     }
 
-    /// A source for the unique [`Id`], e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
-    #[inline]
-    #[deprecated = "Renamed id_salt"]
-    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt(id_salt)
-    }
-
     /// A source for the unique [`Id`], e.g. `.id_salt("second_scroll_area")` or `.id_salt(loop_index)`.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt = Some(Id::new(id_salt));
+    pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
+        self.id_salt = Some(IdSalt::new(id_salt));
         self
     }
 
@@ -530,32 +577,6 @@ impl ScrollArea {
     /// This can be used, for example, to optionally freeze scrolling while the user
     /// is typing text in a [`crate::TextEdit`] widget contained within the scroll area.
     ///
-    /// This controls both scrolling directions.
-    #[deprecated = "Use `ScrollArea::scroll_source()"]
-    #[inline]
-    pub fn enable_scrolling(mut self, enable: bool) -> Self {
-        self.scroll_source = if enable {
-            ScrollSource::ALL
-        } else {
-            ScrollSource::NONE
-        };
-        self
-    }
-
-    /// Can the user drag the scroll area to scroll?
-    ///
-    /// This is useful for touch screens.
-    ///
-    /// If `true`, the [`ScrollArea`] will sense drags.
-    ///
-    /// Default: `true`.
-    #[deprecated = "Use `ScrollArea::scroll_source()"]
-    #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
-        self.scroll_source.drag = drag_to_scroll;
-        self
-    }
-
     /// What sources does the [`ScrollArea`] use for scrolling the contents.
     #[inline]
     pub fn scroll_source(mut self, scroll_source: ScrollSource) -> Self {
@@ -709,7 +730,7 @@ impl ScrollArea {
 
         let ctx = ui.ctx().clone();
 
-        let id_salt = id_salt.unwrap_or_else(|| Id::new("scroll_area"));
+        let id_salt = id_salt.unwrap_or_else(|| IdSalt::new("scroll_area"));
         let id = ui.make_persistent_id(id_salt);
         ctx.check_for_id_clash(
             id,
@@ -808,72 +829,74 @@ impl ScrollArea {
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
         let dt = ui.input(|i| i.stable_dt).at_most(0.1);
 
-        let background_drag_response =
-            if scroll_source.drag && ui.is_enabled() && state.content_is_too_large.any() {
-                // Drag contents to scroll (for touch screens mostly).
-                // We must do this BEFORE adding content to the `ScrollArea`,
-                // or we will steal input from the widgets we contain.
-                let content_response_option = state
-                    .interact_rect
-                    .map(|rect| ui.interact(rect, id.with("area"), Sense::DRAG));
+        let background_drag_response = if scroll_source.drag.enabled(ui.ctx())
+            && ui.is_enabled()
+            && state.content_is_too_large.any()
+        {
+            // Drag contents to scroll (for touch screens mostly).
+            // We must do this BEFORE adding content to the `ScrollArea`,
+            // or we will steal input from the widgets we contain.
+            let content_response_option = state
+                .interact_rect
+                .map(|rect| ui.interact(rect, id.with("area"), Sense::DRAG));
 
+            if content_response_option
+                .as_ref()
+                .is_some_and(|response| response.dragged())
+            {
+                for d in 0..2 {
+                    if direction_enabled[d] {
+                        ui.input(|input| {
+                            state.offset[d] -= input.pointer.delta()[d];
+                        });
+                        state.scroll_stuck_to_end[d] = false;
+                        state.offset_target[d] = None;
+                    }
+                }
+            } else {
+                // Apply the cursor velocity to the scroll area when the user releases the drag.
                 if content_response_option
                     .as_ref()
-                    .is_some_and(|response| response.dragged())
+                    .is_some_and(|response| response.drag_stopped())
                 {
-                    for d in 0..2 {
-                        if direction_enabled[d] {
-                            ui.input(|input| {
-                                state.offset[d] -= input.pointer.delta()[d];
-                            });
-                            state.scroll_stuck_to_end[d] = false;
-                            state.offset_target[d] = None;
-                        }
-                    }
-                } else {
-                    // Apply the cursor velocity to the scroll area when the user releases the drag.
-                    if content_response_option
-                        .as_ref()
-                        .is_some_and(|response| response.drag_stopped())
-                    {
-                        state.vel = direction_enabled.to_vec2()
-                            * ui.input(|input| input.pointer.velocity());
-                    }
-                    for d in 0..2 {
-                        // Kinetic scrolling
-                        let stop_speed = 20.0; // Pixels per second.
-                        let friction_coeff = 1000.0; // Pixels per second squared.
+                    state.vel =
+                        direction_enabled.to_vec2() * ui.input(|input| input.pointer.velocity());
+                }
+                for d in 0..2 {
+                    // Kinetic scrolling
+                    let stop_speed = 20.0; // Pixels per second.
+                    let friction_coeff = 1000.0; // Pixels per second squared.
 
-                        let friction = friction_coeff * dt;
-                        if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
-                            state.vel[d] = 0.0;
-                        } else {
-                            state.vel[d] -= friction * state.vel[d].signum();
-                            // Offset has an inverted coordinate system compared to
-                            // the velocity, so we subtract it instead of adding it
-                            state.offset[d] -= state.vel[d] * dt;
-                            ctx.request_repaint();
-                        }
+                    let friction = friction_coeff * dt;
+                    if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
+                        state.vel[d] = 0.0;
+                    } else {
+                        state.vel[d] -= friction * state.vel[d].signum();
+                        // Offset has an inverted coordinate system compared to
+                        // the velocity, so we subtract it instead of adding it
+                        state.offset[d] -= state.vel[d] * dt;
+                        ctx.request_repaint();
                     }
                 }
+            }
 
-                // Set the desired mouse cursors.
-                if let Some(response) = &content_response_option {
-                    if response.dragged()
-                        && let Some(cursor) = on_drag_cursor
-                    {
-                        ui.set_cursor_icon(cursor);
-                    } else if response.hovered()
-                        && let Some(cursor) = on_hover_cursor
-                    {
-                        ui.set_cursor_icon(cursor);
-                    }
+            // Set the desired mouse cursors.
+            if let Some(response) = &content_response_option {
+                if response.dragged()
+                    && let Some(cursor) = on_drag_cursor
+                {
+                    ui.set_cursor_icon(cursor);
+                } else if response.hovered()
+                    && let Some(cursor) = on_hover_cursor
+                {
+                    ui.set_cursor_icon(cursor);
                 }
+            }
 
-                content_response_option
-            } else {
-                None
-            };
+            content_response_option
+        } else {
+            None
+        };
 
         // Scroll with an animation if we have a target offset (that hasn't been cleared by the code
         // above).
@@ -1024,13 +1047,17 @@ impl ScrollArea {
             .inner;
 
         let (content_size, state) = prepared.end(ui);
-        ScrollAreaOutput {
+        let output = ScrollAreaOutput {
             inner,
             id,
             state,
             content_size,
             inner_rect,
-        }
+        };
+
+        paint_fade_areas(ui, &output);
+
+        output
     }
 }
 
@@ -1062,6 +1089,8 @@ impl Prepared {
         let scroll_delta = content_ui
             .ctx()
             .pass_state_mut(|state| std::mem::take(&mut state.scroll_delta));
+
+        let mut had_explicit_scroll_adjustment = Vec2b::FALSE;
 
         for d in 0..2 {
             // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
@@ -1133,6 +1162,10 @@ impl Prepared {
                     }
                     ui.request_repaint();
                 }
+            }
+
+            if delta != 0.0 {
+                had_explicit_scroll_adjustment[d] = true;
             }
         }
 
@@ -1241,8 +1274,10 @@ impl Prepared {
         // Paint the bars:
         let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
         for d in 0..2 {
-            // maybe force increase in offset to keep scroll stuck to end position
-            if stick_to_end[d] && state.scroll_stuck_to_end[d] {
+            // maybe force increase in offset to keep scroll stuck to end position,
+            // unless this axis had an explicit scroll adjustment.
+            if stick_to_end[d] && state.scroll_stuck_to_end[d] && !had_explicit_scroll_adjustment[d]
+            {
                 state.offset[d] = content_size[d] - inner_rect.size()[d];
             }
 
@@ -1494,16 +1529,25 @@ impl Prepared {
         state.offset = state.offset.min(available_offset);
         state.offset = state.offset.max(Vec2::ZERO);
 
+        let suppress_stuck_recompute = Vec2b::new(
+            had_explicit_scroll_adjustment[0] && state.offset_target[0].is_some(),
+            had_explicit_scroll_adjustment[1] && state.offset_target[1].is_some(),
+        );
+
         // Is scroll handle at end of content, or is there no scrollbar
         // yet (not enough content), but sticking is requested? If so, enter sticky mode.
         // Only has an effect if stick_to_end is enabled but we save in
         // state anyway so that entering sticky mode at an arbitrary time
         // has appropriate effect.
+        // Keep explicit target requests from being reclassified as "still stuck" in the same
+        // frame, otherwise animated scroll-to requests never get a chance to pull away from the end.
         state.scroll_stuck_to_end = Vec2b::new(
-            (state.offset[0] == available_offset[0])
-                || (self.stick_to_end[0] && available_offset[0] < 0.0),
-            (state.offset[1] == available_offset[1])
-                || (self.stick_to_end[1] && available_offset[1] < 0.0),
+            !suppress_stuck_recompute[0]
+                && ((state.offset[0] == available_offset[0])
+                    || (stick_to_end[0] && available_offset[0] < 0.0)),
+            !suppress_stuck_recompute[1]
+                && ((state.offset[1] == available_offset[1])
+                    || (stick_to_end[1] && available_offset[1] < 0.0)),
         );
 
         state.show_scroll = show_scroll_this_frame;
@@ -1513,5 +1557,90 @@ impl Prepared {
         state.store(ui.ctx(), id);
 
         (content_size, state)
+    }
+}
+
+/// Paint fade-out gradients at the top and/or bottom of a scroll area to
+/// indicate that more content is available beyond the visible region.
+fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
+    let crate::style::ScrollFadeStyle {
+        strength,
+        size: fade_size,
+    } = ui.spacing().scroll.fade;
+
+    if strength <= 0.0 {
+        return;
+    }
+
+    let bg = ui.stack().bg_color();
+
+    let offset = scroll_output.state.offset;
+    let overflow = scroll_output.content_size - scroll_output.inner_rect.size();
+
+    let paint_rect = scroll_output
+        .inner_rect
+        .intersect(ui.min_rect())
+        .expand(ui.visuals().clip_rect_margin);
+
+    // Top fade: animate opacity based on how far we've scrolled down.
+    if 0.0 < offset.y {
+        let t = (offset.y / fade_size).clamp(0.0, 1.0) * strength;
+        let bg_faded = bg.gamma_multiply(t);
+        let rect = Rect::from_min_max(
+            paint_rect.left_top(),
+            pos2(paint_rect.right(), paint_rect.top() + fade_size),
+        );
+        ui.painter().add(Shape::gradient_rect(
+            rect,
+            Direction::TopDown,
+            [bg_faded, Color32::TRANSPARENT],
+        ));
+    }
+
+    // Bottom fade: animate opacity based on distance from the bottom.
+    let distance_from_bottom = overflow.y - offset.y;
+    if 0.0 < distance_from_bottom {
+        let t = (distance_from_bottom / fade_size).clamp(0.0, 1.0) * strength;
+        let bg_faded = bg.gamma_multiply(t);
+        let rect = Rect::from_min_max(
+            pos2(paint_rect.left(), paint_rect.bottom() - fade_size),
+            paint_rect.right_bottom(),
+        );
+        ui.painter().add(Shape::gradient_rect(
+            rect,
+            Direction::BottomUp,
+            [bg_faded, Color32::TRANSPARENT],
+        ));
+    }
+
+    // Left fade: animate opacity based on how far we've scrolled right.
+    if 0.0 < offset.x {
+        let t = (offset.x / fade_size).clamp(0.0, 1.0) * strength;
+        let bg_faded = bg.gamma_multiply(t);
+        let rect = Rect::from_min_max(
+            paint_rect.left_top(),
+            pos2(paint_rect.left() + fade_size, paint_rect.bottom()),
+        );
+        ui.painter().add(Shape::gradient_rect(
+            rect,
+            Direction::LeftToRight,
+            [bg_faded, Color32::TRANSPARENT],
+        ));
+    }
+
+    // Right fade: animate opacity based on distance from the right edge.
+    let distance_from_right = overflow.x - offset.x;
+    if 0.0 < distance_from_right {
+        let t = (distance_from_right / fade_size).clamp(0.0, 1.0) * strength;
+        let bg_faded = bg.gamma_multiply(t);
+        let rect = Rect::from_min_max(
+            pos2(paint_rect.right() - fade_size, paint_rect.top()),
+            paint_rect.right_bottom(),
+        );
+        ui.painter().add(Shape::gradient_rect(
+            rect,
+            Direction::RightToLeft,
+            [bg_faded, Color32::TRANSPARENT],
+        ));
     }
 }

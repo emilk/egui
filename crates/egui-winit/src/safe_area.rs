@@ -36,8 +36,8 @@ mod ios {
                             | UISceneActivationState::ForegroundInactive
                     )
                 {
-                    // Safe to cast, the class kind was checked above
-                    let window_scene = Retained::cast::<UIWindowScene>(scene.clone());
+                    // SAFETY: class kind was checked above with `isKindOfClass`
+                    let window_scene = Retained::cast_unchecked::<UIWindowScene>(scene.clone());
                     if let Some(window) = window_scene.keyWindow() {
                         let insets = window.safeAreaInsets();
                         return SafeAreaInsets(MarginF32 {

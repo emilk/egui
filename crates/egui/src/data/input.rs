@@ -12,7 +12,7 @@ use crate::{
 /// Set the values that make sense, leave the rest at their `Default::default()`.
 ///
 /// You can check if `egui` is using the inputs using
-/// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
+/// [`crate::Context::egui_wants_pointer_input`] and [`crate::Context::egui_wants_keyboard_input`].
 ///
 /// All coordinates are in points (logical pixels) with origin (0, 0) in the top left .corner.
 ///
@@ -64,8 +64,8 @@ pub struct RawInput {
     /// In-order events received this frame.
     ///
     /// There is currently no way to know if egui handles a particular event,
-    /// but you can check if egui is using the keyboard with [`crate::Context::wants_keyboard_input`]
-    /// and/or the pointer (mouse/touch) with [`crate::Context::is_using_pointer`].
+    /// but you can check if egui is using the keyboard with [`crate::Context::egui_wants_keyboard_input`]
+    /// and/or the pointer (mouse/touch) with [`crate::Context::egui_is_using_pointer`].
     pub events: Vec<Event>,
 
     /// Dragged files hovering over egui.
@@ -253,9 +253,28 @@ pub struct ViewportInfo {
     ///
     /// This should be the same as [`RawInput::focused`].
     pub focused: Option<bool>,
+
+    /// Is the window fully occluded (completely covered) by another window?
+    ///
+    /// Not all platforms support this.
+    /// On platforms that don't, this will be `None` or `Some(false)`.
+    pub occluded: Option<bool>,
 }
 
 impl ViewportInfo {
+    /// Is the window considered visible for rendering purposes?
+    ///
+    /// A window is not visible if it is minimized or occluded.
+    /// When not visible, the UI is not painted and rendering is skipped,
+    /// but application logic may still be executed by some integrations.
+    pub fn visible(&self) -> Option<bool> {
+        match (self.minimized, self.occluded) {
+            (Some(true), _) | (_, Some(true)) => Some(false),
+            (Some(false), Some(false)) => Some(true),
+            (_, None) | (None, _) => None,
+        }
+    }
+
     /// This viewport has been told to close.
     ///
     /// If this is the root viewport, the application will exit
@@ -282,6 +301,7 @@ impl ViewportInfo {
             maximized: self.maximized,
             fullscreen: self.fullscreen,
             focused: self.focused,
+            occluded: self.occluded,
         }
     }
 
@@ -298,6 +318,7 @@ impl ViewportInfo {
             maximized,
             fullscreen,
             focused,
+            occluded,
         } = self;
 
         crate::Grid::new("viewport_info").show(ui, |ui| {
@@ -345,12 +366,24 @@ impl ViewportInfo {
             ui.label(opt_as_str(focused));
             ui.end_row();
 
+            ui.label("Occluded:");
+            ui.label(opt_as_str(occluded));
+            ui.end_row();
+
+            let visible = self.visible();
+
+            ui.label("Visible:");
+            ui.label(opt_as_str(&visible));
+            ui.end_row();
+
+            #[expect(clippy::ref_option)]
             fn opt_rect_as_string(v: &Option<Rect>) -> String {
                 v.as_ref().map_or(String::new(), |r| {
                     format!("Pos: {:?}, size: {:?}", r.min, r.size())
                 })
             }
 
+            #[expect(clippy::ref_option)]
             fn opt_as_str<T: std::fmt::Debug>(v: &Option<T>) -> String {
                 v.as_ref().map_or(String::new(), |v| format!("{v:?}"))
             }
@@ -410,6 +443,10 @@ pub enum Event {
     Text(String),
 
     /// A key was pressed or released.
+    ///
+    /// ## Note for integration authors
+    ///
+    /// Key events that has been processed by IMEs should not be sent to `egui`.
     Key {
         /// Most of the time, it's the logical key, heeding the active keymap -- for instance, if the user has Dvorak
         /// keyboard layout, it will be taken into account.
@@ -568,15 +605,22 @@ pub enum Event {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImeEvent {
     /// Notifies when the IME was enabled.
+    #[deprecated = "No longer used by egui"]
     Enabled,
 
     /// A new IME candidate is being suggested.
+    ///
+    /// An empty preedit string indicates that the IME has been dismissed, while
+    /// a non-empty preedit string indicates that the IME is active.
     Preedit(String),
 
     /// IME composition ended with this final result.
+    ///
+    /// The IME is considered dismissed after this event.
     Commit(String),
 
     /// Notifies when the IME was disabled.
+    #[deprecated = "No longer used by egui"]
     Disabled,
 }
 

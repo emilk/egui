@@ -1,7 +1,7 @@
 //! Handles paint layers, i.e. how things
 //! are sometimes painted behind or in front of other things.
 
-use crate::{Id, IdMap, Rect, ahash, epaint};
+use crate::{Id, IdMap, Rect, epaint};
 use epaint::{ClippedShape, Shape, emath::TSTransform};
 
 /// Different layer categories
@@ -84,12 +84,6 @@ impl LayerId {
             order: Order::Background,
             id: Id::new("background"),
         }
-    }
-
-    #[inline(always)]
-    #[deprecated = "Use `Memory::allows_interaction` instead"]
-    pub fn allow_interaction(&self) -> bool {
-        self.order.allow_interaction()
     }
 
     /// Short and readable summary

@@ -199,16 +199,15 @@ pub struct PassState {
 
     pub tooltips: TooltipPassState,
 
-    /// Starts off as the `screen_rect`, shrinks as panels are added.
-    /// The [`crate::CentralPanel`] does not change this.
-    pub available_rect: Rect,
+    /// What the root UI had available at the end of the previous pass.
+    ///
+    /// Only set if [`crate::Context::run_ui`] has been called.
+    pub root_ui_available_rect: Option<Rect>,
 
-    /// Starts off as the `screen_rect`, shrinks as panels are added.
-    /// The [`crate::CentralPanel`] retracts from this.
-    pub unused_rect: Rect,
-
-    /// How much space is used by panels.
-    pub used_by_panels: Rect,
+    /// What the root UI had used at the end of the previous pass.
+    ///
+    /// Only set if [`crate::Context::run_ui`] has been called.
+    pub root_ui_min_rect: Option<Rect>,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
     pub scroll_target: [Option<ScrollTarget>; 2],
@@ -240,9 +239,8 @@ impl Default for PassState {
             widgets: Default::default(),
             layers: Default::default(),
             tooltips: Default::default(),
-            available_rect: Rect::NAN,
-            unused_rect: Rect::NAN,
-            used_by_panels: Rect::NAN,
+            root_ui_available_rect: None,
+            root_ui_min_rect: None,
             scroll_target: [None, None],
             scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
             accesskit_state: None,
@@ -255,16 +253,15 @@ impl Default for PassState {
 }
 
 impl PassState {
-    pub(crate) fn begin_pass(&mut self, content_rect: Rect) {
+    pub(crate) fn begin_pass(&mut self) {
         profiling::function_scope!();
         let Self {
             used_ids,
             widgets,
             tooltips,
             layers,
-            available_rect,
-            unused_rect,
-            used_by_panels,
+            root_ui_available_rect,
+            root_ui_min_rect,
             scroll_target,
             scroll_delta,
             accesskit_state,
@@ -278,9 +275,8 @@ impl PassState {
         widgets.clear();
         tooltips.clear();
         layers.clear();
-        *available_rect = content_rect;
-        *unused_rect = content_rect;
-        *used_by_panels = Rect::NOTHING;
+        *root_ui_available_rect = None;
+        *root_ui_min_rect = None;
         *scroll_target = [None, None];
         *scroll_delta = Default::default();
 
@@ -292,65 +288,5 @@ impl PassState {
         *accesskit_state = None;
 
         highlight_next_pass.clear();
-    }
-
-    /// How much space is still available after panels has been added.
-    pub(crate) fn available_rect(&self) -> Rect {
-        debug_assert!(
-            self.available_rect.is_finite(),
-            "Called `available_rect()` before `Context::run()`"
-        );
-        self.available_rect
-    }
-
-    /// Shrink `available_rect`.
-    pub(crate) fn allocate_left_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
-            panel_rect.min.distance(self.available_rect.min) < 0.1,
-            "Mismatching left panel. You must not create a panel from within another panel."
-        );
-        self.available_rect.min.x = panel_rect.max.x;
-        self.unused_rect.min.x = panel_rect.max.x;
-        self.used_by_panels |= panel_rect;
-    }
-
-    /// Shrink `available_rect`.
-    pub(crate) fn allocate_right_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
-            panel_rect.max.distance(self.available_rect.max) < 0.1,
-            "Mismatching right panel. You must not create a panel from within another panel."
-        );
-        self.available_rect.max.x = panel_rect.min.x;
-        self.unused_rect.max.x = panel_rect.min.x;
-        self.used_by_panels |= panel_rect;
-    }
-
-    /// Shrink `available_rect`.
-    pub(crate) fn allocate_top_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
-            panel_rect.min.distance(self.available_rect.min) < 0.1,
-            "Mismatching top panel. You must not create a panel from within another panel."
-        );
-        self.available_rect.min.y = panel_rect.max.y;
-        self.unused_rect.min.y = panel_rect.max.y;
-        self.used_by_panels |= panel_rect;
-    }
-
-    /// Shrink `available_rect`.
-    pub(crate) fn allocate_bottom_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
-            panel_rect.max.distance(self.available_rect.max) < 0.1,
-            "Mismatching bottom panel. You must not create a panel from within another panel."
-        );
-        self.available_rect.max.y = panel_rect.min.y;
-        self.unused_rect.max.y = panel_rect.min.y;
-        self.used_by_panels |= panel_rect;
-    }
-
-    pub(crate) fn allocate_central_panel(&mut self, panel_rect: Rect) {
-        // Note: we do not shrink `available_rect`, because
-        // we allow windows to cover the CentralPanel.
-        self.unused_rect = Rect::NOTHING; // Nothing left unused after this
-        self.used_by_panels |= panel_rect;
     }
 }

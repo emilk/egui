@@ -12,8 +12,8 @@ repository = "https://github.com/emilk/egui/tree/main/crates/epaint_default_font
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
 include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
+  "../../LICENSE-APACHE",
+  "../../LICENSE-MIT",
   "**/*.rs",
   "Cargo.toml",
   "fonts/*.ttf",

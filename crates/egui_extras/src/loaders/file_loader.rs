@@ -3,7 +3,7 @@ use egui::{
     load::{Bytes, BytesLoadResult, BytesLoader, BytesPoll, LoadError},
     mutex::Mutex,
 };
-use std::{sync::Arc, task::Poll, thread};
+use std::{path::PathBuf, sync::Arc, task::Poll, thread};
 
 #[derive(Clone)]
 struct File {
@@ -25,17 +25,39 @@ impl FileLoader {
 
 const PROTOCOL: &str = "file://";
 
-/// Remove the leading slash from the path if the target OS is Windows.
+/// Converts a hopefully uri encoded string into a `PathBuf`
 ///
-/// This is because Windows paths are not supposed to start with a slash.
-/// For example, `file:///C:/path/to/file` is a valid URI, but `/C:/path/to/file` is not a valid path.
-#[inline]
-fn trim_extra_slash(s: &str) -> &str {
+/// Note that there is only minimal translation of the uri string into a path to support windows
+/// file and unc paths. Other translations like percent un-encoding are not handled.
+fn convert_uri_to_path(s: &str) -> Result<PathBuf, egui::load::LoadError> {
+    // File loader only supports the `file` protocol.
+    let s = s
+        .strip_prefix(PROTOCOL)
+        .ok_or(egui::load::LoadError::NotSupported)?;
+
     if cfg!(target_os = "windows") {
-        s.trim_start_matches('/')
-    } else {
-        s
+        // Standard windows file uris should have the form
+        //
+        // file:///c:/path/to/the%20file.txt
+        //
+        // in which the hostname field is left out. Check for this by looking at the next character
+        // after the schema, if it's a slash then we likely have a standard file path.
+        if let Some(stripped) = s.strip_prefix("/") {
+            let path = PathBuf::from(stripped);
+            return Ok(path);
+        }
+
+        // If it's not a standard file uri, it might be a UNC network path of the form
+        //
+        // file://hostname/path/to/the%20file.txt
+        //
+        // These file uris need to be converted into UNC correct and so need to have the leading
+        // two backslashes prepended.
+        let path = PathBuf::from(format!("\\\\{s}"));
+        return Ok(path);
     }
+
+    Ok(PathBuf::from(s))
 }
 
 impl BytesLoader for FileLoader {
@@ -44,10 +66,7 @@ impl BytesLoader for FileLoader {
     }
 
     fn load(&self, ctx: &egui::Context, uri: &str) -> BytesLoadResult {
-        // File loader only supports the `file` protocol.
-        let Some(path) = uri.strip_prefix(PROTOCOL).map(trim_extra_slash) else {
-            return Err(LoadError::NotSupported);
-        };
+        let path = convert_uri_to_path(uri)?;
 
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(uri).cloned() {
@@ -66,7 +85,6 @@ impl BytesLoader for FileLoader {
             // We need to load the file at `path`.
 
             // Set the file to `pending` until we finish loading it.
-            let path = path.to_owned();
             cache.insert(uri.to_owned(), Poll::Pending);
             drop(cache);
 
@@ -144,5 +162,61 @@ impl BytesLoader for FileLoader {
 
     fn has_pending(&self) -> bool {
         self.cache.lock().values().any(|entry| entry.is_pending())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_convert_uri_to_path() {
+        let mut checks: Vec<(&str, Result<PathBuf, egui::load::LoadError>, &str)> = vec![
+            (
+                "http://host/path/to/image.jpg",
+                Err(egui::load::LoadError::NotSupported),
+                "Schemas other than file are rejected.",
+            ),
+            (
+                "https://host/path/to/image.jpg",
+                Err(egui::load::LoadError::NotSupported),
+                "Schemas other than file are rejected.",
+            ),
+            (
+                "ftp://host/path/to/image.jpg",
+                Err(egui::load::LoadError::NotSupported),
+                "Schemas other than file are rejected.",
+            ),
+        ];
+        if cfg!(target_os = "windows") {
+            let mut windows_checks = vec![
+                (
+                    "file:///path/to/image.jpg",
+                    Ok(PathBuf::from("path\\to\\image.jpg")),
+                    "file uris with no hosts and no drive letter are turned into bare paths on windows.",
+                ),
+                (
+                    "file:///c:/path/to/image.jpg",
+                    Ok(PathBuf::from("c:\\path\\to\\image.jpg")),
+                    "file uris with no hosts and drive letters are turned into absolute paths on windows.",
+                ),
+                (
+                    "file://host/share/path/to/image.jpg",
+                    Ok(PathBuf::from("\\\\host\\share\\path\\to\\image.jpg")),
+                    "file uris with a host are turned into UNC paths with leading backslashes on windows.",
+                ),
+            ];
+            checks.append(&mut windows_checks);
+        } else {
+            let mut more_checks = vec![(
+                "file://path/to/image.jpg",
+                Ok(PathBuf::from("path/to/image.jpg")),
+                "file uris are turned into bare paths.",
+            )];
+            checks.append(&mut more_checks);
+        }
+        for (uri_s, path, reason) in checks {
+            assert_eq!(convert_uri_to_path(uri_s), path, "{reason}");
+        }
     }
 }

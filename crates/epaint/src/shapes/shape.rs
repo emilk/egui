@@ -5,7 +5,7 @@ use std::sync::Arc;
 use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
 
 use crate::{
-    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
+    Color32, CornerRadius, Direction, Mesh, Stroke, StrokeKind, TextureId, Vertex,
     stroke::PathStroke,
     text::{FontId, FontsView, Galley},
 };
@@ -297,6 +297,32 @@ impl Shape {
         Self::Rect(RectShape::stroke(rect, corner_radius, stroke, stroke_kind))
     }
 
+    /// Paints a gradient rectangle that transitions from `color_from` to `color_to`
+    /// along the given `direction`.
+    ///
+    /// For example, [`Direction::TopDown`] paints `color_from` at the top edge fading
+    /// to `color_to` at the bottom edge.
+    #[inline]
+    pub fn gradient_rect(rect: Rect, direction: Direction, [from, to]: [Color32; 2]) -> Self {
+        let (left_top, right_top, left_bottom, right_bottom) = match direction {
+            Direction::TopDown => (from, from, to, to),
+            Direction::BottomUp => (to, to, from, from),
+            Direction::LeftToRight => (from, to, from, to),
+            Direction::RightToLeft => (to, from, to, from),
+        };
+
+        Self::from(Mesh {
+            indices: vec![0, 1, 2, 2, 1, 3],
+            vertices: vec![
+                Vertex::untextured(rect.left_top(), left_top),
+                Vertex::untextured(rect.right_top(), right_top),
+                Vertex::untextured(rect.left_bottom(), left_bottom),
+                Vertex::untextured(rect.right_bottom(), right_bottom),
+            ],
+            texture_id: Default::default(),
+        })
+    }
+
     #[expect(clippy::needless_pass_by_value)]
     pub fn text(
         fonts: &mut FontsView<'_>,
@@ -329,12 +355,6 @@ impl Shape {
         TextShape::new(pos, galley, text_color)
             .with_override_text_color(text_color)
             .into()
-    }
-
-    #[inline]
-    #[deprecated = "Use `Shape::galley` or `Shape::galley_with_override_text_color` instead"]
-    pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {
-        Self::galley_with_override_text_color(pos, galley, text_color)
     }
 
     #[inline]

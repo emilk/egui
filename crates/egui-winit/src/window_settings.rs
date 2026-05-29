@@ -158,21 +158,28 @@ fn find_active_monitor(
         return None; // no monitors 🤷
     };
 
+    let mut active_monitor_overlap = 0.0;
     for monitor in monitors {
         let window_size_px = window_size_pts * (egui_zoom_factor * monitor.scale_factor() as f32);
-        let monitor_x_range = (monitor.position().x - window_size_px.x as i32)
-            ..(monitor.position().x + monitor.size().width as i32);
-        let monitor_y_range = (monitor.position().y - window_size_px.y as i32)
-            ..(monitor.position().y + monitor.size().height as i32);
+        let window_rect = egui::Rect::from_min_size(*position_px, window_size_px);
+        let overlap = window_rect.intersect(monitor_rect_px(&monitor)).area();
 
-        if monitor_x_range.contains(&(position_px.x as i32))
-            && monitor_y_range.contains(&(position_px.y as i32))
-        {
+        if active_monitor_overlap < overlap {
             active_monitor = monitor;
+            active_monitor_overlap = overlap;
         }
     }
 
     Some(active_monitor)
+}
+
+fn monitor_rect_px(monitor: &winit::monitor::MonitorHandle) -> egui::Rect {
+    let pos = monitor.position();
+    let size = monitor.size();
+    egui::Rect::from_min_size(
+        egui::pos2(pos.x as f32, pos.y as f32),
+        egui::vec2(size.width as f32, size.height as f32),
+    )
 }
 
 fn clamp_pos_to_monitors(
@@ -198,19 +205,12 @@ fn clamp_pos_to_monitors(
             32.0 * egui_zoom_factor * active_monitor.scale_factor() as f32,
         );
     }
-    let monitor_position = egui::Pos2::new(
-        active_monitor.position().x as f32,
-        active_monitor.position().y as f32,
-    );
-    let monitor_size_px = egui::Vec2::new(
-        active_monitor.size().width as f32,
-        active_monitor.size().height as f32,
-    );
+    let monitor_rect = monitor_rect_px(&active_monitor);
 
     // Window size cannot be negative or the subsequent `clamp` will panic.
-    let window_size = (monitor_size_px - window_size_px).max(egui::Vec2::ZERO);
+    let window_size = (monitor_rect.size() - window_size_px).max(egui::Vec2::ZERO);
     // To get the maximum position, we get the rightmost corner of the display, then
     // subtract the size of the window to get the bottom right most value window.position
     // can have.
-    *position_px = position_px.clamp(monitor_position, monitor_position + window_size);
+    *position_px = position_px.clamp(monitor_rect.min, monitor_rect.min + window_size);
 }
