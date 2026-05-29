@@ -37,17 +37,13 @@ pub struct TextEditState {
     /// Controls the text selection.
     pub cursor: TextCursorState,
 
+    /// The purpose of the cursor.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) cursor_purpose: TextEditCursorPurpose,
+
     /// Wrapped in Arc for cheaper clones.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) undoer: Arc<Mutex<TextEditUndoer>>,
-
-    // If IME candidate window is shown on this text edit.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) ime_enabled: bool,
-
-    // cursor range for IME candidate.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) ime_cursor_range: CCursorRange,
 
     // Text offset within the widget area.
     // Used for sensing and singleline text clipping.
@@ -81,4 +77,14 @@ impl TextEditState {
     pub fn clear_undoer(&mut self) {
         self.set_undoer(TextEditUndoer::default());
     }
+}
+
+#[derive(Clone, Default)]
+pub(crate) enum TextEditCursorPurpose {
+    /// The cursor is used for text selection.
+    #[default]
+    Selection,
+
+    /// The cursor is used for IME composition.
+    ImeComposition,
 }

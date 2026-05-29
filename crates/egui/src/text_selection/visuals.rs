@@ -61,15 +61,13 @@ pub fn paint_text_selection(
             let last_glyph_index = if ri == max.row {
                 max.column
             } else {
-                row.glyphs.len() - 1
+                row.glyphs.len()
             };
 
             let first_vertex_index = row
                 .glyphs
                 .get(first_glyph_index)
-                .map_or(row.visuals.glyph_vertex_range.start, |g| {
-                    g.first_vertex as _
-                });
+                .map_or(row.visuals.glyph_vertex_range.end, |g| g.first_vertex as _);
             let last_vertex_index = row
                 .glyphs
                 .get(last_glyph_index)

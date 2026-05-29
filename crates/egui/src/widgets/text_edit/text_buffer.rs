@@ -1,9 +1,9 @@
 use std::{borrow::Cow, ops::Range};
 
-use epaint::{
-    Galley,
-    text::{TAB_SIZE, cursor::CCursor},
-};
+use epaint::{Galley, text::cursor::CCursor};
+
+/// One `\t` character is this many spaces wide (for indentation purposes).
+const TAB_SIZE: usize = 4;
 
 use crate::{
     text::CCursorRange,

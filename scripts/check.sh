@@ -29,7 +29,6 @@ cargo check --quiet  --all-targets
 cargo check --quiet  --all-targets --all-features
 cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown
 cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
-# TODO(#5297) re-enable --all-features once the tests work with the unity feature
 cargo test  --quiet --all-targets --all-features
 cargo test  --quiet --doc # slow - checks all doc-tests
 

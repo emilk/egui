@@ -1,5 +1,5 @@
-use std::ops::Range;
 use std::sync::Arc;
+use std::{ops::Range, str::FromStr as _};
 
 use super::{
     cursor::{CCursor, LayoutCursor},
@@ -7,6 +7,8 @@ use super::{
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
+pub use font_types::Tag;
+use smallvec::SmallVec;
 
 /// Describes the task of laying out text.
 ///
@@ -77,6 +79,14 @@ pub struct LayoutJob {
 
     /// Round output sizes using [`emath::GuiRounding`], to avoid rounding errors in layout code.
     pub round_output_to_gui: bool,
+
+    /// If `false` (default), trailing whitespace is ignored when computing
+    /// horizontal alignment ([`Self::halign`]).
+    /// This is desirable for labels so that e.g. "Hello " centers the same as "Hello".
+    ///
+    /// If `true`, trailing whitespace is included in the row width used for alignment.
+    /// This is desirable for text editors where the user expects to see their spaces.
+    pub keep_trailing_whitespace: bool,
 }
 
 impl Default for LayoutJob {
@@ -91,6 +101,7 @@ impl Default for LayoutJob {
             halign: Align::LEFT,
             justify: false,
             round_output_to_gui: true,
+            keep_trailing_whitespace: false,
         }
     }
 }
@@ -214,6 +225,7 @@ impl std::hash::Hash for LayoutJob {
             halign,
             justify,
             round_output_to_gui,
+            keep_trailing_whitespace,
         } = self;
 
         text.hash(state);
@@ -224,6 +236,7 @@ impl std::hash::Hash for LayoutJob {
         halign.hash(state);
         justify.hash(state);
         round_output_to_gui.hash(state);
+        keep_trailing_whitespace.hash(state);
     }
 }
 
@@ -257,6 +270,107 @@ impl std::hash::Hash for LayoutSection {
 
 // ----------------------------------------------------------------------------
 
+/// Helper trait for all types that can be parsed as a [`font_types::Tag`].
+pub trait IntoTag {
+    fn into_tag(self) -> font_types::Tag;
+}
+
+impl IntoTag for font_types::Tag {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        self
+    }
+}
+
+impl IntoTag for u32 {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::from_u32(self)
+    }
+}
+
+impl IntoTag for [u8; 4] {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::new_checked(&self).expect("Invalid variation axis tag")
+    }
+}
+
+impl IntoTag for &[u8; 4] {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::new_checked(self).expect("Invalid variation axis tag")
+    }
+}
+
+impl IntoTag for &str {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::from_str(self).expect("Invalid variation axis tag")
+    }
+}
+
+/// List of font variation coordinates by axis tag. If more than one coordinate for a given axis is provided, the last
+/// one added is used.
+#[derive(Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct VariationCoords(SmallVec<[(font_types::Tag, f32); 2]>);
+
+impl VariationCoords {
+    /// Create a list of variation coordinates from a sequence of (tag, value) pairs.
+    ///
+    /// ## Example:
+    /// ```
+    /// use epaint::text::VariationCoords;
+    ///
+    /// let coords = VariationCoords::new([
+    ///     (b"wght", 500.0),
+    ///     (b"wdth", 75.0),
+    /// ]);
+    /// ```
+    pub fn new<T: IntoTag>(values: impl IntoIterator<Item = (T, f32)>) -> Self {
+        Self(values.into_iter().map(|(t, c)| (t.into_tag(), c)).collect())
+    }
+
+    /// Add a variation coordinate to the list.
+    #[inline(always)]
+    pub fn push(&mut self, tag: impl IntoTag, coord: f32) {
+        self.0.push((tag.into_tag(), coord));
+    }
+
+    /// Remove the coordinate at the given index.
+    pub fn remove(&mut self, index: usize) {
+        self.0.remove(index);
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+}
+
+impl AsRef<[(font_types::Tag, f32)]> for VariationCoords {
+    #[inline(always)]
+    fn as_ref(&self) -> &[(font_types::Tag, f32)] {
+        &self.0
+    }
+}
+
+impl AsMut<[(font_types::Tag, f32)]> for VariationCoords {
+    fn as_mut(&mut self) -> &mut [(font_types::Tag, f32)] {
+        &mut self.0
+    }
+}
+
+impl std::hash::Hash for VariationCoords {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.len().hash(state);
+        for (tag, coord) in &self.0 {
+            tag.hash(state);
+            OrderedFloat(*coord).hash(state);
+        }
+    }
+}
+
 /// Formatting option for a section of text.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -287,6 +401,8 @@ pub struct TextFormat {
     /// Default: 1.0
     pub expand_bg: f32,
 
+    pub coords: VariationCoords,
+
     pub italics: bool,
 
     pub underline: Stroke,
@@ -315,6 +431,7 @@ impl Default for TextFormat {
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
             expand_bg: 1.0,
+            coords: VariationCoords::default(),
             italics: false,
             underline: Stroke::NONE,
             strikethrough: Stroke::NONE,
@@ -333,6 +450,7 @@ impl std::hash::Hash for TextFormat {
             color,
             background,
             expand_bg,
+            coords,
             italics,
             underline,
             strikethrough,
@@ -346,6 +464,7 @@ impl std::hash::Hash for TextFormat {
         color.hash(state);
         background.hash(state);
         emath::OrderedFloat(*expand_bg).hash(state);
+        coords.hash(state);
         italics.hash(state);
         underline.hash(state);
         strikethrough.hash(state);
@@ -588,9 +707,12 @@ impl PlacedRow {
 
     /// Same as [`Self::rect`] but excluding the `LayoutSection::leading_space`.
     pub fn rect_without_leading_space(&self) -> Rect {
-        let x = self.glyphs.first().map_or(self.pos.x, |g| g.pos.x);
-        let size_x = self.size.x - x;
-        Rect::from_min_size(Pos2::new(x, self.pos.y), Vec2::new(size_x, self.size.y))
+        let x = self.pos.x + self.glyphs.first().map_or(0.0, |g| g.pos.x);
+        let right = self.pos.x + self.size.x;
+        Rect::from_min_max(
+            Pos2::new(x, self.pos.y),
+            Pos2::new(right, self.pos.y + self.size.y),
+        )
     }
 }
 
@@ -934,12 +1056,12 @@ impl Galley {
     }
 
     /// Returns a 0-width Rect.
-    fn pos_from_layout_cursor(&self, layout_cursor: &LayoutCursor) -> Rect {
+    pub fn pos_from_layout_cursor(&self, layout_cursor: &LayoutCursor) -> Rect {
         let Some(row) = self.rows.get(layout_cursor.row) else {
             return self.end_pos();
         };
 
-        let x = row.x_offset(layout_cursor.column);
+        let x = row.x_offset(layout_cursor.column) + row.pos.x;
         Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
     }
 
@@ -1136,7 +1258,8 @@ impl Galley {
 
             let new_layout_cursor = {
                 // keep same X coord
-                let column = self.rows[new_row].char_at(h_pos);
+                // char_at is Row-relative, so subtract the row's position
+                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
                 LayoutCursor {
                     row: new_row,
                     column,
@@ -1158,7 +1281,8 @@ impl Galley {
 
             let new_layout_cursor = {
                 // keep same X coord
-                let column = self.rows[new_row].char_at(h_pos);
+                // char_at is Row-relative, so subtract the row's position
+                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
                 LayoutCursor {
                     row: new_row,
                     column,
