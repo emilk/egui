@@ -117,6 +117,8 @@ impl UiBuilder {
     /// Make the new `Ui` disabled, i.e. grayed-out and non-interactive.
     ///
     /// Note that if the parent `Ui` is disabled, the child will always be disabled.
+    ///
+    /// See also [`egui::Ui::add_enabled`], [`egui::Ui::add_enabled_ui`] and [`egui::Ui::is_enabled`].
     #[inline]
     pub fn disabled(mut self) -> Self {
         self.disabled = true;
