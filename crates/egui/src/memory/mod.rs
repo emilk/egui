@@ -1416,7 +1416,6 @@ fn lost_focus_fires_after_mid_frame_focus_transfer() {
         focus.focused_widget = Some(FocusWidget::new(b));
     }
 
-
     // Frame N+1: `A` deferred lost_focus signal must fire
     {
         focus.begin_pass(&raw);
