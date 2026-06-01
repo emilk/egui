@@ -1050,8 +1050,6 @@ impl ScrollArea {
             inner_rect,
         };
 
-        paint_fade_areas(ui, &output);
-
         output
     }
 }
