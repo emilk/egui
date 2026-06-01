@@ -1042,15 +1042,13 @@ impl ScrollArea {
             .inner;
 
         let (content_size, state) = prepared.end(ui);
-        let output = ScrollAreaOutput {
+        ScrollAreaOutput {
             inner,
             id,
             state,
             content_size,
             inner_rect,
-        };
-
-        output
+        }
     }
 }
 
