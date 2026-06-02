@@ -6,14 +6,9 @@ use std::sync::Arc;
 /// A sized [`crate::AtomKind`].
 #[derive(Clone, Debug)]
 pub enum SizedAtomKind<'a> {
-    Empty {
-        size: Option<Vec2>,
-    },
+    Empty { size: Option<Vec2> },
     Text(Arc<Galley>),
-    Image {
-        image: Image<'a>,
-        size: Vec2,
-    },
+    Image { image: Image<'a>, size: Vec2 },
     Layout(Box<SizedAtomLayout<'a>>),
 }
 

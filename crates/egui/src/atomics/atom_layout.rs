@@ -297,10 +297,8 @@ impl<'a> AtomLayout<'a> {
 
         if let Some((index, item)) = shrink_item {
             // The `shrink` item gets the remaining space
-            let available_size_for_shrink_item = Vec2::new(
-                available_inner_size.x - inner_width,
-                available_inner_size.y,
-            );
+            let available_size_for_shrink_item =
+                Vec2::new(available_inner_size.x - inner_width, available_inner_size.y);
 
             let sized = item.into_sized(
                 ui,
@@ -383,7 +381,6 @@ pub struct SizedAtomLayout<'a> {
 
     /// Set the fallback (default) text color.
     pub fallback_text_color: Color32,
-
 
     /// The intrinsic (un-wrapped, un-grown) size, including margin. Used for
     /// [`Response::set_intrinsic_size`].
