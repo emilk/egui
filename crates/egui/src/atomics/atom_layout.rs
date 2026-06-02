@@ -536,14 +536,9 @@ impl<'atom> SizedAtomLayout<'atom> {
                 }
                 SizedAtomKind::Empty { .. } => {}
                 SizedAtomKind::Layout(layout) => {
-                    // Hand the nested layout the full (possibly grown) cell width so its own
-                    // `grow` atoms can expand, while keeping its measured height and honoring
-                    // this atom's vertical alignment within the row.
-                    let layout_rect = sized
-                        .align
-                        .align_size_within_rect(Vec2::new(frame.width(), size.y), frame);
-                    let layout_response = ui.interact(layout_rect, layout.id, layout.sense);
-                    layout.paint_at(ui, layout_rect, layout_response);
+                    // TODO(lucasmerlin): Add some kind of justify flag to AtomLayout
+                    let layout_response = ui.interact(frame, layout.id, layout.sense);
+                    layout.paint_at(ui, frame, layout_response);
                 }
             }
         }
