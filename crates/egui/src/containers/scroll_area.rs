@@ -53,6 +53,20 @@ pub struct State {
 
     /// Area that can be dragged. This is the size of the content from the last frame.
     interact_rect: Option<Rect>,
+
+    /// While drag-to-scrolling a single-axis area, the axis (0 = X, 1 = Y) the gesture has
+    /// committed to. Minor-axis motion is then ignored so a near-straight drag doesn't wobble
+    /// the cross axis. `None` until the drag is decidedly dragging; reset when the drag ends.
+    /// `both()` (2D) areas never lock so they can pan diagonally.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    drag_axis_lock: Option<usize>,
+
+    /// Was this area part of the drag-scroll gesture chain (it owned the drag, or the pointer
+    /// was over it) during the active drag? Used to route the release "fling" to the right areas
+    /// even after the pointer is gone (lifting a finger fires `PointerGone`, so the live pointer
+    /// can't be used). Reset once the gesture's motion ends.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    drag_received: bool,
 }
 
 impl Default for State {
@@ -67,6 +81,8 @@ impl Default for State {
             scroll_start_offset_from_top_left: [None; 2],
             scroll_stuck_to_end: Vec2b::TRUE,
             interact_rect: None,
+            drag_axis_lock: None,
+            drag_received: false,
         }
     }
 }
@@ -361,6 +377,10 @@ pub struct ScrollArea {
 
     /// If false, `scroll_to_*` functions will not be animated
     animated: bool,
+
+    /// Whether drag-to-scroll motion this area can't use bubbles to an enclosing [`ScrollArea`].
+    /// `None` = default (on for single-axis areas, off for 2D `both()` areas).
+    drag_bubbling: Option<bool>,
 }
 
 impl ScrollArea {
@@ -409,6 +429,7 @@ impl ScrollArea {
             content_margin: None,
             stick_to_end: Vec2b::FALSE,
             animated: true,
+            drag_bubbling: None,
         }
     }
 
@@ -543,6 +564,24 @@ impl ScrollArea {
     #[inline]
     pub fn on_drag_cursor(mut self, cursor: CursorIcon) -> Self {
         self.on_drag_cursor = Some(cursor);
+        self
+    }
+
+    /// Control whether drag-to-scroll motion this area can't use bubbles to an enclosing
+    /// [`ScrollArea`].
+    ///
+    /// This enables nested touch / drag scrolling: dragging across the cross axis of an inner
+    /// area scrolls the enclosing area (e.g. dragging *down* in a horizontal area inside a
+    /// vertical one), and same-axis overscroll is handed to the parent once the inner area
+    /// reaches its end.
+    ///
+    /// Defaults to `true` for single-axis areas and `false` for 2D ([`Self::both`]) areas, so
+    /// that panning a 2D area doesn't scroll an enclosing area when it reaches an edge.
+    ///
+    /// Only affects the [`ScrollSource::drag`] path; the mouse wheel always bubbles.
+    #[inline]
+    pub fn drag_bubbling(mut self, drag_bubbling: bool) -> Self {
+        self.drag_bubbling = Some(drag_bubbling);
         self
     }
 
@@ -705,6 +744,10 @@ struct Prepared {
     background_drag_response: Option<Response>,
 
     animated: bool,
+
+    /// Whether drag-to-scroll motion this area can't use bubbles to an enclosing [`ScrollArea`].
+    /// Already resolved from the per-kind default in `begin()`.
+    drag_bubbling: bool,
 }
 
 impl ScrollArea {
@@ -726,7 +769,12 @@ impl ScrollArea {
             content_margin: _, // Used elsewhere
             stick_to_end,
             animated,
+            drag_bubbling,
         } = self;
+
+        // Default: single-axis areas bubble unused drag motion to a parent; 2D areas capture it
+        // (so panning a map doesn't scroll the page at its edges).
+        let drag_bubbling = drag_bubbling.unwrap_or(direction_enabled[0] != direction_enabled[1]);
 
         let ctx = ui.ctx().clone();
 
@@ -839,40 +887,50 @@ impl ScrollArea {
                 .as_ref()
                 .is_some_and(|response| response.dragged())
             {
-                for d in 0..2 {
-                    if direction_enabled[d] {
-                        ui.input(|input| {
-                            state.offset[d] -= input.pointer.delta()[d];
-                        });
-                        state.scroll_stuck_to_end[d] = false;
-                        state.offset_target[d] = None;
-                    }
-                }
-            } else {
-                // Apply the cursor velocity to the scroll area when the user releases the drag.
-                if content_response_option
-                    .as_ref()
-                    .is_some_and(|response| response.drag_stopped())
-                {
-                    state.vel =
-                        direction_enabled.to_vec2() * ui.input(|input| input.pointer.velocity());
-                }
-                for d in 0..2 {
-                    // Kinetic scrolling
-                    let stop_speed = 20.0; // Pixels per second.
-                    let friction_coeff = 1000.0; // Pixels per second squared.
+                // Seed the shared drag-scroll budget with this gesture's pointer delta. The
+                // actual scrolling — and any bubbling to an enclosing scroll area — happens in
+                // `end()`, where the content size (and thus the scroll limit) is known.
+                let mut delta = ui.input(|input| input.pointer.delta());
 
-                    let friction = friction_coeff * dt;
-                    if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
-                        state.vel[d] = 0.0;
-                    } else {
-                        state.vel[d] -= friction * state.vel[d].signum();
-                        // Offset has an inverted coordinate system compared to
-                        // the velocity, so we subtract it instead of adding it
-                        state.offset[d] -= state.vel[d] * dt;
-                        ctx.request_repaint();
+                // Axis-lock for single-axis areas: once the gesture decidedly commits to a
+                // direction, ignore the minor axis so a near-straight drag doesn't wobble the
+                // cross axis (and a vertical drag in a horizontal area cleanly scrolls the
+                // parent). 2D (`both()`) areas never lock, so they can pan diagonally.
+                if direction_enabled[0] != direction_enabled[1] {
+                    if state.drag_axis_lock.is_none() {
+                        let committed = ui.input(|input| {
+                            input
+                                .pointer
+                                .is_decidedly_dragging()
+                                .then(|| input.pointer.total_drag_delta())
+                                .flatten()
+                        });
+                        if let Some(total) = committed {
+                            // Lock to whichever axis the gesture has moved farthest along.
+                            let dominant_axis = usize::from(total.x.abs() < total.y.abs()); // 0=X, 1=Y
+                            state.drag_axis_lock = Some(dominant_axis);
+                        }
+                    }
+                    match state.drag_axis_lock {
+                        Some(0) => delta.y = 0.0,
+                        Some(1) => delta.x = 0.0,
+                        // Not yet committed: only act on this area's own axis, so we don't bubble
+                        // the cross axis to a parent before the gesture clearly commits to it.
+                        _ => {
+                            if !direction_enabled[0] {
+                                delta.x = 0.0;
+                            }
+                            if !direction_enabled[1] {
+                                delta.y = 0.0;
+                            }
+                        }
                     }
                 }
+
+                ui.ctx().pass_state_mut(|s| s.drag_scroll_budget = delta);
+            } else {
+                // Drag ended (or none this frame): allow a fresh axis lock for the next gesture.
+                state.drag_axis_lock = None;
             }
 
             // Set the desired mouse cursors.
@@ -946,6 +1004,7 @@ impl ScrollArea {
             saved_scroll_target,
             background_drag_response,
             animated,
+            drag_bubbling,
         }
     }
 
@@ -1073,6 +1132,7 @@ impl Prepared {
             saved_scroll_target,
             background_drag_response,
             animated,
+            drag_bubbling,
         } = self;
 
         let content_size = content_ui.min_size();
@@ -1235,6 +1295,109 @@ impl Prepared {
 
                         state.scroll_stuck_to_end[d] = false;
                         state.offset_target[d] = None;
+                    }
+                }
+            }
+        }
+
+        // Drag-to-scroll (touch / `ScrollSource::drag`), consuming the shared budget seeded by
+        // the dragged scroll area in `begin()`. Like the wheel above, we take only what we can
+        // use on each enabled axis and leave the rest for an enclosing scroll area — `end()` runs
+        // inner-first, so the inner area consumes before its parents.
+        if scroll_source.drag.enabled(ui.ctx()) && ui.is_enabled() {
+            // This area is part of the gesture if it owns the drag, or the pointer is over it
+            // (so it is an ancestor of the owner). Unlike the wheel, we deliberately do *not*
+            // require `dragged_id().is_none()`, since a drag is in progress.
+            let receive = is_dragging_background || ui.rect_contains_pointer(outer_rect);
+            let drag_active = ui.ctx().dragged_id().is_some();
+
+            if receive {
+                let mut budget = ui.ctx().pass_state(|s| s.drag_scroll_budget);
+                for d in 0..2 {
+                    if direction_enabled[d] && budget[d] != 0.0 {
+                        // Consume exactly the room we have on this axis and bubble the signed
+                        // remainder this frame (no dropped frame at the saturation boundary).
+                        let new_offset =
+                            (state.offset[d] - budget[d]).clamp(0.0, max_offset[d].max(0.0));
+                        let consumed = state.offset[d] - new_offset;
+                        state.offset[d] = new_offset;
+                        budget[d] -= consumed;
+                        if consumed != 0.0 {
+                            state.scroll_stuck_to_end[d] = false;
+                            state.offset_target[d] = None;
+                            ui.ctx().request_repaint();
+                        }
+                    }
+                }
+                if !drag_bubbling {
+                    // Capture: don't pass the remainder to an enclosing scroll area.
+                    budget = Vec2::ZERO;
+                }
+                ui.ctx().pass_state_mut(|s| s.drag_scroll_budget = budget);
+
+                if drag_active {
+                    // Remember chain membership so we still receive the release fling once the
+                    // pointer is gone (see `State::drag_received`).
+                    state.drag_received = true;
+                }
+            }
+
+            // Kinetic scrolling / fling. Runs here (rather than in `begin()`) so an inner area
+            // can hand the release velocity it can't use to an enclosing scroll area.
+            let dt = ui.input(|i| i.stable_dt).at_most(0.1);
+            if receive && drag_active {
+                // An active drag controls the motion directly; cancel any leftover fling.
+                state.vel = Vec2::ZERO;
+            } else {
+                // Adopt fling velocity handed down by an inner scroll area (inner-first `end()`).
+                // Gated on gesture-chain membership rather than the live pointer, since lifting a
+                // finger fires `PointerGone` on the very frame the fling is seeded.
+                if state.drag_received {
+                    let mut fling = ui.ctx().pass_state(|s| s.drag_scroll_fling);
+                    for d in 0..2 {
+                        if direction_enabled[d] && fling[d] != 0.0 {
+                            state.vel[d] += fling[d];
+                            fling[d] = 0.0;
+                        }
+                    }
+                    if !drag_bubbling {
+                        fling = Vec2::ZERO;
+                    }
+                    ui.ctx().pass_state_mut(|s| s.drag_scroll_fling = fling);
+                }
+
+                // When the user releases the drag, seed our own kinetic velocity and bubble the
+                // cross-axis component so an enclosing area can fling on the axis we can't use.
+                if background_drag_response
+                    .as_ref()
+                    .is_some_and(|response| response.drag_stopped())
+                {
+                    let velocity = ui.input(|input| input.pointer.velocity());
+                    state.vel = direction_enabled.to_vec2() * velocity;
+                    if drag_bubbling {
+                        let bubbled = (!direction_enabled).to_vec2() * velocity;
+                        ui.ctx().pass_state_mut(|s| s.drag_scroll_fling += bubbled);
+                    }
+                }
+
+                // The gesture's motion has ended; clear chain membership (the fling now lives in
+                // each area's own `vel` and decays independently).
+                state.drag_received = false;
+
+                for d in 0..2 {
+                    // Kinetic scrolling
+                    let stop_speed = 20.0; // Pixels per second.
+                    let friction_coeff = 1000.0; // Pixels per second squared.
+
+                    let friction = friction_coeff * dt;
+                    if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
+                        state.vel[d] = 0.0;
+                    } else {
+                        state.vel[d] -= friction * state.vel[d].signum();
+                        // Offset has an inverted coordinate system compared to
+                        // the velocity, so we subtract it instead of adding it
+                        state.offset[d] -= state.vel[d] * dt;
+                        ui.ctx().request_repaint();
                     }
                 }
             }
