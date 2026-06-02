@@ -36,7 +36,7 @@ impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         ui.all_styles_mut(|style| style.interaction.tooltip_delay = 0.0);
 
-        egui::Panel::left("side_panel_left").show_inside(ui, |ui| {
+        egui::Panel::left("side_panel_left").show(ui, |ui| {
             ui.heading("Information");
             ui.label(
                 "This is a demo/test environment of the `UiStack` feature. The tables display \
@@ -84,7 +84,7 @@ impl eframe::App for MyApp {
             });
         });
 
-        egui::Panel::right("side_panel_right").show_inside(ui, |ui| {
+        egui::Panel::right("side_panel_right").show(ui, |ui| {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 stack_ui(ui);
 
@@ -94,7 +94,7 @@ impl eframe::App for MyApp {
             });
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.label("stack here:");
                 stack_ui(ui);
@@ -174,7 +174,7 @@ impl eframe::App for MyApp {
 
         egui::Panel::bottom("bottom_panel")
             .resizable(true)
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 egui::ScrollArea::vertical()
                     .auto_shrink(false)
                     .show(ui, |ui| {

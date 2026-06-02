@@ -15,8 +15,6 @@ pub struct CanvasGlyphData {
     pub width: u32,
     /// Height of the glyph in pixels
     pub height: u32,
-    /// Advance width for horizontal text layout
-    pub advance_width: f32,
     /// Horizontal offset from origin
     pub offset_x: f32,
     /// Vertical offset from origin (baseline)
@@ -162,7 +160,7 @@ impl CanvasGlyphRenderer {
         // Extract image data (now at device pixel resolution)
         let image_data = self
             .context
-            .get_image_data(0, 0, width as i32, height as i32)
+            .get_image_data(0.0, 0.0, width as f64, height as f64)
             .ok()?;
 
         let rgba_data = image_data.data().0;
@@ -176,7 +174,6 @@ impl CanvasGlyphRenderer {
             image_data: rgba_data,
             width,
             height,
-            advance_width,
             offset_x: -left as f32,
             offset_y: -ascent as f32,
         })

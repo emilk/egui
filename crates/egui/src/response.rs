@@ -272,10 +272,10 @@ impl Response {
                 false
             } else if let Some(pos) = pointer_interact_pos {
                 let layer_under_pointer = self.ctx.layer_id_at(pos);
-                if layer_under_pointer != Some(self.layer_id) {
-                    true
-                } else {
+                if layer_under_pointer == Some(self.layer_id) {
                     !self.interact_rect.contains(pos)
+                } else {
+                    true
                 }
             } else {
                 false // clicked without a pointer, weird

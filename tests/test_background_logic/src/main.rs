@@ -56,7 +56,8 @@ fn viewport_info(ctx: &egui::Context) -> String {
         ];
         for (name, value) in flags {
             if let Some(value) = value {
-                s += &format!(" {name}={value}");
+                use std::fmt::Write as _;
+                write!(s, " {name}={value}").ok();
             }
         }
         s

@@ -2,7 +2,7 @@
 
 use emath::Align;
 use epaint::{
-    AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions,
+    CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
     mutex::Mutex,
     text::{FontTweak, Tag},
 };
@@ -296,17 +296,6 @@ pub struct Style {
     /// You can override this to e.g. add thousands separators.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub number_formatter: NumberFormatter,
-
-    /// If set, labels, buttons, etc. will use this to determine whether to wrap the text at the
-    /// right edge of the [`Ui`] they are in. By default, this is `None`.
-    ///
-    /// **Note**: this API is deprecated, use `wrap_mode` instead.
-    ///
-    /// * `None`: use `wrap_mode` instead
-    /// * `Some(true)`: wrap mode defaults to [`crate::TextWrapMode::Wrap`]
-    /// * `Some(false)`: wrap mode defaults to [`crate::TextWrapMode::Extend`]
-    #[deprecated = "Use wrap_mode instead"]
-    pub wrap: Option<bool>,
 
     /// If set, labels, buttons, etc. will use this to determine whether to wrap or truncate the
     /// text at the right edge of the [`Ui`] they are in, or to extend it. By default, this is
@@ -1105,7 +1094,10 @@ pub struct Visuals {
     /// How the text cursor acts.
     pub text_cursor: TextCursorStyle,
 
-    /// Allow child widgets to be just on the border and still have a stroke with some thickness
+    /// Allow widgets to paint this much outside the scroll area rect.
+    ///
+    /// Legacy. Should not be used anymore.
+    /// Use [`crate::ScrollArea::content_margin`] instead.
     pub clip_rect_margin: f32,
 
     /// Show a background behind buttons.
@@ -1184,13 +1176,6 @@ impl Visuals {
     #[inline(always)]
     pub fn window_stroke(&self) -> Stroke {
         self.window_stroke
-    }
-
-    /// When fading out things, we fade the colors towards this.
-    #[inline(always)]
-    #[deprecated = "Use disabled_alpha(). Fading is now handled by modifying the alpha channel."]
-    pub fn fade_out_to_color(&self) -> Color32 {
-        self.widgets.noninteractive.weak_bg_fill
     }
 
     /// Disabled widgets have their alpha modified by this.
@@ -1323,11 +1308,6 @@ impl WidgetVisuals {
     pub fn text_color(&self) -> Color32 {
         self.fg_stroke.color
     }
-
-    #[deprecated = "Renamed to corner_radius"]
-    pub fn rounding(&self) -> CornerRadius {
-        self.corner_radius
-    }
 }
 
 /// Options for help debug egui by adding extra visualization
@@ -1430,7 +1410,6 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
 impl Default for Style {
     fn default() -> Self {
-        #[expect(deprecated)]
         Self {
             override_font_id: None,
             override_text_style: None,
@@ -1438,12 +1417,11 @@ impl Default for Style {
             text_styles: default_text_styles(),
             drag_value_text_style: TextStyle::Button,
             number_formatter: NumberFormatter(Arc::new(emath::format_with_decimals_in_range)),
-            wrap: None,
             wrap_mode: None,
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
-            animation_time: 6.0 / 60.0, // If we make this too slow, it will be too obvious that our panel animations look like shit :(
+            animation_time: 0.2,
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
@@ -1503,7 +1481,7 @@ impl Visuals {
         Self {
             dark_mode: true,
             text_options: TextOptions {
-                alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
+                color_transfer_function: FontColorTransferFunction::DARK_MODE_DEFAULT,
                 ..Default::default()
             },
             override_text_color: None,
@@ -1549,7 +1527,7 @@ impl Visuals {
 
             text_cursor: Default::default(),
 
-            clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
+            clip_rect_margin: 0.0,
             button_frame: true,
             collapsing_header_frame: false,
             indent_has_left_vline: true,
@@ -1573,7 +1551,7 @@ impl Visuals {
         Self {
             dark_mode: false,
             text_options: TextOptions {
-                alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
+                color_transfer_function: FontColorTransferFunction::LIGHT_MODE_DEFAULT,
                 ..Default::default()
             },
             widgets: Widgets::light(),
@@ -1748,7 +1726,6 @@ use crate::{
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        #[expect(deprecated)]
         let Self {
             override_font_id,
             override_text_style,
@@ -1756,7 +1733,6 @@ impl Style {
             text_styles,
             drag_value_text_style,
             number_formatter: _, // can't change callbacks in the UI
-            wrap: _,
             wrap_mode,
             spacing,
             interaction,
@@ -2369,13 +2345,15 @@ impl Visuals {
 
             let TextOptions {
                 max_texture_side: _,
-                alpha_from_coverage,
+                color_transfer_function,
                 font_hinting,
+                subpixel_binning,
             } = text_options;
 
-            text_alpha_from_coverage_ui(ui, alpha_from_coverage);
+            color_transfer_function_ui(ui, color_transfer_function);
 
-            ui.checkbox(font_hinting, "Enable font hinting");
+            ui.checkbox(font_hinting, "Font hinting (sharper text)");
+            ui.checkbox(subpixel_binning, "Sub-pixel binning (more even kerning)");
         });
 
         ui.collapsing("Text cursor", |ui| {
@@ -2498,23 +2476,29 @@ impl Visuals {
     }
 }
 
-fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromCoverage) {
-    let mut dark_mode_special =
-        *alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
-
+fn color_transfer_function_ui(
+    ui: &mut Ui,
+    color_transfer_function: &mut FontColorTransferFunction,
+) {
     ui.horizontal(|ui| {
-        ui.label("Text rendering:");
+        ui.label("Opacity tweaking:");
 
-        ui.checkbox(&mut dark_mode_special, "Dark-mode special");
+        ui.radio_value(
+            color_transfer_function,
+            FontColorTransferFunction::Off,
+            "Off",
+        );
+        ui.radio_value(
+            color_transfer_function,
+            FontColorTransferFunction::DARK_MODE_DEFAULT,
+            "Dark-mode special",
+        );
 
-        if dark_mode_special {
-            *alpha_from_coverage = AlphaFromCoverage::DARK_MODE_DEFAULT;
-        } else {
-            let mut gamma = match alpha_from_coverage {
-                AlphaFromCoverage::Linear => 1.0,
-                AlphaFromCoverage::Gamma(gamma) => *gamma,
-                AlphaFromCoverage::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
-            };
+        let mut use_gamma = matches!(color_transfer_function, FontColorTransferFunction::Gamma(_));
+        ui.radio_value(&mut use_gamma, true, "Gamma function");
+
+        if use_gamma {
+            let mut gamma = color_transfer_function.to_gamma();
 
             ui.add(
                 DragValue::new(&mut gamma)
@@ -2523,11 +2507,7 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromC
                     .prefix("Gamma: "),
             );
 
-            if gamma == 1.0 {
-                *alpha_from_coverage = AlphaFromCoverage::Linear;
-            } else {
-                *alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
-            }
+            *color_transfer_function = FontColorTransferFunction::Gamma(gamma);
         }
     });
 }
@@ -2952,8 +2932,11 @@ impl Widget for &mut FontTweak {
                     scale,
                     y_offset_factor,
                     y_offset,
-                    hinting_override,
+                    hinting,
                     coords,
+                    thin_space_width,
+                    tab_size,
+                    subpixel_binning,
                 } = self;
 
                 ui.label("Scale");
@@ -2969,18 +2952,20 @@ impl Widget for &mut FontTweak {
                 ui.add(DragValue::new(y_offset).speed(-0.02));
                 ui.end_row();
 
-                ui.label("hinting_override");
-                ComboBox::from_id_salt("hinting_override")
-                    .selected_text(match hinting_override {
-                        None => "None",
-                        Some(true) => "Enable",
-                        Some(false) => "Disable",
-                    })
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(hinting_override, None, "None");
-                        ui.selectable_value(hinting_override, Some(true), "Enable");
-                        ui.selectable_value(hinting_override, Some(false), "Disable");
-                    });
+                ui.label("hinting");
+                ui.horizontal(|ui| {
+                    ui.radio_value(hinting, Some(true), "on");
+                    ui.radio_value(hinting, Some(false), "off");
+                    ui.radio_value(hinting, None, "default");
+                });
+                ui.end_row();
+
+                ui.label("subpixel_binning");
+                ui.horizontal(|ui| {
+                    ui.radio_value(subpixel_binning, Some(true), "on");
+                    ui.radio_value(subpixel_binning, Some(false), "off");
+                    ui.radio_value(subpixel_binning, None, "default");
+                });
                 ui.end_row();
 
                 ui.label("coords");
@@ -3024,6 +3009,21 @@ impl Widget for &mut FontTweak {
                 if ui.button("Clear coords").clicked() {
                     coords.clear();
                 }
+                ui.end_row();
+
+                ui.label("thin_space_width");
+                ui.horizontal(|ui| {
+                    ui.add(
+                        DragValue::new(thin_space_width)
+                            .range(0.0..=1.0)
+                            .speed(0.01),
+                    );
+                    ui.label("1\u{2009}234\u{2009}567\u{2009}890");
+                });
+                ui.end_row();
+
+                ui.label("tab_size");
+                ui.add(DragValue::new(tab_size).range(0.0..=16.0).speed(0.1));
                 ui.end_row();
 
                 if ui.button("Reset").clicked() {

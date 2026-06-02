@@ -52,12 +52,12 @@ skip = [
   { name = "core-foundation" }, # version conflict between winit and wgpu ecosystems
   { name = "core-graphics-types" }, # version conflict between winit and wgpu ecosystems
   { name = "getrandom" }, # ring / rustls (and thus ehttp) still depend on getrandom 0.2
+  { name = "jni-sys" }, # 0.3.1 depends on 0.4
   { name = "kurbo" }, # Old version because of resvg
   { name = "redox_syscall" }, # old version via winit
   { name = "rustc-hash" }, # Small enough
   { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "thiserror-impl" }, # same as above
-  { name = "toml_datetime" }, # required while eco-system updates to toml 1.0
 ]
 skip-tree = [
   { name = "hashbrown" }, # wgpu's naga depends on 0.16, accesskit depends on 0.15

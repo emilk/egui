@@ -91,16 +91,6 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    /// Sets valid range for the value.
-    ///
-    /// By default all values are clamped to this range, even when not interacted with.
-    /// You can change this behavior by passing `false` to [`Self::clamp_existing_to_range`].
-    #[deprecated = "Use `range` instead"]
-    #[inline]
-    pub fn clamp_range<Num: emath::Numeric>(self, range: RangeInclusive<Num>) -> Self {
-        self.range(range)
-    }
-
     /// Sets valid range for dragging the value.
     ///
     /// By default all values are clamped to this range, even when not interacted with.
@@ -155,12 +145,6 @@ impl<'a> DragValue<'a> {
     pub fn clamp_existing_to_range(mut self, clamp_existing_to_range: bool) -> Self {
         self.clamp_existing_to_range = clamp_existing_to_range;
         self
-    }
-
-    #[inline]
-    #[deprecated = "Renamed clamp_existing_to_range"]
-    pub fn clamp_to_range(self, clamp_to_range: bool) -> Self {
-        self.clamp_existing_to_range(clamp_to_range)
     }
 
     /// Show a prefix before the number, e.g. "x: "
@@ -551,7 +535,7 @@ impl Widget for DragValue<'_> {
             if let Some(value_text) = value_text {
                 // We were editing the value as text last frame, but lost focus.
                 // Make sure we applied the last text value:
-                let parsed_value = parse(&custom_parser, &value_text);
+                let parsed_value = parse(custom_parser.as_ref(), &value_text);
                 if let Some(mut parsed_value) = parsed_value {
                     // User edits always clamps:
                     parsed_value = clamp_value_to_range(parsed_value, range.clone());
@@ -591,7 +575,7 @@ impl Widget for DragValue<'_> {
                 response.lost_focus() && !ui.input(|i| i.key_pressed(Key::Escape))
             };
             if update {
-                let parsed_value = parse(&custom_parser, &value_text);
+                let parsed_value = parse(custom_parser.as_ref(), &value_text);
                 if let Some(mut parsed_value) = parsed_value {
                     // User edits always clamps:
                     parsed_value = clamp_value_to_range(parsed_value, range.clone());
@@ -733,8 +717,8 @@ impl Widget for DragValue<'_> {
     }
 }
 
-fn parse(custom_parser: &Option<NumParser<'_>>, value_text: &str) -> Option<f64> {
-    match &custom_parser {
+fn parse(custom_parser: Option<&NumParser<'_>>, value_text: &str) -> Option<f64> {
+    match custom_parser {
         Some(parser) => parser(value_text),
         None => default_parser(value_text),
     }

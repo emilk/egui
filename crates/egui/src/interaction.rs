@@ -233,20 +233,14 @@ pub(crate) fn interact(
     //     );
     // }
 
-    let contains_pointer: IdSet = hits
-        .contains_pointer
-        .iter()
-        .chain(&hits.click)
-        .chain(&hits.drag)
-        .map(|w| w.id)
-        .collect();
+    let contains_pointer: IdSet =
+        itertools::chain!(&hits.contains_pointer, &hits.click, &hits.drag)
+            .map(|w| w.id)
+            .collect();
 
     let hovered = if clicked.is_some() || dragged.is_some() || long_touched.is_some() {
         // If currently clicking or dragging, only that and nothing else is hovered.
-        clicked
-            .iter()
-            .chain(&dragged)
-            .chain(&long_touched)
+        itertools::chain!(&clicked, &dragged, &long_touched)
             .copied()
             .collect()
     } else {
@@ -269,7 +263,9 @@ pub(crate) fn interact(
         let drag_order = hits.drag.and_then(|w| order(w.id)).unwrap_or(0);
         let top_interactive_order = click_order.max(drag_order);
 
-        let mut hovered: IdSet = hits.click.iter().chain(&hits.drag).map(|w| w.id).collect();
+        let mut hovered: IdSet = std::iter::chain(&hits.click, &hits.drag)
+            .map(|w| w.id)
+            .collect();
 
         for w in &hits.contains_pointer {
             let is_interactive = w.sense.senses_click() || w.sense.senses_drag();
