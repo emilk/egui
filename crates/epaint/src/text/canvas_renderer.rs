@@ -160,7 +160,7 @@ impl CanvasGlyphRenderer {
         // Extract image data (now at device pixel resolution)
         let image_data = self
             .context
-            .get_image_data(0.0, 0.0, width as f64, height as f64)
+            .get_image_data(0, 0, width as i32, height as i32)
             .ok()?;
 
         let rgba_data = image_data.data().0;
