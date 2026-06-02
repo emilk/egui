@@ -178,10 +178,18 @@ impl<'a> AtomLayout<'a> {
         self.allocate(ui).paint(ui)
     }
 
-    /// Calculate sizes, create [`Galley`]s and allocate a [`Response`].
+    /// Measure the atoms (sizing only), without allocating space or interacting.
     ///
-    /// Use the returned [`AllocatedAtomLayout`] for painting.
-    pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomLayout<'a> {
+    /// This converts texts to [`Galley`]s and calculates sizes, but unlike [`Self::allocate`]
+    /// it does *not* call [`Ui::allocate_space`] (so the parent cursor is left untouched) nor
+    /// [`Ui::interact`]. Use the returned [`SizedAtomLayout`] to paint at an arbitrary [`Rect`]
+    /// via [`SizedAtomLayout::paint_at`]. This is what makes it possible to nest one
+    /// [`AtomLayout`] inside another.
+    ///
+    /// `available_size` is the space available to the whole widget (frame included); it is
+    /// clamped by `max_size`/`min_size`, exactly like [`Self::allocate`] does with
+    /// [`Ui::available_size`].
+    pub fn measure(self, ui: &Ui, available_size: Vec2) -> SizedAtomLayout<'a> {
         let Self {
             id,
             mut atoms,
@@ -226,7 +234,7 @@ impl<'a> AtomLayout<'a> {
             max_size.x = f32::INFINITY;
         }
 
-        let available_size = ui.available_size().at_most(max_size).at_least(min_size);
+        let available_size = available_size.at_most(max_size).at_least(min_size);
 
         // The size available for the content
         let available_inner_size = available_size - frame.total_margin().sum();
@@ -314,34 +322,62 @@ impl<'a> AtomLayout<'a> {
         let margin = frame.total_margin();
         let desired_size = Vec2::new(desired_width, height);
         let frame_size = (desired_size + margin.sum()).at_least(min_size);
+        let intrinsic_size =
+            (Vec2::new(intrinsic_width, intrinsic_height) + margin.sum()).at_least(min_size);
 
-        let (_, rect) = ui.allocate_space(frame_size);
-        let mut response = ui.interact(rect, id, sense);
-
-        response.set_intrinsic_size(
-            (Vec2::new(intrinsic_width, intrinsic_height) + margin.sum()).at_least(min_size),
-        );
-
-        AllocatedAtomLayout {
+        SizedAtomLayout {
             sized_atoms: sized_items,
             frame,
             fallback_text_color,
-            response,
+            id,
+            sense,
+            frame_size,
+            intrinsic_size,
             grow_count,
             desired_size,
             align2,
             gap,
         }
     }
+
+    /// Calculate sizes, create [`Galley`]s and allocate a [`Response`].
+    ///
+    /// Use the returned [`AllocatedAtomLayout`] for painting.
+    pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomLayout<'a> {
+        let sized = self.measure(ui, ui.available_size());
+
+        let (_, rect) = ui.allocate_space(sized.frame_size);
+        let mut response = ui.interact(rect, sized.id, sized.sense);
+        response.set_intrinsic_size(sized.intrinsic_size);
+
+        AllocatedAtomLayout { sized, response }
+    }
 }
 
-/// Instructions for painting an [`AtomLayout`].
+/// A measured [`AtomLayout`], ready to be painted at a [`Rect`].
+///
+/// Produced by [`AtomLayout::measure`]. Unlike [`AllocatedAtomLayout`], it has not yet
+/// allocated space or interacted, so it can be painted at an arbitrary [`Rect`] via
+/// [`Self::paint_at`]. This is what lets one [`AtomLayout`] be nested inside another.
 #[derive(Clone, Debug)]
-pub struct AllocatedAtomLayout<'a> {
+pub struct SizedAtomLayout<'a> {
     pub sized_atoms: SmallVec<[SizedAtom<'a>; ATOMS_SMALL_VEC_SIZE]>,
     pub frame: Frame,
     pub fallback_text_color: Color32,
-    pub response: Response,
+
+    /// The [`Id`] used to [`Ui::interact`] when this layout is allocated / painted.
+    pub(crate) id: Id,
+
+    /// The [`Sense`] used to [`Ui::interact`] when this layout is allocated / painted.
+    pub(crate) sense: Sense,
+
+    /// The total widget size, including the frame margin. Used to allocate space.
+    pub(crate) frame_size: Vec2,
+
+    /// The intrinsic (un-wrapped, un-grown) size, including margin. Used for
+    /// [`Response::set_intrinsic_size`].
+    pub(crate) intrinsic_size: Vec2,
+
     grow_count: usize,
     // The size of the inner content, before any growing.
     desired_size: Vec2,
@@ -349,7 +385,20 @@ pub struct AllocatedAtomLayout<'a> {
     gap: f32,
 }
 
-impl<'atom> AllocatedAtomLayout<'atom> {
+/// Instructions for painting an [`AtomLayout`].
+///
+/// This is a [`SizedAtomLayout`] that has additionally allocated space and interacted,
+/// producing a [`Response`]. The measured fields (`frame`, `fallback_text_color`, …) and the
+/// `iter_*` / `map_*` helpers are reachable directly via [`Deref`] to [`SizedAtomLayout`].
+#[derive(Clone, Debug)]
+pub struct AllocatedAtomLayout<'a> {
+    /// The measured layout.
+    pub sized: SizedAtomLayout<'a>,
+
+    pub response: Response,
+}
+
+impl<'atom> SizedAtomLayout<'atom> {
     pub fn iter_kinds(&self) -> impl Iterator<Item = &SizedAtomKind<'atom>> {
         self.sized_atoms.iter().map(|atom| &atom.kind)
     }
@@ -423,20 +472,24 @@ impl<'atom> AllocatedAtomLayout<'atom> {
         });
     }
 
-    /// Paint the [`Frame`] and individual [`crate::Atom`]s.
-    pub fn paint(self, ui: &Ui) -> AtomLayoutResponse {
+    /// Paint the [`Frame`] and individual [`crate::Atom`]s within `rect`.
+    ///
+    /// `rect` is the full widget rect (frame included). For a top-level layout this is
+    /// `response.rect`; when nested, the parent passes the cell rect it computed. `response`
+    /// becomes the base of the returned [`AtomLayoutResponse`].
+    pub fn paint_at(self, ui: &Ui, rect: Rect, response: Response) -> AtomLayoutResponse {
         let Self {
             sized_atoms,
             frame,
             fallback_text_color,
-            response,
             grow_count,
             desired_size,
             align2,
             gap,
+            ..
         } = self;
 
-        let inner_rect = response.rect - self.frame.total_margin();
+        let inner_rect = rect - frame.total_margin();
 
         ui.painter().add(frame.paint(inner_rect));
 
@@ -486,6 +539,14 @@ impl<'atom> AllocatedAtomLayout<'atom> {
         }
 
         response
+    }
+}
+
+impl AllocatedAtomLayout<'_> {
+    /// Paint the [`Frame`] and individual [`crate::Atom`]s at the allocated [`Response`]'s rect.
+    pub fn paint(self, ui: &Ui) -> AtomLayoutResponse {
+        let rect = self.response.rect;
+        self.sized.paint_at(ui, rect, self.response)
     }
 }
 
@@ -555,7 +616,7 @@ impl DerefMut for AtomLayout<'_> {
     }
 }
 
-impl<'a> Deref for AllocatedAtomLayout<'a> {
+impl<'a> Deref for SizedAtomLayout<'a> {
     type Target = [SizedAtom<'a>];
 
     fn deref(&self) -> &Self::Target {
@@ -563,8 +624,22 @@ impl<'a> Deref for AllocatedAtomLayout<'a> {
     }
 }
 
-impl DerefMut for AllocatedAtomLayout<'_> {
+impl DerefMut for SizedAtomLayout<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.sized_atoms
+    }
+}
+
+impl<'a> Deref for AllocatedAtomLayout<'a> {
+    type Target = SizedAtomLayout<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.sized
+    }
+}
+
+impl DerefMut for AllocatedAtomLayout<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.sized
     }
 }
