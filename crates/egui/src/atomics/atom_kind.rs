@@ -71,7 +71,7 @@ pub enum AtomKind<'a> {
     ///
     /// The nested layout is measured (sized) when the parent is sized, and painted (and
     /// interacted with) at the cell rect the parent computes for it.
-   Layout(Box<AtomLayout<'a>>),
+    Layout(Box<AtomLayout<'a>>),
 }
 
 impl Clone for AtomKind<'_> {
