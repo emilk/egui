@@ -1,4 +1,6 @@
-use crate::{AtomKind, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui};
+use crate::{
+    AtomKind, AtomLayout, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui,
+};
 use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
 
@@ -101,6 +103,17 @@ impl<'a> Atom<'a> {
         }
     }
 
+    /// Nest an [`AtomLayout`] (e.g. an atom-based widget) as a single atom.
+    ///
+    /// The nested layout is sized when the parent is sized and painted (and interacted with)
+    /// at the cell the parent computes for it. See [`AtomKind::Layout`].
+    pub fn layout(layout: AtomLayout<'a>) -> Self {
+        Atom {
+            kind: AtomKind::Layout(Box::new(layout)),
+            ..Default::default()
+        }
+    }
+
     /// Turn this into a [`SizedAtom`].
     pub fn into_sized(
         self,
@@ -159,5 +172,14 @@ where
             kind: value.into(),
             ..Default::default()
         }
+    }
+}
+
+// Note: this is a concrete `From` (not a blanket `From<impl Into<AtomKind>>`) on purpose.
+// `AtomLayout` must NOT implement `Into<AtomKind>`, or this would conflict with the blanket impl
+// above. Keep nesting going through `AtomKind::Layout` / `Atom::layout` only.
+impl<'a> From<AtomLayout<'a>> for Atom<'a> {
+    fn from(layout: AtomLayout<'a>) -> Self {
+        Atom::layout(layout)
     }
 }

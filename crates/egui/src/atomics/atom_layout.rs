@@ -1,4 +1,3 @@
-use crate::atomics::ATOMS_SMALL_VEC_SIZE;
 use crate::{
     AtomKind, Atoms, FontSelection, Frame, Id, Image, IntoAtoms, Response, Sense, SizedAtom,
     SizedAtomKind, Ui, Widget,
@@ -29,6 +28,7 @@ use std::sync::Arc;
 ///
 /// You can use this to first allocate a response and then modify, e.g., the [`Frame`] on the
 /// [`AllocatedAtomLayout`] for interaction styling.
+#[derive(Clone)]
 pub struct AtomLayout<'a> {
     id: Option<Id>,
     pub atoms: Atoms<'a>,
@@ -248,7 +248,7 @@ impl<'a> AtomLayout<'a> {
 
         let mut height: f32 = 0.0;
 
-        let mut sized_items = SmallVec::new();
+        let mut sized_items = Vec::new();
 
         let mut grow_count = 0;
 
@@ -361,7 +361,7 @@ impl<'a> AtomLayout<'a> {
 /// [`Self::paint_at`]. This is what lets one [`AtomLayout`] be nested inside another.
 #[derive(Clone, Debug)]
 pub struct SizedAtomLayout<'a> {
-    pub sized_atoms: SmallVec<[SizedAtom<'a>; ATOMS_SMALL_VEC_SIZE]>,
+    pub sized_atoms: Vec<SizedAtom<'a>>,
     pub frame: Frame,
     pub fallback_text_color: Color32,
 
@@ -535,6 +535,16 @@ impl<'atom> SizedAtomLayout<'atom> {
                     image.paint_at(ui, rect);
                 }
                 SizedAtomKind::Empty { .. } => {}
+                SizedAtomKind::Layout(layout) => {
+                    // Hand the nested layout the full (possibly grown) cell width so its own
+                    // `grow` atoms can expand, while keeping its measured height and honoring
+                    // this atom's vertical alignment within the row.
+                    let layout_rect = sized
+                        .align
+                        .align_size_within_rect(Vec2::new(frame.width(), size.y), frame);
+                    let layout_response = ui.interact(layout_rect, layout.id, layout.sense);
+                    layout.paint_at(ui, layout_rect, layout_response);
+                }
             }
         }
 
