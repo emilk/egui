@@ -14,8 +14,6 @@ pub enum SizedAtomKind<'a> {
         image: Image<'a>,
         size: Vec2,
     },
-
-    /// A measured, nested [`crate::AtomLayout`]. See [`crate::AtomKind::Layout`].
     Layout(Box<SizedAtomLayout<'a>>),
 }
 
@@ -32,7 +30,7 @@ impl SizedAtomKind<'_> {
             SizedAtomKind::Text(galley) => galley.size(),
             SizedAtomKind::Image { image: _, size } => *size,
             SizedAtomKind::Empty { size } => size.unwrap_or_default(),
-            SizedAtomKind::Layout(layout) => layout.frame_size,
+            SizedAtomKind::Layout(layout) => layout.outer_size,
         }
     }
 }
