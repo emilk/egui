@@ -223,6 +223,17 @@ pub struct PassState {
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     pub scroll_delta: (Vec2, style::ScrollAnimation),
 
+    /// Unconsumed touch-/drag-scroll delta (pixels), shared between nested scroll areas so an
+    /// inner area can hand cross-axis or overscroll motion to an enclosing one.
+    ///
+    /// Seeded by the dragged [`crate::ScrollArea`] in `begin()` and consumed inner-first in
+    /// `end()`, mirroring how the mouse wheel bubbles via [`crate::InputState::smooth_scroll_delta`].
+    pub(crate) drag_scroll_budget: Vec2,
+
+    /// Like [`Self::drag_scroll_budget`] but for release "fling" velocity (pixels per second):
+    /// an inner area hands the velocity it can't use to an enclosing area so the fling continues.
+    pub(crate) drag_scroll_fling: Vec2,
+
     pub accesskit_state: Option<AccessKitPassState>,
 
     /// Highlight these widgets the next pass.
@@ -243,6 +254,8 @@ impl Default for PassState {
             root_ui_min_rect: None,
             scroll_target: [None, None],
             scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
+            drag_scroll_budget: Vec2::ZERO,
+            drag_scroll_fling: Vec2::ZERO,
             accesskit_state: None,
             highlight_next_pass: Default::default(),
 
@@ -264,6 +277,8 @@ impl PassState {
             root_ui_min_rect,
             scroll_target,
             scroll_delta,
+            drag_scroll_budget,
+            drag_scroll_fling,
             accesskit_state,
             highlight_next_pass,
 
@@ -279,6 +294,8 @@ impl PassState {
         *root_ui_min_rect = None;
         *scroll_target = [None, None];
         *scroll_delta = Default::default();
+        *drag_scroll_budget = Vec2::ZERO;
+        *drag_scroll_fling = Vec2::ZERO;
 
         #[cfg(debug_assertions)]
         {
