@@ -166,10 +166,10 @@ pub enum DragScroll {
 
     /// Only allow drag-to-scroll when a touch screen is detected
     /// (see [`crate::InputState::has_touch_screen`]). The recommended default.
-    #[default]
     OnTouch,
 
     /// Always allow drag-to-scroll, even with a mouse.
+    #[default]
     Always,
 }
 
@@ -229,7 +229,7 @@ impl Default for ScrollSource {
     fn default() -> Self {
         Self {
             scroll_bar: true,
-            drag: DragScroll::OnTouch,
+            drag: DragScroll::Always,
             mouse_wheel: true,
         }
     }
