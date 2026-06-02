@@ -174,12 +174,3 @@ where
         }
     }
 }
-
-// Note: this is a concrete `From` (not a blanket `From<impl Into<AtomKind>>`) on purpose.
-// `AtomLayout` must NOT implement `Into<AtomKind>`, or this would conflict with the blanket impl
-// above. Keep nesting going through `AtomKind::Layout` / `Atom::layout` only.
-impl<'a> From<AtomLayout<'a>> for Atom<'a> {
-    fn from(layout: AtomLayout<'a>) -> Self {
-        Atom::layout(layout)
-    }
-}

@@ -239,7 +239,7 @@ impl<'a> AtomLayout<'a> {
         // The size available for the content
         let available_inner_size = available_size - frame.total_margin().sum();
 
-        let mut desired_width = 0.0;
+        let mut inner_width = 0.0;
 
         // intrinsic width / height is the ideal size of the widget, e.g. the size where the
         // text is not wrapped. Used to set Response::intrinsic_size.
@@ -260,7 +260,7 @@ impl<'a> AtomLayout<'a> {
 
         if atoms.len() > 1 {
             let gap_space = gap * (atoms.len() as f32 - 1.0);
-            desired_width += gap_space;
+            inner_width += gap_space;
             intrinsic_width += gap_space;
         }
 
@@ -286,7 +286,7 @@ impl<'a> AtomLayout<'a> {
             );
             let size = sized.size;
 
-            desired_width += size.x;
+            inner_width += size.x;
             intrinsic_width += sized.intrinsic_size.x;
 
             height = height.at_least(size.y);
@@ -298,7 +298,7 @@ impl<'a> AtomLayout<'a> {
         if let Some((index, item)) = shrink_item {
             // The `shrink` item gets the remaining space
             let available_size_for_shrink_item = Vec2::new(
-                available_inner_size.x - desired_width,
+                available_inner_size.x - inner_width,
                 available_inner_size.y,
             );
 
@@ -310,7 +310,7 @@ impl<'a> AtomLayout<'a> {
             );
             let size = sized.size;
 
-            desired_width += size.x;
+            inner_width += size.x;
             intrinsic_width += sized.intrinsic_size.x;
 
             height = height.at_least(size.y);
@@ -320,8 +320,8 @@ impl<'a> AtomLayout<'a> {
         }
 
         let margin = frame.total_margin();
-        let desired_size = Vec2::new(desired_width, height);
-        let frame_size = (desired_size + margin.sum()).at_least(min_size);
+        let inner_size = Vec2::new(inner_width, height);
+        let outer_size = (inner_size + margin.sum()).at_least(min_size);
         let intrinsic_size =
             (Vec2::new(intrinsic_width, intrinsic_height) + margin.sum()).at_least(min_size);
 
@@ -331,10 +331,10 @@ impl<'a> AtomLayout<'a> {
             fallback_text_color,
             id,
             sense,
-            frame_size,
+            outer_size,
             intrinsic_size,
             grow_count,
-            desired_size,
+            inner_size,
             align2,
             gap,
         }
@@ -346,7 +346,7 @@ impl<'a> AtomLayout<'a> {
     pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomLayout<'a> {
         let sized = self.measure(ui, ui.available_size());
 
-        let (_, rect) = ui.allocate_space(sized.frame_size);
+        let (_, rect) = ui.allocate_space(sized.outer_size);
         let mut response = ui.interact(rect, sized.id, sized.sense);
         response.set_intrinsic_size(sized.intrinsic_size);
 
@@ -361,35 +361,48 @@ impl<'a> AtomLayout<'a> {
 /// [`Self::paint_at`]. This is what lets one [`AtomLayout`] be nested inside another.
 #[derive(Clone, Debug)]
 pub struct SizedAtomLayout<'a> {
-    pub sized_atoms: Vec<SizedAtom<'a>>,
-    pub frame: Frame,
-    pub fallback_text_color: Color32,
-
     /// The [`Id`] used to [`Ui::interact`] when this layout is allocated / painted.
-    pub(crate) id: Id,
+    id: Id,
 
     /// The [`Sense`] used to [`Ui::interact`] when this layout is allocated / painted.
-    pub(crate) sense: Sense,
+    sense: Sense,
 
-    /// The total widget size, including the frame margin. Used to allocate space.
-    pub(crate) frame_size: Vec2,
+    /// The total widget size we'll request, including the frame margin. Used to allocate space.
+    ///
+    /// Actual allocated size may be different.
+    pub(crate) outer_size: Vec2,
+
+    /// The size of the inner content, before any growing.
+    inner_size: Vec2,
+
+    /// The contents.
+    sized_atoms: Vec<SizedAtom<'a>>,
+
+    /// The [`Frame`] painted around the contents.
+    pub frame: Frame,
+
+    /// Set the fallback (default) text color.
+    pub fallback_text_color: Color32,
+
 
     /// The intrinsic (un-wrapped, un-grown) size, including margin. Used for
     /// [`Response::set_intrinsic_size`].
     pub(crate) intrinsic_size: Vec2,
 
+    /// How many atoms were marked as `grow`?
     grow_count: usize,
-    // The size of the inner content, before any growing.
-    desired_size: Vec2,
+
+    /// How will all the atoms be aligned within the allocated rect?
     align2: Align2,
+
+    /// The gap between each [`crate::Atom`]
     gap: f32,
 }
 
 /// Instructions for painting an [`AtomLayout`].
 ///
 /// This is a [`SizedAtomLayout`] that has additionally allocated space and interacted,
-/// producing a [`Response`]. The measured fields (`frame`, `fallback_text_color`, …) and the
-/// `iter_*` / `map_*` helpers are reachable directly via [`Deref`] to [`SizedAtomLayout`].
+/// producing a [`Response`].
 #[derive(Clone, Debug)]
 pub struct AllocatedAtomLayout<'a> {
     /// The measured layout.
@@ -483,7 +496,7 @@ impl<'atom> SizedAtomLayout<'atom> {
             frame,
             fallback_text_color,
             grow_count,
-            desired_size,
+            inner_size,
             align2,
             gap,
             ..
@@ -494,13 +507,13 @@ impl<'atom> SizedAtomLayout<'atom> {
         ui.painter().add(frame.paint(inner_rect));
 
         let width_to_fill = inner_rect.width();
-        let extra_space = f32::max(width_to_fill - desired_size.x, 0.0);
+        let extra_space = f32::max(width_to_fill - inner_size.x, 0.0);
         let grow_width = f32::max(extra_space / grow_count as f32, 0.0).floor_ui();
 
         let aligned_rect = if grow_count > 0 {
-            align2.align_size_within_rect(Vec2::new(width_to_fill, desired_size.y), inner_rect)
+            align2.align_size_within_rect(Vec2::new(width_to_fill, inner_size.y), inner_rect)
         } else {
-            align2.align_size_within_rect(desired_size, inner_rect)
+            align2.align_size_within_rect(inner_size, inner_rect)
         };
 
         let mut cursor = aligned_rect.left();

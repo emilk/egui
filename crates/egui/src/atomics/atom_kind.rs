@@ -159,8 +159,6 @@ impl<'a> AtomKind<'a> {
                 },
             ),
             AtomKind::Layout(layout) => {
-                // The nested layout is self-contained: it resolves its own wrap mode, fallback
-                // font and frame, so we only forward the available size.
                 let sized = layout.measure(ui, available_size);
                 IntoSizedResult {
                     intrinsic_size: sized.intrinsic_size,
@@ -189,5 +187,11 @@ where
 {
     fn from(value: T) -> Self {
         AtomKind::Text(value.into())
+    }
+}
+
+impl<'a> From<AtomLayout<'a>> for AtomKind<'a> {
+    fn from(layout: AtomLayout<'a>) -> Self {
+        AtomKind::Layout(Box::new(layout))
     }
 }
