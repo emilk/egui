@@ -4,10 +4,10 @@ use emath::{Rect, TSTransform};
 use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
-    Align, Align2, AsIdSalt, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context,
-    CursorIcon, Event, EventFilter, FontSelection, Frame, Id, IdSalt, ImeEvent, IntoAtoms,
-    IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense,
-    SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
+    Align, Align2, AsIdSalt, AtomExt as _, AtomKind, Atoms, Color32, Context, CursorIcon, Event,
+    EventFilter, FontSelection, Frame, Id, IdSalt, ImeEvent, IntoAtoms, IntoSizedResult, Key,
+    KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, SizedAtomKind, TextBuffer,
+    TextStyle, Ui, Vec2, Widget, WidgetAtom, WidgetInfo, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response,
@@ -679,7 +679,7 @@ impl TextEdit<'_> {
                 TextWrapMode::Truncate
             };
 
-            let mut allocated = AtomLayout::new(atoms)
+            let mut allocated = WidgetAtom::new(atoms)
                 .id(id)
                 .min_size(Vec2::new(allocate_width, min_height))
                 .max_width(allocate_width)
