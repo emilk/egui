@@ -1,11 +1,6 @@
 use epaint::Margin;
 
-use crate::{
-    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
-    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType,
-    widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState},
-};
+use crate::{Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame, Id, Image, IntoAtoms, NumExt as _, Rect, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetRect, WidgetText, WidgetType, widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState}, AtomWidget, impl_widget_for_atom_widget, AtomWidgetContext};
 
 /// Clickable button with text.
 ///
@@ -273,9 +268,10 @@ impl<'a> Button<'a> {
         self.layout = self.layout.gap(gap);
         self
     }
+}
 
-    /// Show the button and return a [`AtomLayoutResponse`] for painting custom contents.
-    pub fn atom_ui(self, ui: &mut Ui) -> AtomLayoutResponse {
+impl<'a> AtomWidget<'a> for Button<'a> {
+    fn atom_ui(self, ui: &mut AtomWidgetContext, response: &mut Response) -> AtomLayout<'a> {
         let Button {
             mut layout,
             fill,
@@ -299,7 +295,9 @@ impl<'a> Button<'a> {
         if limit_image_size {
             layout.map_atoms(|atom| {
                 if matches!(&atom.kind, AtomKind::Image(_)) {
-                    atom.atom_max_height_font_size(ui)
+                    // TODO
+                    // atom.atom_max_height_font_size(ui)
+                    atom
                 } else {
                     atom
                 }
@@ -310,9 +308,7 @@ impl<'a> Button<'a> {
 
         let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
-        let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        let state = response.widget_state();
 
         classes.add_class_if(SELECTED_CLASS, selected);
 
@@ -348,6 +344,10 @@ impl<'a> Button<'a> {
             .fallback_font(text_style.font_id.clone())
             .fallback_text_color(text_style.color);
 
+        if image_tint_follows_text_color {
+            layout.map_images(|image| image.tint(text_style.color));
+        }
+
         // Retrocompatibility with button settings
         layout = if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
             layout.frame(frame)
@@ -355,28 +355,18 @@ impl<'a> Button<'a> {
             layout.frame(Frame::new().inner_margin(frame.inner_margin))
         };
 
-        let mut prepared = layout.min_size(min_size).allocate(ui);
+        layout = layout.min_size(min_size);
 
-        // Get AtomLayoutResponse, empty if not visible
-        let response = if ui.is_rect_visible(prepared.response.rect) {
-            if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(text_style.color));
-            }
 
-            prepared.fallback_text_color = text_style.color;
 
-            prepared.paint(ui)
-        } else {
-            AtomLayoutResponse::empty(prepared.response)
-        };
 
         if let Some(cursor) = ui.visuals().interact_cursor
-            && response.response.hovered()
+            && response.hovered()
         {
             ui.ctx().set_cursor_icon(cursor);
         }
 
-        response.response.widget_info(|| {
+        response.widget_info(|| {
             if let Some(text) = &text {
                 WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), text)
             } else {
@@ -384,15 +374,11 @@ impl<'a> Button<'a> {
             }
         });
 
-        response
+        layout
     }
 }
 
-impl Widget for Button<'_> {
-    fn ui(self, ui: &mut Ui) -> Response {
-        self.atom_ui(ui).response
-    }
-}
+impl_widget_for_atom_widget!(Button<'_>);
 
 impl HasClasses for Button<'_> {
     fn classes(&self) -> &Classes {
