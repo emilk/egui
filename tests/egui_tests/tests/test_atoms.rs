@@ -1,4 +1,6 @@
-use egui::{Align, AtomExt as _, Button, Layout, TextWrapMode, Ui, Vec2};
+use egui::{
+    Align, Atom, AtomExt as _, AtomLayout, Button, Direction, Frame, Layout, TextWrapMode, Ui, Vec2,
+};
 use egui_kittest::{HarnessBuilder, SnapshotResult, SnapshotResults};
 
 #[test]
@@ -120,35 +122,29 @@ fn test_button_shortcut_text() {
     harness.snapshot("button_shortcut");
 }
 
-/// A root [`AtomLayout`] (in a [`Frame::canvas`]) that stacks several nested [`AtomLayout`]s
-/// (each in an inactive button frame), one per [`Direction`], to exercise nesting and the
-/// direction setting together.
+/// Test atom nesting and [`egui::AtomLayout::direction`].
 #[test]
 fn test_atom_layout_nesting_and_direction() {
-    use egui::widget_style::{Classes, WidgetState};
-    use egui::{Atom, AtomLayout, Direction, Frame};
-
     let mut harness = HarnessBuilder::default().build_ui(|ui| {
-        let style = ui.style().clone();
+        let style = ui.style();
+        let canvas_frame = Frame::canvas(style);
 
-        // The frame of an inactive button.
         let button_frame = style
-            .button_style(&Classes::default(), WidgetState::Inactive)
+            .button_style(
+                &egui::widget_style::Classes::default(),
+                egui::widget_style::WidgetState::Inactive,
+            )
             .frame;
 
-        // A nested layout laid out along `direction`, labelled to read in that direction.
         let row = |direction: Direction| {
             Atom::layout(
                 AtomLayout::new(("one", "two", "three"))
                     .direction(direction)
-                    .frame(button_frame.clone()),
+                    .frame(button_frame),
             )
         };
 
-        // Each axis pair gets the same label order, so the reversed direction visibly flips it
-        // (e.g. `RightToLeft` reads "right to left").
         AtomLayout::new((
-            // The two horizontal rows stacked into their own `TopDown` layout.
             Atom::layout(
                 AtomLayout::new((
                     row(Direction::LeftToRight).atom_grow(true),
@@ -161,7 +157,7 @@ fn test_atom_layout_nesting_and_direction() {
             row(Direction::BottomUp),
         ))
         .direction(Direction::LeftToRight)
-        .frame(Frame::canvas(&style))
+        .frame(canvas_frame)
         .show(ui);
     });
 
