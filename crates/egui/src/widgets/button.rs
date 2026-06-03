@@ -1,6 +1,6 @@
 use epaint::Margin;
 
-use crate::{Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame, Id, Image, IntoAtoms, NumExt as _, Rect, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetRect, WidgetText, WidgetType, widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState}, AtomWidget, impl_widget_for_atom_widget};
+use crate::{Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame, Id, Image, IntoAtoms, NumExt as _, Rect, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetRect, WidgetText, WidgetType, widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState}, AtomWidget, impl_widget_for_atom_widget, AtomWidgetContext};
 
 /// Clickable button with text.
 ///
@@ -271,7 +271,7 @@ impl<'a> Button<'a> {
 }
 
 impl<'a> AtomWidget<'a> for Button<'a> {
-    fn atom_ui(self, ui: &mut Ui, response: &mut Response) -> AtomLayout<'a> {
+    fn atom_ui(self, ui: &mut AtomWidgetContext, response: &mut Response) -> AtomLayout<'a> {
         let Button {
             mut layout,
             fill,
@@ -295,7 +295,9 @@ impl<'a> AtomWidget<'a> for Button<'a> {
         if limit_image_size {
             layout.map_atoms(|atom| {
                 if matches!(&atom.kind, AtomKind::Image(_)) {
-                    atom.atom_max_height_font_size(ui)
+                    // TODO
+                    // atom.atom_max_height_font_size(ui)
+                    atom
                 } else {
                     atom
                 }
