@@ -9,24 +9,11 @@ use smallvec::SmallVec;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-/// The main-axis component of `v` for `direction` (x for horizontal, y for vertical).
+/// The `(main, cross)` axis indices for `direction`, for indexing a [`Vec2`] (0 = x, 1 = y).
 #[inline]
-fn main_axis(direction: Direction, v: Vec2) -> f32 {
-    if direction.is_horizontal() {
-        v.x
-    } else {
-        v.y
-    }
-}
-
-/// The cross-axis component of `v` for `direction` (y for horizontal, x for vertical).
-#[inline]
-fn cross_axis(direction: Direction, v: Vec2) -> f32 {
-    if direction.is_horizontal() {
-        v.y
-    } else {
-        v.x
-    }
+fn main_cross_axis(direction: Direction) -> (usize, usize) {
+    let main = if direction.is_horizontal() { 0 } else { 1 };
+    (main, 1 - main)
 }
 
 /// Build a [`Vec2`] from `main`/`cross` components for `direction`.
@@ -39,14 +26,14 @@ fn main_cross_vec(direction: Direction, main: f32, cross: f32) -> Vec2 {
     }
 }
 
-/// Build a cell [`Rect`] spanning `block` fully on the cross axis and `[min_main, max_main]`
+/// Build a cell [`Rect`] spanning `aligned_rect` fully on the cross axis and `[min_main, max_main]`
 /// along the main axis.
 #[inline]
-fn main_cross_rect(direction: Direction, block: Rect, min_main: f32, max_main: f32) -> Rect {
+fn main_cross_rect(direction: Direction, aligned_rect: Rect, min_main: f32, max_main: f32) -> Rect {
     if direction.is_horizontal() {
-        Rect::from_x_y_ranges(min_main..=max_main, block.y_range())
+        Rect::from_x_y_ranges(min_main..=max_main, aligned_rect.y_range())
     } else {
-        Rect::from_x_y_ranges(block.x_range(), min_main..=max_main)
+        Rect::from_x_y_ranges(aligned_rect.x_range(), min_main..=max_main)
     }
 }
 
@@ -305,7 +292,9 @@ impl<'a> AtomLayout<'a> {
         // We work in main/cross axis terms so the same code handles horizontal and vertical
         // layouts. For a horizontal `direction`, main = x and cross = y; for vertical it's
         // swapped. `grow`/`shrink`/`gap` apply along the main axis; the cross axis is sized to
-        // the largest atom.
+        // the largest atom. `main_axis`/`cross_axis` index into a `Vec2` (0 = x, 1 = y).
+        let (main_axis, cross_axis) = main_cross_axis(direction);
+
         let mut inner_main = 0.0;
 
         // intrinsic main / cross is the ideal size of the widget, e.g. the size where the
@@ -353,11 +342,11 @@ impl<'a> AtomLayout<'a> {
             );
             let size = sized.size;
 
-            inner_main += main_axis(direction, size);
-            intrinsic_main += main_axis(direction, sized.intrinsic_size);
+            inner_main += size[main_axis];
+            intrinsic_main += sized.intrinsic_size[main_axis];
 
-            cross_size = cross_size.at_least(cross_axis(direction, size));
-            intrinsic_cross = intrinsic_cross.at_least(cross_axis(direction, sized.intrinsic_size));
+            cross_size = cross_size.at_least(size[cross_axis]);
+            intrinsic_cross = intrinsic_cross.at_least(sized.intrinsic_size[cross_axis]);
 
             sized_items.push(sized);
         }
@@ -366,8 +355,8 @@ impl<'a> AtomLayout<'a> {
             // The `shrink` item gets the remaining space along the main axis.
             let available_size_for_shrink_item = main_cross_vec(
                 direction,
-                main_axis(direction, available_inner_size) - inner_main,
-                cross_axis(direction, available_inner_size),
+                available_inner_size[main_axis] - inner_main,
+                available_inner_size[cross_axis],
             );
 
             let sized = item.into_sized(
@@ -378,11 +367,11 @@ impl<'a> AtomLayout<'a> {
             );
             let size = sized.size;
 
-            inner_main += main_axis(direction, size);
-            intrinsic_main += main_axis(direction, sized.intrinsic_size);
+            inner_main += size[main_axis];
+            intrinsic_main += sized.intrinsic_size[main_axis];
 
-            cross_size = cross_size.at_least(cross_axis(direction, size));
-            intrinsic_cross = intrinsic_cross.at_least(cross_axis(direction, sized.intrinsic_size));
+            cross_size = cross_size.at_least(size[cross_axis]);
+            intrinsic_cross = intrinsic_cross.at_least(sized.intrinsic_size[cross_axis]);
 
             sized_items.insert(index, sized);
         }
@@ -579,9 +568,11 @@ impl<'atom> SizedAtomLayout<'atom> {
 
         ui.painter().add(frame.paint(inner_rect));
 
+        let (main_axis, cross_axis) = main_cross_axis(direction);
+
         // We position atoms along the main axis (the `direction`) and span the cross axis.
-        let main_to_fill = main_axis(direction, inner_rect.size());
-        let inner_main = main_axis(direction, inner_size);
+        let main_to_fill = inner_rect.size()[main_axis];
+        let inner_main = inner_size[main_axis];
         let extra_space = f32::max(main_to_fill - inner_main, 0.0);
         let grow_main = f32::max(extra_space / grow_count as f32, 0.0).floor_ui();
 
@@ -592,7 +583,7 @@ impl<'atom> SizedAtomLayout<'atom> {
         } else {
             inner_main
         };
-        let block_size = main_cross_vec(direction, block_main, cross_axis(direction, inner_size));
+        let block_size = main_cross_vec(direction, block_main, inner_size[cross_axis]);
         let aligned_rect = align2.align_size_within_rect(block_size, inner_rect);
 
         // For reversed directions the first atom sits at the far end, so we lay them out in
@@ -602,7 +593,7 @@ impl<'atom> SizedAtomLayout<'atom> {
         }
 
         // The cursor walks the main axis from the start (left/top) of the aligned block.
-        let mut cursor = main_axis(direction, aligned_rect.min.to_vec2());
+        let mut cursor = aligned_rect.min.to_vec2()[main_axis];
 
         let mut response = AtomLayoutResponse::empty(response);
 
@@ -612,7 +603,7 @@ impl<'atom> SizedAtomLayout<'atom> {
             // https://github.com/emilk/egui/pull/5830#discussion_r2079627864
             let growth = if sized.is_grow() { grow_main } else { 0.0 };
 
-            let atom_main = main_axis(direction, size) + growth;
+            let atom_main = size[main_axis] + growth;
 
             // The cell spans the cross axis fully and `atom_main` along the main axis.
             let cell = main_cross_rect(direction, aligned_rect, cursor, cursor + atom_main);
@@ -637,12 +628,8 @@ impl<'atom> SizedAtomLayout<'atom> {
                 }
                 SizedAtomKind::Empty { .. } => {}
                 SizedAtomKind::Layout(layout) => {
-                    // Hand the nested layout the full (possibly grown) cell extent along the main
-                    // axis so its own `grow` atoms can expand, while keeping its measured cross
-                    // size and honoring this atom's alignment within the cell.
-                    let layout_size =
-                        main_cross_vec(direction, atom_main, cross_axis(direction, size));
-                    let layout_rect = sized.align.align_size_within_rect(layout_size, cell);
+                    // TODO(lucasmerlin): Add some kind of justify flag, right now nested atoms are always
+                    // shown fully stretched.
                     let layout_response = ui.interact(cell, layout.id, layout.sense);
                     layout.paint_at(ui, cell, layout_response);
                 }
