@@ -12,7 +12,7 @@ use std::sync::Arc;
 /// The `(main, cross)` axis indices for `direction`, for indexing a [`Vec2`] (0 = x, 1 = y).
 #[inline]
 fn main_cross_axis(direction: Direction) -> (usize, usize) {
-    let main = if direction.is_horizontal() { 0 } else { 1 };
+    let main = usize::from(!direction.is_horizontal());
     (main, 1 - main)
 }
 
