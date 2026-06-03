@@ -1,6 +1,5 @@
 use crate::{
-    AtomKind, Atoms, FontSelection, Frame, Id, Image, IntoAtoms, Response, Sense, SizedAtom,
-    SizedAtomKind, Ui, Widget,
+    AtomKind, Atoms, FontSelection, Frame, Id, Image, IntoAtoms, SizedAtom, SizedAtomKind, Ui,
 };
 use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
@@ -9,32 +8,33 @@ use smallvec::SmallVec;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-/// Intra-widget layout utility.
+/// The custom [`crate::Atom`] rects collected while painting, keyed by [`crate::Atom::custom`] id.
 ///
-/// Used to lay out and paint [`crate::Atom`]s.
-/// This is used internally by widgets like [`crate::Button`] and [`crate::Checkbox`].
-/// You can use it to make your own widgets.
+/// There should rarely be more than one.
+pub type CustomRects = SmallVec<[(Id, Rect); 1]>;
+
+/// Describes how a set of [`crate::Atom`]s is laid out and painted.
 ///
-/// Painting the atoms can be split in two phases:
-/// - [`AtomLayout::allocate`]
+/// This is the container part of an atom-based widget: it owns the [`Atoms`], the [`Frame`]
+/// painted around them, the sizing constraints (`min_size` / `max_size`), the gap between
+/// atoms, alignment and text styling. It knows nothing about how the widget is shown inside a
+/// [`Ui`] (that is the job of [`crate::WidgetAtom`], which wraps a `ContainerAtom` and adds an
+/// [`Id`](crate::Id) and a [`Sense`](crate::Sense)).
+///
+/// Painting the atoms is split in two phases:
+/// - [`ContainerAtom::measure`]
 ///   - calculates sizes
 ///   - converts texts to [`Galley`]s
-///   - allocates a [`Response`]
-///   - returns a [`AllocatedAtomLayout`]
-/// - [`AllocatedAtomLayout::paint`]
+///   - returns a [`SizedContainerAtom`]
+/// - [`SizedContainerAtom::paint_at`]
 ///   - paints the [`Frame`]
 ///   - calculates individual [`crate::Atom`] positions
 ///   - paints each single atom
-///
-/// You can use this to first allocate a response and then modify, e.g., the [`Frame`] on the
-/// [`AllocatedAtomLayout`] for interaction styling.
 #[derive(Clone)]
-pub struct AtomLayout<'a> {
-    id: Option<Id>,
+pub struct ContainerAtom<'a> {
     pub atoms: Atoms<'a>,
     gap: Option<f32>,
     pub(crate) frame: Frame,
-    pub(crate) sense: Sense,
     fallback_text_color: Option<Color32>,
     fallback_font: Option<FontSelection>,
     min_size: Vec2,
@@ -43,20 +43,18 @@ pub struct AtomLayout<'a> {
     align2: Option<Align2>,
 }
 
-impl Default for AtomLayout<'_> {
+impl Default for ContainerAtom<'_> {
     fn default() -> Self {
         Self::new(())
     }
 }
 
-impl<'a> AtomLayout<'a> {
+impl<'a> ContainerAtom<'a> {
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
-            id: None,
             atoms: atoms.into_atoms(),
             gap: None,
             frame: Frame::default(),
-            sense: Sense::hover(),
             fallback_text_color: None,
             fallback_font: None,
             min_size: Vec2::ZERO,
@@ -79,13 +77,6 @@ impl<'a> AtomLayout<'a> {
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = frame;
-        self
-    }
-
-    /// Set the [`Sense`] used when allocating the [`Response`].
-    #[inline]
-    pub fn sense(mut self, sense: Sense) -> Self {
-        self.sense = sense;
         self
     }
 
@@ -142,13 +133,6 @@ impl<'a> AtomLayout<'a> {
         self
     }
 
-    /// Set the [`Id`] used to allocate a [`Response`].
-    #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
-        self
-    }
-
     /// Set the [`TextWrapMode`] for the [`crate::Atom`] marked as `shrink`.
     ///
     /// Only a single [`crate::Atom`] may shrink. If this (or `ui.wrap_mode()`) is not
@@ -173,29 +157,22 @@ impl<'a> AtomLayout<'a> {
         self
     }
 
-    /// [`AtomLayout::allocate`] and [`AllocatedAtomLayout::paint`] in one go.
-    pub fn show(self, ui: &mut Ui) -> AtomLayoutResponse {
-        self.allocate(ui).paint(ui)
-    }
-
     /// Measure the atoms (sizing only), without allocating space or interacting.
     ///
-    /// This converts texts to [`Galley`]s and calculates sizes, but unlike [`Self::allocate`]
-    /// it does *not* call [`Ui::allocate_space`] (so the parent cursor is left untouched) nor
-    /// [`Ui::interact`]. Use the returned [`SizedAtomLayout`] to paint at an arbitrary [`Rect`]
-    /// via [`SizedAtomLayout::paint_at`]. This is what makes it possible to nest one
-    /// [`AtomLayout`] inside another.
+    /// This converts texts to [`Galley`]s and calculates sizes, but it does *not* call
+    /// [`Ui::allocate_space`] (so the parent cursor is left untouched) nor [`Ui::interact`].
+    /// Use the returned [`SizedContainerAtom`] to paint at an arbitrary [`Rect`] via
+    /// [`SizedContainerAtom::paint_at`]. This is what makes it possible to nest one atom-based
+    /// widget inside another.
     ///
     /// `available_size` is the space available to the whole widget (frame included); it is
-    /// clamped by `max_size`/`min_size`, exactly like [`Self::allocate`] does with
+    /// clamped by `max_size`/`min_size`, exactly like [`crate::WidgetAtom::allocate`] does with
     /// [`Ui::available_size`].
-    pub fn measure(self, ui: &Ui, available_size: Vec2) -> SizedAtomLayout<'a> {
+    pub fn measure(self, ui: &Ui, available_size: Vec2) -> SizedContainerAtom<'a> {
         let Self {
-            id,
             mut atoms,
             gap,
             frame,
-            sense,
             fallback_text_color,
             min_size,
             mut max_size,
@@ -221,8 +198,6 @@ impl<'a> AtomLayout<'a> {
                 }
             }
         }
-
-        let id = id.unwrap_or_else(|| ui.next_auto_id());
 
         let fallback_text_color =
             fallback_text_color.unwrap_or_else(|| ui.style().visuals.text_color());
@@ -323,12 +298,10 @@ impl<'a> AtomLayout<'a> {
         let intrinsic_size =
             (Vec2::new(intrinsic_width, intrinsic_height) + margin.sum()).at_least(min_size);
 
-        SizedAtomLayout {
+        SizedContainerAtom {
             sized_atoms: sized_items,
             frame,
             fallback_text_color,
-            id,
-            sense,
             outer_size,
             intrinsic_size,
             grow_count,
@@ -337,34 +310,16 @@ impl<'a> AtomLayout<'a> {
             gap,
         }
     }
-
-    /// Calculate sizes, create [`Galley`]s and allocate a [`Response`].
-    ///
-    /// Use the returned [`AllocatedAtomLayout`] for painting.
-    pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomLayout<'a> {
-        let sized = self.measure(ui, ui.available_size());
-
-        let (_, rect) = ui.allocate_space(sized.outer_size);
-        let mut response = ui.interact(rect, sized.id, sized.sense);
-        response.set_intrinsic_size(sized.intrinsic_size);
-
-        AllocatedAtomLayout { sized, response }
-    }
 }
 
-/// A measured [`AtomLayout`], ready to be painted at a [`Rect`].
+/// A measured [`ContainerAtom`], ready to be painted at a [`Rect`].
 ///
-/// Produced by [`AtomLayout::measure`]. Unlike [`AllocatedAtomLayout`], it has not yet
-/// allocated space or interacted, so it can be painted at an arbitrary [`Rect`] via
-/// [`Self::paint_at`]. This is what lets one [`AtomLayout`] be nested inside another.
+/// Produced by [`ContainerAtom::measure`]. It has not yet allocated space or interacted, so it
+/// can be painted at an arbitrary [`Rect`] via [`Self::paint_at`]. This is what lets one
+/// atom-based widget be nested inside another. To allocate space and interact, wrap it in a
+/// [`crate::SizedWidgetAtom`] (or measure a [`crate::WidgetAtom`] directly).
 #[derive(Clone, Debug)]
-pub struct SizedAtomLayout<'a> {
-    /// The [`Id`] used to [`Ui::interact`] when this layout is allocated / painted.
-    id: Id,
-
-    /// The [`Sense`] used to [`Ui::interact`] when this layout is allocated / painted.
-    sense: Sense,
-
+pub struct SizedContainerAtom<'a> {
     /// The total widget size we'll request, including the frame margin. Used to allocate space.
     ///
     /// Actual allocated size may be different.
@@ -396,19 +351,7 @@ pub struct SizedAtomLayout<'a> {
     gap: f32,
 }
 
-/// Instructions for painting an [`AtomLayout`].
-///
-/// This is a [`SizedAtomLayout`] that has additionally allocated space and interacted,
-/// producing a [`Response`].
-#[derive(Clone, Debug)]
-pub struct AllocatedAtomLayout<'a> {
-    /// The measured layout.
-    pub sized: SizedAtomLayout<'a>,
-
-    pub response: Response,
-}
-
-impl<'atom> SizedAtomLayout<'atom> {
+impl<'atom> SizedContainerAtom<'atom> {
     pub fn iter_kinds(&self) -> impl Iterator<Item = &SizedAtomKind<'atom>> {
         self.sized_atoms.iter().map(|atom| &atom.kind)
     }
@@ -485,9 +428,11 @@ impl<'atom> SizedAtomLayout<'atom> {
     /// Paint the [`Frame`] and individual [`crate::Atom`]s within `rect`.
     ///
     /// `rect` is the full widget rect (frame included). For a top-level layout this is
-    /// `response.rect`; when nested, the parent passes the cell rect it computed. `response`
-    /// becomes the base of the returned [`AtomLayoutResponse`].
-    pub fn paint_at(self, ui: &Ui, rect: Rect, response: Response) -> AtomLayoutResponse {
+    /// `response.rect`; when nested, the parent passes the cell rect it computed.
+    ///
+    /// Returns the [`CustomRects`] collected from [`crate::Atom::custom`] atoms, so the caller
+    /// can build an [`crate::WidgetAtomResponse`].
+    pub fn paint_at(self, ui: &Ui, rect: Rect) -> CustomRects {
         let Self {
             sized_atoms,
             frame,
@@ -515,7 +460,7 @@ impl<'atom> SizedAtomLayout<'atom> {
 
         let mut cursor = aligned_rect.left();
 
-        let mut response = AtomLayoutResponse::empty(response);
+        let mut custom_rects = CustomRects::new();
 
         for sized in sized_atoms {
             let size = sized.size;
@@ -531,10 +476,10 @@ impl<'atom> SizedAtomLayout<'atom> {
 
             if let Some(id) = sized.id {
                 debug_assert!(
-                    !response.custom_rects.iter().any(|(i, _)| *i == id),
+                    !custom_rects.iter().any(|(i, _)| *i == id),
                     "Duplicate custom id"
                 );
-                response.custom_rects.push((id, rect));
+                custom_rects.push((id, rect));
             }
 
             match sized.kind {
@@ -545,79 +490,22 @@ impl<'atom> SizedAtomLayout<'atom> {
                     image.paint_at(ui, rect);
                 }
                 SizedAtomKind::Empty { .. } => {}
-                SizedAtomKind::Layout(layout) => {
-                    // TODO(lucasmerlin): Add some kind of justify flag to AtomLayout
-                    let layout_response = ui.interact(frame, layout.id, layout.sense);
-                    layout.paint_at(ui, frame, layout_response);
+                SizedAtomKind::Widget(widget) => {
+                    // TODO(lucasmerlin): Add some kind of justify flag to the layout
+                    widget.paint_at(ui, frame);
+                }
+                SizedAtomKind::Container(container) => {
+                    // A nested container has no id/sense, so it is painted but not interacted with.
+                    container.paint_at(ui, frame);
                 }
             }
         }
 
-        response
+        custom_rects
     }
 }
 
-impl AllocatedAtomLayout<'_> {
-    /// Paint the [`Frame`] and individual [`crate::Atom`]s at the allocated [`Response`]'s rect.
-    pub fn paint(self, ui: &Ui) -> AtomLayoutResponse {
-        let rect = self.response.rect;
-        self.sized.paint_at(ui, rect, self.response)
-    }
-}
-
-/// Response from a [`AtomLayout::show`] or [`AllocatedAtomLayout::paint`].
-///
-/// Use [`AtomLayoutResponse::rect`] to get the response rects from [`crate::Atom::custom`].
-#[derive(Clone, Debug)]
-pub struct AtomLayoutResponse {
-    pub response: Response,
-    // There should rarely be more than one custom rect.
-    custom_rects: SmallVec<[(Id, Rect); 1]>,
-}
-
-impl AtomLayoutResponse {
-    pub fn empty(response: Response) -> Self {
-        Self {
-            response,
-            custom_rects: Default::default(),
-        }
-    }
-
-    pub fn custom_rects(&self) -> impl Iterator<Item = (Id, Rect)> + '_ {
-        self.custom_rects.iter().copied()
-    }
-
-    /// Use this together with [`crate::Atom::custom`] to add custom painting / child widgets.
-    ///
-    /// NOTE: Don't `unwrap` rects, they might be empty when the widget is not visible.
-    pub fn rect(&self, id: Id) -> Option<Rect> {
-        self.custom_rects
-            .iter()
-            .find_map(|(i, r)| if *i == id { Some(*r) } else { None })
-    }
-}
-
-impl Deref for AtomLayoutResponse {
-    type Target = Response;
-
-    fn deref(&self) -> &Self::Target {
-        &self.response
-    }
-}
-
-impl DerefMut for AtomLayoutResponse {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.response
-    }
-}
-
-impl Widget for AtomLayout<'_> {
-    fn ui(self, ui: &mut Ui) -> Response {
-        self.show(ui).response
-    }
-}
-
-impl<'a> Deref for AtomLayout<'a> {
+impl<'a> Deref for ContainerAtom<'a> {
     type Target = Atoms<'a>;
 
     fn deref(&self) -> &Self::Target {
@@ -625,13 +513,13 @@ impl<'a> Deref for AtomLayout<'a> {
     }
 }
 
-impl DerefMut for AtomLayout<'_> {
+impl DerefMut for ContainerAtom<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.atoms
     }
 }
 
-impl<'a> Deref for SizedAtomLayout<'a> {
+impl<'a> Deref for SizedContainerAtom<'a> {
     type Target = [SizedAtom<'a>];
 
     fn deref(&self) -> &Self::Target {
@@ -639,22 +527,8 @@ impl<'a> Deref for SizedAtomLayout<'a> {
     }
 }
 
-impl DerefMut for SizedAtomLayout<'_> {
+impl DerefMut for SizedContainerAtom<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.sized_atoms
-    }
-}
-
-impl<'a> Deref for AllocatedAtomLayout<'a> {
-    type Target = SizedAtomLayout<'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.sized
-    }
-}
-
-impl DerefMut for AllocatedAtomLayout<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.sized
     }
 }

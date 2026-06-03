@@ -1,5 +1,6 @@
 use crate::{
-    AtomKind, AtomLayout, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui,
+    AtomKind, ContainerAtom, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui,
+    WidgetAtom,
 };
 use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
@@ -103,13 +104,25 @@ impl<'a> Atom<'a> {
         }
     }
 
-    /// Nest an [`AtomLayout`] (e.g. an atom-based widget) as a single atom.
+    /// Nest a [`WidgetAtom`] (e.g. an atom-based widget) as a single atom.
     ///
-    /// The nested layout is sized when the parent is sized and painted (and interacted with)
-    /// at the cell the parent computes for it. See [`AtomKind::Layout`].
-    pub fn layout(layout: AtomLayout<'a>) -> Self {
+    /// The nested widget is sized when the parent is sized and painted (and interacted with)
+    /// at the cell the parent computes for it. See [`AtomKind::Widget`].
+    pub fn widget(widget: WidgetAtom<'a>) -> Self {
         Atom {
-            kind: AtomKind::Layout(Box::new(layout)),
+            kind: AtomKind::Widget(Box::new(widget)),
+            ..Default::default()
+        }
+    }
+
+    /// Nest a [`ContainerAtom`] (a non-interactive atom-based layout) as a single atom.
+    ///
+    /// Like [`Self::widget`], the nested layout is sized when the parent is sized and painted at
+    /// the cell the parent computes for it. Unlike [`Self::widget`], a [`ContainerAtom`] has no
+    /// id or sense, so it is painted but not interacted with. See [`AtomKind::Container`].
+    pub fn container(container: ContainerAtom<'a>) -> Self {
+        Atom {
+            kind: AtomKind::Container(Box::new(container)),
             ..Default::default()
         }
     }

@@ -1,7 +1,7 @@
 use emath::Rect;
 
 use crate::{
-    Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
+    Atom, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget, WidgetAtom,
     WidgetInfo, WidgetType, epaint, pos2,
     widget_style::{CheckboxStyle, Classes, HasClasses},
 };
@@ -86,7 +86,7 @@ impl Widget for Checkbox<'_> {
 
         let text = atoms.text().map(String::from);
 
-        let mut prepared = AtomLayout::new(atoms)
+        let mut prepared = WidgetAtom::new(atoms)
             .sense(Sense::click())
             .min_size(min_size)
             .frame(frame)

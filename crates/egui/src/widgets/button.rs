@@ -1,9 +1,9 @@
 use epaint::Margin;
 
 use crate::{
-    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
-    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType,
+    Atom, AtomExt as _, AtomKind, Color32, CornerRadius, Frame, Image, IntoAtoms, NumExt as _,
+    Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetAtom,
+    WidgetAtomResponse, WidgetInfo, WidgetText, WidgetType,
     widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState},
 };
 
@@ -27,7 +27,7 @@ use crate::{
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Button<'a> {
-    layout: AtomLayout<'a>,
+    layout: WidgetAtom<'a>,
     fill: Option<Color32>,
     stroke: Option<Stroke>,
     small: bool,
@@ -44,7 +44,7 @@ pub struct Button<'a> {
 impl<'a> Button<'a> {
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
-            layout: AtomLayout::new(atoms.into_atoms())
+            layout: WidgetAtom::new(atoms.into_atoms())
                 .sense(Sense::click())
                 .fallback_font(TextStyle::Button),
             fill: None,
@@ -274,8 +274,8 @@ impl<'a> Button<'a> {
         self
     }
 
-    /// Show the button and return a [`AtomLayoutResponse`] for painting custom contents.
-    pub fn atom_ui(self, ui: &mut Ui) -> AtomLayoutResponse {
+    /// Show the button and return a [`WidgetAtomResponse`] for painting custom contents.
+    pub fn atom_ui(self, ui: &mut Ui) -> WidgetAtomResponse {
         let Button {
             mut layout,
             fill,
@@ -357,7 +357,7 @@ impl<'a> Button<'a> {
 
         let mut prepared = layout.min_size(min_size).allocate(ui);
 
-        // Get AtomLayoutResponse, empty if not visible
+        // Get WidgetAtomResponse, empty if not visible
         let response = if ui.is_rect_visible(prepared.response.rect) {
             if image_tint_follows_text_color {
                 prepared.map_images(|image| image.tint(text_style.color));
@@ -367,7 +367,7 @@ impl<'a> Button<'a> {
 
             prepared.paint(ui)
         } else {
-            AtomLayoutResponse::empty(prepared.response)
+            WidgetAtomResponse::empty(prepared.response)
         };
 
         if let Some(cursor) = ui.visuals().interact_cursor
