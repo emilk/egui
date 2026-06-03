@@ -1,5 +1,6 @@
 use crate::{
     AtomKind, Atoms, FontSelection, Frame, Id, Image, IntoAtoms, SizedAtom, SizedAtomKind, Ui,
+    WidgetAtom,
 };
 use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
@@ -62,99 +63,6 @@ impl<'a> ContainerAtom<'a> {
             wrap_mode: None,
             align2: None,
         }
-    }
-
-    /// Set the gap between atoms.
-    ///
-    /// Default: `Spacing::icon_spacing`
-    #[inline]
-    pub fn gap(mut self, gap: f32) -> Self {
-        self.gap = Some(gap);
-        self
-    }
-
-    /// Set the [`Frame`].
-    #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
-        self.frame = frame;
-        self
-    }
-
-    /// Set the fallback (default) text color.
-    ///
-    /// Default: [`crate::Visuals::text_color`]
-    #[inline]
-    pub fn fallback_text_color(mut self, color: Color32) -> Self {
-        self.fallback_text_color = Some(color);
-        self
-    }
-
-    /// Set the fallback (default) font.
-    #[inline]
-    pub fn fallback_font(mut self, font: impl Into<FontSelection>) -> Self {
-        self.fallback_font = Some(font.into());
-        self
-    }
-
-    /// Set the minimum size of the Widget.
-    ///
-    /// This will find and expand atoms with `grow: true`.
-    /// If there are no growable atoms then everything will be left-aligned.
-    #[inline]
-    pub fn min_size(mut self, size: Vec2) -> Self {
-        self.min_size = size;
-        self
-    }
-
-    /// Set the maximum size of the Widget.
-    ///
-    /// By default, the size is limited by the available size in the [`Ui`].
-    #[inline]
-    pub fn max_size(mut self, size: Vec2) -> Self {
-        self.max_size = size;
-        self
-    }
-
-    /// Set the maximum width of the Widget.
-    ///
-    /// By default, the width is limited by the available width in the [`Ui`].
-    #[inline]
-    pub fn max_width(mut self, width: f32) -> Self {
-        self.max_size.x = width;
-        self
-    }
-
-    /// Set the maximum height of the Widget.
-    ///
-    /// By default, the height is limited by the available height in the [`Ui`].
-    #[inline]
-    pub fn max_height(mut self, height: f32) -> Self {
-        self.max_size.y = height;
-        self
-    }
-
-    /// Set the [`TextWrapMode`] for the [`crate::Atom`] marked as `shrink`.
-    ///
-    /// Only a single [`crate::Atom`] may shrink. If this (or `ui.wrap_mode()`) is not
-    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (left-most)
-    /// [`AtomKind::Text`] will be set to shrink.
-    #[inline]
-    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
-        self.wrap_mode = Some(wrap_mode);
-        self
-    }
-
-    /// Set the [`Align2`].
-    ///
-    /// This will align the [`crate::Atom`]s within the [`Rect`] returned by [`Ui::allocate_space`].
-    ///
-    /// The default is chosen based on the [`Ui`]s [`crate::Layout`]. See
-    /// [this snapshot](https://github.com/emilk/egui/blob/master/tests/egui_tests/tests/snapshots/layout/button.png)
-    /// for info on how the [`crate::Layout`] affects the alignment.
-    #[inline]
-    pub fn align2(mut self, align2: Align2) -> Self {
-        self.align2 = Some(align2);
-        self
     }
 
     /// Measure the atoms (sizing only), without allocating space or interacting.
@@ -309,6 +217,118 @@ impl<'a> ContainerAtom<'a> {
             align2,
             gap,
         }
+    }
+}
+
+/// Generates the layout-builder methods shared by [`ContainerAtom`] and [`WidgetAtom`] from a
+/// single definition, so the two can never drift apart.
+///
+/// Each entry is written as it appears on [`ContainerAtom`] (mutating its own fields). The
+/// matching method on [`WidgetAtom`] is generated automatically, forwarding to its inner
+/// `container`. [`WidgetAtom`]-only builders (`id`, `sense`) stay inherent on [`WidgetAtom`].
+macro_rules! shared_container_builders {
+    (
+        $(
+            $(#[$meta:meta])*
+            fn $name:ident($self:ident, $($arg:ident: $arg_ty:ty),* $(,)?) $body:block
+        )*
+    ) => {
+        impl<'a> ContainerAtom<'a> {
+            $(
+                $(#[$meta])*
+                #[inline]
+                pub fn $name(mut $self, $($arg: $arg_ty),*) -> Self {
+                    $body
+                    $self
+                }
+            )*
+        }
+
+        impl<'a> WidgetAtom<'a> {
+            $(
+                $(#[$meta])*
+                #[inline]
+                pub fn $name(mut self, $($arg: $arg_ty),*) -> Self {
+                    self.container = self.container.$name($($arg),*);
+                    self
+                }
+            )*
+        }
+    };
+}
+
+shared_container_builders! {
+    /// Set the gap between atoms.
+    ///
+    /// Default: `Spacing::icon_spacing`
+    fn gap(self, gap: f32) {
+        self.gap = Some(gap);
+    }
+
+    /// Set the [`Frame`].
+    fn frame(self, frame: Frame) {
+        self.frame = frame;
+    }
+
+    /// Set the fallback (default) text color.
+    ///
+    /// Default: [`crate::Visuals::text_color`]
+    fn fallback_text_color(self, color: Color32) {
+        self.fallback_text_color = Some(color);
+    }
+
+    /// Set the fallback (default) font.
+    fn fallback_font(self, font: impl Into<FontSelection>) {
+        self.fallback_font = Some(font.into());
+    }
+
+    /// Set the minimum size of the Widget.
+    ///
+    /// This will find and expand atoms with `grow: true`.
+    /// If there are no growable atoms then everything will be left-aligned.
+    fn min_size(self, size: Vec2) {
+        self.min_size = size;
+    }
+
+    /// Set the maximum size of the Widget.
+    ///
+    /// By default, the size is limited by the available size in the [`Ui`].
+    fn max_size(self, size: Vec2) {
+        self.max_size = size;
+    }
+
+    /// Set the maximum width of the Widget.
+    ///
+    /// By default, the width is limited by the available width in the [`Ui`].
+    fn max_width(self, width: f32) {
+        self.max_size.x = width;
+    }
+
+    /// Set the maximum height of the Widget.
+    ///
+    /// By default, the height is limited by the available height in the [`Ui`].
+    fn max_height(self, height: f32) {
+        self.max_size.y = height;
+    }
+
+    /// Set the [`TextWrapMode`] for the [`crate::Atom`] marked as `shrink`.
+    ///
+    /// Only a single [`crate::Atom`] may shrink. If this (or `ui.wrap_mode()`) is not
+    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (left-most)
+    /// [`AtomKind::Text`] will be set to shrink.
+    fn wrap_mode(self, wrap_mode: TextWrapMode) {
+        self.wrap_mode = Some(wrap_mode);
+    }
+
+    /// Set the [`Align2`].
+    ///
+    /// This will align the [`crate::Atom`]s within the [`Rect`] returned by [`Ui::allocate_space`].
+    ///
+    /// The default is chosen based on the [`Ui`]s [`crate::Layout`]. See
+    /// [this snapshot](https://github.com/emilk/egui/blob/master/tests/egui_tests/tests/snapshots/layout/button.png)
+    /// for info on how the [`crate::Layout`] affects the alignment.
+    fn align2(self, align2: Align2) {
+        self.align2 = Some(align2);
     }
 }
 
