@@ -230,10 +230,10 @@ macro_rules! shared_container_builders {
     (
         $(
             $(#[$meta:meta])*
+
             fn $name:ident($self:ident, $($arg:ident: $arg_ty:ty),* $(,)?) $body:block
         )*
     ) => {
-
         impl<'a> ContainerAtom<'a> {
             $(
                 $(#[$meta])*
