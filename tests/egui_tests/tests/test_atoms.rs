@@ -1,5 +1,6 @@
 use egui::{
-    Align, Atom, AtomExt as _, AtomLayout, Button, Direction, Frame, Layout, TextWrapMode, Ui, Vec2,
+    Align, Atom, AtomExt as _, AtomLayout, Atoms, Button, Direction, Frame, Layout, TextWrapMode,
+    Ui, Vec2,
 };
 use egui_kittest::{HarnessBuilder, SnapshotResult, SnapshotResults};
 
@@ -185,4 +186,107 @@ fn test_atom_letter_spacing() {
     harness.fit_contents();
 
     harness.snapshot("atom_letter_spacing");
+}
+
+/// A list of button-framed texts of varying widths, used by the wrapping tests.
+///
+/// When `grow` is set, each atom is marked `grow` so lines stretch to fill the available extent.
+fn fruit_atoms(button_frame: Frame, grow: bool) -> Atoms<'static> {
+    let words = [
+        "apple",
+        "banana",
+        "kiwi",
+        "strawberry",
+        "fig",
+        "pomegranate",
+        "pear",
+        "plum",
+        "blackberry",
+        "lime",
+        "cantaloupe",
+        "date",
+        "guava",
+        "melon",
+    ];
+
+    let mut atoms = Atoms::default();
+    for word in words {
+        let atom = Atom::layout(AtomLayout::new(word).frame(button_frame.clone()));
+        atoms.push_right(if grow { atom.atom_grow(true) } else { atom });
+    }
+    atoms
+}
+
+fn button_frame(ui: &Ui) -> Frame {
+    ui.style()
+        .button_style(
+            &egui::widget_style::Classes::default(),
+            egui::widget_style::WidgetState::Inactive,
+        )
+        .frame
+}
+
+/// Tests flex-like wrapping ([`AtomLayout::wrap`]) of a justified list.
+///
+/// Each entry is a button-framed text of a different width, marked `grow`. Inside a
+/// main-justified [`Layout`] the atoms wrap onto multiple lines, and every line stretches its
+/// atoms to fill the full width.
+#[test]
+fn test_atom_wrap_justified() {
+    let mut harness = HarnessBuilder::default()
+        .with_size(Vec2::new(320.0, 240.0))
+        .build_ui(|ui| {
+            let atoms = fruit_atoms(button_frame(ui), true);
+            ui.with_layout(
+                Layout::left_to_right(Align::Min).with_main_justify(true),
+                |ui| {
+                    AtomLayout::new(atoms).wrap(true).show(ui);
+                },
+            );
+        });
+
+    harness.run();
+    harness.snapshot("atom_wrap_justified");
+}
+
+/// Tests non-justified (left-aligned, ragged) flex-like wrapping.
+///
+/// The atoms are not marked `grow`, so each line keeps its natural width and is left-aligned;
+/// `max_width` forces wrapping onto multiple lines.
+#[test]
+fn test_atom_wrap_ragged() {
+    let mut harness = HarnessBuilder::default()
+        .with_size(Vec2::new(320.0, 240.0))
+        .build_ui(|ui| {
+            let atoms = fruit_atoms(button_frame(ui), false);
+            AtomLayout::new(atoms)
+                .wrap(true)
+                .max_width(220.0)
+                .align2(egui::Align2::LEFT_TOP)
+                .show(ui);
+        });
+
+    harness.run();
+    harness.snapshot("atom_wrap_ragged");
+}
+
+/// Tests flex-like wrapping along a vertical ([`Direction::TopDown`]) main axis.
+///
+/// Atoms flow downward and wrap into new columns to the right once they exceed `max_height`.
+#[test]
+fn test_atom_wrap_top_down() {
+    let mut harness = HarnessBuilder::default()
+        .with_size(Vec2::new(320.0, 240.0))
+        .build_ui(|ui| {
+            let atoms = fruit_atoms(button_frame(ui), false);
+            AtomLayout::new(atoms)
+                .wrap(true)
+                .direction(Direction::TopDown)
+                .max_height(140.0)
+                .align2(egui::Align2::LEFT_TOP)
+                .show(ui);
+        });
+
+    harness.run();
+    harness.snapshot("atom_wrap_top_down");
 }

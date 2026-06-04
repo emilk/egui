@@ -109,14 +109,17 @@ impl<'a> Atom<'a> {
     /// at the cell the parent computes for it. See [`AtomKind::Layout`].
     pub fn layout(layout: AtomLayout<'a>) -> Self {
         Atom {
-            kind: AtomKind::Layout(Box::new(layout)),
+            kind: AtomKind::Layout(std::rc::Rc::new(layout)),
             ..Default::default()
         }
     }
 
-    /// Turn this into a [`SizedAtom`].
-    pub fn into_sized(
-        self,
+    /// Size this into a [`SizedAtom`].
+    ///
+    /// Takes `&self` so an atom can be sized repeatedly (e.g. re-measured at a grown size) without
+    /// being consumed; the returned [`SizedAtom`] is owned and does not borrow `self`.
+    pub fn as_sized(
+        &self,
         ui: &Ui,
         mut available_size: Vec2,
         mut wrap_mode: Option<TextWrapMode>,
@@ -139,7 +142,7 @@ impl<'a> Atom<'a> {
         let IntoSizedResult {
             intrinsic_size,
             sized,
-        } = self.kind.into_sized(
+        } = self.kind.as_sized(
             ui,
             IntoSizedArgs {
                 available_size,

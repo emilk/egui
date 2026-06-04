@@ -37,6 +37,78 @@ fn main_cross_rect(direction: Direction, aligned_rect: Rect, min_main: f32, max_
     }
 }
 
+/// Build a [`Rect`] that extends `main_len` along the main axis from `main_min`, and `cross_len`
+/// along the cross axis from `cross_min`, for `direction`.
+#[inline]
+fn rect_from_main_cross(
+    direction: Direction,
+    main_min: f32,
+    main_len: f32,
+    cross_min: f32,
+    cross_len: f32,
+) -> Rect {
+    let min = main_cross_vec(direction, main_min, cross_min).to_pos2();
+    Rect::from_min_size(min, main_cross_vec(direction, main_len, cross_len))
+}
+
+/// Group already-sized atoms into lines for flex-like wrapping.
+///
+/// Walks `atoms` in order, accumulating along the main axis; when adding the next atom would
+/// exceed `max_main` (and the current line is non-empty) a new line is started. Atoms are never
+/// split. `gap` is added between atoms on a line. Always returns at least one line (possibly
+/// empty, if there are no atoms).
+fn pack_lines(
+    atoms: &[SizedAtom<'_>],
+    main_axis: usize,
+    cross_axis: usize,
+    max_main: f32,
+    gap: f32,
+) -> Vec<Line> {
+    let mut lines = Vec::new();
+    let mut start = 0;
+    let mut main_extent = 0.0;
+    let mut cross_extent: f32 = 0.0;
+    let mut grow_count = 0;
+
+    for (i, atom) in atoms.iter().enumerate() {
+        let atom_main = atom.size[main_axis];
+        let atom_cross = atom.size[cross_axis];
+        let is_first_on_line = i == start;
+        let main_with_atom = if is_first_on_line {
+            atom_main
+        } else {
+            main_extent + gap + atom_main
+        };
+
+        if !is_first_on_line && main_with_atom > max_main {
+            // Doesn't fit: flush the current line and start a new one with this atom.
+            lines.push(Line {
+                range: start..i,
+                main_extent,
+                cross_extent,
+                grow_count,
+            });
+            start = i;
+            main_extent = atom_main;
+            cross_extent = atom_cross;
+            grow_count = usize::from(atom.grow);
+        } else {
+            main_extent = main_with_atom;
+            cross_extent = cross_extent.max(atom_cross);
+            grow_count += usize::from(atom.grow);
+        }
+    }
+
+    lines.push(Line {
+        range: start..atoms.len(),
+        main_extent,
+        cross_extent,
+        grow_count,
+    });
+
+    lines
+}
+
 /// Intra-widget layout utility.
 ///
 /// Used to lay out and paint [`crate::Atom`]s.
@@ -70,6 +142,8 @@ pub struct AtomLayout<'a> {
     wrap_mode: Option<TextWrapMode>,
     align2: Option<Align2>,
     direction: Direction,
+    wrap: bool,
+    cross_justify: bool,
 }
 
 impl Default for AtomLayout<'_> {
@@ -93,6 +167,8 @@ impl<'a> AtomLayout<'a> {
             wrap_mode: None,
             align2: None,
             direction: Direction::LeftToRight,
+            wrap: false,
+            cross_justify: false,
         }
     }
 
@@ -217,6 +293,37 @@ impl<'a> AtomLayout<'a> {
         self
     }
 
+    /// Wrap [`crate::Atom`]s onto multiple lines when they exceed the available main extent
+    /// (flex-like wrapping).
+    ///
+    /// Atoms are treated as atomic units for line-breaking: an atom either fits on the current
+    /// line or moves to the next one (it is not split). Each line is packed and grown
+    /// independently along the main axis; lines are stacked along the cross axis.
+    ///
+    /// Wrapping is mutually exclusive with the implicit single-atom text shrink: when `wrap` is
+    /// set, no atom is automatically marked as `shrink`. The same `gap` is used between atoms on
+    /// a line and between lines.
+    #[inline]
+    pub fn wrap(mut self, wrap: bool) -> Self {
+        self.wrap = wrap;
+        self
+    }
+
+    /// Stretch the content along the cross axis to fill the [`Rect`] this layout is painted into
+    /// (flexbox `align-items: stretch`).
+    ///
+    /// By default the content takes its natural cross size and is positioned within the available
+    /// cross space by [`Self::align2`]. This matters when the layout is painted into a `Rect`
+    /// larger than its measured size along the cross axis — most commonly when it is a nested,
+    /// `grow`ing [`crate::Atom`] in a parent layout: with `cross_justify` its own content (a full
+    /// width mock image, a row of tags, …) expands to fill the grown size instead of hugging the
+    /// start. Extra cross space is shared evenly between (wrapped) lines.
+    #[inline]
+    pub fn cross_justify(mut self, cross_justify: bool) -> Self {
+        self.cross_justify = cross_justify;
+        self
+    }
+
     /// [`AtomLayout::allocate`] and [`AllocatedAtomLayout::paint`] in one go.
     pub fn show(self, ui: &mut Ui) -> AtomLayoutResponse {
         self.allocate(ui).paint(ui)
@@ -233,45 +340,40 @@ impl<'a> AtomLayout<'a> {
     /// `available_size` is the space available to the whole widget (frame included); it is
     /// clamped by `max_size`/`min_size`, exactly like [`Self::allocate`] does with
     /// [`Ui::available_size`].
-    pub fn measure(self, ui: &Ui, available_size: Vec2) -> SizedAtomLayout<'a> {
-        let Self {
-            id,
-            mut atoms,
-            gap,
-            frame,
-            sense,
-            fallback_text_color,
-            min_size,
-            mut max_size,
-            wrap_mode,
-            align2,
-            fallback_font,
-            direction,
-        } = self;
+    pub fn measure(&self, ui: &Ui, available_size: Vec2) -> SizedAtomLayout<'a> {
+        let atoms = &self.atoms;
+        let frame = self.frame;
+        let sense = self.sense;
+        let min_size = self.min_size;
+        let mut max_size = self.max_size;
+        let direction = self.direction;
+        let wrap = self.wrap;
+        let cross_justify = self.cross_justify;
 
-        let fallback_font = fallback_font.unwrap_or_default();
+        let fallback_font = self.fallback_font.clone().unwrap_or_default();
 
-        let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
+        let wrap_mode = self.wrap_mode.unwrap_or_else(|| ui.wrap_mode());
 
         // If the TextWrapMode is not Extend, ensure there is some item marked as `shrink`.
-        // If none is found, mark the first text item as `shrink`.
-        if wrap_mode != TextWrapMode::Extend {
-            let any_shrink = atoms.any_shrink();
-            if !any_shrink {
-                let first_text = atoms
-                    .iter_mut()
-                    .find(|a| matches!(a.kind, AtomKind::Text(..)));
-                if let Some(atom) = first_text {
-                    atom.shrink = true; // Will make the text truncate or shrink depending on wrap_mode
-                }
-            }
-        }
+        // If none is found, the first text item acts as the `shrink` item. We size from `&self`
+        // and can't mutate the atom, so we record its index and treat it as `shrink` below.
+        // When `wrap` (flex wrapping) is enabled the shrink mechanism is disabled (atoms wrap
+        // onto new lines instead of one atom shrinking to fit a single line).
+        let auto_shrink_index = if wrap_mode != TextWrapMode::Extend && !wrap && !atoms.any_shrink()
+        {
+            atoms
+                .iter()
+                .position(|a| matches!(a.kind, AtomKind::Text(..)))
+        } else {
+            None
+        };
 
-        let id = id.unwrap_or_else(|| ui.next_auto_id());
+        let id = self.id.unwrap_or_else(|| ui.next_auto_id());
 
-        let fallback_text_color =
-            fallback_text_color.unwrap_or_else(|| ui.style().visuals.text_color());
-        let gap = gap.unwrap_or_else(|| ui.spacing().icon_spacing);
+        let fallback_text_color = self
+            .fallback_text_color
+            .unwrap_or_else(|| ui.style().visuals.text_color());
+        let gap = self.gap.unwrap_or_else(|| ui.spacing().icon_spacing);
 
         // max_size has no effect in justified layouts. If we'd limit the available size here,
         // the content would be sized differently than the frame which would look weird.
@@ -310,7 +412,7 @@ impl<'a> AtomLayout<'a> {
 
         let mut shrink_item = None;
 
-        let align2 = align2.unwrap_or_else(|| {
+        let align2 = self.align2.unwrap_or_else(|| {
             Align2([ui.layout().horizontal_align(), ui.layout().vertical_align()])
         });
 
@@ -320,11 +422,14 @@ impl<'a> AtomLayout<'a> {
             intrinsic_main += gap_space;
         }
 
-        for (idx, item) in atoms.into_iter().enumerate() {
+        for (idx, item) in atoms.iter().enumerate() {
             if item.grow {
                 grow_count += 1;
             }
-            if item.shrink {
+            // When wrapping, `shrink` atoms are laid out like any other atom (no single-atom
+            // shrink-to-fit), so don't divert them into the shrink path. `auto_shrink_index`
+            // promotes the first text atom to `shrink` when none was set explicitly.
+            if (item.shrink || Some(idx) == auto_shrink_index) && !wrap {
                 debug_assert!(
                     shrink_item.is_none(),
                     "Only one atomic may be marked as shrink. {item:?}"
@@ -334,7 +439,7 @@ impl<'a> AtomLayout<'a> {
                     continue;
                 }
             }
-            let sized = item.into_sized(
+            let sized = item.as_sized(
                 ui,
                 available_inner_size,
                 Some(wrap_mode),
@@ -359,12 +464,26 @@ impl<'a> AtomLayout<'a> {
                 available_inner_size[cross_axis],
             );
 
-            let sized = item.into_sized(
-                ui,
-                available_size_for_shrink_item,
-                Some(wrap_mode),
-                fallback_font,
-            );
+            // `Atom::as_sized` reads `self.shrink` (a non-shrink atom with no max width is forced
+            // to `Extend`). The auto-selected first-text atom isn't flagged `shrink`, so size a
+            // copy with `shrink` set to keep the previous truncate/wrap behavior.
+            let sized = if item.shrink {
+                item.as_sized(
+                    ui,
+                    available_size_for_shrink_item,
+                    Some(wrap_mode),
+                    fallback_font,
+                )
+            } else {
+                let mut item = item.clone();
+                item.shrink = true;
+                item.as_sized(
+                    ui,
+                    available_size_for_shrink_item,
+                    Some(wrap_mode),
+                    fallback_font,
+                )
+            };
             let size = sized.size;
 
             inner_main += size[main_axis];
@@ -376,8 +495,78 @@ impl<'a> AtomLayout<'a> {
             sized_items.insert(index, sized);
         }
 
+        // Group the (flat) sized atoms into lines. Without wrapping that's a single line
+        // spanning everything, which reproduces the previous single-line behavior exactly.
+        let mut lines = if wrap {
+            pack_lines(
+                &sized_items,
+                main_axis,
+                cross_axis,
+                available_inner_size[main_axis],
+                gap,
+            )
+        } else {
+            vec![Line {
+                range: 0..sized_items.len(),
+                main_extent: inner_main,
+                cross_extent: cross_size,
+                grow_count,
+            }]
+        };
+
+        // Inner main = widest line. `grow` doesn't change it (it only fills slack within a line).
+        let inner_main = lines.iter().map(|l| l.main_extent).fold(0.0_f32, f32::max);
+
         let margin = frame.total_margin();
-        let inner_size = main_cross_vec(direction, inner_main, cross_size);
+
+        // Flexbox §9.3→§9.4 ordering: resolve `grow` and *then* re-measure each grown nested
+        // layout at its grown main extent, so its reflowed cross size feeds the line's cross
+        // extent. Otherwise the cross size (line height) is computed from each atom's *natural*
+        // (pre-grow) main size, committed into `outer_size`, and only paint resolves `grow` — so a
+        // nested layout that re-wraps narrower content when grown (a card whose tags collapse onto
+        // one line) leaves the line taller than its reflowed contents (a gap above the footer).
+        //
+        // This mirrors the re-measure `paint_at` already does for grown nested layouts, but does
+        // it here so the reflowed height propagates into the parent's own size. It only fires when
+        // the layout fills past its content along the main axis (`fill_main > line.main_extent` —
+        // e.g. `min_size` forces it to the available width, the gallery case). When nothing fills,
+        // `grow` has no slack to distribute, so non-fill layouts are completely unaffected.
+        let fill_main = (min_size[main_axis] - margin.sum()[main_axis]).max(inner_main);
+        for line in &mut lines {
+            if line.grow_count == 0 {
+                continue;
+            }
+            let grow_main = ((fill_main - line.main_extent) / line.grow_count as f32).floor_ui();
+            if grow_main <= 0.0 {
+                continue;
+            }
+            let mut line_cross: f32 = 0.0;
+            for sized in &mut sized_items[line.range.clone()] {
+                if sized.grow
+                    && let SizedAtomKind::Layout {
+                        source,
+                        sized: inner,
+                    } = &mut sized.kind
+                {
+                    let grown = main_cross_vec(
+                        direction,
+                        sized.size[main_axis] + grow_main,
+                        available_inner_size[cross_axis],
+                    );
+                    let remeasured = source.measure(ui, grown);
+                    sized.size[cross_axis] = remeasured.outer_size[cross_axis];
+                    **inner = remeasured;
+                }
+                line_cross = line_cross.max(sized.size[cross_axis]);
+            }
+            line.cross_extent = line_cross;
+        }
+
+        // Inner cross = stacked line cross extents + inter-line gaps (post-reflow).
+        let inner_cross = lines.iter().map(|l| l.cross_extent).sum::<f32>()
+            + gap * lines.len().saturating_sub(1) as f32;
+
+        let inner_size = main_cross_vec(direction, inner_main, inner_cross);
         let outer_size = (inner_size + margin.sum()).at_least(min_size);
         let intrinsic_size = (main_cross_vec(direction, intrinsic_main, intrinsic_cross)
             + margin.sum())
@@ -391,11 +580,12 @@ impl<'a> AtomLayout<'a> {
             sense,
             outer_size,
             intrinsic_size,
-            grow_count,
+            lines,
             inner_size,
             align2,
             gap,
             direction,
+            cross_justify,
         }
     }
 
@@ -411,6 +601,26 @@ impl<'a> AtomLayout<'a> {
 
         AllocatedAtomLayout { sized, response }
     }
+}
+
+/// One (possibly wrapped) line of atoms within a [`SizedAtomLayout`].
+///
+/// `range` indexes into [`SizedAtomLayout::sized_atoms`], which is kept as a single flat `Vec`
+/// (so the `iter_*`/`map_*` helpers keep working); the lines just describe how to group it.
+/// For a non-wrapping layout there is exactly one line spanning all atoms.
+#[derive(Clone, Debug)]
+struct Line {
+    /// Range into [`SizedAtomLayout::sized_atoms`].
+    range: std::ops::Range<usize>,
+
+    /// Sum of atom main extents on this line plus the inter-atom gaps.
+    main_extent: f32,
+
+    /// The largest atom cross extent on this line.
+    cross_extent: f32,
+
+    /// How many atoms on this line are marked `grow`.
+    grow_count: usize,
 }
 
 /// A measured [`AtomLayout`], ready to be painted at a [`Rect`].
@@ -447,8 +657,8 @@ pub struct SizedAtomLayout<'a> {
     /// [`Response::set_intrinsic_size`].
     pub(crate) intrinsic_size: Vec2,
 
-    /// How many atoms were marked as `grow`?
-    grow_count: usize,
+    /// The atoms grouped into (possibly wrapped) lines. Always at least one line.
+    lines: Vec<Line>,
 
     /// How will all the atoms be aligned within the allocated rect?
     align2: Align2,
@@ -458,6 +668,10 @@ pub struct SizedAtomLayout<'a> {
 
     /// The axis the atoms are laid out along. The main axis carries `grow`/`shrink`/`gap`.
     direction: Direction,
+
+    /// Stretch the content along the cross axis to fill the painted [`Rect`]. See
+    /// [`AtomLayout::cross_justify`].
+    cross_justify: bool,
 }
 
 /// Instructions for painting an [`AtomLayout`].
@@ -553,14 +767,15 @@ impl<'atom> SizedAtomLayout<'atom> {
     /// becomes the base of the returned [`AtomLayoutResponse`].
     pub fn paint_at(self, ui: &Ui, rect: Rect, response: Response) -> AtomLayoutResponse {
         let Self {
-            mut sized_atoms,
+            sized_atoms,
             frame,
             fallback_text_color,
-            grow_count,
+            lines,
             inner_size,
             align2,
             gap,
             direction,
+            cross_justify,
             ..
         } = self;
 
@@ -570,68 +785,131 @@ impl<'atom> SizedAtomLayout<'atom> {
 
         let (main_axis, cross_axis) = main_cross_axis(direction);
 
-        // We position atoms along the main axis (the `direction`) and span the cross axis.
-        let main_to_fill = inner_rect.size()[main_axis];
-        let inner_main = inner_size[main_axis];
-        let extra_space = f32::max(main_to_fill - inner_main, 0.0);
-        let grow_main = f32::max(extra_space / grow_count as f32, 0.0).floor_ui();
-
-        // When something grows, the block fills the available main extent; otherwise it's the
-        // content's inner size. `align2` then positions the block within `inner_rect`.
-        let block_main = if grow_count > 0 {
-            main_to_fill
+        // We position atoms along the main axis (the `direction`) and stack lines along the cross
+        // axis. For a single (non-wrapped) line this reduces to the original single-line layout.
+        let main_range = if direction.is_horizontal() {
+            inner_rect.x_range()
         } else {
-            inner_main
+            inner_rect.y_range()
         };
-        let block_size = main_cross_vec(direction, block_main, inner_size[cross_axis]);
-        let aligned_rect = align2.align_size_within_rect(block_size, inner_rect);
+        let cross_range = if direction.is_horizontal() {
+            inner_rect.y_range()
+        } else {
+            inner_rect.x_range()
+        };
+        let main_to_fill = inner_rect.size()[main_axis];
 
-        // For reversed directions the first atom sits at the far end, so we lay them out in
-        // reverse and otherwise share the same forward cursor logic.
-        if matches!(direction, Direction::RightToLeft | Direction::BottomUp) {
-            sized_atoms.reverse();
-        }
+        // With `cross_justify` the content stretches to fill the cross extent of `inner_rect`:
+        // any extra cross space is shared evenly between lines and the stack starts at the edge.
+        // Otherwise the stack takes its natural cross size and `align2` positions it.
+        let extra_cross = f32::max(cross_range.span() - inner_size[cross_axis], 0.0);
+        let line_grow_cross = if cross_justify && !lines.is_empty() {
+            (extra_cross / lines.len() as f32).floor_ui()
+        } else {
+            0.0
+        };
+        let mut cross_cursor = if cross_justify {
+            cross_range.min
+        } else {
+            align2.0[cross_axis]
+                .align_size_within_range(inner_size[cross_axis], cross_range)
+                .min
+        };
 
-        // The cursor walks the main axis from the start (left/top) of the aligned block.
-        let mut cursor = aligned_rect.min.to_vec2()[main_axis];
+        // Split the flat `sized_atoms` into per-line groups. The line ranges are contiguous and
+        // ordered, so we can just take them off the front in order.
+        let mut atoms_iter = sized_atoms.into_iter();
 
         let mut response = AtomLayoutResponse::empty(response);
 
-        for sized in sized_atoms {
-            let size = sized.size;
-            // TODO(lucasmerlin): This is not ideal, since this might lead to accumulated rounding errors
-            // https://github.com/emilk/egui/pull/5830#discussion_r2079627864
-            let growth = if sized.is_grow() { grow_main } else { 0.0 };
+        for line in lines {
+            let mut line_atoms: Vec<SizedAtom<'_>> =
+                (&mut atoms_iter).take(line.range.len()).collect();
 
-            let atom_main = size[main_axis] + growth;
+            // Per-line growth: extra main space is split between this line's `grow` atoms.
+            let extra_space = f32::max(main_to_fill - line.main_extent, 0.0);
+            let grow_main = if line.grow_count > 0 {
+                f32::max(extra_space / line.grow_count as f32, 0.0).floor_ui()
+            } else {
+                0.0
+            };
 
-            // The cell spans the cross axis fully and `atom_main` along the main axis.
-            let cell = main_cross_rect(direction, aligned_rect, cursor, cursor + atom_main);
-            cursor += atom_main + gap;
-            let item_rect = sized.align.align_size_within_rect(size, cell);
+            // When something on this line grows, the line fills the available main extent;
+            // otherwise it's the line's own extent. `align2` then positions it along the main axis.
+            let block_main = if line.grow_count > 0 {
+                main_to_fill
+            } else {
+                line.main_extent
+            };
+            let line_main = align2.0[main_axis].align_size_within_range(block_main, main_range);
 
-            if let Some(id) = sized.id {
-                debug_assert!(
-                    !response.custom_rects.iter().any(|(i, _)| *i == id),
-                    "Duplicate custom id"
-                );
-                response.custom_rects.push((id, item_rect));
+            // The rect this line occupies: `block_main` along the main axis, and its cross extent
+            // (this line's height) along the cross axis, grown to fill if `cross_justify` is set.
+            let line_cross = line.cross_extent + line_grow_cross;
+            let line_rect = rect_from_main_cross(
+                direction,
+                line_main.min,
+                line_main.span(),
+                cross_cursor,
+                line_cross,
+            );
+            cross_cursor += line_cross + gap;
+
+            // For reversed directions the first atom sits at the far end, so we lay them out in
+            // reverse and otherwise share the same forward cursor logic.
+            if matches!(direction, Direction::RightToLeft | Direction::BottomUp) {
+                line_atoms.reverse();
             }
 
-            match sized.kind {
-                SizedAtomKind::Text(galley) => {
-                    ui.painter()
-                        .galley(item_rect.min, galley, fallback_text_color);
+            // The cursor walks the main axis from the start of the aligned line.
+            let mut cursor = line_rect.min.to_vec2()[main_axis];
+
+            for sized in line_atoms {
+                let size = sized.size;
+                // TODO(lucasmerlin): This is not ideal, since this might lead to accumulated rounding errors
+                // https://github.com/emilk/egui/pull/5830#discussion_r2079627864
+                let growth = if sized.is_grow() { grow_main } else { 0.0 };
+
+                let atom_main = size[main_axis] + growth;
+
+                // The cell spans this line's cross extent fully and `atom_main` along the main axis.
+                let cell = main_cross_rect(direction, line_rect, cursor, cursor + atom_main);
+                cursor += atom_main + gap;
+                let item_rect = sized.align.align_size_within_rect(size, cell);
+
+                if let Some(id) = sized.id {
+                    debug_assert!(
+                        !response.custom_rects.iter().any(|(i, _)| *i == id),
+                        "Duplicate custom id"
+                    );
+                    response.custom_rects.push((id, item_rect));
                 }
-                SizedAtomKind::Image { image, size: _ } => {
-                    image.paint_at(ui, item_rect);
-                }
-                SizedAtomKind::Empty { .. } => {}
-                SizedAtomKind::Layout(layout) => {
-                    // TODO(lucasmerlin): Add some kind of justify flag, right now nested atoms are always
-                    // shown fully stretched.
-                    let layout_response = ui.interact(cell, layout.id, layout.sense);
-                    layout.paint_at(ui, cell, layout_response);
+
+                match sized.kind {
+                    SizedAtomKind::Text(galley) => {
+                        ui.painter()
+                            .galley(item_rect.min, galley, fallback_text_color);
+                    }
+                    SizedAtomKind::Image { image, size: _ } => {
+                        image.paint_at(ui, item_rect);
+                    }
+                    SizedAtomKind::Empty { .. } => {}
+                    SizedAtomKind::Layout { source, sized } => {
+                        let layout_response = ui.interact(cell, sized.id, sized.sense);
+                        // The atom was measured at its natural size, but `grow`/`shrink` may have
+                        // changed the cell it's painted into. If so, re-measure the layout at the
+                        // actual cell so its own contents re-wrap / reflow to fit (a nested layout
+                        // can't otherwise know how much it grew). When the size is unchanged we
+                        // reuse the already-measured layout.
+                        let resized = (cell.size() - sized.outer_size).abs().max_elem() > 0.5;
+                        if resized {
+                            source
+                                .measure(ui, cell.size())
+                                .paint_at(ui, cell, layout_response);
+                        } else {
+                            sized.paint_at(ui, cell, layout_response);
+                        }
+                    }
                 }
             }
         }

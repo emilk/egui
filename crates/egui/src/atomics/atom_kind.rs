@@ -2,6 +2,7 @@ use crate::{AtomLayout, FontSelection, Image, ImageSource, SizedAtomKind, Ui, Wi
 use emath::Vec2;
 use epaint::text::TextWrapMode;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 /// Args passed when sizing an [`super::Atom`]
 pub struct IntoSizedArgs {
@@ -16,13 +17,8 @@ pub struct IntoSizedResult<'a> {
     pub sized: SizedAtomKind<'a>,
 }
 
-/// See [`AtomKind::Closure`]
-// We need 'static in the result (or need to introduce another lifetime on the enum).
-// Otherwise, a single 'static Atom would force the closure to be 'static.
-pub type AtomClosure<'a> = Box<dyn FnOnce(&Ui, IntoSizedArgs) -> IntoSizedResult<'static> + 'a>;
-
 /// The different kinds of [`crate::Atom`]s.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub enum AtomKind<'a> {
     /// Empty, that can be used with [`crate::AtomExt::atom_grow`] to reserve space.
     #[default]
@@ -57,36 +53,14 @@ pub enum AtomKind<'a> {
     /// default font height, which is convenient for icons.
     Image(Image<'a>),
 
-    /// A custom closure that produces a sized atom.
-    ///
-    /// The vec2 passed in is the available size to this atom. The returned vec2 should be the
-    /// preferred / intrinsic size.
-    ///
-    /// Note: This api is experimental, expect breaking changes here.
-    /// When cloning, this will be cloned as [`AtomKind::Empty`].
-    Closure(AtomClosure<'a>),
-
     /// A nested [`AtomLayout`], letting you embed an atom-based widget as a single atom
     /// inside another [`AtomLayout`].
     ///
     /// The nested layout is measured (sized) when the parent is sized, and painted (and
-    /// interacted with) at the cell rect the parent computes for it.
-    Layout(Box<AtomLayout<'a>>),
-}
-
-impl Clone for AtomKind<'_> {
-    fn clone(&self) -> Self {
-        match self {
-            AtomKind::Empty => AtomKind::Empty,
-            AtomKind::Text(text) => AtomKind::Text(text.clone()),
-            AtomKind::Image(image) => AtomKind::Image(image.clone()),
-            AtomKind::Closure(_) => {
-                log::warn!("Cannot clone atom closures");
-                AtomKind::Empty
-            }
-            AtomKind::Layout(layout) => AtomKind::Layout(layout.clone()),
-        }
-    }
+    /// interacted with) at the cell rect the parent computes for it. The `Arc` lets the parent
+    /// keep the (unsized) layout around cheaply so a grown atom can be re-measured at its painted
+    /// size without deep-cloning it. See [`SizedAtomKind::Layout`].
+    Layout(Rc<AtomLayout<'a>>),
 }
 
 impl Debug for AtomKind<'_> {
@@ -95,7 +69,6 @@ impl Debug for AtomKind<'_> {
             AtomKind::Empty => write!(f, "AtomKind::Empty"),
             AtomKind::Text(text) => write!(f, "AtomKind::Text({text:?})"),
             AtomKind::Image(image) => write!(f, "AtomKind::Image({image:?})"),
-            AtomKind::Closure(_) => write!(f, "AtomKind::Closure(<closure>)"),
             AtomKind::Layout(_) => write!(f, "AtomKind::Layout(<layout>)"),
         }
     }
@@ -112,17 +85,17 @@ impl<'a> AtomKind<'a> {
         AtomKind::Image(image.into())
     }
 
-    /// See [`Self::Closure`]
-    pub fn closure(func: impl FnOnce(&Ui, IntoSizedArgs) -> IntoSizedResult<'static> + 'a) -> Self {
-        AtomKind::Closure(Box::new(func))
-    }
-
-    /// Turn this [`AtomKind`] into a [`SizedAtomKind`].
+    /// Size this [`AtomKind`] into a [`SizedAtomKind`].
     ///
     /// This converts [`WidgetText`] into [`crate::Galley`] and tries to load and size [`Image`].
     /// The first returned argument is the preferred size.
-    pub fn into_sized(
-        self,
+    ///
+    /// Takes `&self` so an atom can be sized repeatedly (e.g. re-measured at a grown size when a
+    /// nested layout reflows) without consuming it. The returned [`SizedAtomKind`] is owned (texts
+    /// produce a [`crate::Galley`], images and nested layouts are shared via cheap clones), so it
+    /// does not borrow `self`.
+    pub fn as_sized(
+        &self,
         ui: &Ui,
         IntoSizedArgs {
             available_size,
@@ -132,7 +105,9 @@ impl<'a> AtomKind<'a> {
     ) -> IntoSizedResult<'a> {
         match self {
             AtomKind::Text(text) => {
-                let galley = text.into_galley(ui, Some(wrap_mode), available_size.x, fallback_font);
+                let galley =
+                    text.clone()
+                        .into_galley(ui, Some(wrap_mode), available_size.x, fallback_font);
                 IntoSizedResult {
                     intrinsic_size: galley.intrinsic_size(),
                     sized: SizedAtomKind::Text(galley),
@@ -143,26 +118,27 @@ impl<'a> AtomKind<'a> {
                 let size = size.unwrap_or(Vec2::ZERO);
                 IntoSizedResult {
                     intrinsic_size: size,
-                    sized: SizedAtomKind::Image { image, size },
+                    sized: SizedAtomKind::Image {
+                        image: image.clone(),
+                        size,
+                    },
                 }
             }
             AtomKind::Empty => IntoSizedResult {
                 intrinsic_size: Vec2::ZERO,
                 sized: SizedAtomKind::Empty { size: None },
             },
-            AtomKind::Closure(func) => func(
-                ui,
-                IntoSizedArgs {
-                    available_size,
-                    wrap_mode,
-                    fallback_font,
-                },
-            ),
             AtomKind::Layout(layout) => {
+                // Measure at the natural size for the parent's sizing, but keep a shared handle to
+                // the original layout so a grown atom can be re-measured at its painted size in
+                // `paint_at` (cheap `Arc` clone, no deep copy).
                 let sized = layout.measure(ui, available_size);
                 IntoSizedResult {
                     intrinsic_size: sized.intrinsic_size,
-                    sized: SizedAtomKind::Layout(Box::new(sized)),
+                    sized: SizedAtomKind::Layout {
+                        source: Rc::clone(layout),
+                        sized: Box::new(sized),
+                    },
                 }
             }
         }
@@ -192,6 +168,6 @@ where
 
 impl<'a> From<AtomLayout<'a>> for AtomKind<'a> {
     fn from(layout: AtomLayout<'a>) -> Self {
-        AtomKind::Layout(Box::new(layout))
+        AtomKind::Layout(Rc::new(layout))
     }
 }

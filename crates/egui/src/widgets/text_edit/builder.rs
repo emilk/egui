@@ -4,10 +4,10 @@ use emath::{Rect, TSTransform};
 use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
-    Align, Align2, AsIdSalt, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context,
-    CursorIcon, Event, EventFilter, FontSelection, Frame, Id, IdSalt, ImeEvent, IntoAtoms,
-    IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense,
-    SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
+    Align, Align2, AsIdSalt, Atom, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context,
+    CursorIcon, Event, EventFilter, FontSelection, Frame, Id, IdSalt, ImeEvent, IntoAtoms, Key,
+    KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense, TextBuffer, TextStyle, Ui,
+    Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response,
@@ -564,11 +564,48 @@ impl TextEdit<'_> {
             }
         };
 
-        // We need to calculate the galley within the atom closure, so we can calculate it based on
-        // the available width (in case of wrapping multiline text edits). But we show it later,
-        // so we can clip it to the available size. Thus, extract it from the atom closure here.
-        let mut get_galley = None;
+        let custom_frame = frame.is_some();
+        let frame = frame.unwrap_or_else(|| Frame::new().inner_margin(margin));
+
         let inner_rect_id = Id::new("text_edit_rect");
+
+        // The editable text is the layout's `shrink` atom, so the layout would size it to
+        // `available_inner_width - prefix - suffix - gaps`. We derive that width here so we can lay
+        // out the galley (and handle events) at the correct wrap width *before* building the
+        // layout — deriving it up front is the only thing the old sizing-time closure was for.
+        let editable_width = {
+            let gap = ui.spacing().icon_spacing;
+            // In a horizontally-justified layout the AtomLayout drops its `max_width` and fills the
+            // available width; otherwise it's `allocate_width`. Mirror that so the width we lay the
+            // galley out at matches the cell the layout will actually give the editable atom.
+            let effective_width = if ui.layout().horizontal_justify() {
+                ui.available_size().x.at_least(allocate_width)
+            } else {
+                allocate_width
+            };
+            let available_inner_width = effective_width - frame.total_margin().sum().x;
+            let n_atoms = prefix.len() + suffix.len() + 1;
+            let fixed_main: f32 = prefix
+                .iter()
+                .chain(suffix.iter())
+                .map(|atom| {
+                    atom.as_sized(
+                        ui,
+                        Vec2::new(available_inner_width, f32::INFINITY),
+                        Some(TextWrapMode::Extend),
+                        FontSelection::default(),
+                    )
+                    .size
+                    .x
+                })
+                .sum();
+            (available_inner_width - fixed_main - gap * n_atoms.saturating_sub(1) as f32)
+                .at_least(0.0)
+        };
+
+        // The galley is laid out (and painted) by us, so we can clip/offset it and draw the cursor;
+        // the editable atom just reserves its size. Assigned in both branches of the block below.
+        let get_galley;
         let mut response = {
             let any_shrink = hint_text.any_shrink();
             // Ideally we could just do `let mut atoms = prefix` here, but that won't compile
@@ -623,42 +660,32 @@ impl TextEdit<'_> {
 
                 get_galley = Some(galley);
             } else {
-                // We need to shrink when clip_text, so that we don't exceed the available size
-                // and thus clip. We also need to shrink in multi line text edits, so text can
-                // wrap appropriately.
+                // We shrink when clip_text (so we don't exceed the available width and clip) and
+                // in multiline (so the text wraps). `shrink` also keeps a prefix/suffix text atom
+                // from being auto-promoted to the shrink atom.
                 let should_shrink = clip_text || multiline;
 
-                // We need a closure here, so we can calculate the galley based on the available
-                // width (after adding suffix and prefix), for correct wrapping in multi line text
-                // edits
+                // Lay out the galley at the editable width and handle events right away, so the
+                // galley updates the same frame on keystrokes and `scroll_to` works. We paint the
+                // galley ourselves (clipped/offset, with cursor) later, so the atom just reserves
+                // its size.
+                let mut galley = layouter(ui, text, editable_width);
+                handle_events(ui, &mut galley, layouter, editable_width, text);
+
+                let mut size = galley.size();
+                size.y = size.y.at_least(min_inner_height);
+                if clip_text {
+                    size.x = size.x.at_most(editable_width);
+                }
+
                 atoms.push_right(
-                    AtomKind::closure(|ui, args| {
-                        let mut galley = layouter(ui, text, args.available_size.x);
-
-                        // Handling events here allows us to update the galley immediately on
-                        // keystrokes, avoiding frame delays, and ensuring the scroll_to within
-                        // ScrollAreas works correctly.
-                        handle_events(ui, &mut galley, layouter, args.available_size.x, text);
-
-                        let intrinsic_size = galley.intrinsic_size();
-                        let mut size = galley.size();
-                        size.y = size.y.at_least(min_inner_height);
-                        if clip_text {
-                            size.x = size.x.at_most(args.available_size.x);
-                        }
-
-                        // We paint the galley later, so we can do clipping and offsetting
-                        get_galley = Some(galley);
-                        IntoSizedResult {
-                            intrinsic_size,
-                            sized: SizedAtomKind::Empty { size: Some(size) },
-                        }
-                    })
-                    .atom_grow(true)
-                    .atom_align(self.align)
-                    .atom_id(inner_rect_id)
-                    .atom_shrink(should_shrink),
+                    Atom::custom(inner_rect_id, size)
+                        .atom_grow(true)
+                        .atom_align(align)
+                        .atom_shrink(should_shrink),
                 );
+
+                get_galley = Some(galley);
             }
 
             // TODO(servo/rust-smallvec#146): Use extend_right instead of the loop once we have
@@ -666,9 +693,6 @@ impl TextEdit<'_> {
             for atom in suffix {
                 atoms.push_right(atom);
             }
-
-            let custom_frame = frame.is_some();
-            let frame = frame.unwrap_or_else(|| Frame::new().inner_margin(margin));
 
             let min_height = min_inner_height + frame.total_margin().sum().y;
 

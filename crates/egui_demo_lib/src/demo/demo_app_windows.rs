@@ -72,6 +72,7 @@ impl Default for DemoGroups {
         Self {
             about: About::default(),
             demos: DemoGroup::new(vec![
+                Box::<super::atom_layout_demo::AtomLayoutDemo>::default(),
                 Box::<super::paint_bezier::PaintBezier>::default(),
                 Box::<super::code_editor::CodeEditor>::default(),
                 Box::<super::code_example::CodeExample>::default(),
