@@ -555,7 +555,7 @@ impl GlowWinitRunning<'_> {
             }
         }
 
-        let (raw_input, viewport_ui_cb, is_visible) = {
+        let (raw_input, viewport_ui_cb, is_visible, run_ui) = {
             let mut glutin = self.glutin.borrow_mut();
             let egui_ctx = glutin.egui_ctx.clone();
             let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
@@ -564,15 +564,18 @@ impl GlowWinitRunning<'_> {
             let Some(window) = viewport.window.as_ref() else {
                 return Ok(EventResult::Wait);
             };
-            egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window, false);
+            egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, &window, false);
 
             let is_visible = viewport.info.visible().unwrap_or(true);
 
             let Some(egui_winit) = viewport.egui_winit.as_mut() else {
                 return Ok(EventResult::Wait);
             };
-            let mut raw_input = egui_winit.take_egui_input(window);
+            let mut raw_input = egui_winit.take_egui_input(&window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
+
+            let run_ui =
+                is_visible || is_viewport_or_descendant_visible(&glutin.viewports, viewport_id);
 
             self.integration.pre_update();
 
@@ -583,7 +586,7 @@ impl GlowWinitRunning<'_> {
                 .map(|(id, viewport)| (*id, viewport.info.clone()))
                 .collect();
 
-            (raw_input, viewport_ui_cb, is_visible)
+            (raw_input, viewport_ui_cb, is_visible, run_ui)
         };
 
         // HACK: In order to get the right clear_color, the system theme needs to be set, which
@@ -638,7 +641,7 @@ impl GlowWinitRunning<'_> {
             self.app.as_mut(),
             viewport_ui_cb.as_deref(),
             raw_input,
-            is_visible,
+            run_ui,
         );
 
         // ------------------------------------------------------------
@@ -1461,6 +1464,28 @@ fn initialize_or_update_viewport(
 
 /// This is called (via a callback) by user code to render immediate viewports,
 /// i.e. viewport that are directly nested inside a parent viewport.
+/// Is this viewport, or any of its (transitive) descendant viewports, visible?
+///
+/// Immediate viewports are rendered inline while their parent's UI runs, so even
+/// if this viewport's window is occluded or minimized we must still run its UI to
+/// give any visible descendant a chance to be painted.
+fn is_viewport_or_descendant_visible(
+    viewports: &OrderedViewportIdMap<Viewport>,
+    viewport_id: ViewportId,
+) -> bool {
+    let Some(viewport) = viewports.get(&viewport_id) else {
+        return false;
+    };
+    if viewport.info.visible().unwrap_or(true) {
+        return true;
+    }
+    viewports.values().any(|child| {
+        child.ids.parent == viewport_id
+            && child.ids.this != viewport_id // ROOT is its own parent; avoid self-recursion.
+            && is_viewport_or_descendant_visible(viewports, child.ids.this)
+    })
+}
+
 fn render_immediate_viewport(
     egui_ctx: &egui::Context,
     glutin: &RefCell<GlutinWindowContext>,

@@ -598,7 +598,7 @@ impl WgpuWinitRunning<'_> {
         let mut frame_timer = crate::stopwatch::Stopwatch::new();
         frame_timer.start();
 
-        let (viewport_ui_cb, raw_input, is_visible) = {
+        let (viewport_ui_cb, raw_input, is_visible, run_ui) = {
             profiling::scope!("Prepare");
             let mut shared_lock = shared.borrow_mut();
 
@@ -654,6 +654,8 @@ impl WgpuWinitRunning<'_> {
             };
             let mut raw_input = egui_winit.take_egui_input(window);
 
+            let run_ui = is_visible || is_viewport_or_descendant_visible(viewports, viewport_id);
+
             integration.pre_update();
 
             raw_input.time = Some(integration.beginning.elapsed().as_secs_f64());
@@ -664,7 +666,7 @@ impl WgpuWinitRunning<'_> {
 
             painter.handle_screenshots(&mut raw_input.events);
 
-            (viewport_ui_cb, raw_input, is_visible)
+            (viewport_ui_cb, raw_input, is_visible, run_ui)
         };
 
         // ------------------------------------------------------------
@@ -675,7 +677,7 @@ impl WgpuWinitRunning<'_> {
             app.as_mut(),
             viewport_ui_cb.as_deref(),
             raw_input,
-            is_visible,
+            run_ui,
         );
 
         // ------------------------------------------------------------
@@ -1021,6 +1023,25 @@ fn create_window(
     let window = egui_winit::create_window(egui_ctx, event_loop, &viewport_builder)?;
     epi_integration::apply_window_settings(&window, window_settings);
     Ok((window, viewport_builder))
+}
+
+/// Is this viewport, or any of its (transitive) descendant viewports, visible?
+///
+/// Immediate viewports are rendered inline while their parent's UI runs, so even
+/// if this viewport's window is occluded or minimized we must still run its UI to
+/// give any visible descendant a chance to be painted.
+fn is_viewport_or_descendant_visible(viewports: &Viewports, viewport_id: ViewportId) -> bool {
+    let Some(viewport) = viewports.get(&viewport_id) else {
+        return false;
+    };
+    if viewport.info.visible().unwrap_or(true) {
+        return true;
+    }
+    viewports.values().any(|child| {
+        child.ids.parent == viewport_id
+            && child.ids.this != viewport_id
+            && is_viewport_or_descendant_visible(viewports, child.ids.this)
+    })
 }
 
 fn render_immediate_viewport(
