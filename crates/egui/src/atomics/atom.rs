@@ -1,3 +1,4 @@
+use super::MeasureCache;
 use crate::{
     AtomKind, AtomLayout, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui,
 };
@@ -124,6 +125,7 @@ impl<'a> Atom<'a> {
         mut available_size: Vec2,
         mut wrap_mode: Option<TextWrapMode>,
         fallback_font: FontSelection,
+        cache: &mut MeasureCache<'a>,
     ) -> SizedAtom<'a> {
         if !self.shrink && self.max_size.x.is_infinite() {
             wrap_mode = Some(TextWrapMode::Extend);
@@ -149,6 +151,7 @@ impl<'a> Atom<'a> {
                 wrap_mode,
                 fallback_font,
             },
+            cache,
         );
 
         let size = self

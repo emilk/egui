@@ -594,6 +594,7 @@ impl TextEdit<'_> {
                         Vec2::new(available_inner_width, f32::INFINITY),
                         Some(TextWrapMode::Extend),
                         FontSelection::default(),
+                        &mut Default::default(),
                     )
                     .size
                     .x

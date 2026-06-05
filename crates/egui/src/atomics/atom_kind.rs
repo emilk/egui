@@ -102,6 +102,7 @@ impl<'a> AtomKind<'a> {
             wrap_mode,
             fallback_font,
         }: IntoSizedArgs,
+        cache: &mut super::MeasureCache<'a>,
     ) -> IntoSizedResult<'a> {
         match self {
             AtomKind::Text(text) => {
@@ -131,8 +132,10 @@ impl<'a> AtomKind<'a> {
             AtomKind::Layout(layout) => {
                 // Measure at the natural size for the parent's sizing, but keep a shared handle to
                 // the original layout so a grown atom can be re-measured at its painted size in
-                // `paint_at` (cheap `Arc` clone, no deep copy).
-                let sized = layout.measure(ui, available_size);
+                // `paint_at` (cheap `Rc` clone, no deep copy). `measure_rc` shares the `cache`
+                // (keyed by the `Rc`'s identity) so a deep tree of `grow` layouts doesn't
+                // re-measure its descendants exponentially.
+                let sized = AtomLayout::measure_rc(layout, ui, available_size, cache);
                 IntoSizedResult {
                     intrinsic_size: sized.intrinsic_size,
                     sized: SizedAtomKind::Layout {

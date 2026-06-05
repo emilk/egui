@@ -6,8 +6,18 @@ use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
 use epaint::{Color32, Galley};
 use smallvec::SmallVec;
+use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 use std::sync::Arc;
+
+/// Frame-pass-local memoization cache for [`AtomLayout::measure_rc`].
+///
+/// Keyed by an [`Rc::as_ptr`] identity plus the available-size bits. Both are stable within a
+/// single top-level measure pass (nested layouts are held alive via `Rc`), so repeatedly measuring
+/// the same nested layout at the same size — which a deep tree of `grow` layouts does `O(2^depth)`
+/// times — becomes a cache hit instead of a full re-measure.
+pub(crate) type MeasureCache<'a> = HashMap<(usize, u64), SizedAtomLayout<'a>>;
 
 /// The `(main, cross)` axis indices for `direction`, for indexing a [`Vec2`] (0 = x, 1 = y).
 #[inline]
@@ -341,6 +351,44 @@ impl<'a> AtomLayout<'a> {
     /// clamped by `max_size`/`min_size`, exactly like [`Self::allocate`] does with
     /// [`Ui::available_size`].
     pub fn measure(&self, ui: &Ui, available_size: Vec2) -> SizedAtomLayout<'a> {
+        self.measure_impl(ui, available_size, &mut MeasureCache::default())
+    }
+
+    /// Measure a nested layout held by an [`Rc`], memoizing the result in `cache`.
+    ///
+    /// A grown nested `Layout` atom is re-measured (the cross-after-main reflow) at its grown
+    /// size, recursively. Without memoization a deep tree of `grow` layouts re-measures its
+    /// descendants `O(2^depth)` times. Keyed by the layout's [`Rc::as_ptr`] identity and the
+    /// available size — both stable within a pass — repeated `(layout, size)` measures become
+    /// cache hits. The `Rc` is held by the caller (the `Layout` atom / reflow source), which is
+    /// why the identity lives here rather than in [`Self::measure_impl`].
+    pub(crate) fn measure_rc(
+        layout: &Rc<Self>,
+        ui: &Ui,
+        available_size: Vec2,
+        cache: &mut MeasureCache<'a>,
+    ) -> SizedAtomLayout<'a> {
+        let key = (
+            Rc::as_ptr(layout) as usize,
+            (u64::from(available_size.x.to_bits()) << 32) | u64::from(available_size.y.to_bits()),
+        );
+        if let Some(cached) = cache.get(&key) {
+            return cached.clone();
+        }
+        let result = layout.measure_impl(ui, available_size, cache);
+        cache.insert(key, result.clone());
+        result
+    }
+
+    /// The measure body. Threads `cache` so nested [`Rc`] layouts are memoized via
+    /// [`Self::measure_rc`]; it does not memoize its own result (a top-level layout is measured
+    /// once, and a nested one is keyed by its `Rc` at the call site).
+    pub(crate) fn measure_impl(
+        &self,
+        ui: &Ui,
+        available_size: Vec2,
+        cache: &mut MeasureCache<'a>,
+    ) -> SizedAtomLayout<'a> {
         let atoms = &self.atoms;
         let frame = self.frame;
         let sense = self.sense;
@@ -444,6 +492,7 @@ impl<'a> AtomLayout<'a> {
                 available_inner_size,
                 Some(wrap_mode),
                 fallback_font.clone(),
+                cache,
             );
             let size = sized.size;
 
@@ -473,6 +522,7 @@ impl<'a> AtomLayout<'a> {
                     available_size_for_shrink_item,
                     Some(wrap_mode),
                     fallback_font,
+                    cache,
                 )
             } else {
                 let mut item = item.clone();
@@ -482,6 +532,7 @@ impl<'a> AtomLayout<'a> {
                     available_size_for_shrink_item,
                     Some(wrap_mode),
                     fallback_font,
+                    cache,
                 )
             };
             let size = sized.size;
@@ -553,7 +604,7 @@ impl<'a> AtomLayout<'a> {
                         sized.size[main_axis] + grow_main,
                         available_inner_size[cross_axis],
                     );
-                    let remeasured = source.measure(ui, grown);
+                    let remeasured = AtomLayout::measure_rc(source, ui, grown, cache);
                     sized.size[cross_axis] = remeasured.outer_size[cross_axis];
                     **inner = remeasured;
                 }
