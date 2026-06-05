@@ -27,7 +27,6 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = [
   "fragile-send-sync-non-atomic-wasm",
-  "macos-window-resize-jitter-fix",
   "wgpu/default",
   "wgpu/webgl", # A very important fallback for web support
 ]
@@ -51,9 +50,6 @@ x11 = ["winit?/x11"]
 ## Thus that usage is guarded against with compiler errors in wgpu.
 fragile-send-sync-non-atomic-wasm = ["wgpu/fragile-send-sync-non-atomic-wasm"]
 
-## Enables `present_with_transaction` surface flag temporary during window resize on MacOS.
-macos-window-resize-jitter-fix = ["wgpu/metal"]
-
 [dependencies]
 epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
 
@@ -71,3 +67,6 @@ wgpu = { workspace = true, features = ["wgsl"] }
 
 egui = { workspace = true, optional = true, default-features = false }
 winit = { workspace = true, optional = true, default-features = false }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+wgpu = { workspace = true, features = ["metal"] }
