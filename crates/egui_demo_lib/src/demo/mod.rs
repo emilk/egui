@@ -5,6 +5,7 @@
 // ----------------------------------------------------------------------------
 
 pub mod about;
+pub mod atom_layout_demo;
 pub mod code_editor;
 pub mod code_example;
 pub mod dancing_strings;

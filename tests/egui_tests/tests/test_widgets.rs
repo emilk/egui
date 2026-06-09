@@ -134,6 +134,19 @@ fn widget_tests() {
         },
         &mut results,
     );
+    test_widget(
+        "text_edit_multiline_prefix_suffix",
+        |ui| {
+            ui.spacing_mut().text_edit_width = 80.0;
+            // Multiline wraps at the editable width (the width left after prefix/suffix), so this
+            // exercises that the editable width is derived correctly.
+            TextEdit::multiline(&mut "Wrap this longer text".to_owned())
+                .prefix("🔎")
+                .suffix("!")
+                .ui(ui)
+        },
+        &mut results,
+    );
 
     test_widget(
         "slider",
