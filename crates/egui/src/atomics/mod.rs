@@ -2,16 +2,16 @@ mod atom;
 mod atom_ext;
 mod atom_kind;
 mod atom_layout;
+mod atom_widget;
 mod atoms;
 mod sized_atom;
 mod sized_atom_kind;
-mod atom_widget;
 
 pub use atom::*;
 pub use atom_ext::*;
 pub use atom_kind::*;
 pub use atom_layout::*;
+pub use atom_widget::*;
 pub use atoms::*;
 pub use sized_atom::*;
 pub use sized_atom_kind::*;
-pub use atom_widget::*;

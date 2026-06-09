@@ -1,6 +1,12 @@
 use epaint::Margin;
 
-use crate::{Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame, Id, Image, IntoAtoms, NumExt as _, Rect, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetRect, WidgetText, WidgetType, widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState}, AtomWidget, impl_widget_for_atom_widget, AtomWidgetContext};
+use crate::{
+    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, AtomWidget, AtomWidgetContext,
+    Color32, CornerRadius, Frame, Id, Image, IntoAtoms, NumExt as _, Rect, Response, Sense, Stroke,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetRect, WidgetText, WidgetType,
+    impl_widget_for_atom_widget,
+    widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState},
+};
 
 /// Clickable button with text.
 ///
@@ -356,9 +362,6 @@ impl<'a> AtomWidget<'a> for Button<'a> {
         };
 
         layout = layout.min_size(min_size);
-
-
-
 
         if let Some(cursor) = ui.visuals().interact_cursor
             && response.hovered()

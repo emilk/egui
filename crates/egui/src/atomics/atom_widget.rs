@@ -1,4 +1,7 @@
-use crate::{Atom, AtomExt, AtomKind, AtomLayout, Atoms, Button, Color32, Context, Id, InnerResponse, IntoAtoms, Layout, Response, Sense, Spacing, Style, Ui, UiBuilder, Visuals, Widget, WidgetRect};
+use crate::{
+    Atom, AtomExt, AtomKind, AtomLayout, Atoms, Button, Color32, Context, Id, InnerResponse,
+    IntoAtoms, Layout, Response, Sense, Spacing, Style, Ui, UiBuilder, Visuals, Widget, WidgetRect,
+};
 use emath::{Align, Pos2, Rect, Vec2};
 use epaint::Direction;
 
@@ -138,7 +141,7 @@ impl<'ui, 'layout> AtomUi<'ui, 'layout> {
     pub fn add(&mut self, mut config: Atom<'layout>, widget: impl AtomWidget<'layout>) -> Response {
         let (layout, response) = widget.show_for(self.ctx);
 
-        config.kind = AtomKind::Layout(Box::new(layout));
+        config.kind = AtomKind::Layout(std::rc::Rc::new(layout));
         self.layout.push_right(config);
 
         response
@@ -156,7 +159,7 @@ impl<'ui, 'layout> AtomUi<'ui, 'layout> {
             inner,
             response: child.response(),
         };
-        atom.kind = AtomKind::Layout(Box::new(child.layout));
+        atom.kind = AtomKind::Layout(std::rc::Rc::new(child.layout));
         self.layout.push_right(atom);
         response
     }

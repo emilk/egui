@@ -454,8 +454,6 @@ impl<'a> AtomLayout<'a> {
 
         let mut cross_size: f32 = 0.0;
 
-        let mut sized_items = Vec::new();
-
         let mut grow_count = 0;
 
         let mut shrink_item = None;
@@ -469,6 +467,35 @@ impl<'a> AtomLayout<'a> {
             inner_main += gap_space;
             intrinsic_main += gap_space;
         }
+
+        // A `grow` nested `Layout` in a non-wrapping layout is measured *after* its siblings, at
+        // the main-axis space they leave over, instead of at the full available width. A fill
+        // layout (e.g. a wrapping gallery) expands to whatever width it is measured at, so sizing
+        // it at the full width inflates it past its own cell — and because the line is then already
+        // over-full, `grow` has no slack to pull it back, so it overflows its fixed siblings.
+        // Wrapping layouts wrap onto new lines instead of overflowing, so they keep the simpler
+        // full-width measurement.
+        let defer_grow =
+            |item: &crate::Atom<'a>| !wrap && item.grow && matches!(item.kind, AtomKind::Layout(_));
+
+        // Measured atoms are parked by index so `sized_items` stays in atom order even though we
+        // size the shrink item and deferred `grow` items out of order.
+        let mut slots: Vec<Option<SizedAtom<'a>>> =
+            std::iter::repeat_with(|| None).take(atoms.len()).collect();
+        let mut deferred_grow: Vec<usize> = Vec::new();
+
+        let measure_into = |slot: &mut Option<SizedAtom<'a>>,
+                            sized: SizedAtom<'a>,
+                            inner_main: &mut f32,
+                            intrinsic_main: &mut f32,
+                            cross_size: &mut f32,
+                            intrinsic_cross: &mut f32| {
+            *inner_main += sized.size[main_axis];
+            *intrinsic_main += sized.intrinsic_size[main_axis];
+            *cross_size = cross_size.at_least(sized.size[cross_axis]);
+            *intrinsic_cross = intrinsic_cross.at_least(sized.intrinsic_size[cross_axis]);
+            *slot = Some(sized);
+        };
 
         for (idx, item) in atoms.iter().enumerate() {
             if item.grow {
@@ -487,6 +514,10 @@ impl<'a> AtomLayout<'a> {
                     continue;
                 }
             }
+            if defer_grow(item) {
+                deferred_grow.push(idx);
+                continue;
+            }
             let sized = item.as_sized(
                 ui,
                 available_inner_size,
@@ -494,15 +525,14 @@ impl<'a> AtomLayout<'a> {
                 fallback_font.clone(),
                 cache,
             );
-            let size = sized.size;
-
-            inner_main += size[main_axis];
-            intrinsic_main += sized.intrinsic_size[main_axis];
-
-            cross_size = cross_size.at_least(size[cross_axis]);
-            intrinsic_cross = intrinsic_cross.at_least(sized.intrinsic_size[cross_axis]);
-
-            sized_items.push(sized);
+            measure_into(
+                &mut slots[idx],
+                sized,
+                &mut inner_main,
+                &mut intrinsic_main,
+                &mut cross_size,
+                &mut intrinsic_cross,
+            );
         }
 
         if let Some((index, item)) = shrink_item {
@@ -521,7 +551,7 @@ impl<'a> AtomLayout<'a> {
                     ui,
                     available_size_for_shrink_item,
                     Some(wrap_mode),
-                    fallback_font,
+                    fallback_font.clone(),
                     cache,
                 )
             } else {
@@ -531,20 +561,50 @@ impl<'a> AtomLayout<'a> {
                     ui,
                     available_size_for_shrink_item,
                     Some(wrap_mode),
-                    fallback_font,
+                    fallback_font.clone(),
                     cache,
                 )
             };
-            let size = sized.size;
-
-            inner_main += size[main_axis];
-            intrinsic_main += sized.intrinsic_size[main_axis];
-
-            cross_size = cross_size.at_least(size[cross_axis]);
-            intrinsic_cross = intrinsic_cross.at_least(sized.intrinsic_size[cross_axis]);
-
-            sized_items.insert(index, sized);
+            measure_into(
+                &mut slots[index],
+                sized,
+                &mut inner_main,
+                &mut intrinsic_main,
+                &mut cross_size,
+                &mut intrinsic_cross,
+            );
         }
+
+        // Deferred `grow` layouts share whatever main-axis space the other atoms left over. Split
+        // it across *all* `grow` atoms (matching how `paint_at` distributes the slack), so a
+        // deferred layout never claims more than its fair share and the line can't overflow.
+        if !deferred_grow.is_empty() {
+            let leftover = (available_inner_size[main_axis] - inner_main).max(0.0);
+            let share = leftover / grow_count.max(1) as f32;
+            let grow_available = main_cross_vec(direction, share, available_inner_size[cross_axis]);
+            for idx in std::mem::take(&mut deferred_grow) {
+                let sized = atoms[idx].as_sized(
+                    ui,
+                    grow_available,
+                    Some(wrap_mode),
+                    fallback_font.clone(),
+                    cache,
+                );
+                measure_into(
+                    &mut slots[idx],
+                    sized,
+                    &mut inner_main,
+                    &mut intrinsic_main,
+                    &mut cross_size,
+                    &mut intrinsic_cross,
+                );
+            }
+        }
+
+        let mut sized_items: Vec<SizedAtom<'a>> = slots
+            .into_iter()
+            .map(|slot| slot.expect("every atom is measured into its slot"))
+            .collect();
 
         // Group the (flat) sized atoms into lines. Without wrapping that's a single line
         // spanning everything, which reproduces the previous single-line behavior exactly.
