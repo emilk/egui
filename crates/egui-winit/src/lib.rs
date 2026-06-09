@@ -760,6 +760,7 @@ impl State {
                 button,
                 pressed,
                 modifiers: self.egui_input.modifiers,
+                force: None,
             });
 
             if self.simulate_touch_screen {
@@ -805,9 +806,10 @@ impl State {
 
         if self.simulate_touch_screen {
             if self.any_pointer_button_down {
-                self.egui_input
-                    .events
-                    .push(egui::Event::PointerMoved(pos_in_points));
+                self.egui_input.events.push(egui::Event::PointerMoved {
+                    pos: pos_in_points,
+                    force: None,
+                });
 
                 self.egui_input.events.push(egui::Event::Touch {
                     device_id: egui::TouchDeviceId(0),
@@ -818,9 +820,10 @@ impl State {
                 });
             }
         } else {
-            self.egui_input
-                .events
-                .push(egui::Event::PointerMoved(pos_in_points));
+            self.egui_input.events.push(egui::Event::PointerMoved {
+                pos: pos_in_points,
+                force: None,
+            });
         }
     }
 

@@ -591,7 +591,7 @@ impl<'a, State> Harness<'a, State> {
 
     /// Move mouse cursor to this position.
     pub fn hover_at(&self, pos: egui::Pos2) {
-        self.event(egui::Event::PointerMoved(pos));
+        self.event(egui::Event::PointerMoved { pos, force: None });
     }
 
     /// Start dragging from a position.
@@ -601,6 +601,7 @@ impl<'a, State> Harness<'a, State> {
             button: PointerButton::Primary,
             pressed: true,
             modifiers: Modifiers::NONE,
+            force: None,
         });
     }
 
@@ -611,6 +612,7 @@ impl<'a, State> Harness<'a, State> {
             button: PointerButton::Primary,
             pressed: false,
             modifiers: Modifiers::NONE,
+            force: None,
         });
         self.remove_cursor();
     }

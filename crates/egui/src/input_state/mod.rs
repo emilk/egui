@@ -1054,6 +1054,10 @@ pub struct PointerState {
     /// Used for things like showing hover ui/tooltip with a delay.
     last_move_time: f64,
 
+    /// Current pressure of the pointer (0.0 to 1.0), if available.
+    /// Only available on devices that support pressure sensitivity (e.g. graphics tablets, touch screens).
+    pressure: Option<f32>,
+
     /// All button events that occurred this frame
     pub(crate) pointer_events: Vec<PointerEvent>,
 
@@ -1083,6 +1087,7 @@ impl Default for PointerState {
             last_click_time: f64::NEG_INFINITY,
             last_last_click_time: f64::NEG_INFINITY,
             last_move_time: f64::NEG_INFINITY,
+            pressure: None,
             pointer_events: vec![],
             options: Default::default(),
         }
@@ -1108,7 +1113,7 @@ impl PointerState {
         let mut clear_history_after_velocity_calculation = false;
         for event in &new.events {
             match event {
-                Event::PointerMoved(pos) => {
+                Event::PointerMoved { pos, force } => {
                     let pos = *pos;
 
                     self.latest_pos = Some(pos);
@@ -1120,6 +1125,9 @@ impl PointerState {
                     }
 
                     self.last_move_time = time;
+                    if force.is_some() {
+                        self.pressure = *force;
+                    }
                     self.pointer_events.push(PointerEvent::Moved(pos));
                 }
                 Event::PointerButton {
@@ -1127,6 +1135,7 @@ impl PointerState {
                     button,
                     pressed,
                     modifiers,
+                    force,
                 } => {
                     let pos = *pos;
                     let button = *button;
@@ -1135,6 +1144,9 @@ impl PointerState {
 
                     self.latest_pos = Some(pos);
                     self.interact_pos = Some(pos);
+                    if force.is_some() {
+                        self.pressure = *force;
+                    }
 
                     if pressed {
                         // Start of a drag: we want to track the velocity for during the drag
@@ -1199,6 +1211,7 @@ impl PointerState {
                 }
                 Event::PointerGone => {
                     self.latest_pos = None;
+                    self.pressure = None;
                     // When dragging a slider and the mouse leaves the viewport, we still want the drag to work,
                     // so we don't treat this as a `PointerEvent::Released`.
                     // NOTE: we do NOT clear `self.interact_pos` here. It will be cleared next frame.
@@ -1356,6 +1369,15 @@ impl PointerState {
     #[inline(always)]
     pub fn time_since_last_click(&self) -> f32 {
         (self.time - self.last_click_time) as f32
+    }
+
+    /// Current pressure of the pointer (0.0 to 1.0), if available.
+    ///
+    /// Returns `None` if the platform does not support pressure sensitivity.
+    /// Only available on devices like graphics tablets and touch screens.
+    #[inline(always)]
+    pub fn pressure(&self) -> Option<f32> {
+        self.pressure
     }
 
     /// Was any pointer button pressed (`!down -> down`) this frame?
@@ -1660,6 +1682,7 @@ impl PointerState {
             last_last_click_time,
             pointer_events,
             last_move_time,
+            pressure,
             options: _,
         } = self;
 
@@ -1685,6 +1708,7 @@ impl PointerState {
         ui.label(format!("last_click_time: {last_click_time:#?}"));
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
         ui.label(format!("last_move_time: {last_move_time:#?}"));
+        ui.label(format!("pressure: {pressure:?}"));
         ui.label(format!("pointer_events: {pointer_events:?}"));
     }
 }
