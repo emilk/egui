@@ -197,18 +197,25 @@ pub enum Key {
     // `Event::Key` presses.
     /// Left Shift key.
     ShiftLeft,
+
     /// Right Shift key.
     ShiftRight,
+
     /// Left Control key.
     ControlLeft,
+
     /// Right Control key.
     ControlRight,
+
     /// Left Alt / Option key.
     AltLeft,
-    /// Right Alt / AltGr / Option key.
+
+    /// Right Alt / `AltGr` / Option key.
     AltRight,
+
     /// Left Super / Meta / Command / Windows key.
     SuperLeft,
+
     /// Right Super / Meta / Command / Windows key.
     SuperRight,
 
@@ -219,7 +226,6 @@ pub enum Key {
     /// on ISO layouts. On French AZERTY it produces `<>|`; on UK
     /// QWERTY a secondary `\` / `|`. Missing from US ANSI keyboards.
     IntlBackslash,
-
     // When adding keys, remember to also update:
     // * crates/egui-winit/src/lib.rs
     // * Key::ALL
