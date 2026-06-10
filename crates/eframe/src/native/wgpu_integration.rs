@@ -871,7 +871,18 @@ impl WgpuWinitRunning<'_> {
                     *focused
                 };
 
-                shared.focused_viewport = focused.then_some(viewport_id).flatten();
+                if let Some(viewport_id) = viewport_id {
+                    if focused {
+                        shared.focused_viewport = Some(viewport_id);
+                    } else if shared.focused_viewport == Some(viewport_id) {
+                        // Only clear the focused viewport if the viewport losing focus is
+                        // the one we currently believe to be focused. This avoids stale
+                        // Focused(false) events from other windows clearing a valid focus.
+                        shared.focused_viewport = None;
+                    }
+                }
+
+                repaint_asap = true;
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
