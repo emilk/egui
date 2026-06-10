@@ -182,28 +182,28 @@ fn sidebar<'a>(
         // `min_size` (above) and `atom_max_width` pin the sidebar to `width` exactly: the min stops
         // it shrinking and the max stops the wrapping tag row from expanding past it.
         atom().atom_max_width(width),
-        |bar| {
-            bar.add(
-                atom().atom_align(Align2::LEFT_CENTER),
+        |aui| {
+            aui.add(
+                atom ().atom_align(Align2::LEFT_CENTER),
                 AtomLayout::new(RichText::new("Filter by tag").strong()),
             );
 
             // A wrapping row where each tag button grows to justify the line — just like the tags
             // inside each card.
-            bar.scope_builder(
+            aui.scope_builder(
                 AtomLayout::new(())
                     .wrap(true)
                     .gap(4.0)
                     .align2(Align2::LEFT_TOP),
                 atom(),
-                |tags| {
+                |aui| {
                     for tag in all_tags() {
                         let selected = selected_tags.contains(tag);
                         // `grow` spacers either side center the label in the grown button.
                         let button =
                             Button::new((atom().atom_grow(true), tag, atom().atom_grow(true)))
                                 .selected(selected);
-                        if tags.add(atom().atom_grow(true), button).clicked() {
+                        if aui.add(atom().atom_grow(true), button).clicked() {
                             if selected {
                                 selected_tags.remove(tag);
                             } else {
@@ -217,7 +217,7 @@ fn sidebar<'a>(
             // Reset filter. Disabling it when nothing is selected would need enabled-state plumbing
             // through AtomUi, so keep it simple and always clear.
             if !selected_tags.is_empty()
-                && bar
+                && aui
                     .add(
                         atom(),
                         Button::new((atom().atom_grow(true), "Clear", atom().atom_grow(true))),
