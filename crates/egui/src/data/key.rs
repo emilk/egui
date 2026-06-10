@@ -205,7 +205,7 @@ pub enum Key {
     ControlRight,
     /// Left Alt / Option key.
     AltLeft,
-    /// Right Alt / AltGr / Option key.
+    /// Right Alt / `AltGr` / Option key.
     AltRight,
     /// Left Super / Meta / Command / Windows key.
     SuperLeft,
