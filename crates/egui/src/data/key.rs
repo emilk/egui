@@ -197,18 +197,25 @@ pub enum Key {
     // `Event::Key` presses.
     /// Left Shift key.
     ShiftLeft,
+
     /// Right Shift key.
     ShiftRight,
+
     /// Left Control key.
     ControlLeft,
+
     /// Right Control key.
     ControlRight,
+
     /// Left Alt / Option key.
     AltLeft,
+
     /// Right Alt / `AltGr` / Option key.
     AltRight,
+
     /// Left Super / Meta / Command / Windows key.
     SuperLeft,
+
     /// Right Super / Meta / Command / Windows key.
     SuperRight,
 
