@@ -1307,6 +1307,52 @@ impl Context {
         .map(|widget_rect| self.get_response(widget_rect))
     }
 
+    /// Rectangles that could receive pointer input in the last completed pass.
+    ///
+    /// This exposes the same widget rectangles egui uses for hit-testing, after
+    /// filtering out disabled widgets, non-interactive widgets, and layers that
+    /// are currently blocked from interaction. The returned rectangles are in
+    /// global viewport coordinates, with layer transforms applied.
+    ///
+    /// This is meant for integrations that must declare platform input regions
+    /// before pointer events can be delivered to egui, such as transparent or
+    /// click-through overlays.
+    #[must_use]
+    pub fn interactive_rects_last_pass(&self) -> Vec<Rect> {
+        self.read(|ctx| {
+            let Some(viewport) = ctx.viewports.get(&ctx.viewport_id()) else {
+                return Vec::new();
+            };
+
+            let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
+            layers.sort_by(|&a, &b| ctx.memory.areas().compare_order(a, b));
+
+            let mut rects = Vec::new();
+            for layer_id in layers {
+                if !ctx.memory.allows_interaction(layer_id) {
+                    continue;
+                }
+
+                let to_global = ctx.memory.to_global.get(&layer_id).copied();
+                for widget in viewport.prev_pass.widgets.get_layer(layer_id) {
+                    if !widget.enabled || !widget.sense.interactive() {
+                        continue;
+                    }
+
+                    let rect = if let Some(to_global) = to_global {
+                        to_global * widget.interact_rect
+                    } else {
+                        widget.interact_rect
+                    };
+                    if rect.is_positive() && rect.is_finite() {
+                        rects.push(rect);
+                    }
+                }
+            }
+            rects
+        })
+    }
+
     /// Do all interaction for an existing widget, without (re-)registering it.
     pub(crate) fn get_response(&self, widget_rect: WidgetRect) -> Response {
         use response::Flags;
