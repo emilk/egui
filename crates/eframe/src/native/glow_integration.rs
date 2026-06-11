@@ -1462,8 +1462,6 @@ fn initialize_or_update_viewport(
     }
 }
 
-/// This is called (via a callback) by user code to render immediate viewports,
-/// i.e. viewport that are directly nested inside a parent viewport.
 /// Is this viewport, or any of its (transitive) descendant viewports, visible?
 ///
 /// Immediate viewports are rendered inline while their parent's UI runs, so even
@@ -1486,6 +1484,8 @@ fn is_viewport_or_descendant_visible(
     })
 }
 
+/// This is called (via a callback) by user code to render immediate viewports,
+/// i.e. viewport that are directly nested inside a parent viewport.
 fn render_immediate_viewport(
     egui_ctx: &egui::Context,
     glutin: &RefCell<GlutinWindowContext>,
