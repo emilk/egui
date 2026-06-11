@@ -59,6 +59,8 @@ default_fonts = ["egui/default_fonts"]
 ## and `WebOptions::renderer`.
 glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
+_override_legacy_ime_composition_visuals = ["egui/_override_legacy_ime_composition_visuals"]
+
 ## Enable saving app state to disk.
 persistence = ["dep:home", "egui-winit/serde", "egui/persistence", "ron", "serde"]
 
@@ -101,6 +103,10 @@ wgpu = ["wgpu_no_default_features", "egui-wgpu/default"]
 ## ```
 wgpu_no_default_features = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 
+## Enable the new IME composition visuals on Windows. The legacy visuals remain
+## the default on Windows due to known issues with the new implementation.
+windows_new_ime_composition_visuals = ["egui/_override_legacy_ime_composition_visuals"]
+
 ## Enables compiling for x11.
 x11 = [
   "egui-winit/x11",
@@ -117,8 +123,6 @@ x11 = [
 __screenshot = []
 
 [dependencies]
-egui = { workspace = true, default-features = false, features = ["bytemuck"] }
-
 ahash.workspace = true
 document-features.workspace = true
 log.workspace = true
@@ -136,6 +140,10 @@ ron = { workspace = true, optional = true, features = ["integer128"] }
 serde = { workspace = true, optional = true }
 
 # -------------------------------------------
+# egui non-windows:
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+egui = { workspace = true, default-features = false, features = ["bytemuck"] }
+
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { workspace = true, default-features = false, features = ["clipboard", "links"] }
@@ -183,6 +191,11 @@ objc2-app-kit = { workspace = true, default-features = false, features = [
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
+egui = { workspace = true, default-features = false, features = [
+  "bytemuck",
+  "legacy_ime_composition_visuals",
+] }
+
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
   "Win32_System_Com",

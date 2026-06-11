@@ -44,6 +44,21 @@ color-hex = ["epaint/color-hex"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]
 
+## The legacy IME composition visuals have several shortcomings. Most notably,
+## they are visually identical to text selection, making it impossible to tell
+## the two apart if there is no candidate window (e.g. when using a Korean IME).
+## In addition, the cursor is always shown at the end of the composition no
+## matter where the actual cursor is, which makes composing Chinese and Japanese
+## text confusing.
+##
+## However, the new composition visuals are not yet fully reliable either. For
+## example, on Windows, `winit` currently reports an incorrect cursor position
+## for Korean IMEs: the cursor should be at the end of the composition, but
+## `winit` reports it at the beginning. Therefore, we keep the legacy visuals
+## as an option for now and plan to remove them once the new visuals work
+## correctly across all supported platforms.
+legacy_ime_composition_visuals = []
+
 ## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["epaint/mint"]
 
@@ -61,6 +76,9 @@ serde = ["dep:serde", "epaint/serde", "accesskit/serde"]
 
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
+
+## Override and disable the legacy_ime_composition_visuals feature.
+_override_legacy_ime_composition_visuals = []
 
 ## Override and disable the unity feature
 ## This exists, so that when testing with --all-features, snapshots render correctly.

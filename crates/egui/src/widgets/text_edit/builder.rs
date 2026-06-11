@@ -827,11 +827,16 @@ impl TextEdit<'_> {
             false
         };
 
+        let should_paint_ime_visuals_the_legacy_way = cfg!(all(
+            feature = "legacy_ime_composition_visuals",
+            not(feature = "_override_legacy_ime_composition_visuals"),
+        ));
+
         if ui.is_rect_visible(inner_rect) {
             let has_focus = ui.memory(|mem| mem.has_focus(id));
 
             if has_focus
-                && state.cursor_purpose.is_selection()
+                && (state.cursor_purpose.is_selection() || should_paint_ime_visuals_the_legacy_way)
                 && let Some(cursor_range) = state.cursor.range(&galley)
             {
                 // Add text selection rectangles to the galley:
@@ -866,7 +871,12 @@ impl TextEdit<'_> {
                     let viewport_has_focus = ui.input(|i| i.focused);
                     if viewport_has_focus {
                         let time_since_last_interaction = now - state.last_interaction_time;
-                        match &state.cursor_purpose {
+                        let cursor_purpose = if should_paint_ime_visuals_the_legacy_way {
+                            &TextEditCursorPurpose::Selection
+                        } else {
+                            &state.cursor_purpose
+                        };
+                        match cursor_purpose {
                             TextEditCursorPurpose::Selection => {
                                 text_selection::visuals::paint_text_cursor(
                                     ui,
