@@ -161,20 +161,6 @@ pub(crate) fn paint_ime_preedit_text_visuals(
         relative_active_range.end.index = preedit_range.end.index - preedit_range.start.index;
     }
 
-    if matches!(ui.ctx().os(), crate::os::OperatingSystem::Windows)
-        && let Some(r) = &relative_active_range
-        && r.start.index == 0
-        && r.end.index == 0
-    {
-        // Workaround for a bug on Windows where `winit` incorrectly reports
-        // the cursor position at the start of the preedit text during
-        // composition with the builtin Korean IME.
-        // See: https://github.com/emilk/egui/pull/8083#issuecomment-4206742668
-        // TODO(umajho): Remove this workaround once the `winit` bug is fixed
-        // and we've updated to a version that includes the fix.
-        relative_active_range = None;
-    }
-
     let visuals = ui.visuals();
     let active_underline_stroke = visuals.ime_composition.active_underline_stroke;
     let inactive_underline_stroke = visuals.ime_composition.inactive_underline_stroke;
