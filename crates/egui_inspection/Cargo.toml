@@ -20,13 +20,12 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = []
 
-## [`encode_png`] — shared screenshot PNG encoder so every peer produces identically-encoded
-## screenshots.
+## Screenshot PNG encoding — the `EncodedPng::from_color_image` / `from_rgba` constructors.
 png = ["dep:image", "image/png"]
 
 ## `InspectionPlugin` — an `egui::Plugin` that serves the request/response inspection
-## protocol over TCP (or any transport, via `Session`). Apps usually enable inspection by
-## setting the `EGUI_INSPECTION` env var (handled by eframe's `inspection` feature).
+## protocol over TCP. Apps usually enable inspection by setting the `EGUI_INSPECTION` env var
+## (handled by eframe's `inspection` feature).
 plugin = ["png", "dep:log"]
 
 [dependencies]
