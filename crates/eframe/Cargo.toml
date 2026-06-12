@@ -59,8 +59,6 @@ default_fonts = ["egui/default_fonts"]
 ## and `WebOptions::renderer`.
 glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
-_override_legacy_ime_composition_visuals = ["egui/_override_legacy_ime_composition_visuals"]
-
 ## Enable saving app state to disk.
 persistence = ["dep:home", "egui-winit/serde", "egui/persistence", "ron", "serde"]
 
