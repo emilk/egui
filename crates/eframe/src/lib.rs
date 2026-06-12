@@ -211,12 +211,11 @@ pub mod icon_data;
 
 // ----------------------------------------------------------------------------
 
-/// Attach an [`egui_inspection::InspectionPlugin`] to `ctx` if inspection is enabled via the
-/// environment (`EGUI_INSPECTION` / `EGUI_INSPECTION_ADDR`).
+/// Attach an [`egui_inspection::InspectionPlugin`] to `ctx` when enabled via the environment.
 ///
-/// No-op when the `inspection` feature isn't enabled, the target is wasm, or the env var is
-/// unset. Bind failures are logged via `log::warn!` but do not abort startup — running
-/// without an inspector is always valid.
+/// Driven by `EGUI_INSPECTION` / `EGUI_INSPECTION_ADDR`; a no-op when the env var is unset.
+/// Bind failures are logged via `log::warn!` but do not abort startup — running without an
+/// inspector is always valid. Only called from the native integrations.
 #[cfg(all(feature = "inspection", not(target_arch = "wasm32")))]
 pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<String>) {
     match egui_inspection::attach_from_env(ctx, label) {
@@ -226,7 +225,9 @@ pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<
     }
 }
 
-#[cfg(not(all(feature = "inspection", not(target_arch = "wasm32"))))]
+// Fallback for native builds without the `inspection` feature. Not defined on wasm, where the
+// native integrations that call it don't exist (so it would be dead code).
+#[cfg(all(not(feature = "inspection"), not(target_arch = "wasm32")))]
 pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {}
 
 /// This is how you start a native (desktop) app.

@@ -1,6 +1,8 @@
-//! Request/response wire protocol shared between an egui peer (a live `eframe` app running
-//! [`crate::InspectionPlugin`]) and an external inspector (the `egui_mcp` server, or any
-//! other tool — e.g. `re_mcp` tunnelling it over gRPC).
+//! Request/response wire protocol for inspecting a running egui app.
+//!
+//! Shared between an egui peer (a live `eframe` app running [`crate::InspectionPlugin`]) and
+//! an external inspector (the `egui_mcp` server, or any other tool — e.g. `re_mcp` tunnelling
+//! it over gRPC).
 //!
 //! The model is strictly **request/response**: the inspector sends a [`Request`], the peer
 //! replies with exactly one [`Response`]. There is no streaming, no broadcast, and no
@@ -8,7 +10,7 @@
 //! framed response) *and* onto a unary RPC, which is what lets `re_mcp` carry it over gRPC
 //! without reframing.
 //!
-//! Messages are framed as a 4-byte big-endian length followed by a MessagePack-encoded body
+//! Messages are framed as a 4-byte big-endian length followed by a `MessagePack`-encoded body
 //! (`rmp-serde`). Transport-neutral: the same framing works on TCP and any byte stream.
 //!
 //! Living in its own crate (rather than `egui_mcp`) lets eframe pull the protocol + plugin
@@ -62,6 +64,7 @@ pub enum Response {
     Info {
         /// [`PROTOCOL_VERSION`] of the peer.
         protocol_version: u32,
+
         /// Human-readable identifier (app name), if the peer set one.
         label: Option<String>,
     },
@@ -71,9 +74,11 @@ pub enum Response {
     Tree {
         /// Monotonically increasing frame counter.
         step: u64,
+
         /// `physical_pixel = logical_point * pixels_per_point`. AccessKit bounds are in
         /// logical coords; a screenshot is in physical pixels — multiply to align them.
         pixels_per_point: f32,
+
         /// The current full AccessKit tree. egui rebuilds the complete node set every pass,
         /// so this is a full snapshot, not an incremental update. `None` if AccessKit hasn't
         /// produced a tree yet.
@@ -84,8 +89,10 @@ pub enum Response {
     Screenshot {
         /// Image width in physical pixels.
         width: u32,
+
         /// Image height in physical pixels.
         height: u32,
+
         /// PNG-encoded image bytes. `serde_bytes` encodes this as a msgpack `bin` blob
         /// (one type tag + raw bytes) instead of the default per-byte `Vec<u8>` path.
         #[serde(with = "serde_bytes")]
@@ -106,7 +113,7 @@ fn invalid_data(err: impl std::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, err.to_string())
 }
 
-/// Encode a value into a length-prefixed MessagePack frame (4-byte big-endian length + body).
+/// Encode a value into a length-prefixed `MessagePack` frame (4-byte big-endian length + body).
 ///
 /// This is the wire format; sync ([`read_message`]/[`write_message`]) and async transports
 /// share it via these helpers so the framing stays in lockstep.
@@ -142,7 +149,7 @@ pub fn decode_frame_body<T: for<'de> serde::Deserialize<'de>>(body: &[u8]) -> io
     rmp_serde::from_slice(body).map_err(invalid_data)
 }
 
-/// Read one length-prefixed MessagePack message.
+/// Read one length-prefixed `MessagePack` message.
 ///
 /// # Errors
 /// I/O or decode failures.
@@ -158,7 +165,7 @@ where
     decode_frame_body(&body)
 }
 
-/// Write one length-prefixed MessagePack message.
+/// Write one length-prefixed `MessagePack` message.
 ///
 /// # Errors
 /// I/O or encode failures.

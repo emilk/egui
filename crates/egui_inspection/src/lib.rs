@@ -14,14 +14,17 @@ pub use protocol::{
 /// overrides it.
 pub const INSPECTION_ENABLE_ENV_VAR: &str = "EGUI_INSPECTION";
 
-/// Environment variable holding a `host:port` bind address (e.g. `127.0.0.1:5719` for
-/// local-only, `0.0.0.0:5719` to expose across the network). Setting it also enables
-/// inspection, so you don't need [`INSPECTION_ENABLE_ENV_VAR`] as well.
+/// Environment variable holding a `host:port` bind address.
+///
+/// E.g. `127.0.0.1:5719` for local-only, `0.0.0.0:5719` to expose across the network. Setting
+/// it also enables inspection, so you don't need [`INSPECTION_ENABLE_ENV_VAR`] as well.
 pub const INSPECTION_ADDR_ENV_VAR: &str = "EGUI_INSPECTION_ADDR";
 
 /// Default bind address when inspection is enabled without an explicit
-/// [`INSPECTION_ADDR_ENV_VAR`]: loopback only, on a fixed well-known port. The `egui_mcp`
-/// server defaults its `attach` to this same port.
+/// [`INSPECTION_ADDR_ENV_VAR`].
+///
+/// Loopback only, on a fixed well-known port. The `egui_mcp` server defaults its `attach` to
+/// this same port.
 pub const DEFAULT_INSPECTION_ADDR: &str = "127.0.0.1:5719";
 
 #[cfg(feature = "png")]

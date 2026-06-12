@@ -49,8 +49,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 enum Phase {
     /// Freshly submitted; not yet seen by `input_hook`.
     New,
+
     /// Effect applied (or nothing to apply); reply at the end of this frame.
     AwaitOutput,
+
     /// Screenshot dispatched (in `input_hook`); reply when the `Event::Screenshot` pixels arrive.
     AwaitScreenshotPixels,
 }
@@ -65,6 +67,7 @@ struct InFlight {
 pub struct InspectionPlugin {
     in_flight: Vec<InFlight>,
     step: u64,
+
     /// App label reported in [`Response::Info`].
     label: Option<String>,
 }
@@ -201,29 +204,31 @@ impl egui::Plugin for InspectionPlugin {
         }
 
         let step = self.step;
-        self.in_flight.retain_mut(|item| match (&item.phase, &item.req) {
-            (Phase::AwaitOutput, Request::GetTree) => {
-                let _ = item.reply.send(Response::Tree {
-                    step,
-                    pixels_per_point: output.pixels_per_point,
-                    accesskit: output.platform_output.accesskit_update.clone(),
-                });
-                false
-            }
-            (Phase::AwaitOutput, Request::HandleEvents { .. } | Request::Resize { .. }) => {
-                let _ = item.reply.send(Response::Ack);
-                false
-            }
-            _ => true,
-        });
+        self.in_flight
+            .retain_mut(|item| match (&item.phase, &item.req) {
+                (Phase::AwaitOutput, Request::GetTree) => {
+                    let _ = item.reply.send(Response::Tree {
+                        step,
+                        pixels_per_point: output.pixels_per_point,
+                        accesskit: output.platform_output.accesskit_update.clone(),
+                    });
+                    false
+                }
+                (Phase::AwaitOutput, Request::HandleEvents { .. } | Request::Resize { .. }) => {
+                    let _ = item.reply.send(Response::Ack);
+                    false
+                }
+                _ => true,
+            });
 
         self.maybe_repaint(ctx);
     }
 }
 
-/// If inspection is enabled via the environment (see [`crate::bind_addr_from_env`]), register
-/// an [`InspectionPlugin`] on `ctx` and start serving on the configured address. Returns
-/// `Ok(true)` when attached, `Ok(false)` when inspection is disabled.
+/// Attach inspection if enabled via the environment (see [`crate::bind_addr_from_env`]).
+///
+/// Registers an [`InspectionPlugin`] on `ctx` and starts serving on the configured address.
+/// Returns `Ok(true)` when attached, `Ok(false)` when inspection is disabled.
 ///
 /// # Errors
 /// When the env-configured address can't be bound.
@@ -236,8 +241,9 @@ pub fn attach_from_env(ctx: &Context, label: Option<String>) -> std::io::Result<
     Ok(true)
 }
 
-/// Bind a TCP listener at `addr` (e.g. `127.0.0.1:5719`) and accept inspector connections,
-/// driving the [`InspectionPlugin`] registered on `ctx`. Spawns one accept thread plus a
+/// Bind a TCP listener at `addr` (e.g. `127.0.0.1:5719`) and accept inspector connections.
+///
+/// Drives the [`InspectionPlugin`] registered on `ctx`. Spawns one accept thread plus a
 /// thread per connection (detached — they live for the process).
 ///
 /// Binding a non-loopback address exposes the inspection port (and thus full control of the
@@ -319,9 +325,11 @@ fn serve_connection(stream: std::net::TcpStream, ctx: &Context) {
         };
         // Wake the (possibly idle) UI loop so it services the request.
         ctx.request_repaint();
-        let resp = rx.recv_timeout(REQUEST_TIMEOUT).unwrap_or(Response::Error {
-            message: "egui inspection request timed out (app not painting?)".to_owned(),
-        });
+        let resp = rx
+            .recv_timeout(REQUEST_TIMEOUT)
+            .unwrap_or_else(|_| Response::Error {
+                message: "egui inspection request timed out (app not painting?)".to_owned(),
+            });
         if write_message(&mut writer, &resp).is_err() {
             return;
         }
