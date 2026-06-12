@@ -759,7 +759,7 @@ impl Window<'_> {
                 resize_interaction,
             );
 
-            {
+            let resize_new_rect = {
                 let margins = window_frame.total_margin().sum();
 
                 resize_response(
@@ -769,18 +769,36 @@ impl Window<'_> {
                     area_layer_id,
                     &mut area,
                     resize_id,
-                );
-            }
+                )
+            };
             // END FRAME --------------------------------
 
             collapsing.store(ctx);
 
             paint_frame_interaction(&area_content_ui, outer_rect, resize_interaction);
 
-            outer_response.inner
+            // Lift resize state out of the closure so we can use it after area.end().
+            // Must be before the semicolon that ends the lambda, since that captures
+            // `area_content_ui` by value.
+            (resize_new_rect, resize_interaction, outer_response.inner)
         };
 
+        let (resize_new_rect, resize_interaction, content_inner) = content_inner;
+
         let full_response = area.end(ctx, area_content_ui);
+
+        // area.end() overwrites state.size with content_ui.min_size(), but during a resize
+        // drag the content may not fill the full desired width (e.g. no ScrollArea).
+        // Re-store the correct size that was computed by resize_response.
+        if let Some(ref new_rect) = resize_new_rect
+            && resize_interaction.any_dragged()
+        {
+            let old_state = ctx.memory(|m| m.areas().get(area_id).copied());
+            if let Some(mut state) = old_state {
+                state.size = Some(new_rect.size());
+                ctx.memory_mut(|m| m.areas_mut().set_state(area_layer_id, state));
+            }
+        }
 
         if full_response.should_close()
             && let Some(open) = open
@@ -964,17 +982,20 @@ fn resize_response(
     area_layer_id: LayerId,
     area: &mut area::Prepared,
     resize_id: Id,
-) {
+) -> Option<Rect> {
     let Some(mut new_rect) = move_and_resize_window(ctx, resize_id, &resize_interaction) else {
-        return;
+        return None;
     };
 
     if area.constrain() {
         new_rect = Context::constrain_window_rect_to_area(new_rect, area.constrain_rect());
     }
 
-    // TODO(emilk): add this to a Window state instead as a command "move here next frame"
+    // Set both position and size so the window displays correctly this frame,
+    // rather than relying on area.end() which sizes from content_ui.min_size()
+    // (content may not fill the full desired width when ScrollArea is disabled).
     area.state_mut().set_left_top_pos(new_rect.left_top());
+    area.state_mut().size = Some(new_rect.size());
 
     if resize_interaction.any_dragged()
         && let Some(mut state) = resize::State::load(ctx, resize_id)
@@ -984,6 +1005,7 @@ fn resize_response(
     }
 
     ctx.memory_mut(|mem| mem.areas_mut().move_to_top(area_layer_id));
+    Some(new_rect)
 }
 
 /// Acts on outer rect (outside the stroke)

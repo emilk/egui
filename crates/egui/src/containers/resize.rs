@@ -358,8 +358,14 @@ impl Resize {
                 // We are as large as we look
                 size[d] = state.desired_size[d];
             } else {
-                // Probably a window.
-                size[d] = state.last_content_size[d];
+                // Probably a window: respect desired_size if it was explicitly set
+                // (finite, meaning not auto_sized which uses f32::INFINITY).
+                let effective_desired = state.desired_size[d].max(state.last_content_size[d]);
+                size[d] = if effective_desired.is_finite() {
+                    effective_desired
+                } else {
+                    state.last_content_size[d]
+                };
             }
         }
         ui.advance_cursor_after_rect(Rect::from_min_size(content_ui.min_rect().min, size));
