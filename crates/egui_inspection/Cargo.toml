@@ -1,0 +1,46 @@
+[package]
+name = "egui_inspection"
+version.workspace = true
+authors = [
+  "Lucas Meurer <hi@lucasmerlin.me>",
+  "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
+]
+description = "Protocol and egui::Plugin for inspection of egui apps"
+edition.workspace = true
+rust-version.workspace = true
+homepage = "https://github.com/emilk/egui"
+license.workspace = true
+readme = "./README.md"
+repository = "https://github.com/emilk/egui"
+categories = ["gui", "development-tools::testing", "accessibility"]
+keywords = ["gui", "egui", "inspector", "accesskit", "mcp"]
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
+
+[features]
+default = []
+
+## [`encode_png`] — shared screenshot PNG encoder so every peer produces identically-encoded
+## screenshots.
+png = ["dep:image", "image/png"]
+
+## `InspectionPlugin` — an `egui::Plugin` that serves the request/response inspection
+## protocol over TCP (or any transport, via `Session`). Apps usually enable inspection by
+## setting the `EGUI_INSPECTION` env var (handled by eframe's `inspection` feature).
+plugin = ["png", "dep:log"]
+
+[dependencies]
+egui = { workspace = true, features = ["serde"] }
+serde.workspace = true
+serde_bytes = "0.11.17"
+rmp-serde.workspace = true
+
+image = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+document-features = { workspace = true, optional = true }
+
+[lints]
+workspace = true

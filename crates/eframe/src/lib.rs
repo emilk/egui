@@ -209,6 +209,26 @@ pub use native::file_storage::storage_dir;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod icon_data;
 
+// ----------------------------------------------------------------------------
+
+/// Attach an [`egui_inspection::InspectionPlugin`] to `ctx` if inspection is enabled via the
+/// environment (`EGUI_INSPECTION` / `EGUI_INSPECTION_ADDR`).
+///
+/// No-op when the `inspection` feature isn't enabled, the target is wasm, or the env var is
+/// unset. Bind failures are logged via `log::warn!` but do not abort startup — running
+/// without an inspector is always valid.
+#[cfg(all(feature = "inspection", not(target_arch = "wasm32")))]
+pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<String>) {
+    match egui_inspection::attach_from_env(ctx, label) {
+        Ok(true) => log::info!("eframe: egui_inspection plugin attached"),
+        Ok(false) => {}
+        Err(err) => log::warn!("eframe: egui_inspection attach failed: {err}"),
+    }
+}
+
+#[cfg(not(all(feature = "inspection", not(target_arch = "wasm32"))))]
+pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {}
+
 /// This is how you start a native (desktop) app.
 ///
 /// The first argument is name of your app, which is an identifier
