@@ -38,14 +38,16 @@ can be a consumer:
 
 ## Enabling it in an eframe app
 
-Enable eframe's `inspection` feature, then set an environment variable at runtime:
+Enable eframe's `inspection` feature, then set the `EGUI_INSPECTION` env var at runtime. It's
+either truthy, falsy, or a bind address:
 
 ```sh
-EGUI_INSPECTION=1 cargo run --features inspection          # binds 127.0.0.1:5719
-EGUI_INSPECTION_ADDR=0.0.0.0:5719 cargo run --features inspection   # reachable across devices
+EGUI_INSPECTION=1 cargo run --features inspection            # binds 127.0.0.1:5719
+EGUI_INSPECTION=0.0.0.0:5719 cargo run --features inspection # reachable across devices
 ```
 
-When the variable is unset, inspection is completely off (production-safe).
+When the variable is unset or falsy (`0` / `false`), inspection is completely off
+(production-safe).
 
 > ⚠️ Binding a non-loopback address exposes full control of the app — and its screenshots —
 > to anyone who can reach the port, with **no authentication**. A warning is logged when you

@@ -4,11 +4,11 @@
 //! an external inspector (the `egui_mcp` server, or any other tool — e.g. `re_mcp` tunnelling
 //! it over gRPC).
 //!
-//! The model is strictly **request/response**: the inspector sends a [`Request`], the peer
-//! replies with exactly one [`Response`]. There is no streaming, no broadcast, and no
-//! peer-initiated message. This maps cleanly onto a TCP socket (one framed request, one
-//! framed response) *and* onto a unary RPC, which is what lets `re_mcp` carry it over gRPC
-//! without reframing.
+//! Every connection opens with a fixed binary handshake — [`PROTOCOL_MAGIC`] (4 bytes) plus
+//! [`PROTOCOL_VERSION`] (4 big-endian bytes), written by the peer when a client connects — so
+//! the client can reject a non-inspection or incompatible peer before decoding any
+//! `MessagePack`. After the handshake the inspector sends [`Request`]s and the peer replies
+//! with exactly one [`Response`] each.
 //!
 //! Messages are framed as a 4-byte big-endian length followed by a `MessagePack`-encoded body
 //! (`rmp-serde`). Transport-neutral: the same framing works on TCP and any byte stream.
@@ -21,17 +21,19 @@ use std::io::{self, Read, Write};
 
 use egui::accesskit;
 
-/// Wire-protocol version reported by [`Response::Info`]. Bump on any non-additive change to
-/// [`Request`] / [`Response`]. An inspector should refuse a peer whose major version it
-/// doesn't understand.
+/// Wire-protocol version, sent in the connection handshake (see [`write_handshake`]).
+///
+/// Bump on any non-additive change to [`Request`] / [`Response`].
 pub const PROTOCOL_VERSION: u32 = 1;
+
+/// Magic bytes that open every connection, identifying the egui inspection protocol.
+pub const PROTOCOL_MAGIC: [u8; 4] = *b"eGiP";
 
 /// Sent inspector → peer. The peer replies with exactly one [`Response`].
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Request {
-    /// Handshake / liveness probe. Reply: [`Response::Info`]. An inspector issues this first
-    /// to confirm it's talking to a compatible egui inspection peer.
-    Info,
+    /// Read the peer's label. Reply: [`Response::Info`].
+    GetInfo,
 
     /// Read the current AccessKit tree. Reply: [`Response::Tree`].
     ///
@@ -42,17 +44,17 @@ pub enum Request {
     ///
     /// The peer issues an [`egui::ViewportCommand::Screenshot`] and replies once the
     /// resulting [`egui::Event::Screenshot`] arrives (one extra frame).
-    Screenshot,
+    GetScreenshot,
 
-    /// Inject raw egui input events and run a frame. Reply: [`Response::Ack`], returned only
-    /// *after* the events have been processed by a frame — so a subsequent [`Self::GetTree`]
+    /// Inject raw egui input events and run a frame. Reply: [`Response::Done`], returned only
+    /// *after* the events have been applied by a frame — so a subsequent [`Self::GetTree`]
     /// observes their effect. This is the single channel for all interaction
     /// (click / hover / drag / scroll / type / keypress): the inspector synthesizes the
     /// appropriate [`egui::Event`]s and sends them here.
-    HandleEvents { events: Vec<egui::Event> },
+    ApplyEvents { events: Vec<egui::Event> },
 
     /// Resize the peer's viewport to the given logical-point dimensions
-    /// (via [`egui::ViewportCommand::InnerSize`]). Reply: [`Response::Ack`]. This is the one
+    /// (via [`egui::ViewportCommand::InnerSize`]). Reply: [`Response::Done`]. This is the one
     /// action that isn't expressible as an [`egui::Event`].
     Resize { width: u32, height: u32 },
 }
@@ -60,17 +62,13 @@ pub enum Request {
 /// Sent peer → inspector, exactly one per [`Request`].
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Response {
-    /// Reply to [`Request::Info`].
+    /// Reply to [`Request::GetInfo`].
     Info {
-        /// [`PROTOCOL_VERSION`] of the peer.
-        protocol_version: u32,
-
         /// Human-readable identifier (app name), if the peer set one.
         label: Option<String>,
     },
 
-    /// Reply to [`Request::GetTree`] (and produced as the post-frame state by tooling that
-    /// pairs a [`Request::HandleEvents`] with a follow-up [`Request::GetTree`]).
+    /// Reply to [`Request::GetTree`].
     Tree {
         /// Monotonically increasing frame counter.
         step: u64,
@@ -85,25 +83,31 @@ pub enum Response {
         accesskit: Option<accesskit::TreeUpdate>,
     },
 
-    /// Reply to [`Request::Screenshot`].
-    Screenshot {
-        /// Image width in physical pixels.
-        width: u32,
+    /// Reply to [`Request::GetScreenshot`].
+    Screenshot(EncodedPng),
 
-        /// Image height in physical pixels.
-        height: u32,
-
-        /// PNG-encoded image bytes. `serde_bytes` encodes this as a msgpack `bin` blob
-        /// (one type tag + raw bytes) instead of the default per-byte `Vec<u8>` path.
-        #[serde(with = "serde_bytes")]
-        png: Vec<u8>,
-    },
-
-    /// Reply to [`Request::HandleEvents`] / [`Request::Resize`] — the action was applied.
-    Ack,
+    /// Reply to [`Request::ApplyEvents`] / [`Request::Resize`] — the action was *executed*
+    /// (not merely received): the events were processed by a frame, or the resize dispatched.
+    Done,
 
     /// The peer failed to service the request (recoverable; the connection stays open).
     Error { message: String },
+}
+
+/// A PNG-encoded image with its pixel dimensions.
+///
+/// Construct one with [`Self::from_color_image`] / [`Self::from_rgba`] (requires the `png`
+/// feature). The data type itself is always available so the inspector side can carry it
+/// without pulling in the encoder.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EncodedPng {
+    /// `[width, height]` in physical pixels.
+    pub size: [u32; 2],
+
+    /// PNG-encoded image bytes. `serde_bytes` encodes this as a msgpack `bin` blob (one type
+    /// tag + raw bytes) instead of the default per-byte `Vec<u8>` path.
+    #[serde(with = "serde_bytes")]
+    pub bytes: Vec<u8>,
 }
 
 /// Hard cap on a single framed message. Matches the sanity limit enforced by both ends.
@@ -111,6 +115,34 @@ pub const MAX_MESSAGE_BYTES: usize = 256 * 1024 * 1024; // 256 MiB
 
 fn invalid_data(err: impl std::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, err.to_string())
+}
+
+/// Write the connection handshake: [`PROTOCOL_MAGIC`] followed by [`PROTOCOL_VERSION`]
+/// (big-endian). The peer sends this first thing on every accepted connection.
+///
+/// # Errors
+/// On I/O failure.
+pub fn write_handshake<W: Write>(mut writer: W) -> io::Result<()> {
+    writer.write_all(&PROTOCOL_MAGIC)?;
+    writer.write_all(&PROTOCOL_VERSION.to_be_bytes())?;
+    writer.flush()
+}
+
+/// Read and validate the connection handshake, returning the peer's protocol version.
+///
+/// # Errors
+/// If the magic bytes don't match (not an egui inspection peer), or on I/O failure.
+pub fn read_handshake<R: Read>(mut reader: R) -> io::Result<u32> {
+    let mut magic = [0u8; 4];
+    reader.read_exact(&mut magic)?;
+    if magic != PROTOCOL_MAGIC {
+        return Err(invalid_data(
+            "not an egui_inspection peer (bad handshake magic)",
+        ));
+    }
+    let mut version = [0u8; 4];
+    reader.read_exact(&mut version)?;
+    Ok(u32::from_be_bytes(version))
 }
 
 /// Encode a value into a length-prefixed `MessagePack` frame (4-byte big-endian length + body).

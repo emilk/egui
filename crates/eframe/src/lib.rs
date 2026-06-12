@@ -211,24 +211,34 @@ pub mod icon_data;
 
 // ----------------------------------------------------------------------------
 
-/// Attach an [`egui_inspection::InspectionPlugin`] to `ctx` when enabled via the environment.
-///
-/// Driven by `EGUI_INSPECTION` / `EGUI_INSPECTION_ADDR`; a no-op when the env var is unset.
-/// Bind failures are logged via `log::warn!` but do not abort startup — running without an
-/// inspector is always valid. Only called from the native integrations.
-#[cfg(all(feature = "inspection", not(target_arch = "wasm32")))]
-pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<String>) {
-    match egui_inspection::attach_from_env(ctx, label) {
-        Ok(true) => log::info!("eframe: egui_inspection plugin attached"),
-        Ok(false) => {}
-        Err(err) => log::warn!("eframe: egui_inspection attach failed: {err}"),
+// `maybe_attach_inspection_plugin` is only ever called by the native glow/wgpu integrations,
+// which exist under exactly this `cfg` (see `mod native`) — so it's defined under the same
+// condition, else it's dead code (e.g. on wasm, or a native build with no backend).
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+mod inspection_attach {
+    /// Attach an [`egui_inspection::InspectionPlugin`] to `ctx` when enabled via the environment.
+    ///
+    /// Driven by the `EGUI_INSPECTION` env var; a no-op when it's unset/falsy. Bind failures
+    /// are logged via `log::warn!` but do not abort startup — running without an inspector is
+    /// always valid.
+    #[cfg(feature = "inspection")]
+    pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<String>) {
+        match egui_inspection::attach_from_env(ctx, label) {
+            Ok(true) => log::info!("eframe: egui_inspection plugin attached"),
+            Ok(false) => {}
+            Err(err) => log::warn!("eframe: egui_inspection attach failed: {err}"),
+        }
     }
+
+    /// Fallback when the `inspection` feature is off.
+    #[cfg(not(feature = "inspection"))]
+    pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {}
 }
 
-// Fallback for native builds without the `inspection` feature. Not defined on wasm, where the
-// native integrations that call it don't exist (so it would be dead code).
-#[cfg(all(not(feature = "inspection"), not(target_arch = "wasm32")))]
-pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {}
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+pub(crate) use inspection_attach::maybe_attach_inspection_plugin;
 
 /// This is how you start a native (desktop) app.
 ///

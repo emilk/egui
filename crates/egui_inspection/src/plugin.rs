@@ -4,20 +4,17 @@
 //!
 //! # Model
 //!
-//! The plugin owns a list of in-flight requests. Any thread holding the [`egui::Context`]
-//! submits a [`Request`] through egui's own plugin handle —
-//! `ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req))` — which appends it and returns
-//! a channel to await the single [`Response`] on, then calls `ctx.request_repaint()` so an
-//! idle app wakes up to service it. The reply is produced on the UI thread inside the
+//! The plugin owns a list of in-flight requests. A connection thread (or a host with its own
+//! transport, e.g. `re_mcp` over gRPC) submits a [`Request`] through egui's own plugin
+//! handle — `ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req))` — which appends it and
+//! returns a channel to await the single [`Response`] on, then calls `ctx.request_repaint()`
+//! so an idle app wakes up to service it. The reply is produced on the UI thread inside the
 //! plugin's hooks, which receive the [`egui::Context`] to issue repaints and viewport
 //! commands — so the plugin never has to store a `Context` itself.
 //!
-//! Two front doors feed requests in:
-//! - [`serve`] binds a TCP listener; each accepted connection gets a thread that reads
-//!   framed [`Request`]s, submits them, and writes the framed [`Response`] back. Multiple
-//!   clients are just multiple connections.
-//! - A host that owns its own transport (e.g. `re_mcp` over gRPC) holds the app's
-//!   [`egui::Context`] and submits the same way.
+//! [`serve`] binds a TCP listener; each accepted connection gets a thread that first writes
+//! the protocol handshake, then loops reading framed [`Request`]s, submitting them, and
+//! writing the framed [`Response`] back. Multiple clients are just multiple connections.
 //!
 //! Because egui locks each plugin only for the duration of a single hook call, a background
 //! thread can take that same lock (via `with_plugin`) between hooks to enqueue work — so
@@ -26,12 +23,13 @@
 //! # Servicing
 //!
 //! Requests advance through a small per-request state machine across one or two frames:
-//! `Info` replies immediately; `GetTree` replies with the current frame's tree; `Resize` /
-//! `HandleEvents` apply their effect and ack *after* the frame has processed them (so a
-//! following `GetTree` reflects them); `Screenshot` dispatches a viewport screenshot and
-//! replies once the resulting [`egui::Event::Screenshot`] arrives.
+//! `GetInfo` replies immediately; `GetTree` replies with the current frame's tree;
+//! `Resize` / `ApplyEvents` apply their effect and reply [`Response::Done`] *after* the frame
+//! has processed them (so a following `GetTree` reflects them); `GetScreenshot` dispatches a
+//! viewport screenshot and replies once the resulting [`egui::Event::Screenshot`] arrives,
+//! matched back to the request by a `user_data` id.
 //!
-//! Note that [`serve`]'s threads hold a [`egui::Context`] clone, so the context stays alive
+//! Note that [`serve`]'s threads hold an [`egui::Context`] clone, so the context stays alive
 //! for as long as the listener runs (the lifetime of the process, for a debug attach).
 
 use std::sync::mpsc;
@@ -39,22 +37,24 @@ use std::time::Duration;
 
 use egui::{Context, FullOutput, RawInput};
 
-use crate::protocol::{PROTOCOL_VERSION, Request, Response};
+use crate::protocol::{EncodedPng, Request, Response};
 
 /// How long [`serve`]'s connection threads wait for the UI thread before giving up. Generous:
 /// a backgrounded window may not paint (and thus not service requests) for a while.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 
-/// Per-request progress through the frame lifecycle.
+/// Per-[`Request`] progress through the frame lifecycle.
+#[derive(PartialEq, Eq)]
 enum Phase {
-    /// Freshly submitted; not yet seen by `input_hook`.
+    /// Just submitted by a connection thread; not yet picked up by `input_hook`.
     New,
 
     /// Effect applied (or nothing to apply); reply at the end of this frame.
     AwaitOutput,
 
-    /// Screenshot dispatched (in `input_hook`); reply when the `Event::Screenshot` pixels arrive.
-    AwaitScreenshotPixels,
+    /// A screenshot was dispatched with this `user_data` id; reply when the matching
+    /// [`egui::Event::Screenshot`] arrives.
+    AwaitScreenshot { id: u64 },
 }
 
 struct InFlight {
@@ -65,8 +65,14 @@ struct InFlight {
 
 /// An [`egui::Plugin`] that serves the inspection protocol. See the module docs.
 pub struct InspectionPlugin {
+    /// Requests we haven't responded to yet.
     in_flight: Vec<InFlight>,
+
     step: u64,
+
+    /// Counter for screenshot `user_data` ids, so each [`egui::Event::Screenshot`] maps back
+    /// to the request that asked for it.
+    next_screenshot_id: u64,
 
     /// App label reported in [`Response::Info`].
     label: Option<String>,
@@ -79,6 +85,7 @@ impl InspectionPlugin {
         Self {
             in_flight: Vec::new(),
             step: 0,
+            next_screenshot_id: 0,
             label,
         }
     }
@@ -121,46 +128,53 @@ impl egui::Plugin for InspectionPlugin {
             return;
         }
 
-        // Capture any screenshot reply produced for a previous `Screenshot` request. We
-        // observe (don't consume) so the host app still receives it.
-        let mut screenshot: Option<(u32, u32, Vec<u8>)> = None;
+        // Match screenshot replies to the requests that asked for them, by `user_data` id. We
+        // observe (don't consume) the event so the host app still receives it.
         for ev in &input.events {
-            if let egui::Event::Screenshot { image, .. } = ev {
-                let (w, h) = (image.size[0] as u32, image.size[1] as u32);
-                let rgba: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
-                match crate::encode_png(w, h, &rgba) {
-                    Ok(png) => screenshot = Some((w, h, png)),
-                    Err(err) => log::warn!("egui_inspection: PNG encode failed: {err}"),
+            let egui::Event::Screenshot {
+                user_data, image, ..
+            } = ev
+            else {
+                continue;
+            };
+            let Some(id) = user_data
+                .data
+                .as_ref()
+                .and_then(|d| d.downcast_ref::<u64>())
+                .copied()
+            else {
+                continue; // not one of ours
+            };
+            let png = match EncodedPng::from_color_image(image.as_ref()) {
+                Ok(png) => png,
+                Err(err) => {
+                    // Shouldn't happen for a valid framebuffer; surface it loudly.
+                    log::error!("egui_inspection: PNG encode failed: {err}");
+                    continue;
                 }
-                break;
-            }
-        }
-        if let Some((w, h, png)) = screenshot {
+            };
             self.in_flight.retain_mut(|item| {
-                if !matches!(item.phase, Phase::AwaitScreenshotPixels) {
-                    return true;
+                if item.phase == (Phase::AwaitScreenshot { id }) {
+                    let _ = item.reply.send(Response::Screenshot(png.clone()));
+                    false
+                } else {
+                    true
                 }
-                let _ = item.reply.send(Response::Screenshot {
-                    width: w,
-                    height: h,
-                    png: png.clone(),
-                });
-                false
             });
         }
 
         // Apply the input-side effect of new requests, dropping any that reply immediately.
-        // `label` is cloned out so the closure doesn't borrow `self` alongside the
+        // `label`/`next_id` are pulled out so the closure doesn't borrow `self` alongside the
         // `retain_mut` borrow of `in_flight`.
         let label = self.label.clone();
+        let mut next_id = self.next_screenshot_id;
         self.in_flight.retain_mut(|item| {
-            if !matches!(item.phase, Phase::New) {
+            if item.phase != Phase::New {
                 return true;
             }
             match &item.req {
-                Request::Info => {
+                Request::GetInfo => {
                     let _ = item.reply.send(Response::Info {
-                        protocol_version: PROTOCOL_VERSION,
                         label: label.clone(),
                     });
                     false
@@ -169,8 +183,11 @@ impl egui::Plugin for InspectionPlugin {
                     item.phase = Phase::AwaitOutput;
                     true
                 }
-                Request::HandleEvents { events } => {
+                Request::ApplyEvents { events } => {
                     input.events.extend(events.iter().cloned());
+                    // Reply with `Done` at the end of the frame so the agent can be sure the
+                    // events were *executed* (e.g. a button click that created a file), not
+                    // merely received.
                     item.phase = Phase::AwaitOutput;
                     true
                 }
@@ -182,17 +199,21 @@ impl egui::Plugin for InspectionPlugin {
                     item.phase = Phase::AwaitOutput;
                     true
                 }
-                Request::Screenshot => {
-                    // Dispatch now so the command lands in this frame's output and the
-                    // capture is one frame sooner; the pixels arrive in a later `input_hook`.
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(
-                        egui::UserData::default(),
-                    ));
-                    item.phase = Phase::AwaitScreenshotPixels;
+                Request::GetScreenshot => {
+                    // Dispatch now so the command lands in this frame's output and the capture
+                    // is one frame sooner; the pixels arrive in a later `input_hook`. The id
+                    // ties that `Event::Screenshot` back to this request.
+                    let id = next_id;
+                    next_id += 1;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::new(
+                        id,
+                    )));
+                    item.phase = Phase::AwaitScreenshot { id };
                     true
                 }
             }
         });
+        self.next_screenshot_id = next_id;
 
         self.maybe_repaint(ctx);
     }
@@ -214,8 +235,8 @@ impl egui::Plugin for InspectionPlugin {
                     });
                     false
                 }
-                (Phase::AwaitOutput, Request::HandleEvents { .. } | Request::Resize { .. }) => {
-                    let _ = item.reply.send(Response::Ack);
+                (Phase::AwaitOutput, Request::ApplyEvents { .. } | Request::Resize { .. }) => {
+                    let _ = item.reply.send(Response::Done);
                     false
                 }
                 _ => true,
@@ -232,6 +253,7 @@ impl egui::Plugin for InspectionPlugin {
 ///
 /// # Errors
 /// When the env-configured address can't be bound.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn attach_from_env(ctx: &Context, label: Option<String>) -> std::io::Result<bool> {
     let Some(addr) = crate::bind_addr_from_env() else {
         return Ok(false);
@@ -278,60 +300,64 @@ pub fn serve(ctx: &Context, addr: &str) -> std::io::Result<()> {
             for stream in listener.incoming() {
                 let Ok(stream) = stream else { continue };
                 let ctx = ctx.clone();
-                let _ = std::thread::Builder::new()
+                std::thread::Builder::new()
                     .name("egui_inspection_conn".into())
-                    .spawn(move || serve_connection(stream, &ctx));
+                    .spawn(move || {
+                        if let Err(err) = serve_connection(stream, &ctx) {
+                            log::warn!("egui_inspection: connection ended: {err}");
+                        }
+                    })
+                    .expect("failed to spawn egui_inspection connection thread");
             }
         })?;
     Ok(())
 }
 
-/// On wasm there is no TCP listener; serving is unsupported.
+/// Connection handler: write the handshake, then read framed requests, submit each to the
+/// plugin via the context, and write the framed response back. Returns once the client
+/// disconnects.
 ///
 /// # Errors
-/// Always, on wasm.
-#[cfg(target_arch = "wasm32")]
-pub fn serve(_ctx: &Context, _addr: &str) -> std::io::Result<()> {
-    Err(std::io::Error::other(
-        "egui_inspection: TCP serving is not supported on wasm",
-    ))
-}
-
-/// Connection handler: read framed requests, submit each to the plugin via the context, and
-/// write the framed response back. Returns on EOF or any I/O error.
+/// On any socket I/O failure.
 #[cfg(not(target_arch = "wasm32"))]
-fn serve_connection(stream: std::net::TcpStream, ctx: &Context) {
-    use crate::protocol::{read_message, write_message};
+fn serve_connection(stream: std::net::TcpStream, ctx: &Context) -> std::io::Result<()> {
+    use crate::protocol::{read_message, write_handshake, write_message};
 
-    let Ok(write_stream) = stream.try_clone() else {
-        return;
-    };
-    let mut reader = std::io::BufReader::new(stream);
-    let mut writer = std::io::BufWriter::new(write_stream);
+    let mut reader = std::io::BufReader::new(stream.try_clone()?);
+    let mut writer = std::io::BufWriter::new(stream);
+
+    // Identify ourselves and our protocol version before any framed messages.
+    write_handshake(&mut writer)?;
 
     loop {
         let req: Request = match read_message(&mut reader) {
-            Ok(r) => r,
-            Err(_) => return, // EOF / decode error → client gone
+            Ok(req) => req,
+            Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(()), // client gone
+            Err(err) => return Err(err),
         };
         let Some(rx) = ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req)) else {
-            let _ = write_message(
+            return write_message(
                 &mut writer,
                 &Response::Error {
                     message: "egui_inspection plugin not registered".to_owned(),
                 },
             );
-            return;
         };
         // Wake the (possibly idle) UI loop so it services the request.
         ctx.request_repaint();
-        let resp = rx
-            .recv_timeout(REQUEST_TIMEOUT)
-            .unwrap_or_else(|_| Response::Error {
-                message: "egui inspection request timed out (app not painting?)".to_owned(),
-            });
-        if write_message(&mut writer, &resp).is_err() {
-            return;
-        }
+        let resp = rx.recv_timeout(REQUEST_TIMEOUT).unwrap_or_else(|_| {
+            // Almost always means the app isn't painting — e.g. the window is occluded or
+            // minimized, which on most platforms stops rendering. Surface it loudly.
+            log::error!(
+                "egui_inspection: request timed out after {REQUEST_TIMEOUT:?}; the app is not \
+                 painting (is the window occluded or minimized?)"
+            );
+            Response::Error {
+                message: "request timed out — the app is not painting; bring its window to the \
+                          foreground"
+                    .to_owned(),
+            }
+        });
+        write_message(&mut writer, &resp)?;
     }
 }
