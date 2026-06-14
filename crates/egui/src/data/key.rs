@@ -226,7 +226,6 @@ pub enum Key {
     /// on ISO layouts. On French AZERTY it produces `<>|`; on UK
     /// QWERTY a secondary `\` / `|`. Missing from US ANSI keyboards.
     IntlBackslash,
-    // ----------------------------------------------
     // When adding keys, remember to also update:
     // * crates/egui-winit/src/lib.rs
     // * Key::ALL
