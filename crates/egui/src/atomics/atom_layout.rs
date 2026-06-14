@@ -1,7 +1,7 @@
 use crate::atomics::ATOMS_SMALL_VEC_SIZE;
 use crate::{
     AtomKind, Atoms, FontSelection, Frame, Id, Image, IntoAtoms, Response, Sense, SizedAtom,
-    SizedAtomKind, Ui, Widget,
+    SizedAtomKind, Stroke, Ui, Widget, text_selection::LabelSelectionState,
 };
 use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
@@ -35,6 +35,7 @@ pub struct AtomLayout<'a> {
     gap: Option<f32>,
     pub(crate) frame: Frame,
     pub(crate) sense: Sense,
+    selectable: bool,
     fallback_text_color: Option<Color32>,
     fallback_font: Option<FontSelection>,
     min_size: Vec2,
@@ -57,6 +58,7 @@ impl<'a> AtomLayout<'a> {
             gap: None,
             frame: Frame::default(),
             sense: Sense::hover(),
+            selectable: false,
             fallback_text_color: None,
             fallback_font: None,
             min_size: Vec2::ZERO,
@@ -86,6 +88,18 @@ impl<'a> AtomLayout<'a> {
     #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
+        self
+    }
+
+    /// Make the text in this layout selectable with the mouse.
+    ///
+    /// This is opt-in (default `false`): [`AtomLayout`] backs widgets like
+    /// [`crate::Button`] and [`crate::Checkbox`] whose labels should not be
+    /// selectable, so enabling it unconditionally would break them. When enabled,
+    /// the layout also senses clicks and drags so the selection can be made.
+    #[inline]
+    pub fn selectable(mut self, selectable: bool) -> Self {
+        self.selectable = selectable;
         self
     }
 
@@ -187,7 +201,8 @@ impl<'a> AtomLayout<'a> {
             mut atoms,
             gap,
             frame,
-            sense,
+            mut sense,
+            selectable,
             fallback_text_color,
             min_size,
             mut max_size,
@@ -197,6 +212,19 @@ impl<'a> AtomLayout<'a> {
         } = self;
 
         let fallback_font = fallback_font.unwrap_or_default();
+
+        if selectable {
+            // Mirror `Label`: sense clicks and drags so the text can be selected,
+            // but don't take keyboard focus on TAB.
+            let allow_drag_to_select = ui.input(|i| !i.has_touch_screen());
+            let mut select_sense = if allow_drag_to_select {
+                Sense::click_and_drag()
+            } else {
+                Sense::click()
+            };
+            select_sense -= Sense::FOCUSABLE;
+            sense |= select_sense;
+        }
 
         let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
 
@@ -331,6 +359,7 @@ impl<'a> AtomLayout<'a> {
             desired_size,
             align2,
             gap,
+            selectable,
         }
     }
 }
@@ -347,6 +376,7 @@ pub struct AllocatedAtomLayout<'a> {
     desired_size: Vec2,
     align2: Align2,
     gap: f32,
+    selectable: bool,
 }
 
 impl<'atom> AllocatedAtomLayout<'atom> {
@@ -434,6 +464,7 @@ impl<'atom> AllocatedAtomLayout<'atom> {
             desired_size,
             align2,
             gap,
+            selectable,
         } = self;
 
         let inner_rect = response.rect - self.frame.total_margin();
@@ -476,7 +507,21 @@ impl<'atom> AllocatedAtomLayout<'atom> {
 
             match sized.kind {
                 SizedAtomKind::Text(galley) => {
-                    ui.painter().galley(rect.min, galley, fallback_text_color);
+                    if selectable {
+                        // Route through the label selection machinery, which also
+                        // paints the galley. `Stroke::NONE` keeps the rendering
+                        // identical to the non-selectable path (no focus underline).
+                        LabelSelectionState::label_text_selection(
+                            ui,
+                            &response.response,
+                            rect.min,
+                            galley,
+                            fallback_text_color,
+                            Stroke::NONE,
+                        );
+                    } else {
+                        ui.painter().galley(rect.min, galley, fallback_text_color);
+                    }
                 }
                 SizedAtomKind::Image { image, size: _ } => {
                     image.paint_at(ui, rect);
