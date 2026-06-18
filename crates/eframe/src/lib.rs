@@ -225,12 +225,12 @@ pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<
 /// var was set.
 #[cfg(all(not(feature = "inspection"), not(target_arch = "wasm32")))]
 pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {
-    if let Ok(value) = std::env::var("EGUI_INSPECTION") {
-        if value != "0" && value != "false" && !value.is_empty() {
-            log::warn!(
-                "Inspection env var set but app was compiled without eframe/inspection feature"
-            );
-        }
+    if let Ok(value) = std::env::var("EGUI_INSPECTION")
+        && value != "0"
+        && value != "false"
+        && !value.is_empty()
+    {
+        log::warn!("Inspection env var set but app was compiled without eframe/inspection feature");
     }
 }
 
