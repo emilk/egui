@@ -144,7 +144,7 @@ impl Bridge {
 
     async fn fetch_label(&self) -> anyhow::Result<Option<String>> {
         match self.request(Request::GetInfo).await? {
-            Response::Info { label } => Ok(label),
+            Response::Info { label, .. } => Ok(label),
             Response::Error { message } => bail!("{message}"),
             _ => bail!("unexpected response to GetInfo"),
         }
