@@ -291,6 +291,9 @@ impl<'app> WgpuWinitApp<'app> {
 
         let app_creator = std::mem::take(&mut self.app_creator)
             .expect("Single-use AppCreator has unexpectedly already been taken");
+
+        crate::maybe_attach_inspection_plugin(&egui_ctx, Some(self.app_name.clone()));
+
         let cc = CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: integration.frame.info().clone(),
