@@ -299,6 +299,7 @@ impl<'app> GlowWinitApp<'app> {
         let app_creator = std::mem::take(&mut self.app_creator)
             .expect("Single-use AppCreator has unexpectedly already been taken");
 
+        #[cfg(all(not(feature = "inspection"), not(target_arch = "wasm32")))]
         crate::maybe_attach_inspection_plugin(&integration.egui_ctx, Some(self.app_name.clone()));
 
         let app: Box<dyn 'app + App> = {

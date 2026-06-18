@@ -160,6 +160,7 @@ pub use {egui_glow, glow};
 
 #[cfg(feature = "wgpu_no_default_features")]
 pub use {egui_wgpu, egui_wgpu::SurfaceConfig, egui_wgpu::WgpuConfiguration, egui_wgpu::wgpu};
+use egui_inspection::INSPECTION_ENV_VAR;
 
 mod epi;
 
@@ -211,34 +212,26 @@ pub mod icon_data;
 
 // ----------------------------------------------------------------------------
 
-// `maybe_attach_inspection_plugin` is only ever called by the native glow/wgpu integrations,
-// which exist under exactly this `cfg` (see `mod native`) — so it's defined under the same
-// condition, else it's dead code (e.g. on wasm, or a native build with no backend).
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-mod inspection_attach {
-    /// Attach an [`egui_inspection::InspectionPlugin`] to `ctx` when enabled via the environment.
-    ///
-    /// Driven by the `EGUI_INSPECTION` env var; a no-op when it's unset/falsy. Bind failures
-    /// are logged via `log::warn!` but do not abort startup — running without an inspector is
-    /// always valid.
-    #[cfg(feature = "inspection")]
-    pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<String>) {
-        match egui_inspection::attach_from_env(ctx, label) {
-            Ok(true) => log::info!("eframe: egui_inspection plugin attached"),
-            Ok(false) => {}
-            Err(err) => log::warn!("eframe: egui_inspection attach failed: {err}"),
-        }
+/// Attach an [`egui_inspection::InspectionPlugin`] to `ctx` when enabled via the environment.
+#[cfg(all(feature = "inspection", not(target_arch = "wasm32")))]
+pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<String>) {
+    match egui_inspection::attach_from_env(ctx, label) {
+        Ok(true) => log::info!("egui_inspection plugin attached"),
+        Ok(false) => {}
+        Err(err) => log::warn!("egui_inspection attach failed: {err}"),
     }
-
-    /// Fallback when the `inspection` feature is off.
-    #[cfg(not(feature = "inspection"))]
-    pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {}
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-pub(crate) use inspection_attach::maybe_attach_inspection_plugin;
+/// Fallback for native builds without the `inspection` feature. Logs warning if inspection env
+/// var was set.
+#[cfg(all(not(feature = "inspection"), not(target_arch = "wasm32")))]
+pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {
+    if let Ok(value) = std::env::var("EGUI_INSPECTION") {
+        if value != "0" && value != "false" && !value.is_empty() {
+            log::warn!("Inspection env var set but app was compiled without eframe/inspection feature");
+        }
+    }
+}
 
 /// This is how you start a native (desktop) app.
 ///
