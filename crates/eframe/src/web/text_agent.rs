@@ -38,6 +38,8 @@ impl TextAgent {
         style.set_property("position", "absolute")?;
         style.set_property("top", "0")?;
         style.set_property("left", "0")?;
+        // Prevent auto-zoom on mobile browsers (requires at least 16px).
+        style.set_property("font-size", "16px")?;
 
         if root.has_type::<Document>() {
             // root object is a document, append to its body
@@ -56,8 +58,13 @@ impl TextAgent {
             let input = input.clone();
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
                 let text = input.value();
-                // Fix android virtual keyboard Gboard
-                // This removes the virtual keyboard's suggestion.
+                // Workaround for an Android Gboard issue: after typing a word,
+                // the user has to delete invisible characters (whose count
+                // matches the length of the current suggestion) before actual
+                // characters are deleted, unless the focus has been reset.
+                //
+                // this issue appears to have been fixed in Gboard sometime
+                // between versions 14.7.09 and 17.0.12.
                 if !event.is_composing() {
                     input.blur().ok();
                     input.focus().ok();
@@ -75,11 +82,7 @@ impl TextAgent {
         };
 
         let on_composition_start = {
-            let input = input.clone();
             move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                input.set_value("");
-                let event = egui::Event::Ime(egui::ImeEvent::Enabled);
-                runner.input.raw.events.push(event);
                 // Repaint moves the text agent into place,
                 // see `move_to` in `AppRunner::handle_platform_output`.
                 runner.needs_repaint.repaint_asap();
@@ -136,6 +139,12 @@ impl TextAgent {
 
         let Some(ime) = ime else { return Ok(()) };
 
+        if ime.should_interrupt_composition {
+            // no-op for now: currently, the text agent is sizeless, so any
+            // click shifts focus to the canvas, which naturally interrupts the
+            // composition.
+        }
+
         let mut canvas_rect = super::canvas_content_rect(canvas);
         // Fix for safari with virtual keyboard flapping position
         if is_mobile_safari() {
@@ -144,16 +153,21 @@ impl TextAgent {
         let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
 
         let style = self.input.style();
+        let native_ppp = super::native_pixels_per_point();
+
+        // Clamp the input position within the canvas width to prevent unwanted horizontal scrolling.
+        let logical_canvas_width = canvas.width() as f32 / native_ppp;
+        let visible_x = cursor_rect.center().x * zoom_factor;
+        let clamped_x = visible_x.clamp(0.0, logical_canvas_width);
+
+        // Clamp the input position within the canvas height to prevent unwanted vertical scrolling.
+        let logical_canvas_height = canvas.height() as f32 / native_ppp;
+        let visible_y = cursor_rect.center().y * zoom_factor;
+        let clamped_y = visible_y.clamp(0.0, logical_canvas_height);
 
         // This is where the IME input will point to:
-        style.set_property(
-            "left",
-            &format!("{}px", cursor_rect.center().x * zoom_factor),
-        )?;
-        style.set_property(
-            "top",
-            &format!("{}px", cursor_rect.center().y * zoom_factor),
-        )?;
+        style.set_property("left", &format!("{clamped_x}px"))?;
+        style.set_property("top", &format!("{clamped_y}px"))?;
 
         Ok(())
     }

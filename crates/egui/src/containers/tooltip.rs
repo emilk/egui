@@ -17,31 +17,13 @@ pub struct Tooltip<'a> {
 
 impl Tooltip<'_> {
     /// Show a tooltip that is always open.
-    #[deprecated = "Use `Tooltip::always_open` instead."]
-    pub fn new(
-        parent_widget: Id,
-        ctx: Context,
-        anchor: impl Into<PopupAnchor>,
-        parent_layer: LayerId,
-    ) -> Self {
-        Self {
-            popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
-                .kind(PopupKind::Tooltip)
-                .gap(4.0)
-                .sense(Sense::hover()),
-            parent_layer,
-            parent_widget,
-        }
-    }
-
-    /// Show a tooltip that is always open.
     pub fn always_open(
         ctx: Context,
         parent_layer: LayerId,
         parent_widget: Id,
         anchor: impl Into<PopupAnchor>,
     ) -> Self {
-        let width = ctx.style().spacing.tooltip_width;
+        let width = ctx.global_style().spacing.tooltip_width;
         Self {
             popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
                 .kind(PopupKind::Tooltip)
@@ -58,7 +40,7 @@ impl Tooltip<'_> {
         let popup = Popup::from_response(response)
             .kind(PopupKind::Tooltip)
             .gap(4.0)
-            .width(response.ctx.style().spacing.tooltip_width)
+            .width(response.ctx.global_style().spacing.tooltip_width)
             .sense(Sense::hover());
         Self {
             popup,
@@ -229,7 +211,7 @@ impl Tooltip<'_> {
             return false;
         }
 
-        let style = response.ctx.style();
+        let style = response.ctx.global_style();
 
         let tooltip_delay = style.interaction.tooltip_delay;
         let tooltip_grace_time = style.interaction.tooltip_grace_time;

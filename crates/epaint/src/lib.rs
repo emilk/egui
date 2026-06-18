@@ -20,13 +20,14 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
+#![expect(clippy::float_cmp)]
+#![expect(clippy::manual_range_contains)]
 
 mod brush;
 pub mod color;
 mod corner_radius;
 mod corner_radius_f32;
+mod direction;
 pub mod image;
 mod margin;
 mod margin_f32;
@@ -50,7 +51,8 @@ pub use self::{
     color::ColorMode,
     corner_radius::CornerRadius,
     corner_radius_f32::CornerRadiusF32,
-    image::{AlphaFromCoverage, ColorImage, ImageData, ImageDelta},
+    direction::Direction,
+    image::{ColorImage, FontColorTransferFunction, ImageData, ImageDelta},
     margin::Margin,
     margin_f32::*,
     mesh::{Mesh, Mesh16, Vertex},
@@ -69,14 +71,8 @@ pub use self::{
     viewport::ViewportInPixels,
 };
 
-#[deprecated = "Renamed to CornerRadius"]
-pub type Rounding = CornerRadius;
-
 pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
 pub use emath::{Pos2, Rect, Vec2, pos2, vec2};
-
-#[deprecated = "Use the ahash crate directly."]
-pub use ahash;
 
 pub use ecolor;
 pub use emath;

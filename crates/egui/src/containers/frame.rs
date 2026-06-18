@@ -174,11 +174,6 @@ impl Frame {
         Self::NONE
     }
 
-    #[deprecated = "Use `Frame::NONE` or `Frame::new()` instead."]
-    pub const fn none() -> Self {
-        Self::NONE
-    }
-
     /// For when you want to group a few widgets together within a frame.
     pub fn group(style: &Style) -> Self {
         Self::new()
@@ -197,6 +192,7 @@ impl Frame {
         Self::new().inner_margin(8).fill(style.visuals.panel_fill)
     }
 
+    /// The default frame for an [`crate::Window`].
     pub fn window(style: &Style) -> Self {
         Self::new()
             .inner_margin(style.spacing.window_margin)
@@ -283,16 +279,6 @@ impl Frame {
         self
     }
 
-    /// The rounding of the _outer_ corner of the [`Self::stroke`]
-    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
-    ///
-    /// In other words, this is the corner radius of the _widget rect_.
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
-    }
-
     /// Margin outside the painted frame.
     ///
     /// Similar to what is called `margin` in CSS.
@@ -336,7 +322,7 @@ impl Frame {
 impl Frame {
     /// How much extra space the frame uses up compared to the content.
     ///
-    /// [`Self::inner_margin`] + [`Self.stroke`]`.width` + [`Self::outer_margin`].
+    /// [`Self::inner_margin`] + [`Self::stroke`]`.width` + [`Self::outer_margin`].
     #[inline]
     pub fn total_margin(&self) -> MarginF32 {
         MarginF32::from(self.inner_margin)
@@ -413,11 +399,15 @@ impl Frame {
     }
 
     /// Show the given ui surrounded by this frame.
+    ///
+    /// The returned [`InnerResponse::response`] will have the rect of the entire frame, including margins.
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(add_contents))
     }
 
     /// Show using dynamic dispatch.
+    ///
+    /// The returned [`InnerResponse::response`] will have the rect of the entire frame, including margins.
     pub fn show_dyn<'c, R>(
         self,
         ui: &mut Ui,

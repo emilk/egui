@@ -1,9 +1,9 @@
 //! Example how to use pure `egui_glow`.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
-#![allow(clippy::undocumented_unsafe_blocks)]
-#![allow(unsafe_code)]
+#![expect(rustdoc::missing_crate_level_docs, clippy::unwrap_used)] // it's an example
+#![expect(clippy::undocumented_unsafe_blocks)]
+#![expect(unsafe_code)]
 
 use std::num::NonZeroU32;
 use std::sync::Arc;
@@ -59,7 +59,7 @@ impl GlutinWindowContext {
                 )
                 .expect("failed to create gl_config");
         let gl_display = gl_config.display();
-        log::debug!("found gl_config: {:?}", &gl_config);
+        log::debug!("found gl_config: {gl_config:?}");
 
         let raw_window_handle = window.as_ref().map(|w| {
             w.window_handle()
@@ -77,9 +77,7 @@ impl GlutinWindowContext {
             gl_display
                     .create_context(&gl_config, &context_attributes)
                     .unwrap_or_else(|_| {
-                        log::debug!("failed to create gl_context with attributes: {:?}. retrying with fallback context attributes: {:?}",
-                            &context_attributes,
-                            &fallback_context_attributes);
+                        log::debug!("failed to create gl_context with attributes: {context_attributes:?}. retrying with fallback context attributes: {fallback_context_attributes:?}");
                         gl_config
                             .display()
                             .create_context(&gl_config, &fallback_context_attributes)
@@ -106,10 +104,7 @@ impl GlutinWindowContext {
                     width,
                     height,
                 );
-        log::debug!(
-            "creating surface with attributes: {:?}",
-            &surface_attributes
-        );
+        log::debug!("creating surface with attributes: {surface_attributes:?}");
         let gl_surface = unsafe {
             gl_display
                 .create_window_surface(&gl_config, &surface_attributes)
@@ -190,7 +185,7 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
         let gl = std::sync::Arc::new(gl);
         gl_window.window().set_visible(true);
 
-        let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
+        let egui_glow = egui_glow::EguiGlow::new(event_loop, Arc::clone(&gl), None, None, true);
 
         let event_loop_proxy = egui::mutex::Mutex::new(self.proxy.clone());
         egui_glow
@@ -215,10 +210,11 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
         let mut redraw = || {
             let mut quit = false;
 
-            self.egui_glow.as_mut().unwrap().run(
-                self.gl_window.as_mut().unwrap().window(),
-                |egui_ctx| {
-                    egui::Panel::left("my_side_panel").show(egui_ctx, |ui| {
+            self.egui_glow
+                .as_mut()
+                .unwrap()
+                .run(self.gl_window.as_mut().unwrap().window(), |ui| {
+                    egui::Panel::left("my_side_panel").show(ui, |ui| {
                         ui.heading("Hello World!");
                         if ui.button("Quit").clicked() {
                             quit = true;
@@ -226,8 +222,7 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
 
                         ui.color_edit_button_rgb(self.clear_color.as_mut().try_into().unwrap());
                     });
-                },
-            );
+                });
 
             if quit {
                 event_loop.exit();

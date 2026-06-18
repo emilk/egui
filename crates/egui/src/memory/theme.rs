@@ -39,7 +39,7 @@ impl Theme {
     /// This is not the best design as it doesn't allow switching back to "follow system".
     #[must_use]
     pub(crate) fn small_toggle_button(self, ui: &mut crate::Ui) -> Option<Self> {
-        #![allow(clippy::collapsible_else_if)]
+        #![expect(clippy::collapsible_else_if)]
         if self == Self::Dark {
             if ui
                 .add(Button::new("☀").frame(false))
@@ -89,7 +89,7 @@ impl ThemePreference {
     /// Show radio-buttons to switch between light mode, dark mode and following the system theme.
     pub fn radio_buttons(&mut self, ui: &mut crate::Ui) {
         ui.horizontal(|ui| {
-            let system_theme = ui.ctx().input(|i| i.raw.system_theme);
+            let system_theme = ui.input(|i| i.raw.system_theme);
 
             ui.selectable_value(self, Self::System, "💻 System")
                 .on_hover_ui(|ui| {

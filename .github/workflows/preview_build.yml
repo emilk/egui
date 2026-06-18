@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.88.0
+          toolchain: 1.92.0
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:

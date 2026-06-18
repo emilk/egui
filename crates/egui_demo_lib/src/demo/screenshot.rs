@@ -13,12 +13,13 @@ impl crate::Demo for Screenshot {
         "📷 Screenshot"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
             .default_width(250.0)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -43,17 +44,16 @@ impl crate::View for Screenshot {
             let capture = ui.button("📷 Take Screenshot").clicked();
             ui.checkbox(&mut self.continuous, "Capture continuously");
             if capture || self.continuous {
-                ui.ctx()
-                    .send_viewport_cmd(ViewportCommand::Screenshot(UserData::default()));
+                ui.send_viewport_cmd(ViewportCommand::Screenshot(UserData::default()));
             }
         });
 
-        let image = ui.ctx().input(|i| {
+        let image = ui.input(|i| {
             i.events
                 .iter()
                 .filter_map(|e| {
                     if let egui::Event::Screenshot { image, .. } = e {
-                        Some(image.clone())
+                        Some(Arc::clone(image))
                     } else {
                         None
                     }
@@ -63,7 +63,7 @@ impl crate::View for Screenshot {
 
         if let Some(image) = image {
             self.image = Some((
-                image.clone(),
+                Arc::clone(&image),
                 ui.ctx()
                     .load_texture("screenshot_demo", image, Default::default()),
             ));

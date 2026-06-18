@@ -61,14 +61,14 @@ impl Default for HttpApp {
 
 impl crate::DemoApp for HttpApp {
     fn demo_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        egui::Panel::bottom("http_bottom").show_inside(ui, |ui| {
+        egui::Panel::bottom("http_bottom").show(ui, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
                 ui.add(egui_demo_lib::egui_github_link_file!())
             })
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             let prev_url = self.url.clone();
             let trigger_fetch = ui_url(ui, frame, &mut self.url);
 
@@ -195,7 +195,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
             if let Some(text) = &text {
                 let tooltip = "Click to copy the response body";
                 if ui.button("📋").on_hover_text(tooltip).clicked() {
-                    ui.ctx().copy_text(text.clone());
+                    ui.copy_text(text.clone());
                 }
                 ui.separator();
             }
@@ -222,10 +222,10 @@ fn syntax_highlighting(
 ) -> Option<ColoredText> {
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
     let extension = extension_and_rest.first()?;
-    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.style());
+    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.global_style());
     Some(ColoredText(egui_extras::syntax_highlighting::highlight(
         ctx,
-        &ctx.style(),
+        &ctx.global_style(),
         &theme,
         text,
         extension,

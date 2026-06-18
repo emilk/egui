@@ -1,4 +1,4 @@
-use egui::{UiKind, Vec2b};
+use egui::{UiKind, Vec2b, WindowDrag};
 
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -7,6 +7,7 @@ pub struct WindowOptions {
     title_bar: bool,
     closable: bool,
     collapsible: bool,
+    movable: bool,
     resizable: bool,
     constrain: bool,
     scroll2: Vec2b,
@@ -15,6 +16,8 @@ pub struct WindowOptions {
     anchored: bool,
     anchor: egui::Align2,
     anchor_offset: egui::Vec2,
+
+    drag_area: WindowDrag,
 }
 
 impl Default for WindowOptions {
@@ -24,6 +27,7 @@ impl Default for WindowOptions {
             title_bar: true,
             closable: true,
             collapsible: true,
+            movable: true,
             resizable: true,
             constrain: true,
             scroll2: Vec2b::TRUE,
@@ -31,6 +35,7 @@ impl Default for WindowOptions {
             anchored: false,
             anchor: egui::Align2::RIGHT_TOP,
             anchor_offset: egui::Vec2::ZERO,
+            drag_area: WindowDrag::default(),
         }
     }
 }
@@ -40,12 +45,13 @@ impl crate::Demo for WindowOptions {
         "🗖 Window Options"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         let Self {
             title,
             title_bar,
             closable,
             collapsible,
+            movable,
             resizable,
             constrain,
             scroll2,
@@ -53,11 +59,12 @@ impl crate::Demo for WindowOptions {
             anchored,
             anchor,
             anchor_offset,
+            drag_area,
         } = self.clone();
 
-        let enabled = ctx.input(|i| i.time) - disabled_time > 2.0;
+        let enabled = ui.input(|i| i.time) - disabled_time > 2.0;
         if !enabled {
-            ctx.request_repaint();
+            ui.request_repaint();
         }
 
         use crate::View as _;
@@ -66,8 +73,11 @@ impl crate::Demo for WindowOptions {
             .resizable(resizable)
             .constrain(constrain)
             .collapsible(collapsible)
+            .movable(movable)
             .title_bar(title_bar)
+            .drag_area(drag_area)
             .scroll(scroll2)
+            .constrain_to(ui.available_rect_before_wrap())
             .enabled(enabled);
         if closable {
             window = window.open(open);
@@ -75,7 +85,7 @@ impl crate::Demo for WindowOptions {
         if anchored {
             window = window.anchor(anchor, anchor_offset);
         }
-        window.show(ctx, |ui| self.ui(ui));
+        window.show(ui, |ui| self.ui(ui));
     }
 }
 
@@ -86,6 +96,7 @@ impl crate::View for WindowOptions {
             title_bar,
             closable,
             collapsible,
+            movable,
             resizable,
             constrain,
             scroll2,
@@ -93,6 +104,7 @@ impl crate::View for WindowOptions {
             anchored,
             anchor,
             anchor_offset,
+            drag_area,
         } = self;
         ui.horizontal(|ui| {
             ui.label("title:");
@@ -105,6 +117,8 @@ impl crate::View for WindowOptions {
                     ui.checkbox(title_bar, "title_bar");
                     ui.checkbox(closable, "closable");
                     ui.checkbox(collapsible, "collapsible");
+                    ui.checkbox(movable, "movable")
+                        .on_hover_text("Can the window be moved by dragging?");
                     ui.checkbox(resizable, "resizable");
                     ui.checkbox(constrain, "constrain")
                         .on_hover_text("Constrain window to the screen");
@@ -137,6 +151,19 @@ impl crate::View for WindowOptions {
                     });
                 });
             });
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Drag to move:")
+                .on_hover_text("Where the user can grab the window to move it");
+            ui.selectable_value(drag_area, WindowDrag::Off, "Off")
+                .on_hover_text("The window cannot be dragged to move it (same as movable = false)");
+            ui.selectable_value(drag_area, WindowDrag::OnTouch, "OnTouch")
+                .on_hover_text("Anywhere on touch screens, title-bar only otherwise (default)");
+            ui.selectable_value(drag_area, WindowDrag::TitleBar, "TitleBar")
+                .on_hover_text("Only the title bar moves the window");
+            ui.selectable_value(drag_area, WindowDrag::Anywhere, "Anywhere")
+                .on_hover_text("Drag anywhere on the window to move it");
         });
 
         ui.separator();

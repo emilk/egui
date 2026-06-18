@@ -28,6 +28,7 @@ impl EguiGlow {
         native_pixels_per_point: Option<f32>,
         dithering: bool,
     ) -> Self {
+        #[expect(clippy::unwrap_used)] // TODO(emilk): return error instead of unwrap
         let painter = crate::Painter::new(gl, "", shader_version, dithering)
             .map_err(|err| {
                 log::error!("error occurred in initializing painter:\n{err}");
@@ -65,7 +66,7 @@ impl EguiGlow {
     }
 
     /// Call [`Self::paint`] later to paint.
-    pub fn run(&mut self, window: &winit::window::Window, run_ui: impl FnMut(&egui::Context)) {
+    pub fn run(&mut self, window: &winit::window::Window, run_ui: impl FnMut(&mut egui::Ui)) {
         let raw_input = self.egui_winit.take_egui_input(window);
 
         let egui::FullOutput {
@@ -74,7 +75,7 @@ impl EguiGlow {
             shapes,
             pixels_per_point,
             viewport_output,
-        } = self.egui_ctx.run(raw_input, run_ui);
+        } = self.egui_ctx.run_ui(raw_input, run_ui);
 
         if viewport_output.len() > 1 {
             log::warn!("Multiple viewports not yet supported by EguiGlow");

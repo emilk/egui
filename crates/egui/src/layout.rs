@@ -1,7 +1,7 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align,
+    Align, Direction,
     emath::{Align2, NumExt as _, Pos2, Rect, Vec2, pos2, vec2},
 };
 const INFINITY: f32 = f32::INFINITY;
@@ -82,36 +82,6 @@ impl Region {
             self.max_rect
         );
         debug_assert!(!self.cursor.any_nan(), "cursor has Nan: {:?}", self.cursor);
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Layout direction, one of [`LeftToRight`](Direction::LeftToRight), [`RightToLeft`](Direction::RightToLeft), [`TopDown`](Direction::TopDown), [`BottomUp`](Direction::BottomUp).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum Direction {
-    LeftToRight,
-    RightToLeft,
-    TopDown,
-    BottomUp,
-}
-
-impl Direction {
-    #[inline(always)]
-    pub fn is_horizontal(self) -> bool {
-        match self {
-            Self::LeftToRight | Self::RightToLeft => true,
-            Self::TopDown | Self::BottomUp => false,
-        }
-    }
-
-    #[inline(always)]
-    pub fn is_vertical(self) -> bool {
-        match self {
-            Self::LeftToRight | Self::RightToLeft => false,
-            Self::TopDown | Self::BottomUp => true,
-        }
     }
 }
 
@@ -623,12 +593,24 @@ impl Layout {
         if (self.is_vertical() && self.horizontal_align() == Align::Center)
             || self.horizontal_justify()
         {
-            frame_size.x = frame_size.x.max(available_rect.width()); // fill full width
+            // For wrapping layouts, fill the current column width, not the entire layout width.
+            let width = if self.main_wrap {
+                region.cursor.width()
+            } else {
+                available_rect.width()
+            };
+            frame_size.x = frame_size.x.max(width); // fill full width
         }
         if (self.is_horizontal() && self.vertical_align() == Align::Center)
             || self.vertical_justify()
         {
-            frame_size.y = frame_size.y.max(available_rect.height()); // fill full height
+            // For wrapping layouts, fill the current row height, not the entire layout height.
+            let height = if self.main_wrap {
+                region.cursor.height()
+            } else {
+                available_rect.height()
+            };
+            frame_size.y = frame_size.y.max(height); // fill full height
         }
 
         let align2 = match self.main_dir {
@@ -791,14 +773,14 @@ impl Layout {
                     let new_top = region.cursor.bottom() + spacing.y;
                     region.cursor = Rect::from_min_max(
                         pos2(region.max_rect.left(), new_top),
-                        pos2(INFINITY, new_top + region.cursor.height()),
+                        pos2(INFINITY, new_top),
                     );
                 }
                 Direction::RightToLeft => {
                     let new_top = region.cursor.bottom() + spacing.y;
                     region.cursor = Rect::from_min_max(
                         pos2(-INFINITY, new_top),
-                        pos2(region.max_rect.right(), new_top + region.cursor.height()),
+                        pos2(region.max_rect.right(), new_top),
                     );
                 }
                 Direction::TopDown | Direction::BottomUp => {}

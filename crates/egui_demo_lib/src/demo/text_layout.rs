@@ -7,17 +7,21 @@ pub struct TextLayoutDemo {
     overflow_character: Option<char>,
     extra_letter_spacing: f32,
     line_height_pixels: u32,
+    halign: egui::Align,
+    justify: bool,
     lorem_ipsum: bool,
 }
 
 impl Default for TextLayoutDemo {
     fn default() -> Self {
         Self {
-            max_rows: 6,
-            break_anywhere: true,
+            max_rows: 1000,
+            break_anywhere: false,
             overflow_character: Some('…'),
             extra_letter_spacing: 0.0,
             line_height_pixels: 0,
+            halign: egui::Align::LEFT,
+            justify: false,
             lorem_ipsum: true,
         }
     }
@@ -28,11 +32,12 @@ impl crate::Demo for TextLayoutDemo {
         "🖹 Text Layout"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(true)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -47,12 +52,14 @@ impl crate::View for TextLayoutDemo {
             overflow_character,
             extra_letter_spacing,
             line_height_pixels,
+            halign,
+            justify,
             lorem_ipsum,
         } = self;
 
         use egui::text::LayoutJob;
 
-        let pixels_per_point = ui.ctx().pixels_per_point();
+        let pixels_per_point = ui.pixels_per_point();
         let points_per_pixel = 1.0 / pixels_per_point;
 
         ui.vertical_centered(|ui| {
@@ -108,6 +115,18 @@ impl crate::View for TextLayoutDemo {
                 });
                 ui.end_row();
 
+                ui.label("Horizontal align:");
+                ui.horizontal(|ui| {
+                    ui.selectable_value(halign, egui::Align::LEFT, "Left");
+                    ui.selectable_value(halign, egui::Align::Center, "Center");
+                    ui.selectable_value(halign, egui::Align::RIGHT, "Right");
+                });
+                ui.end_row();
+
+                ui.label("Justify:");
+                ui.checkbox(justify, "Fill row width");
+                ui.end_row();
+
                 ui.label("Text:");
                 ui.horizontal(|ui| {
                     ui.selectable_value(lorem_ipsum, true, "Lorem Ipsum");
@@ -144,8 +163,14 @@ impl crate::View for TextLayoutDemo {
                     ..Default::default()
                 };
 
-                // NOTE: `Label` overrides some of the wrapping settings, e.g. wrap width
-                ui.label(job);
+                // NOTE: `Label` overrides some of the wrapping settings,
+                // e.g. wrap width, halign, and justify.
+                ui.with_layout(
+                    egui::Layout::top_down(*halign).with_cross_justify(*justify),
+                    |ui| {
+                        ui.label(job);
+                    },
+                );
             });
     }
 }

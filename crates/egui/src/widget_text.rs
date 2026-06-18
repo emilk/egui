@@ -1,5 +1,4 @@
-use emath::GuiRounding as _;
-use epaint::text::TextFormat;
+use epaint::text::{IntoTag, TextFormat, VariationCoords};
 use std::fmt::Formatter;
 use std::{borrow::Cow, sync::Arc};
 
@@ -34,6 +33,7 @@ pub struct RichText {
     background_color: Color32,
     expand_bg: f32,
     text_color: Option<Color32>,
+    coords: VariationCoords,
     code: bool,
     strong: bool,
     weak: bool,
@@ -55,6 +55,7 @@ impl Default for RichText {
             background_color: Default::default(),
             expand_bg: 1.0,
             text_color: Default::default(),
+            coords: Default::default(),
             code: Default::default(),
             strong: Default::default(),
             weak: Default::default(),
@@ -154,7 +155,7 @@ impl RichText {
     /// Default: 0.0.
     ///
     /// For even text it is recommended you round this to an even number of _pixels_,
-    /// e.g. using [`crate::Painter::round_to_pixel`].
+    /// e.g. using [`emath::GuiRounding`].
     #[inline]
     pub fn extra_letter_spacing(mut self, extra_letter_spacing: f32) -> Self {
         self.extra_letter_spacing = extra_letter_spacing;
@@ -168,7 +169,7 @@ impl RichText {
     /// If `None` (the default), the line height is determined by the font.
     ///
     /// For even text it is recommended you round this to an even number of _pixels_,
-    /// e.g. using [`crate::Painter::round_to_pixel`].
+    /// e.g. using [`emath::GuiRounding`].
     #[inline]
     pub fn line_height(mut self, line_height: Option<f32>) -> Self {
         self.line_height = line_height;
@@ -193,6 +194,23 @@ impl RichText {
         let crate::FontId { size, family } = font_id;
         self.size = Some(size);
         self.family = Some(family);
+        self
+    }
+
+    /// Add a variation coordinate.
+    #[inline]
+    pub fn variation(mut self, tag: impl IntoTag, coord: f32) -> Self {
+        self.coords.push(tag, coord);
+        self
+    }
+
+    /// Override the variation coordinates completely.
+    #[inline]
+    pub fn variations<T: IntoTag>(
+        mut self,
+        variations: impl IntoIterator<Item = (T, f32)>,
+    ) -> Self {
+        self.coords = VariationCoords::new(variations);
         self
     }
 
@@ -391,6 +409,7 @@ impl RichText {
             background_color,
             expand_bg,
             text_color: _, // already used by `get_text_color`
+            coords,
             code,
             strong: _, // already used by `get_text_color`
             weak: _,   // already used by `get_text_color`
@@ -449,6 +468,7 @@ impl RichText {
                 line_height,
                 color: text_color,
                 background: background_color,
+                coords,
                 italics,
                 underline,
                 strikethrough,
@@ -671,22 +691,6 @@ impl WidgetText {
         self.map_rich_text(|text| text.background_color(background_color))
     }
 
-    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub(crate) fn font_height(&self, fonts: &mut epaint::FontsView<'_>, style: &Style) -> f32 {
-        match self {
-            Self::Text(_) => fonts.row_height(&FontSelection::Default.resolve(style)),
-            Self::RichText(text) => text.font_height(fonts, style),
-            Self::LayoutJob(job) => job.font_height(fonts),
-            Self::Galley(galley) => {
-                if let Some(placed_row) = galley.rows.first() {
-                    placed_row.height().round_ui()
-                } else {
-                    galley.size().y.round_ui()
-                }
-            }
-        }
-    }
-
     pub fn into_layout_job(
         self,
         style: &Style,
@@ -709,7 +713,7 @@ impl WidgetText {
                 default_valign,
             )),
             Self::LayoutJob(job) => job,
-            Self::Galley(galley) => galley.job.clone(),
+            Self::Galley(galley) => Arc::clone(&galley.job),
         }
     }
 

@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use emath::GuiRounding as _;
 
 use crate::{
-    Align2, Color32, Context, Id, InnerResponse, NumExt as _, Painter, Rect, Region, Style, Ui,
-    UiBuilder, Vec2, vec2,
+    Align2, AsIdSalt, Color32, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Rect,
+    Region, Style, Ui, UiBuilder, Vec2, vec2,
 };
 
 #[cfg(debug_assertions)]
@@ -102,7 +104,7 @@ impl GridLayout {
 
         Self {
             ctx: ui.ctx().clone(),
-            style: ui.style().clone(),
+            style: Arc::clone(ui.style()),
             id,
             is_first_frame,
             prev_state,
@@ -310,7 +312,7 @@ impl GridLayout {
 /// ```
 #[must_use = "You should call .show()"]
 pub struct Grid {
-    id_salt: Id,
+    id_salt: IdSalt,
     num_columns: Option<usize>,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
@@ -322,9 +324,9 @@ pub struct Grid {
 
 impl Grid {
     /// Create a new [`Grid`] with a locally unique identifier.
-    pub fn new(id_salt: impl std::hash::Hash) -> Self {
+    pub fn new(id_salt: impl AsIdSalt) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: IdSalt::new(id_salt),
             num_columns: None,
             min_col_width: None,
             min_row_height: None,
@@ -449,7 +451,7 @@ impl Grid {
 
             if ui.is_visible() {
                 // Try to cover up the glitchy initial frame:
-                ui.ctx().request_discard("new Grid");
+                ui.request_discard("new Grid");
             }
 
             // Hide the ui this frame, and make things as narrow as possible:

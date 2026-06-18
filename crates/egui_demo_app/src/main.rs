@@ -1,8 +1,8 @@
 //! Demo app for egui
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
-#![allow(clippy::never_loop)] // False positive
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
+#![allow(clippy::allow_attributes, clippy::never_loop)]
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator, can give 20% speedups: https://github.com/emilk/egui/pull/7029
@@ -38,7 +38,8 @@ fn main() {
         });
         for loud_crate in ["naga", "wgpu_core", "wgpu_hal"] {
             if !rust_log.contains(&format!("{loud_crate}=")) {
-                rust_log += &format!(",{loud_crate}=warn");
+                use std::fmt::Write as _;
+                write!(rust_log, ",{loud_crate}=warn").ok();
             }
         }
 

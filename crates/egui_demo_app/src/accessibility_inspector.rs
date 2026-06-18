@@ -1,7 +1,7 @@
 use std::mem;
 
-use accesskit::{Action, ActionRequest, NodeId};
-use accesskit_consumer::{FilterResult, Node, Tree, TreeChangeHandler};
+use accesskit::{Action, ActionRequest};
+use accesskit_consumer::{FilterResult, Node, NodeId, Tree, TreeChangeHandler};
 
 use eframe::epaint::text::TextWrapMode;
 use egui::{
@@ -9,7 +9,7 @@ use egui::{
     Modifiers, Panel, RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
 };
 
-/// This [`egui::Plugin`] adds an inspector Panel.
+/// This [`egui::Plugin`] adds an inspector panel.
 ///
 /// It can be opened with the `(Cmd/Ctrl)+Alt+I`. It shows the current AccessKit tree and details
 /// for the selected node.
@@ -25,7 +25,7 @@ use egui::{
 pub struct AccessibilityInspectorPlugin {
     pub open: bool,
     tree: Option<accesskit_consumer::Tree>,
-    selected_node: Option<Id>,
+    selected_node: Option<NodeId>,
     queued_action: Option<ActionRequest>,
 }
 
@@ -46,7 +46,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
         "Accessibility Inspector"
     }
 
-    fn input_hook(&mut self, input: &mut RawInput) {
+    fn input_hook(&mut self, _ctx: &Context, input: &mut RawInput) {
         if let Some(queued_action) = self.queued_action.take() {
             input
                 .events
@@ -54,7 +54,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
         }
     }
 
-    fn output_hook(&mut self, output: &mut FullOutput) {
+    fn output_hook(&mut self, _ctx: &Context, output: &mut FullOutput) {
         if let Some(update) = output.platform_output.accesskit_update.clone() {
             self.tree = match mem::take(&mut self.tree) {
                 None => {
@@ -71,8 +71,8 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
         }
     }
 
-    fn on_begin_pass(&mut self, ctx: &Context) {
-        if ctx.input_mut(|i| {
+    fn on_begin_pass(&mut self, ui: &mut Ui) {
+        if ui.input_mut(|i| {
             i.consume_shortcut(&KeyboardShortcut::new(
                 Modifiers::COMMAND | Modifiers::ALT,
                 Key::I,
@@ -85,15 +85,15 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
             return;
         }
 
-        ctx.enable_accesskit();
+        ui.enable_accesskit();
 
-        Panel::right(Self::id()).show(ctx, |ui| {
+        Panel::right(Self::id()).show(ui, |ui| {
             ui.heading("🔎 AccessKit Inspector");
             if let Some(selected_node) = self.selected_node {
                 Panel::bottom(Self::id().with("details_panel"))
                     .frame(Frame::new())
                     .show_separator_line(false)
-                    .show_inside(ui, |ui| {
+                    .show(ui, |ui| {
                         self.selection_ui(ui, selected_node);
                     });
             }
@@ -113,16 +113,20 @@ impl AccessibilityInspectorPlugin {
         Id::new("Accessibility Inspector")
     }
 
-    fn selection_ui(&mut self, ui: &mut Ui, selected_node: Id) {
+    fn selection_ui(&mut self, ui: &mut Ui, selected_node: NodeId) {
         ui.separator();
 
         if let Some(tree) = &self.tree
-            && let Some(node) = tree.state().node_by_id(NodeId::from(selected_node.value()))
+            && let Some(node) = tree.state().node_by_id(selected_node)
         {
-            let node_response = ui.ctx().read_response(selected_node);
+            // Safety: This is safe since the `accesskit::NodeId` was created from an `egui::Id`.
+            #[expect(unsafe_code)]
+            let egui_node_id = unsafe { Id::from_high_entropy_bits(node.locate().0.0) };
+
+            let node_response = ui.ctx().read_response(egui_node_id);
 
             if let Some(widget_response) = node_response {
-                ui.ctx().debug_painter().debug_rect(
+                ui.debug_painter().debug_rect(
                     widget_response.rect,
                     ui.style_mut().visuals.selection.bg_fill,
                     "",
@@ -174,8 +178,10 @@ impl AccessibilityInspectorPlugin {
                     if node.supports_action(action, &|_node| FilterResult::Include)
                         && ui.button(format!("{action:?}")).clicked()
                     {
+                        let (target_node, target_tree) = node.locate();
                         let action_request = ActionRequest {
-                            target: node.id(),
+                            target_node,
+                            target_tree,
                             action,
                             data: None,
                         };
@@ -188,8 +194,8 @@ impl AccessibilityInspectorPlugin {
         }
     }
 
-    fn node_ui(ui: &mut Ui, node: &Node<'_>, selected_node: &mut Option<Id>) {
-        if node.id() == Self::id().value().into()
+    fn node_ui(ui: &mut Ui, node: &Node<'_>, selected_node: &mut Option<NodeId>) {
+        if node.locate() == (Self::id().value().into(), accesskit::TreeId::ROOT)
             || node
                 .value()
                 .as_deref()
@@ -200,12 +206,12 @@ impl AccessibilityInspectorPlugin {
         let label = node
             .label()
             .or_else(|| node.value())
-            .unwrap_or_else(|| node.id().0.to_string());
+            .unwrap_or_else(|| node.locate().0.0.to_string());
         let label = format!("({:?}) {}", node.role(), label);
 
         // Safety: This is safe since the `accesskit::NodeId` was created from an `egui::Id`.
         #[expect(unsafe_code)]
-        let egui_node_id = unsafe { Id::from_high_entropy_bits(node.id().0) };
+        let egui_node_id = unsafe { Id::from_high_entropy_bits(node.locate().0.0) };
 
         ui.push_id(node.id(), |ui| {
             let child_count = node.children().len();
@@ -228,13 +234,12 @@ impl AccessibilityInspectorPlugin {
                     collapsing.set_open(!collapsing.is_open());
                 }
                 let label_response =
-                    ui.selectable_value(selected_node, Some(egui_node_id), label.clone());
+                    ui.selectable_value(selected_node, Some(node.id()), label.clone());
                 if label_response.hovered() {
                     let widget_response = ui.ctx().read_response(egui_node_id);
 
                     if let Some(widget_response) = widget_response {
-                        ui.ctx()
-                            .debug_painter()
+                        ui.debug_painter()
                             .debug_rect(widget_response.rect, Color32::RED, "");
                     }
                 }

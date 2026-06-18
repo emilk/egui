@@ -4,14 +4,14 @@ version = "0.1.0"
 authors = ["Jan Procházka <github.com/jprochazk>"]
 license = "MIT OR Apache-2.0"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.92"
 publish = false
 
 [lints]
 workspace = true
 
 
-[package.metadata.cargo-machete]
+[package.metadata.cargo-shear]
 ignored = ["image"] # We only use the dependency to add more features to it
 
 

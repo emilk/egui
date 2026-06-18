@@ -1,5 +1,8 @@
 use egui::accesskit::{self, Role};
-use egui::{Button, ComboBox, Image, Modifiers, Popup, Vec2, Widget as _};
+use egui::{
+    Align2, Button, ComboBox, FontId, Image, Label, Modifiers, Popup, Pos2, Rect, Stroke,
+    StrokeKind, Vec2, Widget as _, Window,
+};
 #[cfg(all(feature = "wgpu", feature = "snapshot"))]
 use egui_kittest::SnapshotResults;
 use egui_kittest::{Harness, kittest::Queryable as _};
@@ -194,7 +197,7 @@ pub fn menus_should_close_even_if_submenu_disappears() {
     const OTHER_BUTTON: &str = "Other button";
     const MENU_BUTTON: &str = "Menu";
     const SUB_MENU_BUTTON: &str = "Always here";
-    const TOGGLABLE_SUB_MENU_BUTTON: &str = "Maybe here";
+    const TOGGLEABLE_SUB_MENU_BUTTON: &str = "Maybe here";
     const INSIDE_SUB_MENU_BUTTON: &str = "Inside submenu";
 
     for frame_delay in (0..3).rev() {
@@ -206,7 +209,7 @@ pub fn menus_should_close_even_if_submenu_disappears() {
                 Popup::menu(&response).show(|ui| {
                     let _ = ui.button(SUB_MENU_BUTTON);
                     if *state {
-                        ui.menu_button(TOGGLABLE_SUB_MENU_BUTTON, |ui| {
+                        ui.menu_button(TOGGLEABLE_SUB_MENU_BUTTON, |ui| {
                             let _ = ui.button(INSIDE_SUB_MENU_BUTTON);
                         });
                     }
@@ -221,7 +224,7 @@ pub fn menus_should_close_even_if_submenu_disappears() {
 
         // Open the sub menu
         harness
-            .get_by_label_contains(TOGGLABLE_SUB_MENU_BUTTON)
+            .get_by_label_contains(TOGGLEABLE_SUB_MENU_BUTTON)
             .hover();
         harness.run();
 
@@ -259,6 +262,454 @@ pub fn menus_should_close_even_if_submenu_disappears() {
         assert!(
             harness.query_by_label_contains(SUB_MENU_BUTTON).is_none(),
             "Menu failed to close. frame_delay = {frame_delay}"
+        );
+    }
+}
+
+fn keyboard_submenu_harness() -> Harness<'static, bool> {
+    Harness::builder()
+        .with_size(Vec2::new(400.0, 240.0))
+        .build_ui_state(
+            |ui, checked| {
+                egui::Panel::top("menu_bar").show(ui, |ui| {
+                    egui::MenuBar::new().ui(ui, |ui| {
+                        ui.menu_button("X", |ui| {
+                            ui.menu_button("Y", |ui| {
+                                ui.checkbox(checked, "Goal");
+                            });
+                        });
+                    });
+                });
+            },
+            false,
+        )
+}
+
+#[test]
+pub fn keyboard_should_open_nested_submenu() {
+    let mut harness = keyboard_submenu_harness();
+
+    harness.get_by_label("X").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    harness.get_by_label_contains("Y").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected nested submenu to open via keyboard"
+    );
+}
+
+#[test]
+pub fn keyboard_should_close_nested_submenu_with_second_enter() {
+    let mut harness = keyboard_submenu_harness();
+
+    harness.get_by_label("X").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    harness.get_by_label_contains("Y").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected nested submenu to open before close attempt"
+    );
+
+    harness.get_by_label_contains("Y").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_none(),
+        "Expected nested submenu to close when pressing Enter again"
+    );
+}
+
+/// Regression test for a bug in `horizontal_wrapped` layouts where text wraps but does not
+/// move to the next line, causing overlapping text.
+///
+/// Sweeps the available width from 200 down to 50 (one frame per width) and asserts that no
+/// two `TextRun` accesskit nodes (one per laid-out row) have overlapping bounds, and that
+/// all accesskit text runs and painted text shapes stay within the `horizontal_wrapped` rect.
+#[test]
+pub fn horizontal_wrapped_text_should_not_overlap() {
+    struct State {
+        width: f32,
+        rect: egui::Rect,
+    }
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(300.0, 400.0))
+        .build_ui_state(
+            |ui, state: &mut State| {
+                ui.set_width(state.width);
+                state.rect = egui::Frame::popup(ui.style())
+                    .show(ui, |ui| {
+                        ui.horizontal_wrapped(|ui| {
+                            ui.set_width(ui.available_width());
+                            for i in 0..20 {
+                                ui.label(format!("Hello{i}"));
+                            }
+                        })
+                        .response
+                        .rect
+                    })
+                    .inner;
+            },
+            State {
+                width: 200.0,
+                rect: Rect::NAN,
+            },
+        );
+
+    let min_width = 50.0;
+
+    loop {
+        let width = harness.state().width - 1.0;
+        if width < min_width {
+            break;
+        }
+        harness.state_mut().width = width;
+        harness.step();
+
+        let container_rect = harness.state().rect.expand(1.0);
+
+        let runs: Vec<_> = harness
+            .query_all_by_role(accesskit::Role::TextRun)
+            .map(|node| (node.rect(), node.value().unwrap_or_default()))
+            .collect();
+
+        for (rect, text) in &runs {
+            assert!(
+                container_rect.contains_rect(*rect),
+                "TextRun rect at available width = {width} is outside horizontal_wrapped rect: \
+                 {text:?} {rect:?} outside {container_rect:?}"
+            );
+        }
+
+        for clipped in &harness.output().shapes {
+            if let egui::epaint::Shape::Text(text_shape) = &clipped.shape {
+                let shape_rect = text_shape.visual_bounding_rect();
+                assert!(
+                    container_rect.contains_rect(shape_rect),
+                    "TextShape rect at available width = {width} is outside horizontal_wrapped rect: \
+                     {:?} {shape_rect:?} outside {container_rect:?}",
+                    text_shape.galley.text()
+                );
+            }
+        }
+
+        for i in 0..runs.len() {
+            for j in (i + 1)..runs.len() {
+                let (a, ta) = &runs[i];
+                let (b, tb) = &runs[j];
+                let inter = a.intersect(*b);
+                // Allow tiny floating-point slop for rects that just touch.
+                let overlaps = inter.width() > 0.5 && inter.height() > 0.5;
+                assert!(
+                    !overlaps,
+                    "TextRun rects overlap at available width = {width}: \
+                     {ta:?} {a:?} vs {tb:?} {b:?} \
+                     (overlap = {}x{})",
+                    inter.width(),
+                    inter.height()
+                );
+            }
+        }
+    }
+}
+
+#[test]
+pub fn pointer_click_on_open_submenu_button_should_not_close_it() {
+    let mut harness = keyboard_submenu_harness();
+
+    harness.get_by_label("X").click();
+    harness.run();
+
+    harness.get_by_label_contains("Y").click();
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected submenu to remain open after pointer click on its button"
+    );
+
+    harness.get_by_label_contains("Y").click();
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected submenu to remain open on repeated pointer click"
+    );
+}
+
+/// This test checks if we correctly handle wrapping content proceeding non-wrapping content
+/// during window resize. When the window is resized past non-wrapping content, the wrapping content
+/// above should stay at that non wrapping width and not wrap any further.
+#[test]
+fn window_resize_wraps_to_content_min_width() {
+    let wrap_text = "This label should wrap as the window is narrowed. \
+    It should not shrink smaller than the bottom labels width though.";
+    let non_wrap_text = "This is the bottom non-wrapping label which is wider.";
+
+    let window_title = "resize_wrap_regression";
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(move |ui| {
+            Window::new(window_title)
+                .default_pos([20.0, 20.0])
+                .default_size([400.0, 200.0])
+                .show(ui.ctx(), |ui| {
+                    ui.add(Label::new(wrap_text).wrap());
+                    ui.add(Label::new(non_wrap_text).extend());
+                });
+        });
+
+    harness.run();
+
+    let window_rect = harness
+        .get_by_role_and_label(Role::Window, window_title)
+        .rect();
+
+    // Drag the right edge inward, well past the non-wrapping label's natural
+    // width, so the non-wrapping label pins the window's minimum width while
+    // the wrapping label would (without the fix) keep shrinking.
+    let grab = Pos2::new(window_rect.right(), window_rect.center().y);
+    let target = Pos2::new(window_rect.left() + 80.0, window_rect.center().y);
+
+    harness.drag_at(grab);
+    harness.run();
+    harness.hover_at(target);
+
+    harness.run();
+
+    let wrap_width = harness.get_by_label(wrap_text).rect().width();
+    let non_wrap_width = harness.get_by_label(non_wrap_text).rect().width();
+
+    // Wrapped text won't perfectly fill the available width — each line ends
+    // wherever the next word stops fitting. The tolerance absorbs that
+    // word-break slack while still catching the bug, where the wrap label
+    // would be substantially narrower than the non-wrapping label.
+    assert!(
+        non_wrap_width - wrap_width < 40.0,
+        "wrapping label width ({wrap_width}) is much narrower than the \
+         non-wrapping label width ({non_wrap_width}) after shrinking the \
+         window past the non-wrapping label's natural width"
+    );
+}
+
+/// Ensure that the size passed to window is actually treated as outer size (including
+/// margins and borders).
+#[test]
+fn window_fixed_size_is_outer_size() {
+    use egui::{Color32, Frame, Margin, Pos2, Shape};
+
+    let outer_pos = Pos2::new(50.0, 50.0);
+    let outer_size = Vec2::new(300.0, 200.0);
+    let outer_margin = Margin::same(10);
+    let expected_rect = Rect::from_min_size(outer_pos, outer_size);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(move |ui| {
+            let frame = Frame::window(ui.style()).outer_margin(outer_margin);
+            Window::new("size_test")
+                .frame(frame)
+                .fixed_pos(outer_pos)
+                .fixed_size(outer_size)
+                .show(ui.ctx(), |ui| {
+                    // Fill the available space so `Resize` doesn't auto-shrink the window
+                    // below the requested fixed size.
+                    ui.allocate_space(ui.available_size());
+                });
+
+            // Paint a debug rect on top of everything that marks the expected outer
+            // window rect. In the snapshot this should line up exactly with the
+            // painted window frame.
+            let painter = ui.ctx().debug_painter();
+            painter.rect_stroke(
+                expected_rect,
+                0.0,
+                Stroke::new(2.0, Color32::RED),
+                StrokeKind::Outside,
+            );
+            painter.text(
+                expected_rect.left_top() + Vec2::new(0.0, -4.0),
+                Align2::LEFT_BOTTOM,
+                "should perfectly match the outer window size/position",
+                FontId::default(),
+                Color32::RED,
+            );
+
+            // Also paint the expected *visible frame* rect (outer rect shrunk by the
+            // frame's outer_margin). In the snapshot this should line up exactly with
+            // the painted window frame.
+            let expected_frame_rect = expected_rect - outer_margin;
+            painter.debug_rect(
+                expected_frame_rect,
+                Color32::GREEN,
+                "should perfectly match the painted window frame",
+            );
+        });
+
+    harness.run();
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    harness.snapshot("window_outer_size");
+
+    fn collect_filled_rect_sizes(shape: &Shape, out: &mut Vec<Vec2>) {
+        match shape {
+            // Skip stroke-only rects (fill == TRANSPARENT), so the debug overlay
+            // doesn't trivially satisfy the size check.
+            Shape::Rect(r) if r.fill != Color32::TRANSPARENT => out.push(r.rect.size()),
+            Shape::Vec(v) => v.iter().for_each(|s| collect_filled_rect_sizes(s, out)),
+            _ => {}
+        }
+    }
+
+    let mut sizes = Vec::new();
+    for clipped in &harness.output().shapes {
+        collect_filled_rect_sizes(&clipped.shape, &mut sizes);
+    }
+
+    // The shape will have the inner size
+    let painted_size = outer_size - outer_margin.sum();
+    let found = sizes
+        .iter()
+        .any(|s| (s.x - painted_size.x).abs() < 0.5 && (s.y - painted_size.y).abs() < 0.5);
+
+    assert!(
+        found,
+        "expected a filled RectShape with size {painted_size:?} (outer size {outer_size:?} \
+         minus outer margin {outer_margin:?}) in the paint output, but no painted rect matched. \
+         Found filled-rect sizes: {sizes:?}"
+    );
+}
+
+/// Regression test for <https://github.com/emilk/egui/issues/8055>:
+/// when content overflows a `Panel`, the returned response (and the panel's
+/// stored size, resize handle, and separator) must stay clamped to the panel's
+/// allowed size — they used to inherit the overflowing content rect.
+#[test]
+fn panel_rect_clamped_when_content_overflows() {
+    use std::cell::RefCell;
+
+    let side_panel_width = 100.0_f32;
+    let top_panel_height = 80.0_f32;
+
+    let side_response: RefCell<Option<egui::Response>> = RefCell::new(None);
+    let top_response: RefCell<Option<egui::Response>> = RefCell::new(None);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(400.0, 300.0))
+        .build_ui(|ui| {
+            let r = egui::Panel::left("left_panel")
+                .exact_size(side_panel_width)
+                .show(ui, |ui| {
+                    // Allocate way more than the panel — would overflow without the clamp.
+                    ui.allocate_space(Vec2::new(1000.0, 10.0));
+                });
+            *side_response.borrow_mut() = Some(r.response);
+
+            let r = egui::Panel::top("top_panel")
+                .exact_size(top_panel_height)
+                .show(ui, |ui| {
+                    ui.allocate_space(Vec2::new(10.0, 1000.0));
+                });
+            *top_response.borrow_mut() = Some(r.response);
+        });
+
+    harness.run();
+
+    let sr = side_response.borrow();
+    let sr = sr.as_ref().expect("left panel response was captured");
+    assert!(
+        sr.rect.width() <= side_panel_width + 1.0,
+        "left panel rect.width()={} exceeded the configured panel width {side_panel_width}",
+        sr.rect.width()
+    );
+    assert!(
+        sr.interact_rect.width() <= side_panel_width + 1.0,
+        "left panel interact_rect.width()={} exceeded the configured panel width {side_panel_width}",
+        sr.interact_rect.width()
+    );
+
+    let tr = top_response.borrow();
+    let tr = tr.as_ref().expect("top panel response was captured");
+    assert!(
+        tr.rect.height() <= top_panel_height + 1.0,
+        "top panel rect.height()={} exceeded the configured panel height {top_panel_height}",
+        tr.rect.height()
+    );
+    assert!(
+        tr.interact_rect.height() <= top_panel_height + 1.0,
+        "top panel interact_rect.height()={} exceeded the configured panel height {top_panel_height}",
+        tr.interact_rect.height()
+    );
+}
+
+/// Regression test: when an animated panel slides off-screen (collapsing), the
+/// enclosing parent (e.g. a `Window`) must not be grown to include the slid-off
+/// portion of the panel.
+#[test]
+fn collapsing_panel_must_not_grow_enclosing_window() {
+    use std::cell::RefCell;
+
+    let window_rect: RefCell<Option<Rect>> = RefCell::new(None);
+    let is_expanded: RefCell<bool> = RefCell::new(true);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(|ui| {
+            let resp = egui::Window::new("panels_window")
+                .vscroll(false)
+                .show(ui.ctx(), |ui| {
+                    egui::Panel::bottom("bottom_panel")
+                        .resizable(false)
+                        .min_size(60.0)
+                        .show_collapsible(ui, &mut is_expanded.borrow_mut(), |ui| {
+                            ui.label("bottom content");
+                        });
+                    egui::CentralPanel::default().show(ui, |ui| {
+                        ui.label("central");
+                    });
+                });
+            if let Some(resp) = resp {
+                *window_rect.borrow_mut() = Some(resp.response.rect);
+            }
+        });
+
+    harness.run();
+    let initial = window_rect.borrow().expect("window rect captured");
+
+    // Trigger the collapse animation.
+    *is_expanded.borrow_mut() = false;
+
+    // Step through the animation frames; the window must never grow taller than
+    // its initial height (slid-off panel portion must not push the window out).
+    for i in 0..30 {
+        harness.step();
+        let r = window_rect.borrow().expect("window rect captured");
+        assert!(
+            r.height() <= initial.height() + 0.5,
+            "frame {i}: window grew during panel collapse: initial h={}, now h={}",
+            initial.height(),
+            r.height(),
         );
     }
 }

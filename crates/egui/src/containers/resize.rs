@@ -1,6 +1,6 @@
 use crate::{
-    Align2, Color32, Context, CursorIcon, Id, NumExt as _, Rect, Response, Sense, Shape, Ui,
-    UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, pos2, vec2,
+    Align2, AsIdSalt, Color32, Context, CursorIcon, Id, IdSalt, NumExt as _, Rect, Response, Sense,
+    Shape, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, pos2, vec2,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -17,6 +17,13 @@ pub(crate) struct State {
 
     /// Externally requested size (e.g. by Window) for the next frame
     pub(crate) requested_size: Option<Vec2>,
+
+    /// Minimum content width measured by a sizing pass at the start of the current
+    /// interactive resize. We clamp `desired_size.x` against this for the rest of
+    /// the drag so the user can't shrink the window past what the content actually
+    /// needs. Reset to `None` whenever a drag is not in progress.
+    #[cfg_attr(feature = "serde", serde(default))]
+    min_content_width: Option<f32>,
 }
 
 impl State {
@@ -34,7 +41,7 @@ impl State {
 #[must_use = "You should call .show()"]
 pub struct Resize {
     id: Option<Id>,
-    id_salt: Option<Id>,
+    id_salt: Option<IdSalt>,
 
     /// If false, we are no enabled
     resizable: Vec2b,
@@ -42,7 +49,7 @@ pub struct Resize {
     pub(crate) min_size: Vec2,
     pub(crate) max_size: Vec2,
 
-    default_size: Vec2,
+    pub(crate) default_size: Vec2,
 
     with_stroke: bool,
 }
@@ -69,17 +76,10 @@ impl Resize {
         self
     }
 
-    /// A source for the unique [`Id`], e.g. `.id_source("second_resize_area")` or `.id_source(loop_index)`.
-    #[inline]
-    #[deprecated = "Renamed id_salt"]
-    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt(id_salt)
-    }
-
     /// A source for the unique [`Id`], e.g. `.id_salt("second_resize_area")` or `.id_salt(loop_index)`.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt = Some(Id::new(id_salt));
+    pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
+        self.id_salt = Some(IdSalt::new(id_salt));
         self
     }
 
@@ -202,18 +202,19 @@ struct Prepared {
     corner_id: Option<Id>,
     state: State,
     content_ui: Ui,
+    sizing_pass: bool,
 }
 
 impl Resize {
     fn begin(&self, ui: &mut Ui) -> Prepared {
         let position = ui.available_rect_before_wrap().min;
         let id = self.id.unwrap_or_else(|| {
-            let id_salt = self.id_salt.unwrap_or_else(|| Id::new("resize"));
+            let id_salt = self.id_salt.unwrap_or_else(|| IdSalt::new("resize"));
             ui.make_persistent_id(id_salt)
         });
 
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
-            ui.ctx().request_repaint(); // counter frame delay
+            ui.request_repaint(); // counter frame delay
 
             let default_size = self
                 .default_size
@@ -228,6 +229,7 @@ impl Resize {
                 desired_size: default_size,
                 last_content_size: vec2(0.0, 0.0),
                 requested_size: None,
+                min_content_width: None,
             }
         });
 
@@ -249,13 +251,25 @@ impl Resize {
             user_requested_size = Some(pointer_pos - position + 0.5 * corner_response.rect.size());
         }
 
-        if let Some(user_requested_size) = user_requested_size {
+        let is_actively_resizing = user_requested_size.is_some();
+
+        // Drag just started: we don't yet know what the content's minimum width is.
+        // Run a one-frame sizing pass below to discover it.
+        let needs_sizing_pass = is_actively_resizing && state.min_content_width.is_none();
+
+        if let Some(mut user_requested_size) = user_requested_size {
+            if let Some(min_width) = state.min_content_width {
+                user_requested_size.x = user_requested_size.x.at_least(min_width);
+            }
             state.desired_size = user_requested_size;
         } else {
             // We are not being actively resized, so auto-expand to include size of last frame.
             // This prevents auto-shrinking if the contents contain width-filling widgets (separators etc)
             // but it makes a lot of interactions with [`Window`]s nicer.
             state.desired_size = state.desired_size.max(state.last_content_size);
+            // Drag ended (if any). Forget the cached min so the next drag re-measures it,
+            // in case content changed.
+            state.min_content_width = None;
         }
 
         state.desired_size = state
@@ -265,7 +279,15 @@ impl Resize {
 
         // ------------------------------
 
-        let inner_rect = Rect::from_min_size(position, state.desired_size);
+        // For the sizing pass, offer the tightest possible rect so widgets shrink to
+        // their natural minimum. We render the frame invisibly and discard it so the
+        // user never sees the squished layout; the measured min then clamps drags.
+        let inner_rect = if needs_sizing_pass {
+            ui.ctx().request_discard("Resize sizing pass");
+            Rect::from_min_size(position, Vec2::new(self.min_size.x, state.desired_size.y))
+        } else {
+            Rect::from_min_size(position, state.desired_size)
+        };
 
         let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
 
@@ -280,11 +302,13 @@ impl Resize {
 
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
 
-        let mut content_ui = ui.new_child(
-            UiBuilder::new()
-                .ui_stack_info(UiStackInfo::new(UiKind::Resize))
-                .max_rect(inner_rect),
-        );
+        let mut ui_builder = UiBuilder::new()
+            .ui_stack_info(UiStackInfo::new(UiKind::Resize))
+            .max_rect(inner_rect);
+        if needs_sizing_pass {
+            ui_builder = ui_builder.sizing_pass();
+        }
+        let mut content_ui = ui.new_child(ui_builder);
         content_ui.set_clip_rect(content_clip_rect);
 
         Prepared {
@@ -292,6 +316,7 @@ impl Resize {
             corner_id,
             state,
             content_ui,
+            sizing_pass: needs_sizing_pass,
         }
     }
 
@@ -308,9 +333,17 @@ impl Resize {
             corner_id,
             mut state,
             content_ui,
+            sizing_pass,
         } = prepared;
 
-        state.last_content_size = content_ui.min_size();
+        if sizing_pass {
+            // Remember the measured minimum so we can clamp the user's drag on subsequent frames.
+            // Don't touch `last_content_size`, it should keep reflecting the previously
+            // rendered content.
+            state.min_content_width = Some(content_ui.min_size().x);
+        } else {
+            state.last_content_size = content_ui.min_size();
+        }
 
         // ------------------------------
 
@@ -362,20 +395,20 @@ impl Resize {
             paint_resize_corner(ui, &corner_response);
 
             if corner_response.hovered() || corner_response.dragged() {
-                ui.ctx().set_cursor_icon(CursorIcon::ResizeNwSe);
+                ui.set_cursor_icon(CursorIcon::ResizeNwSe);
             }
         }
 
         state.store(ui.ctx(), id);
 
         #[cfg(debug_assertions)]
-        if ui.ctx().style().debug.show_resize {
-            ui.ctx().debug_painter().debug_rect(
+        if ui.global_style().debug.show_resize {
+            ui.debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
                 Color32::GREEN,
                 "desired_size",
             );
-            ui.ctx().debug_painter().debug_rect(
+            ui.debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.last_content_size),
                 Color32::LIGHT_BLUE,
                 "last_content_size",

@@ -1,4 +1,4 @@
-use egui::{Color32, Context, Frame, Id, Ui, Window, vec2};
+use egui::{Color32, Frame, Id, Ui, Window, vec2};
 
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -16,7 +16,7 @@ impl Default for DragAndDropDemo {
                 vec!["Item H", "Item I", "Item J", "Item K"],
             ]
             .into_iter()
-            .map(|v| v.into_iter().map(ToString::to_string).collect())
+            .map(|v| v.into_iter().map(str::to_owned).collect())
             .collect(),
         }
     }
@@ -27,14 +27,15 @@ impl crate::Demo for DragAndDropDemo {
         "✋ Drag and Drop"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(256.0, 256.0))
             .vscroll(false)
             .resizable(false)
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 

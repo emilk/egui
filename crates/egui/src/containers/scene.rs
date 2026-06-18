@@ -244,8 +244,8 @@ impl Scene {
             && resp.contains_pointer()
         {
             let pointer_in_scene = to_global.inverse() * mouse_pos;
-            let zoom_delta = ui.ctx().input(|i| i.zoom_delta());
-            let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta());
+            let zoom_delta = ui.input(|i| i.zoom_delta());
+            let pan_delta = ui.input(|i| i.smooth_scroll_delta());
 
             // Most of the time we can return early. This is also important to
             // avoid `ui_from_scene` to change slightly due to floating point errors.

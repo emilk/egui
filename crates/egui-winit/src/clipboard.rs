@@ -65,13 +65,12 @@ impl Clipboard {
             feature = "smithay-clipboard"
         ))]
         if let Some(clipboard) = &mut self.smithay {
-            return match clipboard.load() {
-                Ok(text) => Some(text),
+            match clipboard.load() {
+                Ok(text) => return Some(text),
                 Err(err) => {
                     log::error!("smithay paste error: {err}");
-                    None
                 }
-            };
+            }
         }
 
         #[cfg(all(
@@ -175,7 +174,7 @@ fn init_arboard() -> Option<arboard::Clipboard> {
 fn init_smithay_clipboard(
     raw_display_handle: Option<RawDisplayHandle>,
 ) -> Option<smithay_clipboard::Clipboard> {
-    #![allow(clippy::undocumented_unsafe_blocks)]
+    #![expect(clippy::undocumented_unsafe_blocks)]
 
     profiling::function_scope!();
 

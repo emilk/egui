@@ -17,6 +17,12 @@ pub struct WidgetRect {
     /// You can ensure globally unique ids using [`crate::Ui::push_id`].
     pub id: Id,
 
+    /// The [`Id`] of the parent [`crate::Ui`] that hosts this widget.
+    ///
+    /// Used by debug checks to distinguish true id-instability from
+    /// cascading id shifts caused by a parent Ui's auto-id changing.
+    pub parent_id: Id,
+
     /// What layer the widget is on.
     pub layer_id: LayerId,
 
@@ -46,6 +52,7 @@ impl WidgetRect {
     pub fn transform(self, transform: emath::TSTransform) -> Self {
         let Self {
             id,
+            parent_id,
             layer_id,
             rect,
             interact_rect,
@@ -54,12 +61,28 @@ impl WidgetRect {
         } = self;
         Self {
             id,
+            parent_id,
             layer_id,
             rect: transform * rect,
             interact_rect: transform * interact_rect,
             sense,
             enabled,
         }
+    }
+}
+
+/// How to handle multiple calls to [`crate::Response::interact`] and [`crate::Ui::interact_opt`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InteractOptions {
+    /// If we call interact on the same widget multiple times,
+    /// should we move it to the top on subsequent calls?
+    pub move_to_top: bool,
+}
+
+#[expect(clippy::derivable_impls)] // Nice to be explicit
+impl Default for InteractOptions {
+    fn default() -> Self {
+        Self { move_to_top: false }
     }
 }
 
@@ -140,12 +163,16 @@ impl WidgetRects {
     }
 
     /// Insert the given widget rect in the given layer.
-    pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
+    pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect, options: InteractOptions) {
         let Self {
             by_layer,
             by_id,
             infos: _,
         } = self;
+
+        let InteractOptions { move_to_top } = options;
+
+        let mut shift_layer_index_after = None;
 
         let layer_widgets = by_layer.entry(layer_id).or_default();
 
@@ -161,14 +188,6 @@ impl WidgetRects {
                 // e.g. calling `response.interact(…)` to add more interaction.
                 let (idx_in_layer, existing) = entry.get_mut();
 
-                debug_assert!(
-                    existing.layer_id == widget_rect.layer_id,
-                    "Widget {:?} changed layer_id during the frame from {:?} to {:?}",
-                    widget_rect.id,
-                    existing.layer_id,
-                    widget_rect.layer_id
-                );
-
                 // Update it:
                 existing.rect = widget_rect.rect; // last wins
                 existing.interact_rect = widget_rect.interact_rect; // last wins
@@ -176,7 +195,29 @@ impl WidgetRects {
                 existing.enabled |= widget_rect.enabled;
 
                 if existing.layer_id == widget_rect.layer_id {
-                    layer_widgets[*idx_in_layer] = *existing;
+                    if move_to_top {
+                        layer_widgets.remove(*idx_in_layer);
+                        shift_layer_index_after = Some(*idx_in_layer);
+                        *idx_in_layer = layer_widgets.len();
+                        layer_widgets.push(*existing);
+                    } else {
+                        layer_widgets[*idx_in_layer] = *existing;
+                    }
+                } else if cfg!(debug_assertions) {
+                    panic!(
+                        "DEBUG ASSERT: Widget {:?} changed layer_id during the frame from {:?} to {:?}",
+                        widget_rect.id, existing.layer_id, widget_rect.layer_id
+                    );
+                }
+            }
+        }
+
+        if let Some(shift_start) = shift_layer_index_after {
+            #[expect(clippy::needless_range_loop)]
+            for i in shift_start..layer_widgets.len() {
+                let w = &layer_widgets[i];
+                if let Some((idx_in_by_id, _)) = by_id.get_mut(&w.id) {
+                    *idx_in_by_id = i;
                 }
             }
         }

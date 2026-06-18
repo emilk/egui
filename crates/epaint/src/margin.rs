@@ -186,7 +186,7 @@ impl std::ops::Div<f32> for Margin {
 
     #[inline]
     fn div(self, v: f32) -> Self {
-        #![allow(clippy::suspicious_arithmetic_impl)]
+        #![expect(clippy::suspicious_arithmetic_impl)]
         self * v.recip()
     }
 }

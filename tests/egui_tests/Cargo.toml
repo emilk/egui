@@ -5,6 +5,9 @@ license.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
+[package.metadata.cargo-shear]
+ignored = ["image"] # We need the png feature
+
 [dev-dependencies]
 egui = { workspace = true, default-features = true }
 egui_kittest = { workspace = true, features = ["snapshot", "wgpu"] }

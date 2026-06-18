@@ -179,9 +179,9 @@ impl Keypad {
             )
         });
 
-        let is_first_show = ctx.wants_keyboard_input() && state.focus != focus;
+        let is_first_show = ctx.egui_wants_keyboard_input() && state.focus != focus;
         if is_first_show {
-            let y = ctx.style().spacing.interact_size.y * 1.25;
+            let y = ctx.global_style().spacing.interact_size.y * 1.25;
             state.open = true;
             state.start_pos = ctx.input(|i| {
                 i.pointer

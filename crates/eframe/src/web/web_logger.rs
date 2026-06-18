@@ -38,7 +38,7 @@ impl log::Log for WebLogger {
     }
 
     fn log(&self, record: &log::Record<'_>) {
-        #![allow(clippy::match_same_arms)]
+        #![expect(clippy::match_same_arms)]
 
         if !self.enabled(record.metadata()) {
             return;
@@ -110,7 +110,7 @@ mod console {
 /// * `tokio-1.24.1/src/runtime/runtime.rs`
 /// * `rerun/src/main.rs`
 /// * `core/src/ops/function.rs`
-#[allow(dead_code, clippy::allow_attributes)] // only used on web and in tests
+#[allow(clippy::allow_attributes, dead_code)] // only used on web and in tests
 fn shorten_file_path(file_path: &str) -> &str {
     if let Some(i) = file_path.rfind("/src/") {
         if let Some(prev_slash) = file_path[..i].rfind('/') {

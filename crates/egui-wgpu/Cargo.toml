@@ -15,7 +15,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/egui-wgpu"
 categories = ["gui", "game-development"]
 keywords = ["wgpu", "egui", "gui", "gamedev"]
-include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "**/*.wgsl", "Cargo.toml"]
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "**/*.wgsl", "Cargo.toml"]
 
 [lints]
 workspace = true
@@ -25,7 +25,12 @@ all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
-default = ["fragile-send-sync-non-atomic-wasm", "macos-window-resize-jitter-fix", "wgpu/default"]
+default = [
+  "fragile-send-sync-non-atomic-wasm",
+  "macos-window-resize-jitter-fix",
+  "wgpu/default",
+  "wgpu/webgl", # A very important fallback for web support
+]
 
 ## Enables the `capture` module for capturing screenshots.
 capture = ["dep:egui"]

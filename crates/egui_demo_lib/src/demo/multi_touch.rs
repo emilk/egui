@@ -27,12 +27,13 @@ impl crate::Demo for MultiTouch {
         "👌 Multi Touch"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .default_size(vec2(544.0, 512.0))
             .resizable(true)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -141,7 +142,7 @@ impl MultiTouch {
 
         let delay = 0.5;
         if time_since_last_touch < delay {
-            ui.ctx().request_repaint();
+            ui.request_repaint();
         } else {
             // seconds after which half the amount of zoom/rotation will be reverted:
             let half_life =
@@ -157,7 +158,7 @@ impl MultiTouch {
                 self.zoom = 1. + ((self.zoom - 1.) * half_life_factor);
                 self.rotation *= half_life_factor;
                 self.translation *= half_life_factor;
-                ui.ctx().request_repaint();
+                ui.request_repaint();
             }
         }
     }

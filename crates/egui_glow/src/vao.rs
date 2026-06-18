@@ -1,4 +1,5 @@
-#![allow(unsafe_code)]
+#![expect(unsafe_code)]
+#![expect(clippy::unwrap_used)]
 
 use glow::HasContext as _;
 

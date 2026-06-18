@@ -1,20 +1,37 @@
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Panels {}
+pub struct Panels {
+    left: bool,
+    right: bool,
+    top: bool,
+    bottom: bool,
+}
+
+impl Default for Panels {
+    fn default() -> Self {
+        Self {
+            left: true,
+            right: true,
+            top: true,
+            bottom: false,
+        }
+    }
+}
 
 impl crate::Demo for Panels {
     fn name(&self) -> &'static str {
         "🗖 Panels"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        let window = egui::Window::new("Panels")
+        egui::Window::new("Panels")
             .default_width(600.0)
-            .default_height(400.0)
+            .default_height(600.0)
             .vscroll(false)
-            .open(open);
-        window.show(ctx, |ui| self.ui(ui));
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 
@@ -22,10 +39,17 @@ impl crate::View for Panels {
     fn ui(&mut self, ui: &mut egui::Ui) {
         // Note that the order we add the panels is very important!
 
+        let Self {
+            left,
+            right,
+            top,
+            bottom,
+        } = self;
+
         egui::Panel::top("top_panel")
             .resizable(true)
             .min_size(32.0)
-            .show_inside(ui, |ui| {
+            .show_collapsible(ui, top, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical_centered(|ui| {
                         ui.heading("Expandable Upper Panel");
@@ -38,7 +62,7 @@ impl crate::View for Panels {
             .resizable(true)
             .default_size(150.0)
             .size_range(80.0..=200.0)
-            .show_inside(ui, |ui| {
+            .show_collapsible(ui, left, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Left Panel");
                 });
@@ -51,7 +75,7 @@ impl crate::View for Panels {
             .resizable(true)
             .default_size(150.0)
             .size_range(80.0..=200.0)
-            .show_inside(ui, |ui| {
+            .show_collapsible(ui, right, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Right Panel");
                 });
@@ -60,23 +84,52 @@ impl crate::View for Panels {
                 });
             });
 
-        egui::Panel::bottom("bottom_panel")
-            .resizable(false)
-            .min_size(0.0)
-            .show_inside(ui, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.heading("Bottom Panel");
-                });
-                ui.vertical_centered(|ui| {
-                    ui.add(crate::egui_github_link_file!());
-                });
-            });
+        // Bottom panel: drag the top edge down past the expanded panel's min size
+        // to collapse; drag it back up past the collapsed panel's max size to
+        // re-expand. Both panels are `.resizable(true)` so each one's edge accepts
+        // the gesture; the collapsed panel uses `exact_size` so even a tiny
+        // outward drag is enough to trigger the swap.
+        egui::Panel::show_switched(
+            ui,
+            bottom,
+            egui::Panel::bottom("bottom_panel_collapsed")
+                .resizable(true)
+                .default_size(20.0),
+            egui::Panel::bottom("bottom_panel_expanded")
+                .resizable(true)
+                .max_size(128.0),
+            |ui, expanded| {
+                if expanded {
+                    ui.vertical_centered(|ui| {
+                        ui.heading("Bottom panel");
+                    });
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        lorem_ipsum(ui);
+                    });
+                } else {
+                    ui.vertical_centered(|ui| {
+                        ui.label("Bottom panel (collapsed)");
+                    });
+                }
+            },
+        );
 
         // TODO(emilk): This extra panel is superfluous - just use what's left of `ui` instead
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.vertical_centered(|ui| {
                 ui.heading("Central Panel");
             });
+
+            ui.horizontal(|ui| {
+                ui.label("Panel toggles:");
+                ui.toggle_value(left, "⬅");
+                ui.toggle_value(top, "⬆");
+                ui.toggle_value(bottom, "⬇");
+                ui.toggle_value(right, "➡");
+            });
+
+            ui.separator();
+
             egui::ScrollArea::vertical().show(ui, |ui| {
                 lorem_ipsum(ui);
             });

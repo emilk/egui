@@ -1,4 +1,4 @@
-#![allow(clippy::undocumented_unsafe_blocks)]
+#![expect(clippy::undocumented_unsafe_blocks)]
 
 use std::sync::Arc;
 
@@ -24,8 +24,8 @@ impl Custom3d {
 
 impl crate::DemoApp for Custom3d {
     fn demo_ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        // TODO(emilk): Use `ScrollArea::inner_margin`
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        // TODO(emilk): Use `ScrollArea::content_margin`
+        egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;

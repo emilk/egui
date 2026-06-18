@@ -1,15 +1,21 @@
+use egui::{Align, Align2, AtomExt as _};
+
 /// Showcase [`egui::TextEdit`].
 #[derive(PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextEditDemo {
     pub text: String,
+    halign: egui::Align,
+    valign: egui::Align,
 }
 
 impl Default for TextEditDemo {
     fn default() -> Self {
         Self {
             text: "Edit this text".to_owned(),
+            halign: egui::Align::LEFT,
+            valign: egui::Align::TOP,
         }
     }
 }
@@ -19,11 +25,12 @@ impl crate::Demo for TextEditDemo {
         "🖹 TextEdit"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -36,7 +43,11 @@ impl crate::View for TextEditDemo {
             ui.add(crate::egui_github_link_file!());
         });
 
-        let Self { text } = self;
+        let Self {
+            text,
+            halign,
+            valign,
+        } = self;
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
@@ -45,9 +56,39 @@ impl crate::View for TextEditDemo {
             ui.label(".");
         });
 
+        ui.horizontal(|ui| {
+            ui.label("Horizontal align:");
+            ui.selectable_value(halign, egui::Align::LEFT, "Left");
+            ui.selectable_value(halign, egui::Align::Center, "Center");
+            ui.selectable_value(halign, egui::Align::RIGHT, "Right");
+        });
+        ui.horizontal(|ui| {
+            ui.label("Vertical align:");
+            ui.selectable_value(valign, egui::Align::TOP, "Top");
+            ui.selectable_value(valign, egui::Align::Center, "Center");
+            ui.selectable_value(valign, egui::Align::BOTTOM, "Bottom");
+        });
+
+        let clear_id = egui::Id::new("clear_button");
+        let clear_size = egui::Vec2::splat(ui.spacing().interact_size.y);
+
         let output = egui::TextEdit::multiline(text)
             .hint_text("Type something!")
+            // Atoms are centered by default, so we need to pass the right align here:
+            .prefix("🔎".atom_align(Align2([Align::LEFT, *valign])))
+            .suffix(
+                egui::Atom::custom(clear_id, clear_size)
+                    .atom_align(Align2([Align::RIGHT, *valign])),
+            )
+            .horizontal_align(*halign)
+            .vertical_align(*valign)
             .show(ui);
+
+        if let Some(rect) = output.response.rect(clear_id)
+            && ui.place(rect, egui::Button::new("❌")).clicked()
+        {
+            text.clear();
+        }
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
@@ -65,7 +106,8 @@ impl crate::View for TextEditDemo {
             egui::Label::new("Press ctrl+Y to toggle the case of selected text (cmd+Y on Mac)"),
         );
 
-        if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y))
+        if output.response.has_focus()
+            && ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y))
             && let Some(text_cursor_range) = output.cursor_range
         {
             use egui::TextBuffer as _;
@@ -92,7 +134,7 @@ impl crate::View for TextEditDemo {
                         .cursor
                         .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
+                    ui.memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }
             }
 
@@ -104,7 +146,7 @@ impl crate::View for TextEditDemo {
                         .cursor
                         .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
+                    ui.memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }
             }
         });
@@ -120,9 +162,9 @@ mod tests {
     #[test]
     pub fn should_type() {
         let text = "Hello, world!".to_owned();
-        let mut harness = Harness::new_state(
-            move |ctx, text| {
-                CentralPanel::default().show(ctx, |ui| {
+        let mut harness = Harness::new_ui_state(
+            move |ui, text| {
+                CentralPanel::default().show(ui, |ui| {
                     ui.text_edit_singleline(text);
                 });
             },

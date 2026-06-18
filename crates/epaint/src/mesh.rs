@@ -23,6 +23,18 @@ pub struct Vertex {
     pub color: Color32, // 32 bit
 }
 
+impl Vertex {
+    /// An untextured vertex
+    #[inline]
+    pub fn untextured(pos: Pos2, color: Color32) -> Self {
+        Self {
+            pos,
+            uv: WHITE_UV,
+            color,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg(all(feature = "unity", not(feature = "_override_unity")))]
@@ -159,11 +171,7 @@ impl Mesh {
             self.texture_id == TextureId::default(),
             "Mesh has an assigned texture"
         );
-        self.vertices.push(Vertex {
-            pos,
-            uv: WHITE_UV,
-            color,
-        });
+        self.vertices.push(Vertex::untextured(pos, color));
     }
 
     /// Add a triangle.
@@ -189,7 +197,7 @@ impl Mesh {
     /// Rectangle with a texture and color.
     #[inline(always)]
     pub fn add_rect_with_uv(&mut self, rect: Rect, uv: Rect, color: Color32) {
-        #![allow(clippy::identity_op)]
+        #![expect(clippy::identity_op)]
         let idx = self.vertices.len() as u32;
         self.indices
             .extend_from_slice(&[idx + 0, idx + 1, idx + 2, idx + 2, idx + 1, idx + 3]);
@@ -281,7 +289,12 @@ impl Mesh {
             let mesh = Mesh16 {
                 indices: self.indices[span_start..index_cursor]
                     .iter()
-                    .map(|vi| u16::try_from(vi - min_vindex).unwrap())
+                    .map(|vi| {
+                        #[expect(clippy::unwrap_used)]
+                        {
+                            u16::try_from(vi - min_vindex).unwrap()
+                        }
+                    })
                     .collect(),
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
                 texture_id: self.texture_id,

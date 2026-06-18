@@ -1,4 +1,4 @@
-#![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
+#![expect(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
 use std::ops::RangeInclusive;
 
@@ -79,7 +79,7 @@ pub enum SliderClamping {
 ///
 /// The slider range defines the values you get when pulling the slider to the far edges.
 /// By default all values are clamped to this range, even when not interacted with.
-/// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
+/// You can change this behavior by passing `false` to [`Slider::clamping`].
 ///
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
 ///
@@ -288,16 +288,6 @@ impl<'a> Slider<'a> {
         self
     }
 
-    #[inline]
-    #[deprecated = "Use `slider.clamping(…) instead"]
-    pub fn clamp_to_range(self, clamp_to_range: bool) -> Self {
-        self.clamping(if clamp_to_range {
-            SliderClamping::Always
-        } else {
-            SliderClamping::Never
-        })
-    }
-
     /// Turn smart aim on/off. Default is ON.
     /// There is almost no point in turning this off.
     #[inline]
@@ -314,7 +304,7 @@ impl<'a> Slider<'a> {
     /// Default: `0.0` (disabled).
     #[inline]
     pub fn step_by(mut self, step: f64) -> Self {
-        self.step = if step != 0.0 { Some(step) } else { None };
+        self.step = if step == 0.0 { None } else { Some(step) };
         self
     }
 
@@ -687,7 +677,7 @@ impl Slider<'_> {
         let mut increment = 0usize;
 
         if response.has_focus() {
-            ui.ctx().memory_mut(|m| {
+            ui.memory_mut(|m| {
                 m.set_focus_lock_filter(
                     response.id,
                     EventFilter {

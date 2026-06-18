@@ -10,7 +10,7 @@
 
 use crate::style::StyleModifier;
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, Popup,
+    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, PointerButton, Popup,
     PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
 };
 use emath::{Align, RectAlign, Vec2, vec2};
@@ -197,7 +197,7 @@ impl MenuState {
 
 /// Horizontal menu bar where you can add [`MenuButton`]s.
 ///
-/// The menu bar goes well in a [`crate::TopBottomPanel::top`],
+/// The menu bar goes well in a [`crate::Panel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
 ///
@@ -207,7 +207,7 @@ impl MenuState {
 /// egui::MenuBar::new().ui(ui, |ui| {
 ///     ui.menu_button("File", |ui| {
 ///         if ui.button("Quit").clicked() {
-///             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+///             ui.send_viewport_cmd(egui::ViewportCommand::Close);
 ///         }
 ///     });
 /// });
@@ -218,9 +218,6 @@ pub struct MenuBar {
     config: MenuConfig,
     style: StyleModifier,
 }
-
-#[deprecated = "Renamed to `egui::MenuBar`"]
-pub type Bar = MenuBar;
 
 impl Default for MenuBar {
     fn default() -> Self {
@@ -444,11 +441,8 @@ impl SubMenu {
         let mut menu_config = self.config.unwrap_or_else(|| parent_config.clone());
         menu_config.bar = false;
 
-        let menu_root_response = ui
-            .ctx()
-            .read_response(menu_id)
-            // Since we are a child of that ui, this should always exist
-            .unwrap();
+        #[expect(clippy::unwrap_used)] // Since we are a child of that ui, this should always exist
+        let menu_root_response = ui.ctx().read_response(menu_id).unwrap();
 
         let hover_pos = ui.ctx().pointer_hover_pos();
 
@@ -461,6 +455,7 @@ impl SubMenu {
 
         let is_any_open = open_item.is_some();
         let mut is_open = open_item == Some(id);
+        let was_open = is_open;
         let mut set_open = None;
 
         // We expand the button rect so there is no empty space where no menu is shown
@@ -473,9 +468,21 @@ impl SubMenu {
         // But since we check if no other menu is open, nothing should be able to cover the button
         let is_hovered = hover_pos.is_some_and(|pos| button_rect.contains(pos));
 
+        // `clicked` includes keyboard and accessibility click actions.
+        // We want Enter/Space to toggle an already open submenu, while pointer clicks should keep
+        // the submenu open (for touch and pointer interactions).
+        let clicked = button_response.clicked();
+        let clicked_by_pointer = button_response.clicked_by(PointerButton::Primary);
+        let clicked_by_keyboard_or_access = clicked && !clicked_by_pointer;
+
+        if ui.is_enabled() && is_open && clicked_by_keyboard_or_access {
+            set_open = Some(false);
+            is_open = false;
+        }
+
         // The clicked handler is there for accessibility (keyboard navigation)
         let should_open =
-            ui.is_enabled() && (button_response.clicked() || (is_hovered && !is_any_open));
+            ui.is_enabled() && ((!was_open && clicked) || (is_hovered && !is_any_open));
         if should_open {
             set_open = Some(true);
             is_open = true;
@@ -556,7 +563,7 @@ impl SubMenu {
             if is_moving_towards_rect {
                 // We need to repaint while this is true, so we can detect when
                 // the pointer is no longer moving towards the rect
-                ui.ctx().request_repaint();
+                ui.request_repaint();
             }
             let hovering_other_menu_entry = is_open
                 && !is_hovered

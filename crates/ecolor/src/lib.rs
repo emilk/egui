@@ -19,7 +19,7 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::wrong_self_convention)]
+#![expect(clippy::wrong_self_convention)]
 
 #[cfg(feature = "cint")]
 mod cint_impl;

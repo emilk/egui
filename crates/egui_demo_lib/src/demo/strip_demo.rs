@@ -11,12 +11,13 @@ impl crate::Demo for StripDemo {
         "▣ Strip"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(true)
             .default_width(400.0)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -26,7 +27,7 @@ impl crate::Demo for StripDemo {
 impl crate::View for StripDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let dark_mode = ui.visuals().dark_mode;
-        let faded_color = ui.visuals().window_fill();
+        let faded_color = ui.stack().bg_color();
         let faded_color = |color: Color32| -> Color32 {
             use egui::Rgba;
             let t = if dark_mode { 0.95 } else { 0.8 };

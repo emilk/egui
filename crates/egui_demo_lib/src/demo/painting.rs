@@ -1,4 +1,4 @@
-use egui::{Color32, Context, Frame, Pos2, Rect, Sense, Stroke, Ui, Window, emath, vec2};
+use egui::{Color32, Frame, Pos2, Rect, Sense, Stroke, Ui, Window, emath, vec2};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -77,13 +77,14 @@ impl crate::Demo for Painting {
         "🖊 Painting"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 512.0))
             .vscroll(false)
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 

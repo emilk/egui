@@ -3,8 +3,6 @@
 //! Turn on the `syntect` feature for great syntax highlighting of any language.
 //! Otherwise, a very simple fallback will be used, that works okish for C, C++, Rust, and Python.
 
-#![allow(clippy::mem_forget)] // False positive from enum_map macro
-
 use egui::TextStyle;
 use egui::text::LayoutJob;
 
@@ -66,7 +64,7 @@ fn highlight_inner(
     settings: Option<HighlightSettings<'_>>,
 ) -> LayoutJob {
     // We take in both context and style so that in situations where ui is not available such as when
-    // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
+    // performing it at a separate thread (ctx, ctx.global_style()) can be used and when ui is available
     // (ui.ctx(), ui.style()) can be used
 
     #[expect(non_local_definitions)]
@@ -118,6 +116,7 @@ fn highlight_inner(
         mem.caches
             .cache::<HighlightCache>()
             .get((&font_id, theme, code, language, settings))
+            .clone()
     })
 }
 
@@ -230,6 +229,10 @@ impl Default for CodeTheme {
 }
 
 impl CodeTheme {
+    pub fn is_dark(&self) -> bool {
+        self.dark_mode
+    }
+
     /// Selects either dark or light theme based on the given style.
     pub fn from_style(style: &egui::Style) -> Self {
         let font_id = style
@@ -272,7 +275,7 @@ impl CodeTheme {
     ///
     /// There is one dark and one light theme stored at any one time.
     pub fn from_memory(ctx: &egui::Context, style: &egui::Style) -> Self {
-        #![allow(clippy::needless_return)]
+        #![expect(clippy::needless_return)]
 
         let (id, default) = if style.visuals.dark_mode {
             (egui::Id::new("dark"), Self::dark as fn(f32) -> Self)
@@ -301,7 +304,7 @@ impl CodeTheme {
     ///
     /// There is one dark and one light theme stored at any one time.
     pub fn store_in_memory(self, ctx: &egui::Context) {
-        let id = if ctx.style().visuals.dark_mode {
+        let id = if ctx.global_style().visuals.dark_mode {
             egui::Id::new("dark")
         } else {
             egui::Id::new("light")
@@ -317,6 +320,24 @@ impl CodeTheme {
 
 #[cfg(feature = "syntect")]
 impl CodeTheme {
+    /// Change the font size
+    pub fn with_font_size(&self, font_size: f32) -> Self {
+        Self {
+            dark_mode: self.dark_mode,
+            syntect_theme: self.syntect_theme,
+            font_id: egui::FontId::monospace(font_size),
+        }
+    }
+
+    /// Change the `font_id` of the theme
+    pub fn with_font_id(&self, font_id: egui::FontId) -> Self {
+        Self {
+            dark_mode: self.dark_mode,
+            syntect_theme: self.syntect_theme,
+            font_id,
+        }
+    }
+
     fn dark_with_font_id(font_id: egui::FontId) -> Self {
         Self {
             dark_mode: true,
@@ -333,10 +354,6 @@ impl CodeTheme {
         }
     }
 
-    pub fn is_dark(&self) -> bool {
-        self.dark_mode
-    }
-
     /// Show UI for changing the color theme.
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
@@ -346,11 +363,9 @@ impl CodeTheme {
             ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
                 .on_hover_text("Use the light mode theme");
         });
-
-        for theme in SyntectTheme::all() {
-            if theme.is_dark() == self.dark_mode {
-                ui.radio_value(&mut self.syntect_theme, theme, theme.name());
-            }
+        let current_theme_is_dark = self.is_dark();
+        for theme in SyntectTheme::all().filter(|t| t.is_dark() == current_theme_is_dark) {
+            ui.radio_value(&mut self.syntect_theme, theme, theme.name());
         }
     }
 }
@@ -361,6 +376,7 @@ impl CodeTheme {
     // function, but at the cost of more code duplication.
     #[expect(clippy::needless_pass_by_value)]
     fn dark_with_font_id(font_id: egui::FontId) -> Self {
+        #![expect(clippy::mem_forget)]
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: true,
@@ -378,6 +394,7 @@ impl CodeTheme {
     // The syntect version takes it by value
     #[expect(clippy::needless_pass_by_value)]
     fn light_with_font_id(font_id: egui::FontId) -> Self {
+        #![expect(clippy::mem_forget)]
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: false,
@@ -408,12 +425,13 @@ impl CodeTheme {
 
             ui.vertical(|ui| {
                 ui.set_width(150.0);
-                egui::widgets::global_theme_preference_buttons(ui);
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.dark_mode, true, "🌙 Dark theme")
+                        .on_hover_text("Use the dark mode theme");
 
-                ui.add_space(8.0);
-                ui.separator();
-                ui.add_space(8.0);
-
+                    ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
+                        .on_hover_text("Use the light mode theme");
+                });
                 ui.scope(|ui| {
                     for (tt, tt_name) in [
                         (TokenType::Comment, "// comment"),

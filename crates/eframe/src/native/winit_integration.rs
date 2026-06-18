@@ -9,6 +9,14 @@ use egui::ViewportId;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 
+/// Returns `true` if the window is invisible or minimized.
+///
+/// These windows don't receive `RedrawRequested` events on Windows,
+/// so they need special handling to keep processing viewport commands.
+pub fn is_invisible_or_minimized(window: &Window) -> bool {
+    window.is_visible() == Some(false) || window.is_minimized() == Some(true)
+}
+
 /// Create an egui context, restoring it from storage if possible.
 pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Context {
     profiling::function_scope!();
@@ -27,7 +35,10 @@ pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Contex
 
     egui_ctx.options_mut(|o| {
         // eframe supports multi-pass (Context::request_discard).
-        o.max_passes = 2.try_into().unwrap();
+        #[expect(clippy::unwrap_used)]
+        {
+            o.max_passes = 2.try_into().unwrap();
+        }
     });
 
     let memory = crate::native::epi_integration::load_egui_memory(storage).unwrap_or_default();

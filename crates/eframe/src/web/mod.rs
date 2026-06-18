@@ -1,6 +1,7 @@
 //! [`egui`] bindings for web apps (compiling to WASM).
 
-#![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
+#![expect(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
+#![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
 mod app_runner;
 mod backend;
@@ -37,6 +38,7 @@ mod web_painter_wgpu;
 pub use backend::*;
 
 use egui::Theme;
+use js_sys::Object;
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, MediaQueryList, Node};
 
@@ -145,18 +147,18 @@ fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
     );
 
     // We need to subtract padding and border:
-    if let Some(window) = web_sys::window() {
-        if let Ok(Some(style)) = window.get_computed_style(canvas) {
-            let get_property = |name: &str| -> Option<f32> {
-                let property = style.get_property_value(name).ok()?;
-                property.trim_end_matches("px").parse::<f32>().ok()
-            };
+    if let Some(window) = web_sys::window()
+        && let Ok(Some(style)) = window.get_computed_style(canvas)
+    {
+        let get_property = |name: &str| -> Option<f32> {
+            let property = style.get_property_value(name).ok()?;
+            property.trim_end_matches("px").parse::<f32>().ok()
+        };
 
-            rect.min.x += get_property("padding-left").unwrap_or_default();
-            rect.min.y += get_property("padding-top").unwrap_or_default();
-            rect.max.x -= get_property("padding-right").unwrap_or_default();
-            rect.max.y -= get_property("padding-bottom").unwrap_or_default();
-        }
+        rect.min.x += get_property("padding-left").unwrap_or_default();
+        rect.min.y += get_property("padding-top").unwrap_or_default();
+        rect.max.x -= get_property("padding-right").unwrap_or_default();
+        rect.max.y -= get_property("padding-bottom").unwrap_or_default();
     }
 
     rect
@@ -176,10 +178,8 @@ fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Contex
 // ----------------------------------------------------------------------------
 
 /// Set the cursor icon.
-fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
-    let document = web_sys::window()?.document()?;
-    document
-        .body()?
+fn set_cursor_icon(canvas: &web_sys::HtmlCanvasElement, cursor: egui::CursorIcon) -> Option<()> {
+    canvas
         .style()
         .set_property("cursor", cursor_web_name(cursor))
         .ok()
@@ -284,8 +284,8 @@ fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardI
 
     let items = js_sys::Object::new();
 
-    // SAFETY: I hope so
     #[expect(unsafe_code, unused_unsafe)] // Weird false positive
+    // SAFETY: I hope so
     unsafe {
         js_sys::Reflect::set(&items, &JsValue::from_str(mime), &blob)?
     };
@@ -369,5 +369,5 @@ pub fn percent_decode(s: &str) -> String {
 
 /// Are we running inside the Safari browser?
 pub fn is_safari_browser() -> bool {
-    web_sys::window().is_some_and(|window| window.has_own_property(&JsValue::from("safari")))
+    web_sys::window().is_some_and(|window| Object::has_own(&window, &JsValue::from("safari")))
 }

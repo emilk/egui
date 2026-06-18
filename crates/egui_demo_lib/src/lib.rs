@@ -8,8 +8,7 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
+#![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
 mod demo;
 pub mod easy_mark;

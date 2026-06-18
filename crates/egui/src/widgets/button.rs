@@ -1,7 +1,10 @@
+use epaint::Margin;
+
 use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
     Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
     Widget, WidgetInfo, WidgetText, WidgetType,
+    widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState},
 };
 
 /// Clickable button with text.
@@ -35,6 +38,7 @@ pub struct Button<'a> {
     selected: bool,
     image_tint_follows_text_color: bool,
     limit_image_size: bool,
+    classes: Classes,
 }
 
 impl<'a> Button<'a> {
@@ -53,6 +57,7 @@ impl<'a> Button<'a> {
             selected: false,
             image_tint_follows_text_color: false,
             limit_image_size: false,
+            classes: Classes::default(),
         }
     }
 
@@ -197,12 +202,6 @@ impl<'a> Button<'a> {
         self
     }
 
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
-    }
-
     /// If true, the tint of the image is multiplied by the widget text color.
     ///
     /// This makes sense for images that are white, that should have the same color as the text color.
@@ -237,6 +236,18 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// Show some text on the left side of the button.
+    #[inline]
+    pub fn left_text(mut self, left_text: impl IntoAtoms<'a>) -> Self {
+        self.layout.push_left(Atom::grow());
+
+        for atom in left_text.into_atoms() {
+            self.layout.push_left(atom);
+        }
+
+        self
+    }
+
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl IntoAtoms<'a>) -> Self {
@@ -256,6 +267,13 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// Set the gap between atoms.
+    #[inline]
+    pub fn gap(mut self, gap: f32) -> Self {
+        self.layout = self.layout.gap(gap);
+        self
+    }
+
     /// Show the button and return a [`AtomLayoutResponse`] for painting custom contents.
     pub fn atom_ui(self, ui: &mut Ui) -> AtomLayoutResponse {
         let Button {
@@ -270,8 +288,10 @@ impl<'a> Button<'a> {
             selected,
             image_tint_follows_text_color,
             limit_image_size,
+            mut classes,
         } = self;
 
+        // Min size height always equal or greater than interact size if not small
         if !small {
             min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
         }
@@ -290,56 +310,71 @@ impl<'a> Button<'a> {
 
         let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
+        let id = ui.next_auto_id();
+        let response: Option<Response> = ui.ctx().read_response(id);
+        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+
+        classes.add_class_if(SELECTED_CLASS, selected);
+
+        let ButtonStyle { frame, text_style } = ui.style().button_style(&classes, state);
+
         let mut button_padding = if has_frame_margin {
-            ui.spacing().button_padding
+            frame.inner_margin
         } else {
-            Vec2::ZERO
+            Margin::ZERO
         };
+
         if small {
-            button_padding.y = 0.0;
+            button_padding.bottom = 0;
+            button_padding.top = 0;
         }
 
-        let mut prepared = layout
-            .frame(Frame::new().inner_margin(button_padding))
-            .min_size(min_size)
-            .allocate(ui);
+        // Override global style by local style
+        let mut frame = frame;
+        if let Some(fill) = fill {
+            frame = frame.fill(fill);
+        }
+        if let Some(corner_radius) = corner_radius {
+            frame = frame.corner_radius(corner_radius);
+        }
+        if let Some(stroke) = stroke {
+            frame = frame.stroke(stroke);
+        }
 
+        frame = frame.inner_margin(button_padding);
+
+        // Apply the style font and color as fallback
+        layout = layout
+            .fallback_font(text_style.font_id.clone())
+            .fallback_text_color(text_style.color);
+
+        // Retrocompatibility with button settings
+        layout = if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
+            layout.frame(frame)
+        } else {
+            layout.frame(Frame::new().inner_margin(frame.inner_margin))
+        };
+
+        let mut prepared = layout.min_size(min_size).allocate(ui);
+
+        // Get AtomLayoutResponse, empty if not visible
         let response = if ui.is_rect_visible(prepared.response.rect) {
-            let visuals = ui.style().interact_selectable(&prepared.response, selected);
-
-            let visible_frame = if frame_when_inactive {
-                has_frame_margin
-            } else {
-                has_frame_margin
-                    && (prepared.response.hovered()
-                        || prepared.response.is_pointer_button_down_on()
-                        || prepared.response.has_focus())
-            };
-
             if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(visuals.text_color()));
+                prepared.map_images(|image| image.tint(text_style.color));
             }
 
-            prepared.fallback_text_color = visuals.text_color();
-
-            if visible_frame {
-                let stroke = stroke.unwrap_or(visuals.bg_stroke);
-                let fill = fill.unwrap_or(visuals.weak_bg_fill);
-                prepared.frame = prepared
-                    .frame
-                    .inner_margin(
-                        button_padding + Vec2::splat(visuals.expansion) - Vec2::splat(stroke.width),
-                    )
-                    .outer_margin(-Vec2::splat(visuals.expansion))
-                    .fill(fill)
-                    .stroke(stroke)
-                    .corner_radius(corner_radius.unwrap_or(visuals.corner_radius));
-            }
+            prepared.fallback_text_color = text_style.color;
 
             prepared.paint(ui)
         } else {
             AtomLayoutResponse::empty(prepared.response)
         };
+
+        if let Some(cursor) = ui.visuals().interact_cursor
+            && response.response.hovered()
+        {
+            ui.ctx().set_cursor_icon(cursor);
+        }
 
         response.response.widget_info(|| {
             if let Some(text) = &text {
@@ -356,5 +391,15 @@ impl<'a> Button<'a> {
 impl Widget for Button<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.atom_ui(ui).response
+    }
+}
+
+impl HasClasses for Button<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }

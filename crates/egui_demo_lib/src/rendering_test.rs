@@ -461,7 +461,7 @@ fn pixel_test_strokes(ui: &mut Ui) {
         egui::Color32::BLACK
     };
 
-    let pixels_per_point = ui.ctx().pixels_per_point();
+    let pixels_per_point = ui.pixels_per_point();
 
     for thickness_pixels in 1..=3 {
         let thickness_pixels = thickness_pixels as f32;
@@ -506,7 +506,7 @@ fn pixel_test_squares(ui: &mut Ui) {
         egui::Color32::BLACK
     };
 
-    let pixels_per_point = ui.ctx().pixels_per_point();
+    let pixels_per_point = ui.pixels_per_point();
 
     let num_squares = (pixels_per_point * 10.0).round().max(10.0) as u32;
     let size_pixels = vec2(
@@ -532,7 +532,7 @@ fn pixel_test_squares(ui: &mut Ui) {
 }
 
 fn pixel_test_lines(ui: &mut Ui) {
-    let pixels_per_point = ui.ctx().pixels_per_point();
+    let pixels_per_point = ui.pixels_per_point();
     let n = (96.0 * pixels_per_point) as usize;
 
     ui.label("The lines should be exactly one physical pixel wide, one physical pixel apart.");

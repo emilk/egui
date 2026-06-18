@@ -53,7 +53,7 @@ impl AnimatedImage {
 
     /// Gets image at index
     pub fn get_image(&self, index: usize) -> Arc<ColorImage> {
-        self.frames[index % self.frames.len()].clone()
+        Arc::clone(&self.frames[index % self.frames.len()])
     }
 }
 type Entry = Result<Arc<AnimatedImage>, String>;

@@ -173,8 +173,9 @@ impl SnapshotOptions {
     /// The default is `0.6` (which is enough for most egui tests to pass across different
     /// wgpu backends).
     #[inline]
-    pub fn threshold(mut self, threshold: impl Into<f32>) -> Self {
-        self.threshold = threshold.into();
+    pub fn threshold(mut self, threshold: impl Into<OsThreshold<f32>>) -> Self {
+        let threshold = threshold.into().threshold();
+        self.threshold = threshold;
         self
     }
 
@@ -563,7 +564,7 @@ pub fn image_snapshot_options(
     options: &SnapshotOptions,
 ) {
     match try_image_snapshot_options(current, name, options) {
-        Ok(_) => {}
+        Ok(()) => {}
         Err(err) => {
             panic!("{err}");
         }
@@ -582,7 +583,7 @@ pub fn image_snapshot_options(
 #[track_caller]
 pub fn image_snapshot(current: &image::RgbaImage, name: impl Into<String>) {
     match try_image_snapshot(current, name) {
-        Ok(_) => {}
+        Ok(()) => {}
         Err(err) => {
             panic!("{err}");
         }
@@ -721,11 +722,14 @@ impl<State> Harness<'_, State> {
             })
             .unwrap();
 
+        // Close temp file so it isn't locked when `open` tries to launch it (on Windows)
+        let path = temp_file.into_temp_path();
+
         #[expect(clippy::print_stdout)]
         {
             println!("Wrote debug snapshot to: {}", path.display());
         }
-        let result = open::that(path);
+        let result = open::that(&path);
         if let Err(err) = result {
             #[expect(clippy::print_stderr)]
             {
@@ -856,6 +860,7 @@ impl From<SnapshotResults> for Vec<SnapshotError> {
 }
 
 impl Drop for SnapshotResults {
+    #[track_caller]
     fn drop(&mut self) {
         // Don't panic if we are already panicking (the test probably failed for another reason)
         if std::thread::panicking() {
@@ -880,14 +885,14 @@ impl Drop for SnapshotResults {
             #[expect(clippy::manual_assert)]
             if count >= 2 {
                 panic!(
-                    r#"
+                    "
 Multiple SnapshotResults were dropped without being handled.
 
 In order to allow consistent snapshot updates, all snapshot results within a test should be merged in a single SnapshotResults instance.
 Usually this is handled internally in a harness. If you have multiple harnesses, you can merge the results using `Harness::take_snapshot_results` and `SnapshotResults::extend`.
 
 The SnapshotResult was constructed at {}
-                    "#,
+                    ",
                     self.location
                 );
             }

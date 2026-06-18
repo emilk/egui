@@ -2,7 +2,7 @@
 
 use web_time::Instant;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use winit::event_loop::ActiveEventLoop;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
@@ -171,7 +171,7 @@ impl EpiIntegration {
     #[allow(clippy::allow_attributes, clippy::too_many_arguments)]
     pub fn new(
         egui_ctx: egui::Context,
-        window: &winit::window::Window,
+        window: &Arc<winit::window::Window>,
         app_name: &str,
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
@@ -192,6 +192,7 @@ impl EpiIntegration {
             glow_register_native_texture,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
+            window: Some(Arc::clone(window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
         };
@@ -214,15 +215,17 @@ impl EpiIntegration {
         Self {
             frame,
             last_auto_save: Instant::now(),
-            egui_ctx,
             pending_full_output: Default::default(),
             close: false,
             can_drag_window: false,
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
             app_icon_setter,
-            beginning: Instant::now(),
+            beginning: Instant::now()
+                .checked_sub(web_time::Duration::from_secs_f64(egui_ctx.time()))
+                .unwrap_or_else(Instant::now),
             is_first_frame: true,
+            egui_ctx,
         }
     }
 
@@ -259,12 +262,13 @@ impl EpiIntegration {
 
     /// Run user code - this can create immediate viewports, so hold no locks over this!
     ///
-    /// If `viewport_ui_cb` is None, we are in the root viewport and will call [`crate::App::update`].
+    /// If `viewport_ui_cb` is None, we are in the root viewport and will call [`crate::App::ui`].
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
         viewport_ui_cb: Option<&DeferredViewportUiCallback>,
         mut raw_input: egui::RawInput,
+        is_visible: bool,
     ) -> egui::FullOutput {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
@@ -272,14 +276,25 @@ impl EpiIntegration {
 
         app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
-        let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
+        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
-                profiling::scope!("viewport_callback");
-                viewport_ui_cb(egui_ctx);
+                if is_visible {
+                    profiling::scope!("viewport_callback");
+                    viewport_ui_cb(ui);
+                }
             } else {
-                profiling::scope!("App::update");
-                app.update(egui_ctx, &mut self.frame);
+                {
+                    profiling::scope!("App::logic");
+                    app.logic(ui.ctx(), &mut self.frame);
+                }
+
+                if is_visible {
+                    {
+                        profiling::scope!("App::ui");
+                        app.ui(ui, &mut self.frame);
+                    }
+                }
             }
         });
 
@@ -363,6 +378,7 @@ impl EpiIntegration {
 
 fn load_default_egui_icon() -> egui::IconData {
     profiling::function_scope!();
+    #[expect(clippy::unwrap_used)]
     crate::icon_data::from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap()
 }
 

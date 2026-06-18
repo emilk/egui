@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
 
@@ -25,8 +25,8 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
             if ui.button("Open file…").clicked()
@@ -50,10 +50,10 @@ impl eframe::App for MyApp {
                     for file in &self.dropped_files {
                         let mut info = if let Some(path) = &file.path {
                             path.display().to_string()
-                        } else if !file.name.is_empty() {
-                            file.name.clone()
-                        } else {
+                        } else if file.name.is_empty() {
                             "???".to_owned()
+                        } else {
+                            file.name.clone()
                         };
 
                         let mut additional_info = vec![];
@@ -64,7 +64,8 @@ impl eframe::App for MyApp {
                             additional_info.push(format!("{} bytes", bytes.len()));
                         }
                         if !additional_info.is_empty() {
-                            info += &format!(" ({})", additional_info.join(", "));
+                            use std::fmt::Write as _;
+                            write!(info, " ({})", additional_info.join(", ")).ok();
                         }
 
                         ui.label(info);
@@ -73,10 +74,10 @@ impl eframe::App for MyApp {
             }
         });
 
-        preview_files_being_dropped(ctx);
+        preview_files_being_dropped(ui.ctx());
 
         // Collect dropped files:
-        ctx.input(|i| {
+        ui.input(|i| {
             if !i.raw.dropped_files.is_empty() {
                 self.dropped_files.clone_from(&i.raw.dropped_files);
             }
@@ -95,10 +96,10 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
             for file in &i.raw.hovered_files {
                 if let Some(path) = &file.path {
                     write!(text, "\n{}", path.display()).ok();
-                } else if !file.mime.is_empty() {
-                    write!(text, "\n{}", file.mime).ok();
-                } else {
+                } else if file.mime.is_empty() {
                     text += "\n???";
+                } else {
+                    write!(text, "\n{}", file.mime).ok();
                 }
             }
             text
@@ -113,7 +114,7 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
             content_rect.center(),
             Align2::CENTER_CENTER,
             text,
-            TextStyle::Heading.resolve(&ctx.style()),
+            TextStyle::Heading.resolve(&ctx.global_style()),
             Color32::WHITE,
         );
     }

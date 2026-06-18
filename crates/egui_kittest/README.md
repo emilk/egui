@@ -12,30 +12,28 @@ Ui testing library for egui, based on [kittest](https://github.com/rerun-io/kitt
 use egui::accesskit::Toggled;
 use egui_kittest::{Harness, kittest::{Queryable, NodeT}};
 
-fn main() {
-    let mut checked = false;
-    let app = |ui: &mut egui::Ui| {
-        ui.checkbox(&mut checked, "Check me!");
-    };
+let mut checked = false;
+let app = |ui: &mut egui::Ui| {
+    ui.checkbox(&mut checked, "Check me!");
+};
 
-    let mut harness = Harness::new_ui(app);
+let mut harness = Harness::new_ui(app);
 
-    let checkbox = harness.get_by_label("Check me!");
-    assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::False));
-    checkbox.click();
+let checkbox = harness.get_by_label("Check me!");
+assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::False));
+checkbox.click();
 
-    harness.run();
+harness.run();
 
-    let checkbox = harness.get_by_label("Check me!");
-    assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::True));
+let checkbox = harness.get_by_label("Check me!");
+assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::True));
 
-    // Shrink the window size to the smallest size possible
-    harness.fit_contents();
+// Shrink the window size to the smallest size possible
+harness.fit_contents();
 
-    // You can even render the ui and do image snapshot tests
-    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
-    harness.snapshot("readme_example");
-}
+// You can even render the ui and do image snapshot tests
+#[cfg(all(feature = "wgpu", feature = "snapshot"))]
+harness.snapshot("readme_example");
 ```
 
 ## Configuration
@@ -44,7 +42,7 @@ You can configure test settings via a `kittest.toml` file in your workspace root
 All possible settings and their defaults:
 ```toml
 # path to the snapshot directory
-output_path = "tests/snapshots" 
+output_path = "tests/snapshots"
 
 # default threshold for image comparison tests
 threshold = 0.6
@@ -99,12 +97,12 @@ You should add the following to your `.gitignore`:
   * …have a low resolution to avoid growth in repo size
   * …have a low comparison threshold to avoid the test passing despite unwanted differences (the default threshold should be fine for most usecases!)
 
-### What do do when CI / another computer produces a different image?
+### What to do when CI / another computer produces a different image?
 
 The default tolerance settings should be fine for almost all gui comparison tests.
 However, especially when you're using custom rendering, you may observe images difference with different setups leading to unexpected test failures.
 
-First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilitites.
+First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilities.
 Generally you should carefully enforcing the same set of features for all test runs, but this may happen nonetheless.
 
 Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparison tolerance setting (`SnapshotOptions::threshold`, TODO([#5683](https://github.com/emilk/egui/issues/5683)): as well as number of pixels allowed to differ) for the specific test.

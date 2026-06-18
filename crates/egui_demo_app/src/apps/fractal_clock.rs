@@ -41,7 +41,7 @@ impl FractalClock {
     pub fn ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
         if !self.paused {
             self.time = seconds_since_midnight.unwrap_or_else(|| ui.input(|i| i.time));
-            ui.ctx().request_repaint();
+            ui.request_repaint();
         }
 
         let painter = Painter::new(
