@@ -7,7 +7,8 @@
 //! The library surface exists so another MCP server can keep *its own* connection logic while
 //! reusing the egui UI/inspection tool set:
 //!
-//! - [`Bridge::from_transport`] builds a bridge over any async byte transport.
+//! - [`Bridge::with_transport`] builds a bridge over any [`Transport`] (e.g. a host's own
+//!   request/response channel); [`FramedTransport`] is the built-in byte-stream implementation.
 //! - [`AppState::install_bridge`] injects that bridge so the UI tools drive it.
 //! - [`UiServer`] exposes those tools: embed it and merge [`UiServer::tools`] into your own
 //!   `list_tools`, delegating non-connection calls to [`UiServer::dispatch`].
@@ -17,5 +18,5 @@ pub mod server;
 pub mod tools;
 pub mod tree;
 
-pub use bridge::{Bridge, PeerInfo, TreeSnapshot};
+pub use bridge::{BoxFuture, Bridge, FramedTransport, PeerInfo, Transport, TreeSnapshot};
 pub use tools::{AppState, Server, UiServer};

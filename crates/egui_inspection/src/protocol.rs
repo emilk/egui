@@ -196,6 +196,26 @@ pub fn decode_frame_body<T: for<'de> serde::Deserialize<'de>>(body: &[u8]) -> io
     rmp_serde::from_slice(body).map_err(invalid_data)
 }
 
+/// Encode a value as a bare `MessagePack` body, *without* the 4-byte length prefix of
+/// [`encode_frame`].
+///
+/// For transports that delimit messages themselves — e.g. a gRPC unary call carrying the
+/// bytes in a `bytes` field — the length prefix is redundant. Pair with [`decode_body`].
+///
+/// # Errors
+/// On encode failure.
+pub fn encode_body<T: serde::Serialize>(value: &T) -> io::Result<Vec<u8>> {
+    rmp_serde::to_vec(value).map_err(invalid_data)
+}
+
+/// Decode a bare `MessagePack` body produced by [`encode_body`] into a value.
+///
+/// # Errors
+/// On decode failure.
+pub fn decode_body<T: for<'de> serde::Deserialize<'de>>(body: &[u8]) -> io::Result<T> {
+    rmp_serde::from_slice(body).map_err(invalid_data)
+}
+
 /// Read one length-prefixed `MessagePack` message.
 ///
 /// # Errors

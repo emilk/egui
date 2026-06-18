@@ -1,16 +1,18 @@
 //! Bridge between the MCP server and a running egui app, speaking the request/response
 //! [`egui_inspection`] protocol.
 //!
-//! The app is the *listener* (it opened an inspection port); the bridge is a client that
-//! connects to it. Each MCP tool call turns into one or more [`Request`]s, each answered by
-//! exactly one [`Response`] over the same connection (serialized by a mutex).
+//! Each MCP tool call turns into one or more [`Request`]s, each answered by exactly one
+//! [`Response`]. How those messages travel is abstracted behind the [`Transport`] trait, so the
+//! tools don't care whether the bytes go over a framed TCP stream or some host's own channel:
 //!
-//! Two ways to build a bridge:
-//! - [`Bridge::connect`] dials a TCP `host:port` (with connect-retry) and reads the protocol
-//!   handshake.
-//! - [`Bridge::from_transport`] wraps an arbitrary async byte transport, so a host that owns
-//!   its own channel can drive the same tools.
+//! - [`Bridge::connect`] dials a TCP `host:port` (with connect-retry), reads the protocol
+//!   handshake, and drives a framed byte transport — what the standalone `egui-mcp` binary uses.
+//! - [`Bridge::with_transport`] wraps any [`Transport`] implementation, so a host that already
+//!   has a request/response channel to the app (e.g. `re_mcp` over a gRPC unary RPC) can drive
+//!   the same tools without re-implementing the byte framing.
 
+use std::future::Future;
+use std::pin::Pin;
 use std::time::Duration;
 
 use anyhow::{Context as _, anyhow, bail};
@@ -27,6 +29,25 @@ use tokio::sync::Mutex;
 /// the user launches the app and attaches in quick succession.
 const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// A boxed future, the return type of [`Transport::request`] (avoids an `async_trait` dep for a
+/// single-method trait).
+pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+/// Carries one [`Request`] to the egui peer and returns its single [`Response`], however the
+/// bytes happen to travel.
+///
+/// The [`Bridge`] and every tool built on it depend only on this one operation. The built-in
+/// implementation is [`FramedTransport`] (length-prefixed `MessagePack` over an async byte
+/// stream); a host with its own channel — e.g. `re_mcp` issuing a gRPC unary call per request —
+/// implements this instead and hands it to [`Bridge::with_transport`].
+pub trait Transport: Send + Sync {
+    /// Send `req` and resolve with the matching [`Response`].
+    ///
+    /// Implementations must guarantee one response per request even under concurrent callers
+    /// (the framed transport serializes with a mutex; a unary-RPC transport gets this for free).
+    fn request(&self, req: Request) -> BoxFuture<'_, anyhow::Result<Response>>;
+}
+
 /// Identity of the connected peer, captured at connect time.
 #[derive(Debug, Clone, Serialize)]
 pub struct PeerInfo {
@@ -36,15 +57,50 @@ pub struct PeerInfo {
     pub label: Option<String>,
 }
 
-/// The reader + writer halves of the connection, behind one lock so requests don't interleave.
+/// The reader + writer halves of a byte-stream connection, behind one lock so concurrent
+/// requests don't interleave on the wire.
 struct Conn {
     reader: Box<dyn AsyncRead + Unpin + Send>,
     writer: Box<dyn AsyncWrite + Unpin + Send>,
 }
 
-/// A live connection to an egui inspection peer.
-pub struct Bridge {
+/// The built-in [`Transport`]: length-prefixed `MessagePack` frames over any async byte stream
+/// (a TCP socket for `egui-mcp`, but any `AsyncRead`/`AsyncWrite` pair works).
+pub struct FramedTransport {
     conn: Mutex<Conn>,
+}
+
+impl FramedTransport {
+    /// Wrap a reader/writer pair.
+    pub fn new<R, W>(reader: R, writer: W) -> Self
+    where
+        R: AsyncRead + Unpin + Send + 'static,
+        W: AsyncWrite + Unpin + Send + 'static,
+    {
+        Self {
+            conn: Mutex::new(Conn {
+                reader: Box::new(reader),
+                writer: Box::new(writer),
+            }),
+        }
+    }
+}
+
+impl Transport for FramedTransport {
+    fn request(&self, req: Request) -> BoxFuture<'_, anyhow::Result<Response>> {
+        Box::pin(async move {
+            let mut conn = self.conn.lock().await;
+            write_framed(&mut conn.writer, &req)
+                .await
+                .context("send request")?;
+            read_framed(&mut conn.reader).await.context("read response")
+        })
+    }
+}
+
+/// A live connection to an egui inspection peer, driving it through some [`Transport`].
+pub struct Bridge {
+    transport: Box<dyn Transport>,
     pub peer_info: PeerInfo,
 }
 
@@ -75,51 +131,35 @@ impl Bridge {
             }
         };
         let _ = stream.set_nodelay(true);
-        let (reader, writer) = stream.into_split();
-        let mut bridge = Self::from_transport(
-            reader,
-            writer,
+        let (mut reader, writer) = stream.into_split();
+
+        // The peer writes the handshake (magic + version) first thing on every connection;
+        // read it off the raw stream before the framed transport takes over.
+        let mut handshake = [0u8; 8];
+        reader
+            .read_exact(&mut handshake)
+            .await
+            .context("read handshake")?;
+        let protocol_version = decode_handshake(handshake).context("inspection handshake")?;
+
+        let mut bridge = Self::with_transport(
+            FramedTransport::new(reader, writer),
             PeerInfo {
                 transport: addr,
-                protocol_version: 0,
+                protocol_version,
                 label: None,
             },
         );
-
-        bridge.peer_info.protocol_version = bridge
-            .read_handshake()
-            .await
-            .context("inspection handshake")?;
         bridge.peer_info.label = bridge.fetch_label().await.context("read peer label")?;
         Ok(bridge)
     }
 
-    /// Read and validate the connection handshake (magic + version), which the peer writes
-    /// first thing on every connection.
-    ///
-    /// # Errors
-    /// If the magic bytes don't match (not an egui inspection peer), or on I/O failure.
-    pub async fn read_handshake(&self) -> anyhow::Result<u32> {
-        let mut conn = self.conn.lock().await;
-        let mut bytes = [0u8; 8];
-        conn.reader
-            .read_exact(&mut bytes)
-            .await
-            .context("read handshake")?;
-        Ok(decode_handshake(bytes)?)
-    }
-
-    /// Wrap an arbitrary async byte transport (for hosts that tunnel the protocol).
-    pub fn from_transport<R, W>(reader: R, writer: W, peer_info: PeerInfo) -> Self
-    where
-        R: AsyncRead + Unpin + Send + 'static,
-        W: AsyncWrite + Unpin + Send + 'static,
-    {
+    /// Build a bridge over any [`Transport`] implementation (for hosts that own their channel
+    /// to the app, e.g. `re_mcp` over gRPC). The caller fills in [`PeerInfo`] since there's no
+    /// generic handshake to read.
+    pub fn with_transport<T: Transport + 'static>(transport: T, peer_info: PeerInfo) -> Self {
         Self {
-            conn: Mutex::new(Conn {
-                reader: Box::new(reader),
-                writer: Box::new(writer),
-            }),
+            transport: Box::new(transport),
             peer_info,
         }
     }
@@ -127,13 +167,9 @@ impl Bridge {
     /// Send one request and await its single response.
     ///
     /// # Errors
-    /// On I/O failure writing the request or reading the response.
+    /// On transport failure sending the request or reading the response.
     pub async fn request(&self, req: Request) -> anyhow::Result<Response> {
-        let mut conn = self.conn.lock().await;
-        write_framed(&mut conn.writer, &req)
-            .await
-            .context("send request")?;
-        read_framed(&mut conn.reader).await.context("read response")
+        self.transport.request(req).await
     }
 
     async fn fetch_label(&self) -> anyhow::Result<Option<String>> {
