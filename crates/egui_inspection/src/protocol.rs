@@ -130,21 +130,34 @@ pub fn write_handshake<W: Write>(mut writer: W) -> io::Result<()> {
     writer.flush()
 }
 
-/// Read and validate the connection handshake, returning the peer's protocol version.
+/// Validate the 8 handshake bytes and return the peer's protocol version.
+///
+/// The bytes are [`PROTOCOL_MAGIC`] (4) followed by a big-endian version (4). Pure (no I/O) so
+/// sync ([`read_handshake`]) and async readers share the validation, mirroring
+/// [`decode_frame_len`].
 ///
 /// # Errors
-/// If the magic bytes don't match (not an egui inspection peer), or on I/O failure.
-pub fn read_handshake<R: Read>(mut reader: R) -> io::Result<u32> {
-    let mut magic = [0u8; 4];
-    reader.read_exact(&mut magic)?;
+/// If the magic bytes don't match (not an egui inspection peer).
+pub fn decode_handshake(bytes: [u8; 8]) -> io::Result<u32> {
+    let (magic, version) = bytes.split_at(4);
     if magic != PROTOCOL_MAGIC {
         return Err(invalid_data(
             "not an egui_inspection peer (bad handshake magic)",
         ));
     }
-    let mut version = [0u8; 4];
-    reader.read_exact(&mut version)?;
-    Ok(u32::from_be_bytes(version))
+    Ok(u32::from_be_bytes(
+        version.try_into().expect("split_at(4) leaves 4 bytes"),
+    ))
+}
+
+/// Read and validate the connection handshake, returning the peer's protocol version.
+///
+/// # Errors
+/// If the magic bytes don't match (not an egui inspection peer), or on I/O failure.
+pub fn read_handshake<R: Read>(mut reader: R) -> io::Result<u32> {
+    let mut bytes = [0u8; 8];
+    reader.read_exact(&mut bytes)?;
+    decode_handshake(bytes)
 }
 
 /// Encode a value into a length-prefixed `MessagePack` frame (4-byte big-endian length + body).

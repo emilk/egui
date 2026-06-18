@@ -9,13 +9,13 @@
 //! - [`Bridge::connect`] dials a TCP `host:port` (with connect-retry) and reads the protocol
 //!   handshake.
 //! - [`Bridge::from_transport`] wraps an arbitrary async byte transport, so a host that owns
-//!   its own channel (e.g. `re_mcp` over gRPC) can drive the same tools.
+//!   its own channel can drive the same tools.
 
 use std::time::Duration;
 
 use anyhow::{Context as _, anyhow, bail};
 use egui_inspection::protocol::{
-    EncodedPng, PROTOCOL_MAGIC, Request, Response, decode_frame_body, decode_frame_len,
+    EncodedPng, Request, Response, decode_frame_body, decode_frame_len, decode_handshake,
     encode_frame,
 };
 use serde::Serialize;
@@ -49,9 +49,8 @@ pub struct Bridge {
 }
 
 impl Bridge {
-    /// Connect to a TCP `host:port`, retrying until `timeout` (default
-    /// [`DEFAULT_CONNECT_TIMEOUT`]) elapses, then read the protocol handshake and the peer's
-    /// label.
+    /// Connect to a TCP `host:port`, retrying until `timeout` (default 10s) elapses, then read
+    /// the protocol handshake and the peer's label.
     ///
     /// # Errors
     /// If the connection can't be established before the timeout, or the handshake fails.
@@ -102,17 +101,12 @@ impl Bridge {
     /// If the magic bytes don't match (not an egui inspection peer), or on I/O failure.
     pub async fn read_handshake(&self) -> anyhow::Result<u32> {
         let mut conn = self.conn.lock().await;
-        let mut magic = [0u8; 4];
+        let mut bytes = [0u8; 8];
         conn.reader
-            .read_exact(&mut magic)
+            .read_exact(&mut bytes)
             .await
             .context("read handshake")?;
-        if magic != PROTOCOL_MAGIC {
-            bail!("not an egui_inspection peer (bad handshake magic)");
-        }
-        let mut version = [0u8; 4];
-        conn.reader.read_exact(&mut version).await?;
-        Ok(u32::from_be_bytes(version))
+        Ok(decode_handshake(bytes)?)
     }
 
     /// Wrap an arbitrary async byte transport (for hosts that tunnel the protocol).

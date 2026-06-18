@@ -1,12 +1,24 @@
 //! MCP tool definitions + dispatch, built on the official `rmcp` SDK.
 //!
-//! Each tool is an async method on [`Server`] annotated with `#[tool]`. The macro derives
-//! the input schema from the typed parameter struct (via `schemars::JsonSchema`) and wires
-//! the method into a [`ToolRouter`] returned by [`Server::tool_router`].
+//! Each tool is an async method annotated with `#[tool]`. The macro derives the input schema
+//! from the typed parameter struct (via `schemars::JsonSchema`) and wires the method into a
+//! [`ToolRouter`].
 //!
-//! Tools that need a connected app go through [`Server::run_inner`], which holds the
-//! `AppState` lock for the duration of one call. Lifecycle tools (`attach`, `disconnect`,
-//! `status`) manage the bridge themselves.
+//! The tools are split across two types so the app-driving half can be reused:
+//!
+//! - [`UiServer`] owns the core UI/inspection commands (`click`, `type_text`, `screenshot`,
+//!   `query_tree`, `batch`, …). It is transport-agnostic: it drives whatever [`Bridge`] lives
+//!   in the shared [`AppState`], and exposes [`UiServer::tools`] / [`UiServer::dispatch`] so
+//!   another MCP server can embed it next to *its own* connection tools.
+//! - [`Server`] is egui-mcp's own server: it adds the TCP connection lifecycle (`attach` /
+//!   `disconnect` / `status`), spins up a [`UiServer`] on a successful `attach` (dropping it on
+//!   `disconnect`), and delegates every non-lifecycle call to it — so the app-driving tools are
+//!   listed only while connected, with a `tools/list_changed` notification on each transition.
+//!   A server built on a different transport (e.g. one tunnelling over its own channel) would
+//!   write its own connection tools and reuse [`UiServer`] the same way.
+//!
+//! App-driving tools go through `UiServer::run_inner`, which holds the [`AppState`] lock for
+//! one call and returns a `no app connected` error when nothing is attached.
 //!
 //! Locator resolution is done here, MCP-side: a tool fetches a fresh AccessKit tree
 //! (`GetTree`), resolves the locator to a screen position, synthesizes the matching
@@ -21,11 +33,18 @@ use std::time::Duration;
 use anyhow::{Context as _, anyhow, bail};
 use base64::Engine as _;
 use egui::Event;
+use egui::epaint::mutex::Mutex as SyncMutex;
 use rmcp::{
-    ErrorData as McpError, ServerHandler,
-    handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{CallToolResult, Content, Implementation, ServerCapabilities, ServerInfo},
-    schemars, tool, tool_handler, tool_router,
+    ErrorData as McpError, Peer, ServerHandler,
+    handler::server::{router::tool::ToolRouter, tool::ToolCallContext, wrapper::Parameters},
+    model::{
+        CallToolRequestParams, CallToolResult, Content, Implementation, InitializeRequestParams,
+        InitializeResult, ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerInfo,
+        Tool,
+    },
+    schemars,
+    service::{RequestContext, RoleServer},
+    tool, tool_router,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -39,11 +58,15 @@ use crate::tree::{self, Locator, NodeView, QueryFilter};
 // App state + Server wrapper
 // ---------------------------------------------------------------------------------------
 
-/// Holds the single in-flight bridge to a live egui app. Shared between all `#[tool]`
-/// handlers on [`Server`].
+/// Holds the single in-flight bridge to a live egui app. Shared (via `Arc`) between a
+/// connection-managing server and the [`UiServer`] that drives the app.
 #[derive(Default)]
 pub struct AppState {
     bridge: Mutex<Option<Bridge>>,
+
+    /// The connected client, captured on `initialize`, so a connection change can push a
+    /// `tools/list_changed` notification.
+    peer: Mutex<Option<Peer<RoleServer>>>,
 }
 
 impl AppState {
@@ -51,45 +74,82 @@ impl AppState {
         Arc::new(Self::default())
     }
 
-    /// Install a bridge built elsewhere (e.g. a gRPC-tunnelled one from `re_mcp`), so the
-    /// existing tools drive it as if it had been `attach`ed. Replaces any current bridge.
+    /// Install a bridge built elsewhere (e.g. tunnelled over another transport), so the
+    /// [`UiServer`] tools drive it as if it had been `attach`ed. Replaces any current bridge.
     pub async fn install_bridge(&self, bridge: Bridge) {
         *self.bridge.lock().await = Some(bridge);
+    }
+
+    /// Clear the current bridge, if any. Returns whether one was installed.
+    pub async fn clear_bridge(&self) -> bool {
+        self.bridge.lock().await.take().is_some()
     }
 
     /// Whether a bridge is currently installed.
     pub async fn is_connected(&self) -> bool {
         self.bridge.lock().await.is_some()
     }
-}
 
-#[derive(Clone)]
-pub struct Server {
-    state: Arc<AppState>,
-    #[expect(
-        dead_code,
-        reason = "stored to build the rmcp tool router; not read directly"
-    )]
-    tool_router: ToolRouter<Self>,
-}
-
-impl Server {
-    pub fn new() -> Self {
-        Self::from_state(AppState::new())
+    /// Remember the client peer, so [`Self::notify_tools_changed`] can reach it.
+    pub async fn set_peer(&self, peer: Peer<RoleServer>) {
+        *self.peer.lock().await = Some(peer);
     }
 
-    /// Build a server around a shared [`AppState`], so a host (e.g. `re_mcp`) can hold the
-    /// same state and install a bridge into it out-of-band.
-    pub fn from_state(state: Arc<AppState>) -> Self {
+    /// Tell the client the visible tool set changed, so it re-fetches `tools/list`.
+    pub async fn notify_tools_changed(&self) {
+        let peer = self.peer.lock().await.clone();
+        if let Some(peer) = peer
+            && let Err(e) = peer.notify_tool_list_changed().await
+        {
+            tracing::warn!("failed to send tools/list_changed: {e}");
+        }
+    }
+}
+
+/// The reusable core: an MCP server exposing the egui UI/inspection tools (`click`,
+/// `type_text`, `screenshot`, `query_tree`, `batch`, …) against the [`Bridge`] in a shared
+/// [`AppState`].
+///
+/// It owns no connection logic. A host installs a bridge through [`AppState::install_bridge`]
+/// (however it was obtained — TCP, a tunnelled transport, …), then either serves this directly
+/// or embeds it: [`UiServer::tools`] lists the commands and [`UiServer::dispatch`] runs one, so
+/// another MCP server can offer its own connection tools alongside this shared command set.
+#[derive(Clone)]
+pub struct UiServer {
+    state: Arc<AppState>,
+    router: ToolRouter<Self>,
+}
+
+impl UiServer {
+    /// Build a UI server over a shared [`AppState`].
+    pub fn new(state: Arc<AppState>) -> Self {
         Self {
             state,
-            tool_router: Self::tool_router(),
+            router: Self::tool_router(),
         }
     }
 
-    /// The shared app state (holds the active bridge).
-    pub fn state(&self) -> Arc<AppState> {
-        Arc::clone(&self.state)
+    /// The UI/inspection tools, for merging into an embedding server's `list_tools`.
+    pub fn tools(&self) -> Vec<Tool> {
+        self.router.list_all()
+    }
+
+    /// Look up one of the UI tools by name (for an embedding server's `get_tool`).
+    pub fn get_tool(&self, name: &str) -> Option<Tool> {
+        self.router.get(name).cloned()
+    }
+
+    /// Run one UI tool, for an embedding server's `call_tool` to delegate to.
+    ///
+    /// # Errors
+    /// If the tool name is unknown (recoverable failures are reported in the `CallToolResult`).
+    pub async fn dispatch(
+        &self,
+        request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, McpError> {
+        let tcc = ToolCallContext::new(self, request, context);
+        self.router.call(tcc).await
     }
 
     /// Acquire the bridge lock, run `f(bridge)`, and shape the result into a
@@ -111,6 +171,46 @@ impl Server {
             Ok(v) => Ok(text_ok(&v)),
             Err(e) => Ok(text_error(format!("{e:#}"))),
         }
+    }
+}
+
+/// egui-mcp's own MCP server: the TCP connection lifecycle (`attach` / `disconnect` /
+/// `status`) plus a [`UiServer`] that exists only while an app is attached.
+///
+/// `ui` is `None` until `attach` connects (and is dropped on `disconnect`), so the app-driving
+/// tools are listed only while connected; each transition pushes a `tools/list_changed`
+/// notification. It is shared behind an `Arc<Mutex<…>>` because the `#[tool]` methods that flip
+/// it only get `&self`.
+#[derive(Clone)]
+pub struct Server {
+    state: Arc<AppState>,
+    ui: Arc<SyncMutex<Option<UiServer>>>,
+    lifecycle_router: ToolRouter<Self>,
+}
+
+impl Server {
+    pub fn new() -> Self {
+        Self::from_state(AppState::new())
+    }
+
+    /// Build a server around a shared [`AppState`], so a host can hold the
+    /// same state and install a bridge into it out-of-band.
+    pub fn from_state(state: Arc<AppState>) -> Self {
+        Self {
+            state,
+            ui: Arc::new(SyncMutex::new(None)),
+            lifecycle_router: Self::lifecycle_router(),
+        }
+    }
+
+    /// The shared app state (holds the active bridge).
+    pub fn state(&self) -> Arc<AppState> {
+        Arc::clone(&self.state)
+    }
+
+    /// Snapshot the current [`UiServer`], if an app is attached.
+    fn ui(&self) -> Option<UiServer> {
+        self.ui.lock().clone()
     }
 }
 
@@ -402,12 +502,14 @@ pub struct BatchAction {
 // Tool router — each tool is a thin wrapper around an inner async fn.
 // ---------------------------------------------------------------------------------------
 
-#[tool_router]
+/// Lifecycle tools — connection management, served directly by [`Server`].
+#[tool_router(router = lifecycle_router)]
 impl Server {
     #[tool(
         description = "Connect to a running egui app's inspection port (an app built with \
                         eframe's `inspection` feature, launched with `EGUI_INSPECTION` set). \
-                        Defaults to 127.0.0.1:5719. Retries until `timeout_secs` elapses."
+                        Defaults to 127.0.0.1:5719. Retries until `timeout_secs` elapses. \
+                        On success the app-driving tools become available."
     )]
     async fn attach(
         &self,
@@ -426,18 +528,24 @@ impl Server {
         };
         let info = bridge.peer_info.clone();
         *guard = Some(bridge);
+        // Spin up the UI tools now that there's an app to drive, and announce them.
+        *self.ui.lock() = Some(UiServer::new(Arc::clone(&self.state)));
+        drop(guard);
+        self.state.notify_tools_changed().await;
         Ok(text_ok(&json!({ "ok": true, "attached": info })))
     }
 
     #[tool(
-        description = "Disconnect from the attached app. After this, other tools return \
-                        `not connected` until `attach` is called again."
+        description = "Disconnect from the attached app. After this, the app-driving tools \
+                        are hidden until `attach` is called again."
     )]
     async fn disconnect(&self, _p: Parameters<EmptyArgs>) -> Result<CallToolResult, McpError> {
-        let mut guard = self.state.bridge.lock().await;
-        match guard.take() {
-            Some(_) => Ok(text_ok(&json!({ "ok": true }))),
-            None => Ok(text_error("no app connected")),
+        if self.state.clear_bridge().await {
+            *self.ui.lock() = None;
+            self.state.notify_tools_changed().await;
+            Ok(text_ok(&json!({ "ok": true })))
+        } else {
+            Ok(text_error("no app connected"))
         }
     }
 
@@ -450,7 +558,11 @@ impl Server {
         };
         Ok(text_ok(&body))
     }
+}
 
+/// App-driving tools — each needs an attached app (see the module docs).
+#[tool_router]
+impl UiServer {
     #[tool(
         description = "Capture the current frame as a PNG screenshot. Requires the app window \
                         to be visible — a fully-occluded or minimized window can't render a \
@@ -673,11 +785,69 @@ impl Server {
     }
 }
 
-#[tool_handler]
 impl ServerHandler for Server {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(Implementation::new("egui-mcp", env!("CARGO_PKG_VERSION")))
+        ServerInfo::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_tool_list_changed()
+                .build(),
+        )
+        .with_server_info(Implementation::new("egui-mcp", env!("CARGO_PKG_VERSION")))
+    }
+
+    async fn initialize(
+        &self,
+        request: InitializeRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<InitializeResult, McpError> {
+        if context.peer.peer_info().is_none() {
+            context.peer.set_peer_info(request);
+        }
+        // Remember the peer so attach / disconnect can push `tools/list_changed`.
+        self.state.set_peer(context.peer.clone()).await;
+        Ok(self.get_info())
+    }
+
+    async fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListToolsResult, McpError> {
+        // Lifecycle tools always; the UI server's tools only while an app is attached.
+        let mut tools = self.lifecycle_router.list_all();
+        if let Some(ui) = self.ui() {
+            tools.extend(ui.tools());
+        }
+        Ok(ListToolsResult {
+            tools,
+            next_cursor: None,
+            meta: None,
+        })
+    }
+
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, McpError> {
+        // Lifecycle tools run on `self`; everything else is delegated to the UI server, which
+        // only exists while an app is attached.
+        if self.lifecycle_router.has_route(&request.name) {
+            let tcc = ToolCallContext::new(self, request, context);
+            return self.lifecycle_router.call(tcc).await;
+        }
+        match self.ui() {
+            Some(ui) => ui.dispatch(request, context).await,
+            None => Ok(text_error("no app connected — call `attach` first")),
+        }
+    }
+
+    fn get_tool(&self, name: &str) -> Option<Tool> {
+        if let Some(tool) = self.lifecycle_router.get(name) {
+            return Some(tool.clone());
+        }
+        self.ui()?.get_tool(name)
     }
 }
 
@@ -685,14 +855,12 @@ impl ServerHandler for Server {
 // Batch internal dispatch
 // ---------------------------------------------------------------------------------------
 
-impl Server {
-    /// Route a tool call by name. Used by `batch` to recurse without going back through
-    /// the rmcp router.
+impl UiServer {
+    /// Route a UI tool call by name. Used by `batch` to recurse without going back through
+    /// the rmcp router. Only the app-driving tools are reachable — connection management lives
+    /// on the embedding server, not here.
     async fn dispatch_internal(&self, name: &str, args: Value) -> CallToolResult {
         match name {
-            "attach" => unpack_then(args, |p| async move { self.attach(p).await }).await,
-            "disconnect" => unpack_then(args, |p| async move { self.disconnect(p).await }).await,
-            "status" => unpack_then(args, |p| async move { self.status(p).await }).await,
             "screenshot" => unpack_then(args, |p| async move { self.screenshot(p).await }).await,
             "query_tree" => unpack_then(args, |p| async move { self.query_tree(p).await }).await,
             "get_node" => unpack_then(args, |p| async move { self.get_node(p).await }).await,
