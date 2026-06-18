@@ -9,7 +9,7 @@ impl EncodedPng {
     /// When the encoder fails.
     pub fn from_color_image(image: &egui::ColorImage) -> Result<Self, image::ImageError> {
         let size = [image.size[0] as u32, image.size[1] as u32];
-        Self::from_rgba(size, &image.as_raw())
+        Self::from_rgba(size, image.as_raw())
     }
 
     /// Encode tightly-packed RGBA8 pixels (`width * height * 4` bytes) as PNG.

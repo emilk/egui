@@ -160,7 +160,6 @@ pub use {egui_glow, glow};
 
 #[cfg(feature = "wgpu_no_default_features")]
 pub use {egui_wgpu, egui_wgpu::SurfaceConfig, egui_wgpu::WgpuConfiguration, egui_wgpu::wgpu};
-use egui_inspection::INSPECTION_ENV_VAR;
 
 mod epi;
 
@@ -228,7 +227,9 @@ pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<
 pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {
     if let Ok(value) = std::env::var("EGUI_INSPECTION") {
         if value != "0" && value != "false" && !value.is_empty() {
-            log::warn!("Inspection env var set but app was compiled without eframe/inspection feature");
+            log::warn!(
+                "Inspection env var set but app was compiled without eframe/inspection feature"
+            );
         }
     }
 }
