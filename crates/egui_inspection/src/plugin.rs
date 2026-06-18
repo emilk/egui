@@ -5,7 +5,7 @@
 //! # Model
 //!
 //! The plugin owns a list of in-flight requests. A connection thread (or a host with its own
-//! transport, e.g. `re_mcp` over gRPC) submits a [`Request`] through egui's own plugin
+//! transport) submits a [`Request`] through egui's own plugin
 //! handle — `ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req))` — which appends it and
 //! returns a channel to await the single [`Response`] on, then calls `ctx.request_repaint()`
 //! so an idle app wakes up to service it. The reply is produced on the UI thread inside the
@@ -176,6 +176,7 @@ impl egui::Plugin for InspectionPlugin {
                 Request::GetInfo => {
                     let _ = item.reply.send(Response::Info {
                         label: label.clone(),
+                        egui_version: env!("CARGO_PKG_VERSION").to_owned(),
                     });
                     false
                 }

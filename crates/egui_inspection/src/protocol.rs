@@ -1,8 +1,7 @@
 //! Request/response wire protocol for inspecting a running egui app.
 //!
 //! Shared between an egui peer (a live `eframe` app running [`crate::InspectionPlugin`]) and
-//! an external inspector (the `egui_mcp` server, or any other tool — e.g. `re_mcp` tunnelling
-//! it over gRPC).
+//! an external inspector (the `egui_mcp` server, or any other compatible tool).
 //!
 //! Every connection opens with a fixed binary handshake — [`PROTOCOL_MAGIC`] (4 bytes) plus
 //! [`PROTOCOL_VERSION`] (4 big-endian bytes), written by the peer when a client connects — so
@@ -27,7 +26,7 @@ use egui::accesskit;
 pub const PROTOCOL_VERSION: u32 = 1;
 
 /// Magic bytes that open every connection, identifying the egui inspection protocol.
-pub const PROTOCOL_MAGIC: [u8; 4] = *b"eGiP";
+pub const PROTOCOL_MAGIC: [u8; 4] = *b"eins";
 
 /// Sent inspector → peer. The peer replies with exactly one [`Response`].
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -66,6 +65,9 @@ pub enum Response {
     Info {
         /// Human-readable identifier (app name), if the peer set one.
         label: Option<String>,
+
+        /// egui version string (e.g. `"0.31.0"`).
+        egui_version: String,
     },
 
     /// Reply to [`Request::GetTree`].
