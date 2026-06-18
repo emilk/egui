@@ -223,7 +223,7 @@ pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<
 
 /// Fallback for native builds without the `inspection` feature. Logs warning if inspection env
 /// var was set.
-#[cfg(all(not(feature = "inspection"), not(target_arch = "wasm32")))]
+#[cfg(all(not(feature = "inspection"), not(target_arch = "wasm32"), any(feature = "glow", feature = "wgpu_no_default_features")))]
 pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {
     if let Ok(value) = std::env::var("EGUI_INSPECTION")
         && value != "0"
