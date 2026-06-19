@@ -228,12 +228,16 @@ impl Bridge {
             .await
     }
 
-    /// Capture a screenshot.
+    /// Capture a screenshot, downscaled to `pixels_per_point` pixels per logical point
+    /// (`1.0` = logical size).
     ///
     /// # Errors
     /// On I/O failure or an unexpected response.
-    pub async fn screenshot(&self) -> Result<EncodedPng, String> {
-        match self.request(Request::GetScreenshot).await? {
+    pub async fn screenshot(&self, pixels_per_point: f32) -> Result<EncodedPng, String> {
+        match self
+            .request(Request::GetScreenshot { pixels_per_point })
+            .await?
+        {
             Response::Screenshot(png) => Ok(png),
             Response::Error { message } => Err(message),
             _ => Err("unexpected response to GetScreenshot".to_owned()),

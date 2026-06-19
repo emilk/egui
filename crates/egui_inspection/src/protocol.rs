@@ -43,7 +43,13 @@ pub enum Request {
     ///
     /// The peer issues an [`egui::ViewportCommand::Screenshot`] and replies once the
     /// resulting [`egui::Event::Screenshot`] arrives (one extra frame).
-    GetScreenshot,
+    ///
+    /// `pixels_per_point` is the requested output resolution in pixels per logical point: the
+    /// captured framebuffer (native resolution = the app's `pixels_per_point` px per point) is
+    /// downscaled to this many px per point before encoding. `1.0` yields a logical-point-sized
+    /// image so screenshot pixels align with the logical coordinates used everywhere else. Never
+    /// upscaled beyond native, so values above the app's `pixels_per_point` have no effect.
+    GetScreenshot { pixels_per_point: f32 },
 
     /// Inject raw egui input events and run a frame. Reply: [`Response::Done`], returned only
     /// *after* the events have been applied by a frame — so a subsequent [`Self::GetTree`]

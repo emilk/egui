@@ -244,15 +244,21 @@ pub struct Pos2Lit {
 
 impl Target {
     fn as_locator(&self) -> Option<Locator> {
-        if self.id.is_none() && self.role.is_none() && self.label_contains.is_none() {
-            return None;
+        // A parseable `id` wins; otherwise fall back to a role/label match.
+        if let Some(id) = self
+            .id
+            .as_deref()
+            .and_then(|s| s.trim().parse::<u64>().ok())
+        {
+            return Some(Locator::Id { id });
         }
-        let locator_json = json!({
-            "id": self.id,
-            "role": self.role,
-            "label_contains": self.label_contains,
-        });
-        serde_json::from_value(locator_json).ok()
+        if self.role.is_some() || self.label_contains.is_some() {
+            return Some(Locator::Match {
+                role: self.role.clone(),
+                label_contains: self.label_contains.clone(),
+            });
+        }
+        None
     }
 }
 
@@ -287,13 +293,11 @@ fn resolve_in_tree(
         .ok_or("target requires `id`, `role`, `label_contains`, or `pos`")?;
     let tree = snap.tree.as_ref().ok_or("no accesskit tree yet")?;
     let node = tree::resolve_node(tree, &locator).ok_or("node not found")?;
-    let view = tree::node_view(&node);
+    let view = tree::node_view(&node, snap.pixels_per_point);
     let bounds = view.bounds.ok_or("node has no bounds — can't target")?;
+    // `node_view` already returns logical-point bounds, so the center needs no further scaling.
     let (cx, cy) = bounds.center();
-    let center = egui::Pos2::new(
-        cx as f32 / snap.pixels_per_point,
-        cy as f32 / snap.pixels_per_point,
-    );
+    let center = egui::Pos2::new(cx as f32, cy as f32);
     Ok((Some(view.id), center))
 }
 
@@ -326,6 +330,24 @@ fn default_port() -> u16 {
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 pub struct EmptyArgs {}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ScreenshotArgs {
+    /// Output resolution in pixels per logical point. Defaults to `1.0`, which makes screenshot
+    /// pixels line up 1:1 with the logical coordinates used by `click`/`query_tree`. Higher
+    /// values give a sharper image, capped at the display's native scale (no upscaling).
+    #[serde(default = "default_pixels_per_point")]
+    pub pixels_per_point: f32,
+
+    /// If set, also write the PNG to this path on the machine running the MCP server (in
+    /// addition to returning it inline).
+    #[serde(default)]
+    pub save_path: Option<String>,
+}
+
+fn default_pixels_per_point() -> f32 {
+    1.0
+}
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetNodeArgs {
@@ -556,19 +578,32 @@ impl Server {
     }
 }
 
-/// App-driving tools — each needs an attached app (see the module docs).
+/// App-driving tools — each needs an attached app.
 #[tool_router]
 impl UiServer {
     /// Capture the current frame as a PNG screenshot.
+    /// Defaults to logical-point resolution (`pixels_per_point: 1.0`) so pixels align with
+    /// `click`/`query_tree` coordinates; pass a higher `pixels_per_point` for detail, or
+    /// `save_path` to also write it to disk.
     /// Requires the app window to be visible — a fully-occluded or minimized window can't render
     /// a frame to capture (notably on macOS), so the call times out; bring the window to the
     /// foreground first.
     #[tool]
-    async fn screenshot(&self, _p: Parameters<EmptyArgs>) -> ToolResult<CallToolResult> {
+    async fn screenshot(
+        &self,
+        Parameters(args): Parameters<ScreenshotArgs>,
+    ) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
-        let png = bridge.screenshot().await?;
+        let png = bridge.screenshot(args.pixels_per_point).await?;
+        let saved = match &args.save_path {
+            Some(path) => {
+                std::fs::write(path, &png.bytes).map_err(|e| format!("save to `{path}`: {e}"))?;
+                Some(path.as_str())
+            }
+            None => None,
+        };
         let png_b64 = base64::engine::general_purpose::STANDARD.encode(&png.bytes);
-        let meta = json!({ "width": png.size[0], "height": png.size[1] });
+        let meta = json!({ "width": png.size[0], "height": png.size[1], "saved_to": saved });
         Ok(CallToolResult::success(vec![
             Content::text(meta.to_string()),
             Content::image(png_b64, "image/png"),
@@ -593,7 +628,7 @@ impl UiServer {
             tree::validate_role(role, snap.tree.as_ref())?;
         }
         let nodes = match snap.tree {
-            Some(tree) => tree::query(&tree, &filter),
+            Some(tree) => tree::query(&tree, &filter, snap.pixels_per_point),
             None => Vec::new(),
         };
         Ok(Json(QueryTreeResult { nodes }))
@@ -608,13 +643,17 @@ impl UiServer {
         Parameters(args): Parameters<GetNodeArgs>,
     ) -> Result<Json<GetNodeResult>, ToolError> {
         let bridge = self.bridge().await?;
-        let locator_json = json!({ "id": args.id });
-        let locator: Locator =
-            serde_json::from_value(locator_json).map_err(|e| format!("invalid id: {e}"))?;
+        let id = args
+            .id
+            .trim()
+            .parse::<u64>()
+            .map_err(|e| format!("invalid id `{}`: {e}", args.id))?;
+        let locator = Locator::Id { id };
         let snap = bridge.fetch_tree().await?;
+        let ppp = snap.pixels_per_point;
         let node = snap
             .tree
-            .and_then(|tree| tree::resolve_node(&tree, &locator).map(|n| tree::node_view(&n)));
+            .and_then(|tree| tree::resolve_node(&tree, &locator).map(|n| tree::node_view(&n, ppp)));
         Ok(Json(GetNodeResult { node }))
     }
 
@@ -768,7 +807,7 @@ impl UiServer {
                 tree::validate_role(role, snap.tree.as_ref())?;
             }
             let matches: Vec<NodeView> = match snap.tree {
-                Some(tree) => tree::query(&tree, &filter),
+                Some(tree) => tree::query(&tree, &filter, snap.pixels_per_point),
                 None => Vec::new(),
             };
             if matches.len() as u32 >= args.min_matches {
@@ -936,7 +975,7 @@ impl UiServer {
 /// per-tool descriptions cover each command in isolation; this establishes the cross-cutting
 /// workflow — the observe→act→verify loop and the prefer-locators convention — that an agent
 /// otherwise has to infer.
-const INSTRUCTIONS: &str = r#"This mcp drives a live egui app: it reads the app's AccessKit accessibility tree and synthesizes real input events. Work in an observe → act → verify loop.
+const INSTRUCTIONS: &str = r#"This mcp drives a live egui app: it reads the app's accessibility tree and synthesizes real input events. Work in an observe → act → verify loop.
 
 Getting oriented:
 - Call `attach` first (check `status` if unsure); the app-driving tools return "no app connected" until then.
@@ -944,14 +983,13 @@ Getting oriented:
 
 Targeting widgets:
 - Prefer locators — an `id` from `query_tree`, or `role`/`label_contains` — over a raw `pos`. Locators resolve to the widget's current position and survive layout changes; reach for `pos` only when nothing matches.
-- Ids belong to a specific tree snapshot. After the UI changes, re-run `query_tree` rather than reusing an old id.
 
 Acting and verifying:
 - After an action that changes the UI, confirm it landed: `query_tree` for the expected state, `screenshot` to look, or `wait_for` to poll until async or animated UI settles.
 - Use `batch` to act and observe in one round trip (e.g. `click` then `screenshot`), avoiding an extra turn.
 
 Conventions:
-- Raw `pos` and `resize` dimensions are in logical points, not physical pixels. There is no fixed screen size; use `resize` to set the viewport."#;
+- Everything is in logical points, one shared coordinate frame: raw `pos`, `resize` dimensions, the `bounds` from `query_tree`/`get_node`, and a default (`pixels_per_point: 1.0`) `screenshot`. So a node's `bounds` center is exactly where to `click`, and a pixel in the screenshot is a logical point. There is no fixed screen size; use `resize` to set the viewport."#;
 
 impl ServerHandler for Server {
     fn get_info(&self) -> ServerInfo {

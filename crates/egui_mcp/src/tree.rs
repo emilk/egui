@@ -33,12 +33,16 @@ pub struct RectF {
 }
 
 impl RectF {
-    fn from_rect(r: accesskit::Rect) -> Self {
+    /// Build from AccessKit physical-pixel bounds, scaling to logical points (the consumer's
+    /// `bounding_box` applies egui's root `scale(pixels_per_point)` transform, so bounds arrive
+    /// in physical pixels — divide them back out).
+    fn from_physical(r: accesskit::Rect, pixels_per_point: f32) -> Self {
+        let s = 1.0 / f64::from(pixels_per_point);
         Self {
-            x: r.x0,
-            y: r.y0,
-            w: r.x1 - r.x0,
-            h: r.y1 - r.y0,
+            x: r.x0 * s,
+            y: r.y0 * s,
+            w: (r.x1 - r.x0) * s,
+            h: (r.y1 - r.y0) * s,
         }
     }
 
@@ -78,22 +82,22 @@ impl Default for QueryFilter {
     }
 }
 
-pub fn query(tree: &Tree, filter: &QueryFilter) -> Vec<NodeView> {
+pub fn query(tree: &Tree, filter: &QueryFilter, pixels_per_point: f32) -> Vec<NodeView> {
     let root = tree.state().root();
     let mut out = Vec::new();
-    walk(&root, filter, &mut out);
+    walk(&root, filter, pixels_per_point, &mut out);
     if out.len() > filter.limit {
         out.truncate(filter.limit);
     }
     out
 }
 
-fn walk(node: &Node<'_>, filter: &QueryFilter, out: &mut Vec<NodeView>) {
+fn walk(node: &Node<'_>, filter: &QueryFilter, pixels_per_point: f32, out: &mut Vec<NodeView>) {
     if matches(node, filter) {
-        out.push(node_view(node));
+        out.push(node_view(node, pixels_per_point));
     }
     for child in node.children() {
-        walk(&child, filter, out);
+        walk(&child, filter, pixels_per_point, out);
     }
 }
 
@@ -161,13 +165,15 @@ fn matches(node: &Node<'_>, filter: &QueryFilter) -> bool {
     true
 }
 
-pub fn node_view(node: &Node<'_>) -> NodeView {
+pub fn node_view(node: &Node<'_>, pixels_per_point: f32) -> NodeView {
     NodeView {
         id: accesskit_id(node).to_string(),
         role: format!("{:?}", node.role()),
         label: node.label(),
         value: node.value(),
-        bounds: node.bounding_box().map(RectF::from_rect),
+        bounds: node
+            .bounding_box()
+            .map(|r| RectF::from_physical(r, pixels_per_point)),
         focused: node.is_focused_in_tree(),
         disabled: node.is_disabled(),
         hidden: node.is_hidden(),
@@ -181,30 +187,17 @@ fn accesskit_id(node: &Node<'_>) -> u64 {
     local.0
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-#[serde(untagged)]
+/// A resolved lookup target: a specific node `id`, or a role/label match (first hit wins).
+/// Built directly by the tools from a `Target` — never deserialized.
+#[derive(Debug, Clone)]
 pub enum Locator {
     Id {
-        /// Decimal string. Strings preserve the full u64 — JSON numbers above 2^53 lose
-        /// precision in clients whose parsers go through `f64`, so we don't accept them.
-        #[serde(deserialize_with = "deserialize_u64_from_string")]
         id: u64,
     },
     Match {
-        #[serde(default)]
         role: Option<String>,
-        #[serde(default)]
         label_contains: Option<String>,
     },
-}
-
-fn deserialize_u64_from_string<'de, D>(d: D) -> Result<u64, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::de::Error as _;
-    let s = String::deserialize(d)?;
-    s.trim().parse::<u64>().map_err(D::Error::custom)
 }
 
 pub fn resolve_node<'a>(tree: &'a Tree, locator: &Locator) -> Option<Node<'a>> {

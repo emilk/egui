@@ -140,6 +140,7 @@ impl egui::Plugin for InspectionPlugin {
 
         // Match screenshot replies to the requests that asked for them, by `user_data` id. We
         // observe (don't consume) the event so the host app still receives it.
+        let pixels_per_point = ctx.pixels_per_point();
         for ev in &input.events {
             let egui::Event::Screenshot {
                 user_data, image, ..
@@ -155,23 +156,33 @@ impl egui::Plugin for InspectionPlugin {
             else {
                 continue; // not one of ours
             };
-            let png = match EncodedPng::from_color_image(image.as_ref()) {
-                Ok(png) => png,
-                Err(err) => {
-                    // Shouldn't happen for a valid framebuffer; surface it loudly.
-                    log::error!("egui_inspection: PNG encode failed: {err}");
-                    continue;
-                }
-            };
             self.in_flight.retain_mut(|item| {
-                if item.phase == (Phase::AwaitScreenshot { id }) {
-                    if let Some(reply) = item.reply.take() {
-                        reply(Response::Screenshot(png.clone()));
-                    }
-                    false
-                } else {
-                    true
+                if item.phase != (Phase::AwaitScreenshot { id }) {
+                    return true;
                 }
+                // Downscale to the request's requested pixels-per-point (px per logical point);
+                // the framebuffer is at the app's `pixels_per_point` px per point, so the scale
+                // factor is their ratio.
+                let requested_ppp = match item.req {
+                    Request::GetScreenshot { pixels_per_point } => pixels_per_point,
+                    _ => pixels_per_point,
+                };
+                let png = match EncodedPng::from_color_image_scaled(
+                    image.as_ref(),
+                    requested_ppp / pixels_per_point,
+                ) {
+                    Ok(png) => png,
+                    Err(err) => {
+                        // Shouldn't happen for a valid framebuffer; surface it loudly and drop
+                        // the request rather than hang on it.
+                        log::error!("egui_inspection: PNG encode failed: {err}");
+                        return false;
+                    }
+                };
+                if let Some(reply) = item.reply.take() {
+                    reply(Response::Screenshot(png));
+                }
+                false
             });
         }
 
@@ -214,7 +225,7 @@ impl egui::Plugin for InspectionPlugin {
                     item.phase = Phase::AwaitOutput;
                     true
                 }
-                Request::GetScreenshot => {
+                Request::GetScreenshot { .. } => {
                     // Dispatch now so the command lands in this frame's output and the capture
                     // is one frame sooner; the pixels arrive in a later `input_hook`. The id
                     // ties that `Event::Screenshot` back to this request.

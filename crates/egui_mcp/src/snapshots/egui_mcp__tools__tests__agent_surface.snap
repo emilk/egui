@@ -4,7 +4,7 @@ expression: surface
 ---
 # Server instructions
 
-This server drives a live egui app: it reads the app's AccessKit accessibility tree and synthesizes real input events. Work in an observe → act → verify loop.
+This mcp drives a live egui app: it reads the app's accessibility tree and synthesizes real input events. Work in an observe → act → verify loop.
 
 Getting oriented:
 - Call `attach` first (check `status` if unsure); the app-driving tools return "no app connected" until then.
@@ -12,14 +12,13 @@ Getting oriented:
 
 Targeting widgets:
 - Prefer locators — an `id` from `query_tree`, or `role`/`label_contains` — over a raw `pos`. Locators resolve to the widget's current position and survive layout changes; reach for `pos` only when nothing matches.
-- Ids belong to a specific tree snapshot. After the UI changes, re-run `query_tree` rather than reusing an old id.
 
 Acting and verifying:
 - After an action that changes the UI, confirm it landed: `query_tree` for the expected state, `screenshot` to look, or `wait_for` to poll until async or animated UI settles.
 - Use `batch` to act and observe in one round trip (e.g. `click` then `screenshot`), avoiding an extra turn.
 
 Conventions:
-- Raw `pos` and `resize` dimensions are in logical points, not physical pixels. There is no fixed screen size; use `resize` to set the viewport.
+- Everything is in logical points, one shared coordinate frame: raw `pos`, `resize` dimensions, the `bounds` from `query_tree`/`get_node`, and a default (`pixels_per_point: 1.0`) `screenshot`. So a node's `bounds` center is exactly where to `click`, and a pixel in the screenshot is a logical point. There is no fixed screen size; use `resize` to set the viewport.
 
 # Tools
 
@@ -756,10 +755,26 @@ Conventions:
 
 {
   "name": "screenshot",
-  "description": "Capture the current frame as a PNG screenshot.\nRequires the app window to be visible — a fully-occluded or minimized window can't render\na frame to capture (notably on macOS), so the call times out; bring the window to the\nforeground first.",
+  "description": "Capture the current frame as a PNG screenshot.\nDefaults to logical-point resolution (`pixels_per_point: 1.0`) so pixels align with\n`click`/`query_tree` coordinates; pass a higher `pixels_per_point` for detail, or\n`save_path` to also write it to disk.\nRequires the app window to be visible — a fully-occluded or minimized window can't render\na frame to capture (notably on macOS), so the call times out; bring the window to the\nforeground first.",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "EmptyArgs",
+    "properties": {
+      "pixels_per_point": {
+        "default": 1.0,
+        "description": "Output resolution in pixels per logical point. Defaults to `1.0`, which makes screenshot\npixels line up 1:1 with the logical coordinates used by `click`/`query_tree`. Higher\nvalues give a sharper image, capped at the display's native scale (no upscaling).",
+        "format": "float",
+        "type": "number"
+      },
+      "save_path": {
+        "default": null,
+        "description": "If set, also write the PNG to this path on the machine running the MCP server (in\naddition to returning it inline).",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "title": "ScreenshotArgs",
     "type": "object"
   }
 }
