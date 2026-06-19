@@ -7,18 +7,16 @@
 //! The tools are split across two types so the app-driving half can be reused:
 //!
 //! - [`UiServer`] owns the core UI/inspection commands (`click`, `type_text`, `screenshot`,
-//!   `query_tree`, `batch`, …). It is transport-agnostic: it drives whatever [`Bridge`] lives
-//!   in the shared [`AppState`], and exposes [`UiServer::tools`] / [`UiServer::dispatch`] so
-//!   another MCP server can embed it next to *its own* connection tools.
-//! - [`Server`] is egui-mcp's own server: it adds the TCP connection lifecycle (`attach` /
-//!   `disconnect` / `status`) and delegates every non-lifecycle call to a [`UiServer`].
-//!   App-driving tools are always listed so MCP clients that cache the initial tool list can
-//!   discover them before `attach`; calls made while disconnected return `no app connected`.
-//!   A server built on a different transport (e.g. one tunnelling over its own channel) would
-//!   write its own connection tools and reuse [`UiServer`] the same way.
-//!
-//! App-driving tools acquire the bridge via `UiServer::bridge`, which holds the [`AppState`]
-//! lock for one call and errors with `no app connected` when nothing is attached.
+//!   `query_tree`, `batch`, …). It holds a single [`Bridge`] and nothing else — constructing
+//!   one *is* the "connected" state. It is transport-agnostic: pair it with the router from
+//!   [`UiServer::router`] to list and dispatch the commands, so another MCP server can embed
+//!   it next to *its own* connection tools, driving whatever [`Bridge`] it built.
+//! - [`Server`] is egui-mcp's own server: it owns the UI tools' [`ToolRouter`] plus an
+//!   `Option<UiServer>` that is `Some` only while attached, and adds the TCP connection
+//!   lifecycle (`attach` / `disconnect` / `status`). Because the router lives on the server
+//!   rather than the (absent) [`UiServer`], the app-driving tools are always listed — MCP
+//!   clients that cache the initial tool list discover them before `attach` — while calls made
+//!   before `attach` return `no app connected`.
 //!
 //! Locator resolution is done here, MCP-side: a tool fetches a fresh AccessKit tree
 //! (`GetTree`), resolves the locator to a logical-point position, synthesizes the matching
@@ -52,139 +50,95 @@ use rmcp::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
+use tokio::sync::Mutex;
 
 use crate::bridge::{Bridge, TreeSnapshot};
 use crate::tree::{self, Locator, NodeView, QueryFilter};
 
 // ---------------------------------------------------------------------------------------
-// App state + Server wrapper
+// UiServer + Server
 // ---------------------------------------------------------------------------------------
 
-/// Holds the single in-flight bridge to a live egui app. Shared (via `Arc`) between a
-/// connection-managing server and the [`UiServer`] that drives the app.
-#[derive(Default)]
-pub struct AppState {
-    bridge: Mutex<Option<Bridge>>,
-}
-
-impl AppState {
-    pub fn new() -> Arc<Self> {
-        Arc::new(Self::default())
-    }
-
-    /// Install a bridge built elsewhere (e.g. tunnelled over another transport), so the
-    /// [`UiServer`] tools drive it as if it had been `attach`ed. Replaces any current bridge.
-    pub async fn install_bridge(&self, bridge: Bridge) {
-        *self.bridge.lock().await = Some(bridge);
-    }
-
-    /// Clear the current bridge, if any. Returns whether one was installed.
-    pub async fn clear_bridge(&self) -> bool {
-        self.bridge.lock().await.take().is_some()
-    }
-
-    /// Whether a bridge is currently installed.
-    pub async fn is_connected(&self) -> bool {
-        self.bridge.lock().await.is_some()
-    }
-}
-
-/// The reusable core: an MCP server exposing the egui UI/inspection tools (`click`,
-/// `type_text`, `screenshot`, `query_tree`, `batch`, …) against the [`Bridge`] in a shared
-/// [`AppState`].
+/// The reusable core: the egui UI/inspection tools (`click`, `type_text`, `screenshot`,
+/// `query_tree`, `batch`, …) bound to one live [`Bridge`].
 ///
-/// It owns no connection logic. A host installs a bridge through [`AppState::install_bridge`]
-/// (however it was obtained — TCP, a tunnelled transport, …), then either serves this directly
-/// or embeds it: [`UiServer::tools`] lists the commands and [`UiServer::dispatch`] runs one, so
-/// another MCP server can offer its own connection tools alongside this shared command set.
-#[derive(Clone)]
+/// It holds *only* the bridge — so a `UiServer` always has an app to drive, and its mere
+/// existence is the "connected" state (a host represents "disconnected" as the absence of a
+/// `UiServer`, e.g. [`Server`]'s `Option<UiServer>`).
+///
+/// It owns no connection logic and no router. A host builds the bridge however it likes (TCP,
+/// a tunnelled transport, …), wraps it with [`UiServer::new`], and pairs it with the router
+/// from [`UiServer::router`]: `router.list_all()` lists the commands for the host's
+/// `list_tools`, and [`UiServer::dispatch`] runs one — so another MCP server can offer its own
+/// connection tools alongside this shared command set.
 pub struct UiServer {
-    state: Arc<AppState>,
-    router: ToolRouter<Self>,
+    bridge: Bridge,
 }
 
 impl UiServer {
-    /// Build a UI server over a shared [`AppState`].
-    pub fn new(state: Arc<AppState>) -> Self {
-        Self {
-            state,
-            router: Self::tool_router(),
-        }
+    /// Wrap a live [`Bridge`] as a UI server.
+    pub fn new(bridge: Bridge) -> Self {
+        Self { bridge }
     }
 
-    /// The UI/inspection tools, for merging into an embedding server's `list_tools`.
-    pub fn tools(&self) -> Vec<Tool> {
-        self.router.list_all()
+    /// Build the router over the UI/inspection tools.
+    ///
+    /// The router is independent of any `UiServer` instance — list its tools while
+    /// disconnected, then dispatch against a `UiServer` once one exists (this is exactly what
+    /// [`Server`] does, and what an embedding server should do too).
+    pub fn router() -> ToolRouter<Self> {
+        Self::tool_router()
     }
 
-    /// Look up one of the UI tools by name (for an embedding server's `get_tool`).
-    pub fn get_tool(&self, name: &str) -> Option<Tool> {
-        self.router.get(name).cloned()
-    }
-
-    /// Run one UI tool, for an embedding server's `call_tool` to delegate to.
+    /// Run one UI tool against this server's bridge, via a router from [`UiServer::router`].
+    ///
+    /// For an embedding server's `call_tool` to delegate to.
     ///
     /// # Errors
     /// If the tool name is unknown (recoverable failures are reported in the `CallToolResult`).
     pub async fn dispatch(
         &self,
+        router: &ToolRouter<Self>,
         request: CallToolRequestParams,
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         let tcc = ToolCallContext::new(self, request, context);
-        self.router.call(tcc).await
+        router.call(tcc).await
     }
 
-    /// Acquire the attached [`Bridge`], holding the [`AppState`] lock for as long as the
-    /// returned guard lives. Errors with `no app connected` when nothing is attached, so a
-    /// tool can `?` it straight through.
-    async fn bridge(&self) -> ToolResult<MappedMutexGuard<'_, Bridge>> {
-        let guard = self.state.bridge.lock().await;
-        if guard.is_none() {
-            return Err("no app connected — call `attach` first".to_owned());
-        }
-        Ok(MutexGuard::map(guard, |b| {
-            b.as_mut().expect("checked is_some above")
-        }))
+    /// The bridge this server drives.
+    fn bridge(&self) -> &Bridge {
+        &self.bridge
     }
 }
 
-/// egui-mcp's own MCP server: the TCP connection lifecycle plus an always-available
-/// [`UiServer`].
+/// egui-mcp's own MCP server: the TCP connection lifecycle plus the UI tools.
 ///
-/// The UI tools remain discoverable while disconnected and report a recoverable error until an
-/// app is attached.
+/// It owns the UI tools' [`ToolRouter`] directly and the attached [`UiServer`] (if any) behind
+/// a lock. The router is independent of the connection, so the app-driving tools stay
+/// discoverable while disconnected; calling one before `attach` returns a recoverable
+/// `no app connected` error.
 #[derive(Clone)]
 pub struct Server {
-    state: Arc<AppState>,
-    ui: UiServer,
+    /// The attached UI server, `Some` only while connected. Behind a shared lock so the
+    /// `&self` handler methods (and clones rmcp may make) can attach/detach it.
+    ui: Arc<Mutex<Option<UiServer>>>,
+    ui_router: ToolRouter<UiServer>,
     lifecycle_router: ToolRouter<Self>,
 }
 
 impl Server {
     pub fn new() -> Self {
-        Self::from_state(AppState::new())
-    }
-
-    /// Build a server around a shared [`AppState`], so a host can hold the
-    /// same state and install a bridge into it out-of-band.
-    pub fn from_state(state: Arc<AppState>) -> Self {
         Self {
-            ui: UiServer::new(Arc::clone(&state)),
-            state,
+            ui: Arc::new(Mutex::new(None)),
+            ui_router: UiServer::router(),
             lifecycle_router: Self::lifecycle_router(),
         }
     }
 
-    /// The shared app state (holds the active bridge).
-    pub fn state(&self) -> Arc<AppState> {
-        Arc::clone(&self.state)
-    }
-
     fn tools(&self) -> Vec<Tool> {
         let mut tools = self.lifecycle_router.list_all();
-        tools.extend(self.ui.tools());
+        tools.extend(self.ui_router.list_all());
         tools
     }
 }
@@ -530,7 +484,7 @@ impl Server {
         &self,
         Parameters(args): Parameters<AttachArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let mut guard = self.state.bridge.lock().await;
+        let mut guard = self.ui.lock().await;
         if guard.is_some() {
             return Ok(text_error(
                 "already connected — call `disconnect` first before attaching again",
@@ -542,7 +496,7 @@ impl Server {
             Err(e) => return Ok(text_error(format!("attach failed: {e}"))),
         };
         let info = bridge.peer_info.clone();
-        *guard = Some(bridge);
+        *guard = Some(UiServer::new(bridge));
         Ok(CallToolResult::structured(
             json!({ "ok": true, "attached": info }),
         ))
@@ -552,7 +506,7 @@ impl Server {
     /// App-driving tools remain available but return an error until `attach` is called again.
     #[tool]
     async fn disconnect(&self, _p: Parameters<EmptyArgs>) -> Result<CallToolResult, McpError> {
-        if self.state.clear_bridge().await {
+        if self.ui.lock().await.take().is_some() {
             Ok(CallToolResult::structured(json!({ "ok": true })))
         } else {
             Ok(text_error("no app connected"))
@@ -562,10 +516,10 @@ impl Server {
     /// Report whether an app is connected and its peer info.
     #[tool]
     async fn status(&self, _p: Parameters<EmptyArgs>) -> Result<CallToolResult, McpError> {
-        let guard = self.state.bridge.lock().await;
+        let guard = self.ui.lock().await;
         let body = match guard.as_ref() {
             None => json!({ "state": "idle" }),
-            Some(bridge) => json!({ "state": "connected", "peer": bridge.peer_info }),
+            Some(ui) => json!({ "state": "connected", "peer": ui.bridge().peer_info }),
         };
         Ok(CallToolResult::structured(body))
     }
@@ -582,7 +536,7 @@ impl UiServer {
         &self,
         Parameters(args): Parameters<ScreenshotArgs>,
     ) -> ToolResult<CallToolResult> {
-        let bridge = self.bridge().await?;
+        let bridge = self.bridge();
         let png = bridge.screenshot(args.pixels_per_point).await?;
         let saved = match &args.save_path {
             Some(path) => {
@@ -610,7 +564,7 @@ impl UiServer {
         &self,
         Parameters(filter): Parameters<QueryFilter>,
     ) -> Result<Json<QueryTreeResult>, ToolError> {
-        let bridge = self.bridge().await?;
+        let bridge = self.bridge();
         let snap = bridge.fetch_tree().await?;
         if let Some(role) = &filter.role {
             tree::validate_role(role, snap.tree.as_ref())?;
@@ -630,7 +584,7 @@ impl UiServer {
         &self,
         Parameters(args): Parameters<GetNodeArgs>,
     ) -> Result<Json<GetNodeResult>, ToolError> {
-        let bridge = self.bridge().await?;
+        let bridge = self.bridge();
         let id = args
             .id
             .trim()
@@ -655,18 +609,16 @@ impl UiServer {
     /// `count: 2` → double-click, `3` → triple.
     #[tool]
     async fn click(&self, Parameters(args): Parameters<ClickArgs>) -> ToolResult<CallToolResult> {
-        let bridge = self.bridge().await?;
-        Ok(CallToolResult::structured(
-            click_inner(&bridge, args).await?,
-        ))
+        let bridge = self.bridge();
+        Ok(CallToolResult::structured(click_inner(bridge, args).await?))
     }
 
     /// Move the pointer over a node (or raw `pos`) without clicking.
     /// Tooltips and hover popups only appear after a short delay — follow with `wait_for` (e.g. its `min_steps`) to let them settle before reading the tree or screenshotting.
     #[tool]
     async fn hover(&self, Parameters(args): Parameters<HoverArgs>) -> ToolResult<CallToolResult> {
-        let bridge = self.bridge().await?;
-        let (node_id, pos) = resolve_target(&bridge, &args.target).await?;
+        let bridge = self.bridge();
+        let (node_id, pos) = resolve_target(bridge, &args.target).await?;
         bridge.apply_events(vec![Event::PointerMoved(pos)]).await?;
         Ok(CallToolResult::structured(json!({
             "ok": true,
@@ -679,8 +631,8 @@ impl UiServer {
     /// `delta` is in logical points: positive Y scrolls down (reveals content below); positive X scrolls right.
     #[tool]
     async fn scroll(&self, Parameters(args): Parameters<ScrollArgs>) -> ToolResult<CallToolResult> {
-        let bridge = self.bridge().await?;
-        let (node_id, pos) = resolve_target(&bridge, &args.target).await?;
+        let bridge = self.bridge();
+        let (node_id, pos) = resolve_target(bridge, &args.target).await?;
         let modifiers = args.modifiers.to_egui();
         let events = vec![
             Event::PointerMoved(pos),
@@ -706,7 +658,7 @@ impl UiServer {
     /// `steps` controls how many intermediate pointer-move events are emitted between press and release.
     #[tool]
     async fn drag(&self, Parameters(args): Parameters<DragArgs>) -> ToolResult<CallToolResult> {
-        let bridge = self.bridge().await?;
+        let bridge = self.bridge();
         // Resolve both endpoints against one tree snapshot — no input happens between them.
         let snap = bridge.fetch_tree().await?;
         let (start_id, start_pos) = resolve_in_tree(&snap, &args.start)?;
@@ -758,7 +710,7 @@ impl UiServer {
     /// Resize the app's viewport to the given logical-point dimensions.
     #[tool]
     async fn resize(&self, Parameters(args): Parameters<ResizeArgs>) -> ToolResult<CallToolResult> {
-        let bridge = self.bridge().await?;
+        let bridge = self.bridge();
         bridge.resize(args.width, args.height).await?;
         Ok(CallToolResult::structured(
             json!({ "ok": true, "width": args.width, "height": args.height }),
@@ -773,7 +725,7 @@ impl UiServer {
         &self,
         Parameters(args): Parameters<WaitForArgs>,
     ) -> ToolResult<CallToolResult> {
-        let bridge = self.bridge().await?;
+        let bridge = self.bridge();
         let has_filter = args.role.is_some() || args.label_contains.is_some();
         if !has_filter && args.min_steps == 0 {
             return Err(
@@ -831,7 +783,7 @@ impl UiServer {
         &self,
         Parameters(args): Parameters<TypeTextArgs>,
     ) -> ToolResult<CallToolResult> {
-        let bridge = self.bridge().await?;
+        let bridge = self.bridge();
         // Optionally focus a target first. Unlike a click, an AccessKit focus request doesn't
         // move the text cursor or reset the selection.
         let focused_id = match Locator::from_fields(
@@ -879,7 +831,7 @@ impl UiServer {
         &self,
         Parameters(args): Parameters<PressKeyArgs>,
     ) -> ToolResult<CallToolResult> {
-        let bridge = self.bridge().await?;
+        let bridge = self.bridge();
         let key =
             egui::Key::from_name(&args.key).ok_or_else(|| format!("unknown key `{}`", args.key))?;
         let modifiers = args.modifiers.to_egui();
@@ -922,15 +874,16 @@ impl UiServer {
         }
         let mut content: Vec<Content> = Vec::new();
         let mut any_error = false;
+        // Re-enter the UI router by name — same path as a top-level call, so each step parses
+        // its args and runs exactly like a direct invocation.
+        let router = Self::router();
         for action in args.actions {
-            // Re-enter our own router by name — same path as a top-level call, so each step
-            // parses its args and runs exactly like a direct invocation.
             let mut request = CallToolRequestParams::new(action.name.clone());
             if let Value::Object(map) = action.args {
                 request = request.with_arguments(map);
             }
             let result = self
-                .dispatch(request, ctx.clone())
+                .dispatch(&router, request, ctx.clone())
                 .await
                 .unwrap_or_else(|e| text_error(e.message.to_string()));
             let mut step_texts: Vec<String> = Vec::new();
@@ -1024,19 +977,23 @@ impl ServerHandler for Server {
         request: CallToolRequestParams,
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
-        // Lifecycle tools run on `self`; everything else is delegated to the UI server.
+        // Lifecycle tools run on `self`; everything else is delegated to the attached UI server.
         if self.lifecycle_router.has_route(&request.name) {
             let tcc = ToolCallContext::new(self, request, context);
             return self.lifecycle_router.call(tcc).await;
         }
-        self.ui.dispatch(request, context).await
+        let guard = self.ui.lock().await;
+        let Some(ui) = guard.as_ref() else {
+            return Ok(text_error("no app connected — call `attach` first"));
+        };
+        ui.dispatch(&self.ui_router, request, context).await
     }
 
     fn get_tool(&self, name: &str) -> Option<Tool> {
         if let Some(tool) = self.lifecycle_router.get(name) {
             return Some(tool.clone());
         }
-        self.ui.get_tool(name)
+        self.ui_router.get(name).cloned()
     }
 }
 
