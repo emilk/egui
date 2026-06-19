@@ -50,7 +50,7 @@ use rmcp::{
     tool, tool_router,
 };
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
 
@@ -542,10 +542,11 @@ impl UiServer {
     )]
     async fn screenshot(&self, _p: Parameters<EmptyArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
-        let (meta, png_b64) = screenshot_inner(&bridge).await?;
-        let meta_text = serde_json::to_string(&meta).map_err(|e| format!("serialize: {e}"))?;
+        let png = bridge.screenshot().await?;
+        let png_b64 = base64::engine::general_purpose::STANDARD.encode(&png.bytes);
+        let meta = json!({ "width": png.size[0], "height": png.size[1] });
         Ok(CallToolResult::success(vec![
-            Content::text(meta_text),
+            Content::text(meta.to_string()),
             Content::image(png_b64, "image/png"),
         ]))
     }
@@ -604,9 +605,17 @@ impl UiServer {
     )]
     async fn hover(&self, Parameters(args): Parameters<HoverArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
-        Ok(CallToolResult::structured(
-            hover_inner(&bridge, args).await?,
-        ))
+        let (node_id, pos) = resolve_target(&bridge, &args.target).await?;
+        bridge.apply_events(vec![Event::PointerMoved(pos)]).await?;
+        // Pump extra frames so tooltips / hover popups settle.
+        for _ in 0..args.settle_frames {
+            let _ = bridge.fetch_tree().await?;
+        }
+        Ok(CallToolResult::structured(json!({
+            "ok": true,
+            "hovered_id": node_id,
+            "pos": [pos.x, pos.y],
+        })))
     }
 
     #[tool(
@@ -615,9 +624,25 @@ impl UiServer {
     )]
     async fn scroll(&self, Parameters(args): Parameters<ScrollArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
-        Ok(CallToolResult::structured(
-            scroll_inner(&bridge, args).await?,
-        ))
+        let (node_id, pos) = resolve_target(&bridge, &args.target).await?;
+        let modifiers = args.modifiers.to_egui();
+        let events = vec![
+            Event::PointerMoved(pos),
+            Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                // Match scroll direction to the convention of playwright and other tools by inverting it
+                delta: egui::Vec2::new(-args.delta.x, -args.delta.y),
+                phase: egui::TouchPhase::Move,
+                modifiers,
+            },
+        ];
+        bridge.apply_events(events).await?;
+        Ok(CallToolResult::structured(json!({
+            "ok": true,
+            "scrolled_id": node_id,
+            "pos": [pos.x, pos.y],
+            "delta": [args.delta.x, args.delta.y],
+        })))
     }
 
     #[tool(
@@ -628,14 +653,60 @@ impl UiServer {
     )]
     async fn drag(&self, Parameters(args): Parameters<DragArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
-        Ok(CallToolResult::structured(drag_inner(&bridge, args).await?))
+        // Resolve both endpoints against one tree snapshot — no input happens between them.
+        let snap = bridge.fetch_tree().await?;
+        let (start_id, start_pos) = resolve_in_tree(&snap, &args.start)?;
+        let (end_id, end_pos) = resolve_in_tree(&snap, &args.end)?;
+        let modifiers = args.modifiers.to_egui();
+        let steps = args.steps.max(1);
+
+        bridge
+            .apply_events(vec![
+                Event::PointerMoved(start_pos),
+                Event::PointerButton {
+                    pos: start_pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers,
+                },
+            ])
+            .await?;
+
+        for i in 1..=steps {
+            let t = i as f32 / steps as f32;
+            let waypoint = egui::Pos2::new(
+                start_pos.x + (end_pos.x - start_pos.x) * t,
+                start_pos.y + (end_pos.y - start_pos.y) * t,
+            );
+            bridge
+                .apply_events(vec![Event::PointerMoved(waypoint)])
+                .await?;
+        }
+
+        bridge
+            .apply_events(vec![Event::PointerButton {
+                pos: end_pos,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers,
+            }])
+            .await?;
+        Ok(CallToolResult::structured(json!({
+            "ok": true,
+            "start_id": start_id,
+            "end_id": end_id,
+            "start_pos": [start_pos.x, start_pos.y],
+            "end_pos": [end_pos.x, end_pos.y],
+            "steps": steps,
+        })))
     }
 
     #[tool(description = "Resize the app's viewport to the given logical-point dimensions.")]
     async fn resize(&self, Parameters(args): Parameters<ResizeArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
+        bridge.resize(args.width, args.height).await?;
         Ok(CallToolResult::structured(
-            resize_inner(&bridge, args).await?,
+            json!({ "ok": true, "width": args.width, "height": args.height }),
         ))
     }
 
@@ -648,9 +719,38 @@ impl UiServer {
         Parameters(args): Parameters<WaitForArgs>,
     ) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
-        Ok(CallToolResult::structured(
-            wait_for_inner(&bridge, args).await?,
-        ))
+        if args.role.is_none() && args.label_contains.is_none() {
+            return Err("wait_for requires at least `role` or `label_contains`".to_owned());
+        }
+        let filter = QueryFilter {
+            role: args.role.clone(),
+            label_contains: args.label_contains.clone(),
+            visible_only: true,
+            limit: args.min_matches as usize,
+        };
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(args.timeout_secs);
+        loop {
+            let snap = bridge.fetch_tree().await?;
+            let matches: Vec<NodeView> = match snap.tree {
+                Some(tree) => tree::query(&tree, &filter),
+                None => Vec::new(),
+            };
+            if matches.len() as u32 >= args.min_matches {
+                return Ok(CallToolResult::structured(
+                    json!({ "ok": true, "matched": matches }),
+                ));
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(format!(
+                    "wait_for timed out after {}s (role={:?}, label_contains={:?}, found {})",
+                    args.timeout_secs,
+                    args.role,
+                    args.label_contains,
+                    matches.len()
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
     }
 
     #[tool(
@@ -663,9 +763,41 @@ impl UiServer {
         Parameters(args): Parameters<TypeTextArgs>,
     ) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
-        Ok(CallToolResult::structured(
-            type_text_inner(&bridge, args).await?,
-        ))
+        // Optionally focus a target widget by clicking it first.
+        let focused_locator =
+            if args.id.is_some() || args.role.is_some() || args.label_contains.is_some() {
+                let click_args = ClickArgs {
+                    target: Target {
+                        id: args.id.clone(),
+                        role: args.role.clone(),
+                        label_contains: args.label_contains.clone(),
+                        pos: None,
+                    },
+                    button: "primary".to_owned(),
+                    count: 1,
+                    modifiers: PressKeyModifiers::default(),
+                };
+                Some(click_inner(&bridge, click_args).await?)
+            } else {
+                None
+            };
+
+        let mut chars_sent = 0u32;
+        for ch in args.text.chars() {
+            if ch.is_control() {
+                continue;
+            }
+            bridge
+                .apply_events(vec![Event::Text(ch.to_string())])
+                .await?;
+            chars_sent += 1;
+        }
+
+        Ok(CallToolResult::structured(json!({
+            "ok": true,
+            "chars_sent": chars_sent,
+            "focused": focused_locator,
+        })))
     }
 
     #[tool(
@@ -678,8 +810,29 @@ impl UiServer {
         Parameters(args): Parameters<PressKeyArgs>,
     ) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
+        let key =
+            egui::Key::from_name(&args.key).ok_or_else(|| format!("unknown key `{}`", args.key))?;
+        let modifiers = args.modifiers.to_egui();
+        bridge
+            .apply_events(vec![
+                Event::Key {
+                    key,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers,
+                },
+                Event::Key {
+                    key,
+                    physical_key: None,
+                    pressed: false,
+                    repeat: false,
+                    modifiers,
+                },
+            ])
+            .await?;
         Ok(CallToolResult::structured(
-            press_key_inner(&bridge, args).await?,
+            json!({ "ok": true, "key": args.key }),
         ))
     }
 
@@ -827,10 +980,7 @@ where
     // Tool handlers return `Err(ToolError)` for recoverable failures, which `IntoCallToolResult`
     // turns into an `isError: true` result — so this is `Ok` in practice. A genuine protocol
     // error (only possible from a handler returning `McpError`) is flattened to its message.
-    match f(Parameters(parsed)).await.into_call_tool_result() {
-        Ok(r) => r,
-        Err(e) => text_error(e.message.to_string()),
-    }
+    f(Parameters(parsed)).await.into_call_tool_result().unwrap_or_else(|e| text_error(e.message.to_string()))
 }
 
 fn content_as_text(c: &Content) -> Option<&str> {
@@ -845,26 +995,9 @@ fn content_is_image(c: &Content) -> bool {
 }
 
 // ---------------------------------------------------------------------------------------
-// Inner action handlers (shared with batch)
+// Shared action helpers — `click_inner` is reused by `type_text`'s focus-click;
+// `parse_pointer_button` by `click_inner`.
 // ---------------------------------------------------------------------------------------
-
-#[derive(Serialize)]
-struct ScreenshotMeta {
-    width: u32,
-    height: u32,
-}
-
-async fn screenshot_inner(bridge: &Bridge) -> ToolResult<(ScreenshotMeta, String)> {
-    let png = bridge.screenshot().await?;
-    let meta = ScreenshotMeta {
-        width: png.size[0],
-        height: png.size[1],
-    };
-    Ok((
-        meta,
-        base64::engine::general_purpose::STANDARD.encode(&png.bytes),
-    ))
-}
 
 fn parse_pointer_button(name: &str) -> ToolResult<egui::PointerButton> {
     match name.to_ascii_lowercase().as_str() {
@@ -910,190 +1043,4 @@ async fn click_inner(bridge: &Bridge, args: ClickArgs) -> ToolResult<Value> {
         "button": args.button,
         "count": count,
     }))
-}
-
-async fn hover_inner(bridge: &Bridge, args: HoverArgs) -> ToolResult<Value> {
-    let (node_id, pos) = resolve_target(bridge, &args.target).await?;
-    bridge.apply_events(vec![Event::PointerMoved(pos)]).await?;
-    // Pump extra frames so tooltips / hover popups settle.
-    for _ in 0..args.settle_frames {
-        let _ = bridge.fetch_tree().await?;
-    }
-    Ok(json!({
-        "ok": true,
-        "hovered_id": node_id,
-        "pos": [pos.x, pos.y],
-    }))
-}
-
-async fn scroll_inner(bridge: &Bridge, args: ScrollArgs) -> ToolResult<Value> {
-    let (node_id, pos) = resolve_target(bridge, &args.target).await?;
-    let modifiers = args.modifiers.to_egui();
-    let events = vec![
-        Event::PointerMoved(pos),
-        Event::MouseWheel {
-            unit: egui::MouseWheelUnit::Point,
-            // Match scroll direction to the convention of playwright and other tools by inverting it
-            delta: egui::Vec2::new(-args.delta.x, -args.delta.y),
-            phase: egui::TouchPhase::Move,
-            modifiers,
-        },
-    ];
-    bridge.apply_events(events).await?;
-    Ok(json!({
-        "ok": true,
-        "scrolled_id": node_id,
-        "pos": [pos.x, pos.y],
-        "delta": [args.delta.x, args.delta.y],
-    }))
-}
-
-async fn drag_inner(bridge: &Bridge, args: DragArgs) -> ToolResult<Value> {
-    // Resolve both endpoints against one tree snapshot — no input happens between them.
-    let snap = bridge.fetch_tree().await?;
-    let (start_id, start_pos) = resolve_in_tree(&snap, &args.start)?;
-    let (end_id, end_pos) = resolve_in_tree(&snap, &args.end)?;
-    let modifiers = args.modifiers.to_egui();
-    let steps = args.steps.max(1);
-
-    bridge
-        .apply_events(vec![
-            Event::PointerMoved(start_pos),
-            Event::PointerButton {
-                pos: start_pos,
-                button: egui::PointerButton::Primary,
-                pressed: true,
-                modifiers,
-            },
-        ])
-        .await?;
-
-    for i in 1..=steps {
-        let t = i as f32 / steps as f32;
-        let waypoint = egui::Pos2::new(
-            start_pos.x + (end_pos.x - start_pos.x) * t,
-            start_pos.y + (end_pos.y - start_pos.y) * t,
-        );
-        bridge
-            .apply_events(vec![Event::PointerMoved(waypoint)])
-            .await?;
-    }
-
-    bridge
-        .apply_events(vec![Event::PointerButton {
-            pos: end_pos,
-            button: egui::PointerButton::Primary,
-            pressed: false,
-            modifiers,
-        }])
-        .await?;
-    Ok(json!({
-        "ok": true,
-        "start_id": start_id,
-        "end_id": end_id,
-        "start_pos": [start_pos.x, start_pos.y],
-        "end_pos": [end_pos.x, end_pos.y],
-        "steps": steps,
-    }))
-}
-
-async fn resize_inner(bridge: &Bridge, args: ResizeArgs) -> ToolResult<Value> {
-    bridge.resize(args.width, args.height).await?;
-    Ok(json!({ "ok": true, "width": args.width, "height": args.height }))
-}
-
-async fn wait_for_inner(bridge: &Bridge, args: WaitForArgs) -> ToolResult<Value> {
-    if args.role.is_none() && args.label_contains.is_none() {
-        return Err("wait_for requires at least `role` or `label_contains`".to_owned());
-    }
-    let filter = QueryFilter {
-        role: args.role.clone(),
-        label_contains: args.label_contains.clone(),
-        visible_only: true,
-        limit: args.min_matches as usize,
-    };
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(args.timeout_secs);
-    loop {
-        let snap = bridge.fetch_tree().await?;
-        let matches: Vec<NodeView> = match snap.tree {
-            Some(tree) => tree::query(&tree, &filter),
-            None => Vec::new(),
-        };
-        if matches.len() as u32 >= args.min_matches {
-            return Ok(json!({ "ok": true, "matched": matches }));
-        }
-        if tokio::time::Instant::now() >= deadline {
-            return Err(format!(
-                "wait_for timed out after {}s (role={:?}, label_contains={:?}, found {})",
-                args.timeout_secs,
-                args.role,
-                args.label_contains,
-                matches.len()
-            ));
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-}
-
-async fn type_text_inner(bridge: &Bridge, args: TypeTextArgs) -> ToolResult<Value> {
-    // Optionally focus a target widget by clicking it first.
-    let focused_locator =
-        if args.id.is_some() || args.role.is_some() || args.label_contains.is_some() {
-            let click_args = ClickArgs {
-                target: Target {
-                    id: args.id.clone(),
-                    role: args.role.clone(),
-                    label_contains: args.label_contains.clone(),
-                    pos: None,
-                },
-                button: "primary".to_owned(),
-                count: 1,
-                modifiers: PressKeyModifiers::default(),
-            };
-            Some(click_inner(bridge, click_args).await?)
-        } else {
-            None
-        };
-
-    let mut chars_sent = 0u32;
-    for ch in args.text.chars() {
-        if ch.is_control() {
-            continue;
-        }
-        bridge
-            .apply_events(vec![Event::Text(ch.to_string())])
-            .await?;
-        chars_sent += 1;
-    }
-
-    Ok(json!({
-        "ok": true,
-        "chars_sent": chars_sent,
-        "focused": focused_locator,
-    }))
-}
-
-async fn press_key_inner(bridge: &Bridge, args: PressKeyArgs) -> ToolResult<Value> {
-    let key =
-        egui::Key::from_name(&args.key).ok_or_else(|| format!("unknown key `{}`", args.key))?;
-    let modifiers = args.modifiers.to_egui();
-    bridge
-        .apply_events(vec![
-            Event::Key {
-                key,
-                physical_key: None,
-                pressed: true,
-                repeat: false,
-                modifiers,
-            },
-            Event::Key {
-                key,
-                physical_key: None,
-                pressed: false,
-                repeat: false,
-                modifiers,
-            },
-        ])
-        .await?;
-    Ok(json!({ "ok": true, "key": args.key }))
 }
