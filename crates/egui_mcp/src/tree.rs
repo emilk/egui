@@ -198,6 +198,27 @@ pub enum Locator {
     },
 }
 
+impl Locator {
+    /// Build a locator from raw tool fields: a parseable `id` wins, else a role/label match.
+    /// Returns `None` when no locator field is set.
+    pub fn from_fields(
+        id: Option<&str>,
+        role: Option<String>,
+        label_contains: Option<String>,
+    ) -> Option<Self> {
+        if let Some(id) = id.and_then(|s| s.trim().parse::<u64>().ok()) {
+            return Some(Self::Id { id });
+        }
+        if role.is_some() || label_contains.is_some() {
+            return Some(Self::Match {
+                role,
+                label_contains,
+            });
+        }
+        None
+    }
+}
+
 pub fn resolve_node<'a>(tree: &'a Tree, locator: &Locator) -> Option<Node<'a>> {
     let root = tree.state().root();
     match locator {
@@ -215,6 +236,11 @@ pub fn resolve_node<'a>(tree: &'a Tree, locator: &Locator) -> Option<Node<'a>> {
             find_first(&root, &|n| matches(n, &filter))
         }
     }
+}
+
+/// Resolve a locator to its node's accesskit id (for an AccessKit focus request).
+pub fn resolve_node_id(tree: &Tree, locator: &Locator) -> Option<u64> {
+    resolve_node(tree, locator).map(|n| accesskit_id(&n))
 }
 
 /// Depth-first search returning the first node satisfying `pred`.

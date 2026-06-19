@@ -26,7 +26,7 @@ Conventions:
 
 {
   "name": "attach",
-  "description": "Connect to a running egui app's inspection port (an app built with eframe's `inspection` feature, launched with `EGUI_INSPECTION` set).\nDefaults to 127.0.0.1:5719.\nRetries until `timeout_secs` elapses.\nOn success the app-driving tools become available.",
+  "description": "Connect to a running egui app's inspection port (an app built with eframe's `inspection` feature, launched with `EGUI_INSPECTION` set).\nDefaults to 127.0.0.1:5719.\nRetries until `timeout_secs` elapses.\nOn success the app-driving tools start working (they are always listed, but error until an app is attached).",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -63,7 +63,7 @@ Conventions:
 
 {
   "name": "batch",
-  "description": "Execute a sequence of tool calls in one round trip.\nStops on the first error.\nResults are emitted in execution order, interleaved: each step contributes one JSON text item followed by any image items it produced (e.g. screenshots).\n`batch` cannot be nested.\nUse this to act and observe in one call, e.g. a `click` then a `query_tree` or `screenshot`.",
+  "description": "Execute a sequence of app-driving tool calls in one round trip (the connection tools `attach`/`disconnect`/`status` are not available here).\nStops on the first error.\nResults are emitted in execution order, interleaved: each step contributes one JSON text item followed by any image items it produced (e.g. screenshots).\n`batch` cannot be nested.\nUse this to act and observe in one call, e.g. a `click` then a `query_tree` or `screenshot`.",
   "inputSchema": {
     "$defs": {
       "BatchAction": {
@@ -783,7 +783,7 @@ Conventions:
 
 {
   "name": "scroll",
-  "description": "Send a mouse wheel scroll over a node (or raw `pos`).\n`delta` is in logical points: positive Y scrolls content down; positive X right.",
+  "description": "Send a mouse wheel scroll over a node (or raw `pos`).\n`delta` is in logical points: positive Y scrolls down (reveals content below); positive X scrolls right.",
   "inputSchema": {
     "$defs": {
       "Pos2Lit": {
@@ -834,7 +834,7 @@ Conventions:
     "properties": {
       "delta": {
         "$ref": "#/$defs/Pos2Lit",
-        "description": "Logical points.\nPositive Y scrolls content down (revealing content below)."
+        "description": "Logical points.\nPositive Y scrolls down (reveals content below); positive X scrolls right."
       },
       "id": {
         "default": null,
@@ -898,12 +898,13 @@ Conventions:
 
 {
   "name": "type_text",
-  "description": "Type text into the currently focused widget.\nOptionally first focuses a node (by `id` or `role`/`label_contains`) via a click.",
+  "description": "Type text into the currently focused widget.\nOptionally focus a node first (by `id` or `role`/`label_contains`) — this uses an AccessKit focus request, not a click, so it won't move the cursor or clear an existing text selection.",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "id": {
         "default": null,
+        "description": "Optional focus target: node id from `query_tree` to focus before typing.\nOmit all locator fields to type into whatever is currently focused.",
         "type": [
           "string",
           "null"
@@ -918,7 +919,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "Role name (case-insensitive) for the optional focus-click target.\nAn unrecognized role errors with the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).\nAn unrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"

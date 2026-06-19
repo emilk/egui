@@ -21,7 +21,7 @@
 //! lock for one call and errors with `no app connected` when nothing is attached.
 //!
 //! Locator resolution is done here, MCP-side: a tool fetches a fresh AccessKit tree
-//! (`GetTree`), resolves the locator to a screen position, synthesizes the matching
+//! (`GetTree`), resolves the locator to a logical-point position, synthesizes the matching
 //! `egui::Event`s, and sends them via `ApplyEvents`. The app-side plugin stays low-level.
 //!
 //! Recoverable failures (no app connected, node not found, etc.) are returned as a plain
@@ -245,21 +245,11 @@ pub struct Pos2Lit {
 
 impl Target {
     fn as_locator(&self) -> Option<Locator> {
-        // A parseable `id` wins; otherwise fall back to a role/label match.
-        if let Some(id) = self
-            .id
-            .as_deref()
-            .and_then(|s| s.trim().parse::<u64>().ok())
-        {
-            return Some(Locator::Id { id });
-        }
-        if self.role.is_some() || self.label_contains.is_some() {
-            return Some(Locator::Match {
-                role: self.role.clone(),
-                label_contains: self.label_contains.clone(),
-            });
-        }
-        None
+        Locator::from_fields(
+            self.id.as_deref(),
+            self.role.clone(),
+            self.label_contains.clone(),
+        )
     }
 }
 
@@ -427,7 +417,7 @@ pub struct ScrollArgs {
     pub target: Target,
 
     /// Logical points.
-    /// Positive Y scrolls content down (revealing content below).
+    /// Positive Y scrolls down (reveals content below); positive X scrolls right.
     pub delta: Pos2Lit,
     #[serde(default)]
     pub modifiers: PressKeyModifiers,
@@ -478,10 +468,13 @@ fn default_min_matches() -> u32 {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TypeTextArgs {
     pub text: String,
+
+    /// Optional focus target: node id from `query_tree` to focus before typing.
+    /// Omit all locator fields to type into whatever is currently focused.
     #[serde(default)]
     pub id: Option<String>,
 
-    /// Role name (case-insensitive) for the optional focus-click target.
+    /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).
     /// An unrecognized role errors with the roles present in the tree.
     #[serde(default)]
     pub role: Option<String>,
@@ -532,7 +525,7 @@ impl Server {
     /// Connect to a running egui app's inspection port (an app built with eframe's `inspection` feature, launched with `EGUI_INSPECTION` set).
     /// Defaults to 127.0.0.1:5719.
     /// Retries until `timeout_secs` elapses.
-    /// On success the app-driving tools become available.
+    /// On success the app-driving tools start working (they are always listed, but error until an app is attached).
     #[tool]
     async fn attach(
         &self,
@@ -683,7 +676,7 @@ impl UiServer {
     }
 
     /// Send a mouse wheel scroll over a node (or raw `pos`).
-    /// `delta` is in logical points: positive Y scrolls content down; positive X right.
+    /// `delta` is in logical points: positive Y scrolls down (reveals content below); positive X scrolls right.
     #[tool]
     async fn scroll(&self, Parameters(args): Parameters<ScrollArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
@@ -819,47 +812,49 @@ impl UiServer {
     }
 
     /// Type text into the currently focused widget.
-    /// Optionally first focuses a node (by `id` or `role`/`label_contains`) via a click.
+    /// Optionally focus a node first (by `id` or `role`/`label_contains`) — this uses an AccessKit focus request, not a click, so it won't move the cursor or clear an existing text selection.
     #[tool]
     async fn type_text(
         &self,
         Parameters(args): Parameters<TypeTextArgs>,
     ) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
-        // Optionally focus a target widget by clicking it first.
-        let focused_locator =
-            if args.id.is_some() || args.role.is_some() || args.label_contains.is_some() {
-                let click_args = ClickArgs {
-                    target: Target {
-                        id: args.id.clone(),
-                        role: args.role.clone(),
-                        label_contains: args.label_contains.clone(),
-                        pos: None,
-                    },
-                    button: "primary".to_owned(),
-                    count: 1,
-                    modifiers: PressKeyModifiers::default(),
-                };
-                Some(click_inner(&bridge, click_args).await?)
-            } else {
-                None
-            };
-
-        let mut chars_sent = 0u32;
-        for ch in args.text.chars() {
-            if ch.is_control() {
-                continue;
+        // Optionally focus a target first. Unlike a click, an AccessKit focus request doesn't
+        // move the text cursor or reset the selection.
+        let focused_id = match Locator::from_fields(
+            args.id.as_deref(),
+            args.role.clone(),
+            args.label_contains,
+        ) {
+            Some(locator) => {
+                let snap = bridge.fetch_tree().await?;
+                if let Some(role) = &args.role {
+                    tree::validate_role(role, snap.tree.as_ref())?;
+                }
+                let tree = snap.tree.as_ref().ok_or("no accesskit tree yet")?;
+                let id = tree::resolve_node_id(tree, &locator).ok_or("focus target not found")?;
+                bridge
+                    .apply_events(vec![Event::AccessKitActionRequest(
+                        accesskit::ActionRequest {
+                            action: accesskit::Action::Focus,
+                            target_tree: accesskit::TreeId::ROOT,
+                            target_node: accesskit::NodeId(id),
+                            data: None,
+                        },
+                    )])
+                    .await?;
+                Some(id.to_string())
             }
-            bridge
-                .apply_events(vec![Event::Text(ch.to_string())])
-                .await?;
-            chars_sent += 1;
+            None => None,
+        };
+
+        if !args.text.is_empty() {
+            bridge.apply_events(vec![Event::Text(args.text)]).await?;
         }
 
         Ok(CallToolResult::structured(json!({
             "ok": true,
-            "chars_sent": chars_sent,
-            "focused": focused_locator,
+            "focused_id": focused_id,
         })))
     }
 
@@ -897,7 +892,7 @@ impl UiServer {
         ))
     }
 
-    /// Execute a sequence of tool calls in one round trip.
+    /// Execute a sequence of app-driving tool calls in one round trip (the connection tools `attach`/`disconnect`/`status` are not available here).
     /// Stops on the first error.
     /// Results are emitted in execution order, interleaved: each step contributes one JSON text item followed by any image items it produced (e.g. screenshots).
     /// `batch` cannot be nested.
