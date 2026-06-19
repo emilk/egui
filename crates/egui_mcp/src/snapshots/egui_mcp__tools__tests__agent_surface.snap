@@ -12,6 +12,7 @@ Getting oriented:
 
 Targeting widgets:
 - Prefer locators — an `id` from `query_tree`, or `role`/`label_contains` — over a raw `pos`. Locators resolve to the widget's current position and survive layout changes; reach for `pos` only when nothing matches.
+- A locator in an action must match exactly one node. If `role`/`label_contains` matches several, the call errors and lists the candidates — narrow the filter or target a specific `id`. Use `query_tree` when you want every match.
 
 Acting and verifying:
 - After an action that changes the UI, confirm it landed: `query_tree` for the expected state, `screenshot` to look, or `wait_for` to poll until async or animated UI settles.

@@ -180,12 +180,12 @@ pub fn node_view(node: &Node<'_>, pixels_per_point: f32) -> NodeView {
 }
 
 /// Project a consumer node to its original `accesskit::NodeId` as a `u64`.
-fn accesskit_id(node: &Node<'_>) -> u64 {
+pub fn accesskit_id(node: &Node<'_>) -> u64 {
     let (local, _tree) = node.locate();
     local.0
 }
 
-/// A resolved lookup target: a specific node `id`, or a role/label match (first hit wins).
+/// A resolved lookup target: a specific node `id`, or a role/label match.
 /// Built directly by the tools from a `Target` — never deserialized.
 #[derive(Debug, Clone)]
 pub enum Locator {
@@ -219,10 +219,28 @@ impl Locator {
     }
 }
 
-pub fn resolve_node<'a>(tree: &'a Tree, locator: &Locator) -> Option<Node<'a>> {
+/// Resolve a locator to *exactly one* node for an action (click, focus, …).
+///
+/// Like kittest's `get_by_*`, this is strict: an ambiguous locator is an error, not a silent
+/// "first match wins". A specific `id` resolves at most one node; a `role`/`label_contains` match
+/// errors if it hits zero or more than one node, listing the candidates so the caller can narrow
+/// the filter or target a specific `id`. Use `query_tree` (which returns all matches) when you
+/// genuinely expect several.
+///
+/// # Errors
+/// If no node matches, or if more than one does.
+pub fn resolve_unique<'a>(
+    tree: &'a Tree,
+    locator: &Locator,
+    pixels_per_point: f32,
+) -> Result<Node<'a>, String> {
     let root = tree.state().root();
     match locator {
-        Locator::Id { id } => find_first(&root, &|n| accesskit_id(n) == *id),
+        Locator::Id { id } => {
+            let mut found = Vec::new();
+            find_all(&root, &|n| accesskit_id(n) == *id, &mut found);
+            one(found, pixels_per_point, &format!("id `{id}`"))
+        }
         Locator::Match {
             role,
             label_contains,
@@ -231,22 +249,54 @@ pub fn resolve_node<'a>(tree: &'a Tree, locator: &Locator) -> Option<Node<'a>> {
                 role: role.clone(),
                 label_contains: label_contains.clone(),
                 visible_only: true,
-                limit: 1,
+                limit: usize::MAX,
             };
-            find_first(&root, &|n| matches(n, &filter))
+            let mut found = Vec::new();
+            find_all(&root, &|n| matches(n, &filter), &mut found);
+            let what = describe_match(role.as_deref(), label_contains.as_deref());
+            one(found, pixels_per_point, &what)
         }
     }
 }
 
-/// Resolve a locator to its node's accesskit id (for an AccessKit focus request).
-pub fn resolve_node_id(tree: &Tree, locator: &Locator) -> Option<u64> {
-    resolve_node(tree, locator).map(|n| accesskit_id(&n))
+/// Reduce a match list to the single node an action needs, or an error describing the miss.
+fn one<'a>(
+    mut found: Vec<Node<'a>>,
+    pixels_per_point: f32,
+    what: &str,
+) -> Result<Node<'a>, String> {
+    match found.len() {
+        0 => Err(format!("no node found matching {what}")),
+        1 => Ok(found.remove(0)),
+        n => {
+            let views: Vec<NodeView> = found
+                .iter()
+                .map(|node| node_view(node, pixels_per_point))
+                .collect();
+            let list =
+                serde_json::to_string_pretty(&views).unwrap_or_else(|_| format!("{n} nodes"));
+            Err(format!(
+                "{what} matched {n} nodes — narrow `role`/`label_contains`, or target a specific `id`. Matches:\n{list}"
+            ))
+        }
+    }
 }
 
-/// Depth-first search returning the first node satisfying `pred`.
-fn find_first<'a>(node: &Node<'a>, pred: &impl Fn(&Node<'_>) -> bool) -> Option<Node<'a>> {
-    if pred(node) {
-        return Some(*node);
+fn describe_match(role: Option<&str>, label_contains: Option<&str>) -> String {
+    match (role, label_contains) {
+        (Some(r), Some(l)) => format!("role `{r}` with label containing `{l}`"),
+        (Some(r), None) => format!("role `{r}`"),
+        (None, Some(l)) => format!("label containing `{l}`"),
+        (None, None) => "the locator".to_owned(),
     }
-    node.children().find_map(|child| find_first(&child, pred))
+}
+
+/// Depth-first collection of every node satisfying `pred`.
+fn find_all<'a>(node: &Node<'a>, pred: &impl Fn(&Node<'_>) -> bool, out: &mut Vec<Node<'a>>) {
+    if pred(node) {
+        out.push(*node);
+    }
+    for child in node.children() {
+        find_all(&child, pred, out);
+    }
 }

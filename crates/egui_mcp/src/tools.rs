@@ -283,7 +283,7 @@ fn resolve_in_tree(
         .as_locator()
         .ok_or("target requires `id`, `role`, `label_contains`, or `pos`")?;
     let tree = snap.tree.as_ref().ok_or("no accesskit tree yet")?;
-    let node = tree::resolve_node(tree, &locator).ok_or("node not found")?;
+    let node = tree::resolve_unique(tree, &locator, snap.pixels_per_point)?;
     let view = tree::node_view(&node, snap.pixels_per_point);
     let bounds = view.bounds.ok_or("node has no bounds — can't target")?;
     // `node_view` already returns logical-point bounds, so the center needs no further scaling.
@@ -640,9 +640,13 @@ impl UiServer {
         let locator = Locator::Id { id };
         let snap = bridge.fetch_tree().await?;
         let ppp = snap.pixels_per_point;
-        let node = snap
-            .tree
-            .and_then(|tree| tree::resolve_node(&tree, &locator).map(|n| tree::node_view(&n, ppp)));
+        // `get_node` is a lookup, not an action: a missing id is `null`, not an error.
+        let node = match snap.tree {
+            Some(tree) => tree::resolve_unique(&tree, &locator, ppp)
+                .ok()
+                .map(|n| tree::node_view(&n, ppp)),
+            None => None,
+        };
         Ok(Json(GetNodeResult { node }))
     }
 
@@ -832,7 +836,8 @@ impl UiServer {
                     tree::validate_role(role, snap.tree.as_ref())?;
                 }
                 let tree = snap.tree.as_ref().ok_or("no accesskit tree yet")?;
-                let id = tree::resolve_node_id(tree, &locator).ok_or("focus target not found")?;
+                let node = tree::resolve_unique(tree, &locator, snap.pixels_per_point)?;
+                let id = tree::accesskit_id(&node);
                 bridge
                     .apply_events(vec![Event::AccessKitActionRequest(
                         accesskit::ActionRequest {
@@ -966,6 +971,7 @@ Getting oriented:
 
 Targeting widgets:
 - Prefer locators — an `id` from `query_tree`, or `role`/`label_contains` — over a raw `pos`. Locators resolve to the widget's current position and survive layout changes; reach for `pos` only when nothing matches.
+- A locator in an action must match exactly one node. If `role`/`label_contains` matches several, the call errors and lists the candidates — narrow the filter or target a specific `id`. Use `query_tree` when you want every match.
 
 Acting and verifying:
 - After an action that changes the UI, confirm it landed: `query_tree` for the expected state, `screenshot` to look, or `wait_for` to poll until async or animated UI settles.
