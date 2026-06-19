@@ -950,7 +950,8 @@ async fn scroll_inner(bridge: &Bridge, args: ScrollArgs) -> anyhow::Result<Value
         Event::PointerMoved(pos),
         Event::MouseWheel {
             unit: egui::MouseWheelUnit::Point,
-            delta: egui::Vec2::new(args.delta.x, args.delta.y),
+            // Match scroll direction to the convention of playwright and other tools by inverting it
+            delta: egui::Vec2::new(-args.delta.x, -args.delta.y),
             phase: egui::TouchPhase::Move,
             modifiers,
         },
