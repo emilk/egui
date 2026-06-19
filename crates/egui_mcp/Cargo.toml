@@ -7,14 +7,19 @@ edition.workspace = true
 rust-version.workspace = true
 homepage = "https://github.com/emilk/egui"
 license.workspace = true
+readme = "./README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "development-tools::testing"]
 keywords = ["egui", "mcp", "accesskit", "inspector", "testing"]
-publish = false
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+publish = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
 
 [[bin]]
 name = "egui-mcp"
-path = "src/main.rs"
 
 [dependencies]
 egui_inspection = { workspace = true }
