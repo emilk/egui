@@ -20,6 +20,7 @@ rustdoc-args = ["--generate-link-to-definition"]
 
 [[bin]]
 name = "egui-mcp"
+path = "src/main.rs"
 
 [dependencies]
 egui_inspection = { workspace = true }
