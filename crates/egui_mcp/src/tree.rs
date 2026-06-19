@@ -51,8 +51,8 @@ impl RectF {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct QueryFilter {
-    /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
-    /// unrecognized role is rejected with an error that lists the roles present in the tree.
+    /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).
+    /// An unrecognized role is rejected with an error that lists the roles present in the tree.
     pub role: Option<String>,
     pub label_contains: Option<String>,
     #[serde(default = "default_true")]

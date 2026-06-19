@@ -26,18 +26,18 @@ Conventions:
 
 {
   "name": "attach",
-  "description": "Connect to a running egui app's inspection port (an app built with eframe's `inspection`\nfeature, launched with `EGUI_INSPECTION` set).\nDefaults to 127.0.0.1:5719. Retries until `timeout_secs` elapses.\nOn success the app-driving tools become available.",
+  "description": "Connect to a running egui app's inspection port (an app built with eframe's `inspection` feature, launched with `EGUI_INSPECTION` set).\nDefaults to 127.0.0.1:5719.\nRetries until `timeout_secs` elapses.\nOn success the app-driving tools become available.",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "host": {
         "default": "127.0.0.1",
-        "description": "Host the app's inspection port is on. Defaults to `127.0.0.1`.",
+        "description": "Host the app's inspection port is on.\nDefaults to `127.0.0.1`.",
         "type": "string"
       },
       "port": {
         "default": 5719,
-        "description": "Port the app is listening on. Defaults to `5719` (`egui_inspection`'s default).",
+        "description": "Port the app is listening on.\nDefaults to `5719` (`egui_inspection`'s default).",
         "format": "uint16",
         "maximum": 65535,
         "minimum": 0,
@@ -45,7 +45,7 @@ Conventions:
       },
       "timeout_secs": {
         "default": null,
-        "description": "How long to keep retrying the connection, in seconds. Defaults to 10.",
+        "description": "How long to keep retrying the connection, in seconds.\nDefaults to 10.",
         "format": "uint64",
         "minimum": 0,
         "type": [
@@ -63,7 +63,7 @@ Conventions:
 
 {
   "name": "batch",
-  "description": "Execute a sequence of tool calls in one round trip. Stops on the first error.\nResults are emitted in execution order, interleaved: each step contributes one JSON text\nitem followed by any image items it produced (e.g. screenshots).\n`batch` cannot be nested.\nUse this to act and observe in one call, e.g. a `click` then a `query_tree` or `screenshot`.",
+  "description": "Execute a sequence of tool calls in one round trip.\nStops on the first error.\nResults are emitted in execution order, interleaved: each step contributes one JSON text item followed by any image items it produced (e.g. screenshots).\n`batch` cannot be nested.\nUse this to act and observe in one call, e.g. a `click` then a `query_tree` or `screenshot`.",
   "inputSchema": {
     "$defs": {
       "BatchAction": {
@@ -104,7 +104,7 @@ Conventions:
 
 {
   "name": "click",
-  "description": "Click the center of a node's bounding box, or a raw `pos` in logical points.\nSpecify either a locator (`id` from `query_tree` or `role`/`label_contains`) or\n`pos: { x, y }`.\n`button` defaults to `primary` (accepts `primary`/`secondary`/`middle`/`extra1`/`extra2`,\nor aliases `left`/`right`).\n`count: 2` → double-click, `3` → triple.",
+  "description": "Click the center of a node's bounding box, or a raw `pos` in logical points.\nSpecify either a locator (`id` from `query_tree` or `role`/`label_contains`) or `pos: { x, y }`.\n`button` defaults to `primary` (accepts `primary`/`secondary`/`middle`/`extra1`/`extra2`, or aliases `left`/`right`).\n`count: 2` → double-click, `3` → triple.",
   "inputSchema": {
     "$defs": {
       "Pos2Lit": {
@@ -196,7 +196,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).\nAn unrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"
@@ -224,7 +224,7 @@ Conventions:
 
 {
   "name": "drag",
-  "description": "Primary-button drag from `start` to `end`.\nEach target accepts the same fields as `click`: locator (`id`/`role`/`label_contains`) or\n`pos: {x, y}`.\n`steps` controls how many intermediate pointer-move events are emitted between press and\nrelease.",
+  "description": "Primary-button drag from `start` to `end`.\nEach target accepts the same fields as `click`: locator (`id`/`role`/`label_contains`) or `pos: {x, y}`.\n`steps` controls how many intermediate pointer-move events are emitted between press and release.",
   "inputSchema": {
     "$defs": {
       "Pos2Lit": {
@@ -300,7 +300,7 @@ Conventions:
           },
           "role": {
             "default": null,
-            "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+            "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).\nAn unrecognized role errors with the roles present in the tree.",
             "type": [
               "string",
               "null"
@@ -464,7 +464,7 @@ Conventions:
 
 {
   "name": "hover",
-  "description": "Move the pointer over a node (or raw `pos`) without clicking, then pump a few frames so\ntooltips / hover popups settle.",
+  "description": "Move the pointer over a node (or raw `pos`) without clicking, then pump a few frames so tooltips / hover popups settle.",
   "inputSchema": {
     "$defs": {
       "Pos2Lit": {
@@ -515,7 +515,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).\nAn unrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"
@@ -537,7 +537,7 @@ Conventions:
 
 {
   "name": "press_key",
-  "description": "Send a key press (down + up) to the focused widget.\n`key` is an egui key name such as `Backspace`, `Delete`, `Enter`, `Tab`, `A`–`Z`,\n`ArrowLeft`, `ArrowRight`, `Home`, `End`, `Escape`.",
+  "description": "Send a key press (down + up) to the focused widget.\n`key` is an egui key name such as `Backspace`, `Delete`, `Enter`, `Tab`, `A`–`Z`, `ArrowLeft`, `ArrowRight`, `Home`, `End`, `Escape`.",
   "inputSchema": {
     "$defs": {
       "PressKeyModifiers": {
@@ -588,7 +588,7 @@ Conventions:
 
 {
   "name": "query_tree",
-  "description": "Walk the widget tree and return nodes matching the filter.\n`role`, if given, is a role name (e.g. `Button`, `Label`), matched\ncase-insensitively; an unknown role errors with the roles present in the tree.\nUse the returned `id` with `click`, `type_text`, or `get_node`.",
+  "description": "Walk the widget tree and return nodes matching the filter.\n`role`, if given, is a role name (e.g. `Button`, `Label`), matched case-insensitively; an unknown role errors with the roles present in the tree.\nUse the returned `id` with `click`, `type_text`, or `get_node`.",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -605,7 +605,7 @@ Conventions:
         "type": "integer"
       },
       "role": {
-        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role is rejected with an error that lists the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).\nAn unrecognized role is rejected with an error that lists the roles present in the tree.",
         "type": [
           "string",
           "null"
@@ -755,19 +755,19 @@ Conventions:
 
 {
   "name": "screenshot",
-  "description": "Capture the current frame as a PNG screenshot.\nDefaults to logical-point resolution (`pixels_per_point: 1.0`) so pixels align with\n`click`/`query_tree` coordinates; pass a higher `pixels_per_point` for detail, or\n`save_path` to also write it to disk.\nRequires the app window to be visible — a fully-occluded or minimized window can't render\na frame to capture (notably on macOS), so the call times out; bring the window to the\nforeground first.",
+  "description": "Capture the current frame as a PNG screenshot.\nDefaults to logical-point resolution (`pixels_per_point: 1.0`) so pixels align with `click`/`query_tree` coordinates; pass a higher `pixels_per_point` for detail, or `save_path` to also write it to disk.\nRequires the app window to be visible — a fully-occluded or minimized window can't render a frame to capture (notably on macOS), so the call times out; bring the window to the foreground first.",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "pixels_per_point": {
         "default": 1.0,
-        "description": "Output resolution in pixels per logical point. Defaults to `1.0`, which makes screenshot\npixels line up 1:1 with the logical coordinates used by `click`/`query_tree`. Higher\nvalues give a sharper image, capped at the display's native scale (no upscaling).",
+        "description": "Output resolution in pixels per logical point.\nDefaults to `1.0`, which makes screenshot pixels line up 1:1 with the logical coordinates used by `click`/`query_tree`.\nHigher values give a sharper image, capped at the display's native scale (no upscaling).",
         "format": "float",
         "type": "number"
       },
       "save_path": {
         "default": null,
-        "description": "If set, also write the PNG to this path on the machine running the MCP server (in\naddition to returning it inline).",
+        "description": "If set, also write the PNG to this path on the machine running the MCP server (in addition to returning it inline).",
         "type": [
           "string",
           "null"
@@ -834,7 +834,7 @@ Conventions:
     "properties": {
       "delta": {
         "$ref": "#/$defs/Pos2Lit",
-        "description": "Logical points. Positive Y scrolls content down (revealing content below)."
+        "description": "Logical points.\nPositive Y scrolls content down (revealing content below)."
       },
       "id": {
         "default": null,
@@ -867,7 +867,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).\nAn unrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"
@@ -918,7 +918,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "Role name (case-insensitive) for the optional focus-click target. An\nunrecognized role errors with the roles present in the tree.",
+        "description": "Role name (case-insensitive) for the optional focus-click target.\nAn unrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"
@@ -940,7 +940,7 @@ Conventions:
 
 {
   "name": "wait_for",
-  "description": "Poll the widget tree until at least `min_matches` visible nodes match the filter, or\nuntil `timeout_secs` elapses.",
+  "description": "Poll the widget tree until at least `min_matches` visible nodes match the filter, or until `timeout_secs` elapses.",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -959,7 +959,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).\nAn unrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"

@@ -225,8 +225,8 @@ pub struct Target {
     #[serde(default)]
     pub id: Option<String>,
 
-    /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
-    /// unrecognized role errors with the roles present in the tree.
+    /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).
+    /// An unrecognized role errors with the roles present in the tree.
     #[serde(default)]
     pub role: Option<String>,
     #[serde(default)]
@@ -308,15 +308,18 @@ fn resolve_in_tree(
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AttachArgs {
-    /// Host the app's inspection port is on. Defaults to `127.0.0.1`.
+    /// Host the app's inspection port is on.
+    /// Defaults to `127.0.0.1`.
     #[serde(default = "default_host")]
     pub host: String,
 
-    /// Port the app is listening on. Defaults to `5719` (`egui_inspection`'s default).
+    /// Port the app is listening on.
+    /// Defaults to `5719` (`egui_inspection`'s default).
     #[serde(default = "default_port")]
     pub port: u16,
 
-    /// How long to keep retrying the connection, in seconds. Defaults to 10.
+    /// How long to keep retrying the connection, in seconds.
+    /// Defaults to 10.
     #[serde(default)]
     pub timeout_secs: Option<u64>,
 }
@@ -334,14 +337,13 @@ pub struct EmptyArgs {}
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ScreenshotArgs {
-    /// Output resolution in pixels per logical point. Defaults to `1.0`, which makes screenshot
-    /// pixels line up 1:1 with the logical coordinates used by `click`/`query_tree`. Higher
-    /// values give a sharper image, capped at the display's native scale (no upscaling).
+    /// Output resolution in pixels per logical point.
+    /// Defaults to `1.0`, which makes screenshot pixels line up 1:1 with the logical coordinates used by `click`/`query_tree`.
+    /// Higher values give a sharper image, capped at the display's native scale (no upscaling).
     #[serde(default = "default_pixels_per_point")]
     pub pixels_per_point: f32,
 
-    /// If set, also write the PNG to this path on the machine running the MCP server (in
-    /// addition to returning it inline).
+    /// If set, also write the PNG to this path on the machine running the MCP server (in addition to returning it inline).
     #[serde(default)]
     pub save_path: Option<String>,
 }
@@ -424,7 +426,8 @@ pub struct ScrollArgs {
     #[serde(flatten)]
     pub target: Target,
 
-    /// Logical points. Positive Y scrolls content down (revealing content below).
+    /// Logical points.
+    /// Positive Y scrolls content down (revealing content below).
     pub delta: Pos2Lit,
     #[serde(default)]
     pub modifiers: PressKeyModifiers,
@@ -452,8 +455,8 @@ pub struct ResizeArgs {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct WaitForArgs {
-    /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
-    /// unrecognized role errors with the roles present in the tree.
+    /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive).
+    /// An unrecognized role errors with the roles present in the tree.
     #[serde(default)]
     pub role: Option<String>,
     #[serde(default)]
@@ -478,8 +481,8 @@ pub struct TypeTextArgs {
     #[serde(default)]
     pub id: Option<String>,
 
-    /// Role name (case-insensitive) for the optional focus-click target. An
-    /// unrecognized role errors with the roles present in the tree.
+    /// Role name (case-insensitive) for the optional focus-click target.
+    /// An unrecognized role errors with the roles present in the tree.
     #[serde(default)]
     pub role: Option<String>,
     #[serde(default)]
@@ -530,9 +533,9 @@ pub struct GetNodeResult {
 /// Lifecycle tools — connection management, served directly by [`Server`].
 #[tool_router(router = lifecycle_router)]
 impl Server {
-    /// Connect to a running egui app's inspection port (an app built with eframe's `inspection`
-    /// feature, launched with `EGUI_INSPECTION` set).
-    /// Defaults to 127.0.0.1:5719. Retries until `timeout_secs` elapses.
+    /// Connect to a running egui app's inspection port (an app built with eframe's `inspection` feature, launched with `EGUI_INSPECTION` set).
+    /// Defaults to 127.0.0.1:5719.
+    /// Retries until `timeout_secs` elapses.
     /// On success the app-driving tools become available.
     #[tool]
     async fn attach(
@@ -584,12 +587,8 @@ impl Server {
 #[tool_router]
 impl UiServer {
     /// Capture the current frame as a PNG screenshot.
-    /// Defaults to logical-point resolution (`pixels_per_point: 1.0`) so pixels align with
-    /// `click`/`query_tree` coordinates; pass a higher `pixels_per_point` for detail, or
-    /// `save_path` to also write it to disk.
-    /// Requires the app window to be visible — a fully-occluded or minimized window can't render
-    /// a frame to capture (notably on macOS), so the call times out; bring the window to the
-    /// foreground first.
+    /// Defaults to logical-point resolution (`pixels_per_point: 1.0`) so pixels align with `click`/`query_tree` coordinates; pass a higher `pixels_per_point` for detail, or `save_path` to also write it to disk.
+    /// Requires the app window to be visible — a fully-occluded or minimized window can't render a frame to capture (notably on macOS), so the call times out; bring the window to the foreground first.
     #[tool]
     async fn screenshot(
         &self,
@@ -616,8 +615,7 @@ impl UiServer {
     // on purpose: `#[tool]` derives the output schema by syntactically matching `Json<T>` /
     // `Result<Json<T>, _>`, and the alias would hide it, silently dropping the schema.
     /// Walk the widget tree and return nodes matching the filter.
-    /// `role`, if given, is a role name (e.g. `Button`, `Label`), matched
-    /// case-insensitively; an unknown role errors with the roles present in the tree.
+    /// `role`, if given, is a role name (e.g. `Button`, `Label`), matched case-insensitively; an unknown role errors with the roles present in the tree.
     /// Use the returned `id` with `click`, `type_text`, or `get_node`.
     #[tool]
     async fn query_tree(
@@ -660,10 +658,8 @@ impl UiServer {
     }
 
     /// Click the center of a node's bounding box, or a raw `pos` in logical points.
-    /// Specify either a locator (`id` from `query_tree` or `role`/`label_contains`) or
-    /// `pos: { x, y }`.
-    /// `button` defaults to `primary` (accepts `primary`/`secondary`/`middle`/`extra1`/`extra2`,
-    /// or aliases `left`/`right`).
+    /// Specify either a locator (`id` from `query_tree` or `role`/`label_contains`) or `pos: { x, y }`.
+    /// `button` defaults to `primary` (accepts `primary`/`secondary`/`middle`/`extra1`/`extra2`, or aliases `left`/`right`).
     /// `count: 2` → double-click, `3` → triple.
     #[tool]
     async fn click(&self, Parameters(args): Parameters<ClickArgs>) -> ToolResult<CallToolResult> {
@@ -673,8 +669,7 @@ impl UiServer {
         ))
     }
 
-    /// Move the pointer over a node (or raw `pos`) without clicking, then pump a few frames so
-    /// tooltips / hover popups settle.
+    /// Move the pointer over a node (or raw `pos`) without clicking, then pump a few frames so tooltips / hover popups settle.
     #[tool]
     async fn hover(&self, Parameters(args): Parameters<HoverArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
@@ -718,10 +713,8 @@ impl UiServer {
     }
 
     /// Primary-button drag from `start` to `end`.
-    /// Each target accepts the same fields as `click`: locator (`id`/`role`/`label_contains`) or
-    /// `pos: {x, y}`.
-    /// `steps` controls how many intermediate pointer-move events are emitted between press and
-    /// release.
+    /// Each target accepts the same fields as `click`: locator (`id`/`role`/`label_contains`) or `pos: {x, y}`.
+    /// `steps` controls how many intermediate pointer-move events are emitted between press and release.
     #[tool]
     async fn drag(&self, Parameters(args): Parameters<DragArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
@@ -783,8 +776,7 @@ impl UiServer {
         ))
     }
 
-    /// Poll the widget tree until at least `min_matches` visible nodes match the filter, or
-    /// until `timeout_secs` elapses.
+    /// Poll the widget tree until at least `min_matches` visible nodes match the filter, or until `timeout_secs` elapses.
     #[tool]
     async fn wait_for(
         &self,
@@ -876,8 +868,7 @@ impl UiServer {
     }
 
     /// Send a key press (down + up) to the focused widget.
-    /// `key` is an egui key name such as `Backspace`, `Delete`, `Enter`, `Tab`, `A`–`Z`,
-    /// `ArrowLeft`, `ArrowRight`, `Home`, `End`, `Escape`.
+    /// `key` is an egui key name such as `Backspace`, `Delete`, `Enter`, `Tab`, `A`–`Z`, `ArrowLeft`, `ArrowRight`, `Home`, `End`, `Escape`.
     #[tool]
     async fn press_key(
         &self,
@@ -910,9 +901,9 @@ impl UiServer {
         ))
     }
 
-    /// Execute a sequence of tool calls in one round trip. Stops on the first error.
-    /// Results are emitted in execution order, interleaved: each step contributes one JSON text
-    /// item followed by any image items it produced (e.g. screenshots).
+    /// Execute a sequence of tool calls in one round trip.
+    /// Stops on the first error.
+    /// Results are emitted in execution order, interleaved: each step contributes one JSON text item followed by any image items it produced (e.g. screenshots).
     /// `batch` cannot be nested.
     /// Use this to act and observe in one call, e.g. a `click` then a `query_tree` or `screenshot`.
     #[tool]
