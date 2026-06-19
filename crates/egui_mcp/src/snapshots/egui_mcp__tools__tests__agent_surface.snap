@@ -160,14 +160,14 @@ Conventions:
       },
       "count": {
         "default": 1,
-        "description": "`2` → double-click; `3` → triple-click (multi-click detected via egui's timing).",
+        "description": "`2` → double-click; `3` → triple-click.",
         "format": "uint32",
         "minimum": 0,
         "type": "integer"
       },
       "id": {
         "default": null,
-        "description": "Decimal AccessKit node id from `query_tree`.",
+        "description": "Node id from `query_tree`.",
         "type": [
           "string",
           "null"
@@ -196,7 +196,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"
@@ -274,7 +274,7 @@ Conventions:
         "properties": {
           "id": {
             "default": null,
-            "description": "Decimal AccessKit node id from `query_tree`.",
+            "description": "Node id from `query_tree`.",
             "type": [
               "string",
               "null"
@@ -300,7 +300,7 @@ Conventions:
           },
           "role": {
             "default": null,
-            "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+            "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
             "type": [
               "string",
               "null"
@@ -341,7 +341,7 @@ Conventions:
 
 {
   "name": "get_node",
-  "description": "Return a single AccessKit node by id (decimal string).",
+  "description": "Return a single node by id (from `query_tree`).",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -379,7 +379,7 @@ Conventions:
             "type": "boolean"
           },
           "id": {
-            "description": "Original `accesskit::NodeId` as a decimal string. Emitted as a string so the full\nu64 round-trips through MCP clients whose JSON parsers go through `f64` (which\ncan't represent integers above 2^53 exactly).",
+            "description": "Node id, used with `click`, `type_text`, and `get_node`.",
             "type": "string"
           },
           "label": {
@@ -489,7 +489,7 @@ Conventions:
     "properties": {
       "id": {
         "default": null,
-        "description": "Decimal AccessKit node id from `query_tree`.",
+        "description": "Node id from `query_tree`.",
         "type": [
           "string",
           "null"
@@ -515,7 +515,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"
@@ -588,7 +588,7 @@ Conventions:
 
 {
   "name": "query_tree",
-  "description": "Walk the AccessKit tree and return nodes matching the filter.\n`role`, if given, is an AccessKit role name (e.g. `Button`, `Label`), matched\ncase-insensitively; an unknown role errors with the roles present in the tree.\nUse the returned `id` (a decimal string) with `click`, `type_text`, or `get_node`.",
+  "description": "Walk the widget tree and return nodes matching the filter.\n`role`, if given, is a role name (e.g. `Button`, `Label`), matched\ncase-insensitively; an unknown role errors with the roles present in the tree.\nUse the returned `id` with `click`, `type_text`, or `get_node`.",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -605,7 +605,7 @@ Conventions:
         "type": "integer"
       },
       "role": {
-        "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role is rejected with an error that lists the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role is rejected with an error that lists the roles present in the tree.",
         "type": [
           "string",
           "null"
@@ -643,7 +643,7 @@ Conventions:
             "type": "boolean"
           },
           "id": {
-            "description": "Original `accesskit::NodeId` as a decimal string. Emitted as a string so the full\nu64 round-trips through MCP clients whose JSON parsers go through `f64` (which\ncan't represent integers above 2^53 exactly).",
+            "description": "Node id, used with `click`, `type_text`, and `get_node`.",
             "type": "string"
           },
           "label": {
@@ -838,7 +838,7 @@ Conventions:
       },
       "id": {
         "default": null,
-        "description": "Decimal AccessKit node id from `query_tree`.",
+        "description": "Node id from `query_tree`.",
         "type": [
           "string",
           "null"
@@ -867,7 +867,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"
@@ -898,7 +898,7 @@ Conventions:
 
 {
   "name": "type_text",
-  "description": "Type text into the currently focused widget.\nSends one `Event::Text` per character (each applied in its own frame).\nOptionally first focuses a node (by `id` or `role`/`label_contains`) via a click.",
+  "description": "Type text into the currently focused widget.\nOptionally first focuses a node (by `id` or `role`/`label_contains`) via a click.",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -918,7 +918,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "AccessKit role name (case-insensitive) for the optional focus-click target. An\nunrecognized role errors with the roles present in the tree.",
+        "description": "Role name (case-insensitive) for the optional focus-click target. An\nunrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"
@@ -940,7 +940,7 @@ Conventions:
 
 {
   "name": "wait_for",
-  "description": "Poll the AccessKit tree until at least `min_matches` visible nodes match the filter, or\nuntil `timeout_secs` elapses.",
+  "description": "Poll the widget tree until at least `min_matches` visible nodes match the filter, or\nuntil `timeout_secs` elapses.",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -959,7 +959,7 @@ Conventions:
       },
       "role": {
         "default": null,
-        "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "description": "Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
         "type": [
           "string",
           "null"

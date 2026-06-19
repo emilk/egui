@@ -10,9 +10,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct NodeView {
-    /// Original `accesskit::NodeId` as a decimal string. Emitted as a string so the full
-    /// u64 round-trips through MCP clients whose JSON parsers go through `f64` (which
-    /// can't represent integers above 2^53 exactly).
+    /// Node id, used with `click`, `type_text`, and `get_node`.
     pub id: String,
     pub role: String,
     pub label: Option<String>,
@@ -53,7 +51,7 @@ impl RectF {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct QueryFilter {
-    /// AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
+    /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
     /// unrecognized role is rejected with an error that lists the roles present in the tree.
     pub role: Option<String>,
     pub label_contains: Option<String>,

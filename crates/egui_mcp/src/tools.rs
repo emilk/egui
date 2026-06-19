@@ -221,10 +221,10 @@ type ToolResult<T> = Result<T, ToolError>;
 
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
 pub struct Target {
-    /// Decimal AccessKit node id from `query_tree`.
+    /// Node id from `query_tree`.
     #[serde(default)]
     pub id: Option<String>,
-    /// AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
+    /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
     /// unrecognized role errors with the roles present in the tree.
     #[serde(default)]
     pub role: Option<String>,
@@ -391,7 +391,7 @@ pub struct ClickArgs {
     #[serde(default = "default_click_button")]
     pub button: String,
 
-    /// `2` → double-click; `3` → triple-click (multi-click detected via egui's timing).
+    /// `2` → double-click; `3` → triple-click.
     #[serde(default = "default_one")]
     pub count: u32,
     #[serde(default)]
@@ -451,7 +451,7 @@ pub struct ResizeArgs {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct WaitForArgs {
-    /// AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
+    /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
     /// unrecognized role errors with the roles present in the tree.
     #[serde(default)]
     pub role: Option<String>,
@@ -476,7 +476,7 @@ pub struct TypeTextArgs {
     pub text: String,
     #[serde(default)]
     pub id: Option<String>,
-    /// AccessKit role name (case-insensitive) for the optional focus-click target. An
+    /// Role name (case-insensitive) for the optional focus-click target. An
     /// unrecognized role errors with the roles present in the tree.
     #[serde(default)]
     pub role: Option<String>,
@@ -613,10 +613,10 @@ impl UiServer {
     // The return type is spelled `Result<Json<…>, ToolError>` rather than the `ToolResult` alias
     // on purpose: `#[tool]` derives the output schema by syntactically matching `Json<T>` /
     // `Result<Json<T>, _>`, and the alias would hide it, silently dropping the schema.
-    /// Walk the AccessKit tree and return nodes matching the filter.
-    /// `role`, if given, is an AccessKit role name (e.g. `Button`, `Label`), matched
+    /// Walk the widget tree and return nodes matching the filter.
+    /// `role`, if given, is a role name (e.g. `Button`, `Label`), matched
     /// case-insensitively; an unknown role errors with the roles present in the tree.
-    /// Use the returned `id` (a decimal string) with `click`, `type_text`, or `get_node`.
+    /// Use the returned `id` with `click`, `type_text`, or `get_node`.
     #[tool]
     async fn query_tree(
         &self,
@@ -634,7 +634,7 @@ impl UiServer {
         Ok(Json(QueryTreeResult { nodes }))
     }
 
-    /// Return a single AccessKit node by id (decimal string).
+    /// Return a single node by id (from `query_tree`).
     // Spelled-out `Result<Json<…>, ToolError>` (not the `ToolResult` alias) so `#[tool]` derives
     // the output schema — see `query_tree`.
     #[tool]
@@ -781,7 +781,7 @@ impl UiServer {
         ))
     }
 
-    /// Poll the AccessKit tree until at least `min_matches` visible nodes match the filter, or
+    /// Poll the widget tree until at least `min_matches` visible nodes match the filter, or
     /// until `timeout_secs` elapses.
     #[tool]
     async fn wait_for(
@@ -829,7 +829,6 @@ impl UiServer {
     }
 
     /// Type text into the currently focused widget.
-    /// Sends one `Event::Text` per character (each applied in its own frame).
     /// Optionally first focuses a node (by `id` or `role`/`label_contains`) via a click.
     #[tool]
     async fn type_text(
