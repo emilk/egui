@@ -1483,7 +1483,6 @@ version = "0.34.3"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
- "anyhow",
  "base64",
  "egui",
  "egui_inspection",

@@ -17,25 +17,29 @@
 //!   A server built on a different transport (e.g. one tunnelling over its own channel) would
 //!   write its own connection tools and reuse [`UiServer`] the same way.
 //!
-//! App-driving tools go through `UiServer::run_inner`, which holds the [`AppState`] lock for
-//! one call and returns a `no app connected` error when nothing is attached.
+//! App-driving tools acquire the bridge via `UiServer::bridge`, which holds the [`AppState`]
+//! lock for one call and errors with `no app connected` when nothing is attached.
 //!
 //! Locator resolution is done here, MCP-side: a tool fetches a fresh AccessKit tree
 //! (`GetTree`), resolves the locator to a screen position, synthesizes the matching
 //! `egui::Event`s, and sends them via `ApplyEvents`. The app-side plugin stays low-level.
 //!
-//! Recoverable failures (no app connected, node not found, etc.) are returned as a tool
-//! result with `isError: true`, not as a JSON-RPC error — per MCP spec.
+//! Recoverable failures (no app connected, node not found, etc.) are returned as a plain
+//! [`ToolError`], which `rmcp` renders into a tool result with `isError: true` — not as a
+//! JSON-RPC error, per MCP spec.
 
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{Context as _, anyhow, bail};
 use base64::Engine as _;
 use egui::Event;
 use rmcp::{
     ErrorData as McpError, ServerHandler,
-    handler::server::{router::tool::ToolRouter, tool::ToolCallContext, wrapper::Parameters},
+    handler::server::{
+        router::tool::ToolRouter,
+        tool::{IntoCallToolResult, ToolCallContext},
+        wrapper::{Json, Parameters},
+    },
     model::{
         CallToolRequestParams, CallToolResult, Content, Implementation, InitializeRequestParams,
         InitializeResult, ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerInfo,
@@ -48,7 +52,7 @@ use rmcp::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tokio::sync::Mutex;
+use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
 
 use crate::bridge::{Bridge, TreeSnapshot};
 use crate::tree::{self, Locator, NodeView, QueryFilter};
@@ -132,25 +136,17 @@ impl UiServer {
         self.router.call(tcc).await
     }
 
-    /// Acquire the bridge lock, run `f(bridge)`, and shape the result into a
-    /// `CallToolResult`. Returns `is_error: true` if no app is connected.
-    async fn run_inner<R, F>(&self, f: F) -> Result<CallToolResult, McpError>
-    where
-        R: Serialize,
-        F: for<'a> FnOnce(
-            &'a Bridge,
-        ) -> std::pin::Pin<
-            Box<dyn std::future::Future<Output = anyhow::Result<R>> + Send + 'a>,
-        >,
-    {
+    /// Acquire the attached [`Bridge`], holding the [`AppState`] lock for as long as the
+    /// returned guard lives. Errors with `no app connected` when nothing is attached, so a
+    /// tool can `?` it straight through.
+    async fn bridge(&self) -> ToolResult<MappedMutexGuard<'_, Bridge>> {
         let guard = self.state.bridge.lock().await;
-        let Some(bridge) = guard.as_ref() else {
-            return Ok(text_error("no app connected — call `attach` first"));
-        };
-        match f(bridge).await {
-            Ok(v) => Ok(text_ok(&v)),
-            Err(e) => Ok(text_error(format!("{e:#}"))),
+        if guard.is_none() {
+            return Err("no app connected — call `attach` first".to_owned());
         }
+        Ok(MutexGuard::map(guard, |b| {
+            b.as_mut().expect("checked is_some above")
+        }))
     }
 }
 
@@ -203,16 +199,21 @@ impl Default for Server {
 // Helpers: ToolResult shaping
 // ---------------------------------------------------------------------------------------
 
-fn text_ok<T: Serialize>(value: &T) -> CallToolResult {
-    match serde_json::to_string(value) {
-        Ok(s) => CallToolResult::success(vec![Content::text(s)]),
-        Err(e) => text_error(format!("serialize result: {e}")),
-    }
-}
-
 fn text_error(msg: impl Into<String>) -> CallToolResult {
     CallToolResult::error(vec![Content::text(msg.into())])
 }
+
+/// A recoverable tool failure (no app connected, node not found, bad argument, a bridge I/O
+/// error, …), carried as a plain message string.
+///
+/// It is *not* a JSON-RPC protocol error: a `String` already implements `rmcp`'s `IntoContents`,
+/// so when a `#[tool]` method returns `Err(ToolError)`, `rmcp` renders it into a `CallToolResult`
+/// with `isError: true` (per the MCP spec). `String` is also the [`Bridge`]'s error type, so the
+/// inner handlers `?`-propagate bridge failures with no conversion.
+type ToolError = String;
+
+/// The result of an app-driving tool handler — see [`ToolError`].
+type ToolResult<T> = Result<T, ToolError>;
 
 // ---------------------------------------------------------------------------------------
 // Target — locator OR raw position, shared by click / hover / scroll / drag.
@@ -259,7 +260,7 @@ impl Target {
 async fn resolve_target(
     bridge: &Bridge,
     target: &Target,
-) -> anyhow::Result<(Option<String>, egui::Pos2)> {
+) -> ToolResult<(Option<String>, egui::Pos2)> {
     // A raw `pos` target needs no tree.
     if let Some(p) = target.pos {
         return Ok((None, egui::Pos2::new(p.x, p.y)));
@@ -272,22 +273,17 @@ async fn resolve_target(
 fn resolve_in_tree(
     snap: &TreeSnapshot,
     target: &Target,
-) -> anyhow::Result<(Option<String>, egui::Pos2)> {
+) -> ToolResult<(Option<String>, egui::Pos2)> {
     if let Some(p) = target.pos {
         return Ok((None, egui::Pos2::new(p.x, p.y)));
     }
     let locator = target
         .as_locator()
-        .ok_or_else(|| anyhow!("target requires `id`, `role`, `label_contains`, or `pos`"))?;
-    let tree = snap
-        .tree
-        .as_ref()
-        .ok_or_else(|| anyhow!("no accesskit tree yet"))?;
-    let node = tree::resolve_node(tree, &locator).ok_or_else(|| anyhow!("node not found"))?;
+        .ok_or("target requires `id`, `role`, `label_contains`, or `pos`")?;
+    let tree = snap.tree.as_ref().ok_or("no accesskit tree yet")?;
+    let node = tree::resolve_node(tree, &locator).ok_or("node not found")?;
     let view = tree::node_view(&node);
-    let bounds = view
-        .bounds
-        .ok_or_else(|| anyhow!("node has no bounds — can't target"))?;
+    let bounds = view.bounds.ok_or("node has no bounds — can't target")?;
     let (cx, cy) = bounds.center();
     let center = egui::Pos2::new(
         cx as f32 / snap.pixels_per_point,
@@ -503,11 +499,13 @@ impl Server {
         let timeout = args.timeout_secs.map(Duration::from_secs);
         let bridge = match Bridge::connect(&args.host, args.port, timeout).await {
             Ok(b) => b,
-            Err(e) => return Ok(text_error(format!("attach failed: {e:#}"))),
+            Err(e) => return Ok(text_error(format!("attach failed: {e}"))),
         };
         let info = bridge.peer_info.clone();
         *guard = Some(bridge);
-        Ok(text_ok(&json!({ "ok": true, "attached": info })))
+        Ok(CallToolResult::structured(
+            json!({ "ok": true, "attached": info }),
+        ))
     }
 
     #[tool(
@@ -516,7 +514,7 @@ impl Server {
     )]
     async fn disconnect(&self, _p: Parameters<EmptyArgs>) -> Result<CallToolResult, McpError> {
         if self.state.clear_bridge().await {
-            Ok(text_ok(&json!({ "ok": true })))
+            Ok(CallToolResult::structured(json!({ "ok": true })))
         } else {
             Ok(text_error("no app connected"))
         }
@@ -529,7 +527,7 @@ impl Server {
             None => json!({ "state": "idle" }),
             Some(bridge) => json!({ "state": "connected", "peer": bridge.peer_info }),
         };
-        Ok(text_ok(&body))
+        Ok(CallToolResult::structured(body))
     }
 }
 
@@ -542,24 +540,14 @@ impl UiServer {
                         frame to capture (notably on macOS), so the call times out; bring the \
                         window to the foreground first."
     )]
-    async fn screenshot(&self, _p: Parameters<EmptyArgs>) -> Result<CallToolResult, McpError> {
-        let guard = self.state.bridge.lock().await;
-        let Some(bridge) = guard.as_ref() else {
-            return Ok(text_error("no app connected — call `attach` first"));
-        };
-        match screenshot_inner(bridge).await {
-            Ok((meta, png_b64)) => {
-                let meta_text = match serde_json::to_string(&meta) {
-                    Ok(s) => s,
-                    Err(e) => return Ok(text_error(format!("serialize: {e}"))),
-                };
-                Ok(CallToolResult::success(vec![
-                    Content::text(meta_text),
-                    Content::image(png_b64, "image/png"),
-                ]))
-            }
-            Err(e) => Ok(text_error(format!("{e:#}"))),
-        }
+    async fn screenshot(&self, _p: Parameters<EmptyArgs>) -> ToolResult<CallToolResult> {
+        let bridge = self.bridge().await?;
+        let (meta, png_b64) = screenshot_inner(&bridge).await?;
+        let meta_text = serde_json::to_string(&meta).map_err(|e| format!("serialize: {e}"))?;
+        Ok(CallToolResult::success(vec![
+            Content::text(meta_text),
+            Content::image(png_b64, "image/png"),
+        ]))
     }
 
     #[tool(
@@ -570,38 +558,30 @@ impl UiServer {
     async fn query_tree(
         &self,
         Parameters(filter): Parameters<QueryFilter>,
-    ) -> Result<CallToolResult, McpError> {
-        self.run_inner(|bridge| {
-            Box::pin(async move {
-                let snap = bridge.fetch_tree().await?;
-                let results = match snap.tree {
-                    Some(tree) => tree::query(&tree, &filter),
-                    None => Vec::new(),
-                };
-                Ok(results)
-            })
-        })
-        .await
+    ) -> ToolResult<Json<Vec<NodeView>>> {
+        let bridge = self.bridge().await?;
+        let snap = bridge.fetch_tree().await?;
+        let results = match snap.tree {
+            Some(tree) => tree::query(&tree, &filter),
+            None => Vec::new(),
+        };
+        Ok(Json(results))
     }
 
     #[tool(description = "Return a single AccessKit node by id (decimal string).")]
     async fn get_node(
         &self,
         Parameters(args): Parameters<GetNodeArgs>,
-    ) -> Result<CallToolResult, McpError> {
-        self.run_inner(|bridge| {
-            Box::pin(async move {
-                let locator_json = json!({ "id": args.id });
-                let locator: Locator =
-                    serde_json::from_value(locator_json).context("invalid id")?;
-                let snap = bridge.fetch_tree().await?;
-                let view = snap.tree.and_then(|tree| {
-                    tree::resolve_node(&tree, &locator).map(|n| tree::node_view(&n))
-                });
-                Ok(view)
-            })
-        })
-        .await
+    ) -> ToolResult<Json<Option<NodeView>>> {
+        let bridge = self.bridge().await?;
+        let locator_json = json!({ "id": args.id });
+        let locator: Locator =
+            serde_json::from_value(locator_json).map_err(|e| format!("invalid id: {e}"))?;
+        let snap = bridge.fetch_tree().await?;
+        let view = snap
+            .tree
+            .and_then(|tree| tree::resolve_node(&tree, &locator).map(|n| tree::node_view(&n)));
+        Ok(Json(view))
     }
 
     #[tool(
@@ -611,36 +591,33 @@ impl UiServer {
                         `primary` (accepts `primary`/`secondary`/`middle`/`extra1`/`extra2`, \
                         or aliases `left`/`right`). `count: 2` → double-click, `3` → triple."
     )]
-    async fn click(
-        &self,
-        Parameters(args): Parameters<ClickArgs>,
-    ) -> Result<CallToolResult, McpError> {
-        self.run_inner(|bridge| Box::pin(click_inner(bridge, args)))
-            .await
+    async fn click(&self, Parameters(args): Parameters<ClickArgs>) -> ToolResult<CallToolResult> {
+        let bridge = self.bridge().await?;
+        Ok(CallToolResult::structured(
+            click_inner(&bridge, args).await?,
+        ))
     }
 
     #[tool(
         description = "Move the pointer over a node (or raw `pos`) without clicking, then \
                         pump a few frames so tooltips / hover popups settle."
     )]
-    async fn hover(
-        &self,
-        Parameters(args): Parameters<HoverArgs>,
-    ) -> Result<CallToolResult, McpError> {
-        self.run_inner(|bridge| Box::pin(hover_inner(bridge, args)))
-            .await
+    async fn hover(&self, Parameters(args): Parameters<HoverArgs>) -> ToolResult<CallToolResult> {
+        let bridge = self.bridge().await?;
+        Ok(CallToolResult::structured(
+            hover_inner(&bridge, args).await?,
+        ))
     }
 
     #[tool(
         description = "Send a mouse wheel scroll over a node (or raw `pos`). `delta` is in \
                         logical points: positive Y scrolls content down; positive X right."
     )]
-    async fn scroll(
-        &self,
-        Parameters(args): Parameters<ScrollArgs>,
-    ) -> Result<CallToolResult, McpError> {
-        self.run_inner(|bridge| Box::pin(scroll_inner(bridge, args)))
-            .await
+    async fn scroll(&self, Parameters(args): Parameters<ScrollArgs>) -> ToolResult<CallToolResult> {
+        let bridge = self.bridge().await?;
+        Ok(CallToolResult::structured(
+            scroll_inner(&bridge, args).await?,
+        ))
     }
 
     #[tool(
@@ -649,21 +626,17 @@ impl UiServer {
                         `pos: {x, y}`. `steps` controls how many intermediate pointer-move \
                         events are emitted between press and release."
     )]
-    async fn drag(
-        &self,
-        Parameters(args): Parameters<DragArgs>,
-    ) -> Result<CallToolResult, McpError> {
-        self.run_inner(|bridge| Box::pin(drag_inner(bridge, args)))
-            .await
+    async fn drag(&self, Parameters(args): Parameters<DragArgs>) -> ToolResult<CallToolResult> {
+        let bridge = self.bridge().await?;
+        Ok(CallToolResult::structured(drag_inner(&bridge, args).await?))
     }
 
     #[tool(description = "Resize the app's viewport to the given logical-point dimensions.")]
-    async fn resize(
-        &self,
-        Parameters(args): Parameters<ResizeArgs>,
-    ) -> Result<CallToolResult, McpError> {
-        self.run_inner(|bridge| Box::pin(resize_inner(bridge, args)))
-            .await
+    async fn resize(&self, Parameters(args): Parameters<ResizeArgs>) -> ToolResult<CallToolResult> {
+        let bridge = self.bridge().await?;
+        Ok(CallToolResult::structured(
+            resize_inner(&bridge, args).await?,
+        ))
     }
 
     #[tool(
@@ -673,9 +646,11 @@ impl UiServer {
     async fn wait_for(
         &self,
         Parameters(args): Parameters<WaitForArgs>,
-    ) -> Result<CallToolResult, McpError> {
-        self.run_inner(|bridge| Box::pin(wait_for_inner(bridge, args)))
-            .await
+    ) -> ToolResult<CallToolResult> {
+        let bridge = self.bridge().await?;
+        Ok(CallToolResult::structured(
+            wait_for_inner(&bridge, args).await?,
+        ))
     }
 
     #[tool(
@@ -686,9 +661,11 @@ impl UiServer {
     async fn type_text(
         &self,
         Parameters(args): Parameters<TypeTextArgs>,
-    ) -> Result<CallToolResult, McpError> {
-        self.run_inner(|bridge| Box::pin(type_text_inner(bridge, args)))
-            .await
+    ) -> ToolResult<CallToolResult> {
+        let bridge = self.bridge().await?;
+        Ok(CallToolResult::structured(
+            type_text_inner(&bridge, args).await?,
+        ))
     }
 
     #[tool(
@@ -699,9 +676,11 @@ impl UiServer {
     async fn press_key(
         &self,
         Parameters(args): Parameters<PressKeyArgs>,
-    ) -> Result<CallToolResult, McpError> {
-        self.run_inner(|bridge| Box::pin(press_key_inner(bridge, args)))
-            .await
+    ) -> ToolResult<CallToolResult> {
+        let bridge = self.bridge().await?;
+        Ok(CallToolResult::structured(
+            press_key_inner(&bridge, args).await?,
+        ))
     }
 
     #[tool(
@@ -834,17 +813,21 @@ impl UiServer {
     }
 }
 
-async fn unpack_then<A, F, Fut>(args: Value, f: F) -> CallToolResult
+async fn unpack_then<A, F, Fut, R>(args: Value, f: F) -> CallToolResult
 where
     A: for<'de> serde::Deserialize<'de>,
     F: FnOnce(Parameters<A>) -> Fut,
-    Fut: std::future::Future<Output = Result<CallToolResult, McpError>>,
+    Fut: std::future::Future<Output = R>,
+    R: IntoCallToolResult,
 {
     let parsed: A = match serde_json::from_value(args) {
         Ok(p) => p,
         Err(e) => return text_error(format!("invalid arguments: {e}")),
     };
-    match f(Parameters(parsed)).await {
+    // Tool handlers return `Err(ToolError)` for recoverable failures, which `IntoCallToolResult`
+    // turns into an `isError: true` result — so this is `Ok` in practice. A genuine protocol
+    // error (only possible from a handler returning `McpError`) is flattened to its message.
+    match f(Parameters(parsed)).await.into_call_tool_result() {
         Ok(r) => r,
         Err(e) => text_error(e.message.to_string()),
     }
@@ -871,7 +854,7 @@ struct ScreenshotMeta {
     height: u32,
 }
 
-async fn screenshot_inner(bridge: &Bridge) -> anyhow::Result<(ScreenshotMeta, String)> {
+async fn screenshot_inner(bridge: &Bridge) -> ToolResult<(ScreenshotMeta, String)> {
     let png = bridge.screenshot().await?;
     let meta = ScreenshotMeta {
         width: png.size[0],
@@ -883,20 +866,20 @@ async fn screenshot_inner(bridge: &Bridge) -> anyhow::Result<(ScreenshotMeta, St
     ))
 }
 
-fn parse_pointer_button(name: &str) -> anyhow::Result<egui::PointerButton> {
+fn parse_pointer_button(name: &str) -> ToolResult<egui::PointerButton> {
     match name.to_ascii_lowercase().as_str() {
         "primary" | "left" => Ok(egui::PointerButton::Primary),
         "secondary" | "right" => Ok(egui::PointerButton::Secondary),
         "middle" => Ok(egui::PointerButton::Middle),
         "extra1" => Ok(egui::PointerButton::Extra1),
         "extra2" => Ok(egui::PointerButton::Extra2),
-        other => bail!(
+        other => Err(format!(
             "unknown button `{other}` — expected primary/secondary/middle/extra1/extra2 (or left/right)"
-        ),
+        )),
     }
 }
 
-async fn click_inner(bridge: &Bridge, args: ClickArgs) -> anyhow::Result<Value> {
+async fn click_inner(bridge: &Bridge, args: ClickArgs) -> ToolResult<Value> {
     let button = parse_pointer_button(&args.button)?;
     let count = args.count.max(1);
     let modifiers = args.modifiers.to_egui();
@@ -929,7 +912,7 @@ async fn click_inner(bridge: &Bridge, args: ClickArgs) -> anyhow::Result<Value> 
     }))
 }
 
-async fn hover_inner(bridge: &Bridge, args: HoverArgs) -> anyhow::Result<Value> {
+async fn hover_inner(bridge: &Bridge, args: HoverArgs) -> ToolResult<Value> {
     let (node_id, pos) = resolve_target(bridge, &args.target).await?;
     bridge.apply_events(vec![Event::PointerMoved(pos)]).await?;
     // Pump extra frames so tooltips / hover popups settle.
@@ -943,7 +926,7 @@ async fn hover_inner(bridge: &Bridge, args: HoverArgs) -> anyhow::Result<Value> 
     }))
 }
 
-async fn scroll_inner(bridge: &Bridge, args: ScrollArgs) -> anyhow::Result<Value> {
+async fn scroll_inner(bridge: &Bridge, args: ScrollArgs) -> ToolResult<Value> {
     let (node_id, pos) = resolve_target(bridge, &args.target).await?;
     let modifiers = args.modifiers.to_egui();
     let events = vec![
@@ -965,7 +948,7 @@ async fn scroll_inner(bridge: &Bridge, args: ScrollArgs) -> anyhow::Result<Value
     }))
 }
 
-async fn drag_inner(bridge: &Bridge, args: DragArgs) -> anyhow::Result<Value> {
+async fn drag_inner(bridge: &Bridge, args: DragArgs) -> ToolResult<Value> {
     // Resolve both endpoints against one tree snapshot — no input happens between them.
     let snap = bridge.fetch_tree().await?;
     let (start_id, start_pos) = resolve_in_tree(&snap, &args.start)?;
@@ -1014,14 +997,14 @@ async fn drag_inner(bridge: &Bridge, args: DragArgs) -> anyhow::Result<Value> {
     }))
 }
 
-async fn resize_inner(bridge: &Bridge, args: ResizeArgs) -> anyhow::Result<Value> {
+async fn resize_inner(bridge: &Bridge, args: ResizeArgs) -> ToolResult<Value> {
     bridge.resize(args.width, args.height).await?;
     Ok(json!({ "ok": true, "width": args.width, "height": args.height }))
 }
 
-async fn wait_for_inner(bridge: &Bridge, args: WaitForArgs) -> anyhow::Result<Value> {
+async fn wait_for_inner(bridge: &Bridge, args: WaitForArgs) -> ToolResult<Value> {
     if args.role.is_none() && args.label_contains.is_none() {
-        bail!("wait_for requires at least `role` or `label_contains`");
+        return Err("wait_for requires at least `role` or `label_contains`".to_owned());
     }
     let filter = QueryFilter {
         role: args.role.clone(),
@@ -1040,19 +1023,19 @@ async fn wait_for_inner(bridge: &Bridge, args: WaitForArgs) -> anyhow::Result<Va
             return Ok(json!({ "ok": true, "matched": matches }));
         }
         if tokio::time::Instant::now() >= deadline {
-            bail!(
+            return Err(format!(
                 "wait_for timed out after {}s (role={:?}, label_contains={:?}, found {})",
                 args.timeout_secs,
                 args.role,
                 args.label_contains,
                 matches.len()
-            );
+            ));
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
 }
 
-async fn type_text_inner(bridge: &Bridge, args: TypeTextArgs) -> anyhow::Result<Value> {
+async fn type_text_inner(bridge: &Bridge, args: TypeTextArgs) -> ToolResult<Value> {
     // Optionally focus a target widget by clicking it first.
     let focused_locator =
         if args.id.is_some() || args.role.is_some() || args.label_contains.is_some() {
@@ -1090,9 +1073,9 @@ async fn type_text_inner(bridge: &Bridge, args: TypeTextArgs) -> anyhow::Result<
     }))
 }
 
-async fn press_key_inner(bridge: &Bridge, args: PressKeyArgs) -> anyhow::Result<Value> {
+async fn press_key_inner(bridge: &Bridge, args: PressKeyArgs) -> ToolResult<Value> {
     let key =
-        egui::Key::from_name(&args.key).ok_or_else(|| anyhow!("unknown key `{}`", args.key))?;
+        egui::Key::from_name(&args.key).ok_or_else(|| format!("unknown key `{}`", args.key))?;
     let modifiers = args.modifiers.to_egui();
     bridge
         .apply_events(vec![

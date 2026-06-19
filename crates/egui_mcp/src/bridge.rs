@@ -15,7 +15,6 @@ use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
 
-use anyhow::{Context as _, anyhow, bail};
 use egui_inspection::protocol::{
     EncodedPng, Request, Response, decode_frame_body, decode_frame_len, decode_handshake,
     encode_frame,
@@ -45,7 +44,7 @@ pub trait Transport: Send + Sync {
     ///
     /// Implementations must guarantee one response per request even under concurrent callers
     /// (the framed transport serializes with a mutex; a unary-RPC transport gets this for free).
-    fn request(&self, req: Request) -> BoxFuture<'_, anyhow::Result<Response>>;
+    fn request(&self, req: Request) -> BoxFuture<'_, Result<Response, String>>;
 }
 
 /// Identity of the connected peer, captured at connect time.
@@ -87,13 +86,15 @@ impl FramedTransport {
 }
 
 impl Transport for FramedTransport {
-    fn request(&self, req: Request) -> BoxFuture<'_, anyhow::Result<Response>> {
+    fn request(&self, req: Request) -> BoxFuture<'_, Result<Response, String>> {
         Box::pin(async move {
             let mut conn = self.conn.lock().await;
             write_framed(&mut conn.writer, &req)
                 .await
-                .context("send request")?;
-            read_framed(&mut conn.reader).await.context("read response")
+                .map_err(|e| e.to_string())?;
+            read_framed(&mut conn.reader)
+                .await
+                .map_err(|e| e.to_string())
         })
     }
 }
@@ -110,7 +111,7 @@ impl Bridge {
     ///
     /// # Errors
     /// If the connection can't be established before the timeout, or the handshake fails.
-    pub async fn connect(host: &str, port: u16, timeout: Option<Duration>) -> anyhow::Result<Self> {
+    pub async fn connect(host: &str, port: u16, timeout: Option<Duration>) -> Result<Self, String> {
         let addr = format!("{host}:{port}");
         let timeout = timeout.unwrap_or(DEFAULT_CONNECT_TIMEOUT);
         let deadline = tokio::time::Instant::now() + timeout;
@@ -120,11 +121,9 @@ impl Bridge {
                 Ok(s) => break s,
                 Err(e) => {
                     if tokio::time::Instant::now() >= deadline {
-                        return Err(anyhow!(e)).with_context(|| {
-                            format!(
-                                "connect to {addr} (is the app running with EGUI_INSPECTION set?)"
-                            )
-                        });
+                        return Err(format!(
+                            "connect to {addr} (is the app running with EGUI_INSPECTION set?): {e}"
+                        ));
                     }
                     tokio::time::sleep(Duration::from_millis(200)).await;
                 }
@@ -139,8 +138,9 @@ impl Bridge {
         reader
             .read_exact(&mut handshake)
             .await
-            .context("read handshake")?;
-        let protocol_version = decode_handshake(handshake).context("inspection handshake")?;
+            .map_err(|e| format!("read handshake: {e}"))?;
+        let protocol_version =
+            decode_handshake(handshake).map_err(|e| format!("inspection handshake: {e}"))?;
 
         let mut bridge = Self::with_transport(
             FramedTransport::new(reader, writer),
@@ -150,7 +150,7 @@ impl Bridge {
                 label: None,
             },
         );
-        bridge.peer_info.label = bridge.fetch_label().await.context("read peer label")?;
+        bridge.peer_info.label = bridge.fetch_label().await?;
         Ok(bridge)
     }
 
@@ -168,15 +168,15 @@ impl Bridge {
     ///
     /// # Errors
     /// On transport failure sending the request or reading the response.
-    pub async fn request(&self, req: Request) -> anyhow::Result<Response> {
+    pub async fn request(&self, req: Request) -> Result<Response, String> {
         self.transport.request(req).await
     }
 
-    async fn fetch_label(&self) -> anyhow::Result<Option<String>> {
+    async fn fetch_label(&self) -> Result<Option<String>, String> {
         match self.request(Request::GetInfo).await? {
             Response::Info { label, .. } => Ok(label),
-            Response::Error { message } => bail!("{message}"),
-            _ => bail!("unexpected response to GetInfo"),
+            Response::Error { message } => Err(message),
+            _ => Err("unexpected response to GetInfo".to_owned()),
         }
     }
 
@@ -184,7 +184,7 @@ impl Bridge {
     ///
     /// # Errors
     /// On I/O failure or an unexpected response.
-    pub async fn fetch_tree(&self) -> anyhow::Result<TreeSnapshot> {
+    pub async fn fetch_tree(&self) -> Result<TreeSnapshot, String> {
         match self.request(Request::GetTree).await? {
             Response::Tree {
                 step,
@@ -195,18 +195,18 @@ impl Bridge {
                 pixels_per_point,
                 tree: accesskit.map(|update| accesskit_consumer::Tree::new(update, false)),
             }),
-            Response::Error { message } => bail!("{message}"),
-            _ => bail!("unexpected response to GetTree"),
+            Response::Error { message } => Err(message),
+            _ => Err("unexpected response to GetTree".to_owned()),
         }
     }
 
     /// Send a request that expects a bare [`Response::Done`]. `what` names the request for
     /// error messages.
-    async fn request_done(&self, req: Request, what: &str) -> anyhow::Result<()> {
+    async fn request_done(&self, req: Request, what: &str) -> Result<(), String> {
         match self.request(req).await? {
             Response::Done => Ok(()),
-            Response::Error { message } => bail!("{message}"),
-            _ => bail!("unexpected response to {what}"),
+            Response::Error { message } => Err(message),
+            _ => Err(format!("unexpected response to {what}")),
         }
     }
 
@@ -214,7 +214,7 @@ impl Bridge {
     ///
     /// # Errors
     /// On I/O failure or an unexpected response.
-    pub async fn apply_events(&self, events: Vec<egui::Event>) -> anyhow::Result<()> {
+    pub async fn apply_events(&self, events: Vec<egui::Event>) -> Result<(), String> {
         self.request_done(Request::ApplyEvents { events }, "ApplyEvents")
             .await
     }
@@ -223,7 +223,7 @@ impl Bridge {
     ///
     /// # Errors
     /// On I/O failure or an unexpected response.
-    pub async fn resize(&self, width: u32, height: u32) -> anyhow::Result<()> {
+    pub async fn resize(&self, width: u32, height: u32) -> Result<(), String> {
         self.request_done(Request::Resize { width, height }, "Resize")
             .await
     }
@@ -232,11 +232,11 @@ impl Bridge {
     ///
     /// # Errors
     /// On I/O failure or an unexpected response.
-    pub async fn screenshot(&self) -> anyhow::Result<EncodedPng> {
+    pub async fn screenshot(&self) -> Result<EncodedPng, String> {
         match self.request(Request::GetScreenshot).await? {
             Response::Screenshot(png) => Ok(png),
-            Response::Error { message } => bail!("{message}"),
-            _ => bail!("unexpected response to GetScreenshot"),
+            Response::Error { message } => Err(message),
+            _ => Err("unexpected response to GetScreenshot".to_owned()),
         }
     }
 }
@@ -250,7 +250,7 @@ pub struct TreeSnapshot {
 
 // The wire format (length-prefix + MessagePack, capped at `MAX_MESSAGE_BYTES`) is defined
 // once in `egui_inspection::protocol`; these are just the async read/write around it.
-async fn write_framed<W, T>(writer: &mut W, value: &T) -> anyhow::Result<()>
+async fn write_framed<W, T>(writer: &mut W, value: &T) -> std::io::Result<()>
 where
     W: AsyncWrite + Unpin,
     T: Serialize,
@@ -260,7 +260,7 @@ where
     Ok(())
 }
 
-async fn read_framed<R, T>(reader: &mut R) -> anyhow::Result<T>
+async fn read_framed<R, T>(reader: &mut R) -> std::io::Result<T>
 where
     R: AsyncRead + Unpin,
     T: for<'de> serde::Deserialize<'de>,
@@ -269,5 +269,5 @@ where
     reader.read_exact(&mut header).await?;
     let mut body = vec![0u8; decode_frame_len(header)?];
     reader.read_exact(&mut body).await?;
-    Ok(decode_frame_body(&body)?)
+    decode_frame_body(&body)
 }

@@ -7,7 +7,7 @@
 
 use egui_mcp::server;
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_tracing();
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()

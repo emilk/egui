@@ -12,7 +12,7 @@ use crate::tools::Server;
 ///
 /// # Errors
 /// If the stdio transport fails to start or the connection ends in error.
-pub async fn run() -> anyhow::Result<()> {
+pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let server = Server::new();
     let running = server.serve(transport::stdio()).await?;
     let _reason = running.waiting().await?;
