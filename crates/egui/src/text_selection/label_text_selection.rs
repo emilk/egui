@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    TextCursorState,
+    SelectionMode, TextCursorState,
     text_cursor_state::cursor_rect,
     visuals::{RowVertexIndices, paint_text_selection},
 };
@@ -95,6 +95,26 @@ pub struct LabelSelectionState {
     /// Are we in drag-to-select state?
     is_dragging: bool,
 
+    /// The granularity of the current drag-to-select (char/word/line).
+    ///
+    /// Set when a drag begins, from the press click-count.
+    selection_mode: SelectionMode,
+
+    /// The widget and `(min, max)` char range of the word/line the current
+    /// word-/line-drag was anchored on.
+    ///
+    /// `None` for plain character drags.
+    drag_anchor: Option<(Id, usize, usize)>,
+
+    /// Stationary-pointer cache for the word/line unit lookup.
+    ///
+    /// The word/line `unit_bounds_at` scan runs every frame while dragging and
+    /// is O(n), and `select_word_at` heap-allocates a line-sized `String`. This
+    /// caches the widget [`Id`], the pointer's char index and the resulting
+    /// `(min, max)` unit bounds, so the scan is skipped while the pointer stays
+    /// on the same character. Cleared/ignored when a new drag begins.
+    last_drag_unit: Option<(Id, usize, (usize, usize))>,
+
     /// Have we reached the widget containing the primary selection?
     has_reached_primary: bool,
 
@@ -119,6 +139,9 @@ impl Default for LabelSelectionState {
             selection_bbox_this_frame: Rect::NOTHING,
             any_hovered: Default::default(),
             is_dragging: Default::default(),
+            selection_mode: Default::default(),
+            drag_anchor: Default::default(),
+            last_drag_unit: Default::default(),
             has_reached_primary: Default::default(),
             has_reached_secondary: Default::default(),
             text_to_copy: Default::default(),
@@ -372,26 +395,167 @@ impl LabelSelectionState {
             };
 
             if let Some(new_primary) = new_primary {
+                // We don't want the latency of `drag_started`.
+                let drag_started = ui.input(|i| i.pointer.any_pressed());
+                let shift = ui.input(|i| i.modifiers.shift);
+
+                if drag_started {
+                    self.selection_mode = if shift {
+                        // Shift-click extends the current selection; it must
+                        // always be character-granular, matching `TextEdit`.
+                        SelectionMode::Char
+                    } else {
+                        // Decide the drag granularity from the press click-count:
+                        // 2 => word-by-word, >=3 => line-by-line, else char-by-char.
+                        ui.input(|i| i.pointer.press_click_count())
+                            .map_or(SelectionMode::Char, SelectionMode::from_click_count)
+                    };
+                    self.drag_anchor = None;
+                    // A fresh drag must never reuse a stale cached unit.
+                    self.last_drag_unit = None;
+                }
+
+                // For word/line drags, snap the moving cursor to whole-word /
+                // whole-line boundaries. The anchor unit lives in the galley
+                // where the drag began; we snap per galley so the single-galley
+                // case is fully correct. Cross-galley drags snap each galley's
+                // moving end and rely on the begin/end fallbacks in the
+                // `(Some, None)` / `(None, Some)` match arms below.
+                let new_primary = if self.selection_mode != SelectionMode::Char
+                    && response.contains_pointer()
+                {
+                    // Stationary-pointer fast path: skip the O(n) word/line scan
+                    // (and its heap allocation) while the pointer stays on the
+                    // same character within the same galley.
+                    let pointer_unit = if let Some((cached_id, cached_index, cached_bounds)) =
+                        self.last_drag_unit
+                        && cached_id == response.id
+                        && cached_index == new_primary.index
+                    {
+                        cached_bounds
+                    } else {
+                        let text = galley.text();
+                        let bounds = self.selection_mode.unit_bounds_at(text, new_primary);
+                        self.last_drag_unit = Some((response.id, new_primary.index, bounds));
+                        bounds
+                    };
+
+                    if drag_started && !shift {
+                        // Anchor the drag on the unit under the initial press.
+                        self.drag_anchor = Some((response.id, pointer_unit.0, pointer_unit.1));
+                    }
+
+                    match self.drag_anchor {
+                        // Dragging within the galley the drag was anchored in:
+                        // take the union of the anchor unit and the pointer unit.
+                        Some((anchor_id, anchor_min, anchor_max)) if anchor_id == response.id => {
+                            let range = super::text_cursor_state::combine_units(
+                                (anchor_min, anchor_max),
+                                pointer_unit,
+                            );
+                            selection.secondary = WidgetTextCursor::new(
+                                response.id,
+                                range.secondary,
+                                global_from_galley,
+                                galley,
+                            );
+                            range.primary
+                        }
+                        // Dragging in a different galley: snap the moving end of
+                        // this galley to a word/line boundary. Whether we snap to
+                        // the start or end depends on the drag direction.
+                        _ => {
+                            let primary_pos =
+                                global_from_galley * pos_in_galley(galley, new_primary);
+                            if selection.secondary.pos.y <= primary_pos.y {
+                                CCursor::new(pointer_unit.1)
+                            } else {
+                                CCursor::new(pointer_unit.0)
+                            }
+                        }
+                    }
+                } else {
+                    new_primary
+                };
+
                 selection.primary =
                     WidgetTextCursor::new(response.id, new_primary, global_from_galley, galley);
 
-                // We don't want the latency of `drag_started`.
-                let drag_started = ui.input(|i| i.pointer.any_pressed());
                 if drag_started {
                     if selection.layer_id == response.layer_id {
-                        if ui.input(|i| i.modifiers.shift) {
+                        if shift {
                             // A continuation of a previous selection.
-                        } else {
+                        } else if self.selection_mode == SelectionMode::Char {
                             // A new selection in the same layer.
                             selection.secondary = selection.primary;
                         }
+                        // For word/line mode the secondary was already set to the
+                        // far end of the anchor unit above.
                     } else {
                         // A new selection in a new layer.
                         selection.layer_id = response.layer_id;
-                        selection.secondary = selection.primary;
+                        if self.selection_mode == SelectionMode::Char {
+                            selection.secondary = selection.primary;
+                        }
                     }
                 }
             }
+        }
+
+        // Cross-galley word/line drag: keep the anchor unit fully selected.
+        //
+        // `selection.secondary` is set once at drag start (via `combine_units`)
+        // to the anchor unit's MIN, which is only correct while dragging
+        // forward/downward. If the user drags UPWARD out of the anchor widget,
+        // `secondary` must instead sit at the anchor unit's MAX so the anchor
+        // word/line itself stays selected. Within a single galley the
+        // `combine_units` path above already recomputes both ends every frame,
+        // so we only handle the cross-galley case here.
+        //
+        // Drag direction is decided from the LIVE pointer position
+        // (`pointer_interact_pos`), not from `selection.primary.pos`. The latter
+        // is updated as galleys are visited in layout order, so it can be one
+        // frame stale when the anchor galley is processed before the pointer's
+        // galley, which caused a one-frame flicker on a fast direction reversal.
+        // The live pointer position has no such lag.
+        //
+        // Pre-existing egui limitation (see the `cursor_for` comment about
+        // "encountering both ends of the cursor"): this flip can only run on the
+        // frame the anchor galley is actually visited (`anchor_id ==
+        // response.id`). If the anchor galley scrolls out of the visible scroll
+        // area, this block does not run, so `selection.secondary` simply freezes
+        // at its last computed value — a valid char index inside the anchor
+        // widget. There is no crash, panic or cross-galley index misuse:
+        // `secondary.pos` is only ever recomputed where `response.id ==
+        // selection.secondary.widget_id`. This degrades no worse than `main`'s
+        // char-mode multi-widget selection, which has the identical "endpoint
+        // outside the visible scroll areas" failure mode. Fixing it properly
+        // would require a rewrite of egui's multi-widget selection, which is out
+        // of scope here.
+        if self.is_dragging
+            && self.selection_mode != SelectionMode::Char
+            && let Some((anchor_id, anchor_min, anchor_max)) = self.drag_anchor
+            && anchor_id == response.id
+            && selection.primary.widget_id != anchor_id
+            && let Some(pointer_pos) = ui.ctx().pointer_interact_pos()
+        {
+            // The primary is in a different galley than the anchor. Decide drag
+            // direction by comparing the live pointer position against the
+            // anchor unit's position within this (the anchor's) galley.
+            let anchor_min_pos =
+                global_from_galley * pos_in_galley(galley, CCursor::new(anchor_min));
+            let primary_before_anchor = pointer_pos.y < anchor_min_pos.y
+                || (pointer_pos.y == anchor_min_pos.y && pointer_pos.x < anchor_min_pos.x);
+            let secondary_index = super::text_cursor_state::anchor_secondary_index(
+                (anchor_min, anchor_max),
+                primary_before_anchor,
+            );
+            selection.secondary = WidgetTextCursor::new(
+                anchor_id,
+                CCursor::new(secondary_index),
+                global_from_galley,
+                galley,
+            );
         }
 
         let has_primary = response.id == selection.primary.widget_id;
