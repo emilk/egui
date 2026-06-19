@@ -526,10 +526,6 @@ pub struct GetNodeResult {
     pub node: Option<NodeView>,
 }
 
-// ---------------------------------------------------------------------------------------
-// Tool router — each tool is a thin wrapper around an inner async fn.
-// ---------------------------------------------------------------------------------------
-
 /// Lifecycle tools — connection management, served directly by [`Server`].
 #[tool_router(router = lifecycle_router)]
 impl Server {
