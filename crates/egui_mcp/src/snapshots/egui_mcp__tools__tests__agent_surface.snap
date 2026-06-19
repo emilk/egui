@@ -465,7 +465,7 @@ Conventions:
 
 {
   "name": "hover",
-  "description": "Move the pointer over a node (or raw `pos`) without clicking, then pump a few frames so tooltips / hover popups settle.",
+  "description": "Move the pointer over a node (or raw `pos`) without clicking.\nTooltips and hover popups only appear after a short delay — follow with `wait_for` (e.g. its `min_steps`) to let them settle before reading the tree or screenshotting.",
   "inputSchema": {
     "$defs": {
       "Pos2Lit": {
@@ -521,12 +521,6 @@ Conventions:
           "string",
           "null"
         ]
-      },
-      "settle_frames": {
-        "default": 2,
-        "format": "uint32",
-        "minimum": 0,
-        "type": "integer"
       }
     },
     "title": "HoverArgs",
@@ -942,7 +936,7 @@ Conventions:
 
 {
   "name": "wait_for",
-  "description": "Poll the widget tree until at least `min_matches` visible nodes match the filter, or until `timeout_secs` elapses.",
+  "description": "Poll the widget tree until its conditions hold, or until `timeout_secs` elapses.\nWaits until at least `min_matches` visible nodes match the `role`/`label_contains` filter (when one is given) *and* at least `min_steps` frames have rendered since the call began.\nRequires `role`, `label_contains`, or a non-zero `min_steps`.",
   "inputSchema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
@@ -956,6 +950,13 @@ Conventions:
       "min_matches": {
         "default": 1,
         "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "min_steps": {
+        "default": 0,
+        "description": "Also wait until at least this many frames have rendered since the call began.\nUse it to let animations, tooltips, or other time/frame-driven UI settle (e.g. after a `hover`); `0` means don't wait for frames.",
+        "format": "uint64",
         "minimum": 0,
         "type": "integer"
       },

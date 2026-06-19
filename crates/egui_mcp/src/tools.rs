@@ -403,12 +403,6 @@ fn default_one() -> u32 {
 pub struct HoverArgs {
     #[serde(flatten)]
     pub target: Target,
-    #[serde(default = "default_settle_frames")]
-    pub settle_frames: u32,
-}
-
-fn default_settle_frames() -> u32 {
-    2
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -455,6 +449,11 @@ pub struct WaitForArgs {
     pub timeout_secs: u64,
     #[serde(default = "default_min_matches")]
     pub min_matches: u32,
+
+    /// Also wait until at least this many frames have rendered since the call began.
+    /// Use it to let animations, tooltips, or other time/frame-driven UI settle (e.g. after a `hover`); `0` means don't wait for frames.
+    #[serde(default)]
+    pub min_steps: u64,
 }
 
 fn default_wait_timeout() -> u64 {
@@ -662,16 +661,13 @@ impl UiServer {
         ))
     }
 
-    /// Move the pointer over a node (or raw `pos`) without clicking, then pump a few frames so tooltips / hover popups settle.
+    /// Move the pointer over a node (or raw `pos`) without clicking.
+    /// Tooltips and hover popups only appear after a short delay — follow with `wait_for` (e.g. its `min_steps`) to let them settle before reading the tree or screenshotting.
     #[tool]
     async fn hover(&self, Parameters(args): Parameters<HoverArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
         let (node_id, pos) = resolve_target(&bridge, &args.target).await?;
         bridge.apply_events(vec![Event::PointerMoved(pos)]).await?;
-        // Pump extra frames so tooltips / hover popups settle.
-        for _ in 0..args.settle_frames {
-            let _ = bridge.fetch_tree().await?;
-        }
         Ok(CallToolResult::structured(json!({
             "ok": true,
             "hovered_id": node_id,
@@ -769,15 +765,20 @@ impl UiServer {
         ))
     }
 
-    /// Poll the widget tree until at least `min_matches` visible nodes match the filter, or until `timeout_secs` elapses.
+    /// Poll the widget tree until its conditions hold, or until `timeout_secs` elapses.
+    /// Waits until at least `min_matches` visible nodes match the `role`/`label_contains` filter (when one is given) *and* at least `min_steps` frames have rendered since the call began.
+    /// Requires `role`, `label_contains`, or a non-zero `min_steps`.
     #[tool]
     async fn wait_for(
         &self,
         Parameters(args): Parameters<WaitForArgs>,
     ) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
-        if args.role.is_none() && args.label_contains.is_none() {
-            return Err("wait_for requires at least `role` or `label_contains`".to_owned());
+        let has_filter = args.role.is_some() || args.label_contains.is_some();
+        if !has_filter && args.min_steps == 0 {
+            return Err(
+                "wait_for requires `role`, `label_contains`, or a non-zero `min_steps`".to_owned(),
+            );
         }
         let filter = QueryFilter {
             role: args.role.clone(),
@@ -786,29 +787,37 @@ impl UiServer {
             limit: args.min_matches as usize,
         };
         let deadline = tokio::time::Instant::now() + Duration::from_secs(args.timeout_secs);
+        let mut start_step = None;
         loop {
             let snap = bridge.fetch_tree().await?;
+            // Baseline off the first observed frame, so `min_steps` counts frames since the call.
+            let steps_waited = snap
+                .step
+                .saturating_sub(*start_step.get_or_insert(snap.step));
             // Fail fast on a typo'd role rather than polling until timeout, listing the roles
             // currently in the tree. A valid-but-absent role passes and keeps polling.
             if let Some(role) = &filter.role {
                 tree::validate_role(role, snap.tree.as_ref())?;
             }
-            let matches: Vec<NodeView> = match snap.tree {
-                Some(tree) => tree::query(&tree, &filter, snap.pixels_per_point),
-                None => Vec::new(),
+            let matches: Vec<NodeView> = match (has_filter, snap.tree) {
+                (true, Some(tree)) => tree::query(&tree, &filter, snap.pixels_per_point),
+                _ => Vec::new(),
             };
-            if matches.len() as u32 >= args.min_matches {
+            let matched_ok = !has_filter || matches.len() as u32 >= args.min_matches;
+            if matched_ok && steps_waited >= args.min_steps {
                 return Ok(CallToolResult::structured(
-                    json!({ "ok": true, "matched": matches }),
+                    json!({ "ok": true, "matched": matches, "steps_waited": steps_waited }),
                 ));
             }
             if tokio::time::Instant::now() >= deadline {
                 return Err(format!(
-                    "wait_for timed out after {}s (role={:?}, label_contains={:?}, found {})",
+                    "wait_for timed out after {}s (role={:?}, label_contains={:?}, found {}, min_steps={}, steps_waited={})",
                     args.timeout_secs,
                     args.role,
                     args.label_contains,
-                    matches.len()
+                    matches.len(),
+                    args.min_steps,
+                    steps_waited,
                 ));
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
