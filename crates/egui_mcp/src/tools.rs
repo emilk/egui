@@ -25,7 +25,7 @@
 //! `egui::Event`s, and sends them via `ApplyEvents`. The app-side plugin stays low-level.
 //!
 //! Recoverable failures (no app connected, node not found, etc.) are returned as a plain
-//! [`ToolError`], which `rmcp` renders into a tool result with `isError: true` — not as a
+//! `ToolError`, which `rmcp` renders into a tool result with `isError: true` — not as a
 //! JSON-RPC error, per MCP spec.
 
 use std::sync::Arc;
