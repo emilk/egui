@@ -224,6 +224,7 @@ pub struct Target {
     /// Node id from `query_tree`.
     #[serde(default)]
     pub id: Option<String>,
+
     /// Role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
     /// unrecognized role errors with the roles present in the tree.
     #[serde(default)]
@@ -476,6 +477,7 @@ pub struct TypeTextArgs {
     pub text: String,
     #[serde(default)]
     pub id: Option<String>,
+
     /// Role name (case-insensitive) for the optional focus-click target. An
     /// unrecognized role errors with the roles present in the tree.
     #[serde(default)]

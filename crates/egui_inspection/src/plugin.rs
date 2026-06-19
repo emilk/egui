@@ -60,6 +60,7 @@ enum Phase {
 
 struct InFlight {
     req: Request,
+
     /// Called once, on the UI thread, with this request's reply. `Option` so it can be moved out
     /// during `retain_mut` (which only hands out `&mut`) when the request completes.
     reply: Option<Box<dyn FnOnce(Response) + Send + Sync>>,
