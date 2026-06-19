@@ -101,7 +101,7 @@ fn walk(node: &Node<'_>, filter: &QueryFilter, pixels_per_point: f32, out: &mut 
 
 /// Validate a `role` filter string against the full AccessKit role set.
 ///
-/// Compared case-insensitively, the way [`matches`] compares. On failure the error lists the
+/// Compared case-insensitively, the way `matches` compares. On failure the error lists the
 /// distinct roles actually present in `tree`, so the agent learns what it can filter by instead of
 /// getting a silent empty result. Validity is checked against *all* roles, not just those present,
 /// so polling tools like `wait_for` can still wait for a valid role that hasn't appeared yet.
