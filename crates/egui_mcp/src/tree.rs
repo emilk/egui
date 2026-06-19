@@ -49,6 +49,8 @@ impl RectF {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct QueryFilter {
+    /// AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
+    /// unrecognized role is rejected with an error that lists the roles present in the tree.
     pub role: Option<String>,
     pub label_contains: Option<String>,
     #[serde(default = "default_true")]
@@ -92,6 +94,49 @@ fn walk(node: &Node<'_>, filter: &QueryFilter, out: &mut Vec<NodeView>) {
     }
     for child in node.children() {
         walk(&child, filter, out);
+    }
+}
+
+/// Validate a `role` filter string against the full AccessKit role set.
+///
+/// Compared case-insensitively, the way [`matches`] compares. On failure the error lists the
+/// distinct roles actually present in `tree`, so the agent learns what it can filter by instead of
+/// getting a silent empty result. Validity is checked against *all* roles, not just those present,
+/// so polling tools like `wait_for` can still wait for a valid role that hasn't appeared yet.
+///
+/// # Errors
+/// If `role` is not a known AccessKit role name.
+pub fn validate_role(role: &str, tree: Option<&Tree>) -> Result<(), String> {
+    // `accesskit::Role` is `#[repr(u8)]` with `enumn::N`, so walking `n(0), n(1), …` until `None`
+    // enumerates every variant; `{:?}` yields the same name `matches`/`node_view` expose.
+    let valid = (0u8..=u8::MAX)
+        .map_while(accesskit::Role::n)
+        .any(|r| role.eq_ignore_ascii_case(&format!("{r:?}")));
+    if valid {
+        return Ok(());
+    }
+    let present = tree.map(roles_in_tree).unwrap_or_default();
+    let hint = if present.is_empty() {
+        "(no nodes in the current tree)".to_owned()
+    } else {
+        present.join(", ")
+    };
+    Err(format!(
+        "unknown role `{role}` — roles present in the current tree: {hint}"
+    ))
+}
+
+/// The distinct AccessKit roles present anywhere in `tree`, sorted, as their display names.
+fn roles_in_tree(tree: &Tree) -> Vec<String> {
+    let mut roles = std::collections::BTreeSet::new();
+    collect_roles(&tree.state().root(), &mut roles);
+    roles.into_iter().collect()
+}
+
+fn collect_roles(node: &Node<'_>, out: &mut std::collections::BTreeSet<String>) {
+    out.insert(format!("{:?}", node.role()));
+    for child in node.children() {
+        collect_roles(&child, out);
     }
 }
 

@@ -1,0 +1,963 @@
+---
+source: crates/egui_mcp/src/tools.rs
+expression: surface
+---
+# Server instructions
+
+This server drives a live egui app: it reads the app's AccessKit accessibility tree and synthesizes real input events. Work in an observe → act → verify loop.
+
+Getting oriented:
+- Call `attach` first (check `status` if unsure); the app-driving tools return "no app connected" until then.
+- Start most tasks with `query_tree` to discover widgets and their ids, and/or `screenshot` to see the rendered frame.
+
+Targeting widgets:
+- Prefer locators — an `id` from `query_tree`, or `role`/`label_contains` — over a raw `pos`. Locators resolve to the widget's current position and survive layout changes; reach for `pos` only when nothing matches.
+- Ids belong to a specific tree snapshot. After the UI changes, re-run `query_tree` rather than reusing an old id.
+
+Acting and verifying:
+- After an action that changes the UI, confirm it landed: `query_tree` for the expected state, `screenshot` to look, or `wait_for` to poll until async or animated UI settles.
+- Use `batch` to act and observe in one round trip (e.g. `click` then `screenshot`), avoiding an extra turn.
+
+Conventions:
+- Raw `pos` and `resize` dimensions are in logical points, not physical pixels. There is no fixed screen size; use `resize` to set the viewport.
+
+# Tools
+
+## attach
+
+{
+  "name": "attach",
+  "description": "Connect to a running egui app's inspection port (an app built with eframe's `inspection`\nfeature, launched with `EGUI_INSPECTION` set).\nDefaults to 127.0.0.1:5719. Retries until `timeout_secs` elapses.\nOn success the app-driving tools become available.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "host": {
+        "default": "127.0.0.1",
+        "description": "Host the app's inspection port is on. Defaults to `127.0.0.1`.",
+        "type": "string"
+      },
+      "port": {
+        "default": 5719,
+        "description": "Port the app is listening on. Defaults to `5719` (`egui_inspection`'s default).",
+        "format": "uint16",
+        "maximum": 65535,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "timeout_secs": {
+        "default": null,
+        "description": "How long to keep retrying the connection, in seconds. Defaults to 10.",
+        "format": "uint64",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      }
+    },
+    "title": "AttachArgs",
+    "type": "object"
+  }
+}
+
+## batch
+
+{
+  "name": "batch",
+  "description": "Execute a sequence of tool calls in one round trip. Stops on the first error.\nResults are emitted in execution order, interleaved: each step contributes one JSON text\nitem followed by any image items it produced (e.g. screenshots).\n`batch` cannot be nested.\nUse this to act and observe in one call, e.g. a `click` then a `query_tree` or `screenshot`.",
+  "inputSchema": {
+    "$defs": {
+      "BatchAction": {
+        "properties": {
+          "args": {
+            "additionalProperties": true,
+            "default": null,
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "actions": {
+        "items": {
+          "$ref": "#/$defs/BatchAction"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "actions"
+    ],
+    "title": "BatchArgs",
+    "type": "object"
+  }
+}
+
+## click
+
+{
+  "name": "click",
+  "description": "Click the center of a node's bounding box, or a raw `pos` in logical points.\nSpecify either a locator (`id` from `query_tree` or `role`/`label_contains`) or\n`pos: { x, y }`.\n`button` defaults to `primary` (accepts `primary`/`secondary`/`middle`/`extra1`/`extra2`,\nor aliases `left`/`right`).\n`count: 2` → double-click, `3` → triple.",
+  "inputSchema": {
+    "$defs": {
+      "Pos2Lit": {
+        "properties": {
+          "x": {
+            "format": "float",
+            "type": "number"
+          },
+          "y": {
+            "format": "float",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "PressKeyModifiers": {
+        "properties": {
+          "alt": {
+            "default": false,
+            "type": "boolean"
+          },
+          "command": {
+            "default": false,
+            "description": "= Cmd on Mac / Ctrl on Win+Linux.",
+            "type": "boolean"
+          },
+          "ctrl": {
+            "default": false,
+            "type": "boolean"
+          },
+          "mac_cmd": {
+            "default": false,
+            "type": "boolean"
+          },
+          "shift": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "button": {
+        "default": "primary",
+        "description": "`primary`/`secondary`/`middle`/`extra1`/`extra2` (or aliases `left`/`right`).",
+        "type": "string"
+      },
+      "count": {
+        "default": 1,
+        "description": "`2` → double-click; `3` → triple-click (multi-click detected via egui's timing).",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "id": {
+        "default": null,
+        "description": "Decimal AccessKit node id from `query_tree`.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "label_contains": {
+        "default": null,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "modifiers": {
+        "$ref": "#/$defs/PressKeyModifiers"
+      },
+      "pos": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Pos2Lit"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Raw position in logical points (use instead of locator fields)."
+      },
+      "role": {
+        "default": null,
+        "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "title": "ClickArgs",
+    "type": "object"
+  }
+}
+
+## disconnect
+
+{
+  "name": "disconnect",
+  "description": "Disconnect from the attached app.\nApp-driving tools remain available but return an error until `attach` is called again.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "EmptyArgs",
+    "type": "object"
+  }
+}
+
+## drag
+
+{
+  "name": "drag",
+  "description": "Primary-button drag from `start` to `end`.\nEach target accepts the same fields as `click`: locator (`id`/`role`/`label_contains`) or\n`pos: {x, y}`.\n`steps` controls how many intermediate pointer-move events are emitted between press and\nrelease.",
+  "inputSchema": {
+    "$defs": {
+      "Pos2Lit": {
+        "properties": {
+          "x": {
+            "format": "float",
+            "type": "number"
+          },
+          "y": {
+            "format": "float",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "PressKeyModifiers": {
+        "properties": {
+          "alt": {
+            "default": false,
+            "type": "boolean"
+          },
+          "command": {
+            "default": false,
+            "description": "= Cmd on Mac / Ctrl on Win+Linux.",
+            "type": "boolean"
+          },
+          "ctrl": {
+            "default": false,
+            "type": "boolean"
+          },
+          "mac_cmd": {
+            "default": false,
+            "type": "boolean"
+          },
+          "shift": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "Target": {
+        "properties": {
+          "id": {
+            "default": null,
+            "description": "Decimal AccessKit node id from `query_tree`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label_contains": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pos": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Pos2Lit"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Raw position in logical points (use instead of locator fields)."
+          },
+          "role": {
+            "default": null,
+            "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "end": {
+        "$ref": "#/$defs/Target"
+      },
+      "modifiers": {
+        "$ref": "#/$defs/PressKeyModifiers"
+      },
+      "start": {
+        "$ref": "#/$defs/Target"
+      },
+      "steps": {
+        "default": 8,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "start",
+      "end"
+    ],
+    "title": "DragArgs",
+    "type": "object"
+  }
+}
+
+## get_node
+
+{
+  "name": "get_node",
+  "description": "Return a single AccessKit node by id (decimal string).",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id"
+    ],
+    "title": "GetNodeArgs",
+    "type": "object"
+  },
+  "outputSchema": {
+    "$defs": {
+      "NodeView": {
+        "properties": {
+          "bounds": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RectF"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "focused": {
+            "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Original `accesskit::NodeId` as a decimal string. Emitted as a string so the full\nu64 round-trips through MCP clients whose JSON parsers go through `f64` (which\ncan't represent integers above 2^53 exactly).",
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "focused",
+          "disabled",
+          "hidden"
+        ],
+        "type": "object"
+      },
+      "RectF": {
+        "properties": {
+          "h": {
+            "format": "double",
+            "type": "number"
+          },
+          "w": {
+            "format": "double",
+            "type": "number"
+          },
+          "x": {
+            "format": "double",
+            "type": "number"
+          },
+          "y": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "w",
+          "h"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "`get_node` result: the resolved node, or `null` if the id didn't match.",
+    "properties": {
+      "node": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/NodeView"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "title": "GetNodeResult",
+    "type": "object"
+  }
+}
+
+## hover
+
+{
+  "name": "hover",
+  "description": "Move the pointer over a node (or raw `pos`) without clicking, then pump a few frames so\ntooltips / hover popups settle.",
+  "inputSchema": {
+    "$defs": {
+      "Pos2Lit": {
+        "properties": {
+          "x": {
+            "format": "float",
+            "type": "number"
+          },
+          "y": {
+            "format": "float",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "id": {
+        "default": null,
+        "description": "Decimal AccessKit node id from `query_tree`.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "label_contains": {
+        "default": null,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "pos": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Pos2Lit"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Raw position in logical points (use instead of locator fields)."
+      },
+      "role": {
+        "default": null,
+        "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "settle_frames": {
+        "default": 2,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "title": "HoverArgs",
+    "type": "object"
+  }
+}
+
+## press_key
+
+{
+  "name": "press_key",
+  "description": "Send a key press (down + up) to the focused widget.\n`key` is an egui key name such as `Backspace`, `Delete`, `Enter`, `Tab`, `A`–`Z`,\n`ArrowLeft`, `ArrowRight`, `Home`, `End`, `Escape`.",
+  "inputSchema": {
+    "$defs": {
+      "PressKeyModifiers": {
+        "properties": {
+          "alt": {
+            "default": false,
+            "type": "boolean"
+          },
+          "command": {
+            "default": false,
+            "description": "= Cmd on Mac / Ctrl on Win+Linux.",
+            "type": "boolean"
+          },
+          "ctrl": {
+            "default": false,
+            "type": "boolean"
+          },
+          "mac_cmd": {
+            "default": false,
+            "type": "boolean"
+          },
+          "shift": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "key": {
+        "type": "string"
+      },
+      "modifiers": {
+        "$ref": "#/$defs/PressKeyModifiers"
+      }
+    },
+    "required": [
+      "key"
+    ],
+    "title": "PressKeyArgs",
+    "type": "object"
+  }
+}
+
+## query_tree
+
+{
+  "name": "query_tree",
+  "description": "Walk the AccessKit tree and return nodes matching the filter.\n`role`, if given, is an AccessKit role name (e.g. `Button`, `Label`), matched\ncase-insensitively; an unknown role errors with the roles present in the tree.\nUse the returned `id` (a decimal string) with `click`, `type_text`, or `get_node`.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "label_contains": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "limit": {
+        "default": 200,
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "role": {
+        "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role is rejected with an error that lists the roles present in the tree.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "visible_only": {
+        "default": true,
+        "type": "boolean"
+      }
+    },
+    "title": "QueryFilter",
+    "type": "object"
+  },
+  "outputSchema": {
+    "$defs": {
+      "NodeView": {
+        "properties": {
+          "bounds": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RectF"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "focused": {
+            "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Original `accesskit::NodeId` as a decimal string. Emitted as a string so the full\nu64 round-trips through MCP clients whose JSON parsers go through `f64` (which\ncan't represent integers above 2^53 exactly).",
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "focused",
+          "disabled",
+          "hidden"
+        ],
+        "type": "object"
+      },
+      "RectF": {
+        "properties": {
+          "h": {
+            "format": "double",
+            "type": "number"
+          },
+          "w": {
+            "format": "double",
+            "type": "number"
+          },
+          "x": {
+            "format": "double",
+            "type": "number"
+          },
+          "y": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "w",
+          "h"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "`query_tree` result: the matching nodes.",
+    "properties": {
+      "nodes": {
+        "items": {
+          "$ref": "#/$defs/NodeView"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "nodes"
+    ],
+    "title": "QueryTreeResult",
+    "type": "object"
+  }
+}
+
+## resize
+
+{
+  "name": "resize",
+  "description": "Resize the app's viewport to the given logical-point dimensions.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "height": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "width": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "width",
+      "height"
+    ],
+    "title": "ResizeArgs",
+    "type": "object"
+  }
+}
+
+## screenshot
+
+{
+  "name": "screenshot",
+  "description": "Capture the current frame as a PNG screenshot.\nRequires the app window to be visible — a fully-occluded or minimized window can't render\na frame to capture (notably on macOS), so the call times out; bring the window to the\nforeground first.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "EmptyArgs",
+    "type": "object"
+  }
+}
+
+## scroll
+
+{
+  "name": "scroll",
+  "description": "Send a mouse wheel scroll over a node (or raw `pos`).\n`delta` is in logical points: positive Y scrolls content down; positive X right.",
+  "inputSchema": {
+    "$defs": {
+      "Pos2Lit": {
+        "properties": {
+          "x": {
+            "format": "float",
+            "type": "number"
+          },
+          "y": {
+            "format": "float",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "PressKeyModifiers": {
+        "properties": {
+          "alt": {
+            "default": false,
+            "type": "boolean"
+          },
+          "command": {
+            "default": false,
+            "description": "= Cmd on Mac / Ctrl on Win+Linux.",
+            "type": "boolean"
+          },
+          "ctrl": {
+            "default": false,
+            "type": "boolean"
+          },
+          "mac_cmd": {
+            "default": false,
+            "type": "boolean"
+          },
+          "shift": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "delta": {
+        "$ref": "#/$defs/Pos2Lit",
+        "description": "Logical points. Positive Y scrolls content down (revealing content below)."
+      },
+      "id": {
+        "default": null,
+        "description": "Decimal AccessKit node id from `query_tree`.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "label_contains": {
+        "default": null,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "modifiers": {
+        "$ref": "#/$defs/PressKeyModifiers"
+      },
+      "pos": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Pos2Lit"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Raw position in logical points (use instead of locator fields)."
+      },
+      "role": {
+        "default": null,
+        "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "delta"
+    ],
+    "title": "ScrollArgs",
+    "type": "object"
+  }
+}
+
+## status
+
+{
+  "name": "status",
+  "description": "Report whether an app is connected and its peer info.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "EmptyArgs",
+    "type": "object"
+  }
+}
+
+## type_text
+
+{
+  "name": "type_text",
+  "description": "Type text into the currently focused widget.\nSends one `Event::Text` per character (each applied in its own frame).\nOptionally first focuses a node (by `id` or `role`/`label_contains`) via a click.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "id": {
+        "default": null,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "label_contains": {
+        "default": null,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "role": {
+        "default": null,
+        "description": "AccessKit role name (case-insensitive) for the optional focus-click target. An\nunrecognized role errors with the roles present in the tree.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "text": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "text"
+    ],
+    "title": "TypeTextArgs",
+    "type": "object"
+  }
+}
+
+## wait_for
+
+{
+  "name": "wait_for",
+  "description": "Poll the AccessKit tree until at least `min_matches` visible nodes match the filter, or\nuntil `timeout_secs` elapses.",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "label_contains": {
+        "default": null,
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "min_matches": {
+        "default": 1,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "role": {
+        "default": null,
+        "description": "AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An\nunrecognized role errors with the roles present in the tree.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "timeout_secs": {
+        "default": 5,
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "title": "WaitForArgs",
+    "type": "object"
+  }
+}

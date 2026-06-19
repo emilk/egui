@@ -19,7 +19,8 @@ path = "src/main.rs"
 [dependencies]
 egui_inspection = { workspace = true }
 egui.workspace = true
-accesskit.workspace = true
+# `enumn` gives `Role::n`, used to validate a role string against the full AccessKit role set.
+accesskit = { workspace = true, features = ["enumn"] }
 accesskit_consumer.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"
@@ -38,6 +39,9 @@ tokio = { version = "1.49", features = [
 base64 = "0.22"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+insta = "1.48"
 
 [lints]
 workspace = true

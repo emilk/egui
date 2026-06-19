@@ -37,7 +37,7 @@ use rmcp::{
     ErrorData as McpError, ServerHandler,
     handler::server::{
         router::tool::ToolRouter,
-        tool::{IntoCallToolResult, ToolCallContext},
+        tool::ToolCallContext,
         wrapper::{Json, Parameters},
     },
     model::{
@@ -50,7 +50,7 @@ use rmcp::{
     tool, tool_router,
 };
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard};
 
@@ -224,6 +224,8 @@ pub struct Target {
     /// Decimal AccessKit node id from `query_tree`.
     #[serde(default)]
     pub id: Option<String>,
+    /// AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
+    /// unrecognized role errors with the roles present in the tree.
     #[serde(default)]
     pub role: Option<String>,
     #[serde(default)]
@@ -276,6 +278,9 @@ fn resolve_in_tree(
 ) -> ToolResult<(Option<String>, egui::Pos2)> {
     if let Some(p) = target.pos {
         return Ok((None, egui::Pos2::new(p.x, p.y)));
+    }
+    if let Some(role) = &target.role {
+        tree::validate_role(role, snap.tree.as_ref())?;
     }
     let locator = target
         .as_locator()
@@ -424,6 +429,8 @@ pub struct ResizeArgs {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct WaitForArgs {
+    /// AccessKit role name, e.g. `Button`, `Label`, `TextInput` (case-insensitive). An
+    /// unrecognized role errors with the roles present in the tree.
     #[serde(default)]
     pub role: Option<String>,
     #[serde(default)]
@@ -447,6 +454,8 @@ pub struct TypeTextArgs {
     pub text: String,
     #[serde(default)]
     pub id: Option<String>,
+    /// AccessKit role name (case-insensitive) for the optional focus-click target. An
+    /// unrecognized role errors with the roles present in the tree.
     #[serde(default)]
     pub role: Option<String>,
     #[serde(default)]
@@ -474,18 +483,34 @@ pub struct BatchAction {
 }
 
 // ---------------------------------------------------------------------------------------
+// Structured tool outputs — MCP requires `structuredContent` to be a JSON object, so
+// collection/optional results are wrapped in a named field rather than returned bare.
+// ---------------------------------------------------------------------------------------
+
+/// `query_tree` result: the matching nodes.
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct QueryTreeResult {
+    pub nodes: Vec<NodeView>,
+}
+
+/// `get_node` result: the resolved node, or `null` if the id didn't match.
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct GetNodeResult {
+    pub node: Option<NodeView>,
+}
+
+// ---------------------------------------------------------------------------------------
 // Tool router — each tool is a thin wrapper around an inner async fn.
 // ---------------------------------------------------------------------------------------
 
 /// Lifecycle tools — connection management, served directly by [`Server`].
 #[tool_router(router = lifecycle_router)]
 impl Server {
-    #[tool(
-        description = "Connect to a running egui app's inspection port (an app built with \
-                        eframe's `inspection` feature, launched with `EGUI_INSPECTION` set). \
-                        Defaults to 127.0.0.1:5719. Retries until `timeout_secs` elapses. \
-                        On success the app-driving tools become available."
-    )]
+    /// Connect to a running egui app's inspection port (an app built with eframe's `inspection`
+    /// feature, launched with `EGUI_INSPECTION` set).
+    /// Defaults to 127.0.0.1:5719. Retries until `timeout_secs` elapses.
+    /// On success the app-driving tools become available.
+    #[tool]
     async fn attach(
         &self,
         Parameters(args): Parameters<AttachArgs>,
@@ -508,10 +533,9 @@ impl Server {
         ))
     }
 
-    #[tool(
-        description = "Disconnect from the attached app. App-driving tools remain available \
-                        but return an error until `attach` is called again."
-    )]
+    /// Disconnect from the attached app.
+    /// App-driving tools remain available but return an error until `attach` is called again.
+    #[tool]
     async fn disconnect(&self, _p: Parameters<EmptyArgs>) -> Result<CallToolResult, McpError> {
         if self.state.clear_bridge().await {
             Ok(CallToolResult::structured(json!({ "ok": true })))
@@ -520,7 +544,8 @@ impl Server {
         }
     }
 
-    #[tool(description = "Report whether an app is connected and its peer info.")]
+    /// Report whether an app is connected and its peer info.
+    #[tool]
     async fn status(&self, _p: Parameters<EmptyArgs>) -> Result<CallToolResult, McpError> {
         let guard = self.state.bridge.lock().await;
         let body = match guard.as_ref() {
@@ -534,12 +559,11 @@ impl Server {
 /// App-driving tools — each needs an attached app (see the module docs).
 #[tool_router]
 impl UiServer {
-    #[tool(
-        description = "Capture the current frame as a PNG screenshot. Requires the app window \
-                        to be visible — a fully-occluded or minimized window can't render a \
-                        frame to capture (notably on macOS), so the call times out; bring the \
-                        window to the foreground first."
-    )]
+    /// Capture the current frame as a PNG screenshot.
+    /// Requires the app window to be visible — a fully-occluded or minimized window can't render
+    /// a frame to capture (notably on macOS), so the call times out; bring the window to the
+    /// foreground first.
+    #[tool]
     async fn screenshot(&self, _p: Parameters<EmptyArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
         let png = bridge.screenshot().await?;
@@ -551,47 +575,56 @@ impl UiServer {
         ]))
     }
 
-    #[tool(
-        description = "Walk the AccessKit tree and return nodes matching the filter. Use \
-                        the returned `id` (a decimal string) with `click`, `type_text`, or \
-                        `get_node`."
-    )]
+    // The return type is spelled `Result<Json<…>, ToolError>` rather than the `ToolResult` alias
+    // on purpose: `#[tool]` derives the output schema by syntactically matching `Json<T>` /
+    // `Result<Json<T>, _>`, and the alias would hide it, silently dropping the schema.
+    /// Walk the AccessKit tree and return nodes matching the filter.
+    /// `role`, if given, is an AccessKit role name (e.g. `Button`, `Label`), matched
+    /// case-insensitively; an unknown role errors with the roles present in the tree.
+    /// Use the returned `id` (a decimal string) with `click`, `type_text`, or `get_node`.
+    #[tool]
     async fn query_tree(
         &self,
         Parameters(filter): Parameters<QueryFilter>,
-    ) -> ToolResult<Json<Vec<NodeView>>> {
+    ) -> Result<Json<QueryTreeResult>, ToolError> {
         let bridge = self.bridge().await?;
         let snap = bridge.fetch_tree().await?;
-        let results = match snap.tree {
+        if let Some(role) = &filter.role {
+            tree::validate_role(role, snap.tree.as_ref())?;
+        }
+        let nodes = match snap.tree {
             Some(tree) => tree::query(&tree, &filter),
             None => Vec::new(),
         };
-        Ok(Json(results))
+        Ok(Json(QueryTreeResult { nodes }))
     }
 
-    #[tool(description = "Return a single AccessKit node by id (decimal string).")]
+    /// Return a single AccessKit node by id (decimal string).
+    // Spelled-out `Result<Json<…>, ToolError>` (not the `ToolResult` alias) so `#[tool]` derives
+    // the output schema — see `query_tree`.
+    #[tool]
     async fn get_node(
         &self,
         Parameters(args): Parameters<GetNodeArgs>,
-    ) -> ToolResult<Json<Option<NodeView>>> {
+    ) -> Result<Json<GetNodeResult>, ToolError> {
         let bridge = self.bridge().await?;
         let locator_json = json!({ "id": args.id });
         let locator: Locator =
             serde_json::from_value(locator_json).map_err(|e| format!("invalid id: {e}"))?;
         let snap = bridge.fetch_tree().await?;
-        let view = snap
+        let node = snap
             .tree
             .and_then(|tree| tree::resolve_node(&tree, &locator).map(|n| tree::node_view(&n)));
-        Ok(Json(view))
+        Ok(Json(GetNodeResult { node }))
     }
 
-    #[tool(
-        description = "Click the center of a node's bounding box, or a raw `pos` in logical \
-                        points. Specify either a locator (`id` from `query_tree` or \
-                        `role`/`label_contains`) or `pos: { x, y }`. `button` defaults to \
-                        `primary` (accepts `primary`/`secondary`/`middle`/`extra1`/`extra2`, \
-                        or aliases `left`/`right`). `count: 2` → double-click, `3` → triple."
-    )]
+    /// Click the center of a node's bounding box, or a raw `pos` in logical points.
+    /// Specify either a locator (`id` from `query_tree` or `role`/`label_contains`) or
+    /// `pos: { x, y }`.
+    /// `button` defaults to `primary` (accepts `primary`/`secondary`/`middle`/`extra1`/`extra2`,
+    /// or aliases `left`/`right`).
+    /// `count: 2` → double-click, `3` → triple.
+    #[tool]
     async fn click(&self, Parameters(args): Parameters<ClickArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
         Ok(CallToolResult::structured(
@@ -599,10 +632,9 @@ impl UiServer {
         ))
     }
 
-    #[tool(
-        description = "Move the pointer over a node (or raw `pos`) without clicking, then \
-                        pump a few frames so tooltips / hover popups settle."
-    )]
+    /// Move the pointer over a node (or raw `pos`) without clicking, then pump a few frames so
+    /// tooltips / hover popups settle.
+    #[tool]
     async fn hover(&self, Parameters(args): Parameters<HoverArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
         let (node_id, pos) = resolve_target(&bridge, &args.target).await?;
@@ -618,10 +650,9 @@ impl UiServer {
         })))
     }
 
-    #[tool(
-        description = "Send a mouse wheel scroll over a node (or raw `pos`). `delta` is in \
-                        logical points: positive Y scrolls content down; positive X right."
-    )]
+    /// Send a mouse wheel scroll over a node (or raw `pos`).
+    /// `delta` is in logical points: positive Y scrolls content down; positive X right.
+    #[tool]
     async fn scroll(&self, Parameters(args): Parameters<ScrollArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
         let (node_id, pos) = resolve_target(&bridge, &args.target).await?;
@@ -645,12 +676,12 @@ impl UiServer {
         })))
     }
 
-    #[tool(
-        description = "Primary-button drag from `start` to `end`. Each target accepts the \
-                        same fields as `click`: locator (`id`/`role`/`label_contains`) or \
-                        `pos: {x, y}`. `steps` controls how many intermediate pointer-move \
-                        events are emitted between press and release."
-    )]
+    /// Primary-button drag from `start` to `end`.
+    /// Each target accepts the same fields as `click`: locator (`id`/`role`/`label_contains`) or
+    /// `pos: {x, y}`.
+    /// `steps` controls how many intermediate pointer-move events are emitted between press and
+    /// release.
+    #[tool]
     async fn drag(&self, Parameters(args): Parameters<DragArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
         // Resolve both endpoints against one tree snapshot — no input happens between them.
@@ -701,7 +732,8 @@ impl UiServer {
         })))
     }
 
-    #[tool(description = "Resize the app's viewport to the given logical-point dimensions.")]
+    /// Resize the app's viewport to the given logical-point dimensions.
+    #[tool]
     async fn resize(&self, Parameters(args): Parameters<ResizeArgs>) -> ToolResult<CallToolResult> {
         let bridge = self.bridge().await?;
         bridge.resize(args.width, args.height).await?;
@@ -710,10 +742,9 @@ impl UiServer {
         ))
     }
 
-    #[tool(
-        description = "Poll the AccessKit tree until at least `min_matches` visible nodes \
-                        match the filter, or until `timeout_secs` elapses."
-    )]
+    /// Poll the AccessKit tree until at least `min_matches` visible nodes match the filter, or
+    /// until `timeout_secs` elapses.
+    #[tool]
     async fn wait_for(
         &self,
         Parameters(args): Parameters<WaitForArgs>,
@@ -731,6 +762,11 @@ impl UiServer {
         let deadline = tokio::time::Instant::now() + Duration::from_secs(args.timeout_secs);
         loop {
             let snap = bridge.fetch_tree().await?;
+            // Fail fast on a typo'd role rather than polling until timeout, listing the roles
+            // currently in the tree. A valid-but-absent role passes and keeps polling.
+            if let Some(role) = &filter.role {
+                tree::validate_role(role, snap.tree.as_ref())?;
+            }
             let matches: Vec<NodeView> = match snap.tree {
                 Some(tree) => tree::query(&tree, &filter),
                 None => Vec::new(),
@@ -753,11 +789,10 @@ impl UiServer {
         }
     }
 
-    #[tool(
-        description = "Type text into the currently focused widget. Sends one `Event::Text` \
-                        per character (each applied in its own frame). Optionally first \
-                        focuses a node (by `id` or `role`/`label_contains`) via a click."
-    )]
+    /// Type text into the currently focused widget.
+    /// Sends one `Event::Text` per character (each applied in its own frame).
+    /// Optionally first focuses a node (by `id` or `role`/`label_contains`) via a click.
+    #[tool]
     async fn type_text(
         &self,
         Parameters(args): Parameters<TypeTextArgs>,
@@ -800,11 +835,10 @@ impl UiServer {
         })))
     }
 
-    #[tool(
-        description = "Send a key press (down + up) to the focused widget. `key` is an egui \
-                        key name such as `Backspace`, `Delete`, `Enter`, `Tab`, `A`–`Z`, \
-                        `ArrowLeft`, `ArrowRight`, `Home`, `End`, `Escape`."
-    )]
+    /// Send a key press (down + up) to the focused widget.
+    /// `key` is an egui key name such as `Backspace`, `Delete`, `Enter`, `Tab`, `A`–`Z`,
+    /// `ArrowLeft`, `ArrowRight`, `Home`, `End`, `Escape`.
+    #[tool]
     async fn press_key(
         &self,
         Parameters(args): Parameters<PressKeyArgs>,
@@ -836,17 +870,16 @@ impl UiServer {
         ))
     }
 
-    #[tool(
-        description = "Execute a sequence of tool calls in one round trip. Stops on the \
-                        first error. Results are emitted in execution order, interleaved: \
-                        each step contributes one JSON text item followed by any image \
-                        items it produced (e.g. screenshots). `batch` cannot be nested. \
-                        Use this to act and observe in one call, e.g. a `click` then a \
-                        `query_tree` or `screenshot`."
-    )]
+    /// Execute a sequence of tool calls in one round trip. Stops on the first error.
+    /// Results are emitted in execution order, interleaved: each step contributes one JSON text
+    /// item followed by any image items it produced (e.g. screenshots).
+    /// `batch` cannot be nested.
+    /// Use this to act and observe in one call, e.g. a `click` then a `query_tree` or `screenshot`.
+    #[tool]
     async fn batch(
         &self,
         Parameters(args): Parameters<BatchArgs>,
+        ctx: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         if args.actions.iter().any(|a| a.name == "batch") {
             return Ok(text_error("nested `batch` is not allowed"));
@@ -854,7 +887,16 @@ impl UiServer {
         let mut content: Vec<Content> = Vec::new();
         let mut any_error = false;
         for action in args.actions {
-            let result = Box::pin(self.dispatch_internal(&action.name, action.args)).await;
+            // Re-enter our own router by name — same path as a top-level call, so each step
+            // parses its args and runs exactly like a direct invocation.
+            let mut request = CallToolRequestParams::new(action.name.clone());
+            if let Value::Object(map) = action.args {
+                request = request.with_arguments(map);
+            }
+            let result = self
+                .dispatch(request, ctx.clone())
+                .await
+                .unwrap_or_else(|e| text_error(e.message.to_string()));
             let mut step_texts: Vec<String> = Vec::new();
             let mut step_images: Vec<Content> = Vec::new();
             for item in &result.content {
@@ -890,10 +932,32 @@ impl UiServer {
     }
 }
 
+/// Operating guidance sent to clients at initialize (the MCP `instructions` field). The
+/// per-tool descriptions cover each command in isolation; this establishes the cross-cutting
+/// workflow — the observe→act→verify loop and the prefer-locators convention — that an agent
+/// otherwise has to infer.
+const INSTRUCTIONS: &str = r#"This mcp drives a live egui app: it reads the app's AccessKit accessibility tree and synthesizes real input events. Work in an observe → act → verify loop.
+
+Getting oriented:
+- Call `attach` first (check `status` if unsure); the app-driving tools return "no app connected" until then.
+- Start most tasks with `query_tree` to discover widgets and their ids, and/or `screenshot` to see the rendered frame.
+
+Targeting widgets:
+- Prefer locators — an `id` from `query_tree`, or `role`/`label_contains` — over a raw `pos`. Locators resolve to the widget's current position and survive layout changes; reach for `pos` only when nothing matches.
+- Ids belong to a specific tree snapshot. After the UI changes, re-run `query_tree` rather than reusing an old id.
+
+Acting and verifying:
+- After an action that changes the UI, confirm it landed: `query_tree` for the expected state, `screenshot` to look, or `wait_for` to poll until async or animated UI settles.
+- Use `batch` to act and observe in one round trip (e.g. `click` then `screenshot`), avoiding an extra turn.
+
+Conventions:
+- Raw `pos` and `resize` dimensions are in logical points, not physical pixels. There is no fixed screen size; use `resize` to set the viewport."#;
+
 impl ServerHandler for Server {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::new("egui-mcp", env!("CARGO_PKG_VERSION")))
+            .with_instructions(INSTRUCTIONS)
     }
 
     async fn initialize(
@@ -941,47 +1005,8 @@ impl ServerHandler for Server {
 }
 
 // ---------------------------------------------------------------------------------------
-// Batch internal dispatch
+// Batch result flattening
 // ---------------------------------------------------------------------------------------
-
-impl UiServer {
-    /// Route a UI tool call by name. Used by `batch` to recurse without going back through
-    /// the rmcp router. Only the app-driving tools are reachable — connection management lives
-    /// on the embedding server, not here.
-    async fn dispatch_internal(&self, name: &str, args: Value) -> CallToolResult {
-        match name {
-            "screenshot" => unpack_then(args, |p| async move { self.screenshot(p).await }).await,
-            "query_tree" => unpack_then(args, |p| async move { self.query_tree(p).await }).await,
-            "get_node" => unpack_then(args, |p| async move { self.get_node(p).await }).await,
-            "click" => unpack_then(args, |p| async move { self.click(p).await }).await,
-            "hover" => unpack_then(args, |p| async move { self.hover(p).await }).await,
-            "scroll" => unpack_then(args, |p| async move { self.scroll(p).await }).await,
-            "drag" => unpack_then(args, |p| async move { self.drag(p).await }).await,
-            "resize" => unpack_then(args, |p| async move { self.resize(p).await }).await,
-            "wait_for" => unpack_then(args, |p| async move { self.wait_for(p).await }).await,
-            "type_text" => unpack_then(args, |p| async move { self.type_text(p).await }).await,
-            "press_key" => unpack_then(args, |p| async move { self.press_key(p).await }).await,
-            other => text_error(format!("unknown tool `{other}`")),
-        }
-    }
-}
-
-async fn unpack_then<A, F, Fut, R>(args: Value, f: F) -> CallToolResult
-where
-    A: for<'de> serde::Deserialize<'de>,
-    F: FnOnce(Parameters<A>) -> Fut,
-    Fut: std::future::Future<Output = R>,
-    R: IntoCallToolResult,
-{
-    let parsed: A = match serde_json::from_value(args) {
-        Ok(p) => p,
-        Err(e) => return text_error(format!("invalid arguments: {e}")),
-    };
-    // Tool handlers return `Err(ToolError)` for recoverable failures, which `IntoCallToolResult`
-    // turns into an `isError: true` result — so this is `Ok` in practice. A genuine protocol
-    // error (only possible from a handler returning `McpError`) is flattened to its message.
-    f(Parameters(parsed)).await.into_call_tool_result().unwrap_or_else(|e| text_error(e.message.to_string()))
-}
 
 fn content_as_text(c: &Content) -> Option<&str> {
     match &c.raw {
@@ -1043,4 +1068,45 @@ async fn click_inner(bridge: &Bridge, args: ClickArgs) -> ToolResult<Value> {
         "button": args.button,
         "count": count,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fmt::Write as _;
+
+    use rmcp::ServerHandler as _;
+
+    use super::*;
+
+    /// Snapshot the entire agent-facing surface: the server `instructions` plus every tool's
+    /// name, description, and input/output schemas — exactly what an MCP client is shown on
+    /// connect. Guards descriptions, schemas, and structured-output shapes against accidental
+    /// change. Run `INSTA_UPDATE=always cargo nextest run -p egui_mcp` to accept intended edits.
+    ///
+    /// The server version is intentionally excluded so the snapshot is stable across releases.
+    #[test]
+    fn agent_surface_snapshot() {
+        let server = Server::new();
+
+        let mut surface = String::new();
+        surface.push_str("# Server instructions\n\n");
+        surface.push_str(
+            server
+                .get_info()
+                .instructions
+                .as_deref()
+                .unwrap_or("(none)"),
+        );
+        surface.push_str("\n\n# Tools\n");
+
+        let mut tools = server.tools();
+        tools.sort_by(|a, b| a.name.cmp(&b.name));
+        for tool in &tools {
+            write!(surface, "\n## {}\n\n", tool.name).unwrap();
+            surface.push_str(&serde_json::to_string_pretty(tool).expect("serialize tool"));
+            surface.push('\n');
+        }
+
+        insta::assert_snapshot!("agent_surface", surface);
+    }
 }
