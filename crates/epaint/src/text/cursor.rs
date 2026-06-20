@@ -85,5 +85,5 @@ pub struct LayoutCursor {
     /// Character based (NOT bytes).
     /// It is fine if this points to something beyond the end of the current row.
     /// When moving up/down it may again be within the next row.
-    pub column: usize,
+    pub column: CharIndex,
 }

@@ -947,23 +947,23 @@ impl Row {
 
     /// Excludes the implicit `\n` after the [`Row`], if any.
     #[inline]
-    pub fn char_count_excluding_newline(&self) -> usize {
-        self.glyphs.len()
+    pub fn char_count_excluding_newline(&self) -> CharIndex {
+        CharIndex(self.glyphs.len())
     }
 
     /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
-    pub fn char_at(&self, desired_x: f32) -> usize {
+    pub fn char_at(&self, desired_x: f32) -> CharIndex {
         for (i, glyph) in self.glyphs.iter().enumerate() {
             if desired_x < glyph.logical_rect().center().x {
-                return i;
+                return CharIndex(i);
             }
         }
         self.char_count_excluding_newline()
     }
 
-    pub fn x_offset(&self, column: usize) -> f32 {
-        if let Some(glyph) = self.glyphs.get(column) {
+    pub fn x_offset(&self, column: CharIndex) -> f32 {
+        if let Some(glyph) = self.glyphs.get(column.0) {
             glyph.pos.x
         } else {
             self.size.x
@@ -989,8 +989,8 @@ impl PlacedRow {
 
     /// Includes the implicit `\n` after the [`PlacedRow`], if any.
     #[inline]
-    pub fn char_count_including_newline(&self) -> usize {
-        self.row.glyphs.len() + (self.ends_with_newline as usize)
+    pub fn char_count_including_newline(&self) -> CharIndex {
+        CharIndex(self.row.glyphs.len() + (self.ends_with_newline as usize))
     }
 }
 
@@ -1261,7 +1261,7 @@ impl Galley {
 
             if ccursor_it.index <= cursor.index && cursor.index <= ccursor_it.index + row_char_count
             {
-                let column = (cursor.index - ccursor_it.index).0;
+                let column = cursor.index - ccursor_it.index;
 
                 let select_next_row_instead = prefer_next_row
                     && !row.ends_with_newline
@@ -1301,9 +1301,7 @@ impl Galley {
 
         for (row_nr, row) in self.rows.iter().enumerate() {
             if row_nr == layout_cursor.row {
-                cursor_it.index += layout_cursor
-                    .column
-                    .at_most(row.char_count_excluding_newline());
+                cursor_it.index += layout_cursor.column.min(row.char_count_excluding_newline());
 
                 return cursor_it;
             }
@@ -1393,7 +1391,7 @@ impl Galley {
         let layout_cursor = self.layout_from_cursor(*cursor);
         self.cursor_from_layout(LayoutCursor {
             row: layout_cursor.row,
-            column: 0,
+            column: CharIndex::ZERO,
         })
     }
 
@@ -1407,7 +1405,7 @@ impl Galley {
 
     pub fn cursor_begin_of_paragraph(&self, cursor: &CCursor) -> CCursor {
         let mut layout_cursor = self.layout_from_cursor(*cursor);
-        layout_cursor.column = 0;
+        layout_cursor.column = CharIndex::ZERO;
 
         loop {
             let prev_row = layout_cursor

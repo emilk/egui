@@ -1574,7 +1574,7 @@ mod tests {
                     pixels_per_point,
                     Arc::new(LayoutJob::single_section(
                         iter::chain(
-                            (0..elided_galley.rows[0].char_count_excluding_newline()).map(|_| ch),
+                            (0..elided_galley.rows[0].char_count_excluding_newline().0).map(|_| ch),
                             iter::once('…'),
                         )
                         .collect::<String>(),
