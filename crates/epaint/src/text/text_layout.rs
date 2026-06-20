@@ -100,6 +100,8 @@ impl Paragraph {
 pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>) -> Galley {
     profiling::function_scope!();
 
+    job.debug_sanity_check();
+
     if job.wrap.max_rows == 0 {
         // Early-out: no text
         return Galley {
