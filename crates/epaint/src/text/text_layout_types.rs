@@ -189,6 +189,18 @@ impl LayoutJob {
         });
     }
 
+    /// The [`TextFormat`] of the section containing the character starting at the given byte index.
+    ///
+    /// If the index is past the end, the format of the last section is returned.
+    /// Panics if the job has no sections.
+    pub fn format_at_byte(&self, byte_idx: usize) -> &TextFormat {
+        let section_idx = self
+            .sections
+            .partition_point(|section| section.byte_range.end <= byte_idx);
+        let section_idx = section_idx.min(self.sections.len().saturating_sub(1));
+        &self.sections[section_idx].format
+    }
+
     /// The height of the tallest font used in the job.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
