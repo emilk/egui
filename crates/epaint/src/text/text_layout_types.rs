@@ -50,6 +50,12 @@ pub struct LayoutJob {
     pub text: String,
 
     /// The different section, which can have different fonts, colors, etc.
+    ///
+    /// Invariant: the sections are ordered by their `byte_range`,
+    /// and together cover the whole of [`Self::text`] with no gaps and no overlaps.
+    /// That is: the first section starts at byte 0, the last section ends at `text.len()`,
+    /// and each section starts exactly where the previous one ended.
+    /// This is checked by [`Self::debug_sanity_check`].
     pub sections: Vec<LayoutSection>,
 
     /// Controls the text wrapping and elision.
@@ -207,12 +213,57 @@ impl LayoutJob {
     /// Panics if the job has no sections.
     /// Assumes [`LayoutJob::sections`] are ordered by increasing `byte_range` (as produced by [`Self::append`]).
     pub fn format_at_byte(&self, byte_idx: usize) -> &TextFormat {
+        self.debug_sanity_check();
         let last = self.sections.last().expect("LayoutJob has no sections");
         let idx = self
             .sections
             .partition_point(|section| section.byte_range.end <= byte_idx);
         let section = self.sections.get(idx).unwrap_or(last);
         &section.format
+    }
+
+    /// Check the [`Self::sections`] invariant: the sections are ordered and together
+    /// cover the whole of [`Self::text`] with no gaps and no overlaps.
+    ///
+    /// Only does anything in debug builds.
+    pub fn debug_sanity_check(&self) {
+        #[cfg(debug_assertions)]
+        {
+            if self.sections.is_empty() {
+                assert!(
+                    self.text.is_empty(),
+                    "LayoutJob has text but no sections: {:?}",
+                    self.text
+                );
+                return;
+            }
+
+            assert_eq!(
+                self.sections
+                    .first()
+                    .expect("checked above")
+                    .byte_range
+                    .start,
+                0,
+                "First LayoutSection must start at byte 0"
+            );
+            assert_eq!(
+                self.sections.last().expect("checked above").byte_range.end,
+                self.text.len(),
+                "Last LayoutSection must end at the end of the text"
+            );
+
+            for section in &self.sections {
+                let Range { start, end } = section.byte_range;
+                assert!(start <= end, "LayoutSection has a reversed byte_range");
+            }
+            for (prev, next) in std::iter::zip(&self.sections, self.sections.iter().skip(1)) {
+                assert_eq!(
+                    prev.byte_range.end, next.byte_range.start,
+                    "LayoutSections must be ordered with no gaps and no overlaps"
+                );
+            }
+        }
     }
 
     /// The height of the tallest font used in the job.
@@ -268,15 +319,20 @@ impl std::hash::Hash for LayoutJob {
 
 // ----------------------------------------------------------------------------
 
+/// A contiguous range of [`LayoutJob::text`] that shares the same [`TextFormat`].
+///
+/// The sections of a [`LayoutJob`] are ordered and together cover the whole text
+/// with no gaps and no overlaps. See [`LayoutJob::sections`] for the full invariant.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutSection {
     /// Can be used for first row indentation.
     pub leading_space: f32,
 
-    /// Range into the galley text
+    /// Range into [`LayoutJob::text`].
     pub byte_range: Range<usize>,
 
+    /// How to format the text in this section (font, color, etc).
     pub format: TextFormat,
 }
 
