@@ -184,6 +184,11 @@ impl LayoutJob {
     }
 
     /// Helper for adding a new section when building a [`LayoutJob`].
+    ///
+    /// If the appended text has the same [`TextFormat`] as the last section and no
+    /// `leading_space`, it is merged into that section instead of adding a new one.
+    /// This keeps the section count down and lets text shaping (e.g. kerning) work
+    /// across the appended text, since shaping is done per [`LayoutSection`].
     pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
         let start = self.text.len();
         self.text += text;
@@ -323,6 +328,11 @@ impl std::hash::Hash for LayoutJob {
 ///
 /// The sections of a [`LayoutJob`] are ordered and together cover the whole text
 /// with no gaps and no overlaps. See [`LayoutJob::sections`] for the full invariant.
+///
+/// Text is shaped on a per-section basis: each section is an independent shaping run.
+/// This means kerning (and ligatures) are only correct _within_ a single section,
+/// and not across the boundary between two adjacent sections.
+/// For this reason [`LayoutJob::append`] merges consecutive sections when possible.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutSection {
