@@ -910,6 +910,10 @@ impl WgpuWinitRunning<'_> {
                 {
                     viewport.info.occluded = Some(*is_occluded);
                 }
+
+                if !*is_occluded {
+                    repaint_asap = true;
+                }
             }
 
             winit::event::WindowEvent::CloseRequested => {
