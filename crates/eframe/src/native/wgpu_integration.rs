@@ -673,12 +673,8 @@ impl WgpuWinitRunning<'_> {
 
         // Runs the update, which could call immediate viewports,
         // so make sure we hold no locks here!
-        let full_output = integration.update(
-            app.as_mut(),
-            viewport_ui_cb.as_deref(),
-            raw_input,
-            run_ui,
-        );
+        let full_output =
+            integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input, run_ui);
 
         // ------------------------------------------------------------
 
