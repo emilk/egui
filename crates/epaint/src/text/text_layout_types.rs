@@ -231,6 +231,7 @@ impl LayoutJob {
     /// cover the whole of [`Self::text`] with no gaps and no overlaps.
     ///
     /// Only does anything in debug builds.
+    #[cfg_attr(not(debug_assertions), expect(clippy::unused_self))]
     pub fn debug_sanity_check(&self) {
         #[cfg(debug_assertions)]
         {
