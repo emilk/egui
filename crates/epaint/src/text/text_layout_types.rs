@@ -182,6 +182,17 @@ impl LayoutJob {
         let start = self.text.len();
         self.text += text;
         let byte_range = start..self.text.len();
+
+        // Optimization: merge into the previous section if it has the same format
+        // and this one adds no leading space.
+        if leading_space == 0.0
+            && let Some(last) = self.sections.last_mut()
+            && last.format == format
+        {
+            last.byte_range.end = byte_range.end;
+            return;
+        }
+
         self.sections.push(LayoutSection {
             leading_space,
             byte_range,
