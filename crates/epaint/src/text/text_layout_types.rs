@@ -4,6 +4,7 @@ use std::{ops::Range, str::FromStr as _};
 use super::{
     cursor::{CCursor, LayoutCursor},
     font::UvRect,
+    index::{ByteIndex, ByteRange, ByteRangeExt as _, CharIndex},
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
@@ -119,7 +120,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
-                byte_range: 0..text.len(),
+                byte_range: ByteRange::full(&text),
                 format: TextFormat::simple(font_id, color),
             }],
             text,
@@ -138,7 +139,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
-                byte_range: 0..text.len(),
+                byte_range: ByteRange::full(&text),
                 format,
             }],
             text,
@@ -153,7 +154,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
-                byte_range: 0..text.len(),
+                byte_range: ByteRange::full(&text),
                 format: TextFormat::simple(font_id, color),
             }],
             text,
@@ -168,7 +169,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
-                byte_range: 0..text.len(),
+                byte_range: ByteRange::full(&text),
                 format,
             }],
             text,
@@ -192,7 +193,7 @@ impl LayoutJob {
     pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
         let start = self.text.len();
         self.text += text;
-        let byte_range = start..self.text.len();
+        let byte_range = ByteIndex(start)..ByteIndex(self.text.len());
 
         // Optimization: merge into the previous section if it has the same format
         // and this one adds no leading space.
@@ -217,7 +218,7 @@ impl LayoutJob {
     ///
     /// Panics if the job has no sections.
     /// Assumes [`LayoutJob::sections`] are ordered by increasing `byte_range` (as produced by [`Self::append`]).
-    pub fn format_at_byte(&self, byte_idx: usize) -> &TextFormat {
+    pub fn format_at_byte(&self, byte_idx: ByteIndex) -> &TextFormat {
         self.debug_sanity_check();
         let last = self.sections.last().expect("LayoutJob has no sections");
         let idx = self
@@ -250,12 +251,12 @@ impl LayoutJob {
                     .expect("checked above")
                     .byte_range
                     .start,
-                0,
+                ByteIndex::ZERO,
                 "First LayoutSection must start at byte 0"
             );
             assert_eq!(
                 self.sections.last().expect("checked above").byte_range.end,
-                self.text.len(),
+                ByteIndex(self.text.len()),
                 "Last LayoutSection must end at the end of the text"
             );
 
@@ -341,7 +342,7 @@ pub struct LayoutSection {
     pub leading_space: f32,
 
     /// Range into [`LayoutJob::text`].
-    pub byte_range: Range<usize>,
+    pub byte_range: Range<ByteIndex>,
 
     /// How to format the text in this section (font, color, etc).
     pub format: TextFormat,
@@ -1188,7 +1189,7 @@ impl Galley {
         let mut best_y_dist = f32::INFINITY;
         let mut cursor = CCursor::default();
 
-        let mut ccursor_index = 0;
+        let mut ccursor_index = CharIndex::ZERO;
 
         for row in &self.rows {
             let min_y = row.min_y();
@@ -1234,7 +1235,7 @@ impl Galley {
             return Default::default();
         }
         let mut ccursor = CCursor {
-            index: 0,
+            index: CharIndex::ZERO,
             prefer_next_row: true,
         };
         for row in &self.rows {
@@ -1251,7 +1252,7 @@ impl Galley {
     pub fn layout_from_cursor(&self, cursor: CCursor) -> LayoutCursor {
         let prefer_next_row = cursor.prefer_next_row;
         let mut ccursor_it = CCursor {
-            index: 0,
+            index: CharIndex::ZERO,
             prefer_next_row,
         };
 
@@ -1260,7 +1261,7 @@ impl Galley {
 
             if ccursor_it.index <= cursor.index && cursor.index <= ccursor_it.index + row_char_count
             {
-                let column = cursor.index - ccursor_it.index;
+                let column = (cursor.index - ccursor_it.index).0;
 
                 let select_next_row_instead = prefer_next_row
                     && !row.ends_with_newline
@@ -1294,7 +1295,7 @@ impl Galley {
         let prefer_next_row =
             layout_cursor.column < self.rows[layout_cursor.row].char_count_excluding_newline();
         let mut cursor_it = CCursor {
-            index: 0,
+            index: CharIndex::ZERO,
             prefer_next_row,
         };
 
@@ -1316,7 +1317,7 @@ impl Galley {
 impl Galley {
     #[expect(clippy::unused_self)]
     pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
-        if cursor.index == 0 {
+        if cursor.index == CharIndex::ZERO {
             Default::default()
         } else {
             CCursor {
