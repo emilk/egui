@@ -15,8 +15,8 @@ use crate::{
 };
 
 use super::{
-    FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
-    VariationCoords,
+    ByteRangeExt as _, FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row,
+    RowVisuals, VariationCoords,
     font::{Font, FontFace, ShapedGlyph},
 };
 
@@ -454,7 +454,7 @@ fn layout_section(
     }
     paragraph.cursor_x_px += leading_space * pixels_per_point;
 
-    let section_text = &job.text[byte_range.clone()];
+    let section_text = &job.text[byte_range.as_usize()];
     let mut ctx = ShapingContext {
         pixels_per_point,
         font_size,
@@ -1574,7 +1574,7 @@ mod tests {
                     pixels_per_point,
                     Arc::new(LayoutJob::single_section(
                         iter::chain(
-                            (0..elided_galley.rows[0].char_count_excluding_newline()).map(|_| ch),
+                            (0..elided_galley.rows[0].char_count_excluding_newline().0).map(|_| ch),
                             iter::once('…'),
                         )
                         .collect::<String>(),
@@ -1866,7 +1866,7 @@ mod tests {
 
             // Verify cursor round-trip: end cursor index == char count.
             assert_eq!(
-                galley.end().index,
+                galley.end().index.0,
                 expected_chars,
                 "Galley::end().index mismatch for {text:?}",
             );
@@ -1892,9 +1892,9 @@ mod tests {
         let galley = layout(&mut fonts, pixels_per_point, job.into());
 
         // Walking through every cursor index should produce valid positions.
-        for i in 0..=galley.end().index {
+        for i in 0..=galley.end().index.0 {
             let cursor = CCursor {
-                index: i,
+                index: CharIndex(i),
                 prefer_next_row: false,
             };
             let rect = galley.pos_from_cursor(cursor);
