@@ -35,9 +35,10 @@ use crate::{
     output::FullOutput,
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
-    resize, response, scroll_area,
+    resize, response, scroll_area, theme_plugin,
     util::IdTypeMap,
     viewport::ViewportClass,
+    widget_style::{Classes, StyleStruct, WidgetState},
 };
 
 use crate::IdMap;
@@ -405,6 +406,8 @@ struct ContextImpl {
     is_accesskit_enabled: bool,
 
     loaders: Arc<Loaders>,
+
+    themes: theme_plugin::Themes,
 }
 
 impl ContextImpl {
@@ -2024,6 +2027,43 @@ impl Context {
             self.add_plugin(default_plugin);
             self.plugin()
         }
+    }
+}
+
+impl Context {
+    /// Register a [`ThemeStyle`](crate::theme_plugin::ThemeStyle) for the specified widget [`StyleStruct`](StyleStruct) `S`
+    ///
+    /// A theme can only be added once for a specified widget.
+    /// This way it's convenient to add themes in `eframe::run_simple_native`.
+    /// If you want to add the theme anyway, use [`Self::replace_theme`] instead.
+    pub fn add_theme<S: StyleStruct + 'static>(
+        &self,
+        theme: impl theme_plugin::ThemeStyle<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, false));
+    }
+
+    /// Register a [`ThemeStyle`](crate::theme_plugin::ThemeStyle) for the specified widget [`StyleStruct`](StyleStruct) `S`
+    ///
+    /// Overwrite any theme already registered for the specified widget [`StyleStruct`](StyleStruct).
+    /// If you want to avoid overwriting existing theme, use [`Self::add_theme`] instead.
+    pub fn replace_theme<S: StyleStruct + 'static>(
+        &self,
+        theme: impl theme_plugin::ThemeStyle<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, true));
+    }
+
+    /// Compute the [`StyleStruct`] using the registered theme if available.
+    ///
+    /// Return `None` if no theme was registered for the [`StyleStruct`]
+    pub fn get_style<S: StyleStruct + Clone + 'static>(
+        &self,
+        classes: &Classes,
+        state: WidgetState,
+        base: &Style,
+    ) -> Option<S> {
+        self.write(move |ctx| ctx.themes.get::<S>(classes, state, base))
     }
 }
 

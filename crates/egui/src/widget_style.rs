@@ -1,4 +1,7 @@
-use std::{borrow::Cow, fmt};
+use std::{
+    borrow::Cow,
+    fmt::{self, Debug},
+};
 
 use emath::Vec2;
 use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
@@ -9,7 +12,15 @@ use crate::{
     style::{WidgetVisuals, Widgets},
 };
 
+/// Each dedicated style must implement this trait to be used in the theme plugin system
+pub trait StyleStruct: Debug + Clone + Send + Sync + std::any::Any + 'static {
+    fn default_style(classes: &Classes, state: WidgetState, base: &Style) -> Self
+    where
+        Self: Sized;
+}
+
 /// General text style
+#[derive(Debug, Clone)]
 pub struct TextVisuals {
     /// Font used
     pub font_id: FontId,
@@ -23,6 +34,7 @@ pub struct TextVisuals {
 }
 
 /// General widget style
+#[derive(Debug, Clone)]
 pub struct WidgetStyle {
     pub frame: Frame,
 
@@ -31,13 +43,69 @@ pub struct WidgetStyle {
     pub stroke: Stroke,
 }
 
+impl StyleStruct for WidgetStyle {
+    fn default_style(_classes: &Classes, state: WidgetState, base: &Style) -> Self {
+        let visuals = base.visuals.widgets.state(state);
+        let font_id = base.override_font_id.clone();
+        Self {
+            frame: Frame {
+                fill: visuals.bg_fill,
+                stroke: visuals.bg_stroke,
+                corner_radius: visuals.corner_radius,
+                inner_margin: base.spacing.button_padding.into(),
+                ..Default::default()
+            },
+            stroke: visuals.fg_stroke,
+            text: TextVisuals {
+                color: base
+                    .visuals
+                    .override_text_color
+                    .unwrap_or_else(|| visuals.text_color()),
+                font_id: font_id.unwrap_or_else(|| TextStyle::Body.resolve(base)),
+                strikethrough: Stroke::NONE,
+                underline: Stroke::NONE,
+            },
+        }
+    }
+}
+
 /// Dedicated button style
+#[derive(Debug, Clone)]
 pub struct ButtonStyle {
     pub frame: Frame,
     pub text_style: TextVisuals,
 }
 
+impl StyleStruct for ButtonStyle {
+    fn default_style(classes: &Classes, state: WidgetState, base: &Style) -> Self {
+        let mut visuals = *base.visuals.widgets.state(state);
+        let mut ws = WidgetStyle::default_style(classes, state, base);
+
+        if classes.has(SELECTED_CLASS) {
+            visuals.weak_bg_fill = base.visuals.selection.bg_fill;
+            visuals.bg_fill = base.visuals.selection.bg_fill;
+            visuals.fg_stroke = base.visuals.selection.stroke;
+            ws.text.color = base.visuals.selection.stroke.color;
+        }
+
+        Self {
+            frame: Frame {
+                fill: visuals.weak_bg_fill,
+                stroke: visuals.bg_stroke,
+                corner_radius: visuals.corner_radius,
+                outer_margin: (-Vec2::splat(visuals.expansion)).into(),
+                inner_margin: (base.spacing.button_padding + Vec2::splat(visuals.expansion)
+                    - Vec2::splat(visuals.bg_stroke.width))
+                .into(),
+                ..Default::default()
+            },
+            text_style: ws.text,
+        }
+    }
+}
+
 /// Dedicated checkbox style
+#[derive(Debug, Clone)]
 pub struct CheckboxStyle {
     /// Frame around
     pub frame: Frame,
@@ -58,7 +126,28 @@ pub struct CheckboxStyle {
     pub check_stroke: Stroke,
 }
 
+impl StyleStruct for CheckboxStyle {
+    fn default_style(classes: &Classes, state: WidgetState, base: &Style) -> Self {
+        let visuals = base.visuals.widgets.state(state);
+        let ws = WidgetStyle::default_style(classes, state, base);
+        Self {
+            frame: Frame::new(),
+            checkbox_size: base.spacing.icon_width,
+            check_size: base.spacing.icon_width_inner,
+            checkbox_frame: Frame {
+                fill: visuals.bg_fill,
+                corner_radius: visuals.corner_radius,
+                stroke: visuals.bg_stroke,
+                ..Default::default()
+            },
+            text_style: ws.text,
+            check_stroke: ws.stroke,
+        }
+    }
+}
+
 /// Dedicated label style
+#[derive(Debug, Clone)]
 pub struct LabelStyle {
     /// Frame around
     pub frame: Frame,
@@ -71,6 +160,7 @@ pub struct LabelStyle {
 }
 
 /// Dedicated separator style
+#[derive(Debug, Clone)]
 pub struct SeparatorStyle {
     /// How much space is allocated in the layout direction
     pub spacing: f32,
@@ -80,7 +170,7 @@ pub struct SeparatorStyle {
 }
 
 /// The different state of a widget can be
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum WidgetState {
     Noninteractive,
     #[default]
@@ -231,7 +321,7 @@ pub type ClassName = Cow<'static, str>;
 ///
 /// This can be used by styling engine to compute a different style
 /// based on the set of classes present on the widget/Ui.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Hash)]
 pub struct Classes {
     classes: SmallVec<[ClassName; 5]>,
 }
@@ -314,5 +404,10 @@ pub trait HasClasses {
     /// True if the class is present
     fn has(&self, class: impl Into<ClassName>) -> bool {
         self.classes().classes.contains(&class.into())
+    }
+
+    /// The list of class
+    fn list(&self) -> Vec<ClassName> {
+        self.classes().classes.to_vec()
     }
 }

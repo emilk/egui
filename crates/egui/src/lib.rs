@@ -417,6 +417,7 @@ pub mod response;
 mod sense;
 pub mod style;
 pub mod text_selection;
+pub mod theme_plugin;
 mod ui;
 mod ui_builder;
 mod ui_stack;
