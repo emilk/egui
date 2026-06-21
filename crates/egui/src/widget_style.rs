@@ -8,13 +8,14 @@ use epaint::{Color32, FontId, Shadow, Stroke, text::TextWrapMode};
 use smallvec::SmallVec;
 
 use crate::{
-    Frame, Response, Style, TextBuffer as _, TextStyle,
+    Frame, Response, Spacing, Style, TextBuffer as _, TextStyle, Visuals,
     style::{WidgetVisuals, Widgets},
 };
 
 /// Each dedicated style must implement this trait to be used in the theme plugin system
 pub trait StyleStruct: Debug + Clone + Send + Sync + std::any::Any + 'static {
-    fn default_style(classes: &Classes, state: WidgetState, base: &Style) -> Self
+    /// The default style for this struct based on classes and state of the widget.
+    fn default_style(classes: &Classes, state: WidgetState) -> Self
     where
         Self: Sized;
 }
@@ -44,24 +45,29 @@ pub struct WidgetStyle {
 }
 
 impl StyleStruct for WidgetStyle {
-    fn default_style(_classes: &Classes, state: WidgetState, base: &Style) -> Self {
-        let visuals = base.visuals.widgets.state(state);
-        let font_id = base.override_font_id.clone();
+    fn default_style(_classes: &Classes, state: WidgetState) -> Self {
+        let visuals = Widgets::dark();
+        let spacing = Spacing::default();
+
+        let visuals = match state {
+            WidgetState::Noninteractive => visuals.noninteractive,
+            WidgetState::Inactive => visuals.inactive,
+            WidgetState::Hovered => visuals.hovered,
+            WidgetState::Active => visuals.active,
+        };
+
         Self {
             frame: Frame {
                 fill: visuals.bg_fill,
                 stroke: visuals.bg_stroke,
                 corner_radius: visuals.corner_radius,
-                inner_margin: base.spacing.button_padding.into(),
+                inner_margin: spacing.button_padding.into(),
                 ..Default::default()
             },
             stroke: visuals.fg_stroke,
             text: TextVisuals {
-                color: base
-                    .visuals
-                    .override_text_color
-                    .unwrap_or_else(|| visuals.text_color()),
-                font_id: font_id.unwrap_or_else(|| TextStyle::Body.resolve(base)),
+                color: visuals.text_color(),
+                font_id: TextStyle::Button.resolve(&Style::default()),
                 strikethrough: Stroke::NONE,
                 underline: Stroke::NONE,
             },
@@ -77,25 +83,35 @@ pub struct ButtonStyle {
 }
 
 impl StyleStruct for ButtonStyle {
-    fn default_style(classes: &Classes, state: WidgetState, base: &Style) -> Self {
-        let mut visuals = *base.visuals.widgets.state(state);
-        let mut ws = WidgetStyle::default_style(classes, state, base);
+    fn default_style(classes: &Classes, state: WidgetState) -> Self {
+        let widget_visuals = Widgets::dark();
+        let spacing = Spacing::default();
+
+        let mut widget_visuals = match state {
+            WidgetState::Noninteractive => widget_visuals.noninteractive,
+            WidgetState::Inactive => widget_visuals.inactive,
+            WidgetState::Hovered => widget_visuals.hovered,
+            WidgetState::Active => widget_visuals.active,
+        };
+
+        let mut ws = WidgetStyle::default_style(classes, state);
 
         if classes.has(SELECTED_CLASS) {
-            visuals.weak_bg_fill = base.visuals.selection.bg_fill;
-            visuals.bg_fill = base.visuals.selection.bg_fill;
-            visuals.fg_stroke = base.visuals.selection.stroke;
-            ws.text.color = base.visuals.selection.stroke.color;
+            let visuals = Visuals::default();
+            widget_visuals.weak_bg_fill = visuals.selection.bg_fill;
+            widget_visuals.bg_fill = visuals.selection.bg_fill;
+            widget_visuals.fg_stroke = visuals.selection.stroke;
+            ws.text.color = visuals.selection.stroke.color;
         }
 
         Self {
             frame: Frame {
-                fill: visuals.weak_bg_fill,
-                stroke: visuals.bg_stroke,
-                corner_radius: visuals.corner_radius,
-                outer_margin: (-Vec2::splat(visuals.expansion)).into(),
-                inner_margin: (base.spacing.button_padding + Vec2::splat(visuals.expansion)
-                    - Vec2::splat(visuals.bg_stroke.width))
+                fill: widget_visuals.weak_bg_fill,
+                stroke: widget_visuals.bg_stroke,
+                corner_radius: widget_visuals.corner_radius,
+                outer_margin: (-Vec2::splat(widget_visuals.expansion)).into(),
+                inner_margin: (spacing.button_padding + Vec2::splat(widget_visuals.expansion)
+                    - Vec2::splat(widget_visuals.bg_stroke.width))
                 .into(),
                 ..Default::default()
             },
@@ -127,17 +143,27 @@ pub struct CheckboxStyle {
 }
 
 impl StyleStruct for CheckboxStyle {
-    fn default_style(classes: &Classes, state: WidgetState, base: &Style) -> Self {
-        let visuals = base.visuals.widgets.state(state);
-        let ws = WidgetStyle::default_style(classes, state, base);
+    fn default_style(classes: &Classes, state: WidgetState) -> Self {
+        let widget_visuals = Widgets::dark();
+        let spacing = Spacing::default();
+
+        let widget_visuals = match state {
+            WidgetState::Noninteractive => widget_visuals.noninteractive,
+            WidgetState::Inactive => widget_visuals.inactive,
+            WidgetState::Hovered => widget_visuals.hovered,
+            WidgetState::Active => widget_visuals.active,
+        };
+
+        let ws = WidgetStyle::default_style(classes, state);
+
         Self {
             frame: Frame::new(),
-            checkbox_size: base.spacing.icon_width,
-            check_size: base.spacing.icon_width_inner,
+            checkbox_size: spacing.icon_width,
+            check_size: spacing.icon_width_inner,
             checkbox_frame: Frame {
-                fill: visuals.bg_fill,
-                corner_radius: visuals.corner_radius,
-                stroke: visuals.bg_stroke,
+                fill: widget_visuals.bg_fill,
+                corner_radius: widget_visuals.corner_radius,
+                stroke: widget_visuals.bg_stroke,
                 ..Default::default()
             },
             text_style: ws.text,

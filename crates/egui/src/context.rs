@@ -2061,9 +2061,8 @@ impl Context {
         &self,
         classes: &Classes,
         state: WidgetState,
-        base: &Style,
     ) -> Option<S> {
-        self.write(move |ctx| ctx.themes.get::<S>(classes, state, base))
+        self.write(move |ctx| ctx.themes.get::<S>(classes, state))
     }
 }
 

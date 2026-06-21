@@ -53,12 +53,10 @@ fn main() -> eframe::Result {
                     if ui.text_edit_multiline(&mut style_code).changed()
                         && let Ok(engine) = ESSEngine::try_parse(&style_code)
                     {
+                        // Overwrite the current theme with the new one.clear
                         ui.replace_theme::<WidgetStyle>(engine.clone());
                         ui.replace_theme::<ButtonStyle>(engine);
                     }
-
-                    // Should find a way to detect if a change is made on a plugin
-                    // Maybe by saving the plugin in the system instead and invalidating the cache when it's pulled as mut ?
                 });
             });
 
