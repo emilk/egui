@@ -94,14 +94,13 @@ impl InspectionPlugin {
         }
     }
 
-    /// Submit a request; `on_reply` is invoked exactly once, on the UI thread, with its single
-    /// reply once the UI thread services it. Call this through [`Context::with_plugin`] so it runs
-    /// under egui's plugin lock, then `request_repaint` *after* the lock is released so an
-    /// otherwise-idle reactive app runs the frame that services the request.
+    /// Submit an inspection [`Request`].
     ///
-    /// `on_reply` runs on the UI thread, so keep it cheap and non-blocking — typically just hand
-    /// the reply off on a channel. A blocking caller can build its own channel and `recv` on it
-    /// (this is what [`serve`] does), which also lets it impose a timeout.
+    /// The closure will be called later once the result comes in (for screenshot that could mean
+    /// a couple frames delay).
+    ///
+    /// You usually call this via [`Context::with_plugin`]. You should [`Context::request_repaint`]
+    /// after calling this.
     pub fn submit(
         &mut self,
         req: Request,
@@ -366,8 +365,7 @@ fn serve_connection(stream: std::net::TcpStream, ctx: &Context) -> std::io::Resu
             Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(()), // client gone
             Err(err) => return Err(err),
         };
-        // A connection thread is synchronous and must block to write the reply back, so it owns a
-        // channel and hands `submit` a closure that forwards onto it — then `recv`s with a timeout.
+
         let (tx, rx) = mpsc::channel();
         let registered = ctx
             .with_plugin::<InspectionPlugin, _>(|p| {
