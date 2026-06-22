@@ -162,15 +162,14 @@ impl egui::Plugin for InspectionPlugin {
                 }
                 // Downscale to the request's requested pixels-per-point (px per logical point);
                 // the framebuffer is at the app's `pixels_per_point` px per point, so the scale
-                // factor is their ratio.
-                let requested_ppp = match item.req {
-                    Request::GetScreenshot { pixels_per_point } => pixels_per_point,
-                    _ => pixels_per_point,
+                // factor is their ratio. `None` means native resolution (scale 1.0).
+                let scale = match item.req {
+                    Request::GetScreenshot {
+                        pixels_per_point: Some(requested_ppp),
+                    } => requested_ppp / pixels_per_point,
+                    _ => 1.0,
                 };
-                let png = match EncodedPng::from_color_image_scaled(
-                    image.as_ref(),
-                    requested_ppp / pixels_per_point,
-                ) {
+                let png = match EncodedPng::from_color_image_scaled(image.as_ref(), scale) {
                     Ok(png) => png,
                     Err(err) => {
                         // Shouldn't happen for a valid framebuffer; surface it loudly and drop
