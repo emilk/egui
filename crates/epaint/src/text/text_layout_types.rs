@@ -342,7 +342,7 @@ pub struct LayoutSection {
     pub leading_space: f32,
 
     /// Range into [`LayoutJob::text`].
-    pub byte_range: Range<ByteIndex>,
+    pub byte_range: ByteRange,
 
     /// How to format the text in this section (font, color, etc).
     pub format: TextFormat,
