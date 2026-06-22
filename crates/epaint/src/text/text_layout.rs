@@ -9,6 +9,7 @@ use crate::{
     Color32, Mesh, Stroke, Vertex,
     stroke::PathStroke,
     text::{
+        ByteIndex, ByteRange,
         font::{StyledMetrics, UvRect, is_cjk, is_cjk_break_allowed},
         fonts::FontFaceKey,
     },
@@ -217,7 +218,7 @@ struct TextRun {
     font_key: FontFaceKey,
 
     /// Byte range within the section text.
-    byte_range: std::ops::Range<usize>,
+    byte_range: ByteRange,
 }
 
 /// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
@@ -484,7 +485,7 @@ fn layout_section(
 
         let num_runs = runs.len();
         for (run_idx, run) in runs.iter().enumerate() {
-            let run_text = &segment[run.byte_range.clone()];
+            let run_text = &segment[run.byte_range.as_usize()];
             let Some(font_face) = font.fonts_by_id.get(&run.font_key) else {
                 continue;
             };
@@ -1373,6 +1374,7 @@ fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
     out.clear();
 
     for (byte_offset, grapheme_str) in text.grapheme_indices(true) {
+        let byte_offset = ByteIndex(byte_offset);
         let byte_end = byte_offset + grapheme_str.len();
 
         let base_char = grapheme_str.chars().next().unwrap_or(' ');
