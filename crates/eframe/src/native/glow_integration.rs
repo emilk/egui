@@ -688,15 +688,25 @@ impl GlowWinitRunning<'_> {
 
         egui_winit.handle_platform_output_with_event_loop(&window, event_loop, platform_output);
 
+        // Apply texture updates even if the window is not visible this frame.
+        // They are context-level (not tied to the framebuffer or surface), and
+        // `Context::end_pass` has already reset the font-atlas dirty region for this
+        // delta. Dropping it would leave the GPU font texture smaller than the
+        // CPU-side atlas and desync every glyph UV until the next full atlas recreation.
+        let has_texture_updates = !textures_delta.set.is_empty() || !textures_delta.free.is_empty();
+        if is_visible || has_texture_updates {
+            // We may need to switch contexts again, because of immediate viewports:
+            frame_timer.pause();
+            change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
+            frame_timer.resume();
+        }
+
+        for (id, image_delta) in &textures_delta.set {
+            painter.set_texture(*id, image_delta);
+        }
+
         if is_visible {
             let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
-
-            {
-                // We may need to switch contexts again, because of immediate viewports:
-                frame_timer.pause();
-                change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
-                frame_timer.resume();
-            }
 
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
@@ -704,12 +714,7 @@ impl GlowWinitRunning<'_> {
                 painter.clear(screen_size_in_pixels, clear_color);
             }
 
-            painter.paint_and_update_textures(
-                screen_size_in_pixels,
-                pixels_per_point,
-                &clipped_primitives,
-                &textures_delta,
-            );
+            painter.paint_primitives(screen_size_in_pixels, pixels_per_point, &clipped_primitives);
 
             {
                 for action in viewport.actions_requested.drain(..) {
@@ -769,6 +774,11 @@ impl GlowWinitRunning<'_> {
             {
                 save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
             }
+        }
+
+        // Free textures *after* painting, since they may still be used in the frame we just drew.
+        for id in &textures_delta.free {
+            painter.free_texture(*id);
         }
 
         glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);

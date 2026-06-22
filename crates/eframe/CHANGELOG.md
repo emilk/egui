@@ -6,6 +6,8 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glow`](../egui_glow/CHA
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
+* `glow`: Apply font-atlas texture updates even when the window is not visible, so the texture doesn't desync [#8250](https://github.com/emilk/egui/pull/8250) by [@emilk](https://github.com/emilk)
+
 
 ## 0.34.3 - 2026-05-27
 * Default `app_id` to `app_name` on native [#8172](https://github.com/emilk/egui/pull/8172) by [@grtlr](https://github.com/grtlr)
