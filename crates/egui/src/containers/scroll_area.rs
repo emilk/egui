@@ -753,7 +753,12 @@ impl ScrollArea {
             ctx.animate_bool_responsive(id.with("v"), show_bars[1]),
         );
 
-        let current_bar_use = show_bars_factor.yx() * ui.spacing().scroll.allocated_width();
+        let scroll_style = ui.spacing().scroll;
+        let current_bar_use = if scroll_style.floating {
+            show_bars.to_vec2().yx() * scroll_style.allocated_width()
+        } else {
+            show_bars_factor.yx() * scroll_style.allocated_width()
+        };
 
         let available_outer = ui.available_rect_before_wrap();
 
@@ -1042,17 +1047,13 @@ impl ScrollArea {
             .inner;
 
         let (content_size, state) = prepared.end(ui);
-        let output = ScrollAreaOutput {
+        ScrollAreaOutput {
             inner,
             id,
             state,
             content_size,
             inner_rect,
-        };
-
-        paint_fade_areas(ui, &output);
-
-        output
+        }
     }
 }
 
@@ -1191,9 +1192,15 @@ impl Prepared {
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
+        let limit_rect = if ui.spacing().scroll.floating {
+            outer_rect
+        } else {
+            inner_rect
+        };
+
         let content_is_too_large = Vec2b::new(
-            direction_enabled[0] && inner_rect.width() < content_size.x,
-            direction_enabled[1] && inner_rect.height() < content_size.y,
+            direction_enabled[0] && (limit_rect.width().ceil() < content_size.x),
+            direction_enabled[1] && (limit_rect.height().ceil() < content_size.y),
         );
 
         let max_offset = content_size - inner_rect.size();
@@ -1259,6 +1266,11 @@ impl Prepared {
         }
 
         let scroll_style = ui.spacing().scroll;
+
+        // Reserve the scroll area before painting fades, because fade painting uses ui.min_rect().
+        ui.advance_cursor_after_rect(outer_rect);
+
+        paint_fade_areas_impl(ui, inner_rect, content_size, state.offset);
 
         // Paint the bars:
         let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
@@ -1508,8 +1520,6 @@ impl Prepared {
             }
         }
 
-        ui.advance_cursor_after_rect(outer_rect);
-
         if show_scroll_this_frame != state.show_scroll {
             ui.request_repaint();
         }
@@ -1551,7 +1561,7 @@ impl Prepared {
 
 /// Paint fade-out gradients at the top and/or bottom of a scroll area to
 /// indicate that more content is available beyond the visible region.
-fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
+fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: Vec2) {
     let crate::style::ScrollFadeStyle {
         strength,
         size: fade_size,
@@ -1563,11 +1573,9 @@ fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
 
     let bg = ui.stack().bg_color();
 
-    let offset = scroll_output.state.offset;
-    let overflow = scroll_output.content_size - scroll_output.inner_rect.size();
+    let overflow = content_size - inner_rect.size();
 
-    let paint_rect = scroll_output
-        .inner_rect
+    let paint_rect = inner_rect
         .intersect(ui.min_rect())
         .expand(ui.visuals().clip_rect_margin);
 

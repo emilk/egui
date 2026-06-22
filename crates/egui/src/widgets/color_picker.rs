@@ -85,7 +85,29 @@ pub fn show_color_at(painter: &Painter, color: Color32, rect: Rect) {
     }
 }
 
-fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
+/// Show a color with background checkers to demonstrate transparency (if any).
+fn show_srgba_unmultiplied(ui: &mut Ui, srgba: [u8; 4], desired_size: Vec2) -> Response {
+    let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
+    if ui.is_rect_visible(rect) {
+        show_srgba_unmultiplied_at(ui.painter(), srgba, rect);
+    }
+    response
+}
+
+/// Show a color with background checkers to demonstrate transparency (if any).
+fn show_srgba_unmultiplied_at(painter: &Painter, [r, g, b, a]: [u8; 4], rect: Rect) {
+    if a == 255 {
+        painter.rect_filled(rect, 0.0, Color32::from_rgb(r, g, b));
+    } else {
+        background_checkers(painter, rect);
+        let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
+        let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
+        painter.rect_filled(left, 0.0, Color32::from_rgba_unmultiplied(r, g, b, a));
+        painter.rect_filled(right, 0.0, Color32::from_rgb(r, g, b));
+    }
+}
+
+fn color_button(ui: &mut Ui, srgba: [u8; 4], open: bool) -> Response {
     let size = ui.spacing().interact_size;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     response.widget_info(|| WidgetInfo::new(WidgetType::ColorButton));
@@ -99,7 +121,7 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
         let rect = rect.expand(visuals.expansion);
 
         let stroke_width = 1.0;
-        show_color_at(ui.painter(), color, rect.shrink(stroke_width));
+        show_srgba_unmultiplied_at(ui.painter(), srgba, rect.shrink(stroke_width));
 
         let corner_radius = visuals.corner_radius.at_most(2); // Can't do more rounding because the background grid doesn't do any rounding
         ui.painter().rect_stroke(
@@ -314,7 +336,12 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     }
 
     let current_color_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
-    show_color(ui, *hsvag, current_color_size).on_hover_text("Selected color");
+    show_srgba_unmultiplied(
+        ui,
+        Hsva::from(*hsvag).to_srgba_unmultiplied(),
+        current_color_size,
+    )
+    .on_hover_text("Selected color");
 
     if alpha == Alpha::BlendOrAdditive {
         let a = &mut hsvag.a;
@@ -491,7 +518,7 @@ pub fn color_picker_color32(ui: &mut Ui, srgba: &mut Color32, alpha: Alpha) -> b
 pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Response {
     let popup_id = ui.auto_id_with("popup");
     let open = Popup::is_id_open(ui.ctx(), popup_id);
-    let mut button_response = color_button(ui, (*hsva).into(), open);
+    let mut button_response = color_button(ui, hsva.to_srgba_unmultiplied(), open);
     if ui.style().explanation_tooltips {
         button_response = button_response.on_hover_text("Click to edit color");
     }

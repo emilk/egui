@@ -116,6 +116,12 @@ x11 = [
 ## This is used to generate images for examples.
 __screenshot = []
 
+## Enable the [`egui_inspection`] plugin. When the `EGUI_INSPECTION` (or
+## `EGUI_INSPECTION_ADDR`) env var is set, eframe opens a TCP inspection port on startup that
+## lets an external tool (e.g. the `egui_mcp` server) read the AccessKit tree, inject input,
+## and capture screenshots. Off unless the env var is set; no-op on wasm.
+inspection = ["dep:egui_inspection", "accesskit"]
+
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 
@@ -131,6 +137,7 @@ web-time.workspace = true
 # Optional dependencies
 
 egui_glow = { workspace = true, optional = true, default-features = false }
+egui_inspection = { workspace = true, optional = true, features = ["plugin"] }
 glow = { workspace = true, optional = true }
 ron = { workspace = true, optional = true, features = ["integer128"] }
 serde = { workspace = true, optional = true }

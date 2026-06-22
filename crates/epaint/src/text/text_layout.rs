@@ -9,14 +9,15 @@ use crate::{
     Color32, Mesh, Stroke, Vertex,
     stroke::PathStroke,
     text::{
+        ByteIndex, ByteRange,
         font::{StyledMetrics, UvRect, is_cjk, is_cjk_break_allowed},
         fonts::FontFaceKey,
     },
 };
 
 use super::{
-    FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
-    VariationCoords,
+    ByteRangeExt as _, FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row,
+    RowVisuals, VariationCoords,
     font::{Font, FontFace, ShapedGlyph},
 };
 
@@ -99,6 +100,8 @@ impl Paragraph {
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
 pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>) -> Galley {
     profiling::function_scope!();
+
+    job.debug_sanity_check();
 
     if job.wrap.max_rows == 0 {
         // Early-out: no text
@@ -215,7 +218,7 @@ struct TextRun {
     font_key: FontFaceKey,
 
     /// Byte range within the section text.
-    byte_range: std::ops::Range<usize>,
+    byte_range: ByteRange,
 }
 
 /// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
@@ -452,7 +455,7 @@ fn layout_section(
     }
     paragraph.cursor_x_px += leading_space * pixels_per_point;
 
-    let section_text = &job.text[byte_range.clone()];
+    let section_text = &job.text[byte_range.as_usize()];
     let mut ctx = ShapingContext {
         pixels_per_point,
         font_size,
@@ -482,7 +485,7 @@ fn layout_section(
 
         let num_runs = runs.len();
         for (run_idx, run) in runs.iter().enumerate() {
-            let run_text = &segment[run.byte_range.clone()];
+            let run_text = &segment[run.byte_range.as_usize()];
             let Some(font_face) = font.fonts_by_id.get(&run.font_key) else {
                 continue;
             };
@@ -1371,6 +1374,7 @@ fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
     out.clear();
 
     for (byte_offset, grapheme_str) in text.grapheme_indices(true) {
+        let byte_offset = ByteIndex(byte_offset);
         let byte_end = byte_offset + grapheme_str.len();
 
         let base_char = grapheme_str.chars().next().unwrap_or(' ');
@@ -1572,7 +1576,7 @@ mod tests {
                     pixels_per_point,
                     Arc::new(LayoutJob::single_section(
                         iter::chain(
-                            (0..elided_galley.rows[0].char_count_excluding_newline()).map(|_| ch),
+                            (0..elided_galley.rows[0].char_count_excluding_newline().0).map(|_| ch),
                             iter::once('…'),
                         )
                         .collect::<String>(),
@@ -1864,7 +1868,7 @@ mod tests {
 
             // Verify cursor round-trip: end cursor index == char count.
             assert_eq!(
-                galley.end().index,
+                galley.end().index.0,
                 expected_chars,
                 "Galley::end().index mismatch for {text:?}",
             );
@@ -1890,9 +1894,9 @@ mod tests {
         let galley = layout(&mut fonts, pixels_per_point, job.into());
 
         // Walking through every cursor index should produce valid positions.
-        for i in 0..=galley.end().index {
+        for i in 0..=galley.end().index.0 {
             let cursor = CCursor {
-                index: i,
+                index: CharIndex(i),
                 prefer_next_row: false,
             };
             let rect = galley.pos_from_cursor(cursor);
