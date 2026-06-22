@@ -543,14 +543,14 @@ impl Painter {
             commands_submitted: false,
         };
 
-        // Apply texture uploads *before* any surface-dependent early-return below.
-        // Texture updates are device-level (they only need the device + queue, not a
-        // surface or output frame), and `Context::end_pass` has already reset the font
-        // atlas dirty region when it produced this delta. If we dropped the delta here
-        // (e.g. because the surface is momentarily gone), the grown font texture would
-        // never be uploaded, leaving the GPU texture smaller than the CPU-side atlas and
-        // desyncing every glyph UV until the next full atlas recreation.
         {
+            // Apply texture uploads *before* any surface-dependent early-return below.
+            // Texture updates are device-level (they only need the device + queue, not a
+            // surface or output frame), and `Context::end_pass` has already reset the font
+            // atlas dirty region when it produced this delta. If we dropped the delta here
+            // (e.g. because the surface is momentarily gone), the grown font texture would
+            // never be uploaded, leaving the GPU texture smaller than the CPU-side atlas and
+            // desyncing every glyph UV until the next full atlas recreation.
             let mut renderer = render_state.renderer.write();
             for (id, image_delta) in &textures_delta.set {
                 renderer.update_texture(
