@@ -5,6 +5,8 @@ All notable changes to the `egui-wgpu` integration will be noted in this file.
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
+* Don't drop font-atlas texture deltas when the surface is momentarily unavailable [#8250](https://github.com/emilk/egui/pull/8250) by [@emilk](https://github.com/emilk)
+
 
 ## 0.34.3 - 2026-05-27
 * Fix random hangs by improving `wgpu::Surface` lifecycle handling [#8171](https://github.com/emilk/egui/pull/8171) by [@grtlr](https://github.com/grtlr)
