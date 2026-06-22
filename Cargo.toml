@@ -7,7 +7,6 @@ members = [
   "crates/egui_extras",
   "crates/egui_glow",
   "crates/egui_inspection",
-  "crates/egui_mcp",
   "crates/egui_kittest",
   "crates/egui-wgpu",
   "crates/egui-winit",
