@@ -81,6 +81,7 @@ pub(crate) struct GridLayout {
     min_cell_size: Vec2,
     max_cell_size: Vec2,
     color_picker: Option<ColorPickerFn>,
+    cell_alignment: Align2,
 
     // Cursor:
     col: usize,
@@ -116,6 +117,7 @@ impl GridLayout {
             min_cell_size: ui.spacing().interact_size,
             max_cell_size: Vec2::INFINITY,
             color_picker: None,
+            cell_alignment: Align2::LEFT_CENTER,
 
             col: 0,
             row: 0,
@@ -186,10 +188,8 @@ impl GridLayout {
         Rect::from_min_size(cursor.min, size).round_ui()
     }
 
-    #[expect(clippy::unused_self)]
     pub(crate) fn align_size_within_rect(&self, size: Vec2, frame: Rect) -> Rect {
-        // TODO(emilk): allow this alignment to be customized
-        Align2::LEFT_CENTER
+        self.cell_alignment
             .align_size_within_rect(size, frame)
             .round_ui()
     }
@@ -320,6 +320,7 @@ pub struct Grid {
     spacing: Option<Vec2>,
     start_row: usize,
     color_picker: Option<ColorPickerFn>,
+    cell_alignment: Align2,
 }
 
 impl Grid {
@@ -334,6 +335,7 @@ impl Grid {
             spacing: None,
             start_row: 0,
             color_picker: None,
+            cell_alignment: Align2::LEFT_CENTER,
         }
     }
 
@@ -407,6 +409,14 @@ impl Grid {
         self.start_row = start_row;
         self
     }
+
+    /// Change the default alignment of content inside grid cells.
+    /// Default: [`crate::Align2::LEFT_CENTER`]
+    #[inline]
+    pub fn with_cell_alignment(mut self, alignment: Align2) -> Self {
+        self.cell_alignment = alignment;
+        self
+    }
 }
 
 impl Grid {
@@ -428,6 +438,7 @@ impl Grid {
             spacing,
             start_row,
             mut color_picker,
+            cell_alignment,
         } = self;
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
@@ -468,6 +479,7 @@ impl Grid {
                     max_cell_size,
                     spacing,
                     row: start_row,
+                    cell_alignment,
                     ..GridLayout::new(ui, id, prev_state)
                 };
 
