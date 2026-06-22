@@ -729,6 +729,18 @@ impl Renderer {
         });
 
         queue_write_data_to_texture(&texture, origin);
+
+        // A full update (`pos == None`) must (re)create the texture at exactly the
+        // delta's size. If the GPU texture size ever disagrees with the CPU-side size
+        // here, glyph UVs (which are normalized by the CPU atlas size) will sample the
+        // wrong rows — looking like "the atlas grew without invalidating old UVs".
+        debug_assert!(
+            image_delta.pos.is_some() || [texture.width(), texture.height()] == [width, height],
+            "egui texture {id:?}: GPU texture is {}x{} but full delta is {width}x{height}",
+            texture.width(),
+            texture.height(),
+        );
+
         self.textures.insert(
             id,
             Texture {
