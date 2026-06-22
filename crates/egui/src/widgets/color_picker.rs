@@ -34,23 +34,24 @@ fn background_checkers(painter: &Painter, rect: Rect) {
     let bright_color = Color32::from_gray(128);
 
     let checker_size = Vec2::splat(rect.height() / 2.0);
-    let n = (rect.width() / checker_size.x).round() as u32;
+    let n = ((rect.width() / (checker_size.x * 2.0)).round() as u32) * 2;
 
-    let mut mesh = Mesh::default();
-    mesh.add_colored_rect(rect, dark_color);
+    painter.rect_filled(rect, 0.0, dark_color);
 
     let mut top = true;
+    let mut prev_x = rect.left();
+    let mid_y = rect.center().y;
     for i in 0..n {
-        let x = lerp(rect.left()..=rect.right(), i as f32 / (n as f32));
+        let x = lerp(rect.left()..=rect.right(), i as f32 / (n as f32)).ceil();
         let small_rect = if top {
-            Rect::from_min_size(pos2(x, rect.top()), checker_size)
+            Rect::from_min_max(pos2(prev_x, rect.top()), pos2(x, mid_y))
         } else {
-            Rect::from_min_size(pos2(x, rect.center().y), checker_size)
+            Rect::from_min_max(pos2(prev_x, mid_y), pos2(x, rect.bottom()))
         };
-        mesh.add_colored_rect(small_rect, bright_color);
+        painter.rect_filled(small_rect, 0.0, bright_color);
         top = !top;
+        prev_x = x;
     }
-    painter.add(Shape::mesh(mesh));
 }
 
 /// Show a color with background checkers to demonstrate transparency (if any).
