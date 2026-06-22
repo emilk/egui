@@ -688,11 +688,8 @@ impl GlowWinitRunning<'_> {
 
         egui_winit.handle_platform_output_with_event_loop(&window, event_loop, platform_output);
 
-        // Apply texture updates even if the window is not visible this frame.
-        // They are context-level (not tied to the framebuffer or surface), and
-        // `Context::end_pass` has already reset the font-atlas dirty region for this
-        // delta. Dropping it would leave the GPU font texture smaller than the
-        // CPU-side atlas and desync every glyph UV until the next full atlas recreation.
+        // Upload textures even when not visible: the atlas dirty region is already
+        // consumed, so dropping the delta would desync the font texture.
         let has_texture_updates = !textures_delta.set.is_empty() || !textures_delta.free.is_empty();
         if is_visible || has_texture_updates {
             // We may need to switch contexts again, because of immediate viewports:
