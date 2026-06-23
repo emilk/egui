@@ -641,11 +641,7 @@ impl ContextImpl {
     }
 
     fn all_viewport_ids(&self) -> ViewportIdSet {
-        self.viewports
-            .keys()
-            .copied()
-            .chain([ViewportId::ROOT])
-            .collect()
+        std::iter::chain(self.viewports.keys().copied(), [ViewportId::ROOT]).collect()
     }
 
     /// The current active viewport
@@ -698,7 +694,7 @@ impl ContextImpl {
 /// loop {
 ///     let raw_input = egui::RawInput::default();
 ///     let full_output = ctx.run_ui(raw_input, |ui| {
-///         egui::CentralPanel::default().show_inside(ui, |ui| {
+///         egui::CentralPanel::default().show(ui, |ui| {
 ///             ui.label("Hello world!");
 ///             if ui.button("Click me").clicked() {
 ///                 // take some action here
@@ -901,7 +897,7 @@ impl Context {
         profiling::function_scope!();
 
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
-        plugins.on_input(&mut new_input);
+        plugins.on_input(self, &mut new_input);
 
         self.write(|ctx| ctx.begin_pass(new_input));
     }
@@ -1311,6 +1307,52 @@ impl Context {
         .map(|widget_rect| self.get_response(widget_rect))
     }
 
+    /// Rectangles that could receive pointer input in the last completed pass.
+    ///
+    /// This exposes the same widget rectangles egui uses for hit-testing, after
+    /// filtering out disabled widgets, non-interactive widgets, and layers that
+    /// are currently blocked from interaction. The returned rectangles are in
+    /// global viewport coordinates, with layer transforms applied.
+    ///
+    /// This is meant for integrations that must declare platform input regions
+    /// before pointer events can be delivered to egui, such as transparent or
+    /// click-through overlays.
+    #[must_use]
+    pub fn interactive_rects_last_pass(&self) -> Vec<Rect> {
+        self.read(|ctx| {
+            let Some(viewport) = ctx.viewports.get(&ctx.viewport_id()) else {
+                return Vec::new();
+            };
+
+            let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
+            layers.sort_by(|&a, &b| ctx.memory.areas().compare_order(a, b));
+
+            let mut rects = Vec::new();
+            for layer_id in layers {
+                if !ctx.memory.allows_interaction(layer_id) {
+                    continue;
+                }
+
+                let to_global = ctx.memory.to_global.get(&layer_id).copied();
+                for widget in viewport.prev_pass.widgets.get_layer(layer_id) {
+                    if !widget.enabled || !widget.sense.interactive() {
+                        continue;
+                    }
+
+                    let rect = if let Some(to_global) = to_global {
+                        to_global * widget.interact_rect
+                    } else {
+                        widget.interact_rect
+                    };
+                    if rect.is_positive() && rect.is_finite() {
+                        rects.push(rect);
+                    }
+                }
+            }
+            rects
+        })
+    }
+
     /// Do all interaction for an existing widget, without (re-)registering it.
     pub(crate) fn get_response(&self, widget_rect: WidgetRect) -> Response {
         use response::Flags;
@@ -1535,6 +1577,19 @@ impl Context {
     /// ```
     pub fn set_cursor_icon(&self, cursor_icon: CursorIcon) {
         self.output_mut(|o| o.cursor_icon = cursor_icon);
+    }
+
+    /// Request that the integration display this RGBA bitmap as the OS
+    /// cursor for the next frame, instead of the standard `cursor_icon`.
+    /// Backends that don't support custom cursors (web, eframe with
+    /// non-winit integrations) silently fall back to the icon.
+    ///
+    /// Pass `None` to clear and revert to `cursor_icon` selection.
+    ///
+    /// The integration is expected to dedupe by `Arc` pointer identity,
+    /// so reusing the same `Arc<[u8]>` across frames is cheap.
+    pub fn set_cursor_image(&self, image: Option<crate::CustomCursorImage>) {
+        self.output_mut(|o| o.cursor_image = image);
     }
 
     /// Add a command to [`PlatformOutput::commands`],
@@ -2336,7 +2391,7 @@ impl Context {
         let mut output = self.write(|ctx| ctx.end_pass());
 
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
-        plugins.on_output(&mut output);
+        plugins.on_output(self, &mut output);
 
         output
     }
@@ -4030,7 +4085,7 @@ impl Context {
 
 /// ## Interaction
 impl Context {
-    /// Read you what widgets are currently being interacted with.
+    /// Read which widgets are currently being interacted with.
     pub fn interaction_snapshot<R>(&self, reader: impl FnOnce(&InteractionSnapshot) -> R) -> R {
         self.write(|w| reader(&w.viewport().interact_widgets))
     }

@@ -192,6 +192,7 @@ impl Frame {
         Self::new().inner_margin(8).fill(style.visuals.panel_fill)
     }
 
+    /// The default frame for an [`crate::Window`].
     pub fn window(style: &Style) -> Self {
         Self::new()
             .inner_margin(style.spacing.window_margin)
@@ -398,11 +399,15 @@ impl Frame {
     }
 
     /// Show the given ui surrounded by this frame.
+    ///
+    /// The returned [`InnerResponse::response`] will have the rect of the entire frame, including margins.
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(add_contents))
     }
 
     /// Show using dynamic dispatch.
+    ///
+    /// The returned [`InnerResponse::response`] will have the rect of the entire frame, including margins.
     pub fn show_dyn<'c, R>(
         self,
         ui: &mut Ui,

@@ -3,6 +3,7 @@
 pub mod cursor;
 mod font;
 mod fonts;
+mod index;
 mod text_layout;
 mod text_layout_types;
 
@@ -11,6 +12,7 @@ pub use {
         FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak, Fonts,
         FontsImpl, FontsView, InsertFontFamily,
     },
+    index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
     text_layout::*,
     text_layout_types::*,
 };
@@ -25,8 +27,8 @@ pub struct TextOptions {
     /// Maximum size of the font texture.
     pub max_texture_side: usize,
 
-    /// Controls how to convert glyph coverage to alpha.
-    pub alpha_from_coverage: crate::AlphaFromCoverage,
+    /// Controls how to convert glyph colors when writing to the font atlas.
+    pub color_transfer_function: crate::FontColorTransferFunction,
 
     /// Whether to enable font hinting
     ///
@@ -54,7 +56,7 @@ impl Default for TextOptions {
     fn default() -> Self {
         Self {
             max_texture_side: 2048, // Small but portable
-            alpha_from_coverage: crate::AlphaFromCoverage::default(),
+            color_transfer_function: crate::FontColorTransferFunction::default(),
             font_hinting: true,
             subpixel_binning: true,
         }

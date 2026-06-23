@@ -35,13 +35,13 @@ pub trait Plugin: Send + Sync + std::any::Any + 'static {
     ///
     /// Useful to inspect or modify the input.
     /// Since this is called outside a pass, don't show ui here. Using `Context::debug_painter` is fine though.
-    fn input_hook(&mut self, input: &mut RawInput) {}
+    fn input_hook(&mut self, ctx: &Context, input: &mut RawInput) {}
 
     /// Called just before the output is passed to the backend.
     ///
     /// Useful to inspect or modify the output.
     /// Since this is called outside a pass, don't show ui here. Using `Context::debug_painter` is fine though.
-    fn output_hook(&mut self, output: &mut FullOutput) {}
+    fn output_hook(&mut self, ctx: &Context, output: &mut FullOutput) {}
 
     /// Called when a widget is created and is under the pointer.
     ///
@@ -168,17 +168,17 @@ impl PluginsOrdered {
         });
     }
 
-    pub fn on_input(&self, input: &mut RawInput) {
+    pub fn on_input(&self, ctx: &Context, input: &mut RawInput) {
         profiling::scope!("plugins", "on_input");
         self.for_each_dyn(|plugin| {
-            plugin.input_hook(input);
+            plugin.input_hook(ctx, input);
         });
     }
 
-    pub fn on_output(&self, output: &mut FullOutput) {
+    pub fn on_output(&self, ctx: &Context, output: &mut FullOutput) {
         profiling::scope!("plugins", "on_output");
         self.for_each_dyn(|plugin| {
-            plugin.output_hook(output);
+            plugin.output_hook(ctx, output);
         });
     }
 

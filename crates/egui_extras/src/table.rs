@@ -4,8 +4,8 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
-    scroll_area::{ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
+    Align, AsIdSalt, IdSalt, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    scroll_area::{DragScroll, ScrollAreaOutput, ScrollBarVisibility, ScrollSource},
 };
 
 use crate::{
@@ -180,7 +180,7 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
 
 struct TableScrollOptions {
     vscroll: bool,
-    drag_to_scroll: bool,
+    drag_to_scroll: DragScroll,
     stick_to_bottom: bool,
     scroll_to_row: Option<(usize, Option<Align>)>,
     scroll_offset_y: Option<f32>,
@@ -195,7 +195,7 @@ impl Default for TableScrollOptions {
     fn default() -> Self {
         Self {
             vscroll: true,
-            drag_to_scroll: true,
+            drag_to_scroll: DragScroll::OnTouch,
             stick_to_bottom: false,
             scroll_to_row: None,
             scroll_offset_y: None,
@@ -246,7 +246,7 @@ impl Default for TableScrollOptions {
 /// ```
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
-    id_salt: Id,
+    id_salt: IdSalt,
     columns: Vec<Column>,
     striped: Option<bool>,
     resizable: bool,
@@ -260,7 +260,7 @@ impl<'a> TableBuilder<'a> {
         let cell_layout = *ui.layout();
         Self {
             ui,
-            id_salt: Id::new("__table_state"),
+            id_salt: IdSalt::new("__table_state"),
             columns: Default::default(),
             striped: None,
             resizable: false,
@@ -270,12 +270,12 @@ impl<'a> TableBuilder<'a> {
         }
     }
 
-    /// Give this table a unique id within the parent [`Ui`].
+    /// Give this table a unique salt within the parent [`Ui`].
     ///
     /// This is required if you have multiple tables in the same [`Ui`].
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt = Id::new(id_salt);
+    pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
+        self.id_salt = IdSalt::new(id_salt);
         self
     }
 
@@ -318,11 +318,13 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    /// Enables scrolling the table's contents using mouse drag (default: `true`).
+    /// Controls scrolling the table's contents by dragging with the pointer.
     ///
-    /// See [`ScrollArea::scroll_source`] for more.
+    /// Defaults to [`DragScroll::OnTouch`] — only active when a touch screen is detected.
+    ///
+    /// See [`ScrollArea::scroll_source`] and [`DragScroll`] for more.
     #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+    pub fn drag_to_scroll(mut self, drag_to_scroll: DragScroll) -> Self {
         self.scroll_options.drag_to_scroll = drag_to_scroll;
         self
     }
@@ -617,11 +619,8 @@ impl TableState {
             // to take up the remainder of the current available width.
             // Also handles changing item spacing.
             let mut sizing = crate::sizing::Sizing::default();
-            for ((prev_width, max_used), column) in state
-                .column_widths
-                .iter()
-                .zip(&state.max_used_widths)
-                .zip(columns)
+            for (prev_width, max_used, column) in
+                itertools::izip!(&state.column_widths, &state.max_used_widths, columns)
             {
                 use crate::Size;
 
@@ -635,7 +634,11 @@ impl TableState {
                         InitialColumnSize::Automatic(_) => Size::exact(*prev_width),
                         InitialColumnSize::Remainder => Size::remainder(),
                     }
-                    .at_least(column.width_range.min.max(*max_used))
+                    .at_least(if column.clip {
+                        column.width_range.min
+                    } else {
+                        column.width_range.min.max(*max_used)
+                    })
                     .at_most(column.width_range.max)
                 };
                 sizing.add(size);

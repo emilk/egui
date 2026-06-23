@@ -74,6 +74,7 @@ egui = { workspace = true, default-features = false }
 
 ahash.workspace = true
 enum-map.workspace = true
+itertools.workspace = true
 log.workspace = true
 profiling.workspace = true
 

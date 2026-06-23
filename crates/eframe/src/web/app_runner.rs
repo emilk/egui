@@ -368,7 +368,8 @@ impl AppRunner {
         let egui::PlatformOutput {
             commands,
             cursor_icon,
-            events: _,                    // already handled
+            cursor_image: _, // TODO(alextournai): support custom bitmap cursors on the web (via CSS `url(...)`)
+            events: _,       // already handled
             mutable_text_under_cursor: _, // TODO(#4569): https://github.com/emilk/egui/issues/4569
             ime,
             accesskit_update: _,        // not currently implemented

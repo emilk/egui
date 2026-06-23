@@ -279,11 +279,7 @@ impl<'a, State> Harness<'a, State> {
     /// Calculate the rect that includes all popups and tooltips.
     fn compute_total_rect_with_popups(&self) -> Option<Rect> {
         // Start with the standard response rect
-        let mut used = if let Some(response) = self.response.as_ref() {
-            response.rect
-        } else {
-            return None;
-        };
+        let mut used = self.response.as_ref()?.rect;
 
         // Add all visible areas from other orders (popups, tooltips, etc.)
         self.ctx.memory(|mem| {
@@ -711,7 +707,7 @@ impl<'a, State> Harness<'a, State> {
     /// Then write a `fn main()` in the test file that invokes your test directly.
     ///
     /// See also: <https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-harness-field>
-    #[cfg(feature = "eframe")]
+    #[cfg(all(feature = "eframe", not(target_arch = "wasm32")))]
     #[deprecated = "Only for debugging, don't commit this."]
     pub fn spawn_eframe_app(self)
     where

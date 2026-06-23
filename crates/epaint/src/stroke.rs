@@ -22,9 +22,9 @@ impl Stroke {
     };
 
     #[inline]
-    pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {
+    pub fn new(width: f32, color: impl Into<Color32>) -> Self {
         Self {
-            width: width.into(),
+            width,
             color: color.into(),
         }
     }
@@ -136,9 +136,9 @@ impl PathStroke {
     };
 
     #[inline]
-    pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {
+    pub fn new(width: f32, color: impl Into<Color32>) -> Self {
         Self {
-            width: width.into(),
+            width,
             color: ColorMode::Solid(color.into()),
             kind: StrokeKind::Middle,
         }
@@ -149,11 +149,11 @@ impl PathStroke {
     /// The bounding box passed to the callback will have a margin of [`TessellationOptions::feathering_size_in_pixels`](`crate::tessellator::TessellationOptions::feathering_size_in_pixels`)
     #[inline]
     pub fn new_uv(
-        width: impl Into<f32>,
+        width: f32,
         callback: impl Fn(Rect, Pos2) -> Color32 + Send + Sync + 'static,
     ) -> Self {
         Self {
-            width: width.into(),
+            width,
             color: ColorMode::UV(Arc::new(callback)),
             kind: StrokeKind::Middle,
         }

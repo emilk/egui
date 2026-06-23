@@ -31,11 +31,12 @@ pub fn primary_touch_pos(
     runner: &mut AppRunner,
     event: &web_sys::TouchEvent,
 ) -> Option<(egui::Pos2, web_sys::Touch)> {
-    let all_touches: Vec<_> = (0..event.touches().length())
-        .filter_map(|i| event.touches().get(i))
-        // On touchend we don't get anything in `touches`, but we still get `changed_touches`, so include those:
-        .chain((0..event.changed_touches().length()).filter_map(|i| event.changed_touches().get(i)))
-        .collect();
+    // On touchend we don't get anything in `touches`, but we still get `changed_touches`, so include those:
+    let all_touches: Vec<_> = std::iter::chain(
+        (0..event.touches().length()).filter_map(|i| event.touches().get(i)),
+        (0..event.changed_touches().length()).filter_map(|i| event.changed_touches().get(i)),
+    )
+    .collect();
 
     if let Some(primary_touch) = runner.input.primary_touch {
         // Is the primary touch is gone?

@@ -3,15 +3,15 @@ use std::{
     collections::BTreeMap,
     sync::{
         Arc,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
 use crate::{
     TextureAtlas,
     text::{
-        Galley, LayoutJob, LayoutSection, TextOptions, VariationCoords,
-        font::{Font, FontFace, GlyphInfo},
+        ByteIndex, Galley, LayoutJob, LayoutSection, TextOptions, VariationCoords,
+        font::{Font, FontFace},
     },
 };
 use emath::{NumExt as _, OrderedFloat};
@@ -439,7 +439,7 @@ impl FontFaceKey {
     pub const INVALID: Self = Self(0);
 
     fn new() -> Self {
-        static KEY_COUNTER: AtomicU64 = AtomicU64::new(1);
+        static KEY_COUNTER: AtomicUsize = AtomicUsize::new(1);
         Self(crate::util::hash(
             KEY_COUNTER.fetch_add(1, Ordering::Relaxed),
         ))
@@ -457,9 +457,20 @@ pub(super) struct CachedFamily {
     /// Lazily calculated.
     pub characters: Option<BTreeMap<char, Vec<String>>>,
 
-    pub replacement_glyph: (FontFaceKey, GlyphInfo),
+    /// The face used when no face in [`Self::fonts`] supports a char.
+    pub replacement_face_key: FontFaceKey,
 
-    pub glyph_info_cache: ahash::HashMap<char, (FontFaceKey, GlyphInfo)>,
+    /// The char that [`Self::replacement_face_key`] actually contains.
+    ///
+    /// When the user asks about a char that no fallback face supports we
+    /// render this char in its place.
+    pub replacement_char: char,
+
+    /// Cache: `char → which face in the fallback chain owns this char`.
+    ///
+    /// Location-independent (fallback choice depends only on charmap support,
+    /// not on variation coordinates).
+    pub face_cache: ahash::HashMap<char, FontFaceKey>,
 }
 
 impl CachedFamily {
@@ -467,49 +478,59 @@ impl CachedFamily {
         fonts: Vec<FontFaceKey>,
         fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     ) -> Self {
+        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
+        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
+
         if fonts.is_empty() {
             return Self {
                 fonts,
                 characters: None,
-                replacement_glyph: (FontFaceKey::INVALID, GlyphInfo::INVISIBLE),
-                glyph_info_cache: Default::default(),
+                replacement_face_key: FontFaceKey::INVALID,
+                replacement_char: PRIMARY_REPLACEMENT_CHAR,
+                face_cache: Default::default(),
             };
         }
 
         let mut slf = Self {
             fonts,
             characters: None,
-            replacement_glyph: (FontFaceKey::INVALID, GlyphInfo::INVISIBLE),
-            glyph_info_cache: Default::default(),
+            replacement_face_key: FontFaceKey::INVALID,
+            replacement_char: PRIMARY_REPLACEMENT_CHAR,
+            face_cache: Default::default(),
         };
 
-        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
-        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
-
-        let replacement_glyph = slf
-            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
-            .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR, fonts_by_id))
+        let (replacement_face_key, replacement_char) = slf
+            .find_face_for_char(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
+            .map(|key| (key, PRIMARY_REPLACEMENT_CHAR))
+            .or_else(|| {
+                slf.find_face_for_char(FALLBACK_REPLACEMENT_CHAR, fonts_by_id)
+                    .map(|key| (key, FALLBACK_REPLACEMENT_CHAR))
+            })
             .unwrap_or_else(|| {
                 log::warn!(
                     "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
                 );
-                (FontFaceKey::INVALID, GlyphInfo::INVISIBLE)
+                (FontFaceKey::INVALID, PRIMARY_REPLACEMENT_CHAR)
             });
-        slf.replacement_glyph = replacement_glyph;
+        slf.replacement_face_key = replacement_face_key;
+        slf.replacement_char = replacement_char;
 
         slf
     }
 
-    pub(crate) fn glyph_info_no_cache_or_fallback(
-        &mut self,
+    /// Walk the fallback chain and return the first face whose charmap supports `c`.
+    ///
+    /// Pure — does not touch any cache. Callers that want memoisation should
+    /// insert into [`Self::face_cache`] themselves.
+    pub(crate) fn find_face_for_char(
+        &self,
         c: char,
         fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
-    ) -> Option<(FontFaceKey, GlyphInfo)> {
+    ) -> Option<FontFaceKey> {
         for font_key in &self.fonts {
             let font_face = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
-            if let Some(glyph_info) = font_face.glyph_info(c) {
-                self.glyph_info_cache.insert(c, (*font_key, glyph_info));
-                return Some((*font_key, glyph_info));
+            if font_face.glyph_id_resolution(c).is_some() {
+                return Some(*font_key);
             }
         }
         None
@@ -1049,10 +1070,10 @@ impl GalleyCache {
                 // `start` and `end` are the byte range of the current paragraph.
                 // How does the current section overlap with the paragraph range?
 
-                if section_range.end <= start {
+                if section_range.end <= ByteIndex(start) {
                     // The section is behind us
                     current_section += 1;
-                } else if end < section_range.start {
+                } else if ByteIndex(end) < section_range.start {
                     break; // Haven't reached this one yet.
                 } else {
                     // Section range overlaps with paragraph range
@@ -1061,13 +1082,13 @@ impl GalleyCache {
                         "Bad byte_range: {section_range:?}"
                     );
                     let new_range = section_range.start.saturating_sub(start)
-                        ..(section_range.end.at_most(end)).saturating_sub(start);
+                        ..(section_range.end.min(ByteIndex(end))).saturating_sub(start);
                     debug_assert!(
                         new_range.start <= new_range.end,
                         "Bad new section range: {new_range:?}"
                     );
                     paragraph_job.sections.push(LayoutSection {
-                        leading_space: if start <= section_range.start {
+                        leading_space: if ByteIndex(start) <= section_range.start {
                             *leading_space
                         } else {
                             0.0
