@@ -98,7 +98,7 @@ glutin-winit = { version = "0.5.0", default-features = false }
 harfrust = "0.7.0"
 home = "0.5.12"
 image = { version = "0.25.6", default-features = false } # 0.25.7+ pulls png 0.18, duplicating the png 0.17 that resvg's tiny-skia needs
-itertools = "0.14.0"
+itertools = "0.14.0" # 0.15 splits us from puffin 0.20's itertools 0.14, adding a cargo-deny duplicate
 jiff = { version = "0.2.29", default-features = false }
 js-sys = "0.3.77"
 kittest = { version = "0.4.0" }
