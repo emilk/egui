@@ -96,7 +96,7 @@ glow = "0.17.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 harfrust = "0.7.0"
-home = "0.5.9"
+home = "0.5.12"
 image = { version = "0.25.6", default-features = false }
 itertools = "0.14.0"
 jiff = { version = "0.2.23", default-features = false }
