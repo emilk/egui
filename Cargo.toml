@@ -143,7 +143,7 @@ toml = { version = "1.0", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0", default-features = false }
 unicode-general-category = "1.1"
-unicode-segmentation = "1.12"
+unicode-segmentation = "1.13"
 vello_cpu = { version = "0.0.8", default-features = false, features = [
   "std",
   "u8_pipeline",
