@@ -87,7 +87,7 @@ color-hex = "0.2.0"
 criterion = { version = "0.8.2", default-features = false }
 dify = { version = "0.8.0", default-features = false }
 directories = "6.0"
-document-features = "0.2.11"
+document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7"
 env_logger = { version = "0.11.8", default-features = false }
