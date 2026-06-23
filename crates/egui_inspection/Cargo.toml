@@ -31,7 +31,7 @@ plugin = ["png", "dep:log"]
 [dependencies]
 egui = { workspace = true, features = ["serde"] }
 serde.workspace = true
-serde_bytes = "0.11.17"
+serde_bytes.workspace = true
 rmp-serde.workspace = true
 
 image = { workspace = true, optional = true }
