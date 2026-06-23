@@ -126,7 +126,7 @@ rayon = "1.12"
 resvg = { version = "0.45.1", default-features = false }
 rfd = "0.17.2"
 rmp-serde = "1.3"
-ron = "0.12.0"
+ron = "0.12.2"
 self_cell = "1.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11.17"
