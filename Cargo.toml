@@ -90,14 +90,14 @@ directories = "6.0"
 document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7"
-env_logger = { version = "0.11.8", default-features = false }
+env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x, duplicating the 0.1.x that android_logger needs
 font-types = { version = "0.11.0", default-features = false, features = ["std"] }
 glow = "0.17.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 harfrust = "0.7.0"
 home = "0.5.12"
-image = { version = "0.25.6", default-features = false }
+image = { version = "0.25.6", default-features = false } # 0.25.7+ pulls png 0.18, duplicating the png 0.17 that resvg's tiny-skia needs
 itertools = "0.14.0"
 jiff = { version = "0.2.29", default-features = false }
 js-sys = "0.3.77"
@@ -133,13 +133,13 @@ serde_bytes = "0.11.17"
 similar-asserts = "1.7"
 skrifa = { version = "0.42.1", default-features = false, features = ["std", "autohint_shaping"] }
 smallvec = "1.15"
-smithay-clipboard = "0.7.2"
+smithay-clipboard = "0.7.2" # 0.7.3 pulls smithay-client-toolkit 0.20 (calloop 0.14), duplicating the 0.19/0.13 that winit 0.30 needs
 static_assertions = "1.1"
 syntect = { version = "5.3", default-features = false }
 tempfile = "3.27"
 thiserror = "2.0"
 tokio = "1.49"
-toml = { version = "1.0", default-features = false }
+toml = { version = "1.0", default-features = false } # 1.1+ pulls winnow 1.x, duplicating the winnow 0.7 that winit's toml_edit needs
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0", default-features = false }
 unicode-general-category = "1.1"
