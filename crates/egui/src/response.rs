@@ -199,6 +199,8 @@ impl Response {
 
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
     ///
+    /// See [`Response::clicked()`] for what constitutes a click.
+    ///
     /// This also returns true if the widget was pressed-and-held on a touch screen.
     #[inline]
     pub fn secondary_clicked(&self) -> bool {
@@ -214,6 +216,8 @@ impl Response {
     }
 
     /// Returns true if this widget was clicked this frame by the middle mouse button.
+    ///
+    /// See [`Response::clicked()`] for what constitutes a click.
     #[inline]
     pub fn middle_clicked(&self) -> bool {
         self.clicked_by(PointerButton::Middle)

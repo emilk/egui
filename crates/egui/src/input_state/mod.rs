@@ -1420,6 +1420,7 @@ impl PointerState {
     /// Was the given pointer button given clicked this frame?
     ///
     /// Returns true on double- and triple- clicks too.
+    /// See [`crate::Response::clicked()`] for what constitutes a click.
     pub fn button_clicked(&self, button: PointerButton) -> bool {
         self.pointer_events
             .iter()
@@ -1453,11 +1454,15 @@ impl PointerState {
     }
 
     /// Was the primary button clicked this frame?
+    ///
+    /// See [`crate::Response::clicked()`] for what constitutes a click.
     pub fn primary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Primary)
     }
 
     /// Was the secondary button clicked this frame?
+    ///
+    /// See [`crate::Response::clicked()`] for what constitutes a click.
     pub fn secondary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Secondary)
     }
