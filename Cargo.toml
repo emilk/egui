@@ -91,13 +91,15 @@ document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7"
 env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x, duplicating the 0.1.x that android_logger needs
-font-types = { version = "0.11.3", default-features = false, features = ["std"] }
+font-types = { version = "0.11.3", default-features = false, features = [
+  "std",
+] } # Can't update to 0.12: vello_cpu's glifo 0.1.1 pins font-types 0.11 (via skrifa/read-fonts), so bumping splits it into two versions
 glow = "0.17.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
-harfrust = "0.7.0"
+harfrust = "0.7.0" # Can't update to 0.10: it needs read-fonts 0.40/font-types 0.12, but vello_cpu's glifo 0.1.1 pins read-fonts 0.39/font-types 0.11, so bumping duplicates them
 home = "0.5.12"
-image = { version = "0.25.6", default-features = false } # 0.25.7+ pulls png 0.18, duplicating the png 0.17 that resvg's tiny-skia needs
+image = { version = "0.25.6", default-features = false } # Can't update to 0.25.7+: it needs png 0.18, which only matches resvg once resvg moves to tiny-skia 0.12 — blocked, see resvg below
 itertools = "0.14.0" # 0.15 splits us from puffin 0.20's itertools 0.14, adding a cargo-deny duplicate
 jiff = { version = "0.2.29", default-features = false }
 js-sys = "0.3.77"
@@ -123,7 +125,7 @@ puffin_http = "0.17.0"
 rand = "0.10.1"
 raw-window-handle = "0.6.2"
 rayon = "1.12"
-resvg = { version = "0.45.1", default-features = false }
+resvg = { version = "0.45.1", default-features = false } # Can't update to 0.47: it needs tiny-skia 0.12, but winit 0.30's sctk-adwaita is stuck on tiny-skia 0.11, so bumping duplicates tiny-skia. (0.46 keeps tiny-skia 0.11 but its fontconfig-parser duplicates roxmltree.)
 rfd = "0.17.2"
 rmp-serde = "1.3"
 ron = "0.12.2"
@@ -131,7 +133,10 @@ self_cell = "1.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11.19"
 similar-asserts = "2.0.0"
-skrifa = { version = "0.42.1", default-features = false, features = ["std", "autohint_shaping"] }
+skrifa = { version = "0.42.1", default-features = false, features = [
+  "std",
+  "autohint_shaping",
+] } # Can't update to 0.43: vello_cpu's glifo 0.1.1 pins skrifa 0.42, so bumping splits it into two versions
 smallvec = "1.15"
 smithay-clipboard = "0.7.2" # 0.7.3 pulls smithay-client-toolkit 0.20 (calloop 0.14), duplicating the 0.19/0.13 that winit 0.30 needs
 static_assertions = "1.1"
