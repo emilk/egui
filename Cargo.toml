@@ -130,7 +130,7 @@ ron = "0.12.2"
 self_cell = "1.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11.19"
-similar-asserts = "1.7"
+similar-asserts = "2.0.0"
 skrifa = { version = "0.42.1", default-features = false, features = ["std", "autohint_shaping"] }
 smallvec = "1.15"
 smithay-clipboard = "0.7.2" # 0.7.3 pulls smithay-client-toolkit 0.20 (calloop 0.14), duplicating the 0.19/0.13 that winit 0.30 needs
