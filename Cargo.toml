@@ -138,7 +138,7 @@ static_assertions = "1.1"
 syntect = { version = "5.3", default-features = false }
 tempfile = "3.27"
 thiserror = "2.0"
-tokio = "1.49"
+tokio = "1.52"
 toml = { version = "1.0", default-features = false } # 1.1+ pulls winnow 1.x, duplicating the winnow 0.7 that winit's toml_edit needs
 type-map = "0.5.1"
 unicode_names2 = { version = "2.0", default-features = false }
