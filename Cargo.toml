@@ -80,7 +80,7 @@ ahash = { version = "0.8.12", default-features = false, features = [
 android_logger = "0.15.1"
 arboard = { version = "3.6", default-features = false }
 backtrace = "0.3.76"
-bitflags = "2.9"
+bitflags = "2.13"
 bytemuck = "1.24"
 cint = "0.3.1"
 color-hex = "0.2.0"
