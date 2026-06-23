@@ -136,7 +136,7 @@ smallvec = "1.15"
 smithay-clipboard = "0.7.2"
 static_assertions = "1.1"
 syntect = { version = "5.3", default-features = false }
-tempfile = "3.23"
+tempfile = "3.27"
 thiserror = "2.0"
 tokio = "1.49"
 toml = { version = "1.0", default-features = false }
