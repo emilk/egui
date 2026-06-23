@@ -141,7 +141,7 @@ thiserror = "2.0"
 tokio = "1.52"
 toml = { version = "1.0", default-features = false } # 1.1+ pulls winnow 1.x, duplicating the winnow 0.7 that winit's toml_edit needs
 type-map = "0.5.1"
-unicode_names2 = { version = "2.0", default-features = false }
+unicode_names2 = { version = "3.1.0", default-features = false }
 unicode-general-category = "1.1"
 unicode-segmentation = "1.13"
 vello_cpu = { version = "0.0.8", default-features = false, features = [
