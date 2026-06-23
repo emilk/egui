@@ -70,7 +70,7 @@ egui_inspection = { version = "0.34.3", path = "crates/egui_inspection", default
 egui_kittest = { version = "0.34.3", path = "crates/egui_kittest", default-features = false }
 eframe = { version = "0.34.3", path = "crates/eframe", default-features = false }
 
-accesskit = "0.24.0"
+accesskit = "0.24.1"
 accesskit_consumer = "0.35.0"
 accesskit_winit = "0.32.0"
 ahash = { version = "0.8.12", default-features = false, features = [
