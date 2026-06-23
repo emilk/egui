@@ -2330,7 +2330,7 @@ impl Ui {
         self.allocate_ui_with_layout_dyn(initial_size, layout, Box::new(add_contents))
     }
 
-    /// Like [`Self::horizontal`], but aligns content with top.
+    /// Like [`Self::horizontal`], but allocates the full vertical height and then aligns content with top.
     pub fn horizontal_top<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
