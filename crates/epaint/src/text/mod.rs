@@ -3,6 +3,7 @@
 pub mod cursor;
 mod font;
 mod fonts;
+mod index;
 mod text_layout;
 mod text_layout_types;
 
@@ -11,6 +12,7 @@ pub use {
         FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak, Fonts,
         FontsImpl, FontsView, InsertFontFamily,
     },
+    index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
     text_layout::*,
     text_layout_types::*,
 };

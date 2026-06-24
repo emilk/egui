@@ -10,7 +10,7 @@ use std::{
 use crate::{
     TextureAtlas,
     text::{
-        Galley, LayoutJob, LayoutSection, TextOptions, VariationCoords,
+        ByteIndex, Galley, LayoutJob, LayoutSection, TextOptions, VariationCoords,
         font::{Font, FontFace},
     },
 };
@@ -1070,10 +1070,10 @@ impl GalleyCache {
                 // `start` and `end` are the byte range of the current paragraph.
                 // How does the current section overlap with the paragraph range?
 
-                if section_range.end <= start {
+                if section_range.end <= ByteIndex(start) {
                     // The section is behind us
                     current_section += 1;
-                } else if end < section_range.start {
+                } else if ByteIndex(end) < section_range.start {
                     break; // Haven't reached this one yet.
                 } else {
                     // Section range overlaps with paragraph range
@@ -1082,13 +1082,13 @@ impl GalleyCache {
                         "Bad byte_range: {section_range:?}"
                     );
                     let new_range = section_range.start.saturating_sub(start)
-                        ..(section_range.end.at_most(end)).saturating_sub(start);
+                        ..(section_range.end.min(ByteIndex(end))).saturating_sub(start);
                     debug_assert!(
                         new_range.start <= new_range.end,
                         "Bad new section range: {new_range:?}"
                     );
                     paragraph_job.sections.push(LayoutSection {
-                        leading_space: if start <= section_range.start {
+                        leading_space: if ByteIndex(start) <= section_range.start {
                             *leading_space
                         } else {
                             0.0

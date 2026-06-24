@@ -209,6 +209,35 @@ pub use native::file_storage::storage_dir;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod icon_data;
 
+// ----------------------------------------------------------------------------
+
+/// Attach an [`egui_inspection::InspectionPlugin`] to `ctx` when enabled via the environment.
+#[cfg(all(feature = "inspection", not(target_arch = "wasm32")))]
+pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<String>) {
+    match egui_inspection::attach_from_env(ctx, label) {
+        Ok(true) => log::info!("egui_inspection plugin attached"),
+        Ok(false) => {}
+        Err(err) => log::warn!("egui_inspection attach failed: {err}"),
+    }
+}
+
+/// Fallback for native builds without the `inspection` feature. Logs warning if inspection env
+/// var was set.
+#[cfg(all(
+    not(feature = "inspection"),
+    not(target_arch = "wasm32"),
+    any(feature = "glow", feature = "wgpu_no_default_features")
+))]
+pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {
+    if let Ok(value) = std::env::var("EGUI_INSPECTION")
+        && value != "0"
+        && value != "false"
+        && !value.is_empty()
+    {
+        log::warn!("Inspection env var set but app was compiled without eframe/inspection feature");
+    }
+}
+
 /// This is how you start a native (desktop) app.
 ///
 /// The first argument is name of your app, which is an identifier

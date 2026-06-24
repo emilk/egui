@@ -5,8 +5,8 @@ use accesskit_consumer::{FilterResult, Node, NodeId, Tree, TreeChangeHandler};
 
 use eframe::epaint::text::TextWrapMode;
 use egui::{
-    Button, Color32, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label, Modifiers, Panel,
-    RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
+    Button, Color32, Context, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label,
+    Modifiers, Panel, RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
 };
 
 /// This [`egui::Plugin`] adds an inspector panel.
@@ -46,7 +46,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
         "Accessibility Inspector"
     }
 
-    fn input_hook(&mut self, input: &mut RawInput) {
+    fn input_hook(&mut self, _ctx: &Context, input: &mut RawInput) {
         if let Some(queued_action) = self.queued_action.take() {
             input
                 .events
@@ -54,7 +54,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
         }
     }
 
-    fn output_hook(&mut self, output: &mut FullOutput) {
+    fn output_hook(&mut self, _ctx: &Context, output: &mut FullOutput) {
         if let Some(update) = output.platform_output.accesskit_update.clone() {
             self.tree = match mem::take(&mut self.tree) {
                 None => {

@@ -543,6 +543,21 @@ impl Painter {
             commands_submitted: false,
         };
 
+        {
+            // Upload textures before the surface-dependent early-returns below:
+            // uploads only need the device + queue, and the atlas dirty region is
+            // already consumed, so dropping the delta would desync the font texture.
+            let mut renderer = render_state.renderer.write();
+            for (id, image_delta) in &textures_delta.set {
+                renderer.update_texture(
+                    &render_state.device,
+                    &render_state.queue,
+                    *id,
+                    image_delta,
+                );
+            }
+        }
+
         let Some(surface_state) = self.surfaces.get_mut(&viewport_id) else {
             return vsync_sec;
         };
@@ -562,15 +577,6 @@ impl Painter {
 
         let user_cmd_bufs = {
             let mut renderer = render_state.renderer.write();
-            for (id, image_delta) in &textures_delta.set {
-                renderer.update_texture(
-                    &render_state.device,
-                    &render_state.queue,
-                    *id,
-                    image_delta,
-                );
-            }
-
             renderer.update_buffers(
                 &render_state.device,
                 &render_state.queue,
