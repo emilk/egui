@@ -1468,6 +1468,7 @@ dependencies = [
  "egui_extras",
  "image",
  "kittest",
+ "log",
  "open",
  "pollster",
  "serde",
