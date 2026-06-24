@@ -2963,7 +2963,7 @@ pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAx
                 let mut value = existing.map_or(axis.default, |i| coords.as_ref()[i].1);
 
                 ui.horizontal(|ui| {
-                    if ui.add(Slider::new(&mut value, axis.range.into())).changed() {
+                    if ui.add(Slider::new(&mut value, axis.range)).changed() {
                         match existing {
                             Some(i) => coords.as_mut()[i].1 = value,
                             None => coords.push(axis.tag, value),
