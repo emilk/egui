@@ -70,9 +70,6 @@ impl Widget for Checkbox<'_> {
 
         // Get the widget style by reading the response from the previous pass
         let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
-
         let CheckboxStyle {
             check_size,
             checkbox_frame,
