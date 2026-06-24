@@ -10,11 +10,11 @@ use std::{
 use crate::{
     TextureAtlas,
     text::{
-        ByteIndex, Galley, LayoutJob, LayoutSection, TextOptions, VariationCoords,
+        ByteIndex, Galley, LayoutJob, LayoutSection, Tag, TextOptions, VariationCoords,
         font::{Font, FontFace},
     },
 };
-use emath::{NumExt as _, OrderedFloat};
+use emath::{NumExt as _, OrderedFloat, Rangef};
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
@@ -147,6 +147,57 @@ impl FontData {
     pub fn tweak(self, tweak: FontTweak) -> Self {
         Self { tweak, ..self }
     }
+
+    /// The variation axes of this font, e.g. `wght` (weight) and `wdth` (width).
+    ///
+    /// Use this to discover which axes a variable font supports, and their valid
+    /// ranges, so a UI can offer the right knobs instead of making the user guess
+    /// tags and values for [`FontTweak::coords`].
+    ///
+    /// Returns an empty list for non-variable (static) fonts, or if the font data
+    /// fails to parse.
+    pub fn variation_axes(&self) -> Vec<FontVariationAxis> {
+        use skrifa::MetadataProvider as _;
+
+        let Ok(font) = skrifa::FontRef::from_index(self.font.as_ref(), self.index) else {
+            return Vec::new();
+        };
+
+        font.axes()
+            .iter()
+            .map(|axis| FontVariationAxis {
+                tag: axis.tag(),
+                name: font
+                    .localized_strings(axis.name_id())
+                    .english_or_first()
+                    .map(|name| name.chars().collect()),
+                range: Rangef::new(axis.min_value(), axis.max_value()),
+                default: axis.default_value(),
+                hidden: axis.is_hidden(),
+            })
+            .collect()
+    }
+}
+
+/// A single variation axis of a variable font, e.g. weight (`wght`) or width (`wdth`).
+///
+/// Obtained via [`FontData::variation_axes`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct FontVariationAxis {
+    /// The axis tag, e.g. `wght` or `wdth`.
+    pub tag: Tag,
+
+    /// Human-readable axis name, if the font provides one (e.g. "Weight").
+    pub name: Option<String>,
+
+    /// Valid range of values for this axis, `min..=max`.
+    pub range: Rangef,
+
+    /// The value used when the axis is not overridden.
+    pub default: f32,
+
+    /// Whether the font recommends hiding this axis from user interfaces.
+    pub hidden: bool,
 }
 
 impl AsRef<[u8]> for FontData {
@@ -196,7 +247,7 @@ pub struct FontTweak {
     /// `None` means use the global setting in [`TextOptions::subpixel_binning`].
     pub subpixel_binning: Option<bool>,
 
-    /// Override the font's default variation coordinates.
+    /// Override the font's default variation coordinates for its axes ("wght", etc.).
     pub coords: VariationCoords,
 
     /// Width of a thin space (`\u{2009}`) and narrow no-break space (`\u{202F}`),
