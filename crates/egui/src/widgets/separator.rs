@@ -106,7 +106,7 @@ impl Widget for Separator {
         let SeparatorStyle {
             spacing: spacing_style,
             stroke,
-        } = ui.style().separator_style(&classes, state);
+        } = ui.widget_style(id, &classes);
 
         // override the spacing if not set
         let spacing = spacing.unwrap_or(spacing_style);

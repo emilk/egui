@@ -80,7 +80,7 @@ impl Widget for Checkbox<'_> {
             frame,
             check_stroke,
             text_style,
-        } = ui.style().checkbox_style(&classes, state);
+        } = ui.widget_style(id, &classes);
 
         let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
         min_size.y = min_size.y.at_least(checkbox_size);
