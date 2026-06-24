@@ -9,8 +9,8 @@ mod text_layout_types;
 
 pub use {
     fonts::{
-        FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak, Fonts,
-        FontsImpl, FontsView, InsertFontFamily,
+        FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak,
+        FontVariationAxis, Fonts, FontsImpl, FontsView, InsertFontFamily,
     },
     index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
     text_layout::*,
