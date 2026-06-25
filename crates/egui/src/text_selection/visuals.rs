@@ -3,7 +3,10 @@ use std::sync::Arc;
 use emath::Pos2;
 use epaint::{
     Stroke,
-    text::cursor::{CCursor, LayoutCursor},
+    text::{
+        CharIndex,
+        cursor::{CCursor, LayoutCursor},
+    },
 };
 
 use crate::{
@@ -168,7 +171,7 @@ pub(crate) fn paint_ime_preedit_text_visuals(
     if let Some(relative_active_range) = &relative_active_range
         && !is_cursor_range_empty(relative_active_range)
     {
-        if relative_active_range.start.index > 0 {
+        if relative_active_range.start.index > CharIndex::ZERO {
             paint_underlines(
                 pos,
                 painter,
