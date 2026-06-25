@@ -123,6 +123,8 @@ __screenshot = []
 inspection = ["dep:egui_inspection", "accesskit"]
 
 [dependencies]
+egui = { workspace = true, default-features = false, features = ["bytemuck"] }
+
 ahash.workspace = true
 document-features.workspace = true
 log.workspace = true
@@ -141,10 +143,6 @@ ron = { workspace = true, optional = true, features = ["integer128"] }
 serde = { workspace = true, optional = true }
 
 # -------------------------------------------
-# egui non-windows:
-[target.'cfg(not(target_os = "windows"))'.dependencies]
-egui = { workspace = true, default-features = false, features = ["bytemuck"] }
-
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { workspace = true, default-features = false, features = ["clipboard", "links"] }
