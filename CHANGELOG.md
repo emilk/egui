@@ -14,6 +14,118 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.35.0 - 2026-06-25 - Inspection, egui_mcp, classes and improved IME
+
+### Highlights 
+- New egui_mcp crate based on eguis new inspection protocol
+- Set classes on your `Ui`s to modify widget behavior based on surrounding context
+- Improved IME
+
+### Egui inspection and egui_mcp
+This release includes a new inspection protocol for egui. It allows reading the accesskit tree of a running app, as well
+as sending events to control it. It's implemented via a new `InspectionPlugin` in the `egui_inspection` crate. 
+Eframe includes a new `inspection` feature. When enabled, you can enable inspection by launching the app with 
+`EGUI_INSPECTION=1`. This will cause the app to listen on port 5719. 
+
+The first inspection protocol consumer is [egui_mcp](https://github.com/rerun-io/kittest_inspector/tree/main/crates/egui_mcp). 
+It's a [mcp](https://modelcontextprotocol.io/docs/getting-started/intro) server that allows your agent to see and use
+egui apps. It can be used to have the agent use the app, reproduce bugs and verify its changes. 
+Install it via `cargo install --git https://github.com/rerun-io/kittest_inspector egui_mcp` and then add it to your
+agent via `claude mcp add egui egui-mcp`.
+
+There is also a plan of adding a general inspection gui using the same protocol, that can e.g. be used to step through 
+kittest tests frame by frame. 
+
+Here is claude using the mcp to try some of the egui demos (sped up by a lot, claude is slow):
+
+https://github.com/user-attachments/assets/c3dd0456-acfc-428c-8efe-f4a244c9e3ba
+
+* Add `egui_inspection` protocol and plugin [#8234](https://github.com/emilk/egui/pull/8234) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### Classes
+
+As part of [css like styling](https://github.com/emilk/egui/issues/3284), we've added classes to egui. You can already
+use them to e.g. modify widget behavior or styling based on surrounding context. 
+Add classes to the container:
+```rs 
+ui.scope_builder(UiBuilder::new().with_class("my_container"), |ui| {
+    ...
+});       
+```
+
+In your widget, check if we're in `my_container`, to e.g. change sizes or colors:
+```rs
+  let in_container = ui.stack().iter().any(|s| s.classes.has("my_container")); 
+```
+
+Today this only works for custom widgets and ui code, but the next step will be a styling system that allows you to modify built
+in widget styling based on these classes. 
+
+* Add `Classes` to `UiBuilder` and some Widgets [#7843](https://github.com/emilk/egui/pull/7843) by [@AdrienZianne](https://github.com/AdrienZianne)
+
+### Better IME composition
+
+IME visuals received an overhaul, they are now indicated by an underline and properly show the cursor during composition: 
+
+https://github.com/user-attachments/assets/487c7e7c-ef6d-4a86-8dbc-8c71871b4470
+
+* Implement proper visuals for IME composition [#8083](https://github.com/emilk/egui/pull/8083) by [@umajho](https://github.com/umajho)
+
+### ⭐ Added
+* Add `Classes` to `UiBuilder` and some Widgets [#7843](https://github.com/emilk/egui/pull/7843) by [@AdrienZianne](https://github.com/AdrienZianne)
+* Drag-to-close panels [#8182](https://github.com/emilk/egui/pull/8182) by [@emilk](https://github.com/emilk)
+* Add `AtomKind::Layout`, for nesting `AtomLayout` [#8219](https://github.com/emilk/egui/pull/8219) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `AtomLayout::direction` [#8221](https://github.com/emilk/egui/pull/8221) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Make the size of tabs and thin space configurable [#8070](https://github.com/emilk/egui/pull/8070) by [@emilk](https://github.com/emilk)
+* Add `subpixel_binning` to `TextOptions` and `FontTweak` [#8072](https://github.com/emilk/egui/pull/8072) by [@emilk](https://github.com/emilk)
+* Allow `Atoms` in `Ui::small_button` [#8159](https://github.com/emilk/egui/pull/8159) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Atom support for `egui::Window` Titlebar [#8154](https://github.com/emilk/egui/pull/8154) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `AsId` and `IdSalt`  [#8184](https://github.com/emilk/egui/pull/8184) by [@emilk](https://github.com/emilk)
+* Add Context::set_cursor_image for OS-level custom cursors [#8155](https://github.com/emilk/egui/pull/8155) by [@all3f0r1](https://github.com/all3f0r1)
+* Add `ViewportBuilder::with_monitor` + `ViewportCommand::SetMonitor` [#8140](https://github.com/emilk/egui/pull/8140) by [@Le-Syl21](https://github.com/Le-Syl21)
+* Add modifier keys to `egui::Key` [#8127](https://github.com/emilk/egui/pull/8127) by [@Le-Syl21](https://github.com/Le-Syl21)
+* Expose interactive rects from the last pass [#8211](https://github.com/emilk/egui/pull/8211) by [@psyche314](https://github.com/psyche314)
+* Add `AtomLayout::selectable` for opt-in text selection [#8224](https://github.com/emilk/egui/pull/8224) by [@akagifreeez](https://github.com/akagifreeez)
+* Add `LayoutJob::format_at_byte` [#8244](https://github.com/emilk/egui/pull/8244) by [@emilk](https://github.com/emilk)
+* Add `atoms()` helpers to get `Atoms` from widgets [#8128](https://github.com/emilk/egui/pull/8128) by [@Nashvill375](https://github.com/Nashvill375)
+
+### 🔧 Changed
+* Improve IME handling, add public method `owns_ime_events` on `Memory` [#7983](https://github.com/emilk/egui/pull/7983) by [@umajho](https://github.com/umajho)
+* Use `harfrust` for better kerning and ligatures [#8031](https://github.com/emilk/egui/pull/8031) by [@gcailly](https://github.com/gcailly)
+* Rework `Window` margins and set `clip_rect_margin` to zero [#7725](https://github.com/emilk/egui/pull/7725) by [@emilk](https://github.com/emilk)
+* Slide panels when animating them [#8175](https://github.com/emilk/egui/pull/8175) by [@emilk](https://github.com/emilk)
+* Slow down animation time from 0.1s to 0.2s [#8176](https://github.com/emilk/egui/pull/8176) by [@emilk](https://github.com/emilk)
+* Smoother CollapsingHeader animation [#8177](https://github.com/emilk/egui/pull/8177) by [@emilk](https://github.com/emilk)
+* Drag-to-scroll: now only on touch screens [#8181](https://github.com/emilk/egui/pull/8181) by [@emilk](https://github.com/emilk)
+* `Window`: move only by dragging title bar [#8183](https://github.com/emilk/egui/pull/8183) by [@emilk](https://github.com/emilk)
+* Rename `Panel` methods [#8192](https://github.com/emilk/egui/pull/8192) by [@emilk](https://github.com/emilk)
+* Panels: double-click resize edge to toggle [#8193](https://github.com/emilk/egui/pull/8193) by [@emilk](https://github.com/emilk)
+* Rename `AlphaFromCoverage` to `FontColorTransferFunction` [#8201](https://github.com/emilk/egui/pull/8201) by [@emilk](https://github.com/emilk)
+* Smoother collapsed-panel animation [#8202](https://github.com/emilk/egui/pull/8202) by [@emilk](https://github.com/emilk)
+* Improve `Debug`-formatting of `Id` in debug-builds [#8190](https://github.com/emilk/egui/pull/8190) by [@emilk](https://github.com/emilk)
+* Use strongly typed `CharIndex` and `ByteIndex` + bug fixes [#8245](https://github.com/emilk/egui/pull/8245) by [@emilk](https://github.com/emilk)
+* Allow downscaling image in `GetScreenshot` inspection request [#8248](https://github.com/emilk/egui/pull/8248) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Announce pressed state of selectable buttons to screen readers [#8130](https://github.com/emilk/egui/pull/8130) by [@antoinecellerier](https://github.com/antoinecellerier)
+* Pre-populate font variation axes in the `FontTweak` UI [#8258](https://github.com/emilk/egui/pull/8258) by [@emilk](https://github.com/emilk)
+* Make font hinting target configurable via `FontTweak` [#8262](https://github.com/emilk/egui/pull/8262) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove everything that was marked `#[deprecated]` [#8105](https://github.com/emilk/egui/pull/8105) by [@emilk](https://github.com/emilk)
+* Remove 64-bit atomics in main crate [#8037](https://github.com/emilk/egui/pull/8037) by [@kay-lambdadelta](https://github.com/kay-lambdadelta)
+* Remove `impl Into<f32>` arguments [#8194](https://github.com/emilk/egui/pull/8194) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Don't hide whitespaces in centered and right aligned text edits [#8102](https://github.com/emilk/egui/pull/8102) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Don't allow resizing past minimum content size [#8152](https://github.com/emilk/egui/pull/8152) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix resizing of `Grid` [#8170](https://github.com/emilk/egui/pull/8170) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix glyph caching on font variations [#8189](https://github.com/emilk/egui/pull/8189) by [@emilk](https://github.com/emilk)
+* `Panel`: never overflow available width, nor `max_width` [#8198](https://github.com/emilk/egui/pull/8198) by [@emilk](https://github.com/emilk)
+* Fixes color picker hue drift at low alpha values [#8208](https://github.com/emilk/egui/pull/8208) by [@aedm](https://github.com/aedm)
+* Fix: ScrollArea layout jitter with floating bars and zoom levels [#7944](https://github.com/emilk/egui/pull/7944) by [@rustbasic](https://github.com/rustbasic)
+* Fix #2142 - lost_focus not firing after a mid-frame focus transfer [#8210](https://github.com/emilk/egui/pull/8210) by [@ufoscout](https://github.com/ufoscout)
+* Fix label selection in deferred viewports [#8242](https://github.com/emilk/egui/pull/8242) by [@yay](https://github.com/yay)
+
+
 ## 0.34.3 - 2026-05-27
 * Fix `ScrollArea::scroll_to_*` calls when `stick_to_bottom` is Active [#8033](https://github.com/emilk/egui/pull/8033) by [@AmmarAbouZor](https://github.com/AmmarAbouZor)
 
