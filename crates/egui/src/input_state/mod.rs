@@ -1419,6 +1419,9 @@ impl PointerState {
 
     /// Was the given pointer button given clicked this frame?
     ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
+    ///
     /// Returns true on double- and triple- clicks too.
     /// See [`crate::Response::clicked()`] for what constitutes a click.
     pub fn button_clicked(&self, button: PointerButton) -> bool {
@@ -1455,14 +1458,16 @@ impl PointerState {
 
     /// Was the primary button clicked this frame?
     ///
-    /// See [`crate::Response::clicked()`] for what constitutes a click.
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
     pub fn primary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Primary)
     }
 
     /// Was the secondary button clicked this frame?
     ///
-    /// See [`crate::Response::clicked()`] for what constitutes a click.
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
     pub fn secondary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Secondary)
     }
