@@ -113,12 +113,32 @@ fn install_blur_focus(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
     // NOTE: because of the text agent we sometime miss 'blur' events,
     // so we also poll the focus state each frame in `AppRunner::logic`.
     for event_name in ["blur", "focus", "visibilitychange"] {
-        let closure = move |_event: web_sys::MouseEvent, runner: &mut AppRunner| {
-            log::trace!("{} {event_name:?}", runner.canvas().id());
-            runner.update_focus();
-        };
+        let closure =
+            move |_event: web_sys::MouseEvent, runner: &mut AppRunner, web_runner: &WebRunner| {
+                log::trace!("{} {event_name:?}", runner.canvas().id());
+                runner.update_focus();
 
-        runner_ref.add_event_listener(target, event_name, closure)?;
+                if event_name == "visibilitychange" {
+                    // The tab was hidden or shown. An in-flight `requestAnimationFrame` is paused
+                    // while hidden, so reschedule the paint loop using the scheduling mechanism
+                    // (`setTimeout` vs `requestAnimationFrame`) appropriate for the new state.
+                    // This keeps `App::update` running while hidden, and switches back to smooth
+                    // animation frames once visible again.
+                    if let Err(err) = web_runner.reschedule_frame() {
+                        log::error!(
+                            "Failed to reschedule frame on visibility change: {}",
+                            super::string_from_js_value(&err)
+                        );
+                    }
+                }
+            };
+
+        runner_ref.add_event_listener_ex(
+            target,
+            event_name,
+            &web_sys::AddEventListenerOptions::default(),
+            closure,
+        )?;
     }
     Ok(())
 }

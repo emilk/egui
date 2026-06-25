@@ -1400,6 +1400,7 @@ dependencies = [
  "egui_kittest",
  "image",
  "jiff",
+ "log",
  "mimalloc",
  "rand 0.10.1",
  "serde",
