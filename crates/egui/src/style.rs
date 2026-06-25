@@ -1204,6 +1204,24 @@ pub struct ImeComposition {
 
     /// Stroke used to underline those non-active segments.
     pub inactive_underline_stroke: Stroke,
+
+    /// If `true`, IME (Input Method Editor) composition (preedit) text is rendered
+    /// the legacy way: visually indistinguishable from a text selection, with the
+    /// cursor always shown at the end of the composition.
+    ///
+    /// If `false`, egui renders proper IME composition visuals: the cursor position
+    /// inside the composition is shown, and the active conversion segment is
+    /// highlighted (using the strokes configured above) distinctly from the rest of the
+    /// composition. This makes composing Chinese, Japanese and Korean text much
+    /// clearer.
+    ///
+    /// The legacy visuals have known shortcomings, but the new visuals are not yet
+    /// fully reliable on every platform either (e.g. `winit` reports an incorrect
+    /// cursor position for Korean IMEs on Windows), so this remains configurable.
+    ///
+    /// Defaults to `true` on Windows (because of the aforementioned `winit` bug) and
+    /// to `false` everywhere else.
+    pub legacy_visuals: bool,
 }
 
 /// Shape of the handle for sliders and similar widgets.
@@ -1621,6 +1639,7 @@ impl ImeComposition {
         Self {
             active_underline_stroke,
             inactive_underline_stroke,
+            legacy_visuals: Self::default_legacy_visuals(),
         }
     }
 
@@ -1634,7 +1653,14 @@ impl ImeComposition {
         Self {
             active_underline_stroke,
             inactive_underline_stroke,
+            legacy_visuals: Self::default_legacy_visuals(),
         }
+    }
+
+    /// The default of [`Self::legacy_visuals`]: `true` on Windows (where `winit`
+    /// reports an incorrect cursor position for Korean IMEs), `false` elsewhere.
+    const fn default_legacy_visuals() -> bool {
+        cfg!(windows)
     }
 }
 
@@ -2168,9 +2194,16 @@ impl ImeComposition {
         let Self {
             active_underline_stroke,
             inactive_underline_stroke,
+            legacy_visuals,
         } = self;
 
         ui.label("IME composition");
+
+        ui.checkbox(legacy_visuals, "Legacy visuals").on_hover_text(
+            "If enabled, IME composition (preedit) text looks like a text selection \
+             with the cursor at the end. If disabled, the cursor position and active \
+             conversion segment are shown.",
+        );
 
         Grid::new("ime_composition").num_columns(2).show(ui, |ui| {
             ui.label("Active underline stroke");

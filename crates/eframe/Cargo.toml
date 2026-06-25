@@ -101,10 +101,6 @@ wgpu = ["wgpu_no_default_features", "egui-wgpu/default"]
 ## ```
 wgpu_no_default_features = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 
-## Enable the new IME composition visuals on Windows. The legacy visuals remain
-## the default on Windows due to known issues with the new implementation.
-windows_new_ime_composition_visuals = ["egui/_override_legacy_ime_composition_visuals"]
-
 ## Enables compiling for x11.
 x11 = [
   "egui-winit/x11",
@@ -189,11 +185,6 @@ objc2-app-kit = { workspace = true, default-features = false, features = [
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
-egui = { workspace = true, default-features = false, features = [
-  "bytemuck",
-  "legacy_ime_composition_visuals",
-] }
-
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
   "Win32_System_Com",

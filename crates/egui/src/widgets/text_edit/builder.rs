@@ -827,10 +827,7 @@ impl TextEdit<'_> {
             false
         };
 
-        let should_paint_ime_visuals_the_legacy_way = cfg!(all(
-            feature = "legacy_ime_composition_visuals",
-            not(feature = "_override_legacy_ime_composition_visuals"),
-        ));
+        let should_paint_ime_visuals_the_legacy_way = ui.visuals().ime_composition.legacy_visuals;
 
         if ui.is_rect_visible(inner_rect) {
             let has_focus = ui.memory(|mem| mem.has_focus(id));
