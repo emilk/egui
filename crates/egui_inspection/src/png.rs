@@ -12,6 +12,28 @@ impl EncodedPng {
         Self::from_rgba(size, image.as_raw())
     }
 
+    /// Encode an [`egui::ColorImage`] downscaled by `scale` — a factor in `(0.0, 1.0]` of the
+    /// captured pixel dimensions. `scale >= 1.0` encodes at native resolution unchanged: the
+    /// framebuffer is the most detail available, so we never upscale.
+    ///
+    /// # Errors
+    /// When the encoder fails.
+    pub fn from_color_image_scaled(
+        image: &egui::ColorImage,
+        scale: f32,
+    ) -> Result<Self, image::ImageError> {
+        let [w, h] = [image.size[0] as u32, image.size[1] as u32];
+        if scale >= 1.0 || w == 0 || h == 0 {
+            return Self::from_rgba([w, h], image.as_raw());
+        }
+        let tw = ((w as f32 * scale).round() as u32).max(1);
+        let th = ((h as f32 * scale).round() as u32).max(1);
+        let src = image::RgbaImage::from_raw(w, h, image.as_raw().to_vec())
+            .expect("ColorImage backing buffer is always width * height * 4 bytes");
+        let resized = image::imageops::resize(&src, tw, th, image::imageops::FilterType::Triangle);
+        Self::from_rgba([tw, th], resized.as_raw())
+    }
+
     /// Encode tightly-packed RGBA8 pixels (`width * height * 4` bytes) as PNG.
     ///
     /// PNG keeps high-resolution captures off the hot path of socket throughput — a 1550×2114

@@ -48,12 +48,34 @@ impl std::ops::Add<usize> for CCursor {
     }
 }
 
+impl std::ops::Add<CharIndex> for CCursor {
+    type Output = Self;
+
+    fn add(self, rhs: CharIndex) -> Self::Output {
+        Self {
+            index: self.index + rhs,
+            prefer_next_row: self.prefer_next_row,
+        }
+    }
+}
+
 impl std::ops::Sub<usize> for CCursor {
     type Output = Self;
 
     fn sub(self, rhs: usize) -> Self::Output {
         Self {
             index: self.index.saturating_sub(rhs),
+            prefer_next_row: self.prefer_next_row,
+        }
+    }
+}
+
+impl std::ops::Sub<CharIndex> for CCursor {
+    type Output = Self;
+
+    fn sub(self, rhs: CharIndex) -> Self::Output {
+        Self {
+            index: self.index - rhs,
             prefer_next_row: self.prefer_next_row,
         }
     }

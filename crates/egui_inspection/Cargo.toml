@@ -21,7 +21,8 @@ rustdoc-args = ["--generate-link-to-definition"]
 default = []
 
 ## Screenshot PNG encoding — the `EncodedPng::from_color_image` / `from_rgba` constructors.
-png = ["dep:image", "image/png"]
+## `egui/bytemuck` is required for `ColorImage::as_raw` in `from_color_image`.
+png = ["dep:image", "image/png", "egui/bytemuck"]
 
 ## `InspectionPlugin` — an `egui::Plugin` that serves the request/response inspection
 ## protocol over TCP. Apps usually enable inspection by setting the `EGUI_INSPECTION` env var
@@ -31,7 +32,7 @@ plugin = ["png", "dep:log"]
 [dependencies]
 egui = { workspace = true, features = ["serde"] }
 serde.workspace = true
-serde_bytes = "0.11.17"
+serde_bytes.workspace = true
 rmp-serde.workspace = true
 
 image = { workspace = true, optional = true }

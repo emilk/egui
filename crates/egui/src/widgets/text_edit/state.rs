@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use epaint::text::cursor::CCursor;
+
 use crate::mutex::Mutex;
 
 use crate::{
@@ -85,6 +87,24 @@ pub(crate) enum TextEditCursorPurpose {
     #[default]
     Selection,
 
-    /// The cursor is used for IME composition.
-    ImeComposition,
+    /// The cursor is used for IME composition. Its direction is irrelevant in
+    /// this case.
+    ImeComposition {
+        /// An optional cursor/segment within the composing text itself,
+        /// relative to the start of the composing region. Its direction is
+        /// irrelevant.
+        ///
+        /// When `None`, no active range is displayed.
+        active_range: Option<std::ops::Range<CCursor>>,
+    },
+}
+
+impl TextEditCursorPurpose {
+    pub(crate) fn is_selection(&self) -> bool {
+        matches!(self, Self::Selection)
+    }
+
+    pub(crate) fn is_ime_composition(&self) -> bool {
+        matches!(self, Self::ImeComposition { .. })
+    }
 }
