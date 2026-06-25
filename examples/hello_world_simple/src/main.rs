@@ -2,6 +2,8 @@
 #![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
+use eframe::egui::UiBuilder;
+use eframe::egui::widget_style::HasClasses;
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -17,6 +19,13 @@ fn main() -> eframe::Result {
 
     eframe::run_ui_native("My egui App", options, move |ui, _frame| {
         egui::CentralPanel::default().show(ui, |ui| {
+
+            ui.scope_builder(UiBuilder::new().with_class("my_container"), |ui| {
+
+                let in_container = ui.stack().iter().any(|s| s.classes.has("my_container"));
+
+            });
+
             ui.heading("My egui Application");
             ui.horizontal(|ui| {
                 let name_label = ui.label("Your name: ");

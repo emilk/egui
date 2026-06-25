@@ -7,6 +7,29 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.35.0 - 2026-06-25
+### ⭐ Added
+* Add Context::set_cursor_image for OS-level custom cursors [#8155](https://github.com/emilk/egui/pull/8155) by [@all3f0r1](https://github.com/all3f0r1)
+* Feat: add `remove_string()` to storage trait [#8264](https://github.com/emilk/egui/pull/8264) by [@mikesk8r](https://github.com/mikesk8r)
+
+### 🔧 Changed
+* Delegate handling of IME interruptions to integrations to fix virtual keyboard flickering on web [#8078](https://github.com/emilk/egui/pull/8078) by [@umajho](https://github.com/umajho)
+* Wgpu: Allow configuring VSync and frame latency at runtime [#8114](https://github.com/emilk/egui/pull/8114) by [@emilk](https://github.com/emilk)
+* Group `glow` config in a `struct` [#8108](https://github.com/emilk/egui/pull/8108) by [@TapGhoul](https://github.com/TapGhoul)
+* Choose restored window monitor by overlap [#8191](https://github.com/emilk/egui/pull/8191) by [@YelovSK](https://github.com/YelovSK)
+* Configure wgpu to be low-latency by default [#8203](https://github.com/emilk/egui/pull/8203) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔥 Removed
+* Remove everything that was marked `#[deprecated]` [#8105](https://github.com/emilk/egui/pull/8105) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Prevent entire page from scrolling out of view in Chrome (WASM) [#7888](https://github.com/emilk/egui/pull/7888) by [@rustbasic](https://github.com/rustbasic)
+* Fix crash when parent viewport is hidden [#8226](https://github.com/emilk/egui/pull/8226) by [@kpouer](https://github.com/kpouer)
+* Fix "drunk text" bug [#8250](https://github.com/emilk/egui/pull/8250) by [@emilk](https://github.com/emilk)
+* Call `logic` even while browser tab is in background [#8257](https://github.com/emilk/egui/pull/8257) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix macOS wgpu live resize with low-latency surfaces [#8229](https://github.com/emilk/egui/pull/8229) by [@yay](https://github.com/yay)
+
+
 ## 0.34.3 - 2026-05-27
 * Default `app_id` to `app_name` on native [#8172](https://github.com/emilk/egui/pull/8172) by [@grtlr](https://github.com/grtlr)
 * Add winit window access to `eframe::Frame` and `CreationContext` [#8205](https://github.com/emilk/egui/pull/8205) by [@emilk](https://github.com/emilk)
