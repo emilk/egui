@@ -630,7 +630,7 @@ impl FontFace {
 
         let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
 
-        let hinting_target = self.tweak.hinting_target.to_skrifa_target();
+        let hinting_target = self.tweak.hinting_target.into();
         let alloc = *self.glyph_alloc_cache.entry(cache_key).or_insert_with(|| {
             self.font
                 .allocate_glyph_uncached(

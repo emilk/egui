@@ -319,17 +319,16 @@ impl Default for HintingTarget {
     }
 }
 
-impl HintingTarget {
-    /// Convert to the corresponding `skrifa` hinting target.
-    pub(crate) fn to_skrifa_target(self) -> skrifa::outline::Target {
-        use skrifa::outline::{SmoothMode, Target};
-        match self {
-            Self::Mono => Target::Mono,
-            Self::Smooth(SmoothHinting {
+impl From<HintingTarget> for skrifa::outline::Target {
+    fn from(hinting_target: HintingTarget) -> Self {
+        use skrifa::outline::SmoothMode;
+        match hinting_target {
+            HintingTarget::Mono => Self::Mono,
+            HintingTarget::Smooth(SmoothHinting {
                 light,
                 symmetric_rendering,
                 preserve_linear_metrics,
-            }) => Target::Smooth {
+            }) => Self::Smooth {
                 mode: if light {
                     SmoothMode::Light
                 } else {
