@@ -1423,7 +1423,6 @@ impl PointerState {
     /// a certain amount of time and distance from when and where it was pressed.
     ///
     /// Returns true on double- and triple- clicks too.
-    /// See [`crate::Response::clicked()`] for what constitutes a click.
     pub fn button_clicked(&self, button: PointerButton) -> bool {
         self.pointer_events
             .iter()
