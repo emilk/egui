@@ -106,7 +106,7 @@ impl Painter {
 
         // Transaction presentation can hold a drawable during AppKit live resize. Keep the
         // configured low-latency path normally, but use three Metal drawables while resizing.
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
         let desired_maximum_frame_latency = if surface_state.resizing {
             Some(desired_maximum_frame_latency.unwrap_or(2).max(2))
         } else {
@@ -424,7 +424,7 @@ impl Painter {
         // is common across rendering backends, the solution for wgpu/metal is known.
         //
         // See https://github.com/emilk/egui/issues/903
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
         {
             // SAFETY: `as_hal::<Metal>()` returns `None` unless this surface is backed by wgpu's
             // Metal backend.
