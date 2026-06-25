@@ -37,6 +37,7 @@ There is also a plan of adding a general inspection gui using the same protocol,
 kittest tests frame by frame. 
 
 Here is claude using the mcp to try some of the egui demos (sped up by a lot, claude is slow):
+
 https://github.com/user-attachments/assets/c3dd0456-acfc-428c-8efe-f4a244c9e3ba
 
 * Add `egui_inspection` protocol and plugin [#8234](https://github.com/emilk/egui/pull/8234) by [@lucasmerlin](https://github.com/lucasmerlin)
