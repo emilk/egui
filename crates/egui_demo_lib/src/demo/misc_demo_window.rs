@@ -387,16 +387,13 @@ impl Repaint {
             );
         });
 
-        ui.checkbox(
-            &mut self.in_background,
-            "In the background (during logic)",
-        )
-        .on_hover_text(
-            "Issue the repaint requests from `App::logic` (which runs even while hidden) \
+        ui.checkbox(&mut self.in_background, "In the background (during logic)")
+            .on_hover_text(
+                "Issue the repaint requests from `App::logic` (which runs even while hidden) \
                  instead of `App::ui` (which is skipped while hidden).\n\n\
                  With this enabled, hide this tab for a while, then come back: \
                  the `logic` count will have kept climbing.",
-        );
+            );
 
         ui.checkbox(&mut self.log_each_frame, "Log each frame")
             .on_hover_text("Log each `ui` and `logic` frame to the console.");
