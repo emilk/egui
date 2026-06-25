@@ -1026,6 +1026,7 @@ pub struct Visuals {
     pub widgets: Widgets,
 
     pub selection: Selection,
+    pub ime_composition: ImeComposition,
 
     /// The color used for [`crate::Hyperlink`],
     pub hyperlink_color: Color32,
@@ -1190,6 +1191,36 @@ pub struct Selection {
 
     /// Color of selected text.
     pub stroke: Stroke,
+}
+
+/// Visual style for IME composition.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ImeComposition {
+    /// Stroke used to underline the actively composed segment.
+    pub active_underline_stroke: Stroke,
+
+    /// Stroke used to underline those non-active segments.
+    pub inactive_underline_stroke: Stroke,
+
+    /// If `true`, IME (Input Method Editor) composition (preedit) text is rendered
+    /// the legacy way: visually indistinguishable from a text selection, with the
+    /// cursor always shown at the end of the composition.
+    ///
+    /// If `false`, egui renders proper IME composition visuals: the cursor position
+    /// inside the composition is shown, and the active conversion segment is
+    /// highlighted (using the strokes configured above) distinctly from the rest of the
+    /// composition. This makes composing Chinese, Japanese and Korean text much
+    /// clearer.
+    ///
+    /// The legacy visuals have known shortcomings, but the new visuals are not yet
+    /// fully reliable on every platform either (e.g. `winit` reports an incorrect
+    /// cursor position for Korean IMEs on Windows), so this remains configurable.
+    ///
+    /// Defaults to `true` on Windows (because of the aforementioned `winit` bug) and
+    /// to `false` everywhere else.
+    pub legacy_visuals: bool,
 }
 
 /// Shape of the handle for sliders and similar widgets.
@@ -1468,6 +1499,7 @@ impl Visuals {
             weak_text_color: None,
             widgets: Widgets::default(),
             selection: Selection::default(),
+            ime_composition: ImeComposition::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
@@ -1531,6 +1563,7 @@ impl Visuals {
             },
             widgets: Widgets::light(),
             selection: Selection::light(),
+            ime_composition: ImeComposition::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(255),           // e.g. TextEdit background
@@ -1589,6 +1622,48 @@ impl Selection {
 }
 
 impl Default for Selection {
+    fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl ImeComposition {
+    fn dark() -> Self {
+        // Same as the default value of [`TextCursorStyle::stroke`] in dark mode.
+        let active_underline_stroke = Stroke::new(2.0, Color32::from_rgb(192, 222, 255));
+        let inactive_underline_stroke = Stroke {
+            width: active_underline_stroke.width,
+            color: active_underline_stroke.color.linear_multiply(0.5),
+        };
+        Self {
+            active_underline_stroke,
+            inactive_underline_stroke,
+            legacy_visuals: Self::default_legacy_visuals(),
+        }
+    }
+
+    fn light() -> Self {
+        // Same as the default value of [`TextCursorStyle::stroke`] in light mode.
+        let active_underline_stroke = Stroke::new(2.0, Color32::from_rgb(0, 83, 125));
+        let inactive_underline_stroke = Stroke {
+            width: active_underline_stroke.width,
+            color: active_underline_stroke.color.linear_multiply(0.5),
+        };
+        Self {
+            active_underline_stroke,
+            inactive_underline_stroke,
+            legacy_visuals: Self::default_legacy_visuals(),
+        }
+    }
+
+    /// The default of [`Self::legacy_visuals`]: `true` on Windows (where `winit`
+    /// reports an incorrect cursor position for Korean IMEs), `false` elsewhere.
+    const fn default_legacy_visuals() -> bool {
+        cfg!(windows)
+    }
+}
+
+impl Default for ImeComposition {
     fn default() -> Self {
         Self::dark()
     }
@@ -2113,6 +2188,34 @@ impl Selection {
     }
 }
 
+impl ImeComposition {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            active_underline_stroke,
+            inactive_underline_stroke,
+            legacy_visuals,
+        } = self;
+
+        ui.label("IME composition");
+
+        ui.checkbox(legacy_visuals, "Legacy visuals").on_hover_text(
+            "If enabled, IME composition (preedit) text looks like a text selection \
+             with the cursor at the end. If disabled, the cursor position and active \
+             conversion segment are shown.",
+        );
+
+        Grid::new("ime_composition").num_columns(2).show(ui, |ui| {
+            ui.label("Active underline stroke");
+            ui.add(active_underline_stroke);
+            ui.end_row();
+
+            ui.label("Inactive underline stroke");
+            ui.add(inactive_underline_stroke);
+            ui.end_row();
+        });
+    }
+}
+
 impl WidgetVisuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
@@ -2169,6 +2272,7 @@ impl Visuals {
             weak_text_color,
             widgets,
             selection,
+            ime_composition,
             hyperlink_color,
             faint_bg_color,
             extreme_bg_color,
@@ -2376,6 +2480,7 @@ impl Visuals {
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
+        ui.collapsing("IME composition", |ui| ime_composition.ui(ui));
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
