@@ -32,5 +32,5 @@ pub use {
     scroll_area::ScrollArea,
     sides::Sides,
     tooltip::*,
-    window::Window,
+    window::{Window, WindowDrag},
 };

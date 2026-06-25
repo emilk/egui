@@ -173,8 +173,9 @@ impl SnapshotOptions {
     /// The default is `0.6` (which is enough for most egui tests to pass across different
     /// wgpu backends).
     #[inline]
-    pub fn threshold(mut self, threshold: impl Into<f32>) -> Self {
-        self.threshold = threshold.into();
+    pub fn threshold(mut self, threshold: impl Into<OsThreshold<f32>>) -> Self {
+        let threshold = threshold.into().threshold();
+        self.threshold = threshold;
         self
     }
 

@@ -159,6 +159,11 @@ impl crate::Storage for FileStorage {
         }
     }
 
+    fn remove_string(&mut self, key: &str) {
+        self.kv.remove(key);
+        self.dirty = true;
+    }
+
     fn flush(&mut self) {
         if self.dirty {
             profiling::scope!("FileStorage::flush");

@@ -472,17 +472,15 @@ impl<'a> Popup<'a> {
         RectAlign::find_best_align(
             #[expect(clippy::iter_on_empty_collections)]
             #[expect(clippy::or_fun_call)]
-            once(self.rect_align).chain(
+            std::iter::chain(
+                once(self.rect_align),
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or
-                    .map(|a| a.iter().copied().chain([].iter().copied()))
-                    .unwrap_or(
-                        self.rect_align
-                            .symmetries()
-                            .iter()
-                            .copied()
-                            .chain(RectAlign::MENU_ALIGNS.iter().copied()),
-                    ),
+                    .map(|a| std::iter::chain(a.iter().copied(), [].iter().copied()))
+                    .unwrap_or(std::iter::chain(
+                        self.rect_align.symmetries().iter().copied(),
+                        RectAlign::MENU_ALIGNS.iter().copied(),
+                    )),
             ),
             self.ctx.content_rect(),
             anchor_rect,

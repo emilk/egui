@@ -4,7 +4,7 @@ use emath::TSTransform;
 
 use crate::{
     Context, CursorIcon, Event, Galley, Id, LayerId, Plugin, Pos2, Rect, Response, Ui,
-    layers::ShapeIdx, text::CCursor, text_selection::CCursorRange,
+    ViewportIdMap, layers::ShapeIdx, text::CCursor, text_selection::CCursorRange,
 };
 
 use super::{
@@ -80,9 +80,15 @@ struct CurrentSelection {
 
 /// Handles text selection in labels (NOT in [`crate::TextEdit`])s.
 ///
-/// One state for all labels, because we only support text selection in one label at a time.
-#[derive(Clone, Debug)]
+/// Each viewport has its own state, because viewports are rendered in separate passes.
+#[derive(Clone, Debug, Default)]
 pub struct LabelSelectionState {
+    states: ViewportIdMap<ViewportLabelSelectionState>,
+}
+
+/// Text selection state for all labels in one viewport.
+#[derive(Clone, Debug)]
+struct ViewportLabelSelectionState {
     /// The current selection, if any.
     selection: Option<CurrentSelection>,
 
@@ -111,7 +117,7 @@ pub struct LabelSelectionState {
     painted_selections: Vec<(ShapeIdx, Vec<RowVertexIndices>)>,
 }
 
-impl Default for LabelSelectionState {
+impl Default for ViewportLabelSelectionState {
     fn default() -> Self {
         Self {
             selection: Default::default(),
@@ -134,6 +140,64 @@ impl Plugin for LabelSelectionState {
     }
 
     fn on_begin_pass(&mut self, ui: &mut Ui) {
+        self.states
+            .entry(ui.ctx().viewport_id())
+            .or_default()
+            .on_begin_pass(ui);
+    }
+
+    fn on_end_pass(&mut self, ui: &mut Ui) {
+        let viewport_id = ui.ctx().viewport_id();
+        let state = self.states.entry(viewport_id).or_default();
+        state.on_end_pass(ui);
+        if !state.is_active() {
+            self.states.remove(&viewport_id);
+        }
+    }
+}
+
+impl LabelSelectionState {
+    /// Is there a label text selection in any viewport?
+    pub fn has_selection(&self) -> bool {
+        self.states
+            .values()
+            .any(ViewportLabelSelectionState::has_selection)
+    }
+
+    /// Clear all label text selections in all viewports.
+    pub fn clear_selection(&mut self) {
+        self.states.clear();
+    }
+
+    /// Handle text selection state for a label or similar widget.
+    /// This also takes care of painting the galley.
+    pub fn label_text_selection(
+        ui: &Ui,
+        response: &Response,
+        galley_pos: Pos2,
+        mut galley: Arc<Galley>,
+        fallback_color: epaint::Color32,
+        underline: epaint::Stroke,
+    ) {
+        let plugin = ui.ctx().plugin::<Self>();
+        let mut plugin = plugin.lock();
+        let state = plugin.states.entry(ui.ctx().viewport_id()).or_default();
+        let new_vertex_indices = state.on_label(ui, response, galley_pos, &mut galley);
+
+        let shape_idx = ui.painter().add(
+            epaint::TextShape::new(galley_pos, galley, fallback_color).with_underline(underline),
+        );
+
+        if !new_vertex_indices.is_empty() {
+            state
+                .painted_selections
+                .push((shape_idx, new_vertex_indices));
+        }
+    }
+}
+
+impl ViewportLabelSelectionState {
+    fn on_begin_pass(&mut self, ui: &Ui) {
         if ui.input(|i| i.pointer.any_pressed() && !i.modifiers.shift) {
             // Maybe a new selection is about to begin, but the old one is over:
             // state.selection = None; // TODO(emilk): this makes sense, but doesn't work as expected.
@@ -150,7 +214,7 @@ impl Plugin for LabelSelectionState {
         self.painted_selections.clear();
     }
 
-    fn on_end_pass(&mut self, ui: &mut Ui) {
+    fn on_end_pass(&mut self, ui: &Ui) {
         if self.is_dragging {
             ui.set_cursor_icon(CursorIcon::Text);
         }
@@ -212,15 +276,13 @@ impl Plugin for LabelSelectionState {
             ui.copy_text(text_to_copy);
         }
     }
-}
 
-impl LabelSelectionState {
-    pub fn has_selection(&self) -> bool {
-        self.selection.is_some()
+    fn is_active(&self) -> bool {
+        self.selection.is_some() || self.is_dragging
     }
 
-    pub fn clear_selection(&mut self) {
-        self.selection = None;
+    fn has_selection(&self) -> bool {
+        self.selection.is_some()
     }
 
     fn copy_text(&mut self, new_galley_rect: Rect, galley: &Galley, cursor_range: &CCursorRange) {
@@ -267,34 +329,6 @@ impl LabelSelectionState {
 
         self.text_to_copy.push_str(&new_text);
         self.last_copied_galley_rect = Some(new_galley_rect);
-    }
-
-    /// Handle text selection state for a label or similar widget.
-    ///
-    /// Make sure the widget senses clicks and drags.
-    ///
-    /// This also takes care of painting the galley.
-    pub fn label_text_selection(
-        ui: &Ui,
-        response: &Response,
-        galley_pos: Pos2,
-        mut galley: Arc<Galley>,
-        fallback_color: epaint::Color32,
-        underline: epaint::Stroke,
-    ) {
-        let plugin = ui.ctx().plugin::<Self>();
-        let mut state = plugin.lock();
-        let new_vertex_indices = state.on_label(ui, response, galley_pos, &mut galley);
-
-        let shape_idx = ui.painter().add(
-            epaint::TextShape::new(galley_pos, galley, fallback_color).with_underline(underline),
-        );
-
-        if !new_vertex_indices.is_empty() {
-            state
-                .painted_selections
-                .push((shape_idx, new_vertex_indices));
-        }
     }
 
     fn cursor_for(
@@ -691,5 +725,68 @@ fn estimate_row_height(galley: &Galley) -> f32 {
         placed_row.height()
     } else {
         galley.size().y
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{RawInput, ViewportId, ViewportInfo};
+
+    fn child_viewport_input(viewport_id: ViewportId) -> RawInput {
+        let mut input = RawInput {
+            viewport_id,
+            ..Default::default()
+        };
+        input.viewports.insert(
+            viewport_id,
+            ViewportInfo {
+                parent: Some(ViewportId::ROOT),
+                ..Default::default()
+            },
+        );
+        input
+    }
+
+    fn test_selection() -> CurrentSelection {
+        let cursor = WidgetTextCursor {
+            widget_id: Id::new("selected_label"),
+            ccursor: CCursor::default(),
+            pos: Pos2::ZERO,
+        };
+        CurrentSelection {
+            layer_id: LayerId::background(),
+            primary: cursor,
+            secondary: cursor,
+        }
+    }
+
+    #[test]
+    fn viewport_passes_only_clean_up_their_own_label_selection() {
+        let ctx = Context::default();
+        let child_viewport_id = ViewportId::from_hash_of("child_viewport");
+        let plugin = ctx.plugin::<LabelSelectionState>();
+        plugin
+            .lock()
+            .states
+            .entry(child_viewport_id)
+            .or_default()
+            .selection = Some(test_selection());
+
+        let _ = ctx.run_ui(RawInput::default(), |_| {});
+        assert!(
+            plugin
+                .lock()
+                .states
+                .get(&child_viewport_id)
+                .is_some_and(ViewportLabelSelectionState::has_selection),
+            "a pass in another viewport must not clear the child viewport selection"
+        );
+
+        let _ = ctx.run_ui(child_viewport_input(child_viewport_id), |_| {});
+        assert!(
+            !plugin.lock().has_selection(),
+            "the selection must be cleared when its labels disappear from the same viewport"
+        );
     }
 }

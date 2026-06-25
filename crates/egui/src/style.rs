@@ -2,9 +2,8 @@
 
 use emath::Align;
 use epaint::{
-    AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions,
-    mutex::Mutex,
-    text::{FontTweak, Tag},
+    CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
+    text::{FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
 };
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
@@ -1074,7 +1073,10 @@ pub struct Visuals {
     /// How the text cursor acts.
     pub text_cursor: TextCursorStyle,
 
-    /// Allow child widgets to be just on the border and still have a stroke with some thickness
+    /// Allow widgets to paint this much outside the scroll area rect.
+    ///
+    /// Legacy. Should not be used anymore.
+    /// Use [`crate::ScrollArea::content_margin`] instead.
     pub clip_rect_margin: f32,
 
     /// Show a background behind buttons.
@@ -1398,7 +1400,7 @@ impl Default for Style {
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
-            animation_time: 6.0 / 60.0, // If we make this too slow, it will be too obvious that our panel animations look like shit :(
+            animation_time: 0.2,
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
@@ -1458,7 +1460,7 @@ impl Visuals {
         Self {
             dark_mode: true,
             text_options: TextOptions {
-                alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
+                color_transfer_function: FontColorTransferFunction::DARK_MODE_DEFAULT,
                 ..Default::default()
             },
             override_text_color: None,
@@ -1500,7 +1502,7 @@ impl Visuals {
 
             text_cursor: Default::default(),
 
-            clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
+            clip_rect_margin: 0.0,
             button_frame: true,
             collapsing_header_frame: false,
             indent_has_left_vline: true,
@@ -1524,7 +1526,7 @@ impl Visuals {
         Self {
             dark_mode: false,
             text_options: TextOptions {
-                alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
+                color_transfer_function: FontColorTransferFunction::LIGHT_MODE_DEFAULT,
                 ..Default::default()
             },
             widgets: Widgets::light(),
@@ -2315,12 +2317,12 @@ impl Visuals {
 
             let TextOptions {
                 max_texture_side: _,
-                alpha_from_coverage,
+                color_transfer_function,
                 font_hinting,
                 subpixel_binning,
             } = text_options;
 
-            text_alpha_from_coverage_ui(ui, alpha_from_coverage);
+            color_transfer_function_ui(ui, color_transfer_function);
 
             ui.checkbox(font_hinting, "Font hinting (sharper text)");
             ui.checkbox(subpixel_binning, "Sub-pixel binning (more even kerning)");
@@ -2434,23 +2436,29 @@ impl Visuals {
     }
 }
 
-fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromCoverage) {
-    let mut dark_mode_special =
-        *alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
-
+fn color_transfer_function_ui(
+    ui: &mut Ui,
+    color_transfer_function: &mut FontColorTransferFunction,
+) {
     ui.horizontal(|ui| {
-        ui.label("Text rendering:");
+        ui.label("Opacity tweaking:");
 
-        ui.checkbox(&mut dark_mode_special, "Dark-mode special");
+        ui.radio_value(
+            color_transfer_function,
+            FontColorTransferFunction::Off,
+            "Off",
+        );
+        ui.radio_value(
+            color_transfer_function,
+            FontColorTransferFunction::DARK_MODE_DEFAULT,
+            "Dark-mode special",
+        );
 
-        if dark_mode_special {
-            *alpha_from_coverage = AlphaFromCoverage::DARK_MODE_DEFAULT;
-        } else {
-            let mut gamma = match alpha_from_coverage {
-                AlphaFromCoverage::Linear => 1.0,
-                AlphaFromCoverage::Gamma(gamma) => *gamma,
-                AlphaFromCoverage::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
-            };
+        let mut use_gamma = matches!(color_transfer_function, FontColorTransferFunction::Gamma(_));
+        ui.radio_value(&mut use_gamma, true, "Gamma function");
+
+        if use_gamma {
+            let mut gamma = color_transfer_function.to_gamma();
 
             ui.add(
                 DragValue::new(&mut gamma)
@@ -2459,11 +2467,7 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromC
                     .prefix("Gamma: "),
             );
 
-            if gamma == 1.0 {
-                *alpha_from_coverage = AlphaFromCoverage::Linear;
-            } else {
-                *alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
-            }
+            *color_transfer_function = FontColorTransferFunction::Gamma(gamma);
         }
     });
 }
@@ -2877,121 +2881,178 @@ impl Widget for &mut crate::Frame {
     }
 }
 
+/// Show a UI for editing a [`FontTweak`].
+///
+/// `axes` are the variation axes of the font this tweak applies to, as returned by
+/// [`epaint::text::FontData::variation_axes`]. When non-empty, the variation
+/// coordinates are shown as named sliders pre-populated with each axis' valid range
+/// and default value, so the user doesn't have to guess tags and numbers. Pass an
+/// empty slice if the axes are unknown (e.g. a static font) to fall back to
+/// free-form tag/value entry.
+///
+/// [`Widget for &mut FontTweak`](FontTweak) calls this with no axes.
+pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAxis]) -> Response {
+    let original: FontTweak = tweak.clone();
+
+    let mut response = Grid::new("font_tweak")
+        .num_columns(2)
+        .show(ui, |ui| {
+            let FontTweak {
+                scale,
+                y_offset_factor,
+                y_offset,
+                hinting,
+                hinting_target,
+                coords,
+                thin_space_width,
+                tab_size,
+                subpixel_binning,
+            } = tweak;
+
+            ui.label("Scale");
+            let speed = *scale * 0.01;
+            ui.add(DragValue::new(scale).range(0.01..=10.0).speed(speed));
+            ui.end_row();
+
+            ui.label("y_offset_factor");
+            ui.add(DragValue::new(y_offset_factor).speed(-0.0025));
+            ui.end_row();
+
+            ui.label("y_offset");
+            ui.add(DragValue::new(y_offset).speed(-0.02));
+            ui.end_row();
+
+            ui.label("hinting");
+            ui.horizontal(|ui| {
+                ui.radio_value(hinting, Some(true), "on");
+                ui.radio_value(hinting, Some(false), "off");
+                ui.radio_value(hinting, None, "default");
+            });
+            ui.end_row();
+
+            ui.label("hinting_target")
+                .on_hover_text("How aggressively to snap glyph outlines to the pixel grid. Only matters when hinting is enabled.");
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    let is_mono = matches!(hinting_target, HintingTarget::Mono);
+                    if ui
+                        .radio(!is_mono, "Smooth")
+                        .on_hover_text("Hinting tuned for anti-aliased rendering. The normal choice.")
+                        .clicked()
+                        && is_mono
+                    {
+                        *hinting_target = HintingTarget::default();
+                    }
+                    if ui
+                        .radio(is_mono, "Mono")
+                        .on_hover_text(
+                            "Strongest hinting (designed for 1-bit rendering). Sharpest, but \
+                             distorts glyph weight across sizes.",
+                        )
+                        .clicked()
+                    {
+                        *hinting_target = HintingTarget::Mono;
+                    }
+                    if ui
+                        .button("Reset")
+                        .on_hover_text("Reset the hinting target to its default.")
+                        .clicked()
+                    {
+                        *hinting_target = HintingTarget::default();
+                    }
+                });
+                if let HintingTarget::Smooth(SmoothHinting {
+                    light,
+                    symmetric_rendering,
+                    preserve_linear_metrics,
+                }) = hinting_target
+                {
+                    ui.checkbox(light, "light").on_hover_text(
+                        "Hint only vertically, preserving the font's horizontal proportions \
+                         (softer). Off also fits horizontally.",
+                    );
+                    ui.checkbox(symmetric_rendering, "symmetric_rendering").on_hover_text(
+                        "Render glyphs the same regardless of sub-pixel position (good for \
+                         caching/animation), but can blur stems. Only affects interpreter-hinted fonts.",
+                    );
+                    ui.checkbox(preserve_linear_metrics, "preserve_linear_metrics").on_hover_text(
+                        "Keep spacing independent of hinting. Off lets the hinter snap \
+                         horizontally for crisper vertical stems on low-dpi screens.",
+                    );
+                }
+            });
+            ui.end_row();
+
+            ui.label("subpixel_binning");
+            ui.horizontal(|ui| {
+                ui.radio_value(subpixel_binning, Some(true), "on");
+                ui.radio_value(subpixel_binning, Some(false), "off");
+                ui.radio_value(subpixel_binning, None, "default");
+            });
+            ui.end_row();
+
+            ui.label("thin_space_width");
+            ui.horizontal(|ui| {
+                ui.add(
+                    DragValue::new(thin_space_width)
+                        .range(0.0..=1.0)
+                        .speed(0.01),
+                );
+                ui.label("1\u{2009}234\u{2009}567\u{2009}890");
+            });
+            ui.end_row();
+
+            ui.label("tab_size");
+            ui.add(DragValue::new(tab_size).range(0.0..=16.0).speed(0.1));
+            ui.end_row();
+
+            // Show variation axes if we have them:
+            for axis in axes.iter().filter(|axis| !axis.hidden) {
+                match &axis.name {
+                    Some(name) => ui.label(format!("{name} ({})", axis.tag)),
+                    None => ui.label(axis.tag.to_string()),
+                };
+
+                let existing = coords.as_ref().iter().position(|(tag, _)| *tag == axis.tag);
+                let mut value = existing.map_or(axis.default, |i| coords.as_ref()[i].1);
+
+                ui.horizontal(|ui| {
+                    if ui.add(Slider::new(&mut value, axis.range)).changed() {
+                        match existing {
+                            Some(i) => coords.as_mut()[i].1 = value,
+                            None => coords.push(axis.tag, value),
+                        }
+                    }
+                    // Let the user drop the override and fall back to the font default:
+                    if existing.is_some()
+                        && ui
+                            .small_button("⟲")
+                            .on_hover_text("Reset to the font's default value")
+                            .clicked()
+                        && let Some(i) =
+                            coords.as_ref().iter().position(|(tag, _)| *tag == axis.tag)
+                    {
+                        coords.remove(i);
+                    }
+                });
+                ui.end_row();
+            }
+
+            if ui.button("Reset").clicked() {
+                *tweak = Default::default();
+            }
+        })
+        .response;
+
+    if *tweak != original {
+        response.mark_changed();
+    }
+
+    response
+}
+
 impl Widget for &mut FontTweak {
     fn ui(self, ui: &mut Ui) -> Response {
-        let original: FontTweak = self.clone();
-
-        let mut response = Grid::new("font_tweak")
-            .num_columns(2)
-            .show(ui, |ui| {
-                let FontTweak {
-                    scale,
-                    y_offset_factor,
-                    y_offset,
-                    hinting,
-                    coords,
-                    thin_space_width,
-                    tab_size,
-                    subpixel_binning,
-                } = self;
-
-                ui.label("Scale");
-                let speed = *scale * 0.01;
-                ui.add(DragValue::new(scale).range(0.01..=10.0).speed(speed));
-                ui.end_row();
-
-                ui.label("y_offset_factor");
-                ui.add(DragValue::new(y_offset_factor).speed(-0.0025));
-                ui.end_row();
-
-                ui.label("y_offset");
-                ui.add(DragValue::new(y_offset).speed(-0.02));
-                ui.end_row();
-
-                ui.label("hinting");
-                ui.horizontal(|ui| {
-                    ui.radio_value(hinting, Some(true), "on");
-                    ui.radio_value(hinting, Some(false), "off");
-                    ui.radio_value(hinting, None, "default");
-                });
-                ui.end_row();
-
-                ui.label("subpixel_binning");
-                ui.horizontal(|ui| {
-                    ui.radio_value(subpixel_binning, Some(true), "on");
-                    ui.radio_value(subpixel_binning, Some(false), "off");
-                    ui.radio_value(subpixel_binning, None, "default");
-                });
-                ui.end_row();
-
-                ui.label("coords");
-                ui.end_row();
-                let mut to_remove = None;
-                for (i, (tag, value)) in coords.as_mut().iter_mut().enumerate() {
-                    let tag_text = ui.ctx().data_mut(|data| {
-                        let tag = *tag;
-                        Arc::clone(data.get_temp_mut_or_insert_with(ui.id().with(i), move || {
-                            Arc::new(Mutex::new(tag.to_string()))
-                        }))
-                    });
-
-                    let tag_text = &mut *tag_text.lock();
-                    let response = ui.text_edit_singleline(tag_text);
-                    if response.changed()
-                        && let Ok(new_tag) = Tag::new_checked(tag_text.as_bytes())
-                    {
-                        *tag = new_tag;
-                    }
-                    // Reset stale text when not actively editing
-                    // (e.g. after an item was removed and indices shifted)
-                    if !response.has_focus()
-                        && Tag::new_checked(tag_text.as_bytes()).ok() != Some(*tag)
-                    {
-                        *tag_text = tag.to_string();
-                    }
-
-                    ui.add(DragValue::new(value));
-                    if ui.small_button("🗑").clicked() {
-                        to_remove = Some(i);
-                    }
-                    ui.end_row();
-                }
-                if let Some(i) = to_remove {
-                    coords.remove(i);
-                }
-                if ui.button("Add coord").clicked() {
-                    coords.push(b"wght", 0.0);
-                }
-                if ui.button("Clear coords").clicked() {
-                    coords.clear();
-                }
-                ui.end_row();
-
-                ui.label("thin_space_width");
-                ui.horizontal(|ui| {
-                    ui.add(
-                        DragValue::new(thin_space_width)
-                            .range(0.0..=1.0)
-                            .speed(0.01),
-                    );
-                    ui.label("1\u{2009}234\u{2009}567\u{2009}890");
-                });
-                ui.end_row();
-
-                ui.label("tab_size");
-                ui.add(DragValue::new(tab_size).range(0.0..=16.0).speed(0.1));
-                ui.end_row();
-
-                if ui.button("Reset").clicked() {
-                    *self = Default::default();
-                }
-            })
-            .response;
-
-        if *self != original {
-            response.mark_changed();
-        }
-
-        response
+        font_tweak_ui(ui, self, &[])
     }
 }

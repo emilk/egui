@@ -16,7 +16,7 @@ impl Default for DragAndDropDemo {
                 vec!["Item H", "Item I", "Item J", "Item K"],
             ]
             .into_iter()
-            .map(|v| v.into_iter().map(ToString::to_string).collect())
+            .map(|v| v.into_iter().map(str::to_owned).collect())
             .collect(),
         }
     }

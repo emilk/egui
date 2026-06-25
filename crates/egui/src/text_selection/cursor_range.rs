@@ -1,4 +1,4 @@
-use epaint::{Galley, text::cursor::CCursor};
+use epaint::{Galley, text::CharIndex, text::cursor::CCursor};
 
 use crate::{Event, Id, Key, Modifiers, os::OperatingSystem};
 
@@ -49,7 +49,7 @@ impl CCursorRange {
     }
 
     /// The range of selected character indices.
-    pub fn as_sorted_char_range(&self) -> std::ops::Range<usize> {
+    pub fn as_sorted_char_range(&self) -> std::ops::Range<CharIndex> {
         let [start, end] = self.sorted_cursors();
         std::ops::Range {
             start: start.index,
@@ -237,7 +237,7 @@ fn ccursor_from_accesskit_text_position(
             if run_id.accesskit_id() == position.node {
                 let column = chunk_idx * MAX_CHARS_PER_TEXT_RUN + position.character_index;
                 return Some(CCursor {
-                    index: total_length + column,
+                    index: CharIndex(total_length + column),
                     prefer_next_row: !(column == row.glyphs.len()
                         && !row.ends_with_newline
                         && (i + 1) < galley.rows.len()),

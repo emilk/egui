@@ -45,7 +45,7 @@
 //!
 //! impl eframe::App for MyEguiApp {
 //!    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-//!        egui::CentralPanel::default().show_inside(ui, |ui| {
+//!        egui::CentralPanel::default().show(ui, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
 //!    }
@@ -209,6 +209,35 @@ pub use native::file_storage::storage_dir;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod icon_data;
 
+// ----------------------------------------------------------------------------
+
+/// Attach an [`egui_inspection::InspectionPlugin`] to `ctx` when enabled via the environment.
+#[cfg(all(feature = "inspection", not(target_arch = "wasm32")))]
+pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<String>) {
+    match egui_inspection::attach_from_env(ctx, label) {
+        Ok(true) => log::info!("egui_inspection plugin attached"),
+        Ok(false) => {}
+        Err(err) => log::warn!("egui_inspection attach failed: {err}"),
+    }
+}
+
+/// Fallback for native builds without the `inspection` feature. Logs warning if inspection env
+/// var was set.
+#[cfg(all(
+    not(feature = "inspection"),
+    not(target_arch = "wasm32"),
+    any(feature = "glow", feature = "wgpu_no_default_features")
+))]
+pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {
+    if let Ok(value) = std::env::var("EGUI_INSPECTION")
+        && value != "0"
+        && value != "false"
+        && !value.is_empty()
+    {
+        log::warn!("Inspection env var set but app was compiled without eframe/inspection feature");
+    }
+}
+
 /// This is how you start a native (desktop) app.
 ///
 /// The first argument is name of your app, which is an identifier
@@ -244,7 +273,7 @@ pub mod icon_data;
 ///
 /// impl eframe::App for MyEguiApp {
 ///    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-///        egui::CentralPanel::default().show_inside(ui, |ui| {
+///        egui::CentralPanel::default().show(ui, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
@@ -334,7 +363,7 @@ pub fn run_native_ext(
 ///
 /// impl eframe::App for MyEguiApp {
 ///    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-///        egui::CentralPanel::default().show_inside(ui, |ui| {
+///        egui::CentralPanel::default().show(ui, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
 ///    }
@@ -389,6 +418,9 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
     if native_options.viewport.title.is_none() {
         native_options.viewport.title = Some(app_name.to_owned());
     }
+    if native_options.viewport.app_id.is_none() {
+        native_options.viewport.app_id = Some(app_name.to_owned());
+    }
 
     let renderer = native_options.renderer;
 
@@ -422,7 +454,7 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
 ///     let options = eframe::NativeOptions::default();
 ///     eframe::run_ui_native("My egui App", options, move |ui, _frame| {
 ///         // Wrap everything in a CentralPanel so we get some margins and a background color:
-///         egui::CentralPanel::default().show_inside(ui, |ui| {
+///         egui::CentralPanel::default().show(ui, |ui| {
 ///             ui.heading("My egui Application");
 ///             ui.horizontal(|ui| {
 ///                 let name_label = ui.label("Your name: ");
