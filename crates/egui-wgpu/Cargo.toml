@@ -51,7 +51,9 @@ x11 = ["winit?/x11"]
 ## Thus that usage is guarded against with compiler errors in wgpu.
 fragile-send-sync-non-atomic-wasm = ["wgpu/fragile-send-sync-non-atomic-wasm"]
 
-## Enables `present_with_transaction` surface flag temporary during window resize on MacOS.
+## Enables the macOS live-resize jitter fix, which uses `present_with_transaction`.
+## This requires the `wgpu/metal` backend. Disable this feature if you want to use egui-wgpu
+## with a different backend (e.g. Vulkan or GL) on macOS without pulling in Metal.
 macos-window-resize-jitter-fix = ["wgpu/metal"]
 
 [dependencies]
