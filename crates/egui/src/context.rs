@@ -897,7 +897,7 @@ impl Context {
         profiling::function_scope!();
 
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
-        plugins.on_input(&mut new_input);
+        plugins.on_input(self, &mut new_input);
 
         self.write(|ctx| ctx.begin_pass(new_input));
     }
@@ -2391,7 +2391,7 @@ impl Context {
         let mut output = self.write(|ctx| ctx.end_pass());
 
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
-        plugins.on_output(&mut output);
+        plugins.on_output(self, &mut output);
 
         output
     }
@@ -3206,7 +3206,8 @@ impl Context {
         for (name, data) in &mut font_definitions.font_data {
             ui.collapsing(name, |ui| {
                 let mut tweak = data.tweak.clone();
-                if tweak.ui(ui).changed() {
+                let axes = data.variation_axes();
+                if crate::style::font_tweak_ui(ui, &mut tweak, &axes).changed() {
                     Arc::make_mut(data).tweak = tweak;
                     changed = true;
                 }

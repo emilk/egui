@@ -19,6 +19,7 @@ pub struct MiscDemoWindow {
     tree: Tree,
     box_painting: BoxPainting,
     text_rotation: TextRotation,
+    repaint: Repaint,
 
     dummy_bool: bool,
     dummy_usize: usize,
@@ -36,6 +37,7 @@ impl Default for MiscDemoWindow {
             tree: Tree::demo(),
             box_painting: Default::default(),
             text_rotation: Default::default(),
+            repaint: Default::default(),
 
             dummy_bool: false,
             dummy_usize: 0,
@@ -56,6 +58,10 @@ impl Demo for MiscDemoWindow {
             .hscroll(true)
             .constrain_to(ui.available_rect_before_wrap())
             .show(ui, |ui| self.ui(ui));
+    }
+
+    fn logic(&mut self, ctx: &egui::Context) {
+        self.repaint.logic(ctx);
     }
 }
 
@@ -101,6 +107,10 @@ impl View for MiscDemoWindow {
         CollapsingHeader::new("Tree")
             .default_open(false)
             .show(ui, |ui| self.tree.ui(ui));
+
+        CollapsingHeader::new("Repaint")
+            .default_open(false)
+            .show(ui, |ui| self.repaint.ui(ui));
 
         CollapsingHeader::new("Checkboxes")
             .default_open(false)
@@ -287,6 +297,134 @@ impl Widgets {
                 .on_hover_text("See the example code for how to use egui to store UI state");
             ui.add(super::password::password(password));
         });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Demonstrates [`egui::Context::request_repaint`] and
+/// [`egui::Context::request_repaint_after`].
+#[derive(PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+struct Repaint {
+    /// Request a repaint every frame, so we run as fast as the integration allows.
+    repaint_continuously: bool,
+
+    /// Request a repaint after [`Self::delay`].
+    repaint_after_delay: bool,
+
+    /// How long to wait before the next repaint when [`Self::repaint_after_delay`] is set.
+    delay: f64,
+
+    /// Issue the repaint requests from `logic` (which runs even while hidden) instead of `ui`.
+    in_background: bool,
+
+    /// Log each `ui` and `logic` frame, so background activity is visible in the console.
+    log_each_frame: bool,
+
+    /// How many times [`Self::ui`] has run since the last reset.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    ui_count: u64,
+
+    /// How many times [`Self::logic`] has run since the last reset.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    logic_count: u64,
+}
+
+impl Default for Repaint {
+    fn default() -> Self {
+        Self {
+            repaint_continuously: false,
+            repaint_after_delay: false,
+            delay: 1.0,
+            in_background: false,
+            log_each_frame: false,
+            ui_count: 0,
+            logic_count: 0,
+        }
+    }
+}
+
+impl Repaint {
+    fn ui(&mut self, ui: &mut Ui) {
+        self.ui_count += 1;
+        if self.log_each_frame {
+            log::info!("Repaint demo: `ui` frame {}", self.ui_count);
+        }
+
+        ui.label("Use this to verify if logic is correctly called while in background.");
+
+        ui.horizontal(|ui| {
+            if ui.button("Reset counts").clicked() {
+                self.ui_count = 0;
+                self.logic_count = 0;
+            }
+            ui.label(format!(
+                "`ui`: {}, `logic`: {}",
+                self.ui_count, self.logic_count
+            ))
+            .on_hover_text(
+                "`ui` is incremented in `App::ui` (only runs while visible), \
+                     `logic` in `App::logic` (runs even while hidden).",
+            );
+        });
+
+        ui.separator();
+
+        ui.checkbox(
+            &mut self.repaint_continuously,
+            "Repaint continuously (every frame)",
+        );
+
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.repaint_after_delay, "Repaint after");
+            ui.add_enabled(
+                self.repaint_after_delay,
+                Slider::new(&mut self.delay, 0.0..=5.0)
+                    .suffix(" s")
+                    .text("delay"),
+            );
+        });
+
+        ui.checkbox(&mut self.in_background, "In the background (during logic)")
+            .on_hover_text(
+                "Issue the repaint requests from `App::logic` (which runs even while hidden) \
+                 instead of `App::ui` (which is skipped while hidden).\n\n\
+                 With this enabled, hide this tab for a while, then come back: \
+                 the `logic` count will have kept climbing.",
+            );
+
+        ui.checkbox(&mut self.log_each_frame, "Log each frame")
+            .on_hover_text("Log each `ui` and `logic` frame to the console.");
+
+        // When not in background mode, drive the repaints from here (`ui`), which only
+        // runs while visible. Otherwise they are driven from `logic` (see below).
+        if !self.in_background {
+            self.request_repaint(ui.ctx());
+        }
+    }
+
+    /// Runs even when the app is hidden, unlike [`Self::ui`].
+    fn logic(&mut self, ctx: &egui::Context) {
+        self.logic_count += 1;
+        if self.log_each_frame {
+            log::info!("Repaint demo: `logic` frame {}", self.logic_count);
+        }
+
+        if self.in_background {
+            self.request_repaint(ctx);
+        }
+    }
+
+    /// Request repaints according to the selected options.
+    fn request_repaint(&self, ctx: &egui::Context) {
+        if self.repaint_continuously {
+            ctx.request_repaint();
+        }
+        if self.repaint_after_delay {
+            ctx.request_repaint_after(std::time::Duration::from_secs_f64(self.delay));
+        }
     }
 }
 

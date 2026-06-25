@@ -32,7 +32,6 @@ all-features = true
 version = 2
 ignore = [
   "RUSTSEC-2024-0320", # unmaintained yaml-rust pulled in by syntect
-  "RUSTSEC-2024-0436", # unmaintained paste pulled via metal/wgpu, see https://github.com/gfx-rs/metal-rs/issues/349
   "RUSTSEC-2025-0141", # https://rustsec.org/advisories/RUSTSEC-2025-0141 - bincode is unmaintained - https://git.sr.ht/~stygianentity/bincode/tree/v3.0/item/README.md
 ]
 
@@ -50,20 +49,24 @@ skip = [
   { name = "bit-vec" }, # dependency of bit-set in turn, different between 0.6 and 0.5
   { name = "bitflags" }, # old 1.0 version via glutin, png, spirv, …
   { name = "core-foundation" }, # version conflict between winit and wgpu ecosystems
-  { name = "core-graphics-types" }, # version conflict between winit and wgpu ecosystems
+  { name = "foldhash" }, # pulled by the duplicated hashbrown versions
   { name = "getrandom" }, # ring / rustls (and thus ehttp) still depend on getrandom 0.2
+  { name = "hashbrown" }, # wgpu's naga depends on 0.16, accesskit depends on 0.15
   { name = "jni-sys" }, # 0.3.1 depends on 0.4
   { name = "kurbo" }, # Old version because of resvg
+  { name = "phf" }, # mime_guess2 -> 0.11, unicode_names2 -> 0.13
+  { name = "phf_generator" }, # same phf split as phf
+  { name = "phf_shared" }, # same phf split as phf
   { name = "redox_syscall" }, # old version via winit
   { name = "rustc-hash" }, # Small enough
   { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "thiserror-impl" }, # same as above
 ]
 skip-tree = [
-  { name = "hashbrown" }, # wgpu's naga depends on 0.16, accesskit depends on 0.15
+  # PREFER `skip` (above): `skip-tree` exempts the crate AND its whole transitive subtree from the
+  # duplicate check, so it can silently hide unrelated new duplicates. Only use `skip-tree` when an
+  # outdated root drags in a self-contained cluster of old deps that would be noise to list one-by-one.
   { name = "rfd" }, # example dependency
-  { name = "windows" }, # the ecosystem is currently transitioning from 0.58 to 0.61
-  { name = "phf" }, # mime_guess2, unicode_names2 -> 0.11.3; accesskit -> 0.13.1
   { name = "windows-sys" }, # mostly hopeless to avoid
 ]
 
