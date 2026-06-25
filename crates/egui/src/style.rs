@@ -3,7 +3,7 @@
 use emath::Align;
 use epaint::{
     CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
-    text::{FontTweak, FontVariationAxis},
+    text::{FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
 };
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
@@ -2902,6 +2902,7 @@ pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAx
                 y_offset_factor,
                 y_offset,
                 hinting,
+                hinting_target,
                 coords,
                 thin_space_width,
                 tab_size,
@@ -2926,6 +2927,59 @@ pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAx
                 ui.radio_value(hinting, Some(true), "on");
                 ui.radio_value(hinting, Some(false), "off");
                 ui.radio_value(hinting, None, "default");
+            });
+            ui.end_row();
+
+            ui.label("hinting_target")
+                .on_hover_text("How aggressively to snap glyph outlines to the pixel grid. Only matters when hinting is enabled.");
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    let is_mono = matches!(hinting_target, HintingTarget::Mono);
+                    if ui
+                        .radio(!is_mono, "Smooth")
+                        .on_hover_text("Hinting tuned for anti-aliased rendering. The normal choice.")
+                        .clicked()
+                        && is_mono
+                    {
+                        *hinting_target = HintingTarget::default();
+                    }
+                    if ui
+                        .radio(is_mono, "Mono")
+                        .on_hover_text(
+                            "Strongest hinting (designed for 1-bit rendering). Sharpest, but \
+                             distorts glyph weight across sizes.",
+                        )
+                        .clicked()
+                    {
+                        *hinting_target = HintingTarget::Mono;
+                    }
+                    if ui
+                        .button("Reset")
+                        .on_hover_text("Reset the hinting target to its default.")
+                        .clicked()
+                    {
+                        *hinting_target = HintingTarget::default();
+                    }
+                });
+                if let HintingTarget::Smooth(SmoothHinting {
+                    light,
+                    symmetric_rendering,
+                    preserve_linear_metrics,
+                }) = hinting_target
+                {
+                    ui.checkbox(light, "light").on_hover_text(
+                        "Hint only vertically, preserving the font's horizontal proportions \
+                         (softer). Off also fits horizontally.",
+                    );
+                    ui.checkbox(symmetric_rendering, "symmetric_rendering").on_hover_text(
+                        "Render glyphs the same regardless of sub-pixel position (good for \
+                         caching/animation), but can blur stems. Only affects interpreter-hinted fonts.",
+                    );
+                    ui.checkbox(preserve_linear_metrics, "preserve_linear_metrics").on_hover_text(
+                        "Keep spacing independent of hinting. Off lets the hinter snap \
+                         horizontally for crisper vertical stems on low-dpi screens.",
+                    );
+                }
             });
             ui.end_row();
 
