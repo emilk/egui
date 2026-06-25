@@ -1,9 +1,9 @@
 use epaint::Margin;
 
 use crate::{
-    Atom, Atoms, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
-    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType,
+    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Atoms, Color32, CornerRadius,
+    Frame, Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui,
+    Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
     widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState},
 };
 
@@ -274,9 +274,9 @@ impl<'a> Button<'a> {
         self
     }
 
-    /// Output the button's Atoms.
+    /// Output the button's [`Atoms`].
     ///
-    /// This includes images you have on the button
+    /// This includes any images you have on the button.
     pub fn atoms(&self) -> &Atoms<'a> {
         &self.layout.atoms
     }

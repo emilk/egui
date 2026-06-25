@@ -410,9 +410,9 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    /// Outputs the DragValue's atoms
+    /// Output the [`DragValue`]'s [`Atoms`].
     ///
-    /// This includes images you have on the DragValue
+    /// This includes any images you have on the [`DragValue`].
     pub fn atoms(&self) -> &Atoms<'a> {
         &self.atoms
     }
