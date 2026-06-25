@@ -1504,18 +1504,40 @@ mod tests {
 
     #[test]
     fn test_cjk() {
+        // CJK text has no spaces, so line-breaking must be allowed *between* CJK
+        // characters, while Latin words (like "English") must stay intact.
+        // The exact break points depend on the font's glyph widths, so we assert
+        // structural properties rather than the exact rows, keeping the test valid
+        // across changes to the default font.
         let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
-        let mut layout_job = LayoutJob::single_section(
-            "日本語とEnglishの混在した文章".into(),
-            TextFormat::default(),
-        );
+        let text = "日本語とEnglishの混在した文章";
+        let mut layout_job = LayoutJob::single_section(text.into(), TextFormat::default());
         layout_job.wrap.max_width = 90.0;
         let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
-        assert_eq!(
-            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
-            vec!["日本語と", "Englishの混在", "した文章"]
+
+        let rows: Vec<String> = galley.rows.iter().map(|row| row.text()).collect();
+
+        // The text is wider than `max_width`, so it must wrap onto several rows:
+        assert!(rows.len() > 1, "Expected the text to wrap, got {rows:?}");
+
+        // No characters may be lost or reordered by wrapping:
+        assert_eq!(rows.concat(), text, "Rows should reconstruct the input");
+
+        // The Latin word "English" must not be broken across rows:
+        assert!(
+            rows.iter().any(|row| row.contains("English")),
+            "The word 'English' should stay on a single row, got {rows:?}"
         );
+
+        // Every row but the last must fit within `max_width`:
+        for row in &galley.rows[..galley.rows.len() - 1] {
+            assert!(
+                row.rect().width() <= 90.0,
+                "Row {:?} exceeds max_width",
+                row.text()
+            );
+        }
     }
 
     #[test]
@@ -1635,6 +1657,11 @@ mod tests {
             .styled_metrics(pixels_per_point, font_id.size, &VariationCoords::default())
             .row_height;
 
+        // The trailing newline should add an (empty) second row but no extra width,
+        // so the galley should be exactly as wide as "Hi!" alone. Deriving the width
+        // from the text keeps the test valid across changes to the default font.
+        let (text_width, _, _) = measure_text(&mut fonts, "Hi!", &font_id, pixels_per_point);
+
         let job = LayoutJob::simple("Hi!\n".to_owned(), font_id, Color32::WHITE, f32::INFINITY);
 
         let galley = layout(&mut fonts, pixels_per_point, job.into());
@@ -1646,13 +1673,13 @@ mod tests {
             "Expected no glyphs in the empty row"
         );
         assert_eq!(
-            galley.size().round(),
-            Vec2::new(17.0, font_height.round() * 2.0),
+            galley.size(),
+            Vec2::new(text_width, font_height.round() * 2.0),
             "Unexpected galley size"
         );
         assert_eq!(
-            galley.intrinsic_size().round(),
-            Vec2::new(17.0, font_height.round() * 2.0),
+            galley.intrinsic_size(),
+            Vec2::new(text_width, font_height.round() * 2.0),
             "Unexpected intrinsic size"
         );
     }
@@ -1781,6 +1808,10 @@ mod tests {
         // the sum of individual character widths. Without text shaping, egui
         // only uses the legacy `kern` table, so these pairs had diff ≈ 0.
         // With harfrust, GPOS kerning applies proper negative adjustments.
+        //
+        // The exact amount is font-specific, so we only assert that some tightening
+        // happens (pair strictly narrower than the sum of the individual glyphs),
+        // which keeps the test valid across changes to the default font.
         let pixels_per_point = 1.0;
         let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
         let font_id = FontId::proportional(14.0);
@@ -1804,10 +1835,10 @@ mod tests {
             let kern_adjustment = sum - pair_w;
 
             assert!(
-                kern_adjustment > 0.5,
-                "GPOS kerning for '{pair}': expected pair to be noticeably tighter \
-                 than sum of individuals. pair_width={pair_w:.2}, sum={sum:.2}, \
-                 kern_adjustment={kern_adjustment:.2} (should be > 0.5)",
+                kern_adjustment > 0.2,
+                "GPOS kerning for '{pair}': expected the pair to be tighter than the \
+                 sum of the individual glyphs. pair_width={pair_w:.2}, sum={sum:.2}, \
+                 kern_adjustment={kern_adjustment:.2} (should be > 0.2)",
             );
         }
     }

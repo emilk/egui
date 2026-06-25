@@ -362,7 +362,7 @@ impl std::fmt::Debug for ColorImage {
 /// (which would require more atlas space, but would allow for more accurate rendering of colored text and emojis),
 /// or do the color compensation in the shader, based on the active text color.
 ///
-/// When experimenting, use <https://fonts.google.com/specimen/Ubuntu> to compare to a ground truth.
+/// When experimenting, use <https://fonts.google.com/specimen/Radio+Canada> to compare to a ground truth.
 ///
 /// See <https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html> for related analysis.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
