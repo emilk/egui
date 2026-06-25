@@ -10,32 +10,10 @@ use vello_cpu::{color, kurbo};
 use crate::{
     TextOptions, TextureAtlas,
     text::{
-        FontTweak, HintingTarget, SmoothHinting, VariationCoords,
+        FontTweak, VariationCoords,
         fonts::{Blob, CachedFamily, FontFaceKey},
     },
 };
-
-// ----------------------------------------------------------------------------
-
-fn skrifa_target(target: HintingTarget) -> skrifa::outline::Target {
-    use skrifa::outline::{SmoothMode, Target};
-    match target {
-        HintingTarget::Mono => Target::Mono,
-        HintingTarget::Smooth(SmoothHinting {
-            light,
-            symmetric_rendering,
-            preserve_linear_metrics,
-        }) => Target::Smooth {
-            mode: if light {
-                SmoothMode::Light
-            } else {
-                SmoothMode::Normal
-            },
-            symmetric_rendering,
-            preserve_linear_metrics,
-        },
-    }
-}
 
 // ----------------------------------------------------------------------------
 
@@ -652,7 +630,7 @@ impl FontFace {
 
         let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
 
-        let hinting_target = skrifa_target(self.tweak.hinting_target);
+        let hinting_target = self.tweak.hinting_target.to_skrifa_target();
         let alloc = *self.glyph_alloc_cache.entry(cache_key).or_insert_with(|| {
             self.font
                 .allocate_glyph_uncached(

@@ -319,6 +319,29 @@ impl Default for HintingTarget {
     }
 }
 
+impl HintingTarget {
+    /// Convert to the corresponding `skrifa` hinting target.
+    pub(crate) fn to_skrifa_target(self) -> skrifa::outline::Target {
+        use skrifa::outline::{SmoothMode, Target};
+        match self {
+            Self::Mono => Target::Mono,
+            Self::Smooth(SmoothHinting {
+                light,
+                symmetric_rendering,
+                preserve_linear_metrics,
+            }) => Target::Smooth {
+                mode: if light {
+                    SmoothMode::Light
+                } else {
+                    SmoothMode::Normal
+                },
+                symmetric_rendering,
+                preserve_linear_metrics,
+            },
+        }
+    }
+}
+
 /// Tuning for [`HintingTarget::Smooth`], mirroring `skrifa`'s `Target::Smooth`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
