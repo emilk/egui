@@ -57,9 +57,9 @@ pub fn paint_text_selection(
 
         if !row.glyphs.is_empty() {
             // Change color of the selected text:
-            let first_glyph_index = if ri == min.row { min.column } else { 0 };
+            let first_glyph_index = if ri == min.row { min.column.0 } else { 0 };
             let last_glyph_index = if ri == max.row {
-                max.column
+                max.column.0
             } else {
                 row.glyphs.len()
             };

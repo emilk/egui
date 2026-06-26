@@ -104,6 +104,15 @@ impl Painter {
             desired_maximum_frame_latency,
         } = *config;
 
+        // Transaction presentation can hold a drawable during AppKit live resize. Keep the
+        // configured low-latency path normally, but use three Metal drawables while resizing.
+        #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
+        let desired_maximum_frame_latency = if surface_state.resizing {
+            Some(desired_maximum_frame_latency.unwrap_or(2).max(2))
+        } else {
+            desired_maximum_frame_latency
+        };
+
         let width = surface_state.width;
         let height = surface_state.height;
 
@@ -406,6 +415,9 @@ impl Painter {
             return;
         }
 
+        // Set before reconfiguring so macOS live resize uses the temporary latency bump above.
+        state.resizing = resizing;
+
         // Resizing is a bit tricky on macOS.
         // It requires enabling ["present_with_transaction"](https://developer.apple.com/documentation/quartzcore/cametallayer/presentswithtransaction)
         // flag to avoid jittering during the resize. Even though resize jittering on macOS
@@ -414,32 +426,22 @@ impl Painter {
         // See https://github.com/emilk/egui/issues/903
         #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
         {
-            // setPresentsWithTransaction causes hangs when desired_maximum_frame_latency == 1
-            let is_low_latency = self
-                .render_state
-                .as_ref()
-                .is_some_and(|rs| rs.surface_config.desired_maximum_frame_latency == Some(1));
-            if !is_low_latency {
-                // SAFETY: The cast is checked with if condition. If the used backend is not metal
-                // it gracefully fails.
-                unsafe {
-                    if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>() {
-                        hal_surface
-                            .render_layer()
-                            .lock()
-                            .setPresentsWithTransaction(resizing);
+            // SAFETY: `as_hal::<Metal>()` returns `None` unless this surface is backed by wgpu's
+            // Metal backend.
+            unsafe {
+                if let (Some(render_state), Some(hal_surface)) = (
+                    self.render_state.as_ref(),
+                    state.surface.as_hal::<wgpu::hal::api::Metal>(),
+                ) {
+                    hal_surface
+                        .render_layer()
+                        .lock()
+                        .setPresentsWithTransaction(resizing);
 
-                        Self::configure_surface(
-                            state,
-                            self.render_state.as_ref().unwrap(),
-                            &self.config.surface,
-                        );
-                    }
+                    Self::configure_surface(state, render_state, &self.config.surface);
                 }
             }
         }
-
-        state.resizing = resizing;
     }
 
     pub fn on_window_resized(
@@ -543,6 +545,21 @@ impl Painter {
             commands_submitted: false,
         };
 
+        {
+            // Upload textures before the surface-dependent early-returns below:
+            // uploads only need the device + queue, and the atlas dirty region is
+            // already consumed, so dropping the delta would desync the font texture.
+            let mut renderer = render_state.renderer.write();
+            for (id, image_delta) in &textures_delta.set {
+                renderer.update_texture(
+                    &render_state.device,
+                    &render_state.queue,
+                    *id,
+                    image_delta,
+                );
+            }
+        }
+
         let Some(surface_state) = self.surfaces.get_mut(&viewport_id) else {
             return vsync_sec;
         };
@@ -562,15 +579,6 @@ impl Painter {
 
         let user_cmd_bufs = {
             let mut renderer = render_state.renderer.write();
-            for (id, image_delta) in &textures_delta.set {
-                renderer.update_texture(
-                    &render_state.device,
-                    &render_state.queue,
-                    *id,
-                    image_delta,
-                );
-            }
-
             renderer.update_buffers(
                 &render_state.device,
                 &render_state.queue,

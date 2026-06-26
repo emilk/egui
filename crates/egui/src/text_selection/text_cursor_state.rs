@@ -1,6 +1,6 @@
 //! Text cursor changes/interaction, without modifying the text.
 
-use epaint::text::{Galley, cursor::CCursor};
+use epaint::text::{ByteIndex, ByteRangeExt as _, CharIndex, Galley, cursor::CCursor};
 use unicode_segmentation::UnicodeSegmentation as _;
 
 use crate::{NumExt as _, Rect, Response, Ui, epaint};
@@ -129,11 +129,11 @@ fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
 }
 
 fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
-    if ccursor.index == 0 {
+    if ccursor.index == CharIndex::ZERO {
         CCursorRange::two(ccursor, ccursor_next_line(text, ccursor))
     } else {
         let it = text.chars();
-        let mut it = it.skip(ccursor.index - 1);
+        let mut it = it.skip(ccursor.index.0 - 1);
         if let Some(char_before_cursor) = it.next() {
             if let Some(char_after_cursor) = it.next() {
                 if (!is_linebreak(char_before_cursor)) && (!is_linebreak(char_after_cursor)) {
@@ -178,26 +178,26 @@ fn ccursor_next_line(text: &str, ccursor: CCursor) -> CCursor {
 }
 
 pub fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
-    let num_chars = text.chars().count();
+    let num_chars = CharIndex(text.chars().count());
     let reversed: String = text.graphemes(true).rev().collect();
+    let boundary = next_word_boundary_char_index(&reversed, num_chars - ccursor.index);
     CCursor {
-        index: num_chars
-            - next_word_boundary_char_index(&reversed, num_chars - ccursor.index).min(num_chars),
+        index: num_chars - boundary.min(num_chars),
         prefer_next_row: true,
     }
 }
 
 fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
-    let num_chars = text.chars().count();
+    let num_chars = CharIndex(text.chars().count());
+    let boundary = next_line_boundary_char_index(text.chars().rev(), num_chars - ccursor.index);
     CCursor {
-        index: num_chars
-            - next_line_boundary_char_index(text.chars().rev(), num_chars - ccursor.index),
+        index: num_chars - boundary,
         prefer_next_row: true,
     }
 }
 
-fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
-    let mut current_char_idx = 0;
+fn next_word_boundary_char_index(text: &str, cursor_ci: CharIndex) -> CharIndex {
+    let mut current_char_idx = CharIndex::ZERO;
 
     for (_word_byte_index, word) in text.split_word_bound_indices() {
         let word_ci = current_char_idx;
@@ -231,8 +231,11 @@ fn all_word_chars(text: &str) -> bool {
     text.chars().all(is_word_char)
 }
 
-fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
-    let mut it = it.skip(index);
+fn next_line_boundary_char_index(
+    it: impl Iterator<Item = char>,
+    mut index: CharIndex,
+) -> CharIndex {
+    let mut it = it.skip(index.0);
     if let Some(_first) = it.next() {
         index += 1;
 
@@ -260,36 +263,38 @@ fn is_linebreak(c: char) -> bool {
 /// Accepts and returns character offset (NOT byte offset!).
 pub fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
     let byte_idx = byte_index_from_char_index(text, current_index.index);
-    let text_before = &text[..byte_idx];
+    let text_before = (ByteIndex::ZERO..byte_idx).slice(text);
 
     if let Some(last_newline_byte) = text_before.rfind('\n') {
-        let char_idx = char_index_from_byte_index(text, last_newline_byte + 1);
+        let char_idx = char_index_from_byte_index(text, ByteIndex(last_newline_byte + 1));
         CCursor::new(char_idx)
     } else {
         CCursor::new(0)
     }
 }
 
-pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
+pub fn byte_index_from_char_index(s: &str, char_index: CharIndex) -> ByteIndex {
     for (ci, (bi, _)) in s.char_indices().enumerate() {
-        if ci == char_index {
-            return bi;
+        if ci == char_index.0 {
+            return ByteIndex(bi);
         }
     }
-    s.len()
+    ByteIndex(s.len())
 }
 
-pub fn char_index_from_byte_index(input: &str, byte_index: usize) -> usize {
+pub fn char_index_from_byte_index(input: &str, byte_index: ByteIndex) -> CharIndex {
     for (ci, (bi, _)) in input.char_indices().enumerate() {
-        if bi == byte_index {
-            return ci;
+        if bi == byte_index.0 {
+            return CharIndex(ci);
         }
     }
 
-    input.char_indices().last().map_or(0, |(i, _)| i + 1)
+    // `byte_index` is at or past the end of the string (or not on a char boundary):
+    // return the total number of characters.
+    CharIndex(input.chars().count())
 }
 
-pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
+pub fn slice_char_range(s: &str, char_range: std::ops::Range<CharIndex>) -> &str {
     assert!(
         char_range.start <= char_range.end,
         "Invalid range, start must be less than end, but start = {}, end = {}",
@@ -298,7 +303,7 @@ pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
     );
     let start_byte = byte_index_from_char_index(s, char_range.start);
     let end_byte = byte_index_from_char_index(s, char_range.end);
-    &s[start_byte..end_byte]
+    (start_byte..end_byte).slice(s)
 }
 
 /// The thin rectangle of one end of the selection, e.g. the primary cursor, in local galley coordinates.
@@ -321,21 +326,21 @@ mod test {
     fn test_next_word_boundary_char_index() {
         // ASCII only
         let text = "abc d3f g_h i-j";
-        assert_eq!(next_word_boundary_char_index(text, 1), 3);
-        assert_eq!(next_word_boundary_char_index(text, 3), 7);
-        assert_eq!(next_word_boundary_char_index(text, 9), 11);
-        assert_eq!(next_word_boundary_char_index(text, 12), 13);
-        assert_eq!(next_word_boundary_char_index(text, 13), 15);
-        assert_eq!(next_word_boundary_char_index(text, 15), 15);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(1)).0, 3);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(3)).0, 7);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(9)).0, 11);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(12)).0, 13);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(13)).0, 15);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(15)).0, 15);
 
-        assert_eq!(next_word_boundary_char_index("", 0), 0);
-        assert_eq!(next_word_boundary_char_index("", 1), 0);
+        assert_eq!(next_word_boundary_char_index("", CharIndex(0)).0, 0);
+        assert_eq!(next_word_boundary_char_index("", CharIndex(1)).0, 0);
 
         // ASCII only
         let text = "abc.def.ghi";
-        assert_eq!(next_word_boundary_char_index(text, 1), 3);
-        assert_eq!(next_word_boundary_char_index(text, 3), 7);
-        assert_eq!(next_word_boundary_char_index(text, 7), 11);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(1)).0, 3);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(3)).0, 7);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(7)).0, 11);
 
         // Unicode graphemes, some of which consist of multiple Unicode characters,
         // !!! Unicode character is not always what is tranditionally considered a character,
@@ -343,32 +348,66 @@ mod test {
         // handling of and around emojis is kind of weird and is not consistent across
         // text editors and browsers
         let text = "❤️👍 skvělá knihovna 👍❤️";
-        assert_eq!(next_word_boundary_char_index(text, 0), 2);
-        assert_eq!(next_word_boundary_char_index(text, 2), 3); // this does not skip the space between thumbs-up and 'skvělá'
-        assert_eq!(next_word_boundary_char_index(text, 6), 10);
-        assert_eq!(next_word_boundary_char_index(text, 9), 10);
-        assert_eq!(next_word_boundary_char_index(text, 12), 19);
-        assert_eq!(next_word_boundary_char_index(text, 15), 19);
-        assert_eq!(next_word_boundary_char_index(text, 19), 20);
-        assert_eq!(next_word_boundary_char_index(text, 20), 21);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(0)).0, 2);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(2)).0, 3); // this does not skip the space between thumbs-up and 'skvělá'
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(6)).0, 10);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(9)).0, 10);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(12)).0, 19);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(15)).0, 19);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(19)).0, 20);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(20)).0, 21);
     }
 
     #[test]
     fn test_previous_word() {
         let text = "abc def ghi";
-        assert_eq!(ccursor_previous_word(text, CCursor::new(7)).index, 4);
-        assert_eq!(ccursor_previous_word(text, CCursor::new(5)).index, 4);
-        assert_eq!(ccursor_previous_word(text, CCursor::new(4)).index, 0);
-        assert_eq!(ccursor_previous_word(text, CCursor::new(0)).index, 0);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(7)).index.0, 4);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(5)).index.0, 4);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(4)).index.0, 0);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(0)).index.0, 0);
     }
 
     #[test]
     fn test_next_word() {
         let text = "abc def ghi";
-        assert_eq!(ccursor_next_word(text, CCursor::new(0)).index, 3);
-        assert_eq!(ccursor_next_word(text, CCursor::new(3)).index, 7);
-        assert_eq!(ccursor_next_word(text, CCursor::new(7)).index, 11);
-        assert_eq!(ccursor_next_word(text, CCursor::new(11)).index, 11);
+        assert_eq!(ccursor_next_word(text, CCursor::new(0)).index.0, 3);
+        assert_eq!(ccursor_next_word(text, CCursor::new(3)).index.0, 7);
+        assert_eq!(ccursor_next_word(text, CCursor::new(7)).index.0, 11);
+        assert_eq!(ccursor_next_word(text, CCursor::new(11)).index.0, 11);
+    }
+
+    #[test]
+    fn test_index_conversion_roundtrip() {
+        // "é" is 2 bytes, "👍" is 4 bytes.
+        let text = "aé👍b";
+        let char_count = text.chars().count(); // 4
+        assert_eq!(char_count, 4);
+
+        // char -> byte, including the end index
+        assert_eq!(byte_index_from_char_index(text, CharIndex(0)).0, 0);
+        assert_eq!(byte_index_from_char_index(text, CharIndex(1)).0, 1);
+        assert_eq!(byte_index_from_char_index(text, CharIndex(2)).0, 3);
+        assert_eq!(byte_index_from_char_index(text, CharIndex(3)).0, 7);
+        assert_eq!(byte_index_from_char_index(text, CharIndex(4)).0, 8);
+        // Past the end clamps to the byte length:
+        assert_eq!(
+            byte_index_from_char_index(text, CharIndex(99)).0,
+            text.len()
+        );
+
+        // byte -> char, including the end index
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(0)).0, 0);
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(1)).0, 1);
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(3)).0, 2);
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(7)).0, 3);
+        // The end byte index must map to the character count, not to some byte offset:
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(text.len())).0, 4);
+        // Past the end clamps to the character count:
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(99)).0, 4);
+
+        // Empty string:
+        assert_eq!(byte_index_from_char_index("", CharIndex(0)).0, 0);
+        assert_eq!(char_index_from_byte_index("", ByteIndex(0)).0, 0);
     }
 
     #[test]
@@ -380,16 +419,16 @@ mod test {
             range.primary.index.min(range.secondary.index),
             range.primary.index.max(range.secondary.index),
         );
-        assert_eq!(lo, 0);
-        assert_eq!(hi, 5);
+        assert_eq!(lo.0, 0);
+        assert_eq!(hi.0, 5);
 
         let range = select_word_at(text, CCursor::new(8));
         let (lo, hi) = (
             range.primary.index.min(range.secondary.index),
             range.primary.index.max(range.secondary.index),
         );
-        assert_eq!(lo, 6);
-        assert_eq!(hi, 11);
+        assert_eq!(lo.0, 6);
+        assert_eq!(hi.0, 11);
     }
 
     #[test]
@@ -401,10 +440,10 @@ mod test {
         let start = std::time::Instant::now();
 
         let next = ccursor_next_word(&large_text, CCursor::new(len - 10));
-        assert!(next.index <= len);
+        assert!(next.index.0 <= len);
 
         let prev = ccursor_previous_word(&large_text, CCursor::new(len - 10));
-        assert!(prev.index < len);
+        assert!(prev.index.0 < len);
 
         let range = select_word_at(&large_text, CCursor::new(len - 3));
         let lo = range.primary.index.min(range.secondary.index);
@@ -459,9 +498,9 @@ mod tests {
         for (text, cursor, expected) in cases {
             let result = ccursor_previous_word(text, CCursor::new(cursor));
             assert_eq!(
-                result.index, expected,
+                result.index.0, expected,
                 "text={text:?}, cursor={cursor}, got={}, expected={expected}",
-                result.index
+                result.index.0
             );
         }
     }

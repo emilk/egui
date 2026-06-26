@@ -10,11 +10,11 @@ use std::{
 use crate::{
     TextureAtlas,
     text::{
-        Galley, LayoutJob, LayoutSection, TextOptions, VariationCoords,
+        ByteIndex, Galley, LayoutJob, LayoutSection, Tag, TextOptions, VariationCoords,
         font::{Font, FontFace},
     },
 };
-use emath::{NumExt as _, OrderedFloat};
+use emath::{NumExt as _, OrderedFloat, Rangef};
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
@@ -147,6 +147,57 @@ impl FontData {
     pub fn tweak(self, tweak: FontTweak) -> Self {
         Self { tweak, ..self }
     }
+
+    /// The variation axes of this font, e.g. `wght` (weight) and `wdth` (width).
+    ///
+    /// Use this to discover which axes a variable font supports, and their valid
+    /// ranges, so a UI can offer the right knobs instead of making the user guess
+    /// tags and values for [`FontTweak::coords`].
+    ///
+    /// Returns an empty list for non-variable (static) fonts, or if the font data
+    /// fails to parse.
+    pub fn variation_axes(&self) -> Vec<FontVariationAxis> {
+        use skrifa::MetadataProvider as _;
+
+        let Ok(font) = skrifa::FontRef::from_index(self.font.as_ref(), self.index) else {
+            return Vec::new();
+        };
+
+        font.axes()
+            .iter()
+            .map(|axis| FontVariationAxis {
+                tag: axis.tag(),
+                name: font
+                    .localized_strings(axis.name_id())
+                    .english_or_first()
+                    .map(|name| name.chars().collect()),
+                range: Rangef::new(axis.min_value(), axis.max_value()),
+                default: axis.default_value(),
+                hidden: axis.is_hidden(),
+            })
+            .collect()
+    }
+}
+
+/// A single variation axis of a variable font, e.g. weight (`wght`) or width (`wdth`).
+///
+/// Obtained via [`FontData::variation_axes`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct FontVariationAxis {
+    /// The axis tag, e.g. `wght` or `wdth`.
+    pub tag: Tag,
+
+    /// Human-readable axis name, if the font provides one (e.g. "Weight").
+    pub name: Option<String>,
+
+    /// Valid range of values for this axis, `min..=max`.
+    pub range: Rangef,
+
+    /// The value used when the axis is not overridden.
+    pub default: f32,
+
+    /// Whether the font recommends hiding this axis from user interfaces.
+    pub hidden: bool,
 }
 
 impl AsRef<[u8]> for FontData {
@@ -191,12 +242,17 @@ pub struct FontTweak {
     /// `None` means use the global setting in [`TextOptions::font_hinting`].
     pub hinting: Option<bool>,
 
+    /// How to grid-fit the glyph outlines when hinting is enabled.
+    ///
+    /// Has no effect when hinting is disabled (see [`Self::hinting`]).
+    pub hinting_target: HintingTarget,
+
     /// Override the global sub-pixel binning setting for this specific font.
     ///
     /// `None` means use the global setting in [`TextOptions::subpixel_binning`].
     pub subpixel_binning: Option<bool>,
 
-    /// Override the font's default variation coordinates.
+    /// Override the font's default variation coordinates for its axes ("wght", etc.).
     pub coords: VariationCoords,
 
     /// Width of a thin space (`\u{2009}`) and narrow no-break space (`\u{202F}`),
@@ -220,10 +276,116 @@ impl Default for FontTweak {
             y_offset_factor: 0.0,
             y_offset: 0.0,
             hinting: None,
+            hinting_target: HintingTarget::default(),
             subpixel_binning: None,
             coords: VariationCoords::default(),
             thin_space_width: 0.5,
             tab_size: 4.0,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// How to *hint* glyph outlines, i.e. how aggressively to nudge them onto the
+/// pixel grid before rasterizing. Mirrors [`skrifa::outline::Target`].
+///
+/// Hinting trades shape fidelity for sharpness: snapping stems to whole pixels
+/// makes text crisp at small sizes / low dpi, at the cost of slightly distorting
+/// the designer's outlines. At high dpi it matters little.
+///
+/// This only has an effect if the font is actually hinted — either it ships
+/// TrueType instructions, or it was auto-hinted (see [`FontTweak::hinting`]).
+///
+/// Used by [`FontTweak::hinting_target`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum HintingTarget {
+    /// Strongest hinting, designed for aliased 1-bit (black & white) rendering.
+    ///
+    /// Snaps stems hard to the pixel grid for maximum sharpness. egui always
+    /// renders anti-aliased, so in practice this looks much like [`Self::Smooth`]
+    /// here; it mostly exists for completeness. Maps to `skrifa`'s `Target::Mono`.
+    Mono,
+
+    /// Hinting tuned for anti-aliased rendering. This is what you normally want,
+    /// and what egui uses by default. Maps to `skrifa`'s `Target::Smooth`.
+    Smooth(SmoothHinting),
+}
+
+impl Default for HintingTarget {
+    fn default() -> Self {
+        Self::Smooth(SmoothHinting::default())
+    }
+}
+
+impl From<HintingTarget> for skrifa::outline::Target {
+    fn from(hinting_target: HintingTarget) -> Self {
+        use skrifa::outline::SmoothMode;
+        match hinting_target {
+            HintingTarget::Mono => Self::Mono,
+            HintingTarget::Smooth(SmoothHinting {
+                light,
+                symmetric_rendering,
+                preserve_linear_metrics,
+            }) => Self::Smooth {
+                mode: if light {
+                    SmoothMode::Light
+                } else {
+                    SmoothMode::Normal
+                },
+                symmetric_rendering,
+                preserve_linear_metrics,
+            },
+        }
+    }
+}
+
+/// Tuning for [`HintingTarget::Smooth`], mirroring `skrifa`'s `Target::Smooth`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct SmoothHinting {
+    /// Hint only lightly: snap stems vertically but leave horizontal shapes
+    /// alone (`FreeType`'s "light" mode). Preserves the font's proportions
+    /// better, at the cost of a little horizontal sharpness.
+    ///
+    /// `false` uses the "normal" mode, which also fits horizontally.
+    /// Maps to `SmoothMode::Light` (`true`) vs `SmoothMode::Normal` (`false`).
+    pub light: bool,
+
+    /// Render a glyph the same way regardless of its sub-pixel position.
+    ///
+    /// `true` makes glyphs position-independent (better for caching and
+    /// animation), but a font's instructions may then widen stems and look
+    /// slightly blurrier under an analytic rasterizer like egui's.
+    ///
+    /// **Only affects fonts hinted via the TrueType interpreter** (i.e. fonts
+    /// that ship their own instructions). It has no effect on the auto-hinter.
+    /// Mirrors `Target::Smooth { symmetric_rendering }`.
+    pub symmetric_rendering: bool,
+
+    /// Keep advance widths independent of hinting (don't grid-fit horizontally
+    /// in a way that changes spacing).
+    ///
+    /// `true` keeps inter-glyph spacing identical to the unhinted font, so
+    /// layout never depends on hinting — but it also prevents horizontal
+    /// grid-fitting, leaving vertical stems softer on low-dpi screens.
+    ///
+    /// `false` lets the (auto)hinter snap horizontally for crisper stems.
+    /// egui positions glyphs from the shaper's advances, not the hinted
+    /// outline, so this mainly affects sharpness here, not layout.
+    /// Mirrors `Target::Smooth { preserve_linear_metrics }`.
+    pub preserve_linear_metrics: bool,
+}
+
+impl Default for SmoothHinting {
+    fn default() -> Self {
+        // Matches the behavior egui had before the hinting target was configurable.
+        // Note this means horizontal grid-fitting is opt-in (see `preserve_linear_metrics`).
+        Self {
+            light: false,
+            symmetric_rendering: true,
+            preserve_linear_metrics: true,
         }
     }
 }
@@ -1070,10 +1232,10 @@ impl GalleyCache {
                 // `start` and `end` are the byte range of the current paragraph.
                 // How does the current section overlap with the paragraph range?
 
-                if section_range.end <= start {
+                if section_range.end <= ByteIndex(start) {
                     // The section is behind us
                     current_section += 1;
-                } else if end < section_range.start {
+                } else if ByteIndex(end) < section_range.start {
                     break; // Haven't reached this one yet.
                 } else {
                     // Section range overlaps with paragraph range
@@ -1082,13 +1244,13 @@ impl GalleyCache {
                         "Bad byte_range: {section_range:?}"
                     );
                     let new_range = section_range.start.saturating_sub(start)
-                        ..(section_range.end.at_most(end)).saturating_sub(start);
+                        ..(section_range.end.min(ByteIndex(end))).saturating_sub(start);
                     debug_assert!(
                         new_range.start <= new_range.end,
                         "Bad new section range: {new_range:?}"
                     );
                     paragraph_job.sections.push(LayoutSection {
-                        leading_space: if start <= section_range.start {
+                        leading_space: if ByteIndex(start) <= section_range.start {
                             *leading_space
                         } else {
                             0.0

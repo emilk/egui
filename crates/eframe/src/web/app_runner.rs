@@ -437,5 +437,9 @@ impl epi::Storage for LocalStorage {
         super::storage::local_storage_set(key, &value);
     }
 
+    fn remove_string(&mut self, key: &str) {
+        super::storage::local_storage_remove(key);
+    }
+
     fn flush(&mut self) {}
 }

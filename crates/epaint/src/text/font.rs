@@ -225,6 +225,7 @@ impl FontCell {
         glyph_id: GlyphId,
         bin: SubpixelBin,
         location: skrifa::instance::LocationRef<'_>,
+        hinting_target: skrifa::outline::Target,
     ) -> Option<GlyphAllocation> {
         debug_assert!(
             glyph_id != skrifa::GlyphId::NOTDEF,
@@ -244,18 +245,10 @@ impl FontCell {
                 let size = skrifa::instance::Size::new(metrics.scale);
                 if hinting_instance.size() != size
                     || hinting_instance.location().coords() != location.coords()
+                    || hinting_instance.target() != hinting_target
                 {
                     hinting_instance
-                        .reconfigure(
-                            &font_data.outline_glyphs,
-                            size,
-                            location,
-                            skrifa::outline::Target::Smooth {
-                                mode: skrifa::outline::SmoothMode::Normal,
-                                symmetric_rendering: true,
-                                preserve_linear_metrics: true,
-                            },
-                        )
+                        .reconfigure(&font_data.outline_glyphs, size, location, hinting_target)
                         .ok()?;
                 }
                 let draw_settings = skrifa::outline::DrawSettings::hinted(hinting_instance, false);
@@ -637,9 +630,17 @@ impl FontFace {
 
         let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
 
+        let hinting_target = self.tweak.hinting_target.into();
         let alloc = *self.glyph_alloc_cache.entry(cache_key).or_insert_with(|| {
             self.font
-                .allocate_glyph_uncached(atlas, metrics, glyph_id, bin, (&metrics.location).into())
+                .allocate_glyph_uncached(
+                    atlas,
+                    metrics,
+                    glyph_id,
+                    bin,
+                    (&metrics.location).into(),
+                    hinting_target,
+                )
                 .unwrap_or_default()
         });
 
