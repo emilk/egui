@@ -380,5 +380,7 @@ fn is_mobile_safari() -> bool {
 }
 
 fn longest_common_prefix_length(a: &str, b: &str) -> usize {
-    a.chars().zip(b.chars()).take_while(|(a, b)| a == b).count()
+    std::iter::zip(a.chars(), b.chars())
+        .take_while(|(a, b)| a == b)
+        .count()
 }
