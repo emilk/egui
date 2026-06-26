@@ -54,9 +54,16 @@ impl InputState {
             runner.input.raw.events.push(out_event);
         }
 
-        let preedit_text = text.chars().skip(prefix_len).collect();
+        let preedit_text: String = text.chars().skip(prefix_len).collect();
         let out_event = if event.is_composing() {
-            egui::Event::Ime(egui::ImeEvent::Preedit(preedit_text))
+            // We handle the composition update here instead of in a
+            // `compositionupdate` event because the selection range
+            // has not yet been updated when `compositionupdate` fires.
+            let active_range_chars = self.active_range_chars(&text, prefix_len);
+            egui::Event::Ime(egui::ImeEvent::Preedit {
+                text: preedit_text,
+                active_range_chars,
+            })
         } else {
             egui::Event::Text(preedit_text)
         };
@@ -69,6 +76,39 @@ impl InputState {
         }
 
         runner.needs_repaint.repaint_asap();
+    }
+
+    /// Compute the active range (cursor or conversion segment) within the
+    /// preedit text, based on the selection in the input element.
+    ///
+    /// `text` is the full `input.value()`, and `prefix_len_chars` is the
+    /// number of chars at the start of `text` that are committed (not part
+    /// of the preedit). `selectionStart`/`selectionEnd` are UTF-16 offsets
+    /// within the full `input.value()`, so they are adjusted to be relative
+    /// to the preedit text.
+    fn active_range_chars(
+        &self,
+        text: &str,
+        prefix_len_chars: usize,
+    ) -> Option<std::ops::Range<usize>> {
+        let selection_start = self.input.selection_start().unwrap_or(None)? as usize;
+        let selection_end = self.input.selection_end().unwrap_or(None)? as usize;
+
+        let text_utf16 = text.encode_utf16().collect::<Vec<u16>>();
+        if selection_start > text_utf16.len() || selection_end > text_utf16.len() {
+            return None;
+        }
+
+        let text_before_selection = String::from_utf16_lossy(&text_utf16[..selection_start]);
+        let text_in_selection =
+            String::from_utf16_lossy(&text_utf16[selection_start..selection_end]);
+        let count_before_selection = text_before_selection.chars().count();
+        let count_in_selection = text_in_selection.chars().count();
+
+        // Adjust for the committed prefix to get the range within the preedit text.
+        let start = count_before_selection.saturating_sub(prefix_len_chars);
+        let end = start + count_in_selection;
+        Some(start..end)
     }
 
     fn handle_composition_end_event(&mut self, runner: &mut AppRunner) {
