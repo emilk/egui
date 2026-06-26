@@ -5,6 +5,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.35.0 - 2026-06-25
+* Improve FileLoader file uri to path handling for windows [#8163](https://github.com/emilk/egui/pull/8163) by [@aconbere](https://github.com/aconbere)
+* Add arbitrary request headers to `EhttpLoader` [#8121](https://github.com/emilk/egui/pull/8121) by [@frnsys](https://github.com/frnsys)
+* `Column::remainder().clip(true)` now shrinks when available width decreases [#8048](https://github.com/emilk/egui/pull/8048) by [@germ4n](https://github.com/germ4n)
+* Respect `image`'s orientation [#8240](https://github.com/emilk/egui/pull/8240) by [@mattfbacon](https://github.com/mattfbacon)
+* Remove 64 bit atomics in egui_extras [#8263](https://github.com/emilk/egui/pull/8263) by [@kay-lambdadelta](https://github.com/kay-lambdadelta)
+
+
 ## 0.34.3 - 2026-05-27
 Nothing new
 
