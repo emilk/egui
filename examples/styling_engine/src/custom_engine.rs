@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use eframe::egui::{
-    Color32, Context,
+    Color32, Ui,
     theme_plugin::{ThemeCache, ThemeStyle},
     widget_style::{BaseStyle, ButtonStyle, Classes, HasClasses as _, WidgetState},
 };
