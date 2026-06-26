@@ -1,4 +1,4 @@
-use epaint::{Color32, Pos2, Rect, Shape, Stroke, emath::lerp, vec2};
+use epaint::{emath::lerp, vec2, Color32, Pos2, Rect, Shape, Stroke};
 
 use crate::{Response, Sense, Ui, Widget, WidgetInfo, WidgetType};
 
@@ -11,8 +11,8 @@ pub struct Spinner {
     /// Uses the style's `interact_size` if `None`.
     size: Option<f32>,
     color: Option<Color32>,
+    speed: Option<f64>,
 }
-
 impl Spinner {
     /// Create a new spinner that uses the style's `interact_size` unless changed.
     pub fn new() -> Self {
@@ -33,9 +33,28 @@ impl Spinner {
         self.color = Some(color.into());
         self
     }
+    /// Sets the spinner's rotation speed and direction.
+    ///
+    /// A `speed` of `1.0` corresponds to one full rotation per second clockwise.
+    /// A negative value, such as `-1.0`, indicates a counter-clockwise rotation
+    /// at the same speed. A `speed` of `0.0` will halt the spinner.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Sets a clockwise rotation at two rotations per second.
+    /// let clockwise = Spinner::new().speed(2.0);
+    ///
+    /// // Sets a counter-clockwise rotation at one rotation per second.
+    /// let counter_clockwise = Spinner::new().speed(-1.0);
+    /// ```
+    pub fn speed(mut self, speed: f64) -> Self {
+        self.speed = Some(speed);
+        self
+    }
 
     /// Paint the spinner in the given rectangle.
-    pub fn paint_at(&self, ui: &Ui, rect: Rect) {
+    pub fn paint_at(&self, ui: &Ui, rect: Rect, speed: f64) {
         if ui.is_rect_visible(rect) {
             ui.request_repaint(); // because it is animated
 
@@ -45,7 +64,7 @@ impl Spinner {
             let radius = (rect.height().min(rect.width()) / 2.0) - 2.0;
             let n_points = (radius.round() as u32).clamp(8, 128);
             let time = ui.input(|i| i.time);
-            let start_angle = time * std::f64::consts::TAU;
+            let start_angle = time * speed * std::f64::consts::TAU;
             let end_angle = start_angle + 240f64.to_radians() * time.sin();
             let points: Vec<Pos2> = (0..n_points)
                 .map(|i| {
@@ -66,9 +85,9 @@ impl Widget for Spinner {
             .size
             .unwrap_or_else(|| ui.style().spacing.interact_size.y);
         let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
+        let speed = self.speed.unwrap_or(1.0);
         response.widget_info(|| WidgetInfo::new(WidgetType::ProgressIndicator));
-        self.paint_at(ui, rect);
-
+        self.paint_at(ui, rect, speed);
         response
     }
 }
