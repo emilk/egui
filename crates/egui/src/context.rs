@@ -2056,7 +2056,7 @@ impl Context {
     }
 
     /// Compute the [`WidgetStyle`] using the registered theme.
-    pub(crate) fn get_widget_style<S: WidgetStyle + Clone + 'static>(
+    pub fn get_widget_style<S: WidgetStyle + Clone + 'static>(
         &self,
         classes: &Classes,
         state: WidgetState,

@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use eframe::egui::{
     Color32,
     theme_plugin::{ThemeCache, ThemeStyle, Themes},
-    widget_style::{
-        BaseStyle, ButtonStyle, Classes, HasClasses as _, WidgetState, WidgetStyle as _,
-    },
+    widget_style::{BaseStyle, ButtonStyle, Classes, HasClasses as _, WidgetState},
 };
 use logos::Logos;
 
@@ -81,18 +79,16 @@ impl ESSEngine {
 /// This implementation basically do nothing. This is only the minimum requirement with caching.
 impl ThemeStyle<BaseStyle> for ESSEngine {
     fn style(&mut self, themes: &Themes, classes: &Classes, state: WidgetState) -> BaseStyle {
-        let current = themes.get::<BaseStyle>(classes, state);
-        self.cache
-            .get(classes, state, || BaseStyle::default_style(classes, state))
+        themes.get::<BaseStyle>(classes, state)
     }
 }
 
 impl ThemeStyle<ButtonStyle> for ESSEngine {
     fn style(&mut self, themes: &Themes, classes: &Classes, state: WidgetState) -> ButtonStyle {
         self.cache.get(classes, state, || {
-            let mut default = ButtonStyle::default_style(classes, state);
-            for classe in classes.list() {
-                if let Some(properties) = self.info.get(&classe.to_string()) {
+            let mut default = themes.get::<ButtonStyle>(classes, state);
+            for class in classes.list() {
+                if let Some(properties) = self.info.get(&class.to_string()) {
                     for (property, value) in properties {
                         match property.as_str() {
                             "fill" => {
