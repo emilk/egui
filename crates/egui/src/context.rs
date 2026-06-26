@@ -2061,7 +2061,7 @@ impl Context {
         classes: &Classes,
         state: WidgetState,
     ) -> S {
-        self.write(move |ctx| ctx.themes.get::<S>(classes, state))
+        self.read(move |ctx| ctx.themes.get::<S>(self, classes, state))
     }
 }
 
