@@ -228,12 +228,27 @@ impl Default for Themes {
             Arc::new(Mutex::new(Box::new(DefaultStyle))),
         );
 
+        themes.insert_temp::<ThemeWrap<SeparatorStyle>>(
+            Id::NULL,
+            Arc::new(Mutex::new(Box::new(DefaultStyle))),
+        );
+
+        themes.insert_temp::<ThemeWrap<CheckboxStyle>>(
+            Id::NULL,
+            Arc::new(Mutex::new(Box::new(DefaultStyle))),
+        );
+
+        themes.insert_temp::<ThemeWrap<LabelStyle>>(
+            Id::NULL,
+            Arc::new(Mutex::new(Box::new(DefaultStyle))),
+        );
+
         Self { themes }
     }
 }
 
 impl Themes {
-    /// Register a [`ThemeStyle`](crate::theme_plugin::ThemeStyle) for the specified widget [`WidgetStyle`](WidgetStyle) `S`
+    /// Register a [`ThemeStyle`] for the specified widget [`WidgetStyle`] `S`
     ///
     /// Existing themes are overwritten if `force` is `true` or the new theme differs.
     pub(crate) fn register<S: WidgetStyle + 'static>(

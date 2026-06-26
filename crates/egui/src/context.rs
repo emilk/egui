@@ -2046,7 +2046,7 @@ impl Context {
 
     /// Register a [`ThemeStyle`](crate::theme_plugin::ThemeStyle) for the specified widget.
     ///
-    /// Overwrite any theme already registered for the specified widget [`WidgetStyle`](WidgetStyle).
+    /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
     /// This allow to live edit a theme.
     pub fn replace_widget_theme<S: WidgetStyle + 'static>(
         &self,
