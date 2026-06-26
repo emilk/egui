@@ -4,7 +4,7 @@ use emath::Vec2;
 use epaint::{Shadow, Stroke, mutex::Mutex, text::TextWrapMode};
 
 use crate::{
-    Frame, Id, TextStyle, Ui,
+    Context, Frame, Id, TextStyle, Ui,
     util::IdTypeMap,
     widget_style::{
         BaseStyle, ButtonStyle, CheckboxStyle, Classes, HasClasses as _, LabelStyle,
@@ -44,7 +44,7 @@ impl ThemeCache {
 /// A Theme plugin that implement a style computation for a defined `WidgetStyle`
 pub trait ThemeStyle<S> {
     /// The style according to the classes and state of the widget
-    fn style(&mut self, ui: &Ui, classes: &Classes, state: WidgetState) -> S;
+    fn style(&mut self, ctx: &Context, classes: &Classes, state: WidgetState) -> S;
 
     /// Help to differ the different themes
     fn theme_type_id(&self) -> TypeId
@@ -59,9 +59,9 @@ pub trait ThemeStyle<S> {
 struct DefaultStyle;
 
 impl ThemeStyle<BaseStyle> for DefaultStyle {
-    fn style(&mut self, ui: &Ui, _classes: &Classes, state: WidgetState) -> BaseStyle {
-        let style = ui.style();
-        let spacing = ui.spacing();
+    fn style(&mut self, ctx: &Context, _classes: &Classes, state: WidgetState) -> BaseStyle {
+        let style = ctx.global_style();
+        let spacing = &style.spacing;
         let widget_visuals = match state {
             WidgetState::Noninteractive => style.visuals.widgets.noninteractive,
             WidgetState::Inactive => style.visuals.widgets.inactive,
@@ -83,7 +83,7 @@ impl ThemeStyle<BaseStyle> for DefaultStyle {
                 font_id: style
                     .override_font_id
                     .clone()
-                    .unwrap_or_else(|| TextStyle::Body.resolve(style)),
+                    .unwrap_or_else(|| TextStyle::Body.resolve(&style)),
                 strikethrough: Stroke::NONE,
                 underline: Stroke::NONE,
             },
@@ -92,9 +92,9 @@ impl ThemeStyle<BaseStyle> for DefaultStyle {
 }
 
 impl ThemeStyle<ButtonStyle> for DefaultStyle {
-    fn style(&mut self, ui: &Ui, classes: &Classes, state: WidgetState) -> ButtonStyle {
-        let style = ui.style();
-        let spacing = ui.spacing();
+    fn style(&mut self, ctx: &Context, classes: &Classes, state: WidgetState) -> ButtonStyle {
+        let style = ctx.global_style();
+        let spacing = &style.spacing;
         let mut widget_visuals = match state {
             WidgetState::Noninteractive => style.visuals.widgets.noninteractive,
             WidgetState::Inactive => style.visuals.widgets.inactive,
@@ -102,10 +102,10 @@ impl ThemeStyle<ButtonStyle> for DefaultStyle {
             WidgetState::Active => style.visuals.widgets.active,
         };
 
-        let mut ws: BaseStyle = ui.get_widget_style(classes, state);
+        let mut ws: BaseStyle = ctx.get_widget_style(classes, state);
 
         if classes.has(SELECTED_CLASS) {
-            let visuals = ui.visuals();
+            let visuals = &style.visuals;
             widget_visuals.weak_bg_fill = visuals.selection.bg_fill;
             widget_visuals.bg_fill = visuals.selection.bg_fill;
             widget_visuals.fg_stroke = visuals.selection.stroke;
@@ -129,9 +129,9 @@ impl ThemeStyle<ButtonStyle> for DefaultStyle {
 }
 
 impl ThemeStyle<CheckboxStyle> for DefaultStyle {
-    fn style(&mut self, ui: &Ui, classes: &Classes, state: WidgetState) -> CheckboxStyle {
-        let style = ui.style();
-        let spacing = ui.spacing();
+    fn style(&mut self, ctx: &Context, classes: &Classes, state: WidgetState) -> CheckboxStyle {
+        let style = ctx.global_style();
+        let spacing = &style.spacing;
         let widget_visuals = match state {
             WidgetState::Noninteractive => style.visuals.widgets.noninteractive,
             WidgetState::Inactive => style.visuals.widgets.inactive,
@@ -139,7 +139,7 @@ impl ThemeStyle<CheckboxStyle> for DefaultStyle {
             WidgetState::Active => style.visuals.widgets.active,
         };
 
-        let ws: BaseStyle = ui.get_widget_style(classes, state);
+        let ws: BaseStyle = ctx.get_widget_style(classes, state);
 
         CheckboxStyle {
             frame: Frame::new(),
@@ -158,8 +158,8 @@ impl ThemeStyle<CheckboxStyle> for DefaultStyle {
 }
 
 impl ThemeStyle<LabelStyle> for DefaultStyle {
-    fn style(&mut self, ui: &Ui, classes: &Classes, state: WidgetState) -> LabelStyle {
-        let ws: BaseStyle = ui.get_widget_style(classes, state);
+    fn style(&mut self, ctx: &Context, classes: &Classes, state: WidgetState) -> LabelStyle {
+        let ws: BaseStyle = ctx.get_widget_style(classes, state);
 
         LabelStyle {
             frame: Frame {
@@ -177,8 +177,8 @@ impl ThemeStyle<LabelStyle> for DefaultStyle {
 }
 
 impl ThemeStyle<SeparatorStyle> for DefaultStyle {
-    fn style(&mut self, ui: &Ui, classes: &Classes, state: WidgetState) -> SeparatorStyle {
-        let ws: BaseStyle = ui.get_widget_style(classes, state);
+    fn style(&mut self, ctx: &Context, classes: &Classes, state: WidgetState) -> SeparatorStyle {
+        let ws: BaseStyle = ctx.get_widget_style(classes, state);
 
         SeparatorStyle {
             spacing: 6.0,
@@ -203,15 +203,6 @@ impl Ui {
             .unwrap_or_default();
 
         self.get_widget_style::<S>(classes, state)
-    }
-
-    /// Compute the [`WidgetStyle`] using the registered theme.
-    pub fn get_widget_style<S: WidgetStyle + Clone + 'static>(
-        &self,
-        classes: &Classes,
-        state: WidgetState,
-    ) -> S {
-        self.ctx().get_widget_style(self, classes, state)
     }
 }
 
@@ -283,7 +274,7 @@ impl Themes {
     /// Fetch the style of the current theme
     pub fn get<S: WidgetStyle + 'static>(
         &self,
-        ui: &Ui,
+        ctx: &Context,
         classes: &Classes,
         state: WidgetState,
     ) -> S {
@@ -293,6 +284,6 @@ impl Themes {
 
         v.unwrap_or_else(|| panic!("A style should be set for {:?}", std::any::type_name::<S>()))
             .lock()
-            .style(ui, classes, state)
+            .style(ctx, classes, state)
     }
 }

@@ -78,15 +78,15 @@ impl ESSEngine {
 
 /// This implementation basically do nothing. This is only the minimum requirement with caching.
 impl ThemeStyle<BaseStyle> for ESSEngine {
-    fn style(&mut self, ui: &Ui, classes: &Classes, state: WidgetState) -> BaseStyle {
-        ui.get_widget_style::<BaseStyle>(classes, state)
+    fn style(&mut self, ctx: &Context, classes: &Classes, state: WidgetState) -> BaseStyle {
+        ctx.get_widget_style::<BaseStyle>(classes, state)
     }
 }
 
 impl ThemeStyle<ButtonStyle> for ESSEngine {
-    fn style(&mut self, ui: &Ui, classes: &Classes, state: WidgetState) -> ButtonStyle {
+    fn style(&mut self, ctx: &Context, classes: &Classes, state: WidgetState) -> ButtonStyle {
         self.cache.get(classes, state, || {
-            let mut default = ui.get_widget_style::<ButtonStyle>(classes, state);
+            let mut default = ctx.get_widget_style::<ButtonStyle>(classes, state);
             for class in classes.list() {
                 if let Some(properties) = self.info.get(&class.to_string()) {
                     for (property, value) in properties {
