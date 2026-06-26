@@ -352,6 +352,21 @@ impl Painter {
         clear(&self.gl, screen_size_in_pixels, clear_color);
     }
 
+    /// Applies texture updates without painting a frame.
+    ///
+    /// This is used when egui ran a pass for a viewport that should not currently be painted, for
+    /// example while the native window is occluded. Texture deltas are global to the shared egui
+    /// context, so dropping them would desynchronize the renderer's texture state from egui's
+    /// texture manager.
+    pub fn update_textures(&mut self, textures_delta: &egui::TexturesDelta) {
+        for (id, image_delta) in &textures_delta.set {
+            self.set_texture(*id, image_delta);
+        }
+        for &id in &textures_delta.free {
+            self.free_texture(id);
+        }
+    }
+
     /// You are expected to have cleared the color buffer before calling this.
     pub fn paint_and_update_textures(
         &mut self,

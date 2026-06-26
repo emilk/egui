@@ -312,6 +312,26 @@ impl Painter {
             .map(|rs| rs.device.limits().max_texture_dimension_2d as usize)
     }
 
+    /// Applies texture updates without painting a surface frame.
+    ///
+    /// This is used when egui ran a pass for a viewport that should not currently be painted, for
+    /// example while the native window is occluded. Texture deltas are global to the shared egui
+    /// context, so dropping them would desynchronize the renderer's texture state from egui's
+    /// texture manager.
+    pub fn update_textures(&mut self, textures_delta: &epaint::textures::TexturesDelta) {
+        let Some(render_state) = self.render_state.as_mut() else {
+            return;
+        };
+
+        let mut renderer = render_state.renderer.write();
+        for (id, image_delta) in &textures_delta.set {
+            renderer.update_texture(&render_state.device, &render_state.queue, *id, image_delta);
+        }
+        for id in &textures_delta.free {
+            renderer.free_texture(id);
+        }
+    }
+
     fn resize_and_generate_depth_texture_view_and_msaa_view(
         &mut self,
         viewport_id: ViewportId,
