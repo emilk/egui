@@ -837,7 +837,18 @@ impl GlowWinitRunning<'_> {
                     *focused
                 };
 
-                glutin.focused_viewport = focused.then_some(viewport_id).flatten();
+                if let Some(viewport_id) = viewport_id {
+                    if focused {
+                        glutin.focused_viewport = Some(viewport_id);
+                    } else if glutin.focused_viewport == Some(viewport_id) {
+                        // Only clear the focused viewport if the viewport losing focus is
+                        // the one we currently believe to be focused. This avoids stale
+                        // Focused(false) events from other windows clearing a valid focus.
+                        glutin.focused_viewport = None;
+                    }
+                }
+
+                repaint_asap = true;
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
@@ -858,6 +869,10 @@ impl GlowWinitRunning<'_> {
                     && let Some(viewport) = glutin.viewports.get_mut(&viewport_id)
                 {
                     viewport.info.occluded = Some(*is_occluded);
+                }
+
+                if !*is_occluded {
+                    repaint_asap = true;
                 }
             }
 
