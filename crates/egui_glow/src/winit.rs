@@ -75,6 +75,7 @@ impl EguiGlow {
             shapes,
             pixels_per_point,
             viewport_output,
+            viewport_output_completeness: _,
         } = self.egui_ctx.run_ui(raw_input, run_ui);
 
         if viewport_output.len() > 1 {

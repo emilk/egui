@@ -1355,11 +1355,12 @@ pub fn update_viewport_info(
     viewport_info.inner_rect = inner_rect;
     viewport_info.outer_rect = outer_rect;
 
+    viewport_info.maximized = Some(window.is_maximized());
+
     if is_init || !cfg!(target_os = "macos") {
-        // Asking for minimized/maximized state at runtime leads to a deadlock on Mac when running
+        // Asking for minimized state at runtime leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
-        viewport_info.maximized = Some(window.is_maximized());
         viewport_info.minimized = Some(window.is_minimized().unwrap_or(false));
     }
 

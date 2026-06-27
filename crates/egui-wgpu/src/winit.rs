@@ -11,12 +11,38 @@ use crate::{
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
+/// Native window resize state that affects surface presentation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NativeResizeState {
+    /// The window is not undergoing a native resize transition.
+    #[default]
+    Idle,
+
+    /// `AppKit` is animating entry into or exit from fullscreen.
+    FullscreenTransition,
+
+    /// `AppKit` is performing an interactive window resize.
+    LiveResize,
+}
+
+#[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
+impl NativeResizeState {
+    fn presents_with_transaction(self) -> bool {
+        self != Self::Idle
+    }
+
+    fn uses_latency_bump(self) -> bool {
+        self == Self::LiveResize
+    }
+}
+
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
-    resizing: bool,
+    has_presented: bool,
+    native_resize_state: NativeResizeState,
     needs_reconfigure: bool,
     needs_recreate: bool,
 }
@@ -107,7 +133,8 @@ impl Painter {
         // Transaction presentation can hold a drawable during AppKit live resize. Keep the
         // configured low-latency path normally, but use three Metal drawables while resizing.
         #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
-        let desired_maximum_frame_latency = if surface_state.resizing {
+        let desired_maximum_frame_latency = if surface_state.native_resize_state.uses_latency_bump()
+        {
             Some(desired_maximum_frame_latency.unwrap_or(2).max(2))
         } else {
             desired_maximum_frame_latency
@@ -159,7 +186,7 @@ impl Painter {
             viewport_id,
             old_state.width,
             old_state.height,
-            old_state.resizing,
+            old_state.native_resize_state,
         );
         Ok(())
     }
@@ -246,7 +273,13 @@ impl Painter {
                     .await?;
             self.render_state = Some(render_state);
         }
-        self.install_surface(surface, viewport_id, size.width, size.height, false);
+        self.install_surface(
+            surface,
+            viewport_id,
+            size.width,
+            size.height,
+            NativeResizeState::Idle,
+        );
         Ok(())
     }
 
@@ -260,7 +293,7 @@ impl Painter {
         viewport_id: ViewportId,
         width: u32,
         height: u32,
-        resizing: bool,
+        native_resize_state: NativeResizeState,
     ) {
         let alpha_mode = {
             // Panic: We use the same failure mode as `resize_and_generate_depth_texture_view_and_msaa_view`
@@ -293,8 +326,9 @@ impl Painter {
                 surface,
                 width,
                 height,
+                has_presented: false,
+                native_resize_state,
                 alpha_mode,
-                resizing,
                 needs_reconfigure: false,
                 needs_recreate: false,
             },
@@ -392,31 +426,37 @@ impl Painter {
         }
     }
 
-    /// Handles changes of the resizing state.
+    /// Handles changes of the native resize presentation state.
     ///
     /// Should be called prior to the first [`Painter::on_window_resized`] call and after the last in
     /// the chain. Used to apply platform-specific logic, e.g. OSX Metal window resize jitter fix.
-    pub fn on_window_resize_state_change(&mut self, viewport_id: ViewportId, resizing: bool) {
+    pub fn set_native_resize_state(
+        &mut self,
+        viewport_id: ViewportId,
+        native_resize_state: NativeResizeState,
+    ) {
         profiling::function_scope!();
 
         let Some(state) = self.surfaces.get_mut(&viewport_id) else {
             return;
         };
-        if state.resizing == resizing {
-            if resizing {
+        let previous = state.native_resize_state;
+        if previous == native_resize_state {
+            if native_resize_state != NativeResizeState::Idle {
                 log::debug!(
-                    "Painter::on_window_resize_state_change() redundant call while resizing"
+                    "Painter::set_native_resize_state() redundant call during native resize"
                 );
             } else {
-                log::debug!(
-                    "Painter::on_window_resize_state_change() redundant call after resizing"
-                );
+                log::debug!("Painter::set_native_resize_state() redundant idle call");
             }
             return;
         }
 
+        #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
+        let latency_bump_changed =
+            previous.uses_latency_bump() != native_resize_state.uses_latency_bump();
         // Set before reconfiguring so macOS live resize uses the temporary latency bump above.
-        state.resizing = resizing;
+        state.native_resize_state = native_resize_state;
 
         // Resizing is a bit tricky on macOS.
         // It requires enabling ["present_with_transaction"](https://developer.apple.com/documentation/quartzcore/cametallayer/presentswithtransaction)
@@ -436,9 +476,13 @@ impl Painter {
                     hal_surface
                         .render_layer()
                         .lock()
-                        .setPresentsWithTransaction(resizing);
+                        .setPresentsWithTransaction(
+                            native_resize_state.presents_with_transaction(),
+                        );
 
-                    Self::configure_surface(state, render_state, &self.config.surface);
+                    if latency_bump_changed {
+                        Self::configure_surface(state, render_state, &self.config.surface);
+                    }
                 }
             }
         }
@@ -625,6 +669,12 @@ impl Painter {
                     }
                     SurfaceErrorAction::SkipFrame => {}
                 }
+                // eframe initially hides native windows until this method returns. If the first
+                // surface acquisition fails, ensure showing that window is followed by another
+                // paint instead of leaving it permanently blank.
+                if !surface_state.has_presented {
+                    self.context.request_repaint_of(viewport_id);
+                }
                 return vsync_sec;
             }
         };
@@ -768,6 +818,7 @@ impl Painter {
             output_frame.present();
             vsync_sec += start.elapsed().as_secs_f32();
         }
+        surface_state.has_presented = true;
 
         vsync_sec
     }

@@ -665,9 +665,8 @@ impl GlowWinitRunning<'_> {
             shapes,
             pixels_per_point,
             viewport_output,
+            viewport_output_completeness,
         } = full_output;
-
-        glutin.remove_viewports_not_in(&viewport_output);
 
         let GlutinWindowContext {
             viewports,
@@ -777,7 +776,12 @@ impl GlowWinitRunning<'_> {
             painter.free_texture(*id);
         }
 
-        glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);
+        glutin.handle_viewport_output(
+            event_loop,
+            &integration.egui_ctx,
+            &viewport_output,
+            viewport_output_completeness,
+        );
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
 
@@ -1334,10 +1338,76 @@ impl GlutinWindowContext {
         self.gl_config.display().get_proc_address(addr)
     }
 
-    pub(crate) fn remove_viewports_not_in(
+    /// Moves the GL context away from any viewport that is about to be removed.
+    ///
+    /// Dropping a native window/surface while the GL context is still current to that surface can
+    /// crash on Windows. Before pruning stale child viewports, make the context current on a
+    /// surviving viewport, preferring the root viewport because it should stay alive for the app
+    /// lifetime. If no surviving surface exists, make the context not current.
+    fn make_removed_viewports_not_current(
         &mut self,
         viewport_output: &OrderedViewportIdMap<ViewportOutput>,
     ) {
+        let Self {
+            viewports,
+            current_gl_context,
+            not_current_gl_context,
+            ..
+        } = self;
+
+        let Some(current) = current_gl_context.as_ref() else {
+            return;
+        };
+
+        let removed_current_viewport = viewports.iter().any(|(id, viewport)| {
+            !viewport_output.contains_key(id)
+                && viewport
+                    .gl_surface
+                    .as_ref()
+                    .is_some_and(|gl_surface| gl_surface.is_current(current))
+        });
+
+        if !removed_current_viewport {
+            return;
+        }
+
+        let replacement_surface = viewports
+            .get(&ViewportId::ROOT)
+            .filter(|_| viewport_output.contains_key(&ViewportId::ROOT))
+            .and_then(|viewport| viewport.gl_surface.as_ref())
+            .or_else(|| {
+                viewports.iter().find_map(|(id, viewport)| {
+                    if viewport_output.contains_key(id) {
+                        viewport.gl_surface.as_ref()
+                    } else {
+                        None
+                    }
+                })
+            });
+
+        if let Some(replacement_surface) = replacement_surface {
+            change_gl_context(
+                current_gl_context,
+                not_current_gl_context,
+                replacement_surface,
+            );
+        } else if let Some(current) = current_gl_context.take() {
+            match current.make_not_current() {
+                Ok(not_current) => {
+                    *not_current_gl_context = Some(not_current);
+                }
+                Err(err) => {
+                    log::warn!(
+                        "Failed to make GL context not current before removing viewport: {err}"
+                    );
+                }
+            }
+        }
+    }
+
+    fn remove_viewports_not_in(&mut self, viewport_output: &OrderedViewportIdMap<ViewportOutput>) {
+        self.make_removed_viewports_not_current(viewport_output);
+
         // GC old viewports
         self.viewports
             .retain(|id, _| viewport_output.contains_key(id));
@@ -1352,6 +1422,7 @@ impl GlutinWindowContext {
         event_loop: &ActiveEventLoop,
         egui_ctx: &egui::Context,
         viewport_output: &OrderedViewportIdMap<ViewportOutput>,
+        viewport_output_completeness: egui::ViewportOutputCompleteness,
     ) {
         profiling::function_scope!();
 
@@ -1403,7 +1474,9 @@ impl GlutinWindowContext {
         // Create windows for any new viewports:
         self.initialize_all_windows(event_loop);
 
-        self.remove_viewports_not_in(viewport_output);
+        if viewport_output_completeness == egui::ViewportOutputCompleteness::Complete {
+            self.remove_viewports_not_in(viewport_output);
+        }
     }
 }
 
@@ -1449,7 +1522,11 @@ fn initialize_or_update_viewport(
 
             viewport.ids.parent = ids.parent;
             viewport.class = class;
-            viewport.viewport_ui_cb = viewport_ui_cb;
+            // Child viewport passes can report an existing deferred viewport without its
+            // root-owned callback. Keep the callback so direct repaints still run that viewport.
+            if let Some(viewport_ui_cb) = viewport_ui_cb {
+                viewport.viewport_ui_cb = Some(viewport_ui_cb);
+            }
 
             let (mut delta_commands, recreate) = viewport.builder.patch(builder);
 
@@ -1566,6 +1643,7 @@ fn render_immediate_viewport(
         shapes,
         pixels_per_point,
         viewport_output,
+        viewport_output_completeness,
     } = egui_ctx.run_ui(input, |ui| {
         viewport_ui_cb(ui);
     });
@@ -1634,7 +1712,12 @@ fn render_immediate_viewport(
     egui_winit.handle_platform_output(window, platform_output);
 
     event_loop_context::with_current_event_loop(|event_loop| {
-        glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);
+        glutin.handle_viewport_output(
+            event_loop,
+            egui_ctx,
+            &viewport_output,
+            viewport_output_completeness,
+        );
     });
 }
 

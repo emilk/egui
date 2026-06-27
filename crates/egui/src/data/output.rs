@@ -6,6 +6,17 @@ use epaint::text::CharIndex;
 
 use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
 
+/// Whether [`FullOutput::viewport_output`] is a complete snapshot of active viewports.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ViewportOutputCompleteness {
+    /// Missing entries must be preserved by the integration.
+    #[default]
+    Partial,
+
+    /// Missing entries represent viewports that should be removed.
+    Complete,
+}
+
 /// What egui emits each frame from [`crate::Context::run_ui`].
 ///
 /// The backend should use this.
@@ -32,11 +43,11 @@ pub struct FullOutput {
     /// You can pass this to [`crate::Context::tessellate`] together with [`Self::shapes`].
     pub pixels_per_point: f32,
 
-    /// All the active viewports, including the root.
-    ///
-    /// It is up to the integration to spawn a native window for each viewport,
-    /// and to close any window that no longer has a viewport in this map.
+    /// Viewports reported by this pass.
     pub viewport_output: OrderedViewportIdMap<ViewportOutput>,
+
+    /// Whether absence from [`Self::viewport_output`] means that a viewport was closed.
+    pub viewport_output_completeness: ViewportOutputCompleteness,
 }
 
 impl FullOutput {
@@ -50,12 +61,19 @@ impl FullOutput {
             shapes,
             pixels_per_point,
             viewport_output,
+            viewport_output_completeness,
         } = newer;
 
         self.platform_output.append(platform_output);
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
         self.pixels_per_point = pixels_per_point; // Use latest
+
+        if viewport_output_completeness == ViewportOutputCompleteness::Complete {
+            self.viewport_output
+                .retain(|id, _| viewport_output.contains_key(id));
+        }
+        self.viewport_output_completeness = viewport_output_completeness;
 
         for (id, new_viewport) in viewport_output {
             match self.viewport_output.entry(id) {
@@ -67,6 +85,89 @@ impl FullOutput {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{FullOutput, ViewportOutputCompleteness};
+    use crate::{ViewportBuilder, ViewportClass, ViewportId, ViewportOutput};
+
+    fn viewport_output() -> ViewportOutput {
+        ViewportOutput {
+            parent: ViewportId::ROOT,
+            class: ViewportClass::Deferred,
+            builder: ViewportBuilder::default(),
+            viewport_ui_cb: None,
+            commands: vec![],
+            repaint_delay: std::time::Duration::MAX,
+        }
+    }
+
+    fn output(
+        completeness: ViewportOutputCompleteness,
+        viewport_ids: impl IntoIterator<Item = ViewportId>,
+    ) -> FullOutput {
+        let mut output = FullOutput {
+            viewport_output_completeness: completeness,
+            ..Default::default()
+        };
+        for viewport_id in viewport_ids {
+            output
+                .viewport_output
+                .insert(viewport_id, viewport_output());
+        }
+        output
+    }
+
+    #[test]
+    fn complete_output_removes_stale_entries_when_appended() {
+        let stale = ViewportId::from_hash_of("stale");
+        let active = ViewportId::from_hash_of("active");
+        let mut combined = output(ViewportOutputCompleteness::Partial, [stale, active]);
+
+        combined.append(output(ViewportOutputCompleteness::Complete, [active]));
+
+        assert_eq!(
+            combined.viewport_output_completeness,
+            ViewportOutputCompleteness::Complete
+        );
+        assert_eq!(
+            combined.viewport_output.keys().copied().collect::<Vec<_>>(),
+            [active]
+        );
+    }
+
+    #[test]
+    fn partial_output_preserves_entries_when_appended() {
+        let previous = ViewportId::from_hash_of("previous");
+        let newer = ViewportId::from_hash_of("newer");
+        let mut combined = output(ViewportOutputCompleteness::Complete, [previous]);
+
+        combined.append(output(ViewportOutputCompleteness::Partial, [newer]));
+
+        assert_eq!(
+            combined.viewport_output_completeness,
+            ViewportOutputCompleteness::Partial
+        );
+        assert!(combined.viewport_output.contains_key(&previous));
+        assert!(combined.viewport_output.contains_key(&newer));
+    }
+
+    #[test]
+    fn partial_outputs_preserve_their_union_when_appended() {
+        let previous = ViewportId::from_hash_of("previous");
+        let newer = ViewportId::from_hash_of("newer");
+        let mut combined = output(ViewportOutputCompleteness::Partial, [previous]);
+
+        combined.append(output(ViewportOutputCompleteness::Partial, [newer]));
+
+        assert_eq!(
+            combined.viewport_output_completeness,
+            ViewportOutputCompleteness::Partial
+        );
+        assert!(combined.viewport_output.contains_key(&previous));
+        assert!(combined.viewport_output.contains_key(&newer));
     }
 }
 

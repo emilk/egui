@@ -78,7 +78,79 @@ pub struct SharedState {
     painter: egui_wgpu::winit::Painter,
     viewport_from_window: HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
-    resized_viewport: Option<ViewportId>,
+    /// `Some(NativeResize { state: NativeResizeState::Idle, .. })` must never be stored;
+    /// an idle renderer is represented by `None`.
+    native_resize: Option<NativeResize>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct NativeResize {
+    viewport_id: ViewportId,
+    state: egui_wgpu::winit::NativeResizeState,
+}
+
+impl SharedState {
+    /// Switches the viewport whose Metal surface is configured for `AppKit` native resize.
+    fn set_native_resize(&mut self, next: Option<NativeResize>) {
+        debug_assert!(
+            next.is_none_or(|resize| { resize.state != egui_wgpu::winit::NativeResizeState::Idle }),
+            "idle native resize must be represented by None",
+        );
+
+        if self.native_resize == next {
+            return;
+        }
+
+        if let Some(previous) = self.native_resize
+            && next.map(|resize| resize.viewport_id) != Some(previous.viewport_id)
+        {
+            self.painter.set_native_resize_state(
+                previous.viewport_id,
+                egui_wgpu::winit::NativeResizeState::Idle,
+            );
+        }
+
+        if let Some(next) = next {
+            self.painter
+                .set_native_resize_state(next.viewport_id, next.state);
+        }
+
+        self.native_resize = next;
+    }
+
+    /// Finalizes renderer resize state once `AppKit` reports that native resizing has ended.
+    #[cfg(target_os = "macos")]
+    fn finish_ended_native_resize(&mut self) {
+        let Some(native_resize) = self.native_resize else {
+            return;
+        };
+
+        let native_resize_state = self
+            .viewports
+            .get(&native_resize.viewport_id)
+            .and_then(|viewport| viewport.window.as_deref())
+            .map_or(
+                egui_wgpu::winit::NativeResizeState::Idle,
+                native_resize_state,
+            );
+
+        if native_resize_state == egui_wgpu::winit::NativeResizeState::Idle {
+            self.set_native_resize(None);
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn native_resize_state(window: &Window) -> egui_wgpu::winit::NativeResizeState {
+    use winit::platform::macos::WindowExtMacOS as _;
+
+    if window.is_live_resizing() {
+        egui_wgpu::winit::NativeResizeState::LiveResize
+    } else if window.is_fullscreen_transition() {
+        egui_wgpu::winit::NativeResizeState::FullscreenTransition
+    } else {
+        egui_wgpu::winit::NativeResizeState::Idle
+    }
 }
 
 pub type Viewports = egui::OrderedViewportIdMap<Viewport>;
@@ -337,7 +409,7 @@ impl<'app> WgpuWinitApp<'app> {
             viewports,
             painter,
             focused_viewport: Some(ViewportId::ROOT),
-            resized_viewport: None,
+            native_resize: None,
         }));
 
         {
@@ -605,6 +677,9 @@ impl WgpuWinitRunning<'_> {
             profiling::scope!("Prepare");
             let mut shared_lock = shared.borrow_mut();
 
+            #[cfg(target_os = "macos")]
+            shared_lock.finish_ended_native_resize();
+
             let SharedState {
                 viewports, painter, ..
             } = &mut *shared_lock;
@@ -645,7 +720,7 @@ impl WgpuWinitRunning<'_> {
             };
             egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);
 
-            let is_visible = viewport.info.visible().unwrap_or(true);
+            let is_visible = info.visible().unwrap_or(true);
 
             {
                 profiling::scope!("set_window");
@@ -697,9 +772,8 @@ impl WgpuWinitRunning<'_> {
             shapes,
             pixels_per_point,
             viewport_output,
+            viewport_output_completeness,
         } = full_output;
-
-        remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return Ok(EventResult::Wait);
@@ -772,20 +846,14 @@ impl WgpuWinitRunning<'_> {
             0.0
         };
 
-        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
-
         handle_viewport_output(
             &integration.egui_ctx,
             &viewport_output,
             viewports,
             painter,
             viewport_from_window,
+            viewport_output_completeness,
         );
-
-        // Prune dead viewports:
-        viewports.retain(|id, _| active_viewports_ids.contains(id));
-        viewport_from_window.retain(|_, id| active_viewports_ids.contains(id));
-        painter.gc_viewports(&active_viewports_ids);
 
         let window = viewport_from_window
             .get(&window_id)
@@ -839,27 +907,20 @@ impl WgpuWinitRunning<'_> {
         // See: https://github.com/emilk/egui/issues/903
         let mut repaint_asap = false;
 
-        // On MacOS the asap repaint is not enough. The drawn frames must be synchronized with
-        // the CoreAnimation transactions driving the window resize process.
-        //
-        // Thus, Painter, responsible for wgpu surfaces and their resize, has to be notified of the
-        // resize lifecycle, yet winit does not provide any events for that. To work around,
-        // the last resized viewport is tracked until a later event outside the live resize stream
-        // is received.
-        //
-        // AppKit can emit `Moved` events during top/left live resize because the window origin
-        // changes along with the content size. Treat those as part of live resize on macOS.
-        //
-        // See: https://github.com/emilk/egui/issues/903
-        let event_keeps_resize_active = matches!(event, winit::event::WindowEvent::Resized(_))
-            || (cfg!(target_os = "macos") && matches!(event, winit::event::WindowEvent::Moved(_)));
+        // On macOS the drawn frames must be synchronized with the CoreAnimation transactions
+        // driving actual AppKit live resize and fullscreen transitions. Initial and programmatic
+        // `Resized` events are not native resize transitions and must not enable transaction
+        // presentation.
+        #[cfg(target_os = "macos")]
+        shared.finish_ended_native_resize();
 
-        if !event_keeps_resize_active
-            && let Some(id) = viewport_id
-            && shared.resized_viewport == viewport_id
+        #[cfg(not(target_os = "macos"))]
+        if !matches!(event, winit::event::WindowEvent::Resized(_))
+            && shared
+                .native_resize
+                .is_some_and(|resize| Some(resize.viewport_id) == viewport_id)
         {
-            shared.painter.on_window_resize_state_change(id, false);
-            shared.resized_viewport = None;
+            shared.set_native_resize(None);
         }
 
         match event {
@@ -890,10 +951,31 @@ impl WgpuWinitRunning<'_> {
                         NonZeroU32::new(physical_size.height),
                     )
                 {
-                    if shared.resized_viewport != viewport_id {
-                        shared.resized_viewport = viewport_id;
-                        shared.painter.on_window_resize_state_change(id, true);
+                    #[cfg(target_os = "macos")]
+                    let native_resize_state = shared
+                        .viewports
+                        .get(&id)
+                        .and_then(|viewport| viewport.window.as_deref())
+                        .map_or(
+                            egui_wgpu::winit::NativeResizeState::Idle,
+                            native_resize_state,
+                        );
+
+                    #[cfg(not(target_os = "macos"))]
+                    let native_resize_state = egui_wgpu::winit::NativeResizeState::LiveResize;
+
+                    if native_resize_state != egui_wgpu::winit::NativeResizeState::Idle {
+                        shared.set_native_resize(Some(NativeResize {
+                            viewport_id: id,
+                            state: native_resize_state,
+                        }));
+                    } else if shared
+                        .native_resize
+                        .is_some_and(|resize| resize.viewport_id == id)
+                    {
+                        shared.set_native_resize(None);
                     }
+
                     shared.painter.on_window_resized(id, width, height);
                     repaint_asap = true;
                 }
@@ -1110,6 +1192,7 @@ fn render_immediate_viewport(
         shapes,
         pixels_per_point,
         viewport_output,
+        viewport_output_completeness,
     } = egui_ctx.run_ui(input, |ui| {
         viewport_ui_cb(ui);
     });
@@ -1162,10 +1245,11 @@ fn render_immediate_viewport(
         viewports,
         painter,
         viewport_from_window,
+        viewport_output_completeness,
     );
 }
 
-pub(crate) fn remove_viewports_not_in(
+fn remove_viewports_not_in(
     viewports: &mut Viewports,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
@@ -1174,9 +1258,10 @@ pub(crate) fn remove_viewports_not_in(
     let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
     // Prune dead viewports:
+    // Drop renderer-owned surfaces before dropping the native windows they reference.
+    painter.gc_viewports(&active_viewports_ids);
     viewports.retain(|id, _| active_viewports_ids.contains(id));
     viewport_from_window.retain(|_, id| active_viewports_ids.contains(id));
-    painter.gc_viewports(&active_viewports_ids);
 }
 
 /// Add new viewports, and update existing ones:
@@ -1186,6 +1271,7 @@ fn handle_viewport_output(
     viewports: &mut Viewports,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
+    viewport_output_completeness: egui::ViewportOutputCompleteness,
 ) {
     for (
         viewport_id,
@@ -1232,7 +1318,9 @@ fn handle_viewport_output(
         }
     }
 
-    remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
+    if viewport_output_completeness == egui::ViewportOutputCompleteness::Complete {
+        remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
+    }
 }
 
 fn initialize_or_update_viewport<'a>(
@@ -1277,7 +1365,11 @@ fn initialize_or_update_viewport<'a>(
 
             viewport.class = class;
             viewport.ids.parent = ids.parent;
-            viewport.viewport_ui_cb = viewport_ui_cb;
+            // Child viewport passes can report an existing deferred viewport without its
+            // root-owned callback. Keep the callback so direct repaints still run that viewport.
+            if let Some(viewport_ui_cb) = viewport_ui_cb {
+                viewport.viewport_ui_cb = Some(viewport_ui_cb);
+            }
 
             let (mut delta_commands, recreate) = viewport.builder.patch(builder);
 
