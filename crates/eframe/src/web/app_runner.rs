@@ -295,10 +295,10 @@ impl AppRunner {
             viewport_output,
         } = full_output;
 
-        if viewport_output.len() > 1 {
+        if viewport_output.entries.len() > 1 {
             log::warn!("Multiple viewports not yet supported on the web");
         }
-        for (_viewport_id, viewport_output) in viewport_output {
+        for (_viewport_id, viewport_output) in viewport_output.entries {
             for command in viewport_output.commands {
                 match command {
                     ViewportCommand::Screenshot(user_data) => {

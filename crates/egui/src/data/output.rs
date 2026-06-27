@@ -6,6 +6,47 @@ use epaint::text::CharIndex;
 
 use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
 
+/// Viewports reported by an egui pass and whether the report is authoritative.
+#[derive(Clone, Default)]
+pub struct ViewportOutputReport {
+    /// Viewports reported by this pass.
+    pub entries: OrderedViewportIdMap<ViewportOutput>,
+
+    /// Whether missing entries represent closed viewports.
+    ///
+    /// This defaults to `false`, in which case integrations must preserve native viewports absent
+    /// from [`Self::entries`].
+    pub is_complete: bool,
+}
+
+impl ViewportOutputReport {
+    /// Appends a newer report, preserving entries missing from incomplete reports.
+    pub fn append(&mut self, newer: Self) {
+        use std::collections::btree_map::Entry;
+
+        let Self {
+            entries,
+            is_complete,
+        } = newer;
+
+        if is_complete {
+            self.entries.retain(|id, _| entries.contains_key(id));
+        }
+        self.is_complete = is_complete;
+
+        for (id, new_viewport) in entries {
+            match self.entries.entry(id) {
+                Entry::Vacant(entry) => {
+                    entry.insert(new_viewport);
+                }
+                Entry::Occupied(mut entry) => {
+                    entry.get_mut().append(new_viewport);
+                }
+            }
+        }
+    }
+}
+
 /// What egui emits each frame from [`crate::Context::run_ui`].
 ///
 /// The backend should use this.
@@ -32,18 +73,13 @@ pub struct FullOutput {
     /// You can pass this to [`crate::Context::tessellate`] together with [`Self::shapes`].
     pub pixels_per_point: f32,
 
-    /// All the active viewports, including the root.
-    ///
-    /// It is up to the integration to spawn a native window for each viewport,
-    /// and to close any window that no longer has a viewport in this map.
-    pub viewport_output: OrderedViewportIdMap<ViewportOutput>,
+    /// Viewports reported by this pass and whether missing entries represent closed viewports.
+    pub viewport_output: ViewportOutputReport,
 }
 
 impl FullOutput {
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
-        use std::collections::btree_map::Entry;
-
         let Self {
             platform_output,
             textures_delta,
@@ -56,17 +92,83 @@ impl FullOutput {
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
         self.pixels_per_point = pixels_per_point; // Use latest
+        self.viewport_output.append(viewport_output);
+    }
+}
 
-        for (id, new_viewport) in viewport_output {
-            match self.viewport_output.entry(id) {
-                Entry::Vacant(entry) => {
-                    entry.insert(new_viewport);
-                }
-                Entry::Occupied(mut entry) => {
-                    entry.get_mut().append(new_viewport);
-                }
-            }
+#[cfg(test)]
+mod tests {
+    use super::{FullOutput, ViewportOutputReport};
+    use crate::{ViewportBuilder, ViewportClass, ViewportId, ViewportOutput};
+
+    fn output(is_complete: bool, viewport_ids: impl IntoIterator<Item = ViewportId>) -> FullOutput {
+        let mut viewport_output = ViewportOutputReport {
+            is_complete,
+            ..Default::default()
+        };
+        for viewport_id in viewport_ids {
+            viewport_output.entries.insert(
+                viewport_id,
+                ViewportOutput {
+                    parent: ViewportId::ROOT,
+                    class: ViewportClass::Deferred,
+                    builder: ViewportBuilder::default(),
+                    viewport_ui_cb: None,
+                    commands: vec![],
+                    repaint_delay: std::time::Duration::MAX,
+                },
+            );
         }
+        FullOutput {
+            viewport_output,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn complete_output_removes_stale_entries_when_appended() {
+        let stale = ViewportId::from_hash_of("stale");
+        let active = ViewportId::from_hash_of("active");
+        let mut combined = output(false, [stale, active]);
+
+        combined.append(output(true, [active]));
+
+        assert!(combined.viewport_output.is_complete);
+        assert_eq!(
+            combined
+                .viewport_output
+                .entries
+                .keys()
+                .copied()
+                .collect::<Vec<_>>(),
+            [active]
+        );
+    }
+
+    #[test]
+    fn partial_output_downgrades_complete_output_and_preserves_entries() {
+        let previous = ViewportId::from_hash_of("previous");
+        let newer = ViewportId::from_hash_of("newer");
+        let mut combined = output(true, [previous]);
+
+        combined.append(output(false, [newer]));
+
+        assert!(!combined.viewport_output.is_complete);
+        assert!(combined.viewport_output.entries.contains_key(&previous));
+        assert!(combined.viewport_output.entries.contains_key(&newer));
+    }
+
+    #[test]
+    fn partial_outputs_preserve_their_union_when_appended() {
+        let previous = ViewportId::from_hash_of("previous");
+        let newer = ViewportId::from_hash_of("newer");
+        let mut combined = output(false, [previous]);
+
+        combined.append(output(false, [newer]));
+
+        assert!(!combined.viewport_output.is_complete);
+        assert!(combined.viewport_output.entries.contains_key(&previous));
+        assert!(combined.viewport_output.entries.contains_key(&newer));
     }
 }
 

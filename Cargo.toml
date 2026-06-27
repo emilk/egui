@@ -160,7 +160,7 @@ wayland-cursor = { version = "0.31.14", default-features = false }
 web-sys = "0.3.77"
 web-time = "1.1" # Timekeeping for native and web
 webbrowser = "1.2"
-wgpu = { version = "29.0", default-features = false, features = ["std"] }
+wgpu = { version = "29.0", git = "https://github.com/yay/wgpu.git", rev = "79168ef4e432f8593e7f8ae23e9e2470b6f68232", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
 
