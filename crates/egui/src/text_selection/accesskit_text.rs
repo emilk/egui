@@ -1,4 +1,5 @@
 use emath::TSTransform;
+use epaint::text::CharIndex;
 
 use crate::{Context, Galley, Id};
 
@@ -9,7 +10,8 @@ pub(crate) const MAX_CHARS_PER_TEXT_RUN: usize = 255;
 
 /// Convert a (row, column) layout cursor position to a text run node ID and character index,
 /// accounting for rows that are split into multiple text runs.
-fn text_run_position(parent_id: Id, row: usize, column: usize) -> accesskit::TextPosition {
+fn text_run_position(parent_id: Id, row: usize, column: CharIndex) -> accesskit::TextPosition {
+    let column = column.0;
     // When column lands exactly on a chunk boundary (e.g., 255), it refers to
     // the end of the previous chunk, not the start of a new one.
     let chunk_index = if column > 0 && column.is_multiple_of(MAX_CHARS_PER_TEXT_RUN) {

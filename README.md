@@ -275,6 +275,8 @@ The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native
 ### What about accessibility, such as screen readers?
 egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
 
+See [the accessibility guide](./docs/accessibility.md) for how labels, custom widgets, AccessKit, and `egui_kittest` fit together.
+
 The original discussion of accessibility in egui is at <https://github.com/emilk/egui/issues/167>. Now that AccessKit support is merged, providing a strong foundation for future accessibility work, please open new issues on specific accessibility problems.
 
 ### What is the difference between [egui](https://docs.rs/egui) and [eframe](https://github.com/emilk/egui/tree/main/crates/eframe)?

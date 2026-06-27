@@ -2,7 +2,8 @@ use emath::Rect;
 
 use crate::{
     Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType, epaint, pos2, widget_style::CheckboxStyle,
+    WidgetInfo, WidgetType, epaint, pos2,
+    widget_style::{CheckboxStyle, Classes, HasClasses},
 };
 
 // TODO(emilk): allow checkbox without a text label
@@ -23,6 +24,7 @@ pub struct Checkbox<'a> {
     checked: &'a mut bool,
     atoms: Atoms<'a>,
     indeterminate: bool,
+    classes: Classes,
 }
 
 impl<'a> Checkbox<'a> {
@@ -31,11 +33,19 @@ impl<'a> Checkbox<'a> {
             checked,
             atoms: atoms.into_atoms(),
             indeterminate: false,
+            classes: Classes::default(),
         }
     }
 
     pub fn without_text(checked: &'a mut bool) -> Self {
         Self::new(checked, ())
+    }
+
+    /// Output the checkbox's [`Atoms`].
+    ///
+    /// This includes any images you have on the checkbox.
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.atoms
     }
 
     /// Display an indeterminate state (neither checked nor unchecked)
@@ -55,6 +65,7 @@ impl Widget for Checkbox<'_> {
             checked,
             mut atoms,
             indeterminate,
+            classes,
         } = self;
 
         // Get the widget style by reading the response from the previous pass
@@ -69,7 +80,7 @@ impl Widget for Checkbox<'_> {
             frame,
             check_stroke,
             text_style,
-        } = ui.style().checkbox_style(state);
+        } = ui.style().checkbox_style(&classes, state);
 
         let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
         min_size.y = min_size.y.at_least(checkbox_size);
@@ -151,5 +162,15 @@ impl Widget for Checkbox<'_> {
         } else {
             prepared.response
         }
+    }
+}
+
+impl HasClasses for Checkbox<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }

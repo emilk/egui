@@ -6,11 +6,11 @@ use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::text::{LayoutJob, TextWrapping};
 use egui::{
-    Align, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
+    Align, Button, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
     TextFormat, TextWrapMode, Ui, include_image, vec2,
 };
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable as _;
+use egui_kittest::kittest::{NodeT as _, Queryable as _};
 
 #[test]
 fn image_button_should_have_alt_text() {
@@ -21,6 +21,31 @@ fn image_button_should_have_alt_text() {
     });
 
     harness.get_by_label("Egui");
+}
+
+#[test]
+fn button_selected_should_announce_toggled_state() {
+    use egui::accesskit::Toggled;
+
+    let harness = Harness::new_ui(|ui| {
+        ui.add(Button::new("Plain"));
+        ui.add(Button::new("Off").selected(false));
+        ui.add(Button::new("On").selected(true));
+    });
+
+    assert_eq!(
+        harness.get_by_label("Plain").accesskit_node().toggled(),
+        None,
+        "a plain Button must not be announced as a toggle",
+    );
+    assert_eq!(
+        harness.get_by_label("Off").accesskit_node().toggled(),
+        Some(Toggled::False),
+    );
+    assert_eq!(
+        harness.get_by_label("On").accesskit_node().toggled(),
+        Some(Toggled::True),
+    );
 }
 
 #[test]
@@ -406,4 +431,45 @@ fn horizontal_wrapped_multiline_row_height_reference() {
     });
 
     harness.snapshot("horizontal_wrapped_multiline_row_height_reference");
+}
+
+#[test]
+fn animated_scroll_beats_sticky_bottom() {
+    let mut harness = Harness::builder()
+        .with_size((200.0, 120.0))
+        .with_max_steps(8)
+        .build_ui_state(
+            |ui, state: &mut (bool, f32, f32)| {
+                ui.style_mut().scroll_animation = ScrollAnimation::duration(0.5);
+
+                let output = ScrollArea::vertical()
+                    .max_height(60.0)
+                    .stick_to_bottom(true)
+                    .animated(true)
+                    .show(ui, |ui| {
+                        for row in 0..40 {
+                            let response = ui.label(format!("Row {row}"));
+                            if state.0 && row == 0 {
+                                response.scroll_to_me(Some(Align::TOP));
+                                state.0 = false;
+                            }
+                        }
+                    });
+
+                state.1 = output.state.offset.y;
+                state.2 = (output.content_size.y - output.inner_rect.height()).max(0.0);
+            },
+            (false, 0.0, 0.0),
+        );
+
+    assert!((harness.state().1 - harness.state().2).abs() <= 1.0);
+
+    harness.state_mut().0 = true;
+    harness.step();
+    harness.run();
+
+    assert!(
+        harness.state().1 + 1.0 < harness.state().2,
+        "animated explicit scroll should leave the sticky bottom"
+    );
 }

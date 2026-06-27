@@ -1703,16 +1703,6 @@ impl Tessellator {
             .stroke_open(self.feathering, &stroke.into(), out);
     }
 
-    #[deprecated = "Use `tessellate_line_segment` instead"]
-    pub fn tessellate_line(
-        &mut self,
-        points: [Pos2; 2],
-        stroke: impl Into<Stroke>,
-        out: &mut Mesh,
-    ) {
-        self.tessellate_line_segment(points, stroke, out);
-    }
-
     /// Tessellate a single [`PathShape`] into a [`Mesh`].
     ///
     /// * `path_shape`: the path to tessellate.

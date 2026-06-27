@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use epaint::text::cursor::CCursor;
+
 use crate::mutex::Mutex;
 
 use crate::{
@@ -37,17 +39,13 @@ pub struct TextEditState {
     /// Controls the text selection.
     pub cursor: TextCursorState,
 
+    /// The purpose of the cursor.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) cursor_purpose: TextEditCursorPurpose,
+
     /// Wrapped in Arc for cheaper clones.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) undoer: Arc<Mutex<TextEditUndoer>>,
-
-    // If IME candidate window is shown on this text edit.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) ime_enabled: bool,
-
-    // cursor range for IME candidate.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) ime_cursor_range: CCursorRange,
 
     // Text offset within the widget area.
     // Used for sensing and singleline text clipping.
@@ -80,5 +78,33 @@ impl TextEditState {
 
     pub fn clear_undoer(&mut self) {
         self.set_undoer(TextEditUndoer::default());
+    }
+}
+
+#[derive(Clone, Default)]
+pub(crate) enum TextEditCursorPurpose {
+    /// The cursor is used for text selection.
+    #[default]
+    Selection,
+
+    /// The cursor is used for IME composition. Its direction is irrelevant in
+    /// this case.
+    ImeComposition {
+        /// An optional cursor/segment within the composing text itself,
+        /// relative to the start of the composing region. Its direction is
+        /// irrelevant.
+        ///
+        /// When `None`, no active range is displayed.
+        active_range: Option<std::ops::Range<CCursor>>,
+    },
+}
+
+impl TextEditCursorPurpose {
+    pub(crate) fn is_selection(&self) -> bool {
+        matches!(self, Self::Selection)
+    }
+
+    pub(crate) fn is_ime_composition(&self) -> bool {
+        matches!(self, Self::ImeComposition { .. })
     }
 }

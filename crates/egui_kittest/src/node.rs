@@ -54,11 +54,6 @@ impl Node<'_> {
         self.click_button(PointerButton::Primary);
     }
 
-    #[deprecated = "Use `click()` instead."]
-    pub fn simulate_click(&self) {
-        self.click();
-    }
-
     pub fn click_secondary(&self) {
         self.click_button(PointerButton::Secondary);
     }
@@ -128,28 +123,6 @@ impl Node<'_> {
             target_tree,
             data: None,
         }));
-    }
-
-    #[deprecated = "Use `Harness::key_down` instead."]
-    pub fn key_down(&self, key: egui::Key) {
-        self.event(egui::Event::Key {
-            key,
-            pressed: true,
-            modifiers: Modifiers::default(),
-            repeat: false,
-            physical_key: None,
-        });
-    }
-
-    #[deprecated = "Use `Harness::key_up` instead."]
-    pub fn key_up(&self, key: egui::Key) {
-        self.event(egui::Event::Key {
-            key,
-            pressed: false,
-            modifiers: Modifiers::default(),
-            repeat: false,
-            physical_key: None,
-        });
     }
 
     pub fn type_text(&self, text: &str) {

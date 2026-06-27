@@ -116,6 +116,11 @@ pub struct Memory {
     /// (e.g. relative to some other widget).
     #[cfg_attr(feature = "persistence", serde(skip))]
     popups: ViewportIdMap<OpenPopup>,
+
+    /// Whether to inform the backend to interrupt any ongoing IME composition
+    /// this pass.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    requested_interrupt_ime: bool,
 }
 
 impl Default for Memory {
@@ -133,6 +138,7 @@ impl Default for Memory {
             popups: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
+            requested_interrupt_ime: Default::default(),
         };
         slf.interactions.entry(slf.viewport_id).or_default();
         slf.areas.entry(slf.viewport_id).or_default();
@@ -193,7 +199,7 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub light_style: std::sync::Arc<Style>,
 
-    /// Preference for selection between dark and light [`crate::Context::style`]
+    /// Preference for selection between dark and light [`crate::Context::global_style`]
     /// as the active style used by all subsequent windows, panels, etc.
     ///
     /// Default: `ThemePreference::System`.
@@ -266,7 +272,7 @@ pub struct Options {
     ///
     /// If this is `1`, [`crate::Context::request_discard`] will be ignored.
     ///
-    /// Multi-pass is supported by [`crate::Context::run`].
+    /// Multi-pass is supported by [`crate::Context::run_ui`].
     ///
     /// See [`crate::Context::request_discard`] for more.
     pub max_passes: NonZeroUsize,
@@ -484,6 +490,13 @@ pub(crate) struct Focus {
     /// The ID of a widget that had keyboard focus during the previous frame.
     id_previous_frame: Option<Id>,
 
+    /// The ID of a widget that had keyboard focus *two* frames ago.
+    ///
+    /// Kept so `Response::lost_focus` can still fire after a mid-frame
+    /// focus transition (e.g. clicking a `TextEdit` that was added to
+    /// the UI later than the currently focused one).
+    id_two_frames_ago: Option<Id>,
+
     /// The ID of a widget to give the focus to in the next frame.
     id_next_frame: Option<Id>,
 
@@ -539,6 +552,7 @@ impl Focus {
     }
 
     fn begin_pass(&mut self, new_input: &crate::data::input::RawInput) {
+        self.id_two_frames_ago = self.id_previous_frame;
         self.id_previous_frame = self.focused();
         if let Some(id) = self.id_next_frame.take() {
             self.focused_widget = Some(FocusWidget::new(id));
@@ -761,6 +775,8 @@ impl Memory {
 
         self.areas.entry(self.viewport_id).or_default();
 
+        self.requested_interrupt_ime = false;
+
         // self.interactions  is handled elsewhere
 
         self.options.begin_pass(new_raw_input);
@@ -812,12 +828,6 @@ impl Memory {
         }
     }
 
-    /// The currently set transform of a layer.
-    #[deprecated = "Use `Context::layer_transform_to_global` instead"]
-    pub fn layer_transforms(&self, layer_id: LayerId) -> Option<TSTransform> {
-        self.to_global.get(&layer_id).copied()
-    }
-
     /// An iterator over all layers. Back-to-front, top is last.
     pub fn layer_ids(&self) -> impl ExactSizeIterator<Item = LayerId> + '_ {
         self.areas().order().iter().copied()
@@ -829,10 +839,21 @@ impl Memory {
         self.focus().and_then(|f| f.id_previous_frame) == Some(id)
     }
 
-    /// Check if the layer lost focus last frame.
-    /// returns `true` if the layer lost focus last frame, but not this one.
+    /// Check if the widget lost keyboard focus.
+    ///
+    /// Returns `true` when `id` was the focused widget at the start
+    /// of this frame *or* the start of the previous frame — but is
+    /// not focused now. The two-frame window matters when focus
+    /// transfers mid-frame: the previously-focused widget has
+    /// usually already been rendered by the time another widget
+    /// claims focus, so the loss signal can only reach it on its
+    /// next render pass.
     pub(crate) fn lost_focus(&self, id: Id) -> bool {
-        self.had_focus_last_frame(id) && !self.has_focus(id)
+        let had_recent_focus = self
+            .focus()
+            .map(|f| f.id_previous_frame == Some(id) || f.id_two_frames_ago == Some(id))
+            .unwrap_or(false);
+        had_recent_focus && !self.has_focus(id)
     }
 
     /// Check if the layer gained focus this frame.
@@ -875,9 +896,12 @@ impl Memory {
 
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
+    ///
+    /// Calling this will interrupt IME composition.
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
         self.focus_mut().focused_widget = Some(FocusWidget::new(id));
+        self.interrupt_ime();
     }
 
     /// Surrender keyboard focus for a specific widget.
@@ -993,6 +1017,28 @@ impl Memory {
     pub(crate) fn focus_mut(&mut self) -> &mut Focus {
         self.focus.entry(self.viewport_id).or_default()
     }
+
+    /// Check if the widget owns IME events.
+    ///
+    /// A widget should only consume IME events if this returns `true`. At most
+    /// one widget can own IME events for each frame.
+    #[inline(always)]
+    pub fn owns_ime_events(&self, id: Id) -> bool {
+        // Note: Even if the IME is being interrupted in the current frame, we
+        // should not return `false` here, since we still need
+        // `PlatformOutput::ime` to be set in such cases.
+
+        self.has_focus(id)
+    }
+
+    /// Interrupt the current IME composition, if any.
+    pub fn interrupt_ime(&mut self) {
+        self.requested_interrupt_ime = true;
+    }
+
+    pub(crate) fn should_interrupt_ime(&self) -> bool {
+        self.requested_interrupt_ime
+    }
 }
 
 /// State of an open popup.
@@ -1019,40 +1065,27 @@ impl OpenPopup {
     }
 }
 
-/// ## Deprecated popup API
-/// Use [`crate::Popup`] instead.
+/// ## Popup state (internal API)
+///
+/// Used by [`crate::Popup`].
 impl Memory {
-    /// Is the given popup open?
-    #[deprecated = "Use Popup::is_id_open instead"]
-    pub fn is_popup_open(&self, popup_id: Id) -> bool {
+    pub(crate) fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popups
             .get(&self.viewport_id)
             .is_some_and(|state| state.id == popup_id)
             || self.everything_is_visible()
     }
 
-    /// Is any popup open?
-    #[deprecated = "Use Popup::is_any_open instead"]
-    pub fn any_popup_open(&self) -> bool {
+    pub(crate) fn any_popup_open(&self) -> bool {
         self.popups.contains_key(&self.viewport_id) || self.everything_is_visible()
     }
 
-    /// Open the given popup and close all others.
-    ///
-    /// Note that you must call `keep_popup_open` on subsequent frames as long as the popup is open.
-    #[deprecated = "Use Popup::open_id instead"]
-    pub fn open_popup(&mut self, popup_id: Id) {
+    pub(crate) fn open_popup(&mut self, popup_id: Id) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, None));
     }
 
-    /// Popups must call this every frame while open.
-    ///
-    /// This is needed because in some cases popups can go away without `close_popup` being
-    /// called. For example, when a context menu is open and the underlying widget stops
-    /// being rendered.
-    #[deprecated = "Use Popup::show instead"]
-    pub fn keep_popup_open(&mut self, popup_id: Id) {
+    pub(crate) fn keep_popup_open(&mut self, popup_id: Id) {
         if let Some(state) = self.popups.get_mut(&self.viewport_id)
             && state.id == popup_id
         {
@@ -1060,43 +1093,27 @@ impl Memory {
         }
     }
 
-    /// Open the popup and remember its position.
-    #[deprecated = "Use Popup with PopupAnchor::Position instead"]
-    pub fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
+    pub(crate) fn open_popup_at(&mut self, popup_id: Id, pos: impl Into<Option<Pos2>>) {
         self.popups
             .insert(self.viewport_id, OpenPopup::new(popup_id, pos.into()));
     }
 
-    /// Get the position for this popup.
-    #[deprecated = "Use Popup::position_of_id instead"]
-    pub fn popup_position(&self, id: Id) -> Option<Pos2> {
+    pub(crate) fn popup_position(&self, id: Id) -> Option<Pos2> {
         let state = self.popups.get(&self.viewport_id)?;
         if state.id == id { state.pos } else { None }
     }
 
-    /// Close any currently open popup.
-    #[deprecated = "Use Popup::close_all instead"]
-    pub fn close_all_popups(&mut self) {
+    pub(crate) fn close_all_popups(&mut self) {
         self.popups.clear();
     }
 
-    /// Close the given popup, if it is open.
-    ///
-    /// See also [`Self::close_all_popups`] if you want to close any / all currently open popups.
-    #[deprecated = "Use Popup::close_id instead"]
-    pub fn close_popup(&mut self, popup_id: Id) {
-        #[expect(deprecated)]
+    pub(crate) fn close_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
             self.popups.remove(&self.viewport_id);
         }
     }
 
-    /// Toggle the given popup between closed and open.
-    ///
-    /// Note: At most, only one popup can be open at a time.
-    #[deprecated = "Use Popup::toggle_id instead"]
-    pub fn toggle_popup(&mut self, popup_id: Id) {
-        #[expect(deprecated)]
+    pub(crate) fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
             self.close_popup(popup_id);
         } else {
@@ -1173,6 +1190,10 @@ impl Areas {
         self.areas.get(&id)
     }
 
+    pub(crate) fn get_mut(&mut self, id: Id) -> Option<&mut area::AreaState> {
+        self.areas.get_mut(&id)
+    }
+
     /// All layers back-to-front, top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
@@ -1234,11 +1255,12 @@ impl Areas {
     }
 
     pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
-        self.visible_areas_last_frame
-            .iter()
-            .copied()
-            .chain(self.visible_areas_current_frame.iter().copied())
-            .collect()
+        std::iter::chain(
+            &self.visible_areas_last_frame,
+            &self.visible_areas_current_frame,
+        )
+        .copied()
+        .collect()
     }
 
     pub(crate) fn visible_windows(&self) -> impl Iterator<Item = (LayerId, &area::AreaState)> {
@@ -1363,6 +1385,54 @@ impl Areas {
 fn memory_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Memory>();
+}
+
+// Regression test for https://github.com/emilk/egui/issues/2142.
+#[test]
+fn lost_focus_fires_after_mid_frame_focus_transfer() {
+    use crate::data::input::RawInput;
+    let a = Id::new("A");
+    let b = Id::new("B");
+    let mut focus = Focus::default();
+    let raw = RawInput::default();
+
+    fn lost_focus_check(focus: &Focus, id: Id) -> bool {
+        let was_focused =
+            focus.id_previous_frame == Some(id) || focus.id_two_frames_ago == Some(id);
+        was_focused && focus.focused() != Some(id)
+    }
+
+    // Frame N-1
+    {
+        focus.begin_pass(&raw);
+        focus.focused_widget = Some(FocusWidget::new(a));
+    }
+
+    // Frame N: `A` is focused at start; user clicks `B` mid-frame
+    {
+        focus.begin_pass(&raw);
+        assert_eq!(focus.id_previous_frame, Some(a));
+        assert!(!lost_focus_check(&focus, a));
+        focus.focused_widget = Some(FocusWidget::new(b));
+    }
+
+    // Frame N+1: `A` deferred lost_focus signal must fire
+    {
+        focus.begin_pass(&raw);
+        assert_eq!(focus.id_two_frames_ago, Some(a));
+        assert_eq!(focus.id_previous_frame, Some(b));
+        assert!(lost_focus_check(&focus, a), "`A` lost_focus must fire");
+        assert!(!lost_focus_check(&focus, b));
+    }
+
+    // Frame N+2
+    {
+        focus.begin_pass(&raw);
+        assert!(
+            !lost_focus_check(&focus, a),
+            "A's lost_focus must stop firing once the two-frame window passes",
+        );
+    }
 }
 
 #[test]

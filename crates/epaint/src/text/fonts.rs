@@ -3,18 +3,18 @@ use std::{
     collections::BTreeMap,
     sync::{
         Arc,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
 use crate::{
     TextureAtlas,
     text::{
-        Galley, LayoutJob, LayoutSection, TextOptions, VariationCoords,
-        font::{Font, FontFace, GlyphInfo},
+        ByteIndex, Galley, LayoutJob, LayoutSection, Tag, TextOptions, VariationCoords,
+        font::{Font, FontFace},
     },
 };
-use emath::{NumExt as _, OrderedFloat};
+use emath::{NumExt as _, OrderedFloat, Rangef};
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
@@ -147,6 +147,57 @@ impl FontData {
     pub fn tweak(self, tweak: FontTweak) -> Self {
         Self { tweak, ..self }
     }
+
+    /// The variation axes of this font, e.g. `wght` (weight) and `wdth` (width).
+    ///
+    /// Use this to discover which axes a variable font supports, and their valid
+    /// ranges, so a UI can offer the right knobs instead of making the user guess
+    /// tags and values for [`FontTweak::coords`].
+    ///
+    /// Returns an empty list for non-variable (static) fonts, or if the font data
+    /// fails to parse.
+    pub fn variation_axes(&self) -> Vec<FontVariationAxis> {
+        use skrifa::MetadataProvider as _;
+
+        let Ok(font) = skrifa::FontRef::from_index(self.font.as_ref(), self.index) else {
+            return Vec::new();
+        };
+
+        font.axes()
+            .iter()
+            .map(|axis| FontVariationAxis {
+                tag: axis.tag(),
+                name: font
+                    .localized_strings(axis.name_id())
+                    .english_or_first()
+                    .map(|name| name.chars().collect()),
+                range: Rangef::new(axis.min_value(), axis.max_value()),
+                default: axis.default_value(),
+                hidden: axis.is_hidden(),
+            })
+            .collect()
+    }
+}
+
+/// A single variation axis of a variable font, e.g. weight (`wght`) or width (`wdth`).
+///
+/// Obtained via [`FontData::variation_axes`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct FontVariationAxis {
+    /// The axis tag, e.g. `wght` or `wdth`.
+    pub tag: Tag,
+
+    /// Human-readable axis name, if the font provides one (e.g. "Weight").
+    pub name: Option<String>,
+
+    /// Valid range of values for this axis, `min..=max`.
+    pub range: Rangef,
+
+    /// The value used when the axis is not overridden.
+    pub default: f32,
+
+    /// Whether the font recommends hiding this axis from user interfaces.
+    pub hidden: bool,
 }
 
 impl AsRef<[u8]> for FontData {
@@ -188,11 +239,34 @@ pub struct FontTweak {
 
     /// Override the global font hinting setting for this specific font.
     ///
-    /// `None` means use the global setting.
-    pub hinting_override: Option<bool>,
+    /// `None` means use the global setting in [`TextOptions::font_hinting`].
+    pub hinting: Option<bool>,
 
-    /// Override the font's default variation coordinates.
+    /// How to grid-fit the glyph outlines when hinting is enabled.
+    ///
+    /// Has no effect when hinting is disabled (see [`Self::hinting`]).
+    pub hinting_target: HintingTarget,
+
+    /// Override the global sub-pixel binning setting for this specific font.
+    ///
+    /// `None` means use the global setting in [`TextOptions::subpixel_binning`].
+    pub subpixel_binning: Option<bool>,
+
+    /// Override the font's default variation coordinates for its axes ("wght", etc.).
     pub coords: VariationCoords,
+
+    /// Width of a thin space (`\u{2009}`) and narrow no-break space (`\u{202F}`),
+    /// as a fraction of the normal space width.
+    ///
+    /// Thin space is often used as a thousands separator: `1 234 567`.
+    ///
+    /// Default: `0.5` (half a normal space).
+    pub thin_space_width: f32,
+
+    /// Width of a tab character (`\t`), measured in number of space widths.
+    ///
+    /// Default: `4.0`.
+    pub tab_size: f32,
 }
 
 impl Default for FontTweak {
@@ -201,8 +275,117 @@ impl Default for FontTweak {
             scale: 1.0,
             y_offset_factor: 0.0,
             y_offset: 0.0,
-            hinting_override: None,
+            hinting: None,
+            hinting_target: HintingTarget::default(),
+            subpixel_binning: None,
             coords: VariationCoords::default(),
+            thin_space_width: 0.5,
+            tab_size: 4.0,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// How to *hint* glyph outlines, i.e. how aggressively to nudge them onto the
+/// pixel grid before rasterizing. Mirrors [`skrifa::outline::Target`].
+///
+/// Hinting trades shape fidelity for sharpness: snapping stems to whole pixels
+/// makes text crisp at small sizes / low dpi, at the cost of slightly distorting
+/// the designer's outlines. At high dpi it matters little.
+///
+/// This only has an effect if the font is actually hinted — either it ships
+/// TrueType instructions, or it was auto-hinted (see [`FontTweak::hinting`]).
+///
+/// Used by [`FontTweak::hinting_target`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum HintingTarget {
+    /// Strongest hinting, designed for aliased 1-bit (black & white) rendering.
+    ///
+    /// Snaps stems hard to the pixel grid for maximum sharpness. egui always
+    /// renders anti-aliased, so in practice this looks much like [`Self::Smooth`]
+    /// here; it mostly exists for completeness. Maps to `skrifa`'s `Target::Mono`.
+    Mono,
+
+    /// Hinting tuned for anti-aliased rendering. This is what you normally want,
+    /// and what egui uses by default. Maps to `skrifa`'s `Target::Smooth`.
+    Smooth(SmoothHinting),
+}
+
+impl Default for HintingTarget {
+    fn default() -> Self {
+        Self::Smooth(SmoothHinting::default())
+    }
+}
+
+impl From<HintingTarget> for skrifa::outline::Target {
+    fn from(hinting_target: HintingTarget) -> Self {
+        use skrifa::outline::SmoothMode;
+        match hinting_target {
+            HintingTarget::Mono => Self::Mono,
+            HintingTarget::Smooth(SmoothHinting {
+                light,
+                symmetric_rendering,
+                preserve_linear_metrics,
+            }) => Self::Smooth {
+                mode: if light {
+                    SmoothMode::Light
+                } else {
+                    SmoothMode::Normal
+                },
+                symmetric_rendering,
+                preserve_linear_metrics,
+            },
+        }
+    }
+}
+
+/// Tuning for [`HintingTarget::Smooth`], mirroring `skrifa`'s `Target::Smooth`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct SmoothHinting {
+    /// Hint only lightly: snap stems vertically but leave horizontal shapes
+    /// alone (`FreeType`'s "light" mode). Preserves the font's proportions
+    /// better, at the cost of a little horizontal sharpness.
+    ///
+    /// `false` uses the "normal" mode, which also fits horizontally.
+    /// Maps to `SmoothMode::Light` (`true`) vs `SmoothMode::Normal` (`false`).
+    pub light: bool,
+
+    /// Render a glyph the same way regardless of its sub-pixel position.
+    ///
+    /// `true` makes glyphs position-independent (better for caching and
+    /// animation), but a font's instructions may then widen stems and look
+    /// slightly blurrier under an analytic rasterizer like egui's.
+    ///
+    /// **Only affects fonts hinted via the TrueType interpreter** (i.e. fonts
+    /// that ship their own instructions). It has no effect on the auto-hinter.
+    /// Mirrors `Target::Smooth { symmetric_rendering }`.
+    pub symmetric_rendering: bool,
+
+    /// Keep advance widths independent of hinting (don't grid-fit horizontally
+    /// in a way that changes spacing).
+    ///
+    /// `true` keeps inter-glyph spacing identical to the unhinted font, so
+    /// layout never depends on hinting — but it also prevents horizontal
+    /// grid-fitting, leaving vertical stems softer on low-dpi screens.
+    ///
+    /// `false` lets the (auto)hinter snap horizontally for crisper stems.
+    /// egui positions glyphs from the shaper's advances, not the hinted
+    /// outline, so this mainly affects sharpness here, not layout.
+    /// Mirrors `Target::Smooth { preserve_linear_metrics }`.
+    pub preserve_linear_metrics: bool,
+}
+
+impl Default for SmoothHinting {
+    fn default() -> Self {
+        // Matches the behavior egui had before the hinting target was configurable.
+        // Note this means horizontal grid-fitting is opt-in (see `preserve_linear_metrics`).
+        Self {
+            light: false,
+            symmetric_rendering: true,
+            preserve_linear_metrics: true,
         }
     }
 }
@@ -418,7 +601,7 @@ impl FontFaceKey {
     pub const INVALID: Self = Self(0);
 
     fn new() -> Self {
-        static KEY_COUNTER: AtomicU64 = AtomicU64::new(1);
+        static KEY_COUNTER: AtomicUsize = AtomicUsize::new(1);
         Self(crate::util::hash(
             KEY_COUNTER.fetch_add(1, Ordering::Relaxed),
         ))
@@ -436,9 +619,20 @@ pub(super) struct CachedFamily {
     /// Lazily calculated.
     pub characters: Option<BTreeMap<char, Vec<String>>>,
 
-    pub replacement_glyph: (FontFaceKey, GlyphInfo),
+    /// The face used when no face in [`Self::fonts`] supports a char.
+    pub replacement_face_key: FontFaceKey,
 
-    pub glyph_info_cache: ahash::HashMap<char, (FontFaceKey, GlyphInfo)>,
+    /// The char that [`Self::replacement_face_key`] actually contains.
+    ///
+    /// When the user asks about a char that no fallback face supports we
+    /// render this char in its place.
+    pub replacement_char: char,
+
+    /// Cache: `char → which face in the fallback chain owns this char`.
+    ///
+    /// Location-independent (fallback choice depends only on charmap support,
+    /// not on variation coordinates).
+    pub face_cache: ahash::HashMap<char, FontFaceKey>,
 }
 
 impl CachedFamily {
@@ -446,49 +640,59 @@ impl CachedFamily {
         fonts: Vec<FontFaceKey>,
         fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     ) -> Self {
+        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
+        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
+
         if fonts.is_empty() {
             return Self {
                 fonts,
                 characters: None,
-                replacement_glyph: (FontFaceKey::INVALID, GlyphInfo::INVISIBLE),
-                glyph_info_cache: Default::default(),
+                replacement_face_key: FontFaceKey::INVALID,
+                replacement_char: PRIMARY_REPLACEMENT_CHAR,
+                face_cache: Default::default(),
             };
         }
 
         let mut slf = Self {
             fonts,
             characters: None,
-            replacement_glyph: (FontFaceKey::INVALID, GlyphInfo::INVISIBLE),
-            glyph_info_cache: Default::default(),
+            replacement_face_key: FontFaceKey::INVALID,
+            replacement_char: PRIMARY_REPLACEMENT_CHAR,
+            face_cache: Default::default(),
         };
 
-        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
-        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
-
-        let replacement_glyph = slf
-            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
-            .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR, fonts_by_id))
+        let (replacement_face_key, replacement_char) = slf
+            .find_face_for_char(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
+            .map(|key| (key, PRIMARY_REPLACEMENT_CHAR))
+            .or_else(|| {
+                slf.find_face_for_char(FALLBACK_REPLACEMENT_CHAR, fonts_by_id)
+                    .map(|key| (key, FALLBACK_REPLACEMENT_CHAR))
+            })
             .unwrap_or_else(|| {
                 log::warn!(
                     "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
                 );
-                (FontFaceKey::INVALID, GlyphInfo::INVISIBLE)
+                (FontFaceKey::INVALID, PRIMARY_REPLACEMENT_CHAR)
             });
-        slf.replacement_glyph = replacement_glyph;
+        slf.replacement_face_key = replacement_face_key;
+        slf.replacement_char = replacement_char;
 
         slf
     }
 
-    pub(crate) fn glyph_info_no_cache_or_fallback(
-        &mut self,
+    /// Walk the fallback chain and return the first face whose charmap supports `c`.
+    ///
+    /// Pure — does not touch any cache. Callers that want memoisation should
+    /// insert into [`Self::face_cache`] themselves.
+    pub(crate) fn find_face_for_char(
+        &self,
         c: char,
         fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
-    ) -> Option<(FontFaceKey, GlyphInfo)> {
+    ) -> Option<FontFaceKey> {
         for font_key in &self.fonts {
             let font_face = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
-            if let Some(glyph_info) = font_face.glyph_info(c) {
-                self.glyph_info_cache.insert(c, (*font_key, glyph_info));
-                return Some((*font_key, glyph_info));
+            if font_face.glyph_id_resolution(c).is_some() {
+                return Some(*font_key);
             }
         }
         None
@@ -765,6 +969,9 @@ pub struct FontsImpl {
     fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
+
+    /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
+    shape_buffer: Option<harfrust::UnicodeBuffer>,
 }
 
 impl FontsImpl {
@@ -798,11 +1005,22 @@ impl FontsImpl {
             fonts_by_id,
             fonts_by_name,
             family_cache: Default::default(),
+            shape_buffer: Some(harfrust::UnicodeBuffer::new()),
         }
     }
 
     pub fn options(&self) -> &TextOptions {
         self.atlas.options()
+    }
+
+    /// Take the recycled shaping buffer (or create a new one if already taken).
+    pub fn take_shape_buffer(&mut self) -> harfrust::UnicodeBuffer {
+        self.shape_buffer.take().unwrap_or_default()
+    }
+
+    /// Return a shaping buffer for reuse.
+    pub fn return_shape_buffer(&mut self, buffer: harfrust::UnicodeBuffer) {
+        self.shape_buffer = Some(buffer);
     }
 
     /// Get the right font implementation from [`FontFamily`].
@@ -1000,6 +1218,7 @@ impl GalleyCache {
                     0.0
                 },
                 round_output_to_gui: job.round_output_to_gui,
+                keep_trailing_whitespace: job.keep_trailing_whitespace,
             };
 
             // Add overlapping sections:
@@ -1013,10 +1232,10 @@ impl GalleyCache {
                 // `start` and `end` are the byte range of the current paragraph.
                 // How does the current section overlap with the paragraph range?
 
-                if section_range.end <= start {
+                if section_range.end <= ByteIndex(start) {
                     // The section is behind us
                     current_section += 1;
-                } else if end < section_range.start {
+                } else if ByteIndex(end) < section_range.start {
                     break; // Haven't reached this one yet.
                 } else {
                     // Section range overlaps with paragraph range
@@ -1025,13 +1244,13 @@ impl GalleyCache {
                         "Bad byte_range: {section_range:?}"
                     );
                     let new_range = section_range.start.saturating_sub(start)
-                        ..(section_range.end.at_most(end)).saturating_sub(start);
+                        ..(section_range.end.min(ByteIndex(end))).saturating_sub(start);
                     debug_assert!(
                         new_range.start <= new_range.end,
                         "Bad new section range: {new_range:?}"
                     );
                     paragraph_job.sections.push(LayoutSection {
-                        leading_space: if start <= section_range.start {
+                        leading_space: if ByteIndex(start) <= section_range.start {
                             *leading_space
                         } else {
                             0.0

@@ -178,10 +178,8 @@ fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Contex
 // ----------------------------------------------------------------------------
 
 /// Set the cursor icon.
-fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
-    let document = web_sys::window()?.document()?;
-    document
-        .body()?
+fn set_cursor_icon(canvas: &web_sys::HtmlCanvasElement, cursor: egui::CursorIcon) -> Option<()> {
+    canvas
         .style()
         .set_property("cursor", cursor_web_name(cursor))
         .ok()

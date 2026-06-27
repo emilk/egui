@@ -55,7 +55,7 @@ impl Default for MyApp {
 
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.heading("Example of how to use the puffin profiler with egui");
             ui.separator();
 
@@ -116,7 +116,7 @@ impl eframe::App for MyApp {
                         "This egui backend doesn't support multiple viewports"
                     );
 
-                    egui::CentralPanel::default().show_inside(ui, |ui| {
+                    egui::CentralPanel::default().show(ui, |ui| {
                         ui.label("Hello from immediate viewport");
                     });
 
@@ -143,7 +143,7 @@ impl eframe::App for MyApp {
                         "This egui backend doesn't support multiple viewports"
                     );
 
-                    egui::CentralPanel::default().show_inside(ui, |ui| {
+                    egui::CentralPanel::default().show(ui, |ui| {
                         ui.label("Hello from deferred viewport");
                     });
                     if ui.input(|i| i.viewport().close_requested()) {

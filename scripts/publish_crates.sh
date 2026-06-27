@@ -8,6 +8,7 @@
 (cd crates/egui-winit           && cargo publish --quiet)  &&  echo "✅ egui-winit"
 (cd crates/egui_glow            && cargo publish --quiet)  &&  echo "✅ egui_glow"
 (cd crates/egui-wgpu            && cargo publish --quiet)  &&  echo "✅ egui-wgpu"
+(cd crates/egui_inspection      && cargo publish --quiet)  &&  echo "✅ eframe"
 (cd crates/eframe               && cargo publish --quiet)  &&  echo "✅ eframe"
 (cd crates/egui_extras          && cargo publish --quiet)  &&  echo "✅ egui_extras"
 (cd crates/egui_kittest         && cargo publish --quiet)  &&  echo "✅ egui_kittest"
