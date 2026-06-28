@@ -274,13 +274,18 @@ impl AppRunner {
 
         self.app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
+        let is_visible = raw_input
+            .viewports
+            .get(&egui::ViewportId::ROOT)
+            .and_then(|v| v.visible())
+            .unwrap_or(true);
+
         let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             self.app.logic(ui.ctx(), &mut self.frame);
 
-            #[expect(deprecated)]
-            self.app.update(ui.ctx(), &mut self.frame);
-
-            self.app.ui(ui, &mut self.frame);
+            if is_visible {
+                self.app.ui(ui, &mut self.frame);
+            }
         });
         let egui::FullOutput {
             platform_output,
@@ -311,8 +316,10 @@ impl AppRunner {
         }
 
         self.handle_platform_output(platform_output);
-        self.textures_delta.append(textures_delta);
-        self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+        if is_visible {
+            self.textures_delta.append(textures_delta);
+            self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+        }
     }
 
     /// Paint the results of the last call to [`Self::logic`].
@@ -361,7 +368,8 @@ impl AppRunner {
         let egui::PlatformOutput {
             commands,
             cursor_icon,
-            events: _,                    // already handled
+            cursor_image: _, // TODO(alextournai): support custom bitmap cursors on the web (via CSS `url(...)`)
+            events: _,       // already handled
             mutable_text_under_cursor: _, // TODO(#4569): https://github.com/emilk/egui/issues/4569
             ime,
             accesskit_update: _,        // not currently implemented
@@ -383,7 +391,7 @@ impl AppRunner {
             }
         }
 
-        super::set_cursor_icon(cursor_icon);
+        super::set_cursor_icon(self.canvas(), cursor_icon);
 
         if self.has_focus() {
             // The eframe app has focus.
@@ -421,6 +429,10 @@ impl epi::Storage for LocalStorage {
 
     fn set_string(&mut self, key: &str, value: String) {
         super::storage::local_storage_set(key, &value);
+    }
+
+    fn remove_string(&mut self, key: &str) {
+        super::storage::local_storage_remove(key);
     }
 
     fn flush(&mut self) {}

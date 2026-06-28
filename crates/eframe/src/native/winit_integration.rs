@@ -9,6 +9,14 @@ use egui::ViewportId;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 
+/// Returns `true` if the window is invisible or minimized.
+///
+/// These windows don't receive `RedrawRequested` events on Windows,
+/// so they need special handling to keep processing viewport commands.
+pub fn is_invisible_or_minimized(window: &Window) -> bool {
+    window.is_visible() == Some(false) || window.is_minimized() == Some(true)
+}
+
 /// Create an egui context, restoring it from storage if possible.
 pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Context {
     profiling::function_scope!();

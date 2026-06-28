@@ -11,7 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/main/crates/egui-winit"
 categories = ["gui", "game-development"]
 keywords = ["winit", "egui", "gui", "gamedev"]
-include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [lints]
 workspace = true
@@ -19,6 +19,9 @@ workspace = true
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
+
+[package.metadata.cargo-shear]
+ignored = ["wayland-cursor"] # TODO(emilk): remove when we update winit
 
 [features]
 default = ["clipboard", "links", "wayland", "winit/default", "x11"]
@@ -81,6 +84,7 @@ objc2.workspace = true
 objc2-foundation = { workspace = true, features = ["std", "NSThread"] }
 objc2-ui-kit = { workspace = true, features = [
   "std",
+  "objc2-core-foundation",
   "UIApplication",
   "UIGeometry",
   "UIResponder",

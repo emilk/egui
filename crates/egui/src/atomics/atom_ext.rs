@@ -1,10 +1,16 @@
-use crate::{Atom, FontSelection, Ui};
+use crate::{Atom, FontSelection, Id, Ui};
 use emath::Vec2;
 
 /// A trait for conveniently building [`Atom`]s.
 ///
 /// The functions are prefixed with `atom_` to avoid conflicts with e.g. [`crate::RichText::size`].
 pub trait AtomExt<'a> {
+    /// Set the [`Id`] for custom rendering.
+    ///
+    /// You can get the [`crate::Rect`] with the [`Id`] from [`crate::AtomLayoutResponse`] and use a
+    /// [`crate::Painter`] or [`Ui::place`] to add/draw some custom content.
+    fn atom_id(self, id: Id) -> Atom<'a>;
+
     /// Set the atom to a fixed size.
     ///
     /// If [`Atom::grow`] is `true`, this will be the minimum width.
@@ -63,12 +69,23 @@ pub trait AtomExt<'a> {
         let height = ui.fonts_mut(|f| f.row_height(&font_id));
         self.atom_max_height(height)
     }
+
+    /// Sets the [`emath::Align2`] of a single atom within its available space.
+    ///
+    /// Defaults to center-center.
+    fn atom_align(self, align: emath::Align2) -> Atom<'a>;
 }
 
 impl<'a, T> AtomExt<'a> for T
 where
     T: Into<Atom<'a>> + Sized,
 {
+    fn atom_id(self, id: Id) -> Atom<'a> {
+        let mut atom = self.into();
+        atom.id = Some(id);
+        atom
+    }
+
     fn atom_size(self, size: Vec2) -> Atom<'a> {
         let mut atom = self.into();
         atom.size = Some(size);
@@ -102,6 +119,12 @@ where
     fn atom_max_height(self, max_height: f32) -> Atom<'a> {
         let mut atom = self.into();
         atom.max_size.y = max_height;
+        atom
+    }
+
+    fn atom_align(self, align: emath::Align2) -> Atom<'a> {
+        let mut atom = self.into();
+        atom.align = align;
         atom
     }
 }

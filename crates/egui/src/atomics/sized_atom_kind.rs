@@ -1,16 +1,21 @@
-use crate::{Id, Image};
+use crate::{Image, SizedAtomLayout};
 use emath::Vec2;
 use epaint::Galley;
 use std::sync::Arc;
 
 /// A sized [`crate::AtomKind`].
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub enum SizedAtomKind<'a> {
-    #[default]
-    Empty,
+    Empty { size: Option<Vec2> },
     Text(Arc<Galley>),
-    Image(Image<'a>, Vec2),
-    Custom(Id),
+    Image { image: Image<'a>, size: Vec2 },
+    Layout(Box<SizedAtomLayout<'a>>),
+}
+
+impl Default for SizedAtomKind<'_> {
+    fn default() -> Self {
+        Self::Empty { size: None }
+    }
 }
 
 impl SizedAtomKind<'_> {
@@ -18,8 +23,9 @@ impl SizedAtomKind<'_> {
     pub fn size(&self) -> Vec2 {
         match self {
             SizedAtomKind::Text(galley) => galley.size(),
-            SizedAtomKind::Image(_, size) => *size,
-            SizedAtomKind::Empty | SizedAtomKind::Custom(_) => Vec2::ZERO,
+            SizedAtomKind::Image { image: _, size } => *size,
+            SizedAtomKind::Empty { size } => size.unwrap_or_default(),
+            SizedAtomKind::Layout(layout) => layout.outer_size,
         }
     }
 }

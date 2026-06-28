@@ -7,6 +7,67 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.35.0 - 2026-06-25
+### ⭐ Added
+* Add Context::set_cursor_image for OS-level custom cursors [#8155](https://github.com/emilk/egui/pull/8155) by [@all3f0r1](https://github.com/all3f0r1)
+* Feat: add `remove_string()` to storage trait [#8264](https://github.com/emilk/egui/pull/8264) by [@mikesk8r](https://github.com/mikesk8r)
+
+### 🔧 Changed
+* Delegate handling of IME interruptions to integrations to fix virtual keyboard flickering on web [#8078](https://github.com/emilk/egui/pull/8078) by [@umajho](https://github.com/umajho)
+* Wgpu: Allow configuring VSync and frame latency at runtime [#8114](https://github.com/emilk/egui/pull/8114) by [@emilk](https://github.com/emilk)
+* Group `glow` config in a `struct` [#8108](https://github.com/emilk/egui/pull/8108) by [@TapGhoul](https://github.com/TapGhoul)
+* Choose restored window monitor by overlap [#8191](https://github.com/emilk/egui/pull/8191) by [@YelovSK](https://github.com/YelovSK)
+* Configure wgpu to be low-latency by default [#8203](https://github.com/emilk/egui/pull/8203) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔥 Removed
+* Remove everything that was marked `#[deprecated]` [#8105](https://github.com/emilk/egui/pull/8105) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Prevent entire page from scrolling out of view in Chrome (WASM) [#7888](https://github.com/emilk/egui/pull/7888) by [@rustbasic](https://github.com/rustbasic)
+* Fix crash when parent viewport is hidden [#8226](https://github.com/emilk/egui/pull/8226) by [@kpouer](https://github.com/kpouer)
+* Fix "drunk text" bug [#8250](https://github.com/emilk/egui/pull/8250) by [@emilk](https://github.com/emilk)
+* Call `logic` even while browser tab is in background [#8257](https://github.com/emilk/egui/pull/8257) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix macOS wgpu live resize with low-latency surfaces [#8229](https://github.com/emilk/egui/pull/8229) by [@yay](https://github.com/yay)
+
+
+## 0.34.3 - 2026-05-27
+* Default `app_id` to `app_name` on native [#8172](https://github.com/emilk/egui/pull/8172) by [@grtlr](https://github.com/grtlr)
+* Add winit window access to `eframe::Frame` and `CreationContext` [#8205](https://github.com/emilk/egui/pull/8205) by [@emilk](https://github.com/emilk)
+
+
+## 0.34.2 - 2026-05-04
+* Document glow-only fields in `NativeOptions` [#8104](https://github.com/emilk/egui/pull/8104) by [@emilk](https://github.com/emilk)
+
+
+## 0.34.1 - 2026-03-27
+* `wgpu` backend: Enable WebGL fallback [#8038](https://github.com/emilk/egui/pull/8038) by [@emilk](https://github.com/emilk)
+* Only apply cursor style to the `<canvas>` [#8036](https://github.com/emilk/egui/pull/8036) by [@mkeeter](https://github.com/mkeeter)
+
+
+## 0.34.0 - 2026-03-26
+### ⭐ Added
+* Add feature `wgpu_no_default_features` [#7700](https://github.com/emilk/egui/pull/7700) by [@emilk](https://github.com/emilk)
+* Add `ViewportInfo::occluded` and `visible` [#7948](https://github.com/emilk/egui/pull/7948) by [@emilk](https://github.com/emilk)
+* Add `eframe::WindowChromeMetrics` (macOS only) [#8015](https://github.com/emilk/egui/pull/8015) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Replace `App::update` with `fn logic` and `fn ui` [#7775](https://github.com/emilk/egui/pull/7775) by [@emilk](https://github.com/emilk)
+* Make `wgpu` the default renderer for `eframe` and egui.rs [#7615](https://github.com/emilk/egui/pull/7615) by [@emilk](https://github.com/emilk)
+* Roll out new egui icon and logo [#7995](https://github.com/emilk/egui/pull/7995) by [@emilk](https://github.com/emilk)
+* Update wasm-bindgen to 0.2.108, and ehttp to 0.7.1 [#7996](https://github.com/emilk/egui/pull/7996) by [@emilk](https://github.com/emilk)
+* Update to `wgpu` 29 [#7990](https://github.com/emilk/egui/pull/7990) by [@cwfitzgerald](https://github.com/cwfitzgerald)
+* Allow fallback from smithay to arboard when getting clipboard [#7976](https://github.com/emilk/egui/pull/7976) by [@wizzeh](https://github.com/wizzeh)
+
+### 🐛 Fixed
+* Fix: update get_proc_address to use Arc for better ownership management [#7922](https://github.com/emilk/egui/pull/7922) by [@Wybxc](https://github.com/Wybxc)
+* Much improved IME [#7967](https://github.com/emilk/egui/pull/7967) by [@umajho](https://github.com/umajho)
+* Improve behavior of invisible windows [#7905](https://github.com/emilk/egui/pull/7905) by [@gcailly](https://github.com/gcailly)
+
+### 🚀 Performance
+* Avoid repaints on device mouse motion outside window [#7866](https://github.com/emilk/egui/pull/7866) by [@inktomi](https://github.com/inktomi)
+* Only run `App::ui` if the application is visible [#7950](https://github.com/emilk/egui/pull/7950) by [@emilk](https://github.com/emilk)
+
+
 ## 0.33.3 - 2025-12-11
 Nothing new
 

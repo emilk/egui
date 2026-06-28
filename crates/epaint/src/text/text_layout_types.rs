@@ -1,12 +1,15 @@
-use std::ops::Range;
 use std::sync::Arc;
+use std::{ops::Range, str::FromStr as _};
 
 use super::{
     cursor::{CCursor, LayoutCursor},
     font::UvRect,
+    index::{ByteIndex, ByteRange, ByteRangeExt as _, CharIndex},
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
 use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
+pub use font_types::Tag;
+use smallvec::SmallVec;
 
 /// Describes the task of laying out text.
 ///
@@ -48,6 +51,12 @@ pub struct LayoutJob {
     pub text: String,
 
     /// The different section, which can have different fonts, colors, etc.
+    ///
+    /// Invariant: the sections are ordered by their `byte_range`,
+    /// and together cover the whole of [`Self::text`] with no gaps and no overlaps.
+    /// That is: the first section starts at byte 0, the last section ends at `text.len()`,
+    /// and each section starts exactly where the previous one ended.
+    /// This is checked by [`Self::debug_sanity_check`].
     pub sections: Vec<LayoutSection>,
 
     /// Controls the text wrapping and elision.
@@ -77,6 +86,14 @@ pub struct LayoutJob {
 
     /// Round output sizes using [`emath::GuiRounding`], to avoid rounding errors in layout code.
     pub round_output_to_gui: bool,
+
+    /// If `false` (default), trailing whitespace is ignored when computing
+    /// horizontal alignment ([`Self::halign`]).
+    /// This is desirable for labels so that e.g. "Hello " centers the same as "Hello".
+    ///
+    /// If `true`, trailing whitespace is included in the row width used for alignment.
+    /// This is desirable for text editors where the user expects to see their spaces.
+    pub keep_trailing_whitespace: bool,
 }
 
 impl Default for LayoutJob {
@@ -91,6 +108,7 @@ impl Default for LayoutJob {
             halign: Align::LEFT,
             justify: false,
             round_output_to_gui: true,
+            keep_trailing_whitespace: false,
         }
     }
 }
@@ -102,7 +120,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
-                byte_range: 0..text.len(),
+                byte_range: ByteRange::full(&text),
                 format: TextFormat::simple(font_id, color),
             }],
             text,
@@ -121,7 +139,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
-                byte_range: 0..text.len(),
+                byte_range: ByteRange::full(&text),
                 format,
             }],
             text,
@@ -136,7 +154,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
-                byte_range: 0..text.len(),
+                byte_range: ByteRange::full(&text),
                 format: TextFormat::simple(font_id, color),
             }],
             text,
@@ -151,7 +169,7 @@ impl LayoutJob {
         Self {
             sections: vec![LayoutSection {
                 leading_space: 0.0,
-                byte_range: 0..text.len(),
+                byte_range: ByteRange::full(&text),
                 format,
             }],
             text,
@@ -167,15 +185,92 @@ impl LayoutJob {
     }
 
     /// Helper for adding a new section when building a [`LayoutJob`].
+    ///
+    /// If the appended text has the same [`TextFormat`] as the last section and no
+    /// `leading_space`, it is merged into that section instead of adding a new one.
+    /// This keeps the section count down and lets text shaping (e.g. kerning) work
+    /// across the appended text, since shaping is done per [`LayoutSection`].
     pub fn append(&mut self, text: &str, leading_space: f32, format: TextFormat) {
         let start = self.text.len();
         self.text += text;
-        let byte_range = start..self.text.len();
+        let byte_range = ByteIndex(start)..ByteIndex(self.text.len());
+
+        // Optimization: merge into the previous section if it has the same format
+        // and this one adds no leading space.
+        if leading_space == 0.0
+            && let Some(last) = self.sections.last_mut()
+            && last.format == format
+        {
+            last.byte_range.end = byte_range.end;
+            return;
+        }
+
         self.sections.push(LayoutSection {
             leading_space,
             byte_range,
             format,
         });
+    }
+
+    /// The [`TextFormat`] of the section containing the character starting at the given byte index.
+    ///
+    /// If the index is past the end, the format of the last section is returned.
+    ///
+    /// Panics if the job has no sections.
+    /// Assumes [`LayoutJob::sections`] are ordered by increasing `byte_range` (as produced by [`Self::append`]).
+    pub fn format_at_byte(&self, byte_idx: ByteIndex) -> &TextFormat {
+        self.debug_sanity_check();
+        let last = self.sections.last().expect("LayoutJob has no sections");
+        let idx = self
+            .sections
+            .partition_point(|section| section.byte_range.end <= byte_idx);
+        let section = self.sections.get(idx).unwrap_or(last);
+        &section.format
+    }
+
+    /// Check the [`Self::sections`] invariant: the sections are ordered and together
+    /// cover the whole of [`Self::text`] with no gaps and no overlaps.
+    ///
+    /// Only does anything in debug builds.
+    #[cfg_attr(not(debug_assertions), expect(clippy::unused_self))]
+    pub fn debug_sanity_check(&self) {
+        #[cfg(debug_assertions)]
+        {
+            if self.sections.is_empty() {
+                assert!(
+                    self.text.is_empty(),
+                    "LayoutJob has text but no sections: {:?}",
+                    self.text
+                );
+                return;
+            }
+
+            assert_eq!(
+                self.sections
+                    .first()
+                    .expect("checked above")
+                    .byte_range
+                    .start,
+                ByteIndex::ZERO,
+                "First LayoutSection must start at byte 0"
+            );
+            assert_eq!(
+                self.sections.last().expect("checked above").byte_range.end,
+                ByteIndex(self.text.len()),
+                "Last LayoutSection must end at the end of the text"
+            );
+
+            for section in &self.sections {
+                let Range { start, end } = section.byte_range;
+                assert!(start <= end, "LayoutSection has a reversed byte_range");
+            }
+            for (prev, next) in std::iter::zip(&self.sections, self.sections.iter().skip(1)) {
+                assert_eq!(
+                    prev.byte_range.end, next.byte_range.start,
+                    "LayoutSections must be ordered with no gaps and no overlaps"
+                );
+            }
+        }
     }
 
     /// The height of the tallest font used in the job.
@@ -214,6 +309,7 @@ impl std::hash::Hash for LayoutJob {
             halign,
             justify,
             round_output_to_gui,
+            keep_trailing_whitespace,
         } = self;
 
         text.hash(state);
@@ -224,20 +320,31 @@ impl std::hash::Hash for LayoutJob {
         halign.hash(state);
         justify.hash(state);
         round_output_to_gui.hash(state);
+        keep_trailing_whitespace.hash(state);
     }
 }
 
 // ----------------------------------------------------------------------------
 
+/// A contiguous range of [`LayoutJob::text`] that shares the same [`TextFormat`].
+///
+/// The sections of a [`LayoutJob`] are ordered and together cover the whole text
+/// with no gaps and no overlaps. See [`LayoutJob::sections`] for the full invariant.
+///
+/// Text is shaped on a per-section basis: each section is an independent shaping run.
+/// This means kerning (and ligatures) are only correct _within_ a single section,
+/// and not across the boundary between two adjacent sections.
+/// For this reason [`LayoutJob::append`] merges consecutive sections when possible.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutSection {
     /// Can be used for first row indentation.
     pub leading_space: f32,
 
-    /// Range into the galley text
-    pub byte_range: Range<usize>,
+    /// Range into [`LayoutJob::text`].
+    pub byte_range: ByteRange,
 
+    /// How to format the text in this section (font, color, etc).
     pub format: TextFormat,
 }
 
@@ -256,6 +363,107 @@ impl std::hash::Hash for LayoutSection {
 }
 
 // ----------------------------------------------------------------------------
+
+/// Helper trait for all types that can be parsed as a [`font_types::Tag`].
+pub trait IntoTag {
+    fn into_tag(self) -> font_types::Tag;
+}
+
+impl IntoTag for font_types::Tag {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        self
+    }
+}
+
+impl IntoTag for u32 {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::from_u32(self)
+    }
+}
+
+impl IntoTag for [u8; 4] {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::new_checked(&self).expect("Invalid variation axis tag")
+    }
+}
+
+impl IntoTag for &[u8; 4] {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::new_checked(self).expect("Invalid variation axis tag")
+    }
+}
+
+impl IntoTag for &str {
+    #[inline(always)]
+    fn into_tag(self) -> font_types::Tag {
+        font_types::Tag::from_str(self).expect("Invalid variation axis tag")
+    }
+}
+
+/// List of font variation coordinates by axis tag. If more than one coordinate for a given axis is provided, the last
+/// one added is used.
+#[derive(Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct VariationCoords(SmallVec<[(font_types::Tag, f32); 2]>);
+
+impl VariationCoords {
+    /// Create a list of variation coordinates from a sequence of (tag, value) pairs.
+    ///
+    /// ## Example:
+    /// ```
+    /// use epaint::text::VariationCoords;
+    ///
+    /// let coords = VariationCoords::new([
+    ///     (b"wght", 500.0),
+    ///     (b"wdth", 75.0),
+    /// ]);
+    /// ```
+    pub fn new<T: IntoTag>(values: impl IntoIterator<Item = (T, f32)>) -> Self {
+        Self(values.into_iter().map(|(t, c)| (t.into_tag(), c)).collect())
+    }
+
+    /// Add a variation coordinate to the list.
+    #[inline(always)]
+    pub fn push(&mut self, tag: impl IntoTag, coord: f32) {
+        self.0.push((tag.into_tag(), coord));
+    }
+
+    /// Remove the coordinate at the given index.
+    pub fn remove(&mut self, index: usize) {
+        self.0.remove(index);
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+}
+
+impl AsRef<[(font_types::Tag, f32)]> for VariationCoords {
+    #[inline(always)]
+    fn as_ref(&self) -> &[(font_types::Tag, f32)] {
+        &self.0
+    }
+}
+
+impl AsMut<[(font_types::Tag, f32)]> for VariationCoords {
+    fn as_mut(&mut self) -> &mut [(font_types::Tag, f32)] {
+        &mut self.0
+    }
+}
+
+impl std::hash::Hash for VariationCoords {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.len().hash(state);
+        for (tag, coord) in &self.0 {
+            tag.hash(state);
+            OrderedFloat(*coord).hash(state);
+        }
+    }
+}
 
 /// Formatting option for a section of text.
 #[derive(Clone, Debug, PartialEq)]
@@ -287,6 +495,8 @@ pub struct TextFormat {
     /// Default: 1.0
     pub expand_bg: f32,
 
+    pub coords: VariationCoords,
+
     pub italics: bool,
 
     pub underline: Stroke,
@@ -315,6 +525,7 @@ impl Default for TextFormat {
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
             expand_bg: 1.0,
+            coords: VariationCoords::default(),
             italics: false,
             underline: Stroke::NONE,
             strikethrough: Stroke::NONE,
@@ -333,6 +544,7 @@ impl std::hash::Hash for TextFormat {
             color,
             background,
             expand_bg,
+            coords,
             italics,
             underline,
             strikethrough,
@@ -346,6 +558,7 @@ impl std::hash::Hash for TextFormat {
         color.hash(state);
         background.hash(state);
         emath::OrderedFloat(*expand_bg).hash(state);
+        coords.hash(state);
         italics.hash(state);
         underline.hash(state);
         strikethrough.hash(state);
@@ -588,9 +801,12 @@ impl PlacedRow {
 
     /// Same as [`Self::rect`] but excluding the `LayoutSection::leading_space`.
     pub fn rect_without_leading_space(&self) -> Rect {
-        let x = self.glyphs.first().map_or(self.pos.x, |g| g.pos.x);
-        let size_x = self.size.x - x;
-        Rect::from_min_size(Pos2::new(x, self.pos.y), Vec2::new(size_x, self.size.y))
+        let x = self.pos.x + self.glyphs.first().map_or(0.0, |g| g.pos.x);
+        let right = self.pos.x + self.size.x;
+        Rect::from_min_max(
+            Pos2::new(x, self.pos.y),
+            Pos2::new(right, self.pos.y + self.size.y),
+        )
     }
 }
 
@@ -731,23 +947,23 @@ impl Row {
 
     /// Excludes the implicit `\n` after the [`Row`], if any.
     #[inline]
-    pub fn char_count_excluding_newline(&self) -> usize {
-        self.glyphs.len()
+    pub fn char_count_excluding_newline(&self) -> CharIndex {
+        CharIndex(self.glyphs.len())
     }
 
     /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
-    pub fn char_at(&self, desired_x: f32) -> usize {
+    pub fn char_at(&self, desired_x: f32) -> CharIndex {
         for (i, glyph) in self.glyphs.iter().enumerate() {
             if desired_x < glyph.logical_rect().center().x {
-                return i;
+                return CharIndex(i);
             }
         }
         self.char_count_excluding_newline()
     }
 
-    pub fn x_offset(&self, column: usize) -> f32 {
-        if let Some(glyph) = self.glyphs.get(column) {
+    pub fn x_offset(&self, column: CharIndex) -> f32 {
+        if let Some(glyph) = self.glyphs.get(column.0) {
             glyph.pos.x
         } else {
             self.size.x
@@ -773,8 +989,8 @@ impl PlacedRow {
 
     /// Includes the implicit `\n` after the [`PlacedRow`], if any.
     #[inline]
-    pub fn char_count_including_newline(&self) -> usize {
-        self.row.glyphs.len() + (self.ends_with_newline as usize)
+    pub fn char_count_including_newline(&self) -> CharIndex {
+        CharIndex(self.row.glyphs.len() + (self.ends_with_newline as usize))
     }
 }
 
@@ -934,12 +1150,12 @@ impl Galley {
     }
 
     /// Returns a 0-width Rect.
-    fn pos_from_layout_cursor(&self, layout_cursor: &LayoutCursor) -> Rect {
+    pub fn pos_from_layout_cursor(&self, layout_cursor: &LayoutCursor) -> Rect {
         let Some(row) = self.rows.get(layout_cursor.row) else {
             return self.end_pos();
         };
 
-        let x = row.x_offset(layout_cursor.column);
+        let x = row.x_offset(layout_cursor.column) + row.pos.x;
         Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
     }
 
@@ -973,7 +1189,7 @@ impl Galley {
         let mut best_y_dist = f32::INFINITY;
         let mut cursor = CCursor::default();
 
-        let mut ccursor_index = 0;
+        let mut ccursor_index = CharIndex::ZERO;
 
         for row in &self.rows {
             let min_y = row.min_y();
@@ -1019,7 +1235,7 @@ impl Galley {
             return Default::default();
         }
         let mut ccursor = CCursor {
-            index: 0,
+            index: CharIndex::ZERO,
             prefer_next_row: true,
         };
         for row in &self.rows {
@@ -1036,7 +1252,7 @@ impl Galley {
     pub fn layout_from_cursor(&self, cursor: CCursor) -> LayoutCursor {
         let prefer_next_row = cursor.prefer_next_row;
         let mut ccursor_it = CCursor {
-            index: 0,
+            index: CharIndex::ZERO,
             prefer_next_row,
         };
 
@@ -1079,15 +1295,13 @@ impl Galley {
         let prefer_next_row =
             layout_cursor.column < self.rows[layout_cursor.row].char_count_excluding_newline();
         let mut cursor_it = CCursor {
-            index: 0,
+            index: CharIndex::ZERO,
             prefer_next_row,
         };
 
         for (row_nr, row) in self.rows.iter().enumerate() {
             if row_nr == layout_cursor.row {
-                cursor_it.index += layout_cursor
-                    .column
-                    .at_most(row.char_count_excluding_newline());
+                cursor_it.index += layout_cursor.column.min(row.char_count_excluding_newline());
 
                 return cursor_it;
             }
@@ -1101,7 +1315,7 @@ impl Galley {
 impl Galley {
     #[expect(clippy::unused_self)]
     pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
-        if cursor.index == 0 {
+        if cursor.index == CharIndex::ZERO {
             Default::default()
         } else {
             CCursor {
@@ -1136,7 +1350,8 @@ impl Galley {
 
             let new_layout_cursor = {
                 // keep same X coord
-                let column = self.rows[new_row].char_at(h_pos);
+                // char_at is Row-relative, so subtract the row's position
+                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
                 LayoutCursor {
                     row: new_row,
                     column,
@@ -1158,7 +1373,8 @@ impl Galley {
 
             let new_layout_cursor = {
                 // keep same X coord
-                let column = self.rows[new_row].char_at(h_pos);
+                // char_at is Row-relative, so subtract the row's position
+                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
                 LayoutCursor {
                     row: new_row,
                     column,
@@ -1175,7 +1391,7 @@ impl Galley {
         let layout_cursor = self.layout_from_cursor(*cursor);
         self.cursor_from_layout(LayoutCursor {
             row: layout_cursor.row,
-            column: 0,
+            column: CharIndex::ZERO,
         })
     }
 
@@ -1189,7 +1405,7 @@ impl Galley {
 
     pub fn cursor_begin_of_paragraph(&self, cursor: &CCursor) -> CCursor {
         let mut layout_cursor = self.layout_from_cursor(*cursor);
-        layout_cursor.column = 0;
+        layout_cursor.column = CharIndex::ZERO;
 
         loop {
             let prev_row = layout_cursor

@@ -1,7 +1,10 @@
 //! egui theme (spacing, colors, etc).
 
 use emath::Align;
-use epaint::{AlphaFromCoverage, CornerRadius, Shadow, Stroke, TextOptions, text::FontTweak};
+use epaint::{
+    CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
+    text::{FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
+};
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use crate::{
@@ -293,17 +296,6 @@ pub struct Style {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub number_formatter: NumberFormatter,
 
-    /// If set, labels, buttons, etc. will use this to determine whether to wrap the text at the
-    /// right edge of the [`Ui`] they are in. By default, this is `None`.
-    ///
-    /// **Note**: this API is deprecated, use `wrap_mode` instead.
-    ///
-    /// * `None`: use `wrap_mode` instead
-    /// * `Some(true)`: wrap mode defaults to [`crate::TextWrapMode::Wrap`]
-    /// * `Some(false)`: wrap mode defaults to [`crate::TextWrapMode::Extend`]
-    #[deprecated = "Use wrap_mode instead"]
-    pub wrap: Option<bool>,
-
     /// If set, labels, buttons, etc. will use this to determine whether to wrap or truncate the
     /// text at the right edge of the [`Ui`] they are in, or to extend it. By default, this is
     /// `None`.
@@ -582,6 +574,8 @@ pub struct ScrollStyle {
     /// This is only for floating scroll bars.
     /// Solid scroll bars are always opaque.
     pub interact_handle_opacity: f32,
+
+    pub fade: ScrollFadeStyle,
 }
 
 impl Default for ScrollStyle {
@@ -612,6 +606,8 @@ impl ScrollStyle {
             dormant_handle_opacity: 0.0,
             active_handle_opacity: 0.6,
             interact_handle_opacity: 1.0,
+
+            fade: Default::default(),
         }
     }
 
@@ -695,6 +691,8 @@ impl ScrollStyle {
             dormant_handle_opacity,
             active_handle_opacity,
             interact_handle_opacity,
+
+            fade,
         } = self;
 
         ui.horizontal(|ui| {
@@ -766,6 +764,52 @@ impl ScrollStyle {
             ui.horizontal(|ui| {
                 ui.add(DragValue::new(bar_inner_margin).range(0.0..=32.0));
                 ui.label("Inner margin");
+            });
+        }
+
+        ui.separator();
+        fade.ui(ui);
+    }
+}
+
+/// Controls if and how to fade out the sides of a [`crate::ScrollArea`]
+/// to indicate there is more there if you scroll.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ScrollFadeStyle {
+    /// Opacity of the fade effect at the outer edge, in 0.0-1.0.
+    ///
+    /// Set to 0.0 to disable the fade effect.
+    pub strength: f32,
+
+    /// Size of the fade-area (height for vertical scrolling,
+    /// width for horizontal scrolling).
+    pub size: f32,
+}
+
+impl Default for ScrollFadeStyle {
+    fn default() -> Self {
+        Self {
+            strength: 0.5,
+            size: 20.0,
+        }
+    }
+}
+
+impl ScrollFadeStyle {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        let Self { strength, size } = self;
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(strength).speed(0.01).range(0.0..=1.0));
+            ui.label("Fade strength");
+        });
+
+        if 0.0 < *strength {
+            ui.horizontal(|ui| {
+                ui.add(DragValue::new(size).range(0.0..=64.0));
+                ui.label("Fade size");
             });
         }
     }
@@ -982,6 +1026,7 @@ pub struct Visuals {
     pub widgets: Widgets,
 
     pub selection: Selection,
+    pub ime_composition: ImeComposition,
 
     /// The color used for [`crate::Hyperlink`],
     pub hyperlink_color: Color32,
@@ -1029,7 +1074,10 @@ pub struct Visuals {
     /// How the text cursor acts.
     pub text_cursor: TextCursorStyle,
 
-    /// Allow child widgets to be just on the border and still have a stroke with some thickness
+    /// Allow widgets to paint this much outside the scroll area rect.
+    ///
+    /// Legacy. Should not be used anymore.
+    /// Use [`crate::ScrollArea::content_margin`] instead.
     pub clip_rect_margin: f32,
 
     /// Show a background behind buttons.
@@ -1110,13 +1158,6 @@ impl Visuals {
         self.window_stroke
     }
 
-    /// When fading out things, we fade the colors towards this.
-    #[inline(always)]
-    #[deprecated = "Use disabled_alpha(). Fading is now handled by modifying the alpha channel."]
-    pub fn fade_out_to_color(&self) -> Color32 {
-        self.widgets.noninteractive.weak_bg_fill
-    }
-
     /// Disabled widgets have their alpha modified by this.
     #[inline(always)]
     pub fn disabled_alpha(&self) -> f32 {
@@ -1150,6 +1191,36 @@ pub struct Selection {
 
     /// Color of selected text.
     pub stroke: Stroke,
+}
+
+/// Visual style for IME composition.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ImeComposition {
+    /// Stroke used to underline the actively composed segment.
+    pub active_underline_stroke: Stroke,
+
+    /// Stroke used to underline those non-active segments.
+    pub inactive_underline_stroke: Stroke,
+
+    /// If `true`, IME (Input Method Editor) composition (preedit) text is rendered
+    /// the legacy way: visually indistinguishable from a text selection, with the
+    /// cursor always shown at the end of the composition.
+    ///
+    /// If `false`, egui renders proper IME composition visuals: the cursor position
+    /// inside the composition is shown, and the active conversion segment is
+    /// highlighted (using the strokes configured above) distinctly from the rest of the
+    /// composition. This makes composing Chinese, Japanese and Korean text much
+    /// clearer.
+    ///
+    /// The legacy visuals have known shortcomings, but the new visuals are not yet
+    /// fully reliable on every platform either (e.g. `winit` reports an incorrect
+    /// cursor position for Korean IMEs on Windows), so this remains configurable.
+    ///
+    /// Defaults to `true` on Windows (because of the aforementioned `winit` bug) and
+    /// to `false` everywhere else.
+    pub legacy_visuals: bool,
 }
 
 /// Shape of the handle for sliders and similar widgets.
@@ -1247,11 +1318,6 @@ impl WidgetVisuals {
     pub fn text_color(&self) -> Color32 {
         self.fg_stroke.color
     }
-
-    #[deprecated = "Renamed to corner_radius"]
-    pub fn rounding(&self) -> CornerRadius {
-        self.corner_radius
-    }
 }
 
 /// Options for help debug egui by adding extra visualization
@@ -1299,6 +1365,10 @@ pub struct DebugOptions {
     /// Show interesting widgets under the mouse cursor.
     pub show_widget_hits: bool,
 
+    /// Show a warning if the same `Rect` had different `Id` and the same parent `Id` on the
+    /// previous frame.
+    pub warn_if_rect_changes_id: bool,
+
     /// If true, highlight widgets that are not aligned to [`emath::GUI_ROUNDING`].
     ///
     /// See [`emath::GuiRounding`] for more.
@@ -1325,6 +1395,7 @@ impl Default for DebugOptions {
             show_resize: false,
             show_interactive_widgets: false,
             show_widget_hits: false,
+            warn_if_rect_changes_id: cfg!(debug_assertions),
             show_unaligned: cfg!(debug_assertions),
             show_focused_widget: false,
         }
@@ -1349,7 +1420,6 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
 impl Default for Style {
     fn default() -> Self {
-        #[expect(deprecated)]
         Self {
             override_font_id: None,
             override_text_style: None,
@@ -1357,12 +1427,11 @@ impl Default for Style {
             text_styles: default_text_styles(),
             drag_value_text_style: TextStyle::Button,
             number_formatter: NumberFormatter(Arc::new(emath::format_with_decimals_in_range)),
-            wrap: None,
             wrap_mode: None,
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
-            animation_time: 6.0 / 60.0, // If we make this too slow, it will be too obvious that our panel animations look like shit :(
+            animation_time: 0.2,
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
@@ -1422,7 +1491,7 @@ impl Visuals {
         Self {
             dark_mode: true,
             text_options: TextOptions {
-                alpha_from_coverage: AlphaFromCoverage::DARK_MODE_DEFAULT,
+                color_transfer_function: FontColorTransferFunction::DARK_MODE_DEFAULT,
                 ..Default::default()
             },
             override_text_color: None,
@@ -1430,6 +1499,7 @@ impl Visuals {
             weak_text_color: None,
             widgets: Widgets::default(),
             selection: Selection::default(),
+            ime_composition: ImeComposition::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
@@ -1464,7 +1534,7 @@ impl Visuals {
 
             text_cursor: Default::default(),
 
-            clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
+            clip_rect_margin: 0.0,
             button_frame: true,
             collapsing_header_frame: false,
             indent_has_left_vline: true,
@@ -1488,11 +1558,12 @@ impl Visuals {
         Self {
             dark_mode: false,
             text_options: TextOptions {
-                alpha_from_coverage: AlphaFromCoverage::LIGHT_MODE_DEFAULT,
+                color_transfer_function: FontColorTransferFunction::LIGHT_MODE_DEFAULT,
                 ..Default::default()
             },
             widgets: Widgets::light(),
             selection: Selection::light(),
+            ime_composition: ImeComposition::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(255),           // e.g. TextEdit background
@@ -1551,6 +1622,48 @@ impl Selection {
 }
 
 impl Default for Selection {
+    fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl ImeComposition {
+    fn dark() -> Self {
+        // Same as the default value of [`TextCursorStyle::stroke`] in dark mode.
+        let active_underline_stroke = Stroke::new(2.0, Color32::from_rgb(192, 222, 255));
+        let inactive_underline_stroke = Stroke {
+            width: active_underline_stroke.width,
+            color: active_underline_stroke.color.linear_multiply(0.5),
+        };
+        Self {
+            active_underline_stroke,
+            inactive_underline_stroke,
+            legacy_visuals: Self::default_legacy_visuals(),
+        }
+    }
+
+    fn light() -> Self {
+        // Same as the default value of [`TextCursorStyle::stroke`] in light mode.
+        let active_underline_stroke = Stroke::new(2.0, Color32::from_rgb(0, 83, 125));
+        let inactive_underline_stroke = Stroke {
+            width: active_underline_stroke.width,
+            color: active_underline_stroke.color.linear_multiply(0.5),
+        };
+        Self {
+            active_underline_stroke,
+            inactive_underline_stroke,
+            legacy_visuals: Self::default_legacy_visuals(),
+        }
+    }
+
+    /// The default of [`Self::legacy_visuals`]: `true` on Windows (where `winit`
+    /// reports an incorrect cursor position for Korean IMEs), `false` elsewhere.
+    const fn default_legacy_visuals() -> bool {
+        cfg!(windows)
+    }
+}
+
+impl Default for ImeComposition {
     fn default() -> Self {
         Self::dark()
     }
@@ -1663,7 +1776,6 @@ use crate::{
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
-        #[expect(deprecated)]
         let Self {
             override_font_id,
             override_text_style,
@@ -1671,7 +1783,6 @@ impl Style {
             text_styles,
             drag_value_text_style,
             number_formatter: _, // can't change callbacks in the UI
-            wrap: _,
             wrap_mode,
             spacing,
             interaction,
@@ -2077,6 +2188,34 @@ impl Selection {
     }
 }
 
+impl ImeComposition {
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            active_underline_stroke,
+            inactive_underline_stroke,
+            legacy_visuals,
+        } = self;
+
+        ui.label("IME composition");
+
+        ui.checkbox(legacy_visuals, "Legacy visuals").on_hover_text(
+            "If enabled, IME composition (preedit) text looks like a text selection \
+             with the cursor at the end. If disabled, the cursor position and active \
+             conversion segment are shown.",
+        );
+
+        Grid::new("ime_composition").num_columns(2).show(ui, |ui| {
+            ui.label("Active underline stroke");
+            ui.add(active_underline_stroke);
+            ui.end_row();
+
+            ui.label("Inactive underline stroke");
+            ui.add(inactive_underline_stroke);
+            ui.end_row();
+        });
+    }
+}
+
 impl WidgetVisuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
@@ -2133,6 +2272,7 @@ impl Visuals {
             weak_text_color,
             widgets,
             selection,
+            ime_composition,
             hyperlink_color,
             faint_bg_color,
             extreme_bg_color,
@@ -2281,13 +2421,15 @@ impl Visuals {
 
             let TextOptions {
                 max_texture_side: _,
-                alpha_from_coverage,
+                color_transfer_function,
                 font_hinting,
+                subpixel_binning,
             } = text_options;
 
-            text_alpha_from_coverage_ui(ui, alpha_from_coverage);
+            color_transfer_function_ui(ui, color_transfer_function);
 
-            ui.checkbox(font_hinting, "Enable font hinting");
+            ui.checkbox(font_hinting, "Font hinting (sharper text)");
+            ui.checkbox(subpixel_binning, "Sub-pixel binning (more even kerning)");
         });
 
         ui.collapsing("Text cursor", |ui| {
@@ -2338,6 +2480,7 @@ impl Visuals {
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
+        ui.collapsing("IME composition", |ui| ime_composition.ui(ui));
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
@@ -2398,23 +2541,29 @@ impl Visuals {
     }
 }
 
-fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromCoverage) {
-    let mut dark_mode_special =
-        *alpha_from_coverage == AlphaFromCoverage::TwoCoverageMinusCoverageSq;
-
+fn color_transfer_function_ui(
+    ui: &mut Ui,
+    color_transfer_function: &mut FontColorTransferFunction,
+) {
     ui.horizontal(|ui| {
-        ui.label("Text rendering:");
+        ui.label("Opacity tweaking:");
 
-        ui.checkbox(&mut dark_mode_special, "Dark-mode special");
+        ui.radio_value(
+            color_transfer_function,
+            FontColorTransferFunction::Off,
+            "Off",
+        );
+        ui.radio_value(
+            color_transfer_function,
+            FontColorTransferFunction::DARK_MODE_DEFAULT,
+            "Dark-mode special",
+        );
 
-        if dark_mode_special {
-            *alpha_from_coverage = AlphaFromCoverage::DARK_MODE_DEFAULT;
-        } else {
-            let mut gamma = match alpha_from_coverage {
-                AlphaFromCoverage::Linear => 1.0,
-                AlphaFromCoverage::Gamma(gamma) => *gamma,
-                AlphaFromCoverage::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
-            };
+        let mut use_gamma = matches!(color_transfer_function, FontColorTransferFunction::Gamma(_));
+        ui.radio_value(&mut use_gamma, true, "Gamma function");
+
+        if use_gamma {
+            let mut gamma = color_transfer_function.to_gamma();
 
             ui.add(
                 DragValue::new(&mut gamma)
@@ -2423,11 +2572,7 @@ fn text_alpha_from_coverage_ui(ui: &mut Ui, alpha_from_coverage: &mut AlphaFromC
                     .prefix("Gamma: "),
             );
 
-            if gamma == 1.0 {
-                *alpha_from_coverage = AlphaFromCoverage::Linear;
-            } else {
-                *alpha_from_coverage = AlphaFromCoverage::Gamma(gamma);
-            }
+            *color_transfer_function = FontColorTransferFunction::Gamma(gamma);
         }
     });
 }
@@ -2487,6 +2632,7 @@ impl DebugOptions {
             show_resize,
             show_interactive_widgets,
             show_widget_hits,
+            warn_if_rect_changes_id,
             show_unaligned,
             show_focused_widget,
         } = self;
@@ -2517,6 +2663,11 @@ impl DebugOptions {
         );
 
         ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
+
+        ui.checkbox(
+            warn_if_rect_changes_id,
+            "Warn if a Rect changes Id between frames",
+        );
 
         ui.checkbox(
             show_unaligned,
@@ -2835,56 +2986,178 @@ impl Widget for &mut crate::Frame {
     }
 }
 
+/// Show a UI for editing a [`FontTweak`].
+///
+/// `axes` are the variation axes of the font this tweak applies to, as returned by
+/// [`epaint::text::FontData::variation_axes`]. When non-empty, the variation
+/// coordinates are shown as named sliders pre-populated with each axis' valid range
+/// and default value, so the user doesn't have to guess tags and numbers. Pass an
+/// empty slice if the axes are unknown (e.g. a static font) to fall back to
+/// free-form tag/value entry.
+///
+/// [`Widget for &mut FontTweak`](FontTweak) calls this with no axes.
+pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAxis]) -> Response {
+    let original: FontTweak = tweak.clone();
+
+    let mut response = Grid::new("font_tweak")
+        .num_columns(2)
+        .show(ui, |ui| {
+            let FontTweak {
+                scale,
+                y_offset_factor,
+                y_offset,
+                hinting,
+                hinting_target,
+                coords,
+                thin_space_width,
+                tab_size,
+                subpixel_binning,
+            } = tweak;
+
+            ui.label("Scale");
+            let speed = *scale * 0.01;
+            ui.add(DragValue::new(scale).range(0.01..=10.0).speed(speed));
+            ui.end_row();
+
+            ui.label("y_offset_factor");
+            ui.add(DragValue::new(y_offset_factor).speed(-0.0025));
+            ui.end_row();
+
+            ui.label("y_offset");
+            ui.add(DragValue::new(y_offset).speed(-0.02));
+            ui.end_row();
+
+            ui.label("hinting");
+            ui.horizontal(|ui| {
+                ui.radio_value(hinting, Some(true), "on");
+                ui.radio_value(hinting, Some(false), "off");
+                ui.radio_value(hinting, None, "default");
+            });
+            ui.end_row();
+
+            ui.label("hinting_target")
+                .on_hover_text("How aggressively to snap glyph outlines to the pixel grid. Only matters when hinting is enabled.");
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    let is_mono = matches!(hinting_target, HintingTarget::Mono);
+                    if ui
+                        .radio(!is_mono, "Smooth")
+                        .on_hover_text("Hinting tuned for anti-aliased rendering. The normal choice.")
+                        .clicked()
+                        && is_mono
+                    {
+                        *hinting_target = HintingTarget::default();
+                    }
+                    if ui
+                        .radio(is_mono, "Mono")
+                        .on_hover_text(
+                            "Strongest hinting (designed for 1-bit rendering). Sharpest, but \
+                             distorts glyph weight across sizes.",
+                        )
+                        .clicked()
+                    {
+                        *hinting_target = HintingTarget::Mono;
+                    }
+                    if ui
+                        .button("Reset")
+                        .on_hover_text("Reset the hinting target to its default.")
+                        .clicked()
+                    {
+                        *hinting_target = HintingTarget::default();
+                    }
+                });
+                if let HintingTarget::Smooth(SmoothHinting {
+                    light,
+                    symmetric_rendering,
+                    preserve_linear_metrics,
+                }) = hinting_target
+                {
+                    ui.checkbox(light, "light").on_hover_text(
+                        "Hint only vertically, preserving the font's horizontal proportions \
+                         (softer). Off also fits horizontally.",
+                    );
+                    ui.checkbox(symmetric_rendering, "symmetric_rendering").on_hover_text(
+                        "Render glyphs the same regardless of sub-pixel position (good for \
+                         caching/animation), but can blur stems. Only affects interpreter-hinted fonts.",
+                    );
+                    ui.checkbox(preserve_linear_metrics, "preserve_linear_metrics").on_hover_text(
+                        "Keep spacing independent of hinting. Off lets the hinter snap \
+                         horizontally for crisper vertical stems on low-dpi screens.",
+                    );
+                }
+            });
+            ui.end_row();
+
+            ui.label("subpixel_binning");
+            ui.horizontal(|ui| {
+                ui.radio_value(subpixel_binning, Some(true), "on");
+                ui.radio_value(subpixel_binning, Some(false), "off");
+                ui.radio_value(subpixel_binning, None, "default");
+            });
+            ui.end_row();
+
+            ui.label("thin_space_width");
+            ui.horizontal(|ui| {
+                ui.add(
+                    DragValue::new(thin_space_width)
+                        .range(0.0..=1.0)
+                        .speed(0.01),
+                );
+                ui.label("1\u{2009}234\u{2009}567\u{2009}890");
+            });
+            ui.end_row();
+
+            ui.label("tab_size");
+            ui.add(DragValue::new(tab_size).range(0.0..=16.0).speed(0.1));
+            ui.end_row();
+
+            // Show variation axes if we have them:
+            for axis in axes.iter().filter(|axis| !axis.hidden) {
+                match &axis.name {
+                    Some(name) => ui.label(format!("{name} ({})", axis.tag)),
+                    None => ui.label(axis.tag.to_string()),
+                };
+
+                let existing = coords.as_ref().iter().position(|(tag, _)| *tag == axis.tag);
+                let mut value = existing.map_or(axis.default, |i| coords.as_ref()[i].1);
+
+                ui.horizontal(|ui| {
+                    if ui.add(Slider::new(&mut value, axis.range)).changed() {
+                        match existing {
+                            Some(i) => coords.as_mut()[i].1 = value,
+                            None => coords.push(axis.tag, value),
+                        }
+                    }
+                    // Let the user drop the override and fall back to the font default:
+                    if existing.is_some()
+                        && ui
+                            .small_button("⟲")
+                            .on_hover_text("Reset to the font's default value")
+                            .clicked()
+                        && let Some(i) =
+                            coords.as_ref().iter().position(|(tag, _)| *tag == axis.tag)
+                    {
+                        coords.remove(i);
+                    }
+                });
+                ui.end_row();
+            }
+
+            if ui.button("Reset").clicked() {
+                *tweak = Default::default();
+            }
+        })
+        .response;
+
+    if *tweak != original {
+        response.mark_changed();
+    }
+
+    response
+}
+
 impl Widget for &mut FontTweak {
     fn ui(self, ui: &mut Ui) -> Response {
-        let original: FontTweak = *self;
-
-        let mut response = Grid::new("font_tweak")
-            .num_columns(2)
-            .show(ui, |ui| {
-                let FontTweak {
-                    scale,
-                    y_offset_factor,
-                    y_offset,
-                    hinting_override,
-                } = self;
-
-                ui.label("Scale");
-                let speed = *scale * 0.01;
-                ui.add(DragValue::new(scale).range(0.01..=10.0).speed(speed));
-                ui.end_row();
-
-                ui.label("y_offset_factor");
-                ui.add(DragValue::new(y_offset_factor).speed(-0.0025));
-                ui.end_row();
-
-                ui.label("y_offset");
-                ui.add(DragValue::new(y_offset).speed(-0.02));
-                ui.end_row();
-
-                ui.label("hinting_override");
-                ComboBox::from_id_salt("hinting_override")
-                    .selected_text(match hinting_override {
-                        None => "None",
-                        Some(true) => "Enable",
-                        Some(false) => "Disable",
-                    })
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(hinting_override, None, "None");
-                        ui.selectable_value(hinting_override, Some(true), "Enable");
-                        ui.selectable_value(hinting_override, Some(false), "Disable");
-                    });
-
-                if ui.button("Reset").clicked() {
-                    *self = Default::default();
-                }
-            })
-            .response;
-
-        if *self != original {
-            response.mark_changed();
-        }
-
-        response
+        font_tweak_ui(ui, self, &[])
     }
 }
