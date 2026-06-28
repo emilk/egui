@@ -52,7 +52,11 @@ links = ["webbrowser"]
 serde = ["egui/serde", "dep:serde"]
 
 ## Enables Wayland support.
-wayland = ["winit/wayland", "bytemuck"]
+wayland = [
+  "winit/wayland",
+  "bytemuck",
+  "arboard?/wayland-data-control",
+]
 
 ## Enables compiling for x11.
 x11 = ["winit/x11", "bytemuck"]
