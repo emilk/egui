@@ -906,9 +906,11 @@ impl TextEdit<'_> {
                             .layer_transform_to_global(ui.layer_id())
                             .unwrap_or_default();
                         ui.output_mut(|o| {
+                            let tiny_rect =
+                                Rect::from_min_size(primary_cursor_rect.left_top(), Vec2::ZERO);
                             o.ime = Some(crate::output::IMEOutput {
                                 rect: to_global * inner_rect,
-                                cursor_rect: to_global * primary_cursor_rect,
+                                cursor_rect: to_global * tiny_rect,
                                 should_interrupt_composition: false,
                             });
                         });
