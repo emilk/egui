@@ -1,11 +1,6 @@
 use crate::{Atom, AtomKind, Image, WidgetText};
-use smallvec::SmallVec;
 use std::borrow::Cow;
 use std::ops::{Deref, DerefMut};
-
-// Rarely there should be more than 2 atoms in one Widget.
-// I guess it could happen in a menu button with Image and right text...
-pub(crate) const ATOMS_SMALL_VEC_SIZE: usize = 2;
 
 /// A list of [`Atom`]s.
 ///
@@ -18,7 +13,7 @@ pub(crate) const ATOMS_SMALL_VEC_SIZE: usize = 2;
 /// ui.button((image, "Click me!"));
 /// # });
 #[derive(Clone, Debug, Default)]
-pub struct Atoms<'a>(SmallVec<[Atom<'a>; ATOMS_SMALL_VEC_SIZE]>);
+pub struct Atoms<'a>(Vec<Atom<'a>>);
 
 impl<'a> Atoms<'a> {
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
@@ -174,7 +169,7 @@ impl<'a> Atoms<'a> {
 
 impl<'a> IntoIterator for Atoms<'a> {
     type Item = Atom<'a>;
-    type IntoIter = smallvec::IntoIter<[Atom<'a>; ATOMS_SMALL_VEC_SIZE]>;
+    type IntoIter = std::vec::IntoIter<Atom<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()

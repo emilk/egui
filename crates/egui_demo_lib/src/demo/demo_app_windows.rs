@@ -47,6 +47,12 @@ impl DemoGroup {
             set_open(open, demo.name(), is_open);
         }
     }
+
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        for demo in &mut self.demos {
+            demo.logic(ctx);
+        }
+    }
 }
 
 fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
@@ -160,6 +166,11 @@ impl DemoGroups {
         demos.windows(ui, open);
         tests.windows(ui, open);
     }
+
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        self.demos.logic(ctx);
+        self.tests.logic(ctx);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -212,6 +223,13 @@ impl DemoWindows {
         }
     }
 
+    /// Run background logic for all demos.
+    ///
+    /// Called every frame, even when hidden, so demos can keep working in the background.
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        self.groups.logic(ctx);
+    }
+
     fn about_is_open(&self) -> bool {
         self.open.contains(About::default().name())
     }
@@ -245,7 +263,7 @@ impl DemoWindows {
     }
 
     fn mobile_top_bar(&mut self, ui: &mut egui::Ui) {
-        egui::Panel::top("menu_bar").show_inside(ui, |ui| {
+        egui::Panel::top("menu_bar").show(ui, |ui| {
             menu::MenuBar::new()
                 .config(menu::MenuConfig::new().style(StyleModifier::default()))
                 .ui(ui, |ui| {
@@ -275,7 +293,7 @@ impl DemoWindows {
             .resizable(false)
             .default_size(160.0)
             .min_size(160.0)
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 ui.vertical_centered_justified(|ui| {
                     ui.add_space(4.0);
                     ui.add(
@@ -296,7 +314,7 @@ impl DemoWindows {
                 self.demo_list_ui(ui);
             });
 
-        egui::Panel::top("menu_bar").show_inside(ui, |ui| {
+        egui::Panel::top("menu_bar").show(ui, |ui| {
             menu::MenuBar::new().ui(ui, |ui| {
                 file_menu_button(ui);
             });
@@ -418,7 +436,7 @@ mod tests {
 
             if name == "Bézier Curve" {
                 // The Bézier Curve demo needs a threshold of 2.1 to pass on linux:
-                options = options.threshold(OsThreshold::new(0.0).linux(2.1));
+                options = options.threshold(OsThreshold::new(0.0_f32).linux(2.1));
             }
 
             results.add(harness.try_snapshot_options(format!("demos/{name}"), &options));

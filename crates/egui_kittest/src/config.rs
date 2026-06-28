@@ -77,7 +77,7 @@ fn load_config() -> Config {
         match std::fs::read_to_string(&config_path) {
             Ok(config_str) => match toml::from_str(&config_str) {
                 Ok(config) => config,
-                Err(e) => panic!("Failed to parse {}: {e}", &config_path.display()),
+                Err(e) => panic!("Failed to parse {}: {e}", config_path.display()),
             },
             Err(err) => {
                 panic!("Failed to read {}: {}", config_path.display(), err);

@@ -1,4 +1,6 @@
-use crate::{AtomKind, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui};
+use crate::{
+    AtomKind, AtomLayout, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui,
+};
 use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
 
@@ -97,6 +99,17 @@ impl<'a> Atom<'a> {
             size: Some(size.into()),
             kind: AtomKind::Empty,
             id: Some(id),
+            ..Default::default()
+        }
+    }
+
+    /// Nest an [`AtomLayout`] (e.g. an atom-based widget) as a single atom.
+    ///
+    /// The nested layout is sized when the parent is sized and painted (and interacted with)
+    /// at the cell the parent computes for it. See [`AtomKind::Layout`].
+    pub fn layout(layout: AtomLayout<'a>) -> Self {
+        Atom {
+            kind: AtomKind::Layout(Box::new(layout)),
             ..Default::default()
         }
     }

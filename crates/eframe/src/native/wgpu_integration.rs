@@ -48,6 +48,10 @@ pub struct WgpuWinitApp<'app> {
 
     /// Set when we are actually up and running.
     running: Option<WgpuWinitRunning<'app>>,
+
+    /// An optional pre-existing egui context. If `Some`, it is used instead of
+    /// creating a new one via [`winit_integration::create_egui_context`]. Taken during initialization.
+    egui_ctx: Option<egui::Context>,
 }
 
 /// State that is initialized when the application is first starts running via
@@ -105,6 +109,7 @@ impl<'app> WgpuWinitApp<'app> {
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
+        egui_ctx: Option<egui::Context>,
         app_creator: AppCreator<'app>,
     ) -> Self {
         profiling::function_scope!();
@@ -121,6 +126,7 @@ impl<'app> WgpuWinitApp<'app> {
             native_options,
             running: None,
             app_creator: Some(app_creator),
+            egui_ctx,
         }
     }
 
@@ -285,6 +291,9 @@ impl<'app> WgpuWinitApp<'app> {
 
         let app_creator = std::mem::take(&mut self.app_creator)
             .expect("Single-use AppCreator has unexpectedly already been taken");
+
+        crate::maybe_attach_inspection_plugin(&egui_ctx, Some(self.app_name.clone()));
+
         let cc = CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: integration.frame.info().clone(),
@@ -294,6 +303,7 @@ impl<'app> WgpuWinitApp<'app> {
             #[cfg(feature = "glow")]
             get_proc_address: None,
             wgpu_render_state,
+            window: Some(Arc::clone(&window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
         };
@@ -403,7 +413,7 @@ impl WinitApp for WgpuWinitApp<'_> {
         self.initialized_all_windows(event_loop);
 
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id)
+            running.run_ui_and_paint(window_id, event_loop)
         } else {
             Ok(EventResult::Wait)
         }
@@ -428,7 +438,10 @@ impl WinitApp for WgpuWinitApp<'_> {
                         .unwrap_or(&self.app_name),
                 )
             };
-            let egui_ctx = winit_integration::create_egui_context(storage.as_deref());
+            let egui_ctx = self
+                .egui_ctx
+                .take()
+                .unwrap_or_else(|| winit_integration::create_egui_context(storage.as_deref()));
             let (window, builder) = create_window(
                 &egui_ctx,
                 event_loop,
@@ -560,7 +573,11 @@ impl WgpuWinitRunning<'_> {
     }
 
     /// This is called both for the root viewport, and all deferred viewports
-    fn run_ui_and_paint(&mut self, window_id: WindowId) -> Result<EventResult> {
+    fn run_ui_and_paint(
+        &mut self,
+        window_id: WindowId,
+        event_loop: &ActiveEventLoop,
+    ) -> Result<EventResult> {
         profiling::function_scope!();
 
         let Some(viewport_id) = self
@@ -584,7 +601,7 @@ impl WgpuWinitRunning<'_> {
         let mut frame_timer = crate::stopwatch::Stopwatch::new();
         frame_timer.start();
 
-        let (viewport_ui_cb, raw_input, is_visible) = {
+        let (viewport_ui_cb, raw_input, is_visible, run_ui) = {
             profiling::scope!("Prepare");
             let mut shared_lock = shared.borrow_mut();
 
@@ -640,6 +657,8 @@ impl WgpuWinitRunning<'_> {
             };
             let mut raw_input = egui_winit.take_egui_input(window);
 
+            let run_ui = is_visible || is_viewport_or_descendant_visible(viewports, viewport_id);
+
             integration.pre_update();
 
             raw_input.time = Some(integration.beginning.elapsed().as_secs_f64());
@@ -650,19 +669,15 @@ impl WgpuWinitRunning<'_> {
 
             painter.handle_screenshots(&mut raw_input.events);
 
-            (viewport_ui_cb, raw_input, is_visible)
+            (viewport_ui_cb, raw_input, is_visible, run_ui)
         };
 
         // ------------------------------------------------------------
 
         // Runs the update, which could call immediate viewports,
         // so make sure we hold no locks here!
-        let full_output = integration.update(
-            app.as_mut(),
-            viewport_ui_cb.as_deref(),
-            raw_input,
-            is_visible,
-        );
+        let full_output =
+            integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input, run_ui);
 
         // ------------------------------------------------------------
 
@@ -701,7 +716,7 @@ impl WgpuWinitRunning<'_> {
             return Ok(EventResult::Wait);
         };
 
-        egui_winit.handle_platform_output(window, platform_output);
+        egui_winit.handle_platform_output_with_event_loop(window, event_loop, platform_output);
 
         let vsync_secs = if is_visible {
             let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
@@ -722,6 +737,7 @@ impl WgpuWinitRunning<'_> {
                 &clipped_primitives,
                 &textures_delta,
                 screenshot_commands,
+                window,
             );
 
             for action in viewport.actions_requested.drain(..) {
@@ -828,13 +844,18 @@ impl WgpuWinitRunning<'_> {
         //
         // Thus, Painter, responsible for wgpu surfaces and their resize, has to be notified of the
         // resize lifecycle, yet winit does not provide any events for that. To work around,
-        // the last resized viewport is tracked until any next non-resize event is received.
+        // the last resized viewport is tracked until a later event outside the live resize stream
+        // is received.
         //
-        // Accidental state change during the resize process due to an unexpected event fire
-        // is ok, state will switch back upon next resize event.
+        // AppKit can emit `Moved` events during top/left live resize because the window origin
+        // changes along with the content size. Treat those as part of live resize on macOS.
         //
         // See: https://github.com/emilk/egui/issues/903
-        if let Some(id) = viewport_id
+        let event_keeps_resize_active = matches!(event, winit::event::WindowEvent::Resized(_))
+            || (cfg!(target_os = "macos") && matches!(event, winit::event::WindowEvent::Moved(_)));
+
+        if !event_keeps_resize_active
+            && let Some(id) = viewport_id
             && shared.resized_viewport == viewport_id
         {
             shared.painter.on_window_resize_state_change(id, false);
@@ -1008,6 +1029,25 @@ fn create_window(
     Ok((window, viewport_builder))
 }
 
+/// Is this viewport, or any of its (transitive) descendant viewports, visible?
+///
+/// Immediate viewports are rendered inline while their parent's UI runs, so even
+/// if this viewport's window is occluded or minimized we must still run its UI to
+/// give any visible descendant a chance to be painted.
+fn is_viewport_or_descendant_visible(viewports: &Viewports, viewport_id: ViewportId) -> bool {
+    let Some(viewport) = viewports.get(&viewport_id) else {
+        return false;
+    };
+    if viewport.info.visible().unwrap_or(true) {
+        return true;
+    }
+    viewports.values().any(|child| {
+        child.ids.parent == viewport_id
+            && child.ids.this != viewport_id
+            && is_viewport_or_descendant_visible(viewports, child.ids.this)
+    })
+}
+
 fn render_immediate_viewport(
     beginning: Instant,
     shared: &RefCell<SharedState>,
@@ -1111,6 +1151,7 @@ fn render_immediate_viewport(
         &clipped_primitives,
         &textures_delta,
         vec![],
+        window,
     );
 
     egui_winit.handle_platform_output(window, platform_output);

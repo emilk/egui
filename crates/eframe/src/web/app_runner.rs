@@ -284,9 +284,6 @@ impl AppRunner {
             self.app.logic(ui.ctx(), &mut self.frame);
 
             if is_visible {
-                #[expect(deprecated)]
-                self.app.update(ui.ctx(), &mut self.frame);
-
                 self.app.ui(ui, &mut self.frame);
             }
         });
@@ -371,7 +368,8 @@ impl AppRunner {
         let egui::PlatformOutput {
             commands,
             cursor_icon,
-            events: _,                    // already handled
+            cursor_image: _, // TODO(alextournai): support custom bitmap cursors on the web (via CSS `url(...)`)
+            events: _,       // already handled
             mutable_text_under_cursor: _, // TODO(#4569): https://github.com/emilk/egui/issues/4569
             ime,
             accesskit_update: _,        // not currently implemented
@@ -393,7 +391,7 @@ impl AppRunner {
             }
         }
 
-        super::set_cursor_icon(cursor_icon);
+        super::set_cursor_icon(self.canvas(), cursor_icon);
 
         if self.has_focus() {
             // The eframe app has focus.
@@ -431,6 +429,10 @@ impl epi::Storage for LocalStorage {
 
     fn set_string(&mut self, key: &str, value: String) {
         super::storage::local_storage_set(key, &value);
+    }
+
+    fn remove_string(&mut self, key: &str) {
+        super::storage::local_storage_remove(key);
     }
 
     fn flush(&mut self) {}

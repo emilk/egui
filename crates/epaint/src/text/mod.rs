@@ -3,17 +3,17 @@
 pub mod cursor;
 mod font;
 mod fonts;
+mod index;
 mod text_layout;
 mod text_layout_types;
 
-/// One `\t` character is this many spaces wide.
-pub const TAB_SIZE: usize = 4;
-
 pub use {
     fonts::{
-        FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak, Fonts,
-        FontsImpl, FontsView, InsertFontFamily,
+        FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak,
+        FontVariationAxis, Fonts, FontsImpl, FontsView, HintingTarget, InsertFontFamily,
+        SmoothHinting,
     },
+    index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
     text_layout::*,
     text_layout_types::*,
 };
@@ -28,8 +28,8 @@ pub struct TextOptions {
     /// Maximum size of the font texture.
     pub max_texture_side: usize,
 
-    /// Controls how to convert glyph coverage to alpha.
-    pub alpha_from_coverage: crate::AlphaFromCoverage,
+    /// Controls how to convert glyph colors when writing to the font atlas.
+    pub color_transfer_function: crate::FontColorTransferFunction,
 
     /// Whether to enable font hinting
     ///
@@ -37,14 +37,29 @@ pub struct TextOptions {
     ///
     /// Default is `true`.
     pub font_hinting: bool,
+
+    /// Enable sub-pixel binning for glyphs.
+    ///
+    /// Sub-pixel binning renders each glyph at up to four fractional horizontal offsets,
+    /// giving more even kerning at the cost of more atlas space.
+    ///
+    /// It also lead to text looking more blurry.
+    ///
+    /// This is always disabled for CJK characters (which have too many unique glyphs).
+    ///
+    /// Can be overridden per font with [`FontTweak::subpixel_binning`].
+    ///
+    /// Default: `true`.
+    pub subpixel_binning: bool,
 }
 
 impl Default for TextOptions {
     fn default() -> Self {
         Self {
             max_texture_side: 2048, // Small but portable
-            alpha_from_coverage: crate::AlphaFromCoverage::default(),
+            color_transfer_function: crate::FontColorTransferFunction::default(),
             font_hinting: true,
+            subpixel_binning: true,
         }
     }
 }

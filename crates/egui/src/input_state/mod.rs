@@ -209,7 +209,7 @@ impl InputOptions {
 /// You can access this with [`crate::Context::input`].
 ///
 /// You can check if `egui` is using the inputs using
-/// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
+/// [`crate::Context::egui_wants_pointer_input`] and [`crate::Context::egui_wants_keyboard_input`].
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InputState {
@@ -520,14 +520,6 @@ impl InputState {
     /// See also [`RawInput::safe_area_insets`].
     pub fn viewport_rect(&self) -> Rect {
         self.viewport_rect
-    }
-
-    /// Position and size of the egui area.
-    #[deprecated(
-        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
-    )]
-    pub fn screen_rect(&self) -> Rect {
-        self.content_rect()
     }
 
     /// Get the safe area insets.
@@ -1427,6 +1419,9 @@ impl PointerState {
 
     /// Was the given pointer button given clicked this frame?
     ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
+    ///
     /// Returns true on double- and triple- clicks too.
     pub fn button_clicked(&self, button: PointerButton) -> bool {
         self.pointer_events
@@ -1461,11 +1456,17 @@ impl PointerState {
     }
 
     /// Was the primary button clicked this frame?
+    ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
     pub fn primary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Primary)
     }
 
     /// Was the secondary button clicked this frame?
+    ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
     pub fn secondary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Secondary)
     }

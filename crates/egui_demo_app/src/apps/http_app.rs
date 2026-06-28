@@ -61,14 +61,14 @@ impl Default for HttpApp {
 
 impl crate::DemoApp for HttpApp {
     fn demo_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        egui::Panel::bottom("http_bottom").show_inside(ui, |ui| {
+        egui::Panel::bottom("http_bottom").show(ui, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
                 ui.add(egui_demo_lib::egui_github_link_file!())
             })
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             let prev_url = self.url.clone();
             let trigger_fetch = ui_url(ui, frame, &mut self.url);
 

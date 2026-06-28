@@ -20,6 +20,9 @@ workspace = true
 all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
+[package.metadata.cargo-shear]
+ignored = ["image"] # We need the png feature
+
 [lib]
 
 
@@ -39,6 +42,7 @@ syntect = ["egui_extras/syntect"]
 egui = { workspace = true, default-features = false, features = ["color-hex"] }
 egui_extras = { workspace = true, features = ["image", "svg"] }
 
+log.workspace = true
 unicode_names2.workspace = true # this old version has fewer dependencies
 
 #! ### Optional dependencies

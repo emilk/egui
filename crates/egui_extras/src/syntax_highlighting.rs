@@ -604,7 +604,8 @@ impl Highlighter {
 }
 
 #[cfg(feature = "syntect")]
-fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
+fn as_byte_range(whole: &str, range: &str) -> egui::text::ByteRange {
+    use egui::text::ByteIndex;
     let whole_start = whole.as_ptr() as usize;
     let range_start = range.as_ptr() as usize;
     assert!(
@@ -617,7 +618,7 @@ fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
         range_start + range.len()
     );
     let offset = range_start - whole_start;
-    offset..(offset + range.len())
+    ByteIndex(offset)..ByteIndex(offset + range.len())
 }
 
 // ----------------------------------------------------------------------------

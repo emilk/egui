@@ -1,4 +1,3 @@
-use emath::GuiRounding as _;
 use epaint::text::{IntoTag, TextFormat, VariationCoords};
 use std::fmt::Formatter;
 use std::{borrow::Cow, sync::Arc};
@@ -156,7 +155,7 @@ impl RichText {
     /// Default: 0.0.
     ///
     /// For even text it is recommended you round this to an even number of _pixels_,
-    /// e.g. using [`crate::Painter::round_to_pixel`].
+    /// e.g. using [`emath::GuiRounding`].
     #[inline]
     pub fn extra_letter_spacing(mut self, extra_letter_spacing: f32) -> Self {
         self.extra_letter_spacing = extra_letter_spacing;
@@ -170,7 +169,7 @@ impl RichText {
     /// If `None` (the default), the line height is determined by the font.
     ///
     /// For even text it is recommended you round this to an even number of _pixels_,
-    /// e.g. using [`crate::Painter::round_to_pixel`].
+    /// e.g. using [`emath::GuiRounding`].
     #[inline]
     pub fn line_height(mut self, line_height: Option<f32>) -> Self {
         self.line_height = line_height;
@@ -690,22 +689,6 @@ impl WidgetText {
     #[inline]
     pub fn background_color(self, background_color: impl Into<Color32>) -> Self {
         self.map_rich_text(|text| text.background_color(background_color))
-    }
-
-    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub(crate) fn font_height(&self, fonts: &mut epaint::FontsView<'_>, style: &Style) -> f32 {
-        match self {
-            Self::Text(_) => fonts.row_height(&FontSelection::Default.resolve(style)),
-            Self::RichText(text) => text.font_height(fonts, style),
-            Self::LayoutJob(job) => job.font_height(fonts),
-            Self::Galley(galley) => {
-                if let Some(placed_row) = galley.rows.first() {
-                    placed_row.height().round_ui()
-                } else {
-                    galley.size().y.round_ui()
-                }
-            }
-        }
     }
 
     pub fn into_layout_job(
