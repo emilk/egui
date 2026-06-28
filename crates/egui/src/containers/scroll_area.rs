@@ -1082,17 +1082,9 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
-        let scroll_delta = content_ui
-            .ctx()
-            .pass_state_mut(|state| std::mem::take(&mut state.scroll_delta));
-
         let mut had_explicit_scroll_adjustment = Vec2b::FALSE;
 
         for d in 0..2 {
-            // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-            let mut delta = -scroll_delta.0[d];
-            let mut animation = scroll_delta.1;
-
             // We always take both scroll targets regardless of which scroll axes are enabled. This
             // is to avoid them leaking to other scroll areas.
             let scroll_target = content_ui
@@ -1100,6 +1092,17 @@ impl Prepared {
                 .pass_state_mut(|state| state.scroll_target[d].take());
 
             if direction_enabled[d] {
+                let (scroll_delta_0, scroll_delta_1) = content_ui.ctx().pass_state_mut(|state| {
+                    (
+                        std::mem::take(&mut state.scroll_delta.0[d]),
+                        std::mem::take(&mut state.scroll_delta.1),
+                    )
+                });
+
+                // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
+                let mut delta = -scroll_delta_0;
+                let mut animation = scroll_delta_1;
+
                 if let Some(target) = scroll_target {
                     let pass_state::ScrollTarget {
                         range,
@@ -1133,8 +1136,8 @@ impl Prepared {
                         0.0
                     };
 
-                    delta += delta_update;
                     animation = animation_update;
+                    delta += delta_update;
                 }
 
                 if delta != 0.0 {
@@ -1158,10 +1161,10 @@ impl Prepared {
                     }
                     ui.request_repaint();
                 }
-            }
 
-            if delta != 0.0 {
-                had_explicit_scroll_adjustment[d] = true;
+                if delta != 0.0 {
+                    had_explicit_scroll_adjustment[d] = true;
+                }
             }
         }
 
