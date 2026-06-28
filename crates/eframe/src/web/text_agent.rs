@@ -92,13 +92,20 @@ impl TextAgent {
                         && let Some(selection_end) = selection_end
                     {
                         let text_utf16 = text.encode_utf16().collect::<Vec<u16>>();
-                        let text_before_selection =
-                            String::from_utf16_lossy(&text_utf16[..selection_start]);
-                        let text_in_selection =
-                            String::from_utf16_lossy(&text_utf16[selection_start..selection_end]);
-                        let count_before_selection = text_before_selection.chars().count();
-                        let count_in_selection = text_in_selection.chars().count();
-                        Some(count_before_selection..count_before_selection + count_in_selection)
+                        if selection_start > text_utf16.len() || selection_end > text_utf16.len() {
+                            None
+                        } else {
+                            let text_before_selection =
+                                String::from_utf16_lossy(&text_utf16[..selection_start]);
+                            let text_in_selection = String::from_utf16_lossy(
+                                &text_utf16[selection_start..selection_end],
+                            );
+                            let count_before_selection = text_before_selection.chars().count();
+                            let count_in_selection = text_in_selection.chars().count();
+                            Some(
+                                count_before_selection..count_before_selection + count_in_selection,
+                            )
+                        }
                     } else {
                         None
                     };
