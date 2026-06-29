@@ -191,6 +191,24 @@ pub fn override_text_color_affects_interactive_widgets() {
     results.add(harness.try_snapshot("override_text_color_interactive"));
 }
 
+/// <https://github.com/emilk/egui/issues/8125>
+#[test]
+pub fn selectable_label_text_should_not_shift_when_inactive_stroke_is_unpainted() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.visuals_mut().widgets.inactive.bg_stroke = Stroke::new(1.0, egui::Color32::GRAY);
+        let _ = ui.selectable_label(false, "item");
+    });
+
+    harness.run();
+    let inactive_text_pos = text_shape_pos(harness.output(), "item");
+
+    harness.get_by_label("item").hover();
+    harness.run();
+    let hovered_text_pos = text_shape_pos(harness.output(), "item");
+
+    assert_eq!(inactive_text_pos, hovered_text_pos);
+}
+
 /// <https://github.com/rerun-io/rerun/issues/11301>
 #[test]
 pub fn menus_should_close_even_if_submenu_disappears() {
@@ -263,6 +281,24 @@ pub fn menus_should_close_even_if_submenu_disappears() {
             harness.query_by_label_contains(SUB_MENU_BUTTON).is_none(),
             "Menu failed to close. frame_delay = {frame_delay}"
         );
+    }
+}
+
+fn text_shape_pos(output: &egui::FullOutput, text: &str) -> Pos2 {
+    output
+        .shapes
+        .iter()
+        .find_map(|clipped_shape| text_shape_pos_in_shape(&clipped_shape.shape, text))
+        .unwrap_or_else(|| panic!("could not find text shape for {text:?}"))
+}
+
+fn text_shape_pos_in_shape(shape: &egui::Shape, text: &str) -> Option<Pos2> {
+    match shape {
+        egui::Shape::Text(text_shape) if text_shape.galley.text() == text => Some(text_shape.pos),
+        egui::Shape::Vec(shapes) => shapes
+            .iter()
+            .find_map(|shape| text_shape_pos_in_shape(shape, text)),
+        _ => None,
     }
 }
 
