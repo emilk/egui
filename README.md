@@ -10,16 +10,14 @@
 [![Discord](https://img.shields.io/discord/900275882684477440?label=egui%20discord)](https://discord.gg/JFcEma9bJq)
 
 
+<br/>
 <div align="center">
-<a href="https://www.rerun.io/"><img src="https://github.com/user-attachments/assets/78e79463-4357-461b-bbd1-31aa5ef5e1a2" width="250"></a>
+<a href="https://www.egui.rs/"><img src="https://github.com/user-attachments/assets/cfaf1d43-9338-490f-ae82-99b420baa1b0" width="400"></a>
 
-egui development is sponsored by [Rerun](https://www.rerun.io/), a startup building<br>
-an SDK for visualizing streams of multimodal data.
-</div>
-
----
+<br/>
 
 👉 [Click to run the web demo](https://www.egui.rs/#demo) 👈
+</div>
 
 egui (pronounced "e-gooey") is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations).
 
@@ -276,6 +274,8 @@ The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native
 
 ### What about accessibility, such as screen readers?
 egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
+
+See [the accessibility guide](./docs/accessibility.md) for how labels, custom widgets, AccessKit, and `egui_kittest` fit together.
 
 The original discussion of accessibility in egui is at <https://github.com/emilk/egui/issues/167>. Now that AccessKit support is merged, providing a strong foundation for future accessibility work, please open new issues on specific accessibility problems.
 

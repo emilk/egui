@@ -10,8 +10,8 @@ use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, 
 use crate::{
     CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
     EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke,
-    StrokeKind, TextShape, TextureId, Vertex, WHITE_UV, color::ColorMode, emath,
-    stroke::PathStroke, texture_atlas::PreparedDisc,
+    StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath, stroke::PathStroke,
+    texture_atlas::PreparedDisc,
 };
 
 // ----------------------------------------------------------------------------
@@ -809,11 +809,8 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], fill_color: Color32
     } else {
         out.reserve_triangles(n as usize);
         let idx = out.vertices.len() as u32;
-        out.vertices.extend(path.iter().map(|p| Vertex {
-            pos: p.pos,
-            uv: WHITE_UV,
-            color: fill_color,
-        }));
+        out.vertices
+            .extend(path.iter().map(|p| Vertex::untextured(p.pos, fill_color)));
         for i in 2..n {
             out.add_triangle(idx, idx + i - 1, idx + i);
         }
@@ -1546,6 +1543,7 @@ impl Tessellator {
             radius,
             fill,
             stroke,
+            angle,
         } = shape;
 
         if radius.x <= 0.0 || radius.y <= 0.0 {
@@ -1595,6 +1593,14 @@ impl Tessellator {
         points.extend(quarter.iter().map(|p| center - *p));
         points.push(center + Vec2::new(0.0, -radius.y));
         points.extend(quarter.iter().rev().map(|p| center + Vec2::new(p.x, -p.y)));
+
+        // Apply rotation if angle is non-zero
+        if angle != 0.0 {
+            let rot = emath::Rot2::from_angle(angle);
+            for point in &mut points {
+                *point = center + rot * (*point - center);
+            }
+        }
 
         let path_stroke = PathStroke::from(stroke).outside();
         self.scratchpad_path.clear();
@@ -1697,16 +1703,6 @@ impl Tessellator {
             .stroke_open(self.feathering, &stroke.into(), out);
     }
 
-    #[deprecated = "Use `tessellate_line_segment` instead"]
-    pub fn tessellate_line(
-        &mut self,
-        points: [Pos2; 2],
-        stroke: impl Into<Stroke>,
-        out: &mut Mesh,
-    ) {
-        self.tessellate_line_segment(points, stroke, out);
-    }
-
     /// Tessellate a single [`PathShape`] into a [`Mesh`].
     ///
     /// * `path_shape`: the path to tessellate.
@@ -1773,6 +1769,7 @@ impl Tessellator {
             round_to_pixels,
             mut blur_width,
             brush: _, // brush is extracted on its own, because it is not Copy
+            angle,
         } = *rect_shape;
 
         let mut corner_radius = CornerRadiusF32::from(corner_radius);
@@ -1940,6 +1937,16 @@ impl Tessellator {
         let path = &mut self.scratchpad_path;
         path.clear();
         path::rounded_rectangle(&mut self.scratchpad_points, rect, corner_radius);
+
+        // Apply rotation if angle is non-zero
+        if angle != 0.0 {
+            let rot = emath::Rot2::from_angle(angle);
+            let center = rect.center();
+            for point in &mut self.scratchpad_points {
+                *point = center + rot * (*point - center);
+            }
+        }
+
         path.add_line_loop(&self.scratchpad_points);
 
         let path_stroke = PathStroke::from(stroke).with_kind(stroke_kind);

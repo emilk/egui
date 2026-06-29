@@ -94,12 +94,6 @@ impl ProgressBar {
         self.corner_radius = Some(corner_radius.into());
         self
     }
-
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
-    }
 }
 
 impl Widget for ProgressBar {

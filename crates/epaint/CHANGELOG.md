@@ -5,6 +5,56 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.35.0 - 2026-06-25
+### ⭐ Added
+* Make the size of tabs and thin space configurable [#8070](https://github.com/emilk/egui/pull/8070) by [@emilk](https://github.com/emilk)
+* Add `subpixel_binning` to `TextOptions` and `FontTweak` [#8072](https://github.com/emilk/egui/pull/8072) by [@emilk](https://github.com/emilk)
+* Add `LayoutJob::format_at_byte` [#8244](https://github.com/emilk/egui/pull/8244) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Use `harfrust` for better kerning and ligatures [#8031](https://github.com/emilk/egui/pull/8031) by [@gcailly](https://github.com/gcailly)
+* Rename `AlphaFromCoverage` to `FontColorTransferFunction` [#8201](https://github.com/emilk/egui/pull/8201) by [@emilk](https://github.com/emilk)
+* Use strongly typed `CharIndex` and `ByteIndex` + bug fixes [#8245](https://github.com/emilk/egui/pull/8245) by [@emilk](https://github.com/emilk)
+* Make font hinting target configurable via `FontTweak` [#8262](https://github.com/emilk/egui/pull/8262) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove `impl Into<f32>` arguments [#8194](https://github.com/emilk/egui/pull/8194) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix glyph caching on font variations [#8189](https://github.com/emilk/egui/pull/8189) by [@emilk](https://github.com/emilk)
+
+
+## 0.34.3 - 2026-05-27
+Nothing new
+
+
+## 0.34.2 - 2026-05-04
+* Fix text layout bugs in wrapped texts [#8137](https://github.com/emilk/egui/pull/8137) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.34.1 - 2026-03-27
+Nothing new
+
+
+## 0.34.0 - 2026-03-26
+### ⭐ Added
+* Replace ab_glyph with Skrifa + vello_cpu; enable font hinting [#7694](https://github.com/emilk/egui/pull/7694) by [@valadaptive](https://github.com/valadaptive)
+* Add font variations API [#7859](https://github.com/emilk/egui/pull/7859) by [@valadaptive](https://github.com/valadaptive)
+* Allow rotation of rectangles and ellipses [#7682](https://github.com/emilk/egui/pull/7682) by [@RyanBluth](https://github.com/RyanBluth)
+
+### 🔧 Changed
+* Apply preferred font weight when loading variable fonts [#7790](https://github.com/emilk/egui/pull/7790) by [@pmnxis](https://github.com/pmnxis)
+* Make `Galley::pos_from_layout_cursor` `pub` [#7864](https://github.com/emilk/egui/pull/7864) by [@dionb](https://github.com/dionb)
+
+### 🐛 Fixed
+* Fixes the overly aggressive overflow elision in `truncate()` and similar for os scaling other than 100% [#7867](https://github.com/emilk/egui/pull/7867) by [@RndUsr123](https://github.com/RndUsr123)
+* Fix text color when selecting newline character [#7951](https://github.com/emilk/egui/pull/7951) by [@emilk](https://github.com/emilk)
+* Fix galley width calculation being off due to subpixel binning [#7972](https://github.com/emilk/egui/pull/7972) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🚀 Performance
+* Avoid cloning `Row`s during `Galley::concat` [#7649](https://github.com/emilk/egui/pull/7649) by [@afishhh](https://github.com/afishhh)
+
+
 ## 0.33.3 - 2025-12-11
 Nothing new
 
