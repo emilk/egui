@@ -770,6 +770,8 @@ impl GlowWinitRunning<'_> {
             {
                 save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
             }
+        } else {
+            painter.update_textures(&textures_delta);
         }
 
         // Free textures *after* painting, since they may still be used in the frame we just drew.
