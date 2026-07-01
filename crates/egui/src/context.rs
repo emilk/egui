@@ -2056,12 +2056,13 @@ impl Context {
     }
 
     /// Compute the [`WidgetStyle`] using the registered theme.
-    pub fn get_widget_style<S: WidgetStyle + Clone + 'static>(
+    pub(crate) fn get_widget_style<S: WidgetStyle + Clone + 'static>(
         &self,
+        ui: &Ui,
         classes: &Classes,
         state: WidgetState,
     ) -> S {
-        self.read(move |ctx| ctx.themes.get::<S>(self, classes, state))
+        self.read(move |ctx| ctx.themes.get::<S>(ui, classes, state))
     }
 }
 
