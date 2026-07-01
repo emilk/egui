@@ -96,6 +96,8 @@ impl InputState {
 
         let text_utf16 = text.encode_utf16().collect::<Vec<u16>>();
         if selection_start > text_utf16.len() || selection_end > text_utf16.len() {
+            // This can occur on Android Chrome. see discussion in:
+            // <https://github.com/emilk/egui/pull/8045>.
             return None;
         }
 
@@ -357,6 +359,10 @@ impl TextAgent {
         self.input_state
             .borrow_mut()
             .update_custom_debug_information(input);
+    }
+
+    pub(crate) fn interrupt_ime_composition(&self) {
+        self.input_state.borrow_mut().clear();
     }
 }
 

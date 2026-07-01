@@ -395,7 +395,10 @@ impl AppRunner {
 
         if self.has_focus() {
             // The eframe app has focus.
-            if ime.is_some() {
+            if let Some(ime) = ime {
+                if ime.should_interrupt_composition {
+                    self.text_agent.interrupt_ime_composition();
+                }
                 // We are editing text: give the focus to the text agent.
                 self.text_agent.focus();
             } else {
