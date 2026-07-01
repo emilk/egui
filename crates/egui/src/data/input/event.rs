@@ -183,4 +183,9 @@ pub enum Event {
 
         image: std::sync::Arc<ColorImage>,
     },
+
+    /// Custom debug information. They can be viewed in the inspection UI in
+    /// debug builds.
+    #[cfg(debug_assertions)]
+    CustomDebugInformationUpdated { name: String, value: String },
 }
