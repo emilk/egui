@@ -1039,7 +1039,6 @@ fn events(
 
     let os = ui.os();
 
-    // let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
     let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
