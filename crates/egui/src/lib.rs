@@ -468,7 +468,7 @@ pub use self::{
         input::*,
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, OpenUrl, OutputCommand,
-            PlatformOutput, UserAttentionType, WidgetInfo,
+            PlatformOutput, UserAttentionType, ViewportOutputCompleteness, WidgetInfo,
         },
     },
     drag_and_drop::DragAndDrop,

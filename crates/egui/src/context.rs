@@ -2643,6 +2643,10 @@ impl ContextImpl {
 
         std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
 
+        // Integrations may run application logic without running UI for an invisible viewport.
+        // Such a pass cannot authoritatively decide whether its child viewports still exist.
+        let parent_viewport_was_visible = viewport.input.viewport().visible().unwrap_or(true);
+
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
         }
@@ -2670,7 +2674,7 @@ impl ContextImpl {
             }
 
             let is_our_child = parent == ended_viewport_id && id != ViewportId::ROOT;
-            if is_our_child {
+            if is_our_child && parent_viewport_was_visible {
                 if !viewport.used {
                     log::debug!(
                         "Removing viewport {:?} ({:?}): it was never used this pass",
@@ -2744,6 +2748,13 @@ impl ContextImpl {
             shapes,
             pixels_per_point,
             viewport_output,
+            viewport_output_completeness: if ended_viewport_id == ViewportId::ROOT
+                && parent_viewport_was_visible
+            {
+                crate::ViewportOutputCompleteness::Complete
+            } else {
+                crate::ViewportOutputCompleteness::Partial
+            },
         }
     }
 }
@@ -4278,6 +4289,54 @@ fn warn_if_rect_changes_id(
 #[cfg(test)]
 mod test {
     use super::Context;
+    use crate::{RawInput, ViewportBuilder, ViewportId, ViewportInfo, ViewportOutputCompleteness};
+
+    #[test]
+    fn invisible_parent_pass_preserves_child_viewports() {
+        let ctx = Context::default();
+        ctx.set_embed_viewports(false);
+        let child_id = ViewportId::from_hash_of("child");
+
+        let output = ctx.run_ui(Default::default(), |_ui| {
+            ctx.show_viewport_deferred(child_id, ViewportBuilder::default(), |_, _| {});
+        });
+        assert!(output.viewport_output.contains_key(&child_id));
+        assert_eq!(
+            output.viewport_output_completeness,
+            ViewportOutputCompleteness::Complete
+        );
+
+        let mut child_input = RawInput {
+            viewport_id: child_id,
+            ..Default::default()
+        };
+        child_input
+            .viewports
+            .insert(child_id, ViewportInfo::default());
+        let _ = ctx.run_ui(child_input, |_| {});
+        assert_eq!(ctx.cumulative_frame_nr_for(child_id), 1);
+
+        let mut hidden_root_input = RawInput::default();
+        hidden_root_input
+            .viewports
+            .get_mut(&ViewportId::ROOT)
+            .unwrap()
+            .occluded = Some(true);
+        let output = ctx.run_ui(hidden_root_input, |_| {});
+        assert!(output.viewport_output.contains_key(&child_id));
+        assert_eq!(
+            output.viewport_output_completeness,
+            ViewportOutputCompleteness::Partial
+        );
+        assert_eq!(ctx.cumulative_frame_nr_for(child_id), 1);
+
+        let output = ctx.run_ui(Default::default(), |_| {});
+        assert!(!output.viewport_output.contains_key(&child_id));
+        assert_eq!(
+            output.viewport_output_completeness,
+            ViewportOutputCompleteness::Complete
+        );
+    }
 
     #[test]
     fn test_single_pass() {

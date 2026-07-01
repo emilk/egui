@@ -293,6 +293,7 @@ impl AppRunner {
             shapes,
             pixels_per_point,
             viewport_output,
+            viewport_output_completeness: _,
         } = full_output;
 
         if viewport_output.len() > 1 {
