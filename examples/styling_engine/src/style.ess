@@ -1,0 +1,8 @@
+.red {
+    fill: #f00;
+}
+
+.blue {
+    fill: #00f;
+    border: 4;
+}

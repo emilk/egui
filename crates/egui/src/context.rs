@@ -35,9 +35,10 @@ use crate::{
     output::FullOutput,
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
-    resize, response, scroll_area,
+    resize, response, scroll_area, theme_plugin,
     util::IdTypeMap,
     viewport::ViewportClass,
+    widget_style::{Classes, WidgetState, WidgetStyle},
 };
 
 use crate::IdMap;
@@ -405,6 +406,8 @@ struct ContextImpl {
     is_accesskit_enabled: bool,
 
     loaders: Arc<Loaders>,
+
+    themes: theme_plugin::Themes,
 }
 
 impl ContextImpl {
@@ -2024,6 +2027,42 @@ impl Context {
             self.add_plugin(default_plugin);
             self.plugin()
         }
+    }
+}
+
+impl Context {
+    /// Register a [`ThemeStyle`](crate::theme_plugin::ThemeStyle) for the specified widget type.
+    ///
+    /// A theme can only be added once for a specified widget.
+    /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
+    ///
+    /// If you want to add the theme anyway, use [`Self::replace_widget_theme`] instead.
+    pub fn add_widget_theme<S: WidgetStyle + 'static>(
+        &self,
+        theme: impl theme_plugin::ThemeStyle<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, false));
+    }
+
+    /// Register a [`ThemeStyle`](crate::theme_plugin::ThemeStyle) for the specified widget.
+    ///
+    /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
+    /// This allow to live edit a theme.
+    pub fn replace_widget_theme<S: WidgetStyle + 'static>(
+        &self,
+        theme: impl theme_plugin::ThemeStyle<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, true));
+    }
+
+    /// Compute the [`WidgetStyle`] using the registered theme.
+    pub(crate) fn get_widget_style<S: WidgetStyle + Clone + 'static>(
+        &self,
+        ui: &Ui,
+        classes: &Classes,
+        state: WidgetState,
+    ) -> S {
+        self.read(move |ctx| ctx.themes.get::<S>(ui, classes, state))
     }
 }
 

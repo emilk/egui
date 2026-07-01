@@ -101,12 +101,10 @@ impl Widget for Separator {
 
         // Get the widget style by reading the response from the previous pass
         let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
         let SeparatorStyle {
             spacing: spacing_style,
             stroke,
-        } = ui.style().separator_style(&classes, state);
+        } = ui.widget_style(id, &classes);
 
         // override the spacing if not set
         let spacing = spacing.unwrap_or(spacing_style);
