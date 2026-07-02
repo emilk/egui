@@ -77,6 +77,11 @@ impl TextCursorState {
             true
         } else if response.sense.senses_drag() {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
+                // Preserves the text cursor position when right-clicking.
+                if ui.input(|i| i.pointer.secondary_down()) {
+                    return true;
+                }
+
                 // The start of a drag (or a click).
                 if ui.input(|i| i.modifiers.shift) {
                     if let Some(mut cursor_range) = self.range(galley) {
