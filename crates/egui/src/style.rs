@@ -938,6 +938,15 @@ pub struct Interaction {
     /// The default is `true`, but text selection can be slightly glitchy,
     /// so you may want to disable it.
     pub multi_widget_text_select: bool,
+
+    /// Should context menus open on secondary button *press*, instead of on click
+    /// (press + release), like native context menus?
+    ///
+    /// If `true`, context menus also close as soon as a pointer button is pressed
+    /// outside them (see [`crate::PopupCloseBehavior::CloseOnPressOutside`]).
+    ///
+    /// The default is `false` (open and close on click).
+    pub context_menu_opens_on_press: bool,
 }
 
 /// Look and feel of the text cursor.
@@ -1481,6 +1490,7 @@ impl Default for Interaction {
             tooltip_grace_time: 0.2,
             selectable_labels: true,
             multi_widget_text_select: true,
+            context_menu_opens_on_press: false,
         }
     }
 }
@@ -2074,6 +2084,7 @@ impl Interaction {
             tooltip_grace_time,
             selectable_labels,
             multi_widget_text_select,
+            context_menu_opens_on_press,
         } = self;
 
         ui.spacing_mut().item_spacing = vec2(12.0, 8.0);
@@ -2121,6 +2132,11 @@ impl Interaction {
         ui.checkbox(
             show_tooltips_only_when_still,
             "Only show tooltips if mouse is still",
+        );
+
+        ui.checkbox(
+            context_menu_opens_on_press,
+            "Open context menus on press (instead of click)",
         );
 
         ui.horizontal(|ui| {

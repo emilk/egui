@@ -219,6 +219,35 @@ impl Response {
         self.flags.contains(Flags::LONG_TOUCHED)
     }
 
+    /// Returns true if a press of the given pointer button began on this widget this frame.
+    ///
+    /// In contrast to [`Self::clicked_by`], this fires already on press,
+    /// without waiting for the button to be released.
+    ///
+    /// Note that the widget must be sensing clicks or drags with [`Sense::click`] or [`Sense::drag`].
+    ///
+    /// If another pointer button is already held down on this widget,
+    /// a press of `button` elsewhere in the same frame may also return true.
+    /// If the button is pressed and released within the same frame,
+    /// this returns false, but [`Self::clicked_by`] returns true.
+    #[inline]
+    pub fn pressed_by(&self, button: PointerButton) -> bool {
+        self.flags.contains(Flags::IS_POINTER_BUTTON_DOWN_ON)
+            && self.ctx.input(|i| i.pointer.button_pressed(button))
+    }
+
+    /// Returns true if a press of the secondary pointer button (e.g. the right mouse button)
+    /// began on this widget this frame.
+    ///
+    /// In contrast to [`Self::secondary_clicked`], this fires already on press,
+    /// without waiting for the button to be released.
+    ///
+    /// This also returns true if the widget was pressed-and-held on a touch screen.
+    #[inline]
+    pub fn secondary_pressed(&self) -> bool {
+        self.flags.contains(Flags::LONG_TOUCHED) || self.pressed_by(PointerButton::Secondary)
+    }
+
     /// Returns true if this widget was clicked this frame by the middle mouse button.
     ///
     /// A click is registered when the mouse or touch is released within
@@ -291,6 +320,41 @@ impl Response {
                 }
             } else {
                 false // clicked without a pointer, weird
+            }
+        } else {
+            false
+        }
+    }
+
+    /// `true` if a pointer button was pressed *outside* the rect of this widget this frame.
+    ///
+    /// This is like [`Self::clicked_elsewhere`], but responds already on press,
+    /// without waiting for a click (press + release).
+    ///
+    /// Presses on widgets contained in this one count as presses inside this widget,
+    /// so that pressing a button in an area will not be considered as pressing "elsewhere" from the area.
+    ///
+    /// Presses on other layers above this widget *will* be considered as pressing elsewhere.
+    pub fn pressed_elsewhere(&self) -> bool {
+        let (pointer_interact_pos, any_pressed) = self
+            .ctx
+            .input(|i| (i.pointer.interact_pos(), i.pointer.any_pressed()));
+
+        // We do not use self.pressed_by(), because we want to catch all presses within our frame,
+        // even if we aren't clickable (or even enabled).
+        // This is important for popups and such that should close when the user presses elsewhere.
+        if any_pressed {
+            if self.contains_pointer() || self.hovered() {
+                false
+            } else if let Some(pos) = pointer_interact_pos {
+                let layer_under_pointer = self.ctx.layer_id_at(pos);
+                if layer_under_pointer == Some(self.layer_id) {
+                    !self.interact_rect.contains(pos)
+                } else {
+                    true
+                }
+            } else {
+                false // pressed without a pointer, weird
             }
         } else {
             false
@@ -989,6 +1053,11 @@ impl Response {
     }
 
     /// Response to secondary clicks (right-clicks) by showing the given menu.
+    ///
+    /// If [`crate::style::Interaction::context_menu_opens_on_press`] is enabled,
+    /// the menu instead opens already on secondary button press,
+    /// and closes when a pointer button is pressed outside it
+    /// or when an item inside it is clicked.
     ///
     /// Make sure the widget senses clicks (e.g. [`crate::Button`] does, [`crate::Label`] does not).
     ///

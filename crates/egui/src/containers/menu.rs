@@ -66,7 +66,8 @@ pub struct MenuConfig {
     /// Is this a menu bar?
     bar: bool,
 
-    /// If the user clicks, should we close the menu?
+    /// When should pointer presses/clicks close the menu?
+    /// See [`PopupCloseBehavior`].
     pub close_behavior: PopupCloseBehavior,
 
     /// Override the menu style.
@@ -93,7 +94,8 @@ impl MenuConfig {
         Self::default()
     }
 
-    /// If the user clicks, should we close the menu?
+    /// When should pointer presses/clicks close the menu?
+    /// See [`PopupCloseBehavior`].
     #[inline]
     pub fn close_behavior(mut self, close_behavior: PopupCloseBehavior) -> Self {
         self.close_behavior = close_behavior;
@@ -545,13 +547,27 @@ impl SubMenu {
                 && response.ctx.input(|i| i.pointer.any_click())
                 && hover_pos.is_some_and(|pos| popup_response.response.interact_rect.contains(pos));
 
-            let click_close = match menu_config.close_behavior {
+            let pressed_outside = is_deepest_submenu
+                && popup_response.response.pressed_elsewhere()
+                && menu_root_response.pressed_elsewhere();
+
+            // Only *primary* clicks close from the inside, so that the release of the
+            // secondary press that opened a context menu can never close it.
+            let primary_clicked_inside = is_deepest_submenu
+                && !submenu_button_clicked
+                && response.ctx.input(|i| i.pointer.primary_clicked())
+                && hover_pos.is_some_and(|pos| popup_response.response.interact_rect.contains(pos));
+
+            let pointer_close = match menu_config.close_behavior {
                 PopupCloseBehavior::CloseOnClick => clicked_outside || clicked_inside,
                 PopupCloseBehavior::CloseOnClickOutside => clicked_outside,
+                PopupCloseBehavior::CloseOnPressOutside => {
+                    pressed_outside || primary_clicked_inside
+                }
                 PopupCloseBehavior::IgnoreClicks => false,
             };
 
-            if click_close {
+            if pointer_close {
                 set_open = Some(false);
                 ui.close();
             }
