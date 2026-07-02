@@ -19,7 +19,9 @@ pub(crate) enum AppKind<'a, State> {
     Ui(AppKindUi<'a>),
     UiState(AppKindUiState<'a, State>),
     #[cfg(feature = "eframe")]
-    Eframe(AppKindEframe<State>),
+    // Boxed: `eframe::Frame` is far larger than the two closures, and an
+    // unboxed variant makes the whole enum that size.
+    Eframe(Box<AppKindEframe<State>>),
 }
 
 impl<State> AppKind<'_, State> {
@@ -35,7 +37,8 @@ impl<State> AppKind<'_, State> {
     ) -> Option<egui::Response> {
         match self {
             #[cfg(feature = "eframe")]
-            AppKind::Eframe(AppKindEframe { get_app, frame, .. }) => {
+            AppKind::Eframe(eframe_kind) => {
+                let AppKindEframe { get_app, frame, .. } = &mut **eframe_kind;
                 let app = get_app(state);
                 app.logic(ui, frame);
                 app.ui(ui, frame);

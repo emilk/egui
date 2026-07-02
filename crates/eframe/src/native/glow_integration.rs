@@ -923,6 +923,18 @@ impl GlowWinitRunning<'_> {
                 glutin.focused_viewport = focused.then_some(viewport_id).flatten();
             }
 
+            // The reply to `Frame::request_activation_token`. Hold it for the app
+            // to take, and repaint: a token is short-lived and single-use, so an
+            // idle app must not have to wait for an unrelated event to notice it.
+            winit::event::WindowEvent::ActivationTokenDone { token, .. } => {
+                self.integration.frame.activation_token = Some(token.clone().into_raw());
+                if let Some(viewport_id) = viewport_id {
+                    self.integration.egui_ctx.request_repaint_of(viewport_id);
+                } else {
+                    self.integration.egui_ctx.request_repaint();
+                }
+            }
+
             winit::event::WindowEvent::Resized(physical_size) => {
                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                 // See: https://github.com/rust-windowing/winit/issues/208
