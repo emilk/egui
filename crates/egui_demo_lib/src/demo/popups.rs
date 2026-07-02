@@ -277,6 +277,12 @@ impl crate::View for PopupsDemo {
                         "Closes when the user clicks outside the popup",
                     ),
                     (
+                        PopupCloseBehavior::CloseOnPressOutside,
+                        "CloseOnPressOutside",
+                        "Closes as soon as the user presses outside the popup, \
+                         or clicks inside it with the primary button",
+                    ),
+                    (
                         PopupCloseBehavior::IgnoreClicks,
                         "IgnoreClicks",
                         "Close only when the button is clicked again",
