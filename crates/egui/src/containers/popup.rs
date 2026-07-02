@@ -92,6 +92,11 @@ pub enum PopupCloseBehavior {
     /// so that e.g. clicking a menu item still closes the menu.
     ///
     /// It is used in [`Popup::context_menu`].
+    ///
+    /// Note: this behavior is designed for popups that open on press.
+    /// For popups toggled by a button click (e.g. [`Popup::menu`]),
+    /// pressing the button would close the popup,
+    /// only for the click completing on release to toggle it open again.
     CloseOnPressOutside,
 
     /// Clicks will be ignored. Popup might be closed manually by calling [`Popup::close_all`]
