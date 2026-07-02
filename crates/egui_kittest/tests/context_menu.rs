@@ -27,6 +27,16 @@ impl ContextMenuTest {
             .with_size(egui::Vec2::new(500.0, 300.0))
             .build_ui_state(|ui, state| state.ui(ui), self)
     }
+
+    /// Like [`Self::into_harness`], but with
+    /// [`egui::style::Interaction::context_menu_opens_on_press`] enabled.
+    fn into_press_harness(self) -> Harness<'static, Self> {
+        let harness = self.into_harness();
+        harness
+            .ctx
+            .all_styles_mut(|style| style.interaction.context_menu_opens_on_press = true);
+        harness
+    }
 }
 
 fn press_at(harness: &Harness<'_, ContextMenuTest>, pos: Pos2, button: PointerButton) {
@@ -58,8 +68,34 @@ fn open_with_press(harness: &mut Harness<'_, ContextMenuTest>) -> Pos2 {
 }
 
 #[test]
-fn context_menu_opens_on_secondary_press() {
+fn context_menu_default_opens_on_click_not_press() {
     let mut harness = ContextMenuTest::default().into_harness();
+
+    // With the default style, the menu must NOT open on press...
+    let pos = harness.get_by_label("Right-click me").rect().center();
+    press_at(&harness, pos, PointerButton::Secondary);
+    harness.run();
+    assert!(harness.query_by_label("Item").is_none());
+
+    // ...but when the click completes on release.
+    release_at(&harness, pos, PointerButton::Secondary);
+    harness.run();
+    assert!(harness.query_by_label("Item").is_some());
+
+    // And it must NOT close on press outside...
+    press_at(&harness, OUTSIDE_POS, PointerButton::Primary);
+    harness.run();
+    assert!(harness.query_by_label("Item").is_some());
+
+    // ...but when the click outside completes on release.
+    release_at(&harness, OUTSIDE_POS, PointerButton::Primary);
+    harness.run();
+    assert!(harness.query_by_label("Item").is_none());
+}
+
+#[test]
+fn context_menu_opens_on_secondary_press() {
+    let mut harness = ContextMenuTest::default().into_press_harness();
 
     // The menu should open on press, before the button is released.
     open_with_press(&mut harness);
@@ -68,7 +104,7 @@ fn context_menu_opens_on_secondary_press() {
 
 #[test]
 fn context_menu_stays_open_after_release() {
-    let mut harness = ContextMenuTest::default().into_harness();
+    let mut harness = ContextMenuTest::default().into_press_harness();
 
     let pos = open_with_press(&mut harness);
     release_at(&harness, pos, PointerButton::Secondary);
@@ -79,7 +115,7 @@ fn context_menu_stays_open_after_release() {
 
 #[test]
 fn context_menu_quick_right_click_keeps_menu_open() {
-    let mut harness = ContextMenuTest::default().into_harness();
+    let mut harness = ContextMenuTest::default().into_press_harness();
 
     // Press and release arrive in the same frame here. The release lands at the
     // menu's corner (the menu opens at the pointer), and must not close it.
@@ -91,7 +127,7 @@ fn context_menu_quick_right_click_keeps_menu_open() {
 
 #[test]
 fn context_menu_closes_on_primary_press_outside() {
-    let mut harness = ContextMenuTest::default().into_harness();
+    let mut harness = ContextMenuTest::default().into_press_harness();
 
     open_with_press(&mut harness);
 
@@ -108,7 +144,7 @@ fn context_menu_closes_on_primary_press_outside() {
 
 #[test]
 fn context_menu_closes_on_secondary_press_outside() {
-    let mut harness = ContextMenuTest::default().into_harness();
+    let mut harness = ContextMenuTest::default().into_press_harness();
 
     open_with_press(&mut harness);
 
@@ -125,7 +161,7 @@ fn context_menu_closes_on_secondary_press_outside() {
 
 #[test]
 fn context_menu_item_click_fires_and_closes() {
-    let mut harness = ContextMenuTest::default().into_harness();
+    let mut harness = ContextMenuTest::default().into_press_harness();
 
     open_with_press(&mut harness);
 
@@ -137,7 +173,7 @@ fn context_menu_item_click_fires_and_closes() {
 
 #[test]
 fn context_menu_press_inside_does_not_close() {
-    let mut harness = ContextMenuTest::default().into_harness();
+    let mut harness = ContextMenuTest::default().into_press_harness();
 
     open_with_press(&mut harness);
 
@@ -156,7 +192,7 @@ fn context_menu_press_inside_does_not_close() {
 
 #[test]
 fn context_menu_submenu_closes_on_press_outside() {
-    let mut harness = ContextMenuTest::default().into_harness();
+    let mut harness = ContextMenuTest::default().into_press_harness();
 
     open_with_press(&mut harness);
 

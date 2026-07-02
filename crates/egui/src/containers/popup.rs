@@ -91,7 +91,8 @@ pub enum PopupCloseBehavior {
     /// It will also close when the popup is *clicked* with the primary button,
     /// so that e.g. clicking a menu item still closes the menu.
     ///
-    /// It is used in [`Popup::context_menu`].
+    /// It is used in [`Popup::context_menu`] when
+    /// [`crate::style::Interaction::context_menu_opens_on_press`] is enabled.
     ///
     /// Note: this behavior is designed for popups that open on press.
     /// For popups toggled by a button click (e.g. [`Popup::menu`]),
@@ -254,31 +255,46 @@ impl<'a> Popup<'a> {
             .gap(0.0)
     }
 
-    /// Show a context menu when the widget was pressed with the secondary mouse button
+    /// Show a context menu when the widget was secondary clicked
     /// (or pressed-and-held on a touch screen).
     /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
     /// In contrast to [`Self::menu`], this will open at the pointer position.
     ///
-    /// The menu opens on press, and closes when a pointer button is pressed outside it
+    /// If [`crate::style::Interaction::context_menu_opens_on_press`] is enabled,
+    /// the menu instead opens already on secondary button *press*,
+    /// and closes when a pointer button is pressed outside it
     /// or when an item inside it is clicked
     /// (see [`PopupCloseBehavior::CloseOnPressOutside`]).
     pub fn context_menu(response: &Response) -> Self {
-        Self::menu(response)
+        let opens_on_press = response
+            .ctx
+            .global_style()
+            .interaction
+            .context_menu_opens_on_press;
+        let should_open = if opens_on_press {
             // Checking `secondary_clicked` in addition to `secondary_pressed` ensures the
             // menu also opens when the press and release arrive in the same frame.
-            .open_memory(
-                if response.secondary_pressed() || response.secondary_clicked() {
-                    Some(SetOpenCommand::Bool(true))
-                } else if response.clicked() {
-                    // Explicitly close the menu on keyboard/accessibility activation of the widget.
-                    // Pointer presses on the widget already close it via `CloseOnPressOutside`.
-                    Some(SetOpenCommand::Bool(false))
-                } else {
-                    None
-                },
-            )
+            response.secondary_pressed() || response.secondary_clicked()
+        } else {
+            response.secondary_clicked()
+        };
+        let close_behavior = if opens_on_press {
+            PopupCloseBehavior::CloseOnPressOutside
+        } else {
+            PopupCloseBehavior::CloseOnClick
+        };
+        Self::menu(response)
+            .open_memory(if should_open {
+                Some(SetOpenCommand::Bool(true))
+            } else if response.clicked() {
+                // Explicitly close the menu if the widget was clicked
+                // Without this, the context menu would stay open if the user clicks the widget
+                Some(SetOpenCommand::Bool(false))
+            } else {
+                None
+            })
             .at_pointer_fixed()
-            .close_behavior(PopupCloseBehavior::CloseOnPressOutside)
+            .close_behavior(close_behavior)
     }
 
     /// Set the kind of the popup. Used for [`Area::kind`] and [`Area::order`].
@@ -345,7 +361,8 @@ impl<'a> Popup<'a> {
     ///
     /// Defaults to [`PopupCloseBehavior::CloseOnClick`],
     /// except for [`Popup::context_menu`], which uses
-    /// [`PopupCloseBehavior::CloseOnPressOutside`].
+    /// [`PopupCloseBehavior::CloseOnPressOutside`] when
+    /// [`crate::style::Interaction::context_menu_opens_on_press`] is enabled.
     ///
     /// This will do nothing if [`Popup::open`] was called.
     #[inline]

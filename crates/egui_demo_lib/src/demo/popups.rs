@@ -155,14 +155,21 @@ impl crate::View for PopupsDemo {
         self.apply_options(Popup::menu(&response).id(Id::new("menu")))
             .show(|ui| self.nested_menus(ui));
 
-        // We don't apply `self.close_behavior` here: context menus open on press,
-        // so the click-based close behaviors would close them as soon as the
-        // pressed button is released.
-        Popup::context_menu(&response)
-            .id(Id::new("context_menu"))
-            .align(self.align4)
-            .gap(self.gap)
-            .show(|ui| self.nested_menus(ui));
+        let context_menu = Popup::context_menu(&response).id(Id::new("context_menu"));
+        let context_menu = if ui
+            .ctx()
+            .global_style()
+            .interaction
+            .context_menu_opens_on_press
+        {
+            // The click-based close behaviors would close a press-opened context menu
+            // as soon as the pressed button is released, so we don't apply
+            // `self.close_behavior` here.
+            context_menu.align(self.align4).gap(self.gap)
+        } else {
+            self.apply_options(context_menu)
+        };
+        context_menu.show(|ui| self.nested_menus(ui));
 
         if self.popup_open {
             self.apply_options(Popup::from_response(&response).id(Id::new("popup")))
@@ -315,6 +322,28 @@ impl crate::View for PopupsDemo {
             ui.horizontal(|ui| {
                 rust_view_ui(ui, "let popup_open = ");
                 ui.checkbox(&mut self.popup_open, "");
+                rust_view_ui(ui, ";");
+            });
+
+            ui.horizontal(|ui| {
+                rust_view_ui(ui, "style.interaction.context_menu_opens_on_press = ");
+                let mut opens_on_press = ui
+                    .ctx()
+                    .global_style()
+                    .interaction
+                    .context_menu_opens_on_press;
+                if ui
+                    .checkbox(&mut opens_on_press, "")
+                    .on_hover_text(
+                        "Open the context menu on right-button press instead of click. \
+                         It will then also close as soon as you press outside it.",
+                    )
+                    .changed()
+                {
+                    ui.ctx().all_styles_mut(|style| {
+                        style.interaction.context_menu_opens_on_press = opens_on_press;
+                    });
+                }
                 rust_view_ui(ui, ";");
             });
             ui.monospace("");

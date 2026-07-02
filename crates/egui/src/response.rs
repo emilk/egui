@@ -1052,10 +1052,11 @@ impl Response {
         self
     }
 
-    /// Show the given menu when the widget is pressed with the secondary mouse button
-    /// (or pressed-and-held on a touch screen).
+    /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
-    /// The menu opens on press, and closes when a pointer button is pressed outside it
+    /// If [`crate::style::Interaction::context_menu_opens_on_press`] is enabled,
+    /// the menu instead opens already on secondary button press,
+    /// and closes when a pointer button is pressed outside it
     /// or when an item inside it is clicked.
     ///
     /// Make sure the widget senses clicks (e.g. [`crate::Button`] does, [`crate::Label`] does not).
