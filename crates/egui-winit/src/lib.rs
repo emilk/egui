@@ -502,13 +502,31 @@ impl State {
                 consumed: false,
             },
 
+            // Activation token delivered by winit in response to
+            // `ViewportCommand::RequestActivationToken`. Forward the raw
+            // string as an `Event::ActivationTokenReceived` so the app can
+            // pass it to a child process via `XDG_ACTIVATION_TOKEN`
+            // (Wayland xdg-activation-v1) or `DESKTOP_STARTUP_ID` (X11).
+            WindowEvent::ActivationTokenDone { token, .. } => {
+                self.egui_input
+                    .events
+                    .push(egui::Event::ActivationTokenReceived {
+                        viewport_id: self.viewport_id,
+                        token: token.clone().into_raw(),
+                    });
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
+            }
+
             // Things we completely ignore:
-            WindowEvent::ActivationTokenDone { .. }
-            | WindowEvent::AxisMotion { .. }
-            | WindowEvent::DoubleTapGesture { .. } => EventResponse {
-                repaint: false,
-                consumed: false,
-            },
+            WindowEvent::AxisMotion { .. } | WindowEvent::DoubleTapGesture { .. } => {
+                EventResponse {
+                    repaint: false,
+                    consumed: false,
+                }
+            }
 
             WindowEvent::PinchGesture { delta, .. } => {
                 // Positive delta values indicate magnification (zooming in).
@@ -1926,6 +1944,21 @@ fn process_viewport_command(
         }
         ViewportCommand::RequestPaste => {
             actions_requested.push(ActionRequested::Paste);
+        }
+        ViewportCommand::RequestActivationToken => {
+            #[cfg(all(any(feature = "wayland", feature = "x11"), target_os = "linux"))]
+            {
+                use winit::platform::startup_notify::WindowExtStartupNotify as _;
+                if let Err(err) = window.request_activation_token() {
+                    log::debug!("RequestActivationToken failed: {err}");
+                }
+            }
+            // Silent no-op on platforms without an activation protocol —
+            // `Event::ActivationTokenReceived` is simply never emitted.
+            #[cfg(not(all(any(feature = "wayland", feature = "x11"), target_os = "linux")))]
+            {
+                let _ = window;
+            }
         }
     }
 }
