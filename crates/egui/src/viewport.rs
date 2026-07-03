@@ -317,6 +317,7 @@ pub struct ViewportBuilder {
     pub titlebar_buttons_shown: Option<bool>,
     pub titlebar_shown: Option<bool>,
     pub has_shadow: Option<bool>,
+    pub fullscreen_auxiliary: Option<bool>,
 
     // windows:
     pub drag_and_drop: Option<bool>,
@@ -512,6 +513,31 @@ impl ViewportBuilder {
     #[inline]
     pub fn with_has_shadow(mut self, has_shadow: bool) -> Self {
         self.has_shadow = Some(has_shadow);
+        self
+    }
+
+    /// macOS: Set to `true` to mark the window as a "fullscreen auxiliary" window
+    /// (`NSWindowCollectionBehaviorFullScreenAuxiliary`),
+    /// which can be shown on the same Space (virtual desktop) as a fullscreen window.
+    ///
+    /// Without this, opening a new native window while another window of the app
+    /// is in native fullscreen on the active Space makes macOS renegotiate the Space:
+    /// the new window flickers, and the fullscreen state can be aborted or turned
+    /// into a Split View (see <https://github.com/emilk/egui/issues/8259>).
+    ///
+    /// The trade-off: an auxiliary window cannot itself enter native fullscreen
+    /// (the green traffic-light button will zoom the window instead).
+    /// Sending [`ViewportCommand::Fullscreen`] `(true)` clears the flag again,
+    /// so requesting fullscreen at runtime still works.
+    ///
+    /// When not set, the default is to mark the window as fullscreen-auxiliary
+    /// if and only if it is created while another window of the app is in native
+    /// fullscreen on the active Space, and this viewport does not itself request
+    /// fullscreen ([`Self::with_fullscreen`] / [`Self::with_monitor`]).
+    /// Set this to `false` to opt out of that behavior.
+    #[inline]
+    pub fn with_fullscreen_auxiliary(mut self, fullscreen_auxiliary: bool) -> Self {
+        self.fullscreen_auxiliary = Some(fullscreen_auxiliary);
         self
     }
 
@@ -736,6 +762,7 @@ impl ViewportBuilder {
             titlebar_buttons_shown: new_titlebar_buttons_shown,
             titlebar_shown: new_titlebar_shown,
             has_shadow: new_has_shadow,
+            fullscreen_auxiliary: new_fullscreen_auxiliary,
             close_button: new_close_button,
             minimize_button: new_minimize_button,
             maximize_button: new_maximize_button,
@@ -910,6 +937,13 @@ impl ViewportBuilder {
 
         if new_has_shadow.is_some() && self.has_shadow != new_has_shadow {
             self.has_shadow = new_has_shadow;
+            recreate_window = true;
+        }
+
+        if new_fullscreen_auxiliary.is_some()
+            && self.fullscreen_auxiliary != new_fullscreen_auxiliary
+        {
+            self.fullscreen_auxiliary = new_fullscreen_auxiliary;
             recreate_window = true;
         }
 

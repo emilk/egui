@@ -21,6 +21,8 @@ use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId
 pub use winit;
 
 pub mod clipboard;
+#[cfg(target_os = "macos")]
+mod macos;
 mod safe_area;
 mod window_settings;
 
@@ -1826,10 +1828,16 @@ fn process_viewport_command(
             info.maximized = Some(v);
         }
         ViewportCommand::Fullscreen(v) => {
+            #[cfg(target_os = "macos")]
+            if v {
+                macos::clear_fullscreen_auxiliary(window);
+            }
             window.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
         }
         ViewportCommand::SetMonitor(idx) => {
             if let Some(monitor) = window.available_monitors().nth(idx) {
+                #[cfg(target_os = "macos")]
+                macos::clear_fullscreen_auxiliary(window);
                 window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(Some(monitor))));
             } else {
                 log::warn!(
@@ -1972,6 +1980,9 @@ pub fn create_winit_window_attributes(
 ) -> winit::window::WindowAttributes {
     profiling::function_scope!();
 
+    #[cfg(target_os = "macos")]
+    let fullscreen_auxiliary = macos::should_be_fullscreen_auxiliary(&viewport_builder);
+
     let ViewportBuilder {
         title,
         position,
@@ -1998,6 +2009,7 @@ pub fn create_winit_window_attributes(
         titlebar_buttons_shown: _titlebar_buttons_shown,
         titlebar_shown: _titlebar_shown,
         has_shadow: _has_shadow,
+        fullscreen_auxiliary: _, // decided by `macos::should_be_fullscreen_auxiliary` below
 
         // Windows:
         drag_and_drop: _drag_and_drop,
@@ -2156,6 +2168,14 @@ pub fn create_winit_window_attributes(
             .with_fullsize_content_view(_fullsize_content_view.unwrap_or(false))
             .with_movable_by_window_background(_movable_by_window_background.unwrap_or(false))
             .with_has_shadow(_has_shadow.unwrap_or(true));
+
+        if fullscreen_auxiliary {
+            // The fullscreen-auxiliary collection behavior must be set before the window
+            // is first ordered on screen, and `winit` shows the window during creation.
+            // So create the window hidden;
+            // `apply_viewport_builder_to_window` will mark it and then show it.
+            window_attributes = window_attributes.with_visible(false);
+        }
     }
 
     window_attributes
@@ -2226,6 +2246,9 @@ pub fn apply_viewport_builder_to_window(
             window.set_maximized(maximized);
         }
     }
+
+    #[cfg(target_os = "macos")]
+    macos::apply_fullscreen_auxiliary(window, builder);
 }
 
 // ---------------------------------------------------------------------------
