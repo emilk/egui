@@ -2,7 +2,8 @@
 //!
 //! `winit` 0.30 does not expose `NSWindowCollectionBehavior`, so we set it here via
 //! `objc2-app-kit`. Once egui is on a `winit` version with fullscreen-auxiliary support
-//! (proposed upstream for 0.31), most of this module can be replaced by
+//! (proposed upstream in <https://github.com/rust-windowing/winit/pull/4614>),
+//! most of this module can be replaced by
 //! `WindowAttributesMacOS::with_fullscreen_auxiliary` etc., keeping only the default
 //! policy in [`should_be_fullscreen_auxiliary`].
 
