@@ -22,6 +22,13 @@ pub struct RawInput {
     /// Information about all egui viewports.
     pub viewports: ViewportIdMap<ViewportInfo>,
 
+    /// Whether application UI for the active viewport will be evaluated during this pass.
+    ///
+    /// Integrations that run a pass for non-UI application logic while skipping viewport UI must
+    /// set this to `false`. This prevents egui from treating child viewports omitted by that pass
+    /// as closed. The default is `true`.
+    pub viewport_ui_enabled: bool,
+
     /// The insets used to only render content in a mobile safe area
     ///
     /// `None` will be treated as "same as last frame"
@@ -88,6 +95,7 @@ impl Default for RawInput {
         Self {
             viewport_id: ViewportId::ROOT,
             viewports: std::iter::once((ViewportId::ROOT, Default::default())).collect(),
+            viewport_ui_enabled: true,
             screen_rect: None,
             max_texture_side: None,
             time: None,
@@ -122,6 +130,7 @@ impl RawInput {
                 .iter_mut()
                 .map(|(id, info)| (*id, info.take()))
                 .collect(),
+            viewport_ui_enabled: self.viewport_ui_enabled,
             screen_rect: self.screen_rect.take(),
             safe_area_insets: self.safe_area_insets.take(),
             max_texture_side: self.max_texture_side.take(),
@@ -141,6 +150,7 @@ impl RawInput {
         let Self {
             viewport_id: viewport_ids,
             viewports,
+            viewport_ui_enabled,
             screen_rect,
             max_texture_side,
             time,
@@ -156,6 +166,7 @@ impl RawInput {
 
         self.viewport_id = viewport_ids;
         self.viewports = viewports;
+        self.viewport_ui_enabled = viewport_ui_enabled;
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
         self.time = time; // use latest time
@@ -175,6 +186,7 @@ impl RawInput {
         let Self {
             viewport_id,
             viewports,
+            viewport_ui_enabled,
             screen_rect,
             max_texture_side,
             time,
@@ -189,6 +201,7 @@ impl RawInput {
         } = self;
 
         ui.label(format!("Active viewport: {viewport_id:?}"));
+        ui.label(format!("Viewport UI enabled: {viewport_ui_enabled}"));
         let ordered_viewports = viewports
             .iter()
             .map(|(id, value)| (*id, value))
@@ -221,5 +234,23 @@ impl RawInput {
             ui.label(format!("events: {events:#?}"))
                 .on_hover_text("key presses etc");
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RawInput;
+
+    #[test]
+    fn viewport_ui_enabled_survives_take_and_uses_latest_append_value() {
+        let mut input = RawInput {
+            viewport_ui_enabled: false,
+            ..Default::default()
+        };
+
+        assert!(!input.take().viewport_ui_enabled);
+
+        input.append(RawInput::default());
+        assert!(input.viewport_ui_enabled);
     }
 }
