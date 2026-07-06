@@ -13,6 +13,14 @@ pub struct TextureManager {
     /// Information about currently allocated textures.
     metas: ahash::HashMap<TextureId, TextureMeta>,
 
+    /// CPU-side copy of currently allocated managed textures.
+    ///
+    /// Most frames only need to send incremental deltas to the backend renderer, but if the GPU
+    /// renderer/device is recreated then the backend texture map is empty while egui still has
+    /// live [`TextureHandle`](crate::TextureHandle)s. Keeping the current image here lets an
+    /// integration request a full reupload of every managed texture.
+    images: ahash::HashMap<TextureId, ImageData>,
+
     delta: TexturesDelta,
 }
 
@@ -40,6 +48,7 @@ impl TextureManager {
             options,
         });
 
+        self.images.insert(id, image.clone());
         self.delta.set.push((id, ImageDelta::full(image, options)));
         id
     }
@@ -58,13 +67,36 @@ impl TextureManager {
                 // whole update
                 meta.size = delta.image.size();
                 meta.bytes_per_pixel = delta.image.bytes_per_pixel();
+                self.images.insert(id, delta.image.clone());
                 // since we update the whole image, we can discard all old enqueued deltas
                 self.delta.set.retain(|(x, _)| x != &id);
+            }
+            if let Some(pos) = delta.pos {
+                if let Some(image) = self.images.get_mut(&id) {
+                    apply_partial_delta(image, pos, &delta.image);
+                }
             }
             self.delta.set.push((id, delta));
         } else {
             debug_assert!(false, "Tried setting texture {id:?} which is not allocated");
         }
+    }
+
+    /// Request that all currently allocated textures are fully uploaded again.
+    ///
+    /// This is useful when the backend renderer or GPU device was recreated while the same
+    /// [`TextureManager`] stayed alive.
+    ///
+    /// Call this before the next paint. Subsequent updates in the same frame may still append
+    /// newer deltas, preserving the usual last-writer-wins behavior.
+    pub fn request_full_reupload(&mut self) {
+        self.delta.set.clear();
+        self.delta
+            .set
+            .extend(self.images.iter().filter_map(|(id, image)| {
+                let options = self.metas.get(id)?.options;
+                Some((*id, ImageDelta::full(image.clone(), options)))
+            }));
     }
 
     /// Free an existing texture.
@@ -74,6 +106,7 @@ impl TextureManager {
             meta.retain_count -= 1;
             if meta.retain_count == 0 {
                 entry.remove();
+                self.images.remove(&id);
                 self.delta.free.push(id);
             }
         } else {
@@ -115,6 +148,24 @@ impl TextureManager {
     /// Total number of allocated textures.
     pub fn num_allocated(&self) -> usize {
         self.metas.len()
+    }
+}
+
+fn apply_partial_delta(image: &mut ImageData, pos: [usize; 2], patch: &ImageData) {
+    match (image, patch) {
+        (ImageData::Color(image), ImageData::Color(patch)) => {
+            let image = std::sync::Arc::make_mut(image);
+            let [x, y] = pos;
+            debug_assert!(x + patch.width() <= image.width());
+            debug_assert!(y + patch.height() <= image.height());
+
+            for patch_y in 0..patch.height() {
+                let dst_start = (y + patch_y) * image.width() + x;
+                let src_start = patch_y * patch.width();
+                image.pixels[dst_start..dst_start + patch.width()]
+                    .copy_from_slice(&patch.pixels[src_start..src_start + patch.width()]);
+            }
+        }
     }
 }
 
@@ -328,5 +379,107 @@ impl std::fmt::Debug for TexturesDelta {
             debug_struct.field("free", &self.free);
         }
         debug_struct.finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Color32, ColorImage};
+
+    #[test]
+    fn full_reupload_uses_current_image_after_partial_update() {
+        let mut manager = TextureManager::default();
+        let id = manager.alloc(
+            "test".to_owned(),
+            ColorImage::filled([2, 2], Color32::BLACK).into(),
+            TextureOptions::NEAREST,
+        );
+        let _ = manager.take_delta();
+
+        manager.set(
+            id,
+            ImageDelta::partial(
+                [1, 0],
+                ColorImage::filled([1, 2], Color32::WHITE),
+                TextureOptions::NEAREST,
+            ),
+        );
+        let _ = manager.take_delta();
+
+        manager.request_full_reupload();
+        let delta = manager.take_delta();
+
+        assert_eq!(delta.set.len(), 1);
+        let (delta_id, image_delta) = &delta.set[0];
+        assert_eq!(*delta_id, id);
+        assert!(image_delta.is_whole());
+
+        let ImageData::Color(image) = &image_delta.image;
+        assert_eq!(image.size, [2, 2]);
+        assert_eq!(image.pixels[0], Color32::BLACK);
+        assert_eq!(image.pixels[1], Color32::WHITE);
+        assert_eq!(image.pixels[2], Color32::BLACK);
+        assert_eq!(image.pixels[3], Color32::WHITE);
+    }
+
+    #[test]
+    fn full_reupload_uses_current_image_after_consumed_full_update() {
+        let mut manager = TextureManager::default();
+        let id = manager.alloc(
+            "test".to_owned(),
+            ColorImage::filled([2, 2], Color32::BLACK).into(),
+            TextureOptions::NEAREST,
+        );
+        let _ = manager.take_delta();
+
+        manager.set(
+            id,
+            ImageDelta::full(
+                ColorImage::filled([2, 2], Color32::GREEN),
+                TextureOptions::NEAREST,
+            ),
+        );
+        let _ = manager.take_delta();
+
+        manager.request_full_reupload();
+        let delta = manager.take_delta();
+
+        assert_eq!(delta.set.len(), 1);
+        let (delta_id, image_delta) = &delta.set[0];
+        assert_eq!(*delta_id, id);
+        assert!(image_delta.is_whole());
+
+        let ImageData::Color(image) = &image_delta.image;
+        assert_eq!(image.size, [2, 2]);
+        assert_eq!(image.pixels, vec![Color32::GREEN; 4]);
+    }
+
+    #[test]
+    fn full_reupload_only_includes_live_textures() {
+        let mut manager = TextureManager::default();
+        let retained = manager.alloc(
+            "retained".to_owned(),
+            ColorImage::filled([1, 1], Color32::RED).into(),
+            TextureOptions::NEAREST,
+        );
+        let freed = manager.alloc(
+            "freed".to_owned(),
+            ColorImage::filled([1, 1], Color32::BLUE).into(),
+            TextureOptions::NEAREST,
+        );
+        let _ = manager.take_delta();
+
+        manager.retain(retained);
+        manager.free(retained);
+        manager.free(freed);
+
+        manager.request_full_reupload();
+        let delta = manager.take_delta();
+
+        assert_eq!(delta.set.len(), 1);
+        assert_eq!(delta.set[0].0, retained);
+        assert!(delta.set[0].1.is_whole());
+        assert_eq!(delta.free, vec![freed]);
     }
 }
