@@ -89,7 +89,18 @@ pub fn capture() -> String {
         }
 
         // Remove frames that are part of egui itself, since they are not useful to the user.
-        let skip_crates = ["egui", "eframe", "egui_plot", "egui_extras"];
+        let skip_crates = [
+            "alloc",
+            "backtrace",
+            "core",
+            "eframe",
+            "egui_extras",
+            "egui_plot",
+            "egui",
+            "epaint",
+            "std",
+            "winit",
+        ];
         for crate_name in skip_crates {
             let name = frame.name.trim_start_matches('<');
             if name.starts_with(crate_name)
