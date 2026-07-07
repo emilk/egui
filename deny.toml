@@ -33,6 +33,9 @@ version = 2
 ignore = [
   "RUSTSEC-2024-0320", # unmaintained yaml-rust pulled in by syntect
   "RUSTSEC-2025-0141", # https://rustsec.org/advisories/RUSTSEC-2025-0141 - bincode is unmaintained - https://git.sr.ht/~stygianentity/bincode/tree/v3.0/item/README.md
+  "RUSTSEC-2026-0192", # ttf-parser is unmaintained. Only brought in via winit/sctk-adwaita (wayland window frame rendering)
+  "RUSTSEC-2026-0194", # quick-xml DoS - fix is in >=0.41, but held back transitively by zbus_xml (accesskit) and wayland-scanner (winit)
+  "RUSTSEC-2026-0195", # quick-xml DoS - same as above
 ]
 
 [bans]
@@ -111,6 +114,4 @@ license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 unknown-registry = "deny"
 unknown-git = "deny"
 
-allow-git = [
-  "https://github.com/rerun-io/kittest", # TODO(lucasmerlin): remove this once the kittest crate is published"
-]
+allow-git = []
