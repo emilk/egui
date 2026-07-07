@@ -685,6 +685,7 @@ impl<'a, State> Harness<'a, State> {
         let requests: Vec<(ViewportId, egui::UserData)> = self
             .output
             .viewport_output
+            .entries
             .iter()
             .flat_map(|(id, viewport)| {
                 viewport.commands.iter().filter_map(move |command| {
@@ -729,6 +730,7 @@ impl<'a, State> Harness<'a, State> {
     fn root_viewport_output(&self) -> &egui::ViewportOutput {
         self.output
             .viewport_output
+            .entries
             .get(&ViewportId::ROOT)
             .expect("Missing root viewport")
     }

@@ -268,18 +268,20 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         viewport_ui_cb: Option<&DeferredViewportUiCallback>,
         mut raw_input: egui::RawInput,
-        is_visible: bool,
+        run_ui: bool,
     ) -> egui::FullOutput {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
         let close_requested = raw_input.viewport().close_requested();
 
         app.raw_input_hook(&self.egui_ctx, &mut raw_input);
+        // Application hooks cannot override whether eframe will evaluate viewport UI.
+        raw_input.viewport_ui_enabled = run_ui;
 
         let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
-                if is_visible {
+                if run_ui {
                     profiling::scope!("viewport_callback");
                     viewport_ui_cb(ui);
                 }
@@ -289,7 +291,7 @@ impl EpiIntegration {
                     app.logic(ui.ctx(), &mut self.frame);
                 }
 
-                if is_visible {
+                if run_ui {
                     {
                         profiling::scope!("App::ui");
                         app.ui(ui, &mut self.frame);
@@ -300,7 +302,7 @@ impl EpiIntegration {
 
         let is_root_viewport = viewport_ui_cb.is_none();
         if is_root_viewport && close_requested {
-            let canceled = full_output.viewport_output[&ViewportId::ROOT]
+            let canceled = full_output.viewport_output.entries[&ViewportId::ROOT]
                 .commands
                 .contains(&egui::ViewportCommand::CancelClose);
             if canceled {

@@ -34,13 +34,13 @@
 //!
 //! ### Embedded viewports
 //! These are not real, independent viewports, but is a fallback mode for when the integration does not support real viewports.
-//! In your callback is called with [`ViewportClass::EmbeddedWindow`] it means the viewport is embedded inside of
+//! If your callback is called with [`ViewportClass::EmbeddedWindow`], it means the viewport is embedded inside of
 //! a regular [`crate::Window`], trapped in the parent viewport.
 //!
 //!
 //! ## Using the viewports
 //! Only one viewport is active at any one time, identified with [`Context::viewport_id`].
-//! You can modify the current (change the title, resize the window, etc) by sending
+//! You can modify the current one (change the title, resize the window, etc) by sending
 //! a [`ViewportCommand`] to it using [`Context::send_viewport_cmd`].
 //! You can interact with other viewports using [`Context::send_viewport_cmd_to`].
 //!
@@ -61,7 +61,7 @@
 //! * There is a [`crate::InputState::viewport`] with information about the current viewport.
 //! * There is a [`crate::RawInput::viewports`] with information about all viewports.
 //! * The repaint callback set by [`Context::set_request_repaint_callback`] points to which viewport should be repainted.
-//! * [`crate::FullOutput::viewport_output`] is a list of viewports which should result in their own independent windows.
+//! * [`crate::FullOutput::viewport_output`] reports viewports which should result in their own independent windows.
 //! * To support immediate viewports you need to call [`Context::set_immediate_viewport_renderer`].
 //! * If you support viewports, you need to call [`Context::set_embed_viewports`] with `false`, or all new viewports will be embedded (the default behavior).
 //!

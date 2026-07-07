@@ -77,10 +77,10 @@ impl EguiGlow {
             viewport_output,
         } = self.egui_ctx.run_ui(raw_input, run_ui);
 
-        if viewport_output.len() > 1 {
+        if viewport_output.entries.len() > 1 {
             log::warn!("Multiple viewports not yet supported by EguiGlow");
         }
-        for (_, ViewportOutput { commands, .. }) in viewport_output {
+        for (_, ViewportOutput { commands, .. }) in viewport_output.entries {
             let mut actions_requested = Default::default();
             egui_winit::process_viewport_commands(
                 &self.egui_ctx,
