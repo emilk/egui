@@ -33,6 +33,9 @@ version = 2
 ignore = [
   "RUSTSEC-2024-0320", # unmaintained yaml-rust pulled in by syntect
   "RUSTSEC-2025-0141", # https://rustsec.org/advisories/RUSTSEC-2025-0141 - bincode is unmaintained - https://git.sr.ht/~stygianentity/bincode/tree/v3.0/item/README.md
+  "RUSTSEC-2026-0192", # ttf-parser is unmaintained - pulled in by ab_glyph via sctk-adwaita (Linux) - no replacement available
+  "RUSTSEC-2026-0194", # quick-xml quadratic run time on duplicate attribute check - transitive via zbus_xml and wayland-scanner (Linux only), which are both still on quick-xml < 0.41
+  "RUSTSEC-2026-0195", # quick-xml NsReader memory exhaustion - transitive via zbus_xml and wayland-scanner (Linux only), which are both still on quick-xml < 0.41
 ]
 
 [bans]
