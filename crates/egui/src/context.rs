@@ -243,6 +243,12 @@ pub struct ViewportState {
     // ----------------------
     // Cross-frame statistics:
     pub num_multipass_in_row: usize,
+
+    /// The last theme we sent to the native window via [`ViewportCommand::SetTheme`],
+    /// used to avoid sending redundant commands.
+    ///
+    /// See [`crate::Options::sync_window_theme`].
+    pub(crate) last_sent_window_theme: Option<crate::SystemTheme>,
 }
 
 /// What called [`Context::request_repaint`] or [`Context::request_discard`]?
@@ -2385,6 +2391,8 @@ impl Context {
             }
         }
 
+        self.sync_window_theme();
+
         #[cfg(debug_assertions)]
         self.debug_painting();
 
@@ -2394,6 +2402,38 @@ impl Context {
         plugins.on_output(self, &mut output);
 
         output
+    }
+
+    /// Keep the native window theme in sync with the egui [`ThemePreference`],
+    /// if [`crate::Options::sync_window_theme`] is enabled.
+    ///
+    /// Sends a [`ViewportCommand::SetTheme`] to the current viewport whenever the
+    /// derived theme changes, so the native window decorations match the egui theme.
+    fn sync_window_theme(&self) {
+        if !self.options(|o| o.sync_window_theme) {
+            return;
+        }
+
+        use crate::{SystemTheme, ThemePreference};
+        let window_theme = match self.options(|o| o.theme_preference) {
+            ThemePreference::System => SystemTheme::SystemDefault,
+            ThemePreference::Dark => SystemTheme::Dark,
+            ThemePreference::Light => SystemTheme::Light,
+        };
+
+        let changed = self.write(|ctx| {
+            let viewport = ctx.viewport();
+            if viewport.last_sent_window_theme == Some(window_theme) {
+                false
+            } else {
+                viewport.last_sent_window_theme = Some(window_theme);
+                true
+            }
+        });
+
+        if changed {
+            self.send_viewport_cmd(ViewportCommand::SetTheme(window_theme));
+        }
     }
 
     /// Called at the end of the pass.
