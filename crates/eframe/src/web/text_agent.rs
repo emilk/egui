@@ -4,7 +4,7 @@
 use std::cell::Cell;
 
 use wasm_bindgen::prelude::*;
-use web_sys::{Document, Node};
+use web_sys::Document;
 
 use super::{AppRunner, WebRunner};
 
@@ -15,19 +15,23 @@ pub struct TextAgent {
 
 impl TextAgent {
     /// Attach the agent to the document.
-    pub fn attach(runner_ref: &WebRunner, root: Node) -> Result<Self, JsValue> {
+    pub fn attach(
+        runner_ref: &WebRunner,
+        canvas: &web_sys::HtmlCanvasElement,
+    ) -> Result<Self, JsValue> {
         let document = web_sys::window().unwrap().document().unwrap();
 
         // create an `<input>` element
         let input = document
             .create_element("input")?
-            .dyn_into::<web_sys::HtmlElement>()?;
-        input.set_autofocus(true)?;
-        let input = input.dyn_into::<web_sys::HtmlInputElement>()?;
+            .dyn_into::<web_sys::HtmlInputElement>()?;
         input.set_type("text");
         input.set_attribute("autocapitalize", "off")?;
 
-        // append it to `<body>` and hide it outside of the viewport
+        // Hide the element, and park it over the canvas
+        // so that focusing it can never scroll some other part
+        // of the page into view.
+        let canvas_rect = super::canvas_content_rect(canvas);
         let style = input.style();
         style.set_property("background-color", "transparent")?;
         style.set_property("border", "none")?;
@@ -36,11 +40,12 @@ impl TextAgent {
         style.set_property("height", "1px")?;
         style.set_property("caret-color", "transparent")?;
         style.set_property("position", "absolute")?;
-        style.set_property("top", "0")?;
-        style.set_property("left", "0")?;
+        style.set_property("top", &format!("{}px", canvas_rect.min.y))?;
+        style.set_property("left", &format!("{}px", canvas_rect.min.x))?;
         // Prevent auto-zoom on mobile browsers (requires at least 16px).
         style.set_property("font-size", "16px")?;
 
+        let root = canvas.get_root_node();
         if root.has_type::<Document>() {
             // root object is a document, append to its body
             root.dyn_into::<Document>()?
@@ -51,6 +56,13 @@ impl TextAgent {
             // append input into root directly
             root.append_child(&input)?;
         }
+
+        // Focus the app on startup, without scrolling the page.
+        // We do this instead of setting the `autofocus` attribute,
+        // since the browser scrolls the focused element into view when
+        // honoring `autofocus`, and there is no way to prevent that.
+        // See https://github.com/emilk/egui/issues/8295
+        super::focus_without_scroll(&input).ok();
 
         // attach event listeners
 
@@ -67,7 +79,7 @@ impl TextAgent {
                 // between versions 14.7.09 and 17.0.12.
                 if !event.is_composing() {
                     input.blur().ok();
-                    input.focus().ok();
+                    super::focus_without_scroll(&input).ok();
                 }
 
                 if event.is_composing() {
@@ -221,7 +233,7 @@ impl TextAgent {
 
         log::trace!("Focusing text agent");
 
-        if let Err(err) = self.input.focus() {
+        if let Err(err) = super::focus_without_scroll(&self.input) {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
         }
     }

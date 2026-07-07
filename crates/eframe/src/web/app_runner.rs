@@ -401,7 +401,7 @@ impl AppRunner {
             } else {
                 // We are not editing text - give the focus to the canvas.
                 self.text_agent.blur();
-                self.canvas().focus().ok();
+                super::focus_without_scroll(self.canvas()).ok();
             }
         }
 
