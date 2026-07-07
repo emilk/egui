@@ -105,7 +105,6 @@ jiff = { version = "0.2.29", default-features = false }
 js-sys = "0.3.77"
 kittest = { version = "0.4.0" }
 log = { version = "0.4.33", features = ["std"] }
-memoffset = "0.9.1"
 mimalloc = "0.1.52"
 mime_guess2 = { version = "2.3", default-features = false }
 mint = "0.5.9"

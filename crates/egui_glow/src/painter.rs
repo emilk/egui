@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used)]
 #![expect(unsafe_code)]
 
+use core::mem::offset_of;
 use std::{collections::HashMap, sync::Arc};
 
 use egui::{
@@ -8,7 +9,6 @@ use egui::{
     epaint::{Mesh, PaintCallbackInfo, Primitive, Vertex},
 };
 use glow::HasContext as _;
-use memoffset::offset_of;
 
 use crate::check_for_gl_error;
 use crate::misc_util::{compile_shader, link_program};
