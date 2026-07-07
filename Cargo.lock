@@ -1304,7 +1304,7 @@ dependencies = [
  "document-features",
  "emath",
  "epaint",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "log",
  "nohash-hasher",
  "profiling",
@@ -1397,7 +1397,7 @@ dependencies = [
  "jiff",
  "log",
  "mimalloc",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "unicode_names2",
 ]
@@ -1412,7 +1412,7 @@ dependencies = [
  "ehttp",
  "enum-map",
  "image",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "jiff",
  "log",
  "mime_guess2",
@@ -2466,6 +2466,15 @@ name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
 dependencies = [
  "either",
 ]
@@ -3795,9 +3804,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2e8e8bcc7961af1fdac401278c6a831614941f6164ee3bf4ce61b7edb162207"
+checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
 dependencies = [
  "chacha20",
  "getrandom 0.4.3",
