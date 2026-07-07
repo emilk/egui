@@ -122,7 +122,7 @@ pollster = "0.4.0"
 profiling = { version = "1.0", default-features = false }
 puffin = "0.20.0"
 puffin_http = "0.17.0"
-rand = "0.10.1"
+rand = "0.10.1" # Keep lock at 0.10.1: rand 0.10.2 pulls rand_core 0.10 into the macOS graph, duplicating the rand_core 0.6 that phf_generator's rand 0.8 needs (cargo deny)
 raw-window-handle = "0.6.2"
 rayon = "1.12"
 resvg = { version = "0.45.1", default-features = false } # Can't update to 0.47: it needs tiny-skia 0.12, but winit 0.30's sctk-adwaita is stuck on tiny-skia 0.11, so bumping duplicates tiny-skia. (0.46 keeps tiny-skia 0.11 but its fontconfig-parser duplicates roxmltree.)
@@ -144,7 +144,7 @@ syntect = { version = "5.3", default-features = false }
 tempfile = "3.27"
 thiserror = "2.0"
 tokio = "1.52"
-toml = { version = "1.0", default-features = false } # 1.1+ pulls winnow 1.x, duplicating the winnow 0.7 that winit's toml_edit needs
+toml = { version = "1.0", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "3.1", default-features = false }
 unicode-general-category = "1.1"
