@@ -2404,7 +2404,7 @@ impl Context {
         output
     }
 
-    /// Keep the native window theme in sync with the egui [`ThemePreference`],
+    /// Keep the native window theme in sync with the egui [`crate::ThemePreference`],
     /// if [`crate::Options::sync_window_theme`] is enabled.
     ///
     /// Sends a [`ViewportCommand::SetTheme`] to the current viewport whenever the
