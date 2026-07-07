@@ -95,7 +95,7 @@ impl AppRunner {
         egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
             &super::user_agent().unwrap_or_default(),
         ));
-        super::storage::load_memory(&egui_ctx);
+        super::storage::load_memory(&egui_ctx, storage.as_deref());
 
         egui_ctx.options_mut(|o| {
             // On web by default egui follows the zoom factor of the browser,
@@ -131,7 +131,7 @@ impl AppRunner {
 
         let frame = epi::Frame {
             info,
-            storage: storage,
+            storage,
 
             #[cfg(feature = "glow")]
             gl,
@@ -200,7 +200,7 @@ impl AppRunner {
 
     pub fn save(&mut self) {
         if self.app.persist_egui_memory() {
-            super::storage::save_memory(&self.egui_ctx);
+            super::storage::save_memory(&self.egui_ctx, self.frame.storage_mut());
         }
         if let Some(storage) = self.frame.storage_mut() {
             self.app.save(storage);

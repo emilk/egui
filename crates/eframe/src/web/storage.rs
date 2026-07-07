@@ -1,3 +1,6 @@
+#[cfg(feature = "persistence")]
+use crate::Storage;
+
 fn local_storage() -> Option<web_sys::Storage> {
     web_sys::window()?.local_storage().ok()?
 }
@@ -13,8 +16,12 @@ pub fn local_storage_set(key: &str, value: &str) {
 }
 
 #[cfg(feature = "persistence")]
-pub(crate) fn load_memory(ctx: &egui::Context) {
-    if let Some(memory_string) = local_storage_get("egui_memory_ron") {
+pub(crate) fn load_memory(ctx: &egui::Context, custom_storage: Option<&dyn Storage>) {
+    let data = custom_storage
+        .map(|s| s.get_string("egui"))
+        .unwrap_or_else(|| local_storage_get("egui_memory_ron"));
+
+    if let Some(memory_string) = data {
         match ron::from_str(&memory_string) {
             Ok(memory) => {
                 ctx.memory_mut(|m| *m = memory);
@@ -30,10 +37,14 @@ pub(crate) fn load_memory(ctx: &egui::Context) {
 pub(crate) fn load_memory(_: &egui::Context) {}
 
 #[cfg(feature = "persistence")]
-pub(crate) fn save_memory(ctx: &egui::Context) {
+pub(crate) fn save_memory(ctx: &egui::Context, custom_storage: Option<&mut (dyn Storage + '_)>) {
     match ctx.memory(ron::to_string) {
         Ok(ron) => {
-            local_storage_set("egui_memory_ron", &ron);
+            if let Some(custom) = custom_storage {
+                custom.set_string("egui", ron);
+            } else {
+                local_storage_set("egui_memory_ron", &ron);
+            }
         }
         Err(err) => {
             log::warn!("Failed to serialize memory as RON: {err}");
