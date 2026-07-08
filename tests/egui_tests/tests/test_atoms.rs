@@ -1,6 +1,7 @@
 use egui::{
     Align, Atom, AtomExt as _, AtomLayout, Button, Direction, Frame, Layout, TextWrapMode, Ui,
-    Vec2, widget_style::ButtonStyle,
+    Vec2,
+    widget_style::{ButtonStyle, StyleArgs},
 };
 use egui_kittest::{HarnessBuilder, SnapshotResult, SnapshotResults};
 
@@ -131,10 +132,13 @@ fn test_atom_layout_nesting_and_direction() {
         let canvas_frame = Frame::canvas(style);
 
         let button_frame = ui
-            .get_widget_style::<ButtonStyle>(
-                &egui::widget_style::Classes::default(),
-                egui::widget_style::WidgetState::Inactive,
-            )
+            .get_widget_style::<ButtonStyle>(&StyleArgs {
+                classes: &egui::widget_style::Classes::default(),
+                state: egui::widget_style::WidgetState::Inactive,
+                ctx: ui,
+                stack: ui.stack(),
+                style,
+            })
             .frame;
 
         let row = |direction: Direction| {
