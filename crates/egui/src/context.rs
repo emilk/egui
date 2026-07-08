@@ -2031,7 +2031,7 @@ impl Context {
 }
 
 impl Context {
-    /// Register a [`ThemeStyle`](crate::theme_plugin::ThemeStyle) for the specified widget type.
+    /// Register a [`StyleProvider`](crate::theme_plugin::StyleProvider) for the specified widget type.
     ///
     /// A theme can only be added once for a specified widget.
     /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
@@ -2044,7 +2044,7 @@ impl Context {
         self.write(|ctx| ctx.themes.register::<S>(theme, false));
     }
 
-    /// Register a [`ThemeStyle`](crate::theme_plugin::ThemeStyle) for the specified widget.
+    /// Register a [`StyleProvider`](crate::theme_plugin::StyleProvider) for the specified widget.
     ///
     /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
     /// This allow to live edit a theme.

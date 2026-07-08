@@ -12,7 +12,7 @@ use crate::{
     },
 };
 
-/// A cache that can be implemented to reduce computation time of a `ThemeStyle`
+/// A cache that can be implemented to reduce computation time of a `StyleProvider`
 #[derive(Debug, Default, Clone)]
 pub struct ThemeCache<Theme> {
     cache: IdTypeMap,
@@ -270,7 +270,7 @@ impl Default for Themes {
 }
 
 impl Themes {
-    /// Register a [`ThemeStyle`] for the specified widget [`WidgetStyle`] `S`
+    /// Register a [`StyleProvider`] for the specified widget [`WidgetStyle`] `S`
     ///
     /// Existing themes are overwritten if `force` is `true` or the new theme differs.
     pub(crate) fn register<S: WidgetStyle + 'static>(
