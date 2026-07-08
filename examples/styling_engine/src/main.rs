@@ -3,6 +3,7 @@
 
 use eframe::egui::{
     self, Button, Frame, Margin, Panel, UiBuilder,
+    theme_plugin::ThemeCache,
     widget_style::{ButtonStyle, HasClasses as _},
 };
 
@@ -35,7 +36,7 @@ fn main() -> eframe::Result {
     eframe::run_ui_native("My egui App", options, move |ui, _frame| {
         // Register the theme plugin and which style they implement
         if let Ok(engine) = ESSEngine::try_parse(&style_code) {
-            ui.add_widget_theme::<ButtonStyle>(engine);
+            ui.add_widget_theme::<ButtonStyle>(ThemeCache::new(engine));
         }
 
         ui.scope_builder(UiBuilder::new().with_class("body"), |ui| {

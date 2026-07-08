@@ -7,7 +7,7 @@ use epaint::{Color32, FontId, Stroke, text::TextWrapMode};
 use smallvec::SmallVec;
 
 use crate::{
-    Frame, Response, TextBuffer as _,
+    Context, Frame, Response, Style, TextBuffer as _, UiStack,
     style::{WidgetVisuals, Widgets},
 };
 
@@ -235,7 +235,15 @@ pub trait HasClasses {
     }
 
     /// The list of class
-    fn list(&self) -> Vec<ClassName> {
-        self.classes().classes.to_vec()
+    fn as_slice(&self) -> &[ClassName] {
+        &self.classes().classes
     }
+}
+
+pub struct StyleArgs<'a> {
+    pub classes: &'a Classes,
+    pub state: WidgetState,
+    pub stack: &'a UiStack,
+    pub style: &'a Style,
+    pub ctx: &'a Context,
 }

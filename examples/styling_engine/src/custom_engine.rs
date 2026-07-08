@@ -1,16 +1,15 @@
 use std::collections::HashMap;
 
 use eframe::egui::{
-    Color32, Ui,
-    theme_plugin::{ThemeCache, ThemeStyle},
-    widget_style::{BaseStyle, ButtonStyle, Classes, HasClasses as _, WidgetState},
+    Color32,
+    theme_plugin::StyleProvider,
+    widget_style::{BaseStyle, ButtonStyle, HasClasses as _, StyleArgs},
 };
 use logos::Logos;
 
 #[derive(Debug, Default, Clone)]
 pub struct ESSEngine {
     info: HashMap<String, Vec<(String, Value)>>,
-    cache: ThemeCache,
 }
 
 impl ESSEngine {
@@ -76,35 +75,34 @@ impl ESSEngine {
     }
 }
 
-impl ThemeStyle<ButtonStyle> for ESSEngine {
-    fn style(&mut self, ui: &Ui, classes: &Classes, state: WidgetState) -> ButtonStyle {
-        self.cache.get(classes, state, || {
-            let base = ui.get_widget_style::<BaseStyle>(classes, state);
-            let mut default = ButtonStyle {
-                frame: base.frame,
-                text_style: base.text,
-            };
-            for class in classes.list() {
-                if let Some(properties) = self.info.get(&class.to_string()) {
-                    for (property, value) in properties {
-                        match property.as_str() {
-                            "fill" => {
-                                if let Value::Color(color) = value {
-                                    default.frame.fill = *color;
-                                }
+impl StyleProvider<ButtonStyle> for ESSEngine {
+    fn style(&mut self, modifiers: &StyleArgs<'_>) -> ButtonStyle {
+        let StyleArgs { classes, ctx, .. } = modifiers;
+        let base = ctx.get_widget_style::<BaseStyle>(modifiers);
+        let mut default = ButtonStyle {
+            frame: base.frame,
+            text_style: base.text,
+        };
+        for class in classes.as_slice() {
+            if let Some(properties) = self.info.get(&class.to_string()) {
+                for (property, value) in properties {
+                    match property.as_str() {
+                        "fill" => {
+                            if let Value::Color(color) = value {
+                                default.frame.fill = *color;
                             }
-                            "border" => {
-                                if let Value::Number(size) = value {
-                                    default.frame.stroke.width = *size as f32;
-                                }
-                            }
-                            _ => {}
                         }
+                        "border" => {
+                            if let Value::Number(size) = value {
+                                default.frame.stroke.width = *size as f32;
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
-            default
-        })
+        }
+        default
     }
 }
 
