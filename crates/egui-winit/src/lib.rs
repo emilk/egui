@@ -1954,8 +1954,9 @@ pub fn create_window(
     Ok(window)
 }
 
-/// Apply [`ViewportBuilder::with_monitor`] to freshly-built [`WindowAttributes`]:
-/// resolve the target monitor index → `MonitorHandle` and request borderless
+/// Apply [`ViewportBuilder::with_monitor`] to freshly-built [`WindowAttributes`].
+///
+/// Resolve the target monitor index → `MonitorHandle` and request borderless
 /// fullscreen on that output, so the window is created directly on the right
 /// monitor. This is the only reliable way to target a specific monitor under
 /// Wayland, and also avoids the Mutter race where `OuterPosition` is ignored
