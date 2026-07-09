@@ -691,6 +691,14 @@ impl WgpuWinitRunning<'_> {
             ..
         } = &mut *shared_mut;
 
+        // Propagate any surface config the app set this frame via
+        // `Frame::set_wgpu_surface_config`. The frame carries its own clone of the
+        // `RenderState`, so copy the config into the painter's own copy — the one read in
+        // `paint_and_update_textures` — otherwise the change would never take effect.
+        if let Some(surface_config) = integration.frame.wgpu_surface_config() {
+            painter.set_surface_config(surface_config);
+        }
+
         let FullOutput {
             platform_output,
             textures_delta,
