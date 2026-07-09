@@ -36,7 +36,7 @@ impl crate::View for Tooltips {
             ui.add(crate::egui_github_link_file_line!());
         });
 
-        egui::Panel::right("scroll_test").show_inside(ui, |ui| {
+        egui::Panel::right("scroll_test").show(ui, |ui| {
             ui.label(
                 "The scroll area below has many labels with interactive tooltips. \
                  The purpose is to test that the tooltips close when you scroll.",
@@ -56,7 +56,7 @@ impl crate::View for Tooltips {
                 });
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             self.misc_tests(ui);
         });
     }

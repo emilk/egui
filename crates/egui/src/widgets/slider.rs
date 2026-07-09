@@ -79,7 +79,7 @@ pub enum SliderClamping {
 ///
 /// The slider range defines the values you get when pulling the slider to the far edges.
 /// By default all values are clamped to this range, even when not interacted with.
-/// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
+/// You can change this behavior by passing `false` to [`Slider::clamping`].
 ///
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
 ///
@@ -125,7 +125,11 @@ impl<'a> Slider<'a> {
     ///
     /// The `value` given will be clamped to the `range`,
     /// unless you change this behavior with [`Self::clamping`].
-    pub fn new<Num: emath::Numeric>(value: &'a mut Num, range: RangeInclusive<Num>) -> Self {
+    pub fn new<Num: emath::Numeric>(
+        value: &'a mut Num,
+        range: impl Into<RangeInclusive<Num>>,
+    ) -> Self {
+        let range = range.into();
         let range_f64 = range.start().to_f64()..=range.end().to_f64();
         let slf = Self::from_get_set(range_f64, move |v: Option<f64>| {
             if let Some(v) = v {
@@ -288,16 +292,6 @@ impl<'a> Slider<'a> {
         self
     }
 
-    #[inline]
-    #[deprecated = "Use `slider.clamping(…) instead"]
-    pub fn clamp_to_range(self, clamp_to_range: bool) -> Self {
-        self.clamping(if clamp_to_range {
-            SliderClamping::Always
-        } else {
-            SliderClamping::Never
-        })
-    }
-
     /// Turn smart aim on/off. Default is ON.
     /// There is almost no point in turning this off.
     #[inline]
@@ -314,7 +308,7 @@ impl<'a> Slider<'a> {
     /// Default: `0.0` (disabled).
     #[inline]
     pub fn step_by(mut self, step: f64) -> Self {
-        self.step = if step != 0.0 { Some(step) } else { None };
+        self.step = if step == 0.0 { None } else { Some(step) };
         self
     }
 

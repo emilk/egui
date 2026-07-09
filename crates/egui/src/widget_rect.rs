@@ -17,6 +17,12 @@ pub struct WidgetRect {
     /// You can ensure globally unique ids using [`crate::Ui::push_id`].
     pub id: Id,
 
+    /// The [`Id`] of the parent [`crate::Ui`] that hosts this widget.
+    ///
+    /// Used by debug checks to distinguish true id-instability from
+    /// cascading id shifts caused by a parent Ui's auto-id changing.
+    pub parent_id: Id,
+
     /// What layer the widget is on.
     pub layer_id: LayerId,
 
@@ -46,6 +52,7 @@ impl WidgetRect {
     pub fn transform(self, transform: emath::TSTransform) -> Self {
         let Self {
             id,
+            parent_id,
             layer_id,
             rect,
             interact_rect,
@@ -54,6 +61,7 @@ impl WidgetRect {
         } = self;
         Self {
             id,
+            parent_id,
             layer_id,
             rect: transform * rect,
             interact_rect: transform * interact_rect,

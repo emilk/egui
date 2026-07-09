@@ -4,8 +4,9 @@ use egui::accesskit::Role;
 use egui::load::SizedTexture;
 use egui::{
     Align, AtomExt as _, AtomLayout, Button, Color32, ColorImage, Direction, DragValue, Event,
-    Grid, IntoAtoms as _, Layout, PointerButton, Response, Slider, Stroke, StrokeKind, TextEdit,
-    TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _, include_image,
+    Grid, IntoAtoms as _, Layout, PointerButton, Response, RichText, Slider, Stroke, StrokeKind,
+    TextEdit, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _,
+    include_image,
 };
 use egui_kittest::kittest::{Queryable as _, by};
 use egui_kittest::{Harness, Node, SnapshotResult, SnapshotResults};
@@ -74,7 +75,11 @@ fn widget_tests() {
 
     test_widget(
         "drag_value",
-        |ui| DragValue::new(&mut 12.0).ui(ui),
+        |ui| {
+            DragValue::new(&mut 12.0)
+                .suffix(RichText::new(" px").weak().small())
+                .ui(ui)
+        },
         &mut results,
     );
 
@@ -112,6 +117,18 @@ fn widget_tests() {
             ui.spacing_mut().text_edit_width = 45.0;
             TextEdit::singleline(&mut String::new())
                 .hint_text("This is a very very long placeholder")
+                .clip_text(true)
+                .ui(ui)
+        },
+        &mut results,
+    );
+    test_widget(
+        "text_edit_prefix_suffix",
+        |ui| {
+            ui.spacing_mut().text_edit_width = 45.0;
+            TextEdit::singleline(&mut "Hello World".to_owned())
+                .prefix("🔎")
+                .suffix("!")
                 .clip_text(true)
                 .ui(ui)
         },

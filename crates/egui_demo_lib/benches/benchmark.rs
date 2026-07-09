@@ -6,7 +6,7 @@ use egui::epaint::TextShape;
 use egui::load::SizedTexture;
 use egui::{Button, Id, RichText, TextureId, Ui, UiBuilder, Vec2};
 use egui_demo_lib::LOREM_IPSUM_LONG;
-use rand::Rng as _;
+use rand::RngExt as _;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator

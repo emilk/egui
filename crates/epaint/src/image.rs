@@ -1,3 +1,4 @@
+use ecolor::linear_f32_from_linear_u8;
 use emath::Vec2;
 
 use crate::{Color32, textures::TextureOptions};
@@ -346,22 +347,37 @@ impl std::fmt::Debug for ColorImage {
 // ----------------------------------------------------------------------------
 
 /// How to convert font coverage values into alpha and color values.
-//
-// This whole thing is less than rigorous.
-// Ideally we should do this in a shader instead, and use different computations
-// for different text colors.
-// See https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html for an in-depth analysis.
+///
+/// epaint stores all glyphs in the font atlas as white (with varying opacity),
+/// so that egui can reuse the same glyph for different text colors
+/// (with a simple color multiplication in the shader).
+///
+/// Because of this simplification, we need to apply a non-linear
+/// ramp to the glyph colors before writing them into the font atlas,
+/// as a way to compensate.
+///
+/// This whole thing is less than rigorous.
+///
+/// It would be better to either render all text colors into the font atlas
+/// (which would require more atlas space, but would allow for more accurate rendering of colored text and emojis),
+/// or do the color compensation in the shader, based on the active text color.
+///
+/// When experimenting, use <https://fonts.google.com/specimen/Ubuntu> to compare to a ground truth.
+///
+/// See <https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html> for related analysis.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum AlphaFromCoverage {
-    /// `alpha = coverage`.
+pub enum FontColorTransferFunction {
+    /// Use the raw RGBA values from the font rasterizer, without any conversion.
     ///
-    /// Looks good for black-on-white text, i.e. light mode.
+    /// This is the required mode for colored emojis etc.
     ///
-    /// Same as [`Self::Gamma`]`(1.0)`, but more efficient.
-    Linear,
+    /// This mode looks good for black-on-white text, i.e. light mode.
+    Off,
 
     /// `alpha = coverage^gamma`.
+    ///
+    /// Gamma=1 looks good for black-on-white text, i.e. light mode.
     Gamma(f32),
 
     /// `alpha = 2 * coverage - coverage^2`
@@ -374,28 +390,58 @@ pub enum AlphaFromCoverage {
     TwoCoverageMinusCoverageSq,
 }
 
-impl AlphaFromCoverage {
+impl FontColorTransferFunction {
     /// A good-looking default for light mode (black-on-white text).
-    pub const LIGHT_MODE_DEFAULT: Self = Self::Linear;
+    pub const LIGHT_MODE_DEFAULT: Self = Self::Off;
 
     /// A good-looking default for dark mode (white-on-black text).
     pub const DARK_MODE_DEFAULT: Self = Self::TwoCoverageMinusCoverageSq;
 
+    /// How to convert a white color written by the font rasterizer
+    /// into a color to be written into the font atlas.
+    #[inline(always)]
+    pub fn to_atlas_color(self, input_color: Color32) -> Color32 {
+        match self {
+            Self::Off | Self::Gamma(1.0) => input_color,
+
+            Self::Gamma(gamma) => {
+                let coverage = linear_f32_from_linear_u8(input_color.a());
+                let alpha = coverage.powf(gamma);
+                Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
+            }
+
+            Self::TwoCoverageMinusCoverageSq => {
+                let coverage = linear_f32_from_linear_u8(input_color.a());
+                let alpha = 2.0 * coverage - coverage * coverage;
+                Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
+            }
+        }
+    }
+
     /// Convert coverage to alpha.
     #[inline(always)]
-    pub fn alpha_from_coverage(&self, coverage: f32) -> f32 {
+    pub fn alpha_from_coverage(self, coverage: f32) -> f32 {
         let coverage = coverage.clamp(0.0, 1.0);
         match self {
-            Self::Linear => coverage,
-            Self::Gamma(gamma) => coverage.powf(*gamma),
+            Self::Off | Self::Gamma(1.0) => coverage,
+            Self::Gamma(gamma) => coverage.powf(gamma),
             Self::TwoCoverageMinusCoverageSq => 2.0 * coverage - coverage * coverage,
         }
     }
 
     #[inline(always)]
-    pub fn color_from_coverage(&self, coverage: f32) -> Color32 {
+    pub fn color_from_coverage(self, coverage: f32) -> Color32 {
         let alpha = self.alpha_from_coverage(coverage);
         Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
+    }
+
+    /// Convert this into the closest gamma exponent
+    pub fn to_gamma(self) -> f32 {
+        match self {
+            Self::Off => 1.0,
+            Self::Gamma(gamma) => gamma,
+            Self::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
+        }
     }
 }
 

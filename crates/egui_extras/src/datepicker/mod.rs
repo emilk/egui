@@ -4,32 +4,32 @@ mod button;
 mod popup;
 
 pub use button::DatePickerButton;
-use chrono::{Datelike as _, Duration, NaiveDate, Weekday};
+use jiff::civil::{Date, ISOWeekDate, Weekday};
 
 #[derive(Debug)]
 struct Week {
     number: u8,
-    days: Vec<NaiveDate>,
+    days: Vec<Date>,
 }
 
-fn month_data(year: i32, month: u32) -> Vec<Week> {
-    let first = NaiveDate::from_ymd_opt(year, month, 1).expect("Could not create NaiveDate");
+fn month_data(year: i16, month: i8) -> Vec<Week> {
+    let first = Date::new(year, month, 1).expect("Could not create Date");
     let mut start = first;
-    while start.weekday() != Weekday::Mon {
-        start = start.checked_sub_signed(Duration::days(1)).unwrap();
+    while start.weekday() != Weekday::Monday {
+        start = start.yesterday().unwrap();
     }
     let mut weeks = vec![];
     let mut week = vec![];
-    while start < first || start.month() == first.month() || start.weekday() != Weekday::Mon {
+    while start < first || start.month() == first.month() || start.weekday() != Weekday::Monday {
         week.push(start);
 
-        if start.weekday() == Weekday::Sun {
+        if start.weekday() == Weekday::Sunday {
             weeks.push(Week {
-                number: start.iso_week().week() as u8,
+                number: ISOWeekDate::from(start).week() as u8,
                 days: std::mem::take(&mut week),
             });
         }
-        start = start.checked_add_signed(Duration::days(1)).unwrap();
+        start = start.tomorrow().unwrap();
     }
 
     weeks

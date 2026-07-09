@@ -1,6 +1,6 @@
 use egui::containers::menu::{MenuBar, MenuConfig, SubMenuButton};
 use egui::{PopupCloseBehavior, Ui, include_image};
-use egui_kittest::{Harness, SnapshotResults};
+use egui_kittest::Harness;
 use kittest::Queryable as _;
 
 struct TestMenu {
@@ -160,11 +160,12 @@ fn clicking_submenu_button_should_never_close_menu() {
     assert!(harness.query_by_label("Button in Submenu B").is_none());
 }
 
+#[cfg(feature = "snapshot")]
 #[test]
 fn menu_snapshots() {
     let mut harness = TestMenu::new(MenuConfig::new()).into_harness();
 
-    let mut results = SnapshotResults::new();
+    let mut results = egui_kittest::SnapshotResults::new();
 
     harness.get_by_label("Menu A").hover();
     harness.run();

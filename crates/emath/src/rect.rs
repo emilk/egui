@@ -476,6 +476,32 @@ impl Rect {
         Rangef::new(self.min.y, self.max.y)
     }
 
+    /// The extent along the given axis: `0` for x, `1` for y.
+    ///
+    /// Equivalent to [`Self::x_range`] for `axis == 0` and [`Self::y_range`] for `axis == 1`.
+    ///
+    /// # Panics
+    /// If `axis` is not `0` or `1`.
+    #[inline]
+    pub fn range_along(&self, axis: usize) -> Rangef {
+        match axis {
+            0 => self.x_range(),
+            1 => self.y_range(),
+            _ => panic!("axis must be 0 or 1, got {axis}"),
+        }
+    }
+
+    /// The size along the given axis: `0` for x (width), `1` for y (height).
+    ///
+    /// Equivalent to `self.size()[axis]`.
+    ///
+    /// # Panics
+    /// If `axis` is not `0` or `1`.
+    #[inline]
+    pub fn size_along(&self, axis: usize) -> f32 {
+        self.size()[axis]
+    }
+
     #[inline(always)]
     pub fn bottom_up_range(&self) -> Rangef {
         Rangef::new(self.max.y, self.min.y)

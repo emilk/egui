@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 #[derive(Clone)]
 struct Frame {
     /// `_main` is usually as the deepest depth.
@@ -23,7 +25,7 @@ pub fn capture() -> String {
             if let Some(file_and_line) = &mut file_and_line
                 && let Some(line_nr) = symbol.lineno()
             {
-                file_and_line.push_str(&format!(":{line_nr}"));
+                write!(file_and_line, ":{line_nr}").ok();
             }
             let file_and_line = file_and_line.unwrap_or_default();
 
@@ -86,16 +88,36 @@ pub fn capture() -> String {
             return false;
         }
 
-        // Remove stuff that isn't user calls:
+        // Remove frames that are part of egui itself, since they are not useful to the user.
+        let skip_crates = [
+            "alloc",
+            "backtrace",
+            "core",
+            "eframe",
+            "egui_extras",
+            "egui_plot",
+            "egui",
+            "epaint",
+            "std",
+            "winit",
+        ];
+        for crate_name in skip_crates {
+            let name = frame.name.trim_start_matches('<');
+            if name.starts_with(crate_name)
+                && name
+                    .as_bytes()
+                    .get(crate_name.len())
+                    .copied()
+                    .is_none_or(|b| b.is_ascii_punctuation() && b != b'_')
+            {
+                return false;
+            }
+        }
+
         let skip_prefixes = [
             // "backtrace::", // not needed, since we cut at egui::callstack::capture
-            "egui::",
-            "<egui::",
             "<F as egui::widgets::Widget>",
-            "egui_plot::",
-            "egui_extras::",
             "core::ptr::drop_in_place<egui::ui::Ui>",
-            "eframe::",
             "core::ops::function::FnOnce::call_once",
             "<alloc::boxed::Box<F,A> as core::ops::function::FnOnce<Args>>::call_once",
         ];
@@ -130,12 +152,14 @@ pub fn capture() -> String {
 
             if frame.depth + 1 < last_depth || last_depth + 1 < frame.depth {
                 // Show that some frames were elided
-                formatted.push_str(&format!("{:widest_depth$}  …\n", ""));
+                writeln!(formatted, "{:widest_depth$}  …", "").ok();
             }
 
-            formatted.push_str(&format!(
-                "{depth:widest_depth$}: {file_and_line:widest_file_line$}  {name}\n"
-            ));
+            writeln!(
+                formatted,
+                "{depth:widest_depth$}: {file_and_line:widest_file_line$}  {name}"
+            )
+            .ok();
 
             last_depth = frame.depth;
         }

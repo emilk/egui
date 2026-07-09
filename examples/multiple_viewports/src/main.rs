@@ -36,7 +36,7 @@ struct MyApp {
 
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.label("Hello from the root viewport");
 
             ui.checkbox(
@@ -72,7 +72,7 @@ impl eframe::App for MyApp {
                             "This viewport is embedded in the parent window, and cannot be moved outside of it.",
                         );
                     } else {
-                        egui::CentralPanel::default().show_inside(ui, |ui| {
+                        egui::CentralPanel::default().show(ui, |ui| {
                             ui.label("Hello from immediate viewport");
 
                             if ui.input(|i| i.viewport().close_requested()) {
@@ -98,7 +98,7 @@ impl eframe::App for MyApp {
                             "This viewport is embedded in the parent window, and cannot be moved outside of it.",
                         );
                     } else {
-                        egui::CentralPanel::default().show_inside(ui, |ui| {
+                        egui::CentralPanel::default().show(ui, |ui| {
                             ui.label("Hello from deferred viewport");
 
                             if ui.input(|i| i.viewport().close_requested()) {

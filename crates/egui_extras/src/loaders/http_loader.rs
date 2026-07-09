@@ -42,10 +42,23 @@ type Entry = Poll<Result<File, String>>;
 #[derive(Default)]
 pub struct EhttpLoader {
     cache: Arc<Mutex<HashMap<String, Entry>>>,
+    request_template: Option<Box<dyn Fn(ehttp::Request) -> ehttp::Request + Send + Sync>>,
 }
 
 impl EhttpLoader {
     pub const ID: &'static str = egui::generate_loader_id!(EhttpLoader);
+
+    /// Provide a request template to modify requests before they're sent,
+    /// e.g. to add headers.
+    pub fn with_request_template<
+        F: Fn(ehttp::Request) -> ehttp::Request + Send + Sync + 'static,
+    >(
+        mut self,
+        request_template: F,
+    ) -> Self {
+        self.request_template = Some(Box::new(request_template));
+        self
+    }
 }
 
 const PROTOCOLS: &[&str] = &["http://", "https://"];
@@ -82,41 +95,47 @@ impl BytesLoader for EhttpLoader {
             cache.insert(uri.clone(), Poll::Pending);
             drop(cache);
 
-            ehttp::fetch(ehttp::Request::get(uri.clone()), {
-                let ctx = ctx.clone();
-                let cache = Arc::clone(&self.cache);
-                move |response| {
-                    let result = match response {
-                        Ok(response) => File::from_response(&uri, response),
-                        Err(err) => {
-                            // Log details; return summary
-                            log::error!("Failed to load {uri:?}: {err}");
-                            Err(format!("Failed to load {uri:?}"))
+            ehttp::fetch(
+                match &self.request_template {
+                    Some(templ) => templ(ehttp::Request::get(uri.clone())),
+                    None => ehttp::Request::get(uri.clone()),
+                },
+                {
+                    let ctx = ctx.clone();
+                    let cache = Arc::clone(&self.cache);
+                    move |response| {
+                        let result = match response {
+                            Ok(response) => File::from_response(&uri, response),
+                            Err(err) => {
+                                // Log details; return summary
+                                log::error!("Failed to load {uri:?}: {err}");
+                                Err(format!("Failed to load {uri:?}"))
+                            }
+                        };
+                        let repaint = {
+                            let mut cache = cache.lock();
+                            if let std::collections::hash_map::Entry::Occupied(mut entry) =
+                                cache.entry(uri.clone())
+                            {
+                                let entry = entry.get_mut();
+                                *entry = Poll::Ready(result);
+                                log::trace!("Finished loading {uri:?}");
+                                true
+                            } else {
+                                log::trace!(
+                                    "Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading."
+                                );
+                                false
+                            }
+                        };
+                        // We may not lock Context while the cache lock is held (see ImageLoader::load
+                        // for details).
+                        if repaint {
+                            ctx.request_repaint();
                         }
-                    };
-                    let repaint = {
-                        let mut cache = cache.lock();
-                        if let std::collections::hash_map::Entry::Occupied(mut entry) =
-                            cache.entry(uri.clone())
-                        {
-                            let entry = entry.get_mut();
-                            *entry = Poll::Ready(result);
-                            log::trace!("Finished loading {uri:?}");
-                            true
-                        } else {
-                            log::trace!(
-                                "Canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading."
-                            );
-                            false
-                        }
-                    };
-                    // We may not lock Context while the cache lock is held (see ImageLoader::load
-                    // for details).
-                    if repaint {
-                        ctx.request_repaint();
                     }
-                }
-            });
+                },
+            );
 
             Ok(BytesPoll::Pending { size: None })
         }

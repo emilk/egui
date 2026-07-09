@@ -154,7 +154,7 @@ impl Default for App {
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.heading("Root viewport");
             {
                 let mut embed_viewports = ui.embed_viewports();
@@ -182,7 +182,7 @@ fn show_as_popup(
         // Not a real viewport - already has a frame
         content(ui);
     } else {
-        egui::CentralPanel::default().show_inside(ui, content);
+        egui::CentralPanel::default().show(ui, content);
     }
 }
 
@@ -334,7 +334,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             assert!(col < COLS, "The coll should be less than: {COLS}");
 
             let value: String = value.into();
-            let id = Id::new(format!("%{}% {}", self.counter, &value));
+            let id = Id::new(format!("%{}% {}", self.counter, value));
             self.data.insert(id, value);
             let viewport_data = self.containers_data.entry(container).or_insert_with(|| {
                 let mut res = Vec::new();
@@ -416,16 +416,7 @@ fn drag_source<R>(
 ) -> InnerResponse<R> {
     let is_being_dragged = ui.ctx().is_being_dragged(id);
 
-    if !is_being_dragged {
-        let res = ui.scope(body);
-
-        // Check for drags:
-        let response = ui.interact(res.response.rect, id, egui::Sense::drag());
-        if response.hovered() {
-            ui.set_cursor_icon(egui::CursorIcon::Grab);
-        }
-        res
-    } else {
+    if is_being_dragged {
         ui.set_cursor_icon(egui::CursorIcon::Grabbing);
 
         // Paint the body to a new layer:
@@ -440,6 +431,15 @@ fn drag_source<R>(
             );
         }
 
+        res
+    } else {
+        let res = ui.scope(body);
+
+        // Check for drags:
+        let response = ui.interact(res.response.rect, id, egui::Sense::drag());
+        if response.hovered() {
+            ui.set_cursor_icon(egui::CursorIcon::Grab);
+        }
         res
     }
 }

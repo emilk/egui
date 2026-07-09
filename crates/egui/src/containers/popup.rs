@@ -1,5 +1,3 @@
-#![expect(deprecated)] // This is a new, safe wrapper around the old `Memory::popup` API.
-
 use std::iter::once;
 
 use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
@@ -87,7 +85,7 @@ pub enum PopupCloseBehavior {
     /// but in the popup's body
     CloseOnClickOutside,
 
-    /// Clicks will be ignored. Popup might be closed manually by calling [`crate::Memory::close_all_popups`]
+    /// Clicks will be ignored. Popup might be closed manually by calling [`Popup::close_all`]
     /// or by pressing the escape button
     IgnoreClicks,
 }
@@ -474,17 +472,15 @@ impl<'a> Popup<'a> {
         RectAlign::find_best_align(
             #[expect(clippy::iter_on_empty_collections)]
             #[expect(clippy::or_fun_call)]
-            once(self.rect_align).chain(
+            std::iter::chain(
+                once(self.rect_align),
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or
-                    .map(|a| a.iter().copied().chain([].iter().copied()))
-                    .unwrap_or(
-                        self.rect_align
-                            .symmetries()
-                            .iter()
-                            .copied()
-                            .chain(RectAlign::MENU_ALIGNS.iter().copied()),
-                    ),
+                    .map(|a| std::iter::chain(a.iter().copied(), [].iter().copied()))
+                    .unwrap_or(std::iter::chain(
+                        self.rect_align.symmetries().iter().copied(),
+                        RectAlign::MENU_ALIGNS.iter().copied(),
+                    )),
             ),
             self.ctx.content_rect(),
             anchor_rect,
@@ -666,10 +662,6 @@ impl Popup<'_> {
     }
 
     /// Open the given popup and close all others.
-    ///
-    /// If you are NOT using [`Popup::show`], you must
-    /// also call [`crate::Memory::keep_popup_open`] as long as
-    /// you're showing the popup.
     pub fn open_id(ctx: &Context, popup_id: Id) {
         ctx.memory_mut(|mem| mem.open_popup(popup_id));
     }

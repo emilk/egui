@@ -27,7 +27,7 @@ impl crate::Demo for ExtraViewport {
                     // Not a real viewport
                     ui.label("This egui integration does not support multiple viewports");
                 } else {
-                    egui::CentralPanel::default().show_inside(ui, |ui| {
+                    egui::CentralPanel::default().show(ui, |ui| {
                         viewport_content(ui, open);
                     });
                 }

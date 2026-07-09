@@ -1,10 +1,4 @@
-use std::{
-    mem::size_of,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering::Relaxed},
-    },
-};
+use std::{mem::size_of, sync::Arc};
 
 use ahash::HashMap;
 
@@ -15,14 +9,18 @@ use egui::{
 };
 
 struct Entry {
-    last_used: AtomicU64,
+    last_used: u64,
     result: Result<Arc<ColorImage>, String>,
 }
 
-pub struct SvgLoader {
-    pass_index: AtomicU64,
-    cache: Mutex<HashMap<String, HashMap<SizeHint, Entry>>>,
+struct State {
+    pass_index: u64,
+    cache: HashMap<String, HashMap<SizeHint, Entry>>,
     options: resvg::usvg::Options<'static>,
+}
+
+pub struct SvgLoader {
+    state: Mutex<State>,
 }
 
 impl SvgLoader {
@@ -43,9 +41,11 @@ impl Default for SvgLoader {
         options.fontdb_mut().load_system_fonts();
 
         Self {
-            pass_index: AtomicU64::new(0),
-            cache: Mutex::new(HashMap::default()),
-            options,
+            state: Mutex::new(State {
+                pass_index: 0,
+                cache: HashMap::default(),
+                options,
+            }),
         }
     }
 }
@@ -60,13 +60,18 @@ impl ImageLoader for SvgLoader {
             return Err(LoadError::NotSupported);
         }
 
-        let mut cache = self.cache.lock();
+        let mut state = self.state.lock();
+        let State {
+            pass_index,
+            cache,
+            options,
+        } = &mut *state;
+
         let bucket = cache.entry(uri.to_owned()).or_default();
 
-        if let Some(entry) = bucket.get(&size_hint) {
-            entry
-                .last_used
-                .store(self.pass_index.load(Relaxed), Relaxed);
+        if let Some(entry) = bucket.get_mut(&size_hint) {
+            entry.last_used = *pass_index;
+
             match entry.result.clone() {
                 Ok(image) => Ok(ImagePoll::Ready { image }),
                 Err(err) => Err(LoadError::Loading(err)),
@@ -75,15 +80,14 @@ impl ImageLoader for SvgLoader {
             match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     log::trace!("Started loading {uri:?}");
-                    let result =
-                        crate::image::load_svg_bytes_with_size(&bytes, size_hint, &self.options)
-                            .map(Arc::new);
+                    let result = crate::image::load_svg_bytes_with_size(&bytes, size_hint, options)
+                        .map(Arc::new);
 
                     log::trace!("Finished loading {uri:?}");
                     bucket.insert(
                         size_hint,
                         Entry {
-                            last_used: AtomicU64::new(self.pass_index.load(Relaxed)),
+                            last_used: *pass_index,
                             result: result.clone(),
                         },
                     );
@@ -99,16 +103,17 @@ impl ImageLoader for SvgLoader {
     }
 
     fn forget(&self, uri: &str) {
-        self.cache.lock().retain(|key, _| key != uri);
+        self.state.lock().cache.retain(|key, _| key != uri);
     }
 
     fn forget_all(&self) {
-        self.cache.lock().clear();
+        self.state.lock().cache.clear();
     }
 
     fn byte_size(&self) -> usize {
-        self.cache
+        self.state
             .lock()
+            .cache
             .values()
             .flat_map(|bucket| bucket.values())
             .map(|entry| match &entry.result {
@@ -119,15 +124,17 @@ impl ImageLoader for SvgLoader {
     }
 
     fn end_pass(&self, pass_index: u64) {
-        self.pass_index.store(pass_index, Relaxed);
-        let mut cache = self.cache.lock();
-        cache.retain(|_key, bucket| {
+        let mut state = self.state.lock();
+
+        state.pass_index = pass_index;
+
+        state.cache.retain(|_key, bucket| {
             if 2 <= bucket.len() {
                 // There are multiple images of the same URI (e.g. SVGs of different scales).
                 // This could be because someone has an SVG in a resizable container,
                 // and so we get a lot of different sizes of it.
                 // This could wast RAM, so we remove the ones that are not used in this frame.
-                bucket.retain(|_, texture| pass_index <= texture.last_used.load(Relaxed) + 1);
+                bucket.retain(|_, texture| pass_index <= texture.last_used + 1);
             }
             !bucket.is_empty()
         });

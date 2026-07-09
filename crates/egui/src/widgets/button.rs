@@ -1,10 +1,10 @@
 use epaint::Margin;
 
 use crate::{
-    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
-    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType,
-    widget_style::{ButtonStyle, WidgetState},
+    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Atoms, Color32, CornerRadius,
+    Frame, Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui,
+    Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState},
 };
 
 /// Clickable button with text.
@@ -35,9 +35,10 @@ pub struct Button<'a> {
     frame_when_inactive: bool,
     min_size: Vec2,
     corner_radius: Option<CornerRadius>,
-    selected: bool,
+    selected: Option<bool>,
     image_tint_follows_text_color: bool,
     limit_image_size: bool,
+    classes: Classes,
 }
 
 impl<'a> Button<'a> {
@@ -53,9 +54,10 @@ impl<'a> Button<'a> {
             frame_when_inactive: true,
             min_size: Vec2::ZERO,
             corner_radius: None,
-            selected: false,
+            selected: None,
             image_tint_follows_text_color: false,
             limit_image_size: false,
+            classes: Classes::default(),
         }
     }
 
@@ -200,12 +202,6 @@ impl<'a> Button<'a> {
         self
     }
 
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
-    }
-
     /// If true, the tint of the image is multiplied by the widget text color.
     ///
     /// This makes sense for images that are white, that should have the same color as the text color.
@@ -240,6 +236,18 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// Show some text on the left side of the button.
+    #[inline]
+    pub fn left_text(mut self, left_text: impl IntoAtoms<'a>) -> Self {
+        self.layout.push_left(Atom::grow());
+
+        for atom in left_text.into_atoms() {
+            self.layout.push_left(atom);
+        }
+
+        self
+    }
+
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl IntoAtoms<'a>) -> Self {
@@ -253,10 +261,29 @@ impl<'a> Button<'a> {
     }
 
     /// If `true`, mark this button as "selected".
+    ///
+    /// Calling this method opts the button into toggle semantics and the
+    /// current pressed/not-pressed state will be reported to assistive
+    /// technologies (e.g. screen readers). Plain buttons that never call
+    /// `selected` are not announced as toggles.
     #[inline]
     pub fn selected(mut self, selected: bool) -> Self {
-        self.selected = selected;
+        self.selected = Some(selected);
         self
+    }
+
+    /// Set the gap between atoms.
+    #[inline]
+    pub fn gap(mut self, gap: f32) -> Self {
+        self.layout = self.layout.gap(gap);
+        self
+    }
+
+    /// Output the button's [`Atoms`].
+    ///
+    /// This includes any images you have on the button.
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.layout.atoms
     }
 
     /// Show the button and return a [`AtomLayoutResponse`] for painting custom contents.
@@ -273,6 +300,7 @@ impl<'a> Button<'a> {
             selected,
             image_tint_follows_text_color,
             limit_image_size,
+            mut classes,
         } = self;
 
         // Min size height always equal or greater than interact size if not small
@@ -298,7 +326,9 @@ impl<'a> Button<'a> {
         let response: Option<Response> = ui.ctx().read_response(id);
         let state = response.map(|r| r.widget_state()).unwrap_or_default();
 
-        let ButtonStyle { frame, text_style } = ui.style().button_style(state, selected);
+        classes.add_class_if(SELECTED_CLASS, selected.unwrap_or(false));
+
+        let ButtonStyle { frame, text_style } = ui.style().button_style(&classes, state);
 
         let mut button_padding = if has_frame_margin {
             frame.inner_margin
@@ -352,12 +382,24 @@ impl<'a> Button<'a> {
             AtomLayoutResponse::empty(prepared.response)
         };
 
-        response.response.widget_info(|| {
-            if let Some(text) = &text {
-                WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), text)
-            } else {
-                WidgetInfo::new(WidgetType::Button)
+        if let Some(cursor) = ui.visuals().interact_cursor
+            && response.response.hovered()
+        {
+            ui.ctx().set_cursor_icon(cursor);
+        }
+
+        response.response.widget_info(|| match (selected, &text) {
+            (Some(selected), Some(text)) => {
+                WidgetInfo::selected(WidgetType::Button, ui.is_enabled(), selected, text)
             }
+            (Some(selected), None) => {
+                let mut info = WidgetInfo::new(WidgetType::Button);
+                info.enabled = ui.is_enabled();
+                info.selected = Some(selected);
+                info
+            }
+            (None, Some(text)) => WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), text),
+            (None, None) => WidgetInfo::new(WidgetType::Button),
         });
 
         response
@@ -367,5 +409,15 @@ impl<'a> Button<'a> {
 impl Widget for Button<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.atom_ui(ui).response
+    }
+}
+
+impl HasClasses for Button<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }

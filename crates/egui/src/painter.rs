@@ -82,12 +82,6 @@ impl Painter {
         self.layer_id = layer_id;
     }
 
-    /// If set, colors will be modified to look like this
-    #[deprecated = "Use `multiply_opacity` instead"]
-    pub fn set_fade_to_color(&mut self, fade_to_color: Option<Color32>) {
-        self.fade_to_color = fade_to_color;
-    }
-
     /// Set the opacity (alpha multiplier) of everything painted by this painter from this point forward.
     ///
     /// `opacity` must be between 0.0 and 1.0, where 0.0 means fully transparent (i.e., invisible)
@@ -194,41 +188,6 @@ impl Painter {
     #[inline]
     pub fn round_to_pixel_center(&self, point: f32) -> f32 {
         point.round_to_pixel_center(self.pixels_per_point())
-    }
-
-    /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
-    #[deprecated = "Use `emath::GuiRounding` with `painter.pixels_per_point()` instead"]
-    #[inline]
-    pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
-        pos.round_to_pixel_center(self.pixels_per_point())
-    }
-
-    /// Useful for pixel-perfect rendering of filled shapes.
-    #[deprecated = "Use `emath::GuiRounding` with `painter.pixels_per_point()` instead"]
-    #[inline]
-    pub fn round_to_pixel(&self, point: f32) -> f32 {
-        point.round_to_pixels(self.pixels_per_point())
-    }
-
-    /// Useful for pixel-perfect rendering.
-    #[deprecated = "Use `emath::GuiRounding` with `painter.pixels_per_point()` instead"]
-    #[inline]
-    pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
-        vec.round_to_pixels(self.pixels_per_point())
-    }
-
-    /// Useful for pixel-perfect rendering.
-    #[deprecated = "Use `emath::GuiRounding` with `painter.pixels_per_point()` instead"]
-    #[inline]
-    pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
-        pos.round_to_pixels(self.pixels_per_point())
-    }
-
-    /// Useful for pixel-perfect rendering.
-    #[deprecated = "Use `emath::GuiRounding` with `painter.pixels_per_point()` instead"]
-    #[inline]
-    pub fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
-        rect.round_to_pixels(self.pixels_per_point())
     }
 }
 

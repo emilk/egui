@@ -489,7 +489,7 @@ mod test {
             } else {
                 // There will be small rounding errors whenever the alpha is not 0 or 255,
                 // because we multiply and then unmultiply the alpha.
-                for (&a, &b) in in_rgba.iter().zip(out_rgba.iter()) {
+                for (&a, &b) in std::iter::zip(&in_rgba, &out_rgba) {
                     assert!(a.abs_diff(b) <= 3, "{in_rgba:?} != {out_rgba:?}");
                 }
             }
