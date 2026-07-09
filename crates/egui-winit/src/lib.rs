@@ -1954,7 +1954,7 @@ pub fn create_window(
     Ok(window)
 }
 
-/// Apply [`ViewportBuilder::with_monitor`] to freshly-built [`WindowAttributes`].
+/// Apply [`ViewportBuilder::with_monitor`] to freshly-built [`winit::window::WindowAttributes`].
 ///
 /// Resolve the target monitor index → `MonitorHandle` and request borderless
 /// fullscreen on that output, so the window is created directly on the right
