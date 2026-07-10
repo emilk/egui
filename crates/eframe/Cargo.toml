@@ -145,7 +145,7 @@ serde = { workspace = true, optional = true }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, default-features = false, features = ["clipboard", "links"] }
+egui-winit = { workspace = true, default-features = false, features = ["links"] }
 image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
