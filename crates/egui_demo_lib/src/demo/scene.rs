@@ -44,7 +44,7 @@ impl crate::View for SceneDemo {
         );
         ui.checkbox(
             &mut self.scroll_zooms,
-            "Change mousewheel behaviour to zoom instead of scroll",
+            "Change mousewheel behavior to zoom instead of scroll",
         );
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
