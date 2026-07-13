@@ -17,162 +17,6 @@ pub struct TextAgent {
     prev_ime_output: Cell<Option<egui::output::IMEOutput>>,
 }
 
-struct InputState {
-    input: web_sys::HtmlInputElement,
-    last_text: String,
-}
-
-impl InputState {
-    fn new(input: web_sys::HtmlInputElement) -> Self {
-        Self {
-            input,
-            last_text: String::new(),
-        }
-    }
-
-    fn clear(&mut self) {
-        self.input.set_value("");
-        self.last_text.clear();
-    }
-
-    fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
-        if !event.is_composing() && event.input_type() != "insertText" {
-            self.clear();
-
-            return;
-        }
-
-        let text = self.input.value();
-
-        let prefix_len = longest_common_prefix_length(&text, &self.last_text);
-        let last_text_len = self.last_text.chars().count();
-        if prefix_len < last_text_len {
-            let out_event = egui::Event::Ime(egui::ImeEvent::DeleteSurrounding {
-                before_chars: last_text_len - prefix_len,
-                after_chars: 0,
-            });
-            runner.input.raw.events.push(out_event);
-        }
-
-        let preedit_text: String = text.chars().skip(prefix_len).collect();
-        let out_event = if event.is_composing() {
-            // We handle the composition update here instead of in a
-            // `compositionupdate` event because the selection range
-            // has not yet been updated when `compositionupdate` fires.
-            let active_range_chars = self.active_range_chars(&text, prefix_len);
-            egui::Event::Ime(egui::ImeEvent::Preedit {
-                text: preedit_text,
-                active_range_chars,
-            })
-        } else {
-            egui::Event::Text(preedit_text)
-        };
-        runner.input.raw.events.push(out_event);
-
-        if event.is_composing() {
-            self.last_text = text.chars().take(prefix_len).collect();
-        } else {
-            self.last_text = text;
-        }
-
-        runner.needs_repaint.repaint_asap();
-    }
-
-    /// Compute the active range (cursor or conversion segment) within the
-    /// preedit text, based on the selection in the input element.
-    ///
-    /// `text` is the full `input.value()`, and `prefix_len_chars` is the
-    /// number of chars at the start of `text` that are committed (not part
-    /// of the preedit). `selectionStart`/`selectionEnd` are UTF-16 offsets
-    /// within the full `input.value()`, so they are adjusted to be relative
-    /// to the preedit text.
-    fn active_range_chars(
-        &self,
-        text: &str,
-        prefix_len_chars: usize,
-    ) -> Option<std::ops::Range<usize>> {
-        let selection_start = self.input.selection_start().unwrap_or(None)? as usize;
-        let selection_end = self.input.selection_end().unwrap_or(None)? as usize;
-
-        let text_utf16 = text.encode_utf16().collect::<Vec<u16>>();
-        if selection_start > text_utf16.len() || selection_end > text_utf16.len() {
-            // This can occur on Android Chrome. see discussion in:
-            // <https://github.com/emilk/egui/pull/8045>.
-            return None;
-        }
-
-        let text_before_selection = String::from_utf16_lossy(&text_utf16[..selection_start]);
-        let text_in_selection =
-            String::from_utf16_lossy(&text_utf16[selection_start..selection_end]);
-        let count_before_selection = text_before_selection.chars().count();
-        let count_in_selection = text_in_selection.chars().count();
-
-        // Adjust for the committed prefix to get the range within the preedit text.
-        let start = count_before_selection.saturating_sub(prefix_len_chars);
-        let end = start + count_in_selection;
-        Some(start..end)
-    }
-
-    fn handle_composition_end_event(&mut self, runner: &mut AppRunner) {
-        let text = self.input.value();
-
-        let commit_text = {
-            let prefix_len = self.last_text.chars().count();
-            text.chars().skip(prefix_len).collect::<String>()
-        };
-        let out_event = egui::Event::Ime(egui::ImeEvent::Commit(commit_text));
-        runner.input.raw.events.push(out_event);
-
-        self.last_text = text;
-
-        runner.needs_repaint.repaint_asap();
-    }
-
-    /// ## Returns
-    /// Whether the event is consumed. If `true`, the caller should not do
-    /// further processing for this event.
-    fn handle_keydown_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
-        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-        if event.is_composing() || event.key_code() == 229 {
-            true
-        } else {
-            if event.key().chars().count() > 1
-                || event.ctrl_key()
-                || event.alt_key()
-                || event.meta_key()
-            {
-                input_state.borrow_mut().clear();
-            }
-            false
-        }
-    }
-
-    /// ## Returns
-    /// Whether the event is consumed. If `true`, the caller should not do
-    /// further processing for this event.
-    fn handle_keyup_event(event: &web_sys::KeyboardEvent) -> bool {
-        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-        event.is_composing() || event.key_code() == 229
-    }
-
-    #[cfg(debug_assertions)]
-    fn update_custom_debug_information(&self, input: &mut crate::web::WebInput) {
-        input
-            .raw
-            .events
-            .push(egui::Event::CustomDebugInformationUpdated {
-                name: "eframe::web::text_agent::InputState".to_owned(),
-                value: format!(
-                    "
-last_text: {:?}
-input.value: {:?}",
-                    self.last_text,
-                    self.input.value(),
-                ),
-            });
-    }
-}
-
 impl TextAgent {
     /// Attach the agent to the document.
     pub fn attach(
@@ -382,6 +226,162 @@ impl TextAgent {
 impl Drop for TextAgent {
     fn drop(&mut self) {
         self.input.remove();
+    }
+}
+
+struct InputState {
+    input: web_sys::HtmlInputElement,
+    last_text: String,
+}
+
+impl InputState {
+    fn new(input: web_sys::HtmlInputElement) -> Self {
+        Self {
+            input,
+            last_text: String::new(),
+        }
+    }
+
+    fn clear(&mut self) {
+        self.input.set_value("");
+        self.last_text.clear();
+    }
+
+    fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
+        if !event.is_composing() && event.input_type() != "insertText" {
+            self.clear();
+
+            return;
+        }
+
+        let text = self.input.value();
+
+        let prefix_len = longest_common_prefix_length(&text, &self.last_text);
+        let last_text_len = self.last_text.chars().count();
+        if prefix_len < last_text_len {
+            let out_event = egui::Event::Ime(egui::ImeEvent::DeleteSurrounding {
+                before_chars: last_text_len - prefix_len,
+                after_chars: 0,
+            });
+            runner.input.raw.events.push(out_event);
+        }
+
+        let preedit_text: String = text.chars().skip(prefix_len).collect();
+        let out_event = if event.is_composing() {
+            // We handle the composition update here instead of in a
+            // `compositionupdate` event because the selection range
+            // has not yet been updated when `compositionupdate` fires.
+            let active_range_chars = self.active_range_chars(&text, prefix_len);
+            egui::Event::Ime(egui::ImeEvent::Preedit {
+                text: preedit_text,
+                active_range_chars,
+            })
+        } else {
+            egui::Event::Text(preedit_text)
+        };
+        runner.input.raw.events.push(out_event);
+
+        if event.is_composing() {
+            self.last_text = text.chars().take(prefix_len).collect();
+        } else {
+            self.last_text = text;
+        }
+
+        runner.needs_repaint.repaint_asap();
+    }
+
+    /// Compute the active range (cursor or conversion segment) within the
+    /// preedit text, based on the selection in the input element.
+    ///
+    /// `text` is the full `input.value()`, and `prefix_len_chars` is the
+    /// number of chars at the start of `text` that are committed (not part
+    /// of the preedit). `selectionStart`/`selectionEnd` are UTF-16 offsets
+    /// within the full `input.value()`, so they are adjusted to be relative
+    /// to the preedit text.
+    fn active_range_chars(
+        &self,
+        text: &str,
+        prefix_len_chars: usize,
+    ) -> Option<std::ops::Range<usize>> {
+        let selection_start = self.input.selection_start().unwrap_or(None)? as usize;
+        let selection_end = self.input.selection_end().unwrap_or(None)? as usize;
+
+        let text_utf16 = text.encode_utf16().collect::<Vec<u16>>();
+        if selection_start > text_utf16.len() || selection_end > text_utf16.len() {
+            // This can occur on Android Chrome. see discussion in:
+            // <https://github.com/emilk/egui/pull/8045>.
+            return None;
+        }
+
+        let text_before_selection = String::from_utf16_lossy(&text_utf16[..selection_start]);
+        let text_in_selection =
+            String::from_utf16_lossy(&text_utf16[selection_start..selection_end]);
+        let count_before_selection = text_before_selection.chars().count();
+        let count_in_selection = text_in_selection.chars().count();
+
+        // Adjust for the committed prefix to get the range within the preedit text.
+        let start = count_before_selection.saturating_sub(prefix_len_chars);
+        let end = start + count_in_selection;
+        Some(start..end)
+    }
+
+    fn handle_composition_end_event(&mut self, runner: &mut AppRunner) {
+        let text = self.input.value();
+
+        let commit_text = {
+            let prefix_len = self.last_text.chars().count();
+            text.chars().skip(prefix_len).collect::<String>()
+        };
+        let out_event = egui::Event::Ime(egui::ImeEvent::Commit(commit_text));
+        runner.input.raw.events.push(out_event);
+
+        self.last_text = text;
+
+        runner.needs_repaint.repaint_asap();
+    }
+
+    /// ## Returns
+    /// Whether the event is consumed. If `true`, the caller should not do
+    /// further processing for this event.
+    fn handle_keydown_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
+        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
+        if event.is_composing() || event.key_code() == 229 {
+            true
+        } else {
+            if event.key().chars().count() > 1
+                || event.ctrl_key()
+                || event.alt_key()
+                || event.meta_key()
+            {
+                input_state.borrow_mut().clear();
+            }
+            false
+        }
+    }
+
+    /// ## Returns
+    /// Whether the event is consumed. If `true`, the caller should not do
+    /// further processing for this event.
+    fn handle_keyup_event(event: &web_sys::KeyboardEvent) -> bool {
+        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
+        event.is_composing() || event.key_code() == 229
+    }
+
+    #[cfg(debug_assertions)]
+    fn update_custom_debug_information(&self, input: &mut crate::web::WebInput) {
+        input
+            .raw
+            .events
+            .push(egui::Event::CustomDebugInformationUpdated {
+                name: "eframe::web::text_agent::InputState".to_owned(),
+                value: format!(
+                    "
+last_text: {:?}
+input.value: {:?}",
+                    self.last_text,
+                    self.input.value(),
+                ),
+            });
     }
 }
 
