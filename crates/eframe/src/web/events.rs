@@ -599,7 +599,7 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 // not working when focusing on a text field in an egui app.
                 // This attempts to fix that by forcing the focus on any
                 // click on the canvas.
-                runner.canvas().focus().ok();
+                super::focus_without_scroll(runner.canvas()).ok();
 
                 // In Safari we are only allowed to do certain things
                 // (like playing audio, start a download, etc)

@@ -71,8 +71,8 @@ egui_kittest = { version = "0.35.0", path = "crates/egui_kittest", default-featu
 eframe = { version = "0.35.0", path = "crates/eframe", default-features = false }
 
 accesskit = "0.24.1"
-accesskit_consumer = "0.35.0"
-accesskit_winit = "0.32.0"
+accesskit_consumer = "0.35.0" # Can't update to 0.36+: kittest 0.4 pins accesskit_consumer 0.35, so bumping splits it into two versions
+accesskit_winit = "0.32.0" # Can't update to 0.33: it needs accesskit_macos 0.26.2, which pulls accesskit_consumer 0.37, duplicating the 0.35 that kittest 0.4 needs
 ahash = { version = "0.8.12", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
   "std",
@@ -97,10 +97,10 @@ font-types = { version = "0.11.3", default-features = false, features = [
 glow = "0.17.0"
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
-harfrust = "0.7.0" # Can't update to 0.10: it needs read-fonts 0.40/font-types 0.12, but vello_cpu's glifo 0.1.1 pins read-fonts 0.39/font-types 0.11, so bumping duplicates them
+harfrust = "0.7.0" # Can't update to 0.8+: newer versions need read-fonts 0.40+/font-types 0.12, but vello_cpu's glifo 0.1.1 pins read-fonts 0.39/font-types 0.11, so bumping duplicates them
 home = "0.5.12"
 image = { version = "0.25.6", default-features = false } # Can't update to 0.25.7+: it needs png 0.18, which only matches resvg once resvg moves to tiny-skia 0.12 — blocked, see resvg below
-itertools = "0.14.0" # 0.15 splits us from puffin 0.20's itertools 0.14, adding a cargo-deny duplicate
+itertools = "0.15.0"
 jiff = { version = "0.2.29", default-features = false }
 js-sys = "0.3.77"
 kittest = { version = "0.4.0" }
@@ -132,7 +132,7 @@ ron = "0.12.2"
 self_cell = "1.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11.19"
-similar-asserts = "2.0.0"
+similar-asserts = "2.0"
 skrifa = { version = "0.42.1", default-features = false, features = [
   "std",
   "autohint_shaping",
@@ -144,9 +144,9 @@ syntect = { version = "5.3", default-features = false }
 tempfile = "3.27"
 thiserror = "2.0"
 tokio = "1.52"
-toml = { version = "1.0", default-features = false } # 1.1+ pulls winnow 1.x, duplicating the winnow 0.7 that winit's toml_edit needs
+toml = { version = "1.0", default-features = false }
 type-map = "0.5.1"
-unicode_names2 = { version = "3.1.0", default-features = false }
+unicode_names2 = { version = "3.1", default-features = false }
 unicode-general-category = "1.1"
 unicode-segmentation = "1.13"
 vello_cpu = { version = "0.0.9", default-features = false, features = [
