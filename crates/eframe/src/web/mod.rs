@@ -84,6 +84,17 @@ pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
     try_has_focus(element).unwrap_or(false)
 }
 
+/// Focus the given element without scrolling it into view.
+///
+/// Scrolling the element into view would scroll the whole page when
+/// the app is embedded in a larger scrollable page,
+/// see <https://github.com/emilk/egui/issues/8295>.
+pub(crate) fn focus_without_scroll(element: &web_sys::HtmlElement) -> Result<(), JsValue> {
+    let options = web_sys::FocusOptions::new();
+    options.set_prevent_scroll(true);
+    element.focus_with_options(&options)
+}
+
 /// Current time in seconds (since undefined point in time).
 ///
 /// Monotonically increasing.
