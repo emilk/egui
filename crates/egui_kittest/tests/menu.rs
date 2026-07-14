@@ -141,6 +141,57 @@ fn menu_close_on_click() {
 }
 
 #[test]
+fn reopened_menu_resizes_for_wider_items() {
+    const MENU_LABEL: &str = "Dynamic menu";
+    const SHORT_ITEM: &str = "Short item";
+    const WIDE_ITEM: &str = "Newly added item with a much wider label";
+
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(500.0, 300.0))
+        .build_ui_state(
+            |ui, show_wide_item| {
+                ui.menu_button(MENU_LABEL, |ui| {
+                    _ = ui.selectable_label(false, SHORT_ITEM);
+                    _ = ui.selectable_label(false, "Another short item");
+                    if *show_wide_item {
+                        _ = ui.selectable_label(false, WIDE_ITEM);
+                    }
+                });
+            },
+            false,
+        );
+
+    harness.get_by_label(MENU_LABEL).click();
+    harness.run();
+    let initial_row_size = harness.get_by_label(SHORT_ITEM).rect().size();
+
+    harness.get_by_label(MENU_LABEL).click();
+    harness.run();
+    assert!(harness.query_by_label(SHORT_ITEM).is_none());
+
+    *harness.state_mut() = true;
+    harness.run();
+    harness.get_by_label(MENU_LABEL).click();
+    harness.run();
+
+    let reopened_row_size = harness.get_by_label(SHORT_ITEM).rect().size();
+    let wide_row_size = harness.get_by_label(WIDE_ITEM).rect().size();
+
+    assert!(
+        reopened_row_size.x > initial_row_size.x,
+        "reopened row width ({}) did not grow beyond its initial width ({})",
+        reopened_row_size.x,
+        initial_row_size.x
+    );
+    assert!(
+        wide_row_size.y <= initial_row_size.y + 0.5,
+        "new row height ({}) exceeds the single-line row height ({})",
+        wide_row_size.y,
+        initial_row_size.y
+    );
+}
+
+#[test]
 fn clicking_submenu_button_should_never_close_menu() {
     // We test for this since otherwise the menu wouldn't work on touch devices
     // The other tests use .hover to open submenus, but this test explicitly uses .click
