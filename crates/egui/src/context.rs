@@ -1277,6 +1277,21 @@ impl Context {
         res
     }
 
+    /// Allow widgets inside `rect` to intentionally change ids during the current pass.
+    ///
+    /// This suppresses [`crate::style::DebugOptions::warn_if_rect_changes_id`] for widgets
+    /// fully contained by `rect`. Use this for regions that intentionally replace their widget
+    /// set, such as a data-driven table after its backing collection changes.
+    ///
+    /// This has no effect on duplicate-id checks or widget interaction.
+    pub fn allow_widget_id_changes_in(&self, rect: Rect) {
+        #[cfg(debug_assertions)]
+        self.pass_state_mut(|state| state.widget_id_change_warning_exclusions.push(rect));
+
+        #[cfg(not(debug_assertions))]
+        let _ = rect;
+    }
+
     /// Read the response of some widget, which may be called _before_ creating the widget (!).
     ///
     /// This is because widget interaction happens at the start of the pass, using the widget rects from the previous pass.
@@ -2635,6 +2650,7 @@ impl ContextImpl {
                 &mut shapes,
                 &viewport.prev_pass.widgets,
                 &viewport.this_pass.widgets,
+                &viewport.this_pass.widget_id_change_warning_exclusions,
             );
             shapes
         } else {
@@ -4178,6 +4194,7 @@ fn warn_if_rect_changes_id(
     out_shapes: &mut Vec<ClippedShape>,
     prev_widgets: &crate::WidgetRects,
     new_widgets: &crate::WidgetRects,
+    exclusions: &[Rect],
 ) {
     profiling::function_scope!();
 
@@ -4222,6 +4239,14 @@ fn warn_if_rect_changes_id(
         let new = create_lookup(new_layer_widgets.iter());
 
         for (hashable_rect, new_at_rect) in new {
+            let rect = new_at_rect[0].rect;
+            if exclusions
+                .iter()
+                .any(|exclusion| exclusion.contains_rect(rect))
+            {
+                continue;
+            }
+
             let Some(prev_at_rect) = prev.get(&hashable_rect) else {
                 continue; // this rect did not exist in the previous pass
             };
@@ -4254,8 +4279,6 @@ fn warn_if_rect_changes_id(
             {
                 continue;
             }
-
-            let rect = new_at_rect[0].rect;
 
             log::warn!(
                 "Widget rect {rect:?} changed id between passes: prev ids: {:?}, new ids: {:?}",
@@ -4327,7 +4350,7 @@ mod test {
         );
 
         let mut shapes = Vec::new();
-        super::warn_if_rect_changes_id(&mut shapes, &previous, &current);
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
 
         assert!(shapes.is_empty());
     }
@@ -4357,9 +4380,14 @@ mod test {
         current.insert(layer_id, widget(Id::new("new")), InteractOptions::default());
 
         let mut shapes = Vec::new();
-        super::warn_if_rect_changes_id(&mut shapes, &previous, &current);
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
 
         assert_eq!(shapes.len(), 1);
+
+        shapes.clear();
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[rect]);
+
+        assert!(shapes.is_empty());
     }
 
     #[test]
