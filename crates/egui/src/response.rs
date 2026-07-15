@@ -199,6 +199,12 @@ impl Response {
 
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
     ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
+    ///
+    /// Note that the widget must be sensing clicks with [`Sense::click`].
+    /// [`crate::Button`] senses clicks; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
+    ///
     /// This also returns true if the widget was pressed-and-held on a touch screen.
     #[inline]
     pub fn secondary_clicked(&self) -> bool {
@@ -214,6 +220,12 @@ impl Response {
     }
 
     /// Returns true if this widget was clicked this frame by the middle mouse button.
+    ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
+    ///
+    /// Note that the widget must be sensing clicks with [`Sense::click`].
+    /// [`crate::Button`] senses clicks; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
     #[inline]
     pub fn middle_clicked(&self) -> bool {
         self.clicked_by(PointerButton::Middle)

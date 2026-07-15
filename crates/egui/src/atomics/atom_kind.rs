@@ -1,4 +1,4 @@
-use crate::{FontSelection, Image, ImageSource, SizedAtomKind, Ui, WidgetText};
+use crate::{AtomLayout, FontSelection, Image, ImageSource, SizedAtomKind, Ui, WidgetText};
 use emath::Vec2;
 use epaint::text::TextWrapMode;
 use std::fmt::Debug;
@@ -65,6 +65,13 @@ pub enum AtomKind<'a> {
     /// Note: This api is experimental, expect breaking changes here.
     /// When cloning, this will be cloned as [`AtomKind::Empty`].
     Closure(AtomClosure<'a>),
+
+    /// A nested [`AtomLayout`], letting you embed an atom-based widget as a single atom
+    /// inside another [`AtomLayout`].
+    ///
+    /// The nested layout is measured (sized) when the parent is sized, and painted (and
+    /// interacted with) at the cell rect the parent computes for it.
+    Layout(Box<AtomLayout<'a>>),
 }
 
 impl Clone for AtomKind<'_> {
@@ -77,6 +84,7 @@ impl Clone for AtomKind<'_> {
                 log::warn!("Cannot clone atom closures");
                 AtomKind::Empty
             }
+            AtomKind::Layout(layout) => AtomKind::Layout(layout.clone()),
         }
     }
 }
@@ -88,6 +96,7 @@ impl Debug for AtomKind<'_> {
             AtomKind::Text(text) => write!(f, "AtomKind::Text({text:?})"),
             AtomKind::Image(image) => write!(f, "AtomKind::Image({image:?})"),
             AtomKind::Closure(_) => write!(f, "AtomKind::Closure(<closure>)"),
+            AtomKind::Layout(_) => write!(f, "AtomKind::Layout(<layout>)"),
         }
     }
 }
@@ -149,6 +158,13 @@ impl<'a> AtomKind<'a> {
                     fallback_font,
                 },
             ),
+            AtomKind::Layout(layout) => {
+                let sized = layout.measure(ui, available_size);
+                IntoSizedResult {
+                    intrinsic_size: sized.intrinsic_size,
+                    sized: SizedAtomKind::Layout(Box::new(sized)),
+                }
+            }
         }
     }
 }
@@ -171,5 +187,11 @@ where
 {
     fn from(value: T) -> Self {
         AtomKind::Text(value.into())
+    }
+}
+
+impl<'a> From<AtomLayout<'a>> for AtomKind<'a> {
+    fn from(layout: AtomLayout<'a>) -> Self {
+        AtomKind::Layout(Box::new(layout))
     }
 }

@@ -6,6 +6,10 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.35.0 - 2026-06-25
+* Group `glow` config in a `struct` [#8108](https://github.com/emilk/egui/pull/8108) by [@TapGhoul](https://github.com/TapGhoul)
+
+
 ## 0.34.3 - 2026-05-27
 Nothing new
 

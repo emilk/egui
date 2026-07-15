@@ -15,7 +15,7 @@ serves it. An external inspector — such as the
 - resize the window (`Resize`).
 
 The protocol is strictly request → response, which maps cleanly onto both a TCP socket and a
-unary RPC (so the same machinery can be tunnelled over e.g. gRPC).
+unary RPC (so the same machinery can be tunnelled over another transport).
 
 > **Screenshots need a visible window.** Reading the tree and injecting input work even while
 > the app is in the background, but capturing a screenshot requires a rendered frame — which
@@ -26,8 +26,8 @@ unary RPC (so the same machinery can be tunnelled over e.g. gRPC).
 ## What it's for
 
 `egui_inspection` is the shared foundation for tools that observe or drive an egui app from
-the outside. Anything that speaks the protocol (over TCP, or another transport like gRPC)
-can be a consumer:
+the outside. Anything that speaks the protocol (over TCP, or another transport) can be a
+consumer:
 
 - **[`egui_mcp`](https://crates.io/crates/egui_mcp)** — an MCP server that exposes the app to
   AI agents and other tooling: query the widget tree, click / type / scroll, take screenshots.

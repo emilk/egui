@@ -601,7 +601,7 @@ impl WgpuWinitRunning<'_> {
         let mut frame_timer = crate::stopwatch::Stopwatch::new();
         frame_timer.start();
 
-        let (viewport_ui_cb, raw_input, is_visible) = {
+        let (viewport_ui_cb, raw_input, is_visible, run_ui) = {
             profiling::scope!("Prepare");
             let mut shared_lock = shared.borrow_mut();
 
@@ -657,6 +657,8 @@ impl WgpuWinitRunning<'_> {
             };
             let mut raw_input = egui_winit.take_egui_input(window);
 
+            let run_ui = is_visible || is_viewport_or_descendant_visible(viewports, viewport_id);
+
             integration.pre_update();
 
             raw_input.time = Some(integration.beginning.elapsed().as_secs_f64());
@@ -667,19 +669,15 @@ impl WgpuWinitRunning<'_> {
 
             painter.handle_screenshots(&mut raw_input.events);
 
-            (viewport_ui_cb, raw_input, is_visible)
+            (viewport_ui_cb, raw_input, is_visible, run_ui)
         };
 
         // ------------------------------------------------------------
 
         // Runs the update, which could call immediate viewports,
         // so make sure we hold no locks here!
-        let full_output = integration.update(
-            app.as_mut(),
-            viewport_ui_cb.as_deref(),
-            raw_input,
-            is_visible,
-        );
+        let full_output =
+            integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input, run_ui);
 
         // ------------------------------------------------------------
 
@@ -846,13 +844,18 @@ impl WgpuWinitRunning<'_> {
         //
         // Thus, Painter, responsible for wgpu surfaces and their resize, has to be notified of the
         // resize lifecycle, yet winit does not provide any events for that. To work around,
-        // the last resized viewport is tracked until any next non-resize event is received.
+        // the last resized viewport is tracked until a later event outside the live resize stream
+        // is received.
         //
-        // Accidental state change during the resize process due to an unexpected event fire
-        // is ok, state will switch back upon next resize event.
+        // AppKit can emit `Moved` events during top/left live resize because the window origin
+        // changes along with the content size. Treat those as part of live resize on macOS.
         //
         // See: https://github.com/emilk/egui/issues/903
-        if let Some(id) = viewport_id
+        let event_keeps_resize_active = matches!(event, winit::event::WindowEvent::Resized(_))
+            || (cfg!(target_os = "macos") && matches!(event, winit::event::WindowEvent::Moved(_)));
+
+        if !event_keeps_resize_active
+            && let Some(id) = viewport_id
             && shared.resized_viewport == viewport_id
         {
             shared.painter.on_window_resize_state_change(id, false);
@@ -1024,6 +1027,25 @@ fn create_window(
     let window = egui_winit::create_window(egui_ctx, event_loop, &viewport_builder)?;
     epi_integration::apply_window_settings(&window, window_settings);
     Ok((window, viewport_builder))
+}
+
+/// Is this viewport, or any of its (transitive) descendant viewports, visible?
+///
+/// Immediate viewports are rendered inline while their parent's UI runs, so even
+/// if this viewport's window is occluded or minimized we must still run its UI to
+/// give any visible descendant a chance to be painted.
+fn is_viewport_or_descendant_visible(viewports: &Viewports, viewport_id: ViewportId) -> bool {
+    let Some(viewport) = viewports.get(&viewport_id) else {
+        return false;
+    };
+    if viewport.info.visible().unwrap_or(true) {
+        return true;
+    }
+    viewports.values().any(|child| {
+        child.ids.parent == viewport_id
+            && child.ids.this != viewport_id
+            && is_viewport_or_descendant_visible(viewports, child.ids.this)
+    })
 }
 
 fn render_immediate_viewport(

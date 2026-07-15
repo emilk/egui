@@ -43,7 +43,14 @@ pub enum Request {
     ///
     /// The peer issues an [`egui::ViewportCommand::Screenshot`] and replies once the
     /// resulting [`egui::Event::Screenshot`] arrives (one extra frame).
-    GetScreenshot,
+    ///
+    /// `pixels_per_point` is the requested output resolution in pixels per logical point: the
+    /// captured framebuffer (native resolution = the app's `pixels_per_point` px per point) is
+    /// downscaled to this many px per point before encoding. `1.0` yields a logical-point-sized
+    /// image so screenshot pixels align with the logical coordinates used everywhere else. Never
+    /// upscaled beyond native, so values above the app's `pixels_per_point` have no effect.
+    /// `None` captures at the framebuffer's native resolution, with no downscaling.
+    GetScreenshot { pixels_per_point: Option<f32> },
 
     /// Inject raw egui input events and run a frame. Reply: [`Response::Done`], returned only
     /// *after* the events have been applied by a frame — so a subsequent [`Self::GetTree`]
@@ -130,21 +137,34 @@ pub fn write_handshake<W: Write>(mut writer: W) -> io::Result<()> {
     writer.flush()
 }
 
-/// Read and validate the connection handshake, returning the peer's protocol version.
+/// Validate the 8 handshake bytes and return the peer's protocol version.
+///
+/// The bytes are [`PROTOCOL_MAGIC`] (4) followed by a big-endian version (4). Pure (no I/O) so
+/// sync ([`read_handshake`]) and async readers share the validation, mirroring
+/// [`decode_frame_len`].
 ///
 /// # Errors
-/// If the magic bytes don't match (not an egui inspection peer), or on I/O failure.
-pub fn read_handshake<R: Read>(mut reader: R) -> io::Result<u32> {
-    let mut magic = [0u8; 4];
-    reader.read_exact(&mut magic)?;
+/// If the magic bytes don't match (not an egui inspection peer).
+pub fn decode_handshake(bytes: [u8; 8]) -> io::Result<u32> {
+    let (magic, version) = bytes.split_at(4);
     if magic != PROTOCOL_MAGIC {
         return Err(invalid_data(
             "not an egui_inspection peer (bad handshake magic)",
         ));
     }
-    let mut version = [0u8; 4];
-    reader.read_exact(&mut version)?;
-    Ok(u32::from_be_bytes(version))
+    Ok(u32::from_be_bytes(
+        version.try_into().expect("split_at(4) leaves 4 bytes"),
+    ))
+}
+
+/// Read and validate the connection handshake, returning the peer's protocol version.
+///
+/// # Errors
+/// If the magic bytes don't match (not an egui inspection peer), or on I/O failure.
+pub fn read_handshake<R: Read>(mut reader: R) -> io::Result<u32> {
+    let mut bytes = [0u8; 8];
+    reader.read_exact(&mut bytes)?;
+    decode_handshake(bytes)
 }
 
 /// Encode a value into a length-prefixed `MessagePack` frame (4-byte big-endian length + body).
@@ -180,6 +200,26 @@ pub fn decode_frame_len(header: [u8; 4]) -> io::Result<usize> {
 /// # Errors
 /// On decode failure.
 pub fn decode_frame_body<T: for<'de> serde::Deserialize<'de>>(body: &[u8]) -> io::Result<T> {
+    rmp_serde::from_slice(body).map_err(invalid_data)
+}
+
+/// Encode a value as a bare `MessagePack` body, *without* the 4-byte length prefix of
+/// [`encode_frame`].
+///
+/// For transports that delimit messages themselves — e.g. a gRPC unary call carrying the
+/// bytes in a `bytes` field — the length prefix is redundant. Pair with [`decode_body`].
+///
+/// # Errors
+/// On encode failure.
+pub fn encode_body<T: serde::Serialize>(value: &T) -> io::Result<Vec<u8>> {
+    rmp_serde::to_vec(value).map_err(invalid_data)
+}
+
+/// Decode a bare `MessagePack` body produced by [`encode_body`] into a value.
+///
+/// # Errors
+/// On decode failure.
+pub fn decode_body<T: for<'de> serde::Deserialize<'de>>(body: &[u8]) -> io::Result<T> {
     rmp_serde::from_slice(body).map_err(invalid_data)
 }
 

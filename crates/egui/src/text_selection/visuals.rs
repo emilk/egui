@@ -1,6 +1,17 @@
 use std::sync::Arc;
 
-use crate::{Galley, Painter, Rect, Ui, Visuals, pos2, vec2};
+use emath::Pos2;
+use epaint::{
+    Stroke,
+    text::{
+        CharIndex,
+        cursor::{CCursor, LayoutCursor},
+    },
+};
+
+use crate::{
+    Galley, Painter, Rect, Ui, Visuals, pos2, text_selection::text_cursor_state::cursor_rect, vec2,
+};
 
 use super::CCursorRange;
 
@@ -57,9 +68,9 @@ pub fn paint_text_selection(
 
         if !row.glyphs.is_empty() {
             // Change color of the selected text:
-            let first_glyph_index = if ri == min.row { min.column } else { 0 };
+            let first_glyph_index = if ri == min.row { min.column.0 } else { 0 };
             let last_glyph_index = if ri == max.row {
-                max.column
+                max.column.0
             } else {
                 row.glyphs.len()
             };
@@ -121,6 +132,135 @@ pub fn paint_text_selection(
     }
 }
 
+#[expect(clippy::too_many_arguments)]
+pub(crate) fn paint_ime_preedit_text_visuals(
+    pos: Pos2,
+    ui: &Ui,
+    painter: &Painter,
+    galley: &Arc<Galley>,
+    row_height: f32,
+    preedit_range: std::ops::Range<CCursor>,
+    mut relative_active_range: Option<std::ops::Range<CCursor>>,
+    time_since_last_interaction: f64,
+) {
+    /// Instead of implementing [`PartialOrd`] and [`Ord`] for [`CCursor`] to
+    /// make [`std::ops::Range::is_empty`] available, we use this helper
+    /// function instead.
+    ///
+    /// These traits are intentionally not implemented because
+    /// [`CCursor::prefer_next_row`] makes it difficult to define a clear
+    /// ordering between two [`CCursor`]s.
+    fn is_cursor_range_empty(range: &std::ops::Range<CCursor>) -> bool {
+        range.start.index == range.end.index
+    }
+
+    if is_cursor_range_empty(&preedit_range) {
+        return;
+    }
+
+    if let Some(relative_active_range) = &mut relative_active_range
+        && relative_active_range.end.index > preedit_range.end.index - preedit_range.start.index
+    {
+        relative_active_range.end.index = preedit_range.end.index - preedit_range.start.index;
+    }
+
+    let visuals = ui.visuals();
+    let active_underline_stroke = visuals.ime_composition.active_underline_stroke;
+    let inactive_underline_stroke = visuals.ime_composition.inactive_underline_stroke;
+
+    if let Some(relative_active_range) = &relative_active_range
+        && !is_cursor_range_empty(relative_active_range)
+    {
+        if relative_active_range.start.index > CharIndex::ZERO {
+            paint_underlines(
+                pos,
+                painter,
+                galley,
+                galley.layout_from_cursor(preedit_range.start),
+                galley.layout_from_cursor(preedit_range.start + relative_active_range.start.index),
+                inactive_underline_stroke,
+            );
+        }
+
+        paint_underlines(
+            pos,
+            painter,
+            galley,
+            galley.layout_from_cursor(preedit_range.start + relative_active_range.start.index),
+            galley.layout_from_cursor(preedit_range.start + relative_active_range.end.index),
+            active_underline_stroke,
+        );
+
+        if !is_cursor_range_empty(
+            &(relative_active_range.end..(preedit_range.end - preedit_range.start.index)),
+        ) {
+            paint_underlines(
+                pos,
+                painter,
+                galley,
+                galley.layout_from_cursor(preedit_range.start + relative_active_range.end.index),
+                galley.layout_from_cursor(preedit_range.end),
+                inactive_underline_stroke,
+            );
+        }
+    } else {
+        paint_underlines(
+            pos,
+            painter,
+            galley,
+            galley.layout_from_cursor(preedit_range.start),
+            galley.layout_from_cursor(preedit_range.end),
+            inactive_underline_stroke,
+        );
+    }
+
+    if let Some(relative_active_range) = relative_active_range
+        && is_cursor_range_empty(&relative_active_range)
+    {
+        let active_cursor = preedit_range.start + relative_active_range.start.index;
+        let cursor_rect = cursor_rect(galley, &active_cursor, row_height);
+
+        paint_text_cursor(
+            ui,
+            painter,
+            cursor_rect.translate(pos.to_vec2()),
+            time_since_last_interaction,
+        );
+    }
+}
+
+fn paint_underlines(
+    pos: Pos2,
+    painter: &Painter,
+    galley: &Arc<Galley>,
+    min: LayoutCursor,
+    max: LayoutCursor,
+    stroke: Stroke,
+) {
+    for ri in min.row..=max.row {
+        let placed_row = &galley.rows[ri];
+        let row = &placed_row.row;
+
+        let left = if ri == min.row {
+            row.x_offset(min.column)
+        } else {
+            0.0
+        };
+        let right = if ri == max.row {
+            row.x_offset(max.column)
+        } else {
+            row.size.x
+        };
+
+        let offset_y = placed_row.pos.y + row.size.y;
+
+        painter.line_segment(
+            [pos + vec2(left, offset_y), pos + vec2(right, offset_y)],
+            stroke,
+        );
+    }
+}
+
 /// Paint one end of the selection, e.g. the primary cursor.
 ///
 /// This will never blink.
@@ -130,7 +270,7 @@ pub fn paint_cursor_end(painter: &Painter, visuals: &Visuals, cursor_rect: Rect)
     let top = cursor_rect.center_top();
     let bottom = cursor_rect.center_bottom();
 
-    painter.line_segment([top, bottom], (stroke.width, stroke.color));
+    painter.line_segment([top, bottom], stroke);
 
     if false {
         // Roof/floor:

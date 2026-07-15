@@ -5,6 +5,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.35.0 - 2026-06-25
+* Delegate handling of IME interruptions to integrations to fix virtual keyboard flickering on web [#8078](https://github.com/emilk/egui/pull/8078) by [@umajho](https://github.com/umajho)
+* Always enable windows undecorated shadows [#8169](https://github.com/emilk/egui/pull/8169) by [@Wumpf](https://github.com/Wumpf)
+* Choose restored window monitor by overlap [#8191](https://github.com/emilk/egui/pull/8191) by [@YelovSK](https://github.com/YelovSK)
+* Add `ViewportBuilder::with_monitor` + `ViewportCommand::SetMonitor` [#8140](https://github.com/emilk/egui/pull/8140) by [@Le-Syl21](https://github.com/Le-Syl21)
+* Implement proper visuals for IME composition [#8083](https://github.com/emilk/egui/pull/8083) by [@umajho](https://github.com/umajho)
+
+
 ## 0.34.3 - 2026-05-27
 Nothing new
 

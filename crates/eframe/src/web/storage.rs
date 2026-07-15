@@ -24,6 +24,23 @@ pub fn local_storage_set(key: &str, value: &str) {
     }
 }
 
+/// Remove data from local storage.
+pub fn local_storage_remove(key: &str) {
+    match local_storage() {
+        Some(storage) => {
+            if let Err(err) = storage.remove_item(key) {
+                log::warn!(
+                    "local_storage_remove failed: key={key}, err={}",
+                    crate::web::string_from_js_value(&err)
+                );
+            }
+        }
+        None => {
+            log::warn!("local_storage unavailable");
+        }
+    }
+}
+
 #[cfg(feature = "persistence")]
 pub(crate) fn load_memory(ctx: &egui::Context) {
     if let Some(memory_string) = local_storage_get("egui_memory_ron") {

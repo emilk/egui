@@ -125,7 +125,11 @@ impl<'a> Slider<'a> {
     ///
     /// The `value` given will be clamped to the `range`,
     /// unless you change this behavior with [`Self::clamping`].
-    pub fn new<Num: emath::Numeric>(value: &'a mut Num, range: RangeInclusive<Num>) -> Self {
+    pub fn new<Num: emath::Numeric>(
+        value: &'a mut Num,
+        range: impl Into<RangeInclusive<Num>>,
+    ) -> Self {
+        let range = range.into();
         let range_f64 = range.start().to_f64()..=range.end().to_f64();
         let slf = Self::from_get_set(range_f64, move |v: Option<f64>| {
             if let Some(v) = v {

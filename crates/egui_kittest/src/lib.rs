@@ -175,6 +175,11 @@ impl<'a, State> Harness<'a, State> {
             #[cfg(feature = "snapshot")]
             snapshot_results: SnapshotResults::default(),
         };
+        // Fulfill any screenshot requested during the initial frame above (which didn't go
+        // through `_step`).
+        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+        harness.handle_screenshots();
+
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
         harness
@@ -274,6 +279,9 @@ impl<'a, State> Harness<'a, State> {
         );
         self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
+
+        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+        self.handle_screenshots();
     }
 
     /// Calculate the rect that includes all popups and tooltips.
@@ -667,6 +675,56 @@ impl<'a, State> Harness<'a, State> {
         self.renderer.render(&self.ctx, &output)
     }
 
+    /// Fulfill any [`egui::ViewportCommand::Screenshot`] requests made by the app during the
+    /// last frame.
+    ///
+    /// If a screenshot was requested and no renderer is available, an error will be logged.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    fn handle_screenshots(&mut self) {
+        // Collect all screenshot requests from this frame's viewport output.
+        let requests: Vec<(ViewportId, egui::UserData)> = self
+            .output
+            .viewport_output
+            .iter()
+            .flat_map(|(id, viewport)| {
+                viewport.commands.iter().filter_map(move |command| {
+                    if let egui::ViewportCommand::Screenshot(user_data) = command {
+                        Some((*id, user_data.clone()))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+
+        if requests.is_empty() {
+            return;
+        }
+
+        // Render the frame once and reuse it for every request. We render without the synthetic
+        // mouse cursor since a real screenshot wouldn't include the OS cursor either.
+        let image = match self.renderer.render(&self.ctx, &self.output) {
+            Ok(image) => image,
+            Err(err) => {
+                log::error!("Failed to render screenshot requested via ViewportCommand: {err}");
+                return;
+            }
+        };
+        let image = std::sync::Arc::new(rgba_image_to_color_image(&image));
+
+        for (viewport_id, user_data) in requests {
+            self.input.events.push(egui::Event::Screenshot {
+                viewport_id,
+                user_data,
+                image: std::sync::Arc::clone(&image),
+            });
+        }
+
+        // Make sure the run loop runs at least one more frame so the app actually receives the
+        // queued screenshot event.
+        self.ctx.request_repaint();
+    }
+
     /// Get the root viewport output
     fn root_viewport_output(&self) -> &egui::ViewportOutput {
         self.output
@@ -808,6 +866,18 @@ impl<'a> Harness<'a> {
     pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
         Self::builder().build_ui(app)
     }
+}
+
+/// Convert a rendered [`image::RgbaImage`] (premultiplied alpha, as produced by the renderer)
+/// into an [`egui::ColorImage`] suitable for [`egui::Event::Screenshot`].
+#[cfg(any(feature = "wgpu", feature = "snapshot"))]
+fn rgba_image_to_color_image(image: &image::RgbaImage) -> egui::ColorImage {
+    let size = [image.width() as usize, image.height() as usize];
+    let pixels = image
+        .pixels()
+        .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
+        .collect();
+    egui::ColorImage::new(size, pixels)
 }
 
 impl<'tree, 'node, State> Queryable<'tree, 'node, Node<'tree>> for Harness<'_, State>

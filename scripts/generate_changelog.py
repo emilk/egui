@@ -255,6 +255,7 @@ def main() -> None:
         "eframe",
         "egui_extras",
         "egui_glow",
+        "egui_inspection",
         "egui_kittest",
         "egui-wgpu",
         "egui-winit",

@@ -1,7 +1,6 @@
-use crate::atomics::ATOMS_SMALL_VEC_SIZE;
 use crate::{
-    AtomKind, Atoms, FontSelection, Frame, Id, Image, IntoAtoms, Response, Sense, SizedAtom,
-    SizedAtomKind, Stroke, Ui, Widget, text_selection::LabelSelectionState,
+    AtomKind, Atoms, Direction, FontSelection, Frame, Id, Image, IntoAtoms, Response, Sense,
+    SizedAtom, SizedAtomKind, Stroke, Ui, Widget, text_selection::LabelSelectionState,
 };
 use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
@@ -9,6 +8,34 @@ use epaint::{Color32, Galley};
 use smallvec::SmallVec;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+
+/// The `(main, cross)` axis indices for `direction`, for indexing a [`Vec2`] (0 = x, 1 = y).
+#[inline]
+fn main_cross_axis(direction: Direction) -> (usize, usize) {
+    let main = usize::from(!direction.is_horizontal());
+    (main, 1 - main)
+}
+
+/// Build a [`Vec2`] from `main`/`cross` components for `direction`.
+#[inline]
+fn main_cross_vec(direction: Direction, main: f32, cross: f32) -> Vec2 {
+    if direction.is_horizontal() {
+        Vec2::new(main, cross)
+    } else {
+        Vec2::new(cross, main)
+    }
+}
+
+/// Build a cell [`Rect`] spanning `aligned_rect` fully on the cross axis and `[min_main, max_main]`
+/// along the main axis.
+#[inline]
+fn main_cross_rect(direction: Direction, aligned_rect: Rect, min_main: f32, max_main: f32) -> Rect {
+    if direction.is_horizontal() {
+        Rect::from_x_y_ranges(min_main..=max_main, aligned_rect.y_range())
+    } else {
+        Rect::from_x_y_ranges(aligned_rect.x_range(), min_main..=max_main)
+    }
+}
 
 /// Intra-widget layout utility.
 ///
@@ -29,8 +56,9 @@ use std::sync::Arc;
 ///
 /// You can use this to first allocate a response and then modify, e.g., the [`Frame`] on the
 /// [`AllocatedAtomLayout`] for interaction styling.
+#[derive(Clone)]
 pub struct AtomLayout<'a> {
-    id: Option<Id>,
+    pub(crate) id: Option<Id>,
     pub atoms: Atoms<'a>,
     gap: Option<f32>,
     pub(crate) frame: Frame,
@@ -42,6 +70,7 @@ pub struct AtomLayout<'a> {
     max_size: Vec2,
     wrap_mode: Option<TextWrapMode>,
     align2: Option<Align2>,
+    direction: Direction,
 }
 
 impl Default for AtomLayout<'_> {
@@ -65,6 +94,7 @@ impl<'a> AtomLayout<'a> {
             max_size: Vec2::INFINITY,
             wrap_mode: None,
             align2: None,
+            direction: Direction::LeftToRight,
         }
     }
 
@@ -187,15 +217,37 @@ impl<'a> AtomLayout<'a> {
         self
     }
 
+    /// Set the [`Direction`] the [`crate::Atom`]s are laid out along.
+    ///
+    /// The default is [`Direction::LeftToRight`] (a horizontal row). Use
+    /// [`Direction::TopDown`] (or [`Direction::BottomUp`]) to stack atoms vertically.
+    ///
+    /// The main axis (the direction) is where `grow`/`shrink` and the gap apply; the cross axis
+    /// is sized to the largest atom. [`Self::align2`] positions the whole block within the
+    /// allocated [`Rect`].
+    #[inline]
+    pub fn direction(mut self, direction: Direction) -> Self {
+        self.direction = direction;
+        self
+    }
+
     /// [`AtomLayout::allocate`] and [`AllocatedAtomLayout::paint`] in one go.
     pub fn show(self, ui: &mut Ui) -> AtomLayoutResponse {
         self.allocate(ui).paint(ui)
     }
 
-    /// Calculate sizes, create [`Galley`]s and allocate a [`Response`].
+    /// Measure the atoms (sizing only), without allocating space or interacting.
     ///
-    /// Use the returned [`AllocatedAtomLayout`] for painting.
-    pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomLayout<'a> {
+    /// This converts texts to [`Galley`]s and calculates sizes, but unlike [`Self::allocate`]
+    /// it does *not* call [`Ui::allocate_space`] (so the parent cursor is left untouched) nor
+    /// [`Ui::interact`]. Use the returned [`SizedAtomLayout`] to paint at an arbitrary [`Rect`]
+    /// via [`SizedAtomLayout::paint_at`]. This is what makes it possible to nest one
+    /// [`AtomLayout`] inside another.
+    ///
+    /// `available_size` is the space available to the whole widget (frame included); it is
+    /// clamped by `max_size`/`min_size`, exactly like [`Self::allocate`] does with
+    /// [`Ui::available_size`].
+    pub fn measure(self, ui: &Ui, available_size: Vec2) -> SizedAtomLayout<'a> {
         let Self {
             id,
             mut atoms,
@@ -209,6 +261,7 @@ impl<'a> AtomLayout<'a> {
             wrap_mode,
             align2,
             fallback_font,
+            direction,
         } = self;
 
         let fallback_font = fallback_font.unwrap_or_default();
@@ -250,25 +303,36 @@ impl<'a> AtomLayout<'a> {
 
         // max_size has no effect in justified layouts. If we'd limit the available size here,
         // the content would be sized differently than the frame which would look weird.
-        if ui.layout().horizontal_justify() {
-            max_size.x = f32::INFINITY;
+        // This only applies along the main axis (the direction we lay atoms out along).
+        if direction.is_horizontal() {
+            if ui.layout().horizontal_justify() {
+                max_size.x = f32::INFINITY;
+            }
+        } else if ui.layout().vertical_justify() {
+            max_size.y = f32::INFINITY;
         }
 
-        let available_size = ui.available_size().at_most(max_size).at_least(min_size);
+        let available_size = available_size.at_most(max_size).at_least(min_size);
 
         // The size available for the content
         let available_inner_size = available_size - frame.total_margin().sum();
 
-        let mut desired_width = 0.0;
+        // We work in main/cross axis terms so the same code handles horizontal and vertical
+        // layouts. For a horizontal `direction`, main = x and cross = y; for vertical it's
+        // swapped. `grow`/`shrink`/`gap` apply along the main axis; the cross axis is sized to
+        // the largest atom. `main_axis`/`cross_axis` index into a `Vec2` (0 = x, 1 = y).
+        let (main_axis, cross_axis) = main_cross_axis(direction);
 
-        // intrinsic width / height is the ideal size of the widget, e.g. the size where the
+        let mut inner_main = 0.0;
+
+        // intrinsic main / cross is the ideal size of the widget, e.g. the size where the
         // text is not wrapped. Used to set Response::intrinsic_size.
-        let mut intrinsic_width = 0.0;
-        let mut intrinsic_height = 0.0;
+        let mut intrinsic_main = 0.0;
+        let mut intrinsic_cross: f32 = 0.0;
 
-        let mut height: f32 = 0.0;
+        let mut cross_size: f32 = 0.0;
 
-        let mut sized_items = SmallVec::new();
+        let mut sized_items = Vec::new();
 
         let mut grow_count = 0;
 
@@ -280,8 +344,8 @@ impl<'a> AtomLayout<'a> {
 
         if atoms.len() > 1 {
             let gap_space = gap * (atoms.len() as f32 - 1.0);
-            desired_width += gap_space;
-            intrinsic_width += gap_space;
+            inner_main += gap_space;
+            intrinsic_main += gap_space;
         }
 
         for (idx, item) in atoms.into_iter().enumerate() {
@@ -306,20 +370,21 @@ impl<'a> AtomLayout<'a> {
             );
             let size = sized.size;
 
-            desired_width += size.x;
-            intrinsic_width += sized.intrinsic_size.x;
+            inner_main += size[main_axis];
+            intrinsic_main += sized.intrinsic_size[main_axis];
 
-            height = height.at_least(size.y);
-            intrinsic_height = intrinsic_height.at_least(sized.intrinsic_size.y);
+            cross_size = cross_size.at_least(size[cross_axis]);
+            intrinsic_cross = intrinsic_cross.at_least(sized.intrinsic_size[cross_axis]);
 
             sized_items.push(sized);
         }
 
         if let Some((index, item)) = shrink_item {
-            // The `shrink` item gets the remaining space
-            let available_size_for_shrink_item = Vec2::new(
-                available_inner_size.x - desired_width,
-                available_inner_size.y,
+            // The `shrink` item gets the remaining space along the main axis.
+            let available_size_for_shrink_item = main_cross_vec(
+                direction,
+                available_inner_size[main_axis] - inner_main,
+                available_inner_size[cross_axis],
             );
 
             let sized = item.into_sized(
@@ -330,56 +395,115 @@ impl<'a> AtomLayout<'a> {
             );
             let size = sized.size;
 
-            desired_width += size.x;
-            intrinsic_width += sized.intrinsic_size.x;
+            inner_main += size[main_axis];
+            intrinsic_main += sized.intrinsic_size[main_axis];
 
-            height = height.at_least(size.y);
-            intrinsic_height = intrinsic_height.at_least(sized.intrinsic_size.y);
+            cross_size = cross_size.at_least(size[cross_axis]);
+            intrinsic_cross = intrinsic_cross.at_least(sized.intrinsic_size[cross_axis]);
 
             sized_items.insert(index, sized);
         }
 
         let margin = frame.total_margin();
-        let desired_size = Vec2::new(desired_width, height);
-        let frame_size = (desired_size + margin.sum()).at_least(min_size);
+        let inner_size = main_cross_vec(direction, inner_main, cross_size);
+        let outer_size = (inner_size + margin.sum()).at_least(min_size);
+        let intrinsic_size = (main_cross_vec(direction, intrinsic_main, intrinsic_cross)
+            + margin.sum())
+        .at_least(min_size);
 
-        let (_, rect) = ui.allocate_space(frame_size);
-        let mut response = ui.interact(rect, id, sense);
-
-        response.set_intrinsic_size(
-            (Vec2::new(intrinsic_width, intrinsic_height) + margin.sum()).at_least(min_size),
-        );
-
-        AllocatedAtomLayout {
+        SizedAtomLayout {
             sized_atoms: sized_items,
             frame,
             fallback_text_color,
-            response,
+            id,
+            sense,
+            outer_size,
+            intrinsic_size,
             grow_count,
-            desired_size,
+            inner_size,
             align2,
             gap,
+            direction,
             selectable,
         }
     }
+
+    /// Calculate sizes, create [`Galley`]s and allocate a [`Response`].
+    ///
+    /// Use the returned [`AllocatedAtomLayout`] for painting.
+    pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomLayout<'a> {
+        let sized = self.measure(ui, ui.available_size());
+
+        let (_, rect) = ui.allocate_space(sized.outer_size);
+        let mut response = ui.interact(rect, sized.id, sized.sense);
+        response.set_intrinsic_size(sized.intrinsic_size);
+
+        AllocatedAtomLayout { sized, response }
+    }
 }
 
-/// Instructions for painting an [`AtomLayout`].
+/// A measured [`AtomLayout`], ready to be painted at a [`Rect`].
+///
+/// Produced by [`AtomLayout::measure`]. Unlike [`AllocatedAtomLayout`], it has not yet
+/// allocated space or interacted, so it can be painted at an arbitrary [`Rect`] via
+/// [`Self::paint_at`]. This is what lets one [`AtomLayout`] be nested inside another.
 #[derive(Clone, Debug)]
-pub struct AllocatedAtomLayout<'a> {
-    pub sized_atoms: SmallVec<[SizedAtom<'a>; ATOMS_SMALL_VEC_SIZE]>,
+pub struct SizedAtomLayout<'a> {
+    /// The [`Id`] used to [`Ui::interact`] when this layout is allocated / painted.
+    id: Id,
+
+    /// The [`Sense`] used to [`Ui::interact`] when this layout is allocated / painted.
+    sense: Sense,
+
+    /// The total widget size we'll request, including the frame margin. Used to allocate space.
+    ///
+    /// Actual allocated size may be different.
+    pub(crate) outer_size: Vec2,
+
+    /// The size of the inner content, before any growing.
+    inner_size: Vec2,
+
+    /// The contents.
+    sized_atoms: Vec<SizedAtom<'a>>,
+
+    /// The [`Frame`] painted around the contents.
     pub frame: Frame,
+
+    /// Set the fallback (default) text color.
     pub fallback_text_color: Color32,
-    pub response: Response,
+
+    /// The intrinsic (un-wrapped, un-grown) size, including margin. Used for
+    /// [`Response::set_intrinsic_size`].
+    pub(crate) intrinsic_size: Vec2,
+
+    /// How many atoms were marked as `grow`?
     grow_count: usize,
-    // The size of the inner content, before any growing.
-    desired_size: Vec2,
+
+    /// How will all the atoms be aligned within the allocated rect?
     align2: Align2,
+
+    /// The gap between each [`crate::Atom`]
     gap: f32,
+
+    /// The axis the atoms are laid out along. The main axis carries `grow`/`shrink`/`gap`.
+    direction: Direction,
+
     selectable: bool,
 }
 
-impl<'atom> AllocatedAtomLayout<'atom> {
+/// Instructions for painting an [`AtomLayout`].
+///
+/// This is a [`SizedAtomLayout`] that has additionally allocated space and interacted,
+/// producing a [`Response`].
+#[derive(Clone, Debug)]
+pub struct AllocatedAtomLayout<'a> {
+    /// The measured layout.
+    pub sized: SizedAtomLayout<'a>,
+
+    pub response: Response,
+}
+
+impl<'atom> SizedAtomLayout<'atom> {
     pub fn iter_kinds(&self) -> impl Iterator<Item = &SizedAtomKind<'atom>> {
         self.sized_atoms.iter().map(|atom| &atom.kind)
     }
@@ -453,35 +577,55 @@ impl<'atom> AllocatedAtomLayout<'atom> {
         });
     }
 
-    /// Paint the [`Frame`] and individual [`crate::Atom`]s.
-    pub fn paint(self, ui: &Ui) -> AtomLayoutResponse {
+    /// Paint the [`Frame`] and individual [`crate::Atom`]s within `rect`.
+    ///
+    /// `rect` is the full widget rect (frame included). For a top-level layout this is
+    /// `response.rect`; when nested, the parent passes the cell rect it computed. `response`
+    /// becomes the base of the returned [`AtomLayoutResponse`].
+    pub fn paint_at(self, ui: &Ui, rect: Rect, response: Response) -> AtomLayoutResponse {
         let Self {
-            sized_atoms,
+            mut sized_atoms,
             frame,
             fallback_text_color,
-            response,
             grow_count,
-            desired_size,
+            inner_size,
             align2,
             gap,
+            direction,
             selectable,
+            ..
         } = self;
 
-        let inner_rect = response.rect - self.frame.total_margin();
+        let inner_rect = rect - frame.total_margin();
 
         ui.painter().add(frame.paint(inner_rect));
 
-        let width_to_fill = inner_rect.width();
-        let extra_space = f32::max(width_to_fill - desired_size.x, 0.0);
-        let grow_width = f32::max(extra_space / grow_count as f32, 0.0).floor_ui();
+        let (main_axis, cross_axis) = main_cross_axis(direction);
 
-        let aligned_rect = if grow_count > 0 {
-            align2.align_size_within_rect(Vec2::new(width_to_fill, desired_size.y), inner_rect)
+        // We position atoms along the main axis (the `direction`) and span the cross axis.
+        let main_to_fill = inner_rect.size()[main_axis];
+        let inner_main = inner_size[main_axis];
+        let extra_space = f32::max(main_to_fill - inner_main, 0.0);
+        let grow_main = f32::max(extra_space / grow_count as f32, 0.0).floor_ui();
+
+        // When something grows, the block fills the available main extent; otherwise it's the
+        // content's inner size. `align2` then positions the block within `inner_rect`.
+        let block_main = if grow_count > 0 {
+            main_to_fill
         } else {
-            align2.align_size_within_rect(desired_size, inner_rect)
+            inner_main
         };
+        let block_size = main_cross_vec(direction, block_main, inner_size[cross_axis]);
+        let aligned_rect = align2.align_size_within_rect(block_size, inner_rect);
 
-        let mut cursor = aligned_rect.left();
+        // For reversed directions the first atom sits at the far end, so we lay them out in
+        // reverse and otherwise share the same forward cursor logic.
+        if matches!(direction, Direction::RightToLeft | Direction::BottomUp) {
+            sized_atoms.reverse();
+        }
+
+        // The cursor walks the main axis from the start (left/top) of the aligned block.
+        let mut cursor = aligned_rect.min.to_vec2()[main_axis];
 
         let mut response = AtomLayoutResponse::empty(response);
 
@@ -489,20 +633,21 @@ impl<'atom> AllocatedAtomLayout<'atom> {
             let size = sized.size;
             // TODO(lucasmerlin): This is not ideal, since this might lead to accumulated rounding errors
             // https://github.com/emilk/egui/pull/5830#discussion_r2079627864
-            let growth = if sized.is_grow() { grow_width } else { 0.0 };
+            let growth = if sized.is_grow() { grow_main } else { 0.0 };
 
-            let frame = aligned_rect
-                .with_min_x(cursor)
-                .with_max_x(cursor + size.x + growth);
-            cursor = frame.right() + gap;
-            let rect = sized.align.align_size_within_rect(size, frame);
+            let atom_main = size[main_axis] + growth;
+
+            // The cell spans the cross axis fully and `atom_main` along the main axis.
+            let cell = main_cross_rect(direction, aligned_rect, cursor, cursor + atom_main);
+            cursor += atom_main + gap;
+            let item_rect = sized.align.align_size_within_rect(size, cell);
 
             if let Some(id) = sized.id {
                 debug_assert!(
                     !response.custom_rects.iter().any(|(i, _)| *i == id),
                     "Duplicate custom id"
                 );
-                response.custom_rects.push((id, rect));
+                response.custom_rects.push((id, item_rect));
             }
 
             match sized.kind {
@@ -514,23 +659,38 @@ impl<'atom> AllocatedAtomLayout<'atom> {
                         LabelSelectionState::label_text_selection(
                             ui,
                             &response.response,
-                            rect.min,
+                            item_rect.min,
                             galley,
                             fallback_text_color,
                             Stroke::NONE,
                         );
                     } else {
-                        ui.painter().galley(rect.min, galley, fallback_text_color);
+                        ui.painter()
+                            .galley(item_rect.min, galley, fallback_text_color);
                     }
                 }
                 SizedAtomKind::Image { image, size: _ } => {
-                    image.paint_at(ui, rect);
+                    image.paint_at(ui, item_rect);
                 }
                 SizedAtomKind::Empty { .. } => {}
+                SizedAtomKind::Layout(layout) => {
+                    // TODO(lucasmerlin): Add some kind of justify flag, right now nested atoms are always
+                    // shown fully stretched.
+                    let layout_response = ui.interact(cell, layout.id, layout.sense);
+                    layout.paint_at(ui, cell, layout_response);
+                }
             }
         }
 
         response
+    }
+}
+
+impl AllocatedAtomLayout<'_> {
+    /// Paint the [`Frame`] and individual [`crate::Atom`]s at the allocated [`Response`]'s rect.
+    pub fn paint(self, ui: &Ui) -> AtomLayoutResponse {
+        let rect = self.response.rect;
+        self.sized.paint_at(ui, rect, self.response)
     }
 }
 
@@ -600,7 +760,7 @@ impl DerefMut for AtomLayout<'_> {
     }
 }
 
-impl<'a> Deref for AllocatedAtomLayout<'a> {
+impl<'a> Deref for SizedAtomLayout<'a> {
     type Target = [SizedAtom<'a>];
 
     fn deref(&self) -> &Self::Target {
@@ -608,8 +768,22 @@ impl<'a> Deref for AllocatedAtomLayout<'a> {
     }
 }
 
-impl DerefMut for AllocatedAtomLayout<'_> {
+impl DerefMut for SizedAtomLayout<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.sized_atoms
+    }
+}
+
+impl<'a> Deref for AllocatedAtomLayout<'a> {
+    type Target = SizedAtomLayout<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.sized
+    }
+}
+
+impl DerefMut for AllocatedAtomLayout<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.sized
     }
 }

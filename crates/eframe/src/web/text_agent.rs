@@ -4,7 +4,7 @@
 use std::cell::Cell;
 
 use wasm_bindgen::prelude::*;
-use web_sys::{Document, Node};
+use web_sys::Document;
 
 use super::{AppRunner, WebRunner};
 
@@ -15,19 +15,23 @@ pub struct TextAgent {
 
 impl TextAgent {
     /// Attach the agent to the document.
-    pub fn attach(runner_ref: &WebRunner, root: Node) -> Result<Self, JsValue> {
+    pub fn attach(
+        runner_ref: &WebRunner,
+        canvas: &web_sys::HtmlCanvasElement,
+    ) -> Result<Self, JsValue> {
         let document = web_sys::window().unwrap().document().unwrap();
 
         // create an `<input>` element
         let input = document
             .create_element("input")?
-            .dyn_into::<web_sys::HtmlElement>()?;
-        input.set_autofocus(true)?;
-        let input = input.dyn_into::<web_sys::HtmlInputElement>()?;
+            .dyn_into::<web_sys::HtmlInputElement>()?;
         input.set_type("text");
         input.set_attribute("autocapitalize", "off")?;
 
-        // append it to `<body>` and hide it outside of the viewport
+        // Hide the element, and park it over the canvas
+        // so that focusing it can never scroll some other part
+        // of the page into view.
+        let canvas_rect = super::canvas_content_rect(canvas);
         let style = input.style();
         style.set_property("background-color", "transparent")?;
         style.set_property("border", "none")?;
@@ -36,11 +40,12 @@ impl TextAgent {
         style.set_property("height", "1px")?;
         style.set_property("caret-color", "transparent")?;
         style.set_property("position", "absolute")?;
-        style.set_property("top", "0")?;
-        style.set_property("left", "0")?;
+        style.set_property("top", &format!("{}px", canvas_rect.min.y))?;
+        style.set_property("left", &format!("{}px", canvas_rect.min.x))?;
         // Prevent auto-zoom on mobile browsers (requires at least 16px).
         style.set_property("font-size", "16px")?;
 
+        let root = canvas.get_root_node();
         if root.has_type::<Document>() {
             // root object is a document, append to its body
             root.dyn_into::<Document>()?
@@ -51,6 +56,13 @@ impl TextAgent {
             // append input into root directly
             root.append_child(&input)?;
         }
+
+        // Focus the app on startup, without scrolling the page.
+        // We do this instead of setting the `autofocus` attribute,
+        // since the browser scrolls the focused element into view when
+        // honoring `autofocus`, and there is no way to prevent that.
+        // See https://github.com/emilk/egui/issues/8295
+        super::focus_without_scroll(&input).ok();
 
         // attach event listeners
 
@@ -67,17 +79,57 @@ impl TextAgent {
                 // between versions 14.7.09 and 17.0.12.
                 if !event.is_composing() {
                     input.blur().ok();
-                    input.focus().ok();
+                    super::focus_without_scroll(&input).ok();
                 }
-                // if `is_composing` is true, then user is using IME, for example: emoji, pinyin, kanji, hangul, etc.
-                // In that case, the browser emits both `input` and `compositionupdate` events,
-                // and we need to ignore the `input` event.
-                if !text.is_empty() && !event.is_composing() {
+
+                if event.is_composing() {
+                    // if `is_composing` is true, then user is using IME, for
+                    // example: emoji, pinyin, kanji, hangul, etc. In that case,
+                    // the browser emits both `input` and `compositionupdate`
+                    // events.
+                    // We handle the composition update here instead of in the
+                    // `compositionupdate` event because the selection range
+                    // has not yet been updated when `compositionupdate` fires.
+
+                    let Some(text) = event.data() else { return };
+                    let selection_start = input
+                        .selection_start()
+                        .unwrap_or(None)
+                        .map(|pos| pos as usize);
+                    let selection_end = input
+                        .selection_end()
+                        .unwrap_or(None)
+                        .map(|pos| pos as usize);
+                    let active_range_chars = if let Some(selection_start) = selection_start
+                        && let Some(selection_end) = selection_end
+                    {
+                        let text_utf16 = text.encode_utf16().collect::<Vec<u16>>();
+                        let text_before_selection =
+                            String::from_utf16_lossy(&text_utf16[..selection_start]);
+                        let text_in_selection =
+                            String::from_utf16_lossy(&text_utf16[selection_start..selection_end]);
+                        let count_before_selection = text_before_selection.chars().count();
+                        let count_in_selection = text_in_selection.chars().count();
+                        Some(count_before_selection..count_before_selection + count_in_selection)
+                    } else {
+                        None
+                    };
+                    let event = egui::Event::Ime(egui::ImeEvent::Preedit {
+                        text,
+                        active_range_chars,
+                    });
+                    runner.input.raw.events.push(event);
+                } else {
+                    if text.is_empty() {
+                        return;
+                    }
+
                     input.set_value("");
                     let event = egui::Event::Text(text);
                     runner.input.raw.events.push(event);
-                    runner.needs_repaint.repaint_asap();
                 }
+
+                runner.needs_repaint.repaint_asap();
             }
         };
 
@@ -85,15 +137,6 @@ impl TextAgent {
             move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 // Repaint moves the text agent into place,
                 // see `move_to` in `AppRunner::handle_platform_output`.
-                runner.needs_repaint.repaint_asap();
-            }
-        };
-
-        let on_composition_update = {
-            move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                let Some(text) = event.data() else { return };
-                let event = egui::Event::Ime(egui::ImeEvent::Preedit(text));
-                runner.input.raw.events.push(event);
                 runner.needs_repaint.repaint_asap();
             }
         };
@@ -111,7 +154,6 @@ impl TextAgent {
 
         runner_ref.add_event_listener(&input, "input", on_input)?;
         runner_ref.add_event_listener(&input, "compositionstart", on_composition_start)?;
-        runner_ref.add_event_listener(&input, "compositionupdate", on_composition_update)?;
         runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
 
         // The canvas doesn't get keydown/keyup events when the text agent is focused,
@@ -191,7 +233,7 @@ impl TextAgent {
 
         log::trace!("Focusing text agent");
 
-        if let Err(err) = self.input.focus() {
+        if let Err(err) = super::focus_without_scroll(&self.input) {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
         }
     }

@@ -699,10 +699,41 @@ impl State {
             // Wayland, but it doesn't matter to us.
             // See <https://github.com/rust-windowing/winit/issues/2498>
             winit::event::Ime::Enabled | winit::event::Ime::Disabled => {}
-            winit::event::Ime::Preedit(text, _) => {
+            winit::event::Ime::Preedit(text, active_range_bytes) => {
+                let active_range_chars = match *active_range_bytes {
+                    Some((start_bytes, end_bytes)) => {
+                        if let (Some(start_chars), Some(middle_chars)) = (
+                            text.get(..start_bytes).map(|s| s.chars().count()),
+                            text.get(start_bytes..end_bytes).map(|s| s.chars().count()),
+                        ) {
+                            if cfg!(target_os = "windows") && start_chars == 0 && middle_chars == 0
+                            {
+                                // Workaround for a bug on Windows where `winit`
+                                // incorrectly reports the cursor position at
+                                // the start of the preedit text during
+                                // composition with the builtin Korean IME.
+                                // See: https://github.com/emilk/egui/pull/8083#issuecomment-4206742668
+                                // TODO(umajho): Remove this workaround once the
+                                // `winit` bug is fixed and we've updated to a
+                                // version that includes the fix.
+                                None
+                            } else {
+                                Some(start_chars..start_chars + middle_chars)
+                            }
+                        } else {
+                            log::warn!("ignoring {ime:?}'s range because it is invalid");
+                            None
+                        }
+                    }
+                    None => None,
+                };
+
                 self.egui_input
                     .events
-                    .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
+                    .push(egui::Event::Ime(egui::ImeEvent::Preedit {
+                        text: text.clone(),
+                        active_range_chars,
+                    }));
             }
             winit::event::Ime::Commit(text) => {
                 self.egui_input

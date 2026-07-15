@@ -1,5 +1,9 @@
 //! All the data egui returns to the backend at the end of each frame.
 
+use std::ops::Range;
+
+use epaint::text::CharIndex;
+
 use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run_ui`].
@@ -554,7 +558,9 @@ pub struct WidgetInfo {
     pub value: Option<f64>,
 
     /// Selected range of characters in [`Self::current_text_value`].
-    pub text_selection: Option<std::ops::RangeInclusive<usize>>,
+    ///
+    /// The range is `start..end` in *character* offsets (not bytes), with `end` exclusive.
+    pub text_selection: Option<Range<CharIndex>>,
 
     /// The hint text for text edit fields.
     pub hint_text: Option<String>,
@@ -689,7 +695,7 @@ impl WidgetInfo {
     #[expect(clippy::needless_pass_by_value)]
     pub fn text_selection_changed(
         enabled: bool,
-        text_selection: std::ops::RangeInclusive<usize>,
+        text_selection: Range<CharIndex>,
         current_text_value: impl ToString,
     ) -> Self {
         Self {

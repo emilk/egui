@@ -5,6 +5,25 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.35.0 - 2026-06-25
+### ⭐ Added
+* Make the size of tabs and thin space configurable [#8070](https://github.com/emilk/egui/pull/8070) by [@emilk](https://github.com/emilk)
+* Add `subpixel_binning` to `TextOptions` and `FontTweak` [#8072](https://github.com/emilk/egui/pull/8072) by [@emilk](https://github.com/emilk)
+* Add `LayoutJob::format_at_byte` [#8244](https://github.com/emilk/egui/pull/8244) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Use `harfrust` for better kerning and ligatures [#8031](https://github.com/emilk/egui/pull/8031) by [@gcailly](https://github.com/gcailly)
+* Rename `AlphaFromCoverage` to `FontColorTransferFunction` [#8201](https://github.com/emilk/egui/pull/8201) by [@emilk](https://github.com/emilk)
+* Use strongly typed `CharIndex` and `ByteIndex` + bug fixes [#8245](https://github.com/emilk/egui/pull/8245) by [@emilk](https://github.com/emilk)
+* Make font hinting target configurable via `FontTweak` [#8262](https://github.com/emilk/egui/pull/8262) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove `impl Into<f32>` arguments [#8194](https://github.com/emilk/egui/pull/8194) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix glyph caching on font variations [#8189](https://github.com/emilk/egui/pull/8189) by [@emilk](https://github.com/emilk)
+
+
 ## 0.34.3 - 2026-05-27
 Nothing new
 

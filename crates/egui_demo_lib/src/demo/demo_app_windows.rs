@@ -47,6 +47,12 @@ impl DemoGroup {
             set_open(open, demo.name(), is_open);
         }
     }
+
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        for demo in &mut self.demos {
+            demo.logic(ctx);
+        }
+    }
 }
 
 fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
@@ -160,6 +166,11 @@ impl DemoGroups {
         demos.windows(ui, open);
         tests.windows(ui, open);
     }
+
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        self.demos.logic(ctx);
+        self.tests.logic(ctx);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -210,6 +221,13 @@ impl DemoWindows {
         } else {
             self.desktop_ui(ui);
         }
+    }
+
+    /// Run background logic for all demos.
+    ///
+    /// Called every frame, even when hidden, so demos can keep working in the background.
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        self.groups.logic(ctx);
     }
 
     fn about_is_open(&self) -> bool {

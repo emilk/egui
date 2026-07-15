@@ -1,4 +1,6 @@
-use egui::{Align, AtomExt as _, Button, Layout, TextWrapMode, Ui, Vec2};
+use egui::{
+    Align, Atom, AtomExt as _, AtomLayout, Button, Direction, Frame, Layout, TextWrapMode, Ui, Vec2,
+};
 use egui_kittest::{HarnessBuilder, SnapshotResult, SnapshotResults};
 
 #[test]
@@ -118,6 +120,50 @@ fn test_button_shortcut_text() {
     harness.fit_contents();
 
     harness.snapshot("button_shortcut");
+}
+
+/// Test atom nesting and [`egui::AtomLayout::direction`].
+#[test]
+fn test_atom_layout_nesting_and_direction() {
+    let mut harness = HarnessBuilder::default().build_ui(|ui| {
+        let style = ui.style();
+        let canvas_frame = Frame::canvas(style);
+
+        let button_frame = style
+            .button_style(
+                &egui::widget_style::Classes::default(),
+                egui::widget_style::WidgetState::Inactive,
+            )
+            .frame;
+
+        let row = |direction: Direction| {
+            Atom::layout(
+                AtomLayout::new(("one", "two", "three"))
+                    .direction(direction)
+                    .frame(button_frame),
+            )
+        };
+
+        AtomLayout::new((
+            Atom::layout(
+                AtomLayout::new((
+                    row(Direction::LeftToRight).atom_grow(true),
+                    row(Direction::RightToLeft).atom_grow(true),
+                ))
+                .direction(Direction::TopDown),
+            )
+            .atom_grow(true),
+            row(Direction::TopDown),
+            row(Direction::BottomUp),
+        ))
+        .direction(Direction::LeftToRight)
+        .frame(canvas_frame)
+        .show(ui);
+    });
+
+    harness.fit_contents();
+
+    harness.snapshot("atom_layout_nesting");
 }
 
 /// Tests the spacing between galleys.

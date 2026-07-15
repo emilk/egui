@@ -1,5 +1,7 @@
 //! Different types of text cursors, i.e. ways to point into a [`super::Galley`].
 
+use super::index::CharIndex;
+
 /// Character cursor.
 ///
 /// The default cursor is zero.
@@ -7,7 +9,7 @@
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct CCursor {
     /// Character offset (NOT byte offset!).
-    pub index: usize,
+    pub index: CharIndex,
 
     /// If this cursors sits right at the border of a wrapped row break (NOT paragraph break)
     /// do we prefer the next row?
@@ -18,9 +20,9 @@ pub struct CCursor {
 
 impl CCursor {
     #[inline]
-    pub fn new(index: usize) -> Self {
+    pub fn new(index: impl Into<CharIndex>) -> Self {
         Self {
-            index,
+            index: index.into(),
             prefer_next_row: false,
         }
     }
@@ -46,12 +48,34 @@ impl std::ops::Add<usize> for CCursor {
     }
 }
 
+impl std::ops::Add<CharIndex> for CCursor {
+    type Output = Self;
+
+    fn add(self, rhs: CharIndex) -> Self::Output {
+        Self {
+            index: self.index + rhs,
+            prefer_next_row: self.prefer_next_row,
+        }
+    }
+}
+
 impl std::ops::Sub<usize> for CCursor {
     type Output = Self;
 
     fn sub(self, rhs: usize) -> Self::Output {
         Self {
             index: self.index.saturating_sub(rhs),
+            prefer_next_row: self.prefer_next_row,
+        }
+    }
+}
+
+impl std::ops::Sub<CharIndex> for CCursor {
+    type Output = Self;
+
+    fn sub(self, rhs: CharIndex) -> Self::Output {
+        Self {
+            index: self.index - rhs,
             prefer_next_row: self.prefer_next_row,
         }
     }
@@ -83,5 +107,5 @@ pub struct LayoutCursor {
     /// Character based (NOT bytes).
     /// It is fine if this points to something beyond the end of the current row.
     /// When moving up/down it may again be within the next row.
-    pub column: usize,
+    pub column: CharIndex,
 }

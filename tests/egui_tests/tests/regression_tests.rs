@@ -6,11 +6,11 @@ use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::text::{LayoutJob, TextWrapping};
 use egui::{
-    Align, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
+    Align, Button, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
     TextFormat, TextWrapMode, Ui, include_image, vec2,
 };
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable as _;
+use egui_kittest::kittest::{NodeT as _, Queryable as _};
 
 #[test]
 fn image_button_should_have_alt_text() {
@@ -21,6 +21,31 @@ fn image_button_should_have_alt_text() {
     });
 
     harness.get_by_label("Egui");
+}
+
+#[test]
+fn button_selected_should_announce_toggled_state() {
+    use egui::accesskit::Toggled;
+
+    let harness = Harness::new_ui(|ui| {
+        ui.add(Button::new("Plain"));
+        ui.add(Button::new("Off").selected(false));
+        ui.add(Button::new("On").selected(true));
+    });
+
+    assert_eq!(
+        harness.get_by_label("Plain").accesskit_node().toggled(),
+        None,
+        "a plain Button must not be announced as a toggle",
+    );
+    assert_eq!(
+        harness.get_by_label("Off").accesskit_node().toggled(),
+        Some(Toggled::False),
+    );
+    assert_eq!(
+        harness.get_by_label("On").accesskit_node().toggled(),
+        Some(Toggled::True),
+    );
 }
 
 #[test]

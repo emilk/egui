@@ -28,6 +28,10 @@ impl DemoApp for DemoWindows {
     fn demo_ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.ui(ui);
     }
+
+    fn logic(&mut self, ctx: &egui::Context) {
+        self.logic(ctx);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -278,6 +282,14 @@ impl eframe::App for WrapApp {
         );
         let color = egui::Color32::from(color);
         color.to_normalized_gamma_f32()
+    }
+
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Run background logic for every app, even the ones not currently shown,
+        // so they keep working while the app is hidden (e.g. a backgrounded tab).
+        for (_name, _anchor, app) in self.apps_iter_mut() {
+            app.logic(ctx);
+        }
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {

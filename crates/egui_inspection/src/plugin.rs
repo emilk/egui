@@ -6,11 +6,12 @@
 //!
 //! The plugin owns a list of in-flight requests. A connection thread (or a host with its own
 //! transport) submits a [`Request`] through egui's own plugin
-//! handle — `ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req))` — which appends it and
-//! returns a channel to await the single [`Response`] on, then calls `ctx.request_repaint()`
+//! handle — `ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req, on_reply))` — passing a
+//! closure that is called once with the single [`Response`], then calls `ctx.request_repaint()`
 //! so an idle app wakes up to service it. The reply is produced on the UI thread inside the
-//! plugin's hooks, which receive the [`egui::Context`] to issue repaints and viewport
-//! commands — so the plugin never has to store a `Context` itself.
+//! plugin's hooks (so `on_reply` runs there too — keep it cheap, e.g. forward onto a channel),
+//! which receive the [`egui::Context`] to issue repaints and viewport commands — so the plugin
+//! never has to store a `Context` itself.
 //!
 //! [`serve`] binds a TCP listener; each accepted connection gets a thread that first writes
 //! the protocol handshake, then loops reading framed [`Request`]s, submitting them, and
@@ -59,7 +60,10 @@ enum Phase {
 
 struct InFlight {
     req: Request,
-    reply: mpsc::Sender<Response>,
+
+    /// Called once, on the UI thread, with this request's reply. `Option` so it can be moved out
+    /// during `retain_mut` (which only hands out `&mut`) when the request completes.
+    reply: Option<Box<dyn FnOnce(Response) + Send + Sync>>,
     phase: Phase,
 }
 
@@ -80,7 +84,7 @@ pub struct InspectionPlugin {
 
 impl InspectionPlugin {
     /// Create the plugin and register it with [`Context::add_plugin`], then call [`serve`] to
-    /// listen on TCP (or feed it directly via `ctx.with_plugin(|p| p.submit(req))`).
+    /// listen on TCP (or feed it directly via `ctx.with_plugin(|p| p.submit(req, on_reply))`).
     pub fn new(label: Option<String>) -> Self {
         Self {
             in_flight: Vec::new(),
@@ -90,17 +94,23 @@ impl InspectionPlugin {
         }
     }
 
-    /// Submit a request; returns a channel that receives its single reply once the UI thread
-    /// services it. Call this through [`Context::with_plugin`] so it runs under egui's plugin
-    /// lock, then `request_repaint` and await the receiver *after* the lock is released.
-    pub fn submit(&mut self, req: Request) -> mpsc::Receiver<Response> {
-        let (tx, rx) = mpsc::channel();
+    /// Submit an inspection [`Request`].
+    ///
+    /// The closure will be called later once the result comes in (for screenshot that could mean
+    /// a couple frames delay).
+    ///
+    /// You usually call this via [`Context::with_plugin`]. You should [`Context::request_repaint`]
+    /// after calling this.
+    pub fn submit(
+        &mut self,
+        req: Request,
+        on_reply: impl FnOnce(Response) + Send + Sync + 'static,
+    ) {
         self.in_flight.push(InFlight {
             req,
-            reply: tx,
+            reply: Some(Box::new(on_reply)),
             phase: Phase::New,
         });
-        rx
     }
 
     /// While requests are still in flight, keep the UI loop spinning — reactive apps would
@@ -130,6 +140,7 @@ impl egui::Plugin for InspectionPlugin {
 
         // Match screenshot replies to the requests that asked for them, by `user_data` id. We
         // observe (don't consume) the event so the host app still receives it.
+        let pixels_per_point = ctx.pixels_per_point();
         for ev in &input.events {
             let egui::Event::Screenshot {
                 user_data, image, ..
@@ -145,21 +156,32 @@ impl egui::Plugin for InspectionPlugin {
             else {
                 continue; // not one of ours
             };
-            let png = match EncodedPng::from_color_image(image.as_ref()) {
-                Ok(png) => png,
-                Err(err) => {
-                    // Shouldn't happen for a valid framebuffer; surface it loudly.
-                    log::error!("egui_inspection: PNG encode failed: {err}");
-                    continue;
-                }
-            };
             self.in_flight.retain_mut(|item| {
-                if item.phase == (Phase::AwaitScreenshot { id }) {
-                    let _ = item.reply.send(Response::Screenshot(png.clone()));
-                    false
-                } else {
-                    true
+                if item.phase != (Phase::AwaitScreenshot { id }) {
+                    return true;
                 }
+                // Downscale to the request's requested pixels-per-point (px per logical point);
+                // the framebuffer is at the app's `pixels_per_point` px per point, so the scale
+                // factor is their ratio. `None` means native resolution (scale 1.0).
+                let scale = match item.req {
+                    Request::GetScreenshot {
+                        pixels_per_point: Some(requested_ppp),
+                    } => requested_ppp / pixels_per_point,
+                    _ => 1.0,
+                };
+                let png = match EncodedPng::from_color_image_scaled(image.as_ref(), scale) {
+                    Ok(png) => png,
+                    Err(err) => {
+                        // Shouldn't happen for a valid framebuffer; surface it loudly and drop
+                        // the request rather than hang on it.
+                        log::error!("egui_inspection: PNG encode failed: {err}");
+                        return false;
+                    }
+                };
+                if let Some(reply) = item.reply.take() {
+                    reply(Response::Screenshot(png));
+                }
+                false
             });
         }
 
@@ -174,10 +196,12 @@ impl egui::Plugin for InspectionPlugin {
             }
             match &item.req {
                 Request::GetInfo => {
-                    let _ = item.reply.send(Response::Info {
-                        label: label.clone(),
-                        egui_version: env!("CARGO_PKG_VERSION").to_owned(),
-                    });
+                    if let Some(reply) = item.reply.take() {
+                        reply(Response::Info {
+                            label: label.clone(),
+                            egui_version: env!("CARGO_PKG_VERSION").to_owned(),
+                        });
+                    }
                     false
                 }
                 Request::GetTree => {
@@ -200,7 +224,7 @@ impl egui::Plugin for InspectionPlugin {
                     item.phase = Phase::AwaitOutput;
                     true
                 }
-                Request::GetScreenshot => {
+                Request::GetScreenshot { .. } => {
                     // Dispatch now so the command lands in this frame's output and the capture
                     // is one frame sooner; the pixels arrive in a later `input_hook`. The id
                     // ties that `Event::Screenshot` back to this request.
@@ -229,15 +253,19 @@ impl egui::Plugin for InspectionPlugin {
         self.in_flight
             .retain_mut(|item| match (&item.phase, &item.req) {
                 (Phase::AwaitOutput, Request::GetTree) => {
-                    let _ = item.reply.send(Response::Tree {
-                        step,
-                        pixels_per_point: output.pixels_per_point,
-                        accesskit: output.platform_output.accesskit_update.clone(),
-                    });
+                    if let Some(reply) = item.reply.take() {
+                        reply(Response::Tree {
+                            step,
+                            pixels_per_point: output.pixels_per_point,
+                            accesskit: output.platform_output.accesskit_update.clone(),
+                        });
+                    }
                     false
                 }
                 (Phase::AwaitOutput, Request::ApplyEvents { .. } | Request::Resize { .. }) => {
-                    let _ = item.reply.send(Response::Done);
+                    if let Some(reply) = item.reply.take() {
+                        reply(Response::Done);
+                    }
                     false
                 }
                 _ => true,
@@ -336,14 +364,23 @@ fn serve_connection(stream: std::net::TcpStream, ctx: &Context) -> std::io::Resu
             Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(()), // client gone
             Err(err) => return Err(err),
         };
-        let Some(rx) = ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req)) else {
+
+        let (tx, rx) = mpsc::channel();
+        let registered = ctx
+            .with_plugin::<InspectionPlugin, _>(|p| {
+                p.submit(req, move |resp| {
+                    let _ = tx.send(resp);
+                });
+            })
+            .is_some();
+        if !registered {
             return write_message(
                 &mut writer,
                 &Response::Error {
                     message: "egui_inspection plugin not registered".to_owned(),
                 },
             );
-        };
+        }
         // Wake the (possibly idle) UI loop so it services the request.
         ctx.request_repaint();
         let resp = rx.recv_timeout(REQUEST_TIMEOUT).unwrap_or_else(|_| {

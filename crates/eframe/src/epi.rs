@@ -942,6 +942,9 @@ pub trait Storage {
     /// Set the value for the given key.
     fn set_string(&mut self, key: &str, value: String);
 
+    /// Remove a given key.
+    fn remove_string(&mut self, key: &str);
+
     /// write-to-disk or similar
     fn flush(&mut self);
 }

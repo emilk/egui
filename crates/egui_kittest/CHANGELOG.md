@@ -6,6 +6,13 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.35.0 - 2026-06-25
+* Add `HarnessBuilder::with_render_options()` (closes #7630) [#8060](https://github.com/emilk/egui/pull/8060) by [@MichaelGrupp](https://github.com/MichaelGrupp)
+* Add `Harness::spawn_eframe_app` [#8120](https://github.com/emilk/egui/pull/8120) by [@emilk](https://github.com/emilk)
+* Exclude `take_app` from `wasm32` in `egui_kittest` [#8178](https://github.com/emilk/egui/pull/8178) by [@grtlr](https://github.com/grtlr)
+* Handle `ViewportCommand::Screenshot` in kittest [#8256](https://github.com/emilk/egui/pull/8256) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
 ## 0.34.3 - 2026-05-27
 Nothing new
 

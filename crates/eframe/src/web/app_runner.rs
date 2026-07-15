@@ -401,7 +401,7 @@ impl AppRunner {
             } else {
                 // We are not editing text - give the focus to the canvas.
                 self.text_agent.blur();
-                self.canvas().focus().ok();
+                super::focus_without_scroll(self.canvas()).ok();
             }
         }
 
@@ -429,6 +429,10 @@ impl epi::Storage for LocalStorage {
 
     fn set_string(&mut self, key: &str, value: String) {
         super::storage::local_storage_set(key, &value);
+    }
+
+    fn remove_string(&mut self, key: &str) {
+        super::storage::local_storage_remove(key);
     }
 
     fn flush(&mut self) {}

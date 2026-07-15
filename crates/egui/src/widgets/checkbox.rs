@@ -41,6 +41,13 @@ impl<'a> Checkbox<'a> {
         Self::new(checked, ())
     }
 
+    /// Output the checkbox's [`Atoms`].
+    ///
+    /// This includes any images you have on the checkbox.
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.atoms
+    }
+
     /// Display an indeterminate state (neither checked nor unchecked)
     ///
     /// This only affects the checkbox's appearance. It will still toggle its boolean value when

@@ -6,6 +6,13 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.35.0 - 2026-06-25
+* Call `pre_present_notify` before presenting [#8089](https://github.com/emilk/egui/pull/8089) by [@dimtpap](https://github.com/dimtpap)
+* Wgpu: Allow configuring VSync and frame latency at runtime [#8114](https://github.com/emilk/egui/pull/8114) by [@emilk](https://github.com/emilk)
+* Configure wgpu to be low-latency by default [#8203](https://github.com/emilk/egui/pull/8203) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix "drunk text" bug [#8250](https://github.com/emilk/egui/pull/8250) by [@emilk](https://github.com/emilk)
+
+
 ## 0.34.3 - 2026-05-27
 * Fix random hangs by improving `wgpu::Surface` lifecycle handling [#8171](https://github.com/emilk/egui/pull/8171) by [@grtlr](https://github.com/grtlr)
 
