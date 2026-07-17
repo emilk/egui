@@ -394,11 +394,9 @@ impl Default for SmoothHinting {
 
 pub type Blob = Arc<dyn AsRef<[u8]> + Send + Sync>;
 
-fn blob_from_font_data(data: &FontData) -> Blob {
-    match data.clone().font {
-        Cow::Borrowed(bytes) => Arc::new(bytes) as Blob,
-        Cow::Owned(bytes) => Arc::new(bytes) as Blob,
-    }
+fn blob_from_font_data(data: &Arc<FontData>) -> Blob {
+    let data: Arc<FontData> = Arc::clone(data);
+    data
 }
 
 /// Describes the font data and the sizes to use.
