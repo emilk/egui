@@ -106,8 +106,9 @@ impl TextAgent {
             }
         })?;
         runner_ref.add_event_listener(&input, "keyup", {
+            let input_state = Rc::clone(&input_state);
             move |event: web_sys::KeyboardEvent, runner: &mut AppRunner| {
-                let is_consumed = InputState::handle_keyup_event(&event);
+                let is_consumed = InputState::handle_keyup_event(&input_state, &event);
                 if !is_consumed {
                     // The canvas doesn't get keydown/keyup events when the text agent is focused,
                     // so we need to forward them to the runner:
@@ -189,6 +190,7 @@ struct InputState {
     input: web_sys::HtmlInputElement,
     last_text: String,
     prev_ime_output: Option<egui::output::IMEOutput>,
+    is_keydown_code_unidentified: bool,
 }
 
 impl InputState {
@@ -197,6 +199,7 @@ impl InputState {
             input,
             last_text: String::new(),
             prev_ime_output: None,
+            is_keydown_code_unidentified: false,
         }
     }
 
@@ -253,6 +256,28 @@ impl InputState {
     }
 
     fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
+        if self.is_keydown_code_unidentified && event.input_type() == "deleteContentBackward" {
+            // Work around a bug in certain Android Gboard versions (e.g.,
+            // 14.7.09, but not 17.0.12): when suggestions remain visible while
+            // typing letters without IME composition (e.g., Latin or Cyrillic),
+            // Backspace clears the suggestions instead of deleting text.
+            // Without this, users have to press Backspace twice before text
+            // starts being deleted.
+            for pressed in [true, false] {
+                runner.input.raw.events.push(egui::Event::Key {
+                    key: egui::Key::Backspace,
+                    physical_key: Some(egui::Key::Backspace),
+                    pressed,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                });
+            }
+            self.clear();
+            runner.needs_repaint.repaint_asap();
+
+            return;
+        }
+
         if !event.is_composing() && event.input_type() != "insertText" {
             self.clear();
 
@@ -349,8 +374,11 @@ impl InputState {
     /// Whether the event is consumed. If `true`, the caller should not do
     /// further processing for this event.
     fn handle_keydown_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
+        let is_keydown_code_unidentified = event.key_code() == 229;
+        input_state.borrow_mut().is_keydown_code_unidentified = is_keydown_code_unidentified;
+
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-        if event.is_composing() || event.key_code() == 229 {
+        if event.is_composing() || is_keydown_code_unidentified {
             true
         } else {
             if event.key().chars().count() > 1
@@ -367,7 +395,9 @@ impl InputState {
     /// ## Returns
     /// Whether the event is consumed. If `true`, the caller should not do
     /// further processing for this event.
-    fn handle_keyup_event(event: &web_sys::KeyboardEvent) -> bool {
+    fn handle_keyup_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
+        input_state.borrow_mut().is_keydown_code_unidentified = false;
+
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
         event.is_composing() || event.key_code() == 229
     }
