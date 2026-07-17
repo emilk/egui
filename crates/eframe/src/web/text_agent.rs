@@ -1,10 +1,7 @@
 //! The text agent is a hidden `<input>` element used to capture
 //! IME and mobile keyboard input events.
 
-use std::{
-    cell::{Cell, RefCell},
-    rc::Rc,
-};
+use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 use web_sys::Document;
@@ -14,7 +11,6 @@ use super::{AppRunner, WebRunner};
 pub struct TextAgent {
     input: web_sys::HtmlInputElement,
     input_state: Rc<RefCell<InputState>>,
-    prev_ime_output: Cell<Option<egui::output::IMEOutput>>,
 }
 
 impl TextAgent {
@@ -120,58 +116,18 @@ impl TextAgent {
             }
         })?;
 
-        Ok(Self {
-            input,
-            input_state,
-            prev_ime_output: Default::default(),
-        })
+        Ok(Self { input, input_state })
     }
 
-    pub fn move_to(
+    pub fn update(
         &self,
         ime: Option<egui::output::IMEOutput>,
         canvas: &web_sys::HtmlCanvasElement,
         zoom_factor: f32,
     ) -> Result<(), JsValue> {
-        // Don't move the text agent unless the position actually changed:
-        if self.prev_ime_output.get() == ime {
-            return Ok(());
-        }
-        self.prev_ime_output.set(ime);
-
-        let Some(ime) = ime else { return Ok(()) };
-
-        if ime.should_interrupt_composition {
-            // no-op for now: currently, the text agent is sizeless, so any
-            // click shifts focus to the canvas, which naturally interrupts the
-            // composition.
-        }
-
-        let mut canvas_rect = super::canvas_content_rect(canvas);
-        // Fix for safari with virtual keyboard flapping position
-        if is_mobile_safari() {
-            canvas_rect.min.y = canvas.offset_top() as f32;
-        }
-        let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
-
-        let style = self.input.style();
-        let native_ppp = super::native_pixels_per_point();
-
-        // Clamp the input position within the canvas width to prevent unwanted horizontal scrolling.
-        let logical_canvas_width = canvas.width() as f32 / native_ppp;
-        let visible_x = cursor_rect.center().x * zoom_factor;
-        let clamped_x = visible_x.clamp(0.0, logical_canvas_width);
-
-        // Clamp the input position within the canvas height to prevent unwanted vertical scrolling.
-        let logical_canvas_height = canvas.height() as f32 / native_ppp;
-        let visible_y = cursor_rect.center().y * zoom_factor;
-        let clamped_y = visible_y.clamp(0.0, logical_canvas_height);
-
-        // This is where the IME input will point to:
-        style.set_property("left", &format!("{clamped_x}px"))?;
-        style.set_property("top", &format!("{clamped_y}px"))?;
-
-        Ok(())
+        self.input_state
+            .borrow_mut()
+            .update(ime, canvas, zoom_factor)
     }
 
     pub fn set_focus(&self, on: bool) {
@@ -232,6 +188,7 @@ impl Drop for TextAgent {
 struct InputState {
     input: web_sys::HtmlInputElement,
     last_text: String,
+    prev_ime_output: Option<egui::output::IMEOutput>,
 }
 
 impl InputState {
@@ -239,7 +196,55 @@ impl InputState {
         Self {
             input,
             last_text: String::new(),
+            prev_ime_output: None,
         }
+    }
+
+    fn update(
+        &mut self,
+        ime: Option<egui::output::IMEOutput>,
+        canvas: &web_sys::HtmlCanvasElement,
+        zoom_factor: f32,
+    ) -> Result<(), JsValue> {
+        // Don't move the text agent unless the position actually changed:
+        if self.prev_ime_output == ime {
+            return Ok(());
+        }
+        self.prev_ime_output = ime;
+
+        let Some(ime) = ime else { return Ok(()) };
+
+        if ime.should_interrupt_composition {
+            // no-op for now: currently, the text agent is sizeless, so any
+            // click shifts focus to the canvas, which naturally interrupts the
+            // composition.
+        }
+
+        let mut canvas_rect = super::canvas_content_rect(canvas);
+        // Fix for safari with virtual keyboard flapping position
+        if is_mobile_safari() {
+            canvas_rect.min.y = canvas.offset_top() as f32;
+        }
+        let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
+
+        let style = self.input.style();
+        let native_ppp = super::native_pixels_per_point();
+
+        // Clamp the input position within the canvas width to prevent unwanted horizontal scrolling.
+        let logical_canvas_width = canvas.width() as f32 / native_ppp;
+        let visible_x = cursor_rect.center().x * zoom_factor;
+        let clamped_x = visible_x.clamp(0.0, logical_canvas_width);
+
+        // Clamp the input position within the canvas height to prevent unwanted vertical scrolling.
+        let logical_canvas_height = canvas.height() as f32 / native_ppp;
+        let visible_y = cursor_rect.center().y * zoom_factor;
+        let clamped_y = visible_y.clamp(0.0, logical_canvas_height);
+
+        // This is where the IME input will point to:
+        style.set_property("left", &format!("{clamped_x}px"))?;
+        style.set_property("top", &format!("{clamped_y}px"))?;
+
+        Ok(())
     }
 
     fn clear(&mut self) {

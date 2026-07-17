@@ -410,7 +410,7 @@ impl AppRunner {
 
         if let Err(err) = self
             .text_agent
-            .move_to(ime, self.canvas(), self.egui_ctx.zoom_factor())
+            .update(ime, self.canvas(), self.egui_ctx.zoom_factor())
         {
             log::error!(
                 "failed to update text agent position: {}",
