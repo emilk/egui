@@ -34,7 +34,6 @@ impl TextAgent {
         // so that focusing it can never scroll some other part
         // of the page into view.
         let canvas_rect = super::canvas_content_rect(canvas);
-        // append it to `<body>` and hide it outside of the viewport
         let style = input.style();
         style.set_property("background-color", "transparent")?;
         style.set_property("border", "none")?;
@@ -74,7 +73,8 @@ impl TextAgent {
             "compositionstart",
             move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 // Repaint moves the text agent into place,
-                // see `move_to` in `AppRunner::handle_platform_output`.
+                // see `AppRunner::handle_platform_output`, which calls
+                // `TextAgent::update`.
                 runner.needs_repaint.repaint_asap();
             },
         )?;
