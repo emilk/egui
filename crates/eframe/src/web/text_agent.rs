@@ -168,13 +168,6 @@ impl TextAgent {
         self.input_state.borrow_mut().clear();
     }
 
-    #[cfg(debug_assertions)]
-    pub(crate) fn update_custom_debug_information(&self, input: &mut crate::web::WebInput) {
-        self.input_state
-            .borrow_mut()
-            .update_custom_debug_information(input);
-    }
-
     pub(crate) fn interrupt_ime_composition(&self) {
         self.input_state.borrow_mut().clear();
     }
@@ -394,23 +387,6 @@ impl InputState {
 
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
         event.is_composing() || event.key_code() == 229
-    }
-
-    #[cfg(debug_assertions)]
-    fn update_custom_debug_information(&self, input: &mut crate::web::WebInput) {
-        input
-            .raw
-            .events
-            .push(egui::Event::CustomDebugInformationUpdated {
-                name: "eframe::web::text_agent::InputState".to_owned(),
-                value: format!(
-                    "
-last_text: {:?}
-input.value: {:?}",
-                    self.last_text,
-                    self.input.value(),
-                ),
-            });
     }
 }
 

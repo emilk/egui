@@ -418,12 +418,6 @@ impl AppRunner {
             );
         }
     }
-
-    #[cfg(debug_assertions)]
-    pub(crate) fn update_custom_debug_information(&mut self) {
-        self.text_agent
-            .update_custom_debug_information(&mut self.input);
-    }
 }
 
 // ----------------------------------------------------------------------------
