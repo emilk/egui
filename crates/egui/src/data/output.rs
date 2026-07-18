@@ -73,7 +73,7 @@ impl FullOutput {
 /// Information about text being edited.
 ///
 /// Useful for IME.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IMEOutput {
     /// Where the [`crate::TextEdit`] is located on screen.
@@ -86,25 +86,6 @@ pub struct IMEOutput {
 
     /// Whether any ongoing IME composition should be interrupted.
     pub should_interrupt_composition: bool,
-
-    /// Text immediately preceding the composition, provided as context for
-    /// suggestions.
-    ///
-    /// Long preceding text can hurt performance, so consider truncating it to a
-    /// reasonable length.
-    ///
-    /// One approach is to scan backward through the text and stop when any of
-    /// the following conditions is met. This approach is not sophisticated, but
-    /// it works in practice:
-    /// - Limit the text to 256 bytes.
-    /// - If a line break is encountered, truncate the text immediately after
-    ///   it.
-    /// - If punctuation is encountered, truncate the text at (including) that
-    ///   punctuation character.
-    /// - Once the limit has been reached, if whitespace has been encountered
-    ///   and the first space-separated word is incomplete, truncate the text
-    ///   at the last complete word.
-    pub preceding_text: Option<String>,
 }
 
 /// Commands that the egui integration should execute at the end of a frame.
@@ -224,9 +205,7 @@ impl PlatformOutput {
         self.cursor_image = cursor_image;
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
-        if let Some(ime) = ime {
-            self.ime = Some(ime);
-        }
+        self.ime = ime.or(self.ime);
         self.num_completed_passes += num_completed_passes;
         self.request_discard_reasons
             .append(&mut request_discard_reasons);

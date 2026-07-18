@@ -208,9 +208,7 @@ impl InputState {
         }
         self.prev_ime_output = ime;
 
-        let Some(ime) = &self.prev_ime_output else {
-            return Ok(());
-        };
+        let Some(ime) = ime else { return Ok(()) };
 
         let mut canvas_rect = super::canvas_content_rect(canvas);
         // Fix for safari with virtual keyboard flapping position
@@ -236,89 +234,69 @@ impl InputState {
         style.set_property("left", &format!("{clamped_x}px"))?;
         style.set_property("top", &format!("{clamped_y}px"))?;
 
-        if Some(&self.last_text) != ime.preceding_text.as_ref() {
-            self.clear();
-        }
-
         Ok(())
     }
 
     fn clear(&mut self) {
-        let text = self
-            .prev_ime_output
-            .as_ref()
-            .and_then(|ime| ime.preceding_text.as_deref())
-            .unwrap_or("");
-        self.input.set_value(text);
-        let len = text.encode_utf16().count() as u32;
-        self.input.set_selection_start(Some(len)).ok();
-        self.last_text = text.to_owned();
+        self.input.set_value("");
+        self.last_text.clear();
     }
 
     fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
-        let text = self.input.value();
+        if self.is_keydown_code_unidentified && event.input_type() == "deleteContentBackward" {
+            // Work around a bug in certain Android Gboard versions (e.g.,
+            // 14.7.09, but not 17.0.12): when suggestions remain visible while
+            // typing letters without IME composition (e.g., Latin or Cyrillic),
+            // Backspace clears the suggestions instead of deleting text.
+            // Without this, users have to press Backspace twice before text
+            // starts being deleted.
+            for pressed in [true, false] {
+                runner.input.raw.events.push(egui::Event::Key {
+                    key: egui::Key::Backspace,
+                    physical_key: Some(egui::Key::Backspace),
+                    pressed,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                });
+            }
+            self.clear();
+            runner.needs_repaint.repaint_asap();
 
-        // Work around a bug in certain Android Gboard versions (e.g.,
-        // 14.7.09, but not 17.0.12): when suggestions remain visible while
-        // typing letters without IME composition (e.g., Latin or Cyrillic),
-        // Backspace clears the suggestions instead of deleting text.
-        // Without this, users have to press Backspace twice before text
-        // starts being deleted.
-        let should_handle_delete_content_backward =
-            self.is_keydown_code_unidentified && event.input_type() == "deleteContentBackward";
+            return;
+        }
 
-        if !should_handle_delete_content_backward
-            && !event.is_composing()
-            && event.input_type() != "insertText"
-        {
+        if !event.is_composing() && event.input_type() != "insertText" {
             self.clear();
 
             return;
         }
 
+        let text = self.input.value();
+
         let prefix_len = longest_common_prefix_length(&text, &self.last_text);
         let last_text_len = self.last_text.chars().count();
         if prefix_len < last_text_len {
-            if should_handle_delete_content_backward && last_text_len - prefix_len == 1 {
-                // Handle Backspace in Android Gboard 14.7.09.
-                for pressed in [true, false] {
-                    runner.input.raw.events.push(egui::Event::Key {
-                        key: egui::Key::Backspace,
-                        physical_key: Some(egui::Key::Backspace),
-                        pressed,
-                        repeat: false,
-                        modifiers: egui::Modifiers::NONE,
-                    });
-                }
-            } else {
-                // Handle the following cases:
-                // - The Samsung Keyboard Cheonjiin layout.
-                // - Suggestion replacement for non-IME compositions (e.g.,
-                //   Latin or Cyrillic) in Gboard and other keyboards.
-                let out_event = egui::Event::Ime(egui::ImeEvent::DeleteSurrounding {
-                    before_chars: last_text_len - prefix_len,
-                    after_chars: 0,
-                });
-                runner.input.raw.events.push(out_event);
-            }
+            let out_event = egui::Event::Ime(egui::ImeEvent::DeleteSurrounding {
+                before_chars: last_text_len - prefix_len,
+                after_chars: 0,
+            });
+            runner.input.raw.events.push(out_event);
         }
 
         let preedit_text: String = text.chars().skip(prefix_len).collect();
-        if !preedit_text.is_empty() {
-            let out_event = if event.is_composing() {
-                // We handle the composition update here instead of in a
-                // `compositionupdate` event because the selection range
-                // has not yet been updated when `compositionupdate` fires.
-                let active_range_chars = self.active_range_chars(&text, prefix_len);
-                egui::Event::Ime(egui::ImeEvent::Preedit {
-                    text: preedit_text,
-                    active_range_chars,
-                })
-            } else {
-                egui::Event::Text(preedit_text)
-            };
-            runner.input.raw.events.push(out_event);
-        }
+        let out_event = if event.is_composing() {
+            // We handle the composition update here instead of in a
+            // `compositionupdate` event because the selection range
+            // has not yet been updated when `compositionupdate` fires.
+            let active_range_chars = self.active_range_chars(&text, prefix_len);
+            egui::Event::Ime(egui::ImeEvent::Preedit {
+                text: preedit_text,
+                active_range_chars,
+            })
+        } else {
+            egui::Event::Text(preedit_text)
+        };
+        runner.input.raw.events.push(out_event);
 
         if event.is_composing() {
             self.last_text = text.chars().take(prefix_len).collect();

@@ -79,7 +79,6 @@ log.workspace = true
 nohash-hasher.workspace = true
 profiling.workspace = true
 smallvec.workspace = true
-unicode-general-category.workspace = true
 unicode-segmentation.workspace = true
 
 #! ### Optional dependencies
