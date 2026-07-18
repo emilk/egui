@@ -395,7 +395,7 @@ impl AppRunner {
 
         if self.has_focus() {
             // The eframe app has focus.
-            if let Some(ime) = ime {
+            if let Some(ime) = &ime {
                 if ime.should_interrupt_composition {
                     self.text_agent.interrupt_ime_composition();
                 }
