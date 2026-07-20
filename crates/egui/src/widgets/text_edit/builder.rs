@@ -530,6 +530,14 @@ impl TextEdit<'_> {
         let owns_ime_events = ui.memory(|mem| mem.owns_ime_events(id));
         if !owns_ime_events {
             state.cursor_purpose = TextEditCursorPurpose::Selection;
+            if !state.cursor.is_empty() {
+                state.cursor.set_char_range(
+                    state
+                        .cursor
+                        .char_range()
+                        .map(|r| CCursorRange::one(r.primary)),
+                );
+            }
         }
 
         let mut text_changed = false;
