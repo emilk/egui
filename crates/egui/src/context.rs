@@ -1289,7 +1289,7 @@ impl Context {
         self.pass_state_mut(|state| state.widget_id_change_warning_exclusions.push(rect));
 
         #[cfg(not(debug_assertions))]
-        let _ = rect;
+        let _ = (self, rect);
     }
 
     /// Read the response of some widget, which may be called _before_ creating the widget (!).
