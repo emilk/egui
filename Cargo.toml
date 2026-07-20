@@ -102,7 +102,7 @@ home = "0.5.12"
 image = { version = "0.25.6", default-features = false } # Can't update to 0.25.7+: it needs png 0.18, which only matches resvg once resvg moves to tiny-skia 0.12 — blocked, see resvg below
 itertools = "0.15.0"
 jiff = { version = "0.2.29", default-features = false }
-js-sys = "0.3.77"
+js-sys = "0.3.103"
 kittest = { version = "0.4.0" }
 log = { version = "0.4.33", features = ["std"] }
 memoffset = "0.9.1"
@@ -154,13 +154,13 @@ vello_cpu = { version = "0.0.9", default-features = false, features = [
   "u8_pipeline",
   "f32_pipeline",
 ] }
-wasm-bindgen = "0.2.108" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml. Don't update this spuriously, because of https://github.com/rerun-io/rerun/issues/8766
-wasm-bindgen-futures = "0.4.58"
+wasm-bindgen = "0.2.126" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml. Don't update this spuriously, because of https://github.com/rerun-io/rerun/issues/8766
+wasm-bindgen-futures = "0.4.76"
 wayland-cursor = { version = "0.31.14", default-features = false }
-web-sys = "0.3.77"
+web-sys = "0.3.103"
 web-time = "1.1" # Timekeeping for native and web
 webbrowser = "1.2"
-wgpu = { version = "29.0", default-features = false, features = ["std"] }
+wgpu = { version = "30.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
 
