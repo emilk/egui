@@ -4,12 +4,16 @@ use egui::{Modifiers, PointerButton, Pos2, accesskit};
 use kittest::{AccessKitNode, NodeT, debug_fmt_node};
 use std::fmt::{Debug, Formatter};
 
-pub(crate) enum EventType {
+/// Modifiers aren't part of [`egui::Event`] and must be handled by the integration, so we need
+/// an enum to handle these.
+///
+/// The most recent [`Self::Modifiers`] should always be passed to [`egui::RawInput`].
+pub enum EventType {
     Event(egui::Event),
     Modifiers(Modifiers),
 }
 
-pub(crate) type EventQueue = Mutex<Vec<EventType>>;
+pub type EventQueue = Mutex<Vec<EventType>>;
 
 #[derive(Clone, Copy)]
 pub struct Node<'tree> {
@@ -29,14 +33,19 @@ impl<'tree> NodeT<'tree> for Node<'tree> {
     }
 
     fn new_related(&self, child_node: AccessKitNode<'tree>) -> Self {
-        Self {
-            queue: self.queue,
-            accesskit_node: child_node,
-        }
+        Self::new(child_node, self.queue)
     }
 }
 
 impl Node<'_> {
+    /// Construct a new accesskit node
+    pub fn new(accesskit_node: AccessKitNode<'_>, queue: &EventQueue) -> Self {
+        Self {
+            queue,
+            accesskit_node,
+        }
+    }
+
     fn event(&self, event: egui::Event) {
         self.queue.lock().push(EventType::Event(event));
     }
