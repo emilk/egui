@@ -37,9 +37,9 @@ impl<'tree> NodeT<'tree> for Node<'tree> {
     }
 }
 
-impl Node<'_> {
+impl<'tree> Node<'tree> {
     /// Construct a new accesskit node
-    pub fn new(accesskit_node: AccessKitNode<'_>, queue: &EventQueue) -> Self {
+    pub fn new(accesskit_node: AccessKitNode<'tree>, queue: &'tree EventQueue) -> Self {
         Self {
             queue,
             accesskit_node,
