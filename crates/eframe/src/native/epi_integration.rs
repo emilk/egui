@@ -30,6 +30,8 @@ pub fn viewport_builder(
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
     #[cfg(not(target_os = "ios"))]
+    let restored = window_settings.is_some();
+    #[cfg(not(target_os = "ios"))]
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
 
@@ -64,8 +66,9 @@ pub fn viewport_builder(
         viewport_builder.inner_size
     };
 
+    // Don't center over a restored position (would fight multi-monitor restore).
     #[cfg(not(target_os = "ios"))]
-    if native_options.centered {
+    if native_options.centered && !restored {
         profiling::scope!("center");
         if let Some(monitor) = event_loop
             .primary_monitor()
@@ -155,6 +158,17 @@ pub struct EpiIntegration {
     last_auto_save: Instant,
     pub beginning: Instant,
     is_first_frame: bool,
+    /// Deferred first show so we reveal after the first paint (avoids empty flash).
+    pending_reveal: bool,
+    /// Windows wgpu: uncloak after the redraw that follows a cloaked first show.
+    #[cfg(all(feature = "wgpu_no_default_features", target_os = "windows"))]
+    pub(crate) pending_finish_reveal: bool,
+    /// False until first reveal — avoids persisting mid-DPI-restore geometry.
+    #[cfg(feature = "persistence")]
+    persist_window_geometry: bool,
+    /// Windows: placement used for cloaked first show / maximize.
+    #[cfg(all(feature = "persistence", target_os = "windows"))]
+    reveal_window_settings: Option<WindowSettings>,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
 
@@ -175,6 +189,7 @@ impl EpiIntegration {
         app_name: &str,
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
+        #[cfg(feature = "persistence")] reveal_window_settings: Option<WindowSettings>,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
         #[cfg(feature = "glow")] glow_register_native_texture: Option<
             Box<dyn FnMut(glow::Texture) -> egui::TextureId>,
@@ -183,6 +198,9 @@ impl EpiIntegration {
             egui_wgpu::RenderState,
         >,
     ) -> Self {
+        #[cfg(all(feature = "persistence", not(target_os = "windows")))]
+        let _ = reveal_window_settings;
+
         let frame = epi::Frame {
             info: epi::IntegrationInfo { cpu_usage: None },
             storage,
@@ -220,6 +238,13 @@ impl EpiIntegration {
             can_drag_window: false,
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
+            #[cfg(all(feature = "persistence", target_os = "windows"))]
+            reveal_window_settings,
+            #[cfg(feature = "persistence")]
+            persist_window_geometry: false,
+            pending_reveal: false,
+            #[cfg(all(feature = "wgpu_no_default_features", target_os = "windows"))]
+            pending_finish_reveal: false,
             app_icon_setter,
             beginning: Instant::now()
                 .checked_sub(web_time::Duration::from_secs_f64(egui_ctx.time()))
@@ -319,11 +344,45 @@ impl EpiIntegration {
         self.frame.info.cpu_usage = Some(seconds);
     }
 
-    pub fn post_rendering(&mut self, window: &winit::window::Window) {
+    pub fn post_rendering(&mut self) {
         profiling::function_scope!();
         if std::mem::take(&mut self.is_first_frame) {
-            // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
-            window.set_visible(true);
+            // Reveal after present so the first visible frame already has pixels.
+            // See https://github.com/emilk/egui/pull/2279 / #3631.
+            self.pending_reveal = true;
+        }
+    }
+
+    /// Show just before the first present. On Windows: DWM-cloak first.
+    /// Call [`Self::finish_reveal_after_present`] after that present.
+    pub fn reveal_after_present(&mut self, window: &winit::window::Window) -> bool {
+        if !std::mem::take(&mut self.pending_reveal) {
+            return false;
+        }
+        #[cfg(target_os = "windows")]
+        {
+            #[cfg(feature = "persistence")]
+            self.reveal_window_settings
+                .take()
+                .unwrap_or_default()
+                .reveal_window(window);
+            #[cfg(not(feature = "persistence"))]
+            WindowSettings::default().reveal_window(window);
+        }
+        #[cfg(not(target_os = "windows"))]
+        window.set_visible(true);
+
+        #[cfg(feature = "persistence")]
+        {
+            self.persist_window_geometry = true;
+        }
+        true
+    }
+
+    /// Uncloak after the first present (no-op when `revealed` is false / off Windows).
+    pub fn finish_reveal_after_present(window: &winit::window::Window, revealed: bool) {
+        if revealed {
+            WindowSettings::finish_first_show(window);
         }
     }
 
@@ -352,6 +411,7 @@ impl EpiIntegration {
 
             if let Some(window) = window
                 && self.persist_window
+                && self.persist_window_geometry
             {
                 profiling::scope!("native_window");
                 epi::set_value(

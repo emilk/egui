@@ -191,6 +191,8 @@ impl<'app> WgpuWinitApp<'app> {
         storage: Option<Box<dyn Storage>>,
         window: Window,
         builder: ViewportBuilder,
+        #[cfg(feature = "persistence")] window_settings: Option<egui_winit::WindowSettings>,
+        #[cfg(not(feature = "persistence"))] _window_settings: Option<egui_winit::WindowSettings>,
     ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
         profiling::function_scope!();
         // Inject the display handle into the wgpu setup so that wgpu can create
@@ -247,6 +249,8 @@ impl<'app> WgpuWinitApp<'app> {
             &self.app_name,
             &self.native_options,
             storage,
+            #[cfg(feature = "persistence")]
+            window_settings,
             #[cfg(feature = "glow")]
             None,
             #[cfg(feature = "glow")]
@@ -442,13 +446,20 @@ impl WinitApp for WgpuWinitApp<'_> {
                 .egui_ctx
                 .take()
                 .unwrap_or_else(|| winit_integration::create_egui_context(storage.as_deref()));
-            let (window, builder) = create_window(
+            let (window, builder, window_settings) = create_window(
                 &egui_ctx,
                 event_loop,
                 storage.as_deref(),
                 &mut self.native_options,
             )?;
-            self.init_run_state(egui_ctx, event_loop, storage, window, builder)?
+            self.init_run_state(
+                egui_ctx,
+                event_loop,
+                storage,
+                window,
+                builder,
+                window_settings,
+            )?
         };
 
         let viewport = &running.shared.borrow().viewports[&ViewportId::ROOT];
@@ -765,7 +776,21 @@ impl WgpuWinitRunning<'_> {
                 }
             }
 
-            integration.post_rendering(window);
+            integration.post_rendering();
+            #[cfg(target_os = "windows")]
+            {
+                // Presented while hidden; cloak+show, redraw once, then uncloak.
+                if integration.reveal_after_present(window) {
+                    window.request_redraw();
+                    integration.pending_finish_reveal = true;
+                } else if std::mem::take(&mut integration.pending_finish_reveal) {
+                    epi_integration::EpiIntegration::finish_reveal_after_present(window, true);
+                }
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                let _ = integration.reveal_after_present(window);
+            }
 
             vsync_secs
         } else {
@@ -1012,21 +1037,26 @@ fn create_window(
     event_loop: &ActiveEventLoop,
     storage: Option<&dyn Storage>,
     native_options: &mut NativeOptions,
-) -> Result<(Window, ViewportBuilder), winit::error::OsError> {
+) -> Result<(Window, ViewportBuilder, Option<egui_winit::WindowSettings>), winit::error::OsError>
+{
     profiling::function_scope!();
 
-    let window_settings = epi_integration::load_window_settings(storage);
+    let window_settings = if native_options.persist_window {
+        epi_integration::load_window_settings(storage)
+    } else {
+        None
+    };
     let viewport_builder = epi_integration::viewport_builder(
         egui_ctx.zoom_factor(),
         event_loop,
         native_options,
         window_settings,
     )
-    .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
+    .with_visible(false);
 
     let window = egui_winit::create_window(egui_ctx, event_loop, &viewport_builder)?;
     epi_integration::apply_window_settings(&window, window_settings);
-    Ok((window, viewport_builder))
+    Ok((window, viewport_builder, window_settings))
 }
 
 /// Is this viewport, or any of its (transitive) descendant viewports, visible?
