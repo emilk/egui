@@ -735,7 +735,7 @@ impl<'a, State> Harness<'a, State> {
 
     /// The root node of the test harness.
     pub fn root(&self) -> Node<'_> {
-        Node::new(self.kittest.root(), &self.queued_events)
+        Node::new(self.kittest.root(), &self.queued_events, self.ctx.pixels_per_point())
     }
 
     /// Spawn a real native eframe window running this harness's app, reusing its [`egui::Context`].

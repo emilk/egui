@@ -19,6 +19,7 @@ pub type EventQueue = Mutex<Vec<EventType>>;
 pub struct Node<'tree> {
     pub(crate) accesskit_node: AccessKitNode<'tree>,
     pub(crate) queue: &'tree EventQueue,
+    pub(crate) pixels_per_point: f32,
 }
 
 impl Debug for Node<'_> {
@@ -33,16 +34,17 @@ impl<'tree> NodeT<'tree> for Node<'tree> {
     }
 
     fn new_related(&self, child_node: AccessKitNode<'tree>) -> Self {
-        Self::new(child_node, self.queue)
+        Self::new(child_node, self.queue, self.pixels_per_point)
     }
 }
 
 impl<'tree> Node<'tree> {
     /// Construct a new accesskit node
-    pub fn new(accesskit_node: AccessKitNode<'tree>, queue: &'tree EventQueue) -> Self {
+    pub fn new(accesskit_node: AccessKitNode<'tree>, queue: &'tree EventQueue, pixels_per_point: f32) -> Self {
         Self {
             queue,
             accesskit_node,
+            pixels_per_point,
         }
     }
 
@@ -113,14 +115,17 @@ impl<'tree> Node<'tree> {
         ));
     }
 
+    /// This returns the rect in logical ui coordinates while the underlying [`accesskit::Node`] has it
+    /// in physical screen coordinates.
     pub fn rect(&self) -> egui::Rect {
         let rect = self
             .accesskit_node
             .bounding_box()
             .expect("Every egui node should have a rect");
+        let ppp = self.pixels_per_point;
         egui::Rect {
-            min: Pos2::new(rect.x0 as f32, rect.y0 as f32),
-            max: Pos2::new(rect.x1 as f32, rect.y1 as f32),
+            min: Pos2::new(rect.x0 as f32 / ppp, rect.y0 as f32 / ppp),
+            max: Pos2::new(rect.x1 as f32 / ppp, rect.y1 as f32 / ppp),
         }
     }
 
