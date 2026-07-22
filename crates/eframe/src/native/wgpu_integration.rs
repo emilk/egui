@@ -1037,8 +1037,7 @@ fn create_window(
     event_loop: &ActiveEventLoop,
     storage: Option<&dyn Storage>,
     native_options: &mut NativeOptions,
-) -> Result<(Window, ViewportBuilder, Option<egui_winit::WindowSettings>), winit::error::OsError>
-{
+) -> Result<(Window, ViewportBuilder, Option<egui_winit::WindowSettings>), winit::error::OsError> {
     profiling::function_scope!();
 
     let window_settings = if native_options.persist_window {

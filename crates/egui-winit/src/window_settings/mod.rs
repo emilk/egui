@@ -238,7 +238,8 @@ fn clamp_pos_to_monitors(
         return;
     };
 
-    let mut window_size_px = window_size_pts * (egui_zoom_factor * active_monitor.scale_factor() as f32);
+    let mut window_size_px =
+        window_size_pts * (egui_zoom_factor * active_monitor.scale_factor() as f32);
     // Title bar is ~32 px by default in Win 10/11.
     if cfg!(target_os = "windows") {
         window_size_px += egui::Vec2::new(

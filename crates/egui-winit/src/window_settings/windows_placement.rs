@@ -11,15 +11,15 @@ use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
 use windows_sys::Win32::{
     Foundation::{HWND, POINT, RECT},
     Graphics::{
-        Dwm::{DwmSetWindowAttribute, DWMWA_CLOAK},
-        Gdi::{GetMonitorInfoW, MonitorFromRect, MONITORINFO, MONITOR_DEFAULTTONEAREST},
+        Dwm::{DWMWA_CLOAK, DwmSetWindowAttribute},
+        Gdi::{GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromRect},
     },
     UI::{
         HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI},
         WindowsAndMessaging::{
-            GetWindowLongPtrW, GetWindowPlacement, GetWindowRect, SetWindowLongPtrW,
-            SetWindowPlacement, SetWindowPos, GWL_STYLE, SWP_NOACTIVATE, SWP_NOZORDER, SW_HIDE,
-            SW_SHOWMAXIMIZED, SW_SHOWMINIMIZED, SW_SHOWNORMAL, WINDOWPLACEMENT,
+            GWL_STYLE, GetWindowLongPtrW, GetWindowPlacement, GetWindowRect, SW_HIDE,
+            SW_SHOWMAXIMIZED, SW_SHOWMINIMIZED, SW_SHOWNORMAL, SWP_NOACTIVATE, SWP_NOZORDER,
+            SetWindowLongPtrW, SetWindowPlacement, SetWindowPos, WINDOWPLACEMENT,
             WPF_RESTORETOMAXIMIZED, WS_MAXIMIZE,
         },
     },
@@ -52,8 +52,10 @@ pub(super) fn capture(window: &winit::window::Window) -> Option<WindowsPlacement
 
 pub(super) fn apply_to_settings(settings: &mut WindowSettings, placement: WindowsPlacement) {
     // Keep live `inner_size_points` from `from_window` — re-deriving creeps under DPI.
-    settings.outer_position_pixels =
-        Some(egui::pos2(placement.normal[0] as f32, placement.normal[1] as f32));
+    settings.outer_position_pixels = Some(egui::pos2(
+        placement.normal[0] as f32,
+        placement.normal[1] as f32,
+    ));
     settings.inner_position_pixels = None;
     settings.maximized = is_maximized(placement);
     settings.windows_placement = Some(placement);

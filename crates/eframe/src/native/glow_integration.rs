@@ -152,7 +152,11 @@ impl<'app> GlowWinitApp<'app> {
         event_loop: &ActiveEventLoop,
         storage: Option<&dyn Storage>,
         native_options: &mut NativeOptions,
-    ) -> Result<(GlutinWindowContext, egui_glow::Painter, Option<egui_winit::WindowSettings>)> {
+    ) -> Result<(
+        GlutinWindowContext,
+        egui_glow::Painter,
+        Option<egui_winit::WindowSettings>,
+    )> {
         profiling::function_scope!();
         let window_settings = if native_options.persist_window {
             epi_integration::load_window_settings(storage)
