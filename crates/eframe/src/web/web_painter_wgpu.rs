@@ -380,7 +380,7 @@ impl WebPainter for WebPainterWgpu {
                 );
             }
 
-            frame.present();
+            render_state.queue.present(frame);
         }
 
         // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.
