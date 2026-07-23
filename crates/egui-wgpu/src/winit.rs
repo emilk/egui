@@ -765,7 +765,7 @@ impl Painter {
             profiling::scope!("present");
             // wgpu doesn't document where vsync can happen. Maybe here?
             let start = web_time::Instant::now();
-            output_frame.present();
+            render_state.queue.present(output_frame);
             vsync_sec += start.elapsed().as_secs_f32();
         }
 
