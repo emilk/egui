@@ -393,6 +393,8 @@ impl InputState {
         let pointer = self.pointer.begin_pass(time, &new, options);
 
         let mut keys_down = self.keys_down;
+        // Carry the modifier state over: integrations only send `ModifiersChanged` on change.
+        let mut modifiers = self.modifiers;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
         let mut rotation_radians = 0.0;
 
@@ -429,6 +431,9 @@ impl InputState {
                         *modifiers,
                     );
                 }
+                Event::ModifiersChanged(new_modifiers) => {
+                    modifiers = *new_modifiers;
+                }
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
                 }
@@ -442,6 +447,7 @@ impl InputState {
                     // So we take the safe route and just clear all the keys and modifiers when
                     // the app loses focus.
                     keys_down.clear();
+                    modifiers = Modifiers::default();
                 }
                 _ => {}
             }
@@ -482,7 +488,7 @@ impl InputState {
             predicted_dt: new.predicted_dt,
             stable_dt,
             focused: new.focused,
-            modifiers: new.modifiers,
+            modifiers,
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
