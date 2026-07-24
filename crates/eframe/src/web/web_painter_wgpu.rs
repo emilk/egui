@@ -90,7 +90,7 @@ impl WebPainterWgpu {
             && create_new.display_handle.is_none()
         {
             // Force WebGL, useful for quick & dirty testing:
-            //create_new.instance_descriptor.backends = wgpu::Backends::GL;
+            // create_new.instance_descriptor.backends = wgpu::Backends::GL;
             create_new.display_handle = Some(Box::new(WebDisplay));
         }
 
