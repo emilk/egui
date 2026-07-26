@@ -699,6 +699,20 @@ impl WgpuWinitRunning<'_> {
             viewport_output,
         } = full_output;
 
+        let repaint_root_after_deferred =
+            if viewport_id != ViewportId::ROOT && viewport_output.contains_key(&ViewportId::ROOT) {
+                // A deferred viewport can consume repaint callbacks while the root
+                // viewport is waiting behind a pending redraw guard. Keep the root
+                // scheduled after painting a child viewport so root UI/state changes
+                // made during the child frame are flushed promptly.
+                viewports
+                    .get(&ViewportId::ROOT)
+                    .and_then(|viewport| viewport.window.as_ref())
+                    .map(|window| window.id())
+            } else {
+                None
+            };
+
         remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
@@ -809,6 +823,8 @@ impl WgpuWinitRunning<'_> {
 
         if integration.should_close() {
             Ok(EventResult::CloseRequested)
+        } else if let Some(root_window_id) = repaint_root_after_deferred {
+            Ok(EventResult::RepaintNext(root_window_id))
         } else {
             Ok(EventResult::Wait)
         }
