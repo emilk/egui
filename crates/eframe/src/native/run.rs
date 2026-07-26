@@ -122,6 +122,11 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             self.windows_next_repaint_times
                 .insert(window_id, Instant::now());
 
+            // We are about to repaint this window directly instead of waiting for
+            // WindowEvent::RedrawRequested, so the pending redraw guard must not keep
+            // blocking future redraw requests for this window.
+            self.windows_pending_redraw.remove(&window_id);
+
             // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
             event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
         }
