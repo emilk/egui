@@ -667,6 +667,17 @@ impl GlowWinitRunning<'_> {
             viewport_output,
         } = full_output;
 
+        let repaint_root_after_deferred =
+            if viewport_id != ViewportId::ROOT && viewport_output.contains_key(&ViewportId::ROOT) {
+                // A deferred viewport can consume repaint callbacks while the root
+                // viewport is waiting behind a pending redraw guard. Keep the root
+                // scheduled after painting a child viewport so root UI/state changes
+                // made during the child frame are flushed promptly.
+                glutin.window_from_viewport.get(&ViewportId::ROOT).copied()
+            } else {
+                None
+            };
+
         glutin.remove_viewports_not_in(&viewport_output);
 
         let GlutinWindowContext {
@@ -794,6 +805,8 @@ impl GlowWinitRunning<'_> {
 
         if integration.should_close() {
             Ok(EventResult::CloseRequested)
+        } else if let Some(root_window_id) = repaint_root_after_deferred {
+            Ok(EventResult::RepaintNext(root_window_id))
         } else {
             Ok(EventResult::Wait)
         }
