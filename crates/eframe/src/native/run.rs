@@ -122,10 +122,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             self.windows_next_repaint_times
                 .insert(window_id, Instant::now());
 
-            // We are about to repaint this window directly instead of waiting for
-            // WindowEvent::RedrawRequested, so the pending redraw guard must not keep
-            // blocking future redraw requests for this window.
-            self.windows_pending_redraw.remove(&window_id);
+            self.clear_pending_redraw_before_paint(&window_id);
 
             // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
             event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
@@ -242,7 +239,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         // RedrawRequested events on Windows. This ensures that viewport
         // commands like Visible(true) are still processed.
         for window_id in &invisible_window_ids {
-            self.windows_pending_redraw.remove(window_id);
+            self.clear_pending_redraw_before_paint(window_id);
 
             let event_result = self.winit_app.run_ui_and_paint(event_loop, *window_id);
             self.handle_event_result(event_loop, event_result);
@@ -266,6 +263,22 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             Some(next_repaint_time) => ControlFlow::WaitUntil(next_repaint_time),
             None => ControlFlow::Wait,
         });
+    }
+
+    fn clear_pending_redraw_before_paint(&mut self, window_id: &WindowId) {
+        self.windows_pending_redraw.remove(window_id);
+
+        // Painting a secondary/deferred viewport can advance shared egui viewport
+        // state and make a pending root redraw stale. Do not let the guard keep
+        // blocking future root redraw requests.
+        if let Some(root_window_id) = self
+            .winit_app
+            .window_id_from_viewport_id(egui::ViewportId::ROOT)
+        {
+            if root_window_id != *window_id {
+                self.windows_pending_redraw.remove(&root_window_id);
+            }
+        }
     }
 }
 
@@ -386,7 +399,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         event_loop_context::with_event_loop_context(event_loop, move || {
             let event_result = match event {
                 winit::event::WindowEvent::RedrawRequested => {
-                    self.windows_pending_redraw.remove(&window_id);
+                    self.clear_pending_redraw_before_paint(&window_id);
                     self.winit_app.run_ui_and_paint(event_loop, window_id)
                 }
                 _ => self.winit_app.window_event(event_loop, window_id, event),
