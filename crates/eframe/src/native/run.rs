@@ -274,10 +274,9 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         if let Some(root_window_id) = self
             .winit_app
             .window_id_from_viewport_id(egui::ViewportId::ROOT)
+            && root_window_id != *window_id
         {
-            if root_window_id != *window_id {
-                self.windows_pending_redraw.remove(&root_window_id);
-            }
+            self.windows_pending_redraw.remove(&root_window_id);
         }
     }
 }
