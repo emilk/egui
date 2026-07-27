@@ -251,14 +251,7 @@ impl<'a, State> Harness<'a, State> {
             self._step(false);
         }
         for event in events {
-            match event {
-                EventType::Event(event) => {
-                    self.input.events.push(event);
-                }
-                EventType::Modifiers(modifiers) => {
-                    self.input.modifiers = modifiers;
-                }
-            }
+            self.input.events.push(event);
             self._step(false);
         }
     }
@@ -471,7 +464,7 @@ impl<'a, State> Harness<'a, State> {
 
     /// Queue an event to be processed in the next frame.
     pub fn event(&self, event: egui::Event) {
-        self.queued_events.lock().push(EventType::Event(event));
+        self.queued_events.lock().push(event);
     }
 
     /// Queue an event with modifiers.
@@ -479,15 +472,15 @@ impl<'a, State> Harness<'a, State> {
     /// Queues the modifiers to be pressed, then the event, then the modifiers to be released.
     pub fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
         let mut queue = self.queued_events.lock();
-        queue.push(EventType::Modifiers(modifiers));
-        queue.push(EventType::Event(event));
-        queue.push(EventType::Modifiers(Modifiers::default()));
+        queue.push(egui::Event::ModifiersChanged(modifiers));
+        queue.push(event);
+        queue.push(egui::Event::ModifiersChanged(Modifiers::default()));
     }
 
     fn modifiers(&self, modifiers: Modifiers) {
         self.queued_events
             .lock()
-            .push(EventType::Modifiers(modifiers));
+            .push(egui::Event::ModifiersChanged(modifiers));
     }
 
     pub fn key_down(&self, key: egui::Key) {
@@ -735,7 +728,11 @@ impl<'a, State> Harness<'a, State> {
 
     /// The root node of the test harness.
     pub fn root(&self) -> Node<'_> {
-        Node::new(self.kittest.root(), &self.queued_events, self.ctx.pixels_per_point())
+        Node::new(
+            self.kittest.root(),
+            &self.queued_events,
+            self.ctx.pixels_per_point(),
+        )
     }
 
     /// Spawn a real native eframe window running this harness's app, reusing its [`egui::Context`].
