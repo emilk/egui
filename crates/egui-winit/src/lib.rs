@@ -87,7 +87,7 @@ pub struct State {
 
     /// The current modifier state.
     ///
-    /// egui no longer stores this on [`egui::RawInput`]; we keep our own copy so we can stamp
+    /// We keep a copy so we can stamp
     /// it onto per-event `modifiers` fields and emit [`egui::Event::ModifiersChanged`].
     modifiers: egui::Modifiers,
 
