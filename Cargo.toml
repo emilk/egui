@@ -24,7 +24,7 @@ members = [
 [workspace.package]
 edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.92"
+rust-version = "1.95"
 version = "0.35.0"
 
 
@@ -102,7 +102,7 @@ home = "0.5.12"
 image = { version = "0.25.6", default-features = false } # Can't update to 0.25.7+: it needs png 0.18, which only matches resvg once resvg moves to tiny-skia 0.12 — blocked, see resvg below
 itertools = "0.15.0"
 jiff = { version = "0.2.29", default-features = false }
-js-sys = "0.3.77"
+js-sys = "0.3.103"
 kittest = { version = "0.4.0" }
 log = { version = "0.4.33", features = ["std"] }
 memoffset = "0.9.1"
@@ -154,13 +154,13 @@ vello_cpu = { version = "0.0.9", default-features = false, features = [
   "u8_pipeline",
   "f32_pipeline",
 ] }
-wasm-bindgen = "0.2.108" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml. Don't update this spuriously, because of https://github.com/rerun-io/rerun/issues/8766
-wasm-bindgen-futures = "0.4.58"
+wasm-bindgen = "0.2.126" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml. Don't update this spuriously, because of https://github.com/rerun-io/rerun/issues/8766
+wasm-bindgen-futures = "0.4.76"
 wayland-cursor = { version = "0.31.14", default-features = false }
-web-sys = "0.3.77"
+web-sys = "0.3.103"
 web-time = "1.1" # Timekeeping for native and web
 webbrowser = "1.2"
-wgpu = { version = "29.0", default-features = false, features = ["std"] }
+wgpu = { version = "30.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
 
@@ -205,6 +205,7 @@ cloned_instead_of_copied = "warn"
 coerce_container_to_any = "warn"
 dbg_macro = "warn"
 debug_assert_with_mut_call = "warn"
+decimal_bitwise_operands = "warn"
 default_union_representation = "warn"
 derive_partial_eq_without_eq = "warn"
 disallowed_macros = "warn" # See clippy.toml
@@ -217,9 +218,10 @@ doc_comment_double_space_linebreaks = "warn"
 doc_include_without_cfg = "warn"
 doc_link_with_quotes = "warn"
 doc_markdown = "warn"
+duration_suboptimal_units = "warn"
 elidable_lifetime_names = "warn"
-empty_enum = "warn"
 empty_enum_variants_with_brackets = "warn"
+empty_enums = "warn"
 empty_line_after_outer_attr = "warn"
 enum_glob_use = "warn"
 equatable_if_let = "warn"
@@ -270,6 +272,7 @@ lossy_float_literal = "warn"
 macro_use_imports = "warn"
 manual_assert = "warn"
 manual_clamp = "warn"
+manual_ilog2 = "warn"
 manual_instant_elapsed = "warn"
 manual_is_power_of_two = "warn"
 manual_is_variant_and = "warn"
@@ -299,10 +302,12 @@ needless_for_each = "warn"
 needless_pass_by_ref_mut = "warn"
 needless_pass_by_value = "warn"
 needless_raw_string_hashes = "warn"
+needless_type_cast = "warn"
 negative_feature_names = "warn"
 non_std_lazy_statics = "warn"
 non_zero_suggestions = "warn"
 nonstandard_macro_braces = "warn"
+only_used_in_recursion = "warn"
 option_as_ref_cloned = "warn"
 option_option = "warn"
 or_fun_call = "warn"
@@ -325,6 +330,7 @@ ref_patterns = "warn"
 rest_pat_in_fully_bound_structs = "warn"
 return_and_then = "warn"
 same_functions_in_if_condition = "warn"
+same_length_and_capacity = "warn"
 self_only_used_in_recursion = "warn"
 semicolon_if_nothing_returned = "warn"
 set_contains_or_insert = "warn"
@@ -341,6 +347,7 @@ suspicious_command_arg_space = "warn"
 suspicious_xor_used_as_pow = "warn"
 todo = "warn"
 too_long_first_doc_paragraph = "warn"
+too_many_arguments = "warn"
 trailing_empty_array = "warn"
 trait_duplication_in_bounds = "warn"
 transmute_ptr_to_ptr = "warn"
@@ -358,6 +365,7 @@ unnecessary_safety_doc = "warn"
 unnecessary_self_imports = "warn"
 unnecessary_semicolon = "warn"
 unnecessary_struct_initialization = "warn"
+unnecessary_trailing_comma = "warn"
 unnecessary_wraps = "warn"
 unnested_or_patterns = "warn"
 unused_async = "warn"
@@ -382,6 +390,7 @@ too_many_lines = "allow"
 
 # These are meh:
 assigning_clones = "allow" # No please
+cast_possible_truncation = "allow" # too many hits
 let_underscore_must_use = "allow"
 let_underscore_untyped = "allow"
 manual_range_contains = "allow" # this one is just worse imho
