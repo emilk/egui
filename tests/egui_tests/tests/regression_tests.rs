@@ -280,6 +280,8 @@ fn warn_if_rect_changes_id() {
     let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
 
     let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
+        ui.global_style_mut(|style| style.debug.warn_if_rect_changes_id = true);
+
         // Simulate a buggy widget whose Id depends on its label text,
         // and the label changes on hover:
         let is_hovered = ui.rect_contains_pointer(button_rect);
@@ -316,6 +318,8 @@ fn warn_if_rect_changes_id_false_positive_parent_shift() {
     let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
 
     let mut harness = Harness::builder().with_size((200.0, 100.0)).build_ui(|ui| {
+        ui.global_style_mut(|style| style.debug.warn_if_rect_changes_id = true);
+
         // push_id with a changing value causes the child Ui's id to shift,
         // which in turn shifts all widget ids inside it.
         ui.push_id(counter.get(), |ui| {
