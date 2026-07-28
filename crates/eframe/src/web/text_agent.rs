@@ -1,7 +1,7 @@
 //! The text agent is a hidden `<input>` element used to capture
 //! IME and mobile keyboard input events.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, matches, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 use web_sys::Document;
@@ -183,7 +183,35 @@ struct InputState {
     input: web_sys::HtmlInputElement,
     last_text: String,
     prev_ime_output: Option<egui::output::IMEOutput>,
-    is_keydown_code_unidentified: bool,
+    keydown_special_case: KeydownSpecialCase,
+    is_mobile_safari: bool,
+}
+
+#[derive(Clone, Copy)]
+enum KeydownSpecialCase {
+    None,
+    /// On Android Gboard 14.7.09, when suggestions remain visible while typing
+    /// letters without IME composition (e.g., Latin or Cyrillic), pressing
+    /// Backspace produces key code 229 instead of the expected Backspace key
+    /// code.
+    /// Without the workaround, users have to press Backspace twice before text
+    /// starts being deleted.
+    ///
+    /// This workaround is also required for Android Gboard corrections and
+    /// completions (e.g., `tex|` -> `Texas`) to work correctly. In these
+    /// cases, a `deleteContentBackward` input event fires first (e.g., to
+    /// delete `tex`), followed by an `insertText` input event (e.g., to insert
+    /// `Texas`).
+    ///
+    /// Since it is difficult to distinguish between a Backspace press and a
+    /// correction or completion (e.g., when the state is `t|`, it is unclear
+    /// whether the user wants to delete `t` or replace it with `Texas`), we
+    /// send a `DeleteSurrounding` IME event in all cases instead of
+    /// synthetically generating Backspace press and release events.
+    AndroidKeycode229,
+    /// iOS (18.6)'s built-in Korean keyboard uses `deleteContentBackward` to
+    /// compose Hangul characters. In these cases, the key code is 0.
+    IosKeycode0,
 }
 
 impl InputState {
@@ -192,7 +220,8 @@ impl InputState {
             input,
             last_text: String::new(),
             prev_ime_output: None,
-            is_keydown_code_unidentified: false,
+            keydown_special_case: KeydownSpecialCase::None,
+            is_mobile_safari: is_mobile_safari(),
         }
     }
 
@@ -212,7 +241,7 @@ impl InputState {
 
         let mut canvas_rect = super::canvas_content_rect(canvas);
         // Fix for safari with virtual keyboard flapping position
-        if is_mobile_safari() {
+        if self.is_mobile_safari {
             canvas_rect.min.y = canvas.offset_top() as f32;
         }
         let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
@@ -243,29 +272,16 @@ impl InputState {
     }
 
     fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
-        if self.is_keydown_code_unidentified && event.input_type() == "deleteContentBackward" {
-            // Work around a bug in certain Android Gboard versions (e.g.,
-            // 14.7.09, but not 17.0.12): when suggestions remain visible while
-            // typing letters without IME composition (e.g., Latin or Cyrillic),
-            // Backspace clears the suggestions instead of deleting text.
-            // Without this, users have to press Backspace twice before text
-            // starts being deleted.
-            for pressed in [true, false] {
-                runner.input.raw.events.push(egui::Event::Key {
-                    key: egui::Key::Backspace,
-                    physical_key: Some(egui::Key::Backspace),
-                    pressed,
-                    repeat: false,
-                    modifiers: egui::Modifiers::NONE,
-                });
-            }
-            self.clear();
-            runner.needs_repaint.repaint_asap();
+        let input_type = event.input_type();
 
-            return;
-        }
-
-        if !event.is_composing() && event.input_type() != "insertText" {
+        if !event.is_composing()
+            && input_type != "insertText"
+            // iOS uses this for corrections and completions (e.g., `tex|` ->
+            // `Texas`).
+            && input_type != "insertReplacementText"
+            && (matches!(self.keydown_special_case, KeydownSpecialCase::None)
+                || input_type != "deleteContentBackward")
+        {
             self.clear();
 
             return;
@@ -361,11 +377,17 @@ impl InputState {
     /// Whether the event is consumed. If `true`, the caller should not do
     /// further processing for this event.
     fn handle_keydown_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
-        let is_keydown_code_unidentified = event.key_code() == 229;
-        input_state.borrow_mut().is_keydown_code_unidentified = is_keydown_code_unidentified;
+        // Platform-sniffing methods (e.g., `is_mobile_safari`) are unreliable,
+        // so they are not used as guards here.
+        let special_case = match event.key_code() {
+            229 => KeydownSpecialCase::AndroidKeycode229,
+            0 => KeydownSpecialCase::IosKeycode0,
+            _ => KeydownSpecialCase::None,
+        };
+        input_state.borrow_mut().keydown_special_case = special_case;
 
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-        if event.is_composing() || is_keydown_code_unidentified {
+        if event.is_composing() || !matches!(special_case, KeydownSpecialCase::None) {
             true
         } else {
             if event.key().chars().count() > 1
@@ -383,7 +405,7 @@ impl InputState {
     /// Whether the event is consumed. If `true`, the caller should not do
     /// further processing for this event.
     fn handle_keyup_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
-        input_state.borrow_mut().is_keydown_code_unidentified = false;
+        input_state.borrow_mut().keydown_special_case = KeydownSpecialCase::None;
 
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
         event.is_composing() || event.key_code() == 229
@@ -391,6 +413,13 @@ impl InputState {
 }
 
 /// Returns `true` if the app is likely running on a mobile device on navigator Safari.
+///
+/// NOTE(umajho): This function does not detect my iPad (iPadOS 17.7.11).
+/// I'm not sure what the `virtual keyboard flapping position` bug refers to,
+/// but the virtual keyboard's position on my iPad appears fine even without
+/// applying that workaround. Its values are:
+/// - `user_agent`: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.14 Safari/605.1.15`
+/// - `navigator`.platform: `MacIntel`
 fn is_mobile_safari() -> bool {
     (|| {
         let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
