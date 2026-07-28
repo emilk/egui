@@ -571,6 +571,7 @@ impl<'a> Popup<'a> {
             .fixed_pos(anchor)
             .sense(sense)
             .layout(layout)
+            .sizing_pass(!was_open_last_frame)
             .info(info.unwrap_or_else(|| {
                 UiStackInfo::new(kind.into()).with_tag_value(
                     MenuConfig::MENU_CONFIG_TAG,
