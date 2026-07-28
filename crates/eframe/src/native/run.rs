@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashSet,
+    time::{Duration, Instant},
+};
 
 use winit::{
     application::ApplicationHandler,
@@ -78,6 +81,12 @@ fn with_event_loop<R>(
 /// some events, but otherwise forwards events to the [`WinitApp`].
 struct WinitAppWrapper<T: WinitApp> {
     windows_next_repaint_times: HashMap<WindowId, Instant>,
+
+    // Diagnostic guard:
+    // Avoid requesting another redraw for the same window while a previous
+    // request_redraw is still waiting for WindowEvent::RedrawRequested.
+    windows_pending_redraw: HashSet<WindowId>,
+
     winit_app: T,
     return_result: Result<(), crate::Error>,
     run_and_return: bool,
@@ -87,6 +96,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
     fn new(winit_app: T, run_and_return: bool) -> Self {
         Self {
             windows_next_repaint_times: HashMap::default(),
+            windows_pending_redraw: HashSet::default(),
             winit_app,
             return_result: Ok(()),
             run_and_return,
@@ -105,15 +115,47 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
         let mut event_result = event_result;
 
-        if cfg!(target_os = "windows")
-            && let Ok(EventResult::RepaintNow(window_id)) = event_result
-        {
-            log::trace!("RepaintNow of {window_id:?}");
-            self.windows_next_repaint_times
-                .insert(window_id, Instant::now());
+        let immediate_repaint_window_id = if cfg!(target_os = "windows") {
+            match event_result {
+                Ok(EventResult::RepaintNow(window_id)) => Some(window_id),
+                _ => None,
+            }
+        } else {
+            None
+        };
 
-            // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-            event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
+        if let Some(window_id) = immediate_repaint_window_id {
+            log::trace!("Immediate Windows repaint flush from {window_id:?}");
+            let repaint_window_ids = self
+                .winit_app
+                .window_ids_for_window_repaint_request(window_id);
+
+            event_result = Ok(EventResult::Wait);
+            self.clear_pending_redraw_before_paint(&window_id);
+
+            // Keep the Windows synchronous repaint flush narrow. Expanding this
+            // to related/root/deferred windows can repeatedly call run_ui_and_paint
+            // during input handling and make clicks feel delayed. Paint only the
+            // producing window immediately, and wake related viewports asynchronously.
+            let repaint_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
+            match repaint_result {
+                Ok(EventResult::Wait) => {}
+                Ok(
+                    EventResult::RepaintNow(next_window_id)
+                    | EventResult::RepaintNext(next_window_id),
+                ) => {
+                    self.schedule_repaint_for_related_windows(next_window_id, Instant::now());
+                }
+                other => {
+                    event_result = other;
+                }
+            }
+
+            for repaint_window_id in repaint_window_ids {
+                if repaint_window_id != window_id {
+                    self.schedule_repaint_for_window(repaint_window_id, Instant::now());
+                }
+            }
         }
 
         let combined_result = event_result.map(|event_result| match event_result {
@@ -122,24 +164,17 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 event_result
             }
             EventResult::RepaintNow(window_id) => {
-                log::trace!("RepaintNow of {window_id:?}");
-                self.windows_next_repaint_times
-                    .insert(window_id, Instant::now());
+                log::trace!("RepaintNow of {window_id:?}",);
+                self.schedule_repaint_for_related_windows(window_id, Instant::now());
                 event_result
             }
             EventResult::RepaintNext(window_id) => {
-                log::trace!("RepaintNext of {window_id:?}");
-                self.windows_next_repaint_times
-                    .insert(window_id, Instant::now());
+                log::trace!("RepaintNext of {window_id:?}",);
+                self.schedule_repaint_for_related_windows(window_id, Instant::now());
                 event_result
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
-                self.windows_next_repaint_times.insert(
-                    window_id,
-                    self.windows_next_repaint_times
-                        .get(&window_id)
-                        .map_or(repaint_time, |last| (*last).min(repaint_time)),
-                );
+                self.schedule_repaint_for_related_windows(window_id, repaint_time);
                 event_result
             }
             EventResult::Save => {
@@ -188,6 +223,10 @@ impl<T: WinitApp> WinitAppWrapper<T> {
     fn check_redraw_requests(&mut self, event_loop: &ActiveEventLoop) {
         let now = Instant::now();
 
+        let mut ready_count = 0;
+        let mut request_redraw_count = 0;
+        let mut skip_pending_count = 0;
+        let mut missing_window_count = 0;
         let mut invisible_window_ids = Vec::new();
 
         self.windows_next_repaint_times
@@ -196,6 +235,8 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                     return true; // not yet ready
                 }
 
+                ready_count += 1;
+
                 if let Some(window) = self.winit_app.window(*window_id) {
                     // On Windows, invisible windows don't receive RedrawRequested
                     // events, so pending viewport commands (e.g. Visible(true)) would
@@ -203,14 +244,25 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                     // directly below.
                     // See: https://github.com/emilk/egui/issues/5229
                     if is_invisible_or_minimized(&window) {
+                        // A hidden/minimized window may never deliver the pending
+                        // RedrawRequested event. We paint it directly below, so clear
+                        // the pending redraw guard for this window.
+                        self.windows_pending_redraw.remove(window_id);
                         invisible_window_ids.push(*window_id);
-                    } else {
+                    } else if self.windows_pending_redraw.insert(*window_id) {
+                        request_redraw_count += 1;
                         log::trace!("request_redraw for {window_id:?}");
-                        event_loop.set_control_flow(ControlFlow::Poll);
                         window.request_redraw();
+                    } else {
+                        skip_pending_count += 1;
+                        log::trace!(
+                            "skip request_redraw for {window_id:?}: redraw already pending"
+                        );
                     }
                 } else {
+                    missing_window_count += 1;
                     log::trace!("No window found for {window_id:?}");
+                    self.windows_pending_redraw.remove(window_id);
                 }
                 false
             });
@@ -219,6 +271,8 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         // RedrawRequested events on Windows. This ensures that viewport
         // commands like Visible(true) are still processed.
         for window_id in &invisible_window_ids {
+            self.clear_pending_redraw_before_paint(window_id);
+
             let event_result = self.winit_app.run_ui_and_paint(event_loop, *window_id);
             self.handle_event_result(event_loop, event_result);
         }
@@ -237,8 +291,79 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         }
 
         let next_repaint_time = self.windows_next_repaint_times.values().min().copied();
-        if let Some(next_repaint_time) = next_repaint_time {
-            event_loop.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
+        event_loop.set_control_flow(match next_repaint_time {
+            Some(next_repaint_time) => ControlFlow::WaitUntil(next_repaint_time),
+            None => ControlFlow::Wait,
+        });
+    }
+
+    fn schedule_repaint_for_window(&mut self, window_id: WindowId, repaint_time: Instant) {
+        // A newly scheduled repaint must be able to issue request_redraw again,
+        // even if an earlier request for the same window was still marked pending.
+        self.clear_pending_redraw_before_paint(&window_id);
+        self.windows_next_repaint_times.insert(
+            window_id,
+            self.windows_next_repaint_times
+                .get(&window_id)
+                .map_or(repaint_time, |last| (*last).min(repaint_time)),
+        );
+    }
+
+    fn schedule_repaint_for_related_windows(&mut self, window_id: WindowId, repaint_time: Instant) {
+        for repaint_window_id in self
+            .winit_app
+            .window_ids_for_window_repaint_request(window_id)
+        {
+            self.schedule_repaint_for_window(repaint_window_id, repaint_time);
+        }
+    }
+
+    fn paint_related_windows_after_redraw(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        painted_window_id: WindowId,
+    ) {
+        if !cfg!(target_os = "windows") {
+            return;
+        }
+
+        for repaint_window_id in self
+            .winit_app
+            .window_ids_for_window_repaint_request(painted_window_id)
+        {
+            if repaint_window_id == painted_window_id {
+                continue;
+            }
+
+            if self.winit_app.window(repaint_window_id).is_none() {
+                self.windows_pending_redraw.remove(&repaint_window_id);
+                continue;
+            }
+
+            // Keep normal RedrawRequested delivery intact, then immediately flush
+            // related native viewport windows after one member of the repaint group
+            // was actually painted. This stays narrower than scheduled direct-paint
+            // while covering Windows focus cases where a related root/child redraw
+            // event can be lost.
+            self.clear_pending_redraw_before_paint(&repaint_window_id);
+            let event_result = self
+                .winit_app
+                .run_ui_and_paint(event_loop, repaint_window_id);
+            self.handle_event_result(event_loop, event_result);
+        }
+    }
+    fn clear_pending_redraw_before_paint(&mut self, window_id: &WindowId) {
+        self.windows_pending_redraw.remove(window_id);
+
+        // Painting a secondary/deferred viewport can advance shared egui viewport
+        // state and make a pending root redraw stale. Do not let the guard keep
+        // blocking future root redraw requests.
+        if let Some(root_window_id) = self
+            .winit_app
+            .window_id_from_viewport_id(egui::ViewportId::ROOT)
+            && root_window_id != *window_id
+        {
+            self.windows_pending_redraw.remove(&root_window_id);
         }
     }
 }
@@ -308,24 +433,29 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
                     if current_pass_nr == cumulative_pass_nr
                         || current_pass_nr == cumulative_pass_nr + 1
                     {
-                        log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
-                        if let Some(window_id) =
-                            self.winit_app.window_id_from_viewport_id(viewport_id)
-                        {
+                        let window_ids = self.winit_app.window_ids_for_repaint_request(viewport_id);
+                        log::trace!(
+                            "UserEvent::RequestRepaint scheduling repaint at {when:?} for {:?}",
+                            window_ids
+                        );
+
+                        for window_id in window_ids {
                             // Throttle repaints for invisible windows to prevent
                             // high CPU usage on Windows.
                             // See: https://github.com/emilk/egui/issues/7776
-                            let when = if let Some(window) = self.winit_app.window(window_id)
+                            let repaint_time = if let Some(window) =
+                                self.winit_app.window(window_id)
                                 && is_invisible_or_minimized(&window)
                             {
                                 when.max(Instant::now() + INVISIBLE_WINDOW_REPAINT_INTERVAL)
                             } else {
                                 when
                             };
-                            Ok(EventResult::RepaintAt(window_id, when))
-                        } else {
-                            Ok(EventResult::Wait)
+
+                            self.schedule_repaint_for_window(window_id, repaint_time);
                         }
+
+                        Ok(EventResult::Wait)
                     } else {
                         log::trace!("Got outdated UserEvent::RequestRepaint");
                         Ok(EventResult::Wait) // old request - we've already repainted
@@ -358,14 +488,21 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
 
         // Nb: Make sure this guard is dropped after this function returns.
         event_loop_context::with_event_loop_context(event_loop, move || {
+            let mut paint_related_after_redraw = false;
             let event_result = match event {
                 winit::event::WindowEvent::RedrawRequested => {
+                    paint_related_after_redraw = cfg!(target_os = "windows");
+                    self.clear_pending_redraw_before_paint(&window_id);
                     self.winit_app.run_ui_and_paint(event_loop, window_id)
                 }
                 _ => self.winit_app.window_event(event_loop, window_id, event),
             };
 
             self.handle_event_result(event_loop, event_result);
+
+            if paint_related_after_redraw {
+                self.paint_related_windows_after_redraw(event_loop, window_id);
+            }
         });
     }
 }
