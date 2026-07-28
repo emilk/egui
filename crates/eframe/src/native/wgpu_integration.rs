@@ -392,6 +392,57 @@ impl WinitApp for WgpuWinitApp<'_> {
         )
     }
 
+    fn window_ids_for_repaint_request(&self, id: ViewportId) -> Vec<WindowId> {
+        let Some(running) = self.running.as_ref() else {
+            return Vec::new();
+        };
+        let shared = running.shared.borrow();
+
+        let mut window_ids = Vec::new();
+        let mut push_unique = |window_id| {
+            if !window_ids.contains(&window_id) {
+                window_ids.push(window_id);
+            }
+        };
+
+        if id == ViewportId::ROOT {
+            // Root UI can drive deferred viewport output, so wake all native viewport windows.
+            for viewport in shared.viewports.values() {
+                if let Some(window) = &viewport.window {
+                    push_unique(window.id());
+                }
+            }
+        } else {
+            // Deferred viewport UI can affect shared root/deferred state. Wake both sides
+            // so focus changes do not leave the non-focused viewport without redraws.
+            if let Some(viewport) = shared.viewports.get(&id)
+                && let Some(window) = &viewport.window
+            {
+                push_unique(window.id());
+            }
+            if let Some(viewport) = shared.viewports.get(&ViewportId::ROOT)
+                && let Some(window) = &viewport.window
+            {
+                push_unique(window.id());
+            }
+        }
+
+        window_ids
+    }
+
+    fn window_ids_for_window_repaint_request(&self, window_id: WindowId) -> Vec<WindowId> {
+        let Some(running) = self.running.as_ref() else {
+            return vec![window_id];
+        };
+        let shared = running.shared.borrow();
+        let Some(viewport_id) = shared.viewport_from_window.get(&window_id).copied() else {
+            return vec![window_id];
+        };
+
+        drop(shared);
+        self.window_ids_for_repaint_request(viewport_id)
+    }
+
     fn save(&mut self) {
         log::debug!("WinitApp::save called");
         if let Some(running) = self.running.as_mut() {
