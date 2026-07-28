@@ -1864,7 +1864,7 @@ mod tests {
 
             // Verify that Row::text() reconstructs the input text.
             let row_text: String = galley.rows.iter().map(|r| r.text()).collect();
-            assert_eq!(row_text, text, "Row::text() mismatch for {text:?}",);
+            assert_eq!(row_text, text, "Row::text() mismatch for {text:?}");
 
             // Verify cursor round-trip: end cursor index == char count.
             assert_eq!(
