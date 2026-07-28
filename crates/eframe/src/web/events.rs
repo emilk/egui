@@ -199,12 +199,15 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
     runner.input.set_modifiers(modifiers);
 
     let key = event.key();
-    let egui_key = translate_key(&key);
+    let logical_key = translate_key(&key);
+    let physical_key = translate_key(&event.code());
 
-    if let Some(egui_key) = egui_key {
+    // Fall back to the physical key so that modifier keys (which have no logical
+    // `egui::Key`) and non-Latin layouts still produce a `Key` event.
+    if let Some(active_key) = logical_key.or(physical_key) {
         let egui_event = egui::Event::Key {
-            key: egui_key,
-            physical_key: None, // TODO(fornwall)
+            key: active_key,
+            physical_key,
             pressed: true,
             repeat: false, // egui will fill this in for us!
             modifiers,
@@ -213,11 +216,11 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
         runner.input.raw.events.push(egui_event);
         runner.needs_repaint.repaint_asap();
 
-        let prevent_default = should_prevent_default_for_key(runner, &modifiers, egui_key);
+        let prevent_default = should_prevent_default_for_key(runner, &modifiers, active_key);
 
         if false {
             log::debug!(
-                "On keydown {:?} {egui_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
+                "On keydown {:?} {active_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
                 event.key().as_str(),
                 runner.egui_ctx().egui_wants_keyboard_input()
             );
@@ -291,10 +294,13 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 
     let mut should_stop_propagation = true;
 
-    if let Some(key) = translate_key(&event.key()) {
+    let logical_key = translate_key(&event.key());
+    let physical_key = translate_key(&event.code());
+
+    if let Some(active_key) = logical_key.or(physical_key) {
         let egui_event = egui::Event::Key {
-            key,
-            physical_key: None, // TODO(fornwall)
+            key: active_key,
+            physical_key,
             pressed: false,
             repeat: false,
             modifiers,
