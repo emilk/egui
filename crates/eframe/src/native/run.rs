@@ -115,21 +115,10 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
         let mut event_result = event_result;
 
-        let immediate_repaint_window_id = if cfg!(target_os = "windows") {
-            match event_result {
-                Ok(EventResult::RepaintNow(window_id)) => Some(window_id),
-                _ => None,
-            }
-        } else {
-            None
-        };
-
-        if let Some(window_id) = immediate_repaint_window_id {
-            log::trace!("Immediate Windows repaint flush from {window_id:?}");
-            let repaint_window_ids = self
-                .winit_app
-                .window_ids_for_window_repaint_request(window_id);
-
+        if cfg!(target_os = "windows")
+            && let Ok(EventResult::RepaintNow(window_id)) = event_result
+        {
+            log::trace!("RepaintNow of {window_id:?}");
             event_result = Ok(EventResult::Wait);
             self.clear_pending_redraw_before_paint(&window_id);
 
@@ -148,12 +137,6 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 }
                 other => {
                     event_result = other;
-                }
-            }
-
-            for repaint_window_id in repaint_window_ids {
-                if repaint_window_id != window_id {
-                    self.schedule_repaint_for_window(repaint_window_id, Instant::now());
                 }
             }
         }
@@ -223,10 +206,6 @@ impl<T: WinitApp> WinitAppWrapper<T> {
     fn check_redraw_requests(&mut self, event_loop: &ActiveEventLoop) {
         let now = Instant::now();
 
-        let mut ready_count = 0;
-        let mut request_redraw_count = 0;
-        let mut skip_pending_count = 0;
-        let mut missing_window_count = 0;
         let mut invisible_window_ids = Vec::new();
 
         self.windows_next_repaint_times
@@ -234,8 +213,6 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 if now < *repaint_time {
                     return true; // not yet ready
                 }
-
-                ready_count += 1;
 
                 if let Some(window) = self.winit_app.window(*window_id) {
                     // On Windows, invisible windows don't receive RedrawRequested
@@ -250,17 +227,14 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                         self.windows_pending_redraw.remove(window_id);
                         invisible_window_ids.push(*window_id);
                     } else if self.windows_pending_redraw.insert(*window_id) {
-                        request_redraw_count += 1;
                         log::trace!("request_redraw for {window_id:?}");
                         window.request_redraw();
                     } else {
-                        skip_pending_count += 1;
                         log::trace!(
                             "skip request_redraw for {window_id:?}: redraw already pending"
                         );
                     }
                 } else {
-                    missing_window_count += 1;
                     log::trace!("No window found for {window_id:?}");
                     self.windows_pending_redraw.remove(window_id);
                 }
@@ -352,6 +326,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             self.handle_event_result(event_loop, event_result);
         }
     }
+
     fn clear_pending_redraw_before_paint(&mut self, window_id: &WindowId) {
         self.windows_pending_redraw.remove(window_id);
 
