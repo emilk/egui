@@ -81,6 +81,20 @@ pub trait WinitApp {
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId>;
 
+    /// Returns all windows that should be woken for a repaint request from `id`.
+    ///
+    /// Multi-viewport native apps can have UI state shared between the root viewport
+    /// and deferred child viewports. Waking only the requesting window can leave the
+    /// other viewport without a redraw after focus moves between windows.
+    fn window_ids_for_repaint_request(&self, id: ViewportId) -> Vec<WindowId> {
+        self.window_id_from_viewport_id(id).into_iter().collect()
+    }
+
+    /// Returns all windows that should be woken after a native window produced a repaint.
+    fn window_ids_for_window_repaint_request(&self, window_id: WindowId) -> Vec<WindowId> {
+        vec![window_id]
+    }
+
     fn save(&mut self);
 
     fn save_and_destroy(&mut self);
