@@ -3544,7 +3544,7 @@ impl Context {
                     if !is_visible {
                         continue;
                     }
-                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
+                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect());
                     // TODO(emilk): `Sense::hover_highlight()`
                     let response =
                         ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));

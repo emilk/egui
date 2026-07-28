@@ -39,6 +39,7 @@ where
 }
 
 #[derive(Clone)]
+#[expect(clippy::large_enum_variant)]
 pub enum WgpuSetup {
     /// Construct a wgpu setup using some predefined settings & heuristics.
     /// This is the default option. You can customize most behaviours overriding the

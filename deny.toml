@@ -33,6 +33,10 @@ version = 2
 ignore = [
   "RUSTSEC-2024-0320", # unmaintained yaml-rust pulled in by syntect
   "RUSTSEC-2025-0141", # https://rustsec.org/advisories/RUSTSEC-2025-0141 - bincode is unmaintained - https://git.sr.ht/~stygianentity/bincode/tree/v3.0/item/README.md
+  "RUSTSEC-2026-0192", # ttf-parser is unmaintained. Only brought in via winit/sctk-adwaita (wayland window frame rendering)
+  "RUSTSEC-2026-0194", # quick-xml DoS - fix is in >=0.41, but held back transitively by zbus_xml (accesskit) and wayland-scanner (winit)
+  "RUSTSEC-2026-0195", # quick-xml DoS - same as above
+  "RUSTSEC-2026-0206", # rustybuzz is unmaintained. Brought in via resvg. TODO(linebender/resvg#922): Remove once the PR lands and is released
 ]
 
 [bans]
@@ -52,11 +56,13 @@ skip = [
   { name = "foldhash" }, # pulled by the duplicated hashbrown versions
   { name = "getrandom" }, # ring / rustls (and thus ehttp) still depend on getrandom 0.2
   { name = "hashbrown" }, # wgpu's naga depends on 0.16, accesskit depends on 0.15
+  { name = "itertools" }, # puffin 0.20 depends on 0.14, criterion 0.8 on 0.13
   { name = "jni-sys" }, # 0.3.1 depends on 0.4
   { name = "kurbo" }, # Old version because of resvg
   { name = "phf" }, # mime_guess2 -> 0.11, unicode_names2 -> 0.13
   { name = "phf_generator" }, # same phf split as phf
   { name = "phf_shared" }, # same phf split as phf
+  { name = "rand_core" }, # rand ecosystem is migrating 0.8 -> 0.10; phf_generator's rand 0.8 needs rand_core 0.6, getrandom 0.4/chacha20 need rand_core 0.10
   { name = "redox_syscall" }, # old version via winit
   { name = "rustc-hash" }, # Small enough
   { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
@@ -111,6 +117,4 @@ license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 unknown-registry = "deny"
 unknown-git = "deny"
 
-allow-git = [
-  "https://github.com/rerun-io/kittest", # TODO(lucasmerlin): remove this once the kittest crate is published"
-]
+allow-git = []
