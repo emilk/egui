@@ -261,6 +261,7 @@ fn interact_on_ui_response_should_be_stable() {
     assert_eq!(click_count, 10, "We missed some clicks!");
 }
 
+#[cfg(debug_assertions)]
 fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
     output.shapes.iter().any(|clipped| {
         matches!(
