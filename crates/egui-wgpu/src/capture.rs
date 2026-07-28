@@ -230,6 +230,7 @@ impl CaptureState {
                     ));
                 }
             }
+            drop(mapped_range);
             buffer.unmap();
 
             tx.send((
