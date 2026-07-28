@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use egui::ScrollArea;
 use egui::accesskit::Role;
+#[cfg(debug_assertions)]
 use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::text::{LayoutJob, TextWrapping};
