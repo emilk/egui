@@ -1,7 +1,7 @@
 //! The text agent is a hidden `<input>` element used to capture
 //! IME and mobile keyboard input events.
 
-use std::{cell::RefCell, matches, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 use web_sys::Document;
@@ -190,6 +190,7 @@ struct InputState {
 #[derive(Clone, Copy)]
 enum KeydownSpecialCase {
     None,
+
     /// On Android Gboard 14.7.09, when suggestions remain visible while typing
     /// letters without IME composition (e.g., Latin or Cyrillic), pressing
     /// Backspace produces key code 229 instead of the expected Backspace key
@@ -209,6 +210,7 @@ enum KeydownSpecialCase {
     /// send a `DeleteSurrounding` IME event in all cases instead of
     /// synthetically generating Backspace press and release events.
     AndroidKeycode229,
+
     /// iOS (18.6)'s built-in Korean keyboard uses `deleteContentBackward` to
     /// compose Hangul characters. In these cases, the key code is 0.
     IosKeycode0,
