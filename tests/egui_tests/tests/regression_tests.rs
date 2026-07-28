@@ -276,6 +276,7 @@ fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
 /// between frames because the label (and thus the Id salt) changes on hover.
 /// The `warn_if_rect_changes_id` debug check should catch this.
 #[test]
+#[cfg(debug_assertions)]
 fn warn_if_rect_changes_id() {
     let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
 
@@ -311,6 +312,7 @@ fn warn_if_rect_changes_id() {
 /// all child widget ids shift too. This should NOT trigger `warn_if_rect_changes_id` because the
 /// `parent_id` also changed — it's a cascading id shift, not a widget bug.
 #[test]
+#[cfg(debug_assertions)]
 fn warn_if_rect_changes_id_false_positive_parent_shift() {
     use std::cell::Cell;
 
