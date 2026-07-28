@@ -191,15 +191,18 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
     }
 
     let modifiers = modifiers_from_kb_event(&event);
-    runner.input.raw.modifiers = modifiers;
+    runner.input.set_modifiers(modifiers);
 
     let key = event.key();
-    let egui_key = translate_key(&key);
+    let logical_key = translate_key(&key);
+    let physical_key = translate_key(&event.code());
 
-    if let Some(egui_key) = egui_key {
+    // Fall back to the physical key so that modifier keys (which have no logical
+    // `egui::Key`) and non-Latin layouts still produce a `Key` event.
+    if let Some(active_key) = logical_key.or(physical_key) {
         let egui_event = egui::Event::Key {
-            key: egui_key,
-            physical_key: None, // TODO(fornwall)
+            key: active_key,
+            physical_key,
             pressed: true,
             repeat: false, // egui will fill this in for us!
             modifiers,
@@ -208,11 +211,11 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
         runner.input.raw.events.push(egui_event);
         runner.needs_repaint.repaint_asap();
 
-        let prevent_default = should_prevent_default_for_key(runner, &modifiers, egui_key);
+        let prevent_default = should_prevent_default_for_key(runner, &modifiers, active_key);
 
         if false {
             log::debug!(
-                "On keydown {:?} {egui_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
+                "On keydown {:?} {active_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
                 event.key().as_str(),
                 runner.egui_ctx().egui_wants_keyboard_input()
             );
@@ -282,14 +285,17 @@ fn install_keyup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
 #[expect(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
 pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let modifiers = modifiers_from_kb_event(&event);
-    runner.input.raw.modifiers = modifiers;
+    runner.input.set_modifiers(modifiers);
 
     let mut should_stop_propagation = true;
 
-    if let Some(key) = translate_key(&event.key()) {
+    let logical_key = translate_key(&event.key());
+    let physical_key = translate_key(&event.code());
+
+    if let Some(active_key) = logical_key.or(physical_key) {
         let egui_event = egui::Event::Key {
-            key,
-            physical_key: None, // TODO(fornwall)
+            key: active_key,
+            physical_key,
             pressed: false,
             repeat: false,
             modifiers,
@@ -530,11 +536,11 @@ fn install_pointerdown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(
         "pointerdown",
         |event: web_sys::PointerEvent, runner: &mut AppRunner| {
             let modifiers = modifiers_from_mouse_event(&event);
-            runner.input.raw.modifiers = modifiers;
+            runner.input.set_modifiers(modifiers);
             let mut should_stop_propagation = true;
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
-                let modifiers = runner.input.raw.modifiers;
+                let modifiers = runner.input.modifiers;
                 let egui_event = egui::Event::PointerButton {
                     pos,
                     button,
@@ -567,7 +573,7 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
         "pointerup",
         |event: web_sys::PointerEvent, runner| {
             let modifiers = modifiers_from_mouse_event(&event);
-            runner.input.raw.modifiers = modifiers;
+            runner.input.set_modifiers(modifiers);
 
             let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
 
@@ -576,7 +582,7 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
                 egui::pos2(event.client_x() as f32, event.client_y() as f32),
             ) && let Some(button) = button_from_mouse_event(&event)
             {
-                let modifiers = runner.input.raw.modifiers;
+                let modifiers = runner.input.modifiers;
                 let egui_event = egui::Event::PointerButton {
                     pos,
                     button,
@@ -642,7 +648,7 @@ fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
 fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "mousemove", |event: web_sys::MouseEvent, runner| {
         let modifiers = modifiers_from_mouse_event(&event);
-        runner.input.raw.modifiers = modifiers;
+        runner.input.set_modifiers(modifiers);
 
         let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
 
@@ -700,7 +706,7 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
                     pos,
                     button: egui::PointerButton::Primary,
                     pressed: true,
-                    modifiers: runner.input.raw.modifiers,
+                    modifiers: runner.input.modifiers,
                 };
                 should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
                 should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
@@ -765,7 +771,7 @@ fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), 
                 pos,
                 button: egui::PointerButton::Primary,
                 pressed: false,
-                modifiers: runner.input.raw.modifiers,
+                modifiers: runner.input.modifiers,
             };
             should_stop_propagation &= (runner.web_options.should_stop_propagation)(&egui_event);
             should_prevent_default &= (runner.web_options.should_prevent_default)(&egui_event);
@@ -827,7 +833,7 @@ fn install_wheel(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
 
         let modifiers = modifiers_from_wheel_event(&event);
 
-        let egui_event = if modifiers.ctrl && !runner.input.raw.modifiers.ctrl {
+        let egui_event = if modifiers.ctrl && !runner.input.modifiers.ctrl {
             // The browser is saying the ctrl key is down, but it isn't _really_.
             // This happens on pinch-to-zoom on multitouch trackpads
             // egui will treat ctrl+scroll as zoom, so it all works.

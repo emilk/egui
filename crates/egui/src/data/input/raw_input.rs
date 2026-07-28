@@ -1,6 +1,6 @@
 use crate::{OrderedViewportIdMap, Theme, ViewportId, ViewportIdMap, emath::Rect};
 
-use super::{DroppedFile, Event, HoveredFile, Modifiers, SafeAreaInsets, ViewportInfo};
+use super::{DroppedFile, Event, HoveredFile, SafeAreaInsets, ViewportInfo};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -53,9 +53,6 @@ pub struct RawInput {
     /// Can safely be left at its default value.
     pub predicted_dt: f32,
 
-    /// Which modifier keys are down at the start of the frame?
-    pub modifiers: Modifiers,
-
     /// In-order events received this frame.
     ///
     /// There is currently no way to know if egui handles a particular event,
@@ -92,7 +89,6 @@ impl Default for RawInput {
             max_texture_side: None,
             time: None,
             predicted_dt: 1.0 / 60.0,
-            modifiers: Modifiers::default(),
             events: vec![],
             hovered_files: Default::default(),
             dropped_files: Default::default(),
@@ -127,7 +123,6 @@ impl RawInput {
             max_texture_side: self.max_texture_side.take(),
             time: self.time,
             predicted_dt: self.predicted_dt,
-            modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),
             hovered_files: self.hovered_files.clone(),
             dropped_files: std::mem::take(&mut self.dropped_files),
@@ -145,7 +140,6 @@ impl RawInput {
             max_texture_side,
             time,
             predicted_dt,
-            modifiers,
             mut events,
             mut hovered_files,
             mut dropped_files,
@@ -160,7 +154,6 @@ impl RawInput {
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
         self.time = time; // use latest time
         self.predicted_dt = predicted_dt; // use latest dt
-        self.modifiers = modifiers; // use latest
         self.events.append(&mut events);
         self.hovered_files.append(&mut hovered_files);
         self.dropped_files.append(&mut dropped_files);
@@ -179,7 +172,6 @@ impl RawInput {
             max_texture_side,
             time,
             predicted_dt,
-            modifiers,
             events,
             hovered_files,
             dropped_files,
@@ -210,7 +202,6 @@ impl RawInput {
             ui.label("time: None");
         }
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
-        ui.label(format!("modifiers: {modifiers:#?}"));
         ui.label(format!("hovered_files: {}", hovered_files.len()));
         ui.label(format!("dropped_files: {}", dropped_files.len()));
         ui.label(format!("focused: {focused}"));
