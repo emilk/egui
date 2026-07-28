@@ -4,7 +4,6 @@
 use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
-use web_sys::Document;
 
 use super::{AppRunner, WebRunner};
 
@@ -30,10 +29,9 @@ impl TextAgent {
         input.set_attribute("autocapitalize", "off")?;
         let input_state = Rc::new(RefCell::new(InputState::new(input.clone())));
 
-        // Hide the element, and park it over the canvas
+        // Hide the element, and park it over the top-left corner of the canvas
         // so that focusing it can never scroll some other part
         // of the page into view.
-        let canvas_rect = super::canvas_content_rect(canvas);
         let style = input.style();
         style.set_property("background-color", "transparent")?;
         style.set_property("border", "none")?;
@@ -42,21 +40,22 @@ impl TextAgent {
         style.set_property("height", "1px")?;
         style.set_property("caret-color", "transparent")?;
         style.set_property("position", "absolute")?;
-        style.set_property("top", &format!("{}px", canvas_rect.min.y))?;
-        style.set_property("left", &format!("{}px", canvas_rect.min.x))?;
+        style.set_property("top", &format!("{}px", canvas.offset_top()))?;
+        style.set_property("left", &format!("{}px", canvas.offset_left()))?;
         // Prevent auto-zoom on mobile browsers (requires at least 16px).
         style.set_property("font-size", "16px")?;
 
-        let root = canvas.get_root_node();
-        if root.has_type::<Document>() {
-            // root object is a document, append to its body
-            root.dyn_into::<Document>()?
-                .body()
-                .unwrap()
-                .append_child(&input)?;
-        } else {
-            // append input into root directly
-            root.append_child(&input)?;
+        // Insert the input as a sibling of the canvas, so that its
+        // `position: absolute` resolves against the same containing block
+        // as the canvas' `offset_top`/`offset_left`.
+        // This anchors the input to the canvas regardless of how the page
+        // is scrolled or how the canvas is embedded, and also works when
+        // the canvas is inside a shadow DOM.
+        if let Some(parent) = canvas.parent_node() {
+            parent.insert_before(&input, canvas.next_sibling().as_ref())?;
+        } else if let Some(body) = document.body() {
+            log::warn!("Canvas has no parent element - appending text agent to document body");
+            body.append_child(&input)?;
         }
 
         // Focus the app on startup, without scrolling the page.
@@ -184,7 +183,6 @@ struct InputState {
     last_text: String,
     prev_ime_output: Option<egui::output::IMEOutput>,
     keydown_special_case: KeydownSpecialCase,
-    is_mobile_safari: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -223,7 +221,6 @@ impl InputState {
             last_text: String::new(),
             prev_ime_output: None,
             keydown_special_case: KeydownSpecialCase::None,
-            is_mobile_safari: is_mobile_safari(),
         }
     }
 
@@ -241,29 +238,34 @@ impl InputState {
 
         let Some(ime) = ime else { return Ok(()) };
 
-        let mut canvas_rect = super::canvas_content_rect(canvas);
-        // Fix for safari with virtual keyboard flapping position
-        if self.is_mobile_safari {
-            canvas_rect.min.y = canvas.offset_top() as f32;
-        }
-        let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
-
         let style = self.input.style();
         let native_ppp = super::native_pixels_per_point();
 
+        // The input is a sibling of the canvas (see `attach`), so we position
+        // it relative to the same containing block using the canvas offset.
+        // Unlike `get_bounding_client_rect`, the offset is unaffected by page
+        // scrolling, and doesn't flap when the virtual keyboard is shown on
+        // mobile Safari.
+
         // Clamp the input position within the canvas width to prevent unwanted horizontal scrolling.
         let logical_canvas_width = canvas.width() as f32 / native_ppp;
-        let visible_x = cursor_rect.center().x * zoom_factor;
+        let visible_x = ime.cursor_rect.center().x * zoom_factor;
         let clamped_x = visible_x.clamp(0.0, logical_canvas_width);
 
         // Clamp the input position within the canvas height to prevent unwanted vertical scrolling.
         let logical_canvas_height = canvas.height() as f32 / native_ppp;
-        let visible_y = cursor_rect.center().y * zoom_factor;
+        let visible_y = ime.cursor_rect.center().y * zoom_factor;
         let clamped_y = visible_y.clamp(0.0, logical_canvas_height);
 
         // This is where the IME input will point to:
-        style.set_property("left", &format!("{clamped_x}px"))?;
-        style.set_property("top", &format!("{clamped_y}px"))?;
+        style.set_property(
+            "left",
+            &format!("{}px", canvas.offset_left() as f32 + clamped_x),
+        )?;
+        style.set_property(
+            "top",
+            &format!("{}px", canvas.offset_top() as f32 + clamped_y),
+        )?;
 
         Ok(())
     }
@@ -379,8 +381,8 @@ impl InputState {
     /// Whether the event is consumed. If `true`, the caller should not do
     /// further processing for this event.
     fn handle_keydown_event(input_state: &RefCell<Self>, event: &web_sys::KeyboardEvent) -> bool {
-        // Platform-sniffing methods (e.g., `is_mobile_safari`) are unreliable,
-        // so they are not used as guards here.
+        // Platform-sniffing methods are unreliable, so they are not used as
+        // guards here.
         let special_case = match event.key_code() {
             229 => KeydownSpecialCase::AndroidKeycode229,
             0 => KeydownSpecialCase::IosKeycode0,
@@ -412,26 +414,6 @@ impl InputState {
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
         event.is_composing() || event.key_code() == 229
     }
-}
-
-/// Returns `true` if the app is likely running on a mobile device on navigator Safari.
-///
-/// NOTE(umajho): This function does not detect my iPad (iPadOS 17.7.11).
-/// I'm not sure what the `virtual keyboard flapping position` bug refers to,
-/// but the virtual keyboard's position on my iPad appears fine even without
-/// applying that workaround. Its values are:
-/// - `user_agent`: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.14 Safari/605.1.15`
-/// - `navigator`.platform: `MacIntel`
-fn is_mobile_safari() -> bool {
-    (|| {
-        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
-        let is_ios = user_agent.contains("iPhone")
-            || user_agent.contains("iPad")
-            || user_agent.contains("iPod");
-        let is_safari = user_agent.contains("Safari");
-        Some(is_ios && is_safari)
-    })()
-    .unwrap_or(false)
 }
 
 fn longest_common_prefix_length(a: &str, b: &str) -> usize {
