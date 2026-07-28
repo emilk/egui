@@ -316,7 +316,7 @@ impl AppRunner {
         }
 
         self.handle_platform_output(platform_output);
-        if is_visible {
+        if is_visible || !textures_delta.is_empty() {
             self.textures_delta.append(textures_delta);
             self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
         }
