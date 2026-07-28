@@ -24,7 +24,7 @@ members = [
 [workspace.package]
 edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.92"
+rust-version = "1.95"
 version = "0.35.0"
 
 
@@ -218,8 +218,8 @@ doc_include_without_cfg = "warn"
 doc_link_with_quotes = "warn"
 doc_markdown = "warn"
 elidable_lifetime_names = "warn"
-empty_enum = "warn"
 empty_enum_variants_with_brackets = "warn"
+empty_enums = "warn"
 empty_line_after_outer_attr = "warn"
 enum_glob_use = "warn"
 equatable_if_let = "warn"
