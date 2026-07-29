@@ -39,7 +39,9 @@ use crate::{
 
 use super::{
     epi_integration, event_loop_context,
-    winit_integration::{EventResult, UserEvent, WinitApp, create_egui_context},
+    winit_integration::{
+        EventResult, UserEvent, ViewportWindow, ViewportWindowKind, WinitApp, create_egui_context,
+    },
 };
 
 // ----------------------------------------------------------------------------
@@ -381,6 +383,36 @@ impl WinitApp for GlowWinitApp<'_> {
             .window_from_viewport
             .get(&id)
             .copied()
+    }
+
+    fn viewport_windows(&self) -> Vec<ViewportWindow> {
+        self.running
+            .as_ref()
+            .map(|running| {
+                running
+                    .glutin
+                    .borrow()
+                    .viewports
+                    .iter()
+                    .filter_map(|(viewport_id, viewport)| {
+                        let window_id = viewport.window.as_ref()?.id();
+                        let kind = if *viewport_id == ViewportId::ROOT {
+                            ViewportWindowKind::Root
+                        } else if viewport.viewport_ui_cb.is_some() {
+                            ViewportWindowKind::Deferred
+                        } else {
+                            ViewportWindowKind::Immediate
+                        };
+
+                        Some(ViewportWindow {
+                            viewport_id: *viewport_id,
+                            window_id,
+                            kind,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     fn save(&mut self) {
