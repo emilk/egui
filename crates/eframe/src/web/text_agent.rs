@@ -181,7 +181,7 @@ impl Drop for TextAgent {
 struct InputState {
     input: web_sys::HtmlInputElement,
     last_text: String,
-    prev_ime_output: Option<egui::output::IMEOutput>,
+    ime_output: Option<egui::output::IMEOutput>,
     keydown_special_case: KeydownSpecialCase,
 }
 
@@ -219,7 +219,7 @@ impl InputState {
         Self {
             input,
             last_text: String::new(),
-            prev_ime_output: None,
+            ime_output: None,
             keydown_special_case: KeydownSpecialCase::None,
         }
     }
@@ -231,12 +231,17 @@ impl InputState {
         zoom_factor: f32,
     ) -> Result<(), JsValue> {
         // Don't move the text agent unless the position actually changed:
-        if self.prev_ime_output == ime {
+        if self.ime_output == ime {
             return Ok(());
         }
-        self.prev_ime_output = ime;
+        self.ime_output = ime;
 
         let Some(ime) = ime else { return Ok(()) };
+
+        // NOTE: we don't set the input's `type` to `password` based on
+        // `ime.purpose`, because that would confuse some password managers.
+        // For example, Chrome's password manager will always think the last
+        // letter typed in the password field is the password.
 
         let style = self.input.style();
         let native_ppp = super::native_pixels_per_point();
@@ -276,6 +281,15 @@ impl InputState {
     }
 
     fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
+        if self
+            .ime_output
+            .as_ref()
+            .is_some_and(|ime| ime.purpose == egui::IMEPurpose::Password)
+        {
+            self.handle_input_event_password(event, runner);
+            return;
+        }
+
         let input_type = event.input_type();
 
         if !event.is_composing()
@@ -325,6 +339,19 @@ impl InputState {
         }
 
         runner.needs_repaint.repaint_asap();
+    }
+
+    fn handle_input_event_password(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
+        let input_type = event.input_type();
+
+        if input_type != "insertText" {
+            return;
+        }
+
+        let text = self.input.value();
+
+        runner.input.raw.events.push(egui::Event::Text(text));
+        self.clear();
     }
 
     /// Compute the active range (cursor or conversion segment) within the

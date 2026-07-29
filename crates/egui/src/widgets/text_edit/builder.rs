@@ -5,9 +5,10 @@ use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
     Align, Align2, AsIdSalt, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context,
-    CursorIcon, Event, EventFilter, FontSelection, Frame, Id, IdSalt, ImeEvent, IntoAtoms,
-    IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense,
-    SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
+    CursorIcon, Event, EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent,
+    IntoAtoms, IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response,
+    Sense, SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState,
+    epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response,
@@ -76,7 +77,7 @@ pub struct TextEdit<'t> {
     font_selection: FontSelection,
     text_color: Option<Color32>,
     layouter: Option<LayouterFn<'t>>,
-    password: bool,
+    purpose: IMEPurpose,
     frame: Option<Frame>,
     margin: Margin,
     multiline: bool,
@@ -130,7 +131,7 @@ impl<'t> TextEdit<'t> {
             font_selection: Default::default(),
             text_color: None,
             layouter: None,
-            password: false,
+            purpose: IMEPurpose::Normal,
             frame: None,
             margin: Margin::symmetric(4, 2),
             multiline: true,
@@ -235,7 +236,11 @@ impl<'t> TextEdit<'t> {
     /// If true, hide the letters from view and prevent copying from the field.
     #[inline]
     pub fn password(mut self, password: bool) -> Self {
-        self.password = password;
+        self.purpose = if password {
+            IMEPurpose::Password
+        } else {
+            IMEPurpose::Normal
+        };
         self
     }
 
@@ -443,7 +448,7 @@ impl TextEdit<'_> {
             font_selection,
             text_color,
             layouter,
-            password,
+            purpose,
             frame,
             margin,
             multiline,
@@ -479,7 +484,7 @@ impl TextEdit<'_> {
 
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
-            let text = mask_if_password(password, text.as_str());
+            let text = mask_if_password(purpose, text.as_str());
             let mut layout_job = if multiline {
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
             } else {
@@ -564,7 +569,7 @@ impl TextEdit<'_> {
                         id,
                         wrap_width,
                         multiline,
-                        password,
+                        purpose,
                         default_cursor_range,
                         owns_ime_events,
                         char_limit,
@@ -924,6 +929,7 @@ impl TextEdit<'_> {
                             .unwrap_or_default();
                         ui.output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
+                                purpose,
                                 rect: to_global * inner_rect,
                                 cursor_rect: to_global * primary_cursor_rect,
                                 should_interrupt_composition: false,
@@ -940,8 +946,8 @@ impl TextEdit<'_> {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     ui.is_enabled(),
-                    mask_if_password(password, prev_text.as_str()),
-                    mask_if_password(password, text.as_str()),
+                    mask_if_password(purpose, prev_text.as_str()),
+                    mask_if_password(purpose, text.as_str()),
                     hint_text_str.as_str(),
                 )
             });
@@ -950,21 +956,21 @@ impl TextEdit<'_> {
             let info = WidgetInfo::text_selection_changed(
                 ui.is_enabled(),
                 char_range,
-                mask_if_password(password, text.as_str()),
+                mask_if_password(purpose, text.as_str()),
             );
             response.output_event(OutputEvent::TextSelectionChanged(info));
         } else {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     ui.is_enabled(),
-                    mask_if_password(password, prev_text.as_str()),
-                    mask_if_password(password, text.as_str()),
+                    mask_if_password(purpose, prev_text.as_str()),
+                    mask_if_password(purpose, text.as_str()),
                     hint_text_str.as_str(),
                 )
             });
         }
 
-        let role = if password {
+        let role = if purpose == IMEPurpose::Password {
             accesskit::Role::PasswordInput
         } else if multiline {
             accesskit::Role::MultilineTextInput
@@ -992,7 +998,7 @@ impl TextEdit<'_> {
     }
 }
 
-fn mask_if_password(is_password: bool, text: &str) -> String {
+fn mask_if_password(purpose: IMEPurpose, text: &str) -> String {
     fn mask_password(text: &str) -> String {
         std::iter::repeat_n(
             epaint::text::PASSWORD_REPLACEMENT_CHAR,
@@ -1001,7 +1007,7 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
         .collect::<String>()
     }
 
-    if is_password {
+    if purpose == IMEPurpose::Password {
         mask_password(text)
     } else {
         text.to_owned()
@@ -1016,7 +1022,7 @@ struct EventsOptions {
     id: Id,
     wrap_width: f32,
     multiline: bool,
-    password: bool,
+    purpose: IMEPurpose,
     default_cursor_range: CCursorRange,
     owns_ime_events: bool,
     char_limit: usize,
@@ -1037,7 +1043,7 @@ fn events(
         id,
         wrap_width,
         multiline,
-        password,
+        purpose,
         default_cursor_range,
         owns_ime_events,
         char_limit,
@@ -1057,7 +1063,7 @@ fn events(
     );
 
     let copy_if_not_password = |ui: &Ui, text: String| {
-        if !password {
+        if purpose != IMEPurpose::Password {
             ui.copy_text(text);
         }
     };
