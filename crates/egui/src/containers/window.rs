@@ -84,6 +84,7 @@ pub struct Window<'a> {
     open: Option<&'a mut bool>,
     area: Area,
     frame: Option<Frame>,
+    content_frame: Option<Frame>,
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
@@ -106,6 +107,7 @@ impl<'a> Window<'a> {
             open: None,
             area,
             frame: None,
+            content_frame: None,
             resize: Resize::default()
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
@@ -258,10 +260,17 @@ impl<'a> Window<'a> {
         self
     }
 
-    /// Change the background color, margins, etc.
+    /// Change the background color, margins, etc. of the title
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
+        self
+    }
+
+    /// Change the background color, margins, etc. of the content
+    #[inline]
+    pub fn content_frame(mut self, frame: Frame) -> Self {
+        self.content_frame = Some(frame);
         self
     }
 
@@ -549,6 +558,7 @@ impl Window<'_> {
             mut open,
             area,
             frame,
+            content_frame,
             resize,
             scroll,
             collapsible,
@@ -616,11 +626,13 @@ impl Window<'_> {
 
         let style = ctx.global_style();
 
-        let window_frame = frame.unwrap_or_else(|| Frame::window(&style));
+        let window_title_frame = frame.unwrap_or_else(|| Frame::window(&style));
+        let window_content_frame = content_frame.unwrap_or_else(|| Frame::window(&style));
 
         // We apply the window margin by using the `ScrollArea::content_margin`.
-        let window_margin = window_frame.inner_margin;
-        let window_frame = window_frame.inner_margin(0.0);
+        let window_content_margin = window_content_frame.inner_margin;
+        let window_title_margin = window_title_frame.inner_margin;
+        let window_frame = window_title_frame.inner_margin(0.0);
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -711,7 +723,7 @@ impl Window<'_> {
                         title_ui(
                             ui,
                             title,
-                            window_frame.inner_margin(window_margin),
+                            window_frame.inner_margin(window_title_margin),
                             &mut collapsing,
                             collapsible,
                             on_top,
@@ -725,12 +737,12 @@ impl Window<'_> {
                         .show_body_unindented(ui, |ui| {
                             if scroll.is_any_scroll_enabled() {
                                 scroll
-                                    .content_margin(window_margin)
+                                    .content_margin(window_content_margin)
                                     .show(ui, add_contents)
                                     .inner
                             } else {
                                 crate::Frame::NONE
-                                    .inner_margin(window_margin)
+                                    .inner_margin(window_content_margin)
                                     .show(ui, add_contents)
                                     .inner
                             }
