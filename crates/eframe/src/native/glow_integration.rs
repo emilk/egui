@@ -79,6 +79,13 @@ struct GlowWinitRunning<'app> {
     pending_deltas: TexturesDelta,
 }
 
+impl Drop for GlowWinitRunning<'_> {
+    fn drop(&mut self) {
+        // Avoid debug panic when dropping unapplied deltas on teardown
+        self.pending_deltas.clear();
+    }
+}
+
 /// This struct will contain both persistent and temporary glutin state.
 ///
 /// Platform Quirks:
@@ -697,25 +704,15 @@ impl GlowWinitRunning<'_> {
 
         egui_winit.handle_platform_output_with_event_loop(&window, event_loop, platform_output);
 
-        // Upload textures even when not visible: the atlas dirty region is already
-        // consumed, so dropping the delta would desync the font texture.
-        let has_texture_updates = !pending_deltas.set.is_empty() || !pending_deltas.free.is_empty();
-        if is_visible || has_texture_updates {
-            // We may need to switch contexts again, because of immediate viewports:
-            frame_timer.pause();
-            change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
-            frame_timer.resume();
-        }
-
-        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
-        for (id, image_deltas) in pending_deltas.set.drain() {
-            for image_delta in image_deltas {
-                painter.set_texture(id, &image_delta);
-            }
-        }
-
         if is_visible {
             let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
+
+            {
+                // We may need to switch contexts again, because of immediate viewports:
+                frame_timer.pause();
+                change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
+                frame_timer.resume();
+            }
 
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
@@ -723,7 +720,12 @@ impl GlowWinitRunning<'_> {
                 painter.clear(screen_size_in_pixels, clear_color);
             }
 
-            painter.paint_primitives(screen_size_in_pixels, pixels_per_point, &clipped_primitives);
+            painter.paint_and_update_textures(
+                screen_size_in_pixels,
+                pixels_per_point,
+                &clipped_primitives,
+                pending_deltas,
+            );
 
             {
                 for action in viewport.actions_requested.drain(..) {
@@ -783,12 +785,6 @@ impl GlowWinitRunning<'_> {
             {
                 save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
             }
-        }
-
-        // Free textures *after* painting, since they may still be used in the frame we just drew.
-        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
-        for id in pending_deltas.free.drain() {
-            painter.free_texture(id);
         }
 
         glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);

@@ -545,24 +545,6 @@ impl Painter {
             commands_submitted: false,
         };
 
-        {
-            // Upload textures before the surface-dependent early-returns below:
-            // uploads only need the device + queue, and the atlas dirty region is
-            // already consumed, so dropping the delta would desync the font texture.
-            let mut renderer = render_state.renderer.write();
-            #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
-            for (id, image_deltas) in textures_delta.set.drain() {
-                for image_delta in image_deltas {
-                    renderer.update_texture(
-                        &render_state.device,
-                        &render_state.queue,
-                        id,
-                        &image_delta,
-                    );
-                }
-            }
-        }
-
         let Some(surface_state) = self.surfaces.get_mut(&viewport_id) else {
             return vsync_sec;
         };
@@ -582,6 +564,18 @@ impl Painter {
 
         let user_cmd_bufs = {
             let mut renderer = render_state.renderer.write();
+            #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+            for (id, image_deltas) in textures_delta.set.drain() {
+                for image_delta in image_deltas {
+                    renderer.update_texture(
+                        &render_state.device,
+                        &render_state.queue,
+                        id,
+                        &image_delta,
+                    );
+                }
+            }
+
             renderer.update_buffers(
                 &render_state.device,
                 &render_state.queue,
