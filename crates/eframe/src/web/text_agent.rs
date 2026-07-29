@@ -4,7 +4,6 @@
 use std::cell::Cell;
 
 use wasm_bindgen::prelude::*;
-use web_sys::Document;
 
 use super::{AppRunner, WebRunner};
 
@@ -28,10 +27,9 @@ impl TextAgent {
         input.set_type("text");
         input.set_attribute("autocapitalize", "off")?;
 
-        // Hide the element, and park it over the canvas
+        // Hide the element, and park it over the top-left corner of the canvas
         // so that focusing it can never scroll some other part
         // of the page into view.
-        let canvas_rect = super::canvas_content_rect(canvas);
         let style = input.style();
         style.set_property("background-color", "transparent")?;
         style.set_property("border", "none")?;
@@ -40,21 +38,22 @@ impl TextAgent {
         style.set_property("height", "1px")?;
         style.set_property("caret-color", "transparent")?;
         style.set_property("position", "absolute")?;
-        style.set_property("top", &format!("{}px", canvas_rect.min.y))?;
-        style.set_property("left", &format!("{}px", canvas_rect.min.x))?;
+        style.set_property("top", &format!("{}px", canvas.offset_top()))?;
+        style.set_property("left", &format!("{}px", canvas.offset_left()))?;
         // Prevent auto-zoom on mobile browsers (requires at least 16px).
         style.set_property("font-size", "16px")?;
 
-        let root = canvas.get_root_node();
-        if root.has_type::<Document>() {
-            // root object is a document, append to its body
-            root.dyn_into::<Document>()?
-                .body()
-                .unwrap()
-                .append_child(&input)?;
-        } else {
-            // append input into root directly
-            root.append_child(&input)?;
+        // Insert the input as a sibling of the canvas, so that its
+        // `position: absolute` resolves against the same containing block
+        // as the canvas' `offset_top`/`offset_left`.
+        // This anchors the input to the canvas regardless of how the page
+        // is scrolled or how the canvas is embedded, and also works when
+        // the canvas is inside a shadow DOM.
+        if let Some(parent) = canvas.parent_node() {
+            parent.insert_before(&input, canvas.next_sibling().as_ref())?;
+        } else if let Some(body) = document.body() {
+            log::warn!("Canvas has no parent element - appending text agent to document body");
+            body.append_child(&input)?;
         }
 
         // Focus the app on startup, without scrolling the page.
@@ -187,29 +186,34 @@ impl TextAgent {
             // composition.
         }
 
-        let mut canvas_rect = super::canvas_content_rect(canvas);
-        // Fix for safari with virtual keyboard flapping position
-        if is_mobile_safari() {
-            canvas_rect.min.y = canvas.offset_top() as f32;
-        }
-        let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
-
         let style = self.input.style();
         let native_ppp = super::native_pixels_per_point();
 
+        // The input is a sibling of the canvas (see `attach`), so we position
+        // it relative to the same containing block using the canvas offset.
+        // Unlike `get_bounding_client_rect`, the offset is unaffected by page
+        // scrolling, and doesn't flap when the virtual keyboard is shown on
+        // mobile Safari.
+
         // Clamp the input position within the canvas width to prevent unwanted horizontal scrolling.
         let logical_canvas_width = canvas.width() as f32 / native_ppp;
-        let visible_x = cursor_rect.center().x * zoom_factor;
+        let visible_x = ime.cursor_rect.center().x * zoom_factor;
         let clamped_x = visible_x.clamp(0.0, logical_canvas_width);
 
         // Clamp the input position within the canvas height to prevent unwanted vertical scrolling.
         let logical_canvas_height = canvas.height() as f32 / native_ppp;
-        let visible_y = cursor_rect.center().y * zoom_factor;
+        let visible_y = ime.cursor_rect.center().y * zoom_factor;
         let clamped_y = visible_y.clamp(0.0, logical_canvas_height);
 
         // This is where the IME input will point to:
-        style.set_property("left", &format!("{clamped_x}px"))?;
-        style.set_property("top", &format!("{clamped_y}px"))?;
+        style.set_property(
+            "left",
+            &format!("{}px", canvas.offset_left() as f32 + clamped_x),
+        )?;
+        style.set_property(
+            "top",
+            &format!("{}px", canvas.offset_top() as f32 + clamped_y),
+        )?;
 
         Ok(())
     }
@@ -255,17 +259,4 @@ impl Drop for TextAgent {
     fn drop(&mut self) {
         self.input.remove();
     }
-}
-
-/// Returns `true` if the app is likely running on a mobile device on navigator Safari.
-fn is_mobile_safari() -> bool {
-    (|| {
-        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
-        let is_ios = user_agent.contains("iPhone")
-            || user_agent.contains("iPad")
-            || user_agent.contains("iPod");
-        let is_safari = user_agent.contains("Safari");
-        Some(is_ios && is_safari)
-    })()
-    .unwrap_or(false)
 }
