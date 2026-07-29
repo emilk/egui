@@ -210,7 +210,7 @@ impl WebPainter for WebPainterWgpu {
 
         let user_cmd_bufs = {
             let mut renderer = render_state.renderer.write();
-            #[allow(clippy::iter_over_hash_type)] // Order doesn't matter here
+            #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
             for (id, image_deltas) in textures_delta.set.drain() {
                 for image_delta in image_deltas {
                     renderer.update_texture(
@@ -391,7 +391,7 @@ impl WebPainter for WebPainterWgpu {
         // However, once we called `wgpu::Queue::submit`, it is up for wgpu to determine how long the underlying gpu resource has to live.
         {
             let mut renderer = render_state.renderer.write();
-            #[allow(clippy::iter_over_hash_type)] // Order doesn't matter here
+            #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
             for id in textures_delta.free.drain() {
                 renderer.free_texture(&id);
             }
