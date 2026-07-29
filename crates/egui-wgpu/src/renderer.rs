@@ -977,28 +977,45 @@ impl Renderer {
                 NonZeroU64::new(required_index_buffer_size).unwrap(),
             );
 
-            let Some(mut index_buffer_staging) = index_buffer_staging else {
-                panic!(
-                    "Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)",
+            let mut index_offset = 0;
+            if let Some(mut index_buffer_staging) = index_buffer_staging {
+                for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
+                    match primitive {
+                        Primitive::Mesh(mesh) => {
+                            let size = mesh.indices.len() * std::mem::size_of::<u32>();
+                            let slice = index_offset..(size + index_offset);
+                            index_buffer_staging
+                                .slice(slice.clone())
+                                .copy_from_slice(bytemuck::cast_slice(&mesh.indices));
+                            self.index_buffer.slices.push(slice);
+                            index_offset += size;
+                        }
+                        Primitive::Callback(_) => {}
+                    }
+                }
+            } else {
+                log::warn!(
+                    "Failed to create staging buffer for index data; falling back to queue.write_buffer. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)",
                     self.index_buffer.buffer.size(),
                     self.index_buffer.capacity
                 );
-            };
 
-            let mut index_offset = 0;
-            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
-                match primitive {
-                    Primitive::Mesh(mesh) => {
-                        let size = mesh.indices.len() * std::mem::size_of::<u32>();
-                        let slice = index_offset..(size + index_offset);
-                        index_buffer_staging
-                            .slice(slice.clone())
-                            .copy_from_slice(bytemuck::cast_slice(&mesh.indices));
-                        self.index_buffer.slices.push(slice);
-                        index_offset += size;
+                let mut index_data = Vec::with_capacity(required_index_buffer_size as usize);
+                for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
+                    match primitive {
+                        Primitive::Mesh(mesh) => {
+                            let bytes = bytemuck::cast_slice(&mesh.indices);
+                            let size = bytes.len();
+                            let slice = index_offset..(size + index_offset);
+                            index_data.extend_from_slice(bytes);
+                            self.index_buffer.slices.push(slice);
+                            index_offset += size;
+                        }
+                        Primitive::Callback(_) => {}
                     }
-                    Primitive::Callback(_) => {}
                 }
+
+                queue.write_buffer(&self.index_buffer.buffer, 0, &index_data);
             }
         }
         if vertex_count > 0 {
@@ -1022,28 +1039,45 @@ impl Renderer {
                 NonZeroU64::new(required_vertex_buffer_size).unwrap(),
             );
 
-            let Some(mut vertex_buffer_staging) = vertex_buffer_staging else {
-                panic!(
-                    "Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)",
+            let mut vertex_offset = 0;
+            if let Some(mut vertex_buffer_staging) = vertex_buffer_staging {
+                for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
+                    match primitive {
+                        Primitive::Mesh(mesh) => {
+                            let size = mesh.vertices.len() * std::mem::size_of::<Vertex>();
+                            let slice = vertex_offset..(size + vertex_offset);
+                            vertex_buffer_staging
+                                .slice(slice.clone())
+                                .copy_from_slice(bytemuck::cast_slice(&mesh.vertices));
+                            self.vertex_buffer.slices.push(slice);
+                            vertex_offset += size;
+                        }
+                        Primitive::Callback(_) => {}
+                    }
+                }
+            } else {
+                log::warn!(
+                    "Failed to create staging buffer for vertex data; falling back to queue.write_buffer. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)",
                     self.vertex_buffer.buffer.size(),
                     self.vertex_buffer.capacity
                 );
-            };
 
-            let mut vertex_offset = 0;
-            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
-                match primitive {
-                    Primitive::Mesh(mesh) => {
-                        let size = mesh.vertices.len() * std::mem::size_of::<Vertex>();
-                        let slice = vertex_offset..(size + vertex_offset);
-                        vertex_buffer_staging
-                            .slice(slice.clone())
-                            .copy_from_slice(bytemuck::cast_slice(&mesh.vertices));
-                        self.vertex_buffer.slices.push(slice);
-                        vertex_offset += size;
+                let mut vertex_data = Vec::with_capacity(required_vertex_buffer_size as usize);
+                for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
+                    match primitive {
+                        Primitive::Mesh(mesh) => {
+                            let bytes = bytemuck::cast_slice(&mesh.vertices);
+                            let size = bytes.len();
+                            let slice = vertex_offset..(size + vertex_offset);
+                            vertex_data.extend_from_slice(bytes);
+                            self.vertex_buffer.slices.push(slice);
+                            vertex_offset += size;
+                        }
+                        Primitive::Callback(_) => {}
                     }
-                    Primitive::Callback(_) => {}
                 }
+
+                queue.write_buffer(&self.vertex_buffer.buffer, 0, &vertex_data);
             }
         }
 

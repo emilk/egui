@@ -2051,6 +2051,27 @@ impl Context {
         }
     }
 
+    /// Request a full upload of all managed textures on the next paint.
+    ///
+    /// This is useful for integrations that had to recreate their renderer or GPU device while
+    /// keeping the same [`Context`]. Without this, egui may only send a partial update for a
+    /// texture that no longer exists in the backend renderer.
+    pub fn request_full_texture_reupload(&self) {
+        profiling::function_scope!();
+
+        self.write(|ctx| {
+            ctx.tex_manager.0.write().request_full_reupload();
+        });
+    }
+
+    /// Request a full upload of the font texture on the next paint.
+    ///
+    /// Deprecated in favor of [`Self::request_full_texture_reupload`], which also covers
+    /// managed image textures.
+    pub fn request_font_texture_reupload(&self) {
+        self.request_full_texture_reupload();
+    }
+
     /// Tell `egui` which fonts to use.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,

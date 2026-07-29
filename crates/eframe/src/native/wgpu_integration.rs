@@ -644,13 +644,13 @@ impl WgpuWinitRunning<'_> {
                 return Ok(EventResult::Wait);
             };
             egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);
-
-            let is_visible = viewport.info.visible().unwrap_or(true);
+            let is_visible = info.visible().unwrap_or(true);
 
             {
                 profiling::scope!("set_window");
                 pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(window))))?;
             }
+            integration.frame.wgpu_render_state = painter.render_state();
 
             let Some(egui_winit) = egui_winit.as_mut() else {
                 return Ok(EventResult::Wait);
@@ -739,6 +739,7 @@ impl WgpuWinitRunning<'_> {
                 screenshot_commands,
                 window,
             );
+            integration.frame.wgpu_render_state = painter.render_state();
 
             for action in viewport.actions_requested.drain(..) {
                 match action {

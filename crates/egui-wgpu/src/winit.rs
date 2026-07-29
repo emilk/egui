@@ -35,6 +35,7 @@ pub struct Painter {
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
+    needs_render_state_recreate: bool,
 
     // Per viewport/window:
     depth_texture_view: ViewportIdMap<wgpu::TextureView>,
@@ -75,6 +76,7 @@ impl Painter {
 
             instance,
             render_state: None,
+            needs_render_state_recreate: false,
 
             depth_texture_view: Default::default(),
             surfaces: Default::default(),
@@ -90,6 +92,15 @@ impl Painter {
     /// Will return [`None`] if the render state has not been initialized yet.
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
+    }
+
+    /// Request that the WGPU render state is recreated the next time a window is set.
+    ///
+    /// This is useful when the platform reports that the graphics session became available again
+    /// after a possible device/surface loss, and for diagnostics that need to exercise recovery.
+    pub fn request_render_state_recreate(&mut self) {
+        self.needs_render_state_recreate = true;
+        self.context.request_repaint();
     }
 
     fn configure_surface(
@@ -164,6 +175,51 @@ impl Painter {
         Ok(())
     }
 
+    fn clear_render_state_for_recreate(&mut self) {
+        self.screen_capture_state = None;
+        self.render_state = None;
+        self.depth_texture_view.clear();
+        self.msaa_texture_view.clear();
+        self.surfaces.clear();
+    }
+
+    async fn recreate_render_state(
+        &mut self,
+        viewport_id: ViewportId,
+        window: Arc<winit::window::Window>,
+        size: winit::dpi::PhysicalSize<u32>,
+    ) -> Result<(), crate::WgpuError> {
+        profiling::function_scope!();
+
+        log::warn!("Recreating egui-wgpu render state after device/surface recovery request");
+        self.clear_render_state_for_recreate();
+        let surface = self.instance.create_surface(window)?;
+        self.add_surface(surface, viewport_id, size).await?;
+        self.context.request_full_texture_reupload();
+        self.needs_render_state_recreate = false;
+        Ok(())
+    }
+
+    async unsafe fn recreate_render_state_unsafe(
+        &mut self,
+        viewport_id: ViewportId,
+        window: &winit::window::Window,
+        size: winit::dpi::PhysicalSize<u32>,
+    ) -> Result<(), crate::WgpuError> {
+        profiling::function_scope!();
+
+        log::warn!("Recreating egui-wgpu render state after device/surface recovery request");
+        self.clear_render_state_for_recreate();
+        let surface = unsafe {
+            self.instance
+                .create_surface_unsafe(wgpu::SurfaceTargetUnsafe::from_window(window)?)?
+        };
+        self.add_surface(surface, viewport_id, size).await?;
+        self.context.request_full_texture_reupload();
+        self.needs_render_state_recreate = false;
+        Ok(())
+    }
+
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
     ///
     /// This creates a [`wgpu::Surface`] for the given Window (as well as initializing render
@@ -171,6 +227,12 @@ impl Painter {
     ///
     /// This must be called before trying to render via
     /// [`paint_and_update_textures`](Self::paint_and_update_textures)
+    ///
+    /// It is also the recovery point for device/surface loss. If a previous
+    /// [`paint_and_update_textures`](Self::paint_and_update_textures) call observed a
+    /// [`wgpu::CurrentSurfaceTexture::Validation`] or [`wgpu::CurrentSurfaceTexture::Lost`],
+    /// the next `set_window(Some(..))` call recreates the render state and asks egui to reupload
+    /// its managed textures.
     ///
     /// # Portability
     ///
@@ -194,7 +256,10 @@ impl Painter {
 
         if let Some(window) = window {
             let size = window.inner_size();
-            if !self.surfaces.contains_key(&viewport_id) {
+            if self.needs_render_state_recreate {
+                self.recreate_render_state(viewport_id, Arc::clone(&window), size)
+                    .await?;
+            } else if !self.surfaces.contains_key(&viewport_id) {
                 let surface = self.instance.create_surface(window)?;
                 self.add_surface(surface, viewport_id, size).await?;
             }
@@ -220,10 +285,15 @@ impl Painter {
 
         if let Some(window) = window {
             let size = window.inner_size();
-            if !self.surfaces.contains_key(&viewport_id) {
+            if self.needs_render_state_recreate {
+                unsafe {
+                    self.recreate_render_state_unsafe(viewport_id, window, size)
+                        .await?;
+                }
+            } else if !self.surfaces.contains_key(&viewport_id) {
                 let surface = unsafe {
                     self.instance
-                        .create_surface_unsafe(wgpu::SurfaceTargetUnsafe::from_window(&window)?)?
+                        .create_surface_unsafe(wgpu::SurfaceTargetUnsafe::from_window(window)?)?
                 };
                 self.add_surface(surface, viewport_id, size).await?;
             }
@@ -540,52 +610,8 @@ impl Painter {
             return vsync_sec;
         };
 
-        let mut render_queue_guard = RendererQueueGuard {
-            queue: &render_state.queue,
-            commands_submitted: false,
-        };
-
-        {
-            // Upload textures before the surface-dependent early-returns below:
-            // uploads only need the device + queue, and the atlas dirty region is
-            // already consumed, so dropping the delta would desync the font texture.
-            let mut renderer = render_state.renderer.write();
-            for (id, image_delta) in &textures_delta.set {
-                renderer.update_texture(
-                    &render_state.device,
-                    &render_state.queue,
-                    *id,
-                    image_delta,
-                );
-            }
-        }
-
         let Some(surface_state) = self.surfaces.get_mut(&viewport_id) else {
             return vsync_sec;
-        };
-
-        let mut encoder =
-            render_state
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("encoder"),
-                });
-
-        // Upload all resources for the GPU.
-        let screen_descriptor = renderer::ScreenDescriptor {
-            size_in_pixels: [surface_state.width, surface_state.height],
-            pixels_per_point,
-        };
-
-        let user_cmd_bufs = {
-            let mut renderer = render_state.renderer.write();
-            renderer.update_buffers(
-                &render_state.device,
-                &render_state.queue,
-                &mut encoder,
-                clipped_primitives,
-                &screen_descriptor,
-            )
         };
 
         if surface_state.needs_reconfigure {
@@ -609,6 +635,10 @@ impl Painter {
                 frame
             }
             other => {
+                let needs_render_state_recreate = matches!(
+                    other,
+                    wgpu::CurrentSurfaceTexture::Validation | wgpu::CurrentSurfaceTexture::Lost
+                );
                 match (*self.config.on_surface_status)(&other) {
                     SurfaceErrorAction::Reconfigure => {
                         Self::configure_surface(surface_state, render_state, &self.config.surface);
@@ -625,8 +655,56 @@ impl Painter {
                     }
                     SurfaceErrorAction::SkipFrame => {}
                 }
+                if needs_render_state_recreate {
+                    self.needs_render_state_recreate = true;
+                    self.context.request_repaint_of(viewport_id);
+                }
+                if !textures_delta.is_empty() {
+                    self.context.request_full_texture_reupload();
+                }
                 return vsync_sec;
             }
+        };
+
+        let mut render_queue_guard = RendererQueueGuard {
+            queue: &render_state.queue,
+            commands_submitted: false,
+        };
+
+        {
+            let mut renderer = render_state.renderer.write();
+            for (id, image_delta) in &textures_delta.set {
+                renderer.update_texture(
+                    &render_state.device,
+                    &render_state.queue,
+                    *id,
+                    image_delta,
+                );
+            }
+        }
+
+        let mut encoder =
+            render_state
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("encoder"),
+                });
+
+        // Upload all resources for the GPU.
+        let screen_descriptor = renderer::ScreenDescriptor {
+            size_in_pixels: [surface_state.width, surface_state.height],
+            pixels_per_point,
+        };
+
+        let user_cmd_bufs = {
+            let mut renderer = render_state.renderer.write();
+            renderer.update_buffers(
+                &render_state.device,
+                &render_state.queue,
+                &mut encoder,
+                clipped_primitives,
+                &screen_descriptor,
+            )
         };
 
         let mut capture_buffer = None;
