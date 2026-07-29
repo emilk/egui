@@ -740,8 +740,8 @@ impl Painter {
         {
             let mut renderer = render_state.renderer.write();
             #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
-            for id in &textures_delta.free {
-                renderer.free_texture(id);
+            for id in textures_delta.free.drain() {
+                renderer.free_texture(&id);
             }
         }
 

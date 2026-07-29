@@ -16,7 +16,7 @@ pub struct FullOutput {
 
     /// Texture changes since last frame (including the font texture).
     ///
-    /// The backend needs to apply [`crate::TexturesDelta::set`] _before_ painting,
+    /// The backend needs to apply [`crate::TexturesDelta::push`] _before_ painting,
     /// and free any texture in [`crate::TexturesDelta::free`] _after_ painting.
     ///
     /// It is assumed that all egui viewports share the same painter and texture namespace.

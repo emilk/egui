@@ -43,7 +43,7 @@ impl TextureManager {
             options,
         });
 
-        self.delta.set(id, ImageDelta::full(image, options));
+        self.delta.push(id, ImageDelta::full(image, options));
         id
     }
 
@@ -62,7 +62,7 @@ impl TextureManager {
                 meta.size = delta.image.size();
                 meta.bytes_per_pixel = delta.image.bytes_per_pixel();
             }
-            self.delta.set(id, delta);
+            self.delta.push(id, delta);
         } else {
             debug_assert!(false, "Tried setting texture {id:?} which is not allocated");
         }
@@ -298,7 +298,7 @@ impl TexturesDelta {
     ///
     /// If this [`TexturesDelta`] already contains this [`TextureId`], and this is a `whole` delta,
     /// the previous deltas for this id are discarded.
-    pub fn set(&mut self, id: TextureId, delta: ImageDelta) {
+    pub fn push(&mut self, id: TextureId, delta: ImageDelta) {
         if delta.is_whole() {
             // It replaces the whole texture, fine to overwrite any previous deltas
             self.set.insert(id, smallvec![delta]);
@@ -320,7 +320,7 @@ impl TexturesDelta {
         }
         for (id, deltas) in newer.set.drain() {
             for delta in deltas {
-                self.set(id, delta);
+                self.push(id, delta);
             }
         }
         self.free.extend(mem::take(&mut newer.free));
