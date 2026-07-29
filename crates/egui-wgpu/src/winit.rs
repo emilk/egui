@@ -550,6 +550,7 @@ impl Painter {
             // uploads only need the device + queue, and the atlas dirty region is
             // already consumed, so dropping the delta would desync the font texture.
             let mut renderer = render_state.renderer.write();
+            #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
             for (id, image_deltas) in textures_delta.set.drain() {
                 for image_delta in image_deltas {
                     renderer.update_texture(
@@ -744,6 +745,7 @@ impl Painter {
         // However, once we called `wgpu::Queue::submit`, it is up for wgpu to determine how long the underlying gpu resource has to live.
         {
             let mut renderer = render_state.renderer.write();
+            #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
             for id in &textures_delta.free {
                 renderer.free_texture(id);
             }

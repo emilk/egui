@@ -68,6 +68,12 @@ impl FullOutput {
             }
         }
     }
+
+    /// [`epaint::textures::TexturesDelta`] will panic when dropped with still unapplied deltas,
+    /// this is a helper to clear the deltas.
+    pub fn drop_without_applying_deltas(mut self) {
+        self.textures_delta.clear();
+    }
 }
 
 /// Information about text being edited.

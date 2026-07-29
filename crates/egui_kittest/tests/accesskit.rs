@@ -144,7 +144,8 @@ fn accesskit_output_single_egui_frame(run_ui: impl FnMut(&mut Ui)) -> TreeUpdate
     ctx.global_style_mut(|style| style.animation_time = 0.0);
     ctx.enable_accesskit();
 
-    let output = ctx.run_ui(RawInput::default(), run_ui);
+    let mut output = ctx.run_ui(RawInput::default(), run_ui);
+    output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
 
     output
         .platform_output

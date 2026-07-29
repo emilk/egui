@@ -5,7 +5,7 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-use std::{cell::RefCell, mem, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
+use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
 
 use egui_winit::ActionRequested;
 use parking_lot::Mutex;
@@ -16,10 +16,14 @@ use winit::{
 };
 
 use ahash::HashMap;
-use log::warn;
-use egui::{DeferredViewportUiCallback, FullOutput, ImmediateViewport, OrderedViewportIdMap, TexturesDelta, ViewportBuilder, ViewportClass, ViewportId, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput};
+use egui::{
+    DeferredViewportUiCallback, FullOutput, ImmediateViewport, OrderedViewportIdMap, TexturesDelta,
+    ViewportBuilder, ViewportClass, ViewportId, ViewportIdPair, ViewportIdSet, ViewportInfo,
+    ViewportOutput,
+};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
+use log::warn;
 use winit_integration::UserEvent;
 
 use crate::{
@@ -98,7 +102,7 @@ pub struct Viewport {
     actions_requested: Vec<ActionRequested>,
 
     /// Any not yet applied deltas for this viewport.
-    pending_deltas: TexturesDelta,
+    pending_delta: TexturesDelta,
 
     /// `None` for sync viewports.
     viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
@@ -337,7 +341,7 @@ impl<'app> WgpuWinitApp<'app> {
                 viewport_ui_cb: None,
                 window: Some(window),
                 egui_winit: Some(egui_winit),
-                pending_deltas: Default::default(),
+                pending_delta: Default::default(),
             },
         );
 
@@ -1142,7 +1146,7 @@ fn render_immediate_viewport(
         warn!("Viewport disappeared unexpectedly!");
         return;
     };
-    viewport.pending_deltas.append(textures_delta);
+    viewport.pending_delta.append(textures_delta);
 
     viewport.info.events.clear(); // they should have been processed
     let (Some(egui_winit), Some(window)) = (&mut viewport.egui_winit, &viewport.window) else {
@@ -1166,7 +1170,7 @@ fn render_immediate_viewport(
         pixels_per_point,
         [0.0, 0.0, 0.0, 0.0],
         &clipped_primitives,
-        &mut viewport.pending_deltas,
+        &mut viewport.pending_delta,
         vec![],
         window,
     );
@@ -1285,7 +1289,7 @@ fn initialize_or_update_viewport<'a>(
                 viewport_ui_cb,
                 window: None,
                 egui_winit: None,
-                pending_deltas: Default::default(),
+                pending_delta: Default::default(),
             })
         }
 

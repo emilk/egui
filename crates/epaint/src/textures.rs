@@ -1,7 +1,7 @@
-use std::mem;
 use crate::{ImageData, ImageDelta, TextureId};
 use ahash::{HashMap, HashSet};
 use smallvec::{SmallVec, smallvec};
+use std::mem;
 
 // ----------------------------------------------------------------------------
 
@@ -299,7 +299,6 @@ impl TexturesDelta {
     /// If this [`TexturesDelta`] already contains this [`TextureId`], and this is a `whole` delta,
     /// the previous deltas for this id are discarded.
     pub fn set(&mut self, id: TextureId, delta: ImageDelta) {
-        dbg!(&id, &delta.is_whole());
         if delta.is_whole() {
             // It replaces the whole texture, fine to overwrite any previous deltas
             self.set.insert(id, smallvec![delta]);
@@ -309,12 +308,13 @@ impl TexturesDelta {
     }
 
     pub fn free(&mut self, id: TextureId) {
-        dbg!(&id);
         self.free.insert(id);
     }
 
+    #[expect(clippy::iter_over_hash_type)]
     pub fn append(&mut self, mut newer: Self) {
-        dbg!(&self, &newer);
+        // Only clear previous entries on append, not on set, since within a frame a texture might
+        // be created and immediately removed again.
         for id in &newer.free {
             self.set.remove(id);
         }
@@ -334,13 +334,12 @@ impl TexturesDelta {
 
 impl Drop for TexturesDelta {
     fn drop(&mut self) {
-        if cfg!(debug_assertions) && !self.is_empty() {
-            panic!(
-                "Dropped TexturesDelta with {} unapplied deltas. Deltas need to be handled. \
-                If you want to drop this intentionally call `clear` before dropping.",
-                self.free.len() + self.set.len()
-            );
-        }
+        debug_assert!(
+            self.is_empty(),
+            "Dropped TexturesDelta with {} unapplied deltas. Deltas need to be handled. \
+            If you want to drop this intentionally call `clear` before dropping.",
+            self.free.len() + self.set.len()
+        );
     }
 }
 
@@ -351,6 +350,7 @@ impl std::fmt::Debug for TexturesDelta {
         let mut debug_struct = f.debug_struct("TexturesDelta");
         if !self.set.is_empty() {
             let mut string = String::new();
+            #[expect(clippy::iter_over_hash_type)]
             for (tex_id, deltas) in &self.set {
                 for delta in deltas {
                     let size = delta.image.size();
