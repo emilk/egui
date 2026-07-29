@@ -394,7 +394,10 @@ impl AppRunner {
 
         if self.has_focus() {
             // The eframe app has focus.
-            if ime.is_some() {
+            if let Some(ime) = ime {
+                if ime.should_interrupt_composition {
+                    self.text_agent.interrupt_ime_composition();
+                }
                 // We are editing text: give the focus to the text agent.
                 self.text_agent.focus();
             } else {
@@ -406,7 +409,7 @@ impl AppRunner {
 
         if let Err(err) = self
             .text_agent
-            .move_to(ime, self.canvas(), self.egui_ctx.zoom_factor())
+            .update(ime, self.canvas(), self.egui_ctx.zoom_factor())
         {
             log::error!(
                 "failed to update text agent position: {}",
