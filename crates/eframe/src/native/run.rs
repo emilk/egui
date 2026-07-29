@@ -119,7 +119,6 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             && let Ok(EventResult::RepaintNow(window_id)) = event_result
         {
             log::trace!("RepaintNow of {window_id:?}");
-            event_result = Ok(EventResult::Wait);
             self.clear_pending_redraw_before_paint(&window_id);
 
             // Keep the Windows synchronous repaint flush narrow. Expanding this
@@ -128,7 +127,6 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             // producing window immediately, and wake related viewports asynchronously.
             let repaint_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
             match repaint_result {
-                Ok(EventResult::Wait) => {}
                 Ok(
                     EventResult::RepaintNow(next_window_id)
                     | EventResult::RepaintNext(next_window_id),
@@ -147,12 +145,12 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 event_result
             }
             EventResult::RepaintNow(window_id) => {
-                log::trace!("RepaintNow of {window_id:?}",);
+                log::trace!("RepaintNow of {window_id:?}");
                 self.schedule_repaint_for_related_windows(window_id, Instant::now());
                 event_result
             }
             EventResult::RepaintNext(window_id) => {
-                log::trace!("RepaintNext of {window_id:?}",);
+                log::trace!("RepaintNext of {window_id:?}");
                 self.schedule_repaint_for_related_windows(window_id, Instant::now());
                 event_result
             }
@@ -408,29 +406,24 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
                     if current_pass_nr == cumulative_pass_nr
                         || current_pass_nr == cumulative_pass_nr + 1
                     {
-                        let window_ids = self.winit_app.window_ids_for_repaint_request(viewport_id);
-                        log::trace!(
-                            "UserEvent::RequestRepaint scheduling repaint at {when:?} for {:?}",
-                            window_ids
-                        );
-
-                        for window_id in window_ids {
+                        log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
+                        if let Some(window_id) =
+                            self.winit_app.window_id_from_viewport_id(viewport_id)
+                        {
                             // Throttle repaints for invisible windows to prevent
                             // high CPU usage on Windows.
                             // See: https://github.com/emilk/egui/issues/7776
-                            let repaint_time = if let Some(window) =
-                                self.winit_app.window(window_id)
+                            let when = if let Some(window) = self.winit_app.window(window_id)
                                 && is_invisible_or_minimized(&window)
                             {
                                 when.max(Instant::now() + INVISIBLE_WINDOW_REPAINT_INTERVAL)
                             } else {
                                 when
                             };
-
-                            self.schedule_repaint_for_window(window_id, repaint_time);
+                            Ok(EventResult::RepaintAt(window_id, when))
+                        } else {
+                            Ok(EventResult::Wait)
                         }
-
-                        Ok(EventResult::Wait)
                     } else {
                         log::trace!("Got outdated UserEvent::RequestRepaint");
                         Ok(EventResult::Wait) // old request - we've already repainted
