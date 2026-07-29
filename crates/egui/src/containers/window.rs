@@ -260,14 +260,14 @@ impl<'a> Window<'a> {
         self
     }
 
-    /// Change the background color, margins, etc. of the title
+    /// Change the background color, margins, etc.
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
 
-    /// Change the background color, margins, etc. of the content
+    /// Change the background color, margins, etc. of the title
     #[inline]
     pub fn title_frame(mut self, frame: Frame) -> Self {
         self.title_frame = Some(frame);
@@ -632,7 +632,6 @@ impl Window<'_> {
 
         // We apply the window margin by using the `ScrollArea::content_margin`.
         let window_content_margin = window_frame.inner_margin;
-
         let window_frame = window_frame.inner_margin(0.0);
 
         let is_explicitly_closed = matches!(open, Some(false));
