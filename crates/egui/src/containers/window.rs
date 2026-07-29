@@ -626,13 +626,14 @@ impl Window<'_> {
 
         let style = ctx.global_style();
 
+        // We get or create the Frame for the title and content
         let window_title_frame = frame.unwrap_or_else(|| Frame::window(&style));
         let window_content_frame = content_frame.unwrap_or_else(|| Frame::window(&style));
 
         // We apply the window margin by using the `ScrollArea::content_margin`.
         let window_content_margin = window_content_frame.inner_margin;
-        let window_title_margin = window_title_frame.inner_margin;
-        let window_frame = window_title_frame.inner_margin(0.0);
+
+        let window_content_frame = window_content_frame.inner_margin(0.0);
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -701,7 +702,7 @@ impl Window<'_> {
         // the title bar + inner content area, so we subtract the extra frame margin (the part
         // outside of `Resize`).
         {
-            let frame_margin = window_frame.total_margin().sum();
+            let frame_margin = window_content_frame.total_margin().sum();
             resize.min_size = (resize.min_size - frame_margin).at_least(Vec2::ZERO);
             resize.max_size = (resize.max_size - frame_margin).at_least(Vec2::ZERO);
             resize.default_size = (resize.default_size - frame_margin).at_least(Vec2::ZERO);
@@ -717,13 +718,13 @@ impl Window<'_> {
         }
 
         let content_inner = {
-            let outer_response = window_frame.show(&mut area_content_ui, |ui| {
+            let outer_response = window_content_frame.show(&mut area_content_ui, |ui| {
                 resize.show(ui, |ui| {
                     if with_title_bar {
                         title_ui(
                             ui,
                             title,
-                            window_frame.inner_margin(window_title_margin),
+                            window_title_frame,
                             &mut collapsing,
                             collapsible,
                             on_top,
@@ -760,19 +761,19 @@ impl Window<'_> {
                 area.id(),
                 area_layer_id,
                 outer_rect,
-                window_frame,
+                window_content_frame,
             );
 
             paint_resize_corner(
                 &area_content_ui,
                 &possible,
                 outer_rect,
-                &window_frame,
+                &window_content_frame,
                 resize_interaction,
             );
 
             {
-                let margins = window_frame.total_margin().sum();
+                let margins = window_content_frame.total_margin().sum();
 
                 resize_response(
                     resize_interaction,
