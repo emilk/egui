@@ -84,7 +84,7 @@ pub struct Window<'a> {
     open: Option<&'a mut bool>,
     area: Area,
     frame: Option<Frame>,
-    content_frame: Option<Frame>,
+    title_frame: Option<Frame>,
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
@@ -107,7 +107,7 @@ impl<'a> Window<'a> {
             open: None,
             area,
             frame: None,
-            content_frame: None,
+            title_frame: None,
             resize: Resize::default()
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
@@ -269,8 +269,8 @@ impl<'a> Window<'a> {
 
     /// Change the background color, margins, etc. of the content
     #[inline]
-    pub fn content_frame(mut self, frame: Frame) -> Self {
-        self.content_frame = Some(frame);
+    pub fn title_frame(mut self, frame: Frame) -> Self {
+        self.title_frame = Some(frame);
         self
     }
 
@@ -558,7 +558,7 @@ impl Window<'_> {
             mut open,
             area,
             frame,
-            content_frame,
+            title_frame,
             resize,
             scroll,
             collapsible,
@@ -627,13 +627,13 @@ impl Window<'_> {
         let style = ctx.global_style();
 
         // We get or create the Frame for the title and content
-        let window_title_frame = frame.unwrap_or_else(|| Frame::window(&style));
-        let window_content_frame = content_frame.unwrap_or_else(|| Frame::window(&style));
+        let window_title_frame = title_frame.unwrap_or_else(|| Frame::window(&style));
+        let window_frame = frame.unwrap_or_else(|| Frame::window(&style));
 
         // We apply the window margin by using the `ScrollArea::content_margin`.
-        let window_content_margin = window_content_frame.inner_margin;
+        let window_content_margin = window_frame.inner_margin;
 
-        let window_content_frame = window_content_frame.inner_margin(0.0);
+        let window_frame = window_frame.inner_margin(0.0);
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -702,7 +702,7 @@ impl Window<'_> {
         // the title bar + inner content area, so we subtract the extra frame margin (the part
         // outside of `Resize`).
         {
-            let frame_margin = window_content_frame.total_margin().sum();
+            let frame_margin = window_frame.total_margin().sum();
             resize.min_size = (resize.min_size - frame_margin).at_least(Vec2::ZERO);
             resize.max_size = (resize.max_size - frame_margin).at_least(Vec2::ZERO);
             resize.default_size = (resize.default_size - frame_margin).at_least(Vec2::ZERO);
@@ -718,7 +718,7 @@ impl Window<'_> {
         }
 
         let content_inner = {
-            let outer_response = window_content_frame.show(&mut area_content_ui, |ui| {
+            let outer_response = window_frame.show(&mut area_content_ui, |ui| {
                 resize.show(ui, |ui| {
                     if with_title_bar {
                         title_ui(
@@ -761,19 +761,19 @@ impl Window<'_> {
                 area.id(),
                 area_layer_id,
                 outer_rect,
-                window_content_frame,
+                window_frame,
             );
 
             paint_resize_corner(
                 &area_content_ui,
                 &possible,
                 outer_rect,
-                &window_content_frame,
+                &window_frame,
                 resize_interaction,
             );
 
             {
-                let margins = window_content_frame.total_margin().sum();
+                let margins = window_frame.total_margin().sum();
 
                 resize_response(
                     resize_interaction,
