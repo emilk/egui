@@ -519,25 +519,20 @@ impl WrapApp {
                 .open(&mut open)
                 .show(ctx, |ui| {
                     for file in &self.dropped_files {
-                        let mut info = if let Some(path) = &file.path {
-                            path.display().to_string()
-                        } else if file.name.is_empty() {
-                            "???".to_owned()
-                        } else {
-                            file.name.clone()
-                        };
+                        #[cfg(not(target_arch = "wasm32"))]
+                        let info = file.path.display().to_string();
 
-                        let mut additional_info = vec![];
-                        if !file.mime.is_empty() {
-                            additional_info.push(format!("type: {}", file.mime));
-                        }
-                        if let Some(bytes) = &file.bytes {
-                            additional_info.push(format!("{} bytes", bytes.len()));
-                        }
-                        if !additional_info.is_empty() {
-                            use std::fmt::Write as _;
-                            write!(info, " ({})", additional_info.join(", ")).ok();
-                        }
+                        // The size and mime-type are free to read; the contents are not,
+                        // so we never touch them here.
+                        #[cfg(target_arch = "wasm32")]
+                        let info = {
+                            let (name, mime) = (file.file.name(), file.file.type_());
+                            if mime.is_empty() {
+                                format!("{name} ({} bytes)", file.file.size())
+                            } else {
+                                format!("{name} ({} bytes, type: {mime})", file.file.size())
+                            }
+                        };
 
                         ui.label(info);
                     }

@@ -468,10 +468,9 @@ impl State {
             }
             WindowEvent::DroppedFile(path) => {
                 self.egui_input.hovered_files.clear();
-                self.egui_input.dropped_files.push(egui::DroppedFile {
-                    path: Some(path.clone()),
-                    ..Default::default()
-                });
+                self.egui_input
+                    .dropped_files
+                    .push(egui::DroppedFile { path: path.clone() });
                 EventResponse {
                     repaint: true,
                     consumed: false,

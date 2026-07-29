@@ -48,27 +48,21 @@ impl eframe::App for MyApp {
                     ui.label("Dropped files:");
 
                     for file in &self.dropped_files {
-                        let mut info = if let Some(path) = &file.path {
-                            path.display().to_string()
-                        } else if file.name.is_empty() {
-                            "???".to_owned()
-                        } else {
-                            file.name.clone()
-                        };
+                        #[cfg(not(target_arch = "wasm32"))]
+                        ui.label(file.path.display().to_string());
 
-                        let mut additional_info = vec![];
-                        if !file.mime.is_empty() {
-                            additional_info.push(format!("type: {}", file.mime));
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            let web_file = &file.file;
+                            let name = web_file.name();
+                            let mime = web_file.type_();
+                            let size = web_file.size();
+                            if mime.is_empty() {
+                                ui.label(format!("{name} ({size} bytes)"));
+                            } else {
+                                ui.label(format!("{name} (type: {mime}, {size} bytes)"));
+                            }
                         }
-                        if let Some(bytes) = &file.bytes {
-                            additional_info.push(format!("{} bytes", bytes.len()));
-                        }
-                        if !additional_info.is_empty() {
-                            use std::fmt::Write as _;
-                            write!(info, " ({})", additional_info.join(", ")).ok();
-                        }
-
-                        ui.label(info);
                     }
                 });
             }

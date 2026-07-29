@@ -65,8 +65,12 @@ pub struct RawInput {
 
     /// Dragged files dropped into egui.
     ///
+    /// egui never reads the file contents. It is up to you to read whatever you need, when you
+    /// need it.
+    ///
     /// Note: when using `eframe` on Windows, this will always be empty if drag-and-drop support has
     /// been disabled in [`crate::viewport::ViewportBuilder`].
+    #[cfg_attr(all(feature = "serde", target_arch = "wasm32"), serde(skip))]
     pub dropped_files: Vec<DroppedFile>,
 
     /// The native window has the keyboard focus (i.e. is receiving key presses).
