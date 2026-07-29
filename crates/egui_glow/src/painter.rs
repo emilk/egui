@@ -362,8 +362,10 @@ impl Painter {
     ) {
         profiling::function_scope!();
 
-        for (id, image_delta) in &textures_delta.set {
-            self.set_texture(*id, image_delta);
+        for (id, image_deltas) in &textures_delta.set {
+            for image_delta in image_deltas {
+                self.set_texture(*id, image_delta);
+            }
         }
 
         self.paint_primitives(screen_size_px, pixels_per_point, clipped_primitives);

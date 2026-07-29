@@ -697,8 +697,10 @@ impl GlowWinitRunning<'_> {
             frame_timer.resume();
         }
 
-        for (id, image_delta) in &textures_delta.set {
-            painter.set_texture(*id, image_delta);
+        for (id, image_deltas) in &textures_delta.set {
+            for image_delta in image_deltas {
+                painter.set_texture(*id, image_delta);
+            }
         }
 
         if is_visible {

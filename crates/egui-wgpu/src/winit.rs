@@ -478,7 +478,7 @@ impl Painter {
         pixels_per_point: f32,
         clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
-        textures_delta: &epaint::textures::TexturesDelta,
+        textures_delta: &mut epaint::textures::TexturesDelta,
         capture_data: Vec<UserData>,
         window: &Arc<winit::window::Window>,
     ) -> f32 {
@@ -550,13 +550,15 @@ impl Painter {
             // uploads only need the device + queue, and the atlas dirty region is
             // already consumed, so dropping the delta would desync the font texture.
             let mut renderer = render_state.renderer.write();
-            for (id, image_delta) in &textures_delta.set {
-                renderer.update_texture(
-                    &render_state.device,
-                    &render_state.queue,
-                    *id,
-                    image_delta,
-                );
+            for (id, image_deltas) in textures_delta.set.drain() {
+                for image_delta in image_deltas {
+                    renderer.update_texture(
+                        &render_state.device,
+                        &render_state.queue,
+                        id,
+                        &image_delta,
+                    );
+                }
             }
         }
 
