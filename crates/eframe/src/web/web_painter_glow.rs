@@ -66,6 +66,7 @@ impl WebPainter for WebPainterGlow {
     ) -> Result<(), JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
 
+        #[allow(clippy::iter_over_hash_type)] // Order doesn't matter here
         for (id, image_deltas) in textures_delta.set.drain() {
             for image_delta in image_deltas {
                 self.painter.set_texture(*id, image_delta);
@@ -81,6 +82,7 @@ impl WebPainter for WebPainterGlow {
             self.screenshots.push((image, capture));
         }
 
+        #[allow(clippy::iter_over_hash_type)] // Order doesn't matter here
         for id in textures_delta.free.drain() {
             self.painter.free_texture(id);
         }
