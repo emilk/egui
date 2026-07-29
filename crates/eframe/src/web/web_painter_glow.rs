@@ -69,7 +69,7 @@ impl WebPainter for WebPainterGlow {
         #[allow(clippy::iter_over_hash_type)] // Order doesn't matter here
         for (id, image_deltas) in textures_delta.set.drain() {
             for image_delta in image_deltas {
-                self.painter.set_texture(*id, image_delta);
+                self.painter.set_texture(id, &image_delta);
             }
         }
 

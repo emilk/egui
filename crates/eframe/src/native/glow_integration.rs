@@ -139,6 +139,13 @@ struct Viewport {
     egui_winit: Option<egui_winit::State>,
 }
 
+impl Drop for Viewport {
+    fn drop(&mut self) {
+        // Avoid debug panic when dropping unapplied deltas on teardown
+        self.pending_delta.clear();
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 impl<'app> GlowWinitApp<'app> {
