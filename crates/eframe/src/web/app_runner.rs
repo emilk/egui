@@ -324,7 +324,6 @@ impl AppRunner {
 
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self) {
-        let textures_delta = std::mem::take(&mut self.textures_delta);
         let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
 
         if let Some(clipped_primitives) = clipped_primitives {
@@ -347,7 +346,7 @@ impl AppRunner {
                 self.app.clear_color(&self.egui_ctx.global_style().visuals),
                 &clipped_primitives,
                 self.egui_ctx.pixels_per_point(),
-                &textures_delta,
+                &mut self.textures_delta,
                 screenshot_commands,
             ) {
                 log::error!("Failed to paint: {}", super::string_from_js_value(&err));

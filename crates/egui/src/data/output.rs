@@ -16,7 +16,7 @@ pub struct FullOutput {
 
     /// Texture changes since last frame (including the font texture).
     ///
-    /// The backend needs to apply [`crate::TexturesDelta::set`] _before_ painting,
+    /// The backend needs to apply [`crate::TexturesDelta::push`] _before_ painting,
     /// and free any texture in [`crate::TexturesDelta::free`] _after_ painting.
     ///
     /// It is assumed that all egui viewports share the same painter and texture namespace.
@@ -67,6 +67,12 @@ impl FullOutput {
                 }
             }
         }
+    }
+
+    /// [`epaint::textures::TexturesDelta`] will panic when dropped with still unapplied deltas,
+    /// this is a helper to clear the deltas.
+    pub fn drop_without_applying_deltas(mut self) {
+        self.textures_delta.clear();
     }
 }
 

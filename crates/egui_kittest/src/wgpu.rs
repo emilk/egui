@@ -137,15 +137,23 @@ impl crate::TestRenderer for WgpuTestRenderer {
         frame.wgpu_render_state = Some(self.render_state.clone());
     }
 
-    fn handle_delta(&mut self, delta: &TexturesDelta) {
+    fn handle_delta(&mut self, delta: &mut TexturesDelta) {
         let mut renderer = self.render_state.renderer.write();
-        for (id, image) in &delta.set {
-            renderer.update_texture(
-                &self.render_state.device,
-                &self.render_state.queue,
-                *id,
-                image,
-            );
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for (id, images) in delta.set.drain() {
+            for image in images {
+                renderer.update_texture(
+                    &self.render_state.device,
+                    &self.render_state.queue,
+                    id,
+                    &image,
+                );
+            }
+        }
+
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for id in delta.free.drain() {
+            renderer.free_texture(&id);
         }
     }
 
