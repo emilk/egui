@@ -28,18 +28,21 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         // The most end-to-end benchmark.
         c.bench_function("demo_with_tessellate__realistic", |b| {
             b.iter(|| {
-                let full_output = ctx.run_ui(RawInput::default(), |ui| {
+                let mut full_output = ctx.run_ui(RawInput::default(), |ui| {
                     demo_windows.ui(ui);
                 });
-                ctx.tessellate(full_output.shapes, full_output.pixels_per_point)
+                ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
+
+                full_output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
             });
         });
 
         c.bench_function("demo_no_tessellate", |b| {
             b.iter(|| {
-                ctx.run_ui(RawInput::default(), |ui| {
+                let output = ctx.run_ui(RawInput::default(), |ui| {
                     demo_windows.ui(ui);
-                })
+                });
+                output.drop_without_applying_deltas();
             });
         });
 
@@ -49,6 +52,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("demo_only_tessellate", |b| {
             b.iter(|| ctx.tessellate(full_output.shapes.clone(), full_output.pixels_per_point));
         });
+        full_output.drop_without_applying_deltas();
     }
 
     if false {
@@ -66,7 +70,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let ctx = egui::Context::default();
-        let _ = ctx.run_ui(RawInput::default(), |ui| {
+        let output = ctx.run_ui(RawInput::default(), |ui| {
             c.bench_function("label &str", |b| {
                 b.iter_batched_ref(
                     || create_benchmark_ui(ui),
@@ -86,11 +90,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 );
             });
         });
+        output.drop_without_applying_deltas();
     }
 
     {
         let ctx = egui::Context::default();
-        let _ = ctx.run_ui(RawInput::default(), |ui| {
+        let output = ctx.run_ui(RawInput::default(), |ui| {
             let mut group = c.benchmark_group("button");
 
             // To ensure we have a valid image, let's use the font texture. The size
@@ -134,6 +139,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 );
             });
         });
+
+        output.drop_without_applying_deltas();
     }
 
     {

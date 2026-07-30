@@ -512,8 +512,7 @@ fn points_from_line(
     shapes: &mut Vec<Shape>,
 ) {
     let mut position_on_segment = 0.0;
-    for window in path.windows(2) {
-        let (start, end) = (window[0], window[1]);
+    for &[start, end] in path.array_windows() {
         let vector = end - start;
         let segment_length = vector.length();
         while position_on_segment < segment_length {
@@ -545,8 +544,7 @@ fn dashes_from_line(
     let mut drawing_dash = false;
     let mut step = 0;
     let steps = dash_lengths.len();
-    for window in path.windows(2) {
-        let (start, end) = (window[0], window[1]);
+    for &[start, end] in path.array_windows() {
         let vector = end - start;
         let segment_length = vector.length();
 

@@ -58,7 +58,9 @@ pub(crate) fn texture_to_image(device: &Device, queue: &Queue, texture: &Texture
 
     receiver.recv().unwrap().unwrap();
     let buffer_slice = output_buffer.slice(..);
-    let data = buffer_slice.get_mapped_range();
+    let data = buffer_slice
+        .get_mapped_range()
+        .expect("Failed to get mapped range");
     let data = data
         .chunks_exact(buffer_dimensions.padded_bytes_per_row)
         .flat_map(|row| row.iter().take(buffer_dimensions.unpadded_bytes_per_row))

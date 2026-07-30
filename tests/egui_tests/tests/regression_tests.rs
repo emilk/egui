@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use egui::ScrollArea;
 use egui::accesskit::Role;
+#[cfg(debug_assertions)]
 use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::text::{LayoutJob, TextWrapping};
@@ -261,6 +262,7 @@ fn interact_on_ui_response_should_be_stable() {
     assert_eq!(click_count, 10, "We missed some clicks!");
 }
 
+#[cfg(debug_assertions)]
 fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
     output.shapes.iter().any(|clipped| {
         matches!(
@@ -276,10 +278,13 @@ fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
 /// between frames because the label (and thus the Id salt) changes on hover.
 /// The `warn_if_rect_changes_id` debug check should catch this.
 #[test]
+#[cfg(debug_assertions)]
 fn warn_if_rect_changes_id() {
     let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
 
     let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
+        ui.global_style_mut(|style| style.debug.warn_if_rect_changes_id = true);
+
         // Simulate a buggy widget whose Id depends on its label text,
         // and the label changes on hover:
         let is_hovered = ui.rect_contains_pointer(button_rect);
@@ -309,6 +314,7 @@ fn warn_if_rect_changes_id() {
 /// all child widget ids shift too. This should NOT trigger `warn_if_rect_changes_id` because the
 /// `parent_id` also changed — it's a cascading id shift, not a widget bug.
 #[test]
+#[cfg(debug_assertions)]
 fn warn_if_rect_changes_id_false_positive_parent_shift() {
     use std::cell::Cell;
 
@@ -316,6 +322,8 @@ fn warn_if_rect_changes_id_false_positive_parent_shift() {
     let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
 
     let mut harness = Harness::builder().with_size((200.0, 100.0)).build_ui(|ui| {
+        ui.global_style_mut(|style| style.debug.warn_if_rect_changes_id = true);
+
         // push_id with a changing value causes the child Ui's id to shift,
         // which in turn shifts all widget ids inside it.
         ui.push_id(counter.get(), |ui| {

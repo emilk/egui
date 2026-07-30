@@ -471,8 +471,7 @@ fn layout_section(
     // Process each paragraph segment (split on newlines — the shaper can't handle them).
     for (seg_idx, segment) in SplitOrWhole::new(section_text, job.break_on_newline).enumerate() {
         if 0 < seg_idx {
-            out_paragraphs.push(Paragraph::from_section_index(section_index));
-            paragraph = out_paragraphs.last_mut().unwrap();
+            paragraph = out_paragraphs.push_mut(Paragraph::from_section_index(section_index));
             paragraph.empty_paragraph_height = line_height;
             ctx.is_first_glyph_in_section = true;
         }
@@ -1865,7 +1864,7 @@ mod tests {
 
             // Verify that Row::text() reconstructs the input text.
             let row_text: String = galley.rows.iter().map(|r| r.text()).collect();
-            assert_eq!(row_text, text, "Row::text() mismatch for {text:?}",);
+            assert_eq!(row_text, text, "Row::text() mismatch for {text:?}");
 
             // Verify cursor round-trip: end cursor index == char count.
             assert_eq!(
