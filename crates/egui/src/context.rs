@@ -2699,6 +2699,9 @@ impl ContextImpl {
         let viewport_output = self
             .viewports
             .iter_mut()
+            // Hosted viewports are painted by the application itself, so the integration
+            // must not learn about them - it would create a window for them.
+            .filter(|(_, viewport)| viewport.class != ViewportClass::Hosted)
             .map(|(&id, viewport)| {
                 let parent = *self.viewport_parents.entry(id).or_default();
                 let commands = if is_last {
@@ -4069,6 +4072,106 @@ impl Context {
                 "egui backend is implemented incorrectly - the user callback was never called",
             )
         })
+    }
+
+    /// Run a pass for a viewport that _you_ render yourself, e.g. into a texture.
+    ///
+    /// This is the building block for embedding one egui UI inside another: a scaled,
+    /// rotated or blurred sub-UI, a minimap, a live preview, or an off-screen capture.
+    ///
+    /// The new viewport shares this [`Context`]'s memory, style, fonts and texture atlas,
+    /// so it will look and behave like the rest of your app, but it gets its own input,
+    /// its own hit-testing, its own focus, and its own paint list.
+    ///
+    /// You may call this from inside another pass (i.e. from your normal UI code); the
+    /// current pass is suspended and resumed around it. You must _not_ call it from
+    /// inside a closure that holds a lock on the [`Context`], such as the ones passed to
+    /// [`Self::memory_mut`] or [`Self::graphics_mut`].
+    ///
+    /// You need to call this each pass in which the viewport should exist. If you skip a
+    /// pass, the viewport's state (input, focus, hit-test data) is thrown away.
+    ///
+    /// The given `input` is used as-is, except that [`RawInput::viewport_id`] is set for
+    /// you, and the viewport's [`crate::ViewportInfo::parent`] and, if you left it at
+    /// `None`, its [`crate::ViewportInfo::native_pixels_per_point`] are inherited from the
+    /// calling viewport. You will usually want to set at least
+    /// [`RawInput::screen_rect`] and [`RawInput::events`].
+    ///
+    /// Unlike [`Self::show_viewport_immediate`] and [`Self::show_viewport_deferred`], the
+    /// egui integration is never told that this viewport exists (see
+    /// [`ViewportClass::Hosted`]), so no window is created for it. In return, _you_ are
+    /// responsible for everything a backend would normally do: painting
+    /// [`FullOutput::shapes`], applying [`FullOutput::textures_delta`], and acting on
+    /// [`FullOutput::platform_output`].
+    ///
+    /// Note that a [`Self::request_repaint`] from inside the viewport only marks _that_
+    /// viewport as needing a repaint, so bridge it to the viewport that owns the window:
+    ///
+    /// ```
+    /// # let ctx = &egui::Context::default();
+    /// # let child_id = egui::ViewportId::from_hash_of("child");
+    /// let parent_id = ctx.viewport_id();
+    /// let (output, ()) = ctx.run_hosted_viewport(
+    ///     child_id,
+    ///     egui::RawInput {
+    ///         screen_rect: Some(egui::Rect::from_min_size(
+    ///             egui::Pos2::ZERO,
+    ///             egui::vec2(320.0, 240.0),
+    ///         )),
+    ///         ..Default::default()
+    ///     },
+    ///     |ui| {
+    ///         ui.label("I live in my own viewport");
+    ///     },
+    /// );
+    /// if ctx.has_requested_repaint_for(&child_id) {
+    ///     ctx.request_repaint_of(parent_id);
+    /// }
+    /// # output.drop_without_applying_deltas();
+    /// ```
+    ///
+    /// See [`crate::viewport`] for more information about viewports.
+    #[must_use]
+    pub fn run_hosted_viewport<T>(
+        &self,
+        viewport_id: ViewportId,
+        mut input: RawInput,
+        mut ui_fn: impl FnMut(&mut Ui) -> T,
+    ) -> (FullOutput, T) {
+        profiling::function_scope!();
+
+        let parent_id = self.write(|ctx| {
+            let parent_id = ctx.viewport_id();
+            ctx.viewport_parents.insert(viewport_id, parent_id);
+
+            let viewport = ctx.viewports.entry(viewport_id).or_default();
+            viewport.class = ViewportClass::Hosted;
+            viewport.used = true;
+            viewport.viewport_ui_cb = None; // we run it right here
+
+            parent_id
+        });
+
+        input.viewport_id = viewport_id;
+        let parent_ppp = self.input_for(parent_id, |i| {
+            i.raw
+                .viewports
+                .get(&parent_id)
+                .and_then(|info| info.native_pixels_per_point)
+        });
+        let info = input.viewports.entry(viewport_id).or_default();
+        info.parent = Some(parent_id);
+        info.native_pixels_per_point = info.native_pixels_per_point.or(parent_ppp);
+
+        // `run_ui` may run the ui function more than once (see `Self::request_discard`),
+        // so keep the value from the last pass.
+        let mut out = None;
+        let full_output = self.run_ui(input, |ui| {
+            out = Some(ui_fn(ui));
+        });
+
+        let out = out.expect("Bug in egui: the ui function was never called");
+        (full_output, out)
     }
 
     fn show_embedded_viewport<T>(

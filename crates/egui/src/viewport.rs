@@ -77,7 +77,7 @@ use epaint::{Pos2, Vec2};
 // ----------------------------------------------------------------------------
 
 /// The different types of viewports supported by egui.
-#[derive(Clone, Copy, Default, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportClass {
     /// The root viewport; i.e. the original window.
@@ -106,6 +106,17 @@ pub enum ViewportClass {
     /// If you get this, it is because you are already wrapped in a [`crate::Window`]
     /// inside of the parent viewport.
     EmbeddedWindow,
+
+    /// A viewport that the application renders itself, e.g. into a texture.
+    ///
+    /// The egui integration is never told about these viewports: they are left out of
+    /// [`crate::FullOutput::viewport_output`], so no window is created for them and no
+    /// [`ViewportCommand`] is delivered to them. The application that called
+    /// [`crate::Context::run_hosted_viewport`] owns the viewport completely: it supplies the
+    /// [`crate::RawInput`], and it paints the resulting shapes wherever it wants.
+    ///
+    /// Create these with [`crate::Context::run_hosted_viewport`].
+    Hosted,
 }
 
 // ----------------------------------------------------------------------------
