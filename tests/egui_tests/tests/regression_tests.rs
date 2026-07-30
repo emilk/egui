@@ -1,15 +1,12 @@
 use std::sync::Arc;
 
-use egui::ScrollArea;
 use egui::accesskit::Role;
 #[cfg(debug_assertions)]
 use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::text::{LayoutJob, TextWrapping};
-use egui::{
-    Align, Button, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
-    TextFormat, TextWrapMode, Ui, include_image, vec2,
-};
+use egui::{include_image, vec2, Align, Button, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer, TextFormat, TextWrapMode, Ui, Vec2, Rect};
+use egui::{Pos2, ScrollArea};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT as _, Queryable as _};
 
@@ -480,4 +477,24 @@ fn animated_scroll_beats_sticky_bottom() {
         harness.state().1 + 1.0 < harness.state().2,
         "animated explicit scroll should leave the sticky bottom"
     );
+}
+
+/// Tests that tooltips are shown correctly for buttons that are only shown on hover.
+///
+/// Basically, this tests that a tooltip overlapping the mouse cursor does not interfere with a
+/// buttons hover state.
+#[test]
+fn tooltip_should_work_for_hover_button() {
+    let button_rect = Rect::from_min_size(Pos2::new(4.0, 4.0), Vec2::new(80.0, 20.0));
+    let mut harness = Harness::builder().with_size((320.0, 80.0)).build_ui(|ui| {
+        if ui.rect_contains_pointer(button_rect) {
+            ui.button("A tooltip should be shown").on_hover_text("My tooltip");
+        }
+    });
+
+    harness.hover_at(button_rect.center());
+
+    harness.run();
+
+    harness.snapshot("test_tooltip_hover_regression");
 }
