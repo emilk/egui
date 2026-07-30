@@ -1,4 +1,7 @@
 use crate::{ImageData, ImageDelta, TextureId};
+use ahash::{HashMap, HashSet};
+use smallvec::{SmallVec, smallvec};
+use std::mem;
 
 // ----------------------------------------------------------------------------
 
@@ -40,7 +43,7 @@ impl TextureManager {
             options,
         });
 
-        self.delta.set.push((id, ImageDelta::full(image, options)));
+        self.delta.push(id, ImageDelta::full(image, options));
         id
     }
 
@@ -58,10 +61,8 @@ impl TextureManager {
                 // whole update
                 meta.size = delta.image.size();
                 meta.bytes_per_pixel = delta.image.bytes_per_pixel();
-                // since we update the whole image, we can discard all old enqueued deltas
-                self.delta.set.retain(|(x, _)| x != &id);
             }
-            self.delta.set.push((id, delta));
+            self.delta.push(id, delta);
         } else {
             debug_assert!(false, "Tried setting texture {id:?} which is not allocated");
         }
@@ -74,7 +75,7 @@ impl TextureManager {
             meta.retain_count -= 1;
             if meta.retain_count == 0 {
                 entry.remove();
-                self.delta.free.push(id);
+                self.delta.free(id);
             }
         } else {
             debug_assert!(false, "Tried freeing texture {id:?} which is not allocated");
@@ -115,6 +116,12 @@ impl TextureManager {
     /// Total number of allocated textures.
     pub fn num_allocated(&self) -> usize {
         self.metas.len()
+    }
+}
+
+impl Drop for TextureManager {
+    fn drop(&mut self) {
+        self.delta.clear(); // Prevent a debug panic on application shutdown
     }
 }
 
@@ -276,10 +283,10 @@ pub enum TextureWrapMode {
 #[must_use = "The painter must take care of this"]
 pub struct TexturesDelta {
     /// New or changed textures. Apply before painting.
-    pub set: Vec<(TextureId, ImageDelta)>,
+    pub set: HashMap<TextureId, SmallVec<[ImageDelta; 1]>>,
 
     /// Textures to free after painting.
-    pub free: Vec<TextureId>,
+    pub free: HashSet<TextureId>,
 }
 
 impl TexturesDelta {
@@ -287,14 +294,52 @@ impl TexturesDelta {
         self.set.is_empty() && self.free.is_empty()
     }
 
+    /// Inserts a [`ImageDelta`].
+    ///
+    /// If this [`TexturesDelta`] already contains this [`TextureId`], and this is a `whole` delta,
+    /// the previous deltas for this id are discarded.
+    pub fn push(&mut self, id: TextureId, delta: ImageDelta) {
+        if delta.is_whole() {
+            // It replaces the whole texture, fine to overwrite any previous deltas
+            self.set.insert(id, smallvec![delta]);
+        } else {
+            self.set.entry(id).or_default().push(delta);
+        }
+    }
+
+    pub fn free(&mut self, id: TextureId) {
+        self.free.insert(id);
+    }
+
+    #[expect(clippy::iter_over_hash_type)]
     pub fn append(&mut self, mut newer: Self) {
-        self.set.extend(newer.set);
-        self.free.append(&mut newer.free);
+        // Only clear previous entries on append, not on set, since within a frame a texture might
+        // be created and immediately removed again.
+        for id in &newer.free {
+            self.set.remove(id);
+        }
+        for (id, deltas) in newer.set.drain() {
+            for delta in deltas {
+                self.push(id, delta);
+            }
+        }
+        self.free.extend(mem::take(&mut newer.free));
     }
 
     pub fn clear(&mut self) {
         self.set.clear();
         self.free.clear();
+    }
+}
+
+impl Drop for TexturesDelta {
+    fn drop(&mut self) {
+        debug_assert!(
+            self.is_empty(),
+            "Dropped TexturesDelta with {} unapplied deltas. Deltas need to be handled. \
+            If you want to drop this intentionally call `clear` before dropping.",
+            self.free.len() + self.set.len()
+        );
     }
 }
 
@@ -305,21 +350,24 @@ impl std::fmt::Debug for TexturesDelta {
         let mut debug_struct = f.debug_struct("TexturesDelta");
         if !self.set.is_empty() {
             let mut string = String::new();
-            for (tex_id, delta) in &self.set {
-                let size = delta.image.size();
-                if let Some(pos) = delta.pos {
-                    write!(
-                        string,
-                        "{:?} partial ([{} {}] - [{} {}]), ",
-                        tex_id,
-                        pos[0],
-                        pos[1],
-                        pos[0] + size[0],
-                        pos[1] + size[1]
-                    )
-                    .ok();
-                } else {
-                    write!(string, "{:?} full {}x{}, ", tex_id, size[0], size[1]).ok();
+            #[expect(clippy::iter_over_hash_type)]
+            for (tex_id, deltas) in &self.set {
+                for delta in deltas {
+                    let size = delta.image.size();
+                    if let Some(pos) = delta.pos {
+                        write!(
+                            string,
+                            "{:?} partial ([{} {}] - [{} {}]), ",
+                            tex_id,
+                            pos[0],
+                            pos[1],
+                            pos[0] + size[0],
+                            pos[1] + size[1]
+                        )
+                        .ok();
+                    } else {
+                        write!(string, "{:?} full {}x{}, ", tex_id, size[0], size[1]).ok();
+                    }
                 }
             }
             debug_struct.field("set", &string);

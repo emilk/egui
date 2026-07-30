@@ -1460,9 +1460,9 @@ fn order_map_total_ordering() {
     // Assert that `areas.compare_order()` forms a total ordering
     let mut equivalence_classes = vec![0];
     let mut i = 0;
-    for l in layers.windows(2) {
-        assert!(l[0].order <= l[1].order, "does not follow LayerId.order");
-        if areas.compare_order(l[0], l[1]) != std::cmp::Ordering::Equal {
+    for &[a, b] in layers.array_windows() {
+        assert!(a.order <= b.order, "does not follow LayerId.order");
+        if areas.compare_order(a, b) != std::cmp::Ordering::Equal {
             i += 1;
         }
         equivalence_classes.push(i);
