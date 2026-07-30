@@ -1875,6 +1875,24 @@ impl Context {
         self.read(|ctx| ctx.has_requested_repaint(viewport_id))
     }
 
+    /// How long the given viewport is willing to wait before being repainted.
+    ///
+    /// This is the same value that [`crate::ViewportOutput::repaint_delay`] reports, and
+    /// is [`Duration::MAX`] if the viewport does not want to be repainted at all.
+    ///
+    /// You only need this if you host a viewport yourself with
+    /// [`Self::run_hosted_viewport`], since such viewports are left out of
+    /// [`FullOutput::viewport_output`]. Pass it on to the viewport that owns the window,
+    /// or a blinking text cursor inside the hosted viewport will stop blinking.
+    #[must_use]
+    pub fn requested_repaint_delay_for(&self, viewport_id: &ViewportId) -> Duration {
+        self.read(|ctx| {
+            ctx.viewports
+                .get(viewport_id)
+                .map_or(Duration::MAX, |viewport| viewport.repaint.repaint_delay)
+        })
+    }
+
     /// Why are we repainting?
     ///
     /// This can be helpful in debugging why egui is constantly repainting.
