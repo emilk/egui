@@ -117,6 +117,162 @@ pub trait CallbackTrait: Send + Sync {
         render_pass: &mut wgpu::RenderPass<'static>,
         callback_resources: &CallbackResources,
     );
+
+    /// Do you need to see what egui has already drawn underneath you?
+    ///
+    /// Return `true` for effects that transform the background rather than draw over it,
+    /// such as a blur behind a window. You then get [`CallbackTrait::process_backdrop`]
+    /// and [`CallbackTrait::paint_with_backdrop`] instead of [`CallbackTrait::paint`].
+    ///
+    /// Because nothing can sample the texture it is currently drawing into, this makes
+    /// egui interrupt its render pass and copy the half-drawn frame aside, which is not
+    /// free. Only ask when you need it.
+    ///
+    /// This only works if the integration renders egui into its own texture rather than
+    /// straight into the window. `eframe` does that automatically as soon as one callback
+    /// asks for a backdrop; other integrations need to follow
+    /// [`Renderer::render_from`]'s instructions. If the integration does not support it,
+    /// [`CallbackTrait::paint`] is called as usual and no backdrop is captured.
+    fn needs_backdrop(&self) -> bool {
+        false
+    }
+
+    /// Called between render passes, once the backdrop has been captured.
+    ///
+    /// You have the [`wgpu::CommandEncoder`], so this is where to run your own render
+    /// passes over the backdrop: blur it, tint it, distort it. Put the result somewhere
+    /// [`CallbackTrait::paint_with_backdrop`] can find it, such as a texture you allocated
+    /// in [`CallbackTrait::prepare`].
+    ///
+    /// Only called when [`CallbackTrait::needs_backdrop`] returns `true`.
+    fn process_backdrop(
+        &self,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+        _egui_encoder: &mut wgpu::CommandEncoder,
+        _callback_resources: &CallbackResources,
+        _backdrop: &Backdrop<'_>,
+    ) {
+    }
+
+    /// Called instead of [`CallbackTrait::paint`] when [`CallbackTrait::needs_backdrop`]
+    /// returns `true` and the integration was able to capture a backdrop.
+    ///
+    /// Draw into the render pass as you would in [`CallbackTrait::paint`], sampling
+    /// `backdrop` or whatever [`CallbackTrait::process_backdrop`] produced from it.
+    fn paint_with_backdrop(
+        &self,
+        info: PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'static>,
+        callback_resources: &CallbackResources,
+        _backdrop: &Backdrop<'_>,
+    ) {
+        self.paint(info, render_pass, callback_resources);
+    }
+}
+
+/// How far [`Renderer::render_from`] has got through the paint jobs.
+///
+/// Start with [`RenderCursor::default`] and hand the same one back on each call.
+#[derive(Clone, Copy, Debug)]
+pub struct RenderCursor {
+    /// The paint job to draw next.
+    job: usize,
+
+    /// How many meshes have been drawn, which is how far into the vertex and index buffer
+    /// slices we are.
+    mesh: usize,
+
+    /// Whether the caller is able to capture backdrops. When it is not, we never stop for
+    /// one, and callbacks that wanted a backdrop are drawn without.
+    backdrops_supported: bool,
+}
+
+impl Default for RenderCursor {
+    fn default() -> Self {
+        Self {
+            job: 0,
+            mesh: 0,
+            backdrops_supported: true,
+        }
+    }
+}
+
+/// Whether [`Renderer::render_from`] finished, or stopped to let you capture a backdrop.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RenderProgress {
+    /// Every paint job has been drawn.
+    Done,
+
+    /// A callback needs to see what is underneath it.
+    ///
+    /// End the render pass, call [`Renderer::capture_backdrop`], then call
+    /// [`Renderer::render_from`] again with a fresh pass that loads rather than clears.
+    NeedsBackdrop,
+}
+
+/// A copy of everything egui had drawn when a backdrop effect was reached.
+///
+/// Holds premultiplied alpha, like everything else egui renders.
+#[derive(Clone, Copy)]
+pub struct Backdrop<'a> {
+    /// The captured image, ready to sample.
+    pub view: &'a wgpu::TextureView,
+
+    /// The size of [`Self::view`], in physical pixels.
+    pub size_in_pixels: [u32; 2],
+
+    /// The format of [`Self::view`].
+    pub format: wgpu::TextureFormat,
+}
+
+/// Somewhere to keep the half-drawn frame while a backdrop effect reads it.
+///
+/// Integrations that want to support [`CallbackTrait::needs_backdrop`] own one of these
+/// and hand it to [`Renderer::capture_backdrop`].
+pub struct BackdropTexture {
+    texture: wgpu::Texture,
+    view: wgpu::TextureView,
+}
+
+impl BackdropTexture {
+    /// Allocate a backdrop texture of the given size and format.
+    ///
+    /// The format must match the texture egui is being rendered into.
+    pub fn new(device: &wgpu::Device, size_in_pixels: [u32; 2], format: wgpu::TextureFormat) -> Self {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("egui_backdrop"),
+            size: wgpu::Extent3d {
+                width: size_in_pixels[0].max(1),
+                height: size_in_pixels[1].max(1),
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[format],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        Self { texture, view }
+    }
+
+    /// Reallocate if the size or format no longer matches.
+    pub fn update(&mut self, device: &wgpu::Device, size_in_pixels: [u32; 2], format: wgpu::TextureFormat) {
+        let size = self.texture.size();
+        if size.width != size_in_pixels[0].max(1)
+            || size.height != size_in_pixels[1].max(1)
+            || self.texture.format() != format
+        {
+            *self = Self::new(device, size_in_pixels, format);
+        }
+    }
+
+    /// The captured image.
+    pub fn view(&self) -> &wgpu::TextureView {
+        &self.view
+    }
 }
 
 /// Information about the screen used for rendering.
@@ -479,6 +635,62 @@ impl Renderer {
         paint_jobs: &[epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
+        // This entry point cannot interrupt the render pass, since it does not own it, so
+        // tell `render_from` not to stop for backdrops. Callbacks that wanted one are
+        // drawn with a plain `paint` instead.
+        let mut cursor = RenderCursor {
+            backdrops_supported: false,
+            ..RenderCursor::default()
+        };
+        self.render_from(render_pass, paint_jobs, screen_descriptor, &mut cursor, None);
+    }
+
+    /// Draw paint jobs, stopping when one of them needs a backdrop.
+    ///
+    /// Use this instead of [`Renderer::render`] to support
+    /// [`CallbackTrait::needs_backdrop`]. Nothing can sample the texture it is currently
+    /// drawing into, so a backdrop effect needs the render pass to be interrupted and the
+    /// half-drawn frame copied aside. That means the integration, which owns the render
+    /// pass, has to drive the loop:
+    ///
+    /// ```ignore
+    /// let mut cursor = RenderCursor::default();
+    /// let mut load = wgpu::LoadOp::Clear(clear_color);
+    /// loop {
+    ///     let mut pass = begin_render_pass(&mut encoder, load).forget_lifetime();
+    ///     let progress = renderer.render_from(
+    ///         &mut pass, &jobs, &screen_descriptor, &mut cursor, backdrop.as_ref(),
+    ///     );
+    ///     drop(pass); // ends the pass, so the target can be read
+    ///     if progress == RenderProgress::Done {
+    ///         break;
+    ///     }
+    ///     renderer.capture_backdrop(
+    ///         device, queue, &mut encoder, &jobs, cursor,
+    ///         &target_texture, &mut backdrop_texture,
+    ///     );
+    ///     load = wgpu::LoadOp::Load; // keep what we have already drawn
+    /// }
+    /// ```
+    ///
+    /// `target_texture` must be a texture the integration owns, with
+    /// [`wgpu::TextureUsages::COPY_SRC`], rather than the window's surface texture, which
+    /// cannot be copied from on every platform. Blit it to the surface at the end.
+    ///
+    /// Pass the `backdrop` from the previous [`Renderer::capture_backdrop`] call, or
+    /// `None` on the first pass. If you pass `None` for a callback that asked for a
+    /// backdrop, it is drawn with [`CallbackTrait::paint`] instead.
+    ///
+    /// # Panic
+    /// Always ensure that [`Renderer::update_buffers`] has been called first.
+    pub fn render_from(
+        &self,
+        render_pass: &mut wgpu::RenderPass<'static>,
+        paint_jobs: &[epaint::ClippedPrimitive],
+        screen_descriptor: &ScreenDescriptor,
+        cursor: &mut RenderCursor,
+        backdrop: Option<&Backdrop<'_>>,
+    ) -> RenderProgress {
         profiling::function_scope!();
 
         let pixels_per_point = screen_descriptor.pixels_per_point;
@@ -488,14 +700,34 @@ impl Renderer {
         // run.
         let mut needs_reset = true;
 
-        let mut index_buffer_slices = self.index_buffer.slices.iter();
-        let mut vertex_buffer_slices = self.vertex_buffer.slices.iter();
+        let mut index_buffer_slices = self.index_buffer.slices.iter().skip(cursor.mesh);
+        let mut vertex_buffer_slices = self.vertex_buffer.slices.iter().skip(cursor.mesh);
 
-        for epaint::ClippedPrimitive {
+        // The backdrop, if any, belongs to the callback we stopped at last time, which is
+        // the one the cursor now points at. Anything after that has to capture its own.
+        let mut backdrop = backdrop;
+
+        while let Some(epaint::ClippedPrimitive {
             clip_rect,
             primitive,
-        } in paint_jobs
+        }) = paint_jobs.get(cursor.job)
         {
+            if cursor.backdrops_supported
+                && backdrop.is_none()
+                && let Primitive::Callback(callback) = primitive
+                && let Some(cbfn) = callback.callback.downcast_ref::<Callback>()
+                && cbfn.0.needs_backdrop()
+            {
+                // Stop here and let the caller end the pass and capture the backdrop. The
+                // cursor stays on this job, so we draw it when we are called again.
+                return RenderProgress::NeedsBackdrop;
+            }
+
+            if let Primitive::Mesh(_) = primitive {
+                cursor.mesh += 1;
+            }
+            cursor.job += 1;
+
             if needs_reset {
                 render_pass.set_viewport(
                     0.0,
@@ -594,13 +826,108 @@ impl Renderer {
                             1.0,
                         );
 
-                        cbfn.0.paint(info, render_pass, &self.callback_resources);
+                        // `backdrop` was captured for this callback and this callback only.
+                        // Taking it means a later backdrop effect stops the pass again to
+                        // capture its own, which it must: by then we will have drawn this
+                        // one, and it needs to see that.
+                        match backdrop.take().filter(|_| cbfn.0.needs_backdrop()) {
+                            Some(backdrop) => cbfn.0.paint_with_backdrop(
+                                info,
+                                render_pass,
+                                &self.callback_resources,
+                                backdrop,
+                            ),
+                            None => cbfn.0.paint(info, render_pass, &self.callback_resources),
+                        }
                     }
                 }
             }
         }
 
         render_pass.set_scissor_rect(0, 0, size_in_pixels[0], size_in_pixels[1]);
+        RenderProgress::Done
+    }
+
+    /// Copy the half-drawn frame aside so a backdrop effect can read it.
+    ///
+    /// Call this after ending the render pass, when [`Renderer::render_from`] returned
+    /// [`RenderProgress::NeedsBackdrop`]. It copies `target` into `backdrop` and then
+    /// lets the waiting callback run its own passes over it via
+    /// [`CallbackTrait::process_backdrop`].
+    ///
+    /// `target` is the texture egui is being drawn into, and needs
+    /// [`wgpu::TextureUsages::COPY_SRC`]. With multisampling, pass the resolve target
+    /// rather than the multisampled texture.
+    ///
+    /// `backdrop` must already be the same size and format as `target`; call
+    /// [`BackdropTexture::update`] before the loop starts.
+    pub fn capture_backdrop<'a>(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        paint_jobs: &[epaint::ClippedPrimitive],
+        cursor: RenderCursor,
+        target: &wgpu::Texture,
+        backdrop: &'a BackdropTexture,
+    ) -> Option<Backdrop<'a>> {
+        profiling::function_scope!();
+
+        let Some(epaint::ClippedPrimitive {
+            primitive: Primitive::Callback(callback),
+            ..
+        }) = paint_jobs.get(cursor.job)
+        else {
+            debug_assert!(
+                false,
+                "Bug in egui-wgpu: capture_backdrop was called when the cursor was not on a callback"
+            );
+            return None;
+        };
+        let cbfn = callback.callback.downcast_ref::<Callback>()?;
+
+        let size = target.size();
+        let size_in_pixels = [size.width, size.height];
+        let format = target.format();
+        debug_assert_eq!(
+            backdrop.texture.size(),
+            size,
+            "The backdrop texture must be the same size as the texture egui is drawn into; call `BackdropTexture::update`"
+        );
+        debug_assert_eq!(
+            backdrop.texture.format(),
+            format,
+            "The backdrop texture must be the same format as the texture egui is drawn into; call `BackdropTexture::update`"
+        );
+
+        encoder.copy_texture_to_texture(
+            target.as_image_copy(),
+            backdrop.texture.as_image_copy(),
+            size,
+        );
+
+        let backdrop = Backdrop {
+            view: &backdrop.view,
+            size_in_pixels,
+            format,
+        };
+        cbfn.0
+            .process_backdrop(device, queue, encoder, &self.callback_resources, &backdrop);
+        Some(backdrop)
+    }
+
+    /// Does any of these paint jobs want a backdrop?
+    ///
+    /// Integrations use this to decide whether to render egui into their own texture, which
+    /// backdrop effects need, instead of straight into the window's surface.
+    pub fn needs_backdrop(paint_jobs: &[epaint::ClippedPrimitive]) -> bool {
+        paint_jobs.iter().any(|job| {
+            matches!(&job.primitive, Primitive::Callback(callback)
+                if callback
+                    .callback
+                    .downcast_ref::<Callback>()
+                    .is_some_and(|cbfn| cbfn.0.needs_backdrop()))
+        })
     }
 
     /// Should be called before [`Self::render`].

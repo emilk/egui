@@ -5,11 +5,21 @@
 
 use crate::{RenderState, SurfaceConfig, SurfaceErrorAction, WgpuConfiguration, renderer};
 use crate::{
-    RendererOptions,
+    BackdropTexture, RenderCursor, RenderProgress, Renderer, RendererOptions,
     capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
 };
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
+
+/// Clear the depth or stencil buffer on the first render pass of a frame, and keep it on
+/// any later ones, matching what the color attachment is doing.
+fn keep_or_clear<T>(color_load: wgpu::LoadOp<wgpu::Color>, clear_value: T) -> wgpu::LoadOp<T> {
+    if matches!(color_load, wgpu::LoadOp::Load) {
+        wgpu::LoadOp::Load
+    } else {
+        wgpu::LoadOp::Clear(clear_value)
+    }
+}
 
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
@@ -32,6 +42,9 @@ pub struct Painter {
     options: RendererOptions,
     support_transparent_backbuffer: bool,
     screen_capture_state: Option<CaptureState>,
+
+    /// Somewhere to keep the half-drawn frame while a backdrop effect reads it.
+    backdrop_texture: Option<BackdropTexture>,
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
@@ -72,6 +85,7 @@ impl Painter {
             options,
             support_transparent_backbuffer,
             screen_capture_state: None,
+            backdrop_texture: None,
 
             instance,
             render_state: None,
@@ -630,17 +644,45 @@ impl Painter {
         {
             let renderer = render_state.renderer.read();
 
-            let target_texture = if capture {
+            // Backdrop effects have to read what egui has already drawn, and the surface
+            // texture cannot be read on every platform, so render into our own texture and
+            // blit it onto the surface afterwards. That is the same thing a screenshot
+            // needs, so reuse the machinery.
+            let needs_backdrop = Renderer::needs_backdrop(clipped_primitives);
+            let render_to_own_texture = capture || needs_backdrop;
+
+            if render_to_own_texture {
                 let capture_state = self.screen_capture_state.get_or_insert_with(|| {
                     CaptureState::new(&render_state.device, &output_frame.texture)
                 });
                 capture_state.update(&render_state.device, &output_frame.texture);
-
-                &capture_state.texture
-            } else {
-                &output_frame.texture
-            };
+            }
+            let target_texture = self
+                .screen_capture_state
+                .as_ref()
+                .filter(|_| render_to_own_texture)
+                .map_or(&output_frame.texture, |capture_state| {
+                    &capture_state.texture
+                });
             let target_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+            // Size the backdrop texture up front, so that the borrow of it can be held for
+            // the whole render loop below.
+            if needs_backdrop {
+                let size = [target_texture.width(), target_texture.height()];
+                let format = target_texture.format();
+                match &mut self.backdrop_texture {
+                    Some(backdrop) => backdrop.update(&render_state.device, size, format),
+                    None => {
+                        self.backdrop_texture = Some(BackdropTexture::new(
+                            &render_state.device,
+                            size,
+                            format,
+                        ));
+                    }
+                }
+            }
+            let backdrop_texture = self.backdrop_texture.as_ref().filter(|_| needs_backdrop);
 
             let (view, resolve_target) = (self.options.msaa_samples > 1)
                 .then_some(self.msaa_texture_view.get(&viewport_id))
@@ -649,69 +691,114 @@ impl Painter {
                     (texture_view, Some(&target_view))
                 });
 
-            let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("egui_render"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: clear_color[0] as f64,
-                            g: clear_color[1] as f64,
-                            b: clear_color[2] as f64,
-                            a: clear_color[3] as f64,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: self.depth_texture_view.get(&viewport_id).map(|view| {
-                    wgpu::RenderPassDepthStencilAttachment {
-                        view,
-                        depth_ops: self
-                            .options
-                            .depth_stencil_format
-                            .is_some_and(|depth_stencil_format| {
-                                depth_stencil_format.has_depth_aspect()
-                            })
-                            .then_some(wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(1.0),
-                                // It is very unlikely that the depth buffer is needed after egui finished rendering
-                                // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
-                                store: wgpu::StoreOp::Discard,
-                            }),
-                        stencil_ops: self
-                            .options
-                            .depth_stencil_format
-                            .is_some_and(|depth_stencil_format| {
-                                depth_stencil_format.has_stencil_aspect()
-                            })
-                            .then_some(wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(0),
-                                store: wgpu::StoreOp::Discard,
-                            }),
-                    }
-                }),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
+            // Usually one pass is enough. A backdrop effect needs to read what egui has
+            // drawn so far, and nothing can read the texture it is drawing into, so the
+            // pass has to be ended and a new one started for each of those.
+            let mut cursor = RenderCursor::default();
+            let mut backdrop = None;
+            let mut color_load = wgpu::LoadOp::Clear(wgpu::Color {
+                r: clear_color[0] as f64,
+                g: clear_color[1] as f64,
+                b: clear_color[2] as f64,
+                a: clear_color[3] as f64,
             });
 
-            // Forgetting the pass' lifetime means that we are no longer compile-time protected from
-            // runtime errors caused by accessing the parent encoder before the render pass is dropped.
-            // Since we don't pass it on to the renderer, we should be perfectly safe against this mistake here!
-            renderer.render(
-                &mut render_pass.forget_lifetime(),
-                clipped_primitives,
-                &screen_descriptor,
-            );
+            loop {
+                let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("egui_render"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view,
+                        resolve_target,
+                        ops: wgpu::Operations {
+                            load: color_load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    })],
+                    depth_stencil_attachment: self.depth_texture_view.get(&viewport_id).map(
+                        |view| wgpu::RenderPassDepthStencilAttachment {
+                            view,
+                            depth_ops: self
+                                .options
+                                .depth_stencil_format
+                                .is_some_and(|depth_stencil_format| {
+                                    depth_stencil_format.has_depth_aspect()
+                                })
+                                .then_some(wgpu::Operations {
+                                    load: keep_or_clear(color_load, 1.0),
+                                    // It is very unlikely that the depth buffer is needed after egui finished rendering
+                                    // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon).
+                                    // Backdrop effects split the render pass, and the later passes load what the earlier ones wrote.
+                                    store: if needs_backdrop {
+                                        wgpu::StoreOp::Store
+                                    } else {
+                                        wgpu::StoreOp::Discard
+                                    },
+                                }),
+                            stencil_ops: self
+                                .options
+                                .depth_stencil_format
+                                .is_some_and(|depth_stencil_format| {
+                                    depth_stencil_format.has_stencil_aspect()
+                                })
+                                .then_some(wgpu::Operations {
+                                    load: keep_or_clear(color_load, 0),
+                                    store: if needs_backdrop {
+                                        wgpu::StoreOp::Store
+                                    } else {
+                                        wgpu::StoreOp::Discard
+                                    },
+                                }),
+                        },
+                    ),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
+                });
+
+                // Forgetting the pass' lifetime means that we are no longer compile-time protected from
+                // runtime errors caused by accessing the parent encoder before the render pass is dropped.
+                // Since we don't pass it on to the renderer, we should be perfectly safe against this mistake here!
+                let mut render_pass = render_pass.forget_lifetime();
+                let progress = renderer.render_from(
+                    &mut render_pass,
+                    clipped_primitives,
+                    &screen_descriptor,
+                    &mut cursor,
+                    backdrop.as_ref(),
+                );
+                // Ends the pass, so that the texture we drew into can be read.
+                drop(render_pass);
+
+                if progress == RenderProgress::Done {
+                    break;
+                }
+
+                let Some(backdrop_texture) = backdrop_texture else {
+                    // `needs_backdrop` said there were none, so `render_from` should never
+                    // have stopped.
+                    debug_assert!(false, "Bug in egui-wgpu: no backdrop texture was prepared");
+                    break;
+                };
+                backdrop = renderer.capture_backdrop(
+                    &render_state.device,
+                    &render_state.queue,
+                    &mut encoder,
+                    clipped_primitives,
+                    cursor,
+                    target_texture,
+                    backdrop_texture,
+                );
+                // Keep what we have already drawn.
+                color_load = wgpu::LoadOp::Load;
+            }
 
             if capture && let Some(capture_state) = &mut self.screen_capture_state {
-                capture_buffer = Some(capture_state.copy_textures(
-                    &render_state.device,
-                    &output_frame,
-                    &mut encoder,
-                ));
+                capture_buffer =
+                    Some(capture_state.copy_to_buffer(&render_state.device, &mut encoder));
+            }
+            if render_to_own_texture && let Some(capture_state) = &self.screen_capture_state {
+                capture_state.blit_to_surface(&output_frame, &mut encoder);
             }
         }
 

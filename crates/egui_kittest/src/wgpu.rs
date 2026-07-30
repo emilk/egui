@@ -208,24 +208,64 @@ impl crate::TestRenderer for WgpuTestRenderer {
 
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        {
-            let mut pass = encoder
-                .begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Egui Render Pass"),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &texture_view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                            store: wgpu::StoreOp::Store,
-                        },
-                        depth_slice: None,
-                    })],
-                    ..Default::default()
-                })
-                .forget_lifetime();
+        // A paint callback may need to see what egui has already drawn, e.g. to blur the
+        // background behind a panel. Nothing can sample the texture it is drawing into, so
+        // that needs the render pass interrupted and the half-drawn frame copied aside.
+        let backdrop_texture = egui_wgpu::Renderer::needs_backdrop(&tessellated).then(|| {
+            egui_wgpu::BackdropTexture::new(
+                &self.render_state.device,
+                screen.size_in_pixels,
+                self.render_state.target_format,
+            )
+        });
+        let mut cursor = egui_wgpu::RenderCursor::default();
+        let mut backdrop = None;
+        let mut load = wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT);
 
-            renderer.render(&mut pass, &tessellated, &screen);
+        loop {
+            let progress = {
+                let mut pass = encoder
+                    .begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("Egui Render Pass"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &texture_view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load,
+                                store: wgpu::StoreOp::Store,
+                            },
+                            depth_slice: None,
+                        })],
+                        ..Default::default()
+                    })
+                    .forget_lifetime();
+
+                renderer.render_from(
+                    &mut pass,
+                    &tessellated,
+                    &screen,
+                    &mut cursor,
+                    backdrop.as_ref(),
+                )
+            };
+
+            if progress == egui_wgpu::RenderProgress::Done {
+                break;
+            }
+
+            let Some(backdrop_texture) = backdrop_texture.as_ref() else {
+                break;
+            };
+            backdrop = renderer.capture_backdrop(
+                &self.render_state.device,
+                &self.render_state.queue,
+                &mut encoder,
+                &tessellated,
+                cursor,
+                &texture,
+                backdrop_texture,
+            );
+            load = wgpu::LoadOp::Load;
         }
 
         self.render_state

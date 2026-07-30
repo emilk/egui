@@ -117,12 +117,19 @@ impl CaptureState {
         output_frame: &wgpu::SurfaceTexture,
         encoder: &mut wgpu::CommandEncoder,
     ) -> wgpu::Buffer {
-        debug_assert_eq!(
-            self.texture.size(),
-            output_frame.texture.size(),
-            "Texture sizes must match, `CaptureState::update` was probably not called"
-        );
+        let buffer = self.copy_to_buffer(device, encoder);
+        self.blit_to_surface(output_frame, encoder);
+        buffer
+    }
 
+    /// Copies the [`CaptureState`] texture into a new buffer, ready to be read back to the cpu.
+    ///
+    /// Pass the returned buffer to [`CaptureState::read_screen_rgba`].
+    pub fn copy_to_buffer(
+        &mut self,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+    ) -> wgpu::Buffer {
         // It would be more efficient to reuse the Buffer, e.g. via some kind of ring buffer, but
         // for most screenshot use cases this should be fine. When taking many screenshots (e.g. for a video)
         // it might make sense to revisit this and implement a more efficient solution.
@@ -151,6 +158,25 @@ impl CaptureState {
             tex_extent,
         );
 
+        buffer
+    }
+
+    /// Draws the [`CaptureState`] texture onto the surface texture.
+    ///
+    /// Needed whenever egui was rendered into this texture instead of straight into the
+    /// surface. That is the case both when capturing a screenshot and when a paint callback
+    /// asked for a backdrop, since the surface texture cannot be read on every platform.
+    pub fn blit_to_surface(
+        &self,
+        output_frame: &wgpu::SurfaceTexture,
+        encoder: &mut wgpu::CommandEncoder,
+    ) {
+        debug_assert_eq!(
+            self.texture.size(),
+            output_frame.texture.size(),
+            "Texture sizes must match, `CaptureState::update` was probably not called"
+        );
+
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("texture_copy"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -171,8 +197,6 @@ impl CaptureState {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
         pass.draw(0..3, 0..1);
-
-        buffer
     }
 
     /// Handles copying from the [`CaptureState`] texture to the surface texture and the cpu
