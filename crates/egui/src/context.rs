@@ -775,6 +775,7 @@ impl Context {
     ///     ui.label("Hello egui!");
     /// });
     /// // handle full_output
+    /// # full_output.drop_without_applying_deltas();
     /// ```
     #[must_use]
     pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
@@ -892,6 +893,7 @@ impl Context {
     ///
     /// let full_output = ctx.end_pass();
     /// // handle full_output
+    /// # full_output.drop_without_applying_deltas();
     /// ```
     pub fn begin_pass(&self, mut new_input: RawInput) {
         profiling::function_scope!();
@@ -4296,6 +4298,7 @@ mod test {
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
             assert!(!output.platform_output.requested_discard());
+            output.drop_without_applying_deltas();
         }
 
         // A single call, with a denied request to discard:
@@ -4321,6 +4324,7 @@ mod test {
                     .reason,
                 "test"
             );
+            output.drop_without_applying_deltas();
         }
     }
 
@@ -4341,6 +4345,7 @@ mod test {
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
             assert!(!output.platform_output.requested_discard());
+            output.drop_without_applying_deltas();
         }
 
         // Request discard once:
@@ -4363,6 +4368,7 @@ mod test {
                 !output.platform_output.requested_discard(),
                 "The request should have been cleared when fulfilled"
             );
+            output.drop_without_applying_deltas();
         }
 
         // Request discard twice:
@@ -4387,6 +4393,7 @@ mod test {
                 output.platform_output.requested_discard(),
                 "The unfulfilled request should be reported"
             );
+            output.drop_without_applying_deltas();
         }
     }
 
@@ -4415,6 +4422,7 @@ mod test {
                 !output.platform_output.requested_discard(),
                 "The request should have been cleared when fulfilled"
             );
+            output.drop_without_applying_deltas();
         }
     }
 }

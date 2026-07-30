@@ -773,7 +773,7 @@ mod tests {
             .or_default()
             .selection = Some(test_selection());
 
-        let _ = ctx.run_ui(RawInput::default(), |_| {});
+        let output = ctx.run_ui(RawInput::default(), |_| {});
         assert!(
             plugin
                 .lock()
@@ -782,11 +782,13 @@ mod tests {
                 .is_some_and(ViewportLabelSelectionState::has_selection),
             "a pass in another viewport must not clear the child viewport selection"
         );
+        output.drop_without_applying_deltas();
 
-        let _ = ctx.run_ui(child_viewport_input(child_viewport_id), |_| {});
+        let output = ctx.run_ui(child_viewport_input(child_viewport_id), |_| {});
         assert!(
             !plugin.lock().has_selection(),
             "the selection must be cleared when its labels disappear from the same viewport"
         );
+        output.drop_without_applying_deltas();
     }
 }

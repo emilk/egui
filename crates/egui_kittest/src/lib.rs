@@ -147,7 +147,7 @@ impl<'a, State> Harness<'a, State> {
             response = app.run(ui, &mut state, false);
         });
 
-        renderer.handle_delta(&output.textures_delta);
+        renderer.handle_delta(&mut output.textures_delta);
 
         let mut harness = Self {
             app,
@@ -269,7 +269,7 @@ impl<'a, State> Harness<'a, State> {
                 .take()
                 .expect("AccessKit was disabled"),
         );
-        self.renderer.handle_delta(&output.textures_delta);
+        self.renderer.handle_delta(&mut output.textures_delta);
         self.output = output;
 
         self.handle_viewport_commands();

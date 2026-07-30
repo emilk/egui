@@ -673,18 +673,20 @@ pub enum WidgetType {
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run_ui(Default::default(), |ui| {
+    let output = ctx.run_ui(Default::default(), |ui| {
         run_ui(ui.ctx());
     });
+    output.drop_without_applying_deltas();
 }
 
 /// For use in tests; especially doctests.
 pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run_ui(Default::default(), |ui| {
+    let output = ctx.run_ui(Default::default(), |ui| {
         add_contents(ui);
     });
+    output.drop_without_applying_deltas();
 }
 
 pub fn accesskit_root_id() -> Id {
