@@ -285,10 +285,14 @@ impl InputState {
             .as_ref()
             .and_then(|ime| ime.preceding_text.as_deref())
             .unwrap_or("");
-        self.input.set_value(text);
-        let len = text.encode_utf16().count() as u32;
-        self.input.set_selection_start(Some(len)).ok();
-        self.last_text = text.to_owned();
+        if text != self.input.value() {
+            self.input.set_value(text);
+            let len = text.encode_utf16().count() as u32;
+            self.input.set_selection_start(Some(len)).ok();
+        }
+        if text != self.last_text {
+            self.last_text = text.to_owned();
+        }
     }
 
     fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
