@@ -61,13 +61,16 @@ impl WebPainter for WebPainterGlow {
         clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
-        textures_delta: &egui::TexturesDelta,
+        textures_delta: &mut egui::TexturesDelta,
         capture: Vec<UserData>,
     ) -> Result<(), JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
 
-        for (id, image_delta) in &textures_delta.set {
-            self.painter.set_texture(*id, image_delta);
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for (id, image_deltas) in textures_delta.set.drain() {
+            for image_delta in image_deltas {
+                self.painter.set_texture(id, &image_delta);
+            }
         }
 
         egui_glow::painter::clear(self.painter.gl(), canvas_dimension, clear_color);
@@ -79,7 +82,8 @@ impl WebPainter for WebPainterGlow {
             self.screenshots.push((image, capture));
         }
 
-        for &id in &textures_delta.free {
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for id in textures_delta.free.drain() {
             self.painter.free_texture(id);
         }
 

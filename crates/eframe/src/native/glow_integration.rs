@@ -31,17 +31,18 @@ use egui::{
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
-
-use crate::{
-    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
-    native::{epi_integration::EpiIntegration, winit_integration::is_invisible_or_minimized},
-};
+use log::warn;
 
 use super::{
     epi_integration, event_loop_context,
     winit_integration::{
         EventResult, UserEvent, ViewportWindow, ViewportWindowKind, WinitApp, create_egui_context,
     },
+};
+use crate::epaint::textures::TexturesDelta;
+use crate::{
+    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
+    native::{epi_integration::EpiIntegration, winit_integration::is_invisible_or_minimized},
 };
 
 // ----------------------------------------------------------------------------
@@ -75,6 +76,16 @@ struct GlowWinitRunning<'app> {
 
     // NOTE: one painter shared by all viewports.
     painter: Rc<RefCell<egui_glow::Painter>>,
+
+    /// Any not yet applied deltas for this app.
+    pending_deltas: TexturesDelta,
+}
+
+impl Drop for GlowWinitRunning<'_> {
+    fn drop(&mut self) {
+        // Avoid debug panic when dropping unapplied deltas on teardown
+        self.pending_deltas.clear();
+    }
 }
 
 /// This struct will contain both persistent and temporary glutin state.
@@ -116,6 +127,9 @@ struct Viewport {
     info: ViewportInfo,
     actions_requested: Vec<egui_winit::ActionRequested>,
 
+    /// Any not yet applied deltas for this viewport.
+    pending_delta: TexturesDelta,
+
     /// The user-callback that shows the ui.
     /// None for immediate viewports.
     viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
@@ -125,6 +139,13 @@ struct Viewport {
     gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
     window: Option<Arc<Window>>,
     egui_winit: Option<egui_winit::State>,
+}
+
+impl Drop for Viewport {
+    fn drop(&mut self) {
+        // Avoid debug panic when dropping unapplied deltas on teardown
+        self.pending_delta.clear();
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -355,6 +376,7 @@ impl<'app> GlowWinitApp<'app> {
             app,
             glutin,
             painter,
+            pending_deltas: Default::default(),
         }))
     }
 }
@@ -685,6 +707,7 @@ impl GlowWinitRunning<'_> {
             app,
             glutin,
             painter,
+            pending_deltas,
             ..
         } = self;
 
@@ -698,6 +721,7 @@ impl GlowWinitRunning<'_> {
             pixels_per_point,
             viewport_output,
         } = full_output;
+        pending_deltas.append(textures_delta);
 
         glutin.remove_viewports_not_in(&viewport_output);
 
@@ -719,22 +743,15 @@ impl GlowWinitRunning<'_> {
 
         egui_winit.handle_platform_output_with_event_loop(&window, event_loop, platform_output);
 
-        // Upload textures even when not visible: the atlas dirty region is already
-        // consumed, so dropping the delta would desync the font texture.
-        let has_texture_updates = !textures_delta.set.is_empty() || !textures_delta.free.is_empty();
-        if is_visible || has_texture_updates {
-            // We may need to switch contexts again, because of immediate viewports:
-            frame_timer.pause();
-            change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
-            frame_timer.resume();
-        }
-
-        for (id, image_delta) in &textures_delta.set {
-            painter.set_texture(*id, image_delta);
-        }
-
         if is_visible {
             let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
+
+            {
+                // We may need to switch contexts again, because of immediate viewports:
+                frame_timer.pause();
+                change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
+                frame_timer.resume();
+            }
 
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
@@ -742,7 +759,12 @@ impl GlowWinitRunning<'_> {
                 painter.clear(screen_size_in_pixels, clear_color);
             }
 
-            painter.paint_primitives(screen_size_in_pixels, pixels_per_point, &clipped_primitives);
+            painter.paint_and_update_textures(
+                screen_size_in_pixels,
+                pixels_per_point,
+                &clipped_primitives,
+                pending_deltas,
+            );
 
             {
                 for action in viewport.actions_requested.drain(..) {
@@ -802,11 +824,6 @@ impl GlowWinitRunning<'_> {
             {
                 save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
             }
-        }
-
-        // Free textures *after* painting, since they may still be used in the frame we just drew.
-        for id in &textures_delta.free {
-            painter.free_texture(*id);
         }
 
         glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);
@@ -1152,6 +1169,7 @@ impl GlutinWindowContext {
                 deferred_commands: vec![],
                 info: viewport_info,
                 actions_requested: Default::default(),
+                pending_delta: Default::default(),
                 viewport_ui_cb: None,
                 gl_surface: None,
                 window: window.map(Arc::new),
@@ -1468,6 +1486,7 @@ fn initialize_or_update_viewport(
                 deferred_commands: vec![],
                 info: Default::default(),
                 actions_requested: Default::default(),
+                pending_delta: Default::default(),
                 viewport_ui_cb,
                 window: None,
                 egui_winit: None,
@@ -1616,8 +1635,10 @@ fn render_immediate_viewport(
     } = &mut *glutin;
 
     let Some(viewport) = viewports.get_mut(&viewport_id) else {
+        warn!("Viewport disappeared unexpectedly!");
         return;
     };
+    viewport.pending_delta.append(textures_delta);
 
     viewport.info.events.clear(); // they should have been processed
 
@@ -1653,7 +1674,7 @@ fn render_immediate_viewport(
         screen_size_in_pixels,
         pixels_per_point,
         &clipped_primitives,
-        &textures_delta,
+        &mut viewport.pending_delta,
     );
 
     {

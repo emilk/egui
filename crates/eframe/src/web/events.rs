@@ -190,11 +190,6 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
         return;
     }
 
-    if event.is_composing() || event.key_code() == 229 {
-        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-        return;
-    }
-
     let modifiers = modifiers_from_kb_event(&event);
     runner.input.set_modifiers(modifiers);
 
