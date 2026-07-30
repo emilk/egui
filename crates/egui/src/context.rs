@@ -2599,7 +2599,17 @@ impl ContextImpl {
         }
 
         // Inform the backend of all textures that have been updated (including font atlas).
-        let textures_delta = self.tex_manager.0.write().take_delta();
+        //
+        // A hosted viewport is the exception. It is painted by the application, which also
+        // paints the viewport hosting it, so leaving the uploads in place lets that one pick
+        // them up. Taking them here would hand them to code with no way to give them back:
+        // a freed texture cannot be re-queued, because `TextureManager::free` decrements a
+        // retain count that has already reached zero.
+        let textures_delta = if viewport.class == ViewportClass::Hosted {
+            Default::default()
+        } else {
+            self.tex_manager.0.write().take_delta()
+        };
 
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 

@@ -103,6 +103,15 @@ impl TextureManager {
         std::mem::take(&mut self.delta)
     }
 
+    /// Changes since the last [`Self::take_delta`], without taking them.
+    ///
+    /// Useful if you need to paint something part-way through a frame, before whoever owns
+    /// the painting subsystem has had a chance to apply these. Applying them twice does no
+    /// harm; the second time simply re-uploads the same data.
+    pub fn pending_delta(&self) -> &TexturesDelta {
+        &self.delta
+    }
+
     /// Get meta-data about a specific texture.
     pub fn meta(&self, id: TextureId) -> Option<&TextureMeta> {
         self.metas.get(&id)
