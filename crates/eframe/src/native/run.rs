@@ -122,13 +122,13 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 event_result
             }
             EventResult::RepaintNow(window_id) => {
-                log::trace!("RepaintNow of {window_id:?}",);
+                log::trace!("RepaintNow of {window_id:?}");
                 self.windows_next_repaint_times
                     .insert(window_id, Instant::now());
                 event_result
             }
             EventResult::RepaintNext(window_id) => {
-                log::trace!("RepaintNext of {window_id:?}",);
+                log::trace!("RepaintNext of {window_id:?}");
                 self.windows_next_repaint_times
                     .insert(window_id, Instant::now());
                 event_result

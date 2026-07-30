@@ -160,16 +160,14 @@ where
         while self.values.len() > self.max_len {
             self.values.pop_front();
         }
-        while self.values.len() > self.min_len {
-            if let Some((front_time, _)) = self.values.front() {
-                if *front_time < now - (self.max_age as f64) {
-                    self.values.pop_front();
-                } else {
-                    break;
-                }
-            } else {
-                break;
-            }
+        let oldest_allowed_time = now - self.max_age as f64;
+        while self.min_len < self.values.len()
+            && self
+                .values
+                .pop_front_if(|&mut (front_time, _)| front_time < oldest_allowed_time)
+                .is_some()
+        {
+            // Keep popping while the oldest sample is too old.
         }
     }
 }

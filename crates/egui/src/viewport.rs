@@ -71,9 +71,8 @@
 
 use std::sync::Arc;
 
-use epaint::{Pos2, Vec2};
-
 use crate::{AsId, Context, Id, Ui};
+use epaint::{Pos2, Vec2};
 
 // ----------------------------------------------------------------------------
 
