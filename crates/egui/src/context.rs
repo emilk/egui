@@ -466,7 +466,13 @@ impl ContextImpl {
         viewport.this_pass.begin_pass();
 
         {
-            let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
+            // Areas that are not interactable are click-through: skip them in the hit-test.
+            let mut layers: Vec<LayerId> = viewport
+                .prev_pass
+                .widgets
+                .layer_ids()
+                .filter(|layer_id| self.memory.areas().is_interactable(*layer_id))
+                .collect();
             layers.sort_by(|&a, &b| self.memory.areas().compare_order(a, b));
 
             viewport.hits = if let Some(pos) = viewport.input.pointer.interact_pos() {
