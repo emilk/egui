@@ -94,7 +94,7 @@ impl crate::View for Panels {
             bottom,
             egui::Panel::bottom("bottom_panel_collapsed")
                 .resizable(true)
-                .default_size(20.0),
+                .exact_size(20.0),
             egui::Panel::bottom("bottom_panel_expanded")
                 .resizable(true)
                 .max_size(128.0),

@@ -2,6 +2,8 @@
 //!
 //! Covers:
 //! * [`Panel::show_collapsible`] — drag-to-close on a `Left` panel.
+//! * [`Panel::show_collapsible`] — drag-to-open via the grab handle a fully
+//!   collapsed panel leaves behind, plus [`Panel::drag_to_open`] opting out of it.
 //! * [`Panel::show_switched`] — drag-to-close on the expanded panel
 //!   followed by drag-to-expand on the collapsed panel, both via the shared
 //!   resize handle.
@@ -13,6 +15,15 @@ use egui_kittest::{Harness, SnapshotResults};
 #[derive(Default)]
 struct State {
     is_expanded: bool,
+
+    /// The panel's live _outer_ width, recorded each pass.
+    ///
+    /// `None` while the panel is fully collapsed.
+    ///
+    /// We can't read this back from [`egui::PanelState`], because a panel
+    /// deliberately doesn't persist its size while its resize handle is being
+    /// dragged — which is exactly when these tests need to observe it.
+    panel_width: Option<f32>,
 }
 
 #[test]
@@ -34,7 +45,10 @@ fn drag_to_close_animated_inside() {
                     ui.label("Central");
                 });
             },
-            State { is_expanded: true },
+            State {
+                is_expanded: true,
+                ..Default::default()
+            },
         );
 
     harness.run();
@@ -63,6 +77,156 @@ fn drag_to_close_animated_inside() {
         "drag past min_size should have closed the panel"
     );
     results.add(harness.try_snapshot("panel_drag/inside_closed"));
+}
+
+/// The size range of the collapsible left panel used by the drag-to-open tests.
+const MIN_SIZE: f32 = 60.0;
+const DEFAULT_SIZE: f32 = 80.0;
+
+/// A harness with a single collapsible, resizable left panel.
+///
+/// `drag_to_open` is passed straight through to [`Panel::drag_to_open`].
+fn collapsible_left_panel_harness(drag_to_open: bool) -> Harness<'static, State> {
+    Harness::builder()
+        .with_size(Vec2::new(400.0, 200.0))
+        .build_ui_state(
+            move |ui, state: &mut State| {
+                let response = Panel::left("test_left_panel")
+                    .resizable(true)
+                    .drag_to_open(drag_to_open)
+                    .default_size(DEFAULT_SIZE)
+                    .min_size(MIN_SIZE)
+                    .show_collapsible(ui, &mut state.is_expanded, |ui| {
+                        ui.label("Left panel content");
+                        // Without this the frame shrinks to fit the label, and the
+                        // panel's rect would report the content width instead of
+                        // the width the panel was resized to.
+                        ui.take_available_space();
+                    });
+                state.panel_width = response.map(|response| response.response.rect.width());
+                egui::CentralPanel::default().show(ui, |ui| {
+                    ui.label("Central");
+                });
+            },
+            State {
+                is_expanded: true,
+                panel_width: None,
+            },
+        )
+}
+
+/// The panel's live _outer_ width, as of the last completed pass.
+fn panel_width(harness: &Harness<'_, State>) -> f32 {
+    harness
+        .state()
+        .panel_width
+        .expect("the panel should be showing")
+}
+
+/// Collapse the panel by dragging its resize edge past `min_size`, and return the
+/// panel's fixed (left) edge — where the grab handle it leaves behind sits.
+fn collapse_by_drag(harness: &mut Harness<'_, State>) -> Pos2 {
+    harness.run();
+    assert!(harness.state().is_expanded, "should start expanded");
+
+    // Query the actual resize edge from PanelState (avoids assumptions about
+    // Frame margins and the harness's ui padding).
+    let panel_state = egui::PanelState::load(&harness.ctx, egui::Id::new("test_left_panel"))
+        .expect("PanelState should be persisted after the first frame");
+    let fixed_edge = Pos2::new(
+        panel_state.outer_rect.left(),
+        panel_state.outer_rect.center().y,
+    );
+
+    let drag_start = Pos2::new(panel_state.outer_rect.right(), fixed_edge.y);
+    let drag_end = Pos2::new(drag_start.x - 200.0, fixed_edge.y);
+
+    harness.drag_at(drag_start);
+    harness.run();
+    harness.hover_at(drag_end);
+    harness.run();
+    harness.drop_at(drag_end);
+    harness.run();
+
+    assert!(
+        !harness.state().is_expanded,
+        "drag past min_size should have closed the panel"
+    );
+
+    // Move the pointer away so the handle isn't left hovered.
+    harness.hover_at(Pos2::new(300.0, fixed_edge.y));
+    harness.run();
+
+    fixed_edge
+}
+
+#[test]
+fn drag_to_open_collapsed_panel() {
+    let mut results = SnapshotResults::new();
+
+    let mut harness = collapsible_left_panel_harness(true);
+    let fixed_edge = collapse_by_drag(&mut harness);
+    // Grab just inside the fixed edge, where the handle is.
+    let handle_pos = fixed_edge + Vec2::new(1.0, 0.0);
+
+    // The handle is invisible until hovered:
+    results.add(harness.try_snapshot("panel_drag/collapsed_handle_idle"));
+
+    harness.hover_at(handle_pos);
+    harness.run();
+    results.add(harness.try_snapshot("panel_drag/collapsed_handle_hovered"));
+
+    // Dragging out but not as far as `min_size` must not reopen the panel.
+    harness.drag_at(handle_pos);
+    harness.run();
+    let short_of_min = Pos2::new(fixed_edge.x + MIN_SIZE - 10.0, fixed_edge.y);
+    harness.hover_at(short_of_min);
+    harness.run();
+    assert!(
+        !harness.state().is_expanded,
+        "dragging out less than min_size should not reopen the panel"
+    );
+
+    // …but continuing past `min_size` should, without releasing the drag. The
+    // panel opens at the size the pointer is already at, so it never jumps ahead.
+    let past_min = Pos2::new(fixed_edge.x + MIN_SIZE + 20.0, fixed_edge.y);
+    harness.hover_at(past_min);
+    harness.run();
+    assert!(
+        harness.state().is_expanded,
+        "dragging out past min_size should have reopened the panel"
+    );
+    assert_eq!(
+        panel_width(&harness),
+        past_min.x - fixed_edge.x,
+        "the reopened panel's edge should sit under the pointer"
+    );
+
+    harness.drop_at(past_min);
+    harness.run();
+    assert!(
+        harness.state().is_expanded,
+        "the panel should stay open after the drag is released"
+    );
+    results.add(harness.try_snapshot("panel_drag/collapsed_handle_reopened"));
+}
+
+#[test]
+fn drag_to_open_can_be_opted_out_of() {
+    let mut harness = collapsible_left_panel_harness(false);
+    let handle_pos = collapse_by_drag(&mut harness) + Vec2::new(1.0, 0.0);
+
+    harness.drag_at(handle_pos);
+    harness.run();
+    harness.hover_at(Pos2::new(handle_pos.x + 150.0, handle_pos.y));
+    harness.run();
+    harness.drop_at(Pos2::new(handle_pos.x + 150.0, handle_pos.y));
+    harness.run();
+
+    assert!(
+        !harness.state().is_expanded,
+        "with `drag_to_open(false)` there should be no grab handle to reopen the panel with"
+    );
 }
 
 #[test]
@@ -108,7 +272,10 @@ fn drag_to_close_and_reopen_animated_between() {
                     ui.label("Central");
                 });
             },
-            State { is_expanded: true },
+            State {
+                is_expanded: true,
+                ..Default::default()
+            },
         );
 
     harness.run();
