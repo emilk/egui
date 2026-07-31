@@ -5,7 +5,10 @@ use egui::accesskit::Role;
 use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::text::{LayoutJob, TextWrapping};
-use egui::{include_image, vec2, Align, Button, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer, TextFormat, TextWrapMode, Ui, Vec2, Rect};
+use egui::{
+    Align, Button, Color32, FontFamily, FontId, Image, Label, Layout, Rect, RichText, Sense,
+    TextBuffer, TextFormat, TextWrapMode, Ui, Vec2, include_image, vec2,
+};
 use egui::{Pos2, ScrollArea};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT as _, Queryable as _};
@@ -488,7 +491,8 @@ fn tooltip_should_work_for_hover_button() {
     let button_rect = Rect::from_min_size(Pos2::new(4.0, 4.0), Vec2::new(80.0, 20.0));
     let mut harness = Harness::builder().with_size((320.0, 80.0)).build_ui(|ui| {
         if ui.rect_contains_pointer(button_rect) {
-            ui.button("A tooltip should be shown").on_hover_text("My tooltip");
+            ui.button("A tooltip should be shown")
+                .on_hover_text("My tooltip");
         }
     });
 
@@ -499,37 +503,40 @@ fn tooltip_should_work_for_hover_button() {
     harness.snapshot("test_tooltip_hover_regression");
 }
 
-
 /// Ensure that hovering close to a widget doesn't cause a tooltip feedback loop (due to a different
 /// in hovered and contains_pointer due to the interact radius).
 #[test]
 fn tooltip_covering_button_should_not_cause_feedback_loop() {
     let mut harness = Harness::builder().with_size((200.0, 30.0)).build_ui(|ui| {
-        ui.button("A tooltip should be shown").on_hover_text("This tooltip is larger than the button");
+        ui.button("A tooltip should be shown")
+            .on_hover_text("This tooltip is larger than the button");
     });
 
-    harness.hover_at(harness.get_by_label("A tooltip should be shown").rect().left_center() - Vec2::X);
+    harness.hover_at(
+        harness
+            .get_by_label("A tooltip should be shown")
+            .rect()
+            .left_center()
+            - Vec2::X,
+    );
 
     harness.run();
 
     harness.snapshot("tooltip_covering_button_should_not_cause_feedback_loop");
 }
 
-
-/// Tests that a tooltip closes when the pointer moves onto a neighbouring widget,
-/// so that the neighbour can show its own tooltip.
+/// Tests that a tooltip closes when the pointer moves onto a neighboring widget,
+/// so that the neighbor can show its own tooltip.
 ///
 /// The two buttons are only `item_spacing.y` (3 pt) apart, which is less than the
 /// hit-test `interact_radius` (5 pt), so the first button is still close enough to
 /// interact with when the pointer is on the second one.
 #[test]
-fn tooltip_should_hand_over_to_neighbouring_widget() {
-    let mut harness = Harness::builder()
-        .with_size((300.0, 200.0))
-        .build_ui(|ui| {
-            ui.button("Button A").on_hover_text("Tooltip A");
-            ui.button("Button B").on_hover_text("Tooltip B");
-        });
+fn tooltip_should_hand_over_to_neighboring_widget() {
+    let mut harness = Harness::builder().with_size((300.0, 200.0)).build_ui(|ui| {
+        ui.button("Button A").on_hover_text("Tooltip A");
+        ui.button("Button B").on_hover_text("Tooltip B");
+    });
 
     let a_rect = harness.get_by_label("Button A").rect();
     let b_rect = harness.get_by_label("Button B").rect();
