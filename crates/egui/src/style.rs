@@ -1074,12 +1074,6 @@ pub struct Visuals {
     /// How the text cursor acts.
     pub text_cursor: TextCursorStyle,
 
-    /// Allow widgets to paint this much outside the scroll area rect.
-    ///
-    /// Legacy. Should not be used anymore.
-    /// Use [`crate::ScrollArea::content_margin`] instead.
-    pub clip_rect_margin: f32,
-
     /// Show a background behind buttons.
     pub button_frame: bool,
 
@@ -1534,7 +1528,6 @@ impl Visuals {
 
             text_cursor: Default::default(),
 
-            clip_rect_margin: 0.0,
             button_frame: true,
             collapsing_header_frame: false,
             indent_has_left_vline: true,
@@ -2297,7 +2290,6 @@ impl Visuals {
 
             text_cursor,
 
-            clip_rect_margin,
             button_frame,
             collapsing_header_frame,
             indent_has_left_vline,
@@ -2484,8 +2476,6 @@ impl Visuals {
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-            ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
-
             ui.checkbox(button_frame, "Button has a frame");
             ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
             ui.checkbox(
