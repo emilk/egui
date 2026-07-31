@@ -863,27 +863,21 @@ impl Panel {
             .frame
             .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
 
-        // The separator line is drawn by the panel itself, not the frame,
-        // but we want to ensure its thickness is accounted for, in case the frame has no
-        // border of its own:
-
         let has_separator_line = self.show_separator_line || self.resizable;
 
-        let stroke_width = if has_separator_line {
+        if has_separator_line {
+            // The separator line has a thickness that we need to account for.
             let widgets = &ui.style().visuals.widgets;
-            widgets.noninteractive.bg_stroke.width.round() as i8
-        } else {
-            0
-        };
+            let stroke_width = widgets.noninteractive.bg_stroke.width.round() as i8;
 
-        let margin_side = match self.side {
-            PanelSide::Left => &mut frame.inner_margin.right,
-            PanelSide::Right => &mut frame.inner_margin.left,
-            PanelSide::Top => &mut frame.inner_margin.bottom,
-            PanelSide::Bottom => &mut frame.inner_margin.top,
-        };
-
-        *margin_side = (*margin_side).saturating_add(stroke_width);
+            let margin_side = match self.side {
+                PanelSide::Left => &mut frame.inner_margin.right,
+                PanelSide::Right => &mut frame.inner_margin.left,
+                PanelSide::Top => &mut frame.inner_margin.bottom,
+                PanelSide::Bottom => &mut frame.inner_margin.top,
+            };
+            *margin_side = (*margin_side).saturating_add(stroke_width);
+        }
 
         frame
     }
