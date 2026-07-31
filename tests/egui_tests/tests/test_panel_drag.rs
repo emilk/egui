@@ -336,17 +336,14 @@ struct SwitchedState {
     panel_top: f32,
 }
 
-/// Dragging the expanded panel shut animates it the rest of the way, rather than
-/// snapping, even while the drag is still held.
+/// The sizes a `show_switched` bottom panel moves between in these tests.
 ///
-/// The expanded panel can't shrink past its own `min_size`, so a drag that goes
-/// below that leaves a gap between where the panel is stuck and the collapsed
-/// panel's size. That gap has to be animated, or the panel jumps.
-#[test]
-fn drag_to_close_switched_animates_while_held() {
-    let collapsed_size = 20.0;
-    let expanded_min = 80.0;
+/// The expanded minimum sits well above the collapsed size, so the gap between
+/// the two shows up in the panel's edge.
+const SWITCHED_COLLAPSED_SIZE: f32 = 20.0;
+const SWITCHED_EXPANDED_MIN: f32 = 80.0;
 
+fn switched_bottom_panel_harness(start_expanded: bool) -> Harness<'static, SwitchedState> {
     let mut harness = Harness::builder()
         .with_size(Vec2::new(400.0, 300.0))
         .with_step_dt(1.0 / 60.0)
@@ -357,28 +354,55 @@ fn drag_to_close_switched_animates_while_held() {
                     &mut state.is_expanded,
                     Panel::bottom("switched_collapsed")
                         .resizable(true)
-                        .exact_size(collapsed_size),
+                        .exact_size(SWITCHED_COLLAPSED_SIZE),
                     Panel::bottom("switched_expanded")
                         .resizable(true)
                         .default_size(160.0)
-                        .min_size(expanded_min),
+                        .min_size(SWITCHED_EXPANDED_MIN)
+                        .max_size(250.0),
                     |ui, _expanded| ui.take_available_space(),
                 );
                 state.panel_top = ui.available_rect_before_wrap().bottom();
                 egui::CentralPanel::default().show(ui, |_ui| {});
             },
             SwitchedState {
-                is_expanded: true,
+                is_expanded: start_expanded,
                 ..Default::default()
             },
         );
-    // kittest disables animations by default, and this test is about one.
+    // kittest disables animations by default, and these tests are about one.
     harness
         .ctx
         .all_styles_mut(|style| style.animation_time = 0.25);
     for _ in 0..4 {
         harness.step();
     }
+    harness
+}
+
+/// Assert that the panel edge crossed `gap` gradually, rather than in one frame.
+fn assert_crossed_gradually(tops: &[f32], gap: std::ops::Range<f32>) {
+    let frames_in_gap = tops.iter().filter(|top| gap.contains(top)).count();
+    assert!(
+        3 <= frames_in_gap,
+        "expected the panel to be animated across the gap between the collapsed \
+         size and the expanded min_size, but only {frames_in_gap} frame(s) landed \
+         inside {gap:?}: {tops:?}"
+    );
+}
+
+/// Dragging the expanded panel shut animates it the rest of the way, rather than
+/// snapping, even while the drag is still held.
+///
+/// The expanded panel can't shrink past its own `min_size`, so a drag that goes
+/// below that leaves a gap between where the panel is stuck and the collapsed
+/// panel's size. That gap has to be animated, or the panel jumps.
+#[test]
+fn drag_to_close_switched_animates_while_held() {
+    let collapsed_size = SWITCHED_COLLAPSED_SIZE;
+    let expanded_min = SWITCHED_EXPANDED_MIN;
+
+    let mut harness = switched_bottom_panel_harness(true);
 
     let expanded = egui::PanelState::load(&harness.ctx, egui::Id::new("switched_expanded"))
         .expect("PanelState should be persisted after the first frame");
@@ -421,14 +445,51 @@ fn drag_to_close_switched_animates_while_held() {
 
     // The gap between min_size and the collapsed size must be crossed over
     // several frames, not in one jump.
-    let frames_mid_animation = tops
-        .iter()
-        .filter(|&&top| top_at_collapse < top && top < collapsed_top - 1.0)
-        .count();
-    assert!(
-        3 <= frames_mid_animation,
-        "expected the close to be animated across several frames, \
-         but only {frames_mid_animation} frame(s) landed between \
-         min_size and the collapsed size: {tops:?}"
+    assert_crossed_gradually(&tops, (top_at_collapse + 1.0)..(collapsed_top - 1.0));
+}
+
+/// The mirror image: dragging the collapsed panel open animates across the same
+/// gap, instead of snapping straight out to the expanded panel's `min_size`.
+#[test]
+fn drag_to_open_switched_animates_while_held() {
+    let mut harness = switched_bottom_panel_harness(false);
+
+    let collapsed = egui::PanelState::load(&harness.ctx, egui::Id::new("switched_collapsed"))
+        .expect("PanelState should be persisted after the first frame");
+    let (x, collapsed_top, bottom) = (
+        collapsed.outer_rect.center().x,
+        collapsed.outer_rect.top(),
+        collapsed.outer_rect.bottom(),
     );
+    let expanded_min_top = bottom - SWITCHED_EXPANDED_MIN;
+
+    // Nudge the collapsed panel's top edge out past its `exact_size` cap, and keep
+    // holding. The pointer stays far short of the expanded panel's `min_size`.
+    harness.drag_at(Pos2::new(x, collapsed_top));
+    harness.step();
+    harness.hover_at(Pos2::new(x, collapsed_top - 10.0));
+    harness.step();
+
+    assert!(
+        harness.state().is_expanded,
+        "a small outward drag past the collapsed panel's cap should expand it"
+    );
+
+    let mut tops = vec![harness.state().panel_top];
+    for _ in 0..40 {
+        harness.step();
+        tops.push(harness.state().panel_top);
+    }
+
+    assert!(
+        tops.windows(2).all(|w| w[1] <= w[0]),
+        "the panel should only ever grow, never jump back shut: {tops:?}"
+    );
+    assert!(
+        (tops.last().copied().unwrap_or_default() - expanded_min_top).abs() < 1.0,
+        "the panel should settle at the expanded min_size (top {expanded_min_top}), \
+         since the pointer never got further out than that, got {:?}",
+        tops.last()
+    );
+    assert_crossed_gradually(&tops, (expanded_min_top + 1.0)..(collapsed_top - 1.0));
 }
