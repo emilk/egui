@@ -361,7 +361,8 @@ impl WrapApp {
         let mut cmd = Command::Nothing;
 
         egui::Panel::left("backend_panel")
-            .resizable(false)
+            .resizable(true)
+            .size_range(280..=400)
             .show_collapsible(ui, &mut is_open, |ui| {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
