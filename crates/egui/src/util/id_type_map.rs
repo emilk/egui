@@ -596,7 +596,7 @@ impl IdTypeMap {
         }
     }
 
-    /// Note all state of the given type.
+    /// Remove all state of the given type.
     pub fn remove_by_type<T: 'static>(&mut self) {
         let key = TypeId::of::<T>();
         self.map.retain(|_, e| {
