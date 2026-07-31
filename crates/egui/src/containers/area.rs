@@ -481,10 +481,9 @@ impl Area {
 
             size
         });
+
         // We should never be interactable during a sizing pass, since then we are shown at a different
         // size which might interfere with hover state of the hovered widget causing popup feedback loops.
-
-        // During sizing pass, we are shown at the default size
         state.interactable = interactable && !sizing_pass;
 
         // TODO(emilk): if last frame was sizing pass, it should be considered invisible for smoother fade-in
