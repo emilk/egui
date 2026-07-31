@@ -503,8 +503,8 @@ fn tooltip_should_work_for_hover_button() {
     harness.snapshot("test_tooltip_hover_regression");
 }
 
-/// Ensure that hovering close to a widget doesn't cause a tooltip feedback loop (due to a different
-/// in hovered and contains_pointer due to the interact radius).
+/// Ensure that hovering close to a widget doesn't cause a tooltip feedback loop (due to a
+/// difference between `hovered` and `contains_pointer` caused by the interact radius).
 #[test]
 fn tooltip_covering_button_should_not_cause_feedback_loop() {
     let mut harness = Harness::builder().with_size((200.0, 30.0)).build_ui(|ui| {
