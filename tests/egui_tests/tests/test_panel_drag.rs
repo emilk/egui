@@ -322,3 +322,113 @@ fn drag_to_close_and_reopen_animated_between() {
     );
     results.add(harness.try_snapshot("panel_drag/between_reopened"));
 }
+
+/// State for the animated-close test: records the panel's live top edge.
+#[derive(Default)]
+struct SwitchedState {
+    is_expanded: bool,
+
+    /// Bottom of whatever space is left after the panel — i.e. the top edge of
+    /// the panel that is currently showing.
+    ///
+    /// Read from the ui rather than [`egui::PanelState`], which a panel doesn't
+    /// persist while its resize handle is held.
+    panel_top: f32,
+}
+
+/// Dragging the expanded panel shut animates it the rest of the way, rather than
+/// snapping, even while the drag is still held.
+///
+/// The expanded panel can't shrink past its own `min_size`, so a drag that goes
+/// below that leaves a gap between where the panel is stuck and the collapsed
+/// panel's size. That gap has to be animated, or the panel jumps.
+#[test]
+fn drag_to_close_switched_animates_while_held() {
+    let collapsed_size = 20.0;
+    let expanded_min = 80.0;
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(400.0, 300.0))
+        .with_step_dt(1.0 / 60.0)
+        .build_ui_state(
+            move |ui, state: &mut SwitchedState| {
+                Panel::show_switched(
+                    ui,
+                    &mut state.is_expanded,
+                    Panel::bottom("switched_collapsed")
+                        .resizable(true)
+                        .exact_size(collapsed_size),
+                    Panel::bottom("switched_expanded")
+                        .resizable(true)
+                        .default_size(160.0)
+                        .min_size(expanded_min),
+                    |ui, _expanded| ui.take_available_space(),
+                );
+                state.panel_top = ui.available_rect_before_wrap().bottom();
+                egui::CentralPanel::default().show(ui, |_ui| {});
+            },
+            SwitchedState {
+                is_expanded: true,
+                ..Default::default()
+            },
+        );
+    // kittest disables animations by default, and this test is about one.
+    harness
+        .ctx
+        .all_styles_mut(|style| style.animation_time = 0.25);
+    for _ in 0..4 {
+        harness.step();
+    }
+
+    let expanded = egui::PanelState::load(&harness.ctx, egui::Id::new("switched_expanded"))
+        .expect("PanelState should be persisted after the first frame");
+    let (x, bottom) = (expanded.outer_rect.center().x, expanded.outer_rect.bottom());
+    let collapsed_top = bottom - collapsed_size;
+
+    // Drag the top edge down well past the collapsed size, and keep holding.
+    harness.drag_at(Pos2::new(x, expanded.outer_rect.top()));
+    harness.step();
+    harness.hover_at(Pos2::new(x, bottom - 10.0));
+    harness.step();
+
+    assert!(
+        !harness.state().is_expanded,
+        "dragging past the collapsed size should have collapsed the panel"
+    );
+    let top_at_collapse = harness.state().panel_top;
+    assert_eq!(
+        top_at_collapse,
+        bottom - expanded_min,
+        "the expanded panel should be stuck at its min_size when the collapse fires"
+    );
+
+    // Follow the close, still holding the drag.
+    let mut tops = vec![top_at_collapse];
+    for _ in 0..40 {
+        harness.step();
+        tops.push(harness.state().panel_top);
+    }
+
+    assert!(
+        tops.windows(2).all(|w| w[0] <= w[1]),
+        "the panel should only ever move towards being shut, never jump back open: {tops:?}"
+    );
+    assert!(
+        (tops.last().copied().unwrap_or_default() - collapsed_top).abs() < 1.0,
+        "the close should end at the collapsed panel's size, got {:?}",
+        tops.last()
+    );
+
+    // The gap between min_size and the collapsed size must be crossed over
+    // several frames, not in one jump.
+    let frames_mid_animation = tops
+        .iter()
+        .filter(|&&top| top_at_collapse < top && top < collapsed_top - 1.0)
+        .count();
+    assert!(
+        3 <= frames_mid_animation,
+        "expected the close to be animated across several frames, \
+         but only {frames_mid_animation} frame(s) landed between \
+         min_size and the collapsed size: {tops:?}"
+    );
+}

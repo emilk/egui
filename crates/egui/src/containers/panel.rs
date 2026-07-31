@@ -558,13 +558,17 @@ impl Panel {
             .is_some_and(|r| r.dragged());
 
         let animation_id = expanded_panel.id.with("animation");
-        // While the user is dragging, snap the animation to the target so the
-        // drag (which sets `outer_size` directly from the pointer) doesn't fight
-        // a simultaneous slide. Without this, drag-to-expand visibly jumps as
-        // the slide animation tries to grow from 0 while the pointer is already
-        // at the expanded size.
-        let how_expanded = if drag_in_progress {
-            ui.animate_bool_with_time(animation_id, *is_expanded, 0.0)
+        // Snap the animation open while the user drags the panel out: the pointer
+        // is already at the expanded size, so a slide that grows from 0 would
+        // visibly lag behind it.
+        //
+        // Collapsing is the other way round. The panel can't shrink past its own
+        // `min_size`, so a drag that goes below that leaves the panel stuck there
+        // while the collapsed one waits further in — snapping would jump that gap.
+        // So we let the slide animate the panel the rest of the way shut, even
+        // though the drag is still held.
+        let how_expanded = if drag_in_progress && *is_expanded {
+            ui.animate_bool_with_time(animation_id, true, 0.0)
         } else {
             animate_expansion(ui, animation_id, *is_expanded)
         };
@@ -590,7 +594,18 @@ impl Panel {
             let panel = if how_expanded < 1.0 {
                 // Animate the visible size from collapsed_size to expanded_size,
                 // so the slide picks up where the collapsed panel left off.
-                let expanded_size = expanded_panel.outer_size(ui);
+                let expanded_size = if drag_in_progress && !*is_expanded {
+                    // Being dragged shut. The panel is clamped at its `min_size`,
+                    // and it does not persist its size mid-drag, so the stored size
+                    // is stale — starting the slide there would jump the panel back
+                    // open before closing it.
+                    expanded_panel
+                        .outer_size_range
+                        .min
+                        .at_least(collapse_threshold)
+                } else {
+                    expanded_panel.outer_size(ui)
+                };
                 let visible_size = lerp(collapse_threshold..=expanded_size, how_expanded);
                 let slide_fraction = if 0.0 < expanded_size {
                     visible_size / expanded_size
