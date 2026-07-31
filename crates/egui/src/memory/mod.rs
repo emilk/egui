@@ -1194,6 +1194,11 @@ impl Areas {
         self.areas.get_mut(&id)
     }
 
+    /// Can the user interact with this layer or it's widgets, or do clicks go straight through it?
+    pub(crate) fn is_interactable(&self, layer_id: LayerId) -> bool {
+        self.get(layer_id.id).is_none_or(|area| area.interactable)
+    }
+
     /// All layers back-to-front, top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
