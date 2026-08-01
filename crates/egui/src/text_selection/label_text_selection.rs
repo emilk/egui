@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     TextCursorState,
-    text_cursor_state::cursor_rect,
+    text_cursor_state::{SelectGranularity, cursor_rect, extend_granular_select, select_unit_at},
     visuals::{RowVertexIndices, paint_text_selection},
 };
 
@@ -61,6 +61,22 @@ impl std::fmt::Debug for WidgetTextCursor {
     }
 }
 
+/// A label selection that started with a double- or triple-click,
+/// remembered so that dragging extends it by whole words or lines.
+///
+/// Both ends of the anchor word/line are always in the same widget,
+/// but the drag may extend the selection into other widgets.
+#[derive(Clone, Copy, Debug)]
+struct GranularDrag {
+    granularity: SelectGranularity,
+
+    /// Start of the word/line that was initially clicked.
+    anchor_min: WidgetTextCursor,
+
+    /// End of the word/line that was initially clicked.
+    anchor_max: WidgetTextCursor,
+}
+
 #[derive(Clone, Copy, Debug)]
 struct CurrentSelection {
     /// The selection is in this layer.
@@ -101,6 +117,10 @@ struct ViewportLabelSelectionState {
     /// Are we in drag-to-select state?
     is_dragging: bool,
 
+    /// Set if the current selection started with a double- or triple-click,
+    /// so that dragging extends the selection by whole words or lines.
+    granular_drag: Option<GranularDrag>,
+
     /// Have we reached the widget containing the primary selection?
     has_reached_primary: bool,
 
@@ -125,6 +145,7 @@ impl Default for ViewportLabelSelectionState {
             selection_bbox_this_frame: Rect::NOTHING,
             any_hovered: Default::default(),
             is_dragging: Default::default(),
+            granular_drag: Default::default(),
             has_reached_primary: Default::default(),
             has_reached_secondary: Default::default(),
             text_to_copy: Default::default(),
@@ -201,6 +222,10 @@ impl ViewportLabelSelectionState {
         if ui.input(|i| i.pointer.any_pressed() && !i.modifiers.shift) {
             // Maybe a new selection is about to begin, but the old one is over:
             // state.selection = None; // TODO(emilk): this makes sense, but doesn't work as expected.
+
+            // If this press is a double- or triple-click on a label,
+            // `on_label` will set this again later this pass:
+            self.granular_drag = None;
         }
 
         self.selection_bbox_last_frame = self.selection_bbox_this_frame;
@@ -373,7 +398,53 @@ impl ViewportLabelSelectionState {
 
             let new_primary = if response.contains_pointer() {
                 // Dragging into this widget - easy case:
-                Some(galley.cursor_from_pos((galley_from_global * pointer_pos).to_vec2()))
+                let cursor_at_pointer =
+                    galley.cursor_from_pos((galley_from_global * pointer_pos).to_vec2());
+
+                if let Some(granular) = &self.granular_drag {
+                    // The selection started with a double- or triple-click,
+                    // so extend it by whole words or lines:
+                    if response.id == granular.anchor_min.widget_id {
+                        // We are in the same widget as the anchor word/line:
+                        let anchor = CCursorRange::two(
+                            granular.anchor_min.ccursor,
+                            granular.anchor_max.ccursor,
+                        );
+                        let range = extend_granular_select(
+                            granular.granularity,
+                            anchor,
+                            galley.text(),
+                            cursor_at_pointer,
+                        );
+                        selection.secondary = WidgetTextCursor::new(
+                            response.id,
+                            range.secondary,
+                            global_from_galley,
+                            galley,
+                        );
+                        Some(range.primary)
+                    } else {
+                        // The drag has left the anchor's widget.
+                        // Are we before or after the anchor? Decide by screen position:
+                        let after_anchor = granular.anchor_max.pos.y < pointer_pos.y
+                            || (granular.anchor_min.pos.y <= pointer_pos.y
+                                && granular.anchor_max.pos.x <= pointer_pos.x);
+
+                        let unit =
+                            select_unit_at(granular.granularity, galley.text(), cursor_at_pointer);
+                        let [unit_min, unit_max] = unit.sorted_cursors();
+
+                        if after_anchor {
+                            selection.secondary = granular.anchor_min;
+                            Some(unit_max)
+                        } else {
+                            selection.secondary = granular.anchor_max;
+                            Some(unit_min)
+                        }
+                    }
+                } else {
+                    Some(cursor_at_pointer)
+                }
             } else if is_in_same_column
                 && !self.has_reached_primary
                 && selection.primary.pos.y <= selection.secondary.pos.y
@@ -560,6 +631,27 @@ impl ViewportLabelSelectionState {
             // Actual drag-to-select happens elsewhere.
             let dragged = false;
             cursor_state.pointer_interaction(ui, response, cursor_at_pointer, galley, dragged);
+
+            // If this was a double- or triple-click, remember the clicked word/line
+            // so that dragging extends the selection by that granularity:
+            if let Some(granular) = cursor_state.granular_drag() {
+                let [anchor_min, anchor_max] = granular.anchor.sorted_cursors();
+                self.granular_drag = Some(GranularDrag {
+                    granularity: granular.granularity,
+                    anchor_min: WidgetTextCursor::new(
+                        response.id,
+                        anchor_min,
+                        global_from_galley,
+                        galley,
+                    ),
+                    anchor_max: WidgetTextCursor::new(
+                        response.id,
+                        anchor_max,
+                        global_from_galley,
+                        galley,
+                    ),
+                });
+            }
         }
 
         if let Some(mut cursor_range) = cursor_state.range(galley) {

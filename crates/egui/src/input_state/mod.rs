@@ -1043,6 +1043,14 @@ pub struct PointerState {
     /// This could also be the trigger point for a long-touch.
     pub(crate) started_decidedly_dragging: bool,
 
+    /// The click count that a click ending the latest press would have:
+    /// 2 for the second press of a double-click, 3 for the third press of a triple-click, etc.
+    ///
+    /// Unlike [`Click::count`] this is known already at the start of the press,
+    /// which is what e.g. double-click-and-drag text selection needs.
+    #[cfg_attr(feature = "serde", serde(default))]
+    press_click_count: usize,
+
     /// Where did the last click originate?
     /// `None` if no mouse click occurred.
     last_click_pos: Option<Pos2>,
@@ -1084,6 +1092,7 @@ impl Default for PointerState {
             press_start_time: None,
             has_moved_too_much_for_a_click: false,
             started_decidedly_dragging: false,
+            press_click_count: 0,
             last_click_pos: None,
             last_click_time: f64::NEG_INFINITY,
             last_last_click_time: f64::NEG_INFINITY,
@@ -1151,6 +1160,26 @@ impl PointerState {
                         self.press_origin = Some(pos);
                         self.press_start_time = Some(time);
                         self.has_moved_too_much_for_a_click = false;
+
+                        // Would a click ending this press be a double- or triple-click?
+                        // Uses the same heuristics as the click counting on release.
+                        let close_to_last_click = self.last_click_pos.is_some_and(|last_pos| {
+                            last_pos.distance_sq(pos)
+                                < self.options.max_click_dist * self.options.max_click_dist
+                        });
+                        self.press_click_count = if close_to_last_click
+                            && (time - self.last_last_click_time)
+                                < (self.options.max_double_click_delay * 2.0)
+                        {
+                            3
+                        } else if close_to_last_click
+                            && (time - self.last_click_time) < self.options.max_double_click_delay
+                        {
+                            2
+                        } else {
+                            1
+                        };
+
                         self.pointer_events.push(PointerEvent::Pressed {
                             position: pos,
                             button,
@@ -1361,6 +1390,16 @@ impl PointerState {
     #[inline(always)]
     pub fn time_since_last_click(&self) -> f32 {
         (self.time - self.last_click_time) as f32
+    }
+
+    /// The click count that a click ending the latest press would have:
+    /// 2 for the second press of a double-click, 3 for the third press of a triple-click, etc.
+    ///
+    /// Unlike [`Self::button_double_clicked`] this is known already at the start of the press,
+    /// which is what e.g. double-click-and-drag text selection needs.
+    #[inline(always)]
+    pub(crate) fn press_click_count(&self) -> usize {
+        self.press_click_count
     }
 
     /// Was any pointer button pressed (`!down -> down`) this frame?
@@ -1669,6 +1708,7 @@ impl PointerState {
             press_start_time,
             has_moved_too_much_for_a_click,
             started_decidedly_dragging,
+            press_click_count,
             last_click_pos,
             last_click_time,
             last_last_click_time,
@@ -1695,6 +1735,7 @@ impl PointerState {
         ui.label(format!(
             "started_decidedly_dragging: {started_decidedly_dragging}"
         ));
+        ui.label(format!("press_click_count: {press_click_count}"));
         ui.label(format!("last_click_pos: {last_click_pos:#?}"));
         ui.label(format!("last_click_time: {last_click_time:#?}"));
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
