@@ -859,8 +859,27 @@ impl Panel {
 
     /// The configured [`Frame`], or the default side/top panel frame for this [`Ui`].
     fn resolve_frame(&self, ui: &Ui) -> Frame {
-        self.frame
-            .unwrap_or_else(|| Frame::side_top_panel(ui.style()))
+        let mut frame = self
+            .frame
+            .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
+
+        let has_separator_line = self.show_separator_line || self.resizable;
+
+        if has_separator_line {
+            // The separator line has a thickness that we need to account for.
+            let widgets = &ui.style().visuals.widgets;
+            let stroke_width = widgets.noninteractive.bg_stroke.width.round() as i8;
+
+            let margin_side = match self.side {
+                PanelSide::Left => &mut frame.inner_margin.right,
+                PanelSide::Right => &mut frame.inner_margin.left,
+                PanelSide::Top => &mut frame.inner_margin.bottom,
+                PanelSide::Bottom => &mut frame.inner_margin.top,
+            };
+            *margin_side = (*margin_side).saturating_add(stroke_width);
+        }
+
+        frame
     }
 
     /// Panel is fully closed. If the user is still dragging the resize handle
