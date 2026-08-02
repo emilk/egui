@@ -79,6 +79,16 @@ document-features = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 webbrowser = { workspace = true, optional = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2.workspace = true
+objc2-app-kit = { workspace = true, default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+] }
+
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2.workspace = true
 objc2-foundation = { workspace = true, features = ["std", "NSThread"] }
