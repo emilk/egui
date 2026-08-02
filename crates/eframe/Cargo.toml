@@ -122,6 +122,9 @@ __screenshot = []
 ## and capture screenshots. Off unless the env var is set; no-op on wasm.
 inspection = ["dep:egui_inspection", "accesskit"]
 
+## Enables the `links` feature on `egui-winit`, allowing for links to open in browser.
+links = ["egui-winit/links"]
+
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 
@@ -145,7 +148,7 @@ serde = { workspace = true, optional = true }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, default-features = false, features = ["clipboard", "links"] }
+egui-winit = { workspace = true, default-features = false, features = ["clipboard"] }
 image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
