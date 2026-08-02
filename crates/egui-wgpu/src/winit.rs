@@ -3,11 +3,11 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 #![expect(unsafe_code)]
 
-use crate::{RenderState, SurfaceConfig, SurfaceErrorAction, WgpuConfiguration, renderer};
 use crate::{
     BackdropTexture, RenderCursor, RenderProgress, Renderer, RendererOptions,
     capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
 };
+use crate::{RenderState, SurfaceConfig, SurfaceErrorAction, WgpuConfiguration, renderer};
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
@@ -674,11 +674,8 @@ impl Painter {
                 match &mut self.backdrop_texture {
                     Some(backdrop) => backdrop.update(&render_state.device, size, format),
                     None => {
-                        self.backdrop_texture = Some(BackdropTexture::new(
-                            &render_state.device,
-                            size,
-                            format,
-                        ));
+                        self.backdrop_texture =
+                            Some(BackdropTexture::new(&render_state.device, size, format));
                     }
                 }
             }
@@ -785,6 +782,7 @@ impl Painter {
                     &render_state.queue,
                     &mut encoder,
                     clipped_primitives,
+                    &screen_descriptor,
                     cursor,
                     target_texture,
                     backdrop_texture,

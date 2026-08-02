@@ -431,6 +431,7 @@ impl WebPainter for WebPainterWgpu {
                         &render_state.queue,
                         &mut encoder,
                         clipped_primitives,
+                        &screen_descriptor,
                         cursor,
                         target_texture,
                         backdrop_texture,

@@ -137,6 +137,27 @@ pub trait CallbackTrait: Send + Sync {
         false
     }
 
+    /// Which part of the frame do you need to read, in points?
+    ///
+    /// `drawn` is the rect you will be drawn into: your own rect, already cut down by the
+    /// clip rect, since nothing outside that reaches the screen. Return the region you need
+    /// to _read_, which is a different question — a blur reads its radius beyond every edge
+    /// it draws, and has to say so here or it will find stale pixels along that edge. The
+    /// answer is clamped to the screen, and is what [`Backdrop::valid_in_pixels`] reports.
+    ///
+    /// The default of `drawn` suits an effect that only reads the pixels it covers, such as
+    /// a tint or a colour twist. Ask for what you need and no more: the copy costs in
+    /// proportion to the area, which is the whole point of asking. Sampling outside what you
+    /// asked for is not unsafe, it just shows you a stale frame.
+    ///
+    /// Returning a region rather than a margin is what lets a one-sided effect, such as a
+    /// directional smear, pay for one side instead of four.
+    ///
+    /// Only called when [`Self::needs_backdrop`] returns `true`.
+    fn backdrop_rect(&self, drawn: epaint::Rect) -> epaint::Rect {
+        drawn
+    }
+
     /// Called between render passes, once the backdrop has been captured.
     ///
     /// You have the [`wgpu::CommandEncoder`], so this is where to run your own render
@@ -198,6 +219,27 @@ impl Default for RenderCursor {
     }
 }
 
+/// The whole pixels a rect in points covers, clamped to a target `size_in_pixels` across.
+///
+/// Returns `[x, y, width, height]`, ready for a texture copy.
+fn region_in_pixels(
+    rect: epaint::Rect,
+    pixels_per_point: f32,
+    size_in_pixels: [u32; 2],
+) -> [u32; 4] {
+    let [width, height] = size_in_pixels.map(|size| size as f32);
+    let min_x = (rect.min.x * pixels_per_point).floor().clamp(0.0, width);
+    let min_y = (rect.min.y * pixels_per_point).floor().clamp(0.0, height);
+    let max_x = (rect.max.x * pixels_per_point).ceil().clamp(min_x, width);
+    let max_y = (rect.max.y * pixels_per_point).ceil().clamp(min_y, height);
+    [
+        min_x as u32,
+        min_y as u32,
+        (max_x - min_x) as u32,
+        (max_y - min_y) as u32,
+    ]
+}
+
 /// Whether [`Renderer::render_from`] finished, or stopped to let you capture a backdrop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RenderProgress {
@@ -217,10 +259,23 @@ pub enum RenderProgress {
 #[derive(Clone, Copy)]
 pub struct Backdrop<'a> {
     /// The captured image, ready to sample.
+    ///
+    /// Only [`Self::valid_in_pixels`] holds this frame's image; the rest of the texture is
+    /// whatever was left there earlier. It is a full-size texture rather than a cut-out so
+    /// that a pixel is where you expect it: sample it at the position on screen, whichever
+    /// part was copied.
     pub view: &'a wgpu::TextureView,
 
     /// The size of [`Self::view`], in physical pixels.
     pub size_in_pixels: [u32; 2],
+
+    /// The part of [`Self::view`] that was captured this frame, in physical pixels, as
+    /// `[x, y, width, height]`.
+    ///
+    /// This is what [`CallbackTrait::backdrop_rect`] asked for, clamped to the screen.
+    /// Copying the whole frame for a panel-sized effect is most of the cost of a backdrop,
+    /// so only what the effect said it would read is copied.
+    pub valid_in_pixels: [u32; 4],
 
     /// The format of [`Self::view`].
     pub format: wgpu::TextureFormat,
@@ -239,7 +294,11 @@ impl BackdropTexture {
     /// Allocate a backdrop texture of the given size and format.
     ///
     /// The format must match the texture egui is being rendered into.
-    pub fn new(device: &wgpu::Device, size_in_pixels: [u32; 2], format: wgpu::TextureFormat) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        size_in_pixels: [u32; 2],
+        format: wgpu::TextureFormat,
+    ) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("egui_backdrop"),
             size: wgpu::Extent3d {
@@ -259,7 +318,12 @@ impl BackdropTexture {
     }
 
     /// Reallocate if the size or format no longer matches.
-    pub fn update(&mut self, device: &wgpu::Device, size_in_pixels: [u32; 2], format: wgpu::TextureFormat) {
+    pub fn update(
+        &mut self,
+        device: &wgpu::Device,
+        size_in_pixels: [u32; 2],
+        format: wgpu::TextureFormat,
+    ) {
         let size = self.texture.size();
         if size.width != size_in_pixels[0].max(1)
             || size.height != size_in_pixels[1].max(1)
@@ -642,7 +706,13 @@ impl Renderer {
             backdrops_supported: false,
             ..RenderCursor::default()
         };
-        self.render_from(render_pass, paint_jobs, screen_descriptor, &mut cursor, None);
+        self.render_from(
+            render_pass,
+            paint_jobs,
+            screen_descriptor,
+            &mut cursor,
+            None,
+        );
     }
 
     /// Draw paint jobs, stopping when one of them needs a backdrop.
@@ -861,12 +931,17 @@ impl Renderer {
     ///
     /// `backdrop` must already be the same size and format as `target`; call
     /// [`BackdropTexture::update`] before the loop starts.
+    ///
+    /// Only the part of `target` the callback said it would read is copied, which for a
+    /// panel-sized effect on a large screen is a small fraction of the frame. See
+    /// [`CallbackTrait::backdrop_rect`].
     pub fn capture_backdrop<'a>(
         &self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         paint_jobs: &[epaint::ClippedPrimitive],
+        screen_descriptor: &ScreenDescriptor,
         cursor: RenderCursor,
         target: &wgpu::Texture,
         backdrop: &'a BackdropTexture,
@@ -874,8 +949,8 @@ impl Renderer {
         profiling::function_scope!();
 
         let Some(epaint::ClippedPrimitive {
+            clip_rect,
             primitive: Primitive::Callback(callback),
-            ..
         }) = paint_jobs.get(cursor.job)
         else {
             debug_assert!(
@@ -900,15 +975,49 @@ impl Renderer {
             "The backdrop texture must be the same format as the texture egui is drawn into; call `BackdropTexture::update`"
         );
 
+        // Nothing outside the clip rect reaches the screen, so that is all the callback can
+        // be drawn into. What it needs to read is a different question, so ask it.
+        let drawn = callback.rect.intersect(*clip_rect);
+        let wanted = cbfn.0.backdrop_rect(drawn);
+        let valid_in_pixels =
+            region_in_pixels(wanted, screen_descriptor.pixels_per_point, size_in_pixels);
+        let [x, y, width, height] = valid_in_pixels;
+        if width == 0 || height == 0 {
+            // The callback is off-screen or empty, so there is nothing to copy. Hand it a
+            // backdrop with an empty region rather than nothing at all, so it can still
+            // decide for itself whether to draw.
+            let backdrop = Backdrop {
+                view: &backdrop.view,
+                size_in_pixels,
+                valid_in_pixels,
+                format,
+            };
+            cbfn.0
+                .process_backdrop(device, queue, encoder, &self.callback_resources, &backdrop);
+            return Some(backdrop);
+        }
+
+        let origin = wgpu::Origin3d { x, y, z: 0 };
         encoder.copy_texture_to_texture(
-            target.as_image_copy(),
-            backdrop.texture.as_image_copy(),
-            size,
+            wgpu::TexelCopyTextureInfo {
+                origin,
+                ..target.as_image_copy()
+            },
+            wgpu::TexelCopyTextureInfo {
+                origin,
+                ..backdrop.texture.as_image_copy()
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
         );
 
         let backdrop = Backdrop {
             view: &backdrop.view,
             size_in_pixels,
+            valid_in_pixels,
             format,
         };
         cbfn.0
