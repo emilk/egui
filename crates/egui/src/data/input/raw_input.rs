@@ -1,6 +1,6 @@
 use crate::{OrderedViewportIdMap, Theme, ViewportId, ViewportIdMap, emath::Rect};
 
-use super::{DroppedFile, Event, HoveredFile, SafeAreaInsets, ViewportInfo};
+use super::{DroppedFileHandle, Event, HoveredFile, SafeAreaInsets, ViewportInfo};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -13,7 +13,7 @@ use super::{DroppedFile, Event, HoveredFile, SafeAreaInsets, ViewportInfo};
 ///
 /// Ii "points" can be calculated from native physical pixels
 /// using `pixels_per_point` = [`crate::Context::zoom_factor`] * `native_pixels_per_point`;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
     /// The id of the active viewport.
@@ -65,13 +65,13 @@ pub struct RawInput {
 
     /// Dragged files dropped into egui.
     ///
-    /// egui never reads the file contents. It is up to you to read whatever you need, when you
-    /// need it.
+    /// egui never reads the file contents. Call [`DroppedFile::bytes_async`] to read a dropped
+    /// file.
     ///
     /// Note: when using `eframe` on Windows, this will always be empty if drag-and-drop support has
     /// been disabled in [`crate::viewport::ViewportBuilder`].
-    #[cfg_attr(all(feature = "serde", target_arch = "wasm32"), serde(skip))]
-    pub dropped_files: Vec<DroppedFile>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub dropped_files: Vec<DroppedFileHandle>,
 
     /// The native window has the keyboard focus (i.e. is receiving key presses).
     ///

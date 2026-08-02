@@ -1,26 +1,40 @@
+use std::{future::Future, pin::Pin, sync::Arc};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
+
 /// A file dropped into egui.
 ///
-/// egui never reads the contents. The representation depends on the target because native and web
-/// integrations cannot produce each other's handle type.
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(
-    all(feature = "serde", not(target_arch = "wasm32")),
-    derive(serde::Deserialize, serde::Serialize)
-)]
-pub struct DroppedFile {
-    /// A path on the local file system.
+/// The integration owns the concrete file handle, letting egui remain independent of windowing
+/// backends and file APIs.
+pub trait DroppedFile: std::fmt::Debug {
+    /// The path of a file dropped on a native platform.
     #[cfg(not(target_arch = "wasm32"))]
-    pub path: std::path::PathBuf,
+    fn path(&self) -> &Path;
 
-    /// A handle to a file picked by the user in the browser.
+    /// Read the file contents.
     ///
-    /// Nothing is read until you ask for it, e.g. with `Blob::array_buffer` or
-    /// `Blob::stream`. Both are asynchronous, so a typical app spawns the read with
-    /// `wasm_bindgen_futures::spawn_local` and stores the result in its own state.
-    ///
-    /// A `web_sys::File` is a JavaScript handle, so it is `Send + Sync` only in wasm builds
-    /// without `target_feature = "atomics"`. With atomics enabled, [`crate::Context`]
-    /// therefore stops being `Send + Sync`.
+    /// This is asynchronous because browsers can only read files asynchronously.
+    fn bytes_async(&self) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, String>> + '_>>;
+
+    /// Read the file contents.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn bytes(&self) -> Result<Vec<u8>, String>;
+
+    /// The browser file handle, if this file was dropped on the web.
     #[cfg(target_arch = "wasm32")]
-    pub file: web_sys::File,
+    fn web_file(&self) -> Option<&web_sys::File> {
+        None
+    }
 }
+
+/// A shared reference to a dropped file.
+#[cfg(not(all(target_arch = "wasm32", target_feature = "atomics")))]
+pub type DroppedFileHandle = Arc<dyn DroppedFile + Send + Sync>;
+
+/// A shared reference to a dropped file.
+///
+/// This is not necessarily `Send + Sync` when wasm threads are enabled, because
+/// [`web_sys::File`] is not thread-safe in that configuration.
+#[cfg(all(target_arch = "wasm32", target_feature = "atomics"))]
+pub type DroppedFileHandle = Arc<dyn DroppedFile>;

@@ -20,7 +20,7 @@ fn main() -> eframe::Result {
 
 #[derive(Default)]
 struct MyApp {
-    dropped_files: Vec<egui::DroppedFile>,
+    dropped_files: Vec<egui::DroppedFileHandle>,
     picked_path: Option<String>,
 }
 
@@ -49,11 +49,13 @@ impl eframe::App for MyApp {
 
                     for file in &self.dropped_files {
                         #[cfg(not(target_arch = "wasm32"))]
-                        ui.label(file.path.display().to_string());
+                        ui.label(file.path().display().to_string());
 
                         #[cfg(target_arch = "wasm32")]
                         {
-                            let web_file = &file.file;
+                            let Some(web_file) = file.web_file() else {
+                                continue;
+                            };
                             let name = web_file.name();
                             let mime = web_file.type_();
                             let size = web_file.size();

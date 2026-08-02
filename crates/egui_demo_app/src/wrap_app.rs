@@ -183,7 +183,7 @@ pub struct WrapApp {
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     custom3d: Option<crate::apps::Custom3d>,
 
-    dropped_files: Vec<egui::DroppedFile>,
+    dropped_files: Vec<egui::DroppedFileHandle>,
 }
 
 impl WrapApp {
@@ -520,17 +520,20 @@ impl WrapApp {
                 .show(ctx, |ui| {
                     for file in &self.dropped_files {
                         #[cfg(not(target_arch = "wasm32"))]
-                        let info = file.path.display().to_string();
+                        let info = file.path().display().to_string();
 
                         // The size and mime-type are free to read; the contents are not,
                         // so we never touch them here.
                         #[cfg(target_arch = "wasm32")]
                         let info = {
-                            let (name, mime) = (file.file.name(), file.file.type_());
+                            let Some(web_file) = file.web_file() else {
+                                continue;
+                            };
+                            let (name, mime) = (web_file.name(), web_file.type_());
                             if mime.is_empty() {
-                                format!("{name} ({} bytes)", file.file.size())
+                                format!("{name} ({} bytes)", web_file.size())
                             } else {
-                                format!("{name} ({} bytes, type: {mime})", file.file.size())
+                                format!("{name} ({} bytes, type: {mime})", web_file.size())
                             }
                         };
 

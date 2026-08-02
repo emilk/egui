@@ -989,12 +989,11 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
                     if let Some(file) = files.get(i) {
                         log::debug!("Dropped {:?} ({} bytes)", file.name(), file.size());
 
-                        // We hand the app the handle and let it decide what, and when, to read.
                         runner
                             .input
                             .raw
                             .dropped_files
-                            .push(egui::DroppedFile { file });
+                            .push(crate::dropped_file::WebDroppedFile::from_web_file(file));
                     }
                 }
             }
