@@ -33,6 +33,7 @@ default = [
   "wgpu",
   "winit/default",
   "x11",
+  "links"
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
