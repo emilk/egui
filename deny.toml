@@ -36,7 +36,6 @@ ignore = [
   "RUSTSEC-2026-0192", # ttf-parser is unmaintained. Only brought in via winit/sctk-adwaita (wayland window frame rendering)
   "RUSTSEC-2026-0194", # quick-xml DoS - fix is in >=0.41, but held back transitively by zbus_xml (accesskit) and wayland-scanner (winit)
   "RUSTSEC-2026-0195", # quick-xml DoS - same as above
-  "RUSTSEC-2026-0206", # rustybuzz is unmaintained. Brought in via resvg/usvg (egui_extras SVG support). resvg can't be bumped yet (tiny-skia version conflict, see Cargo.toml). Recommended replacement is harfrust, not yet adopted by resvg.
 ]
 
 [bans]
