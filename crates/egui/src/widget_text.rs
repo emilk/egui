@@ -558,6 +558,25 @@ impl Default for WidgetText {
 }
 
 impl WidgetText {
+    /// Override the font size.
+    ///
+    /// For [`Self::Galley`], this does nothing because it has already been laid out.
+    #[must_use]
+    pub fn size(self, size: f32) -> Self {
+        match self {
+            Self::Text(text) => RichText::new(text).size(size).into(),
+            Self::RichText(text) => Self::RichText(Arc::new(Arc::unwrap_or_clone(text).size(size))),
+            Self::LayoutJob(job) => {
+                let mut job = Arc::unwrap_or_clone(job);
+                for section in &mut job.sections {
+                    section.format.font_id.size = size;
+                }
+                Self::LayoutJob(Arc::new(job))
+            }
+            Self::Galley(galley) => Self::Galley(galley),
+        }
+    }
+
     #[inline]
     pub fn is_empty(&self) -> bool {
         match self {

@@ -21,12 +21,15 @@ use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId
 pub use winit;
 
 pub mod clipboard;
+mod dropped_file;
 mod safe_area;
 mod window_settings;
 
 pub use window_settings::WindowSettings;
 
 use raw_window_handle::HasDisplayHandle;
+
+use dropped_file::NativeFile;
 
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -470,10 +473,9 @@ impl State {
             }
             WindowEvent::DroppedFile(path) => {
                 self.egui_input.hovered_files.clear();
-                self.egui_input.dropped_files.push(egui::DroppedFile {
-                    path: Some(path.clone()),
-                    ..Default::default()
-                });
+                self.egui_input
+                    .dropped_files
+                    .push(std::sync::Arc::new(NativeFile::from(path.clone())));
                 EventResponse {
                     repaint: true,
                     consumed: false,

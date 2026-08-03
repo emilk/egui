@@ -629,9 +629,10 @@ impl TextEdit<'_> {
                         first = false;
                     }
 
-                    // The hint text should be shown left top instead of centered (important for
-                    // multi line text edits)
-                    atoms.push_right(atom.atom_align(Align2::LEFT_TOP));
+                    // Align the hint text the same as the input text so the hint, the
+                    // cursor, and the typed text all share one alignment. The default
+                    // `align` is `LEFT_TOP`, which keeps multi line text edits unchanged.
+                    atoms.push_right(atom.atom_align(align));
                 }
 
                 // Calculate the empty galley, so it can be read later. The available width is

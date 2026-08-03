@@ -15,15 +15,20 @@ pub struct Config {
     /// Default is "tests/snapshots" (relative to the working directory / crate root).
     output_path: PathBuf,
 
-    /// The per-pixel threshold.
+    /// The maximum weighted squared YIQ color distance between two corresponding pixels.
+    ///
+    /// Pixels that differ by more than this are counted as failing.
+    /// This is an absolute, per-pixel value, and does not depend on the image dimensions.
     ///
     /// Default is 0.6.
     threshold: f32,
 
-    /// The number of pixels that can differ before the test is considered failed.
+    /// The number of pixels that may fail the [`Self::threshold`] before the test is
+    /// considered failed.
     ///
     /// Default is 0.
-    failed_pixel_count_threshold: usize,
+    #[serde(alias = "failed_pixel_count_threshold")]
+    max_failed_pixels: usize,
 
     windows: OsConfig,
     mac: OsConfig,
@@ -35,7 +40,7 @@ impl Default for Config {
         Self {
             output_path: PathBuf::from("tests/snapshots"),
             threshold: 0.6,
-            failed_pixel_count_threshold: 0,
+            max_failed_pixels: 0,
             windows: Default::default(),
             mac: Default::default(),
             linux: Default::default(),
@@ -48,8 +53,9 @@ pub struct OsConfig {
     /// Override the per-pixel threshold for this OS.
     threshold: Option<f32>,
 
-    /// Override the failed pixel count threshold for this OS.
-    failed_pixel_count_threshold: Option<usize>,
+    /// Override the maximum number of failing pixels for this OS.
+    #[serde(alias = "failed_pixel_count_threshold")]
+    max_failed_pixels: Option<usize>,
 }
 
 fn find_kittest_toml() -> io::Result<std::path::PathBuf> {
@@ -72,13 +78,44 @@ fn find_kittest_toml() -> io::Result<std::path::PathBuf> {
     }
 }
 
+/// The old name of `max_failed_pixels` is still accepted, but warned about.
+fn warn_about_deprecated_keys(config_str: &str) {
+    let Ok(config) = toml::from_str::<toml::Table>(config_str) else {
+        return;
+    };
+
+    let mut sections = vec![("", &config)];
+    for name in ["windows", "mac", "linux"] {
+        if let Some(table) = config.get(name).and_then(toml::Value::as_table) {
+            sections.push((name, table));
+        }
+    }
+
+    for (section, table) in sections {
+        if table.contains_key("failed_pixel_count_threshold") {
+            let prefix = if section.is_empty() {
+                String::new()
+            } else {
+                format!("{section}.")
+            };
+            log::warn!(
+                "`{prefix}failed_pixel_count_threshold` in kittest.toml is deprecated; \
+                 use `{prefix}max_failed_pixels` instead."
+            );
+        }
+    }
+}
+
 fn load_config() -> Config {
     if let Ok(config_path) = find_kittest_toml() {
         match std::fs::read_to_string(&config_path) {
-            Ok(config_str) => match toml::from_str(&config_str) {
-                Ok(config) => config,
-                Err(e) => panic!("Failed to parse {}: {e}", config_path.display()),
-            },
+            Ok(config_str) => {
+                warn_about_deprecated_keys(&config_str);
+                match toml::from_str(&config_str) {
+                    Ok(config) => config,
+                    Err(err) => panic!("Failed to parse {}: {err}", config_path.display()),
+                }
+            }
             Err(err) => {
                 panic!("Failed to read {}: {}", config_path.display(), err);
             }
@@ -127,30 +164,59 @@ impl Config {
         }
     }
 
-    pub fn os_failed_pixel_count_threshold(&self) -> crate::OsThreshold<usize> {
-        let fallback = self.failed_pixel_count_threshold;
+    pub fn os_max_failed_pixels(&self) -> crate::OsThreshold<usize> {
+        let fallback = self.max_failed_pixels;
         crate::OsThreshold {
-            windows: self
-                .windows
-                .failed_pixel_count_threshold
-                .unwrap_or(fallback),
-            macos: self.mac.failed_pixel_count_threshold.unwrap_or(fallback),
-            linux: self.linux.failed_pixel_count_threshold.unwrap_or(fallback),
+            windows: self.windows.max_failed_pixels.unwrap_or(fallback),
+            macos: self.mac.max_failed_pixels.unwrap_or(fallback),
+            linux: self.linux.max_failed_pixels.unwrap_or(fallback),
             fallback,
         }
     }
 
-    /// The threshold.
+    /// The maximum weighted squared YIQ color distance between two corresponding pixels.
     ///
-    /// Default is 1.0.
+    /// This is an absolute, per-pixel value, and does not depend on the image dimensions.
+    ///
+    /// Default is 0.6.
     pub fn threshold(&self) -> f32 {
         self.os_threshold().threshold()
     }
 
-    /// The number of pixels that can differ before the test is considered failed.
+    /// The number of pixels that may fail the [`Self::threshold`] before the test is
+    /// considered failed.
     ///
     /// Default is 0.
-    pub fn failed_pixel_count_threshold(&self) -> usize {
-        self.os_failed_pixel_count_threshold().threshold()
+    pub fn max_failed_pixels(&self) -> usize {
+        self.os_max_failed_pixels().threshold()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    #[test]
+    fn deprecated_failed_pixel_count_threshold_key_is_accepted() {
+        let config: Config = toml::from_str(
+            r"
+                failed_pixel_count_threshold = 1
+
+                [windows]
+                failed_pixel_count_threshold = 2
+
+                [mac]
+                failed_pixel_count_threshold = 3
+
+                [linux]
+                failed_pixel_count_threshold = 4
+            ",
+        )
+        .unwrap_or_else(|err| panic!("Failed to parse config: {err}"));
+
+        assert_eq!(config.max_failed_pixels, 1);
+        assert_eq!(config.windows.max_failed_pixels, Some(2));
+        assert_eq!(config.mac.max_failed_pixels, Some(3));
+        assert_eq!(config.linux.max_failed_pixels, Some(4));
     }
 }
