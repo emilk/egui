@@ -40,7 +40,7 @@ impl Default for LazyRenderer {
         return Self::new(crate::wgpu::WgpuTestRenderer::new);
         #[cfg(not(feature = "wgpu"))]
         return Self::Uninitialized {
-            textures_delta: Vec::new(),
+            textures_delta: Default::default(),
             builder: None,
         };
     }

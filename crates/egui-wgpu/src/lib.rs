@@ -115,6 +115,9 @@ pub struct RenderState {
     #[cfg(not(target_arch = "wasm32"))]
     pub available_adapters: Vec<wgpu::Adapter>,
 
+    /// Wgpu instance used for creating surfaces and adapters.
+    pub instance: wgpu::Instance,
+
     /// Wgpu device used for rendering, created from the adapter.
     pub device: wgpu::Device,
 
@@ -218,7 +221,7 @@ impl RenderState {
             instance.enumerate_adapters(backends).await
         };
 
-        let (adapter, device, queue) = match config.wgpu_setup.clone() {
+        let (instance, adapter, device, queue) = match config.wgpu_setup.clone() {
             WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 instance_descriptor: _,
                 display_handle: _,
@@ -253,14 +256,14 @@ impl RenderState {
                         .await?
                 };
 
-                (adapter, device, queue)
+                (instance.clone(), adapter, device, queue)
             }
             WgpuSetup::Existing(WgpuSetupExisting {
-                instance: _,
+                instance,
                 adapter,
                 device,
                 queue,
-            }) => (adapter, device, queue),
+            }) => (instance, adapter, device, queue),
         };
 
         log_adapter_info(&adapter.get_info());
@@ -280,6 +283,7 @@ impl RenderState {
         // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
         #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         Ok(Self {
+            instance,
             adapter,
             #[cfg(not(target_arch = "wasm32"))]
             available_adapters,

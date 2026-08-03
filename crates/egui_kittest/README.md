@@ -44,24 +44,31 @@ All possible settings and their defaults:
 # path to the snapshot directory
 output_path = "tests/snapshots"
 
-# default threshold for image comparison tests
+# maximum weighted squared YIQ color distance between two corresponding pixels
+# (a per-pixel color tolerance, applied to each pixel pair on its own)
 threshold = 0.6
 
-# default failed_pixel_count_threshold
-failed_pixel_count_threshold = 0
+# how many pixels may exceed the `threshold` before the test fails
+# (an absolute pixel count, not a fraction of the image)
+max_failed_pixels = 0
 
 [windows]
 threshold = 0.6
-failed_pixel_count_threshold = 0
+max_failed_pixels = 0
 
 [macos]
 threshold = 0.6
-failed_pixel_count_threshold = 0
+max_failed_pixels = 0
 
 [linux]
 threshold = 0.6
-failed_pixel_count_threshold = 0
+max_failed_pixels = 0
 ```
+
+Raise `max_failed_pixels` only very carefully: a high value (more than ~10) is enough to hide a
+real change, such as a moved separator, a shifted one-pixel border, or a small icon rendering
+incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever you
+update the snapshot.
 
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.
@@ -105,7 +112,7 @@ However, especially when you're using custom rendering, you may observe images d
 First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilities.
 Generally you should carefully enforcing the same set of features for all test runs, but this may happen nonetheless.
 
-Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparison tolerance setting (`SnapshotOptions::threshold`, TODO([#5683](https://github.com/emilk/egui/issues/5683)): as well as number of pixels allowed to differ) for the specific test.
+Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparison tolerances (`SnapshotOptions::threshold` and, as a last resort, `SnapshotOptions::max_failed_pixels`) for the specific test. See also TODO([#5683](https://github.com/emilk/egui/issues/5683)).
 
 ⚠️ **WARNING** ⚠️
 Picking too high tolerances may mean that you are missing actual test failures.

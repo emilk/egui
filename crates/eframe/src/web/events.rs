@@ -973,62 +973,25 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
         event.prevent_default();
     })?;
 
-    runner_ref.add_event_listener(target, "drop", {
-        let runner_ref = runner_ref.clone();
+    runner_ref.add_event_listener(target, "drop", |event: web_sys::DragEvent, runner| {
+        if let Some(data_transfer) = event.data_transfer() {
+            // TODO(https://github.com/emilk/egui/issues/3702): support dropping folders
+            runner.input.raw.hovered_files.clear();
+            runner.needs_repaint.repaint_asap();
 
-        move |event: web_sys::DragEvent, runner| {
-            if let Some(data_transfer) = event.data_transfer() {
-                // TODO(https://github.com/emilk/egui/issues/3702): support dropping folders
-                runner.input.raw.hovered_files.clear();
-                runner.needs_repaint.repaint_asap();
+            if let Some(files) = data_transfer.files() {
+                for i in 0..files.length() {
+                    if let Some(file) = files.get(i) {
+                        log::debug!("Dropped {:?} ({} bytes)", file.name(), file.size());
 
-                if let Some(files) = data_transfer.files() {
-                    for i in 0..files.length() {
-                        if let Some(file) = files.get(i) {
-                            let name = file.name();
-                            let mime = file.type_();
-                            let last_modified = std::time::UNIX_EPOCH
-                                + std::time::Duration::from_millis(file.last_modified() as u64);
-
-                            log::debug!("Loading {:?} ({} bytes)…", name, file.size());
-
-                            let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
-
-                            let runner_ref = runner_ref.clone();
-                            let future = async move {
-                                match future.await {
-                                    Ok(array_buffer) => {
-                                        let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-                                        log::debug!("Loaded {:?} ({} bytes).", name, bytes.len());
-
-                                        if let Some(mut runner_lock) = runner_ref.try_lock() {
-                                            runner_lock.input.raw.dropped_files.push(
-                                                egui::DroppedFile {
-                                                    name,
-                                                    mime,
-                                                    last_modified: Some(last_modified),
-                                                    bytes: Some(bytes.into()),
-                                                    ..Default::default()
-                                                },
-                                            );
-                                            runner_lock.needs_repaint.repaint_asap();
-                                        }
-                                    }
-                                    Err(err) => {
-                                        log::error!(
-                                            "Failed to read file: {}",
-                                            string_from_js_value(&err)
-                                        );
-                                    }
-                                }
-                            };
-                            wasm_bindgen_futures::spawn_local(future);
-                        }
+                        runner.input.raw.dropped_files.push(std::sync::Arc::new(
+                            super::dropped_file::WebFile::from(file),
+                        ));
                     }
                 }
-                event.stop_propagation();
-                event.prevent_default();
             }
+            event.stop_propagation();
+            event.prevent_default();
         }
     })?;
 
