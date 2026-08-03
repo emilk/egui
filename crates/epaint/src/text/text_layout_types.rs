@@ -114,6 +114,13 @@ impl Default for LayoutJob {
 }
 
 impl LayoutJob {
+    /// Clear the text and sections while preserving the layout settings.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.text.clear();
+        self.sections.clear();
+    }
+
     /// Break on `\n` and at the given wrap width.
     #[inline]
     pub fn simple(text: String, font_id: FontId, color: Color32, wrap_width: f32) -> Self {

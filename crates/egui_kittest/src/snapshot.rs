@@ -11,18 +11,35 @@ pub type SnapshotResult = Result<(), SnapshotError>;
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct SnapshotOptions {
-    /// The threshold for the image comparison.
+    /// How much a single pixel may differ before it is counted as failing:
+    /// the maximum weighted squared YIQ color distance between two corresponding pixels.
+    ///
+    /// This is a color tolerance, not an error budget for the image as a whole:
+    /// it is applied to each pixel pair on its own, and raising it makes every pixel
+    /// more forgiving. Use [`Self::max_failed_pixels`] to allow a number of pixels
+    /// to exceed it.
     ///
     /// Can be configured via kittest.toml. The fallback is `0.6` (which is enough for most egui
     /// tests to pass across different wgpu backends).
     pub threshold: f32,
 
-    /// The number of pixels that can differ before the snapshot is considered a failure.
+    /// The number of pixels that may fail the [`Self::threshold`] before the snapshot is
+    /// considered a failure.
     ///
-    /// Preferably, you should use `threshold` to control the sensitivity of the image comparison.
+    /// This is an absolute pixel count, not a fraction of the image, so the same value is
+    /// stricter for a large snapshot than for a small one.
+    ///
+    /// Preferably, you should use [`Self::threshold`] to control the sensitivity of the image
+    /// comparison.
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    ///
+    /// Raise this only very carefully: a high value (more than ~10) is enough to hide a real
+    /// change, such as a moved separator, a shifted one-pixel border, or a small icon rendering
+    /// incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever
+    /// you update the snapshot.
+    ///
     /// Can be configured via kittest.toml. The fallback is `0` (meaning no pixels can differ).
-    pub failed_pixel_count_threshold: usize,
+    pub max_failed_pixels: usize,
 
     /// The path where the snapshots will be saved.
     ///
@@ -33,12 +50,12 @@ pub struct SnapshotOptions {
     pub output_path: PathBuf,
 }
 
-/// Helper struct to define the number of pixels that can differ before the snapshot is considered a failure.
+/// Helper struct to define a per-OS comparison tolerance.
 ///
-/// This is useful if you want to set different thresholds for different operating systems.
+/// This is useful if you want to set different tolerances for different operating systems.
 ///
 /// [`OsThreshold::default`] gets the default from the config file (`kittest.toml`).
-/// For `usize`, it's the `failed_pixel_count_threshold` value.
+/// For `usize`, it's the `max_failed_pixels` value.
 /// For `f32`, it's the `threshold` value.
 ///
 /// Example usage:
@@ -51,7 +68,7 @@ pub struct SnapshotOptions {
 ///      "os_threshold_example",
 ///      &SnapshotOptions::new()
 ///          .threshold(OsThreshold::new(0.0).windows(10.0))
-///          .failed_pixel_count_threshold(OsThreshold::new(0).windows(10).macos(53)
+///          .max_failed_pixels(OsThreshold::new(0).windows(10).macos(53)
 ///  ))
 /// ```
 #[derive(Debug, Clone, Copy)]
@@ -63,11 +80,11 @@ pub struct OsThreshold<T> {
 }
 
 impl Default for OsThreshold<usize> {
-    /// Returns the default `failed_pixel_count_threshold` as configured in `kittest.toml`
+    /// Returns the default `max_failed_pixels` as configured in `kittest.toml`
     ///
     /// The fallback is `0`.
     fn default() -> Self {
-        config().os_failed_pixel_count_threshold()
+        config().os_max_failed_pixels()
     }
 }
 
@@ -158,7 +175,7 @@ impl Default for SnapshotOptions {
         Self {
             threshold: config().threshold(),
             output_path: config().output_path(),
-            failed_pixel_count_threshold: config().failed_pixel_count_threshold(),
+            max_failed_pixels: config().max_failed_pixels(),
         }
     }
 }
@@ -169,7 +186,14 @@ impl SnapshotOptions {
         Default::default()
     }
 
-    /// Change the threshold for the image comparison.
+    /// Change how much a single pixel may differ before it is counted as failing:
+    /// the maximum weighted squared YIQ color distance between two corresponding pixels.
+    ///
+    /// This is a color tolerance, not an error budget for the image as a whole:
+    /// it is applied to each pixel pair on its own, and raising it makes every pixel
+    /// more forgiving. Use [`Self::max_failed_pixels`] to allow a number of pixels
+    /// to exceed it.
+    ///
     /// The default is `0.6` (which is enough for most egui tests to pass across different
     /// wgpu backends).
     #[inline]
@@ -187,18 +211,33 @@ impl SnapshotOptions {
         self
     }
 
-    /// Change the number of pixels that can differ before the snapshot is considered a failure.
+    /// Change the number of pixels that may fail the [`Self::threshold`] before the snapshot is
+    /// considered a failure.
+    ///
+    /// This is an absolute pixel count, not a fraction of the image, so the same value is
+    /// stricter for a large snapshot than for a small one.
     ///
     /// Preferably, you should use [`Self::threshold`] to control the sensitivity of the image comparison.
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    ///
+    /// Raise this only very carefully: a high value (more than ~10) is enough to hide a real
+    /// change, such as a moved separator, a shifted one-pixel border, or a small icon rendering
+    /// incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever
+    /// you update the snapshot.
+    #[inline]
+    pub fn max_failed_pixels(mut self, max_failed_pixels: impl Into<OsThreshold<usize>>) -> Self {
+        self.max_failed_pixels = max_failed_pixels.into().threshold();
+        self
+    }
+
+    /// Renamed to [`Self::max_failed_pixels`].
+    #[deprecated(since = "0.36.0", note = "Renamed to max_failed_pixels")]
     #[inline]
     pub fn failed_pixel_count_threshold(
-        mut self,
-        failed_pixel_count_threshold: impl Into<OsThreshold<usize>>,
+        self,
+        max_failed_pixels: impl Into<OsThreshold<usize>>,
     ) -> Self {
-        let failed_pixel_count_threshold = failed_pixel_count_threshold.into().threshold();
-        self.failed_pixel_count_threshold = failed_pixel_count_threshold;
-        self
+        self.max_failed_pixels(max_failed_pixels)
     }
 }
 
@@ -214,6 +253,14 @@ pub enum SnapshotError {
 
         /// Path where the diff image was saved
         diff_path: PathBuf,
+
+        /// How many pixels would have failed at other per-pixel thresholds.
+        ///
+        /// Measured at [`THRESHOLD_SWEEP`], lowest threshold first.
+        /// Use this to pick a [`SnapshotOptions::threshold`] and a
+        /// [`SnapshotOptions::max_failed_pixels`] from measurements,
+        /// instead of by trial and error.
+        failing_pixels_by_threshold: Vec<(f32, i32)>,
     },
 
     /// Error opening the existing snapshot (it probably doesn't exist, check the
@@ -264,14 +311,24 @@ impl Display for SnapshotError {
                 name,
                 diff,
                 diff_path,
+                failing_pixels_by_threshold,
             } => {
                 let diff_path =
                     std::path::absolute(diff_path).unwrap_or_else(|_| diff_path.clone());
                 write!(
                     f,
-                    "'{name}' Image did not match snapshot. Diff: {diff}, {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                    "'{name}' Image did not match snapshot. Diff: {diff}, {}.",
                     diff_path.display()
-                )
+                )?;
+                if !failing_pixels_by_threshold.is_empty() {
+                    let sweep = failing_pixels_by_threshold
+                        .iter()
+                        .map(|(threshold, count)| format!("{threshold:.1}: {count}"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    write!(f, "\n  Failing pixels by threshold: {sweep}")?;
+                }
+                write!(f, "\n  {HOW_TO_UPDATE_SCREENSHOTS}")
             }
             Self::OpenSnapshot { path, err } => {
                 let path = std::path::absolute(path).unwrap_or_else(|_| path.clone());
@@ -380,6 +437,37 @@ pub fn try_image_snapshot_options(
     try_image_snapshot_options_impl(new, name.into(), options)
 }
 
+/// The per-pixel thresholds that a failing snapshot is measured against,
+/// to help you pick a [`SnapshotOptions::threshold`].
+///
+/// Same unit as [`SnapshotOptions::threshold`].
+pub const THRESHOLD_SWEEP: &[f32] = &[0.0, 0.1, 0.2, 0.4, 0.6, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0];
+
+/// How many pixels differ by more than each of [`THRESHOLD_SWEEP`]?
+///
+/// Only called for failing snapshots, so the extra comparisons don't slow down passing tests.
+fn failing_pixels_by_threshold(
+    previous: &image::RgbaImage,
+    new: &image::RgbaImage,
+) -> Vec<(f32, i32)> {
+    THRESHOLD_SWEEP
+        .iter()
+        .map(|&threshold| {
+            let num_wrong_pixels = dify::diff::get_results(
+                previous.clone(),
+                new.clone(),
+                threshold,
+                true,
+                None,
+                &None,
+                &None,
+            )
+            .map_or(0, |(num_wrong_pixels, _diff_image)| num_wrong_pixels);
+            (threshold, num_wrong_pixels)
+        })
+        .collect()
+}
+
 fn try_image_snapshot_options_impl(
     new: &image::RgbaImage,
     name: String,
@@ -392,7 +480,7 @@ fn try_image_snapshot_options_impl(
     let SnapshotOptions {
         threshold,
         output_path,
-        failed_pixel_count_threshold,
+        max_failed_pixels,
     } = options;
 
     let parent_path = if let Some(parent) = PathBuf::from(&name).parent() {
@@ -481,14 +569,21 @@ fn try_image_snapshot_options_impl(
         *threshold
     };
 
-    let result =
-        dify::diff::get_results(previous, new.clone(), threshold, true, None, &None, &None);
+    let result = dify::diff::get_results(
+        previous.clone(),
+        new.clone(),
+        threshold,
+        true,
+        None,
+        &None,
+        &None,
+    );
 
     let Some((num_wrong_pixels, diff_image)) = result else {
         return Ok(()); // Difference below threshold
     };
 
-    let below_threshold = num_wrong_pixels as i64 <= *failed_pixel_count_threshold as i64;
+    let below_threshold = num_wrong_pixels as i64 <= *max_failed_pixels as i64;
 
     if !below_threshold {
         diff_image
@@ -510,6 +605,7 @@ fn try_image_snapshot_options_impl(
                     name,
                     diff: num_wrong_pixels,
                     diff_path,
+                    failing_pixels_by_threshold: failing_pixels_by_threshold(&previous, new),
                 })
             }
         }

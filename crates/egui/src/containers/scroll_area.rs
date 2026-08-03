@@ -810,12 +810,11 @@ impl ScrollArea {
 
         {
             // Clip the content, but only when we really need to:
-            let clip_rect_margin = ui.visuals().clip_rect_margin;
             let mut content_clip_rect = ui.clip_rect();
             for d in 0..2 {
                 if direction_enabled[d] {
-                    content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
-                    content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
+                    content_clip_rect.min[d] = inner_rect.min[d];
+                    content_clip_rect.max[d] = inner_rect.max[d];
                 } else {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
@@ -1309,8 +1308,6 @@ impl Prepared {
                 // * When one ScrollArea is nested inside another, and the outer
                 //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
                 //   is outside the clip rectangle.
-                // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
-                // clip_rect_margin is quite a hack. It would be nice to get rid of it.
                 max_cross = ui.clip_rect().max[1 - d] - outer_margin;
             }
 
@@ -1578,9 +1575,7 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
 
     let overflow = content_size - inner_rect.size();
 
-    let paint_rect = inner_rect
-        .intersect(ui.min_rect())
-        .expand(ui.visuals().clip_rect_margin);
+    let paint_rect = inner_rect.intersect(ui.min_rect());
 
     // Top fade: animate opacity based on how far we've scrolled down.
     if 0.0 < offset.y {
