@@ -1,4 +1,7 @@
-use std::{future::Future, pin::Pin, sync::Arc};
+use std::sync::Arc;
+
+#[cfg(target_arch = "wasm32")]
+use std::{future::Future, pin::Pin};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
@@ -15,9 +18,18 @@ pub trait DroppedFile: std::fmt::Debug {
     /// Read the file contents.
     ///
     /// This is asynchronous because browsers can only read files asynchronously.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the browser cannot read the file.
+    #[cfg(target_arch = "wasm32")]
     fn bytes_async(&self) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, String>> + '_>>;
 
     /// Read the file contents.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be read.
     #[cfg(not(target_arch = "wasm32"))]
     fn bytes(&self) -> Result<Vec<u8>, String>;
 

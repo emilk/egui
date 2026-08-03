@@ -1,17 +1,17 @@
 use std::{future::Future, pin::Pin};
 
 #[derive(Debug)]
-pub(crate) struct WebDroppedFile {
+pub(crate) struct WebFile {
     file: web_sys::File,
 }
 
-impl WebDroppedFile {
+impl WebFile {
     pub(crate) fn from_web_file(file: web_sys::File) -> egui::DroppedFileHandle {
         std::sync::Arc::new(Self { file })
     }
 }
 
-impl egui::DroppedFile for WebDroppedFile {
+impl egui::DroppedFile for WebFile {
     fn bytes_async(&self) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, String>> + '_>> {
         let file = self.file.clone();
         Box::pin(async move {

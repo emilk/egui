@@ -65,8 +65,15 @@ pub struct RawInput {
 
     /// Dragged files dropped into egui.
     ///
-    /// egui never reads the file contents. Call [`DroppedFile::bytes_async`] to read a dropped
-    /// file.
+    /// egui never reads the file contents.
+    #[cfg_attr(
+        not(target_arch = "wasm32"),
+        doc = "Call [`crate::DroppedFile::bytes`] to read a dropped file."
+    )]
+    #[cfg_attr(
+        target_arch = "wasm32",
+        doc = "Call [`crate::DroppedFile::bytes_async`] to read a dropped file."
+    )]
     ///
     /// Note: when using `eframe` on Windows, this will always be empty if drag-and-drop support has
     /// been disabled in [`crate::viewport::ViewportBuilder`].

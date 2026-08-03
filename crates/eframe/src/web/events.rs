@@ -993,7 +993,7 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
                             .input
                             .raw
                             .dropped_files
-                            .push(crate::dropped_file::WebDroppedFile::from_web_file(file));
+                            .push(crate::dropped_file::WebFile::from_web_file(file));
                     }
                 }
             }
