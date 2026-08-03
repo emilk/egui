@@ -1092,16 +1092,16 @@ impl Prepared {
                 .pass_state_mut(|state| state.scroll_target[d].take());
 
             if direction_enabled[d] {
-                let (scroll_delta_0, scroll_delta_1) = content_ui.ctx().pass_state_mut(|state| {
+                let (scroll_delta, scroll_animation) = content_ui.ctx().pass_state_mut(|state| {
                     (
                         std::mem::take(&mut state.scroll_delta.0[d]),
-                        std::mem::take(&mut state.scroll_delta.1),
+                        state.scroll_delta.1,
                     )
                 });
 
                 // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-                let mut delta = -scroll_delta_0;
-                let mut animation = scroll_delta_1;
+                let mut delta = -scroll_delta;
+                let mut animation = scroll_animation;
 
                 if let Some(target) = scroll_target {
                     let pass_state::ScrollTarget {
