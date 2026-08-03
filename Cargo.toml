@@ -89,7 +89,7 @@ dify = { version = "0.8.0", default-features = false }
 directories = "6.0"
 document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
-enum-map = "2.7"
+enum-map = "2.7" # Can't update to 3.1: its `enum-map-derive` moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
 env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x/2.x, duplicating the 0.1.x that android_logger needs
 font-types = { version = "0.12.2", default-features = false, features = [
   "std",
@@ -118,7 +118,7 @@ open = "5.4"
 parking_lot = "0.12.5"
 percent-encoding = "2.3"
 poll-promise = { version = "0.3.0", default-features = false }
-pollster = "0.4.0"
+pollster = "1.0"
 profiling = { version = "1.0", default-features = false }
 puffin = "0.20.0"
 puffin_http = "0.17.0"
