@@ -127,9 +127,11 @@ fn build_harness(side: Side, show_separator_line: bool, pixels_per_point: f32) -
                     }
                 });
 
-            egui::CentralPanel::default().show(ui, |ui| {
-                ui.label("Central");
-            });
+            egui::CentralPanel::default()
+                .frame(Frame::default().fill(Color32::GRAY))
+                .show(ui, |ui| {
+                    ui.label("CentralPanel");
+                });
         });
     harness.run();
     harness
