@@ -47,8 +47,8 @@ fn build_harness(show_separator_line: bool) -> Harness<'static> {
                 .fill(FILL)
                 .stroke(Stroke::new(2.0, OUTLINE))
                 .corner_radius(CornerRadius::ZERO)
-                .inner_margin(Margin::same(8))
-                .outer_margin(Margin::same(6));
+                .inner_margin(Margin::same(4))
+                .outer_margin(Margin::same(2));
 
             Panel::top(PANEL_ID)
                 .frame(frame)
