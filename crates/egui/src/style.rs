@@ -1459,7 +1459,7 @@ impl Default for Spacing {
             slider_rail_height: 8.0,
             combo_width: 100.0,
             text_edit_width: 280.0,
-            text_line_spacing: 0.0,
+            extra_text_line_spacing: 0.0,
             icon_width: 14.0,
             icon_width_inner: 8.0,
             icon_spacing: 4.0,
@@ -1949,7 +1949,7 @@ impl Spacing {
             slider_rail_height,
             combo_width,
             text_edit_width,
-            text_line_spacing,
+            extra_text_line_spacing,
             icon_width,
             icon_width_inner,
             icon_spacing,
@@ -2017,7 +2017,7 @@ impl Spacing {
                 ui.end_row();
 
                 ui.label("Extra text line spacing");
-                ui.add(DragValue::new(text_line_spacing).range(0.0..=20.0));
+                ui.add(DragValue::new(extra_text_line_spacing).range(0.0..=20.0));
                 ui.end_row();
 
                 ui.label("Tooltip wrap width");
