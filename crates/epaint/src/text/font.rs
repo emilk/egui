@@ -276,7 +276,7 @@ impl FontCell {
             ctx.fill_path(&path);
             let mut dest = vello_cpu::Pixmap::new(width, height);
             let mut resources = vello_cpu::Resources::new();
-            ctx.render_to_pixmap(&mut resources, &mut dest);
+            ctx.render(&mut dest, &mut resources);
 
             let glyph_pos = {
                 let color_transfer_function = atlas.options().color_transfer_function;
