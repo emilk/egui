@@ -340,7 +340,6 @@ fn combo_box_dyn<'c, R>(
     let close_behavior = close_behavior.unwrap_or(PopupCloseBehavior::CloseOnClick);
 
     let margin = ui.spacing().button_padding;
-    let interact_size = ui.spacing().interact_size;
     let button_response = button_frame(ui, button_id, is_popup_open, Sense::click(), |ui| {
         let icon_spacing = ui.spacing().icon_spacing;
         let icon_size = Vec2::splat(ui.spacing().icon_width);
@@ -362,9 +361,7 @@ fn combo_box_dyn<'c, R>(
         let galley = selected_text.into_galley(ui, Some(wrap_mode), wrap_width, TextStyle::Button);
 
         let actual_width = (galley.size().x + icon_spacing + icon_size.x).at_least(minimum_width);
-        let actual_height = (galley.size().y)
-            .max(icon_size.y)
-            .max(interact_size.y - 2.0 * margin.y);
+        let actual_height = galley.size().y.max(icon_size.y);
 
         let rect = allocate_and_position(root_layout, ui, [actual_width, actual_height].into());
         let button_rect = ui.min_rect().expand2(ui.spacing().button_padding);
@@ -437,14 +434,17 @@ fn button_frame(
     let where_to_put_background = ui.painter().add(Shape::Noop);
 
     let margin = ui.spacing().button_padding;
+    let interact_size = ui.spacing().interact_size;
 
-    let outer_rect = ui.available_rect_before_wrap();
+    let mut outer_rect = ui.available_rect_before_wrap();
+    outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let inner_rect = outer_rect.shrink2(margin);
     let mut content_ui = ui.new_child(UiBuilder::new().max_rect(inner_rect));
     add_contents(&mut content_ui);
 
-    let outer_rect = content_ui.min_rect().expand2(margin);
+    let mut outer_rect = content_ui.min_rect().expand2(margin);
+    outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let response = ui.interact(outer_rect, id, sense);
 
@@ -507,35 +507,33 @@ impl From<&mut Ui> for RootLayout {
     }
 }
 
-fn allocate_and_position(root: &RootLayout, ui: &mut Ui, size: Vec2) -> Rect {
+fn allocate_and_position(root: &RootLayout, ui: &mut Ui, mut size: Vec2) -> Rect {
+    let interact_size = ui.spacing().interact_size;
+    // Ignore the first `ComboBox` widget of a `horizontal()` layout.
+    let premier_widget = root.max_rect.max.y - root.max_rect.min.y == interact_size.y;
     // Ignore vertical and grid layouts; justified layouts are already correctly aligned.
-    if root.layout.is_vertical() || root.gridded || root.layout.cross_justify {
+    if premier_widget || root.layout.is_vertical() || root.gridded || root.layout.cross_justify {
         // Pre-workaround rect.
         ui.allocate_space(size).1
     } else {
         let margin = ui.spacing().button_padding;
+        size.y = size.y.max(interact_size.y - 2.0 * margin.y);
 
-        let min_x = match root.layout.horizontal_placement() {
-            Align::Min => ui.min_rect().min.x,
-            Align::Center => ui.min_rect().center().x - size.x / 2.0,
-            Align::Max => ui.min_rect().max.x - size.x,
-        };
-
-        let prime_widget =
-            root.max_rect.max.y - root.max_rect.min.y == ui.spacing().interact_size.y;
-        let min_y = if prime_widget {
-            // When a `ComboBox` is the first widget of a `horizontal()` layout
-            // treat it as though its cross alignment is `Align::TOP`.
-            root.cursor.min.y + margin.y
-        } else {
+        let min = (
+            match root.layout.horizontal_placement() {
+                Align::Min => ui.min_rect().min.x,
+                Align::Center => ui.min_rect().center().x - size.x / 2.0,
+                Align::Max => ui.min_rect().max.x - size.x,
+            },
             match root.layout.cross_align {
                 Align::Min => root.cursor.min.y + margin.y,
                 Align::Center => root.cursor.center().y - size.y / 2.0,
                 Align::Max => root.cursor.max.y - size.y - margin.y,
-            }
-        };
+            },
+        )
+            .into();
 
-        let rect = Rect::from_min_size([min_x, min_y].into(), size);
+        let rect = Rect::from_min_size(min, size);
         let _ = ui.allocate_rect(rect, Sense::empty());
         rect
     }
