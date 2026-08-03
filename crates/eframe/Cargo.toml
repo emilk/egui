@@ -28,12 +28,12 @@ workspace = true
 default = [
   "accesskit",
   "default_fonts",
+  "links",
   "wayland", # Required for Linux support (including CI!)
   "web_screen_reader",
   "wgpu",
   "winit/default",
   "x11",
-  "links"
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
