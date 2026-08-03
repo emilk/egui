@@ -298,6 +298,12 @@ impl Panel {
 
     /// Show a separator line, even when not interacting with it?
     ///
+    /// The always-visible line is painted on top of the panel's inner edge, so when this is `true`
+    /// the panel insets its contents by the line's thickness to keep the two from overlapping.
+    /// Turning it off removes that inset too.
+    ///
+    /// A `resizable` panel still shows a line while hovered or dragged, regardless of this setting.
+    ///
     /// Default: `true`.
     #[inline]
     pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
@@ -863,10 +869,13 @@ impl Panel {
             .frame
             .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
 
-        let has_separator_line = self.show_separator_line || self.resizable;
-
-        if has_separator_line {
-            // The separator line has a thickness that we need to account for.
+        if self.show_separator_line {
+            // The separator line has a thickness that we need to account for,
+            // so that it doesn't paint on top of the panel contents.
+            //
+            // We deliberately don't do this for a `resizable` panel that has opted out of the
+            // separator line: the line it shows while hovered/dragged is a transient affordance,
+            // and reserving room for it would leave a permanently visible gap.
             let widgets = &ui.style().visuals.widgets;
             let stroke_width = widgets.noninteractive.bg_stroke.width.round() as i8;
 
