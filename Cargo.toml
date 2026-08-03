@@ -90,7 +90,7 @@ directories = "6.0"
 document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7"
-env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x, duplicating the 0.1.x that android_logger needs
+env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x/2.x, duplicating the 0.1.x that android_logger needs
 font-types = { version = "0.11.3", default-features = false, features = [
   "std",
 ] } # Can't update to 0.12: vello_cpu's glifo 0.1.1 pins font-types 0.11 (via skrifa/read-fonts), so bumping splits it into two versions
@@ -130,7 +130,7 @@ rfd = "0.17.2"
 rmp-serde = "1.3"
 ron = "0.12.2"
 self_cell = "1.3"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] } # `serde_derive` is held at 1.0.228 in `Cargo.lock`: 1.0.229 moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
 serde_bytes = "0.11.19"
 similar-asserts = "2.0"
 skrifa = { version = "0.42.1", default-features = false, features = [
@@ -142,7 +142,7 @@ smithay-clipboard = "0.7.2" # 0.7.3 pulls smithay-client-toolkit 0.20 (calloop 0
 static_assertions = "1.1"
 syntect = { version = "5.3", default-features = false }
 tempfile = "3.27"
-thiserror = "2.0"
+thiserror = "2.0" # Held at 2.0.18 in `Cargo.lock`: `thiserror-impl` 2.0.19 moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
 tokio = "1.53"
 toml = { version = "1.1", default-features = false }
 type-map = "0.5.1"
