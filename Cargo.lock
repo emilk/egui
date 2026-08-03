@@ -1433,7 +1433,6 @@ dependencies = [
  "glutin",
  "glutin-winit",
  "log",
- "memoffset",
  "profiling",
  "winit",
 ]
