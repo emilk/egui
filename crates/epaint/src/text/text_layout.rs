@@ -1430,7 +1430,7 @@ fn shape_text(
     buffer.push_str(text);
     buffer.guess_segment_properties();
 
-    shaper.shape(buffer, &[])
+    shaper.shape(buffer, harfrust::ShapeOptions::new())
 }
 
 // ----------------------------------------------------------------------------
