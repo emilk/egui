@@ -420,7 +420,7 @@ pub struct Spacing {
     pub text_edit_width: f32,
 
     /// Additional vertical spacing between lines of text.
-    pub text_line_spacing: f32,
+    pub extra_text_line_spacing: f32,
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
     /// This is the width/height of the outer part of this icon (e.g. the BOX of the checkbox).
