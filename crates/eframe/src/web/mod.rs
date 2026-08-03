@@ -5,6 +5,7 @@
 
 mod app_runner;
 mod backend;
+mod dropped_file;
 mod events;
 mod input;
 mod panic_handler;

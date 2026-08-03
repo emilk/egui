@@ -155,10 +155,6 @@ compile_error!("`accesskit` feature is only available with `android-game-activit
 // Re-export all useful libraries:
 pub use {egui, egui::emath, egui::epaint};
 
-#[cfg(target_arch = "wasm32")]
-#[path = "web/dropped_file.rs"]
-mod dropped_file;
-
 #[cfg(feature = "glow")]
 pub use {egui_glow, glow};
 

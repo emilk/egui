@@ -15,6 +15,13 @@ impl egui::DroppedFile for WebFile {
     fn bytes_async(&self) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, String>> + '_>> {
         let file = self.file.clone();
         Box::pin(async move {
+            if file.size() > f64::from(u32::MAX) {
+                return Err(format!(
+                    "File is too large: browser file reads are limited to {} bytes",
+                    u32::MAX
+                ));
+            }
+
             let array_buffer = file
                 .array_buffer()
                 .await
