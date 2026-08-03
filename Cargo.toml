@@ -91,9 +91,7 @@ document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7" # Can't update to 3.1: its `enum-map-derive` moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
 env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x/2.x, duplicating the 0.1.x that android_logger needs
-font-types = { version = "0.12.2", default-features = false, features = [
-  "std",
-] }
+font-types = { version = "0.12.2", default-features = false, features = ["std"] }
 glow = "0.17.0" # Can't update to 0.18: wgpu 30's wgpu-hal pins glow 0.17, so bumping splits it into two versions
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
@@ -130,7 +128,8 @@ rfd = "0.17.2"
 rmp-serde = "1.3"
 ron = "0.12.2"
 self_cell = "1.3"
-serde = { version = "1.0", features = ["derive"] } # `serde_derive` is held at 1.0.228 in `Cargo.lock`: 1.0.229 moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
+# `serde_derive` is held at 1.0.228 in `Cargo.lock`: 1.0.229 moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
+serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11.19"
 similar-asserts = "2.0"
 skrifa = { version = "0.44.0", default-features = false, features = [
