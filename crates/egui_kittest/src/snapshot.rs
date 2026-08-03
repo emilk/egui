@@ -11,10 +11,13 @@ pub type SnapshotResult = Result<(), SnapshotError>;
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct SnapshotOptions {
-    /// The maximum weighted squared YIQ color distance between two corresponding pixels.
+    /// How much a single pixel may differ before it is counted as failing:
+    /// the maximum weighted squared YIQ color distance between two corresponding pixels.
     ///
-    /// Pixels that differ by more than this are counted as failing.
-    /// This is an absolute, per-pixel value, and does not depend on the image dimensions.
+    /// This is a color tolerance, not an error budget for the image as a whole:
+    /// it is applied to each pixel pair on its own, and raising it makes every pixel
+    /// more forgiving. Use [`Self::max_failed_pixels`] to allow a number of pixels
+    /// to exceed it.
     ///
     /// Can be configured via kittest.toml. The fallback is `0.6` (which is enough for most egui
     /// tests to pass across different wgpu backends).
@@ -22,6 +25,9 @@ pub struct SnapshotOptions {
 
     /// The number of pixels that may fail the [`Self::threshold`] before the snapshot is
     /// considered a failure.
+    ///
+    /// This is an absolute pixel count, not a fraction of the image, so the same value is
+    /// stricter for a large snapshot than for a small one.
     ///
     /// Preferably, you should use [`Self::threshold`] to control the sensitivity of the image
     /// comparison.
@@ -174,10 +180,13 @@ impl SnapshotOptions {
         Default::default()
     }
 
-    /// Change the maximum weighted squared YIQ color distance between two corresponding pixels.
+    /// Change how much a single pixel may differ before it is counted as failing:
+    /// the maximum weighted squared YIQ color distance between two corresponding pixels.
     ///
-    /// Pixels that differ by more than this are counted as failing.
-    /// This is an absolute, per-pixel value, and does not depend on the image dimensions.
+    /// This is a color tolerance, not an error budget for the image as a whole:
+    /// it is applied to each pixel pair on its own, and raising it makes every pixel
+    /// more forgiving. Use [`Self::max_failed_pixels`] to allow a number of pixels
+    /// to exceed it.
     ///
     /// The default is `0.6` (which is enough for most egui tests to pass across different
     /// wgpu backends).
@@ -198,6 +207,9 @@ impl SnapshotOptions {
 
     /// Change the number of pixels that may fail the [`Self::threshold`] before the snapshot is
     /// considered a failure.
+    ///
+    /// This is an absolute pixel count, not a fraction of the image, so the same value is
+    /// stricter for a large snapshot than for a small one.
     ///
     /// Preferably, you should use [`Self::threshold`] to control the sensitivity of the image comparison.
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
