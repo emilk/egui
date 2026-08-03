@@ -214,6 +214,14 @@ pub enum SnapshotError {
 
         /// Path where the diff image was saved
         diff_path: PathBuf,
+
+        /// How many pixels would have failed at other per-pixel thresholds.
+        ///
+        /// Measured at [`THRESHOLD_SWEEP`], lowest threshold first.
+        /// Use this to pick a [`SnapshotOptions::threshold`] and a
+        /// [`SnapshotOptions::failed_pixel_count_threshold`] from measurements,
+        /// instead of by trial and error.
+        failing_pixels_by_threshold: Vec<(f32, i32)>,
     },
 
     /// Error opening the existing snapshot (it probably doesn't exist, check the
@@ -264,14 +272,24 @@ impl Display for SnapshotError {
                 name,
                 diff,
                 diff_path,
+                failing_pixels_by_threshold,
             } => {
                 let diff_path =
                     std::path::absolute(diff_path).unwrap_or_else(|_| diff_path.clone());
                 write!(
                     f,
-                    "'{name}' Image did not match snapshot. Diff: {diff}, {}. {HOW_TO_UPDATE_SCREENSHOTS}",
+                    "'{name}' Image did not match snapshot. Diff: {diff}, {}.",
                     diff_path.display()
-                )
+                )?;
+                if !failing_pixels_by_threshold.is_empty() {
+                    let sweep = failing_pixels_by_threshold
+                        .iter()
+                        .map(|(threshold, count)| format!("{threshold:.1}: {count}"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    write!(f, "\n  Failing pixels by threshold: {sweep}")?;
+                }
+                write!(f, "\n  {HOW_TO_UPDATE_SCREENSHOTS}")
             }
             Self::OpenSnapshot { path, err } => {
                 let path = std::path::absolute(path).unwrap_or_else(|_| path.clone());
@@ -380,6 +398,37 @@ pub fn try_image_snapshot_options(
     try_image_snapshot_options_impl(new, name.into(), options)
 }
 
+/// The per-pixel thresholds that a failing snapshot is measured against,
+/// to help you pick a [`SnapshotOptions::threshold`].
+///
+/// Same unit as [`SnapshotOptions::threshold`].
+pub const THRESHOLD_SWEEP: &[f32] = &[0.0, 0.1, 0.2, 0.4, 0.6, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0];
+
+/// How many pixels differ by more than each of [`THRESHOLD_SWEEP`]?
+///
+/// Only called for failing snapshots, so the extra comparisons don't slow down passing tests.
+fn failing_pixels_by_threshold(
+    previous: &image::RgbaImage,
+    new: &image::RgbaImage,
+) -> Vec<(f32, i32)> {
+    THRESHOLD_SWEEP
+        .iter()
+        .map(|&threshold| {
+            let num_wrong_pixels = dify::diff::get_results(
+                previous.clone(),
+                new.clone(),
+                threshold,
+                true,
+                None,
+                &None,
+                &None,
+            )
+            .map_or(0, |(num_wrong_pixels, _diff_image)| num_wrong_pixels);
+            (threshold, num_wrong_pixels)
+        })
+        .collect()
+}
+
 fn try_image_snapshot_options_impl(
     new: &image::RgbaImage,
     name: String,
@@ -481,8 +530,15 @@ fn try_image_snapshot_options_impl(
         *threshold
     };
 
-    let result =
-        dify::diff::get_results(previous, new.clone(), threshold, true, None, &None, &None);
+    let result = dify::diff::get_results(
+        previous.clone(),
+        new.clone(),
+        threshold,
+        true,
+        None,
+        &None,
+        &None,
+    );
 
     let Some((num_wrong_pixels, diff_image)) = result else {
         return Ok(()); // Difference below threshold
@@ -510,6 +566,7 @@ fn try_image_snapshot_options_impl(
                     name,
                     diff: num_wrong_pixels,
                     diff_path,
+                    failing_pixels_by_threshold: failing_pixels_by_threshold(&previous, new),
                 })
             }
         }

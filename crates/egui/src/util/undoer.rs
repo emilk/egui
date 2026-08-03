@@ -134,9 +134,8 @@ where
         if self.has_undo(current_state) {
             self.flux = None;
 
-            if self.undos.back() == Some(current_state) {
-                #[expect(clippy::unwrap_used)] // we just checked that undos is not empty
-                self.redos.push(self.undos.pop_back().unwrap());
+            if let Some(state) = self.undos.pop_back_if(|state| &*state == current_state) {
+                self.redos.push(state);
             } else {
                 self.redos.push(current_state.clone());
             }

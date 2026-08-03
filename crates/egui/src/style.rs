@@ -1074,10 +1074,12 @@ pub struct Visuals {
     /// How the text cursor acts.
     pub text_cursor: TextCursorStyle,
 
-    /// Allow widgets to paint this much outside the scroll area rect.
+    /// Unused. Kept only for backwards compatibility.
     ///
-    /// Legacy. Should not be used anymore.
+    /// Used to allow widgets to paint this much outside the scroll area rect.
+    /// Setting it now has no effect.
     /// Use [`crate::ScrollArea::content_margin`] instead.
+    #[deprecated(note = "This is now unused and has no effect")]
     pub clip_rect_margin: f32,
 
     /// Show a background behind buttons.
@@ -1395,7 +1397,7 @@ impl Default for DebugOptions {
             show_resize: false,
             show_interactive_widgets: false,
             show_widget_hits: false,
-            warn_if_rect_changes_id: cfg!(debug_assertions),
+            warn_if_rect_changes_id: false,
             show_unaligned: cfg!(debug_assertions),
             show_focused_widget: false,
         }
@@ -1487,6 +1489,7 @@ impl Default for Interaction {
 
 impl Visuals {
     /// Default dark theme.
+    #[expect(deprecated)]
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
@@ -2263,6 +2266,7 @@ impl WidgetVisuals {
 }
 
 impl Visuals {
+    #[expect(deprecated)]
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode,
@@ -2297,7 +2301,7 @@ impl Visuals {
 
             text_cursor,
 
-            clip_rect_margin,
+            clip_rect_margin: _,
             button_frame,
             collapsing_header_frame,
             indent_has_left_vline,
@@ -2484,8 +2488,6 @@ impl Visuals {
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-            ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
-
             ui.checkbox(button_frame, "Button has a frame");
             ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
             ui.checkbox(
