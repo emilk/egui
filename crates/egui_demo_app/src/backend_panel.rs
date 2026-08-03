@@ -223,6 +223,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 subgroup_min_size,
                 subgroup_max_size,
                 transient_saves_memory,
+                limit_bucket,
             } = &info;
 
             // Example values:
@@ -276,7 +277,11 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     ui.end_row();
                 }
                 ui.label("Transient saves memory:");
-                ui.label(format!("{transient_saves_memory}"));
+                ui.label(format!("{transient_saves_memory:?}"));
+                ui.end_row();
+
+                ui.label("Limit bucket:");
+                ui.label(format!("{limit_bucket:?}"));
                 ui.end_row();
             });
         };

@@ -24,7 +24,7 @@ members = [
 [workspace.package]
 edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.92"
+rust-version = "1.95"
 version = "0.35.0"
 
 
@@ -72,7 +72,7 @@ eframe = { version = "0.35.0", path = "crates/eframe", default-features = false 
 
 accesskit = "0.24.1"
 accesskit_consumer = "0.35.0" # Can't update to 0.36+: kittest 0.4 pins accesskit_consumer 0.35, so bumping splits it into two versions
-accesskit_winit = "0.32.0" # Can't update to 0.33: it needs accesskit_macos 0.26.2, which pulls accesskit_consumer 0.37, duplicating the 0.35 that kittest 0.4 needs
+accesskit_winit = "0.32.0" # Can't update to 0.33: it needs accesskit_macos 0.26.2, which pulls accesskit_consumer 0.37, duplicating the 0.35 that kittest 0.4 needs. For the same reason, `accesskit_macos` is held at 0.26.0 in `Cargo.lock`.
 ahash = { version = "0.8.12", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
   "std",
@@ -89,19 +89,17 @@ dify = { version = "0.8.0", default-features = false }
 directories = "6.0"
 document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
-enum-map = "2.7"
-env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x, duplicating the 0.1.x that android_logger needs
-font-types = { version = "0.11.3", default-features = false, features = [
-  "std",
-] } # Can't update to 0.12: vello_cpu's glifo 0.1.1 pins font-types 0.11 (via skrifa/read-fonts), so bumping splits it into two versions
-glow = "0.17.0"
+enum-map = "2.7" # Can't update to 3.1: its `enum-map-derive` moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
+env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x/2.x, duplicating the 0.1.x that android_logger needs
+font-types = { version = "0.12.2", default-features = false, features = ["std"] }
+glow = "0.17.0" # Can't update to 0.18: wgpu 30's wgpu-hal pins glow 0.17, so bumping splits it into two versions
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
-harfrust = "0.7.0" # Can't update to 0.8+: newer versions need read-fonts 0.40+/font-types 0.12, but vello_cpu's glifo 0.1.1 pins read-fonts 0.39/font-types 0.11, so bumping duplicates them
+harfrust = "0.12.0"
 image = { version = "0.25.6", default-features = false } # Can't update to 0.25.7+: it needs png 0.18, which only matches resvg once resvg moves to tiny-skia 0.12 — blocked, see resvg below
 itertools = "0.15.0"
-jiff = { version = "0.2.29", default-features = false }
-js-sys = "0.3.77"
+jiff = { version = "0.2.35", default-features = false }
+js-sys = "0.3.103"
 kittest = { version = "0.4.0" }
 log = { version = "0.4.33", features = ["std"] }
 memoffset = "0.9.1"
@@ -113,53 +111,54 @@ objc2 = "0.6.4"
 objc2-app-kit = { version = "0.3.2", default-features = false }
 objc2-foundation = { version = "0.3.2", default-features = false }
 objc2-ui-kit = { version = "0.3.2", default-features = false }
-open = "5.3"
+open = "5.4"
 parking_lot = "0.12.5"
 percent-encoding = "2.3"
 poll-promise = { version = "0.3.0", default-features = false }
-pollster = "0.4.0"
+pollster = "1.0"
 profiling = { version = "1.0", default-features = false }
 puffin = "0.20.0"
 puffin_http = "0.17.0"
-rand = "0.10.1"
+rand = "0.10.2"
 raw-window-handle = "0.6.2"
 rayon = "1.12"
-resvg = { version = "0.45.1", default-features = false } # Can't update to 0.47: it needs tiny-skia 0.12, but winit 0.30's sctk-adwaita is stuck on tiny-skia 0.11, so bumping duplicates tiny-skia. (0.46 keeps tiny-skia 0.11 but its fontconfig-parser duplicates roxmltree.)
+resvg = { version = "0.45.1", default-features = false } # Can't update to 0.47+: it needs tiny-skia 0.12, but winit 0.30's sctk-adwaita 0.10 is stuck on tiny-skia 0.11, so bumping duplicates tiny-skia. (0.46 keeps tiny-skia 0.11 but its fontconfig-parser duplicates roxmltree.)
 rfd = "0.17.2"
 rmp-serde = "1.3"
 ron = "0.12.2"
-self_cell = "1.2"
+self_cell = "1.3"
+# `serde_derive` is held at 1.0.228 in `Cargo.lock`: 1.0.229 moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11.19"
 similar-asserts = "2.0"
-skrifa = { version = "0.42.1", default-features = false, features = [
+skrifa = { version = "0.44.0", default-features = false, features = [
   "std",
   "autohint_shaping",
-] } # Can't update to 0.43: vello_cpu's glifo 0.1.1 pins skrifa 0.42, so bumping splits it into two versions
+] } # Can't update to 0.45: it needs read-fonts 0.42, but harfrust 0.12 pins read-fonts 0.41, so bumping splits read-fonts into two versions
 smallvec = "1.15"
 smithay-clipboard = "0.7.2" # 0.7.3 pulls smithay-client-toolkit 0.20 (calloop 0.14), duplicating the 0.19/0.13 that winit 0.30 needs
 static_assertions = "1.1"
 syntect = { version = "5.3", default-features = false }
 tempfile = "3.27"
-thiserror = "2.0"
-tokio = "1.52"
-toml = { version = "1.0", default-features = false }
+thiserror = "2.0" # Held at 2.0.18 in `Cargo.lock`: `thiserror-impl` 2.0.19 moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
+tokio = "1.53"
+toml = { version = "1.1", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "3.1", default-features = false }
 unicode-general-category = "1.1"
 unicode-segmentation = "1.13"
-vello_cpu = { version = "0.0.9", default-features = false, features = [
+vello_cpu = { version = "0.1.0", default-features = false, features = [
   "std",
   "u8_pipeline",
   "f32_pipeline",
 ] }
-wasm-bindgen = "0.2.108" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml. Don't update this spuriously, because of https://github.com/rerun-io/rerun/issues/8766
-wasm-bindgen-futures = "0.4.58"
+wasm-bindgen = "0.2.126" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml. Don't update this spuriously, because of https://github.com/rerun-io/rerun/issues/8766
+wasm-bindgen-futures = "0.4.76"
 wayland-cursor = { version = "0.31.14", default-features = false }
-web-sys = "0.3.77"
+web-sys = "0.3.103"
 web-time = "1.1" # Timekeeping for native and web
 webbrowser = "1.2"
-wgpu = { version = "29.0", default-features = false, features = ["std"] }
+wgpu = { version = "30.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
 
@@ -204,6 +203,7 @@ cloned_instead_of_copied = "warn"
 coerce_container_to_any = "warn"
 dbg_macro = "warn"
 debug_assert_with_mut_call = "warn"
+decimal_bitwise_operands = "warn"
 default_union_representation = "warn"
 derive_partial_eq_without_eq = "warn"
 disallowed_macros = "warn" # See clippy.toml
@@ -216,9 +216,10 @@ doc_comment_double_space_linebreaks = "warn"
 doc_include_without_cfg = "warn"
 doc_link_with_quotes = "warn"
 doc_markdown = "warn"
+duration_suboptimal_units = "warn"
 elidable_lifetime_names = "warn"
-empty_enum = "warn"
 empty_enum_variants_with_brackets = "warn"
+empty_enums = "warn"
 empty_line_after_outer_attr = "warn"
 enum_glob_use = "warn"
 equatable_if_let = "warn"
@@ -269,6 +270,7 @@ lossy_float_literal = "warn"
 macro_use_imports = "warn"
 manual_assert = "warn"
 manual_clamp = "warn"
+manual_ilog2 = "warn"
 manual_instant_elapsed = "warn"
 manual_is_power_of_two = "warn"
 manual_is_variant_and = "warn"
@@ -298,10 +300,12 @@ needless_for_each = "warn"
 needless_pass_by_ref_mut = "warn"
 needless_pass_by_value = "warn"
 needless_raw_string_hashes = "warn"
+needless_type_cast = "warn"
 negative_feature_names = "warn"
 non_std_lazy_statics = "warn"
 non_zero_suggestions = "warn"
 nonstandard_macro_braces = "warn"
+only_used_in_recursion = "warn"
 option_as_ref_cloned = "warn"
 option_option = "warn"
 or_fun_call = "warn"
@@ -324,6 +328,7 @@ ref_patterns = "warn"
 rest_pat_in_fully_bound_structs = "warn"
 return_and_then = "warn"
 same_functions_in_if_condition = "warn"
+same_length_and_capacity = "warn"
 self_only_used_in_recursion = "warn"
 semicolon_if_nothing_returned = "warn"
 set_contains_or_insert = "warn"
@@ -340,6 +345,7 @@ suspicious_command_arg_space = "warn"
 suspicious_xor_used_as_pow = "warn"
 todo = "warn"
 too_long_first_doc_paragraph = "warn"
+too_many_arguments = "warn"
 trailing_empty_array = "warn"
 trait_duplication_in_bounds = "warn"
 transmute_ptr_to_ptr = "warn"
@@ -357,6 +363,7 @@ unnecessary_safety_doc = "warn"
 unnecessary_self_imports = "warn"
 unnecessary_semicolon = "warn"
 unnecessary_struct_initialization = "warn"
+unnecessary_trailing_comma = "warn"
 unnecessary_wraps = "warn"
 unnested_or_patterns = "warn"
 unused_async = "warn"
@@ -381,6 +388,7 @@ too_many_lines = "allow"
 
 # These are meh:
 assigning_clones = "allow" # No please
+cast_possible_truncation = "allow" # too many hits
 let_underscore_must_use = "allow"
 let_underscore_untyped = "allow"
 manual_range_contains = "allow" # this one is just worse imho

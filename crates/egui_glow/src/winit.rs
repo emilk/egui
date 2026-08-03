@@ -107,8 +107,11 @@ impl EguiGlow {
         let shapes = std::mem::take(&mut self.shapes);
         let mut textures_delta = std::mem::take(&mut self.textures_delta);
 
-        for (id, image_delta) in textures_delta.set {
-            self.painter.set_texture(id, &image_delta);
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for (id, image_deltas) in textures_delta.set.drain() {
+            for image_delta in image_deltas {
+                self.painter.set_texture(id, &image_delta);
+            }
         }
 
         let pixels_per_point = self.pixels_per_point;
@@ -117,7 +120,8 @@ impl EguiGlow {
         self.painter
             .paint_primitives(dimensions, pixels_per_point, &clipped_primitives);
 
-        for id in textures_delta.free.drain(..) {
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for id in textures_delta.free.drain() {
             self.painter.free_texture(id);
         }
     }

@@ -316,7 +316,7 @@ impl AppRunner {
         }
 
         self.handle_platform_output(platform_output);
-        if is_visible {
+        if is_visible || !textures_delta.is_empty() {
             self.textures_delta.append(textures_delta);
             self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
         }
@@ -324,7 +324,6 @@ impl AppRunner {
 
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self) {
-        let textures_delta = std::mem::take(&mut self.textures_delta);
         let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
 
         if let Some(clipped_primitives) = clipped_primitives {
@@ -347,7 +346,7 @@ impl AppRunner {
                 self.app.clear_color(&self.egui_ctx.global_style().visuals),
                 &clipped_primitives,
                 self.egui_ctx.pixels_per_point(),
-                &textures_delta,
+                &mut self.textures_delta,
                 screenshot_commands,
             ) {
                 log::error!("Failed to paint: {}", super::string_from_js_value(&err));
@@ -395,7 +394,10 @@ impl AppRunner {
 
         if self.has_focus() {
             // The eframe app has focus.
-            if ime.is_some() {
+            if let Some(ime) = ime {
+                if ime.should_interrupt_composition {
+                    self.text_agent.interrupt_ime_composition();
+                }
                 // We are editing text: give the focus to the text agent.
                 self.text_agent.focus();
             } else {
@@ -407,7 +409,7 @@ impl AppRunner {
 
         if let Err(err) = self
             .text_agent
-            .move_to(ime, self.canvas(), self.egui_ctx.zoom_factor())
+            .update(ime, self.canvas(), self.egui_ctx.zoom_factor())
         {
             log::error!(
                 "failed to update text agent position: {}",

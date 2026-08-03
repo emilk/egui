@@ -95,7 +95,7 @@ impl AnimationManager {
                     anim.from_value..=anim.to_value,
                 );
                 if anim.to_value != value {
-                    anim.from_value = current_value; //start new animation from current position of playing animation
+                    anim.from_value = current_value; // start new animation from current position of playing animation
                     anim.to_value = value;
                     anim.toggle_time = input.time;
                 }

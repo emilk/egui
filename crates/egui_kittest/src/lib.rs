@@ -147,7 +147,7 @@ impl<'a, State> Harness<'a, State> {
             response = app.run(ui, &mut state, false);
         });
 
-        renderer.handle_delta(&output.textures_delta);
+        renderer.handle_delta(&mut output.textures_delta);
 
         let mut harness = Self {
             app,
@@ -175,10 +175,9 @@ impl<'a, State> Harness<'a, State> {
             #[cfg(feature = "snapshot")]
             snapshot_results: SnapshotResults::default(),
         };
-        // Fulfill any screenshot requested during the initial frame above (which didn't go
-        // through `_step`).
-        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
-        harness.handle_screenshots();
+        // Handle any viewport commands (e.g. a screenshot or resize) requested during the initial
+        // frame above (which didn't go through `_step`).
+        harness.handle_viewport_commands();
 
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
@@ -251,14 +250,7 @@ impl<'a, State> Harness<'a, State> {
             self._step(false);
         }
         for event in events {
-            match event {
-                EventType::Event(event) => {
-                    self.input.events.push(event);
-                }
-                EventType::Modifiers(modifiers) => {
-                    self.input.modifiers = modifiers;
-                }
-            }
+            self.input.events.push(event);
             self._step(false);
         }
     }
@@ -277,11 +269,10 @@ impl<'a, State> Harness<'a, State> {
                 .take()
                 .expect("AccessKit was disabled"),
         );
-        self.renderer.handle_delta(&output.textures_delta);
+        self.renderer.handle_delta(&mut output.textures_delta);
         self.output = output;
 
-        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
-        self.handle_screenshots();
+        self.handle_viewport_commands();
     }
 
     /// Calculate the rect that includes all popups and tooltips.
@@ -471,7 +462,7 @@ impl<'a, State> Harness<'a, State> {
 
     /// Queue an event to be processed in the next frame.
     pub fn event(&self, event: egui::Event) {
-        self.queued_events.lock().push(EventType::Event(event));
+        self.queued_events.lock().push(event);
     }
 
     /// Queue an event with modifiers.
@@ -479,15 +470,15 @@ impl<'a, State> Harness<'a, State> {
     /// Queues the modifiers to be pressed, then the event, then the modifiers to be released.
     pub fn event_modifiers(&self, event: egui::Event, modifiers: Modifiers) {
         let mut queue = self.queued_events.lock();
-        queue.push(EventType::Modifiers(modifiers));
-        queue.push(EventType::Event(event));
-        queue.push(EventType::Modifiers(Modifiers::default()));
+        queue.push(egui::Event::ModifiersChanged(modifiers));
+        queue.push(event);
+        queue.push(egui::Event::ModifiersChanged(Modifiers::default()));
     }
 
     fn modifiers(&self, modifiers: Modifiers) {
         self.queued_events
             .lock()
-            .push(EventType::Modifiers(modifiers));
+            .push(egui::Event::ModifiersChanged(modifiers));
     }
 
     pub fn key_down(&self, key: egui::Key) {
@@ -675,6 +666,36 @@ impl<'a, State> Harness<'a, State> {
         self.renderer.render(&self.ctx, &output)
     }
 
+    /// Apply the [`egui::ViewportCommand`]s the app emitted during the last frame.
+    fn handle_viewport_commands(&mut self) {
+        self.handle_inner_size();
+
+        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+        self.handle_screenshots();
+    }
+
+    /// Resize the harness to the last [`egui::ViewportCommand::InnerSize`] requested by the app
+    /// during the last frame, if any.
+    fn handle_inner_size(&mut self) {
+        let new_inner_size =
+            self.root_viewport_output()
+                .commands
+                .iter()
+                .rev()
+                .find_map(|command| {
+                    if let egui::ViewportCommand::InnerSize(size) = command {
+                        Some(*size)
+                    } else {
+                        None
+                    }
+                });
+
+        if let Some(size) = new_inner_size {
+            self.set_size(size);
+            self.ctx.request_repaint();
+        }
+    }
+
     /// Fulfill any [`egui::ViewportCommand::Screenshot`] requests made by the app during the
     /// last frame.
     ///
@@ -735,10 +756,11 @@ impl<'a, State> Harness<'a, State> {
 
     /// The root node of the test harness.
     pub fn root(&self) -> Node<'_> {
-        Node {
-            accesskit_node: self.kittest.root(),
-            queue: &self.queued_events,
-        }
+        Node::new(
+            self.kittest.root(),
+            &self.queued_events,
+            self.ctx.pixels_per_point(),
+        )
     }
 
     /// Spawn a real native eframe window running this harness's app, reusing its [`egui::Context`].

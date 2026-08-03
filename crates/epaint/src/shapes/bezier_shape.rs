@@ -86,7 +86,7 @@ impl CubicBezierShape {
 
     /// Logical bounding rectangle (ignoring stroke width)
     pub fn logical_bounding_rect(&self) -> Rect {
-        //temporary solution
+        // temporary solution
         let (mut min_x, mut max_x) = if self.points[0].x < self.points[3].x {
             (self.points[0].x, self.points[3].x)
         } else {
@@ -793,7 +793,7 @@ mod tests {
         assert!((bbox.max.x - 180.0).abs() < 0.01);
         assert!((bbox.max.y - 170.0).abs() < 0.01);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.1, &mut |pos, _t| {
             result.push(pos);
         });
@@ -817,7 +817,7 @@ mod tests {
         assert!((bbox.max.x - 130.42).abs() < 0.01);
         assert!((bbox.max.y - 170.0).abs() < 0.01);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.1, &mut |pos, _t| {
             result.push(pos);
         });
@@ -837,28 +837,28 @@ mod tests {
             fill: Default::default(),
             stroke: Default::default(),
         };
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(1.0, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 9);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.1, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 25);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 77);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.001, &mut |pos, _t| {
             result.push(pos);
         });
@@ -938,35 +938,35 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(1.0, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 10);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.5, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 13);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.1, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 28);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 83);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.001, &mut |pos, _t| {
             result.push(pos);
         });
@@ -988,7 +988,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
@@ -1007,7 +1007,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
@@ -1026,7 +1026,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
@@ -1045,7 +1045,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
@@ -1064,7 +1064,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
@@ -1083,7 +1083,7 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
@@ -1100,34 +1100,34 @@ mod tests {
             stroke: Default::default(),
         };
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(1.0, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 9);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.5, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 11);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.1, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 24);
 
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.01, &mut |pos, _t| {
             result.push(pos);
         });
 
         assert_eq!(result.len(), 72);
-        let mut result = vec![curve.points[0]]; //add the start point
+        let mut result = vec![curve.points[0]]; // add the start point
         curve.for_each_flattened_with_t(0.001, &mut |pos, _t| {
             result.push(pos);
         });
