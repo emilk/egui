@@ -1,13 +1,13 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub(crate) struct NativeFile {
-    path: std::path::PathBuf,
+    path: PathBuf,
 }
 
-impl NativeFile {
-    pub(crate) fn from_path(path: std::path::PathBuf) -> egui::DroppedFileHandle {
-        std::sync::Arc::new(Self { path })
+impl From<PathBuf> for NativeFile {
+    fn from(path: PathBuf) -> Self {
+        Self { path }
     }
 }
 

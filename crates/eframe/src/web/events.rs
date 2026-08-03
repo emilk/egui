@@ -989,11 +989,9 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
                     if let Some(file) = files.get(i) {
                         log::debug!("Dropped {:?} ({} bytes)", file.name(), file.size());
 
-                        runner
-                            .input
-                            .raw
-                            .dropped_files
-                            .push(super::dropped_file::WebFile::from_web_file(file));
+                        runner.input.raw.dropped_files.push(std::sync::Arc::new(
+                            super::dropped_file::WebFile::from(file),
+                        ));
                     }
                 }
             }

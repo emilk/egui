@@ -12,10 +12,10 @@ pub(crate) struct WebFile {
     path: PathBuf,
 }
 
-impl WebFile {
-    pub(crate) fn from_web_file(file: web_sys::File) -> egui::DroppedFileHandle {
+impl From<web_sys::File> for WebFile {
+    fn from(file: web_sys::File) -> Self {
         let path = file.name().into();
-        std::sync::Arc::new(Self { file, path })
+        Self { file, path }
     }
 }
 

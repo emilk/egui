@@ -473,7 +473,7 @@ impl State {
                 self.egui_input.hovered_files.clear();
                 self.egui_input
                     .dropped_files
-                    .push(NativeFile::from_path(path.clone()));
+                    .push(std::sync::Arc::new(NativeFile::from(path.clone())));
                 EventResponse {
                     repaint: true,
                     consumed: false,
