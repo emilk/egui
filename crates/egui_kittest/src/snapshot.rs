@@ -32,6 +32,12 @@ pub struct SnapshotOptions {
     /// Preferably, you should use [`Self::threshold`] to control the sensitivity of the image
     /// comparison.
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    ///
+    /// Raise this only very carefully: a high value (more than ~10) is enough to hide a real
+    /// change, such as a moved separator, a shifted one-pixel border, or a small icon rendering
+    /// incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever
+    /// you update the snapshot.
+    ///
     /// Can be configured via kittest.toml. The fallback is `0` (meaning no pixels can differ).
     pub max_failed_pixels: usize,
 
@@ -213,6 +219,11 @@ impl SnapshotOptions {
     ///
     /// Preferably, you should use [`Self::threshold`] to control the sensitivity of the image comparison.
     /// As a last resort, you can use this to allow a certain number of pixels to differ.
+    ///
+    /// Raise this only very carefully: a high value (more than ~10) is enough to hide a real
+    /// change, such as a moved separator, a shifted one-pixel border, or a small icon rendering
+    /// incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever
+    /// you update the snapshot.
     #[inline]
     pub fn max_failed_pixels(mut self, max_failed_pixels: impl Into<OsThreshold<usize>>) -> Self {
         self.max_failed_pixels = max_failed_pixels.into().threshold();

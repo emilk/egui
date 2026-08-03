@@ -45,10 +45,11 @@ All possible settings and their defaults:
 output_path = "tests/snapshots"
 
 # maximum weighted squared YIQ color distance between two corresponding pixels
-# (an absolute, per-pixel value, independent of the image dimensions)
+# (a per-pixel color tolerance, applied to each pixel pair on its own)
 threshold = 0.6
 
 # how many pixels may exceed the `threshold` before the test fails
+# (an absolute pixel count, not a fraction of the image)
 max_failed_pixels = 0
 
 [windows]
@@ -66,6 +67,11 @@ max_failed_pixels = 0
 
 The old `failed_pixel_count_threshold` key is still accepted, with a warning;
 rename it to `max_failed_pixels`.
+
+Raise `max_failed_pixels` only very carefully: a high value (more than ~10) is enough to hide a
+real change, such as a moved separator, a shifted one-pixel border, or a small icon rendering
+incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever you
+update the snapshot.
 
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.

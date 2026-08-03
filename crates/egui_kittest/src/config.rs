@@ -79,7 +79,6 @@ fn find_kittest_toml() -> io::Result<std::path::PathBuf> {
 }
 
 /// The old name of `max_failed_pixels` is still accepted, but warned about.
-#[expect(clippy::print_stderr)]
 fn warn_about_deprecated_keys(config_str: &str) {
     let Ok(config) = toml::from_str::<toml::Table>(config_str) else {
         return;
@@ -99,8 +98,8 @@ fn warn_about_deprecated_keys(config_str: &str) {
             } else {
                 format!("{section}.")
             };
-            eprintln!(
-                "Warning: `{prefix}failed_pixel_count_threshold` in kittest.toml is deprecated; \
+            log::warn!(
+                "`{prefix}failed_pixel_count_threshold` in kittest.toml is deprecated; \
                  use `{prefix}max_failed_pixels` instead."
             );
         }
