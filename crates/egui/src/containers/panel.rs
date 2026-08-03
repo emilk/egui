@@ -18,8 +18,8 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align, Context, CursorIcon, Frame, Id, InnerResponse, Layout, NumExt as _, Rangef, Rect,
-    Response, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp,
+    Align, Context, CursorIcon, Frame, Id, InnerResponse, Layout, Margin, NumExt as _, Rangef,
+    Rect, Response, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -123,6 +123,22 @@ impl PanelSide {
             Self::Right => rect.left(),
             Self::Top => rect.bottom(),
             Self::Bottom => rect.top(),
+        }
+    }
+
+    /// The component of `margin` on the panel's _resizable_ edge,
+    /// i.e. the edge facing the rest of the ui, where the separator line goes.
+    fn resize_margin(self, mut margin: Margin) -> i8 {
+        *self.resize_margin_mut(&mut margin)
+    }
+
+    /// Mutable version of [`Self::resize_margin`].
+    fn resize_margin_mut(self, margin: &mut Margin) -> &mut i8 {
+        match self {
+            Self::Left => &mut margin.right,
+            Self::Right => &mut margin.left,
+            Self::Top => &mut margin.bottom,
+            Self::Bottom => &mut margin.top,
         }
     }
 
@@ -297,6 +313,19 @@ impl Panel {
     }
 
     /// Show a separator line, even when not interacting with it?
+    ///
+    /// The separator line sits on the panel's inner edge, i.e. the edge facing the rest of the ui.
+    /// It is painted _outside_ the [`Frame`]'s outline, in room the panel reserves for it in the
+    /// frame's [`Frame::outer_margin`], so that going from the panel contents outwards you get:
+    ///
+    /// contents | [`Frame::inner_margin`] | [`Frame::stroke`] | separator line | [`Frame::outer_margin`]
+    ///
+    /// Turning this off removes that reserved room too, so the panel gets no permanent gap along
+    /// that edge.
+    ///
+    /// A `resizable` panel still shows a line while hovered or dragged, regardless of this setting.
+    /// With this setting off there is no room reserved for it, so that transient line is painted
+    /// just outside the frame's outline, overlapping the [`Frame::outer_margin`].
     ///
     /// Default: `true`.
     #[inline]
@@ -845,7 +874,14 @@ impl Panel {
                 Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            let line_pos = side.resize_pos(shifted_outer_rect) + 0.5 * side.sign() * stroke.width;
+
+            // The line goes just _outside_ the frame's outline, in the room `resolve_frame`
+            // reserved for it in the outer margin, i.e.:
+            //
+            // contents | `inner_margin` | outline | separator line | `outer_margin`
+            let outer_margin = f32::from(side.resize_margin(frame.outer_margin));
+            let outline_edge = side.resize_pos(shifted_outer_rect) + side.sign() * outer_margin;
+            let line_pos = outline_edge - 0.5 * side.sign() * stroke.width;
             let cross_range = shifted_outer_rect.range_along(side.cross_axis());
             if axis == 0 {
                 parent_ui.painter().vline(line_pos, cross_range, stroke);
@@ -859,8 +895,27 @@ impl Panel {
 
     /// The configured [`Frame`], or the default side/top panel frame for this [`Ui`].
     fn resolve_frame(&self, ui: &Ui) -> Frame {
-        self.frame
-            .unwrap_or_else(|| Frame::side_top_panel(ui.style()))
+        let mut frame = self
+            .frame
+            .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
+
+        if self.show_separator_line {
+            // Reserve room for the separator line in the frame's _outer_ margin, so the line
+            // lands just outside the frame's outline instead of painting on top of it:
+            //
+            // contents | `inner_margin` | outline | separator line | `outer_margin`
+            //
+            // We deliberately don't do this for a `resizable` panel that has opted out of the
+            // separator line: the line it shows while hovered/dragged is a transient affordance,
+            // and reserving room for it would leave a permanently visible gap.
+            let widgets = &ui.style().visuals.widgets;
+            let stroke_width = widgets.noninteractive.bg_stroke.width.round() as i8;
+
+            let margin_side = self.side.resize_margin_mut(&mut frame.outer_margin);
+            *margin_side = (*margin_side).saturating_add(stroke_width);
+        }
+
+        frame
     }
 
     /// Panel is fully closed. If the user is still dragging the resize handle

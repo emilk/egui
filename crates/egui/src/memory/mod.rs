@@ -216,6 +216,18 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) system_theme: Option<Theme>,
 
+    /// If `true`, egui will keep the native window theme in sync with
+    /// [`Self::theme_preference`] by sending a [`crate::ViewportCommand::SetTheme`]
+    /// to the root viewport whenever the preference changes.
+    ///
+    /// This makes the native window decorations (title bar, borders, …) match the
+    /// theme selected inside egui.
+    ///
+    /// Set this to `false` if you want to manage the native window theme yourself.
+    ///
+    /// This is `true` by default.
+    pub sync_window_theme: bool,
+
     /// Global zoom factor of the UI.
     ///
     /// This is used to calculate the `pixels_per_point`
@@ -318,6 +330,7 @@ impl Default for Options {
             theme_preference: Default::default(),
             fallback_theme: Theme::Dark,
             system_theme: None,
+            sync_window_theme: true,
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
             quit_shortcuts: vec![crate::KeyboardShortcut::new(
@@ -381,6 +394,7 @@ impl Options {
             theme_preference,
             fallback_theme: _,
             system_theme: _,
+            sync_window_theme,
             zoom_factor,
             zoom_with_keyboard,
             quit_shortcuts: _, // not shown in ui
@@ -428,6 +442,8 @@ impl Options {
             .default_open(true)
             .show(ui, |ui| {
                 theme_preference.radio_buttons(ui);
+
+                ui.checkbox(sync_window_theme, "Sync window theme with egui theme");
 
                 let style = std::sync::Arc::make_mut(match theme {
                     Theme::Dark => dark_style,
@@ -1194,6 +1210,11 @@ impl Areas {
         self.areas.get_mut(&id)
     }
 
+    /// Can the user interact with this layer or it's widgets, or do clicks go straight through it?
+    pub(crate) fn is_interactable(&self, layer_id: LayerId) -> bool {
+        self.get(layer_id.id).is_none_or(|area| area.interactable)
+    }
+
     /// All layers back-to-front, top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
@@ -1460,9 +1481,9 @@ fn order_map_total_ordering() {
     // Assert that `areas.compare_order()` forms a total ordering
     let mut equivalence_classes = vec![0];
     let mut i = 0;
-    for l in layers.windows(2) {
-        assert!(l[0].order <= l[1].order, "does not follow LayerId.order");
-        if areas.compare_order(l[0], l[1]) != std::cmp::Ordering::Equal {
+    for &[a, b] in layers.array_windows() {
+        assert!(a.order <= b.order, "does not follow LayerId.order");
+        if areas.compare_order(a, b) != std::cmp::Ordering::Equal {
             i += 1;
         }
         equivalence_classes.push(i);

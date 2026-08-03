@@ -56,6 +56,9 @@ enum Phase {
     /// A screenshot was dispatched with this `user_data` id; reply when the matching
     /// [`egui::Event::Screenshot`] arrives.
     AwaitScreenshot { id: u64 },
+
+    /// Watching for the app to go idle.
+    Settle { steps_taken: u64, max_steps: u64 },
 }
 
 struct InFlight {
@@ -116,7 +119,12 @@ impl InspectionPlugin {
     /// While requests are still in flight, keep the UI loop spinning — reactive apps would
     /// otherwise go idle between hooks before a screenshot round-trips.
     fn maybe_repaint(&self, ctx: &Context) {
-        if !self.in_flight.is_empty() {
+        // Don't repaint if there's only a `Request::Settle`.
+        if self
+            .in_flight
+            .iter()
+            .any(|item| !matches!(item.req, Request::Settle { .. }))
+        {
             ctx.request_repaint();
         }
     }
@@ -236,6 +244,13 @@ impl egui::Plugin for InspectionPlugin {
                     item.phase = Phase::AwaitScreenshot { id };
                     true
                 }
+                Request::Settle { max_steps } => {
+                    item.phase = Phase::Settle {
+                        steps_taken: 0,
+                        max_steps: *max_steps,
+                    };
+                    true
+                }
             }
         });
         self.next_screenshot_id = next_id;
@@ -249,9 +264,14 @@ impl egui::Plugin for InspectionPlugin {
             return;
         }
 
+        let immediate_repaint = output
+            .viewport_output
+            .values()
+            .any(|viewport| viewport.repaint_delay == Duration::ZERO);
+
         let step = self.step;
         self.in_flight
-            .retain_mut(|item| match (&item.phase, &item.req) {
+            .retain_mut(|item| match (&mut item.phase, &item.req) {
                 (Phase::AwaitOutput, Request::GetTree) => {
                     if let Some(reply) = item.reply.take() {
                         reply(Response::Tree {
@@ -267,6 +287,27 @@ impl egui::Plugin for InspectionPlugin {
                         reply(Response::Done);
                     }
                     false
+                }
+                (
+                    Phase::Settle {
+                        steps_taken,
+                        max_steps,
+                    },
+                    Request::Settle { .. },
+                ) => {
+                    *steps_taken += 1;
+                    let steps_exceeded = *steps_taken >= *max_steps;
+                    if !immediate_repaint || steps_exceeded {
+                        if let Some(reply) = item.reply.take() {
+                            reply(Response::Settled {
+                                settled: !immediate_repaint,
+                                steps: *steps_taken,
+                            });
+                        }
+                        false
+                    } else {
+                        true
+                    }
                 }
                 _ => true,
             });

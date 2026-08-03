@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
-use egui::ScrollArea;
 use egui::accesskit::Role;
+#[cfg(debug_assertions)]
 use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::text::{LayoutJob, TextWrapping};
 use egui::{
-    Align, Button, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
-    TextFormat, TextWrapMode, Ui, include_image, vec2,
+    Align, Button, Color32, FontFamily, FontId, Image, Label, Layout, Rect, RichText, Sense,
+    TextBuffer, TextFormat, TextWrapMode, Ui, Vec2, include_image, vec2,
 };
+use egui::{Pos2, ScrollArea};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT as _, Queryable as _};
 
@@ -261,6 +262,7 @@ fn interact_on_ui_response_should_be_stable() {
     assert_eq!(click_count, 10, "We missed some clicks!");
 }
 
+#[cfg(debug_assertions)]
 fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
     output.shapes.iter().any(|clipped| {
         matches!(
@@ -276,10 +278,13 @@ fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
 /// between frames because the label (and thus the Id salt) changes on hover.
 /// The `warn_if_rect_changes_id` debug check should catch this.
 #[test]
+#[cfg(debug_assertions)]
 fn warn_if_rect_changes_id() {
     let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
 
     let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
+        ui.global_style_mut(|style| style.debug.warn_if_rect_changes_id = true);
+
         // Simulate a buggy widget whose Id depends on its label text,
         // and the label changes on hover:
         let is_hovered = ui.rect_contains_pointer(button_rect);
@@ -309,6 +314,7 @@ fn warn_if_rect_changes_id() {
 /// all child widget ids shift too. This should NOT trigger `warn_if_rect_changes_id` because the
 /// `parent_id` also changed — it's a cascading id shift, not a widget bug.
 #[test]
+#[cfg(debug_assertions)]
 fn warn_if_rect_changes_id_false_positive_parent_shift() {
     use std::cell::Cell;
 
@@ -316,6 +322,8 @@ fn warn_if_rect_changes_id_false_positive_parent_shift() {
     let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
 
     let mut harness = Harness::builder().with_size((200.0, 100.0)).build_ui(|ui| {
+        ui.global_style_mut(|style| style.debug.warn_if_rect_changes_id = true);
+
         // push_id with a changing value causes the child Ui's id to shift,
         // which in turn shifts all widget ids inside it.
         ui.push_id(counter.get(), |ui| {
@@ -471,5 +479,83 @@ fn animated_scroll_beats_sticky_bottom() {
     assert!(
         harness.state().1 + 1.0 < harness.state().2,
         "animated explicit scroll should leave the sticky bottom"
+    );
+}
+
+/// Tests that tooltips are shown correctly for buttons that are only shown on hover.
+///
+/// Basically, this tests that a tooltip overlapping the mouse cursor does not interfere with a
+/// buttons hover state.
+#[test]
+fn tooltip_should_work_for_hover_button() {
+    let button_rect = Rect::from_min_size(Pos2::new(4.0, 4.0), Vec2::new(80.0, 20.0));
+    let mut harness = Harness::builder().with_size((320.0, 80.0)).build_ui(|ui| {
+        if ui.rect_contains_pointer(button_rect) {
+            ui.button("A tooltip should be shown")
+                .on_hover_text("My tooltip");
+        }
+    });
+
+    harness.hover_at(button_rect.center());
+
+    harness.run();
+
+    harness.snapshot("test_tooltip_hover_regression");
+}
+
+/// Ensure that hovering close to a widget doesn't cause a tooltip feedback loop (due to a
+/// difference between `hovered` and `contains_pointer` caused by the interact radius).
+#[test]
+fn tooltip_covering_button_should_not_cause_feedback_loop() {
+    let mut harness = Harness::builder().with_size((200.0, 30.0)).build_ui(|ui| {
+        ui.button("A tooltip should be shown")
+            .on_hover_text("This tooltip is larger than the button");
+    });
+
+    harness.hover_at(
+        harness
+            .get_by_label("A tooltip should be shown")
+            .rect()
+            .left_center()
+            - Vec2::X,
+    );
+
+    harness.run();
+
+    harness.snapshot("tooltip_covering_button_should_not_cause_feedback_loop");
+}
+
+/// Tests that a tooltip closes when the pointer moves onto a neighboring widget,
+/// so that the neighbor can show its own tooltip.
+///
+/// The two buttons are only `item_spacing.y` (3 pt) apart, which is less than the
+/// hit-test `interact_radius` (5 pt), so the first button is still close enough to
+/// interact with when the pointer is on the second one.
+#[test]
+fn tooltip_should_hand_over_to_neighboring_widget() {
+    let mut harness = Harness::builder().with_size((300.0, 200.0)).build_ui(|ui| {
+        ui.button("Button A").on_hover_text("Tooltip A");
+        ui.button("Button B").on_hover_text("Tooltip B");
+    });
+
+    let a_rect = harness.get_by_label("Button A").rect();
+    let b_rect = harness.get_by_label("Button B").rect();
+
+    harness.hover_at(a_rect.center_bottom() - Vec2::Y);
+    harness.run();
+    assert!(
+        harness.query_by_label("Tooltip A").is_some(),
+        "Tooltip A should be shown when hovering Button A"
+    );
+
+    harness.hover_at(b_rect.center_top() + Vec2::Y);
+    harness.run();
+    assert!(
+        harness.query_by_label("Tooltip B").is_some(),
+        "Tooltip B should be shown when hovering Button B"
+    );
+    assert!(
+        harness.query_by_label("Tooltip A").is_none(),
+        "Tooltip A should be hidden when hovering Button B"
     );
 }
