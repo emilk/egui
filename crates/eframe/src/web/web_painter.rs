@@ -24,7 +24,7 @@ pub(crate) trait WebPainter {
         clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
-        textures_delta: &egui::TexturesDelta,
+        textures_delta: &mut egui::TexturesDelta,
         capture: Vec<UserData>,
     ) -> Result<(), JsValue>;
 

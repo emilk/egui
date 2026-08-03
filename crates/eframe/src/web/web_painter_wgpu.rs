@@ -90,7 +90,7 @@ impl WebPainterWgpu {
             && create_new.display_handle.is_none()
         {
             // Force WebGL, useful for quick & dirty testing:
-            //create_new.instance_descriptor.backends = wgpu::Backends::GL;
+            // create_new.instance_descriptor.backends = wgpu::Backends::GL;
             create_new.display_handle = Some(Box::new(WebDisplay));
         }
 
@@ -164,7 +164,7 @@ impl WebPainter for WebPainterWgpu {
         clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
-        textures_delta: &egui::TexturesDelta,
+        textures_delta: &mut egui::TexturesDelta,
         capture_data: Vec<UserData>,
     ) -> Result<(), JsValue> {
         let capture = !capture_data.is_empty();
@@ -210,13 +210,16 @@ impl WebPainter for WebPainterWgpu {
 
         let user_cmd_bufs = {
             let mut renderer = render_state.renderer.write();
-            for (id, image_delta) in &textures_delta.set {
-                renderer.update_texture(
-                    &render_state.device,
-                    &render_state.queue,
-                    *id,
-                    image_delta,
-                );
+            #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+            for (id, image_deltas) in textures_delta.set.drain() {
+                for image_delta in image_deltas {
+                    renderer.update_texture(
+                        &render_state.device,
+                        &render_state.queue,
+                        id,
+                        &image_delta,
+                    );
+                }
             }
 
             renderer.update_buffers(
@@ -380,7 +383,7 @@ impl WebPainter for WebPainterWgpu {
                 );
             }
 
-            frame.present();
+            render_state.queue.present(frame);
         }
 
         // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.
@@ -388,8 +391,9 @@ impl WebPainter for WebPainterWgpu {
         // However, once we called `wgpu::Queue::submit`, it is up for wgpu to determine how long the underlying gpu resource has to live.
         {
             let mut renderer = render_state.renderer.write();
-            for id in &textures_delta.free {
-                renderer.free_texture(id);
+            #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+            for id in textures_delta.free.drain() {
+                renderer.free_texture(&id);
             }
         }
 
