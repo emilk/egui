@@ -206,7 +206,6 @@ image = { workspace = true, features = ["png"] } # For copying images
 js-sys.workspace = true
 percent-encoding.workspace = true
 wasm-bindgen.workspace = true
-wasm-bindgen-futures.workspace = true
 web-sys = { workspace = true, features = [
   "AddEventListenerOptions",
   "BinaryType",

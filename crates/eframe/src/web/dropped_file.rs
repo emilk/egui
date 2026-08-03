@@ -15,7 +15,8 @@ impl egui::DroppedFile for WebDroppedFile {
     fn bytes_async(&self) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, String>> + '_>> {
         let file = self.file.clone();
         Box::pin(async move {
-            let array_buffer = wasm_bindgen_futures::JsFuture::from(file.array_buffer())
+            let array_buffer = file
+                .array_buffer()
                 .await
                 .map_err(|err| crate::web::string_from_js_value(&err))?;
             Ok(js_sys::Uint8Array::new(&array_buffer).to_vec())
