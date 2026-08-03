@@ -2016,7 +2016,7 @@ impl Spacing {
                 ui.add(DragValue::new(text_edit_width).range(0.0..=1000.0));
                 ui.end_row();
 
-                ui.label("Text line spacing");
+                ui.label("Extra text line spacing");
                 ui.add(DragValue::new(text_line_spacing).range(0.0..=20.0));
                 ui.end_row();
 
