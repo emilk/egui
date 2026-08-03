@@ -1074,6 +1074,14 @@ pub struct Visuals {
     /// How the text cursor acts.
     pub text_cursor: TextCursorStyle,
 
+    /// Unused. Kept only for backwards compatibility.
+    ///
+    /// Used to allow widgets to paint this much outside the scroll area rect.
+    /// Setting it now has no effect.
+    /// Use [`crate::ScrollArea::content_margin`] instead.
+    #[deprecated(note = "This is now unused and has no effect")]
+    pub clip_rect_margin: f32,
+
     /// Show a background behind buttons.
     pub button_frame: bool,
 
@@ -1481,6 +1489,7 @@ impl Default for Interaction {
 
 impl Visuals {
     /// Default dark theme.
+    #[expect(deprecated)]
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
@@ -1528,6 +1537,7 @@ impl Visuals {
 
             text_cursor: Default::default(),
 
+            clip_rect_margin: 0.0,
             button_frame: true,
             collapsing_header_frame: false,
             indent_has_left_vline: true,
@@ -2256,6 +2266,7 @@ impl WidgetVisuals {
 }
 
 impl Visuals {
+    #[expect(deprecated)]
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode,
@@ -2290,6 +2301,7 @@ impl Visuals {
 
             text_cursor,
 
+            clip_rect_margin: _,
             button_frame,
             collapsing_header_frame,
             indent_has_left_vline,
