@@ -1,18 +1,17 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 #[cfg(target_arch = "wasm32")]
 use std::{future::Future, pin::Pin};
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::Path;
 
 /// A file dropped into egui.
 ///
 /// The integration owns the concrete file handle, letting egui remain independent of windowing
 /// backends and file APIs.
 pub trait DroppedFile: std::fmt::Debug {
-    /// The path of a file dropped on a native platform.
-    #[cfg(not(target_arch = "wasm32"))]
+    /// The path of the dropped file.
+    ///
+    /// This is an absolute path on native platforms. On the web, it is a relative path containing
+    /// only the file name because browsers do not expose the file's local path.
     fn path(&self) -> &Path;
 
     /// Read the file contents.

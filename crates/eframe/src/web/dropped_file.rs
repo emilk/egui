@@ -1,17 +1,29 @@
-use std::{future::Future, pin::Pin};
+use std::{
+    future::Future,
+    path::{Path, PathBuf},
+    pin::Pin,
+};
 
 #[derive(Debug)]
 pub(crate) struct WebFile {
     file: web_sys::File,
+    // We store a `PathBuf` here so that we can hand out `Path`s
+    // without allocating each time.
+    path: PathBuf,
 }
 
 impl WebFile {
     pub(crate) fn from_web_file(file: web_sys::File) -> egui::DroppedFileHandle {
-        std::sync::Arc::new(Self { file })
+        let path = file.name().into();
+        std::sync::Arc::new(Self { file, path })
     }
 }
 
 impl egui::DroppedFile for WebFile {
+    fn path(&self) -> &Path {
+        &self.path
+    }
+
     fn bytes_async(&self) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, String>> + '_>> {
         let file = self.file.clone();
         Box::pin(async move {
