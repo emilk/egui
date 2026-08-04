@@ -689,8 +689,8 @@ fn single_curve_approximation(curve: &CubicBezierShape) -> QuadraticBezierShape 
     let c2_x = (curve.points[2].x * 3.0 - curve.points[3].x) * 0.5;
     let c2_y = (curve.points[2].y * 3.0 - curve.points[3].y) * 0.5;
     let c = Pos2 {
-        x: (c1_x + c2_x) * 0.5,
-        y: (c1_y + c2_y) * 0.5,
+        x: fast_midpoint(c1_x, c2_x),
+        y: fast_midpoint(c1_y, c2_y),
     };
     QuadraticBezierShape {
         points: [curve.points[0], c, curve.points[3]],

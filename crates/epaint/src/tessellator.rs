@@ -1074,7 +1074,7 @@ fn stroke_and_fill_path(
             */
 
             let inner_rad = 0.5 * (stroke.width - feathering);
-            let outer_rad = 0.5 * (stroke.width + feathering);
+            let outer_rad = fast_midpoint(stroke.width, feathering);
 
             match path_type {
                 PathType::Closed => {
