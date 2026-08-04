@@ -611,11 +611,11 @@ impl Panel {
                 // Animate the visible size from collapsed_size to expanded_size,
                 // so the slide picks up where the collapsed panel left off.
                 let expanded_size = if drag_in_progress {
-                    // The drag decides the size, and it can't take the panel below
-                    // its own `min_size` — so that, not the (stale) persisted size,
-                    // is where the slide has to meet the collapsed panel. Getting
-                    // this wrong makes the panel jump the gap between the two sizes
-                    // in a single frame, in whichever direction it is going.
+                    // During a drag the pointer sets the size, clamped to `min_size`
+                    // — so that, not the (stale) persisted size, is where the slide
+                    // meets the collapsed panel, whether opening or closing. Get it
+                    // wrong and the panel jumps the gap between the two sizes in one
+                    // frame.
                     expanded_panel
                         .outer_size_range
                         .min
