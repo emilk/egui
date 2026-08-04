@@ -94,11 +94,14 @@ pub(crate) struct GridLayout {
 
 impl GridLayout {
     pub(crate) fn new(ui: &Ui, id: Id, prev_state: Option<State>) -> Self {
-        // An enclosing sizing pass (e.g. `Resize` measuring our minimum width) wants to
-        // know how small we can get.
-        let in_outer_sizing_pass = ui.is_sizing_pass() && prev_state.is_some();
-
         let is_first_frame = prev_state.is_none();
+
+        // An enclosing sizing pass (e.g. `Resize` measuring our minimum width) wants to know
+        // how small we can get. Note that on our first frame we run a sizing pass of our own
+        // (see `show_dyn`), which is a different situation: there we have no remembered sizes
+        // to protect, and must in fact produce some.
+        let in_outer_sizing_pass = !is_first_frame && ui.is_sizing_pass();
+
         let prev_state = prev_state.unwrap_or_default();
 
         // TODO(emilk): respect current layout
