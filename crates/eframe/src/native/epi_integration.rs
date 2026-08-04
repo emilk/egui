@@ -160,7 +160,7 @@ pub struct EpiIntegration {
 
     /// Input that we have received, but not yet given to egui,
     /// because we haven't run any pass since (see [`Self::update_logic_only`]).
-    pending_raw_input: Option<egui::RawInput>,
+    pending_raw_input: egui::RawInput,
 
     /// When set, it is time to close the native window.
     close: bool,
@@ -220,7 +220,7 @@ impl EpiIntegration {
             frame,
             last_auto_save: Instant::now(),
             pending_full_output: Default::default(),
-            pending_raw_input: None,
+            pending_raw_input: Default::default(),
             close: false,
             can_drag_window: false,
             #[cfg(feature = "persistence")]
@@ -337,10 +337,7 @@ impl EpiIntegration {
         });
 
         // No pass consumed the input, so save it for the next one:
-        match &mut self.pending_raw_input {
-            Some(pending) => pending.append(raw_input),
-            None => self.pending_raw_input = Some(raw_input),
-        }
+        self.pending_raw_input = raw_input;
 
         if close_requested {
             let canceled = logic_output
@@ -353,19 +350,14 @@ impl EpiIntegration {
         logic_output
     }
 
-    /// Set the time, prepend any input we couldn't give to egui earlier, and run the app hook.
+    /// Prepend any input we couldn't give to egui earlier, set the time, and run the app hook.
     fn prepare_raw_input(
         &mut self,
         app: &mut dyn epi::App,
-        raw_input: egui::RawInput,
+        new_input: egui::RawInput,
     ) -> egui::RawInput {
-        let mut raw_input = match self.pending_raw_input.take() {
-            Some(mut pending) => {
-                pending.append(raw_input); // The new input wins where they overlap
-                pending
-            }
-            None => raw_input,
-        };
+        let mut raw_input = std::mem::take(&mut self.pending_raw_input);
+        raw_input.append(new_input); // The new input wins where they overlap
 
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 

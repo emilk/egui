@@ -617,6 +617,13 @@ fn run_logic_should_not_disturb_ui_state() {
                 .memory(|m| m.areas().visible_last_frame(&area_layer)),
             "Area state was reset"
         );
+        assert!(
+            harness
+                .ctx
+                .viewport_for(child_viewport, |viewport| viewport.class)
+                == egui::ViewportClass::Deferred,
+            "The child viewport was closed"
+        );
     };
 
     assert_state(&harness);

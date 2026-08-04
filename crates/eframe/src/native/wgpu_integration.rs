@@ -30,7 +30,7 @@ use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
     native::{
         epi_integration::EpiIntegration,
-        winit_integration::{EventResult, is_invisible_or_minimized},
+        winit_integration::{EventResult, sleep_if_invisible_or_minimized},
     },
 };
 
@@ -726,10 +726,20 @@ impl WgpuWinitRunning<'_> {
                     }
                 }
 
-                handle_viewport_commands(&integration.egui_ctx, viewport_commands, viewports);
+                for (id, commands) in viewport_commands {
+                    if let Some(viewport) = viewports.get_mut(&id) {
+                        viewport.process_commands(&integration.egui_ctx, commands);
+                    }
+                }
             }
 
-            sleep_if_minimized(&shared.borrow(), viewport_id);
+            sleep_if_invisible_or_minimized(
+                shared
+                    .borrow()
+                    .viewports
+                    .get(&viewport_id)
+                    .and_then(|viewport| viewport.window.as_deref()),
+            );
 
             return Ok(if integration.should_close() {
                 EventResult::CloseRequested
@@ -863,16 +873,7 @@ impl WgpuWinitRunning<'_> {
 
         integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
 
-        if let Some(window) = window
-            && is_invisible_or_minimized(window)
-        {
-            // On Mac, a minimized Window uses up all CPU:
-            // https://github.com/emilk/egui/issues/325
-            // On Windows, an invisible window also uses up all CPU:
-            // https://github.com/emilk/egui/issues/7776
-            profiling::scope!("minimized_sleep");
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
+        sleep_if_invisible_or_minimized(window.map(|window| window.as_ref()));
 
         if integration.should_close() {
             Ok(EventResult::CloseRequested)
@@ -1027,6 +1028,25 @@ impl WgpuWinitRunning<'_> {
 }
 
 impl Viewport {
+    /// Apply the commands, or defer them until we have a window.
+    fn process_commands(
+        &mut self,
+        egui_ctx: &egui::Context,
+        mut commands: Vec<egui::ViewportCommand>,
+    ) {
+        self.deferred_commands.append(&mut commands);
+
+        if let Some(window) = self.window.as_ref() {
+            egui_winit::process_viewport_commands(
+                egui_ctx,
+                &mut self.info,
+                std::mem::take(&mut self.deferred_commands),
+                window,
+                &mut self.actions_requested,
+            );
+        }
+    }
+
     /// Create winit window, if needed.
     fn initialize_window(
         &mut self,
@@ -1250,51 +1270,6 @@ pub(crate) fn remove_viewports_not_in(
 }
 
 /// Add new viewports, and update existing ones:
-/// Apply commands to already existing viewports, without creating or removing any.
-///
-/// This is for commands that came out of [`egui::Context::run_logic`],
-/// which knows nothing about which viewports should exist.
-fn handle_viewport_commands(
-    egui_ctx: &egui::Context,
-    viewport_commands: egui::OrderedViewportIdMap<Vec<egui::ViewportCommand>>,
-    viewports: &mut Viewports,
-) {
-    profiling::function_scope!();
-
-    for (viewport_id, mut commands) in viewport_commands {
-        let Some(viewport) = viewports.get_mut(&viewport_id) else {
-            continue;
-        };
-
-        viewport.deferred_commands.append(&mut commands);
-
-        if let Some(window) = viewport.window.as_ref() {
-            egui_winit::process_viewport_commands(
-                egui_ctx,
-                &mut viewport.info,
-                std::mem::take(&mut viewport.deferred_commands),
-                window,
-                &mut viewport.actions_requested,
-            );
-        }
-    }
-}
-
-/// On Mac, a minimized Window uses up all CPU:
-/// <https://github.com/emilk/egui/issues/325>
-///
-/// On Windows, an invisible window also uses up all CPU:
-/// <https://github.com/emilk/egui/issues/7776>
-fn sleep_if_minimized(shared: &SharedState, viewport_id: ViewportId) {
-    if let Some(viewport) = shared.viewports.get(&viewport_id)
-        && let Some(window) = viewport.window.as_ref()
-        && is_invisible_or_minimized(window)
-    {
-        profiling::scope!("minimized_sleep");
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-}
-
 fn handle_viewport_output(
     egui_ctx: &egui::Context,
     viewport_output: &OrderedViewportIdMap<ViewportOutput>,
@@ -1309,7 +1284,7 @@ fn handle_viewport_output(
             class,
             builder,
             viewport_ui_cb,
-            mut commands,
+            commands,
             repaint_delay: _, // ignored - we listened to the repaint callback instead
         },
     ) in viewport_output.clone()
@@ -1319,30 +1294,23 @@ fn handle_viewport_output(
         let viewport =
             initialize_or_update_viewport(viewports, ids, class, builder, viewport_ui_cb, painter);
 
-        if let Some(window) = viewport.window.as_ref() {
-            let old_inner_size = window.inner_size();
+        let old_inner_size = viewport.window.as_ref().map(|window| window.inner_size());
 
-            viewport.deferred_commands.append(&mut commands);
+        viewport.process_commands(egui_ctx, commands);
 
-            egui_winit::process_viewport_commands(
-                egui_ctx,
-                &mut viewport.info,
-                std::mem::take(&mut viewport.deferred_commands),
-                window,
-                &mut viewport.actions_requested,
-            );
-
-            // For Wayland : https://github.com/emilk/egui/issues/4196
-            if cfg!(target_os = "linux") {
-                let new_inner_size = window.inner_size();
-                if new_inner_size != old_inner_size
-                    && let (Some(width), Some(height)) = (
-                        NonZeroU32::new(new_inner_size.width),
-                        NonZeroU32::new(new_inner_size.height),
-                    )
-                {
-                    painter.on_window_resized(viewport_id, width, height);
-                }
+        // For Wayland : https://github.com/emilk/egui/issues/4196
+        if cfg!(target_os = "linux")
+            && let Some(window) = viewport.window.as_ref()
+            && let Some(old_inner_size) = old_inner_size
+        {
+            let new_inner_size = window.inner_size();
+            if new_inner_size != old_inner_size
+                && let (Some(width), Some(height)) = (
+                    NonZeroU32::new(new_inner_size.width),
+                    NonZeroU32::new(new_inner_size.height),
+                )
+            {
+                painter.on_window_resized(viewport_id, width, height);
             }
         }
     }
