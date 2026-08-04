@@ -143,12 +143,12 @@ impl StyleProvider<LabelStyle> for DefaultStyle {
 
 impl StyleProvider<SeparatorStyle> for DefaultStyle {
     fn style(&mut self, modifiers: &StyleArgs<'_>) -> SeparatorStyle {
-        let StyleArgs { ctx, .. } = modifiers;
-        let ws: BaseStyle = ctx.get_widget_style(modifiers);
+        let StyleArgs { style, .. } = modifiers;
 
         SeparatorStyle {
             spacing: 6.0,
-            stroke: ws.frame.stroke,
+            // A separator is never interactive, so its stroke doesn't depend on the widget state:
+            stroke: style.visuals.widgets.noninteractive.bg_stroke,
         }
     }
 }

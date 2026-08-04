@@ -8,7 +8,7 @@ pub use self::{style_provider::StyleProvider, themes::Themes};
 
 use crate::{
     Ui,
-    widget_style::{Classes, StyleArgs, WidgetStyle},
+    widget_style::{Classes, StyleArgs, WidgetState, WidgetStyle},
 };
 
 impl Ui {
@@ -19,11 +19,16 @@ impl Ui {
         id: crate::Id,
         classes: &Classes,
     ) -> S {
-        // Fetch the current state of the widget
-        let state = self
-            .read_response(id)
-            .map(|r| r.widget_state())
-            .unwrap_or_default();
+        // Fetch the state of the widget, as it was in the previous pass
+        let state = if let Some(response) = self.read_response(id) {
+            response.widget_state()
+        } else {
+            // We don't know the state of the widget yet, so we would style it wrong.
+            // Discard this pass and style it correctly in the next one.
+            self.ctx()
+                .request_discard("Widget style depends on a widget response we don't have yet");
+            WidgetState::default()
+        };
 
         self.get_widget_style::<S>(&StyleArgs {
             classes,
