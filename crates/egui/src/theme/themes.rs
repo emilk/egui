@@ -11,6 +11,15 @@ use crate::{
     },
 };
 
+/// The registry of [`StyleProvider`]s, one per [`WidgetStyle`] type.
+///
+/// Each widget asks this registry for the provider of its style type
+/// (e.g. [`ButtonStyle`]), and that provider computes the final style from the
+/// widget's classes and state.
+///
+/// A default provider is registered for every built-in style; register your
+/// own with [`Context::add_widget_theme`](crate::Context::add_widget_theme) or
+/// [`Context::replace_widget_theme`](crate::Context::replace_widget_theme).
 pub struct Themes {
     themes: IdTypeMap,
 }
