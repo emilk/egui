@@ -560,14 +560,14 @@ fn tooltip_should_hand_over_to_neighboring_widget() {
     );
 }
 
-/// An integration runs a pass with [`egui::RawInput::uiless_pass`] set when its window is
-/// hidden, minimized, or occluded, so that app logic keeps ticking without showing any ui.
+/// When a window is minimized or occluded, an integration may keep running passes so that
+/// app logic keeps ticking, but without showing any ui. See [`egui::Context::is_visible`].
 ///
 /// Such a pass must leave all ui state alone. Otherwise areas think they were hidden and
 /// replay their fade-in, popups close, focus is lost, and child viewports pop back up.
 /// See <https://github.com/emilk/egui/issues/8266>.
 #[test]
-fn uiless_pass_should_not_disturb_ui_state() {
+fn occluded_pass_should_not_disturb_ui_state() {
     const MENU: &str = "My menu";
     const MENU_ITEM: &str = "Button in my menu";
     const FOCUSED_BUTTON: &str = "Click me";
@@ -582,8 +582,8 @@ fn uiless_pass_should_not_disturb_ui_state() {
             // A backend that can open real windows, like eframe:
             ui.ctx().set_embed_viewports(false);
 
-            if ui.ctx().is_uiless_pass() {
-                // The integration shows no ui and viewports during a uiless pass.
+            if !ui.ctx().is_visible() {
+                // The integration shows no ui and no viewports while occluded.
                 return;
             }
 
@@ -633,17 +633,22 @@ fn uiless_pass_should_not_disturb_ui_state() {
 
     assert_state(&harness);
 
+    let set_occluded = |harness: &mut Harness<'_>, occluded: bool| {
+        let input = harness.input_mut();
+        let viewport_id = input.viewport_id;
+        input.viewports.entry(viewport_id).or_default().occluded = Some(occluded);
+    };
+
     // The window is now occluded, so the integration runs passes without any ui.
-    // egui keeps the accessibility tree from the last pass that did show ui,
-    // so we can still query it.
-    harness.input_mut().uiless_pass = true;
+    // egui keeps the accessibility tree from the last visible pass, so we can still query it.
+    set_occluded(&mut harness, true);
     harness.step();
     harness.step();
 
     assert_state(&harness);
 
     // The window is visible again, and everything should be where we left it:
-    harness.input_mut().uiless_pass = false;
+    set_occluded(&mut harness, false);
     harness.run();
 
     assert_state(&harness);

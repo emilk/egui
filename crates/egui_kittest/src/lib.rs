@@ -259,7 +259,7 @@ impl<'a, State> Harness<'a, State> {
     fn _step(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
-        let uiless_pass = self.input.uiless_pass;
+        let is_visible = self.input.viewport().visible().unwrap_or(true);
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
             self.response = self.app.run(ui, &mut self.state, sizing_pass);
@@ -267,9 +267,9 @@ impl<'a, State> Harness<'a, State> {
         if let Some(accesskit_update) = output.platform_output.accesskit_update.take() {
             self.kittest.update(accesskit_update);
         } else {
-            // A uiless pass shows no ui, so there is no accessibility tree to update.
-            // Keep the tree from the last pass that did show ui.
-            assert!(uiless_pass, "AccessKit was disabled");
+            // An occluded/minimized viewport shows no ui, so there is no accessibility tree
+            // to update. Keep the tree from the last visible pass.
+            assert!(!is_visible, "AccessKit was disabled");
         }
         self.renderer.handle_delta(&mut output.textures_delta);
         self.output = output;

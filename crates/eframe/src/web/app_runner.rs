@@ -280,10 +280,6 @@ impl AppRunner {
             .and_then(|v| v.visible())
             .unwrap_or(true);
 
-        // We still run a pass while hidden so that app logic keeps ticking,
-        // but we tell egui to skip all book-keeping that assumes ui was shown:
-        raw_input.uiless_pass = !is_visible;
-
         let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             self.app.logic(ui.ctx(), &mut self.frame);
 

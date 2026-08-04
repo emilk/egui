@@ -457,9 +457,10 @@ impl ContextImpl {
 
         let viewport = self.viewports.entry(self.viewport_id()).or_default();
 
-        // If no ui will be shown this pass we skip all book-keeping that assumes ui was shown.
-        // See `RawInput::uiless_pass`.
-        let uiless_pass = new_raw_input.uiless_pass;
+        // If the window is minimized or occluded, the integration may still run passes
+        // to keep app logic ticking, but without showing any ui.
+        // We then skip all book-keeping that assumes ui was shown.
+        let is_visible = new_raw_input.viewport().visible().unwrap_or(true);
 
         self.memory.begin_pass(&new_raw_input, &all_viewport_ids);
 
@@ -475,7 +476,7 @@ impl ContextImpl {
 
         viewport.this_pass.begin_pass();
 
-        if !uiless_pass {
+        if is_visible {
             // Areas that are not interactable are click-through: skip them in the hit-test.
             let mut layers: Vec<LayerId> = viewport
                 .prev_pass
@@ -520,7 +521,7 @@ impl ContextImpl {
             },
         );
 
-        if self.is_accesskit_enabled && !uiless_pass {
+        if self.is_accesskit_enabled && is_visible {
             profiling::scope!("accesskit");
             use crate::pass_state::AccessKitPassState;
             let id = crate::accesskit_root_id();
@@ -811,15 +812,15 @@ impl Context {
             );
 
             {
-                // Plugins may show ui, so don't run them when no ui should be shown.
-                // See `RawInput::uiless_pass`.
-                let show_ui = !ctx.is_uiless_pass();
+                // Plugins may show ui, so don't run them when nothing is shown.
+                // See [`Context::is_visible`].
+                let is_visible = ctx.is_visible();
 
-                if show_ui {
+                if is_visible {
                     plugins.on_begin_pass(&mut root_ui);
                 }
                 run_ui(&mut root_ui);
-                if show_ui {
+                if is_visible {
                     plugins.on_end_pass(&mut root_ui);
                 }
             }
@@ -835,7 +836,7 @@ impl Context {
     fn run_dyn(&self, mut new_input: RawInput, run_ui: &mut dyn FnMut(&Self)) -> FullOutput {
         profiling::function_scope!();
         let viewport_id = new_input.viewport_id;
-        let uiless_pass = new_input.uiless_pass;
+        let is_visible = new_input.viewport().visible().unwrap_or(true);
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
         let mut output = FullOutput::default();
@@ -895,8 +896,9 @@ impl Context {
             } else {
                 viewport.num_multipass_in_row = 0;
             }
-            if !uiless_pass {
-                // A uiless pass is not a frame: nothing was shown. See `RawInput::uiless_pass`.
+            if is_visible {
+                // A pass without any ui is not a frame: nothing was shown.
+                // See [`Context::is_visible`].
                 viewport.repaint.cumulative_frame_nr += 1;
             }
         });
@@ -1734,15 +1736,22 @@ impl Context {
         })
     }
 
-    /// Is this a pass where no ui will be shown?
+    /// Is the current viewport visible, i.e. neither minimized nor occluded?
     ///
-    /// This is `true` when the integration runs a pass only to keep app logic ticking,
-    /// e.g. because the window is minimized or occluded.
-    /// Don't show any ui while this is `true`.
+    /// When this is `false`, the integration may still run passes so that app logic keeps
+    /// ticking (e.g. so the app can send a [`crate::ViewportCommand`] to show itself again),
+    /// but nothing is painted, and no ui should be shown.
     ///
-    /// See [`RawInput::uiless_pass`].
-    pub fn is_uiless_pass(&self) -> bool {
-        self.input(|i| i.raw.uiless_pass)
+    /// egui also skips all book-keeping that assumes ui was shown, so that widgets don't
+    /// think they were hidden and replay their appear-animations, popups don't close,
+    /// focus isn't lost, and so on.
+    ///
+    /// Defaults to `true` if the integration doesn't report
+    /// [`ViewportInfo::minimized`] and [`ViewportInfo::occluded`].
+    ///
+    /// See [`ViewportInfo::visible`].
+    pub fn is_visible(&self) -> bool {
+        self.input(|i| i.viewport().visible().unwrap_or(true))
     }
 
     /// The total number of completed passes (usually there is one pass per rendered frame).
@@ -2429,7 +2438,7 @@ impl Context {
         self.sync_window_theme();
 
         #[cfg(debug_assertions)]
-        if !self.is_uiless_pass() {
+        if self.is_visible() {
             self.debug_painting();
         }
 
@@ -2641,11 +2650,12 @@ impl ContextImpl {
         let viewport = self.viewports.entry(ended_viewport_id).or_default();
         let pixels_per_point = viewport.input.pixels_per_point;
 
-        // If no ui was shown this pass we skip all book-keeping that assumes ui was shown.
-        let uiless_pass = viewport.input.raw.uiless_pass;
+        // If nothing was shown this pass we skip all book-keeping that assumes ui was shown.
+        // See [`Context::is_visible`].
+        let is_visible = viewport.input.viewport().visible().unwrap_or(true);
 
-        if !uiless_pass {
-            // A uiless pass uses no images and no widget ids,
+        if is_visible {
+            // A pass without any ui uses no images and no widget ids,
             // so garbage-collecting based on it would throw away things we still need.
             self.loaders.end_pass(viewport.repaint.cumulative_pass_nr);
 
@@ -2704,7 +2714,7 @@ impl ContextImpl {
 
         let mut repaint_needed = false;
 
-        if self.memory.options.repaint_on_widget_change && !uiless_pass {
+        if self.memory.options.repaint_on_widget_change && is_visible {
             profiling::scope!("compare-widget-rects");
             #[allow(clippy::allow_attributes, clippy::collapsible_if)] // false positive on wasm
             if viewport.prev_pass.widgets != viewport.this_pass.widgets {
@@ -2725,7 +2735,7 @@ impl ContextImpl {
             shapes
         };
 
-        if !uiless_pass {
+        if is_visible {
             // Keep `prev_pass` from the last pass that actually showed ui,
             // so widgets are still found by the next hit-test and interaction.
             std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
@@ -2758,10 +2768,10 @@ impl ContextImpl {
             }
 
             let is_our_child = parent == ended_viewport_id && id != ViewportId::ROOT;
-            if is_our_child && !uiless_pass {
-                // A uiless pass never calls `Context::show_viewport_deferred`,
+            if is_our_child && is_visible {
+                // A pass without any ui never calls `Context::show_viewport_deferred`,
                 // so we must not read `used` from it: that would close all our child
-                // viewports, only for them to pop back up on the next normal pass.
+                // viewports, only for them to pop back up on the next visible pass.
                 if !viewport.used {
                     log::debug!(
                         "Removing viewport {:?} ({:?}): it was never used this pass",

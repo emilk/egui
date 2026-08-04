@@ -89,20 +89,6 @@ pub struct RawInput {
     ///
     /// `None` means "don't know".
     pub system_theme: Option<Theme>,
-
-    /// Set this if no ui will be shown during this pass.
-    ///
-    /// An integration sets this when the window is hidden, minimized, or occluded,
-    /// but it still wants to run a pass so that background logic keeps ticking
-    /// (e.g. so the app can send a [`crate::ViewportCommand`] to show itself again).
-    ///
-    /// egui then skips all the book-keeping that assumes ui was shown, so that
-    /// widgets don't think they were hidden and replay their appear-animations,
-    /// popups don't close, focus isn't lost, and so on.
-    /// See <https://github.com/emilk/egui/issues/8266>.
-    ///
-    /// If you set this, you must not show any ui during the pass.
-    pub uiless_pass: bool,
 }
 
 impl Default for RawInput {
@@ -120,7 +106,6 @@ impl Default for RawInput {
             focused: true, // integrations opt into global focus tracking
             system_theme: None,
             safe_area_insets: Default::default(),
-            uiless_pass: false,
         }
     }
 }
@@ -154,7 +139,6 @@ impl RawInput {
             dropped_files: std::mem::take(&mut self.dropped_files),
             focused: self.focused,
             system_theme: self.system_theme,
-            uiless_pass: self.uiless_pass,
         }
     }
 
@@ -173,7 +157,6 @@ impl RawInput {
             focused,
             system_theme,
             safe_area_insets: safe_area,
-            uiless_pass,
         } = newer;
 
         self.viewport_id = viewport_ids;
@@ -188,7 +171,6 @@ impl RawInput {
         self.focused = focused;
         self.system_theme = system_theme;
         self.safe_area_insets = safe_area;
-        self.uiless_pass = uiless_pass;
     }
 }
 
@@ -207,7 +189,6 @@ impl RawInput {
             focused,
             system_theme,
             safe_area_insets: safe_area,
-            uiless_pass,
         } = self;
 
         ui.label(format!("Active viewport: {viewport_id:?}"));
@@ -237,7 +218,6 @@ impl RawInput {
         ui.label(format!("focused: {focused}"));
         ui.label(format!("system_theme: {system_theme:?}"));
         ui.label(format!("safe_area: {safe_area:?}"));
-        ui.label(format!("uiless_pass: {uiless_pass}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
             ui.label(format!("events: {events:#?}"))
