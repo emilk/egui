@@ -460,7 +460,7 @@ impl ContextImpl {
         // If the window is minimized or occluded, the integration may still run passes
         // to keep app logic ticking, but without showing any ui.
         // We then skip all book-keeping that assumes ui was shown.
-        let is_visible = new_raw_input.viewport().visible().unwrap_or(true);
+        let is_visible = new_raw_input.is_visible();
 
         self.memory.begin_pass(&new_raw_input, &all_viewport_ids);
 
@@ -836,7 +836,7 @@ impl Context {
     fn run_dyn(&self, mut new_input: RawInput, run_ui: &mut dyn FnMut(&Self)) -> FullOutput {
         profiling::function_scope!();
         let viewport_id = new_input.viewport_id;
-        let is_visible = new_input.viewport().visible().unwrap_or(true);
+        let is_visible = new_input.is_visible();
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
         let mut output = FullOutput::default();
@@ -1751,7 +1751,7 @@ impl Context {
     ///
     /// See [`ViewportInfo::visible`].
     pub fn is_visible(&self) -> bool {
-        self.input(|i| i.viewport().visible().unwrap_or(true))
+        self.input(|i| i.is_visible())
     }
 
     /// The total number of completed passes (usually there is one pass per rendered frame).
@@ -2652,7 +2652,7 @@ impl ContextImpl {
 
         // If nothing was shown this pass we skip all book-keeping that assumes ui was shown.
         // See [`Context::is_visible`].
-        let is_visible = viewport.input.viewport().visible().unwrap_or(true);
+        let is_visible = viewport.input.is_visible();
 
         if is_visible {
             // A pass without any ui uses no images and no widget ids,

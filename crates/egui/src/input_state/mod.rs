@@ -501,6 +501,17 @@ impl InputState {
         self.raw.viewport()
     }
 
+    /// Is the active viewport visible, i.e. neither minimized nor occluded?
+    ///
+    /// Defaults to `true` if the integration doesn't report
+    /// [`ViewportInfo::minimized`] and [`ViewportInfo::occluded`].
+    ///
+    /// See [`crate::Context::is_visible`].
+    #[inline]
+    pub fn is_visible(&self) -> bool {
+        self.raw.is_visible()
+    }
+
     /// Returns the region of the screen that is safe for content rendering
     ///
     /// Returns the `viewport_rect` with the `safe_area_insets` removed.

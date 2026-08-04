@@ -797,7 +797,7 @@ impl Memory {
 
         self.options.begin_pass(new_raw_input);
 
-        if new_raw_input.viewport().visible().unwrap_or(true) {
+        if new_raw_input.is_visible() {
             // When nothing is shown, no widget will ask for focus,
             // so leave the focus state alone. See [`crate::Context::is_visible`].
             self.focus

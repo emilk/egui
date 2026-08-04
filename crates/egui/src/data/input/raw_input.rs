@@ -117,6 +117,17 @@ impl RawInput {
         self.viewports.get(&self.viewport_id).expect("Failed to find current viewport in egui RawInput. This is the fault of the egui backend")
     }
 
+    /// Is the active viewport visible, i.e. neither minimized nor occluded?
+    ///
+    /// Defaults to `true` if the integration doesn't report
+    /// [`ViewportInfo::minimized`] and [`ViewportInfo::occluded`].
+    ///
+    /// See [`crate::Context::is_visible`].
+    #[inline]
+    pub fn is_visible(&self) -> bool {
+        self.viewport().visible().unwrap_or(true)
+    }
+
     /// Helper: move volatile (deltas and events), clone the rest.
     ///
     /// * [`Self::hovered_files`] is cloned.
