@@ -60,6 +60,10 @@ fn viewport_info(ctx: &egui::Context) -> String {
                 write!(s, " {name}={value}").ok();
             }
         }
+
+        use std::fmt::Write as _;
+        write!(s, " uiless_pass={}", i.raw.uiless_pass).ok();
+
         s
     })
 }

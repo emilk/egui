@@ -268,9 +268,13 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         viewport_ui_cb: Option<&DeferredViewportUiCallback>,
         mut raw_input: egui::RawInput,
-        is_visible: bool,
+        show_ui: bool,
     ) -> egui::FullOutput {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
+
+        // We still run a pass while hidden so that app logic keeps ticking,
+        // but we tell egui to skip all book-keeping that assumes ui was shown:
+        raw_input.uiless_pass = !show_ui;
 
         let close_requested = raw_input.viewport().close_requested();
 
@@ -279,7 +283,7 @@ impl EpiIntegration {
         let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
-                if is_visible {
+                if show_ui {
                     profiling::scope!("viewport_callback");
                     viewport_ui_cb(ui);
                 }
@@ -289,7 +293,7 @@ impl EpiIntegration {
                     app.logic(ui.ctx(), &mut self.frame);
                 }
 
-                if is_visible {
+                if show_ui {
                     {
                         profiling::scope!("App::ui");
                         app.ui(ui, &mut self.frame);

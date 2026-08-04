@@ -797,10 +797,11 @@ impl Memory {
 
         self.options.begin_pass(new_raw_input);
 
-        self.focus
-            .entry(self.viewport_id)
-            .or_default()
-            .begin_pass(new_raw_input);
+        let focus = self.focus.entry(self.viewport_id).or_default();
+        if !new_raw_input.uiless_pass {
+            // No widget will ask for focus this pass, so leave the focus state alone.
+            focus.begin_pass(new_raw_input);
+        }
     }
 
     pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {

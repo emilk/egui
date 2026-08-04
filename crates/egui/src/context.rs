@@ -457,6 +457,10 @@ impl ContextImpl {
 
         let viewport = self.viewports.entry(self.viewport_id()).or_default();
 
+        // If no ui will be shown this pass we skip all book-keeping that assumes ui was shown.
+        // See `RawInput::uiless_pass`.
+        let uiless_pass = new_raw_input.uiless_pass;
+
         self.memory.begin_pass(&new_raw_input, &all_viewport_ids);
 
         viewport.input = std::mem::take(&mut viewport.input).begin_pass(
@@ -471,7 +475,7 @@ impl ContextImpl {
 
         viewport.this_pass.begin_pass();
 
-        {
+        if !uiless_pass {
             // Areas that are not interactable are click-through: skip them in the hit-test.
             let mut layers: Vec<LayerId> = viewport
                 .prev_pass
@@ -516,7 +520,7 @@ impl ContextImpl {
             },
         );
 
-        if self.is_accesskit_enabled {
+        if self.is_accesskit_enabled && !uiless_pass {
             profiling::scope!("accesskit");
             use crate::pass_state::AccessKitPassState;
             let id = crate::accesskit_root_id();
@@ -807,9 +811,17 @@ impl Context {
             );
 
             {
-                plugins.on_begin_pass(&mut root_ui);
+                // Plugins may show ui, so don't run them when no ui should be shown.
+                // See `RawInput::uiless_pass`.
+                let show_ui = !ctx.is_uiless_pass();
+
+                if show_ui {
+                    plugins.on_begin_pass(&mut root_ui);
+                }
                 run_ui(&mut root_ui);
-                plugins.on_end_pass(&mut root_ui);
+                if show_ui {
+                    plugins.on_end_pass(&mut root_ui);
+                }
             }
 
             ctx.pass_state_mut(|state| {
@@ -823,6 +835,7 @@ impl Context {
     fn run_dyn(&self, mut new_input: RawInput, run_ui: &mut dyn FnMut(&Self)) -> FullOutput {
         profiling::function_scope!();
         let viewport_id = new_input.viewport_id;
+        let uiless_pass = new_input.uiless_pass;
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
         let mut output = FullOutput::default();
@@ -882,7 +895,10 @@ impl Context {
             } else {
                 viewport.num_multipass_in_row = 0;
             }
-            viewport.repaint.cumulative_frame_nr += 1;
+            if !uiless_pass {
+                // A uiless pass is not a frame: nothing was shown. See `RawInput::uiless_pass`.
+                viewport.repaint.cumulative_frame_nr += 1;
+            }
         });
 
         output
@@ -1718,6 +1734,17 @@ impl Context {
         })
     }
 
+    /// Is this a pass where no ui will be shown?
+    ///
+    /// This is `true` when the integration runs a pass only to keep app logic ticking,
+    /// e.g. because the window is minimized or occluded.
+    /// Skip any ui work if this is `true`.
+    ///
+    /// See [`RawInput::uiless_pass`].
+    pub fn is_uiless_pass(&self) -> bool {
+        self.input(|i| i.raw.uiless_pass)
+    }
+
     /// The total number of completed passes (usually there is one pass per rendered frame).
     ///
     /// Starts at zero, and is incremented for each completed pass inside of [`Self::run_ui`] (usually once).
@@ -2402,7 +2429,9 @@ impl Context {
         self.sync_window_theme();
 
         #[cfg(debug_assertions)]
-        self.debug_painting();
+        if !self.is_uiless_pass() {
+            self.debug_painting();
+        }
 
         let mut output = self.write(|ctx| ctx.end_pass());
 
@@ -2612,11 +2641,19 @@ impl ContextImpl {
         let viewport = self.viewports.entry(ended_viewport_id).or_default();
         let pixels_per_point = viewport.input.pixels_per_point;
 
-        self.loaders.end_pass(viewport.repaint.cumulative_pass_nr);
+        // If no ui was shown this pass we skip all book-keeping that assumes ui was shown.
+        // See `RawInput::uiless_pass`.
+        let uiless_pass = viewport.input.raw.uiless_pass;
 
-        viewport.repaint.cumulative_pass_nr += 1;
+        if !uiless_pass {
+            // A uiless pass uses no images and no widget ids,
+            // so garbage-collecting based on it would throw away things we still need.
+            self.loaders.end_pass(viewport.repaint.cumulative_pass_nr);
 
-        self.memory.end_pass(&viewport.this_pass.used_ids);
+            viewport.repaint.cumulative_pass_nr += 1;
+
+            self.memory.end_pass(&viewport.this_pass.used_ids);
+        }
 
         if let Some(fonts) = self.fonts.as_mut() {
             let tex_mngr = &mut self.tex_manager.0.write();
@@ -2668,7 +2705,7 @@ impl ContextImpl {
 
         let mut repaint_needed = false;
 
-        if self.memory.options.repaint_on_widget_change {
+        if self.memory.options.repaint_on_widget_change && !uiless_pass {
             profiling::scope!("compare-widget-rects");
             #[allow(clippy::allow_attributes, clippy::collapsible_if)] // false positive on wasm
             if viewport.prev_pass.widgets != viewport.this_pass.widgets {
@@ -2689,7 +2726,11 @@ impl ContextImpl {
             shapes
         };
 
-        std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
+        if !uiless_pass {
+            // Keep `prev_pass` from the last pass that actually showed ui,
+            // so widgets are still found by the next hit-test and interaction.
+            std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
+        }
 
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
@@ -2718,7 +2759,10 @@ impl ContextImpl {
             }
 
             let is_our_child = parent == ended_viewport_id && id != ViewportId::ROOT;
-            if is_our_child {
+            if is_our_child && !uiless_pass {
+                // A uiless pass never calls `Context::show_viewport_deferred`,
+                // so we must not read `used` from it: that would close all our child
+                // viewports, only for them to pop back up on the next normal pass.
                 if !viewport.used {
                     log::debug!(
                         "Removing viewport {:?} ({:?}): it was never used this pass",
@@ -4326,6 +4370,106 @@ fn warn_if_rect_changes_id(
 #[cfg(test)]
 mod test {
     use super::Context;
+
+    /// A pass with [`RawInput::uiless_pass`] set must leave all ui state alone,
+    /// so that nothing thinks it was hidden. See <https://github.com/emilk/egui/issues/8266>.
+    #[test]
+    fn test_uiless_pass_preserves_ui_state() {
+        use crate::{Id, LayerId, RawInput, Window};
+
+        let ctx = Context::default();
+        let window_layer = std::cell::Cell::new(LayerId::background());
+
+        let run = |uiless_pass: bool| {
+            let input = RawInput {
+                uiless_pass,
+                ..Default::default()
+            };
+            ctx.run_ui(input, |ui| {
+                if uiless_pass {
+                    return; // The integration shows no ui during a uiless pass.
+                }
+                let response = Window::new("My window")
+                    .show(ui.ctx(), |ui| {
+                        ui.button("Click me").request_focus();
+                    })
+                    .expect("The window should be open");
+                window_layer.set(response.response.layer_id);
+            })
+            .drop_without_applying_deltas();
+        };
+
+        // Two normal passes, so that all the "previous pass" state has settled:
+        run(false);
+        run(false);
+
+        let focused = ctx.memory(|m| m.focused());
+        assert!(focused.is_some(), "The button should have focus");
+        assert!(ctx.memory(|m| m.areas().visible_last_frame(&window_layer.get())));
+
+        let popup_id = Id::new("My popup");
+        ctx.memory_mut(|m| m.open_popup(popup_id));
+
+        let pass_nr = ctx.cumulative_pass_nr();
+        let frame_nr = ctx.cumulative_frame_nr();
+
+        // A uiless pass must disturb none of it:
+        run(true);
+
+        assert_eq!(ctx.cumulative_pass_nr(), pass_nr, "Counted as a pass");
+        assert_eq!(ctx.cumulative_frame_nr(), frame_nr, "Counted as a frame");
+        assert_eq!(ctx.memory(|m| m.focused()), focused, "Lost focus");
+        assert!(
+            ctx.memory(|m| m.areas().visible_last_frame(&window_layer.get())),
+            "The window would replay its appear-animation"
+        );
+        assert!(
+            ctx.memory(|m| m.is_popup_open(popup_id)),
+            "Closed the popup"
+        );
+
+        // …and the window is still there on the next normal pass:
+        run(false);
+        assert!(ctx.memory(|m| m.areas().visible_last_frame(&window_layer.get())));
+    }
+
+    /// A uiless pass never calls [`Context::show_viewport_deferred`], so it must not
+    /// garbage-collect child viewports — they would pop back up on the next normal pass.
+    /// See <https://github.com/emilk/egui/issues/8266>.
+    #[test]
+    fn test_uiless_pass_keeps_deferred_viewports() {
+        use crate::{RawInput, ViewportBuilder, ViewportId};
+
+        let ctx = Context::default();
+        ctx.set_embed_viewports(false);
+
+        let child_id = ViewportId::from_hash_of("My child viewport");
+
+        // Runs one pass and returns the viewports the backend is told to keep.
+        let run = |uiless_pass: bool| {
+            let input = RawInput {
+                uiless_pass,
+                ..Default::default()
+            };
+            let output = ctx.run_ui(input, |ui| {
+                if uiless_pass {
+                    return; // The integration shows no ui during a uiless pass.
+                }
+                ui.ctx().show_viewport_deferred(
+                    child_id,
+                    ViewportBuilder::default(),
+                    |_ui, _class| {},
+                );
+            });
+            let has_child = output.viewport_output.contains_key(&child_id);
+            output.drop_without_applying_deltas();
+            has_child
+        };
+
+        assert!(run(false), "The child viewport should have been created");
+        assert!(run(true), "The child viewport was closed");
+        assert!(run(false), "The child viewport should still be there");
+    }
 
     #[test]
     fn test_single_pass() {
