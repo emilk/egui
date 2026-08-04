@@ -73,7 +73,7 @@ impl Themes {
             && self
                 .themes
                 .get_temp::<ThemeWrap<S>>(Id::NULL)
-                .is_some_and(|t| t.lock().theme_type_id() == theme.theme_type_id())
+                .is_some_and(|t| t.lock().type_id() == theme.type_id())
         {
             return;
         }
