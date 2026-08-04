@@ -257,11 +257,20 @@ impl Label {
             let galley = ui.fonts_mut(|fonts| fonts.layout_job(layout_job));
             let (rect, mut response) = ui.allocate_exact_size(galley.size(), sense);
             response.set_intrinsic_size(galley.intrinsic_size());
-            let galley_pos = match galley.job.halign {
+
+            let mut galley_pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),
                 Align::RIGHT => rect.right_top(),
             };
+            let extra_text_line_spacing = ui.spacing().extra_text_line_spacing;
+            let valign_offset = match valign {
+                Align::TOP => 0.0,
+                Align::Center => extra_text_line_spacing / 2.0,
+                Align::BOTTOM => extra_text_line_spacing,
+            };
+            galley_pos.y = galley_pos.y + valign_offset;
+
             (galley_pos, galley, response)
         }
     }
