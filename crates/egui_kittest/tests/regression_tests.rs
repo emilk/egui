@@ -513,6 +513,61 @@ fn window_resize_wraps_to_content_min_width() {
     );
 }
 
+/// A `Grid` gives its last column all the available width, so a width-filling widget in it
+/// (here a `Separator`) makes the grid remember a column width that is really just
+/// "however wide the window happened to be".
+///
+/// When `Resize` then measures the minimum content width in a sizing pass, that remembered
+/// width must not be reported as the minimum — otherwise the window can be widened but
+/// never shrunk again.
+#[test]
+fn window_with_grid_can_shrink_after_being_widened() {
+    let window_title = "grid_shrink_regression";
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(move |ui| {
+            Window::new(window_title)
+                .default_pos([20.0, 20.0])
+                .default_width(280.0)
+                .show(ui.ctx(), |ui| {
+                    egui::Grid::new("grid").num_columns(2).show(ui, |ui| {
+                        ui.label("Separator");
+                        ui.separator(); // Fills the available width
+                        ui.end_row();
+                    });
+                });
+        });
+    harness.run();
+
+    let drag_right_edge = |harness: &mut Harness<'_>, dx: f32| {
+        let rect = harness
+            .get_by_role_and_label(Role::Window, window_title)
+            .rect();
+        let grab = Pos2::new(rect.right(), rect.center().y);
+        harness.hover_at(grab);
+        harness.run();
+        harness.drag_at(grab);
+        harness.run();
+        harness.hover_at(grab + Vec2::new(dx, 0.0));
+        harness.run();
+        harness.drop_at(grab + Vec2::new(dx, 0.0));
+        harness.run();
+        harness
+            .get_by_role_and_label(Role::Window, window_title)
+            .rect()
+            .width()
+    };
+
+    let widened = drag_right_edge(&mut harness, 300.0);
+    let shrunk = drag_right_edge(&mut harness, -300.0);
+
+    assert!(
+        shrunk < widened - 200.0,
+        "window could not be shrunk again after being widened: \
+         widened to {widened}, then only shrunk to {shrunk}"
+    );
+}
+
 /// Ensure that the size passed to window is actually treated as outer size (including
 /// margins and borders).
 #[test]
