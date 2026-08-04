@@ -36,7 +36,7 @@ impl<Theme: StyleProvider<S>, S: WidgetStyle> StyleProvider<S> for ThemeCache<Th
     /// save the output for later.
     fn style(&mut self, modifiers: &StyleArgs<'_>) -> S {
         let StyleArgs { classes, state, .. } = modifiers;
-        let style_id = Id::new(classes).with(state);
+        let style_id = Id::new((classes, state));
         if let Some(style) = self.cache.get_temp::<S>(style_id) {
             style
         } else {
