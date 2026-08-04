@@ -183,7 +183,7 @@ pub struct WrapApp {
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     custom3d: Option<crate::apps::Custom3d>,
 
-    dropped_files: Vec<egui::DroppedFile>,
+    dropped_files: Vec<egui::DroppedFileHandle>,
 }
 
 impl WrapApp {
@@ -361,7 +361,8 @@ impl WrapApp {
         let mut cmd = Command::Nothing;
 
         egui::Panel::left("backend_panel")
-            .resizable(false)
+            .resizable(true)
+            .size_range(280..=400)
             .show_collapsible(ui, &mut is_open, |ui| {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
@@ -519,25 +520,23 @@ impl WrapApp {
                 .open(&mut open)
                 .show(ctx, |ui| {
                     for file in &self.dropped_files {
-                        let mut info = if let Some(path) = &file.path {
-                            path.display().to_string()
-                        } else if file.name.is_empty() {
-                            "???".to_owned()
-                        } else {
-                            file.name.clone()
-                        };
+                        #[cfg(not(target_arch = "wasm32"))]
+                        let info = file.path().display().to_string();
 
-                        let mut additional_info = vec![];
-                        if !file.mime.is_empty() {
-                            additional_info.push(format!("type: {}", file.mime));
-                        }
-                        if let Some(bytes) = &file.bytes {
-                            additional_info.push(format!("{} bytes", bytes.len()));
-                        }
-                        if !additional_info.is_empty() {
-                            use std::fmt::Write as _;
-                            write!(info, " ({})", additional_info.join(", ")).ok();
-                        }
+                        // The size and mime-type are free to read; the contents are not,
+                        // so we never touch them here.
+                        #[cfg(target_arch = "wasm32")]
+                        let info = {
+                            let Some(web_file) = file.web_file() else {
+                                continue;
+                            };
+                            let (name, mime) = (web_file.name(), web_file.type_());
+                            if mime.is_empty() {
+                                format!("{name} ({} bytes)", web_file.size())
+                            } else {
+                                format!("{name} ({} bytes, type: {mime})", web_file.size())
+                            }
+                        };
 
                         ui.label(info);
                     }

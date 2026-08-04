@@ -713,3 +713,49 @@ fn collapsing_panel_must_not_grow_enclosing_window() {
         );
     }
 }
+
+/// The hint text of a `TextEdit` should follow the same alignment as the input
+/// text, instead of always being left-top aligned.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/8309>.
+#[test]
+pub fn textedit_hint_text_should_follow_text_alignment() {
+    let mut input = String::new();
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(200.0, 40.0))
+        .build_ui(|ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut input)
+                    .hint_text("Hint")
+                    .desired_width(200.0)
+                    .horizontal_align(egui::Align::Center),
+            );
+        });
+    harness.run();
+
+    let text_edit = harness.get_by_role(accesskit::Role::TextInput);
+    let edit_rect = text_edit.rect();
+
+    // Find the hint text shape (the only text shape while the input is empty).
+    let hint_shape = harness
+        .output()
+        .shapes
+        .iter()
+        .find_map(|clipped| {
+            let egui::epaint::Shape::Text(text_shape) = &clipped.shape else {
+                return None;
+            };
+            (text_shape.galley.text() == "Hint").then_some(text_shape)
+        })
+        .expect("hint text shape should be painted");
+
+    let hint_center_x = hint_shape.pos.x + hint_shape.galley.size().x / 2.0;
+    let edit_center_x = edit_rect.center().x;
+
+    assert!(
+        (hint_center_x - edit_center_x).abs() < 1.0,
+        "hint text should be centered in the TextEdit: hint_center_x={hint_center_x}, \
+         edit_center_x={edit_center_x}, edit_rect={edit_rect:?}",
+    );
+}

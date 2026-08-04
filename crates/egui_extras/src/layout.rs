@@ -217,10 +217,7 @@ impl<'l> StripLayout<'l> {
         let mut child_ui = self.ui.new_child(ui_builder);
 
         if flags.clip {
-            let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
-            let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
-            let clip_rect = max_rect.expand2(margin);
-            child_ui.shrink_clip_rect(clip_rect);
+            child_ui.shrink_clip_rect(max_rect);
 
             if !child_ui.is_sizing_pass() {
                 // Better to truncate (if we can), rather than hard clipping:

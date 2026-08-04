@@ -216,6 +216,18 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) system_theme: Option<Theme>,
 
+    /// If `true`, egui will keep the native window theme in sync with
+    /// [`Self::theme_preference`] by sending a [`crate::ViewportCommand::SetTheme`]
+    /// to the root viewport whenever the preference changes.
+    ///
+    /// This makes the native window decorations (title bar, borders, …) match the
+    /// theme selected inside egui.
+    ///
+    /// Set this to `false` if you want to manage the native window theme yourself.
+    ///
+    /// This is `true` by default.
+    pub sync_window_theme: bool,
+
     /// Global zoom factor of the UI.
     ///
     /// This is used to calculate the `pixels_per_point`
@@ -318,6 +330,7 @@ impl Default for Options {
             theme_preference: Default::default(),
             fallback_theme: Theme::Dark,
             system_theme: None,
+            sync_window_theme: true,
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
             quit_shortcuts: vec![crate::KeyboardShortcut::new(
@@ -381,6 +394,7 @@ impl Options {
             theme_preference,
             fallback_theme: _,
             system_theme: _,
+            sync_window_theme,
             zoom_factor,
             zoom_with_keyboard,
             quit_shortcuts: _, // not shown in ui
@@ -428,6 +442,8 @@ impl Options {
             .default_open(true)
             .show(ui, |ui| {
                 theme_preference.radio_buttons(ui);
+
+                ui.checkbox(sync_window_theme, "Sync window theme with egui theme");
 
                 let style = std::sync::Arc::make_mut(match theme {
                     Theme::Dark => dark_style,
@@ -1192,6 +1208,11 @@ impl Areas {
 
     pub(crate) fn get_mut(&mut self, id: Id) -> Option<&mut area::AreaState> {
         self.areas.get_mut(&id)
+    }
+
+    /// Can the user interact with this layer or it's widgets, or do clicks go straight through it?
+    pub(crate) fn is_interactable(&self, layer_id: LayerId) -> bool {
+        self.get(layer_id.id).is_none_or(|area| area.interactable)
     }
 
     /// All layers back-to-front, top is last.

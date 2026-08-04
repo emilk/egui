@@ -84,6 +84,7 @@ pub struct Window<'a> {
     open: Option<&'a mut bool>,
     area: Area,
     frame: Option<Frame>,
+    title_frame: Option<Frame>,
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
@@ -106,6 +107,7 @@ impl<'a> Window<'a> {
             open: None,
             area,
             frame: None,
+            title_frame: None,
             resize: Resize::default()
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
@@ -262,6 +264,13 @@ impl<'a> Window<'a> {
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
+        self
+    }
+
+    /// Change the background color, margins, etc. of the title
+    #[inline]
+    pub fn title_frame(mut self, frame: Frame) -> Self {
+        self.title_frame = Some(frame);
         self
     }
 
@@ -549,6 +558,7 @@ impl Window<'_> {
             mut open,
             area,
             frame,
+            title_frame,
             resize,
             scroll,
             collapsible,
@@ -616,10 +626,12 @@ impl Window<'_> {
 
         let style = ctx.global_style();
 
+        // We get or create the Frame for the title and content
+        let window_title_frame = title_frame.unwrap_or_else(|| Frame::window(&style));
         let window_frame = frame.unwrap_or_else(|| Frame::window(&style));
 
         // We apply the window margin by using the `ScrollArea::content_margin`.
-        let window_margin = window_frame.inner_margin;
+        let window_content_margin = window_frame.inner_margin;
         let window_frame = window_frame.inner_margin(0.0);
 
         let is_explicitly_closed = matches!(open, Some(false));
@@ -711,7 +723,7 @@ impl Window<'_> {
                         title_ui(
                             ui,
                             title,
-                            window_frame.inner_margin(window_margin),
+                            window_title_frame,
                             &mut collapsing,
                             collapsible,
                             on_top,
@@ -725,12 +737,12 @@ impl Window<'_> {
                         .show_body_unindented(ui, |ui| {
                             if scroll.is_any_scroll_enabled() {
                                 scroll
-                                    .content_margin(window_margin)
+                                    .content_margin(window_content_margin)
                                     .show(ui, add_contents)
                                     .inner
                             } else {
                                 crate::Frame::NONE
-                                    .inner_margin(window_margin)
+                                    .inner_margin(window_content_margin)
                                     .show(ui, add_contents)
                                     .inner
                             }

@@ -810,12 +810,11 @@ impl ScrollArea {
 
         {
             // Clip the content, but only when we really need to:
-            let clip_rect_margin = ui.visuals().clip_rect_margin;
             let mut content_clip_rect = ui.clip_rect();
             for d in 0..2 {
                 if direction_enabled[d] {
-                    content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
-                    content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
+                    content_clip_rect.min[d] = inner_rect.min[d];
+                    content_clip_rect.max[d] = inner_rect.max[d];
                 } else {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
@@ -1082,17 +1081,9 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
-        let scroll_delta = content_ui
-            .ctx()
-            .pass_state_mut(|state| std::mem::take(&mut state.scroll_delta));
-
         let mut had_explicit_scroll_adjustment = Vec2b::FALSE;
 
         for d in 0..2 {
-            // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-            let mut delta = -scroll_delta.0[d];
-            let mut animation = scroll_delta.1;
-
             // We always take both scroll targets regardless of which scroll axes are enabled. This
             // is to avoid them leaking to other scroll areas.
             let scroll_target = content_ui
@@ -1100,6 +1091,17 @@ impl Prepared {
                 .pass_state_mut(|state| state.scroll_target[d].take());
 
             if direction_enabled[d] {
+                let (scroll_delta, scroll_animation) = content_ui.ctx().pass_state_mut(|state| {
+                    (
+                        std::mem::take(&mut state.scroll_delta.0[d]),
+                        state.scroll_delta.1,
+                    )
+                });
+
+                // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
+                let mut delta = -scroll_delta;
+                let mut animation = scroll_animation;
+
                 if let Some(target) = scroll_target {
                     let pass_state::ScrollTarget {
                         range,
@@ -1133,8 +1135,8 @@ impl Prepared {
                         0.0
                     };
 
-                    delta += delta_update;
                     animation = animation_update;
+                    delta += delta_update;
                 }
 
                 if delta != 0.0 {
@@ -1158,10 +1160,10 @@ impl Prepared {
                     }
                     ui.request_repaint();
                 }
-            }
 
-            if delta != 0.0 {
-                had_explicit_scroll_adjustment[d] = true;
+                if delta != 0.0 {
+                    had_explicit_scroll_adjustment[d] = true;
+                }
             }
         }
 
@@ -1306,8 +1308,6 @@ impl Prepared {
                 // * When one ScrollArea is nested inside another, and the outer
                 //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
                 //   is outside the clip rectangle.
-                // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
-                // clip_rect_margin is quite a hack. It would be nice to get rid of it.
                 max_cross = ui.clip_rect().max[1 - d] - outer_margin;
             }
 
@@ -1575,9 +1575,7 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
 
     let overflow = content_size - inner_rect.size();
 
-    let paint_rect = inner_rect
-        .intersect(ui.min_rect())
-        .expand(ui.visuals().clip_rect_margin);
+    let paint_rect = inner_rect.intersect(ui.min_rect());
 
     // Top fade: animate opacity based on how far we've scrolled down.
     if 0.0 < offset.y {

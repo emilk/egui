@@ -558,6 +558,25 @@ impl Default for WidgetText {
 }
 
 impl WidgetText {
+    /// Override the font size.
+    ///
+    /// For [`Self::Galley`], this does nothing because it has already been laid out.
+    #[must_use]
+    pub fn size(self, size: f32) -> Self {
+        match self {
+            Self::Text(text) => RichText::new(text).size(size).into(),
+            Self::RichText(text) => Self::RichText(Arc::new(Arc::unwrap_or_clone(text).size(size))),
+            Self::LayoutJob(job) => {
+                let mut job = Arc::unwrap_or_clone(job);
+                for section in &mut job.sections {
+                    section.format.font_id.size = size;
+                }
+                Self::LayoutJob(Arc::new(job))
+            }
+            Self::Galley(galley) => Self::Galley(galley),
+        }
+    }
+
     #[inline]
     pub fn is_empty(&self) -> bool {
         match self {
@@ -750,14 +769,19 @@ impl WidgetText {
                     .visuals
                     .override_text_color
                     .unwrap_or(crate::Color32::PLACEHOLDER);
+
+                // We want the style overrides to take precedence over the fallback font
+                let font_id = FontSelection::default().resolve_with_fallback(style, fallback_font);
+                let line_height = ctx
+                    .fonts_mut(|f| f.row_height(&font_id) + style.spacing.extra_text_line_spacing);
+
                 let mut layout_job = LayoutJob::simple_format(
                     text,
                     TextFormat {
-                        // We want the style overrides to take precedence over the fallback font
-                        font_id: FontSelection::default()
-                            .resolve_with_fallback(style, fallback_font),
+                        font_id,
                         color,
                         valign: default_valign,
+                        line_height: Some(line_height),
                         ..Default::default()
                     },
                 );
