@@ -280,12 +280,31 @@ impl AppRunner {
             .and_then(|v| v.visible())
             .unwrap_or(true);
 
-        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
-            self.app.logic(ui.ctx(), &mut self.frame);
+        if !is_visible {
+            // The tab is hidden, so we run no egui pass at all.
+            // That way all ui state is left untouched, and is still there
+            // when the tab is shown again.
 
-            if is_visible {
-                self.app.ui(ui, &mut self.frame);
-            }
+            // No pass will consume the input, so save it for the next one:
+            self.input.raw.append(raw_input);
+
+            let egui::LogicOutput {
+                platform_output,
+                viewport_commands,
+            } = self.egui_ctx.run_logic(|ctx| {
+                self.app.logic(ctx, &mut self.frame);
+            });
+
+            self.handle_viewport_commands(viewport_commands.into_values().flatten());
+            self.handle_platform_output(platform_output);
+            return;
+        }
+
+        // `App::logic` may not show any ui, so it is called outside of the pass:
+        self.app.logic(&self.egui_ctx, &mut self.frame);
+
+        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
+            self.app.ui(ui, &mut self.frame);
         });
         let egui::FullOutput {
             platform_output,
@@ -298,27 +317,31 @@ impl AppRunner {
         if viewport_output.len() > 1 {
             log::warn!("Multiple viewports not yet supported on the web");
         }
-        for (_viewport_id, viewport_output) in viewport_output {
-            for command in viewport_output.commands {
-                match command {
-                    ViewportCommand::Screenshot(user_data) => {
-                        self.screenshot_commands_with_frame_delay
-                            .push((user_data, 1));
-                    }
-                    _ => {
-                        // TODO(emilk): handle some of the commands
-                        log::warn!(
-                            "Unhandled egui viewport command: {command:?} - not implemented in web backend"
-                        );
-                    }
-                }
-            }
-        }
+        self.handle_viewport_commands(
+            viewport_output
+                .into_values()
+                .flat_map(|viewport_output| viewport_output.commands),
+        );
 
         self.handle_platform_output(platform_output);
-        if is_visible || !textures_delta.is_empty() {
-            self.textures_delta.append(textures_delta);
-            self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+        self.textures_delta.append(textures_delta);
+        self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+    }
+
+    fn handle_viewport_commands(&mut self, commands: impl Iterator<Item = ViewportCommand>) {
+        for command in commands {
+            match command {
+                ViewportCommand::Screenshot(user_data) => {
+                    self.screenshot_commands_with_frame_delay
+                        .push((user_data, 1));
+                }
+                _ => {
+                    // TODO(emilk): handle some of the commands
+                    log::warn!(
+                        "Unhandled egui viewport command: {command:?} - not implemented in web backend"
+                    );
+                }
+            }
         }
     }
 
