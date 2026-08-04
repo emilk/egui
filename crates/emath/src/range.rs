@@ -1,5 +1,7 @@
 use std::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 
+use crate::fast_midpoint;
+
 /// Inclusive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -52,7 +54,7 @@ impl Rangef {
     /// The center of the range
     #[inline]
     pub fn center(self) -> f32 {
-        0.5 * (self.min + self.max)
+        fast_midpoint(self.min, self.max)
     }
 
     #[inline]
