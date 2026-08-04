@@ -78,7 +78,7 @@ pub(crate) struct GridLayout {
     /// Are we inside an enclosing sizing pass (e.g. [`crate::Resize`] measuring
     /// the minimum content width)? If so we must not remember the (narrow) sizes
     /// we measure during it.
-    in_outer_sizing_pass: bool,
+    sizing_pass: bool,
 
     // Options:
     num_columns: Option<usize>,
@@ -96,11 +96,8 @@ impl GridLayout {
     pub(crate) fn new(ui: &Ui, id: Id, prev_state: Option<State>) -> Self {
         let is_first_frame = prev_state.is_none();
 
-        // An enclosing sizing pass (e.g. `Resize` measuring our minimum width) wants to know
-        // how small we can get. Note that on our first frame we run a sizing pass of our own
-        // (see `show_dyn`), which is a different situation: there we have no remembered sizes
-        // to protect, and must in fact produce some.
-        let in_outer_sizing_pass = !is_first_frame && ui.is_sizing_pass();
+        // An outer sizing pass, we should render as small as possible.
+        let sizing_pass = ui.is_sizing_pass();
 
         let prev_state = prev_state.unwrap_or_default();
 
@@ -122,7 +119,7 @@ impl GridLayout {
             prev_state,
             curr_state: State::default(),
             initial_available,
-            in_outer_sizing_pass,
+            sizing_pass,
 
             num_columns: None,
             spacing: ui.spacing().item_spacing,
@@ -192,16 +189,8 @@ impl GridLayout {
         Rect::from_min_size(available.min, vec2(width, height))
     }
 
-    /// The last column is given all the available width, so width-filling widgets
-    /// (`Separator`, `TextEdit`, …) in it make us remember a column width that is really
-    /// just "however wide we happened to be". During a sizing pass that remembered width
-    /// would be reported as our minimum width, so ignore it there.
-    fn is_stretchy_last_column(&self) -> bool {
-        self.in_outer_sizing_pass && Some(self.col + 1) == self.num_columns
-    }
-
     pub(crate) fn next_cell(&self, cursor: Rect, child_size: Vec2) -> Rect {
-        let width = if self.is_stretchy_last_column() {
+        let width = if self.sizing_pass {
             0.0
         } else {
             self.prev_state.col_width(self.col).unwrap_or(0.0)
@@ -298,12 +287,6 @@ impl GridLayout {
     }
 
     pub(crate) fn save(&self) {
-        if self.in_outer_sizing_pass {
-            // The sizes we measured are minimums, not what we will actually be
-            // rendered at, so don't remember them.
-            return;
-        }
-
         // We need to always save state on the first frame, otherwise request_discard
         // would be called repeatedly (see #5132)
         if self.curr_state != self.prev_state || self.is_first_frame {
