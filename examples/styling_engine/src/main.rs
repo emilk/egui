@@ -3,7 +3,7 @@
 
 use eframe::egui::{
     self, Button, Frame, Margin, Panel, UiBuilder,
-    theme_plugin::ThemeCache,
+    theme::ThemeCache,
     widget_style::{ButtonStyle, HasClasses as _},
 };
 

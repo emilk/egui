@@ -35,7 +35,7 @@ use crate::{
     output::FullOutput,
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
-    resize, response, scroll_area, theme_plugin,
+    resize, response, scroll_area, theme,
     util::IdTypeMap,
     viewport::ViewportClass,
     widget_style::{StyleArgs, WidgetStyle},
@@ -407,7 +407,7 @@ struct ContextImpl {
 
     loaders: Arc<Loaders>,
 
-    themes: theme_plugin::Themes,
+    themes: theme::Themes,
 }
 
 impl ContextImpl {
@@ -2031,7 +2031,7 @@ impl Context {
 }
 
 impl Context {
-    /// Register a [`StyleProvider`](crate::theme_plugin::StyleProvider) for the specified widget type.
+    /// Register a [`StyleProvider`](crate::theme::StyleProvider) for the specified widget type.
     ///
     /// A theme can only be added once for a specified widget.
     /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
@@ -2039,18 +2039,18 @@ impl Context {
     /// If you want to add the theme anyway, use [`Self::replace_widget_theme`] instead.
     pub fn add_widget_theme<S: WidgetStyle + 'static>(
         &self,
-        theme: impl theme_plugin::StyleProvider<S> + Send + Sync + 'static,
+        theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
     ) {
         self.write(|ctx| ctx.themes.register::<S>(theme, false));
     }
 
-    /// Register a [`StyleProvider`](crate::theme_plugin::StyleProvider) for the specified widget.
+    /// Register a [`StyleProvider`](crate::theme::StyleProvider) for the specified widget.
     ///
     /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
     /// This allow to live edit a theme.
     pub fn replace_widget_theme<S: WidgetStyle + 'static>(
         &self,
-        theme: impl theme_plugin::StyleProvider<S> + Send + Sync + 'static,
+        theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
     ) {
         self.write(|ctx| ctx.themes.register::<S>(theme, true));
     }

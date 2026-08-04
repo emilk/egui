@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use eframe::egui::{
     Color32,
-    theme_plugin::StyleProvider,
+    theme::StyleProvider,
     widget_style::{BaseStyle, ButtonStyle, HasClasses as _, StyleArgs},
 };
 use logos::Logos;
