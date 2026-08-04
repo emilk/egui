@@ -797,10 +797,13 @@ impl Memory {
 
         self.options.begin_pass(new_raw_input);
 
-        let focus = self.focus.entry(self.viewport_id).or_default();
         if !new_raw_input.uiless_pass {
-            // No widget will ask for focus this pass, so leave the focus state alone.
-            focus.begin_pass(new_raw_input);
+            // No widget will ask for focus during a uiless pass,
+            // so leave the focus state alone.
+            self.focus
+                .entry(self.viewport_id)
+                .or_default()
+                .begin_pass(new_raw_input);
         }
     }
 

@@ -1738,7 +1738,7 @@ impl Context {
     ///
     /// This is `true` when the integration runs a pass only to keep app logic ticking,
     /// e.g. because the window is minimized or occluded.
-    /// Skip any ui work if this is `true`.
+    /// Don't show any ui while this is `true`.
     ///
     /// See [`RawInput::uiless_pass`].
     pub fn is_uiless_pass(&self) -> bool {
@@ -2642,7 +2642,6 @@ impl ContextImpl {
         let pixels_per_point = viewport.input.pixels_per_point;
 
         // If no ui was shown this pass we skip all book-keeping that assumes ui was shown.
-        // See `RawInput::uiless_pass`.
         let uiless_pass = viewport.input.raw.uiless_pass;
 
         if !uiless_pass {
@@ -4370,106 +4369,6 @@ fn warn_if_rect_changes_id(
 #[cfg(test)]
 mod test {
     use super::Context;
-
-    /// A pass with [`RawInput::uiless_pass`] set must leave all ui state alone,
-    /// so that nothing thinks it was hidden. See <https://github.com/emilk/egui/issues/8266>.
-    #[test]
-    fn test_uiless_pass_preserves_ui_state() {
-        use crate::{Id, LayerId, RawInput, Window};
-
-        let ctx = Context::default();
-        let window_layer = std::cell::Cell::new(LayerId::background());
-
-        let run = |uiless_pass: bool| {
-            let input = RawInput {
-                uiless_pass,
-                ..Default::default()
-            };
-            ctx.run_ui(input, |ui| {
-                if uiless_pass {
-                    return; // The integration shows no ui during a uiless pass.
-                }
-                let response = Window::new("My window")
-                    .show(ui.ctx(), |ui| {
-                        ui.button("Click me").request_focus();
-                    })
-                    .expect("The window should be open");
-                window_layer.set(response.response.layer_id);
-            })
-            .drop_without_applying_deltas();
-        };
-
-        // Two normal passes, so that all the "previous pass" state has settled:
-        run(false);
-        run(false);
-
-        let focused = ctx.memory(|m| m.focused());
-        assert!(focused.is_some(), "The button should have focus");
-        assert!(ctx.memory(|m| m.areas().visible_last_frame(&window_layer.get())));
-
-        let popup_id = Id::new("My popup");
-        ctx.memory_mut(|m| m.open_popup(popup_id));
-
-        let pass_nr = ctx.cumulative_pass_nr();
-        let frame_nr = ctx.cumulative_frame_nr();
-
-        // A uiless pass must disturb none of it:
-        run(true);
-
-        assert_eq!(ctx.cumulative_pass_nr(), pass_nr, "Counted as a pass");
-        assert_eq!(ctx.cumulative_frame_nr(), frame_nr, "Counted as a frame");
-        assert_eq!(ctx.memory(|m| m.focused()), focused, "Lost focus");
-        assert!(
-            ctx.memory(|m| m.areas().visible_last_frame(&window_layer.get())),
-            "The window would replay its appear-animation"
-        );
-        assert!(
-            ctx.memory(|m| m.is_popup_open(popup_id)),
-            "Closed the popup"
-        );
-
-        // …and the window is still there on the next normal pass:
-        run(false);
-        assert!(ctx.memory(|m| m.areas().visible_last_frame(&window_layer.get())));
-    }
-
-    /// A uiless pass never calls [`Context::show_viewport_deferred`], so it must not
-    /// garbage-collect child viewports — they would pop back up on the next normal pass.
-    /// See <https://github.com/emilk/egui/issues/8266>.
-    #[test]
-    fn test_uiless_pass_keeps_deferred_viewports() {
-        use crate::{RawInput, ViewportBuilder, ViewportId};
-
-        let ctx = Context::default();
-        ctx.set_embed_viewports(false);
-
-        let child_id = ViewportId::from_hash_of("My child viewport");
-
-        // Runs one pass and returns the viewports the backend is told to keep.
-        let run = |uiless_pass: bool| {
-            let input = RawInput {
-                uiless_pass,
-                ..Default::default()
-            };
-            let output = ctx.run_ui(input, |ui| {
-                if uiless_pass {
-                    return; // The integration shows no ui during a uiless pass.
-                }
-                ui.ctx().show_viewport_deferred(
-                    child_id,
-                    ViewportBuilder::default(),
-                    |_ui, _class| {},
-                );
-            });
-            let has_child = output.viewport_output.contains_key(&child_id);
-            output.drop_without_applying_deltas();
-            has_child
-        };
-
-        assert!(run(false), "The child viewport should have been created");
-        assert!(run(true), "The child viewport was closed");
-        assert!(run(false), "The child viewport should still be there");
-    }
 
     #[test]
     fn test_single_pass() {

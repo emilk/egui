@@ -37,6 +37,7 @@ impl eframe::App for App {
 
 fn viewport_info(ctx: &egui::Context) -> String {
     ctx.input(|i| {
+        use std::fmt::Write as _;
         let ViewportInfo {
             minimized,
             focused,
@@ -56,12 +57,10 @@ fn viewport_info(ctx: &egui::Context) -> String {
         ];
         for (name, value) in flags {
             if let Some(value) = value {
-                use std::fmt::Write as _;
                 write!(s, " {name}={value}").ok();
             }
         }
 
-        use std::fmt::Write as _;
         write!(s, " uiless_pass={}", i.raw.uiless_pass).ok();
 
         s

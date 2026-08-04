@@ -559,3 +559,92 @@ fn tooltip_should_hand_over_to_neighboring_widget() {
         "Tooltip A should be hidden when hovering Button B"
     );
 }
+
+/// An integration runs a pass with [`egui::RawInput::uiless_pass`] set when its window is
+/// hidden, minimized, or occluded, so that app logic keeps ticking without showing any ui.
+///
+/// Such a pass must leave all ui state alone. Otherwise areas think they were hidden and
+/// replay their fade-in, popups close, focus is lost, and child viewports pop back up.
+/// See <https://github.com/emilk/egui/issues/8266>.
+#[test]
+fn uiless_pass_should_not_disturb_ui_state() {
+    const MENU: &str = "My menu";
+    const MENU_ITEM: &str = "Button in my menu";
+    const FOCUSED_BUTTON: &str = "Click me";
+
+    let child_viewport = egui::ViewportId::from_hash_of("My child viewport");
+    let area_id = egui::Id::new("My area");
+    let area_layer = egui::LayerId::new(egui::Order::Middle, area_id);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(400.0, 300.0))
+        .build_ui(move |ui| {
+            // A backend that can open real windows, like eframe:
+            ui.ctx().set_embed_viewports(false);
+
+            if ui.ctx().is_uiless_pass() {
+                // The integration shows no ui and viewports during a uiless pass.
+                return;
+            }
+
+            ui.ctx()
+                .show_viewport_deferred(child_viewport, Default::default(), |_ui, _class| {});
+
+            ui.menu_button(MENU, |ui| {
+                _ = ui.button(MENU_ITEM);
+            });
+
+            egui::Area::new(area_id)
+                .fixed_pos((150.0, 120.0))
+                .show(ui.ctx(), |ui| {
+                    _ = ui.button(FOCUSED_BUTTON);
+                });
+        });
+
+    harness.get_by_label(MENU).click();
+    harness.run();
+    // Nothing asks for focus again, so the test fails if egui ever loses it:
+    harness.get_by_label(FOCUSED_BUTTON).focus();
+    harness.run();
+
+    let assert_state = |harness: &Harness<'_>| {
+        assert!(
+            harness
+                .get_by_label(FOCUSED_BUTTON)
+                .accesskit_node()
+                .is_focused(),
+            "The button lost focus"
+        );
+        harness.get_by_label(MENU_ITEM); // Panics if the menu closed
+        assert!(
+            harness
+                .output()
+                .viewport_output
+                .contains_key(&child_viewport),
+            "The child viewport closed"
+        );
+        assert!(
+            harness
+                .ctx
+                .memory(|m| m.areas().visible_last_frame(&area_layer)),
+            "Area state reset"
+        );
+    };
+
+    assert_state(&harness);
+
+    // The window is now occluded, so the integration runs passes without any ui.
+    // egui keeps the accessibility tree from the last pass that did show ui,
+    // so we can still query it.
+    harness.input_mut().uiless_pass = true;
+    harness.step();
+    harness.step();
+
+    assert_state(&harness);
+
+    // The window is visible again, and everything should be where we left it:
+    harness.input_mut().uiless_pass = false;
+    harness.run();
+
+    assert_state(&harness);
+}
