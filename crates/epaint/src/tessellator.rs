@@ -5,7 +5,9 @@
 
 #![expect(clippy::identity_op)]
 
-use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, vec2};
+use emath::{
+    GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, fast_midpoint, pos2, remap, vec2,
+};
 
 use crate::{
     CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,

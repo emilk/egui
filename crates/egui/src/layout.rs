@@ -1,4 +1,4 @@
-use emath::GuiRounding as _;
+use emath::{GuiRounding as _, fast_midpoint};
 
 use crate::{
     Align, Direction,

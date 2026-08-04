@@ -3,7 +3,7 @@
 use std::ops::Range;
 
 use crate::{Color32, PathShape, PathStroke, Shape};
-use emath::{Pos2, Rect, RectTransform};
+use emath::{Pos2, Rect, RectTransform, fast_midpoint};
 
 // ----------------------------------------------------------------------------
 

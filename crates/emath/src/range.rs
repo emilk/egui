@@ -1,5 +1,7 @@
 use std::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 
+use crate::fast_midpoint;
+
 /// Inclusive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
