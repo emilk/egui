@@ -1,14 +1,18 @@
 //! Tests for how egui decides whether a press on a click-and-drag widget
 //! is a click or a drag.
 
-use egui::{Id, Pos2, Rect, Sense, Vec2};
+use egui::{Id, InputOptions, Pos2, Rect, Sense, Style, Vec2};
 use egui_kittest::Harness;
 
-/// Must match `InputOptions::max_click_dist`.
-const MAX_CLICK_DIST: f32 = 6.0;
+/// How far the pointer may move before a press is decidedly a drag.
+fn max_click_dist() -> f32 {
+    InputOptions::default().max_click_dist
+}
 
-/// Must match `Interaction::interact_radius`.
-const INTERACT_RADIUS: f32 = 5.0;
+/// How far outside its rect a widget can still be hit.
+fn interact_radius() -> f32 {
+    Style::default().interaction.interact_radius
+}
 
 fn widget_id() -> Id {
     Id::new("click_and_drag")
@@ -75,8 +79,8 @@ fn press_at(harness: &mut Harness<'_, ()>, pos: Pos2) {
 /// which shows up as a flickering highlight.
 #[test]
 fn press_that_leaves_a_thin_widget_becomes_a_drag_immediately() {
-    let size = Vec2::new(3.0, 100.0); // thinner than `max_click_dist`
-    let mut harness = harness_with_widget(size, true);
+    let width = max_click_dist() / 2.0; // thinner than `max_click_dist`
+    let mut harness = harness_with_widget(Vec2::new(width, 100.0), true);
     harness.step();
 
     let grab = widget_rect(&harness).center();
@@ -85,14 +89,12 @@ fn press_that_leaves_a_thin_widget_becomes_a_drag_immediately() {
     let (hovered, dragged) = widget_state(&harness);
     assert!(hovered && !dragged, "the press starts out undecided");
 
-    // Creep outward in 1px steps, staying well inside `max_click_dist`.
+    // Creep outward in 1px steps, never reaching `max_click_dist` —
+    // if we did, `is_decidedly_dragging` would explain the drag on its own
+    // and the test would prove nothing.
     let mut saw_drag = false;
-    for step in 1..=4 {
+    for step in 1..max_click_dist().ceil() as i32 {
         let offset = step as f32;
-        assert!(
-            offset < MAX_CLICK_DIST,
-            "the test must stay inside max_click_dist, or it proves nothing"
-        );
         harness.hover_at(Pos2::new(grab.x + offset, grab.y));
         harness.step();
 
@@ -121,8 +123,8 @@ fn press_inside_a_wide_widget_stays_undecided() {
     let grab = widget_rect(&harness).center();
     press_at(&mut harness, grab);
 
-    // A 2px twitch: inside the widget, and inside `max_click_dist`.
-    harness.hover_at(Pos2::new(grab.x + 2.0, grab.y));
+    // A small twitch: inside the widget, and inside `max_click_dist`.
+    harness.hover_at(Pos2::new(grab.x + max_click_dist() / 2.0, grab.y));
     harness.step();
 
     let (hovered, dragged) = widget_state(&harness);
@@ -142,7 +144,7 @@ fn press_just_outside_a_widget_stays_undecided() {
     harness.step();
 
     let rect = widget_rect(&harness);
-    let offset = INTERACT_RADIUS - 1.0;
+    let offset = interact_radius() - 1.0;
     let grab = Pos2::new(rect.right() + offset, rect.center().y);
     press_at(&mut harness, grab);
 
