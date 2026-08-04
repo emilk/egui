@@ -579,7 +579,7 @@ impl GlowWinitRunning<'_> {
             }
         }
 
-        let (raw_input, viewport_ui_cb, is_visible, run_ui) = {
+        let (raw_input, viewport_ui_cb, is_visible, show_ui) = {
             let mut glutin = self.glutin.borrow_mut();
             let egui_ctx = glutin.egui_ctx.clone();
             let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
@@ -598,7 +598,7 @@ impl GlowWinitRunning<'_> {
             let mut raw_input = egui_winit.take_egui_input(window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
-            let run_ui =
+            let show_ui =
                 is_visible || is_viewport_or_descendant_visible(&glutin.viewports, viewport_id);
 
             self.integration.pre_update();
@@ -610,8 +610,47 @@ impl GlowWinitRunning<'_> {
                 .map(|(id, viewport)| (*id, viewport.info.clone()))
                 .collect();
 
-            (raw_input, viewport_ui_cb, is_visible, run_ui)
+            (raw_input, viewport_ui_cb, is_visible, show_ui)
         };
+
+        if !show_ui {
+            // Nothing will be shown, so we run no egui pass at all.
+            // That way all ui state is left untouched, and is still there
+            // when this viewport becomes visible again.
+            let is_root_viewport = viewport_ui_cb.is_none();
+            if is_root_viewport {
+                // The app logic keeps ticking, so it can e.g. ask to be shown again:
+                let egui::LogicOutput {
+                    platform_output,
+                    viewport_commands,
+                } = self
+                    .integration
+                    .update_logic_only(self.app.as_mut(), raw_input);
+
+                let mut glutin = self.glutin.borrow_mut();
+                if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
+                    viewport.info.events.clear(); // they should have been processed
+                    if let Some(window) = viewport.window.clone()
+                        && let Some(egui_winit) = viewport.egui_winit.as_mut()
+                    {
+                        egui_winit.handle_platform_output_with_event_loop(
+                            &window,
+                            event_loop,
+                            platform_output,
+                        );
+                    }
+                }
+                glutin.handle_viewport_commands(&self.integration.egui_ctx, viewport_commands);
+            }
+
+            self.sleep_if_minimized(viewport_id);
+
+            return Ok(if self.integration.should_close() {
+                EventResult::CloseRequested
+            } else {
+                EventResult::Wait
+            });
+        }
 
         // HACK: In order to get the right clear_color, the system theme needs to be set, which
         // usually only happens in the `update` call. So we call Options::begin_pass early
@@ -661,12 +700,9 @@ impl GlowWinitRunning<'_> {
         // The update function, which could call immediate viewports,
         // so make sure we don't hold any locks here required by the immediate viewports rendeer.
 
-        let full_output = self.integration.update(
-            self.app.as_mut(),
-            viewport_ui_cb.as_deref(),
-            raw_input,
-            run_ui,
-        );
+        let full_output =
+            self.integration
+                .update(self.app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
 
         // ------------------------------------------------------------
 
@@ -813,6 +849,22 @@ impl GlowWinitRunning<'_> {
             Ok(EventResult::CloseRequested)
         } else {
             Ok(EventResult::Wait)
+        }
+    }
+
+    /// On Mac, a minimized Window uses up all CPU:
+    /// <https://github.com/emilk/egui/issues/325>
+    ///
+    /// On Windows, an invisible window also uses up all CPU:
+    /// <https://github.com/emilk/egui/issues/7776>
+    fn sleep_if_minimized(&self, viewport_id: ViewportId) {
+        let glutin = self.glutin.borrow();
+        if let Some(viewport) = glutin.viewports.get(&viewport_id)
+            && let Some(window) = viewport.window.as_ref()
+            && is_invisible_or_minimized(window)
+        {
+            profiling::scope!("minimized_sleep");
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
 
@@ -1363,6 +1415,36 @@ impl GlutinWindowContext {
             .retain(|_, id| viewport_output.contains_key(id));
         self.window_from_viewport
             .retain(|id, _| viewport_output.contains_key(id));
+    }
+
+    /// Apply commands to already existing viewports, without creating or removing any.
+    ///
+    /// This is for commands that came out of [`egui::Context::run_logic`],
+    /// which knows nothing about which viewports should exist.
+    fn handle_viewport_commands(
+        &mut self,
+        egui_ctx: &egui::Context,
+        viewport_commands: egui::OrderedViewportIdMap<Vec<egui::ViewportCommand>>,
+    ) {
+        profiling::function_scope!();
+
+        for (viewport_id, mut commands) in viewport_commands {
+            let Some(viewport) = self.viewports.get_mut(&viewport_id) else {
+                continue;
+            };
+
+            viewport.deferred_commands.append(&mut commands);
+
+            if let Some(window) = &viewport.window {
+                egui_winit::process_viewport_commands(
+                    egui_ctx,
+                    &mut viewport.info,
+                    std::mem::take(&mut viewport.deferred_commands),
+                    window,
+                    &mut viewport.actions_requested,
+                );
+            }
+        }
     }
 
     fn handle_viewport_output(

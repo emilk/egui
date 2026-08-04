@@ -624,7 +624,7 @@ impl WgpuWinitRunning<'_> {
         let mut frame_timer = crate::stopwatch::Stopwatch::new();
         frame_timer.start();
 
-        let (viewport_ui_cb, raw_input, is_visible, run_ui) = {
+        let (viewport_ui_cb, raw_input, is_visible, show_ui) = {
             profiling::scope!("Prepare");
             let mut shared_lock = shared.borrow_mut();
 
@@ -680,7 +680,7 @@ impl WgpuWinitRunning<'_> {
             };
             let mut raw_input = egui_winit.take_egui_input(window);
 
-            let run_ui = is_visible || is_viewport_or_descendant_visible(viewports, viewport_id);
+            let show_ui = is_visible || is_viewport_or_descendant_visible(viewports, viewport_id);
 
             integration.pre_update();
 
@@ -692,15 +692,57 @@ impl WgpuWinitRunning<'_> {
 
             painter.handle_screenshots(&mut raw_input.events);
 
-            (viewport_ui_cb, raw_input, is_visible, run_ui)
+            (viewport_ui_cb, raw_input, is_visible, show_ui)
         };
+
+        if !show_ui {
+            // Nothing will be shown, so we run no egui pass at all.
+            // That way all ui state is left untouched, and is still there
+            // when this viewport becomes visible again.
+            let is_root_viewport = viewport_ui_cb.is_none();
+            if is_root_viewport {
+                // The app logic keeps ticking, so it can e.g. ask to be shown again:
+                let egui::LogicOutput {
+                    platform_output,
+                    viewport_commands,
+                } = integration.update_logic_only(app.as_mut(), raw_input);
+
+                let mut shared_mut = shared.borrow_mut();
+                let SharedState { viewports, .. } = &mut *shared_mut;
+
+                if let Some(viewport) = viewports.get_mut(&viewport_id) {
+                    viewport.info.events.clear(); // they should have been processed
+                    if let Viewport {
+                        window: Some(window),
+                        egui_winit: Some(egui_winit),
+                        ..
+                    } = viewport
+                    {
+                        egui_winit.handle_platform_output_with_event_loop(
+                            window,
+                            event_loop,
+                            platform_output,
+                        );
+                    }
+                }
+
+                handle_viewport_commands(&integration.egui_ctx, viewport_commands, viewports);
+            }
+
+            sleep_if_minimized(&shared.borrow(), viewport_id);
+
+            return Ok(if integration.should_close() {
+                EventResult::CloseRequested
+            } else {
+                EventResult::Wait
+            });
+        }
 
         // ------------------------------------------------------------
 
         // Runs the update, which could call immediate viewports,
         // so make sure we hold no locks here!
-        let full_output =
-            integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input, run_ui);
+        let full_output = integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
 
         // ------------------------------------------------------------
 
@@ -1208,6 +1250,51 @@ pub(crate) fn remove_viewports_not_in(
 }
 
 /// Add new viewports, and update existing ones:
+/// Apply commands to already existing viewports, without creating or removing any.
+///
+/// This is for commands that came out of [`egui::Context::run_logic`],
+/// which knows nothing about which viewports should exist.
+fn handle_viewport_commands(
+    egui_ctx: &egui::Context,
+    viewport_commands: egui::OrderedViewportIdMap<Vec<egui::ViewportCommand>>,
+    viewports: &mut Viewports,
+) {
+    profiling::function_scope!();
+
+    for (viewport_id, mut commands) in viewport_commands {
+        let Some(viewport) = viewports.get_mut(&viewport_id) else {
+            continue;
+        };
+
+        viewport.deferred_commands.append(&mut commands);
+
+        if let Some(window) = viewport.window.as_ref() {
+            egui_winit::process_viewport_commands(
+                egui_ctx,
+                &mut viewport.info,
+                std::mem::take(&mut viewport.deferred_commands),
+                window,
+                &mut viewport.actions_requested,
+            );
+        }
+    }
+}
+
+/// On Mac, a minimized Window uses up all CPU:
+/// <https://github.com/emilk/egui/issues/325>
+///
+/// On Windows, an invisible window also uses up all CPU:
+/// <https://github.com/emilk/egui/issues/7776>
+fn sleep_if_minimized(shared: &SharedState, viewport_id: ViewportId) {
+    if let Some(viewport) = shared.viewports.get(&viewport_id)
+        && let Some(window) = viewport.window.as_ref()
+        && is_invisible_or_minimized(window)
+    {
+        profiling::scope!("minimized_sleep");
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
 fn handle_viewport_output(
     egui_ctx: &egui::Context,
     viewport_output: &OrderedViewportIdMap<ViewportOutput>,

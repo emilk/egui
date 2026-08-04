@@ -32,7 +32,7 @@ use crate::{
     load::{self, Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
     os::OperatingSystem,
-    output::FullOutput,
+    output::{FullOutput, LogicOutput},
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
     resize, response, scroll_area,
@@ -886,6 +886,45 @@ impl Context {
         });
 
         output
+    }
+
+    /// Run app logic without showing any ui.
+    ///
+    /// Use this instead of [`Self::run_ui`] when nothing will be shown,
+    /// e.g. because the window is minimized or occluded,
+    /// but you still want to let the app tick its logic
+    /// (so that it can e.g. ask to be shown again with [`ViewportCommand::Focus`]).
+    ///
+    /// No pass is run, so `f` must not show any ui.
+    /// This means everything egui knows about the ui is left untouched:
+    /// no widget state is garbage-collected, no animation advances,
+    /// nothing loses focus, and [`Self::input`] still refers to the last pass.
+    ///
+    /// The returned [`LogicOutput`] is what [`FullOutput`] would have carried:
+    /// anything `f` asked the integration to do.
+    /// There is nothing to paint.
+    #[must_use]
+    pub fn run_logic(&self, f: impl FnOnce(&Self)) -> LogicOutput {
+        profiling::function_scope!();
+
+        // Outside of a pass this is the root viewport:
+        let viewport_id = self.viewport_id();
+
+        // Consume any outstanding repaint request, so that a new request from `f`
+        // reaches the integration instead of being considered already served:
+        self.write(|ctx| ctx.begin_pass_repaint_logic(viewport_id));
+
+        f(self);
+
+        self.write(|ctx| LogicOutput {
+            platform_output: std::mem::take(&mut ctx.viewport_for(viewport_id).output),
+            viewport_commands: ctx
+                .viewports
+                .iter_mut()
+                .filter(|(_, viewport)| !viewport.commands.is_empty())
+                .map(|(&id, viewport)| (id, std::mem::take(&mut viewport.commands)))
+                .collect(),
+        })
     }
 
     /// An alternative to calling [`Self::run_ui`].
