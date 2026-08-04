@@ -93,7 +93,6 @@ fn main() -> eframe::Result {
 
     eframe::run_ui_native("Styling engine", options, move |ui, _frame| {
         // Register our theme for all buttons. This is a no-op after the first frame.
-        // Wrap it in a `ThemeCache` if computing the style is expensive.
         ui.add_widget_theme::<ButtonStyle>(theme);
 
         Panel::left("controls").default_size(260.0).show(ui, |ui| {

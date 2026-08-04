@@ -2,10 +2,9 @@
 
 mod default_style;
 mod style_provider;
-mod theme_cache;
 mod themes;
 
-pub use self::{style_provider::StyleProvider, theme_cache::ThemeCache, themes::Themes};
+pub use self::{style_provider::StyleProvider, themes::Themes};
 
 use crate::{
     Ui,
