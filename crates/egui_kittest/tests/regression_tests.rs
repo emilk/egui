@@ -402,7 +402,7 @@ pub fn horizontal_wrapped_text_should_not_overlap() {
             );
         }
 
-        for clipped in &harness.output().shapes {
+        for clipped in &harness.output().expect_pass().shapes {
             if let egui::epaint::Shape::Text(text_shape) = &clipped.shape {
                 let shape_rect = text_shape.visual_bounding_rect();
                 assert!(
@@ -638,7 +638,7 @@ fn window_fixed_size_is_outer_size() {
     }
 
     let mut sizes = Vec::new();
-    for clipped in &harness.output().shapes {
+    for clipped in &harness.output().expect_pass().shapes {
         collect_filled_rect_sizes(&clipped.shape, &mut sizes);
     }
 
@@ -795,6 +795,7 @@ pub fn textedit_hint_text_should_follow_text_alignment() {
     // Find the hint text shape (the only text shape while the input is empty).
     let hint_shape = harness
         .output()
+        .expect_pass()
         .shapes
         .iter()
         .find_map(|clipped| {

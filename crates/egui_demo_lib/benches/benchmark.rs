@@ -28,12 +28,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         // The most end-to-end benchmark.
         c.bench_function("demo_with_tessellate__realistic", |b| {
             b.iter(|| {
-                let mut full_output = ctx.run_ui(RawInput::default(), |ui| {
+                let full_output = ctx.run_ui(RawInput::default(), |ui| {
                     demo_windows.ui(ui);
                 });
-                ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
+                let mut pass_output = full_output.pass_output.expect("run_ui always runs a pass");
+                ctx.tessellate(pass_output.shapes, pass_output.pixels_per_point);
 
-                full_output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
+                pass_output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
             });
         });
 
@@ -50,7 +51,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             demo_windows.ui(ui);
         });
         c.bench_function("demo_only_tessellate", |b| {
-            b.iter(|| ctx.tessellate(full_output.shapes.clone(), full_output.pixels_per_point));
+            b.iter(|| {
+                let pass_output = full_output.expect_pass();
+                ctx.tessellate(pass_output.shapes.clone(), pass_output.pixels_per_point)
+            });
         });
         full_output.drop_without_applying_deltas();
     }

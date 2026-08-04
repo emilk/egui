@@ -147,7 +147,9 @@ impl<'a, State> Harness<'a, State> {
             response = app.run(ui, &mut state, false);
         });
 
-        renderer.handle_delta(&mut output.textures_delta);
+        if let Some(pass_output) = &mut output.pass_output {
+            renderer.handle_delta(&mut pass_output.textures_delta);
+        }
 
         let mut harness = Self {
             app,
@@ -269,7 +271,9 @@ impl<'a, State> Harness<'a, State> {
                 .take()
                 .expect("AccessKit was disabled"),
         );
-        self.renderer.handle_delta(&mut output.textures_delta);
+        if let Some(pass_output) = &mut output.pass_output {
+            self.renderer.handle_delta(&mut pass_output.textures_delta);
+        }
         self.output = output;
 
         self.handle_viewport_commands();
@@ -630,7 +634,7 @@ impl<'a, State> Harness<'a, State> {
     /// This will add a [`RectShape`] to the output shapes, for the current frame.
     /// Will be overwritten on the next call to [`Self::run`].
     pub fn mask(&mut self, rect: Rect) {
-        self.output.shapes.push(ClippedShape {
+        self.pass_output_mut().shapes.push(ClippedShape {
             clip_rect: Rect::EVERYTHING,
             shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::MAGENTA)),
         });
@@ -652,15 +656,20 @@ impl<'a, State> Harness<'a, State> {
                 mouse_pos + egui::vec2(8.0, 16.0),
             ];
 
-            output.shapes.push(ClippedShape {
-                clip_rect: self.ctx.content_rect(),
-                shape: egui::epaint::PathShape::convex_polygon(
-                    triangle,
-                    Color32::WHITE,
-                    egui::Stroke::new(1.0, Color32::BLACK),
-                )
-                .into(),
-            });
+            output
+                .pass_output
+                .as_mut()
+                .expect("Harness always runs a pass")
+                .shapes
+                .push(ClippedShape {
+                    clip_rect: self.ctx.content_rect(),
+                    shape: egui::epaint::PathShape::convex_polygon(
+                        triangle,
+                        Color32::WHITE,
+                        egui::Stroke::new(1.0, Color32::BLACK),
+                    )
+                    .into(),
+                });
         }
 
         self.renderer.render(&self.ctx, &output)
@@ -677,18 +686,20 @@ impl<'a, State> Harness<'a, State> {
     /// Resize the harness to the last [`egui::ViewportCommand::InnerSize`] requested by the app
     /// during the last frame, if any.
     fn handle_inner_size(&mut self) {
-        let new_inner_size =
-            self.root_viewport_output()
-                .commands
-                .iter()
-                .rev()
-                .find_map(|command| {
-                    if let egui::ViewportCommand::InnerSize(size) = command {
-                        Some(*size)
-                    } else {
-                        None
-                    }
-                });
+        let new_inner_size = self
+            .output
+            .viewport_commands
+            .get(&ViewportId::ROOT)
+            .into_iter()
+            .flatten()
+            .rev()
+            .find_map(|command| {
+                if let egui::ViewportCommand::InnerSize(size) = command {
+                    Some(*size)
+                } else {
+                    None
+                }
+            });
 
         if let Some(size) = new_inner_size {
             self.set_size(size);
@@ -702,13 +713,13 @@ impl<'a, State> Harness<'a, State> {
     /// If a screenshot was requested and no renderer is available, an error will be logged.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     fn handle_screenshots(&mut self) {
-        // Collect all screenshot requests from this frame's viewport output.
+        // Collect all screenshot requests from this frame's viewport commands.
         let requests: Vec<(ViewportId, egui::UserData)> = self
             .output
-            .viewport_output
+            .viewport_commands
             .iter()
-            .flat_map(|(id, viewport)| {
-                viewport.commands.iter().filter_map(move |command| {
+            .flat_map(|(id, commands)| {
+                commands.iter().filter_map(move |command| {
                     if let egui::ViewportCommand::Screenshot(user_data) = command {
                         Some((*id, user_data.clone()))
                     } else {
@@ -749,9 +760,20 @@ impl<'a, State> Harness<'a, State> {
     /// Get the root viewport output
     fn root_viewport_output(&self) -> &egui::ViewportOutput {
         self.output
+            .expect_pass()
             .viewport_output
             .get(&ViewportId::ROOT)
             .expect("Missing root viewport")
+    }
+
+    /// The output of the last pass.
+    ///
+    /// The harness always runs a pass each step, so this always exists.
+    fn pass_output_mut(&mut self) -> &mut egui::PassOutput {
+        self.output
+            .pass_output
+            .as_mut()
+            .expect("Harness always runs a pass")
     }
 
     /// The root node of the test harness.

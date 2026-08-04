@@ -264,7 +264,7 @@ fn interact_on_ui_response_should_be_stable() {
 
 #[cfg(debug_assertions)]
 fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
-    output.shapes.iter().any(|clipped| {
+    output.expect_pass().shapes.iter().any(|clipped| {
         matches!(
             &clipped.shape,
             Shape::Rect(rect_shape)
@@ -631,7 +631,7 @@ fn run_logic_should_not_disturb_ui_state() {
             .or_default()
             .occluded = Some(true);
 
-        let output = harness.ctx.run_logic(&raw_input, |ctx| {
+        let output = harness.ctx.run_logic(raw_input, |ctx| {
             assert_eq!(
                 ctx.input(|i| i.viewport().occluded),
                 Some(true),
@@ -642,6 +642,10 @@ fn run_logic_should_not_disturb_ui_state() {
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         });
 
+        assert!(
+            output.pass_output.is_none(),
+            "No pass was run, so there should be no pass output"
+        );
         assert_eq!(
             output
                 .viewport_commands
@@ -659,4 +663,56 @@ fn run_logic_should_not_disturb_ui_state() {
     harness.run();
 
     assert_state(&harness);
+}
+
+/// Input given to [`egui::Context::run_logic`] is not consumed by any pass,
+/// so egui must keep it and feed it to the next pass.
+#[test]
+fn run_logic_should_buffer_input_for_the_next_pass() {
+    let ctx = egui::Context::default();
+
+    let mut raw_input = egui::RawInput::default();
+    raw_input.events.push(egui::Event::Key {
+        key: egui::Key::A,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers::NONE,
+    });
+
+    let logic_output = ctx.run_logic(raw_input, |_ctx| {});
+    logic_output.drop_without_applying_deltas();
+
+    let ui_output = ctx.run_ui(egui::RawInput::default(), |ui| {
+        assert!(
+            ui.input(|i| i.key_pressed(egui::Key::A)),
+            "The key press from the pass-less frame should reach the next pass"
+        );
+    });
+    ui_output.drop_without_applying_deltas();
+}
+
+/// The logic phase of [`egui::Context::run_frame`] should see the current window state,
+/// also in frames where ui is shown (and not the state of the previous frame).
+#[test]
+fn logic_phase_should_see_fresh_window_state() {
+    let ctx = egui::Context::default();
+
+    let mut raw_input = egui::RawInput::default();
+    raw_input
+        .viewports
+        .entry(egui::ViewportId::ROOT)
+        .or_default()
+        .focused = Some(true);
+
+    let output = ctx.run_frame(raw_input, true, |phase| {
+        if let egui::FramePhase::Logic(ctx) = phase {
+            assert_eq!(
+                ctx.input(|i| i.viewport().focused),
+                Some(true),
+                "App logic should see the current window state, not last frame's"
+            );
+        }
+    });
+    output.drop_without_applying_deltas();
 }

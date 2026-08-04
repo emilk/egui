@@ -280,52 +280,41 @@ impl AppRunner {
             .and_then(|v| v.visible())
             .unwrap_or(true);
 
-        if !is_visible {
-            // The tab is hidden, so we run no egui pass at all.
-            // That way all ui state is left untouched, and is still there
-            // when the tab is shown again.
-
-            let egui::LogicOutput {
-                platform_output,
-                viewport_commands,
-            } = self.egui_ctx.run_logic(&raw_input, |ctx| {
-                self.app.logic(ctx, &mut self.frame);
-            });
-
-            // No pass consumed the input, so save it for the next one:
-            self.input.raw.append(raw_input);
-
-            self.handle_viewport_commands(viewport_commands.into_values().flatten());
-            self.handle_platform_output(platform_output);
-            return;
-        }
-
-        // `App::logic` may not show any ui, so it is called outside of the pass:
-        self.app.logic(&self.egui_ctx, &mut self.frame);
-
-        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
-            self.app.ui(ui, &mut self.frame);
-        });
+        // When the tab is hidden (`!is_visible`), we run no egui pass at all.
+        // That way all ui state is left untouched, and is still there
+        // when the tab is shown again.
         let egui::FullOutput {
             platform_output,
+            viewport_commands,
+            pass_output,
+        } = self
+            .egui_ctx
+            .run_frame(raw_input, is_visible, |phase| match phase {
+                egui::FramePhase::Logic(ctx) => {
+                    self.app.logic(ctx, &mut self.frame);
+                }
+                egui::FramePhase::Ui(ui) => {
+                    self.app.ui(ui, &mut self.frame);
+                }
+            });
+
+        self.handle_viewport_commands(viewport_commands.into_values().flatten());
+        self.handle_platform_output(platform_output);
+
+        if let Some(egui::PassOutput {
             textures_delta,
             shapes,
             pixels_per_point,
             viewport_output,
-        } = full_output;
+        }) = pass_output
+        {
+            if viewport_output.len() > 1 {
+                log::warn!("Multiple viewports not yet supported on the web");
+            }
 
-        if viewport_output.len() > 1 {
-            log::warn!("Multiple viewports not yet supported on the web");
+            self.textures_delta.append(textures_delta);
+            self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
         }
-        self.handle_viewport_commands(
-            viewport_output
-                .into_values()
-                .flat_map(|viewport_output| viewport_output.commands),
-        );
-
-        self.handle_platform_output(platform_output);
-        self.textures_delta.append(textures_delta);
-        self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
     }
 
     fn handle_viewport_commands(&mut self, commands: impl Iterator<Item = ViewportCommand>) {

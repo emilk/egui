@@ -40,7 +40,7 @@ use super::{
 use crate::epaint::textures::TexturesDelta;
 use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
-    native::{epi_integration::EpiIntegration, winit_integration::is_invisible_or_minimized},
+    native::{epi_integration::EpiIntegration, winit_integration::sleep_if_invisible_or_minimized},
 };
 
 // ----------------------------------------------------------------------------
@@ -613,36 +613,10 @@ impl GlowWinitRunning<'_> {
             (raw_input, viewport_ui_cb, is_visible, show_ui)
         };
 
-        if !show_ui {
-            // Nothing will be shown, so we run no egui pass at all.
-            // That way all ui state is left untouched, and is still there
-            // when this viewport becomes visible again.
-            let is_root_viewport = viewport_ui_cb.is_none();
-            if is_root_viewport {
-                // The app logic keeps ticking, so it can e.g. ask to be shown again:
-                let egui::LogicOutput {
-                    platform_output,
-                    viewport_commands,
-                } = self
-                    .integration
-                    .update_logic_only(self.app.as_mut(), raw_input);
-
-                let mut glutin = self.glutin.borrow_mut();
-                if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                    viewport.info.events.clear(); // they should have been processed
-                    if let Some(window) = viewport.window.clone()
-                        && let Some(egui_winit) = viewport.egui_winit.as_mut()
-                    {
-                        egui_winit.handle_platform_output_with_event_loop(
-                            &window,
-                            event_loop,
-                            platform_output,
-                        );
-                    }
-                }
-                glutin.handle_viewport_commands(&self.integration.egui_ctx, viewport_commands);
-            }
-
+        if !show_ui && viewport_ui_cb.is_some() {
+            // A hidden child viewport: it has no app logic to tick, and nothing to show,
+            // so there is nothing to do. We run no egui pass at all, so all its ui state
+            // is left untouched, and is still there when it becomes visible again.
             self.sleep_if_minimized(viewport_id);
 
             return Ok(if self.integration.should_close() {
@@ -700,9 +674,12 @@ impl GlowWinitRunning<'_> {
         // The update function, which could call immediate viewports,
         // so make sure we don't hold any locks here required by the immediate viewports rendeer.
 
-        let full_output =
-            self.integration
-                .update(self.app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
+        let full_output = self.integration.update(
+            self.app.as_mut(),
+            viewport_ui_cb.as_deref(),
+            raw_input,
+            show_ui,
+        );
 
         // ------------------------------------------------------------
 
@@ -720,14 +697,13 @@ impl GlowWinitRunning<'_> {
 
         let egui::FullOutput {
             platform_output,
-            textures_delta,
-            shapes,
-            pixels_per_point,
-            viewport_output,
+            viewport_commands,
+            pass_output,
         } = full_output;
-        pending_deltas.append(textures_delta);
 
-        glutin.remove_viewports_not_in(&viewport_output);
+        if let Some(pass_output) = &pass_output {
+            glutin.remove_viewports_not_in(&pass_output.viewport_output);
+        }
 
         let GlutinWindowContext {
             viewports,
@@ -742,108 +718,113 @@ impl GlowWinitRunning<'_> {
 
         viewport.info.events.clear(); // they should have been processed
         let window = viewport.window.clone().unwrap();
-        let gl_surface = viewport.gl_surface.as_ref().unwrap();
         let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
         egui_winit.handle_platform_output_with_event_loop(&window, event_loop, platform_output);
 
-        if is_visible {
-            let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
-
-            {
-                // We may need to switch contexts again, because of immediate viewports:
-                frame_timer.pause();
-                change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
-                frame_timer.resume();
-            }
-
-            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
-
-            if !clear_before_update {
-                painter.clear(screen_size_in_pixels, clear_color);
-            }
-
-            painter.paint_and_update_textures(
-                screen_size_in_pixels,
+        if let Some(pass_output) = pass_output {
+            let egui::PassOutput {
+                textures_delta,
+                shapes,
                 pixels_per_point,
-                &clipped_primitives,
-                pending_deltas,
-            );
+                viewport_output,
+            } = pass_output;
+            pending_deltas.append(textures_delta);
 
-            {
-                for action in viewport.actions_requested.drain(..) {
-                    match action {
-                        ActionRequested::Screenshot(user_data) => {
-                            let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-                            egui_winit
-                                .egui_input_mut()
-                                .events
-                                .push(egui::Event::Screenshot {
-                                    viewport_id,
-                                    user_data,
-                                    image: screenshot.into(),
-                                });
-                        }
-                        ActionRequested::Cut => {
-                            egui_winit.egui_input_mut().events.push(egui::Event::Cut);
-                        }
-                        ActionRequested::Copy => {
-                            egui_winit.egui_input_mut().events.push(egui::Event::Copy);
-                        }
-                        ActionRequested::Paste => {
-                            if let Some(contents) = egui_winit.clipboard_text() {
-                                let contents = contents.replace("\r\n", "\n");
-                                if !contents.is_empty() {
-                                    egui_winit
-                                        .egui_input_mut()
-                                        .events
-                                        .push(egui::Event::Paste(contents));
+            if is_visible {
+                let gl_surface = viewport.gl_surface.as_ref().unwrap();
+                let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
+
+                {
+                    // We may need to switch contexts again, because of immediate viewports:
+                    frame_timer.pause();
+                    change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
+                    frame_timer.resume();
+                }
+
+                let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
+
+                if !clear_before_update {
+                    painter.clear(screen_size_in_pixels, clear_color);
+                }
+
+                painter.paint_and_update_textures(
+                    screen_size_in_pixels,
+                    pixels_per_point,
+                    &clipped_primitives,
+                    pending_deltas,
+                );
+
+                {
+                    for action in viewport.actions_requested.drain(..) {
+                        match action {
+                            ActionRequested::Screenshot(user_data) => {
+                                let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                                egui_winit
+                                    .egui_input_mut()
+                                    .events
+                                    .push(egui::Event::Screenshot {
+                                        viewport_id,
+                                        user_data,
+                                        image: screenshot.into(),
+                                    });
+                            }
+                            ActionRequested::Cut => {
+                                egui_winit.egui_input_mut().events.push(egui::Event::Cut);
+                            }
+                            ActionRequested::Copy => {
+                                egui_winit.egui_input_mut().events.push(egui::Event::Copy);
+                            }
+                            ActionRequested::Paste => {
+                                if let Some(contents) = egui_winit.clipboard_text() {
+                                    let contents = contents.replace("\r\n", "\n");
+                                    if !contents.is_empty() {
+                                        egui_winit
+                                            .egui_input_mut()
+                                            .events
+                                            .push(egui::Event::Paste(contents));
+                                    }
                                 }
                             }
                         }
                     }
+
+                    integration.post_rendering(&window);
                 }
 
-                integration.post_rendering(&window);
+                {
+                    // vsync - don't count as frame-time:
+                    frame_timer.pause();
+                    profiling::scope!("swap_buffers");
+                    let context = current_gl_context.as_ref().ok_or_else(|| {
+                        egui_glow::PainterError::from(
+                            "failed to get current context to swap buffers".to_owned(),
+                        )
+                    })?;
+
+                    gl_surface.swap_buffers(context)?;
+                    frame_timer.resume();
+                }
+
+                // give it time to settle:
+                #[cfg(feature = "__screenshot")]
+                if integration.egui_ctx.cumulative_pass_nr() == 2
+                    && let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO")
+                {
+                    save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
+                }
             }
 
-            {
-                // vsync - don't count as frame-time:
-                frame_timer.pause();
-                profiling::scope!("swap_buffers");
-                let context = current_gl_context.as_ref().ok_or_else(|| {
-                    egui_glow::PainterError::from(
-                        "failed to get current context to swap buffers".to_owned(),
-                    )
-                })?;
-
-                gl_surface.swap_buffers(context)?;
-                frame_timer.resume();
-            }
-
-            // give it time to settle:
-            #[cfg(feature = "__screenshot")]
-            if integration.egui_ctx.cumulative_pass_nr() == 2
-                && let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO")
-            {
-                save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
-            }
+            glutin.handle_viewport_output(event_loop, &viewport_output);
         }
 
-        glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);
+        glutin.handle_viewport_commands(&integration.egui_ctx, viewport_commands);
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
 
         integration.maybe_autosave(app.as_mut(), Some(&window));
 
-        if is_invisible_or_minimized(&window) {
-            // On Mac, a minimized Window uses up all CPU:
-            // https://github.com/emilk/egui/issues/325
-            // On Windows, an invisible window also uses up all CPU:
-            // https://github.com/emilk/egui/issues/7776
-            profiling::scope!("minimized_sleep");
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
+        sleep_if_invisible_or_minimized(&window);
 
         if integration.should_close() {
             Ok(EventResult::CloseRequested)
@@ -852,19 +833,12 @@ impl GlowWinitRunning<'_> {
         }
     }
 
-    /// On Mac, a minimized Window uses up all CPU:
-    /// <https://github.com/emilk/egui/issues/325>
-    ///
-    /// On Windows, an invisible window also uses up all CPU:
-    /// <https://github.com/emilk/egui/issues/7776>
     fn sleep_if_minimized(&self, viewport_id: ViewportId) {
         let glutin = self.glutin.borrow();
         if let Some(viewport) = glutin.viewports.get(&viewport_id)
             && let Some(window) = viewport.window.as_ref()
-            && is_invisible_or_minimized(window)
         {
-            profiling::scope!("minimized_sleep");
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            sleep_if_invisible_or_minimized(window);
         }
     }
 
@@ -1419,68 +1393,37 @@ impl GlutinWindowContext {
 
     /// Apply commands to already existing viewports, without creating or removing any.
     ///
-    /// This is for commands that came out of [`egui::Context::run_logic`],
-    /// which knows nothing about which viewports should exist.
+    /// Which viewports should exist is decided by [`Self::handle_viewport_output`];
+    /// commands can also come from a frame that ran no pass
+    /// (see [`egui::Context::run_frame`]), and such a frame knows nothing about
+    /// which viewports should exist.
+    ///
+    /// This also flushes any previously deferred commands,
+    /// e.g. those produced by patching a [`ViewportBuilder`].
     fn handle_viewport_commands(
         &mut self,
         egui_ctx: &egui::Context,
-        viewport_commands: egui::OrderedViewportIdMap<Vec<egui::ViewportCommand>>,
+        mut viewport_commands: egui::OrderedViewportIdMap<Vec<egui::ViewportCommand>>,
     ) {
         profiling::function_scope!();
 
-        for (viewport_id, mut commands) in viewport_commands {
+        let viewport_ids: Vec<ViewportId> = self.viewports.keys().copied().collect();
+
+        for viewport_id in viewport_ids {
             let Some(viewport) = self.viewports.get_mut(&viewport_id) else {
                 continue;
             };
 
-            viewport.deferred_commands.append(&mut commands);
-
-            if let Some(window) = &viewport.window {
-                egui_winit::process_viewport_commands(
-                    egui_ctx,
-                    &mut viewport.info,
-                    std::mem::take(&mut viewport.deferred_commands),
-                    window,
-                    &mut viewport.actions_requested,
-                );
+            if let Some(mut commands) = viewport_commands.remove(&viewport_id) {
+                viewport.deferred_commands.append(&mut commands);
             }
-        }
-    }
 
-    fn handle_viewport_output(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        egui_ctx: &egui::Context,
-        viewport_output: &OrderedViewportIdMap<ViewportOutput>,
-    ) {
-        profiling::function_scope!();
-
-        for (
-            viewport_id,
-            ViewportOutput {
-                parent,
-                class,
-                builder,
-                viewport_ui_cb,
-                mut commands,
-                repaint_delay: _, // ignored - we listened to the repaint callback instead
-            },
-        ) in viewport_output.clone()
-        {
-            let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
-
-            let viewport = initialize_or_update_viewport(
-                &mut self.viewports,
-                ids,
-                class,
-                builder,
-                viewport_ui_cb,
-            );
+            if viewport.deferred_commands.is_empty() {
+                continue;
+            }
 
             if let Some(window) = &viewport.window {
                 let old_inner_size = window.inner_size();
-
-                viewport.deferred_commands.append(&mut commands);
 
                 egui_winit::process_viewport_commands(
                     egui_ctx,
@@ -1498,6 +1441,31 @@ impl GlutinWindowContext {
                     }
                 }
             }
+        }
+    }
+
+    /// Create, update and remove viewports (native windows), to match `viewport_output`.
+    fn handle_viewport_output(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        viewport_output: &OrderedViewportIdMap<ViewportOutput>,
+    ) {
+        profiling::function_scope!();
+
+        for (
+            viewport_id,
+            ViewportOutput {
+                parent,
+                class,
+                builder,
+                viewport_ui_cb,
+                repaint_delay: _, // ignored - we listened to the repaint callback instead
+            },
+        ) in viewport_output.clone()
+        {
+            let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
+
+            initialize_or_update_viewport(&mut self.viewports, ids, class, builder, viewport_ui_cb);
         }
 
         // Create windows for any new viewports:
@@ -1663,13 +1631,17 @@ fn render_immediate_viewport(
 
     let egui::FullOutput {
         platform_output,
+        viewport_commands,
+        pass_output,
+    } = egui_ctx.run_ui(input, |ui| {
+        viewport_ui_cb(ui);
+    });
+    let egui::PassOutput {
         textures_delta,
         shapes,
         pixels_per_point,
         viewport_output,
-    } = egui_ctx.run_ui(input, |ui| {
-        viewport_ui_cb(ui);
-    });
+    } = pass_output.expect("run_ui always runs a pass");
 
     // ---------------------------------------------------
 
@@ -1737,8 +1709,9 @@ fn render_immediate_viewport(
     egui_winit.handle_platform_output(window, platform_output);
 
     event_loop_context::with_current_event_loop(|event_loop| {
-        glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);
+        glutin.handle_viewport_output(event_loop, &viewport_output);
     });
+    glutin.handle_viewport_commands(egui_ctx, viewport_commands);
 }
 
 #[cfg(feature = "__screenshot")]

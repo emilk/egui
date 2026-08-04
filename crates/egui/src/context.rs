@@ -17,10 +17,10 @@ use epaint::{
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
-    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
-    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
+    ModifierNames, Modifiers, NumExt as _, Order, OrderedViewportIdMap, Painter, RawInput,
+    Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle,
+    TextureOptions, Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap,
+    ViewportIdPair, ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -32,7 +32,7 @@ use crate::{
     load::{self, Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
     os::OperatingSystem,
-    output::{FullOutput, LogicOutput},
+    output::{FullOutput, PassOutput},
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
     resize, response, scroll_area,
@@ -240,6 +240,12 @@ pub struct ViewportState {
     pub output: PlatformOutput,
     pub commands: Vec<ViewportCommand>,
 
+    /// Input that was given to [`Context::run_frame`] while no pass ran.
+    ///
+    /// No pass consumed it, so we keep it and prepend it to the input
+    /// of the next pass.
+    pending_raw_input: RawInput,
+
     // ----------------------
     // Cross-frame statistics:
     pub num_multipass_in_row: usize,
@@ -414,8 +420,35 @@ struct ContextImpl {
 }
 
 impl ContextImpl {
-    fn begin_pass(&mut self, mut new_raw_input: RawInput) {
+    /// Apply the window-related parts of new input ([`RawInput::viewports`] and
+    /// [`RawInput::focused`]) to the stored input, without disturbing the rest
+    /// (events, time, …).
+    ///
+    /// This lets app logic see the current state of the windows
+    /// before (or without) a pass consuming the full input.
+    fn ingest_window_state(&mut self, new_input: &RawInput) {
+        let raw = &mut self.viewport_for(new_input.viewport_id).input.raw;
+        raw.viewport_id = new_input.viewport_id;
+        raw.viewports = new_input.viewports.clone();
+        raw.focused = new_input.focused;
+    }
+
+    fn begin_pass(&mut self, new_raw_input: RawInput) {
         let viewport_id = new_raw_input.viewport_id;
+
+        // Prepend any input that [`Context::run_frame`] received while no pass ran:
+        let mut new_raw_input = {
+            let mut pending = std::mem::take(
+                &mut self
+                    .viewports
+                    .entry(viewport_id)
+                    .or_default()
+                    .pending_raw_input,
+            );
+            pending.append(new_raw_input); // The new input wins where they overlap
+            pending
+        };
+
         let parent_id = new_raw_input
             .viewports
             .get(&viewport_id)
@@ -714,8 +747,9 @@ impl ContextImpl {
 ///         });
 ///     });
 ///     handle_platform_output(full_output.platform_output);
-///     let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
-///     paint(full_output.textures_delta, clipped_primitives);
+///     let pass_output = full_output.pass_output.expect("run_ui always runs a pass");
+///     let clipped_primitives = ctx.tessellate(pass_output.shapes, pass_output.pixels_per_point);
+///     paint(pass_output.textures_delta, clipped_primitives);
 /// }
 /// ```
 #[derive(Clone)]
@@ -751,6 +785,23 @@ impl Default for Context {
 
         ctx
     }
+}
+
+/// One phase of an app frame; see [`Context::run_frame`].
+pub enum FramePhase<'a> {
+    /// Tick the app logic.
+    ///
+    /// This happens exactly once per frame, before any pass,
+    /// so it must not show any ui.
+    Logic(&'a Context),
+
+    /// Show the ui.
+    ///
+    /// This happens once per pass:
+    /// not at all when nothing will be shown,
+    /// and more than once per frame during multi-pass layout
+    /// (see [`Context::request_discard`]).
+    Ui(&'a mut Ui),
 }
 
 impl Context {
@@ -888,53 +939,101 @@ impl Context {
         output
     }
 
-    /// Run app logic without showing any ui.
+    /// Run one frame of an app that separates its logic from its ui.
     ///
-    /// Use this instead of [`Self::run_ui`] when nothing will be shown,
-    /// e.g. because the window is minimized or occluded,
-    /// but you still want to let the app tick its logic
-    /// (so that it can e.g. ask to be shown again with [`ViewportCommand::Focus`]).
+    /// A frame consists of one [`FramePhase::Logic`],
+    /// followed by one [`FramePhase::Ui`] per pass —
+    /// or by no ui phase at all if `show_ui` is `false`,
+    /// e.g. because the window is minimized or occluded.
     ///
-    /// No pass is run, so `f` must not show any ui.
-    /// This means everything egui knows about the ui is left untouched:
+    /// The logic phase runs outside of any pass. It always sees the current state of the
+    /// windows ([`InputState::viewport`]), so it can e.g. tell that the window is hidden,
+    /// and ask for it to be shown again with [`ViewportCommand::Focus`].
+    /// The rest of the input (events, time, …) is not applied until the first pass,
+    /// so during the logic phase it is still that of the previous pass.
+    ///
+    /// When no pass is run, everything egui knows about the ui is left untouched:
     /// no widget state is garbage-collected, no animation advances,
     /// and nothing loses focus.
-    ///
-    /// Of `new_input`, only [`RawInput::viewports`] is used: `f` can learn about the state of
-    /// the windows with [`InputState::viewport`], but the ui input (events, time, …)
-    /// is left as it was, and should be given to the next call to [`Self::run_ui`].
-    ///
-    /// The returned [`LogicOutput`] is what [`FullOutput`] would have carried:
-    /// anything `f` asked the integration to do.
-    /// There is nothing to paint.
+    /// egui keeps `new_input` and feeds it to the first pass of a later frame,
+    /// so no input is lost while nothing is shown.
+    /// The returned [`FullOutput`] then has no [`FullOutput::pass_output`]:
+    /// there is nothing to paint, and the integration should leave its windows as they are.
     #[must_use]
-    pub fn run_logic(&self, new_input: &RawInput, f: impl FnOnce(&Self)) -> LogicOutput {
+    pub fn run_frame(
+        &self,
+        new_input: RawInput,
+        show_ui: bool,
+        mut frame: impl FnMut(FramePhase<'_>),
+    ) -> FullOutput {
+        self.run_frame_dyn(new_input, show_ui, &mut frame)
+    }
+
+    #[must_use]
+    fn run_frame_dyn(
+        &self,
+        new_input: RawInput,
+        show_ui: bool,
+        frame: &mut dyn FnMut(FramePhase<'_>),
+    ) -> FullOutput {
         profiling::function_scope!();
 
         let viewport_id = new_input.viewport_id;
 
         self.write(|ctx| {
-            // Consume any outstanding repaint request, so that a new request from `f`
-            // reaches the integration instead of being considered already served:
-            ctx.begin_pass_repaint_logic(viewport_id);
+            if !show_ui {
+                // No pass will consume the outstanding repaint request, so consume it here,
+                // so that a new request from the app logic reaches the integration
+                // instead of being considered already served:
+                ctx.begin_pass_repaint_logic(viewport_id);
+            }
 
-            // Tell the app about the windows, but leave the ui input alone:
-            let raw = &mut ctx.viewport_for(viewport_id).input.raw;
-            raw.viewport_id = viewport_id;
-            raw.viewports = new_input.viewports.clone();
-            raw.focused = new_input.focused;
+            // Let the app logic see the current state of the windows:
+            ctx.ingest_window_state(&new_input);
         });
 
-        f(self);
+        frame(FramePhase::Logic(self));
 
-        self.write(|ctx| LogicOutput {
-            platform_output: std::mem::take(&mut ctx.viewport_for(viewport_id).output),
-            viewport_commands: ctx
-                .viewports
-                .iter_mut()
-                .filter(|(_, viewport)| !viewport.commands.is_empty())
-                .map(|(&id, viewport)| (id, std::mem::take(&mut viewport.commands)))
-                .collect(),
+        if show_ui {
+            // Anything the logic phase asked for (viewport commands etc)
+            // is still in the `Context`, and will come out of the pass we are about to run.
+            self.run_ui_dyn(new_input, &mut |ui| frame(FramePhase::Ui(ui)))
+        } else {
+            // The plugins see the input of every frame exactly once,
+            // so it must happen now, before we buffer it:
+            let mut new_input = new_input;
+            let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
+            plugins.on_input(self, &mut new_input);
+
+            self.write(|ctx| {
+                // No pass will consume the input, so keep it for the next one:
+                ctx.viewport_for(viewport_id)
+                    .pending_raw_input
+                    .append(new_input);
+
+                FullOutput {
+                    platform_output: std::mem::take(&mut ctx.viewport_for(viewport_id).output),
+                    viewport_commands: ctx.take_viewport_commands(),
+                    pass_output: None,
+                }
+            })
+        }
+    }
+
+    /// Run app logic without showing any ui.
+    ///
+    /// This is [`Self::run_frame`] without a ui phase.
+    /// Use it when nothing will be shown,
+    /// e.g. because the window is minimized or occluded,
+    /// but you still want to let the app tick its logic
+    /// (so that it can e.g. ask to be shown again with [`ViewportCommand::Focus`]).
+    #[must_use]
+    pub fn run_logic(&self, new_input: RawInput, f: impl FnOnce(&Self)) -> FullOutput {
+        let mut f = Some(f);
+        self.run_frame(new_input, false, |phase| {
+            if let (FramePhase::Logic(ctx), Some(f)) = (phase, f.take()) {
+                f(ctx);
+            }
         })
     }
 
@@ -2792,19 +2891,20 @@ impl ContextImpl {
         // just the top _immediate_ viewport.
         let is_last = self.viewport_stack.is_empty();
 
+        let viewport_commands = if is_last {
+            // Let the primary immediate viewport handle the commands of its children too.
+            // This can make things easier for the backend, as otherwise we may get commands
+            // that affect a viewport while its egui logic is running.
+            self.take_viewport_commands()
+        } else {
+            Default::default()
+        };
+
         let viewport_output = self
             .viewports
             .iter_mut()
             .map(|(&id, viewport)| {
                 let parent = *self.viewport_parents.entry(id).or_default();
-                let commands = if is_last {
-                    // Let the primary immediate viewport handle the commands of its children too.
-                    // This can make things easier for the backend, as otherwise we may get commands
-                    // that affect a viewport while its egui logic is running.
-                    std::mem::take(&mut viewport.commands)
-                } else {
-                    vec![]
-                };
 
                 (
                     id,
@@ -2813,7 +2913,6 @@ impl ContextImpl {
                         class: viewport.class,
                         builder: viewport.builder.clone(),
                         viewport_ui_cb: viewport.viewport_ui_cb.clone(),
-                        commands,
                         repaint_delay: viewport.repaint.repaint_delay,
                     },
                 )
@@ -2838,11 +2937,23 @@ impl ContextImpl {
 
         FullOutput {
             platform_output,
-            textures_delta,
-            shapes,
-            pixels_per_point,
-            viewport_output,
+            viewport_commands,
+            pass_output: Some(PassOutput {
+                textures_delta,
+                shapes,
+                pixels_per_point,
+                viewport_output,
+            }),
         }
+    }
+
+    /// Take all outstanding [`ViewportCommand`]s, keyed by the viewport they apply to.
+    fn take_viewport_commands(&mut self) -> OrderedViewportIdMap<Vec<ViewportCommand>> {
+        self.viewports
+            .iter_mut()
+            .filter(|(_, viewport)| !viewport.commands.is_empty())
+            .map(|(&id, viewport)| (id, std::mem::take(&mut viewport.commands)))
+            .collect()
     }
 }
 

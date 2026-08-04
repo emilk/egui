@@ -121,8 +121,9 @@
 //!         });
 //!     });
 //!     handle_platform_output(full_output.platform_output);
-//!     let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
-//!     paint(full_output.textures_delta, clipped_primitives);
+//!     let pass_output = full_output.pass_output.expect("run_ui always runs a pass");
+//!     let clipped_primitives = ctx.tessellate(pass_output.shapes, pass_output.pixels_per_point);
+//!     paint(pass_output.textures_delta, clipped_primitives);
 //! }
 //! ```
 //!
@@ -462,12 +463,12 @@ pub mod text {
 pub use self::{
     atomics::*,
     containers::{menu::MenuBar, *},
-    context::{Context, RepaintCause, RequestRepaintInfo},
+    context::{Context, FramePhase, RepaintCause, RequestRepaintInfo},
     data::{
         Key, UserData,
         input::*,
         output::{
-            self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
+            self, CursorIcon, CustomCursorImage, FullOutput, OpenUrl, OutputCommand, PassOutput,
             PlatformOutput, UserAttentionType, WidgetInfo,
         },
     },

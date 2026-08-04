@@ -72,12 +72,13 @@ fn test_egui_e2e() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let mut full_output = ctx.run_ui(raw_input.clone(), |ui| {
+        let full_output = ctx.run_ui(raw_input.clone(), |ui| {
             demo_windows.ui(ui);
         });
-        let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
+        let mut pass_output = full_output.pass_output.expect("run_ui always runs a pass");
+        let clipped_primitives = ctx.tessellate(pass_output.shapes, pass_output.pixels_per_point);
         assert!(!clipped_primitives.is_empty());
-        full_output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
+        pass_output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
     }
 }
 
@@ -92,16 +93,17 @@ fn test_egui_zero_window_size() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let mut full_output = ctx.run_ui(raw_input.clone(), |ui| {
+        let full_output = ctx.run_ui(raw_input.clone(), |ui| {
             demo_windows.ui(ui);
         });
-        let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
+        let mut pass_output = full_output.pass_output.expect("run_ui always runs a pass");
+        let clipped_primitives = ctx.tessellate(pass_output.shapes, pass_output.pixels_per_point);
         assert!(
             clipped_primitives.is_empty(),
             "There should be nothing to show, has at least one primitive with clip_rect: {:?}",
             clipped_primitives[0].clip_rect
         );
-        full_output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
+        pass_output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
     }
 }
 

@@ -71,16 +71,20 @@ impl EguiGlow {
 
         let egui::FullOutput {
             platform_output,
+            viewport_commands,
+            pass_output,
+        } = self.egui_ctx.run_ui(raw_input, run_ui);
+        let egui::PassOutput {
             textures_delta,
             shapes,
             pixels_per_point,
             viewport_output,
-        } = self.egui_ctx.run_ui(raw_input, run_ui);
+        } = pass_output.expect("run_ui always runs a pass");
 
         if viewport_output.len() > 1 {
             log::warn!("Multiple viewports not yet supported by EguiGlow");
         }
-        for (_, ViewportOutput { commands, .. }) in viewport_output {
+        for (_, commands) in viewport_commands {
             let mut actions_requested = Default::default();
             egui_winit::process_viewport_commands(
                 &self.egui_ctx,

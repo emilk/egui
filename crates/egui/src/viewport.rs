@@ -1266,9 +1266,6 @@ pub struct ViewportOutput {
     /// `None` for immediate viewports and the ROOT viewport.
     pub viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
-    /// Commands to change the viewport, e.g. window title and size.
-    pub commands: Vec<ViewportCommand>,
-
     /// Schedule a repaint of this viewport after this delay.
     ///
     /// It is preferable to instead install a [`Context::set_request_repaint_callback`],
@@ -1286,7 +1283,6 @@ impl ViewportOutput {
             class,
             builder,
             viewport_ui_cb,
-            mut commands,
             repaint_delay,
         } = newer;
 
@@ -1294,7 +1290,6 @@ impl ViewportOutput {
         self.class = class;
         let _ = self.builder.patch(builder); // we ignore the returned command, because `self.builder` will be the basis of a new patch
         self.viewport_ui_cb = viewport_ui_cb;
-        self.commands.append(&mut commands);
         self.repaint_delay = self.repaint_delay.min(repaint_delay);
     }
 }

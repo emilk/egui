@@ -6,7 +6,7 @@ use epaint::text::CharIndex;
 
 use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
 
-/// What egui emits each frame from [`crate::Context::run_ui`].
+/// What egui emits each frame from [`crate::Context::run_frame`] and friends.
 ///
 /// The backend should use this.
 #[derive(Clone, Default)]
@@ -14,6 +14,72 @@ pub struct FullOutput {
     /// Non-rendering related output.
     pub platform_output: PlatformOutput,
 
+    /// The commands sent with [`crate::Context::send_viewport_cmd`] and friends.
+    ///
+    /// These are one-shot commands (e.g. "focus this window"),
+    /// and say nothing about which viewports should exist.
+    pub viewport_commands: OrderedViewportIdMap<Vec<crate::ViewportCommand>>,
+
+    /// What the egui pass(es) produced: things to paint, and which viewports should exist.
+    ///
+    /// This is `None` if no pass was run
+    /// (i.e. the output came from [`crate::Context::run_logic`],
+    /// because nothing was going to be shown).
+    /// If so, all ui state was left untouched:
+    /// the integration should paint nothing and leave its viewports as they are.
+    pub pass_output: Option<PassOutput>,
+}
+
+impl FullOutput {
+    /// Add on new output.
+    pub fn append(&mut self, newer: Self) {
+        let Self {
+            platform_output,
+            viewport_commands,
+            pass_output,
+        } = newer;
+
+        self.platform_output.append(platform_output);
+
+        for (id, mut commands) in viewport_commands {
+            self.viewport_commands
+                .entry(id)
+                .or_default()
+                .append(&mut commands);
+        }
+
+        match (&mut self.pass_output, pass_output) {
+            (Some(old), Some(new)) => old.append(new),
+            (old @ None, new) => *old = new,
+            (Some(_), None) => {}
+        }
+    }
+
+    /// The output of the egui pass(es), if any was run.
+    ///
+    /// Panics if no pass was run.
+    /// This cannot happen for the output of [`crate::Context::run_ui`],
+    /// which always runs at least one pass.
+    #[track_caller]
+    pub fn expect_pass(&self) -> &PassOutput {
+        self.pass_output.as_ref().expect("No egui pass was run")
+    }
+
+    /// [`epaint::textures::TexturesDelta`] will panic when dropped with still unapplied deltas,
+    /// this is a helper to clear the deltas.
+    pub fn drop_without_applying_deltas(mut self) {
+        if let Some(pass_output) = &mut self.pass_output {
+            pass_output.textures_delta.clear();
+        }
+    }
+}
+
+/// What the egui pass(es) of one frame produced: things to paint, and which viewports should exist.
+///
+/// This is the part of [`FullOutput`] that only a real egui pass can produce,
+/// as opposed to the parts that app logic can also produce (see [`crate::Context::run_logic`]).
+#[derive(Clone, Default)]
+pub struct PassOutput {
     /// Texture changes since last frame (including the font texture).
     ///
     /// The backend needs to apply [`crate::TexturesDelta::push`] _before_ painting,
@@ -39,20 +105,18 @@ pub struct FullOutput {
     pub viewport_output: OrderedViewportIdMap<ViewportOutput>,
 }
 
-impl FullOutput {
+impl PassOutput {
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
         use std::collections::btree_map::Entry;
 
         let Self {
-            platform_output,
             textures_delta,
             shapes,
             pixels_per_point,
             viewport_output,
         } = newer;
 
-        self.platform_output.append(platform_output);
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
         self.pixels_per_point = pixels_per_point; // Use latest
@@ -68,28 +132,6 @@ impl FullOutput {
             }
         }
     }
-
-    /// [`epaint::textures::TexturesDelta`] will panic when dropped with still unapplied deltas,
-    /// this is a helper to clear the deltas.
-    pub fn drop_without_applying_deltas(mut self) {
-        self.textures_delta.clear();
-    }
-}
-
-/// What egui emits from [`crate::Context::run_logic`], i.e. from a tick where no ui was shown.
-///
-/// There is nothing to paint, but the app may still have asked the integration to do things,
-/// e.g. to show a hidden window again with [`crate::ViewportCommand::Focus`].
-#[derive(Clone, Default)]
-pub struct LogicOutput {
-    /// Non-rendering related output.
-    pub platform_output: PlatformOutput,
-
-    /// The commands sent with [`crate::Context::send_viewport_cmd`] and friends.
-    ///
-    /// Note that this contains no information about which viewports exist:
-    /// the integration should leave its viewports as they are.
-    pub viewport_commands: OrderedViewportIdMap<Vec<crate::ViewportCommand>>,
 }
 
 /// Information about text being edited.

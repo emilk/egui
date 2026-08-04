@@ -264,10 +264,13 @@ impl egui::Plugin for InspectionPlugin {
             return;
         }
 
-        let immediate_repaint = output
+        let pass_output = output.expect_pass();
+
+        let immediate_repaint = pass_output
             .viewport_output
             .values()
             .any(|viewport| viewport.repaint_delay == Duration::ZERO);
+        let pixels_per_point = pass_output.pixels_per_point;
 
         let step = self.step;
         self.in_flight
@@ -276,7 +279,7 @@ impl egui::Plugin for InspectionPlugin {
                     if let Some(reply) = item.reply.take() {
                         reply(Response::Tree {
                             step,
-                            pixels_per_point: output.pixels_per_point,
+                            pixels_per_point,
                             accesskit: output.platform_output.accesskit_update.clone(),
                         });
                     }

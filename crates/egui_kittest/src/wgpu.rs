@@ -178,7 +178,8 @@ impl crate::TestRenderer for WgpuTestRenderer {
             size_in_pixels: [size.x.round() as u32, size.y.round() as u32],
         };
 
-        let tessellated = ctx.tessellate(output.shapes.clone(), ctx.pixels_per_point());
+        let tessellated =
+            ctx.tessellate(output.expect_pass().shapes.clone(), ctx.pixels_per_point());
 
         let user_buffers = renderer.update_buffers(
             &self.render_state.device,
