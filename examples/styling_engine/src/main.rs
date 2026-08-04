@@ -1,102 +1,164 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
+//! A small styling engine: a custom [`StyleProvider`] that styles every [`egui::Button`]
+//! based on the _classes_ set on it, and that can be edited live.
+
 use eframe::egui::{
-    self, Button, Frame, Margin, Panel, UiBuilder,
-    theme::ThemeCache,
-    widget_style::{ButtonStyle, HasClasses as _},
+    self, CentralPanel, Color32, Frame, Panel,
+    theme::StyleProvider,
+    widget_style::{BaseStyle, ButtonStyle, HasClasses as _, StyleArgs, WidgetState},
 };
 
-use crate::custom_engine::ESSEngine;
+/// Buttons with this class are styled as a destructive action.
+const DANGER: &str = "danger";
 
-mod custom_engine;
+/// Our styling engine: it decides what every button looks like.
+#[derive(Clone, Copy, PartialEq)]
+struct MyTheme {
+    normal: Color32,
+    danger: Color32,
+    corner_radius: u8,
+}
+
+impl MyTheme {
+    fn preset(preset: Preset) -> Self {
+        match preset {
+            Preset::Ocean => Self {
+                normal: Color32::from_rgb(0x1E, 0x5A, 0x8A),
+                danger: Color32::from_rgb(0x9B, 0x2C, 0x2C),
+                corner_radius: 4,
+            },
+            Preset::Candy => Self {
+                normal: Color32::from_rgb(0xB8, 0x3B, 0x9E),
+                danger: Color32::from_rgb(0xD9, 0x6A, 0x1F),
+                corner_radius: 16,
+            },
+        }
+    }
+}
+
+impl StyleProvider<ButtonStyle> for MyTheme {
+    fn style(&mut self, args: &StyleArgs<'_>) -> ButtonStyle {
+        let StyleArgs {
+            classes,
+            state,
+            ctx,
+            ..
+        } = args;
+
+        // Start from the style egui computed for a generic widget, so we inherit e.g. the font:
+        let base: BaseStyle = ctx.get_widget_style(args);
+
+        let fill = if classes.has(DANGER) {
+            self.danger
+        } else {
+            self.normal
+        };
+
+        // React to what the user is doing with the button:
+        let fill = match state {
+            WidgetState::Hovered => fill.gamma_multiply(1.4),
+            WidgetState::Active => fill.gamma_multiply(0.7),
+            _ => fill,
+        };
+
+        ButtonStyle {
+            frame: Frame::new()
+                .fill(fill)
+                .corner_radius(self.corner_radius)
+                .inner_margin(8),
+            text_style: base.text,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Preset {
+    Ocean,
+    Candy,
+}
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([600.0, 400.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([600.0, 340.0]),
         ..Default::default()
     };
 
-    let mut style_code = "
-.red {
-    fill: #f00;
-}
+    let mut preset = Preset::Ocean;
+    let mut theme = MyTheme::preset(preset);
+    let mut last_click = "nothing";
 
-.blue {
-    fill: #00f;
-    border: 10;
-}
-"
-    .to_owned();
+    eframe::run_ui_native("Styling engine", options, move |ui, _frame| {
+        // Register our theme for all buttons. This is a no-op after the first frame.
+        // Wrap it in a `ThemeCache` if computing the style is expensive.
+        ui.add_widget_theme::<ButtonStyle>(theme);
 
-    let mut toggled = false;
+        Panel::left("controls").default_size(260.0).show(ui, |ui| {
+            // The custom theme inherits the text color from egui's light/dark theme:
+            egui::global_theme_preference_buttons(ui);
 
-    eframe::run_ui_native("My egui App", options, move |ui, _frame| {
-        // Register the theme plugin and which style they implement
-        if let Ok(engine) = ESSEngine::try_parse(&style_code) {
-            ui.add_widget_theme::<ButtonStyle>(ThemeCache::new(engine));
-        }
+            ui.separator();
 
-        ui.scope_builder(UiBuilder::new().with_class("body"), |ui| {
-            ui.label("body");
-            ui.label("central panel");
+            ui.heading("Button theme");
 
-            Panel::left("style_code").show(ui, |ui| {
-                ui.scope_builder(UiBuilder::new().with_class("panel_left"), |ui| {
-                    ui.label(
-                        "Live editor\n(type color hex to change the color of the dynamic button)",
-                    );
+            let mut changed = false;
 
-                    if ui.text_edit_multiline(&mut style_code).changed()
-                        && let Ok(engine) = ESSEngine::try_parse(&style_code)
-                    {
-                        // Overwrite the current theme with the new one.clear
-                        ui.replace_widget_theme::<ButtonStyle>(engine);
-                    }
-                });
-            });
-
-            ui.scope_builder(UiBuilder::new().with_class("grid"), |ui| {
-                Frame::new().inner_margin(Margin::same(10)).show(ui, |ui| {
-                    ui.scope_builder(UiBuilder::new().with_class("frame1"), |ui| {
-                        let mut parent = Some(ui.stack());
-                        let mut text = vec![];
-                        let mut i: i32 = 0;
-                        while let Some(p) = parent {
-                            text.push(format!(
-                                "{}{}class : '{}', kind : {:?}",
-                                " ".repeat((2 * 0_i32.max(i - 1) + 1.min(i)) as usize),
-                                if i > 0 { "\\- " } else { "" },
-                                p.classes,
-                                p.kind()
-                            ));
-                            i += 1;
-                            parent = p.parent.as_ref();
-                        }
-                        ui.label(format!(
-                            "Current hierarchy (child to root):\n{}",
-                            text.join("\n")
-                        ));
-                    })
+            egui::ComboBox::from_label("Preset")
+                .selected_text(match preset {
+                    Preset::Ocean => "Ocean",
+                    Preset::Candy => "Candy",
                 })
-            });
+                .show_ui(ui, |ui| {
+                    changed |= ui
+                        .selectable_value(&mut preset, Preset::Ocean, "Ocean")
+                        .changed();
+                    changed |= ui
+                        .selectable_value(&mut preset, Preset::Candy, "Candy")
+                        .changed();
+                });
+            if changed {
+                theme = MyTheme::preset(preset);
+            }
 
-            ui.add(Button::new("Normal"));
-            ui.add(Button::new("red").with_class("red"));
-            ui.add(Button::new("blue").with_class("blue"));
-            ui.add(Button::new("dynamic in engine A").with_class("dynamic"));
+            ui.horizontal(|ui| {
+                changed |= ui.color_edit_button_srgba(&mut theme.normal).changed();
+                ui.label("Normal");
+            });
+            ui.horizontal(|ui| {
+                changed |= ui.color_edit_button_srgba(&mut theme.danger).changed();
+                ui.label("Danger");
+            });
+            changed |= ui
+                .add(egui::Slider::new(&mut theme.corner_radius, 0..=24).text("Corner radius"))
+                .changed();
+
+            if changed {
+                // Overwrite the registered theme with the edited one:
+                ui.replace_widget_theme::<ButtonStyle>(theme);
+            }
+        });
+
+        CentralPanel::default().show(ui, |ui| {
+            ui.heading("Buttons");
+            ui.label("All buttons below are styled by the custom theme.");
+            ui.add_space(8.0);
+
+            if ui.button("Save").clicked() {
+                last_click = "Save";
+            }
+            ui.add_space(4.0);
             if ui
-                .add(
-                    Button::new("red/blue")
-                        .with_class_if("red", toggled)
-                        .with_class_if("blue", !toggled),
-                )
+                .add(egui::Button::new("Delete everything").with_class(DANGER))
                 .clicked()
             {
-                toggled = !toggled;
+                last_click = "Delete everything";
             }
+
+            ui.add_space(8.0);
+            ui.label(format!("Last clicked: {last_click}"));
         });
     })
 }

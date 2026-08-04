@@ -17,4 +17,3 @@ eframe = { workspace = true, features = [
   "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
 env_logger = { workspace = true, features = ["auto-color", "humantime"] }
-logos = "0.16.1"
