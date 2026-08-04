@@ -156,11 +156,12 @@ pub struct EpiIntegration {
     pub beginning: Instant,
     is_first_frame: bool,
     pub egui_ctx: egui::Context,
-    pending_full_output: egui::FullOutput,
 
     /// Input that we have received, but not yet given to egui,
     /// because we haven't run any pass since (see [`Self::update_logic_only`]).
     pending_raw_input: egui::RawInput,
+
+    pending_full_output: egui::FullOutput,
 
     /// When set, it is time to close the native window.
     close: bool,
@@ -219,8 +220,8 @@ impl EpiIntegration {
         Self {
             frame,
             last_auto_save: Instant::now(),
-            pending_full_output: Default::default(),
             pending_raw_input: Default::default(),
+            pending_full_output: Default::default(),
             close: false,
             can_drag_window: false,
             #[cfg(feature = "persistence")]
