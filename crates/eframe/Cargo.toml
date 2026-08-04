@@ -61,7 +61,7 @@ default_fonts = ["egui/default_fonts"]
 glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
-persistence = ["dep:home", "egui-winit/serde", "egui/persistence", "ron", "serde"]
+persistence = ["egui-winit/serde", "egui/persistence", "ron", "serde"]
 
 ## Enables wayland support and fixes clipboard issue.
 ##
@@ -165,7 +165,6 @@ glutin-winit = { workspace = true, optional = true, default-features = false, fe
   "egl",
   "wgl",
 ] }
-home = { workspace = true, optional = true }
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
@@ -210,7 +209,6 @@ image = { workspace = true, features = ["png"] } # For copying images
 js-sys.workspace = true
 percent-encoding.workspace = true
 wasm-bindgen.workspace = true
-wasm-bindgen-futures.workspace = true
 web-sys = { workspace = true, features = [
   "AddEventListenerOptions",
   "BinaryType",

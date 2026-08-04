@@ -61,7 +61,7 @@ impl crate::View for CodeEditor {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.label("Compile the demo with the ");
-                ui.code("syntax_highlighting");
+                ui.code("syntect");
                 ui.label(" feature to enable more accurate syntax highlighting using ");
                 ui.hyperlink_to("syntect", "https://github.com/trishume/syntect");
                 ui.label(".");

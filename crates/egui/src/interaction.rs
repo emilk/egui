@@ -197,7 +197,19 @@ pub(crate) fn interact(
                 // This widget is sensitive to both clicks and drags.
                 // When the mouse first is pressed, it could be either,
                 // so we postpone the decision until we know.
-                input.pointer.is_decidedly_dragging()
+                //
+                // …unless a click is no longer possible at all: a click has to be
+                // released on the widget, and `hits.click` tells us whether the
+                // pointer is still somewhere a release would land on this widget.
+                // Note that this is not the same as being inside `interact_rect`:
+                // the hit-test also picks up widgets within `interact_radius`, and
+                // lets a widget on top take the hit.
+                //
+                // Deciding here means a thin drag handle (narrower than
+                // `max_click_dist`) doesn't spend the decision window as neither
+                // hovered nor dragged, which would make its highlight blink out.
+                let could_still_be_clicked = hits.click.is_some_and(|hit| hit.id == widget.id);
+                input.pointer.is_decidedly_dragging() || !could_still_be_clicked
             } else {
                 // This widget is just sensitive to drags, so we can mark it as dragged right away:
                 widget.sense.senses_drag()

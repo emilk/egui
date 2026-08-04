@@ -309,6 +309,12 @@ impl Response {
     ///
     /// In contrast to [`Self::contains_pointer`], this will be `false` whenever some other widget is being dragged.
     /// `hovered` is always `false` for disabled widgets.
+    ///
+    /// While a widget is being clicked or dragged it is the only hovered widget,
+    /// so this stays `true` even after the pointer moves off it. Together with
+    /// how [`Self::dragged`] resolves a press that leaves the widget, that means
+    /// `hovered() || dragged()` holds for a whole press-drag-release gesture,
+    /// which is what you want for highlighting something like a drag handle.
     #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.flags.contains(Flags::HOVERED)
@@ -403,11 +409,21 @@ impl Response {
     /// To find out which button(s), use [`Self::dragged_by`].
     ///
     /// If the widget is only sensitive to drags, this is `true` as soon as the pointer presses down on it.
-    /// If the widget also senses clicks, this won't be true until the pointer has moved a bit,
-    /// or the user has pressed down for long enough.
+    ///
+    /// If the widget also senses clicks, the press could be either, so the
+    /// decision is postponed until whichever of these comes first:
+    /// * the pointer moves further than [`crate::InputOptions::max_click_dist`],
+    /// * it is held longer than [`crate::InputOptions::max_click_duration`],
+    /// * or it leaves the widget — a click has to be released on the widget, so
+    ///   once the pointer is outside, the gesture can only be a drag. This is what
+    ///   keeps a handle thinner than `max_click_dist` from spending the decision
+    ///   window as neither hovered nor dragged.
+    ///
     /// See [`crate::input_state::PointerState::is_decidedly_dragging`] for details.
     ///
-    /// If you want to avoid the delay, use [`Self::is_pointer_button_down_on`] instead.
+    /// While the decision is pending the pointer is still on the widget, so
+    /// [`Self::hovered`] is `true` throughout. If you want neither the delay nor
+    /// the distinction, use [`Self::is_pointer_button_down_on`].
     ///
     /// If the widget is NOT sensitive to drags, this will always be `false`.
     /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
@@ -571,6 +587,9 @@ impl Response {
     /// even when dragging outside the widget.
     ///
     /// This could also be thought of as "is this widget being interacted with?".
+    ///
+    /// Unlike [`Self::dragged`], this is `true` from the press frame onwards, with
+    /// no click-versus-drag decision window.
     #[inline(always)]
     pub fn is_pointer_button_down_on(&self) -> bool {
         self.flags.contains(Flags::IS_POINTER_BUTTON_DOWN_ON)
