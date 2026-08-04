@@ -280,7 +280,34 @@ impl AppRunner {
             .and_then(|v| v.visible())
             .unwrap_or(true);
 
-        if !is_visible {
+        if is_visible {
+            // `App::logic` may not show any ui, so it is called outside of the pass:
+            self.app.logic(&self.egui_ctx, &mut self.frame);
+
+            let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
+                self.app.ui(ui, &mut self.frame);
+            });
+            let egui::FullOutput {
+                platform_output,
+                textures_delta,
+                shapes,
+                pixels_per_point,
+                viewport_output,
+            } = full_output;
+
+            if viewport_output.len() > 1 {
+                log::warn!("Multiple viewports not yet supported on the web");
+            }
+            self.handle_viewport_commands(
+                viewport_output
+                    .into_values()
+                    .flat_map(|viewport_output| viewport_output.commands),
+            );
+
+            self.handle_platform_output(platform_output);
+            self.textures_delta.append(textures_delta);
+            self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+        } else {
             // The tab is hidden, so we run no egui pass at all.
             // That way all ui state is left untouched, and is still there
             // when the tab is shown again.
@@ -297,35 +324,7 @@ impl AppRunner {
 
             self.handle_viewport_commands(viewport_commands.into_values().flatten());
             self.handle_platform_output(platform_output);
-            return;
         }
-
-        // `App::logic` may not show any ui, so it is called outside of the pass:
-        self.app.logic(&self.egui_ctx, &mut self.frame);
-
-        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
-            self.app.ui(ui, &mut self.frame);
-        });
-        let egui::FullOutput {
-            platform_output,
-            textures_delta,
-            shapes,
-            pixels_per_point,
-            viewport_output,
-        } = full_output;
-
-        if viewport_output.len() > 1 {
-            log::warn!("Multiple viewports not yet supported on the web");
-        }
-        self.handle_viewport_commands(
-            viewport_output
-                .into_values()
-                .flat_map(|viewport_output| viewport_output.commands),
-        );
-
-        self.handle_platform_output(platform_output);
-        self.textures_delta.append(textures_delta);
-        self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
     }
 
     fn handle_viewport_commands(&mut self, commands: impl Iterator<Item = ViewportCommand>) {
