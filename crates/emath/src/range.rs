@@ -170,6 +170,14 @@ impl From<&RangeInclusive<f32>> for Rangef {
     }
 }
 
+/// Makes specifying size ranges slightly more convenient (no need for the extra `.0` suffixes)
+impl From<RangeInclusive<i32>> for Rangef {
+    #[inline]
+    fn from(range: RangeInclusive<i32>) -> Self {
+        Self::new(*range.start() as _, *range.end() as _)
+    }
+}
+
 impl From<RangeFrom<f32>> for Rangef {
     #[inline]
     fn from(range: RangeFrom<f32>) -> Self {
