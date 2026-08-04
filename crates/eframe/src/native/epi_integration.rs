@@ -284,23 +284,20 @@ impl EpiIntegration {
 
         let is_root_viewport = viewport_ui_cb.is_none();
 
-        if is_root_viewport {
-            // Note that this is _not_ inside the pass below:
-            // `App::logic` may not show any ui, and should not affect any ui state.
-            profiling::scope!("App::logic");
-            app.logic(&self.egui_ctx, &mut self.frame);
-        }
-
-        // Anything `App::logic` asked for (viewport commands etc) is still in the
-        // `Context`, and will come out of the pass we are about to run.
         let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
                 profiling::scope!("viewport_callback");
                 viewport_ui_cb(ui);
             } else {
-                profiling::scope!("App::ui");
-                app.ui(ui, &mut self.frame);
+                {
+                    profiling::scope!("App::logic");
+                    app.logic(ui.ctx(), &mut self.frame);
+                }
+                {
+                    profiling::scope!("App::ui");
+                    app.ui(ui, &mut self.frame);
+                }
             }
         });
 

@@ -900,9 +900,10 @@ impl Context {
     /// no widget state is garbage-collected, no animation advances,
     /// and nothing loses focus.
     ///
-    /// Of `new_input`, only [`RawInput::viewports`] is used: `f` can learn about the state of
-    /// the windows with [`InputState::viewport`], but the ui input (events, time, …)
-    /// is left as it was, and should be given to the next call to [`Self::run_ui`].
+    /// Of `new_input`, only the window state ([`RawInput::viewports`] and
+    /// [`RawInput::focused`]) is used, so that `f` can tell that the window is hidden.
+    /// The ui input (events, time, …) is _not_ interpreted, and is left for the next
+    /// call to [`Self::run_ui`]: [`Self::input`] is otherwise still that of the last pass.
     ///
     /// The returned [`LogicOutput`] is what [`FullOutput`] would have carried:
     /// anything `f` asked the integration to do.
@@ -918,7 +919,7 @@ impl Context {
             // reaches the integration instead of being considered already served:
             ctx.begin_pass_repaint_logic(viewport_id);
 
-            // Tell the app about the windows, but leave the ui input alone:
+            // Tell `f` about the windows, but leave the ui input alone:
             let raw = &mut ctx.viewport_for(viewport_id).input.raw;
             raw.viewport_id = viewport_id;
             raw.viewports = new_input.viewports.clone();

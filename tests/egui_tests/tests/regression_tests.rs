@@ -630,8 +630,12 @@ fn run_logic_should_not_disturb_ui_state() {
 
     // The window is now occluded, so the integration runs no pass,
     // and only ticks the app logic:
-    for _ in 0..2 {
-        let mut raw_input = egui::RawInput::default();
+    for i in 0..2 {
+        let time = 100.0 + f64::from(i);
+        let mut raw_input = egui::RawInput {
+            time: Some(time),
+            ..Default::default()
+        };
         raw_input
             .viewports
             .entry(egui::ViewportId::ROOT)
@@ -643,6 +647,10 @@ fn run_logic_should_not_disturb_ui_state() {
                 ctx.input(|i| i.viewport().occluded),
                 Some(true),
                 "App logic should be able to tell that the window is occluded"
+            );
+            assert!(
+                ctx.input(|i| i.time) != time,
+                "The ui input should not be interpreted: it is for the next pass"
             );
 
             // The app asks to be shown again:

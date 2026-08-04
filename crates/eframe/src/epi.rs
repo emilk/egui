@@ -155,6 +155,12 @@ pub trait App {
     ///
     /// You may NOT show any ui or do any painting during the call to [`Self::logic`].
     ///
+    /// While the window is hidden, `eframe` runs no egui pass at all (so that no ui state is
+    /// disturbed), and calls this via [`egui::Context::run_logic`] instead.
+    /// You can then still tell that the window is hidden with
+    /// [`egui::InputState::viewport`], but the rest of [`egui::Context::input`]
+    /// (events, time, …) is that of the last shown frame.
+    ///
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force another call to [`Self::logic`], call [`egui::Context::request_repaint`] at any time (e.g. from another thread).

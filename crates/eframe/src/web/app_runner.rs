@@ -281,10 +281,8 @@ impl AppRunner {
             .unwrap_or(true);
 
         if is_visible {
-            // `App::logic` may not show any ui, so it is called outside of the pass:
-            self.app.logic(&self.egui_ctx, &mut self.frame);
-
             let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
+                self.app.logic(ui.ctx(), &mut self.frame);
                 self.app.ui(ui, &mut self.frame);
             });
             let egui::FullOutput {
