@@ -909,24 +909,24 @@ impl Context {
     /// anything `f` asked the integration to do.
     /// There is nothing to paint.
     #[must_use]
-    pub fn run_logic(&self, new_input: &RawInput, f: impl FnOnce(&Self)) -> LogicOutput {
+    pub fn run_logic(&self, new_input: &RawInput, logic: impl FnOnce(&Self)) -> LogicOutput {
         profiling::function_scope!();
 
         let viewport_id = new_input.viewport_id;
 
         self.write(|ctx| {
-            // Consume any outstanding repaint request, so that a new request from `f`
+            // Consume any outstanding repaint request, so that a new request from `logic`
             // reaches the integration instead of being considered already served:
             ctx.begin_pass_repaint_logic(viewport_id);
 
-            // Tell `f` about the windows, but leave the ui input alone:
+            // Tell `logic` about the windows, but leave the ui input alone:
             let raw = &mut ctx.viewport_for(viewport_id).input.raw;
             raw.viewport_id = viewport_id;
             raw.viewports = new_input.viewports.clone();
             raw.focused = new_input.focused;
         });
 
-        f(self);
+        logic(self);
 
         self.write(|ctx| LogicOutput {
             platform_output: std::mem::take(&mut ctx.viewport_for(viewport_id).output),
