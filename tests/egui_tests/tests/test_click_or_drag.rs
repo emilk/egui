@@ -7,28 +7,37 @@ use egui_kittest::Harness;
 /// Must match `InputOptions::max_click_dist`.
 const MAX_CLICK_DIST: f32 = 6.0;
 
+/// Must match `Interaction::interact_radius`.
+const INTERACT_RADIUS: f32 = 5.0;
+
 fn widget_id() -> Id {
     Id::new("click_and_drag")
 }
 
-/// A harness with one click-and-drag widget of the given size at the top-left,
-/// and a second one filling the rest.
+/// A harness with one click-and-drag widget of the given size at the top-left.
 ///
-/// The second one matters: without something under the pointer to take over the
-/// hover, the first widget keeps it even after the pointer leaves.
+/// If `with_background`, a second click-and-drag widget covers the whole area
+/// _beneath_ it. That one matters: without something under the pointer to take
+/// over the hover, the first widget keeps it even after the pointer leaves.
 ///
 /// Steps at 60Hz. The default `step_dt` of 0.25s would blow past
 /// `max_click_duration` within a couple of frames, turning every press into a
 /// drag before the distance rules get a chance to matter.
-fn harness_with_widget(size: Vec2) -> Harness<'static, ()> {
+fn harness_with_widget(size: Vec2, with_background: bool) -> Harness<'static, ()> {
     Harness::builder()
         .with_step_dt(1.0 / 60.0)
         .with_size(Vec2::new(300.0, 200.0))
         .build_ui(move |ui| {
+            if with_background {
+                // Allocated first, so it ends up _behind_ the widget under test.
+                ui.interact(
+                    ui.max_rect(),
+                    Id::new("background"),
+                    Sense::click_and_drag(),
+                );
+            }
             let rect = Rect::from_min_size(ui.max_rect().min, size);
             ui.interact(rect, widget_id(), Sense::click_and_drag());
-            ui.advance_cursor_after_rect(rect);
-            ui.allocate_response(ui.available_size(), Sense::click_and_drag());
         })
 }
 
@@ -50,8 +59,16 @@ fn widget_rect(harness: &Harness<'_, ()>) -> Rect {
         .rect
 }
 
-/// A press that leaves the widget can no longer become a click, so it counts as a
-/// drag right away — without waiting for `max_click_dist`.
+/// Press the primary button at `pos`, without releasing it.
+fn press_at(harness: &mut Harness<'_, ()>, pos: Pos2) {
+    harness.hover_at(pos);
+    harness.step();
+    harness.drag_at(pos);
+    harness.step();
+}
+
+/// Once a release can no longer land on the widget, the press can no longer become
+/// a click, so it counts as a drag right away — without waiting for `max_click_dist`.
 ///
 /// This matters for widgets thinner than `max_click_dist` (panel resize handles,
 /// say): waiting would leave them neither hovered nor dragged for a few frames,
@@ -59,14 +76,11 @@ fn widget_rect(harness: &Harness<'_, ()>) -> Rect {
 #[test]
 fn press_that_leaves_a_thin_widget_becomes_a_drag_immediately() {
     let size = Vec2::new(3.0, 100.0); // thinner than `max_click_dist`
-    let mut harness = harness_with_widget(size);
+    let mut harness = harness_with_widget(size, true);
     harness.step();
 
     let grab = widget_rect(&harness).center();
-    harness.hover_at(grab);
-    harness.step();
-    harness.drag_at(grab);
-    harness.step();
+    press_at(&mut harness, grab);
 
     let (hovered, dragged) = widget_state(&harness);
     assert!(hovered && !dragged, "the press starts out undecided");
@@ -101,14 +115,11 @@ fn press_that_leaves_a_thin_widget_becomes_a_drag_immediately() {
 /// but not yet dragged, so it can still become a click.
 #[test]
 fn press_inside_a_wide_widget_stays_undecided() {
-    let mut harness = harness_with_widget(Vec2::new(100.0, 100.0));
+    let mut harness = harness_with_widget(Vec2::new(100.0, 100.0), true);
     harness.step();
 
     let grab = widget_rect(&harness).center();
-    harness.hover_at(grab);
-    harness.step();
-    harness.drag_at(grab);
-    harness.step();
+    press_at(&mut harness, grab);
 
     // A 2px twitch: inside the widget, and inside `max_click_dist`.
     harness.hover_at(Pos2::new(grab.x + 2.0, grab.y));
@@ -122,17 +133,38 @@ fn press_inside_a_wide_widget_stays_undecided() {
     );
 }
 
+/// A press just _outside_ the widget still hits it, thanks to `interact_radius`.
+/// The pointer hasn't moved at all, so this must not count as leaving the widget.
+#[test]
+fn press_just_outside_a_widget_stays_undecided() {
+    // No background: we want the widget to win the hit-test from a distance.
+    let mut harness = harness_with_widget(Vec2::new(100.0, 100.0), false);
+    harness.step();
+
+    let rect = widget_rect(&harness);
+    let offset = INTERACT_RADIUS - 1.0;
+    let grab = Pos2::new(rect.right() + offset, rect.center().y);
+    press_at(&mut harness, grab);
+
+    let (hovered, dragged) = widget_state(&harness);
+    assert!(
+        hovered,
+        "a press within interact_radius still hits the widget"
+    );
+    assert!(
+        !dragged,
+        "the pointer never moved, so this press must still be able to become a click"
+    );
+}
+
 /// A press and release inside the widget is still a click, not a drag.
 #[test]
 fn click_inside_a_widget_still_clicks() {
-    let mut harness = harness_with_widget(Vec2::new(100.0, 100.0));
+    let mut harness = harness_with_widget(Vec2::new(100.0, 100.0), true);
     harness.step();
 
     let grab = widget_rect(&harness).center();
-    harness.hover_at(grab);
-    harness.step();
-    harness.drag_at(grab);
-    harness.step();
+    press_at(&mut harness, grab);
     // Release without `drop_at`, which would also fire `PointerGone` and so
     // discard the click.
     harness.event(egui::Event::PointerButton {
