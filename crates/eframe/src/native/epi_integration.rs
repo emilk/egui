@@ -331,16 +331,16 @@ impl EpiIntegration {
 
         let close_requested = raw_input.viewport().close_requested();
 
-        // No pass will consume the input, so save it for the next one:
+        let logic_output = self.egui_ctx.run_logic(&raw_input, |ctx| {
+            profiling::scope!("App::logic");
+            app.logic(ctx, &mut self.frame);
+        });
+
+        // No pass consumed the input, so save it for the next one:
         match &mut self.pending_raw_input {
             Some(pending) => pending.append(raw_input),
             None => self.pending_raw_input = Some(raw_input),
         }
-
-        let logic_output = self.egui_ctx.run_logic(|ctx| {
-            profiling::scope!("App::logic");
-            app.logic(ctx, &mut self.frame);
-        });
 
         if close_requested {
             let canceled = logic_output

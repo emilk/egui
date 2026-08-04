@@ -898,21 +898,32 @@ impl Context {
     /// No pass is run, so `f` must not show any ui.
     /// This means everything egui knows about the ui is left untouched:
     /// no widget state is garbage-collected, no animation advances,
-    /// nothing loses focus, and [`Self::input`] still refers to the last pass.
+    /// and nothing loses focus.
+    ///
+    /// Of `new_input`, only [`RawInput::viewports`] is used: `f` can learn about the state of
+    /// the windows with [`InputState::viewport`], but the ui input (events, time, …)
+    /// is left as it was, and should be given to the next call to [`Self::run_ui`].
     ///
     /// The returned [`LogicOutput`] is what [`FullOutput`] would have carried:
     /// anything `f` asked the integration to do.
     /// There is nothing to paint.
     #[must_use]
-    pub fn run_logic(&self, f: impl FnOnce(&Self)) -> LogicOutput {
+    pub fn run_logic(&self, new_input: &RawInput, f: impl FnOnce(&Self)) -> LogicOutput {
         profiling::function_scope!();
 
-        // Outside of a pass this is the root viewport:
-        let viewport_id = self.viewport_id();
+        let viewport_id = new_input.viewport_id;
 
-        // Consume any outstanding repaint request, so that a new request from `f`
-        // reaches the integration instead of being considered already served:
-        self.write(|ctx| ctx.begin_pass_repaint_logic(viewport_id));
+        self.write(|ctx| {
+            // Consume any outstanding repaint request, so that a new request from `f`
+            // reaches the integration instead of being considered already served:
+            ctx.begin_pass_repaint_logic(viewport_id);
+
+            // Tell the app about the windows, but leave the ui input alone:
+            let raw = &mut ctx.viewport_for(viewport_id).input.raw;
+            raw.viewport_id = viewport_id;
+            raw.viewports = new_input.viewports.clone();
+            raw.focused = new_input.focused;
+        });
 
         f(self);
 

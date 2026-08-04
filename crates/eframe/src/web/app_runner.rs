@@ -285,15 +285,15 @@ impl AppRunner {
             // That way all ui state is left untouched, and is still there
             // when the tab is shown again.
 
-            // No pass will consume the input, so save it for the next one:
-            self.input.raw.append(raw_input);
-
             let egui::LogicOutput {
                 platform_output,
                 viewport_commands,
-            } = self.egui_ctx.run_logic(|ctx| {
+            } = self.egui_ctx.run_logic(&raw_input, |ctx| {
                 self.app.logic(ctx, &mut self.frame);
             });
+
+            // No pass consumed the input, so save it for the next one:
+            self.input.raw.append(raw_input);
 
             self.handle_viewport_commands(viewport_commands.into_values().flatten());
             self.handle_platform_output(platform_output);
