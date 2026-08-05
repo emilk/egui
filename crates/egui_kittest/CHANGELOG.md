@@ -6,6 +6,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.0 - 2026-08-05
+* Handle `ViewportCommand::InnerSize` in `egui_kittest` [#8350](https://github.com/emilk/egui/pull/8350) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Report failing pixels by threshold when a kittest snapshot fails [#8360](https://github.com/emilk/egui/pull/8360) by [@emilk](https://github.com/emilk)
+* Rename `failed_pixel_count_threshold` to `max_failed_pixels` [#8383](https://github.com/emilk/egui/pull/8383) by [@emilk](https://github.com/emilk)
+
+
 ## 0.35.0 - 2026-06-25
 * Add `HarnessBuilder::with_render_options()` (closes #7630) [#8060](https://github.com/emilk/egui/pull/8060) by [@MichaelGrupp](https://github.com/MichaelGrupp)
 * Add `Harness::spawn_eframe_app` [#8120](https://github.com/emilk/egui/pull/8120) by [@emilk](https://github.com/emilk)

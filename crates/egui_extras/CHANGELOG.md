@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.0 - 2026-08-05
+Nothing new
+
+
 ## 0.35.0 - 2026-06-25
 * Improve FileLoader file uri to path handling for windows [#8163](https://github.com/emilk/egui/pull/8163) by [@aconbere](https://github.com/aconbere)
 * Add arbitrary request headers to `EhttpLoader` [#8121](https://github.com/emilk/egui/pull/8121) by [@frnsys](https://github.com/frnsys)
