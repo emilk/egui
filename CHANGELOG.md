@@ -18,6 +18,9 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 ### Highlights ✨
 
+This release drastically improves the mobile keyboard experience (when using eframe web). It also adds drag-to-open 
+panels, window chrome theme sync and a lot of small bug fixes and improvements! 
+
 #### Improved mobile keyboard support
 
 Autocomplete, autocorrect and IMEs now work correctly on iOS and android (on eframe web)!
