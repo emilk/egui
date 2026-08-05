@@ -7,6 +7,20 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.0 - 2026-08-05
+### 🔧 Changed
+* Improve robustness of text input handling for `eframe/web` [#8045](https://github.com/emilk/egui/pull/8045) by [@umajho](https://github.com/umajho)
+* Eframe: make webbrowser dependency optional [#8372](https://github.com/emilk/egui/pull/8372) by [@wyvernbw](https://github.com/wyvernbw)
+* Store `web_sys::File` inside of `DroppedFile` [#8354](https://github.com/emilk/egui/pull/8354) by [@grtlr](https://github.com/grtlr)
+
+### 🐛 Fixed
+* Web: don't scroll host page when text agent or canvas grabs focus [#8296](https://github.com/emilk/egui/pull/8296) by [@emilk](https://github.com/emilk)
+* Fix missing modifier events on eframe web, handle physical keys [#8345](https://github.com/emilk/egui/pull/8345) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Web: Avoid panic from lost texture updates when loaded on a background tab [#8313](https://github.com/emilk/egui/pull/8313) by [@kevinmehall](https://github.com/kevinmehall)
+* Web: anchor the text agent to the canvas [#8297](https://github.com/emilk/egui/pull/8297) by [@emilk](https://github.com/emilk)
+* Never run an egui pass when nothing will be shown [#8387](https://github.com/emilk/egui/pull/8387) by [@emilk](https://github.com/emilk)
+
+
 ## 0.35.0 - 2026-06-25
 ### ⭐ Added
 * Add Context::set_cursor_image for OS-level custom cursors [#8155](https://github.com/emilk/egui/pull/8155) by [@all3f0r1](https://github.com/all3f0r1)
