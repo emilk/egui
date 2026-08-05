@@ -269,7 +269,7 @@ impl Label {
                 Align::Center => extra_text_line_spacing / 2.0,
                 Align::BOTTOM => extra_text_line_spacing,
             };
-            galley_pos.y = galley_pos.y + valign_offset;
+            galley_pos.y += valign_offset;
 
             (galley_pos, galley, response)
         }
