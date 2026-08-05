@@ -105,3 +105,12 @@ wayland-cursor = { workspace = true, optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 arboard = { workspace = true, optional = true, features = ["image-data"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { workspace = true, features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Dwm",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_HiDpi",
+  "Win32_UI_WindowsAndMessaging",
+] }

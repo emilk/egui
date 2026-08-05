@@ -194,9 +194,17 @@ impl<'app> GlowWinitApp<'app> {
         event_loop: &ActiveEventLoop,
         storage: Option<&dyn Storage>,
         native_options: &mut NativeOptions,
-    ) -> Result<(GlutinWindowContext, egui_glow::Painter)> {
+    ) -> Result<(
+        GlutinWindowContext,
+        egui_glow::Painter,
+        Option<egui_winit::WindowSettings>,
+    )> {
         profiling::function_scope!();
-        let window_settings = epi_integration::load_window_settings(storage);
+        let window_settings = if native_options.persist_window {
+            epi_integration::load_window_settings(storage)
+        } else {
+            None
+        };
 
         let winit_window_builder = epi_integration::viewport_builder(
             egui_ctx.zoom_factor(),
@@ -204,7 +212,8 @@ impl<'app> GlowWinitApp<'app> {
             native_options,
             window_settings,
         )
-        .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
+        // Hidden until first present — https://github.com/emilk/egui/pull/3631
+        .with_visible(false);
 
         let mut glutin_window_context = unsafe {
             GlutinWindowContext::new(egui_ctx, winit_window_builder, native_options, event_loop)?
@@ -236,7 +245,7 @@ impl<'app> GlowWinitApp<'app> {
             native_options.dithering,
         )?;
 
-        Ok((glutin_window_context, painter))
+        Ok((glutin_window_context, painter, window_settings))
     }
 
     fn init_run_state(
@@ -262,7 +271,7 @@ impl<'app> GlowWinitApp<'app> {
             .take()
             .unwrap_or_else(|| create_egui_context(storage.as_deref()));
 
-        let (mut glutin, painter) = Self::create_glutin_windowed_context(
+        let (mut glutin, painter, window_settings) = Self::create_glutin_windowed_context(
             &egui_ctx,
             event_loop,
             storage.as_deref(),
@@ -286,6 +295,8 @@ impl<'app> GlowWinitApp<'app> {
             &self.app_name,
             &self.native_options,
             storage,
+            #[cfg(feature = "persistence")]
+            window_settings,
             Some(Arc::clone(&gl)),
             Some(Box::new({
                 let painter = Rc::clone(&painter);
@@ -835,7 +846,7 @@ impl GlowWinitRunning<'_> {
                     }
                 }
 
-                integration.post_rendering(&window);
+                integration.post_rendering();
             }
 
             {
@@ -848,7 +859,10 @@ impl GlowWinitRunning<'_> {
                     )
                 })?;
 
+                // Show before present so the first visible frame has pixels.
+                let revealed = integration.reveal_after_present(&window);
                 gl_surface.swap_buffers(context)?;
+                epi_integration::EpiIntegration::finish_reveal_after_present(&window, revealed);
                 frame_timer.resume();
             }
 
