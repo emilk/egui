@@ -1,5 +1,5 @@
-# Changelog for egui_kittest
-All notable changes to the `egui_kittest` crate will be noted in this file.
+# Changelog for egui_inspection
+All notable changes to the `egui_inspection` crate will be noted in this file.
 
 
 This file is updated upon each release.
