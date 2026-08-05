@@ -467,7 +467,7 @@ pub use self::{
         Key, UserData,
         input::*,
         output::{
-            self, CursorIcon, CustomCursorImage, FullOutput, OpenUrl, OutputCommand,
+            self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
             PlatformOutput, UserAttentionType, WidgetInfo,
         },
     },

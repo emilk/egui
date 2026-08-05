@@ -156,6 +156,11 @@ pub struct EpiIntegration {
     pub beginning: Instant,
     is_first_frame: bool,
     pub egui_ctx: egui::Context,
+
+    /// Input that we have received, but not yet given to egui,
+    /// because we haven't run any pass since (see [`Self::update_logic_only`]).
+    pending_raw_input: egui::RawInput,
+
     pending_full_output: egui::FullOutput,
 
     /// When set, it is time to close the native window.
@@ -215,6 +220,7 @@ impl EpiIntegration {
         Self {
             frame,
             last_auto_save: Instant::now(),
+            pending_raw_input: Default::default(),
             pending_full_output: Default::default(),
             close: false,
             can_drag_window: false,
@@ -262,57 +268,109 @@ impl EpiIntegration {
 
     /// Run user code - this can create immediate viewports, so hold no locks over this!
     ///
-    /// If `viewport_ui_cb` is None, we are in the root viewport and will call [`crate::App::ui`].
+    /// If `viewport_ui_cb` is None, we are in the root viewport and will call
+    /// [`crate::App::logic`] and [`crate::App::ui`].
+    ///
+    /// Only call this when the ui will actually be shown;
+    /// use [`Self::update_logic_only`] otherwise.
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
         viewport_ui_cb: Option<&DeferredViewportUiCallback>,
-        mut raw_input: egui::RawInput,
-        is_visible: bool,
+        raw_input: egui::RawInput,
     ) -> egui::FullOutput {
-        raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
+        let raw_input = self.prepare_raw_input(app, raw_input);
 
         let close_requested = raw_input.viewport().close_requested();
 
-        app.raw_input_hook(&self.egui_ctx, &mut raw_input);
+        let is_root_viewport = viewport_ui_cb.is_none();
 
         let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
-                if is_visible {
-                    profiling::scope!("viewport_callback");
-                    viewport_ui_cb(ui);
-                }
+                profiling::scope!("viewport_callback");
+                viewport_ui_cb(ui);
             } else {
                 {
                     profiling::scope!("App::logic");
                     app.logic(ui.ctx(), &mut self.frame);
                 }
-
-                if is_visible {
-                    {
-                        profiling::scope!("App::ui");
-                        app.ui(ui, &mut self.frame);
-                    }
+                {
+                    profiling::scope!("App::ui");
+                    app.ui(ui, &mut self.frame);
                 }
             }
         });
 
-        let is_root_viewport = viewport_ui_cb.is_none();
         if is_root_viewport && close_requested {
             let canceled = full_output.viewport_output[&ViewportId::ROOT]
                 .commands
                 .contains(&egui::ViewportCommand::CancelClose);
-            if canceled {
-                log::debug!("Closing of root viewport canceled with ViewportCommand::CancelClose");
-            } else {
-                log::debug!("Closing root viewport (ViewportCommand::CancelClose was not sent)");
-                self.close = true;
-            }
+            self.handle_close_request(canceled);
         }
 
         self.pending_full_output.append(full_output);
         std::mem::take(&mut self.pending_full_output)
+    }
+
+    /// Let the app tick its logic without showing any ui,
+    /// because the window is minimized or occluded.
+    ///
+    /// No egui pass is run, so all ui state is left untouched:
+    /// the app will find everything where it left it once the window is visible again.
+    ///
+    /// Only call this for the root viewport: only it has [`crate::App::logic`].
+    pub fn update_logic_only(
+        &mut self,
+        app: &mut dyn epi::App,
+        raw_input: egui::RawInput,
+    ) -> egui::LogicOutput {
+        let raw_input = self.prepare_raw_input(app, raw_input);
+
+        let close_requested = raw_input.viewport().close_requested();
+
+        let logic_output = self.egui_ctx.run_logic(&raw_input, |ctx| {
+            profiling::scope!("App::logic");
+            app.logic(ctx, &mut self.frame);
+        });
+
+        // No pass consumed the input, so save it for the next one:
+        self.pending_raw_input = raw_input;
+
+        if close_requested {
+            let canceled = logic_output
+                .viewport_commands
+                .get(&ViewportId::ROOT)
+                .is_some_and(|commands| commands.contains(&egui::ViewportCommand::CancelClose));
+            self.handle_close_request(canceled);
+        }
+
+        logic_output
+    }
+
+    /// Prepend any input we couldn't give to egui earlier, set the time, and run the app hook.
+    fn prepare_raw_input(
+        &mut self,
+        app: &mut dyn epi::App,
+        new_input: egui::RawInput,
+    ) -> egui::RawInput {
+        let mut raw_input = std::mem::take(&mut self.pending_raw_input);
+        raw_input.append(new_input); // The new input wins where they overlap
+
+        raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
+
+        app.raw_input_hook(&self.egui_ctx, &mut raw_input);
+
+        raw_input
+    }
+
+    fn handle_close_request(&mut self, canceled: bool) {
+        if canceled {
+            log::debug!("Closing of root viewport canceled with ViewportCommand::CancelClose");
+        } else {
+            log::debug!("Closing root viewport (ViewportCommand::CancelClose was not sent)");
+            self.close = true;
+        }
     }
 
     pub fn report_frame_time(&mut self, seconds: f32) {
