@@ -27,6 +27,7 @@ workspace = true
 [features]
 default = [
   "accesskit",
+  "clipboard",
   "default_fonts",
   "links",
   "wayland", # Required for Linux support (including CI!)
@@ -126,6 +127,10 @@ inspection = ["dep:egui_inspection", "accesskit"]
 ## Enables the `links` feature on `egui-winit`, allowing for links to open in browser.
 links = ["egui-winit/links"]
 
+## Enables the `clipboard` feature on `egui-winit`, allowing to cut/copy/paste to OS clipboard.
+## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+clipboard = ["egui-winit/clipboard"]
+
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 
@@ -149,7 +154,7 @@ serde = { workspace = true, optional = true }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, default-features = false, features = ["clipboard"] }
+egui-winit = { workspace = true, default-features = false }
 image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
