@@ -7,6 +7,8 @@
 //! Derived from <https://github.com/warrenm/AHEasing/blob/master/AHEasing/easing.c>.
 use std::f32::consts::PI;
 
+use crate::fast_midpoint;
+
 #[inline]
 fn powf(base: f32, exp: f32) -> f32 {
     base.powf(exp)
@@ -116,7 +118,7 @@ pub fn circular_in_out(t: f32) -> f32 {
     if t < 0.5 {
         0.5 * (1. - (1. - 4. * t * t).sqrt())
     } else {
-        0.5 * ((-(2. * t - 3.) * (2. * t - 1.)).sqrt() + 1.)
+        fast_midpoint((-(2. * t - 3.) * (2. * t - 1.)).sqrt(), 1.)
     }
 }
 
