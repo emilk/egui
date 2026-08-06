@@ -1,4 +1,4 @@
-use std::fmt::Write as _;
+use core::fmt::Write as _;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 

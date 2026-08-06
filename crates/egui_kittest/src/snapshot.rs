@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use core::fmt::Display;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 
@@ -305,7 +305,7 @@ const HOW_TO_UPDATE_SCREENSHOTS: &str =
     "Run `UPDATE_SNAPSHOTS=1 cargo test --all-features` to update the snapshots.";
 
 impl Display for SnapshotError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Diff {
                 name,
@@ -840,7 +840,7 @@ impl<State> Harness<'_, State> {
     /// This removes the snapshot results from the harness. Useful if you e.g. want to merge it
     /// with the results from another harness (using [`SnapshotResults::add`]).
     pub fn take_snapshot_results(&mut self) -> SnapshotResults {
-        std::mem::take(&mut self.snapshot_results)
+        core::mem::take(&mut self.snapshot_results)
     }
 }
 
@@ -872,7 +872,7 @@ impl<State> Harness<'_, State> {
 pub struct SnapshotResults {
     errors: Vec<SnapshotError>,
     handled: bool,
-    location: std::panic::Location<'static>,
+    location: core::panic::Location<'static>,
 }
 
 impl Default for SnapshotResults {
@@ -881,13 +881,13 @@ impl Default for SnapshotResults {
         Self {
             errors: Vec::new(),
             handled: true, // If no snapshots were added, we should consider this handled.
-            location: *std::panic::Location::caller(),
+            location: *core::panic::Location::caller(),
         }
     }
 }
 
 impl Display for SnapshotResults {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if self.errors.is_empty() {
             write!(f, "All snapshots passed")
         } else {
@@ -939,7 +939,7 @@ impl SnapshotResults {
     /// Consume this and return the list of errors.
     pub fn into_inner(mut self) -> Vec<SnapshotError> {
         self.handled = true;
-        std::mem::take(&mut self.errors)
+        core::mem::take(&mut self.errors)
     }
 
     /// Panics if there are any errors, displaying each.
@@ -968,7 +968,7 @@ impl Drop for SnapshotResults {
         }
 
         thread_local! {
-            static UNHANDLED_SNAPSHOT_RESULTS_COUNTER: std::cell::RefCell<usize> = const { std::cell::RefCell::new(0) };
+            static UNHANDLED_SNAPSHOT_RESULTS_COUNTER: core::cell::RefCell<usize> = const { core::cell::RefCell::new(0) };
         }
 
         if !self.handled {

@@ -382,7 +382,7 @@ impl FontFace {
         font_data: Blob,
         index: u32,
         tweak: FontTweak,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> Result<Self, Box<dyn core::error::Error>> {
         let font = FontCell::try_new(font_data, |font_data| {
             let skrifa_font =
                 skrifa::FontRef::from_index(AsRef::<[u8]>::as_ref(font_data.as_ref()), index)?;
@@ -414,7 +414,7 @@ impl FontFace {
                 })
                 .flatten();
 
-            Ok::<DependentFontData<'_>, Box<dyn std::error::Error>>(DependentFontData {
+            Ok::<DependentFontData<'_>, Box<dyn core::error::Error>>(DependentFontData {
                 skrifa: skrifa_font,
                 charmap,
                 outline_glyphs: glyphs,
@@ -574,7 +574,7 @@ impl FontFace {
         let axes = font_data.skrifa.axes();
         // Override the default coordinates with ones specified via FontTweak, then the ones specified directly via the
         // argument (probably from TextFormat).
-        let settings = std::iter::chain(self.tweak.coords.as_ref(), coords.as_ref());
+        let settings = core::iter::chain(self.tweak.coords.as_ref(), coords.as_ref());
         let location = axes.location(settings);
         let location_hash = LocationHash::new(&location);
 

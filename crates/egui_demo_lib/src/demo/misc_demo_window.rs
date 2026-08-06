@@ -41,7 +41,7 @@ impl Default for MiscDemoWindow {
 
             dummy_bool: false,
             dummy_usize: 0,
-            checklist: std::array::from_fn(|i| i == 0),
+            checklist: core::array::from_fn(|i| i == 0),
         }
     }
 }
@@ -184,7 +184,7 @@ impl View for MiscDemoWindow {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
-                    use std::f32::consts::TAU;
+                    use core::f32::consts::TAU;
                     let size = Vec2::splat(16.0);
                     let (response, painter) = ui.allocate_painter(size, Sense::hover());
                     let rect = response.rect;
@@ -264,7 +264,7 @@ pub struct Widgets {
 impl Default for Widgets {
     fn default() -> Self {
         Self {
-            angle: std::f32::consts::TAU / 3.0,
+            angle: core::f32::consts::TAU / 3.0,
             password: "hunter2".to_owned(),
         }
     }
@@ -282,7 +282,7 @@ impl Widgets {
         ui.horizontal(|ui| {
             ui.label("An angle:");
             ui.drag_angle(angle);
-            ui.label(format!("≈ {:.3}τ", *angle / std::f32::consts::TAU))
+            ui.label(format!("≈ {:.3}τ", *angle / core::f32::consts::TAU))
                 .on_hover_text("Each τ represents one turn (τ = 2π)");
         })
         .response
@@ -421,7 +421,7 @@ impl Repaint {
             ctx.request_repaint();
         }
         if self.repaint_after_delay {
-            ctx.request_repaint_after(std::time::Duration::from_secs_f64(self.delay));
+            ctx.request_repaint_after(core::time::Duration::from_secs_f64(self.delay));
         }
     }
 }
@@ -623,7 +623,7 @@ impl Tree {
             return Action::Delete;
         }
 
-        self.0 = std::mem::take(self)
+        self.0 = core::mem::take(self)
             .0
             .into_iter()
             .enumerate()
@@ -897,7 +897,7 @@ impl Default for TextRotation {
 
 impl TextRotation {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.add(Slider::new(&mut self.angle, 0.0..=2.0 * std::f32::consts::PI).text("angle"));
+        ui.add(Slider::new(&mut self.angle, 0.0..=2.0 * core::f32::consts::PI).text("angle"));
 
         let default_color = if ui.visuals().dark_mode {
             Color32::LIGHT_GRAY

@@ -2,7 +2,7 @@
 
 #![expect(clippy::needless_range_loop)]
 
-use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
+use core::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
 use emath::GuiRounding as _;
 use epaint::{Color32, Direction, Margin, Shape};
@@ -930,7 +930,7 @@ impl ScrollArea {
 
         let saved_scroll_target = content_ui
             .ctx()
-            .pass_state_mut(|state| std::mem::take(&mut state.scroll_target));
+            .pass_state_mut(|state| core::mem::take(&mut state.scroll_target));
 
         Prepared {
             id,
@@ -985,7 +985,7 @@ impl ScrollArea {
         ui: &mut Ui,
         row_height_sans_spacing: f32,
         total_rows: usize,
-        add_contents: impl FnOnce(&mut Ui, std::ops::Range<usize>) -> R,
+        add_contents: impl FnOnce(&mut Ui, core::ops::Range<usize>) -> R,
     ) -> ScrollAreaOutput<R> {
         let spacing = ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
@@ -1093,7 +1093,7 @@ impl Prepared {
             if direction_enabled[d] {
                 let (scroll_delta, scroll_animation) = content_ui.ctx().pass_state_mut(|state| {
                     (
-                        std::mem::take(&mut state.scroll_delta.0[d]),
+                        core::mem::take(&mut state.scroll_delta.0[d]),
                         state.scroll_delta.1,
                     )
                 });

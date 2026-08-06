@@ -7,7 +7,7 @@
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
 #[cfg(target_arch = "wasm32")]
-use std::any::Any;
+use core::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
@@ -41,7 +41,7 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
-type DynError = Box<dyn std::error::Error + Send + Sync>;
+type DynError = Box<dyn core::error::Error + Send + Sync>;
 
 /// This is how your app is created.
 ///
@@ -73,7 +73,7 @@ pub struct CreationContext<'s> {
     /// The `get_proc_address` wrapper of underlying GL context
     #[cfg(feature = "glow")]
     pub get_proc_address:
-        Option<std::sync::Arc<dyn Fn(&std::ffi::CStr) -> *const std::ffi::c_void + Send + Sync>>,
+        Option<std::sync::Arc<dyn Fn(&core::ffi::CStr) -> *const core::ffi::c_void + Send + Sync>>,
 
     /// The underlying WGPU render state.
     ///
@@ -231,8 +231,8 @@ pub trait App {
     // Settings:
 
     /// Time between automatic calls to [`Self::save`]
-    fn auto_save_interval(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(30)
+    fn auto_save_interval(&self) -> core::time::Duration {
+        core::time::Duration::from_secs(30)
     }
 
     /// Background color values for the app, e.g. what is sent to `gl.clearColor`.
@@ -621,8 +621,8 @@ impl Default for Renderer {
 }
 
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-impl std::fmt::Display for Renderer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Renderer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             #[cfg(feature = "glow")]
             Self::Glow => "glow".fmt(f),
@@ -634,7 +634,7 @@ impl std::fmt::Display for Renderer {
 }
 
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-impl std::str::FromStr for Renderer {
+impl core::str::FromStr for Renderer {
     type Err = String;
 
     fn from_str(name: &str) -> Result<Self, String> {

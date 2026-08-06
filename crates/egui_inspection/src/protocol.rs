@@ -136,7 +136,7 @@ pub struct EncodedPng {
 /// Hard cap on a single framed message. Matches the sanity limit enforced by both ends.
 pub const MAX_MESSAGE_BYTES: usize = 256 * 1024 * 1024; // 256 MiB
 
-fn invalid_data(err: impl std::fmt::Display) -> io::Error {
+fn invalid_data(err: impl core::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, err.to_string())
 }
 

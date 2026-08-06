@@ -55,10 +55,10 @@ impl TextureWrapModeExt for egui::TextureWrapMode {
 #[derive(Debug)]
 pub struct PainterError(String);
 
-impl std::error::Error for PainterError {}
+impl core::error::Error for PainterError {}
 
-impl std::fmt::Display for PainterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for PainterError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "OpenGL: {}", self.0)
     }
 }
@@ -219,7 +219,7 @@ impl Painter {
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
 
-            let stride = std::mem::size_of::<Vertex>() as i32;
+            let stride = core::mem::size_of::<Vertex>() as i32;
             let buffer_infos = vec![
                 vao::BufferInfo {
                     location: a_pos_loc,

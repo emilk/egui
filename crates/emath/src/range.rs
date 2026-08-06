@@ -1,4 +1,4 @@
-use std::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
+use core::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 
 use crate::fast_midpoint;
 

@@ -1,4 +1,4 @@
-use std::iter::once;
+use core::iter::once;
 
 use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
 
@@ -483,12 +483,12 @@ impl<'a> Popup<'a> {
         RectAlign::find_best_align(
             #[expect(clippy::iter_on_empty_collections)]
             #[expect(clippy::or_fun_call)]
-            std::iter::chain(
+            core::iter::chain(
                 once(self.rect_align),
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or
-                    .map(|a| std::iter::chain(a.iter().copied(), [].iter().copied()))
-                    .unwrap_or(std::iter::chain(
+                    .map(|a| core::iter::chain(a.iter().copied(), [].iter().copied()))
+                    .unwrap_or(core::iter::chain(
                         self.rect_align.symmetries().iter().copied(),
                         RectAlign::MENU_ALIGNS.iter().copied(),
                     )),

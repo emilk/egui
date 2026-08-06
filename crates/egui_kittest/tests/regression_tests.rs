@@ -662,7 +662,7 @@ fn window_fixed_size_is_outer_size() {
 /// allowed size — they used to inherit the overflowing content rect.
 #[test]
 fn panel_rect_clamped_when_content_overflows() {
-    use std::cell::RefCell;
+    use core::cell::RefCell;
 
     let side_panel_width = 100.0_f32;
     let top_panel_height = 80.0_f32;
@@ -723,7 +723,7 @@ fn panel_rect_clamped_when_content_overflows() {
 /// portion of the panel.
 #[test]
 fn collapsing_panel_must_not_grow_enclosing_window() {
-    use std::cell::RefCell;
+    use core::cell::RefCell;
 
     let window_rect: RefCell<Option<Rect>> = RefCell::new(None);
     let is_expanded: RefCell<bool> = RefCell::new(true);

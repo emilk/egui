@@ -344,7 +344,7 @@ impl AppRunner {
 
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self) {
-        let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
+        let clipped_primitives = core::mem::take(&mut self.clipped_primitives);
 
         if let Some(clipped_primitives) = clipped_primitives {
             let mut screenshot_commands = vec![];

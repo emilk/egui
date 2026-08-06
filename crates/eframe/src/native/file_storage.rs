@@ -44,10 +44,10 @@ pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
 #[cfg(all(windows, not(target_vendor = "uwp")))]
 #[expect(unsafe_code)]
 fn roaming_appdata() -> Option<PathBuf> {
+    use core::ptr;
+    use core::slice;
     use std::ffi::OsString;
     use std::os::windows::ffi::OsStringExt as _;
-    use std::ptr;
-    use std::slice;
 
     use windows_sys::Win32::Foundation::S_OK;
     use windows_sys::Win32::System::Com::CoTaskMemFree;
@@ -66,7 +66,7 @@ fn roaming_appdata() -> Option<PathBuf> {
         SHGetKnownFolderPath(
             &FOLDERID_RoamingAppData,
             KF_FLAG_DONT_VERIFY as u32,
-            std::ptr::null_mut(),
+            core::ptr::null_mut(),
             &mut path_raw,
         )
     };

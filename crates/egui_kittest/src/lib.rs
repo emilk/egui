@@ -26,7 +26,7 @@ pub use {
     kittest,
 };
 
-use std::{
+use core::{
     fmt::{Debug, Display, Formatter},
     time::Duration,
 };
@@ -47,7 +47,7 @@ pub struct ExceededMaxStepsError {
 }
 
 impl Display for ExceededMaxStepsError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "Harness::run exceeded max_steps ({}). If your expect your ui to keep repainting \
@@ -90,7 +90,7 @@ pub struct Harness<'a, State = ()> {
 }
 
 impl<State> Debug for Harness<'_, State> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         self.kittest.fmt(f)
     }
 }
@@ -245,7 +245,7 @@ impl<'a, State> Harness<'a, State> {
     /// This will call the app closure with each queued event and
     /// update the Harness.
     pub fn step(&mut self) {
-        let events = std::mem::take(&mut *self.queued_events.lock());
+        let events = core::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
             self._step(false);
         }
@@ -802,7 +802,7 @@ impl<'a, State> Harness<'a, State> {
             // SAFETY: `pthread_main_np` is a thread-safe libc query with no arguments.
             let is_main_thread = unsafe {
                 unsafe extern "C" {
-                    fn pthread_main_np() -> std::ffi::c_int;
+                    fn pthread_main_np() -> core::ffi::c_int;
                 }
                 pthread_main_np() != 0
             };

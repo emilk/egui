@@ -316,7 +316,7 @@ fn warn_if_rect_changes_id() {
 #[test]
 #[cfg(debug_assertions)]
 fn warn_if_rect_changes_id_false_positive_parent_shift() {
-    use std::cell::Cell;
+    use core::cell::Cell;
 
     let counter = Cell::new(0);
     let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));

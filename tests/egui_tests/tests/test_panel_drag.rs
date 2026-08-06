@@ -381,7 +381,7 @@ fn switched_bottom_panel_harness(start_expanded: bool) -> Harness<'static, Switc
 }
 
 /// Assert that the panel edge crossed `gap` gradually, rather than in one frame.
-fn assert_crossed_gradually(tops: &[f32], gap: std::ops::Range<f32>) {
+fn assert_crossed_gradually(tops: &[f32], gap: core::ops::Range<f32>) {
     let frames_in_gap = tops.iter().filter(|top| gap.contains(top)).count();
     assert!(
         3 <= frames_in_gap,

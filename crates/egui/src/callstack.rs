@@ -1,4 +1,4 @@
-use std::fmt::Write as _;
+use core::fmt::Write as _;
 
 #[derive(Clone)]
 struct Frame {
@@ -239,7 +239,7 @@ fn test_shorten_path() {
         ),
         ("/weird/path/file.rs", "/weird/path/file.rs"),
     ] {
-        use std::str::FromStr as _;
+        use core::str::FromStr as _;
         let before = std::path::PathBuf::from_str(before).unwrap();
         assert_eq!(shorten_source_file_path(&before), after);
     }

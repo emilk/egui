@@ -1,4 +1,5 @@
-use std::time::{Duration, Instant};
+use core::time::Duration;
+use std::time::Instant;
 
 use winit::{
     application::ApplicationHandler,
@@ -41,7 +42,7 @@ fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoo
             ))
         })?);
 
-    if let Some(hook) = std::mem::take(&mut native_options.event_loop_builder) {
+    if let Some(hook) = core::mem::take(&mut native_options.event_loop_builder) {
         hook(&mut builder);
     }
 
@@ -58,7 +59,7 @@ fn with_event_loop<R>(
     mut native_options: epi::NativeOptions,
     f: impl FnOnce(&mut EventLoop<UserEvent>, epi::NativeOptions) -> R,
 ) -> Result<R> {
-    thread_local!(static EVENT_LOOP: std::cell::RefCell<Option<EventLoop<UserEvent>>> = const { std::cell::RefCell::new(None) });
+    thread_local!(static EVENT_LOOP: core::cell::RefCell<Option<EventLoop<UserEvent>>> = const { core::cell::RefCell::new(None) });
 
     EVENT_LOOP.with(|event_loop| {
         // Since we want to reference NativeOptions when creating the EventLoop we can't
@@ -550,7 +551,7 @@ impl<'a> EframeWinitApplication<'a> {
     pub fn pump_eframe_app(
         &mut self,
         event_loop: &mut EventLoop<UserEvent>,
-        timeout: Option<std::time::Duration>,
+        timeout: Option<core::time::Duration>,
     ) -> EframePumpStatus {
         use winit::platform::pump_events::{EventLoopExtPumpEvents as _, PumpStatus};
 

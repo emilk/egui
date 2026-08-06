@@ -1,13 +1,13 @@
 use std::{path::Path, sync::Arc};
 
 #[cfg(target_arch = "wasm32")]
-use std::{future::Future, pin::Pin};
+use core::{future::Future, pin::Pin};
 
 /// A file dropped into egui.
 ///
 /// The integration owns the concrete file handle, letting egui remain independent of windowing
 /// backends and file APIs.
-pub trait DroppedFile: std::fmt::Debug {
+pub trait DroppedFile: core::fmt::Debug {
     /// The path of the dropped file.
     ///
     /// This is an absolute path on native platforms. On the web, it is a relative path containing
