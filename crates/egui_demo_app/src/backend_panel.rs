@@ -536,7 +536,7 @@ fn call_after_delay(delay: core::time::Duration, f: impl FnOnce() + Send + 'stat
 }
 
 #[cfg(target_arch = "wasm32")]
-fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+fn call_after_delay(delay: core::time::Duration, f: impl FnOnce() + Send + 'static) {
     #![expect(clippy::unwrap_used)]
 
     use wasm_bindgen::prelude::*;
