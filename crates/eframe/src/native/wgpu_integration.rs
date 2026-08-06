@@ -31,7 +31,9 @@ use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
     native::{
         epi_integration::EpiIntegration,
-        winit_integration::{EventResult, sleep_if_invisible_or_minimized},
+        winit_integration::{
+            EventResult, ViewportWindow, ViewportWindowKind, sleep_if_invisible_or_minimized,
+        },
     },
 };
 
@@ -413,6 +415,36 @@ impl WinitApp for WgpuWinitApp<'_> {
                 .as_ref()?
                 .id(),
         )
+    }
+
+    fn viewport_windows(&self) -> Vec<ViewportWindow> {
+        self.running
+            .as_ref()
+            .map(|running| {
+                running
+                    .shared
+                    .borrow()
+                    .viewports
+                    .iter()
+                    .filter_map(|(viewport_id, viewport)| {
+                        let window_id = viewport.window.as_ref()?.id();
+                        let kind = if *viewport_id == ViewportId::ROOT {
+                            ViewportWindowKind::Root
+                        } else if viewport.viewport_ui_cb.is_some() {
+                            ViewportWindowKind::Deferred
+                        } else {
+                            ViewportWindowKind::Immediate
+                        };
+
+                        Some(ViewportWindow {
+                            viewport_id: *viewport_id,
+                            window_id,
+                            kind,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     fn save(&mut self) {
