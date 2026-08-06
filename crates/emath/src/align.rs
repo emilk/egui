@@ -274,7 +274,7 @@ impl Align2 {
     }
 }
 
-impl std::ops::Index<usize> for Align2 {
+impl core::ops::Index<usize> for Align2 {
     type Output = Align;
 
     #[inline(always)]
@@ -283,7 +283,7 @@ impl std::ops::Index<usize> for Align2 {
     }
 }
 
-impl std::ops::IndexMut<usize> for Align2 {
+impl core::ops::IndexMut<usize> for Align2 {
     #[inline(always)]
     fn index_mut(&mut self, index: usize) -> &mut Align {
         &mut self.0[index]
@@ -299,8 +299,8 @@ pub fn center_size_in_rect(size: Vec2, frame: Rect) -> Rect {
     Align2::CENTER_CENTER.align_size_within_rect(size, frame)
 }
 
-impl std::fmt::Debug for Align2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Align2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Align2({:?}, {:?})", self.x(), self.y())
     }
 }

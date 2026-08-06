@@ -5,7 +5,8 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
+use core::{cell::RefCell, num::NonZeroU32};
+use std::{rc::Rc, sync::Arc, time::Instant};
 
 use egui_winit::ActionRequested;
 use parking_lot::Mutex;
@@ -309,7 +310,7 @@ impl<'app> WgpuWinitApp<'app> {
             egui_winit.init_accesskit(event_loop, &window, event_loop_proxy);
         }
 
-        let app_creator = std::mem::take(&mut self.app_creator)
+        let app_creator = core::mem::take(&mut self.app_creator)
             .expect("Single-use AppCreator has unexpectedly already been taken");
 
         crate::maybe_attach_inspection_plugin(&egui_ctx, Some(self.app_name.clone()));
@@ -1040,7 +1041,7 @@ impl Viewport {
             egui_winit::process_viewport_commands(
                 egui_ctx,
                 &mut self.info,
-                std::mem::take(&mut self.deferred_commands),
+                core::mem::take(&mut self.deferred_commands),
                 window,
                 &mut self.actions_requested,
             );

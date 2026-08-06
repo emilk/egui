@@ -1,4 +1,5 @@
-use std::{any::Any, sync::Arc};
+use core::any::Any;
+use std::sync::Arc;
 
 /// A wrapper around `dyn Any`, used for passing custom user data
 /// to [`crate::ViewportCommand::Screenshot`].
@@ -30,8 +31,8 @@ impl PartialEq for UserData {
 
 impl Eq for UserData {}
 
-impl std::hash::Hash for UserData {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl core::hash::Hash for UserData {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.data.as_ref().map(Arc::as_ptr).hash(state);
     }
 }
@@ -57,7 +58,7 @@ impl<'de> serde::Deserialize<'de> for UserData {
         impl serde::de::Visitor<'_> for UserDataVisitor {
             type Value = UserData;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 formatter.write_str("a None value")
             }
 

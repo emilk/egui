@@ -274,7 +274,7 @@ pub(crate) fn interact(
         let drag_order = hits.drag.and_then(|w| order(w.id)).unwrap_or(0);
         let top_interactive_order = click_order.max(drag_order);
 
-        let mut hovered: IdSet = std::iter::chain(&hits.click, &hits.drag)
+        let mut hovered: IdSet = core::iter::chain(&hits.click, &hits.drag)
             .map(|w| w.id)
             .collect();
 

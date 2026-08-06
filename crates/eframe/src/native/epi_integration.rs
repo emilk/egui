@@ -83,7 +83,7 @@ pub fn viewport_builder(
         }
     }
 
-    match std::mem::take(&mut native_options.window_builder) {
+    match core::mem::take(&mut native_options.window_builder) {
         Some(hook) => hook(viewport_builder),
         None => viewport_builder,
     }
@@ -310,7 +310,7 @@ impl EpiIntegration {
         }
 
         self.pending_full_output.append(full_output);
-        std::mem::take(&mut self.pending_full_output)
+        core::mem::take(&mut self.pending_full_output)
     }
 
     /// Let the app tick its logic without showing any ui,
@@ -354,7 +354,7 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         new_input: egui::RawInput,
     ) -> egui::RawInput {
-        let mut raw_input = std::mem::take(&mut self.pending_raw_input);
+        let mut raw_input = core::mem::take(&mut self.pending_raw_input);
         raw_input.append(new_input); // The new input wins where they overlap
 
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
@@ -379,7 +379,7 @@ impl EpiIntegration {
 
     pub fn post_rendering(&mut self, window: &winit::window::Window) {
         profiling::function_scope!();
-        if std::mem::take(&mut self.is_first_frame) {
+        if core::mem::take(&mut self.is_first_frame) {
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
         }

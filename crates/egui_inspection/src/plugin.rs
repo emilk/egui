@@ -33,8 +33,8 @@
 //! Note that [`serve`]'s threads hold an [`egui::Context`] clone, so the context stays alive
 //! for as long as the listener runs (the lifetime of the process, for a debug attach).
 
+use core::time::Duration;
 use std::sync::mpsc;
-use std::time::Duration;
 
 use egui::{Context, FullOutput, RawInput};
 

@@ -123,7 +123,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
             )
             .is_err()
         {
-            return std::ptr::null_mut();
+            return core::ptr::null_mut();
         }
 
         // SAFETY: Creating an HICON which should be readonly on our data.

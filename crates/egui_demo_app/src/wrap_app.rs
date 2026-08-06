@@ -127,8 +127,8 @@ impl Anchor {
     }
 }
 
-impl std::fmt::Display for Anchor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Anchor {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mut name = format!("{self:?}");
         name.make_ascii_lowercase();
         f.write_str(&name)
@@ -473,8 +473,8 @@ impl WrapApp {
     }
 
     fn ui_file_drag_and_drop(&mut self, ctx: &egui::Context) {
+        use core::fmt::Write as _;
         use egui::{Align2, Color32, Id, LayerId, Order, TextStyle};
-        use std::fmt::Write as _;
 
         // Preview hovering files:
         if !ctx.input(|i| i.raw.hovered_files.is_empty()) {

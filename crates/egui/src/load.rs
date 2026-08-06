@@ -55,12 +55,11 @@
 mod bytes_loader;
 mod texture_loader;
 
-use std::{
-    borrow::Cow,
+use core::{
     fmt::{Debug, Display},
     ops::Deref,
-    sync::Arc,
 };
+use std::{borrow::Cow, sync::Arc};
 
 use ahash::HashMap;
 
@@ -108,13 +107,13 @@ impl LoadError {
                 detected_format.as_ref().map_or(0, |s| s.len())
             }
             Self::Loading(message) => message.len(),
-            _ => std::mem::size_of::<Self>(),
+            _ => core::mem::size_of::<Self>(),
         }
     }
 }
 
 impl Display for LoadError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::NoImageLoaders => f.write_str(
                 "No image loaders are installed. If you're trying to load some images \
@@ -136,9 +135,9 @@ impl Display for LoadError {
     }
 }
 
-impl std::error::Error for LoadError {}
+impl core::error::Error for LoadError {}
 
-pub type Result<T, E = LoadError> = std::result::Result<T, E>;
+pub type Result<T, E = LoadError> = core::result::Result<T, E>;
 
 /// Given as a hint for image loading requests.
 ///
@@ -209,7 +208,7 @@ pub enum Bytes {
 }
 
 impl Debug for Bytes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Static(arg0) => f.debug_tuple("Static").field(&arg0.len()).finish(),
             Self::Shared(arg0) => f.debug_tuple("Shared").field(&arg0.len()).finish(),
@@ -387,7 +386,7 @@ pub type ImageLoadResult = Result<ImagePoll>;
 /// An `ImageLoader` decodes raw bytes into a [`ColorImage`].
 ///
 /// Implementations are expected to cache at least each `URI`.
-pub trait ImageLoader: std::any::Any {
+pub trait ImageLoader: core::any::Any {
     /// Unique ID of this loader.
     ///
     /// To reduce the chance of collisions, include `module_path!()` as part of this ID.

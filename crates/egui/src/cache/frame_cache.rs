@@ -48,7 +48,7 @@ impl<Value, Computer> FrameCache<Value, Computer> {
     /// or recompute and store in the cache.
     pub fn get<Key>(&mut self, key: Key) -> &Value
     where
-        Key: Copy + std::hash::Hash,
+        Key: Copy + core::hash::Hash,
         Computer: ComputerMut<Key, Value>,
     {
         let hash = crate::util::hash(key);

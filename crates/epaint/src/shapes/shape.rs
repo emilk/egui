@@ -73,12 +73,12 @@ pub enum Shape {
 #[test]
 fn shape_size() {
     assert_eq!(
-        std::mem::size_of::<Shape>(),
+        core::mem::size_of::<Shape>(),
         64,
         "Shape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
-        std::mem::size_of::<Shape>() <= 64,
+        core::mem::size_of::<Shape>() <= 64,
         "Shape is getting way too big!"
     );
 }

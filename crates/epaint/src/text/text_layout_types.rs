@@ -1,5 +1,5 @@
+use core::{ops::Range, str::FromStr as _};
 use std::sync::Arc;
-use std::{ops::Range, str::FromStr as _};
 
 use super::{
     cursor::{CCursor, LayoutCursor},
@@ -271,7 +271,7 @@ impl LayoutJob {
                 let Range { start, end } = section.byte_range;
                 assert!(start <= end, "LayoutSection has a reversed byte_range");
             }
-            for (prev, next) in std::iter::zip(&self.sections, self.sections.iter().skip(1)) {
+            for (prev, next) in core::iter::zip(&self.sections, self.sections.iter().skip(1)) {
                 assert_eq!(
                     prev.byte_range.end, next.byte_range.start,
                     "LayoutSections must be ordered with no gaps and no overlaps"
@@ -304,9 +304,9 @@ impl LayoutJob {
     }
 }
 
-impl std::hash::Hash for LayoutJob {
+impl core::hash::Hash for LayoutJob {
     #[inline]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         let Self {
             text,
             sections,
@@ -355,9 +355,9 @@ pub struct LayoutSection {
     pub format: TextFormat,
 }
 
-impl std::hash::Hash for LayoutSection {
+impl core::hash::Hash for LayoutSection {
     #[inline]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         let Self {
             leading_space,
             byte_range,
@@ -462,8 +462,8 @@ impl AsMut<[(font_types::Tag, f32)]> for VariationCoords {
     }
 }
 
-impl std::hash::Hash for VariationCoords {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl core::hash::Hash for VariationCoords {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.0.len().hash(state);
         for (tag, coord) in &self.0 {
             tag.hash(state);
@@ -541,9 +541,9 @@ impl Default for TextFormat {
     }
 }
 
-impl std::hash::Hash for TextFormat {
+impl core::hash::Hash for TextFormat {
     #[inline]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         let Self {
             font_id,
             extra_letter_spacing,
@@ -651,9 +651,9 @@ pub struct TextWrapping {
     pub overflow_character: Option<char>,
 }
 
-impl std::hash::Hash for TextWrapping {
+impl core::hash::Hash for TextWrapping {
     #[inline]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         let Self {
             max_width,
             max_rows,
@@ -817,7 +817,7 @@ impl PlacedRow {
     }
 }
 
-impl std::ops::Deref for PlacedRow {
+impl core::ops::Deref for PlacedRow {
     type Target = Row;
 
     fn deref(&self) -> &Self::Target {
@@ -1126,14 +1126,14 @@ impl AsRef<str> for Galley {
     }
 }
 
-impl std::borrow::Borrow<str> for Galley {
+impl core::borrow::Borrow<str> for Galley {
     #[inline]
     fn borrow(&self) -> &str {
         self.text()
     }
 }
 
-impl std::ops::Deref for Galley {
+impl core::ops::Deref for Galley {
     type Target = str;
     #[inline]
     fn deref(&self) -> &str {
