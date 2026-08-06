@@ -2,8 +2,8 @@ use crate::app_kind::AppKind;
 #[cfg(feature = "eframe")]
 use crate::app_kind::AppKindEframe;
 use crate::{Harness, LazyRenderer, TestRenderer};
+use core::marker::PhantomData;
 use egui::{Pos2, Rect, Vec2};
-use std::marker::PhantomData;
 
 /// Builder for [`Harness`].
 #[must_use]

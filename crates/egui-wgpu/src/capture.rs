@@ -212,10 +212,14 @@ impl CaptureState {
             let buffer_slice = buffer.slice(..);
 
             let mut pixels = Vec::with_capacity((tex_extent.width * tex_extent.height) as usize);
-            for padded_row in buffer_slice
-                .get_mapped_range()
-                .chunks(padding.padded_bytes_per_row as usize)
-            {
+            let mapped_range = match buffer_slice.get_mapped_range() {
+                Ok(range) => range,
+                Err(err) => {
+                    log::error!("Failed to get mapped range for reading: {err}");
+                    return;
+                }
+            };
+            for padded_row in mapped_range.chunks(padding.padded_bytes_per_row as usize) {
                 let row = &padded_row[..padding.unpadded_bytes_per_row as usize];
                 for color in row.chunks(4) {
                     pixels.push(epaint::Color32::from_rgba_premultiplied(
@@ -226,6 +230,7 @@ impl CaptureState {
                     ));
                 }
             }
+            drop(mapped_range);
             buffer.unmap();
 
             tx.send((
@@ -250,7 +255,7 @@ struct BufferPadding {
 
 impl BufferPadding {
     fn new(width: u32) -> Self {
-        let bytes_per_pixel = std::mem::size_of::<u32>() as u32;
+        let bytes_per_pixel = core::mem::size_of::<u32>() as u32;
         let unpadded_bytes_per_row = width * bytes_per_pixel;
         let padded_bytes_per_row =
             wgpu::util::align_to(unpadded_bytes_per_row, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);

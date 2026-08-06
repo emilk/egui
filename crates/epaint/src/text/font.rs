@@ -117,7 +117,6 @@ impl SubpixelBin {
         let trunc = pos as i32;
         let fract = pos - trunc as f32;
 
-        #[expect(clippy::collapsible_else_if)]
         if pos.is_sign_negative() {
             if fract > -0.125 {
                 (trunc, Self::Zero)
@@ -277,7 +276,7 @@ impl FontCell {
             ctx.fill_path(&path);
             let mut dest = vello_cpu::Pixmap::new(width, height);
             let mut resources = vello_cpu::Resources::new();
-            ctx.render_to_pixmap(&mut resources, &mut dest);
+            ctx.render(&mut dest, &mut resources);
 
             let glyph_pos = {
                 let color_transfer_function = atlas.options().color_transfer_function;
@@ -383,7 +382,7 @@ impl FontFace {
         font_data: Blob,
         index: u32,
         tweak: FontTweak,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> Result<Self, Box<dyn core::error::Error>> {
         let font = FontCell::try_new(font_data, |font_data| {
             let skrifa_font =
                 skrifa::FontRef::from_index(AsRef::<[u8]>::as_ref(font_data.as_ref()), index)?;
@@ -415,7 +414,7 @@ impl FontFace {
                 })
                 .flatten();
 
-            Ok::<DependentFontData<'_>, Box<dyn std::error::Error>>(DependentFontData {
+            Ok::<DependentFontData<'_>, Box<dyn core::error::Error>>(DependentFontData {
                 skrifa: skrifa_font,
                 charmap,
                 outline_glyphs: glyphs,
@@ -575,7 +574,7 @@ impl FontFace {
         let axes = font_data.skrifa.axes();
         // Override the default coordinates with ones specified via FontTweak, then the ones specified directly via the
         // argument (probably from TextFormat).
-        let settings = std::iter::chain(self.tweak.coords.as_ref(), coords.as_ref());
+        let settings = core::iter::chain(self.tweak.coords.as_ref(), coords.as_ref());
         let location = axes.location(settings);
         let location_hash = LocationHash::new(&location);
 

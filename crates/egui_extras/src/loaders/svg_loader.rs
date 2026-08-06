@@ -1,4 +1,5 @@
-use std::{mem::size_of, sync::Arc};
+use core::mem::size_of;
+use std::sync::Arc;
 
 use ahash::HashMap;
 

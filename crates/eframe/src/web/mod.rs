@@ -5,6 +5,7 @@
 
 mod app_runner;
 mod backend;
+mod dropped_file;
 mod events;
 mod input;
 mod panic_handler;
@@ -82,6 +83,17 @@ pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
         Some(element == &focused_element)
     }
     try_has_focus(element).unwrap_or(false)
+}
+
+/// Focus the given element without scrolling it into view.
+///
+/// Scrolling the element into view would scroll the whole page when
+/// the app is embedded in a larger scrollable page,
+/// see <https://github.com/emilk/egui/issues/8295>.
+pub(crate) fn focus_without_scroll(element: &web_sys::HtmlElement) -> Result<(), JsValue> {
+    let options = web_sys::FocusOptions::new();
+    options.set_prevent_scroll(true);
+    element.focus_with_options(&options)
 }
 
 /// Current time in seconds (since undefined point in time).
@@ -196,13 +208,12 @@ fn set_clipboard_text(s: &str) {
             return;
         }
         let promise = window.navigator().clipboard().write_text(s);
-        let future = wasm_bindgen_futures::JsFuture::from(promise);
         let future = async move {
-            if let Err(err) = future.await {
+            if let Err(err) = promise.await {
                 log::error!("Copy/cut action failed: {}", string_from_js_value(&err));
             }
         };
-        wasm_bindgen_futures::spawn_local(future);
+        js_sys::futures::spawn_local(future);
     }
 }
 
@@ -237,16 +248,15 @@ fn set_clipboard_image(image: &egui::ColorImage) {
         };
         let items = js_sys::Array::of1(&item);
         let promise = window.navigator().clipboard().write(&items);
-        let future = wasm_bindgen_futures::JsFuture::from(promise);
         let future = async move {
-            if let Err(err) = future.await {
+            if let Err(err) = promise.await {
                 log::error!(
                     "Copy/cut image action failed: {}",
                     string_from_js_value(&err)
                 );
             }
         };
-        wasm_bindgen_futures::spawn_local(future);
+        js_sys::futures::spawn_local(future);
     }
 }
 

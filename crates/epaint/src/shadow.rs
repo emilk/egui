@@ -29,7 +29,7 @@ pub struct Shadow {
 #[test]
 fn shadow_size() {
     assert_eq!(
-        std::mem::size_of::<Shadow>(),
+        core::mem::size_of::<Shadow>(),
         8,
         "Shadow changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );

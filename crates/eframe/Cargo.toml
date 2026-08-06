@@ -28,6 +28,7 @@ workspace = true
 default = [
   "accesskit",
   "default_fonts",
+  "links",
   "wayland", # Required for Linux support (including CI!)
   "web_screen_reader",
   "wgpu",
@@ -60,7 +61,7 @@ default_fonts = ["egui/default_fonts"]
 glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
-persistence = ["dep:home", "egui-winit/serde", "egui/persistence", "ron", "serde"]
+persistence = ["egui-winit/serde", "egui/persistence", "ron", "serde"]
 
 ## Enables wayland support and fixes clipboard issue.
 ##
@@ -122,6 +123,9 @@ __screenshot = []
 ## and capture screenshots. Off unless the env var is set; no-op on wasm.
 inspection = ["dep:egui_inspection", "accesskit"]
 
+## Enables the `links` feature on `egui-winit`, allowing for links to open in browser.
+links = ["egui-winit/links"]
+
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 
@@ -145,7 +149,7 @@ serde = { workspace = true, optional = true }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, default-features = false, features = ["clipboard", "links"] }
+egui-winit = { workspace = true, default-features = false, features = ["clipboard"] }
 image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
@@ -161,7 +165,6 @@ glutin-winit = { workspace = true, optional = true, default-features = false, fe
   "egl",
   "wgl",
 ] }
-home = { workspace = true, optional = true }
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
@@ -206,7 +209,6 @@ image = { workspace = true, features = ["png"] } # For copying images
 js-sys.workspace = true
 percent-encoding.workspace = true
 wasm-bindgen.workspace = true
-wasm-bindgen-futures.workspace = true
 web-sys = { workspace = true, features = [
   "AddEventListenerOptions",
   "BinaryType",
@@ -232,6 +234,7 @@ web-sys = { workspace = true, features = [
   "File",
   "FileList",
   "FocusEvent",
+  "FocusOptions",
   "HtmlCanvasElement",
   "HtmlElement",
   "HtmlInputElement",

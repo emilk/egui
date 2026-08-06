@@ -1,11 +1,5 @@
-use std::{
-    borrow::Cow,
-    collections::BTreeMap,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-};
+use core::sync::atomic::{AtomicUsize, Ordering};
+use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use crate::{
     TextureAtlas,
@@ -60,9 +54,9 @@ impl FontId {
     }
 }
 
-impl std::hash::Hash for FontId {
+impl core::hash::Hash for FontId {
     #[inline(always)]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         let Self { size, family } = self;
         emath::OrderedFloat(*size).hash(state);
         family.hash(state);
@@ -100,8 +94,8 @@ pub enum FontFamily {
     Name(Arc<str>),
 }
 
-impl std::fmt::Display for FontFamily {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for FontFamily {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Monospace => "Monospace".fmt(f),
             Self::Proportional => "Proportional".fmt(f),

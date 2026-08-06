@@ -13,7 +13,7 @@ struct DemoGroup {
     demos: Vec<Box<dyn Demo>>,
 }
 
-impl std::ops::Add for DemoGroup {
+impl core::ops::Add for DemoGroup {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {

@@ -10,7 +10,7 @@ use crate::emath::Rect;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SafeAreaInsets(pub MarginF32);
 
-impl std::ops::Sub<SafeAreaInsets> for Rect {
+impl core::ops::Sub<SafeAreaInsets> for Rect {
     type Output = Self;
 
     fn sub(self, rhs: SafeAreaInsets) -> Self::Output {

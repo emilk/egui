@@ -1,6 +1,7 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
+use core::{cell::RefCell, panic::Location, time::Duration};
+use std::{borrow::Cow, sync::Arc};
 
 use emath::GuiRounding as _;
 use epaint::{
@@ -32,7 +33,7 @@ use crate::{
     load::{self, Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
     os::OperatingSystem,
-    output::FullOutput,
+    output::{FullOutput, LogicOutput},
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
     resize, response, scroll_area,
@@ -98,7 +99,7 @@ impl ContextImpl {
     fn begin_pass_repaint_logic(&mut self, viewport_id: ViewportId) {
         let viewport = self.viewports.entry(viewport_id).or_default();
 
-        std::mem::swap(
+        core::mem::swap(
             &mut viewport.repaint.prev_causes,
             &mut viewport.repaint.causes,
         );
@@ -243,6 +244,12 @@ pub struct ViewportState {
     // ----------------------
     // Cross-frame statistics:
     pub num_multipass_in_row: usize,
+
+    /// The last theme we sent to the native window via [`ViewportCommand::SetTheme`],
+    /// used to avoid sending redundant commands.
+    ///
+    /// See [`crate::Options::sync_window_theme`].
+    pub(crate) last_sent_window_theme: Option<crate::SystemTheme>,
 }
 
 /// What called [`Context::request_repaint`] or [`Context::request_discard`]?
@@ -258,14 +265,14 @@ pub struct RepaintCause {
     pub reason: Cow<'static, str>,
 }
 
-impl std::fmt::Debug for RepaintCause {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RepaintCause {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}:{} {}", self.file, self.line, self.reason)
     }
 }
 
-impl std::fmt::Display for RepaintCause {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for RepaintCause {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}:{} {}", self.file, self.line, self.reason)
     }
 }
@@ -453,7 +460,7 @@ impl ContextImpl {
 
         self.memory.begin_pass(&new_raw_input, &all_viewport_ids);
 
-        viewport.input = std::mem::take(&mut viewport.input).begin_pass(
+        viewport.input = core::mem::take(&mut viewport.input).begin_pass(
             new_raw_input,
             viewport.repaint.requested_immediate_repaint_prev_pass(),
             pixels_per_point,
@@ -466,7 +473,13 @@ impl ContextImpl {
         viewport.this_pass.begin_pass();
 
         {
-            let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
+            // Areas that are not interactable are click-through: skip them in the hit-test.
+            let mut layers: Vec<LayerId> = viewport
+                .prev_pass
+                .widgets
+                .layer_ids()
+                .filter(|layer_id| self.memory.areas().is_interactable(*layer_id))
+                .collect();
             layers.sort_by(|&a, &b| self.memory.areas().compare_order(a, b));
 
             viewport.hits = if let Some(pos) = viewport.input.pointer.interact_pos() {
@@ -641,7 +654,7 @@ impl ContextImpl {
     }
 
     fn all_viewport_ids(&self) -> ViewportIdSet {
-        std::iter::chain(self.viewports.keys().copied(), [ViewportId::ROOT]).collect()
+        core::iter::chain(self.viewports.keys().copied(), [ViewportId::ROOT]).collect()
     }
 
     /// The current active viewport
@@ -709,13 +722,13 @@ impl ContextImpl {
 #[derive(Clone)]
 pub struct Context(Arc<RwLock<ContextImpl>>);
 
-impl std::fmt::Debug for Context {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Context {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Context").finish_non_exhaustive()
     }
 }
 
-impl std::cmp::PartialEq for Context {
+impl core::cmp::PartialEq for Context {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
@@ -725,7 +738,7 @@ impl Default for Context {
     fn default() -> Self {
         let ctx_impl = ContextImpl {
             embed_viewports: true,
-            viewports: std::iter::once((ViewportId::ROOT, ViewportState::default())).collect(),
+            viewports: core::iter::once((ViewportId::ROOT, ViewportState::default())).collect(),
             ..Default::default()
         };
         let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
@@ -775,6 +788,7 @@ impl Context {
     ///     ui.label("Hello egui!");
     /// });
     /// // handle full_output
+    /// # full_output.drop_without_applying_deltas();
     /// ```
     #[must_use]
     pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
@@ -834,7 +848,7 @@ impl Context {
             self.write(|ctx| {
                 let viewport = ctx.viewport_for(viewport_id);
                 viewport.output.num_completed_passes =
-                    std::mem::take(&mut output.platform_output.num_completed_passes);
+                    core::mem::take(&mut output.platform_output.num_completed_passes);
                 output.platform_output.request_discard_reasons.clear();
             });
 
@@ -875,6 +889,57 @@ impl Context {
         output
     }
 
+    /// Run app logic without showing any ui.
+    ///
+    /// Use this instead of [`Self::run_ui`] when nothing will be shown,
+    /// e.g. because the window is minimized or occluded,
+    /// but you still want to let the app tick its logic
+    /// (so that it can e.g. ask to be shown again with [`ViewportCommand::Focus`]).
+    ///
+    /// No pass is run, so `f` must not show any ui.
+    /// This means everything egui knows about the ui is left untouched:
+    /// no widget state is garbage-collected, no animation advances,
+    /// and nothing loses focus.
+    ///
+    /// Of `new_input`, only the window state ([`RawInput::viewports`] and
+    /// [`RawInput::focused`]) is used, so that `f` can tell that the window is hidden.
+    /// The ui input (events, time, …) is _not_ interpreted, and is left for the next
+    /// call to [`Self::run_ui`]: [`Self::input`] is otherwise still that of the last pass.
+    ///
+    /// The returned [`LogicOutput`] is what [`FullOutput`] would have carried:
+    /// anything `f` asked the integration to do.
+    /// There is nothing to paint.
+    #[must_use]
+    pub fn run_logic(&self, new_input: &RawInput, logic: impl FnOnce(&Self)) -> LogicOutput {
+        profiling::function_scope!();
+
+        let viewport_id = new_input.viewport_id;
+
+        self.write(|ctx| {
+            // Consume any outstanding repaint request, so that a new request from `logic`
+            // reaches the integration instead of being considered already served:
+            ctx.begin_pass_repaint_logic(viewport_id);
+
+            // Tell `logic` about the windows, but leave the ui input alone:
+            let raw = &mut ctx.viewport_for(viewport_id).input.raw;
+            raw.viewport_id = viewport_id;
+            raw.viewports = new_input.viewports.clone();
+            raw.focused = new_input.focused;
+        });
+
+        logic(self);
+
+        self.write(|ctx| LogicOutput {
+            platform_output: core::mem::take(&mut ctx.viewport_for(viewport_id).output),
+            viewport_commands: ctx
+                .viewports
+                .iter_mut()
+                .filter(|(_, viewport)| !viewport.commands.is_empty())
+                .map(|(&id, viewport)| (id, core::mem::take(&mut viewport.commands)))
+                .collect(),
+        })
+    }
+
     /// An alternative to calling [`Self::run_ui`].
     ///
     /// It is usually better to use [`Self::run_ui`], because
@@ -892,6 +957,7 @@ impl Context {
     ///
     /// let full_output = ctx.end_pass();
     /// // handle full_output
+    /// # full_output.drop_without_applying_deltas();
     /// ```
     pub fn begin_pass(&self, mut new_input: RawInput) {
         profiling::function_scope!();
@@ -1810,7 +1876,7 @@ impl Context {
     /// See [`Self::request_repaint_after`] for details.
     #[track_caller]
     pub fn request_repaint_after_secs(&self, seconds: f32) {
-        if let Ok(duration) = std::time::Duration::try_from_secs_f32(seconds) {
+        if let Ok(duration) = core::time::Duration::try_from_secs_f32(seconds) {
             self.request_repaint_after(duration);
         }
     }
@@ -1993,7 +2059,7 @@ impl Context {
         &self,
         f: impl FnOnce(&mut T) -> R,
     ) -> Option<R> {
-        let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
+        let plugin = self.read(|ctx| ctx.plugins.get(core::any::TypeId::of::<T>()));
         plugin.map(|plugin| f(plugin.lock().typed_plugin_mut()))
     }
 
@@ -2005,13 +2071,13 @@ impl Context {
         if let Some(plugin) = self.plugin_opt() {
             plugin
         } else {
-            panic!("Plugin of type {:?} not found", std::any::type_name::<T>());
+            panic!("Plugin of type {:?} not found", core::any::type_name::<T>());
         }
     }
 
     /// Get a handle to the plugin of type `T`, if it was registered.
     pub fn plugin_opt<T: plugin::Plugin>(&self) -> Option<TypedPluginHandle<T>> {
-        let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
+        let plugin = self.read(|ctx| ctx.plugins.get(core::any::TypeId::of::<T>()));
         plugin.map(TypedPluginHandle::new)
     }
 
@@ -2385,6 +2451,8 @@ impl Context {
             }
         }
 
+        self.sync_window_theme();
+
         #[cfg(debug_assertions)]
         self.debug_painting();
 
@@ -2396,11 +2464,43 @@ impl Context {
         output
     }
 
+    /// Keep the native window theme in sync with the egui [`crate::ThemePreference`],
+    /// if [`crate::Options::sync_window_theme`] is enabled.
+    ///
+    /// Sends a [`ViewportCommand::SetTheme`] to the current viewport whenever the
+    /// derived theme changes, so the native window decorations match the egui theme.
+    fn sync_window_theme(&self) {
+        if !self.options(|o| o.sync_window_theme) {
+            return;
+        }
+
+        use crate::{SystemTheme, ThemePreference};
+        let window_theme = match self.options(|o| o.theme_preference) {
+            ThemePreference::System => SystemTheme::SystemDefault,
+            ThemePreference::Dark => SystemTheme::Dark,
+            ThemePreference::Light => SystemTheme::Light,
+        };
+
+        let changed = self.write(|ctx| {
+            let viewport = ctx.viewport();
+            if viewport.last_sent_window_theme == Some(window_theme) {
+                false
+            } else {
+                viewport.last_sent_window_theme = Some(window_theme);
+                true
+            }
+        });
+
+        if changed {
+            self.send_viewport_cmd(ViewportCommand::SetTheme(window_theme));
+        }
+    }
+
     /// Called at the end of the pass.
     #[cfg(debug_assertions)]
     fn debug_painting(&self) {
         #![expect(clippy::iter_over_hash_type)] // ok to be sloppy in debug painting
-        use std::fmt::Write as _;
+        use core::fmt::Write as _;
 
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
             let rect = widget.interact_rect;
@@ -2581,7 +2681,7 @@ impl ContextImpl {
         // Inform the backend of all textures that have been updated (including font atlas).
         let textures_delta = self.tex_manager.0.write().take_delta();
 
-        let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
+        let mut platform_output: PlatformOutput = core::mem::take(&mut viewport.output);
 
         if self.memory.should_interrupt_ime()
             && let Some(ime) = &mut platform_output.ime
@@ -2641,7 +2741,7 @@ impl ContextImpl {
             shapes
         };
 
-        std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
+        core::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
 
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
@@ -2703,7 +2803,7 @@ impl ContextImpl {
                     // Let the primary immediate viewport handle the commands of its children too.
                     // This can make things easier for the backend, as otherwise we may get commands
                     // that affect a viewport while its egui logic is running.
-                    std::mem::take(&mut viewport.commands)
+                    core::mem::take(&mut viewport.commands)
                 } else {
                     vec![]
                 };
@@ -3506,7 +3606,7 @@ impl Context {
                     if !is_visible {
                         continue;
                     }
-                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
+                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect());
                     // TODO(emilk): `Sense::hover_highlight()`
                     let response =
                         ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));
@@ -4188,13 +4288,13 @@ fn warn_if_rect_changes_id(
     struct OrderedRect(Rect);
 
     impl PartialOrd for OrderedRect {
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
             Some(self.cmp(other))
         }
     }
 
     impl Ord for OrderedRect {
-        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        fn cmp(&self, other: &Self) -> core::cmp::Ordering {
             let lhs = self.0;
             let rhs = other.0;
             lhs.min
@@ -4296,6 +4396,7 @@ mod test {
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
             assert!(!output.platform_output.requested_discard());
+            output.drop_without_applying_deltas();
         }
 
         // A single call, with a denied request to discard:
@@ -4321,6 +4422,7 @@ mod test {
                     .reason,
                 "test"
             );
+            output.drop_without_applying_deltas();
         }
     }
 
@@ -4341,6 +4443,7 @@ mod test {
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
             assert!(!output.platform_output.requested_discard());
+            output.drop_without_applying_deltas();
         }
 
         // Request discard once:
@@ -4363,6 +4466,7 @@ mod test {
                 !output.platform_output.requested_discard(),
                 "The request should have been cleared when fulfilled"
             );
+            output.drop_without_applying_deltas();
         }
 
         // Request discard twice:
@@ -4387,6 +4491,7 @@ mod test {
                 output.platform_output.requested_discard(),
                 "The unfulfilled request should be reported"
             );
+            output.drop_without_applying_deltas();
         }
     }
 
@@ -4415,6 +4520,7 @@ mod test {
                 !output.platform_output.requested_discard(),
                 "The request should have been cleared when fulfilled"
             );
+            output.drop_without_applying_deltas();
         }
     }
 }

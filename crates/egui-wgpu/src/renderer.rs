@@ -1,4 +1,5 @@
-use std::{borrow::Cow, num::NonZeroU64, ops::Range};
+use core::{num::NonZeroU64, ops::Range};
+use std::borrow::Cow;
 
 use ahash::HashMap;
 use bytemuck::Zeroable as _;
@@ -299,7 +300,9 @@ impl Renderer {
                     visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         has_dynamic_offset: false,
-                        min_binding_size: NonZeroU64::new(std::mem::size_of::<UniformBuffer>() as _),
+                        min_binding_size: NonZeroU64::new(
+                            core::mem::size_of::<UniformBuffer>() as _
+                        ),
                         ty: wgpu::BufferBindingType::Uniform,
                     },
                     count: None,
@@ -375,14 +378,14 @@ impl Renderer {
                 vertex: wgpu::VertexState {
                     entry_point: Some("vs_main"),
                     module: &module,
-                    buffers: &[wgpu::VertexBufferLayout {
+                    buffers: &[Some(wgpu::VertexBufferLayout {
                         array_stride: 5 * 4,
                         step_mode: wgpu::VertexStepMode::Vertex,
                         // 0: vec2 position
                         // 1: vec2 texture coordinates
                         // 2: uint color
                         attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Uint32],
-                    }],
+                    })],
                     compilation_options: wgpu::PipelineCompilationOptions::default()
                 },
                 primitive: wgpu::PrimitiveState {
@@ -434,9 +437,9 @@ impl Renderer {
         };
 
         const VERTEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
-            (std::mem::size_of::<Vertex>() * 1024) as _;
+            (core::mem::size_of::<Vertex>() * 1024) as _;
         const INDEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
-            (std::mem::size_of::<u32>() * 1024 * 3) as _;
+            (core::mem::size_of::<u32>() * 1024 * 3) as _;
 
         Self {
             pipeline,
@@ -962,7 +965,7 @@ impl Renderer {
 
             self.index_buffer.slices.clear();
 
-            let required_index_buffer_size = (std::mem::size_of::<u32>() * index_count) as u64;
+            let required_index_buffer_size = (core::mem::size_of::<u32>() * index_count) as u64;
             if self.index_buffer.capacity < required_index_buffer_size {
                 // Resize index buffer if needed.
                 self.index_buffer.capacity =
@@ -989,7 +992,7 @@ impl Renderer {
             for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
                 match primitive {
                     Primitive::Mesh(mesh) => {
-                        let size = mesh.indices.len() * std::mem::size_of::<u32>();
+                        let size = mesh.indices.len() * core::mem::size_of::<u32>();
                         let slice = index_offset..(size + index_offset);
                         index_buffer_staging
                             .slice(slice.clone())
@@ -1006,7 +1009,8 @@ impl Renderer {
 
             self.vertex_buffer.slices.clear();
 
-            let required_vertex_buffer_size = (std::mem::size_of::<Vertex>() * vertex_count) as u64;
+            let required_vertex_buffer_size =
+                (core::mem::size_of::<Vertex>() * vertex_count) as u64;
             if self.vertex_buffer.capacity < required_vertex_buffer_size {
                 // Resize vertex buffer if needed.
                 self.vertex_buffer.capacity =
@@ -1034,7 +1038,7 @@ impl Renderer {
             for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
                 match primitive {
                     Primitive::Mesh(mesh) => {
-                        let size = mesh.vertices.len() * std::mem::size_of::<Vertex>();
+                        let size = mesh.vertices.len() * core::mem::size_of::<Vertex>();
                         let slice = vertex_offset..(size + vertex_offset);
                         vertex_buffer_staging
                             .slice(slice.clone())

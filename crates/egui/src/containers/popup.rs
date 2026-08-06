@@ -1,4 +1,4 @@
-use std::iter::once;
+use core::iter::once;
 
 use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
 
@@ -180,6 +180,7 @@ pub struct Popup<'a> {
     /// Default width passed to the Area
     width: Option<f32>,
     sense: Sense,
+    interactable: bool,
     layout: Layout,
     frame: Option<Frame>,
     style: StyleModifier,
@@ -202,6 +203,7 @@ impl<'a> Popup<'a> {
             gap: 0.0,
             width: None,
             sense: Sense::click(),
+            interactable: true,
             layout: Layout::default(),
             frame: None,
             style: StyleModifier::default(),
@@ -369,6 +371,15 @@ impl<'a> Popup<'a> {
         self
     }
 
+    /// If `false`, the pointer goes straight through the popup and it's widgets to whatever is behind it.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn interactable(mut self, interactable: bool) -> Self {
+        self.interactable = interactable;
+        self
+    }
+
     /// Set the sense of the popup.
     #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
@@ -472,12 +483,12 @@ impl<'a> Popup<'a> {
         RectAlign::find_best_align(
             #[expect(clippy::iter_on_empty_collections)]
             #[expect(clippy::or_fun_call)]
-            std::iter::chain(
+            core::iter::chain(
                 once(self.rect_align),
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or
-                    .map(|a| std::iter::chain(a.iter().copied(), [].iter().copied()))
-                    .unwrap_or(std::iter::chain(
+                    .map(|a| core::iter::chain(a.iter().copied(), [].iter().copied()))
+                    .unwrap_or(core::iter::chain(
                         self.rect_align.symmetries().iter().copied(),
                         RectAlign::MENU_ALIGNS.iter().copied(),
                     )),
@@ -546,6 +557,7 @@ impl<'a> Popup<'a> {
             gap,
             width,
             sense,
+            interactable,
             layout,
             frame,
             style,
@@ -570,7 +582,9 @@ impl<'a> Popup<'a> {
             .pivot(pivot)
             .fixed_pos(anchor)
             .sense(sense)
+            .interactable(interactable)
             .layout(layout)
+            .sizing_pass(!was_open_last_frame)
             .info(info.unwrap_or_else(|| {
                 UiStackInfo::new(kind.into()).with_tag_value(
                     MenuConfig::MENU_CONFIG_TAG,

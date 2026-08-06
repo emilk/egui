@@ -160,9 +160,9 @@ impl BackendPanel {
                     {
                         log::info!("Waiting 2s before requesting repaint…");
                         let ctx = ui.ctx().clone();
-                        call_after_delay(std::time::Duration::from_secs(2), move || {
+                        call_after_delay(core::time::Duration::from_secs(2), move || {
                             log::info!("Request a repaint in 3s…");
-                            ctx.request_repaint_after(std::time::Duration::from_secs(3));
+                            ctx.request_repaint_after(core::time::Duration::from_secs(3));
                         });
                     }
 
@@ -223,6 +223,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 subgroup_min_size,
                 subgroup_max_size,
                 transient_saves_memory,
+                limit_bucket,
             } = &info;
 
             // Example values:
@@ -276,7 +277,11 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     ui.end_row();
                 }
                 ui.label("Transient saves memory:");
-                ui.label(format!("{transient_saves_memory}"));
+                ui.label(format!("{transient_saves_memory:?}"));
+                ui.end_row();
+
+                ui.label("Limit bucket:");
+                ui.label(format!("{limit_bucket:?}"));
                 ui.end_row();
             });
         };
@@ -520,7 +525,7 @@ impl EguiWindows {
 // ----------------------------------------------------------------------------
 
 #[cfg(not(target_arch = "wasm32"))]
-fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+fn call_after_delay(delay: core::time::Duration, f: impl FnOnce() + Send + 'static) {
     std::thread::Builder::new()
         .name("call_after_delay".to_owned())
         .spawn(move || {
@@ -531,7 +536,7 @@ fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'stati
 }
 
 #[cfg(target_arch = "wasm32")]
-fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+fn call_after_delay(delay: core::time::Duration, f: impl FnOnce() + Send + 'static) {
     #![expect(clippy::unwrap_used)]
 
     use wasm_bindgen::prelude::*;

@@ -63,6 +63,11 @@ pub enum Request {
     /// (via [`egui::ViewportCommand::InnerSize`]). Reply: [`Response::Done`]. This is the one
     /// action that isn't expressible as an [`egui::Event`].
     Resize { width: u32, height: u32 },
+
+    /// Wait until the app goes idle, then reply [`Response::Settled`].
+    ///
+    /// Will wait for at most `max_steps`.
+    Settle { max_steps: u64 },
 }
 
 /// Sent peer → inspector, exactly one per [`Request`].
@@ -99,6 +104,15 @@ pub enum Response {
     /// (not merely received): the events were processed by a frame, or the resize dispatched.
     Done,
 
+    /// Reply to [`Request::Settle`].
+    Settled {
+        /// Did we settle within `max_steps`?
+        settled: bool,
+
+        /// How many frames did we run until we settled?
+        steps: u64,
+    },
+
     /// The peer failed to service the request (recoverable; the connection stays open).
     Error { message: String },
 }
@@ -122,7 +136,7 @@ pub struct EncodedPng {
 /// Hard cap on a single framed message. Matches the sanity limit enforced by both ends.
 pub const MAX_MESSAGE_BYTES: usize = 256 * 1024 * 1024; // 256 MiB
 
-fn invalid_data(err: impl std::fmt::Display) -> io::Error {
+fn invalid_data(err: impl core::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, err.to_string())
 }
 

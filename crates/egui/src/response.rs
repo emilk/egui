@@ -1,4 +1,5 @@
-use std::{any::Any, sync::Arc};
+use core::any::Any;
+use std::sync::Arc;
 
 use crate::{
     Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
@@ -77,7 +78,7 @@ pub struct Response {
 #[test]
 fn test_response_size() {
     assert_eq!(
-        std::mem::size_of::<Response>(),
+        core::mem::size_of::<Response>(),
         88,
         "Keep Response small, because we create them often, and we want to keep it lean and fast"
     );
@@ -309,6 +310,12 @@ impl Response {
     ///
     /// In contrast to [`Self::contains_pointer`], this will be `false` whenever some other widget is being dragged.
     /// `hovered` is always `false` for disabled widgets.
+    ///
+    /// While a widget is being clicked or dragged it is the only hovered widget,
+    /// so this stays `true` even after the pointer moves off it. Together with
+    /// how [`Self::dragged`] resolves a press that leaves the widget, that means
+    /// `hovered() || dragged()` holds for a whole press-drag-release gesture,
+    /// which is what you want for highlighting something like a drag handle.
     #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.flags.contains(Flags::HOVERED)
@@ -403,11 +410,21 @@ impl Response {
     /// To find out which button(s), use [`Self::dragged_by`].
     ///
     /// If the widget is only sensitive to drags, this is `true` as soon as the pointer presses down on it.
-    /// If the widget also senses clicks, this won't be true until the pointer has moved a bit,
-    /// or the user has pressed down for long enough.
+    ///
+    /// If the widget also senses clicks, the press could be either, so the
+    /// decision is postponed until whichever of these comes first:
+    /// * the pointer moves further than [`crate::InputOptions::max_click_dist`],
+    /// * it is held longer than [`crate::InputOptions::max_click_duration`],
+    /// * or it leaves the widget — a click has to be released on the widget, so
+    ///   once the pointer is outside, the gesture can only be a drag. This is what
+    ///   keeps a handle thinner than `max_click_dist` from spending the decision
+    ///   window as neither hovered nor dragged.
+    ///
     /// See [`crate::input_state::PointerState::is_decidedly_dragging`] for details.
     ///
-    /// If you want to avoid the delay, use [`Self::is_pointer_button_down_on`] instead.
+    /// While the decision is pending the pointer is still on the widget, so
+    /// [`Self::hovered`] is `true` throughout. If you want neither the delay nor
+    /// the distinction, use [`Self::is_pointer_button_down_on`].
     ///
     /// If the widget is NOT sensitive to drags, this will always be `false`.
     /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
@@ -571,6 +588,9 @@ impl Response {
     /// even when dragging outside the widget.
     ///
     /// This could also be thought of as "is this widget being interacted with?".
+    ///
+    /// Unlike [`Self::dragged`], this is `true` from the press frame onwards, with
+    /// no click-versus-drag decision window.
     #[inline(always)]
     pub fn is_pointer_button_down_on(&self) -> bool {
         self.flags.contains(Flags::IS_POINTER_BUTTON_DOWN_ON)
@@ -1093,7 +1113,7 @@ impl Response {
 /// ```
 ///
 /// Now `draw_vec2(ui, foo).hovered` is true if either [`DragValue`](crate::DragValue) were hovered.
-impl std::ops::BitOr for Response {
+impl core::ops::BitOr for Response {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self {
@@ -1114,7 +1134,7 @@ impl std::ops::BitOr for Response {
 /// if response.hovered() { ui.label("You hovered at least one of the widgets"); }
 /// # });
 /// ```
-impl std::ops::BitOrAssign for Response {
+impl core::ops::BitOrAssign for Response {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = self.union(rhs);
     }

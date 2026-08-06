@@ -163,7 +163,7 @@ impl Widget for ProgressBar {
             if animate && !has_custom_cr {
                 let n_points = 20;
                 let time = ui.input(|i| i.time);
-                let start_angle = time * std::f64::consts::TAU;
+                let start_angle = time * core::f64::consts::TAU;
                 let end_angle = start_angle + 240f64.to_radians() * time.sin();
                 let circle_radius = half_height - 2.0;
                 let points: Vec<Pos2> = (0..n_points)

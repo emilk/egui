@@ -67,8 +67,8 @@ pub struct Undoer<State> {
     flux: Option<Flux<State>>,
 }
 
-impl<State> std::fmt::Debug for Undoer<State> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<State> core::fmt::Debug for Undoer<State> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self { undos, redos, .. } = self;
         f.debug_struct("Undoer")
             .field("undo count", &undos.len())
@@ -134,9 +134,8 @@ where
         if self.has_undo(current_state) {
             self.flux = None;
 
-            if self.undos.back() == Some(current_state) {
-                #[expect(clippy::unwrap_used)] // we just checked that undos is not empty
-                self.redos.push(self.undos.pop_back().unwrap());
+            if let Some(state) = self.undos.pop_back_if(|state| &*state == current_state) {
+                self.redos.push(state);
             } else {
                 self.redos.push(current_state.clone());
             }

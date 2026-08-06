@@ -61,7 +61,7 @@ impl crate::View for DancingStrings {
                     .map(|i| {
                         let t = i as f64 / (n as f64);
                         let amp = (time * speed * mode).sin() / mode;
-                        let y = amp * (t * std::f64::consts::TAU / 2.0 * mode).sin();
+                        let y = amp * (t * core::f64::consts::TAU / 2.0 * mode).sin();
                         to_screen * pos2(t as f32, y as f32)
                     })
                     .collect();

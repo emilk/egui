@@ -1,11 +1,12 @@
 use ahash::HashMap;
+use core::{mem::size_of, time::Duration};
 use egui::{
     ColorImage, FrameDurations, Id, decode_animated_image_uri, has_webp_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
 };
 use image::{AnimationDecoder as _, ColorType, ImageDecoder as _, Rgba, codecs::webp::WebPDecoder};
-use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
+use std::{io::Cursor, sync::Arc};
 
 #[derive(Clone)]
 enum WebP {

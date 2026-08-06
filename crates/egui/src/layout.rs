@@ -1,4 +1,4 @@
-use emath::GuiRounding as _;
+use emath::{GuiRounding as _, fast_midpoint};
 
 use crate::{
     Align, Direction,
@@ -477,12 +477,12 @@ impl Layout {
 
         // Make sure it isn't negative:
         if avail.max.x < avail.min.x {
-            let x = 0.5 * (avail.min.x + avail.max.x);
+            let x = fast_midpoint(avail.min.x, avail.max.x);
             avail.min.x = x;
             avail.max.x = x;
         }
         if avail.max.y < avail.min.y {
-            let y = 0.5 * (avail.min.y + avail.max.y);
+            let y = fast_midpoint(avail.min.y, avail.max.y);
             avail.min.y = y;
             avail.max.y = y;
         }
