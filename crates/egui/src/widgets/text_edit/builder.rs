@@ -927,10 +927,18 @@ impl TextEdit<'_> {
                     }
                     if ui.memory(|mem| mem.owns_ime_events(id)) {
                         // Set IME output (in screen coords) when text is editable and visible
+
                         let to_global = ui
                             .ctx()
                             .layer_transform_to_global(ui.layer_id())
                             .unwrap_or_default();
+
+                        let preceding_text_end = cursor_range.as_sorted_char_range().start;
+                        let preceding_text_start =
+                            truncate_preceding_text(text.as_str(), preceding_text_end);
+                        let preceding_text =
+                            text.char_range(preceding_text_start..preceding_text_end);
+
                         ui.output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
                                 purpose: if password {
@@ -941,6 +949,11 @@ impl TextEdit<'_> {
                                 rect: to_global * inner_rect,
                                 cursor_rect: to_global * primary_cursor_rect,
                                 should_interrupt_composition: false,
+                                preceding_text: if password {
+                                    None
+                                } else {
+                                    Some(preceding_text.to_owned())
+                                },
                             });
                         });
                     }
@@ -1020,6 +1033,65 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
     } else {
         text.to_owned()
     }
+}
+
+/// Find the start of the preceding text following the strategy described in the
+/// documentation of [`crate::output::IMEOutput::preceding_text`]. Returns the
+/// index of the first character to include in the preceding text.
+fn truncate_preceding_text(
+    text: &str,
+    preceding_text_end: epaint::text::CharIndex,
+) -> epaint::text::CharIndex {
+    use unicode_general_category::GeneralCategory;
+
+    const MAX_BYTES: usize = 256;
+
+    if preceding_text_end == epaint::text::CharIndex::ZERO {
+        return epaint::text::CharIndex::ZERO;
+    }
+
+    let preceding_text = text.char_range(epaint::text::CharIndex::ZERO..preceding_text_end);
+
+    let mut used_bytes = 0;
+    let mut last_whitespace_index: Option<epaint::text::CharIndex> = None;
+    let mut i = preceding_text_end - 1;
+    for c in preceding_text.chars().rev() {
+        let char_bytes = c.len_utf8();
+        if used_bytes + char_bytes > MAX_BYTES {
+            if c == ' ' {
+                return i + 1;
+            }
+            if let Some(last_whitespace_index) = last_whitespace_index {
+                return last_whitespace_index + 1;
+            } else {
+                return i + 1;
+            };
+        }
+        if matches!(c, '\r' | '\n') {
+            return i + 1;
+        }
+        match unicode_general_category::get_general_category(c) {
+            GeneralCategory::LineSeparator | GeneralCategory::ParagraphSeparator => {
+                return i + 1;
+            }
+            GeneralCategory::SpaceSeparator => {
+                last_whitespace_index = Some(i);
+            }
+            GeneralCategory::ClosePunctuation
+            | GeneralCategory::ConnectorPunctuation
+            | GeneralCategory::DashPunctuation
+            | GeneralCategory::FinalPunctuation
+            | GeneralCategory::InitialPunctuation
+            | GeneralCategory::OpenPunctuation
+            | GeneralCategory::OtherPunctuation => {
+                return i;
+            }
+            _ => {}
+        }
+        used_bytes += char_bytes;
+        i = i.saturating_sub(1);
+    }
+    epaint::text::CharIndex::ZERO
 }
 
 // ----------------------------------------------------------------------------
