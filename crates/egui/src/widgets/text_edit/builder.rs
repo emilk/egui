@@ -933,7 +933,7 @@ impl TextEdit<'_> {
                             .unwrap_or_default();
                         ui.output_mut(|o| {
                             let tiny_rect =
-                                Rect::from_min_size(primary_cursor_rect.left_top(), Vec2::ZERO);
+                                Rect::from_min_size(primary_cursor_rect.left_bottom(), Vec2::ZERO);
                             o.ime = Some(crate::output::IMEOutput {
                                 purpose: if password {
                                     IMEPurpose::Password
