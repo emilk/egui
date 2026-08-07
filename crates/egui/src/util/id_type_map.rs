@@ -3,7 +3,8 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
-use std::{any::Any, sync::Arc};
+use core::any::Any;
+use std::sync::Arc;
 // -----------------------------------------------------------------------------------------------
 
 /// Like [`std::any::TypeId`], but can be serialized and deserialized.
@@ -14,7 +15,7 @@ pub struct TypeId(u64);
 impl TypeId {
     #[inline]
     pub fn of<T: Any + 'static>() -> Self {
-        std::any::TypeId::of::<T>().into()
+        core::any::TypeId::of::<T>().into()
     }
 
     #[inline(always)]
@@ -23,9 +24,9 @@ impl TypeId {
     }
 }
 
-impl From<std::any::TypeId> for TypeId {
+impl From<core::any::TypeId> for TypeId {
     #[inline]
-    fn from(id: std::any::TypeId) -> Self {
+    fn from(id: core::any::TypeId) -> Self {
         Self(epaint::util::hash(id))
     }
 }
@@ -113,8 +114,8 @@ impl Clone for Element {
     }
 }
 
-impl std::fmt::Debug for Element {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Element {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match &self {
             Self::Value { value, .. } => f
                 .debug_struct("Element::Value")
@@ -314,7 +315,7 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
         Err(_err) => {
             log::warn!(
                 "egui: Failed to deserialize {} from memory: {}, ron error: {:?}",
-                std::any::type_name::<T>(),
+                core::any::type_name::<T>(),
                 _err,
                 ron
             );
@@ -578,7 +579,7 @@ impl IdTypeMap {
     pub fn remove_temp<T: 'static + Default>(&mut self, id: Id) -> Option<T> {
         let key = RawKey::new::<T>(id);
         let mut element = self.map.remove(&key)?;
-        Some(std::mem::take(element.get_mut_temp()?))
+        Some(core::mem::take(element.get_mut_temp()?))
     }
 
     /// Remove a temporary value given a raw key.

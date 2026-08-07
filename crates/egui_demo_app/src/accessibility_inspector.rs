@@ -1,4 +1,4 @@
-use std::mem;
+use core::mem;
 
 use accesskit::{Action, ActionRequest};
 use accesskit_consumer::{FilterResult, Node, NodeId, Tree, TreeChangeHandler};
@@ -168,7 +168,7 @@ impl AccessibilityInspectorPlugin {
             ui.horizontal_wrapped(|ui| {
                 // Iterate through all possible actions via the `Action::n` helper.
                 let mut current_action = 0;
-                let all_actions = std::iter::from_fn(|| {
+                let all_actions = core::iter::from_fn(|| {
                     let action = Action::n(current_action);
                     current_action += 1;
                     action

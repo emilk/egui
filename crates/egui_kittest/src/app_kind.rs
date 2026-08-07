@@ -23,6 +23,10 @@ pub(crate) enum AppKind<'a, State> {
 }
 
 impl<State> AppKind<'_, State> {
+    // The `Option` is needed when the `eframe` feature is enabled, because the
+    // `Eframe` variant has no `egui::Response` to return. Without `eframe` the
+    // wrap is unnecessary, so we silence `clippy::unnecessary_wraps` for that case.
+    #[cfg_attr(not(feature = "eframe"), expect(clippy::unnecessary_wraps))]
     pub fn run(
         &mut self,
         ui: &mut egui::Ui,

@@ -513,6 +513,61 @@ fn window_resize_wraps_to_content_min_width() {
     );
 }
 
+/// A `Grid` gives its last column all the available width, so a width-filling widget in it
+/// (here a `Separator`) makes the grid remember a column width that is really just
+/// "however wide the window happened to be".
+///
+/// When `Resize` then measures the minimum content width in a sizing pass, that remembered
+/// width must not be reported as the minimum — otherwise the window can be widened but
+/// never shrunk again.
+#[test]
+fn window_with_grid_can_shrink_after_being_widened() {
+    let window_title = "grid_shrink_regression";
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(move |ui| {
+            Window::new(window_title)
+                .default_pos([20.0, 20.0])
+                .default_width(280.0)
+                .show(ui.ctx(), |ui| {
+                    egui::Grid::new("grid").num_columns(2).show(ui, |ui| {
+                        ui.label("Separator");
+                        ui.separator(); // Fills the available width
+                        ui.end_row();
+                    });
+                });
+        });
+    harness.run();
+
+    let drag_right_edge = |harness: &mut Harness<'_>, dx: f32| {
+        let rect = harness
+            .get_by_role_and_label(Role::Window, window_title)
+            .rect();
+        let grab = Pos2::new(rect.right(), rect.center().y);
+        harness.hover_at(grab);
+        harness.run();
+        harness.drag_at(grab);
+        harness.run();
+        harness.hover_at(grab + Vec2::new(dx, 0.0));
+        harness.run();
+        harness.drop_at(grab + Vec2::new(dx, 0.0));
+        harness.run();
+        harness
+            .get_by_role_and_label(Role::Window, window_title)
+            .rect()
+            .width()
+    };
+
+    let widened = drag_right_edge(&mut harness, 300.0);
+    let shrunk = drag_right_edge(&mut harness, -300.0);
+
+    assert!(
+        shrunk < widened - 200.0,
+        "window could not be shrunk again after being widened: \
+         widened to {widened}, then only shrunk to {shrunk}"
+    );
+}
+
 /// Ensure that the size passed to window is actually treated as outer size (including
 /// margins and borders).
 #[test]
@@ -607,7 +662,7 @@ fn window_fixed_size_is_outer_size() {
 /// allowed size — they used to inherit the overflowing content rect.
 #[test]
 fn panel_rect_clamped_when_content_overflows() {
-    use std::cell::RefCell;
+    use core::cell::RefCell;
 
     let side_panel_width = 100.0_f32;
     let top_panel_height = 80.0_f32;
@@ -668,7 +723,7 @@ fn panel_rect_clamped_when_content_overflows() {
 /// portion of the panel.
 #[test]
 fn collapsing_panel_must_not_grow_enclosing_window() {
-    use std::cell::RefCell;
+    use core::cell::RefCell;
 
     let window_rect: RefCell<Option<Rect>> = RefCell::new(None);
     let is_expanded: RefCell<bool> = RefCell::new(true);
@@ -712,4 +767,50 @@ fn collapsing_panel_must_not_grow_enclosing_window() {
             r.height(),
         );
     }
+}
+
+/// The hint text of a `TextEdit` should follow the same alignment as the input
+/// text, instead of always being left-top aligned.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/8309>.
+#[test]
+pub fn textedit_hint_text_should_follow_text_alignment() {
+    let mut input = String::new();
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(200.0, 40.0))
+        .build_ui(|ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut input)
+                    .hint_text("Hint")
+                    .desired_width(200.0)
+                    .horizontal_align(egui::Align::Center),
+            );
+        });
+    harness.run();
+
+    let text_edit = harness.get_by_role(accesskit::Role::TextInput);
+    let edit_rect = text_edit.rect();
+
+    // Find the hint text shape (the only text shape while the input is empty).
+    let hint_shape = harness
+        .output()
+        .shapes
+        .iter()
+        .find_map(|clipped| {
+            let egui::epaint::Shape::Text(text_shape) = &clipped.shape else {
+                return None;
+            };
+            (text_shape.galley.text() == "Hint").then_some(text_shape)
+        })
+        .expect("hint text shape should be painted");
+
+    let hint_center_x = hint_shape.pos.x + hint_shape.galley.size().x / 2.0;
+    let edit_center_x = edit_rect.center().x;
+
+    assert!(
+        (hint_center_x - edit_center_x).abs() < 1.0,
+        "hint text should be centered in the TextEdit: hint_center_x={hint_center_x}, \
+         edit_center_x={edit_center_x}, edit_rect={edit_rect:?}",
+    );
 }

@@ -115,6 +115,9 @@ pub struct RenderState {
     #[cfg(not(target_arch = "wasm32"))]
     pub available_adapters: Vec<wgpu::Adapter>,
 
+    /// Wgpu instance used for creating surfaces and adapters.
+    pub instance: wgpu::Instance,
+
     /// Wgpu device used for rendering, created from the adapter.
     pub device: wgpu::Device,
 
@@ -150,6 +153,7 @@ async fn request_adapter(
             // * fails if there's no software rasterizer available
             // * can achieve the same with `native_adapter_selector`
             force_fallback_adapter: false,
+            apply_limit_buckets: false,
         })
         .await
         .inspect_err(|_err| {
@@ -217,7 +221,7 @@ impl RenderState {
             instance.enumerate_adapters(backends).await
         };
 
-        let (adapter, device, queue) = match config.wgpu_setup.clone() {
+        let (instance, adapter, device, queue) = match config.wgpu_setup.clone() {
             WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 instance_descriptor: _,
                 display_handle: _,
@@ -252,14 +256,14 @@ impl RenderState {
                         .await?
                 };
 
-                (adapter, device, queue)
+                (instance.clone(), adapter, device, queue)
             }
             WgpuSetup::Existing(WgpuSetupExisting {
-                instance: _,
+                instance,
                 adapter,
                 device,
                 queue,
-            }) => (adapter, device, queue),
+            }) => (instance, adapter, device, queue),
         };
 
         log_adapter_info(&adapter.get_info());
@@ -279,6 +283,7 @@ impl RenderState {
         // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
         #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         Ok(Self {
+            instance,
             adapter,
             #[cfg(not(target_arch = "wasm32"))]
             available_adapters,
@@ -353,8 +358,8 @@ fn wgpu_config_impl_send_sync() {
     assert_send_sync::<WgpuConfiguration>();
 }
 
-impl std::fmt::Debug for WgpuConfiguration {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for WgpuConfiguration {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self {
             surface,
             wgpu_setup,
@@ -473,6 +478,7 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
         subgroup_min_size,
         subgroup_max_size,
         transient_saves_memory,
+        limit_bucket,
     } = &info;
 
     // Example values:
@@ -480,7 +486,7 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
     // > name: "Apple M1 Pro", device_type: IntegratedGpu, backend: Metal, driver: "", driver_info: ""
     // > name: "ANGLE (Apple, Apple M1 Pro, OpenGL 4.1)", device_type: IntegratedGpu, backend: Gl, driver: "", driver_info: ""
 
-    use std::fmt::Write as _;
+    use core::fmt::Write as _;
 
     let mut summary = format!("backend: {backend:?}, device_type: {device_type:?}");
 
@@ -523,9 +529,10 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
     }
     write!(
         summary,
-        ", transient_saves_memory: {transient_saves_memory}"
+        ", transient_saves_memory: {transient_saves_memory:?}"
     )
     .ok();
+    write!(summary, ", limit_bucket: {limit_bucket:?}").ok();
 
     summary
 }

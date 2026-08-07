@@ -69,6 +69,9 @@ pub enum Event {
         modifiers: Modifiers,
     },
 
+    /// The set of held modifier keys changed.
+    ModifiersChanged(Modifiers),
+
     /// The mouse or touch moved to a new place.
     PointerMoved(Pos2),
 

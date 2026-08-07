@@ -6,6 +6,12 @@
 
 use crate::{Response, Ui};
 
+/// A dynamically dispatched [`Widget`].
+///
+/// [`Widget`] is not dyn compatible because [`Widget::ui`] takes `self` by value.
+/// This alias uses a closure, which implements [`Widget`].
+pub type BoxedWidget<'a> = Box<dyn FnOnce(&mut Ui) -> Response + 'a>;
+
 mod button;
 mod checkbox;
 pub mod color_picker;
@@ -63,6 +69,20 @@ pub trait Widget {
     ///
     /// Tip: you can `impl Widget for &mut YourObject { }`.
     fn ui(self, ui: &mut Ui) -> Response;
+
+    /// Box this widget for dynamic dispatch.
+    #[inline]
+    fn boxed<'a>(self) -> BoxedWidget<'a>
+    where
+        Self: Sized + 'a,
+    {
+        Box::new(move |ui: &mut Ui| ui.add(self))
+    }
+}
+
+#[test]
+fn widgets_can_be_boxed() {
+    let _: BoxedWidget<'static> = Button::new("boxed").boxed();
 }
 
 /// This enables functions that return `impl Widget`, so that you can

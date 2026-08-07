@@ -18,12 +18,22 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align, Context, CursorIcon, Frame, Id, InnerResponse, Layout, NumExt as _, Rangef, Rect,
-    Response, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp,
+    Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, Margin, NumExt as _,
+    Order, Rangef, Rect, Response, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
     ctx.animate_bool_responsive(id, is_expanded)
+}
+
+/// [`Id`] of a panel's resize-handle widget.
+///
+/// A panel registers its handle under this same id whether it is open,
+/// mid-slide, or fully collapsed — that is what lets one uninterrupted drag
+/// collapse the panel and pull it back open. [`Panel::show_switched`] points
+/// both of its panels at one shared handle the same way.
+fn resize_widget_id(id_source: Id) -> Id {
+    id_source.with("__resize")
 }
 
 /// State regarding panels.
@@ -126,6 +136,22 @@ impl PanelSide {
         }
     }
 
+    /// The component of `margin` on the panel's _resizable_ edge,
+    /// i.e. the edge facing the rest of the ui, where the separator line goes.
+    fn resize_margin(self, mut margin: Margin) -> i8 {
+        *self.resize_margin_mut(&mut margin)
+    }
+
+    /// Mutable version of [`Self::resize_margin`].
+    fn resize_margin_mut(self, margin: &mut Margin) -> &mut i8 {
+        match self {
+            Self::Left => &mut margin.right,
+            Self::Right => &mut margin.left,
+            Self::Top => &mut margin.bottom,
+            Self::Bottom => &mut margin.top,
+        }
+    }
+
     /// Resize by keeping `self` side fixed, and moving the opposite side.
     fn set_rect_size(self, rect: &mut Rect, size: f32) {
         match self {
@@ -182,6 +208,7 @@ pub struct Panel {
     id: Id,
     frame: Option<Frame>,
     resizable: bool,
+    drag_to_open: bool,
     show_separator_line: bool,
 
     /// _Outer_ size (including [`Frame`] margin & border):
@@ -267,6 +294,7 @@ impl Panel {
             id: id.into(),
             frame: None,
             resizable: true,
+            drag_to_open: true,
             show_separator_line: true,
             default_outer_size,
             outer_size_range,
@@ -296,7 +324,38 @@ impl Panel {
         self
     }
 
+    /// Can a fully collapsed panel be dragged back open?
+    ///
+    /// Default: `true`.
+    ///
+    /// When enabled, a panel that [`Self::show_collapsible`] has collapsed all
+    /// the way still leaves a thin grab handle at its fixed edge. The handle is
+    /// invisible until hovered, at which point it lights up like a normal resize
+    /// handle. Dragging it outward past [`Self::min_size`] — or double-clicking
+    /// it — reopens the panel.
+    ///
+    /// This is the counterpart to drag-to-collapse, and like it requires
+    /// [`Self::resizable`] to be `true`.
+    #[inline]
+    pub fn drag_to_open(mut self, drag_to_open: bool) -> Self {
+        self.drag_to_open = drag_to_open;
+        self
+    }
+
     /// Show a separator line, even when not interacting with it?
+    ///
+    /// The separator line sits on the panel's inner edge, i.e. the edge facing the rest of the ui.
+    /// It is painted _outside_ the [`Frame`]'s outline, in room the panel reserves for it in the
+    /// frame's [`Frame::outer_margin`], so that going from the panel contents outwards you get:
+    ///
+    /// contents | [`Frame::inner_margin`] | [`Frame::stroke`] | separator line | [`Frame::outer_margin`]
+    ///
+    /// Turning this off removes that reserved room too, so the panel gets no permanent gap along
+    /// that edge.
+    ///
+    /// A `resizable` panel still shows a line while hovered or dragged, regardless of this setting.
+    /// With this setting off there is no room reserved for it, so that transient line is painted
+    /// just outside the frame's outline, overlapping the [`Frame::outer_margin`].
     ///
     /// Default: `true`.
     #[inline]
@@ -386,6 +445,9 @@ impl Panel {
     /// to `true` if the user drags the handle outward while the panel is closed.
     /// When [`Self::resizable`] is `true`, double-clicking the resize edge also
     /// flips `*is_expanded`.
+    ///
+    /// A fully collapsed panel keeps a thin grab handle at its fixed edge, so the
+    /// user can drag it back open. See [`Self::drag_to_open`] to opt out.
     pub fn show_collapsible<R>(
         self,
         ui: &mut Ui,
@@ -395,10 +457,11 @@ impl Panel {
         let how_expanded = animate_expansion(ui, self.id.with("animation"), *is_expanded);
 
         if how_expanded == 0.0 {
-            // Panel is fully closed. If the user is still dragging the resize handle
-            // from a previous frame, keep its widget id alive so they can drag the
-            // panel back out without releasing.
-            self.keep_drag_alive_for_reopen(ui, is_expanded);
+            // Panel is fully closed, but we still leave a grab handle at its fixed
+            // edge so the user can drag it back open.
+            if self.resizable && self.drag_to_open {
+                self.collapsed_resize_handle(ui, is_expanded);
+            }
 
             // Make sure the ids of the next widgets are the same whether we show the panel or not:
             ui.skip_ahead_auto_ids(1);
@@ -407,7 +470,7 @@ impl Panel {
 
         // Don't lose the drag during the slide-back-open animation:
         let drag_in_progress = ui
-            .read_response(self.id.with("__resize"))
+            .read_response(self.resize_id())
             .is_some_and(|r| r.dragged());
 
         let panel = if how_expanded < 1.0 {
@@ -520,20 +583,11 @@ impl Panel {
 
         // Is the resize handle currently being dragged?
         let drag_in_progress = ui
-            .read_response(resize_id_source.with("__resize"))
+            .read_response(resize_widget_id(resize_id_source))
             .is_some_and(|r| r.dragged());
 
         let animation_id = expanded_panel.id.with("animation");
-        // While the user is dragging, snap the animation to the target so the
-        // drag (which sets `outer_size` directly from the pointer) doesn't fight
-        // a simultaneous slide. Without this, drag-to-expand visibly jumps as
-        // the slide animation tries to grow from 0 while the pointer is already
-        // at the expanded size.
-        let how_expanded = if drag_in_progress {
-            ui.animate_bool_with_time(animation_id, *is_expanded, 0.0)
-        } else {
-            animate_expansion(ui, animation_id, *is_expanded)
-        };
+        let how_expanded = animate_expansion(ui, animation_id, *is_expanded);
 
         // When expanding, the user sees the expanded content the moment animation starts.
         // When collapsing, keep showing the expanded content until past the midpoint,
@@ -556,7 +610,19 @@ impl Panel {
             let panel = if how_expanded < 1.0 {
                 // Animate the visible size from collapsed_size to expanded_size,
                 // so the slide picks up where the collapsed panel left off.
-                let expanded_size = expanded_panel.outer_size(ui);
+                let expanded_size = if drag_in_progress {
+                    // During a drag the pointer sets the size, clamped to `min_size`
+                    // — so that, not the (stale) persisted size, is where the slide
+                    // meets the collapsed panel, whether opening or closing. Get it
+                    // wrong and the panel jumps the gap between the two sizes in one
+                    // frame.
+                    expanded_panel
+                        .outer_size_range
+                        .min
+                        .at_least(collapse_threshold)
+                } else {
+                    expanded_panel.outer_size(ui)
+                };
                 let visible_size = lerp(collapse_threshold..=expanded_size, how_expanded);
                 let slide_fraction = if 0.0 < expanded_size {
                     visible_size / expanded_size
@@ -673,7 +739,7 @@ impl Panel {
             // released size gets persisted into [`PanelState`] — without this the
             // store-skipped-during-drag rule would leave the stored size at the
             // pre-drag value.
-            let resize_id = self.resize_id_source.unwrap_or(id).with("__resize");
+            let resize_id = self.resize_id();
             let resize_response = parent_ui.read_response(resize_id);
 
             // Double-click on the resize edge toggles `*is_expanded` for the
@@ -831,21 +897,34 @@ impl Panel {
             .store(parent_ui, id);
         }
 
-        // Hide the separator once the panel is mostly slid off — at that point
-        // the line would just be a stray dash hovering near the parent edge.
-        if 0.01 < self.slide_fraction {
-            let stroke = if is_resizing {
-                parent_ui.style().visuals.widgets.active.fg_stroke // highly visible
-            } else if resize_hover {
-                parent_ui.style().visuals.widgets.hovered.fg_stroke // highly visible
-            } else if show_separator_line {
-                // TODO(emilk): distinguish resizable from non-resizable
-                parent_ui.style().visuals.widgets.noninteractive.bg_stroke // dim
-            } else {
-                Stroke::NONE
-            };
+        // The highlight follows the pointer all the way down to zero size, where
+        // `collapsed_resize_handle` picks it straight up again — so the user never
+        // loses sight of the edge they are dragging. The dim idle separator does
+        // get hidden once the panel is mostly slid off, since there it would just
+        // be a stray dash hovering near the parent edge.
+        let stroke = if is_resizing {
+            parent_ui.style().visuals.widgets.active.fg_stroke // highly visible
+        } else if resize_hover {
+            parent_ui.style().visuals.widgets.hovered.fg_stroke // highly visible
+        } else if show_separator_line && 0.01 < self.slide_fraction {
+            // TODO(emilk): distinguish resizable from non-resizable
+            parent_ui.style().visuals.widgets.noninteractive.bg_stroke // dim
+        } else {
+            Stroke::NONE
+        };
+        if 0.0 < stroke.width {
+            // Nudged inward, to keep the line inside the panel's own (shifted)
+            // rect: `parent_ui`'s painter sits below the panels that come after
+            // this one, so anything drawn past the fixed edge is covered by them.
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            let line_pos = side.resize_pos(shifted_outer_rect) + 0.5 * side.sign() * stroke.width;
+
+            // The line goes just _outside_ the frame's outline, in the room `resolve_frame`
+            // reserved for it in the outer margin, i.e.:
+            //
+            // contents | `inner_margin` | outline | separator line | `outer_margin`
+            let outer_margin = f32::from(side.resize_margin(frame.outer_margin));
+            let outline_edge = side.resize_pos(shifted_outer_rect) + side.sign() * outer_margin;
+            let line_pos = outline_edge - 0.5 * side.sign() * stroke.width;
             let cross_range = shifted_outer_rect.range_along(side.cross_axis());
             if axis == 0 {
                 parent_ui.painter().vline(line_pos, cross_range, stroke);
@@ -857,53 +936,122 @@ impl Panel {
         inner_response
     }
 
-    /// The configured [`Frame`], or the default side/top panel frame for this [`Ui`].
-    fn resolve_frame(&self, ui: &Ui) -> Frame {
-        self.frame
-            .unwrap_or_else(|| Frame::side_top_panel(ui.style()))
+    /// [`Id`] of this panel's resize-handle widget.
+    ///
+    /// See [`resize_widget_id`] for why open and collapsed panels must share it.
+    fn resize_id(&self) -> Id {
+        resize_widget_id(self.resize_id_source.unwrap_or(self.id))
     }
 
-    /// Panel is fully closed. If the user is still dragging the resize handle
-    /// from the frame the panel closed on, keep its widget id registered so the
-    /// drag survives, and reopen if they drag back past the minimum size.
-    fn keep_drag_alive_for_reopen(&self, ui: &Ui, is_expanded: &mut bool) {
-        let resize_id = self.id.with("__resize");
-        let Some(resize_response) = ui.read_response(resize_id) else {
-            return;
-        };
-        if !resize_response.dragged() {
-            return;
-        }
-        let Some(pointer) = resize_response.interact_pointer_pos() else {
-            return;
-        };
+    /// The configured [`Frame`], or the default side/top panel frame for this [`Ui`].
+    fn resolve_frame(&self, ui: &Ui) -> Frame {
+        let mut frame = self
+            .frame
+            .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
 
-        // Re-register the resize widget at the (now collapsed) fixed edge so its
-        // id stays alive in egui's interaction state.
+        if self.show_separator_line {
+            // Reserve room for the separator line in the frame's _outer_ margin, so the line
+            // lands just outside the frame's outline instead of painting on top of it:
+            //
+            // contents | `inner_margin` | outline | separator line | `outer_margin`
+            //
+            // We deliberately don't do this for a `resizable` panel that has opted out of the
+            // separator line: the line it shows while hovered/dragged is a transient affordance,
+            // and reserving room for it would leave a permanently visible gap.
+            let widgets = &ui.style().visuals.widgets;
+            let stroke_width = widgets.noninteractive.bg_stroke.width.round() as i8;
+
+            let margin_side = self.side.resize_margin_mut(&mut frame.outer_margin);
+            *margin_side = (*margin_side).saturating_add(stroke_width);
+        }
+
+        frame
+    }
+
+    /// The grab handle of a fully collapsed panel: a thin strip along the panel's
+    /// fixed edge, invisible until hovered.
+    ///
+    /// Dragging it outward past the minimum size — or double-clicking it —
+    /// reopens the panel. Registering it under the same id as the expanded
+    /// panel's resize handle also keeps an in-progress drag-to-collapse gesture
+    /// alive, so the user can drag the panel straight back out without releasing.
+    fn collapsed_resize_handle(&self, ui: &Ui, is_expanded: &mut bool) {
+        let side = self.side;
+        let axis = side.axis();
+
         let available_rect = ui.available_rect_before_wrap();
-        let fixed_edge_pos = self.side.fixed_pos(available_rect);
-        let cross_range = available_rect.range_along(self.side.cross_axis());
-        let resize_rect = if self.side.axis() == 0 {
+        let fixed_edge_pos = side.fixed_pos(available_rect);
+        let cross_range = available_rect.range_along(side.cross_axis());
+
+        // The strip lies just _inside_ the fixed edge, so it never reaches
+        // outside the area the panel is allowed to occupy.
+        let mut resize_rect = if axis == 0 {
             Rect::from_x_y_ranges(Rangef::point(fixed_edge_pos), cross_range)
         } else {
             Rect::from_x_y_ranges(cross_range, Rangef::point(fixed_edge_pos))
         };
-        let grab = ui.style().interaction.resize_grab_radius_side;
-        let resize_rect = resize_rect.expand2(grab * self.side.axis_unit());
-        ui.interact(resize_rect, resize_id, Sense::drag());
+        side.set_rect_size(
+            &mut resize_rect,
+            ui.style().interaction.resize_grab_radius_side,
+        );
 
-        // Keep the resize cursor while the user is still holding the drag.
-        // Otherwise the cursor would snap back to the default the moment the
-        // panel closed, even though the gesture is still ongoing.
-        ui.set_cursor_icon(self.cursor_icon(0.0));
+        let resize_id = self.resize_id();
+        let response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
 
-        // Signed distance from the fixed edge to the pointer along the panel's
-        // axis. Only counts as "pulled outward" while positive — going past the
-        // fixed edge gives a negative value, NOT a mirrored positive one (no
-        // `.abs()`), so dragging past the screen edge can't spuriously reopen.
-        let dragged_size = -self.side.sign() * (pointer[self.side.axis()] - fixed_edge_pos);
-        if self.outer_size_range.min < dragged_size {
+        if response.double_clicked() {
             *is_expanded = true;
+        }
+
+        if response.hovered() || response.dragged() {
+            // Advertise that the panel can be pulled out. Also keeps the resize
+            // cursor for a drag that started before the panel closed, instead of
+            // snapping back to the default mid-gesture.
+            ui.set_cursor_icon(self.cursor_icon(0.0));
+        }
+
+        if response.dragged()
+            && let Some(pointer) = response.interact_pointer_pos()
+        {
+            // Signed distance from the fixed edge to the pointer along the panel's
+            // axis. Only counts as "pulled outward" while positive — going past the
+            // fixed edge gives a negative value, NOT a mirrored positive one (no
+            // `.abs()`), so dragging past the screen edge can't spuriously reopen.
+            //
+            // We require the full minimum size, so the panel never jumps ahead of
+            // the pointer: it opens exactly when the drag reaches the size it will
+            // open at, and follows the pointer from there.
+            let dragged_size = -side.sign() * (pointer[axis] - fixed_edge_pos);
+            if self.outer_size_range.min < dragged_size {
+                *is_expanded = true;
+            }
+        }
+
+        // Invisible until hovered, so the handle doesn't read as a stray line at
+        // the edge of the screen.
+        let stroke = if response.dragged() {
+            ui.style().visuals.widgets.active.fg_stroke
+        } else if response.hovered() {
+            ui.style().visuals.widgets.hovered.fg_stroke
+        } else {
+            Stroke::NONE
+        };
+        if 0.0 < stroke.width {
+            // The collapsed panel occupies no space of its own, so the line has to
+            // go _inside_ the area the following panels use — which means painting
+            // in a layer above them, or they would cover it.
+            // TODO(emilk): use the panel's own layer once https://github.com/emilk/egui/issues/1516 is done
+            let painter = ui
+                .ctx()
+                .layer_painter(LayerId::new(Order::Middle, resize_id))
+                .with_clip_rect(resize_rect);
+
+            // Nudge the line inward so it isn't half-clipped by the edge.
+            let line_pos = fixed_edge_pos - 0.5 * side.sign() * stroke.width;
+            if axis == 0 {
+                painter.vline(line_pos, cross_range, stroke);
+            } else {
+                painter.hline(cross_range, line_pos, stroke);
+            }
         }
     }
 
@@ -939,7 +1087,7 @@ impl Panel {
 
         // Use `resize_id_source` so collapsed/expanded panels in
         // `show_switched` share one resize widget.
-        let resize_id = self.resize_id_source.unwrap_or(self.id).with("__resize");
+        let resize_id = self.resize_id();
         let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
         ui.interact(resize_rect, resize_id, Sense::click_and_drag())
     }

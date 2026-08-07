@@ -5,7 +5,7 @@ use epaint::{
     Tessellator, TextureAtlas, Vec2, pos2, tessellator::Path,
 };
 
-use std::hint::black_box;
+use core::hint::black_box;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
