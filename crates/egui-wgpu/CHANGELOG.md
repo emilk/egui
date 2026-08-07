@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
 ## 0.36.0 - 2026-08-05
 * Upgrade wgpu to v30 [#8289](https://github.com/emilk/egui/pull/8289) by [@akx](https://github.com/akx)
 * Fix: ensure mapped range is dropped before unmapping buffer in capture [#8337](https://github.com/emilk/egui/pull/8337) by [@MagicCrazyMan](https://github.com/MagicCrazyMan)
