@@ -185,3 +185,50 @@ fn click_inside_a_widget_still_clicks() {
         "press and release without moving should be a click"
     );
 }
+
+/// A button inside a draggable row takes the click hit, because it is on top.
+/// The pointer is still inside the row though, so the press must stay undecided —
+/// otherwise the row starts dragging the moment the user touches the button.
+#[test]
+fn press_on_a_button_inside_a_draggable_row_stays_undecided() {
+    let button_id = Id::new("button");
+    let button_size = Vec2::new(50.0, 20.0);
+
+    let mut harness = Harness::builder()
+        .with_step_dt(1.0 / 60.0)
+        .with_size(Vec2::new(300.0, 200.0))
+        .build_ui(move |ui| {
+            let row_rect = ui.max_rect();
+            ui.interact(row_rect, widget_id(), Sense::click_and_drag());
+
+            // Allocated after the row, so it ends up _on top_ of it.
+            let button_rect = Rect::from_min_size(row_rect.min, button_size);
+            ui.interact(button_rect, button_id, Sense::click());
+        });
+    harness.step();
+
+    let grab = Rect::from_min_size(widget_rect(&harness).min, button_size).center();
+    press_at(&mut harness, grab);
+
+    let (_hovered, dragged) = widget_state(&harness);
+    assert!(
+        !dragged,
+        "pressing a button inside the row must not start dragging the row"
+    );
+
+    harness.event(egui::Event::PointerButton {
+        pos: grab,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::NONE,
+    });
+    harness.step();
+
+    assert!(
+        harness
+            .ctx
+            .read_response(button_id)
+            .is_some_and(|r| r.clicked()),
+        "the button should have been clicked"
+    );
+}

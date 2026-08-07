@@ -198,17 +198,22 @@ pub(crate) fn interact(
                 // When the mouse first is pressed, it could be either,
                 // so we postpone the decision until we know.
                 //
-                // …unless a click is no longer possible at all: a click has to be
-                // released on the widget, and `hits.click` tells us whether the
-                // pointer is still somewhere a release would land on this widget.
-                // Note that this is not the same as being inside `interact_rect`:
-                // the hit-test also picks up widgets within `interact_radius`, and
-                // lets a widget on top take the hit.
+                // …unless the pointer has left the widget: a click has to be
+                // released on the widget, so once the pointer is outside there is
+                // nothing left to wait for.
                 //
                 // Deciding here means a thin drag handle (narrower than
                 // `max_click_dist`) doesn't spend the decision window as neither
                 // hovered nor dragged, which would make its highlight blink out.
-                let could_still_be_clicked = hits.click.is_some_and(|hit| hit.id == widget.id);
+                // The hit-test picks up widgets within `interact_radius`, so
+                // `hits.click` can name such a handle even when the pointer is a
+                // few points outside it.
+                //
+                // A widget on top might "steal" the click hit, but then the pointer is still inside
+                // us, and pressing that button must not start a drag. So we check both.
+                let pointer_is_inside = hits.contains_pointer.iter().any(|w| w.id == widget.id);
+                let could_still_be_clicked =
+                    pointer_is_inside || hits.click.is_some_and(|hit| hit.id == widget.id);
                 input.pointer.is_decidedly_dragging() || !could_still_be_clicked
             } else {
                 // This widget is just sensitive to drags, so we can mark it as dragged right away:
