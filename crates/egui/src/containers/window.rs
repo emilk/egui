@@ -628,7 +628,7 @@ impl Window<'_> {
 
         // We get or create the Frame for the title and content
         let window_frame = frame.unwrap_or_else(|| Frame::window(&style));
-        let window_title_frame = title_frame.unwrap_or_else(|| window_frame);
+        let window_title_frame = title_frame.unwrap_or(window_frame);
 
         // We apply the window margin by using the `ScrollArea::content_margin`.
         let window_content_margin = window_frame.inner_margin;
