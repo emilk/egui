@@ -1906,11 +1906,18 @@ fn process_viewport_command(
                 }
             });
         }
-        ViewportCommand::SetTheme(t) => window.set_theme(match t {
-            egui::SystemTheme::Light => Some(winit::window::Theme::Light),
-            egui::SystemTheme::Dark => Some(winit::window::Theme::Dark),
-            egui::SystemTheme::SystemDefault => None,
-        }),
+        ViewportCommand::SetTheme(t) => {
+            window.set_theme(match t {
+                egui::SystemTheme::Light => Some(winit::window::Theme::Light),
+                egui::SystemTheme::Dark => Some(winit::window::Theme::Dark),
+                egui::SystemTheme::SystemDefault => None,
+            });
+
+            #[cfg(target_os = "windows")]
+            {
+                refresh_windows_non_client_activation(window);
+            }
+        }
         ViewportCommand::ContentProtected(v) => window.set_content_protected(v),
         ViewportCommand::CursorPosition(pos) => {
             if let Err(err) = window.set_cursor_position(PhysicalPosition::new(
@@ -2252,6 +2259,39 @@ pub fn apply_viewport_builder_to_window(
         }
         if let Some(maximized) = builder.maximized {
             window.set_maximized(maximized);
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn refresh_windows_non_client_activation(window: &winit::window::Window) {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{SendMessageW, WM_NCACTIVATE};
+
+    let Ok(window_handle) = window.window_handle() else {
+        return;
+    };
+
+    let RawWindowHandle::Win32(handle) = window_handle.as_raw() else {
+        return;
+    };
+
+    let hwnd = handle.hwnd.get() as _;
+
+    // On Windows, changing the window theme updates egui immediately, but the
+    // native title bar may keep its previous colors until the activation state
+    // changes. Send WM_NCACTIVATE to refresh the non-client title bar state
+    // without actually changing the real focus.
+    #[expect(unsafe_code)]
+    unsafe {
+        if window.has_focus() {
+            // The window is active already, so send inactive -> active to force
+            // Windows to recalculate/repaint the title bar state.
+            SendMessageW(hwnd, WM_NCACTIVATE, 0, 0);
+            SendMessageW(hwnd, WM_NCACTIVATE, 1, 0);
+        } else {
+            // Keep the visual state inactive if the window does not have focus.
+            SendMessageW(hwnd, WM_NCACTIVATE, 0, 0);
         }
     }
 }
