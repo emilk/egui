@@ -2278,12 +2278,14 @@ fn refresh_windows_non_client_activation(window: &winit::window::Window) {
 
     let hwnd = handle.hwnd.get() as _;
 
+    // SAFETY:
     // On Windows, changing the window theme updates egui immediately, but the
     // native title bar may keep its previous colors until the activation state
     // changes. Send WM_NCACTIVATE to refresh the non-client title bar state
     // without actually changing the real focus.
     #[expect(unsafe_code)]
     unsafe {
+        #[allow(clippy::branches_sharing_code)]
         if window.has_focus() {
             // The window is active already, so send inactive -> active to force
             // Windows to recalculate/repaint the title bar state.
