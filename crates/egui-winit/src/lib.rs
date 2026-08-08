@@ -2265,7 +2265,7 @@ pub fn apply_viewport_builder_to_window(
 
 #[cfg(target_os = "windows")]
 fn refresh_windows_non_client_activation(window: &winit::window::Window) {
-    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
     use windows_sys::Win32::UI::WindowsAndMessaging::{SendMessageW, WM_NCACTIVATE};
 
     let Ok(window_handle) = window.window_handle() else {
@@ -2285,7 +2285,7 @@ fn refresh_windows_non_client_activation(window: &winit::window::Window) {
     // without actually changing the real focus.
     #[expect(unsafe_code)]
     unsafe {
-        #[allow(clippy::branches_sharing_code)]
+        #[expect(clippy::branches_sharing_code)]
         if window.has_focus() {
             // The window is active already, so send inactive -> active to force
             // Windows to recalculate/repaint the title bar state.
