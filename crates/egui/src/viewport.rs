@@ -1212,6 +1212,17 @@ pub enum ViewportCommand {
     ///
     /// This is equivalent to the system keyboard shortcut for paste (e.g. CTRL + V).
     RequestPaste,
+
+    /// Request a fresh activation token from the windowing system
+    /// (Linux only: xdg-activation-v1 on Wayland, startup-notification id
+    /// on X11; no-op elsewhere).
+    ///
+    /// The token is delivered asynchronously via
+    /// [`crate::Event::ActivationTokenReceived`]. Pass the received string
+    /// to a child process (usually via the `XDG_ACTIVATION_TOKEN`
+    /// environment variable) so the compositor grants it focus without
+    /// tripping focus-stealing prevention.
+    RequestActivationToken,
 }
 
 impl ViewportCommand {
