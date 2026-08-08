@@ -9,3 +9,17 @@
 Default fonts that are used in `epaint` and `egui`. Not intended for use as a standalone library.
 
 Made for [`egui`](https://github.com/emilk/egui/).
+
+## Font hinting
+
+`epaint` relies on embedded TrueType hinting instructions for crisp text on low-dpi
+screens: skrifa only auto-hints a font that lacks an interpreter program, so a font with
+no glyph instructions renders unhinted and blurry.
+
+`Radio Canada` shipped without glyph instructions, so it was hinted with
+[`ttfautohint`](https://www.freetype.org/ttfautohint/), which preserves its variable axes:
+
+```sh
+ttfautohint --windows-compatibility \
+    "RadioCanada-VariableFont_wdth,wght.ttf" "RadioCanada-VariableFont_wdth,wght.ttf"
+```
