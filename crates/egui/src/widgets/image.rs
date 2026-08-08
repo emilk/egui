@@ -115,7 +115,9 @@ impl<'a> Image<'a> {
         })
     }
 
-    /// Texture options used when creating the texture.
+    /// Texture options used when creating the texture. If the texture is already loaded. This
+    /// function will not work. You will need to use this options while loading the texture, for
+    /// example in [`Context::load_texture`].
     #[inline]
     pub fn texture_options(mut self, texture_options: TextureOptions) -> Self {
         self.texture_options = texture_options;
