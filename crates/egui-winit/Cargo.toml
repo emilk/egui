@@ -95,6 +95,11 @@ objc2-ui-kit = { workspace = true, features = [
   "UIWindowScene",
 ] }
 
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { workspace = true, features = [
+    "Win32_UI_WindowsAndMessaging",
+] }
+
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { workspace = true, optional = true }
 
