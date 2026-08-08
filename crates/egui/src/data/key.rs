@@ -184,10 +184,64 @@ pub enum Key {
     F34,
     F35,
 
+    // ----------------------------------------------
+    // Browser / multimedia navigation keys:
     /// Back navigation key from multimedia keyboard.
     /// Android sends this key on Back button press.
     /// Does not work on Web.
     BrowserBack,
+
+    /// Forward navigation key.
+    BrowserForward,
+
+    /// Refresh / reload page key.
+    BrowserRefresh,
+
+    /// Search key.
+    BrowserSearch,
+
+    /// Go to home page key.
+    BrowserHome,
+
+    /// Open favorites / bookmarks key.
+    BrowserFavorites,
+
+    /// Stop loading key.
+    BrowserStop,
+
+    // ----------------------------------------------
+    // Media control keys:
+    /// Play / Pause toggle key.
+    MediaPlayPause,
+
+    /// Next track key.
+    MediaTrackNext,
+
+    /// Previous track key.
+    MediaTrackPrevious,
+
+    /// Stop playback key.
+    MediaStop,
+
+    /// Mute audio toggle key.
+    AudioVolumeMute,
+
+    /// Decrease audio volume key.
+    AudioVolumeDown,
+
+    /// Increase audio volume key.
+    AudioVolumeUp,
+
+    // ----------------------------------------------
+    // Launch keys:
+    /// Launch mail application key.
+    LaunchMail,
+
+    /// Launch application 1 (typically "My Computer") key.
+    LaunchApp1,
+
+    /// Launch application 2 (typically "Calculator") key.
+    LaunchApp2,
 
     // ----------------------------------------------
     // Modifier keys (exposed as distinct left/right variants so that
@@ -226,6 +280,46 @@ pub enum Key {
     /// on ISO layouts. On French AZERTY it produces `<>|`; on UK
     /// QWERTY a secondary `\` / `|`. Missing from US ANSI keyboards.
     IntlBackslash,
+
+    // ----------------------------------------------
+    // Lock / System keys:
+    /// Caps Lock key.
+    CapsLock,
+
+    /// Num Lock key.
+    NumLock,
+
+    /// Scroll Lock key.
+    ScrollLock,
+
+    /// Print Screen / SysRq key.
+    PrintScreen,
+
+    /// Pause / Break key.
+    Pause,
+
+    /// Menu / Apps key (opens context menu).
+    Menu,
+
+    // ----------------------------------------------
+    // Mac / other system keys:
+    /// Fn / Globe key (Mac keyboard function key).
+    Fn,
+
+    /// Eject key (⏏) on Mac keyboards.
+    Eject,
+
+    /// Help key (found on older PC and Mac keyboards).
+    Help,
+
+    /// Power key (toggles power state).
+    Power,
+
+    /// Sleep / Standby key.
+    Sleep,
+
+    /// Clear key (on some keyboards/numpads).
+    Clear,
     // When adding keys, remember to also update:
     // * crates/egui-winit/src/lib.rs
     // * Key::ALL
@@ -352,6 +446,24 @@ impl Key {
         Self::F35,
         // Navigation keys:
         Self::BrowserBack,
+        Self::BrowserForward,
+        Self::BrowserRefresh,
+        Self::BrowserSearch,
+        Self::BrowserHome,
+        Self::BrowserFavorites,
+        Self::BrowserStop,
+        // Media control keys:
+        Self::MediaPlayPause,
+        Self::MediaTrackNext,
+        Self::MediaTrackPrevious,
+        Self::MediaStop,
+        Self::AudioVolumeMute,
+        Self::AudioVolumeDown,
+        Self::AudioVolumeUp,
+        // Launch keys:
+        Self::LaunchMail,
+        Self::LaunchApp1,
+        Self::LaunchApp2,
         // Modifier keys (physical L/R):
         Self::ShiftLeft,
         Self::ShiftRight,
@@ -363,6 +475,20 @@ impl Key {
         Self::SuperRight,
         // International keys:
         Self::IntlBackslash,
+        // Lock / System keys:
+        Self::CapsLock,
+        Self::NumLock,
+        Self::ScrollLock,
+        Self::PrintScreen,
+        Self::Pause,
+        Self::Menu,
+        // Mac / other system keys:
+        Self::Fn,
+        Self::Eject,
+        Self::Help,
+        Self::Power,
+        Self::Sleep,
+        Self::Clear,
     ];
 
     /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
@@ -386,7 +512,7 @@ impl Key {
             "Backspace" => Self::Backspace,
             "Enter" | "Return" | "NumpadEnter" => Self::Enter,
 
-            "Help" | "Insert" => Self::Insert,
+            "Insert" => Self::Insert,
             "Delete" => Self::Delete,
             "Home" => Self::Home,
             "End" => Self::End,
@@ -492,6 +618,24 @@ impl Key {
             "F35" => Self::F35,
 
             "BrowserBack" => Self::BrowserBack,
+            "BrowserForward" => Self::BrowserForward,
+            "BrowserRefresh" => Self::BrowserRefresh,
+            "BrowserSearch" => Self::BrowserSearch,
+            "BrowserHome" => Self::BrowserHome,
+            "BrowserFavorites" => Self::BrowserFavorites,
+            "BrowserStop" => Self::BrowserStop,
+
+            "MediaPlayPause" => Self::MediaPlayPause,
+            "MediaTrackNext" => Self::MediaTrackNext,
+            "MediaTrackPrevious" => Self::MediaTrackPrevious,
+            "MediaStop" => Self::MediaStop,
+            "AudioVolumeMute" => Self::AudioVolumeMute,
+            "AudioVolumeDown" => Self::AudioVolumeDown,
+            "AudioVolumeUp" => Self::AudioVolumeUp,
+
+            "LaunchMail" => Self::LaunchMail,
+            "LaunchApp1" => Self::LaunchApp1,
+            "LaunchApp2" => Self::LaunchApp2,
 
             "ShiftLeft" => Self::ShiftLeft,
             "ShiftRight" => Self::ShiftRight,
@@ -504,6 +648,20 @@ impl Key {
             "SuperRight" | "MetaRight" | "OSRight" => Self::SuperRight,
 
             "IntlBackslash" => Self::IntlBackslash,
+
+            "CapsLock" => Self::CapsLock,
+            "NumLock" => Self::NumLock,
+            "ScrollLock" => Self::ScrollLock,
+            "PrintScreen" => Self::PrintScreen,
+            "Pause" => Self::Pause,
+            "ContextMenu" | "Menu" | "Apps" => Self::Menu,
+
+            "Fn" | "FnLock" | "Globe" => Self::Fn,
+            "Eject" => Self::Eject,
+            "Help" => Self::Help,
+            "Power" => Self::Power,
+            "Sleep" | "Standby" => Self::Sleep,
+            "Clear" => Self::Clear,
 
             _ => return None,
         })
@@ -660,6 +818,24 @@ impl Key {
             Self::F35 => "F35",
 
             Self::BrowserBack => "BrowserBack",
+            Self::BrowserForward => "BrowserForward",
+            Self::BrowserRefresh => "BrowserRefresh",
+            Self::BrowserSearch => "BrowserSearch",
+            Self::BrowserHome => "BrowserHome",
+            Self::BrowserFavorites => "BrowserFavorites",
+            Self::BrowserStop => "BrowserStop",
+
+            Self::MediaPlayPause => "MediaPlayPause",
+            Self::MediaTrackNext => "MediaTrackNext",
+            Self::MediaTrackPrevious => "MediaTrackPrevious",
+            Self::MediaStop => "MediaStop",
+            Self::AudioVolumeMute => "AudioVolumeMute",
+            Self::AudioVolumeDown => "AudioVolumeDown",
+            Self::AudioVolumeUp => "AudioVolumeUp",
+
+            Self::LaunchMail => "LaunchMail",
+            Self::LaunchApp1 => "LaunchApp1",
+            Self::LaunchApp2 => "LaunchApp2",
 
             Self::ShiftLeft => "ShiftLeft",
             Self::ShiftRight => "ShiftRight",
@@ -671,6 +847,20 @@ impl Key {
             Self::SuperRight => "SuperRight",
 
             Self::IntlBackslash => "IntlBackslash",
+
+            Self::CapsLock => "CapsLock",
+            Self::NumLock => "NumLock",
+            Self::ScrollLock => "ScrollLock",
+            Self::PrintScreen => "PrintScreen",
+            Self::Pause => "Pause",
+            Self::Menu => "Menu",
+
+            Self::Fn => "Fn",
+            Self::Eject => "Eject",
+            Self::Help => "Help",
+            Self::Power => "Power",
+            Self::Sleep => "Sleep",
+            Self::Clear => "Clear",
         }
     }
 }
@@ -679,7 +869,7 @@ impl Key {
 fn test_key_from_name() {
     assert_eq!(
         Key::ALL.len(),
-        Key::IntlBackslash as usize + 1,
+        Key::Clear as usize + 1,
         "Some keys are missing in Key::ALL"
     );
 

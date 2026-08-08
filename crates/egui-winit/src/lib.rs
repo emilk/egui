@@ -1514,6 +1514,39 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::F35 => Key::F35,
 
         NamedKey::BrowserBack => Key::BrowserBack,
+        NamedKey::BrowserForward => Key::BrowserForward,
+        NamedKey::BrowserRefresh => Key::BrowserRefresh,
+        NamedKey::BrowserSearch => Key::BrowserSearch,
+        NamedKey::BrowserHome => Key::BrowserHome,
+        NamedKey::BrowserFavorites => Key::BrowserFavorites,
+        NamedKey::BrowserStop => Key::BrowserStop,
+
+        NamedKey::MediaPlayPause => Key::MediaPlayPause,
+        NamedKey::MediaTrackNext => Key::MediaTrackNext,
+        NamedKey::MediaTrackPrevious => Key::MediaTrackPrevious,
+        NamedKey::MediaStop => Key::MediaStop,
+        NamedKey::AudioVolumeMute => Key::AudioVolumeMute,
+        NamedKey::AudioVolumeDown => Key::AudioVolumeDown,
+        NamedKey::AudioVolumeUp => Key::AudioVolumeUp,
+
+        NamedKey::LaunchMail => Key::LaunchMail,
+        NamedKey::LaunchApplication1 => Key::LaunchApp1,
+        NamedKey::LaunchApplication2 => Key::LaunchApp2,
+
+        NamedKey::CapsLock => Key::CapsLock,
+        NamedKey::NumLock => Key::NumLock,
+        NamedKey::ScrollLock => Key::ScrollLock,
+        NamedKey::PrintScreen => Key::PrintScreen,
+        NamedKey::Pause => Key::Pause,
+        NamedKey::ContextMenu => Key::Menu,
+
+        NamedKey::Fn => Key::Fn,
+        NamedKey::Eject => Key::Eject,
+        NamedKey::Help => Key::Help,
+        NamedKey::Power => Key::Power,
+        NamedKey::Standby => Key::Sleep,
+        NamedKey::Clear => Key::Clear,
+
         _ => {
             log::trace!("Unknown key: {named_key:?}");
             return None;
@@ -1652,6 +1685,44 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
 
         // ISO 102nd key — `<>|` on French AZERTY, `\|` on UK QWERTY.
         KeyCode::IntlBackslash => Key::IntlBackslash,
+
+        // Lock / System keys:
+        KeyCode::CapsLock => Key::CapsLock,
+        KeyCode::NumLock => Key::NumLock,
+        KeyCode::ScrollLock => Key::ScrollLock,
+        KeyCode::PrintScreen => Key::PrintScreen,
+        KeyCode::Pause => Key::Pause,
+        KeyCode::ContextMenu => Key::Menu,
+
+        // Browser keys:
+        KeyCode::BrowserBack => Key::BrowserBack,
+        KeyCode::BrowserForward => Key::BrowserForward,
+        KeyCode::BrowserRefresh => Key::BrowserRefresh,
+        KeyCode::BrowserSearch => Key::BrowserSearch,
+        KeyCode::BrowserHome => Key::BrowserHome,
+        KeyCode::BrowserFavorites => Key::BrowserFavorites,
+        KeyCode::BrowserStop => Key::BrowserStop,
+
+        // Media keys:
+        KeyCode::MediaPlayPause => Key::MediaPlayPause,
+        KeyCode::MediaTrackNext => Key::MediaTrackNext,
+        KeyCode::MediaTrackPrevious => Key::MediaTrackPrevious,
+        KeyCode::MediaStop => Key::MediaStop,
+        KeyCode::AudioVolumeMute => Key::AudioVolumeMute,
+        KeyCode::AudioVolumeDown => Key::AudioVolumeDown,
+        KeyCode::AudioVolumeUp => Key::AudioVolumeUp,
+
+        // Launch keys:
+        KeyCode::LaunchMail => Key::LaunchMail,
+        KeyCode::LaunchApp1 => Key::LaunchApp1,
+        KeyCode::LaunchApp2 => Key::LaunchApp2,
+
+        // Mac / other system keys:
+        KeyCode::Fn => Key::Fn,
+        KeyCode::Eject => Key::Eject,
+        KeyCode::Help => Key::Help,
+        KeyCode::Power => Key::Power,
+        KeyCode::Sleep => Key::Sleep,
 
         _ => {
             return None;
