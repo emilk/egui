@@ -89,6 +89,12 @@ pub struct SharedState {
     viewport_from_window: HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
     resized_viewport: Option<ViewportId>,
+
+    /// Handed to the AccessKit adapter of every viewport that gets a window,
+    /// so assistive technology reaches the child windows too and not only the
+    /// root.
+    #[cfg(feature = "accesskit")]
+    accesskit_proxy: Option<EventLoopProxy<UserEvent>>,
 }
 
 pub type Viewports = egui::OrderedViewportIdMap<Viewport>;
@@ -156,6 +162,9 @@ impl<'app> WgpuWinitApp<'app> {
             return;
         };
         let mut shared = running.shared.borrow_mut();
+        // Cloned before the destructure below borrows the rest of the state.
+        #[cfg(feature = "accesskit")]
+        let accesskit_proxy = shared.accesskit_proxy.clone();
         let SharedState {
             viewports,
             painter,
@@ -169,19 +178,24 @@ impl<'app> WgpuWinitApp<'app> {
                 &running.integration.egui_ctx,
                 viewport_from_window,
                 painter,
+                #[cfg(feature = "accesskit")]
+                accesskit_proxy.as_ref(),
             );
         }
     }
 
     #[cfg(target_os = "android")]
     fn recreate_window(&self, event_loop: &ActiveEventLoop, running: &WgpuWinitRunning<'app>) {
+        let mut shared = running.shared.borrow_mut();
+        #[cfg(feature = "accesskit")]
+        let accesskit_proxy = shared.accesskit_proxy.clone();
         let SharedState {
             egui_ctx,
             viewports,
             viewport_from_window,
             painter,
             ..
-        } = &mut *running.shared.borrow_mut();
+        } = &mut *shared;
 
         initialize_or_update_viewport(
             viewports,
@@ -191,7 +205,14 @@ impl<'app> WgpuWinitApp<'app> {
             None,
             painter,
         )
-        .initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+        .initialize_window(
+            event_loop,
+            egui_ctx,
+            viewport_from_window,
+            painter,
+            #[cfg(feature = "accesskit")]
+            accesskit_proxy.as_ref(),
+        );
     }
 
     #[cfg(target_os = "android")]
@@ -359,6 +380,11 @@ impl<'app> WgpuWinitApp<'app> {
             painter,
             focused_viewport: Some(ViewportId::ROOT),
             resized_viewport: None,
+            // The root's adapter was created above, where its window is;
+            // every viewport created from now on picks this up in
+            // `initialize_window`.
+            #[cfg(feature = "accesskit")]
+            accesskit_proxy: Some(self.repaint_proxy.lock().clone()),
         }));
 
         {
@@ -1054,6 +1080,7 @@ impl Viewport {
         egui_ctx: &egui::Context,
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
+        #[cfg(feature = "accesskit")] accesskit_proxy: Option<&EventLoopProxy<UserEvent>>,
     ) {
         if self.window.is_some() {
             return; // we already have one
@@ -1063,7 +1090,20 @@ impl Viewport {
 
         let viewport_id = self.ids.this;
 
-        match egui_winit::create_window(egui_ctx, event_loop, &self.builder) {
+        // AccessKit's winit adapter refuses to attach to a window that has
+        // already been shown, and the root is the only one eframe already
+        // holds back (it starts hidden to avoid the white flash of #2279).
+        // Hold the others back too, just until the adapter is in place.
+        #[cfg_attr(not(feature = "accesskit"), expect(unused_mut))]
+        let mut builder = self.builder.clone();
+        #[cfg(feature = "accesskit")]
+        let reveal_after_accesskit =
+            accesskit_proxy.is_some() && builder.visible.unwrap_or(true) && {
+                builder = builder.with_visible(false);
+                true
+            };
+
+        match egui_winit::create_window(egui_ctx, event_loop, &builder) {
             Ok(window) => {
                 windows_id.insert(window.id(), viewport_id);
 
@@ -1075,14 +1115,28 @@ impl Viewport {
                     log::error!("on set_window: viewport_id {viewport_id:?} {err}");
                 }
 
-                self.egui_winit = Some(egui_winit::State::new(
+                #[cfg_attr(not(feature = "accesskit"), expect(unused_mut))]
+                let mut egui_winit = egui_winit::State::new(
                     egui_ctx.clone(),
                     viewport_id,
                     event_loop,
                     Some(window.scale_factor() as f32),
                     event_loop.system_theme(),
                     painter.max_texture_side(),
-                ));
+                );
+
+                // Every viewport with a window gets an adapter, not just the
+                // root: a deferred child viewport is a real window, and
+                // assistive technology sees nothing inside one without it.
+                #[cfg(feature = "accesskit")]
+                if let Some(proxy) = accesskit_proxy {
+                    egui_winit.init_accesskit(event_loop, &window, proxy.clone());
+                    if reveal_after_accesskit {
+                        window.set_visible(true);
+                    }
+                }
+
+                self.egui_winit = Some(egui_winit);
 
                 egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window, true);
                 self.window = Some(window);
@@ -1149,13 +1203,16 @@ fn render_immediate_viewport(
     } = immediate_viewport;
 
     let input = {
+        let mut shared = shared.borrow_mut();
+        #[cfg(feature = "accesskit")]
+        let accesskit_proxy = shared.accesskit_proxy.clone();
         let SharedState {
             egui_ctx,
             viewports,
             painter,
             viewport_from_window,
             ..
-        } = &mut *shared.borrow_mut();
+        } = &mut *shared;
 
         let viewport = initialize_or_update_viewport(
             viewports,
@@ -1167,7 +1224,14 @@ fn render_immediate_viewport(
         );
         if viewport.window.is_none() {
             event_loop_context::with_current_event_loop(|event_loop| {
-                viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+                viewport.initialize_window(
+                    event_loop,
+                    egui_ctx,
+                    viewport_from_window,
+                    painter,
+                    #[cfg(feature = "accesskit")]
+                    accesskit_proxy.as_ref(),
+                );
             });
         }
 
