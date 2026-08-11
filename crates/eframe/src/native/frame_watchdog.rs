@@ -12,6 +12,7 @@ use winit::window::WindowId;
 /// forever. See <https://github.com/emilk/egui/issues/5136>.
 pub struct FrameWatchdog {
     deadline: Duration,
+
     /// When each window's outstanding redraw was requested.
     pending: HashMap<WindowId, Instant>,
 }
