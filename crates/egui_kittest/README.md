@@ -63,12 +63,45 @@ max_failed_pixels = 0
 [linux]
 threshold = 0.6
 max_failed_pixels = 0
+
+# record every test and save a GIF of the failing ones
+# (needs the `recording` feature)
+save_gif_on_failure = false
 ```
 
 Raise `max_failed_pixels` only very carefully: a high value (more than ~10) is enough to hide a
 real change, such as a moved separator, a shifted one-pixel border, or a small icon rendering
 incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever you
 update the snapshot.
+
+## Recording
+
+With the `recording` feature you can record a test as an animated GIF, which is useful to see
+what a test actually does. Recording renders every egui pass, so it needs a renderer:
+enable the `wgpu` feature too.
+
+```rust,no_run
+# use egui_kittest::Harness;
+# let mut harness = Harness::new_ui(|ui| { ui.label("Hello!"); });
+#[cfg(all(feature = "recording", feature = "wgpu"))]
+{
+    use egui_kittest::RecordingOptions;
+
+    harness.start_recording(RecordingOptions::gif("hello.gif", 10.0));
+    harness.run();
+    harness.finish_recording().unwrap();
+}
+```
+
+You can also record without touching the test:
+
+* `KITTEST_RECORD=1 cargo test` writes a GIF per test to `tests/snapshots/recordings`
+* `KITTEST_RECORD=open cargo test` writes each GIF to a temporary file and opens it
+* `save_gif_on_failure = true` in `kittest.toml` writes a GIF to `tests/snapshots/failures`,
+  but only for tests that fail
+
+The recorder is an `egui::Plugin` (`RecordingPlugin`), so you can also register it on any
+`egui::Context` yourself.
 
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.

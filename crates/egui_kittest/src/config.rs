@@ -30,6 +30,15 @@ pub struct Config {
     #[serde(alias = "failed_pixel_count_threshold")]
     max_failed_pixels: usize,
 
+    /// Record every harness and save a GIF of the failing ones to
+    /// `{output_path}/failures/{test_name}.gif`.
+    ///
+    /// Needs the `recording` feature; ignored without it.
+    ///
+    /// Default is `false`.
+    #[cfg_attr(not(feature = "recording"), expect(dead_code))]
+    save_gif_on_failure: bool,
+
     windows: OsConfig,
     mac: OsConfig,
     linux: OsConfig,
@@ -41,6 +50,7 @@ impl Default for Config {
             output_path: PathBuf::from("tests/snapshots"),
             threshold: 0.6,
             max_failed_pixels: 0,
+            save_gif_on_failure: false,
             windows: Default::default(),
             mac: Default::default(),
             linux: Default::default(),
@@ -149,6 +159,15 @@ impl Config {
     /// Default is "tests/snapshots".
     pub fn output_path(&self) -> PathBuf {
         self.output_path.clone()
+    }
+
+    /// Record every harness and save a GIF of the failing ones to
+    /// `{output_path}/failures/{test_name}.gif`.
+    ///
+    /// Default is `false`.
+    #[cfg(feature = "recording")]
+    pub fn save_gif_on_failure(&self) -> bool {
+        self.save_gif_on_failure
     }
 }
 

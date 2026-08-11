@@ -26,6 +26,13 @@ wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image", "dep:wgpu", "eframe?/wgpu"
 ## Adds a dify-based image snapshot utility.
 snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 
+## Record a test session as an animated GIF or a sequence of PNG files.
+##
+## Needs a renderer, so enable the `wgpu` feature too, unless you bring your own.
+## Every harness then follows the egui textures, so that a recording can start at any time,
+## but nothing is rendered until a recording starts.
+recording = ["snapshot", "dep:image", "image/gif"]
+
 ## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]
 
@@ -63,6 +70,7 @@ tempfile = { workspace = true, optional = true }
 egui = { workspace = true, features = ["default_fonts"] }
 image = { workspace = true, features = ["png"] }
 egui_extras = { workspace = true, features = ["image", "http"] }
+tempfile.workspace = true
 
 [lints]
 workspace = true
