@@ -146,7 +146,7 @@ type-map = "0.5.1"
 unicode_names2 = { version = "3.1", default-features = false }
 unicode-general-category = "1.1"
 unicode-segmentation = "1.13"
-vello_cpu = { version = "0.1.0", default-features = false, features = [
+vello_cpu = { version = "0.2.0", default-features = false, features = [
   "std",
   "u8_pipeline",
   "f32_pipeline",
