@@ -14,11 +14,18 @@ pub use crate::snapshot::*;
 mod app_kind;
 mod config;
 mod node;
+#[cfg(feature = "recording")]
+mod recording;
 mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
+
+#[cfg(feature = "recording")]
+pub use crate::recording::{
+    RECORD_ENV_VAR, RecordKind, RecordingError, RecordingOptions, RecordingPlugin, RecordingTrigger,
+};
 
 // re-exports:
 pub use {
@@ -121,6 +128,13 @@ pub struct Harness<'a, State = ()> {
     default_snapshot_options: SnapshotOptions,
     #[cfg(feature = "snapshot")]
     snapshot_results: SnapshotResults,
+
+    /// Saves an automatically started recording when the harness is dropped.
+    ///
+    /// Must be declared after `snapshot_results`: fields are dropped in order, so this way
+    /// the panic from a failed snapshot happens first and we can detect it.
+    #[cfg(feature = "recording")]
+    recording_auto_save: Option<recording::AutoSaveOnDrop>,
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -176,6 +190,11 @@ impl<'a, State> Harness<'a, State> {
         let viewport = input.viewports.get_mut(&ViewportId::ROOT).unwrap();
         viewport.native_pixels_per_point = Some(pixels_per_point);
 
+        // Follow the textures from the very first pass, so that a recording can be started
+        // at any time. This captures nothing until the recording starts.
+        #[cfg(feature = "recording")]
+        recording::install_idle(&ctx);
+
         let mut response = None;
 
         // We need to run egui for a single frame so that the AccessKit state can be initialized
@@ -218,6 +237,9 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(feature = "snapshot")]
             snapshot_results: SnapshotResults::default(),
+
+            #[cfg(feature = "recording")]
+            recording_auto_save: None,
         };
         // Handle any viewport commands (e.g. a screenshot or resize) requested during the initial
         // frame above (which didn't go through `_step`).
@@ -225,6 +247,11 @@ impl<'a, State> Harness<'a, State> {
 
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
+
+        // Start recording only now, so that the setup frames above are not part of the recording.
+        #[cfg(feature = "recording")]
+        harness.maybe_start_auto_recording();
+
         harness
     }
 
@@ -752,26 +779,7 @@ impl<'a, State> Harness<'a, State> {
         }
 
         let mut output = self.output.clone();
-
-        if let Some(mouse_pos) = self.ctx.input(|i| i.pointer.hover_pos()) {
-            // Paint a mouse cursor:
-            let triangle = vec![
-                mouse_pos,
-                mouse_pos + egui::vec2(16.0, 8.0),
-                mouse_pos + egui::vec2(8.0, 16.0),
-            ];
-
-            output.shapes.push(ClippedShape {
-                clip_rect: self.ctx.content_rect(),
-                shape: egui::epaint::PathShape::convex_polygon(
-                    triangle,
-                    Color32::WHITE,
-                    egui::Stroke::new(1.0, Color32::BLACK),
-                )
-                .into(),
-            });
-        }
-
+        push_cursor_shape(&self.ctx, &mut output.shapes);
         let image = self.renderer.render(&self.ctx, &output)?;
         self.last_render = Some((pass_nr, image.clone()));
         Ok(image)
@@ -1005,6 +1013,31 @@ impl<'a> Harness<'a> {
     #[track_caller]
     pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
         Self::builder().build_ui(app)
+    }
+}
+
+/// Paint a mouse cursor at the current pointer position.
+///
+/// The test harness has no real cursor, so we draw one to show where the pointer is
+/// in screenshots and recordings.
+#[cfg(any(feature = "wgpu", feature = "snapshot"))]
+pub(crate) fn push_cursor_shape(ctx: &egui::Context, shapes: &mut Vec<ClippedShape>) {
+    if let Some(mouse_pos) = ctx.input(|i| i.pointer.hover_pos()) {
+        let triangle = vec![
+            mouse_pos,
+            mouse_pos + egui::vec2(16.0, 8.0),
+            mouse_pos + egui::vec2(8.0, 16.0),
+        ];
+
+        shapes.push(ClippedShape {
+            clip_rect: ctx.content_rect(),
+            shape: egui::epaint::PathShape::convex_polygon(
+                triangle,
+                Color32::WHITE,
+                egui::Stroke::new(1.0, Color32::BLACK),
+            )
+            .into(),
+        });
     }
 }
 
