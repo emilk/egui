@@ -56,7 +56,7 @@ pub fn paint_text_selection(
             row.x_offset(max.column)
         } else {
             let newline_size = if placed_row.ends_with_newline {
-                row.height() / 2.0 // visualize that we select the newline
+                row.height() * 0.5 // visualize that we select the newline
             } else {
                 0.0
             };

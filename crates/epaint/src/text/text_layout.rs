@@ -904,7 +904,7 @@ fn halign_and_justify_row(
 
     let (target_min_x, target_max_x) = match halign {
         Align::LEFT => (0.0, target_width),
-        Align::Center => (-target_width / 2.0, target_width / 2.0),
+        Align::Center => (-target_width * 0.5, target_width * 0.5),
         Align::RIGHT => (-target_width, 0.0),
     };
 

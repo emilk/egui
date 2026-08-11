@@ -254,12 +254,12 @@ impl crate::View for TessellationTest {
                     let pixel_color = Color32::GRAY;
                     for yi in 0.. {
                         let y = (yi as f32 + 0.5) * magnification_pixel_size;
-                        if y > canvas.height() / 2.0 {
+                        if y > canvas.height() * 0.5 {
                             break;
                         }
                         for xi in 0.. {
                             let x = (xi as f32 + 0.5) * magnification_pixel_size;
-                            if x > canvas.width() / 2.0 {
+                            if x > canvas.width() * 0.5 {
                                 break;
                             }
                             for offset in [vec2(x, y), vec2(x, -y), vec2(-x, y), vec2(-x, -y)] {

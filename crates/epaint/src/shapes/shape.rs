@@ -393,7 +393,7 @@ impl Shape {
                 if stroke.is_empty() {
                     Rect::NOTHING
                 } else {
-                    Rect::from_two_pos(points[0], points[1]).expand(stroke.width / 2.0)
+                    Rect::from_two_pos(points[0], points[1]).expand(stroke.width * 0.5)
                 }
             }
             Self::Path(path_shape) => path_shape.visual_bounding_rect(),

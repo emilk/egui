@@ -462,7 +462,7 @@ impl SubMenu {
         // TODO(lucasmerlin): Instead, maybe make item_spacing.y 0.0?
         let button_rect = button_response
             .rect
-            .expand2(ui.style().spacing.item_spacing / 2.0);
+            .expand2(ui.style().spacing.item_spacing * 0.5);
 
         // In theory some other widget could cover the button and this check would still pass
         // But since we check if no other menu is open, nothing should be able to cover the button
@@ -492,11 +492,11 @@ impl SubMenu {
             });
         }
 
-        let gap = frame.total_margin().sum().x / 2.0 + 2.0;
+        let gap = frame.total_margin().sum().x * 0.5 + 2.0;
 
         let mut response = button_response.clone();
         // Expand the button rect so that the button and the first item in the submenu are aligned
-        let expand = Vec2::new(0.0, frame.total_margin().sum().y / 2.0);
+        let expand = Vec2::new(0.0, frame.total_margin().sum().y * 0.5);
         response.interact_rect = response.interact_rect.expand2(expand);
 
         let popup_response = Popup::from_response(&response)

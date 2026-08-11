@@ -88,7 +88,7 @@ impl AnimationManager {
                 let time_since_toggle = (input.time - anim.toggle_time) as f32;
                 // On the frame we toggle we don't want to return the old value,
                 // so we extrapolate forwards by half a frame:
-                let time_since_toggle = time_since_toggle + input.predicted_dt / 2.0;
+                let time_since_toggle = time_since_toggle + input.predicted_dt * 0.5;
                 let current_value = remap_clamp(
                     time_since_toggle,
                     0.0..=animation_time,

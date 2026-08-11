@@ -226,7 +226,7 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> Sna
                 TextWrapMode::Wrap,
             ];
             Grid::new("wrapping")
-                .spacing(Vec2::new(test_size.x / 2.0, 4.0))
+                .spacing(Vec2::new(test_size.x * 0.5, 4.0))
                 .show(ui, |ui| {
                     for mode in &modes {
                         ui.label(format!("{mode:?}"));

@@ -80,7 +80,7 @@ impl CubicBezierShape {
         if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
             Rect::NOTHING
         } else {
-            self.logical_bounding_rect().expand(self.stroke.width / 2.0)
+            self.logical_bounding_rect().expand(self.stroke.width * 0.5)
         }
     }
 
@@ -443,7 +443,7 @@ impl QuadraticBezierShape {
         if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
             Rect::NOTHING
         } else {
-            self.logical_bounding_rect().expand(self.stroke.width / 2.0)
+            self.logical_bounding_rect().expand(self.stroke.width * 0.5)
         }
     }
 

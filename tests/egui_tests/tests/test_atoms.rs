@@ -64,7 +64,7 @@ fn single_test(name: &str, mut f: impl FnMut(&mut Ui)) -> SnapshotResult {
 
             ui.label("Shrunk");
             ui.scope(|ui| {
-                ui.set_max_width(normal_width / 2.0);
+                ui.set_max_width(normal_width * 0.5);
                 f(ui);
             });
         });

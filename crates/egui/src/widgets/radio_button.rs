@@ -90,7 +90,7 @@ impl Widget for RadioButton<'_> {
 
                 painter.add(epaint::CircleShape {
                     center: big_icon_rect.center(),
-                    radius: big_icon_rect.width() / 2.0 + visuals.expansion,
+                    radius: big_icon_rect.width() * 0.5 + visuals.expansion,
                     fill: visuals.bg_fill,
                     stroke: visuals.bg_stroke,
                 });

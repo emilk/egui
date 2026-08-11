@@ -76,8 +76,8 @@ pub fn viewport_builder(
                 .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
             if 0.0 < monitor_size.width && 0.0 < monitor_size.height {
-                let x = (monitor_size.width - inner_size.x) / 2.0;
-                let y = (monitor_size.height - inner_size.y) / 2.0;
+                let x = (monitor_size.width - inner_size.x) * 0.5;
+                let y = (monitor_size.height - inner_size.y) * 0.5;
                 viewport_builder = viewport_builder.with_position([x, y]);
             }
         }

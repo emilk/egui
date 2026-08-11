@@ -126,7 +126,7 @@ impl Widget for Checkbox<'_> {
 
             if let Some(rect) = response.rect(rect_id) {
                 let big_icon_rect = Rect::from_center_size(
-                    pos2(rect.left() + checkbox_size / 2.0, rect.center().y),
+                    pos2(rect.left() + checkbox_size * 0.5, rect.center().y),
                     Vec2::splat(checkbox_size),
                 );
                 let small_icon_rect =

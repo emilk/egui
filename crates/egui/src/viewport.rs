@@ -1222,8 +1222,8 @@ impl ViewportCommand {
             let size = outer_rect.size();
             let monitor_size = i.viewport().monitor_size?;
             if 1.0 < monitor_size.x && 1.0 < monitor_size.y {
-                let x = (monitor_size.x - size.x) / 2.0;
-                let y = (monitor_size.y - size.y) / 2.0;
+                let x = (monitor_size.x - size.x) * 0.5;
+                let y = (monitor_size.y - size.y) * 0.5;
                 Some(Self::OuterPosition([x, y].into()))
             } else {
                 None
