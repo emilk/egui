@@ -814,3 +814,100 @@ pub fn textedit_hint_text_should_follow_text_alignment() {
          edit_center_x={edit_center_x}, edit_rect={edit_rect:?}",
     );
 }
+
+/// A focused `DragValue` keeps the text the user is editing in memory.
+///
+/// If something else changes the value while the `DragValue` has focus,
+/// that memorized text is stale, and must not be written back to the value.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/8339>.
+#[test]
+pub fn drag_value_should_not_revert_external_changes_while_focused() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut i32| {
+            ui.add(egui::DragValue::new(value));
+        },
+        0,
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    // Something else changes the value while the `DragValue` is focused.
+    *harness.state_mut() = 42;
+    harness.run();
+
+    assert_eq!(harness.state(), &42);
+    let drag_value = harness.get_by_role(accesskit::Role::SpinButton);
+    assert_eq!(drag_value.value(), Some("42".to_owned()));
+
+    // Losing focus must not restore the value the `DragValue` had when it gained focus.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    assert_eq!(harness.state(), &42);
+}
+
+/// While the user is typing into a `DragValue`, the half-finished text must be kept
+/// between frames, even though it doesn't always parse back to the same text.
+#[test]
+pub fn drag_value_should_keep_text_while_typing() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut f64| {
+            ui.add(egui::DragValue::new(value));
+        },
+        0.0,
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    // Type one character per frame. `"1."` parses to `1`, which is formatted as `"1"`,
+    // so re-reading the text from the value would eat the decimal point.
+    for character in "1.25".chars() {
+        harness
+            .get_by_role(accesskit::Role::SpinButton)
+            .type_text(&character.to_string());
+        harness.run();
+    }
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert_eq!(harness.state(), &1.25);
+}
+
+/// An integer `DragValue` cannot represent everything the user types into it,
+/// but the text must still survive until the user is done typing.
+#[test]
+pub fn drag_value_should_keep_text_the_value_cannot_represent() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut i32| {
+            ui.add(egui::DragValue::new(value));
+        },
+        0,
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    // `"12.5"` is stored as `12`, which is formatted as `"12"`.
+    harness
+        .get_by_role(accesskit::Role::SpinButton)
+        .type_text("12.5");
+    harness.run();
+
+    // If the text was re-read from the value now, this would append to `"12"`.
+    harness
+        .get_by_role(accesskit::Role::SpinButton)
+        .type_text("9");
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert_eq!(harness.state(), &12, "The text should have been \"12.59\"");
+}
