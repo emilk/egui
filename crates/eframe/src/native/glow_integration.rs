@@ -36,7 +36,7 @@ use log::warn;
 
 use super::{
     epi_integration, event_loop_context,
-    winit_integration::{EventResult, UserEvent, WinitApp, create_egui_context},
+    winit_integration::{EventResult, PaintPolicy, UserEvent, WinitApp, create_egui_context},
 };
 use crate::epaint::textures::TexturesDelta;
 use crate::{
@@ -458,9 +458,10 @@ impl WinitApp for GlowWinitApp<'_> {
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        paint: PaintPolicy,
     ) -> Result<EventResult> {
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(event_loop, window_id)
+            running.run_ui_and_paint(event_loop, window_id, paint)
         } else {
             Ok(EventResult::Wait)
         }
@@ -567,6 +568,7 @@ impl GlowWinitRunning<'_> {
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        paint: PaintPolicy,
     ) -> Result<EventResult> {
         profiling::function_scope!();
 
@@ -620,8 +622,9 @@ impl GlowWinitRunning<'_> {
             let mut raw_input = egui_winit.take_egui_input(window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
-            let show_ui =
-                is_visible || is_viewport_or_descendant_visible(&glutin.viewports, viewport_id);
+            let show_ui = paint.may_paint()
+                && (is_visible
+                    || is_viewport_or_descendant_visible(&glutin.viewports, viewport_id));
 
             self.integration.pre_update();
 
