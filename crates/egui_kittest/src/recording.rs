@@ -1,4 +1,4 @@
-//! Record an egui session as an animated GIF or a sequence of PNG files.
+//! Record an egui session as an animated GIF, an MP4 video, or a sequence of PNG files.
 //!
 //! The recorder is an [`egui::Plugin`], so it can record any [`egui::Context`],
 //! not just a [`crate::Harness`]. It renders every pass with its own [`TestRenderer`]
@@ -7,8 +7,9 @@
 //! See [`crate::Harness::start_recording`] / [`crate::Harness::finish_recording`].
 
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufWriter, Write as _};
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 use egui::{Context, FullOutput, TexturesDelta};
 use image::RgbaImage;
@@ -22,7 +23,9 @@ use crate::TestRenderer;
 /// whether the test passed or not:
 ///
 /// - `KITTEST_RECORD=1` writes to `{output_path}/recordings/{test_name}.gif`
-/// - `KITTEST_RECORD=open` writes to a temporary file and shows it in the default image viewer
+/// - `KITTEST_RECORD=mp4` writes an MP4 instead of a GIF
+/// - `KITTEST_RECORD=open` writes to a temporary file and shows it in the default viewer
+/// - `KITTEST_RECORD=open-mp4` does both
 pub const RECORD_ENV_VAR: &str = "KITTEST_RECORD";
 
 /// What to write when the recording is saved.
@@ -35,6 +38,20 @@ pub enum RecordKind {
 
         /// Frames per second. The GIF format stores delays in 10 ms ticks,
         /// so a frame rate that is not a divisor of 100 is approximated.
+        frame_rate: f32,
+    },
+
+    /// Save an H.264 MP4 to `path`.
+    ///
+    /// This pipes the frames into [`ffmpeg`](https://ffmpeg.org/), which must be installed
+    /// and on the `PATH`. Without it we save a GIF next to `path` instead.
+    ///
+    /// MP4 has no alpha channel, so transparent pixels turn black.
+    Mp4 {
+        /// Where to write the video.
+        path: PathBuf,
+
+        /// Frames per second.
         frame_rate: f32,
     },
 
@@ -88,6 +105,20 @@ impl RecordingOptions {
         }
     }
 
+    /// Record an MP4 to `path` at the given frame rate,
+    /// with the default trigger ([`RecordingTrigger::ChangedFrames`]).
+    ///
+    /// Needs [`ffmpeg`](https://ffmpeg.org/) on the `PATH`; see [`RecordKind::Mp4`].
+    pub fn mp4(path: impl Into<PathBuf>, frame_rate: f32) -> Self {
+        Self {
+            kind: RecordKind::Mp4 {
+                path: path.into(),
+                frame_rate,
+            },
+            trigger: RecordingTrigger::default(),
+        }
+    }
+
     /// Record a PNG sequence into `directory`,
     /// with the default trigger ([`RecordingTrigger::ChangedFrames`]).
     pub fn png_sequence(directory: impl Into<PathBuf>) -> Self {
@@ -128,20 +159,27 @@ pub enum RecordingError {
 
     /// Failed to encode the image data.
     Encode(image::ImageError),
+
+    /// `ffmpeg` ran, but did not produce a video.
+    Ffmpeg {
+        /// What `ffmpeg` complained about.
+        message: String,
+    },
 }
 
-impl std::fmt::Display for RecordingError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for RecordingError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::NotRecording => write!(f, "No recording is running"),
             Self::NoFrames => write!(f, "The recording contains no frames"),
             Self::Io { path, err } => write!(f, "Failed to write {}: {err}", path.display()),
             Self::Encode(err) => write!(f, "Failed to encode the recording: {err}"),
+            Self::Ffmpeg { message } => write!(f, "ffmpeg failed: {message}"),
         }
     }
 }
 
-impl std::error::Error for RecordingError {}
+impl core::error::Error for RecordingError {}
 
 impl From<image::ImageError> for RecordingError {
     fn from(err: image::ImageError) -> Self {
@@ -172,11 +210,11 @@ pub struct RecordingPlugin {
     uploaded_font_atlas: bool,
 
     /// Set when the harness started the recording by itself (see [`crate::Harness`]).
-    pub(crate) auto_save: Option<AutoSaveMode>,
+    pub(crate) auto_save: Option<AutoSave>,
 }
 
-impl std::fmt::Debug for RecordingPlugin {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RecordingPlugin {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("RecordingPlugin")
             .field("options", &self.options)
             .field("active", &self.active)
@@ -261,33 +299,29 @@ impl RecordingPlugin {
         self.auto_save = None;
     }
 
-    /// Write the captured frames to disk.
+    /// Write the captured frames to disk, and return the file or directory that was written.
+    ///
+    /// The returned path is not always the one in the options: an MP4 falls back to a GIF
+    /// when `ffmpeg` is missing.
     ///
     /// # Errors
     /// Returns an error if there are no frames, or if writing fails.
-    pub fn save(&self) -> Result<(), RecordingError> {
+    pub fn save(&self) -> Result<PathBuf, RecordingError> {
         if self.frames.is_empty() {
             return Err(RecordingError::NoFrames);
         }
 
         match &self.options.kind {
             RecordKind::Gif { path, frame_rate } => save_gif(path, &self.frames, *frame_rate),
+            RecordKind::Mp4 { path, frame_rate } => save_mp4(path, &self.frames, *frame_rate),
             RecordKind::PngSequence { directory } => save_png_sequence(directory, &self.frames),
-        }
-    }
-
-    /// Where the recording will be written.
-    pub(crate) fn output_path(&self) -> &Path {
-        match &self.options.kind {
-            RecordKind::Gif { path, .. } => path,
-            RecordKind::PngSequence { directory } => directory,
         }
     }
 
     /// Change where the recording will be written.
     pub(crate) fn set_output_path(&mut self, new_path: PathBuf) {
         match &mut self.options.kind {
-            RecordKind::Gif { path, .. } => *path = new_path,
+            RecordKind::Gif { path, .. } | RecordKind::Mp4 { path, .. } => *path = new_path,
             RecordKind::PngSequence { directory } => *directory = new_path,
         }
     }
@@ -372,31 +406,62 @@ impl egui::Plugin for RecordingPlugin {
     }
 }
 
-/// How a recording that the harness started by itself is saved when the harness is dropped.
+/// When a recording that the harness started by itself is saved.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AutoSaveMode {
-    /// Save only if the test failed. Written to `{output_path}/failures/{test_name}.gif`.
+    /// Save only if the test failed. Written to `{output_path}/failures/{test_name}.{ext}`.
     OnFailure,
 
-    /// Always save. Written to `{output_path}/recordings/{test_name}.gif`.
+    /// Always save. Written to `{output_path}/recordings/{test_name}.{ext}`.
     Always,
 
-    /// Always save to a temporary file, and show it in the default image viewer.
+    /// Always save to a temporary file, and show it in the default viewer.
     Open,
 }
 
-impl AutoSaveMode {
+/// What such a recording is saved as.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AutoSaveFormat {
+    Gif,
+    Mp4,
+}
+
+impl AutoSaveFormat {
+    fn extension(self) -> &'static str {
+        match self {
+            Self::Gif => "gif",
+            Self::Mp4 => "mp4",
+        }
+    }
+
+    fn options(self, path: PathBuf) -> RecordingOptions {
+        match self {
+            Self::Gif => RecordingOptions::gif(path, AUTO_FRAME_RATE),
+            Self::Mp4 => RecordingOptions::mp4(path, AUTO_FRAME_RATE),
+        }
+    }
+}
+
+/// How a recording that the harness started by itself is saved when the harness is dropped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct AutoSave {
+    pub mode: AutoSaveMode,
+    pub format: AutoSaveFormat,
+}
+
+impl AutoSave {
     /// Where to write the recording of the test we are running.
     fn path(self) -> PathBuf {
         let name = std::thread::current()
             .name()
             .map_or_else(|| "recording".to_owned(), sanitize_file_name);
+        let extension = self.format.extension();
 
-        let subdirectory = match self {
-            Self::OnFailure => "failures",
-            Self::Always => "recordings",
-            Self::Open => {
-                if let Some(path) = temp_gif_path(&name) {
+        let subdirectory = match self.mode {
+            AutoSaveMode::OnFailure => "failures",
+            AutoSaveMode::Always => "recordings",
+            AutoSaveMode::Open => {
+                if let Some(path) = temp_recording_path(&name, extension) {
                     return path;
                 }
                 "recordings" // Fall back to a normal recording.
@@ -406,17 +471,17 @@ impl AutoSaveMode {
         crate::config::config()
             .output_path()
             .join(subdirectory)
-            .join(format!("{name}.gif"))
+            .join(format!("{name}.{extension}"))
     }
 }
 
-/// A GIF in the temporary directory, which we keep after the test, so that the image
+/// A file in the temporary directory, which we keep after the test, so that the
 /// viewer can still read it.
-fn temp_gif_path(name: &str) -> Option<PathBuf> {
+fn temp_recording_path(name: &str, extension: &str) -> Option<PathBuf> {
     tempfile::Builder::new()
         .disable_cleanup(true)
         .prefix(&format!("kittest-recording-{name}-"))
-        .suffix(".gif")
+        .suffix(&format!(".{extension}"))
         .tempfile()
         .inspect_err(|err| log::error!("egui_kittest: failed to create a temporary file: {err}"))
         .ok()
@@ -431,20 +496,27 @@ fn sanitize_file_name(name: &str) -> String {
 /// What [`RECORD_ENV_VAR`] asks for.
 ///
 /// Read once, then cached, so that a test cannot change it halfway through a run.
-pub(crate) fn record_env_var() -> Option<AutoSaveMode> {
-    static MODE: std::sync::OnceLock<Option<AutoSaveMode>> = std::sync::OnceLock::new();
+pub(crate) fn record_env_var() -> Option<AutoSave> {
+    static MODE: std::sync::OnceLock<Option<AutoSave>> = std::sync::OnceLock::new();
     *MODE.get_or_init(|| {
         let value = std::env::var(RECORD_ENV_VAR).ok()?;
 
-        match value.trim().to_ascii_lowercase().as_str() {
-            "open" => Some(AutoSaveMode::Open),
-            "1" | "true" | "yes" | "on" => Some(AutoSaveMode::Always),
-            "" | "0" | "false" | "no" | "off" => None,
+        let (mode, format) = match value.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" | "gif" => (AutoSaveMode::Always, AutoSaveFormat::Gif),
+            "mp4" => (AutoSaveMode::Always, AutoSaveFormat::Mp4),
+            "open" | "open-gif" => (AutoSaveMode::Open, AutoSaveFormat::Gif),
+            "open-mp4" => (AutoSaveMode::Open, AutoSaveFormat::Mp4),
+            "" | "0" | "false" | "no" | "off" => return None,
             other => {
-                log::warn!("Ignoring {RECORD_ENV_VAR}={other:?}: expected `1` or `open`");
-                None
+                log::warn!(
+                    "Ignoring {RECORD_ENV_VAR}={other:?}: expected \
+                     `1`, `mp4`, `open` or `open-mp4`"
+                );
+                return None;
             }
-        }
+        };
+
+        Some(AutoSave { mode, format })
     })
 }
 
@@ -480,13 +552,13 @@ impl<State> crate::Harness<'_, State> {
         self.recording_auto_save = None;
     }
 
-    /// Stop the recording and write it to disk.
+    /// Stop the recording and write it to disk, returning the path that was written.
     ///
     /// # Errors
     /// Returns [`RecordingError::NotRecording`] if nothing was being recorded,
     /// [`RecordingError::NoFrames`] if no frame was captured,
     /// or an I/O or encoding error if writing failed.
-    pub fn finish_recording(&mut self) -> Result<(), RecordingError> {
+    pub fn finish_recording(&mut self) -> Result<PathBuf, RecordingError> {
         self.recording_auto_save = None;
 
         let result = self.ctx.with_plugin::<RecordingPlugin, _>(|plugin| {
@@ -517,18 +589,21 @@ impl<State> crate::Harness<'_, State> {
 
     /// Start recording if the environment variable or the `kittest.toml` asks for it.
     pub(crate) fn maybe_start_auto_recording(&mut self) {
-        let mode = if let Some(mode) = record_env_var() {
-            mode
+        let auto_save = if let Some(auto_save) = record_env_var() {
+            auto_save
         } else if crate::config::config().save_gif_on_failure() {
-            AutoSaveMode::OnFailure
+            AutoSave {
+                mode: AutoSaveMode::OnFailure,
+                format: AutoSaveFormat::Gif,
+            }
         } else {
             return;
         };
 
         // The file name contains the test name, which we only look up when we save,
         // so record to a placeholder path for now.
-        let options = RecordingOptions::gif(PathBuf::new(), AUTO_FRAME_RATE);
-        install(&self.ctx, options, Some(mode));
+        let options = auto_save.format.options(PathBuf::new());
+        install(&self.ctx, options, Some(auto_save));
         self.recording_auto_save = Some(AutoSaveOnDrop {
             ctx: self.ctx.clone(),
         });
@@ -544,7 +619,7 @@ pub(crate) fn install_idle(ctx: &Context) {
 }
 
 /// Register a [`RecordingPlugin`] on `ctx`, or restart the one that is already registered.
-fn install(ctx: &Context, options: RecordingOptions, auto_save: Option<AutoSaveMode>) {
+fn install(ctx: &Context, options: RecordingOptions, auto_save: Option<AutoSave>) {
     let restarted = ctx
         .with_plugin::<RecordingPlugin, _>(|plugin| {
             plugin.restart(options.clone());
@@ -568,29 +643,28 @@ pub(crate) struct AutoSaveOnDrop {
 impl Drop for AutoSaveOnDrop {
     fn drop(&mut self) {
         self.ctx.with_plugin::<RecordingPlugin, _>(|plugin| {
-            let Some(mode) = plugin.auto_save.take() else {
+            let Some(auto_save) = plugin.auto_save.take() else {
                 return;
             };
 
             // A failing test panics, either from an assert or from the snapshot results,
             // which are dropped before this.
-            if mode == AutoSaveMode::OnFailure && !std::thread::panicking() {
+            if auto_save.mode == AutoSaveMode::OnFailure && !std::thread::panicking() {
                 plugin.stop();
                 return;
             }
 
-            plugin.set_output_path(mode.path());
-            let path = plugin.output_path().to_path_buf();
+            plugin.set_output_path(auto_save.path());
 
             match plugin.save() {
-                Ok(()) => {
+                Ok(path) => {
                     eprintln!("egui_kittest: saved a recording to {}", path.display());
 
-                    if mode == AutoSaveMode::Open
+                    if auto_save.mode == AutoSaveMode::Open
                         && let Err(err) = open::that_detached(&path)
                     {
                         eprintln!(
-                            "egui_kittest: failed to open {} in the default image viewer: {err}",
+                            "egui_kittest: failed to open {} in the default viewer: {err}",
                             path.display()
                         );
                     }
@@ -645,7 +719,7 @@ fn font_atlas_delta(ctx: &Context) -> TexturesDelta {
 impl LazyRenderer {
     fn handle_delta(&mut self, delta: &mut TexturesDelta) {
         match self {
-            Self::Uninitialized { textures_delta } => textures_delta.append(std::mem::take(delta)),
+            Self::Uninitialized { textures_delta } => textures_delta.append(core::mem::take(delta)),
             Self::Ready(renderer) => renderer.handle_delta(delta),
             Self::Failed => delta.clear(), // Don't panic when the delta is dropped.
         }
@@ -692,7 +766,7 @@ impl Drop for LazyRenderer {
 // ----------------------------------------------------------------------------
 // Saving
 
-fn save_gif(path: &Path, frames: &[RgbaImage], frame_rate: f32) -> Result<(), RecordingError> {
+fn save_gif(path: &Path, frames: &[RgbaImage], frame_rate: f32) -> Result<PathBuf, RecordingError> {
     create_parent_dir(path)?;
 
     let file = File::create(path).map_err(|err| RecordingError::Io {
@@ -702,7 +776,7 @@ fn save_gif(path: &Path, frames: &[RgbaImage], frame_rate: f32) -> Result<(), Re
     let mut encoder = GifEncoder::new(BufWriter::new(file));
     encoder.set_repeat(Repeat::Infinite)?;
 
-    let fps = frame_rate.clamp(1.0, 100.0).round() as u32;
+    let fps = frame_rate.clamp(1.0, MAX_FRAME_RATE).round() as u32;
     let frame_delay = image::Delay::from_numer_denom_ms(1000, fps);
     // Hold the last frame for a second, so it is obvious where the loop restarts.
     let last_delay = image::Delay::from_numer_denom_ms(1000, 1);
@@ -721,10 +795,109 @@ fn save_gif(path: &Path, frames: &[RgbaImage], frame_rate: f32) -> Result<(), Re
         encoder.encode_frame(image::Frame::from_parts(image, 0, 0, delay))?;
     }
 
-    Ok(())
+    Ok(path.to_path_buf())
 }
 
-fn save_png_sequence(directory: &Path, frames: &[RgbaImage]) -> Result<(), RecordingError> {
+/// The encoder we pipe the frames into. It must be on the `PATH`.
+const FFMPEG: &str = "ffmpeg";
+
+/// Encode the frames as an H.264 MP4, or save a GIF if `ffmpeg` is not installed.
+fn save_mp4(path: &Path, frames: &[RgbaImage], frame_rate: f32) -> Result<PathBuf, RecordingError> {
+    create_parent_dir(path)?;
+
+    // All frames of a video share one size, and H.264 wants both sides to be even.
+    let (width, height) = max_size(frames);
+    let size = (round_up_to_even(width), round_up_to_even(height));
+
+    let mut child = match spawn_ffmpeg(path, size, frame_rate) {
+        Ok(child) => child,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            let gif_path = path.with_extension("gif");
+            log::warn!(
+                "egui_kittest: `{FFMPEG}` is not installed, so {} is saved as {} instead",
+                path.display(),
+                gif_path.display()
+            );
+            return save_gif(&gif_path, frames, frame_rate);
+        }
+        Err(err) => {
+            return Err(RecordingError::Io {
+                path: PathBuf::from(FFMPEG),
+                err,
+            });
+        }
+    };
+
+    // Hold the last frame for a second, like the GIF does.
+    let hold = frame_rate.clamp(1.0, MAX_FRAME_RATE).round() as usize;
+    let mut frames = frames.iter().chain(core::iter::repeat_n(
+        frames.last().expect("`save` rejects empty recordings"),
+        hold,
+    ));
+
+    // If ffmpeg dies early the pipe breaks; report what it said instead of the pipe error.
+    let mut stdin = child.stdin.take().expect("`spawn_ffmpeg` pipes stdin");
+    let write_result = frames.try_for_each(|frame| stdin.write_all(pad_to(frame, size).as_raw()));
+    drop(stdin); // Closing stdin tells ffmpeg to finish the file.
+
+    let output = child.wait_with_output().map_err(|err| RecordingError::Io {
+        path: PathBuf::from(FFMPEG),
+        err,
+    })?;
+
+    if !output.status.success() {
+        let message = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        return Err(RecordingError::Ffmpeg {
+            message: if message.is_empty() {
+                format!("{} while writing {}", output.status, path.display())
+            } else {
+                message
+            },
+        });
+    }
+
+    write_result.map_err(|err| RecordingError::Io {
+        path: path.to_path_buf(),
+        err,
+    })?;
+
+    Ok(path.to_path_buf())
+}
+
+/// Start `ffmpeg`, ready to read raw RGBA frames of the given size from its stdin.
+fn spawn_ffmpeg(
+    path: &Path,
+    (width, height): (u32, u32),
+    frame_rate: f32,
+) -> std::io::Result<std::process::Child> {
+    Command::new(FFMPEG)
+        .args(["-hide_banner", "-loglevel", "error", "-y"])
+        // Input: what we write to stdin.
+        .args(["-f", "rawvideo", "-pix_fmt", "rgba"])
+        .args(["-s", &format!("{width}x{height}")])
+        .args([
+            "-framerate",
+            &frame_rate.clamp(1.0, MAX_FRAME_RATE).to_string(),
+        ])
+        .args(["-i", "-"])
+        // Output: H.264 in an MP4 that any browser and player can show.
+        .args(["-c:v", "libx264", "-pix_fmt", "yuv420p"])
+        .args(["-movflags", "+faststart"])
+        .arg(path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+}
+
+/// The highest frame rate we ask an encoder for.
+const MAX_FRAME_RATE: f32 = 100.0;
+
+fn round_up_to_even(value: u32) -> u32 {
+    value + value % 2
+}
+
+fn save_png_sequence(directory: &Path, frames: &[RgbaImage]) -> Result<PathBuf, RecordingError> {
     std::fs::create_dir_all(directory).map_err(|err| RecordingError::Io {
         path: directory.to_path_buf(),
         err,
@@ -738,7 +911,7 @@ fn save_png_sequence(directory: &Path, frames: &[RgbaImage]) -> Result<(), Recor
         })?;
     }
 
-    Ok(())
+    Ok(directory.to_path_buf())
 }
 
 fn create_parent_dir(path: &Path) -> Result<(), RecordingError> {
