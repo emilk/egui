@@ -76,8 +76,8 @@ update the snapshot.
 
 ## Recording
 
-With the `recording` feature you can record a test as an animated GIF, which is useful to see
-what a test actually does. Recording renders every egui pass, so it needs a renderer:
+With the `recording` feature you can record a test as an animated GIF or an MP4 video, which is
+useful to see what a test actually does. Recording renders every egui pass, so it needs a renderer:
 enable the `wgpu` feature too.
 
 ```rust,no_run
@@ -88,6 +88,7 @@ enable the `wgpu` feature too.
     use egui_kittest::RecordingOptions;
 
     harness.start_recording(RecordingOptions::gif("hello.gif", 10.0));
+    // …or `RecordingOptions::mp4("hello.mp4", 10.0)`
     harness.run();
     harness.finish_recording().unwrap();
 }
@@ -96,9 +97,15 @@ enable the `wgpu` feature too.
 You can also record without touching the test:
 
 * `KITTEST_RECORD=1 cargo test` writes a GIF per test to `tests/snapshots/recordings`
-* `KITTEST_RECORD=open cargo test` writes each GIF to a temporary file and opens it
+* `KITTEST_RECORD=mp4 cargo test` writes MP4s instead of GIFs
+* `KITTEST_RECORD=open cargo test` writes each recording to a temporary file and opens it
+  (`open-mp4` for an MP4)
 * `save_gif_on_failure = true` in `kittest.toml` writes a GIF to `tests/snapshots/failures`,
   but only for tests that fail
+
+MP4 files are much smaller than GIFs, but need [`ffmpeg`](https://ffmpeg.org/) on the `PATH`;
+without it we save a GIF next to the requested path instead. MP4 also has no alpha channel,
+so transparent pixels turn black.
 
 The recorder is an `egui::Plugin` (`RecordingPlugin`), so you can also register it on any
 `egui::Context` yourself.

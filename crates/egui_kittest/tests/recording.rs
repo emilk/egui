@@ -49,6 +49,46 @@ fn records_a_gif() {
     );
 }
 
+/// Without `ffmpeg` this saves a GIF next to the requested path instead.
+#[test]
+fn records_an_mp4() {
+    let dir = tempdir().expect("tempdir");
+    let mp4_path = dir.path().join("counter.mp4");
+
+    let mut value = 0;
+    let mut harness = counter_harness(&mut value);
+    harness.start_recording(RecordingOptions::mp4(&mp4_path, 12.0));
+
+    harness.run();
+    harness.get_by_label_contains("count").click();
+    harness.run();
+
+    let path = harness.finish_recording().expect("save mp4");
+
+    if which_ffmpeg() {
+        assert_eq!(path, mp4_path);
+    } else {
+        assert_eq!(
+            path,
+            mp4_path.with_extension("gif"),
+            "without ffmpeg we should fall back to a GIF"
+        );
+    }
+    let size = std::fs::metadata(&path)
+        .expect("the recording exists")
+        .len();
+    assert!(size > 0, "the recording should not be empty");
+}
+
+fn which_ffmpeg() -> bool {
+    std::process::Command::new("ffmpeg")
+        .arg("-version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok()
+}
+
 fn decode_gif_frames(path: &std::path::Path) -> usize {
     use image::AnimationDecoder as _;
 
