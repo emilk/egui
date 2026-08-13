@@ -190,7 +190,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         }
         c.bench_function("text_layout_cached", |b| {
             b.iter(|| {
-                fonts.with_pixels_per_point(pixels_per_point).layout(
+                fonts.with_pixels_per_point(pixels_per_point, 0).layout(
                     LOREM_IPSUM_LONG.to_owned(),
                     font_id.clone(),
                     text_color,
@@ -220,7 +220,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let idx = rng.random_range(0..string.len());
                 new_string.remove(idx);
 
-                fonts.with_pixels_per_point(pixels_per_point).layout(
+                fonts.with_pixels_per_point(pixels_per_point, 0).layout(
                     new_string,
                     font_id.clone(),
                     text_color,
@@ -229,7 +229,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             });
         });
 
-        let galley = fonts.with_pixels_per_point(pixels_per_point).layout(
+        let galley = fonts.with_pixels_per_point(pixels_per_point, 0).layout(
             LOREM_IPSUM_LONG.to_owned(),
             font_id,
             text_color,
