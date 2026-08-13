@@ -706,7 +706,9 @@ impl CachedFamily {
 /// You need to call [`Self::begin_pass`] and [`Self::font_image_delta`] once every frame.
 pub struct Fonts {
     pub fonts: FontsImpl,
-    galley_cache: GalleyCache,
+    // Text layouts are local to a viewport pass: different viewport widths must not
+    // evict each other's cached galleys while sharing the same font atlas.
+    galley_caches: BTreeMap<u64, GalleyCache>,
 }
 
 impl Fonts {
@@ -715,7 +717,7 @@ impl Fonts {
     pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
         Self {
             fonts: FontsImpl::new(options, definitions),
-            galley_cache: Default::default(),
+            galley_caches: Default::default(),
         }
     }
 
@@ -725,7 +727,7 @@ impl Fonts {
     ///
     /// This function will react to changes in [`TextOptions`],
     /// as well as notice when the font atlas is getting full, and handle that.
-    pub fn begin_pass(&mut self, options: TextOptions) {
+    pub fn begin_pass(&mut self, options: TextOptions, namespace: u64) {
         let text_options_changed = self.fonts.options() != &options;
         let font_atlas_almost_full = self.fonts.atlas.fill_ratio() > 0.8;
         let needs_recreate = text_options_changed || font_atlas_almost_full;
@@ -735,11 +737,14 @@ impl Fonts {
 
             *self = Self {
                 fonts: FontsImpl::new(options, definitions),
-                galley_cache: Default::default(),
+                galley_caches: Default::default(),
             };
         }
 
-        self.galley_cache.flush_cache();
+        self.galley_caches
+            .entry(namespace)
+            .or_default()
+            .flush_cache();
     }
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
@@ -786,7 +791,15 @@ impl Fonts {
     }
 
     pub fn num_galleys_in_cache(&self) -> usize {
-        self.galley_cache.num_galleys_in_cache()
+        self.galley_caches
+            .values()
+            .map(GalleyCache::num_galleys_in_cache)
+            .sum()
+    }
+
+    /// Drop cached layouts belonging to namespaces that are no longer alive.
+    pub fn retain_galley_cache_namespaces(&mut self, mut keep: impl FnMut(u64) -> bool) {
+        self.galley_caches.retain(|&namespace, _| keep(namespace));
     }
 
     /// How full is the font atlas?
@@ -798,10 +811,14 @@ impl Fonts {
     }
 
     /// Returns a [`FontsView`] with the given `pixels_per_point` that can be used to do text layout.
-    pub fn with_pixels_per_point(&mut self, pixels_per_point: f32) -> FontsView<'_> {
+    pub fn with_pixels_per_point(
+        &mut self,
+        pixels_per_point: f32,
+        namespace: u64,
+    ) -> FontsView<'_> {
         FontsView {
             fonts: &mut self.fonts,
-            galley_cache: &mut self.galley_cache,
+            galley_cache: self.galley_caches.entry(namespace).or_default(),
             pixels_per_point,
         }
     }
@@ -1516,7 +1533,8 @@ mod tests {
     #[test]
     fn test_fallback_glyph_width() {
         let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty());
-        let mut view = fonts.with_pixels_per_point(1.0);
+        let viewport_namespace = 0;
+        let mut view = fonts.with_pixels_per_point(1.0, viewport_namespace);
 
         let width = view.glyph_width(&FontId::new(12.0, FontFamily::Proportional), ' ');
         assert_eq!(width, 0.0);
