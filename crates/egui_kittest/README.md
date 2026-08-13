@@ -52,6 +52,10 @@ threshold = 0.6
 # (an absolute pixel count, not a fraction of the image)
 max_failed_pixels = 0
 
+# how many steps past `max_steps` `Harness::run` keeps stepping to report how many steps the ui
+# would have needed to settle
+diagnostic_max_steps = 100
+
 [windows]
 threshold = 0.6
 max_failed_pixels = 0

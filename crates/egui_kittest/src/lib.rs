@@ -38,22 +38,43 @@ use egui::{
 };
 use kittest::Queryable;
 
-use crate::app_kind::AppKind;
+use crate::{app_kind::AppKind, config::config};
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
     pub max_steps: u64,
+
+    /// How many steps the ui would have needed to settle.
+    ///
+    /// `None` if it did not settle within `diagnostic_max_steps` (see `kittest.toml`) further
+    /// steps either, i.e. it just keeps repainting.
+    pub steps_to_settle: Option<u64>,
+
+    /// How far past [`Self::max_steps`] we kept stepping to find [`Self::steps_to_settle`].
+    pub diagnostic_max_steps: u64,
+
     pub repaint_causes: Vec<RepaintCause>,
 }
 
 impl Display for ExceededMaxStepsError {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Harness::run exceeded max_steps ({}). ", self.max_steps)?;
+
+        match self.steps_to_settle {
+            Some(steps) => write!(f, "It would have settled after {steps} steps. ")?,
+            None => write!(
+                f,
+                "It did not settle within {} further steps either. ",
+                self.diagnostic_max_steps
+            )?,
+        }
+
         write!(
             f,
-            "Harness::run exceeded max_steps ({}). If your expect your ui to keep repainting \
+            "If your expect your ui to keep repainting \
             (e.g. when showing a spinner) call Harness::step or Harness::run_steps instead.\
             \nRepaint causes: {:#?}",
-            self.max_steps, self.repaint_causes,
+            self.repaint_causes,
         )
     }
 }
@@ -334,6 +355,12 @@ impl<'a, State> Harness<'a, State> {
     }
 
     fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+        // Once the budget is blown we keep going for a while, purely to find out how many steps
+        // would have been needed. The repaint causes are the ones from the moment we blew it.
+        let diagnostic_max_steps = config().diagnostic_max_steps();
+        let last_diagnostic_step = self.max_steps.saturating_add(diagnostic_max_steps);
+        let mut repaint_causes_at_max_steps = None;
+
         let mut steps = 0;
         loop {
             steps += 1;
@@ -343,14 +370,28 @@ impl<'a, State> Harness<'a, State> {
 
             // We only care about immediate repaints
             if self.root_viewport_output().repaint_delay != Duration::ZERO && !wait_for_images {
+                if let Some(repaint_causes) = repaint_causes_at_max_steps {
+                    return Err(ExceededMaxStepsError {
+                        max_steps: self.max_steps,
+                        steps_to_settle: Some(steps),
+                        diagnostic_max_steps,
+                        repaint_causes,
+                    });
+                }
                 break;
             } else if sleep || wait_for_images {
                 std::thread::sleep(Duration::from_secs_f32(self.step_dt));
             }
-            if steps > self.max_steps {
+            if steps > self.max_steps && repaint_causes_at_max_steps.is_none() {
+                repaint_causes_at_max_steps = Some(self.ctx.repaint_causes());
+            }
+            if steps > last_diagnostic_step {
                 return Err(ExceededMaxStepsError {
                     max_steps: self.max_steps,
-                    repaint_causes: self.ctx.repaint_causes(),
+                    steps_to_settle: None,
+                    diagnostic_max_steps,
+                    repaint_causes: repaint_causes_at_max_steps
+                        .unwrap_or_else(|| self.ctx.repaint_causes()),
                 });
             }
         }
