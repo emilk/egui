@@ -1,11 +1,12 @@
 //! egui theme (spacing, colors, etc).
 
+use core::ops::RangeInclusive;
 use emath::Align;
 use epaint::{
     CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
     text::{FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
 };
-use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
     ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
@@ -47,8 +48,8 @@ impl NumberFormatter {
     }
 }
 
-impl std::fmt::Debug for NumberFormatter {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for NumberFormatter {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("NumberFormatter")
     }
 }
@@ -93,8 +94,8 @@ pub enum TextStyle {
     Name(std::sync::Arc<str>),
 }
 
-impl std::fmt::Display for TextStyle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for TextStyle {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Small => "Small".fmt(f),
             Self::Body => "Body".fmt(f),
@@ -192,8 +193,8 @@ impl From<TextStyle> for FontSelection {
 #[derive(Clone, Default)]
 pub struct StyleModifier(Option<Arc<dyn Fn(&mut Style) + Send + Sync>>);
 
-impl std::fmt::Debug for StyleModifier {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for StyleModifier {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("StyleModifier")
     }
 }
@@ -418,6 +419,9 @@ pub struct Spacing {
 
     /// Default width of a [`crate::TextEdit`].
     pub text_edit_width: f32,
+
+    /// Additional vertical spacing between lines of text.
+    pub extra_text_line_spacing: f32,
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
     /// This is the width/height of the outer part of this icon (e.g. the BOX of the checkbox).
@@ -1074,10 +1078,12 @@ pub struct Visuals {
     /// How the text cursor acts.
     pub text_cursor: TextCursorStyle,
 
-    /// Allow widgets to paint this much outside the scroll area rect.
+    /// Unused. Kept only for backwards compatibility.
     ///
-    /// Legacy. Should not be used anymore.
+    /// Used to allow widgets to paint this much outside the scroll area rect.
+    /// Setting it now has no effect.
     /// Use [`crate::ScrollArea::content_margin`] instead.
+    #[deprecated(note = "This is now unused and has no effect")]
     pub clip_rect_margin: f32,
 
     /// Show a background behind buttons.
@@ -1395,7 +1401,7 @@ impl Default for DebugOptions {
             show_resize: false,
             show_interactive_widgets: false,
             show_widget_hits: false,
-            warn_if_rect_changes_id: cfg!(debug_assertions),
+            warn_if_rect_changes_id: false,
             show_unaligned: cfg!(debug_assertions),
             show_focused_widget: false,
         }
@@ -1456,6 +1462,7 @@ impl Default for Spacing {
             slider_rail_height: 8.0,
             combo_width: 100.0,
             text_edit_width: 280.0,
+            extra_text_line_spacing: 0.0,
             icon_width: 14.0,
             icon_width_inner: 8.0,
             icon_spacing: 4.0,
@@ -1487,6 +1494,7 @@ impl Default for Interaction {
 
 impl Visuals {
     /// Default dark theme.
+    #[expect(deprecated)]
     pub fn dark() -> Self {
         Self {
             dark_mode: true,
@@ -1945,6 +1953,7 @@ impl Spacing {
             slider_rail_height,
             combo_width,
             text_edit_width,
+            extra_text_line_spacing,
             icon_width,
             icon_width_inner,
             icon_spacing,
@@ -2009,6 +2018,10 @@ impl Spacing {
 
                 ui.label("TextEdit width");
                 ui.add(DragValue::new(text_edit_width).range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("Extra text line spacing");
+                ui.add(DragValue::new(extra_text_line_spacing).range(0.0..=20.0));
                 ui.end_row();
 
                 ui.label("Tooltip wrap width");
@@ -2263,6 +2276,7 @@ impl WidgetVisuals {
 }
 
 impl Visuals {
+    #[expect(deprecated)]
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode,
@@ -2297,7 +2311,7 @@ impl Visuals {
 
             text_cursor,
 
-            clip_rect_margin,
+            clip_rect_margin: _,
             button_frame,
             collapsing_header_frame,
             indent_has_left_vline,
@@ -2484,8 +2498,6 @@ impl Visuals {
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-            ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
-
             ui.checkbox(button_frame, "Button has a frame");
             ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
             ui.checkbox(
@@ -2684,7 +2696,7 @@ impl DebugOptions {
 }
 
 // TODO(emilk): improve and standardize
-fn two_drag_values(value: &mut Vec2, range: std::ops::RangeInclusive<f32>) -> impl Widget + '_ {
+fn two_drag_values(value: &mut Vec2, range: core::ops::RangeInclusive<f32>) -> impl Widget + '_ {
     move |ui: &mut crate::Ui| {
         ui.horizontal(|ui| {
             ui.add(
@@ -2753,8 +2765,8 @@ impl NumericColorSpace {
     }
 }
 
-impl std::fmt::Display for NumericColorSpace {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for NumericColorSpace {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::GammaByte => write!(f, "U8"),
             Self::Linear => write!(f, "F"),

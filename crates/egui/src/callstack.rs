@@ -1,4 +1,4 @@
-use std::fmt::Write as _;
+use core::fmt::Write as _;
 
 #[derive(Clone)]
 struct Frame {
@@ -88,16 +88,36 @@ pub fn capture() -> String {
             return false;
         }
 
-        // Remove stuff that isn't user calls:
+        // Remove frames that are part of egui itself, since they are not useful to the user.
+        let skip_crates = [
+            "alloc",
+            "backtrace",
+            "core",
+            "eframe",
+            "egui_extras",
+            "egui_plot",
+            "egui",
+            "epaint",
+            "std",
+            "winit",
+        ];
+        for crate_name in skip_crates {
+            let name = frame.name.trim_start_matches('<');
+            if name.starts_with(crate_name)
+                && name
+                    .as_bytes()
+                    .get(crate_name.len())
+                    .copied()
+                    .is_none_or(|b| b.is_ascii_punctuation() && b != b'_')
+            {
+                return false;
+            }
+        }
+
         let skip_prefixes = [
             // "backtrace::", // not needed, since we cut at egui::callstack::capture
-            "egui::",
-            "<egui::",
             "<F as egui::widgets::Widget>",
-            "egui_plot::",
-            "egui_extras::",
             "core::ptr::drop_in_place<egui::ui::Ui>",
-            "eframe::",
             "core::ops::function::FnOnce::call_once",
             "<alloc::boxed::Box<F,A> as core::ops::function::FnOnce<Args>>::call_once",
         ];
@@ -219,7 +239,7 @@ fn test_shorten_path() {
         ),
         ("/weird/path/file.rs", "/weird/path/file.rs"),
     ] {
-        use std::str::FromStr as _;
+        use core::str::FromStr as _;
         let before = std::path::PathBuf::from_str(before).unwrap();
         assert_eq!(shorten_source_file_path(&before), after);
     }

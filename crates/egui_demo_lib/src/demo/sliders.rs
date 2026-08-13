@@ -125,7 +125,7 @@ impl crate::View for Sliders {
             );
 
             if ui.button("Assign PI").clicked() {
-                self.value = std::f64::consts::PI;
+                self.value = core::f64::consts::PI;
             }
         }
 

@@ -514,9 +514,9 @@ struct HighlightSettings<'a>(&'a SyntectSettings);
 #[derive(Copy, Clone)]
 struct HighlightSettings<'a>(&'a ());
 
-impl std::hash::Hash for HighlightSettings<'_> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.0, state);
+impl core::hash::Hash for HighlightSettings<'_> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        core::ptr::hash(self.0, state);
     }
 }
 

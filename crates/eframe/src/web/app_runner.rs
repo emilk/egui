@@ -280,52 +280,71 @@ impl AppRunner {
             .and_then(|v| v.visible())
             .unwrap_or(true);
 
-        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
-            self.app.logic(ui.ctx(), &mut self.frame);
-
-            if is_visible {
-                self.app.ui(ui, &mut self.frame);
-            }
-        });
-        let egui::FullOutput {
-            platform_output,
-            textures_delta,
-            shapes,
-            pixels_per_point,
-            viewport_output,
-        } = full_output;
-
-        if viewport_output.len() > 1 {
-            log::warn!("Multiple viewports not yet supported on the web");
-        }
-        for (_viewport_id, viewport_output) in viewport_output {
-            for command in viewport_output.commands {
-                match command {
-                    ViewportCommand::Screenshot(user_data) => {
-                        self.screenshot_commands_with_frame_delay
-                            .push((user_data, 1));
-                    }
-                    _ => {
-                        // TODO(emilk): handle some of the commands
-                        log::warn!(
-                            "Unhandled egui viewport command: {command:?} - not implemented in web backend"
-                        );
-                    }
-                }
-            }
-        }
-
-        self.handle_platform_output(platform_output);
         if is_visible {
+            let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
+                self.app.logic(ui.ctx(), &mut self.frame);
+                self.app.ui(ui, &mut self.frame);
+            });
+            let egui::FullOutput {
+                platform_output,
+                textures_delta,
+                shapes,
+                pixels_per_point,
+                viewport_output,
+            } = full_output;
+
+            if viewport_output.len() > 1 {
+                log::warn!("Multiple viewports not yet supported on the web");
+            }
+            self.handle_viewport_commands(
+                viewport_output
+                    .into_values()
+                    .flat_map(|viewport_output| viewport_output.commands),
+            );
+
+            self.handle_platform_output(platform_output);
             self.textures_delta.append(textures_delta);
             self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+        } else {
+            // The tab is hidden, so we run no egui pass at all.
+            // That way all ui state is left untouched, and is still there
+            // when the tab is shown again.
+
+            let egui::LogicOutput {
+                platform_output,
+                viewport_commands,
+            } = self.egui_ctx.run_logic(&raw_input, |ctx| {
+                self.app.logic(ctx, &mut self.frame);
+            });
+
+            // No pass consumed the input, so save it for the next one:
+            self.input.raw.append(raw_input);
+
+            self.handle_viewport_commands(viewport_commands.into_values().flatten());
+            self.handle_platform_output(platform_output);
+        }
+    }
+
+    fn handle_viewport_commands(&mut self, commands: impl Iterator<Item = ViewportCommand>) {
+        for command in commands {
+            match command {
+                ViewportCommand::Screenshot(user_data) => {
+                    self.screenshot_commands_with_frame_delay
+                        .push((user_data, 1));
+                }
+                _ => {
+                    // TODO(emilk): handle some of the commands
+                    log::warn!(
+                        "Unhandled egui viewport command: {command:?} - not implemented in web backend"
+                    );
+                }
+            }
         }
     }
 
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self) {
-        let textures_delta = std::mem::take(&mut self.textures_delta);
-        let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
+        let clipped_primitives = core::mem::take(&mut self.clipped_primitives);
 
         if let Some(clipped_primitives) = clipped_primitives {
             let mut screenshot_commands = vec![];
@@ -347,7 +366,7 @@ impl AppRunner {
                 self.app.clear_color(&self.egui_ctx.global_style().visuals),
                 &clipped_primitives,
                 self.egui_ctx.pixels_per_point(),
-                &textures_delta,
+                &mut self.textures_delta,
                 screenshot_commands,
             ) {
                 log::error!("Failed to paint: {}", super::string_from_js_value(&err));
@@ -395,19 +414,22 @@ impl AppRunner {
 
         if self.has_focus() {
             // The eframe app has focus.
-            if ime.is_some() {
+            if let Some(ime) = ime {
+                if ime.should_interrupt_composition {
+                    self.text_agent.interrupt_ime_composition();
+                }
                 // We are editing text: give the focus to the text agent.
                 self.text_agent.focus();
             } else {
                 // We are not editing text - give the focus to the canvas.
                 self.text_agent.blur();
-                self.canvas().focus().ok();
+                super::focus_without_scroll(self.canvas()).ok();
             }
         }
 
         if let Err(err) = self
             .text_agent
-            .move_to(ime, self.canvas(), self.egui_ctx.zoom_factor())
+            .update(ime, self.canvas(), self.egui_ctx.zoom_factor())
         {
             log::error!(
                 "failed to update text agent position: {}",

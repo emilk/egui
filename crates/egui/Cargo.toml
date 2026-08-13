@@ -19,6 +19,7 @@ workspace = true
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [lib]
 
@@ -90,3 +91,9 @@ document-features = { workspace = true, optional = true }
 
 ron = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
+
+
+# web:
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# For `DroppedFile`, which hands web apps a file handle instead of its contents.
+web-sys = { workspace = true, features = ["File"] }

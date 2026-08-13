@@ -2,11 +2,11 @@ use crate::{
     AtomKind, Atoms, Direction, FontSelection, Frame, Id, Image, IntoAtoms, Response, Sense,
     SizedAtom, SizedAtomKind, Stroke, Ui, Widget, text_selection::LabelSelectionState,
 };
+use core::ops::{Deref, DerefMut};
 use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
 use epaint::text::TextWrapMode;
 use epaint::{Color32, Galley};
 use smallvec::SmallVec;
-use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 /// The `(main, cross)` axis indices for `direction`, for indexing a [`Vec2`] (0 = x, 1 = y).
@@ -557,7 +557,7 @@ impl<'atom> SizedAtomLayout<'atom> {
         F: FnMut(SizedAtomKind<'atom>) -> SizedAtomKind<'atom>,
     {
         for kind in self.iter_kinds_mut() {
-            *kind = f(std::mem::take(kind));
+            *kind = f(core::mem::take(kind));
         }
     }
 
