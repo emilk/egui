@@ -294,7 +294,7 @@ pub fn char_index_from_byte_index(input: &str, byte_index: ByteIndex) -> CharInd
     CharIndex(input.chars().count())
 }
 
-pub fn slice_char_range(s: &str, char_range: std::ops::Range<CharIndex>) -> &str {
+pub fn slice_char_range(s: &str, char_range: core::ops::Range<CharIndex>) -> &str {
     assert!(
         char_range.start <= char_range.end,
         "Invalid range, start must be less than end, but start = {}, end = {}",

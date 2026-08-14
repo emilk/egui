@@ -1,6 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use std::ops::Range;
+use core::ops::Range;
 
 use epaint::text::CharIndex;
 
@@ -74,6 +74,22 @@ impl FullOutput {
     pub fn drop_without_applying_deltas(mut self) {
         self.textures_delta.clear();
     }
+}
+
+/// What egui emits from [`crate::Context::run_logic`], i.e. from a tick where no ui was shown.
+///
+/// There is nothing to paint, but the app may still have asked the integration to do things,
+/// e.g. to show a hidden window again with [`crate::ViewportCommand::Focus`].
+#[derive(Clone, Default)]
+pub struct LogicOutput {
+    /// Non-rendering related output.
+    pub platform_output: PlatformOutput,
+
+    /// The commands sent with [`crate::Context::send_viewport_cmd`] and friends.
+    ///
+    /// Note that this contains no information about which viewports exist:
+    /// the integration should leave its viewports as they are.
+    pub viewport_commands: OrderedViewportIdMap<Vec<crate::ViewportCommand>>,
 }
 
 /// Information about text being edited.
@@ -226,7 +242,7 @@ impl PlatformOutput {
     /// Take everything ephemeral (everything except `cursor_icon` and
     /// `cursor_image` currently)
     pub fn take(&mut self) -> Self {
-        let taken = std::mem::take(self);
+        let taken = core::mem::take(self);
         self.cursor_icon = taken.cursor_icon; // sticky between frames
         self.cursor_image = taken.cursor_image.clone(); // sticky between frames
         taken
@@ -311,8 +327,8 @@ pub struct CustomCursorImage {
     pub hotspot: [u16; 2],
 }
 
-impl std::fmt::Debug for CustomCursorImage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for CustomCursorImage {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("CustomCursorImage")
             .field("size", &self.size)
             .field("hotspot", &self.hotspot)
@@ -528,8 +544,8 @@ impl OutputEvent {
     }
 }
 
-impl std::fmt::Debug for OutputEvent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for OutputEvent {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Clicked(wi) => write!(f, "Clicked({wi:?})"),
             Self::DoubleClicked(wi) => write!(f, "DoubleClicked({wi:?})"),
@@ -575,8 +591,8 @@ pub struct WidgetInfo {
     pub hint_text: Option<String>,
 }
 
-impl std::fmt::Debug for WidgetInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for WidgetInfo {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self {
             typ,
             enabled,

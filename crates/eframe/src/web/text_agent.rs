@@ -1,7 +1,8 @@
 //! The text agent is a hidden `<input>` element used to capture
 //! IME and mobile keyboard input events.
 
-use std::{cell::RefCell, rc::Rc};
+use core::cell::RefCell;
+use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 
@@ -366,7 +367,7 @@ impl InputState {
         &self,
         text: &str,
         prefix_len_chars: usize,
-    ) -> Option<std::ops::Range<usize>> {
+    ) -> Option<core::ops::Range<usize>> {
         let selection_start = self.input.selection_start().unwrap_or(None)? as usize;
         let selection_end = self.input.selection_end().unwrap_or(None)? as usize;
 
@@ -444,7 +445,7 @@ impl InputState {
 }
 
 fn longest_common_prefix_length(a: &str, b: &str) -> usize {
-    std::iter::zip(a.chars(), b.chars())
+    core::iter::zip(a.chars(), b.chars())
         .take_while(|(a, b)| a == b)
         .count()
 }

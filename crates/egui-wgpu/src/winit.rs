@@ -8,8 +8,9 @@ use crate::{
     RendererOptions,
     capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
 };
+use core::num::NonZeroU32;
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
-use std::{num::NonZeroU32, sync::Arc};
+use std::sync::Arc;
 
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
@@ -727,7 +728,7 @@ impl Painter {
             let start = web_time::Instant::now();
             render_state
                 .queue
-                .submit(std::iter::chain(user_cmd_bufs, [encoded]));
+                .submit(core::iter::chain(user_cmd_bufs, [encoded]));
             vsync_sec += start.elapsed().as_secs_f32();
         };
 

@@ -471,6 +471,8 @@ impl TextEdit<'_> {
 
         let font_id = font_selection.resolve(ui.style());
         let row_height = ui.fonts_mut(|f| f.row_height(&font_id));
+        let line_height = row_height + ui.spacing().extra_text_line_spacing;
+
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
         let available_width = ui.available_width().at_least(MIN_WIDTH);
         let desired_width = desired_width
@@ -489,12 +491,17 @@ impl TextEdit<'_> {
             layout_job.halign = align.x();
             // We want to keep the trailing whitespace, since hiding it feels really weird when typing
             layout_job.keep_trailing_whitespace = true;
+
+            for section in &mut layout_job.sections {
+                section.format.line_height = Some(line_height);
+            }
+
             ui.fonts_mut(|f| f.layout_job(layout_job))
         };
 
         let layouter = layouter.unwrap_or(&mut default_layouter);
 
-        let min_inner_height = (desired_height_rows.at_least(1) as f32) * row_height;
+        let min_inner_height = (desired_height_rows.at_least(1) as f32) * line_height;
 
         let id = id.unwrap_or_else(|| {
             if let Some(id_salt) = id_salt {
@@ -1001,7 +1008,7 @@ impl TextEdit<'_> {
 
 fn mask_if_password(is_password: bool, text: &str) -> String {
     fn mask_password(text: &str) -> String {
-        std::iter::repeat_n(
+        core::iter::repeat_n(
             epaint::text::PASSWORD_REPLACEMENT_CHAR,
             text.chars().count(),
         )
@@ -1077,7 +1084,7 @@ fn events(
         Selection(CCursorRange),
         ImeComposition {
             cursor_range: CCursorRange,
-            active_range: Option<std::ops::Range<CCursor>>,
+            active_range: Option<core::ops::Range<CCursor>>,
         },
         ImeCompositionCursorRange(CCursorRange),
     }

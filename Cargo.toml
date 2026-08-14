@@ -25,7 +25,7 @@ members = [
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.95"
-version = "0.35.0"
+version = "0.36.1"
 
 
 [profile.release]
@@ -56,19 +56,19 @@ opt-level = 2
 
 
 [workspace.dependencies]
-emath = { version = "0.35.0", path = "crates/emath", default-features = false }
-ecolor = { version = "0.35.0", path = "crates/ecolor", default-features = false }
-epaint = { version = "0.35.0", path = "crates/epaint", default-features = false }
-epaint_default_fonts = { version = "0.35.0", path = "crates/epaint_default_fonts" }
-egui = { version = "0.35.0", path = "crates/egui", default-features = false }
-egui-winit = { version = "0.35.0", path = "crates/egui-winit", default-features = false }
-egui_extras = { version = "0.35.0", path = "crates/egui_extras", default-features = false }
-egui-wgpu = { version = "0.35.0", path = "crates/egui-wgpu", default-features = false }
-egui_demo_lib = { version = "0.35.0", path = "crates/egui_demo_lib", default-features = false }
-egui_glow = { version = "0.35.0", path = "crates/egui_glow", default-features = false }
-egui_inspection = { version = "0.35.0", path = "crates/egui_inspection", default-features = false }
-egui_kittest = { version = "0.35.0", path = "crates/egui_kittest", default-features = false }
-eframe = { version = "0.35.0", path = "crates/eframe", default-features = false }
+emath = { version = "0.36.1", path = "crates/emath", default-features = false }
+ecolor = { version = "0.36.1", path = "crates/ecolor", default-features = false }
+epaint = { version = "0.36.1", path = "crates/epaint", default-features = false }
+epaint_default_fonts = { version = "0.36.1", path = "crates/epaint_default_fonts" }
+egui = { version = "0.36.1", path = "crates/egui", default-features = false }
+egui-winit = { version = "0.36.1", path = "crates/egui-winit", default-features = false }
+egui_extras = { version = "0.36.1", path = "crates/egui_extras", default-features = false }
+egui-wgpu = { version = "0.36.1", path = "crates/egui-wgpu", default-features = false }
+egui_demo_lib = { version = "0.36.1", path = "crates/egui_demo_lib", default-features = false }
+egui_glow = { version = "0.36.1", path = "crates/egui_glow", default-features = false }
+egui_inspection = { version = "0.36.1", path = "crates/egui_inspection", default-features = false }
+egui_kittest = { version = "0.36.1", path = "crates/egui_kittest", default-features = false }
+eframe = { version = "0.36.1", path = "crates/eframe", default-features = false }
 
 accesskit = "0.24.1"
 accesskit_consumer = "0.35.0" # Can't update to 0.36+: kittest 0.4 pins accesskit_consumer 0.35, so bumping splits it into two versions
@@ -96,14 +96,12 @@ glow = "0.17.0" # Can't update to 0.18: wgpu 30's wgpu-hal pins glow 0.17, so bu
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 harfrust = "0.12.0"
-home = "0.5.12"
 image = { version = "0.25.6", default-features = false } # Can't update to 0.25.7+: it needs png 0.18, which only matches resvg once resvg moves to tiny-skia 0.12 — blocked, see resvg below
 itertools = "0.15.0"
 jiff = { version = "0.2.35", default-features = false }
 js-sys = "0.3.103"
 kittest = { version = "0.4.0" }
 log = { version = "0.4.33", features = ["std"] }
-memoffset = "0.9.1"
 mimalloc = "0.1.52"
 mime_guess2 = { version = "2.3", default-features = false }
 mint = "0.5.9"
@@ -148,7 +146,7 @@ type-map = "0.5.1"
 unicode_names2 = { version = "3.1", default-features = false }
 unicode-general-category = "1.1"
 unicode-segmentation = "1.13"
-vello_cpu = { version = "0.1.0", default-features = false, features = [
+vello_cpu = { version = "0.2.0", default-features = false, features = [
   "std",
   "u8_pipeline",
   "f32_pipeline",
@@ -166,16 +164,10 @@ winit = { version = "0.30.13", default-features = false }
 [workspace.lints.rust]
 unsafe_code = "deny"
 
-elided_lifetimes_in_paths = "warn"
 future_incompatible = { level = "warn", priority = -1 }
 nonstandard_style = { level = "warn", priority = -1 }
 rust_2018_idioms = { level = "warn", priority = -1 }
-rust_2021_prelude_collisions = "warn"
-semicolon_in_expressions_from_macros = "warn"
 trivial_numeric_casts = "warn"
-unexpected_cfgs = "warn"
-unsafe_op_in_unsafe_fn = "warn" # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
-unused_extern_crates = "warn"
 unused_import_braces = "warn"
 unused_lifetimes = "warn"
 
@@ -184,8 +176,6 @@ unused_qualifications = "allow"
 
 [workspace.lints.rustdoc]
 all = "warn"
-missing_crate_level_docs = "warn"
-broken_intra_doc_links = "warn"
 
 # See also clippy.toml
 [workspace.lints.clippy]
@@ -193,10 +183,8 @@ all = { level = "warn", priority = -1 }
 
 allow_attributes = "warn"
 as_ptr_cast_mut = "warn"
-await_holding_lock = "warn"
 bool_to_int_with_if = "warn"
 branches_sharing_code = "warn"
-char_lit_as_u8 = "warn"
 checked_conversions = "warn"
 clear_with_drain = "warn"
 clone_on_ref_ptr = "warn"
@@ -207,11 +195,7 @@ debug_assert_with_mut_call = "warn"
 decimal_bitwise_operands = "warn"
 default_union_representation = "warn"
 derive_partial_eq_without_eq = "warn"
-disallowed_macros = "warn" # See clippy.toml
-disallowed_methods = "warn" # See clippy.toml
-disallowed_names = "warn" # See clippy.toml
 disallowed_script_idents = "warn" # See clippy.toml
-disallowed_types = "warn" # See clippy.toml
 doc_broken_link = "warn"
 doc_comment_double_space_linebreaks = "warn"
 doc_include_without_cfg = "warn"
@@ -221,7 +205,6 @@ duration_suboptimal_units = "warn"
 elidable_lifetime_names = "warn"
 empty_enum_variants_with_brackets = "warn"
 empty_enums = "warn"
-empty_line_after_outer_attr = "warn"
 enum_glob_use = "warn"
 equatable_if_let = "warn"
 exit = "warn"
@@ -238,11 +221,9 @@ fn_to_numeric_cast_any = "warn"
 format_push_string = "warn"
 from_iter_instead_of_collect = "warn"
 get_unwrap = "warn"
-if_let_mutex = "warn"
 ignore_without_reason = "warn"
 ignored_unit_patterns = "warn"
 implicit_clone = "warn"
-implied_bounds_in_impls = "warn"
 imprecise_flops = "warn"
 inconsistent_struct_constructor = "warn"
 index_refutable_slice = "warn"
@@ -264,23 +245,19 @@ large_include_file = "warn"
 large_stack_arrays = "warn"
 large_stack_frames = "warn"
 large_types_passed_by_value = "warn"
-let_unit_value = "warn"
 linkedlist = "warn"
 literal_string_with_formatting_args = "warn"
 lossy_float_literal = "warn"
 macro_use_imports = "warn"
 manual_assert = "warn"
-manual_clamp = "warn"
 manual_ilog2 = "warn"
 manual_instant_elapsed = "warn"
 manual_is_power_of_two = "warn"
 manual_is_variant_and = "warn"
 manual_let_else = "warn"
 manual_midpoint = "warn" # NOTE `midpoint` is often a lot slower for floats, so we have our own `emath::fast_midpoint` function.
-manual_ok_or = "warn"
 manual_string_new = "warn"
 map_err_ignore = "warn"
-map_flatten = "warn"
 match_bool = "warn"
 match_same_arms = "warn"
 match_wild_err_arm = "warn"
@@ -288,14 +265,10 @@ match_wildcard_for_single_variants = "warn"
 mem_forget = "warn"
 mismatching_type_param_order = "warn"
 missing_assert_message = "warn"
-missing_enforced_import_renames = "warn"
 missing_errors_doc = "warn"
 missing_fields_in_debug = "warn"
-missing_safety_doc = "warn"
-mixed_attributes_style = "warn"
 mut_mut = "warn"
 mutex_integer = "warn"
-needless_borrow = "warn"
 needless_continue = "warn"
 needless_for_each = "warn"
 needless_pass_by_ref_mut = "warn"
@@ -306,7 +279,6 @@ negative_feature_names = "warn"
 non_std_lazy_statics = "warn"
 non_zero_suggestions = "warn"
 nonstandard_macro_braces = "warn"
-only_used_in_recursion = "warn"
 option_as_ref_cloned = "warn"
 option_option = "warn"
 or_fun_call = "warn"
@@ -320,7 +292,6 @@ ptr_cast_constness = "warn"
 pub_underscore_fields = "warn"
 pub_without_shorthand = "warn"
 rc_mutex = "warn"
-readonly_write_lock = "warn"
 redundant_type_annotations = "warn"
 ref_as_ptr = "warn"
 ref_option = "warn"
@@ -336,17 +307,16 @@ set_contains_or_insert = "warn"
 single_char_pattern = "warn"
 single_match_else = "warn"
 single_option_map = "warn"
+std_instead_of_core = "warn"
 str_split_at_newline = "warn"
 str_to_string = "warn"
 string_add = "warn"
 string_add_assign = "warn"
 string_lit_as_bytes = "warn"
 string_lit_chars_any = "warn"
-suspicious_command_arg_space = "warn"
 suspicious_xor_used_as_pow = "warn"
 todo = "warn"
 too_long_first_doc_paragraph = "warn"
-too_many_arguments = "warn"
 trailing_empty_array = "warn"
 trait_duplication_in_bounds = "warn"
 transmute_ptr_to_ptr = "warn"
@@ -375,13 +345,14 @@ unused_trait_names = "warn"
 unwrap_used = "warn"
 use_self = "warn"
 useless_let_if_seq = "warn"
-useless_transmute = "warn"
 verbose_file_reads = "warn"
 wildcard_dependencies = "warn"
 zero_sized_map_values = "warn"
 
 
 # TODO(emilk): maybe enable more of these lints?
+# NOTE: these are all in `pedantic`/`restriction`/`nursery`, so the `allow` is a no-op today.
+# We keep them to record our intent in case we ever enable those groups.
 cast_possible_wrap = "allow"
 comparison_chain = "allow"
 should_panic_without_expect = "allow"

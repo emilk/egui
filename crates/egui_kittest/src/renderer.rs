@@ -1,5 +1,5 @@
+use core::mem;
 use egui::TexturesDelta;
-use std::mem;
 
 pub trait TestRenderer {
     /// We use this to pass the glow / wgpu render state to [`eframe::Frame`].
@@ -40,7 +40,7 @@ impl Default for LazyRenderer {
         return Self::new(crate::wgpu::WgpuTestRenderer::new);
         #[cfg(not(feature = "wgpu"))]
         return Self::Uninitialized {
-            textures_delta: Vec::new(),
+            textures_delta: Default::default(),
             builder: None,
         };
     }

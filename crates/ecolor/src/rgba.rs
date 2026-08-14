@@ -9,7 +9,7 @@ use crate::Color32;
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rgba(pub(crate) [f32; 4]);
 
-impl std::ops::Index<usize> for Rgba {
+impl core::ops::Index<usize> for Rgba {
     type Output = f32;
 
     #[inline]
@@ -18,7 +18,7 @@ impl std::ops::Index<usize> for Rgba {
     }
 }
 
-impl std::ops::IndexMut<usize> for Rgba {
+impl core::ops::IndexMut<usize> for Rgba {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut f32 {
         &mut self.0[index]
@@ -27,20 +27,20 @@ impl std::ops::IndexMut<usize> for Rgba {
 
 /// Deterministically hash an `f32`, treating all NANs as equal, and ignoring the sign of zero.
 #[inline]
-pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
+pub(crate) fn f32_hash<H: core::hash::Hasher>(state: &mut H, f: f32) {
     if f == 0.0 {
         state.write_u8(0);
     } else if f.is_nan() {
         state.write_u8(1);
     } else {
-        use std::hash::Hash as _;
+        use core::hash::Hash as _;
         f.to_bits().hash(state);
     }
 }
 
-impl std::hash::Hash for Rgba {
+impl core::hash::Hash for Rgba {
     #[inline]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         crate::f32_hash(state, self.0[0]);
         crate::f32_hash(state, self.0[1]);
         crate::f32_hash(state, self.0[2]);
@@ -219,7 +219,7 @@ impl Rgba {
     }
 }
 
-impl std::ops::Add for Rgba {
+impl core::ops::Add for Rgba {
     type Output = Self;
 
     #[inline]
@@ -233,7 +233,7 @@ impl std::ops::Add for Rgba {
     }
 }
 
-impl std::ops::Mul for Rgba {
+impl core::ops::Mul for Rgba {
     type Output = Self;
 
     #[inline]
@@ -247,7 +247,7 @@ impl std::ops::Mul for Rgba {
     }
 }
 
-impl std::ops::Mul<f32> for Rgba {
+impl core::ops::Mul<f32> for Rgba {
     type Output = Self;
 
     #[inline]
@@ -261,7 +261,7 @@ impl std::ops::Mul<f32> for Rgba {
     }
 }
 
-impl std::ops::Mul<Rgba> for f32 {
+impl core::ops::Mul<Rgba> for f32 {
     type Output = Rgba;
 
     #[inline]
@@ -336,7 +336,7 @@ mod test {
             } else {
                 // There will be small rounding errors whenever the alpha is not 0 or 255,
                 // because we multiply and then unmultiply the alpha.
-                for (&a, &b) in std::iter::zip(&in_rgba, &out_rgba) {
+                for (&a, &b) in core::iter::zip(&in_rgba, &out_rgba) {
                     assert!(a.abs_diff(b) <= 3, "{in_rgba:?} != {out_rgba:?}");
                 }
             }

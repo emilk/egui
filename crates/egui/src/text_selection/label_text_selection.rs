@@ -47,8 +47,8 @@ fn pos_in_galley(galley: &Galley, ccursor: CCursor) -> Pos2 {
     galley.pos_from_cursor(ccursor).center()
 }
 
-impl std::fmt::Debug for WidgetTextCursor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for WidgetTextCursor {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self {
             widget_id,
             ccursor,
@@ -271,7 +271,7 @@ impl ViewportLabelSelectionState {
             self.is_dragging = false;
         }
 
-        let text_to_copy = std::mem::take(&mut self.text_to_copy);
+        let text_to_copy = core::mem::take(&mut self.text_to_copy);
         if !text_to_copy.is_empty() {
             ui.copy_text(text_to_copy);
         }

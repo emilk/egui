@@ -68,6 +68,85 @@ fn reopened_popup_resizes_for_wider_items() {
 }
 
 #[test]
+fn open_popup_resizes_after_explicit_sizing_pass() {
+    const POPUP_BUTTON: &str = "Growing popup";
+    const MAX_HEIGHT: f32 = 100.0;
+
+    struct State {
+        item_count: usize,
+        needs_sizing_pass: bool,
+        popup_height: f32,
+        viewport_height: f32,
+        content_height: f32,
+    }
+
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(500.0, 300.0))
+        .build_ui_state(
+            |ui, state| {
+                let response = ui.button(POPUP_BUTTON);
+                let needs_sizing_pass = core::mem::take(&mut state.needs_sizing_pass);
+                let item_count = state.item_count;
+
+                if let Some(popup) = Popup::from_response(&response)
+                    .sizing_pass(needs_sizing_pass)
+                    .show(|ui| {
+                        egui::ScrollArea::vertical()
+                            .max_height(MAX_HEIGHT)
+                            .show(ui, |ui| {
+                                for index in 0..item_count {
+                                    ui.label(format!("Item {index}"));
+                                }
+                            })
+                    })
+                {
+                    state.popup_height = popup.response.rect.height();
+                    state.viewport_height = popup.inner.inner_rect.height();
+                    state.content_height = popup.inner.content_size.y;
+                }
+            },
+            State {
+                item_count: 2,
+                needs_sizing_pass: false,
+                popup_height: 0.0,
+                viewport_height: 0.0,
+                content_height: 0.0,
+            },
+        );
+
+    harness.run();
+    let initial_popup_height = harness.state().popup_height;
+
+    harness.state_mut().item_count = 20;
+    harness.run();
+    let stale_viewport_height = harness.state().viewport_height;
+    assert!(
+        stale_viewport_height < MAX_HEIGHT,
+        "viewport unexpectedly reached its maximum without a sizing pass"
+    );
+
+    harness.state_mut().needs_sizing_pass = true;
+    harness.run();
+
+    assert!(
+        harness.state().popup_height > initial_popup_height,
+        "popup did not grow after an explicit sizing pass"
+    );
+    assert!(
+        harness.state().viewport_height > stale_viewport_height,
+        "scroll viewport did not grow after an explicit sizing pass"
+    );
+    assert!(
+        (harness.state().viewport_height - MAX_HEIGHT).abs() <= 0.5,
+        "scroll viewport did not stop at its maximum height"
+    );
+    assert!(
+        harness.state().content_height > harness.state().viewport_height,
+        "popup contents did not remain scrollable at the maximum height"
+    );
+}
+
+#[test]
 fn test_interactive_tooltip() {
     struct State {
         link_clicked: bool,
