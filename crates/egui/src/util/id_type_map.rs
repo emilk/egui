@@ -606,6 +606,30 @@ impl IdTypeMap {
         });
     }
 
+    /// Iterate over all values of the given type, ignoring serialized values
+    pub fn iter_temp_by_type<T: 'static>(&self) -> impl Iterator<Item = &T> {
+        let key = TypeId::of::<T>();
+        self.map.values().filter_map(move |e| {
+            if e.type_id() == key {
+                e.get_temp()
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Mutable version of [`IdTypeMap::iter_temp_by_type()`]
+    pub fn iter_mut_temp_by_type<T: 'static>(&mut self) -> impl Iterator<Item = &mut T> {
+        let key = TypeId::of::<T>();
+        self.map.values_mut().filter_map(move |e| {
+            if (e as &Element).type_id() == key {
+                e.get_mut_temp()
+            } else {
+                None
+            }
+        })
+    }
+
     #[inline]
     pub fn clear(&mut self) {
         self.map.clear();
