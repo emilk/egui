@@ -1271,12 +1271,29 @@ impl GlutinWindowContext {
             {
                 log::error!("Cannot create transparent window: the GL config does not support it");
             }
-            let window = if viewport_id != ViewportId::ROOT && window_attributes.transparent() {
-                // Transparent child viewports need a transparent native window.
-                // Do not let the root GL config capability override that request.
-                event_loop.create_window(window_attributes)?
-            } else {
-                glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?
+
+            let window = {
+                #[cfg(target_os = "windows")]
+                {
+                    if viewport_id != ViewportId::ROOT && window_attributes.transparent() {
+                        // Preserve explicitly requested transparent child viewports on Windows.
+                        //
+                        // Some Windows GL paths report no transparency support even though
+                        // the native transparent window and its GL surface composite correctly.
+                        // Other platforms continue through `finalize_window`.
+                        event_loop.create_window(window_attributes)?
+                    } else {
+                        glutin_winit::finalize_window(
+                            event_loop,
+                            window_attributes,
+                            &self.gl_config,
+                        )?
+                    }
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?
+                }
             };
             egui_winit::apply_viewport_builder_to_window(
                 &self.egui_ctx,
