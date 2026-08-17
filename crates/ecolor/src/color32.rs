@@ -1,4 +1,4 @@
-use crate::{Rgba, fast_round, linear_f32_from_linear_u8};
+use crate::{Rgba, fast_round, mul_frac_round};
 
 /// This format is used for space-efficient color representation (32 bits).
 ///
@@ -131,30 +131,7 @@ impl Color32 {
     /// but for transparent colors what you get back might be slightly different (rounding errors).
     #[inline]
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
-        const LOOKUP_TABLE: &[u8] = &const {
-            const LEN: usize = u16::MAX as usize + 1;
-            let mut tbl = [0u8; LEN];
-            let mut i = 0;
-            while i < LEN {
-                let [value, alpha] = (i as u16).to_ne_bytes();
-                tbl[i] = fast_round(value as f32 * linear_f32_from_linear_u8(alpha));
-                i += 1;
-            }
-            tbl
-        };
-        match a {
-            // common-case optimization:
-            0 => Self::TRANSPARENT,
-
-            // common-case optimization:
-            255 => Self::from_rgb(r, g, b),
-
-            a => {
-                let [r, g, b] = [r, g, b]
-                    .map(|value| LOOKUP_TABLE[usize::from(u16::from_ne_bytes([value, a]))]);
-                Self::from_rgba_premultiplied(r, g, b, a)
-            }
-        }
+        Self::from_rgba_unmultiplied_const(r, g, b, a)
     }
 
     /// Same as [`Self::from_rgba_unmultiplied`], but can be used in a const context.
@@ -166,13 +143,16 @@ impl Color32 {
             // common-case optimization:
             0 => Self::TRANSPARENT,
 
+            // Not sure the extra branch is worth it?
+            //1 => Self::from_rgba_premultiplied(r >> 7, g >> 7, b >> 7, 1),
+
             // common-case optimization:
             255 => Self::from_rgb(r, g, b),
 
             a => {
-                let r = fast_round(r as f32 * linear_f32_from_linear_u8(a));
-                let g = fast_round(g as f32 * linear_f32_from_linear_u8(a));
-                let b = fast_round(b as f32 * linear_f32_from_linear_u8(a));
+                let r = mul_frac_round(r, a);
+                let g = mul_frac_round(g, a);
+                let b = mul_frac_round(b, a);
                 Self::from_rgba_premultiplied(r, g, b, a)
             }
         }
