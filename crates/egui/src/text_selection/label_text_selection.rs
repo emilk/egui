@@ -4,7 +4,7 @@ use emath::TSTransform;
 
 use crate::{
     Context, CursorIcon, Event, Galley, Id, LayerId, Plugin, Pos2, Rect, Response, Ui,
-    ViewportIdMap, layers::ShapeIdx, text::CCursor, text_selection::CCursorRange,
+    ViewportIdMap, layers::ShapeIdx, text::CCursor, text::CharIndex, text_selection::CCursorRange,
 };
 
 use super::{
@@ -110,7 +110,7 @@ struct ViewportLabelSelectionState {
     /// word-/line-drag was anchored on.
     ///
     /// `None` for plain character drags.
-    drag_anchor: Option<(Id, usize, usize)>,
+    drag_anchor: Option<(Id, CharIndex, CharIndex)>,
 
     /// Stationary-pointer cache for the word/line unit lookup.
     ///
@@ -119,7 +119,7 @@ struct ViewportLabelSelectionState {
     /// caches the widget [`Id`], the pointer's char index and the resulting
     /// `(min, max)` unit bounds, so the scan is skipped while the pointer stays
     /// on the same character. Cleared/ignored when a new drag begins.
-    last_drag_unit: Option<(Id, usize, (usize, usize))>,
+    last_drag_unit: Option<(Id, CharIndex, (CharIndex, CharIndex))>,
 
     /// Have we reached the widget containing the primary selection?
     has_reached_primary: bool,

@@ -1,6 +1,6 @@
 //! The granularity of a drag-selection (character/word/line).
 
-use epaint::text::cursor::CCursor;
+use epaint::text::{CharIndex, cursor::CCursor};
 
 use super::CCursorRange;
 use super::text_cursor_state::{range_bounds, select_line_at, select_word_at};
@@ -43,7 +43,7 @@ impl SelectionMode {
     }
 
     /// Returns the `(min, max)` char range of the unit containing `ccursor`.
-    pub(crate) fn unit_bounds_at(self, text: &str, ccursor: CCursor) -> (usize, usize) {
+    pub(crate) fn unit_bounds_at(self, text: &str, ccursor: CCursor) -> (CharIndex, CharIndex) {
         range_bounds(&self.unit_at(text, ccursor))
     }
 }
