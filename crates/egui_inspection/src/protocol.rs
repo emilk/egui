@@ -23,7 +23,7 @@ use egui::accesskit;
 /// Wire-protocol version, sent in the connection handshake (see [`write_handshake`]).
 ///
 /// Bump on any non-additive change to [`Request`] / [`Response`].
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// Magic bytes that open every connection, identifying the egui inspection protocol.
 pub const PROTOCOL_MAGIC: [u8; 4] = *b"eins";
@@ -66,8 +66,24 @@ pub enum Request {
 
     /// Wait until the app goes idle, then reply [`Response::Settled`].
     ///
-    /// Will wait for at most `max_steps`.
+    /// Will wait for at most `max_steps`. If the app never goes idle, the reply lists the
+    /// repaint causes that kept it busy.
     Settle { max_steps: u64 },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TreeResponse {
+    /// Monotonically increasing frame counter.
+    pub step: u64,
+
+    /// `physical_pixel = logical_point * pixels_per_point`. AccessKit bounds are in
+    /// logical coords; a screenshot is in physical pixels — multiply to align them.
+    pub pixels_per_point: f32,
+
+    /// The current full AccessKit tree. egui rebuilds the complete node set every pass,
+    /// so this is a full snapshot, not an incremental update. `None` if AccessKit hasn't
+    /// produced a tree yet.
+    pub accesskit: Option<accesskit::TreeUpdate>,
 }
 
 /// Sent peer → inspector, exactly one per [`Request`].
@@ -83,19 +99,7 @@ pub enum Response {
     },
 
     /// Reply to [`Request::GetTree`].
-    Tree {
-        /// Monotonically increasing frame counter.
-        step: u64,
-
-        /// `physical_pixel = logical_point * pixels_per_point`. AccessKit bounds are in
-        /// logical coords; a screenshot is in physical pixels — multiply to align them.
-        pixels_per_point: f32,
-
-        /// The current full AccessKit tree. egui rebuilds the complete node set every pass,
-        /// so this is a full snapshot, not an incremental update. `None` if AccessKit hasn't
-        /// produced a tree yet.
-        accesskit: Option<accesskit::TreeUpdate>,
-    },
+    Tree(TreeResponse),
 
     /// Reply to [`Request::GetScreenshot`].
     Screenshot(EncodedPng),
@@ -111,6 +115,15 @@ pub enum Response {
 
         /// How many frames did we run until we settled?
         steps: u64,
+
+        /// Why did the app keep repainting? One formatted `egui::RepaintCause`
+        /// (`file:line reason`) per entry.
+        ///
+        /// Empty when `settled` is true.
+        repaint_causes: Vec<String>,
+
+        /// The last frames tree.
+        tree: TreeResponse,
     },
 
     /// The peer failed to service the request (recoverable; the connection stays open).

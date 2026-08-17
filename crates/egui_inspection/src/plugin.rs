@@ -38,7 +38,7 @@ use std::sync::mpsc;
 
 use egui::{Context, FullOutput, RawInput};
 
-use crate::protocol::{EncodedPng, Request, Response};
+use crate::protocol::{EncodedPng, Request, Response, Tree, TreeResponse};
 
 /// How long [`serve`]'s connection threads wait for the UI thread before giving up. Generous:
 /// a backgrounded window may not paint (and thus not service requests) for a while.
@@ -274,11 +274,11 @@ impl egui::Plugin for InspectionPlugin {
             .retain_mut(|item| match (&mut item.phase, &item.req) {
                 (Phase::AwaitOutput, Request::GetTree) => {
                     if let Some(reply) = item.reply.take() {
-                        reply(Response::Tree {
+                        reply(Response::Tree(TreeResponse {
                             step,
                             pixels_per_point: output.pixels_per_point,
                             accesskit: output.platform_output.accesskit_update.clone(),
-                        });
+                        }));
                     }
                     false
                 }
@@ -299,9 +299,25 @@ impl egui::Plugin for InspectionPlugin {
                     let steps_exceeded = *steps_taken >= *max_steps;
                     if !immediate_repaint || steps_exceeded {
                         if let Some(reply) = item.reply.take() {
+                            // Report what keeps the app busy, so the inspector can say *why* it
+                            // never settled instead of only that it didn't.
+                            let repaint_causes = if immediate_repaint {
+                                ctx.repaint_causes()
+                                    .iter()
+                                    .map(ToString::to_string)
+                                    .collect()
+                            } else {
+                                Vec::new()
+                            };
                             reply(Response::Settled {
                                 settled: !immediate_repaint,
                                 steps: *steps_taken,
+                                repaint_causes,
+                                tree: TreeResponse {
+                                    step,
+                                    pixels_per_point: output.pixels_per_point,
+                                    accesskit: output.platform_output.accesskit_update.clone(),
+                                },
                             });
                         }
                         false
