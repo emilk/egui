@@ -3,7 +3,7 @@
 use epaint::text::{CharIndex, cursor::CCursor};
 
 use super::CCursorRange;
-use super::text_cursor_state::{range_bounds, select_line_at, select_word_at};
+use super::text_cursor_state::{select_line_at, select_word_at};
 
 /// How a drag-selection extends the selection.
 ///
@@ -44,7 +44,8 @@ impl SelectionMode {
 
     /// Returns the `(min, max)` char range of the unit containing `ccursor`.
     pub(crate) fn unit_bounds_at(self, text: &str, ccursor: CCursor) -> (CharIndex, CharIndex) {
-        range_bounds(&self.unit_at(text, ccursor))
+        let bounds = self.unit_at(text, ccursor).as_sorted_char_range();
+        (bounds.start, bounds.end)
     }
 }
 

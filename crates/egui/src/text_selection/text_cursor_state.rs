@@ -100,7 +100,8 @@ impl TextCursorState {
     ) -> CCursorRange {
         self.selection_mode = mode;
         let unit = mode.unit_at(text, cursor_at_pointer);
-        self.drag_anchor_unit = Some(range_bounds(&unit));
+        let bounds = unit.as_sorted_char_range();
+        self.drag_anchor_unit = Some((bounds.start, bounds.end));
         // A fresh drag must never reuse a stale cached range.
         self.last_drag_pointer = None;
         unit
@@ -133,7 +134,7 @@ impl TextCursorState {
             return Some(cached_range);
         }
 
-        let pointer_unit = range_bounds(&self.selection_mode.unit_at(text, cursor_at_pointer));
+        let pointer_unit = self.selection_mode.unit_bounds_at(text, cursor_at_pointer);
         let range = combine_units(anchor_unit, pointer_unit);
         self.last_drag_pointer = Some((cursor_at_pointer.index, text.len(), range));
         Some(range)
@@ -289,14 +290,6 @@ pub(crate) fn anchor_secondary_index(
     } else {
         anchor_min
     }
-}
-
-/// Returns the `(min, max)` character indices of a [`CCursorRange`].
-pub(crate) fn range_bounds(range: &CCursorRange) -> (CharIndex, CharIndex) {
-    (
-        range.primary.index.min(range.secondary.index),
-        range.primary.index.max(range.secondary.index),
-    )
 }
 
 pub(crate) fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
@@ -641,8 +634,8 @@ mod test {
         let anchor_unit = mode.unit_bounds_at(text, CCursor::new(anchor));
         let pointer_unit = mode.unit_bounds_at(text, CCursor::new(pointer));
         let range = combine_units(anchor_unit, pointer_unit);
-        let (min, max) = range_bounds(&range);
-        (min.0, max.0)
+        let bounds = range.as_sorted_char_range();
+        (bounds.start.0, bounds.end.0)
     }
 
     #[test]
@@ -652,19 +645,19 @@ mod test {
 
         // Pointer in the same unit -> selection is just the anchor unit.
         let same = combine_units(anchor, unit(6, 11));
-        assert_eq!(range_bounds(&same), unit(6, 11));
+        assert_eq!(same.as_sorted_char_range(), CharIndex(6)..CharIndex(11));
 
         // Pointer unit fully after the anchor -> extends right,
         // primary (moving end) at the maximum.
         let forward = combine_units(anchor, unit(12, 17));
-        assert_eq!(range_bounds(&forward), unit(6, 17));
+        assert_eq!(forward.as_sorted_char_range(), CharIndex(6)..CharIndex(17));
         assert_eq!(forward.primary.index.0, 17);
         assert_eq!(forward.secondary.index.0, 6);
 
         // Pointer unit fully before the anchor -> extends left,
         // primary (moving end) at the minimum.
         let backward = combine_units(anchor, unit(0, 5));
-        assert_eq!(range_bounds(&backward), unit(0, 11));
+        assert_eq!(backward.as_sorted_char_range(), CharIndex(0)..CharIndex(11));
         assert_eq!(backward.primary.index.0, 0);
         assert_eq!(backward.secondary.index.0, 11);
     }
@@ -724,7 +717,7 @@ mod test {
         assert_eq!(anchor, unit(2, 2));
         assert_eq!(pointer, unit(8, 8));
         let range = combine_units(anchor, pointer);
-        assert_eq!(range_bounds(&range), unit(2, 8));
+        assert_eq!(range.as_sorted_char_range(), CharIndex(2)..CharIndex(8));
     }
 
     #[test]
@@ -773,40 +766,43 @@ mod test {
 
         // Begin a word drag anchored on "world".
         let initial = state.begin_drag(text, CCursor::new(8), SelectionMode::Word);
-        assert_eq!(range_bounds(&initial), unit(6, 11));
+        assert_eq!(initial.as_sorted_char_range(), CharIndex(6)..CharIndex(11));
         assert!(state.last_drag_pointer.is_none(), "begin_drag clears cache");
 
         // First extension into "again": fresh computation, fills the cache.
         let first = state
             .extend_word_line_drag(text, CCursor::new(14))
             .expect("word drag active");
-        assert_eq!(range_bounds(&first), unit(6, 17));
+        assert_eq!(first.as_sorted_char_range(), CharIndex(6)..CharIndex(17));
         assert_eq!(state.last_drag_pointer.map(|(i, _, _)| i.0), Some(14));
 
         // Repeated pointer index: cached path returns the same range.
         let cached = state
             .extend_word_line_drag(text, CCursor::new(14))
             .expect("word drag active");
-        assert_eq!(range_bounds(&cached), range_bounds(&first));
+        assert_eq!(cached.as_sorted_char_range(), first.as_sorted_char_range());
 
         // A different index recomputes a fresh (different) range.
         let moved = state
             .extend_word_line_drag(text, CCursor::new(20))
             .expect("word drag active");
-        assert_eq!(range_bounds(&moved), unit(6, 21));
-        assert_ne!(range_bounds(&moved), range_bounds(&first));
+        assert_eq!(moved.as_sorted_char_range(), CharIndex(6)..CharIndex(21));
+        assert_ne!(moved.as_sorted_char_range(), first.as_sorted_char_range());
         assert_eq!(state.last_drag_pointer.map(|(i, _, _)| i.0), Some(20));
 
         // The cached range must match a fresh computation for that same index.
         let fresh_for_14 = {
             let anchor_unit = state.drag_anchor_unit.unwrap();
-            let pointer_unit = range_bounds(&SelectionMode::Word.unit_at(text, CCursor::new(14)));
+            let pointer_unit = SelectionMode::Word.unit_bounds_at(text, CCursor::new(14));
             combine_units(anchor_unit, pointer_unit)
         };
         let cached_again = state
             .extend_word_line_drag(text, CCursor::new(14))
             .expect("word drag active");
-        assert_eq!(range_bounds(&cached_again), range_bounds(&fresh_for_14));
+        assert_eq!(
+            cached_again.as_sorted_char_range(),
+            fresh_for_14.as_sorted_char_range()
+        );
 
         // begin_drag clears the cache so a new drag never reuses a stale range.
         state.begin_drag(text, CCursor::new(8), SelectionMode::Word);
@@ -829,7 +825,7 @@ mod test {
         let first = state
             .extend_word_line_drag(text_a, CCursor::new(14))
             .expect("word drag active");
-        assert_eq!(range_bounds(&first), unit(6, 17));
+        assert_eq!(first.as_sorted_char_range(), CharIndex(6)..CharIndex(17));
         assert_eq!(
             state.last_drag_pointer.map(|(_, len, _)| len),
             Some(text_a.len())
@@ -842,12 +838,12 @@ mod test {
             .expect("word drag active");
         let fresh_for_c = {
             let anchor_unit = state.drag_anchor_unit.unwrap();
-            let pointer_unit = range_bounds(&SelectionMode::Word.unit_at(text_c, CCursor::new(14)));
+            let pointer_unit = SelectionMode::Word.unit_bounds_at(text_c, CCursor::new(14));
             combine_units(anchor_unit, pointer_unit)
         };
         assert_eq!(
-            range_bounds(&after_len_change),
-            range_bounds(&fresh_for_c),
+            after_len_change.as_sorted_char_range(),
+            fresh_for_c.as_sorted_char_range(),
             "cache must miss when the text length changes mid-drag"
         );
         assert_eq!(
@@ -867,8 +863,8 @@ mod test {
             .extend_word_line_drag(text_b, CCursor::new(14))
             .expect("word drag active");
         assert_eq!(
-            range_bounds(&cached_a),
-            range_bounds(&cached_b),
+            cached_a.as_sorted_char_range(),
+            cached_b.as_sorted_char_range(),
             "same-length text is treated as unchanged (documented limitation)"
         );
     }
