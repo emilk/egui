@@ -124,6 +124,19 @@ impl Clipboard {
     ///
     /// Returns `None` on platforms without a PRIMARY selection, and when
     /// nothing owns it.
+    #[cfg_attr(
+        not(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            any(feature = "arboard", feature = "smithay-clipboard")
+        )),
+        expect(clippy::unused_self, clippy::needless_pass_by_ref_mut)
+    )]
     pub fn get_primary_text(&mut self) -> Option<String> {
         #[cfg(all(
             any(
@@ -184,6 +197,23 @@ impl Clipboard {
     /// application gives PRIMARY.
     ///
     /// Does nothing on platforms without a PRIMARY selection.
+    #[cfg_attr(
+        not(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            any(feature = "arboard", feature = "smithay-clipboard")
+        )),
+        expect(
+            clippy::unused_self,
+            clippy::needless_pass_by_ref_mut,
+            clippy::needless_pass_by_value
+        )
+    )]
     pub fn set_primary_text(&mut self, text: String) {
         #[cfg(all(
             any(
