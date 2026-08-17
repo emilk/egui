@@ -3,8 +3,7 @@ use epaint::Margin;
 use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomWidget, AtomWidgetContext, Atoms, Color32,
     CornerRadius, FontSelection, Frame, Image, IntoAtoms, NumExt as _, Response, Sense, Stroke,
-    TextStyle, TextWrapMode, Vec2, WidgetInfo, WidgetText, WidgetType,
-    impl_widget_for_atom_widget,
+    TextStyle, TextWrapMode, Vec2, WidgetInfo, WidgetText, WidgetType, impl_widget_for_atom_widget,
     widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState},
 };
 
