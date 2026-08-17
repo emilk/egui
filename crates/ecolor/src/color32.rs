@@ -131,7 +131,17 @@ impl Color32 {
     /// but for transparent colors what you get back might be slightly different (rounding errors).
     #[inline]
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
-        use std::sync::OnceLock;
+        const LOOKUP_TABLE: &[u8] = &const {
+            const LEN: usize = u16::MAX as usize + 1;
+            let mut tbl = [0u8; LEN];
+            let mut i = 0;
+            while i < LEN {
+                let [value, alpha] = (i as u16).to_ne_bytes();
+                tbl[i] = fast_round(value as f32 * linear_f32_from_linear_u8(alpha));
+                i += 1;
+            }
+            tbl
+        };
         match a {
             // common-case optimization:
             0 => Self::TRANSPARENT,
@@ -140,18 +150,8 @@ impl Color32 {
             255 => Self::from_rgb(r, g, b),
 
             a => {
-                static LOOKUP_TABLE: OnceLock<Box<[u8]>> = OnceLock::new();
-                let lut = LOOKUP_TABLE.get_or_init(|| {
-                    (0..=u16::MAX)
-                        .map(|i| {
-                            let [value, alpha] = i.to_ne_bytes();
-                            fast_round(value as f32 * linear_f32_from_linear_u8(alpha))
-                        })
-                        .collect()
-                });
-
-                let [r, g, b] =
-                    [r, g, b].map(|value| lut[usize::from(u16::from_ne_bytes([value, a]))]);
+                let [r, g, b] = [r, g, b]
+                    .map(|value| LOOKUP_TABLE[usize::from(u16::from_ne_bytes([value, a]))]);
                 Self::from_rgba_premultiplied(r, g, b, a)
             }
         }
