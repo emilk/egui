@@ -120,6 +120,62 @@ impl Clipboard {
         self.clipboard = text;
     }
 
+    /// Read the X11/Wayland PRIMARY selection.
+    ///
+    /// Returns `None` on platforms without a PRIMARY selection, and when
+    /// nothing owns it.
+    pub fn get_primary_text(&mut self) -> Option<String> {
+        #[cfg(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            feature = "smithay-clipboard"
+        ))]
+        if let Some(clipboard) = &mut self.smithay {
+            return match clipboard.load_primary() {
+                Ok(text) => Some(text),
+                Err(err) => {
+                    log::debug!("smithay primary selection paste error: {err}");
+                    None
+                }
+            };
+        }
+
+        #[cfg(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            feature = "arboard",
+        ))]
+        if let Some(clipboard) = &mut self.arboard {
+            use arboard::GetExtLinux as _;
+
+            return match clipboard
+                .get()
+                .clipboard(arboard::LinuxClipboardKind::Primary)
+                .text()
+            {
+                Ok(text) => Some(text),
+                Err(err) => {
+                    // An empty PRIMARY selection is the normal state, not an
+                    // error worth shouting about.
+                    log::debug!("arboard primary selection paste error: {err}");
+                    None
+                }
+            };
+        }
+
+        None
+    }
+
     /// Set the X11/Wayland PRIMARY selection, which is pasted with the middle
     /// mouse button.
     ///

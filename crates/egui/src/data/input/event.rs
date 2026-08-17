@@ -24,6 +24,24 @@ pub enum Event {
     /// The integration detected a "paste" event (e.g. Cmd+V).
     Paste(String),
 
+    /// The user middle-clicked at `pos` to paste the X11/Wayland PRIMARY selection.
+    ///
+    /// The integration reads PRIMARY and sends the text along with the position,
+    /// since only it can: the selection is served by whichever process owns it.
+    ///
+    /// Unlike [`Self::Paste`], the text cursor first moves to `pos`. That is the
+    /// X11 convention: middle-click pastes where you clicked, not where the
+    /// cursor happened to be.
+    ///
+    /// Only sent on X11 and Wayland, the only platforms with a PRIMARY selection.
+    MiddleClickPaste {
+        /// Where the user clicked, in points.
+        pos: Pos2,
+
+        /// The contents of the PRIMARY selection.
+        text: String,
+    },
+
     /// Text input, e.g. via keyboard.
     ///
     /// When the user presses enter/return, do not send a [`Text`](Event::Text) (just [`Key::Enter`]).

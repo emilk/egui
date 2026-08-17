@@ -803,6 +803,45 @@ impl TextEdit<'_> {
             }
         }
 
+        // Middle-click pastes the X11/Wayland PRIMARY selection at the click,
+        // rather than at the text cursor. The integration has already read the
+        // selection for us; only it can, since PRIMARY is served by whichever
+        // process owns it.
+        if interactive
+            && text_mutable
+            && response.contains_pointer()
+            && let Some((pos, pasted)) = ui.input(|i| {
+                i.events.iter().find_map(|event| match event {
+                    Event::MiddleClickPaste { pos, text } => Some((*pos, text.clone())),
+                    _ => None,
+                })
+            })
+        {
+            let mut ccursor = galley.cursor_from_pos(
+                pos - inner_rect.min + state.text_offset + vec2(galley.rect.left(), 0.0),
+            );
+
+            if multiline {
+                text.insert_text_at(&mut ccursor, &pasted, char_limit);
+            } else {
+                let single_line = pasted.replace(['\r', '\n'], " ");
+                text.insert_text_at(&mut ccursor, &single_line, char_limit);
+            }
+
+            state
+                .cursor
+                .set_char_range(Some(CCursorRange::one(ccursor)));
+            state.cursor_purpose = TextEditCursorPurpose::Selection;
+            state.last_interaction_time = ui.input(|i| i.time);
+            ui.memory_mut(|mem| mem.request_focus(id));
+
+            text_changed = true;
+
+            // The galley was laid out before this insertion, so the new text
+            // only shows up in the next pass.
+            ui.ctx().request_repaint();
+        }
+
         if interactive && response.hovered() {
             ui.set_cursor_icon(CursorIcon::Text);
         }

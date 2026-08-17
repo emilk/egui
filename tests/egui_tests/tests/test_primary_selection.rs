@@ -24,7 +24,7 @@ fn harness_on(os: OperatingSystem) -> Harness<'static> {
 }
 
 /// The text published to PRIMARY in the last pass, if any.
-fn published_to_primary(harness: &Harness<'_>) -> Option<String> {
+fn published_to_primary<S>(harness: &Harness<'_, S>) -> Option<String> {
     harness
         .output()
         .platform_output
@@ -42,7 +42,7 @@ fn published_to_primary(harness: &Harness<'_>) -> Option<String> {
 /// [`Harness::drop_at`], because `drop_at` also sends a `PointerGone`. Every
 /// queued event gets a pass of its own, so that extra event would replace the
 /// output of the pass we want to look at.
-fn press_and_release(harness: &mut Harness<'_>, from: Pos2, to: Pos2) {
+fn press_and_release<S>(harness: &mut Harness<'_, S>, from: Pos2, to: Pos2) {
     harness.hover_at(from);
     harness.step();
     harness.drag_at(from);
@@ -63,7 +63,7 @@ fn press_and_release(harness: &mut Harness<'_>, from: Pos2, to: Pos2) {
 }
 
 /// The horizontal ends of the label, a pixel inside it.
-fn label_ends(harness: &Harness<'_>) -> (Pos2, Pos2) {
+fn label_ends<S>(harness: &Harness<'_, S>) -> (Pos2, Pos2) {
     let rect = harness.get_by_label(TEXT).rect();
     (
         Pos2::new(rect.left() + 1.0, rect.center().y),
@@ -108,6 +108,68 @@ fn drag_selecting_in_a_text_edit_publishes_to_primary() {
         Some(TEXT),
         "a drag-selection in a TextEdit should hand the text to PRIMARY too"
     );
+}
+
+/// A `TextEdit` holding `text`, on a platform with a PRIMARY selection.
+fn text_edit_harness(text: &str) -> Harness<'static, String> {
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(300.0, 100.0))
+        .with_step_dt(1.0 / 60.0)
+        .build_ui_state(
+            |ui, text: &mut String| {
+                ui.text_edit_singleline(text);
+            },
+            text.to_owned(),
+        );
+    harness.ctx.set_os(OperatingSystem::Nix);
+    harness.run();
+    harness
+}
+
+/// Middle-click pastes where you clicked, not where the text cursor was. That
+/// is the X11 convention, and the reason the event carries a position.
+#[test]
+fn middle_click_pastes_at_the_click_position() {
+    let mut harness = text_edit_harness("ac");
+    let rect = harness.get_by_role(Role::TextInput).rect();
+    let start = Pos2::new(rect.left() + 1.0, rect.center().y);
+    let end = Pos2::new(rect.right() - 1.0, rect.center().y);
+
+    // Put the text cursor at the end, so the two candidate positions differ.
+    press_and_release(&mut harness, end, end);
+
+    // A real middle-click has the pointer where it clicked.
+    harness.hover_at(start);
+    harness.step();
+    harness.event(egui::Event::MiddleClickPaste {
+        pos: start,
+        text: "b".to_owned(),
+    });
+    harness.run();
+
+    assert_eq!(
+        harness.state().as_str(),
+        "bac",
+        "the paste should land where the middle-click was, not at the text cursor"
+    );
+}
+
+/// The click has to land in the widget: a middle-click somewhere else must not
+/// dump the selection into whatever `TextEdit` happens to be on screen.
+#[test]
+fn a_middle_click_outside_the_widget_pastes_nothing() {
+    let mut harness = text_edit_harness("ac");
+
+    let outside = Pos2::new(280.0, 90.0);
+    harness.hover_at(outside);
+    harness.step();
+    harness.event(egui::Event::MiddleClickPaste {
+        pos: outside,
+        text: "b".to_owned(),
+    });
+    harness.run();
+
+    assert_eq!(harness.state().as_str(), "ac");
 }
 
 /// A password is never copied to the clipboard, and PRIMARY is no different.
