@@ -516,12 +516,10 @@ impl WinitApp for WgpuWinitApp<'_> {
             let mut shared = running.shared.borrow_mut();
             if let Some(viewport) = shared.viewports.get_mut(&egui::ViewportId::ROOT)
                 && let Some(window) = viewport.window.as_ref()
+                && let Some(egui_winit) = viewport.egui_winit.as_mut()
+                && egui_winit.on_mouse_motion(delta)
             {
-                if let Some(egui_winit) = viewport.egui_winit.as_mut()
-                    && egui_winit.on_mouse_motion(delta)
-                {
-                    return Ok(EventResult::RepaintNext(window.id()));
-                }
+                return Ok(EventResult::RepaintNext(window.id()));
             }
         }
 
