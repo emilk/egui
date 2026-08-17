@@ -515,4 +515,14 @@ mod test {
             Color32::from_rgba_unmultiplied(255, 0, 0, 128)
         );
     }
+
+    #[test]
+    fn mul_frac_round_vs_old() {
+        for x in (0..=255u8).step_by(4) {
+            for a in (1..=255u8).step_by(4) {
+                let old = fast_round(x as f32 * crate::linear_f32_from_linear_u8(a));
+                assert_eq!(old, mul_frac_round(x, a));
+            }
+        }
+    }
 }
