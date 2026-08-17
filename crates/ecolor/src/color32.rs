@@ -151,8 +151,8 @@ impl Color32 {
 
             a => {
                 let r = mul_frac_round(r, a);
-                let g = mul_frac_round(r, a);
-                let b = mul_frac_round(r, a);
+                let g = mul_frac_round(g, a);
+                let b = mul_frac_round(b, a);
                 Self::from_rgba_premultiplied(r, g, b, a)
             }
         }
@@ -514,5 +514,15 @@ mod test {
             Color32::from(Rgba::from_rgba_unmultiplied(1.0, 0.0, 0.0, 0.5)),
             Color32::from_rgba_unmultiplied(255, 0, 0, 128)
         );
+    }
+
+    #[test]
+    fn mul_frac_round_vs_old() {
+        for x in (0..=255u8) {
+            for a in (1..=255u8) {
+                let old = fast_round(x as f32 * linear_f32_from_linear_u8(a));
+                assert_eq!(old, mul_frac_round(x, a));
+            }
+        }
     }
 }
