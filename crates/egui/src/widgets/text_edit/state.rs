@@ -56,6 +56,14 @@ pub struct TextEditState {
     /// Used to pause the cursor animation when typing.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) last_interaction_time: f64,
+
+    /// The selection that was last published to the X11/Wayland PRIMARY selection.
+    ///
+    /// Kept so that an unchanged selection is not published twice, which would
+    /// steal PRIMARY back from another application. Ephemeral; see the
+    /// `text_selection::primary_selection` module.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) primary_published: Option<CCursorRange>,
 }
 
 impl TextEditState {

@@ -124,6 +124,16 @@ pub enum OutputCommand {
     /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
     CopyText(String),
 
+    /// Put this text in the X11/Wayland PRIMARY selection.
+    ///
+    /// PRIMARY is the "select here, middle-click paste there" channel, separate
+    /// from the Ctrl+C/Ctrl+V clipboard that [`Self::CopyText`] writes to. egui
+    /// emits this whenever the user finishes selecting text, which is what every
+    /// other application on those platforms does.
+    ///
+    /// Integrations on platforms without a PRIMARY selection should ignore this.
+    CopyTextToPrimary(String),
+
     /// Put this image to the system clipboard.
     CopyImage(crate::ColorImage),
 

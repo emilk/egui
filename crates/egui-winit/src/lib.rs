@@ -1124,6 +1124,9 @@ impl State {
                 egui::OutputCommand::CopyText(text) => {
                     self.clipboard.set_text(text);
                 }
+                egui::OutputCommand::CopyTextToPrimary(text) => {
+                    self.clipboard.set_primary_text(text);
+                }
                 egui::OutputCommand::CopyImage(image) => {
                     self.clipboard.set_image(&image);
                 }

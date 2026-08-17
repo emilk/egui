@@ -4,6 +4,7 @@ pub mod accesskit_text;
 
 mod cursor_range;
 mod label_text_selection;
+pub(crate) mod primary_selection;
 pub mod text_cursor_state;
 pub mod visuals;
 
