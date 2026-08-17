@@ -134,6 +134,18 @@ const fn fast_round(r: f32) -> u8 {
     (r + 0.5) as _ // rust does a saturating cast since 1.45
 }
 
+/// Compute val * (frac/255) with no floating point
+/// or divisions.
+#[inline]
+const fn mul_frac_round(val: u8, frac: u8) -> u8 {
+    // Treat this as a simple fixed point calculation
+    let p = (val as u16) * (frac as u16) + 128;
+    ((p + (p >> 8)) >> 8) as u8
+    // Logic split out a bit more.
+    //let p = (val as u16) * (frac as u16) + 127; // + 127 to round or remove to truncate.
+    //return ((p + 1 + (p >> 8)) >> 8) as u8;
+}
+
 #[test]
 pub fn test_srgba_conversion() {
     for b in 0..=255 {
