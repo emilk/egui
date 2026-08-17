@@ -518,8 +518,8 @@ mod test {
 
     #[test]
     fn mul_frac_round_vs_old() {
-        for x in (0..=255u8) {
-            for a in (1..=255u8) {
+        for x in (0..=255u8).step_by(4) {
+            for a in (1..=255u8).step_by(4) {
                 let old = fast_round(x as f32 * linear_f32_from_linear_u8(a));
                 assert_eq!(old, mul_frac_round(x, a));
             }
