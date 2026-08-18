@@ -934,7 +934,7 @@ fn animated_image_frame_index(ctx: &Context, uri: &str) -> usize {
 
 /// Checks if uri is a gif file
 fn is_gif_uri(uri: &str) -> bool {
-    uri.ends_with(".gif") || uri.contains(".gif#")
+    crate::load::has_extension(uri, "gif")
 }
 
 /// Checks if bytes are gifs
@@ -944,7 +944,7 @@ pub fn has_gif_magic_header(bytes: &[u8]) -> bool {
 
 /// Checks if uri is a webp file
 fn is_webp_uri(uri: &str) -> bool {
-    uri.ends_with(".webp") || uri.contains(".webp#")
+    crate::load::has_extension(uri, "webp")
 }
 
 /// Checks if bytes are webp
