@@ -1,7 +1,8 @@
 use crate::{AtomLayout, FontSelection, Image, ImageSource, SizedAtomKind, Ui, WidgetText};
 use core::fmt::Debug;
-use emath::Vec2;
+use emath::{Rect, Vec2};
 use epaint::text::TextWrapMode;
+use std::sync::Arc;
 
 /// Args passed when sizing an [`super::Atom`]
 pub struct IntoSizedArgs {
@@ -20,6 +21,11 @@ pub struct IntoSizedResult<'a> {
 // We need 'static in the result (or need to introduce another lifetime on the enum).
 // Otherwise, a single 'static Atom would force the closure to be 'static.
 pub type AtomClosure<'a> = Box<dyn FnOnce(&Ui, IntoSizedArgs) -> IntoSizedResult<'static> + 'a>;
+
+/// See [`AtomKind::Paint`]
+///
+/// It is an [`Arc`] so the atom stays cloneable.
+pub type AtomPaint<'a> = Arc<dyn Fn(&Ui, Rect) + 'a>;
 
 /// The different kinds of [`crate::Atom`]s.
 #[derive(Default)]
@@ -66,6 +72,15 @@ pub enum AtomKind<'a> {
     /// When cloning, this will be cloned as [`AtomKind::Empty`].
     Closure(AtomClosure<'a>),
 
+    /// A closure that paints the atom at the [`Rect`] the layout gives it.
+    ///
+    /// It has no size of its own, so set one with [`crate::AtomExt::atom_size`], or use
+    /// [`crate::Atom::paint`], which does that for you.
+    ///
+    /// Use this for widgets that draw their own shapes, like the check mark of
+    /// [`crate::Checkbox`].
+    Paint(AtomPaint<'a>),
+
     /// A nested [`AtomLayout`], letting you embed an atom-based widget as a single atom
     /// inside another [`AtomLayout`].
     ///
@@ -84,6 +99,7 @@ impl Clone for AtomKind<'_> {
                 log::warn!("Cannot clone atom closures");
                 AtomKind::Empty
             }
+            AtomKind::Paint(paint) => AtomKind::Paint(Arc::clone(paint)),
             AtomKind::Layout(layout) => AtomKind::Layout(layout.clone()),
         }
     }
@@ -96,6 +112,7 @@ impl Debug for AtomKind<'_> {
             AtomKind::Text(text) => write!(f, "AtomKind::Text({text:?})"),
             AtomKind::Image(image) => write!(f, "AtomKind::Image({image:?})"),
             AtomKind::Closure(_) => write!(f, "AtomKind::Closure(<closure>)"),
+            AtomKind::Paint(_) => write!(f, "AtomKind::Paint(<closure>)"),
             AtomKind::Layout(_) => write!(f, "AtomKind::Layout(<layout>)"),
         }
     }
@@ -110,6 +127,11 @@ impl<'a> AtomKind<'a> {
     /// See [`Self::Image`]
     pub fn image(image: impl Into<Image<'a>>) -> Self {
         AtomKind::Image(image.into())
+    }
+
+    /// See [`Self::Paint`]
+    pub fn paint(func: impl Fn(&Ui, Rect) + 'a) -> Self {
+        AtomKind::Paint(Arc::new(func))
     }
 
     /// See [`Self::Closure`]
@@ -158,6 +180,10 @@ impl<'a> AtomKind<'a> {
                     fallback_font,
                 },
             ),
+            AtomKind::Paint(paint) => IntoSizedResult {
+                intrinsic_size: Vec2::ZERO,
+                sized: SizedAtomKind::Paint(paint),
+            },
             AtomKind::Layout(layout) => {
                 let sized = layout.measure(ui, available_size);
                 IntoSizedResult {

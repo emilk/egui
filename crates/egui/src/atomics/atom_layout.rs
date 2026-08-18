@@ -673,6 +673,9 @@ impl<'atom> SizedAtomLayout<'atom> {
                     image.paint_at(ui, item_rect);
                 }
                 SizedAtomKind::Empty { .. } => {}
+                SizedAtomKind::Paint(paint) => {
+                    paint(ui, item_rect);
+                }
                 SizedAtomKind::Layout(layout) => {
                     // TODO(lucasmerlin): Add some kind of justify flag, right now nested atoms are always
                     // shown fully stretched.

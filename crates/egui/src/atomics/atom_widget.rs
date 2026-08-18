@@ -151,7 +151,7 @@ impl<'ui, 'layout> AtomUi<'ui, 'layout> {
         &mut self,
         builder: AtomLayout<'layout>,
         mut atom: Atom<'layout>,
-        add_content: impl FnOnce(&mut AtomUi<'_, '_>) -> R,
+        add_content: impl FnOnce(&mut AtomUi<'_, 'layout>) -> R,
     ) -> InnerResponse<R> {
         let mut child = AtomUi::new(self.ctx, builder);
         let inner = add_content(&mut child);
@@ -167,7 +167,7 @@ impl<'ui, 'layout> AtomUi<'ui, 'layout> {
     pub fn vertical<R>(
         &mut self,
         atom: Atom<'layout>,
-        add_content: impl FnOnce(&mut AtomUi<'_, '_>) -> R,
+        add_content: impl FnOnce(&mut AtomUi<'_, 'layout>) -> R,
     ) -> InnerResponse<R> {
         self.scope_builder(
             AtomLayout::default().direction(Direction::TopDown),
@@ -253,10 +253,10 @@ impl<'ui, 'layout> AtomUi<'ui, 'layout> {
 }
 
 impl Ui {
-    pub fn atom_builder<T>(
+    pub fn atom_builder<'a, T>(
         &mut self,
-        builder: AtomLayout<'_>,
-        add_contents: impl FnOnce(&mut AtomUi<'_, '_>) -> T,
+        builder: AtomLayout<'a>,
+        add_contents: impl FnOnce(&mut AtomUi<'_, 'a>) -> T,
     ) -> InnerResponse<T> {
         let mut ui = AtomUi::new(self, builder);
         let inner = add_contents(&mut ui);
@@ -267,11 +267,12 @@ impl Ui {
         }
     }
 
-    pub fn atom<T>(
+    pub fn atom<'a, T>(
         &mut self,
-        add_contents: impl FnOnce(&mut AtomUi<'_, '_>) -> T,
+        add_contents: impl FnOnce(&mut AtomUi<'_, 'a>) -> T,
     ) -> InnerResponse<T> {
-        self.atom_builder(AtomLayout::default(), add_contents)
+        let direction = self.layout().main_dir();
+        self.atom_builder(AtomLayout::default().direction(direction), add_contents)
     }
 }
 

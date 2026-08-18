@@ -1,8 +1,8 @@
 use emath::Rect;
 
 use crate::{
-    Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType, epaint, pos2,
+    Atom, AtomLayout, AtomWidget, AtomWidgetContext, Atoms, IntoAtoms, NumExt as _, Response,
+    Sense, Shape, Vec2, WidgetInfo, WidgetType, epaint, impl_widget_for_atom_widget, pos2,
     widget_style::{CheckboxStyle, Classes, HasClasses},
 };
 
@@ -59,8 +59,8 @@ impl<'a> Checkbox<'a> {
     }
 }
 
-impl Widget for Checkbox<'_> {
-    fn ui(self, ui: &mut Ui) -> Response {
+impl<'a> AtomWidget<'a> for Checkbox<'a> {
+    fn atom_ui(self, ui: &mut AtomWidgetContext, response: &mut Response) -> AtomLayout<'a> {
         let Checkbox {
             checked,
             mut atoms,
@@ -68,10 +68,11 @@ impl Widget for Checkbox<'_> {
             classes,
         } = self;
 
-        // Get the widget style by reading the response from the previous pass
-        let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        if response.clicked() {
+            *checked = !*checked;
+            response.mark_changed();
+        }
+        let checked = *checked;
 
         let CheckboxStyle {
             check_size,
@@ -80,7 +81,7 @@ impl Widget for Checkbox<'_> {
             frame,
             check_stroke,
             text_style,
-        } = ui.style().checkbox_style(&classes, state);
+        } = ui.style().checkbox_style(&classes, response.widget_state());
 
         let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
         min_size.y = min_size.y.at_least(checkbox_size);
@@ -88,22 +89,45 @@ impl Widget for Checkbox<'_> {
         // In order to center the checkbox based on min_size we set the icon height to at least min_size.y
         let mut icon_size = Vec2::splat(checkbox_size);
         icon_size.y = icon_size.y.at_least(min_size.y);
-        let rect_id = Id::new("egui::checkbox");
-        atoms.push_left(Atom::custom(rect_id, icon_size));
+        atoms.push_left(Atom::paint(icon_size, move |ui, rect| {
+            let big_icon_rect = Rect::from_center_size(
+                pos2(rect.left() + checkbox_size / 2.0, rect.center().y),
+                Vec2::splat(checkbox_size),
+            );
+            let small_icon_rect =
+                Rect::from_center_size(big_icon_rect.center(), Vec2::splat(check_size));
+
+            ui.painter().add(epaint::RectShape::new(
+                big_icon_rect.expand(checkbox_frame.inner_margin.left.into()),
+                checkbox_frame.corner_radius,
+                checkbox_frame.fill,
+                checkbox_frame.stroke,
+                epaint::StrokeKind::Inside,
+            ));
+
+            if indeterminate {
+                // Horizontal line:
+                ui.painter().add(Shape::hline(
+                    small_icon_rect.x_range(),
+                    small_icon_rect.center().y,
+                    check_stroke,
+                ));
+            } else if checked {
+                // Check mark:
+                ui.painter().add(Shape::line(
+                    vec![
+                        pos2(small_icon_rect.left(), small_icon_rect.center().y),
+                        pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
+                        pos2(small_icon_rect.right(), small_icon_rect.top()),
+                    ],
+                    check_stroke,
+                ));
+            }
+        }));
 
         let text = atoms.text().map(String::from);
 
-        let mut prepared = AtomLayout::new(atoms)
-            .sense(Sense::click())
-            .min_size(min_size)
-            .frame(frame)
-            .allocate(ui);
-
-        if prepared.response.clicked() {
-            *checked = !*checked;
-            prepared.response.mark_changed();
-        }
-        prepared.response.widget_info(|| {
+        response.widget_info(|| {
             if indeterminate {
                 WidgetInfo::labeled(
                     WidgetType::Checkbox,
@@ -114,56 +138,21 @@ impl Widget for Checkbox<'_> {
                 WidgetInfo::selected(
                     WidgetType::Checkbox,
                     ui.is_enabled(),
-                    *checked,
+                    checked,
                     text.as_deref().unwrap_or(""),
                 )
             }
         });
 
-        if ui.is_rect_visible(prepared.response.rect) {
-            prepared.fallback_text_color = text_style.color;
-            let response = prepared.paint(ui);
-
-            if let Some(rect) = response.rect(rect_id) {
-                let big_icon_rect = Rect::from_center_size(
-                    pos2(rect.left() + checkbox_size / 2.0, rect.center().y),
-                    Vec2::splat(checkbox_size),
-                );
-                let small_icon_rect =
-                    Rect::from_center_size(big_icon_rect.center(), Vec2::splat(check_size));
-                ui.painter().add(epaint::RectShape::new(
-                    big_icon_rect.expand(checkbox_frame.inner_margin.left.into()),
-                    checkbox_frame.corner_radius,
-                    checkbox_frame.fill,
-                    checkbox_frame.stroke,
-                    epaint::StrokeKind::Inside,
-                ));
-
-                if indeterminate {
-                    // Horizontal line:
-                    ui.painter().add(Shape::hline(
-                        small_icon_rect.x_range(),
-                        small_icon_rect.center().y,
-                        check_stroke,
-                    ));
-                } else if *checked {
-                    // Check mark:
-                    ui.painter().add(Shape::line(
-                        vec![
-                            pos2(small_icon_rect.left(), small_icon_rect.center().y),
-                            pos2(small_icon_rect.center().x, small_icon_rect.bottom()),
-                            pos2(small_icon_rect.right(), small_icon_rect.top()),
-                        ],
-                        check_stroke,
-                    ));
-                }
-            }
-            response.response
-        } else {
-            prepared.response
-        }
+        AtomLayout::new(atoms)
+            .sense(Sense::click())
+            .min_size(min_size)
+            .frame(frame)
+            .fallback_text_color(text_style.color)
     }
 }
+
+impl_widget_for_atom_widget!(Checkbox<'_>);
 
 impl HasClasses for Checkbox<'_> {
     fn classes(&self) -> &Classes {
