@@ -1,3 +1,8 @@
+#![expect(
+    clippy::float_cmp,
+    reason = "exact comparisons are intentional in these tests"
+)]
+
 use egui::accesskit::{self, Role};
 use egui::{
     Align2, Button, ComboBox, FontId, Image, Label, Modifiers, Popup, Pos2, Rect, Stroke,
