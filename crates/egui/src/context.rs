@@ -1761,11 +1761,11 @@ impl Context {
                 .get(&id)
                 .map(|v| v.repaint.cumulative_frame_nr)
                 .unwrap_or_else(|| {
-                    if cfg!(debug_assertions) {
-                        panic!("cumulative_frame_nr_for failed to find the viewport {id:?}");
-                    } else {
-                        0
-                    }
+                    debug_assert!(
+                        false,
+                        "cumulative_frame_nr_for failed to find the viewport {id:?}"
+                    );
+                    0
                 })
         })
     }

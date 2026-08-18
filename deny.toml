@@ -50,7 +50,6 @@ skip = [
   { name = "bit-set" }, # wgpu's naga depends on 0.8, syntect's (used by egui_extras) fancy-regex depends on 0.5
   { name = "bit-vec" }, # dependency of bit-set in turn, different between 0.6 and 0.5
   { name = "bitflags" }, # old 1.0 version via glutin, png, spirv, …
-  { name = "core-foundation" }, # version conflict between winit and wgpu ecosystems
   { name = "env_filter" }, # 0.1.4 only used by android_logger, which is only used by the hello_android example
   { name = "foldhash" }, # pulled by the duplicated hashbrown versions
   { name = "getrandom" }, # ring / rustls (and thus ehttp) still depend on getrandom 0.2

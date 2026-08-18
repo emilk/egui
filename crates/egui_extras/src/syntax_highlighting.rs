@@ -210,6 +210,13 @@ impl SyntectTheme {
     derive(serde::Deserialize, serde::Serialize),
     serde(default)
 )]
+#[cfg_attr(
+    all(feature = "serde", not(feature = "syntect")),
+    expect(
+        clippy::unsafe_derive_deserialize,
+        reason = "the `enum_map!` macro expands to `unsafe` code"
+    )
+)]
 pub struct CodeTheme {
     dark_mode: bool,
 
