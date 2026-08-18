@@ -1277,15 +1277,11 @@ impl GlutinWindowContext {
                 }
             }
 
-            let window = {
-                #[cfg(target_os = "windows")]
-                {
+            let window = cfg_select! {
+                target_os = "windows" => {
                     if viewport_id != ViewportId::ROOT && window_attributes.transparent() {
                         // Preserve explicitly requested transparent child viewports on Windows.
-                        //
-                        // Some Windows GL paths report no transparency support even though
-                        // the native transparent window and its GL surface composite correctly.
-                        // Other platforms continue through `finalize_window`.
+                        // Some GL paths report no transparency support although composition works.
                         event_loop.create_window(window_attributes)?
                     } else {
                         glutin_winit::finalize_window(
@@ -1295,8 +1291,8 @@ impl GlutinWindowContext {
                         )?
                     }
                 }
-                #[cfg(not(target_os = "windows"))]
-                {
+                _ => {
+                    // Keep the normal platform-specific finalization path elsewhere.
                     glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?
                 }
             };
