@@ -133,6 +133,23 @@ impl<'ui, 'layout> AtomUi<'ui, 'layout> {
         Self { ctx, layout }
     }
 
+    /// The [`Style`] the widgets built here will use.
+    pub fn style(&self) -> &Style {
+        self.ctx.style()
+    }
+
+    /// Mutate the [`Style`] the widgets built here will use.
+    ///
+    /// Call this before adding anything, since each widget reads the style as it is built.
+    pub fn style_mut(&mut self) -> &mut Style {
+        self.ctx.style_mut()
+    }
+
+    /// Set the [`crate::Frame`] painted around this layout.
+    pub fn set_frame(&mut self, frame: crate::Frame) {
+        self.layout.frame = frame;
+    }
+
     pub fn response(&self) -> Response {
         self.ctx
             .read_response(self.layout.id.expect("set in constructor"))

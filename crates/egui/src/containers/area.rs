@@ -5,8 +5,9 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2, Rect, Response,
-    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState, emath, pos2,
+    Align2, AtomLayout, AtomUi, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order,
+    Pos2, Rect, Response, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect,
+    WidgetWithState, emath, pos2,
 };
 
 /// State of an [`Area`] that is persisted between frames.
@@ -391,6 +392,15 @@ pub(crate) struct Prepared {
     constrain: bool,
     constrain_rect: Rect,
 
+    /// See [`Area::anchor`]. Needed to re-place the area in [`Prepared::resize`].
+    anchor: Option<(Align2, Vec2)>,
+
+    /// The size the content is laid out against.
+    ///
+    /// This is [`Area::default_size`], and unlike [`AreaState::size`] it does not depend on
+    /// how big the area happened to be last frame.
+    available_size: Vec2,
+
     /// We always make windows invisible the first frame to hide "first-frame-jitters".
     ///
     /// This is so that we use the first frame to calculate the window size,
@@ -416,6 +426,12 @@ impl Area {
     }
 
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
+        self.begin_impl(ctx, false)
+    }
+
+    /// If `measured`, the caller knows the size of the contents up front and will call
+    /// [`Prepared::resize`], so no sizing pass is needed and none is done.
+    fn begin_impl(self, ctx: &Context, measured: bool) -> Prepared {
         let Self {
             id,
             info,
@@ -441,7 +457,7 @@ impl Area {
         let layer_id = LayerId::new(order, id);
 
         let state = AreaState::load(ctx, id);
-        let mut sizing_pass = state.is_none();
+        let mut sizing_pass = !measured && state.is_none();
         let mut state = state.unwrap_or(AreaState {
             pivot_pos: None,
             pivot,
@@ -449,7 +465,7 @@ impl Area {
             interactable,
             last_became_visible_at: None,
         });
-        if force_sizing_pass {
+        if force_sizing_pass && !measured {
             sizing_pass = true;
             state.size = None;
         }
@@ -461,10 +477,9 @@ impl Area {
             default_pos.unwrap_or_else(|| automatic_area_position(ctx, constrain_rect, layer_id))
         });
 
-        let size = *state.size.get_or_insert_with(|| {
-            sizing_pass = true;
-
-            // during the sizing pass we will use this as the max size
+        // The size the content gets to lay itself out in.
+        // During a sizing pass we use it as the max size of the area too.
+        let available_size = {
             let mut size = default_size;
 
             let default_area_size = ctx.global_style().spacing.default_area_size;
@@ -480,6 +495,11 @@ impl Area {
             }
 
             size
+        };
+
+        let size = *state.size.get_or_insert_with(|| {
+            sizing_pass = !measured;
+            available_size
         });
 
         // We should never be interactable during a sizing pass, since then we are shown at a different
@@ -557,18 +577,24 @@ impl Area {
             move_response
         };
 
-        state.set_left_top_pos(round_area_position(
-            ctx,
-            if constrain {
-                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min
-            } else {
-                state.left_top_pos()
-            },
-        ));
+        // Constraining needs the real size, and `state.size` is still last frame's guess.
+        // If the caller measures the contents it will call `Prepared::resize`, which does
+        // this once the size is known. Doing it here as well would move the pivot with the
+        // wrong size and place the area somewhere else entirely.
+        if !measured {
+            state.set_left_top_pos(round_area_position(
+                ctx,
+                if constrain {
+                    Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min
+                } else {
+                    state.left_top_pos()
+                },
+            ));
 
-        // Update response with possibly moved/constrained rect:
-        move_response.rect = state.rect();
-        move_response.interact_rect = state.rect();
+            // Update response with possibly moved/constrained rect:
+            move_response.rect = state.rect();
+            move_response.interact_rect = state.rect();
+        }
 
         Prepared {
             info: Some(info),
@@ -581,7 +607,61 @@ impl Area {
             sizing_pass,
             fade_in,
             layout,
+            anchor,
+            available_size,
         }
+    }
+
+    /// Show the area, with [`crate::Atom`]-based contents.
+    ///
+    /// Atoms are measured before they are painted, so the area knows its size before it has
+    /// to place itself. It is therefore correctly sized and positioned on the very first
+    /// frame, and needs none of the invisible sizing pass that [`Self::show`] does.
+    ///
+    /// The atoms are laid out along the main direction of [`Self::layout`].
+    ///
+    /// ```
+    /// # egui::__run_test_ctx(|ctx| {
+    /// egui::Area::new(egui::Id::new("my_area"))
+    ///     .fixed_pos(egui::pos2(32.0, 32.0))
+    ///     .show_atom(ctx, |ui| {
+    ///         ui.add(egui::atom(), egui::Button::new("Floating button!"));
+    ///     });
+    /// # });
+    /// ```
+    pub fn show_atom<'a, R>(
+        self,
+        ctx: &Context,
+        add_contents: impl FnOnce(&mut AtomUi<'_, 'a>) -> R,
+    ) -> InnerResponse<R> {
+        let builder = AtomLayout::default().direction(self.layout.main_dir());
+        self.show_atom_layout(ctx, builder, add_contents)
+    }
+
+    /// Same as [`Self::show_atom`], but you provide the outer [`AtomLayout`].
+    pub fn show_atom_layout<'a, R>(
+        self,
+        ctx: &Context,
+        builder: AtomLayout<'a>,
+        add_contents: impl FnOnce(&mut AtomUi<'_, 'a>) -> R,
+    ) -> InnerResponse<R> {
+        let mut prepared = self.begin_impl(ctx, true);
+        let mut content_ui = prepared.content_atom_ui(ctx);
+
+        let (inner, layout) = {
+            let mut atom_ui = AtomUi::new(&mut content_ui, builder);
+            let inner = add_contents(&mut atom_ui);
+            (inner, atom_ui.show().0)
+        };
+
+        // Measure first, then place the area, then paint.
+        let sized = layout.measure(&content_ui, prepared.available_size);
+        let size = sized.outer_size;
+        prepared.resize(ctx, size);
+        sized.show_at(&content_ui, prepared.state.rect());
+
+        let response = prepared.end_with_size(ctx, content_ui, size);
+        InnerResponse { inner, response }
     }
 }
 
@@ -609,8 +689,21 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&mut self, ctx: &Context) -> Ui {
-        let max_rect = self.state.rect();
+        self.content_ui_at(ctx, self.state.rect())
+    }
 
+    /// The [`Ui`] used to build, measure and paint [`crate::Atom`]-based contents.
+    ///
+    /// Unlike [`Self::content_ui`] it is sized to [`Self::available_size`], not to whatever
+    /// size the area had last frame, so measured contents are free to grow and shrink.
+    /// Its position is provisional: atoms are painted at the [`Rect`] passed to
+    /// [`crate::SizedAtomLayout::show_at`], not at the [`Ui`] cursor.
+    pub(crate) fn content_atom_ui(&mut self, ctx: &Context) -> Ui {
+        let max_rect = Rect::from_min_size(self.state.left_top_pos(), self.available_size);
+        self.content_ui_at(ctx, max_rect)
+    }
+
+    fn content_ui_at(&mut self, ctx: &Context, max_rect: Rect) -> Ui {
         let mut ui_builder = UiBuilder::new()
             .ui_stack_info(self.info.take().unwrap_or_default())
             .layer_id(self.layer_id)
@@ -654,8 +747,44 @@ impl Prepared {
         self.move_response.id
     }
 
-    #[expect(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
+    /// Give the area its final size and place it accordingly.
+    ///
+    /// [`Self::content_ui`] has to place the contents before it knows how big they are, which
+    /// is why [`Area::show`] needs a sizing pass to get the position right. Contents that can
+    /// be measured up front call this instead and are correct on the first frame.
+    pub(crate) fn resize(&mut self, ctx: &Context, size: Vec2) {
+        self.state.size = Some(size);
+
+        if let Some((anchor, offset)) = self.anchor {
+            self.state.set_left_top_pos(
+                anchor
+                    .align_size_within_rect(size, self.constrain_rect)
+                    .left_top()
+                    + offset,
+            );
+        }
+
+        self.state.set_left_top_pos(round_area_position(
+            ctx,
+            if self.constrain {
+                Context::constrain_window_rect_to_area(self.state.rect(), self.constrain_rect).min
+            } else {
+                self.state.left_top_pos()
+            },
+        ));
+
+        let rect = self.state.rect();
+        self.move_response.rect = rect;
+        self.move_response.interact_rect = rect;
+    }
+
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
+        let size = content_ui.min_size();
+        self.end_with_size(ctx, content_ui, size)
+    }
+
+    #[expect(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
+    pub(crate) fn end_with_size(self, ctx: &Context, content_ui: Ui, size: Vec2) -> Response {
         let Self {
             info: _,
             layer_id,
@@ -665,7 +794,7 @@ impl Prepared {
             ..
         } = self;
 
-        state.size = Some(content_ui.min_size());
+        state.size = Some(size);
 
         // Make sure we report back the correct size.
         // Very important after the initial sizing pass, when the initial estimate of the size is way off.

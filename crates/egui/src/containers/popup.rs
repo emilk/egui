@@ -3,8 +3,8 @@ use core::iter::once;
 use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
 
 use crate::{
-    Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
-    Sense, Ui, UiKind, UiStackInfo,
+    Area, AreaState, AtomUi, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order,
+    Response, Sense, Ui, UiKind, UiStackInfo,
     containers::menu::{MenuConfig, MenuState, menu_style},
     style::StyleModifier,
 };
@@ -521,6 +521,43 @@ impl<'a> Popup<'a> {
     /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
     /// no pointer.
     pub fn show<R>(self, content: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
+        self.show_impl(|area, ctx, style, frame| {
+            area.show(ctx, |ui| {
+                style.apply(ui.style_mut());
+                let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
+                frame.show(ui, content).inner
+            })
+        })
+    }
+
+    /// Show the popup, with [`crate::Atom`]-based contents.
+    ///
+    /// The contents are measured before they are painted, so the popup is correctly sized and
+    /// placed on the frame it opens. [`Self::show`] instead has to spend that frame on an
+    /// invisible sizing pass, during which the popup is neither visible nor interactable.
+    ///
+    /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
+    /// no pointer.
+    pub fn show_atom<'l, R>(
+        self,
+        content: impl FnOnce(&mut AtomUi<'_, 'l>) -> R,
+    ) -> Option<InnerResponse<R>> {
+        self.show_impl(|area, ctx, style, frame| {
+            area.show_atom(ctx, |ui| {
+                style.apply(ui.style_mut());
+                let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
+                ui.set_frame(frame);
+                content(ui)
+            })
+        })
+    }
+
+    /// Everything [`Self::show`] and [`Self::show_atom`] have in common: the open state, the
+    /// alignment, the [`Area`] setup and the close behavior. `show_area` builds the contents.
+    fn show_impl<R>(
+        self,
+        show_area: impl FnOnce(Area, &Context, StyleModifier, Option<Frame>) -> InnerResponse<R>,
+    ) -> Option<InnerResponse<R>> {
         let id = self.id;
         // When the popup was just opened with a click we don't want to immediately close it based
         // on the `PopupCloseBehavior`, so we need to remember if the popup was already open on
@@ -614,11 +651,7 @@ impl<'a> Popup<'a> {
             area = area.default_width(width);
         }
 
-        let mut response = area.show(&ctx, |ui| {
-            style.apply(ui.style_mut());
-            let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
-            frame.show(ui, content).inner
-        });
+        let mut response = show_area(area, &ctx, style, frame);
 
         // If the popup was just opened with a click, we don't want to immediately close it again.
         let close_click = was_open_last_frame && ctx.input(|i| i.pointer.any_click());

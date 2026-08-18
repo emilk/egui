@@ -577,6 +577,16 @@ impl<'atom> SizedAtomLayout<'atom> {
         });
     }
 
+    /// [`Ui::interact`] at `rect` and [`Self::paint_at`] there.
+    ///
+    /// This is what [`AllocatedAtomLayout::paint`] does, but at a [`Rect`] you choose instead
+    /// of one allocated from the [`Ui`] cursor. Use it when you know where the layout goes
+    /// only after measuring it, like [`crate::Area::show_atom`] does.
+    pub fn show_at(self, ui: &Ui, rect: Rect) -> AtomLayoutResponse {
+        let response = ui.interact(rect, self.id, self.sense);
+        self.paint_at(ui, rect, response)
+    }
+
     /// Paint the [`Frame`] and individual [`crate::Atom`]s within `rect`.
     ///
     /// `rect` is the full widget rect (frame included). For a top-level layout this is
