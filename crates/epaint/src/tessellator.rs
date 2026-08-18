@@ -1519,11 +1519,11 @@ impl Tessellator {
 
                     if stroke.is_empty() {
                         return; // we are done
-                    } else {
-                        // we still need to do the stroke
-                        fill = Color32::TRANSPARENT; // don't fill again below
-                        break;
                     }
+
+                    // we still need to do the stroke
+                    fill = Color32::TRANSPARENT; // don't fill again below
+                    break;
                 }
             }
         }
