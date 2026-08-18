@@ -123,10 +123,9 @@ impl<'a> Parser<'a> {
                 self.s = &code_start[end + 4..];
                 self.start_of_line = false;
                 return Some(Item::CodeBlock(language, code));
-            } else {
-                self.s = "";
-                return Some(Item::CodeBlock(language, code_start));
             }
+            self.s = "";
+            return Some(Item::CodeBlock(language, code_start));
         }
         None
     }
@@ -143,13 +142,12 @@ impl<'a> Parser<'a> {
                 self.s = &self.s[end + 1..];
                 self.style.code = false;
                 return Some(item);
-            } else {
-                let end = rest_of_line.len();
-                let item = Item::Text(self.style, rest_of_line);
-                self.s = &self.s[end..];
-                self.style.code = false;
-                return Some(item);
             }
+            let end = rest_of_line.len();
+            let item = Item::Text(self.style, rest_of_line);
+            self.s = &self.s[end..];
+            self.style.code = false;
+            return Some(item);
         }
         None
     }

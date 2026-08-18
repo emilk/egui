@@ -537,29 +537,27 @@ fn try_image_snapshot_options_impl(
             // No previous snapshot - probably a new test.
             if mode.is_update() {
                 return update_snapshot();
-            } else {
-                write_new_png()?;
-
-                return Err(SnapshotError::OpenSnapshot {
-                    path: snapshot_path.clone(),
-                    err,
-                });
             }
+            write_new_png()?;
+
+            return Err(SnapshotError::OpenSnapshot {
+                path: snapshot_path.clone(),
+                err,
+            });
         }
     };
 
     if previous.dimensions() != new.dimensions() {
         if mode.is_update() {
             return update_snapshot();
-        } else {
-            write_new_png()?;
-
-            return Err(SnapshotError::SizeMismatch {
-                name,
-                expected: previous.dimensions(),
-                actual: new.dimensions(),
-            });
         }
+        write_new_png()?;
+
+        return Err(SnapshotError::SizeMismatch {
+            name,
+            expected: previous.dimensions(),
+            actual: new.dimensions(),
+        });
     }
 
     // Compare existing image to the new one:
