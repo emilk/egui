@@ -41,6 +41,13 @@ impl<T: core::hash::Hash + core::fmt::Debug> AsId for T {}
 /// This is niche-optimized to that `Option<Id>` is the same size as `Id`.
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    expect(
+        clippy::unsafe_derive_deserialize,
+        reason = "`from_high_entropy_bits` is only `unsafe` about entropy, not memory safety"
+    )
+)]
 pub struct Id(NonZeroU64);
 
 impl nohash_hasher::IsEnabled for Id {}
