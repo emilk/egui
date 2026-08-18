@@ -1,8 +1,3 @@
-#![expect(
-    clippy::float_cmp,
-    reason = "exact comparisons are intentional in these tests"
-)]
-
 use std::sync::Arc;
 
 use egui::accesskit::Role;

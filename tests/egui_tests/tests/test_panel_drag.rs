@@ -8,11 +8,6 @@
 //!   followed by drag-to-expand on the collapsed panel, both via the shared
 //!   resize handle.
 
-#![expect(
-    clippy::float_cmp,
-    reason = "exact comparisons are intentional in these tests"
-)]
-
 use egui::{Panel, Pos2, Vec2};
 use egui_kittest::{Harness, SnapshotResults};
 

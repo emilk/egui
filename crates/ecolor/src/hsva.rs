@@ -187,10 +187,6 @@ impl From<Color32> for Hsva {
 /// All ranges in 0-1, rgb is linear.
 #[inline]
 pub fn hsv_from_rgb([r, g, b]: [f32; 3]) -> (f32, f32, f32) {
-    #![expect(
-        clippy::float_cmp,
-        reason = "we want to know which channel is the exact maximum"
-    )]
     let min = r.min(g.min(b));
     let max = r.max(g.max(b)); // value
 

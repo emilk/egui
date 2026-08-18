@@ -269,6 +269,7 @@ cast_precision_loss = "allow" # 200 hits
 cast_sign_loss = "allow" # 98 hits
 comparison_chain = "allow"
 default_trait_access = "allow" # 278 hits
+float_cmp = "allow" # exact float comparisons are usually intentional (`float_cmp_const` is still on)
 inline_always = "allow" # 271 hits; we know what we are doing
 items_after_statements = "allow" # 82 hits
 many_single_char_names = "allow" # `r, g, b, a` and `h, s, v` are fine
