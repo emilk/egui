@@ -29,7 +29,7 @@ impl SvgLoader {
 }
 
 fn is_supported(uri: &str) -> bool {
-    uri.ends_with(".svg")
+    egui::load::has_extension(uri, "svg")
 }
 
 impl Default for SvgLoader {
