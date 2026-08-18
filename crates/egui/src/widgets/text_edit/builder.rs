@@ -987,22 +987,22 @@ impl TextEdit<'_> {
             }
         }
 
-        // Hand the finished selection to the X11/Wayland PRIMARY selection, so
-        // it can be pasted into other applications with the middle mouse button.
+        // Report a finished selection, which on X11 and Wayland ends up in the
+        // PRIMARY selection.
         //
         // This reads the cursor state rather than `selection_changed`, which
         // only covers the events handled above: a drag-selection lands in
         // `state.cursor` further down, after those have been processed.
         let selection = state.cursor.char_range().filter(|range| !range.is_empty());
-        if crate::text_selection::primary_selection::should_publish(
-            ui,
-            selection != state.primary_published,
-        ) {
-            state.primary_published = selection;
+        if crate::text_selection::settled::should_report(ui, selection != state.reported_selection)
+        {
+            state.reported_selection = selection;
 
             if !password && let Some(range) = selection {
                 ui.ctx()
-                    .copy_text_to_primary(range.slice_str(text.as_str()).to_owned());
+                    .send_cmd(crate::OutputCommand::TextSelectionSettled(
+                        range.slice_str(text.as_str()).to_owned(),
+                    ));
             }
         }
 

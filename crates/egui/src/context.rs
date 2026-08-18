@@ -1685,18 +1685,6 @@ impl Context {
         self.send_cmd(crate::OutputCommand::CopyText(text));
     }
 
-    /// Put the given text in the X11/Wayland PRIMARY selection.
-    ///
-    /// This is the selection that is pasted with the middle mouse button, and it
-    /// is separate from the clipboard used by [`Self::copy_text`]. egui already
-    /// does this for you whenever the user selects text in a [`crate::Label`] or
-    /// a [`crate::TextEdit`]; call this only for selections you manage yourself.
-    ///
-    /// Does nothing on platforms that have no PRIMARY selection.
-    pub fn copy_text_to_primary(&self, text: String) {
-        self.send_cmd(crate::OutputCommand::CopyTextToPrimary(text));
-    }
-
     /// Copy the given image to the system clipboard.
     ///
     /// Note that in web applications, the clipboard is only accessible in secure contexts (e.g.,

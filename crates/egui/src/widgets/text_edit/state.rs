@@ -57,13 +57,12 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) last_interaction_time: f64,
 
-    /// The selection that was last published to the X11/Wayland PRIMARY selection.
+    /// The selection that was last reported as settled.
     ///
-    /// Kept so that an unchanged selection is not published twice, which would
-    /// steal PRIMARY back from another application. Ephemeral; see the
-    /// `text_selection::primary_selection` module.
+    /// Kept so an unchanged selection is not reported twice. Ephemeral; see the
+    /// `text_selection::settled` module.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) primary_published: Option<CCursorRange>,
+    pub(crate) reported_selection: Option<CCursorRange>,
 }
 
 impl TextEditState {

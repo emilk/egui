@@ -1137,7 +1137,9 @@ impl State {
                 egui::OutputCommand::CopyText(text) => {
                     self.clipboard.set_text(text);
                 }
-                egui::OutputCommand::CopyTextToPrimary(text) => {
+                egui::OutputCommand::TextSelectionSettled(text) => {
+                    // On X11 and Wayland the selection doubles as a clipboard
+                    // that is pasted with the middle mouse button.
                     self.clipboard.set_primary_text(text);
                 }
                 egui::OutputCommand::CopyImage(image) => {

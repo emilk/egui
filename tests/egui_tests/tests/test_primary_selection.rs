@@ -23,15 +23,15 @@ fn harness_on(os: OperatingSystem) -> Harness<'static> {
     harness
 }
 
-/// The text published to PRIMARY in the last pass, if any.
-fn published_to_primary<S>(harness: &Harness<'_, S>) -> Option<String> {
+/// The text reported as a settled selection in the last pass, if any.
+fn reported_selection<S>(harness: &Harness<'_, S>) -> Option<String> {
     harness
         .output()
         .platform_output
         .commands
         .iter()
         .find_map(|command| match command {
-            OutputCommand::CopyTextToPrimary(text) => Some(text.clone()),
+            OutputCommand::TextSelectionSettled(text) => Some(text.clone()),
             _ => None,
         })
 }
@@ -72,21 +72,21 @@ fn label_ends<S>(harness: &Harness<'_, S>) -> (Pos2, Pos2) {
 }
 
 #[test]
-fn drag_selecting_a_label_publishes_to_primary() {
+fn drag_selecting_a_label_reports_the_selection() {
     let mut harness = harness_on(OperatingSystem::Nix);
     let (from, to) = label_ends(&harness);
 
     press_and_release(&mut harness, from, to);
 
     assert_eq!(
-        published_to_primary(&harness).as_deref(),
+        reported_selection(&harness).as_deref(),
         Some(TEXT),
-        "releasing after a drag-selection should hand the text to PRIMARY"
+        "releasing after a drag-selection should report the text"
     );
 }
 
 #[test]
-fn drag_selecting_in_a_text_edit_publishes_to_primary() {
+fn drag_selecting_in_a_text_edit_reports_the_selection() {
     let mut text = String::from(TEXT);
     let mut harness = Harness::builder()
         .with_size(Vec2::new(300.0, 100.0))
@@ -104,9 +104,9 @@ fn drag_selecting_in_a_text_edit_publishes_to_primary() {
     press_and_release(&mut harness, from, to);
 
     assert_eq!(
-        published_to_primary(&harness).as_deref(),
+        reported_selection(&harness).as_deref(),
         Some(TEXT),
-        "a drag-selection in a TextEdit should hand the text to PRIMARY too"
+        "a drag-selection in a TextEdit should be reported too"
     );
 }
 
@@ -174,7 +174,7 @@ fn a_middle_click_outside_the_widget_pastes_nothing() {
 
 /// A password is never copied to the clipboard, and PRIMARY is no different.
 #[test]
-fn a_password_is_never_published() {
+fn a_password_is_never_reported() {
     let mut text = String::from(TEXT);
     let mut harness = Harness::builder()
         .with_size(Vec2::new(300.0, 100.0))
@@ -191,27 +191,27 @@ fn a_password_is_never_published() {
 
     press_and_release(&mut harness, from, to);
 
-    assert_eq!(published_to_primary(&harness), None);
+    assert_eq!(reported_selection(&harness), None);
 }
 
 /// Claiming PRIMARY makes this process its owner, so re-claiming an unchanged
 /// selection would steal it back from whatever application the user selected in
 /// most recently. Only a selection that actually changed may be published.
 #[test]
-fn an_unchanged_selection_is_not_published_again() {
+fn an_unchanged_selection_is_not_reported_again() {
     let mut harness = harness_on(OperatingSystem::Nix);
     let (from, to) = label_ends(&harness);
 
     press_and_release(&mut harness, from, to);
-    assert!(published_to_primary(&harness).is_some());
+    assert!(reported_selection(&harness).is_some());
 
     // Press and release again without moving: the selection is unchanged.
     press_and_release(&mut harness, to, to);
 
     assert_eq!(
-        published_to_primary(&harness),
+        reported_selection(&harness),
         None,
-        "a release that did not change the selection must not re-claim PRIMARY"
+        "a release that did not change the selection must not be reported again"
     );
 }
 
@@ -230,7 +230,7 @@ fn nothing_is_published_on_platforms_without_primary() {
         press_and_release(&mut harness, from, to);
 
         assert_eq!(
-            published_to_primary(&harness),
+            reported_selection(&harness),
             None,
             "{os:?} has no PRIMARY selection"
         );
