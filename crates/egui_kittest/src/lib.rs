@@ -247,16 +247,16 @@ impl<'a, State> Harness<'a, State> {
     pub fn step(&mut self) {
         let events = core::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
-            self._step(false);
+            self.step_impl(false);
         }
         for event in events {
             self.input.events.push(event);
-            self._step(false);
+            self.step_impl(false);
         }
     }
 
     /// Run a single step. This will not process any events.
-    fn _step(&mut self, sizing_pass: bool) {
+    fn step_impl(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
@@ -297,7 +297,7 @@ impl<'a, State> Harness<'a, State> {
     /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
     /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
     pub fn fit_contents(&mut self) {
-        self._step(true);
+        self.step_impl(true);
 
         // Calculate size including all content (main UI + popups + tooltips)
         if let Some(rect) = self.compute_total_rect_with_popups() {
@@ -333,7 +333,7 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+    fn try_run_impl(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
         let mut steps = 0;
         loop {
             steps += 1;
@@ -374,7 +374,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        self._try_run(false)
+        self.try_run_impl(false)
     }
 
     /// Run until
@@ -414,7 +414,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run`].
     pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        self._try_run(true)
+        self.try_run_impl(true)
     }
 
     /// Run a number of steps.

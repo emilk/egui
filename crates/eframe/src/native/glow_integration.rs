@@ -1751,7 +1751,7 @@ fn save_screenshot_and_exit(
     screen_size_in_pixels: [u32; 2],
 ) {
     assert!(
-        path.ends_with(".png"),
+        egui::load::has_extension(path, "png"),
         "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
     );
     let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
