@@ -156,7 +156,7 @@ wasm-bindgen-futures = "0.4.76"
 wayland-cursor = { version = "0.31.14", default-features = false }
 web-sys = "0.3.103"
 web-time = "1.1" # Timekeeping for native and web
-webbrowser = "1.2"
+webbrowser = "1.2.2" # 1.2.2 fixes RUSTSEC-2026-0257 (`BROWSER` argument injection)
 wgpu = { version = "30.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
