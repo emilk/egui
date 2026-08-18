@@ -118,14 +118,15 @@ impl<'a> Parser<'a> {
         {
             let language = &language_start[..newline];
             let code_start = &language_start[newline + 1..];
-            if let Some(end) = code_start.find("\n```") {
+            return if let Some(end) = code_start.find("\n```") {
                 let code = &code_start[..end].trim();
                 self.s = &code_start[end + 4..];
                 self.start_of_line = false;
-                return Some(Item::CodeBlock(language, code));
-            }
-            self.s = "";
-            return Some(Item::CodeBlock(language, code_start));
+                Some(Item::CodeBlock(language, code))
+            } else {
+                self.s = "";
+                Some(Item::CodeBlock(language, code_start))
+            };
         }
         None
     }
@@ -137,17 +138,18 @@ impl<'a> Parser<'a> {
             self.start_of_line = false;
             self.style.code = true;
             let rest_of_line = &self.s[..self.s.find('\n').unwrap_or(self.s.len())];
-            if let Some(end) = rest_of_line.find('`') {
+            return if let Some(end) = rest_of_line.find('`') {
                 let item = Item::Text(self.style, &self.s[..end]);
                 self.s = &self.s[end + 1..];
                 self.style.code = false;
-                return Some(item);
-            }
-            let end = rest_of_line.len();
-            let item = Item::Text(self.style, rest_of_line);
-            self.s = &self.s[end..];
-            self.style.code = false;
-            return Some(item);
+                Some(item)
+            } else {
+                let end = rest_of_line.len();
+                let item = Item::Text(self.style, rest_of_line);
+                self.s = &self.s[end..];
+                self.style.code = false;
+                Some(item)
+            };
         }
         None
     }
