@@ -11,14 +11,14 @@
 //! user selected in most recently. Any integration acting on this command wants
 //! the same thing: one report per selection, not one per frame.
 
-use crate::{Ui, os::OperatingSystem};
+use crate::Ui;
 
 /// Is anyone listening for settled text selections?
 ///
 /// Assembling the selected text costs an allocation and can span several
 /// widgets, so it is only worth doing when the integration will use it.
 pub(crate) fn is_reported(ui: &Ui) -> bool {
-    ui.ctx().os() == OperatingSystem::Nix
+    ui.ctx().options(|options| options.report_text_selection)
 }
 
 /// Has the user just finished selecting, so that a pending selection should be

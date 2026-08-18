@@ -2,23 +2,28 @@
 //! other applications with the middle mouse button.
 
 use egui::accesskit::Role;
-use egui::{Event, Modifiers, OutputCommand, PointerButton, Pos2, Vec2, os::OperatingSystem};
+use egui::{Event, Modifiers, OutputCommand, PointerButton, Pos2, Vec2};
 use egui_kittest::{Harness, kittest::Queryable as _};
 
 const TEXT: &str = "hello world";
 
-/// A harness with a single selectable label, pretending to run on `os`.
+/// A harness with a single selectable label.
+///
+/// `report` sets [`egui::Options::report_text_selection`], whose default
+/// depends on the platform, so every test states what it needs.
 ///
 /// Steps at 60Hz: with the default `step_dt` of 0.25s a press turns into a drag
 /// before the pointer has moved, which is not how a user selects text.
-fn harness_on(os: OperatingSystem) -> Harness<'static> {
+fn label_harness(report: bool) -> Harness<'static> {
     let mut harness = Harness::builder()
         .with_size(Vec2::new(300.0, 100.0))
         .with_step_dt(1.0 / 60.0)
         .build_ui(|ui| {
             ui.label(TEXT);
         });
-    harness.ctx.set_os(os);
+    harness
+        .ctx
+        .options_mut(|options| options.report_text_selection = report);
     harness.run();
     harness
 }
@@ -73,7 +78,7 @@ fn label_ends<S>(harness: &Harness<'_, S>) -> (Pos2, Pos2) {
 
 #[test]
 fn drag_selecting_a_label_reports_the_selection() {
-    let mut harness = harness_on(OperatingSystem::Nix);
+    let mut harness = label_harness(true);
     let (from, to) = label_ends(&harness);
 
     press_and_release(&mut harness, from, to);
@@ -94,7 +99,9 @@ fn drag_selecting_in_a_text_edit_reports_the_selection() {
         .build_ui(move |ui| {
             ui.text_edit_singleline(&mut text);
         });
-    harness.ctx.set_os(OperatingSystem::Nix);
+    harness
+        .ctx
+        .options_mut(|options| options.report_text_selection = true);
     harness.run();
 
     let rect = harness.get_by_role(Role::TextInput).rect();
@@ -121,7 +128,9 @@ fn text_edit_harness(text: &str) -> Harness<'static, String> {
             },
             text.to_owned(),
         );
-    harness.ctx.set_os(OperatingSystem::Nix);
+    harness
+        .ctx
+        .options_mut(|options| options.report_text_selection = true);
     harness.run();
     harness
 }
@@ -182,7 +191,9 @@ fn a_password_is_never_reported() {
         .build_ui(move |ui| {
             ui.add(egui::TextEdit::singleline(&mut text).password(true));
         });
-    harness.ctx.set_os(OperatingSystem::Nix);
+    harness
+        .ctx
+        .options_mut(|options| options.report_text_selection = true);
     harness.run();
 
     let rect = harness.get_by_role(Role::PasswordInput).rect();
@@ -199,7 +210,7 @@ fn a_password_is_never_reported() {
 /// most recently. Only a selection that actually changed may be published.
 #[test]
 fn an_unchanged_selection_is_not_reported_again() {
-    let mut harness = harness_on(OperatingSystem::Nix);
+    let mut harness = label_harness(true);
     let (from, to) = label_ends(&harness);
 
     press_and_release(&mut harness, from, to);
@@ -215,24 +226,30 @@ fn an_unchanged_selection_is_not_reported_again() {
     );
 }
 
-/// PRIMARY only exists on X11 and Wayland. Elsewhere the integration would
-/// throw the text away, so egui should not even assemble it.
+/// Assembling the selected text costs an allocation, so egui stays quiet when
+/// no integration has asked for it.
 #[test]
-fn nothing_is_published_on_platforms_without_primary() {
-    for os in [
-        OperatingSystem::Windows,
-        OperatingSystem::Mac,
-        OperatingSystem::Unknown,
-    ] {
-        let mut harness = harness_on(os);
-        let (from, to) = label_ends(&harness);
+fn nothing_is_reported_when_the_option_is_off() {
+    let mut harness = label_harness(false);
+    let (from, to) = label_ends(&harness);
 
-        press_and_release(&mut harness, from, to);
+    press_and_release(&mut harness, from, to);
 
-        assert_eq!(
-            reported_selection(&harness),
-            None,
-            "{os:?} has no PRIMARY selection"
-        );
-    }
+    assert_eq!(reported_selection(&harness), None);
+}
+
+/// The default follows the platform: on X11 and Wayland the integration feeds
+/// the report to the PRIMARY selection, elsewhere nobody listens.
+#[test]
+fn the_default_follows_the_platform() {
+    assert_eq!(
+        egui::Options::default().report_text_selection,
+        cfg!(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ))
+    );
 }
