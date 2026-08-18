@@ -19,16 +19,20 @@ use crate::{
 /// ui.add(egui::Checkbox::new(&mut my_bool, "Checked"));
 /// # });
 /// ```
+///
+/// The borrow of `checked` and the borrows inside the atoms have separate lifetimes, so the
+/// `&mut bool` is released as soon as the checkbox is added, even when the [`Atoms`] have to
+/// live on inside an [`AtomLayout`].
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
-pub struct Checkbox<'a> {
-    checked: &'a mut bool,
-    atoms: Atoms<'a>,
+pub struct Checkbox<'checked, 'atoms> {
+    checked: &'checked mut bool,
+    atoms: Atoms<'atoms>,
     indeterminate: bool,
     classes: Classes,
 }
 
-impl<'a> Checkbox<'a> {
-    pub fn new(checked: &'a mut bool, atoms: impl IntoAtoms<'a>) -> Self {
+impl<'checked, 'atoms> Checkbox<'checked, 'atoms> {
+    pub fn new(checked: &'checked mut bool, atoms: impl IntoAtoms<'atoms>) -> Self {
         Checkbox {
             checked,
             atoms: atoms.into_atoms(),
@@ -37,14 +41,14 @@ impl<'a> Checkbox<'a> {
         }
     }
 
-    pub fn without_text(checked: &'a mut bool) -> Self {
+    pub fn without_text(checked: &'checked mut bool) -> Self {
         Self::new(checked, ())
     }
 
     /// Output the checkbox's [`Atoms`].
     ///
     /// This includes any images you have on the checkbox.
-    pub fn atoms(&self) -> &Atoms<'a> {
+    pub fn atoms(&self) -> &Atoms<'atoms> {
         &self.atoms
     }
 
@@ -59,7 +63,7 @@ impl<'a> Checkbox<'a> {
     }
 }
 
-impl<'a> AtomWidget<'a> for Checkbox<'a> {
+impl<'a> AtomWidget<'a> for Checkbox<'_, 'a> {
     fn atom_ui(self, ui: &mut AtomWidgetContext, response: &mut Response) -> AtomLayout<'a> {
         let Checkbox {
             checked,
@@ -152,9 +156,9 @@ impl<'a> AtomWidget<'a> for Checkbox<'a> {
     }
 }
 
-impl_widget_for_atom_widget!(Checkbox<'_>);
+impl_widget_for_atom_widget!(Checkbox<'_, '_>);
 
-impl HasClasses for Checkbox<'_> {
+impl HasClasses for Checkbox<'_, '_> {
     fn classes(&self) -> &Classes {
         &self.classes
     }
