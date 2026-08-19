@@ -143,9 +143,6 @@ impl Color32 {
             // common-case optimization:
             0 => Self::TRANSPARENT,
 
-            // Not sure the extra branch is worth it?
-            //1 => Self::from_rgba_premultiplied(r >> 7, g >> 7, b >> 7, 1),
-
             // common-case optimization:
             255 => Self::from_rgb(r, g, b),
 
