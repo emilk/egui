@@ -509,10 +509,9 @@ impl SubMenu {
             });
         }
 
-        let gap = menu_config
+        let gap = frame.total_margin().sum().x / 2.0 + menu_config
             .submenu_gap
-            .unwrap_or_else(|| frame.total_margin().sum().x / 2.0 + 2.0);
-
+            .unwrap_or(2.0);
         let mut response = button_response.clone();
         // Expand the button rect so that the button and the first item in the submenu are aligned
         let expand = Vec2::new(0.0, frame.total_margin().sum().y / 2.0);
