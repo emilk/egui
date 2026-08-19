@@ -535,31 +535,31 @@ fn try_image_snapshot_options_impl(
         Ok(image) => image.to_rgba8(),
         Err(err) => {
             // No previous snapshot - probably a new test.
-            if mode.is_update() {
-                return update_snapshot();
+            return if mode.is_update() {
+                update_snapshot()
             } else {
                 write_new_png()?;
 
-                return Err(SnapshotError::OpenSnapshot {
+                Err(SnapshotError::OpenSnapshot {
                     path: snapshot_path.clone(),
                     err,
-                });
-            }
+                })
+            };
         }
     };
 
     if previous.dimensions() != new.dimensions() {
-        if mode.is_update() {
-            return update_snapshot();
+        return if mode.is_update() {
+            update_snapshot()
         } else {
             write_new_png()?;
 
-            return Err(SnapshotError::SizeMismatch {
+            Err(SnapshotError::SizeMismatch {
                 name,
                 expected: previous.dimensions(),
                 actual: new.dimensions(),
-            });
-        }
+            })
+        };
     }
 
     // Compare existing image to the new one:
