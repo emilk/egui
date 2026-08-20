@@ -245,6 +245,12 @@ pub struct Renderer {
     uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
+    /// Uniform buffers each holding a single `u32`:
+    /// 1 if the texture sampler uses nearest filtering, 0 otherwise.
+    /// Indexed by that flag value.
+    /// Read by the shader when `predictable_texture_filtering` is on.
+    nearest_filtering_flag_buffers: [wgpu::Buffer; 2],
+
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
     /// sampler). The texture may be None if the `TextureId` is just a handle to a user-provided
     /// sampler.
@@ -347,9 +353,27 @@ impl Renderer {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            has_dynamic_offset: false,
+                            min_binding_size: NonZeroU64::new(core::mem::size_of::<u32>() as _),
+                            ty: wgpu::BufferBindingType::Uniform,
+                        },
+                        count: None,
+                    },
                 ],
             })
         };
+
+        let nearest_filtering_flag_buffers = [0_u32, 1_u32].map(|flag| {
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(&format!("egui_nearest_filtering_flag_{flag}")),
+                contents: bytemuck::bytes_of(&flag),
+                usage: wgpu::BufferUsages::UNIFORM,
+            })
+        });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("egui_pipeline_layout"),
@@ -458,6 +482,7 @@ impl Renderer {
             previous_uniform_buffer_content: UniformBuffer::zeroed(),
             uniform_bind_group,
             texture_bind_group_layout,
+            nearest_filtering_flag_buffers,
             textures: HashMap::default(),
             next_user_texture_id: 0,
             samplers: HashMap::default(),
@@ -709,6 +734,8 @@ impl Renderer {
         };
 
         let bind_group = bind_group.unwrap_or_else(|| {
+            let nearest =
+                image_delta.options.magnification == epaint::textures::TextureFilter::Nearest;
             let sampler = self
                 .samplers
                 .entry(image_delta.options)
@@ -726,6 +753,11 @@ impl Renderer {
                     wgpu::BindGroupEntry {
                         binding: 1,
                         resource: wgpu::BindingResource::Sampler(sampler),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: self.nearest_filtering_flag_buffers[usize::from(nearest)]
+                            .as_entire_binding(),
                     },
                 ],
             })
@@ -829,6 +861,7 @@ impl Renderer {
     ) -> epaint::TextureId {
         profiling::function_scope!();
 
+        let nearest = sampler_descriptor.mag_filter == wgpu::FilterMode::Nearest;
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
             ..sampler_descriptor
@@ -845,6 +878,11 @@ impl Renderer {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: self.nearest_filtering_flag_buffers[usize::from(nearest)]
+                        .as_entire_binding(),
                 },
             ],
         });
@@ -885,6 +923,7 @@ impl Renderer {
             .get_mut(&id)
             .expect("Tried to update a texture that has not been allocated yet.");
 
+        let nearest = sampler_descriptor.mag_filter == wgpu::FilterMode::Nearest;
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
             ..sampler_descriptor
@@ -901,6 +940,11 @@ impl Renderer {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: self.nearest_filtering_flag_buffers[usize::from(nearest)]
+                        .as_entire_binding(),
                 },
             ],
         });
