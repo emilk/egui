@@ -288,10 +288,11 @@ trivially_copy_pass_by_ref = "allow" # 119 hits
 unreadable_literal = "allow" # 513 hits
 used_underscore_binding = "allow" # 25 hits
 
-# These are meh:
+# Other:
 assigning_clones = "allow" # No please
 manual_range_contains = "allow" # this one is just worse imho
 map_unwrap_or = "allow" # so is this one
+multiple_crate_versions = "allow" # we handle this with `cargo deny`
 wildcard_imports = "allow" # `use crate::*` is useful to avoid merge conflicts when adding/removing imports
 
 # NOTE: these are in `restriction`/`nursery`, so the `allow` is a no-op today.
