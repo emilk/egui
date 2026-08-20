@@ -179,7 +179,11 @@ all = "warn"
 
 # See also clippy.toml
 [workspace.lints.clippy]
+# `all` = `correctness` + `suspicious` + `style` + `complexity` + `perf`.
+# The remaining groups are `nursery` and `restriction`,
+# which are not meant to be enabled wholesale - we cherry-pick from them below.
 all = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 
 allow_attributes = "warn"
@@ -216,7 +220,6 @@ missing_assert_message = "warn"
 mutex_integer = "warn"
 needless_pass_by_ref_mut = "warn"
 needless_type_cast = "warn"
-negative_feature_names = "warn"
 non_zero_suggestions = "warn"
 nonstandard_macro_braces = "warn"
 or_fun_call = "warn"
@@ -258,7 +261,6 @@ unwrap_used = "warn"
 use_self = "warn"
 useless_let_if_seq = "warn"
 verbose_file_reads = "warn"
-wildcard_dependencies = "warn"
 
 
 # Pedantic lints we opt out of, with the number of hits at the time we enabled `pedantic`:
