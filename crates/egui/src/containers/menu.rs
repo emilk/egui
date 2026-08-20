@@ -10,8 +10,9 @@
 
 use crate::style::StyleModifier;
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, PointerButton, Popup,
-    PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
+    AnyUi, Atom, AtomUi, AtomWidgetContext, Button, Color32, Context, Frame, Id, InnerResponse,
+    IntoAtoms, Layout, PointerButton, Popup, PopupCloseBehavior, Response, Style, Ui, UiBuilder,
+    UiKind, UiStack, UiStackInfo, Widget as _,
 };
 use emath::{Align, RectAlign, Vec2, vec2};
 use epaint::Stroke;
@@ -30,7 +31,12 @@ pub fn menu_style(style: &mut Style) {
 
 /// Find the root [`UiStack`] of the menu.
 pub fn find_menu_root(ui: &Ui) -> &UiStack {
-    ui.stack()
+    find_menu_root_in_stack(ui.stack())
+}
+
+/// Find the root [`UiStack`] of the menu, starting from `stack`.
+pub fn find_menu_root_in_stack(stack: &UiStack) -> &UiStack {
+    stack
         .iter()
         .find(|stack| {
             stack.is_root_ui()
@@ -144,8 +150,17 @@ impl MenuState {
 
     /// Find the root of the menu and get the state
     pub fn from_ui<R>(ui: &Ui, f: impl FnOnce(&mut Self, &UiStack) -> R) -> R {
-        let stack = find_menu_root(ui);
-        Self::from_id(ui.ctx(), stack.id, |state| f(state, stack))
+        Self::from_stack(ui.ctx(), ui.stack(), f)
+    }
+
+    /// Find the root of the menu and get the state, from a [`UiStack`].
+    pub fn from_stack<R>(
+        ctx: &Context,
+        stack: &UiStack,
+        f: impl FnOnce(&mut Self, &UiStack) -> R,
+    ) -> R {
+        let root = find_menu_root_in_stack(stack);
+        Self::from_id(ctx, root.id, |state| f(state, root))
     }
 
     /// Get the state via the menus root [`Ui`] id
@@ -373,22 +388,62 @@ impl<'a> SubMenuButton<'a> {
         ui: &mut Ui,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> (Response, Option<InnerResponse<R>>) {
-        let my_id = ui.next_auto_id();
-        let open = MenuState::from_ui(ui, |state, _| {
-            state.open_item == Some(SubMenu::id_from_widget_id(my_id))
-        });
-        let inactive = ui.style().visuals.widgets.inactive;
-        // TODO(lucasmerlin) add `open` function to `Button`
-        if open {
-            ui.style_mut().visuals.widgets.inactive = ui.style().visuals.widgets.open;
-        }
-        let response = self.button.ui(ui);
-        ui.style_mut().visuals.widgets.inactive = inactive;
+        let Self { button, sub_menu } = self;
 
-        let popup_response = self.sub_menu.show(ui, &response, content);
+        let open = is_sub_menu_open(ui, ui.next_auto_id());
+        let response = with_open_style(ui, open, |ui| button.ui(ui));
+
+        let popup_response = sub_menu.show(ui, &response, content);
 
         (response, popup_response)
     }
+
+    /// Show the submenu button in an [`AtomUi`], with [`crate::Atom`]-based submenu contents.
+    ///
+    /// Like [`Self::ui`], but both the button and the submenu are built from atoms, so the
+    /// submenu needs no sizing pass. See [`Popup::show_atom`].
+    pub fn atom_ui<'l, R>(
+        self,
+        ui: &mut AtomUi<'_, 'l>,
+        content: impl FnOnce(&mut AtomUi<'_, 'l>) -> R,
+    ) -> (Response, Option<InnerResponse<R>>)
+    where
+        'a: 'l,
+    {
+        let Self { button, sub_menu } = self;
+
+        let open = is_sub_menu_open(ui.context(), ui.next_auto_id());
+        let response = with_open_style(ui, open, |ui| ui.add(Atom::default(), button));
+
+        let popup_response = sub_menu.show_atom(ui.context(), &response, content);
+
+        (response, popup_response)
+    }
+}
+
+/// Is the submenu belonging to the widget with this id open?
+fn is_sub_menu_open(ui: &AtomWidgetContext, widget_id: Id) -> bool {
+    MenuState::from_stack(ui.ctx(), ui.stack(), |state, _| {
+        state.open_item == Some(SubMenu::id_from_widget_id(widget_id))
+    })
+}
+
+/// Run `add_button` with the `open` widget visuals in place of the inactive ones, so an open
+/// submenu's button looks open.
+// TODO(lucasmerlin) add `open` function to `Button`
+fn with_open_style<'a, UI: AnyUi<'a>, R>(
+    ui: &mut UI,
+    open: bool,
+    add_button: impl FnOnce(&mut UI) -> R,
+) -> R {
+    if !open {
+        return add_button(ui);
+    }
+    let inactive = ui.style().visuals.widgets.inactive;
+    ui.style_mut().visuals.widgets.inactive = ui.style().visuals.widgets.open;
+    let response = add_button(ui);
+    ui.style_mut().visuals.widgets.inactive = inactive;
+    response
 }
 
 /// Show a submenu in a menu.
@@ -429,14 +484,50 @@ impl SubMenu {
         button_response: &Response,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
+        self.show_impl(ui, button_response, |popup| {
+            popup.show(|ui| {
+                keep_menu_on_top(ui, button_response);
+                content(ui)
+            })
+        })
+    }
+
+    /// Show the submenu, with [`crate::Atom`]-based contents.
+    ///
+    /// Like [`Self::show`], but the submenu is measured before it is painted, so it is
+    /// correctly sized and placed on the frame it opens. See [`Popup::show_atom`].
+    pub fn show_atom<'l, R>(
+        self,
+        ui: &AtomWidgetContext,
+        button_response: &Response,
+        content: impl FnOnce(&mut AtomUi<'_, 'l>) -> R,
+    ) -> Option<InnerResponse<R>> {
+        self.show_impl(ui, button_response, |popup| {
+            popup.show_atom(|atom_ui| {
+                keep_menu_on_top(atom_ui.context(), button_response);
+                content(atom_ui)
+            })
+        })
+    }
+
+    /// Everything [`Self::show`] and [`Self::show_atom`] have in common: deciding whether the
+    /// submenu should be open, configuring the [`Popup`], and handling the close behavior.
+    /// `show_popup` shows the contents.
+    fn show_impl<R>(
+        self,
+        ui: &AtomWidgetContext,
+        button_response: &Response,
+        show_popup: impl FnOnce(Popup<'_>) -> Option<InnerResponse<R>>,
+    ) -> Option<InnerResponse<R>> {
         let frame = Frame::menu(ui.style());
 
         let id = Self::id_from_widget_id(button_response.id);
 
         // Get the state from the parent menu
-        let (open_item, menu_id, parent_config) = MenuState::from_ui(ui, |state, stack| {
-            (state.open_item, stack.id, MenuConfig::from_stack(stack))
-        });
+        let (open_item, menu_id, parent_config) =
+            MenuState::from_stack(ui.ctx(), ui.stack(), |state, stack| {
+                (state.open_item, stack.id, MenuConfig::from_stack(stack))
+            });
 
         let mut menu_config = self.config.unwrap_or_else(|| parent_config.clone());
         menu_config.bar = false;
@@ -499,7 +590,7 @@ impl SubMenu {
         let expand = Vec2::new(0.0, frame.total_margin().sum().y / 2.0);
         response.interact_rect = response.interact_rect.expand2(expand);
 
-        let popup_response = Popup::from_response(&response)
+        let popup = Popup::from_response(&response)
             .id(id)
             .open(is_open)
             .align(RectAlign::RIGHT_START)
@@ -512,14 +603,9 @@ impl SubMenu {
             .info(
                 UiStackInfo::new(UiKind::Menu)
                     .with_tag_value(MenuConfig::MENU_CONFIG_TAG, menu_config.clone()),
-            )
-            .show(|ui| {
-                // Ensure our layer stays on top when the button is clicked
-                if button_response.clicked() || button_response.is_pointer_button_down_on() {
-                    ui.ctx().move_to_top(ui.layer_id());
-                }
-                content(ui)
-            });
+            );
+
+        let popup_response = show_popup(popup);
 
         if let Some(popup_response) = &popup_response {
             // If no child sub menu is open means we must be the deepest child sub menu.
@@ -556,14 +642,14 @@ impl SubMenu {
                 ui.close();
             }
 
-            let is_moving_towards_rect = ui.input(|i| {
+            let is_moving_towards_rect = ui.ctx().input(|i| {
                 i.pointer
                     .is_moving_towards_rect(&popup_response.response.rect)
             });
             if is_moving_towards_rect {
                 // We need to repaint while this is true, so we can detect when
                 // the pointer is no longer moving towards the rect
-                ui.request_repaint();
+                ui.ctx().request_repaint();
             }
             let hovering_other_menu_entry = is_open
                 && !is_hovered
@@ -583,7 +669,7 @@ impl SubMenu {
             }
 
             if ui.will_parent_close() {
-                ui.data_mut(|data| data.remove_by_type::<MenuState>());
+                ui.ctx().data_mut(|data| data.remove_by_type::<MenuState>());
             }
         }
 
@@ -594,5 +680,12 @@ impl SubMenu {
         }
 
         popup_response
+    }
+}
+
+/// Ensure the submenu's layer stays on top while its button is being clicked.
+fn keep_menu_on_top(ui: &AtomWidgetContext, button_response: &Response) {
+    if button_response.clicked() || button_response.is_pointer_button_down_on() {
+        ui.ctx().move_to_top(ui.layer_id());
     }
 }

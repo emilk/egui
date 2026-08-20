@@ -658,7 +658,13 @@ impl Area {
         let sized = layout.measure(&content_ui, prepared.available_size);
         let size = sized.outer_size;
         prepared.resize(ctx, size);
-        sized.show_at(&content_ui, prepared.state.rect());
+        let rect = prepared.state.rect();
+
+        // Atoms are painted, not allocated, so the `Ui` never learns where it ended up.
+        // Tell it, so `Ui::response` is right for whoever reads it (menus do).
+        content_ui.force_set_min_rect(rect);
+
+        sized.show_at(&content_ui, rect);
 
         let response = prepared.end_with_size(ctx, content_ui, size);
         InnerResponse { inner, response }

@@ -1,9 +1,11 @@
 use crate::{
-    Atom, AtomExt as _, AtomKind, AtomLayout, Atoms, Button, Context, Id, InnerResponse, IntoAtoms,
-    Layout, Response, Sense, Spacing, Style, Ui, UiBuilder, Visuals, WidgetRect,
+    Atom, AtomExt as _, AtomKind, AtomLayout, Atoms, Button, ClosableTag, Context, Id,
+    InnerResponse, IntoAtoms, LayerId, Layout, Response, Sense, Spacing, Style, Ui, UiBuilder,
+    UiStack, Visuals, WidgetRect,
 };
 use emath::{Align, Pos2, Rect, Vec2};
 use epaint::Direction;
+use std::sync::Arc;
 
 pub fn atom() -> Atom<'static> {
     Atom::default()
@@ -62,6 +64,22 @@ macro_rules! impl_widget_for_atom_widget {
 
 pub trait IsAtomWidgetContext {
     fn ctx(&self) -> &crate::Context;
+
+    /// Where we are in the [`UiStack`].
+    ///
+    /// Widgets built from atoms don't need this, but things that also open a container do:
+    /// [`crate::SubMenuButton`] needs it to find the menu it sits in.
+    fn stack(&self) -> &Arc<UiStack>;
+
+    /// The [`LayerId`] the widgets are drawn on.
+    fn layer_id(&self) -> LayerId;
+
+    /// The [`Id`] the next widget will get, without claiming it.
+    ///
+    /// Use this when a widget's state has to be read before the widget is added, like
+    /// [`crate::SubMenuButton`] reading whether its submenu is open.
+    fn next_auto_id(&self) -> Id;
+
     fn make_auto_id(&mut self) -> Id;
 
     fn is_enabled(&self) -> bool;
@@ -86,6 +104,36 @@ pub trait IsAtomWidgetContext {
     fn read_response(&self, id: Id) -> Response;
 
     fn child_ui(&mut self, builder: UiBuilder) -> Ui;
+
+    /// Close the closest closable container, e.g. the menu we are in.
+    ///
+    /// See [`Ui::close`].
+    fn close(&self) {
+        let tag = self.stack().iter().find_map(|stack| {
+            stack
+                .info
+                .tags
+                .get_downcast::<ClosableTag>(ClosableTag::NAME)
+        });
+        if let Some(tag) = tag {
+            tag.set_close();
+        } else {
+            log::warn!("Called close() on something that has no closable parent.");
+        }
+    }
+
+    /// Will any closable container we are in close this frame?
+    ///
+    /// See [`Ui::will_parent_close`].
+    fn will_parent_close(&self) -> bool {
+        self.stack().iter().any(|stack| {
+            stack
+                .info
+                .tags
+                .get_downcast::<ClosableTag>(ClosableTag::NAME)
+                .is_some_and(|tag| tag.should_close())
+        })
+    }
 }
 
 pub type AtomWidgetContext = dyn IsAtomWidgetContext;
@@ -95,8 +143,20 @@ impl IsAtomWidgetContext for Ui {
         self.ctx()
     }
 
+    fn stack(&self) -> &Arc<UiStack> {
+        self.stack()
+    }
+
+    fn layer_id(&self) -> LayerId {
+        self.layer_id()
+    }
+
+    fn next_auto_id(&self) -> Id {
+        self.next_auto_id()
+    }
+
     fn make_auto_id(&mut self) -> Id {
-        let id = self.next_auto_id();
+        let id = IsAtomWidgetContext::next_auto_id(self);
         self.skip_ahead_auto_ids(1);
         id
     }
@@ -131,6 +191,18 @@ impl<'ui, 'layout> AtomUi<'ui, 'layout> {
     pub fn new(ctx: &'ui mut AtomWidgetContext, builder: AtomLayout<'layout>) -> Self {
         let layout = builder.id(ctx.make_auto_id());
         Self { ctx, layout }
+    }
+
+    /// The context the widgets are built in.
+    ///
+    /// Needed by things that also open a container, like [`crate::SubMenuButton`].
+    pub fn context(&self) -> &AtomWidgetContext {
+        self.ctx
+    }
+
+    /// The [`Id`] the next widget added here will get, without claiming it.
+    pub fn next_auto_id(&self) -> Id {
+        self.ctx.next_auto_id()
     }
 
     /// The [`Style`] the widgets built here will use.
@@ -310,4 +382,41 @@ fn read_or_default_response(ui: &Ui, id: Id, sense: Sense) -> Response {
             enabled: ui.is_enabled(),
         })
     })
+}
+
+pub trait AnyUi<'a> {
+    fn add(&mut self, w: impl AtomWidget<'a>) -> Response;
+
+    fn style(&self) -> &Style;
+
+    fn style_mut(&mut self) -> &mut Style;
+}
+
+impl<'a> AnyUi<'a> for AtomUi<'_, 'a> {
+    fn add(&mut self, w: impl AtomWidget<'a>) -> Response {
+        self.add(atom(), w)
+    }
+
+    fn style(&self) -> &Style {
+        self.style()
+    }
+
+    fn style_mut(&mut self) -> &mut Style {
+        self.style_mut()
+    }
+}
+
+impl<'a> AnyUi<'a> for Ui {
+    fn add(&mut self, w: impl AtomWidget<'a>) -> Response {
+        let layout = w.show_for(self).0;
+        self.add(layout)
+    }
+
+    fn style(&self) -> &Style {
+        self.style()
+    }
+
+    fn style_mut(&mut self) -> &mut Style {
+        self.style_mut()
+    }
 }
