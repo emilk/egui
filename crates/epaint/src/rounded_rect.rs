@@ -2,7 +2,7 @@ use emath::{Pos2, Rect, Vec2, vec2};
 
 use crate::CornerRadius;
 
-/// A rectangle shape with rounded corners.
+/// A rectangle geometry with rounded corners.
 ///
 /// Not a painting primitive. For that, see [`crate::RectShape`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -32,6 +32,16 @@ impl RoundedRect {
     #[inline]
     pub fn corner_radius(&self) -> CornerRadius {
         self.corner_radius
+    }
+
+    /// Split into the rectangle and the corner radius.
+    #[inline]
+    pub fn into_parts(self) -> (Rect, CornerRadius) {
+        let Self {
+            rect,
+            corner_radius,
+        } = self;
+        (rect, corner_radius)
     }
 
     /// Expand the rectangle and the corner radii by the given amount.

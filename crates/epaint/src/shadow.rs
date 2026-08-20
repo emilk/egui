@@ -56,14 +56,14 @@ impl Shadow {
         } = *self;
         let [offset_x, offset_y] = offset;
 
-        let rounded_rect = RoundedRect::new(
+        let (rect, corner_radius) = RoundedRect::new(
             rect.translate(Vec2::new(offset_x as _, offset_y as _)),
             corner_radius,
         )
-        .expand(spread);
+        .expand(spread)
+        .into_parts();
 
-        RectShape::filled(rounded_rect.rect(), rounded_rect.corner_radius(), color)
-            .with_blur_width(blur as _)
+        RectShape::filled(rect, corner_radius, color).with_blur_width(blur as _)
     }
 
     /// How much larger than the parent rect are we in each direction?
