@@ -7,15 +7,15 @@ use crate::CornerRadius;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RoundedRect {
     pub rect: Rect,
-    pub rounding: CornerRadius,
+    pub corner_radius: CornerRadius,
 }
 
 impl RoundedRect {
     #[inline]
-    pub fn new(rect: Rect, rounding: impl Into<CornerRadius>) -> Self {
+    pub fn new(rect: Rect, corner_radius: impl Into<CornerRadius>) -> Self {
         Self {
             rect,
-            rounding: rounding.into(),
+            corner_radius: corner_radius.into(),
         }
     }
 
@@ -23,13 +23,16 @@ impl RoundedRect {
     ///
     /// Positions in the corner regions are projected onto the corner arcs.
     pub fn clamp_pos(&self, pos: Pos2) -> Pos2 {
-        let Self { rect, rounding } = *self;
+        let Self {
+            rect,
+            corner_radius,
+        } = *self;
         let pos = rect.clamp(pos);
         let corners = [
-            (f32::from(rounding.nw), vec2(-1.0, -1.0)),
-            (f32::from(rounding.ne), vec2(1.0, -1.0)),
-            (f32::from(rounding.sw), vec2(-1.0, 1.0)),
-            (f32::from(rounding.se), vec2(1.0, 1.0)),
+            (f32::from(corner_radius.nw), vec2(-1.0, -1.0)),
+            (f32::from(corner_radius.ne), vec2(1.0, -1.0)),
+            (f32::from(corner_radius.sw), vec2(-1.0, 1.0)),
+            (f32::from(corner_radius.se), vec2(1.0, 1.0)),
         ];
         for (radius, dir) in corners {
             let arc_center = rect.center() + dir * (rect.size() / 2.0 - Vec2::splat(radius));
@@ -47,7 +50,7 @@ impl From<Rect> for RoundedRect {
     fn from(rect: Rect) -> Self {
         Self {
             rect,
-            rounding: CornerRadius::ZERO,
+            corner_radius: CornerRadius::ZERO,
         }
     }
 }
