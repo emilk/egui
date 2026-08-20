@@ -130,7 +130,13 @@ impl Color32 {
     /// You can use [`Self::to_srgba_unmultiplied`] to get back these values,
     /// but for transparent colors what you get back might be slightly different (rounding errors).
     #[inline]
-    pub const fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
+    pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self::from_rgba_unmultiplied_const(r, g, b, a)
+    }
+
+    /// This is the same as [`Self::from_rgba_unmultiplied`], but for const contexts.
+    #[inline]
+    pub const fn from_rgba_unmultiplied_const(r: u8, g: u8, b: u8, a: u8) -> Self {
         match a {
             // common-case optimization:
             0 => Self::TRANSPARENT,
@@ -145,13 +151,6 @@ impl Color32 {
                 Self::from_rgba_premultiplied(r, g, b, a)
             }
         }
-    }
-
-    /// This is the same as [`Self::from_rgba_unmultiplied`] use it instead. 
-    #[deprecated = "Use `Color32::from_rgba_unmultiplied()` instead"]
-    #[inline]
-    pub const fn from_rgba_unmultiplied_const(r: u8, g: u8, b: u8, a: u8) -> Self {
-        Self::from_rgba_unmultiplied(r, g, b, a)
     }
 
     /// Opaque gray.
