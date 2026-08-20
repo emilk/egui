@@ -93,6 +93,29 @@ impl Painter {
         self.render_state.clone()
     }
 
+    /// The surface configuration (present mode, frame latency) the surfaces are configured with.
+    pub fn surface_config(&self) -> SurfaceConfig {
+        self.config.surface
+    }
+
+    /// Change the surface configuration (present mode, frame latency) at runtime.
+    ///
+    /// All surfaces are reconfigured before the next paint.
+    ///
+    /// This is cheap to call every frame.
+    pub fn set_surface_config(&mut self, surface_config: SurfaceConfig) {
+        if self.config.surface == surface_config {
+            return;
+        }
+
+        self.config.surface = surface_config;
+
+        #[expect(clippy::iter_over_hash_type)]
+        for surface in self.surfaces.values_mut() {
+            surface.needs_reconfigure = true;
+        }
+    }
+
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
@@ -521,20 +544,6 @@ impl Painter {
         {
             log::error!("Failed to recreate surface for {viewport_id:?}: {err}");
             return vsync_sec;
-        }
-
-        // Apply any runtime changes requested via `RenderState::surface_config`.
-        // We diff against the already-applied values in `self.config.surface`
-        // and, if anything differs, mark every surface as needing reconfiguration so
-        // the existing `needs_reconfigure` pathway below picks them up.
-        if let Some(render_state) = self.render_state.as_ref()
-            && render_state.surface_config != self.config.surface
-        {
-            self.config.surface = render_state.surface_config;
-            #[expect(clippy::iter_over_hash_type)]
-            for surface in self.surfaces.values_mut() {
-                surface.needs_reconfigure = true;
-            }
         }
 
         let Some(render_state) = self.render_state.as_mut() else {
