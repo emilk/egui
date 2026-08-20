@@ -2,7 +2,9 @@ use emath::{Pos2, Rect, Vec2, vec2};
 
 use crate::CornerRadius;
 
-/// A rectangle with rounded corners.
+/// A rectangle shape with rounded corners.
+///
+/// Not a painting primitive. For that, see [`crate::RectShape`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RoundedRect {
