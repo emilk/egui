@@ -8,17 +8,40 @@ use crate::CornerRadius;
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RoundedRect {
-    pub rect: Rect,
-    pub corner_radius: CornerRadius,
+    rect: Rect,
+    corner_radius: CornerRadius,
 }
 
 impl RoundedRect {
+    /// The corner radius is clamped to half the size of the rectangle,
+    /// like in the tessellator, so that we agree with the rendered shape.
     #[inline]
     pub fn new(rect: Rect, corner_radius: impl Into<CornerRadius>) -> Self {
+        let max_radius = (0.5 * rect.size().min_elem()).clamp(0.0, 255.0) as u8;
         Self {
             rect,
-            corner_radius: corner_radius.into(),
+            corner_radius: corner_radius.into().at_most(max_radius),
         }
+    }
+
+    #[inline]
+    pub fn rect(&self) -> Rect {
+        self.rect
+    }
+
+    #[inline]
+    pub fn corner_radius(&self) -> CornerRadius {
+        self.corner_radius
+    }
+
+    /// Expand the rectangle and the corner radii by the given amount.
+    #[inline]
+    #[must_use]
+    pub fn expand(self, amount: u8) -> Self {
+        Self::new(
+            self.rect.expand(f32::from(amount)),
+            self.corner_radius + amount,
+        )
     }
 
     /// Clamp the given position to lie within this rounded rectangle.
@@ -30,7 +53,6 @@ impl RoundedRect {
             corner_radius,
         } = *self;
         let pos = rect.clamp(pos);
-        let max_radius = 0.5 * rect.size().min_elem();
         let corners = [
             (f32::from(corner_radius.nw), vec2(-1.0, -1.0)),
             (f32::from(corner_radius.ne), vec2(1.0, -1.0)),
@@ -38,8 +60,6 @@ impl RoundedRect {
             (f32::from(corner_radius.se), vec2(1.0, 1.0)),
         ];
         for (radius, dir) in corners {
-            // Same clamping as the tessellator, so we agree with the rendered shape:
-            let radius = radius.min(max_radius);
             let arc_center = rect.center() + dir * (rect.size() / 2.0 - Vec2::splat(radius));
             let offset = pos - arc_center;
             if 0.0 < offset.x * dir.x && 0.0 < offset.y * dir.y && radius < offset.length() {
@@ -100,13 +120,24 @@ mod tests {
     }
 
     #[test]
-    fn clamp_pos_oversized_radius() {
+    fn expand() {
+        let rect = Rect::from_min_max(pos2(10.0, 10.0), pos2(90.0, 90.0));
+        let expanded = RoundedRect::new(rect, 20).expand(10);
+        assert_eq!(
+            expanded.rect(),
+            Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0))
+        );
+        assert_eq!(expanded.corner_radius(), CornerRadius::same(30));
+    }
+
+    #[test]
+    fn oversized_radius_is_clamped() {
         // A radius larger than half the rect is clamped, like in the tessellator:
         let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0));
-        let oversized = RoundedRect::new(rect, 200);
-        let clamped_radius = RoundedRect::new(rect, 50);
-        for pos in [pos2(0.0, 0.0), pos2(100.0, 0.0), pos2(30.0, -10.0)] {
-            assert_eq!(oversized.clamp_pos(pos), clamped_radius.clamp_pos(pos));
-        }
+        assert_eq!(RoundedRect::new(rect, 200), RoundedRect::new(rect, 50));
+        assert_eq!(
+            RoundedRect::new(rect, 200).corner_radius(),
+            CornerRadius::same(50)
+        );
     }
 }
