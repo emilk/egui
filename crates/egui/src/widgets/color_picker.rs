@@ -5,10 +5,15 @@ use crate::{
     Context, DragValue, Id, Painter, Popup, PopupCloseBehavior, Response, Sense, Ui, Widget as _,
     WidgetInfo, WidgetType, epaint, lerp, remap_clamp,
 };
+use std::sync::Arc;
+
 use epaint::{
-    Mesh, Rect, Shape, Stroke, StrokeKind, Vec2,
+    ColorImage, CornerRadiusF32, Rect, RectShape, RoundedRect, Shape, Stroke, StrokeKind,
+    TextureHandle, Vec2,
     ecolor::{Color32, Hsva, HsvaGamma, Rgba},
-    pos2, vec2,
+    pos2,
+    textures::TextureOptions,
+    vec2,
 };
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {
@@ -24,8 +29,32 @@ fn contrast_color(color: impl Into<Rgba>) -> Color32 {
 /// Should always be a multiple of 6 to hit the peak hues in HSV/HSL (every 60°).
 const N: u32 = 6 * 6;
 
-fn background_checkers(painter: &Painter, rect: Rect) {
-    let rect = rect.shrink(0.5); // Small hack to avoid the checkers from peeking through the sides
+/// Upload a texture, or update a previously cached one if the image changed.
+fn cached_texture(
+    ctx: &Context,
+    id: Id,
+    image: ColorImage,
+    options: TextureOptions,
+) -> TextureHandle {
+    let cached: Option<(Arc<ColorImage>, TextureHandle)> = ctx.data(|d| d.get_temp(id));
+    if let Some((cached_image, mut handle)) = cached {
+        if *cached_image == image {
+            return handle;
+        }
+        let image = Arc::new(image);
+        handle.set(Arc::clone(&image), options);
+        ctx.data_mut(|d| d.insert_temp(id, (image, handle.clone())));
+        handle
+    } else {
+        let image = Arc::new(image);
+        let handle = ctx.load_texture("color_picker", Arc::clone(&image), options);
+        ctx.data_mut(|d| d.insert_temp(id, (image, handle.clone())));
+        handle
+    }
+}
+
+fn background_checkers(painter: &Painter, bounds: RoundedRect) {
+    let (rect, corner_radius) = bounds.into_parts();
     if !rect.is_positive() {
         return;
     }
@@ -33,24 +62,35 @@ fn background_checkers(painter: &Painter, rect: Rect) {
     let dark_color = Color32::from_gray(32);
     let bright_color = Color32::from_gray(128);
 
-    let checker_size = Vec2::splat(rect.height() / 2.0);
-    let n = (rect.width() / checker_size.x).round() as u32;
+    // Generate the texture at physical-pixel resolution, so the checkers stay sharp:
+    let pixels_per_point = painter.pixels_per_point();
+    let width = (pixels_per_point * rect.width()).round().max(1.0) as usize;
+    let height = (pixels_per_point * rect.height()).round().max(1.0) as usize;
+    let checker_size = (height as f32 / 2.0).max(1.0);
 
-    let mut mesh = Mesh::default();
-    mesh.add_colored_rect(rect, dark_color);
+    let pixels = (0..width * height)
+        .map(|i| {
+            let (x, y) = (i % width, i / width);
+            let checker = (x as f32 / checker_size) as usize + (y as f32 / checker_size) as usize;
+            if checker.is_multiple_of(2) {
+                bright_color
+            } else {
+                dark_color
+            }
+        })
+        .collect();
+    let image = ColorImage::new([width, height], pixels);
 
-    let mut top = true;
-    for i in 0..n {
-        let x = lerp(rect.left()..=rect.right(), i as f32 / (n as f32));
-        let small_rect = if top {
-            Rect::from_min_size(pos2(x, rect.top()), checker_size)
-        } else {
-            Rect::from_min_size(pos2(x, rect.center().y), checker_size)
-        };
-        mesh.add_colored_rect(small_rect, bright_color);
-        top = !top;
-    }
-    painter.add(Shape::mesh(mesh));
+    let texture = cached_texture(
+        painter.ctx(),
+        Id::new(("color_picker_checkers", width, height)),
+        image,
+        TextureOptions::NEAREST,
+    );
+
+    let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+    painter
+        .add(RectShape::filled(rect, corner_radius, Color32::WHITE).with_texture(texture.id(), uv));
 }
 
 /// Show a color with background checkers to demonstrate transparency (if any).
@@ -72,7 +112,7 @@ pub fn show_color_at(painter: &Painter, color: Color32, rect: Rect) {
         painter.rect_filled(rect, 0.0, color);
     } else {
         // Transparent: how both the transparent and opaque versions of the color
-        background_checkers(painter, rect);
+        background_checkers(painter, rect.into());
 
         if color == Color32::TRANSPARENT {
             // There is no opaque version, so just show the background checkers
@@ -89,21 +129,37 @@ pub fn show_color_at(painter: &Painter, color: Color32, rect: Rect) {
 fn show_srgba_unmultiplied(ui: &mut Ui, srgba: [u8; 4], desired_size: Vec2) -> Response {
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
     if ui.is_rect_visible(rect) {
-        show_srgba_unmultiplied_at(ui.painter(), srgba, rect);
+        let corner_radius = ui.visuals().widgets.noninteractive.corner_radius;
+        show_srgba_unmultiplied_at(ui.painter(), srgba, RoundedRect::new(rect, corner_radius));
     }
     response
 }
 
 /// Show a color with background checkers to demonstrate transparency (if any).
-fn show_srgba_unmultiplied_at(painter: &Painter, [r, g, b, a]: [u8; 4], rect: Rect) {
+fn show_srgba_unmultiplied_at(painter: &Painter, [r, g, b, a]: [u8; 4], bounds: RoundedRect) {
+    let (rect, corner_radius) = bounds.into_parts();
     if a == 255 {
-        painter.rect_filled(rect, 0.0, Color32::from_rgb(r, g, b));
+        painter.rect_filled(rect, corner_radius, Color32::from_rgb(r, g, b));
     } else {
-        background_checkers(painter, rect);
+        background_checkers(painter, bounds);
         let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
         let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
-        painter.rect_filled(left, 0.0, Color32::from_rgba_unmultiplied(r, g, b, a));
-        painter.rect_filled(right, 0.0, Color32::from_rgb(r, g, b));
+        let left_corner_radius = CornerRadiusF32 {
+            ne: 0.0,
+            se: 0.0,
+            ..corner_radius
+        };
+        let right_corner_radius = CornerRadiusF32 {
+            nw: 0.0,
+            sw: 0.0,
+            ..corner_radius
+        };
+        painter.rect_filled(
+            left,
+            left_corner_radius,
+            Color32::from_rgba_unmultiplied(r, g, b, a),
+        );
+        painter.rect_filled(right, right_corner_radius, Color32::from_rgb(r, g, b));
     }
 }
 
@@ -121,9 +177,13 @@ fn color_button(ui: &mut Ui, srgba: [u8; 4], open: bool) -> Response {
         let rect = rect.expand(visuals.expansion);
 
         let stroke_width = 1.0;
-        show_srgba_unmultiplied_at(ui.painter(), srgba, rect.shrink(stroke_width));
+        let corner_radius = visuals.corner_radius;
+        show_srgba_unmultiplied_at(
+            ui.painter(),
+            srgba,
+            RoundedRect::new(rect.shrink(stroke_width), corner_radius),
+        );
 
-        let corner_radius = visuals.corner_radius.at_most(2); // Can't do more rounding because the background grid doesn't do any rounding
         ui.painter().rect_stroke(
             rect,
             corner_radius,
@@ -136,8 +196,6 @@ fn color_button(ui: &mut Ui, srgba: [u8; 4], open: bool) -> Response {
 }
 
 fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color32) -> Response {
-    #![expect(clippy::identity_op)]
-
     let desired_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
     let (rect, response) = ui.allocate_at_least(desired_size, Sense::click_and_drag());
 
@@ -147,28 +205,37 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
 
     if ui.is_rect_visible(rect) {
         let visuals = ui.style().interact(&response);
+        let corner_radius = visuals.corner_radius;
+        let bounds = RoundedRect::new(rect, corner_radius);
 
-        background_checkers(ui.painter(), rect); // for alpha:
+        background_checkers(ui.painter(), bounds); // for alpha:
 
         {
-            // fill color:
-            let mut mesh = Mesh::default();
-            for i in 0..=N {
-                let t = i as f32 / (N as f32);
-                let color = color_at(t);
-                let x = lerp(rect.left()..=rect.right(), t);
-                mesh.colored_vertex(pos2(x, rect.top()), color);
-                mesh.colored_vertex(pos2(x, rect.bottom()), color);
-                if i < N {
-                    mesh.add_triangle(2 * i + 0, 2 * i + 1, 2 * i + 2);
-                    mesh.add_triangle(2 * i + 1, 2 * i + 2, 2 * i + 3);
-                }
-            }
-            ui.painter().add(Shape::mesh(mesh));
-        }
+            // fill color gradient:
+            let width = N as usize + 1;
+            let pixels = (0..width).map(|i| color_at(i as f32 / N as f32)).collect();
+            let image = ColorImage::new([width, 1], pixels);
+            let texture = cached_texture(
+                ui.ctx(),
+                response.id.with("gradient"),
+                image,
+                TextureOptions::LINEAR,
+            );
 
-        ui.painter()
-            .rect_stroke(rect, 0.0, visuals.bg_stroke, StrokeKind::Inside); // outline
+            // Inset the uv by half a texel, so the ends sample the exact end colors:
+            let inset = 0.5 / width as f32;
+            let uv = Rect::from_min_max(pos2(inset, 0.5), pos2(1.0 - inset, 0.5));
+            ui.painter().add(
+                RectShape::new(
+                    rect,
+                    corner_radius,
+                    Color32::WHITE,
+                    visuals.bg_stroke,
+                    StrokeKind::Inside,
+                )
+                .with_texture(texture.id(), uv),
+            );
+        }
 
         {
             // Show where the slider is at:
@@ -215,30 +282,41 @@ fn color_slider_2d(
 
     if ui.is_rect_visible(rect) {
         let visuals = ui.style().interact(&response);
-        let mut mesh = Mesh::default();
+        let corner_radius = visuals.corner_radius;
 
-        for xi in 0..=N {
+        {
+            // fill color gradient:
+            let width = N as usize + 1;
+            let mut pixels = Vec::with_capacity(width * width);
             for yi in 0..=N {
-                let xt = xi as f32 / (N as f32);
-                let yt = yi as f32 / (N as f32);
-                let color = color_at(xt, yt);
-                let x = lerp(rect.left()..=rect.right(), xt);
-                let y = lerp(rect.bottom()..=rect.top(), yt);
-                mesh.colored_vertex(pos2(x, y), color);
-
-                if xi < N && yi < N {
-                    let x_offset = 1;
-                    let y_offset = N + 1;
-                    let tl = yi * y_offset + xi;
-                    mesh.add_triangle(tl, tl + x_offset, tl + y_offset);
-                    mesh.add_triangle(tl + x_offset, tl + y_offset, tl + y_offset + x_offset);
+                let yt = 1.0 - yi as f32 / (N as f32); // texel rows go from top to bottom
+                for xi in 0..=N {
+                    let xt = xi as f32 / (N as f32);
+                    pixels.push(color_at(xt, yt));
                 }
             }
-        }
-        ui.painter().add(Shape::mesh(mesh)); // fill
+            let image = ColorImage::new([width, width], pixels);
+            let texture = cached_texture(
+                ui.ctx(),
+                response.id.with("gradient"),
+                image,
+                TextureOptions::LINEAR,
+            );
 
-        ui.painter()
-            .rect_stroke(rect, 0.0, visuals.bg_stroke, StrokeKind::Inside); // outline
+            // Inset the uv by half a texel, so the edges sample the exact edge colors:
+            let inset = 0.5 / width as f32;
+            let uv = Rect::from_min_max(pos2(inset, inset), pos2(1.0 - inset, 1.0 - inset));
+            ui.painter().add(
+                RectShape::new(
+                    rect,
+                    corner_radius,
+                    Color32::WHITE,
+                    visuals.bg_stroke,
+                    StrokeKind::Inside,
+                )
+                .with_texture(texture.id(), uv),
+            );
+        }
 
         // Show where the slider is at:
         let x = lerp(rect.left()..=rect.right(), *x_value);
