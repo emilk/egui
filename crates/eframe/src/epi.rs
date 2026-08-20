@@ -679,6 +679,15 @@ pub struct Frame {
     #[doc(hidden)]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
+    /// The surface config the app wants the `wgpu` renderer to use.
+    ///
+    /// `None` unless we are rendering with `wgpu`.
+    ///
+    /// eframe pushes this into the painter once per frame, before painting.
+    #[cfg(feature = "wgpu_no_default_features")]
+    #[doc(hidden)]
+    pub wgpu_surface_config: Option<egui_wgpu::SurfaceConfig>,
+
     /// The current [`winit::window::Window`] (i.e. the one the active viewport is rendered to).
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) window: Option<std::sync::Arc<winit::window::Window>>,
@@ -733,6 +742,8 @@ impl Frame {
             storage: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: None,
+            #[cfg(feature = "wgpu_no_default_features")]
+            wgpu_surface_config: None,
         }
     }
 
@@ -804,25 +815,27 @@ impl Frame {
         self.wgpu_render_state.as_ref()
     }
 
-    /// The currently-applied runtime surface config (present mode, frame latency)
-    /// used by the `wgpu` renderer, if any.
+    /// The surface config (present mode, frame latency) the app wants the `wgpu`
+    /// renderer to use.
     ///
-    /// Returns `None` when not using the `wgpu` backend.
+    /// `None` unless we are rendering with `wgpu`.
     #[cfg(feature = "wgpu_no_default_features")]
     pub fn wgpu_surface_config(&self) -> Option<egui_wgpu::SurfaceConfig> {
-        self.wgpu_render_state
-            .as_ref()
-            .map(|state| state.surface_config)
+        self.wgpu_surface_config
     }
 
-    /// Set the runtime surface config (present mode, frame latency) for the `wgpu`
-    /// renderer. The surface is reconfigured on the next paint.
+    /// Set the surface config (present mode, frame latency) the app wants the `wgpu`
+    /// renderer to use.
     ///
-    /// No-op when not using the `wgpu` backend.
+    /// No-op unless we are rendering with `wgpu`.
+    ///
+    /// The config might not take effect if the surface does not support the
+    /// requested present mode. On web the config is ignored, since the browser
+    /// controls presentation via `requestAnimationFrame`.
     #[cfg(feature = "wgpu_no_default_features")]
     pub fn set_wgpu_surface_config(&mut self, config: egui_wgpu::SurfaceConfig) {
-        if let Some(state) = &mut self.wgpu_render_state {
-            state.surface_config = config;
+        if let Some(current) = &mut self.wgpu_surface_config {
+            *current = config;
         }
     }
 }
