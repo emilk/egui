@@ -1,26 +1,26 @@
 use emath::{Pos2, Rect, Vec2, vec2};
 
-use crate::CornerRadius;
+use crate::CornerRadiusF32;
 
 /// A rectangle geometry with rounded corners.
 ///
 /// Not a painting primitive. For that, see [`crate::RectShape`].
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RoundedRect {
     rect: Rect,
-    corner_radius: CornerRadius,
+    corner_radius: CornerRadiusF32,
 }
 
 impl RoundedRect {
     /// The corner radius is clamped to half the size of the rectangle,
     /// like in the tessellator, so that we agree with the rendered shape.
     #[inline]
-    pub fn new(rect: Rect, corner_radius: impl Into<CornerRadius>) -> Self {
-        let max_radius = (0.5 * rect.size().min_elem()).clamp(0.0, 255.0) as u8;
+    pub fn new(rect: Rect, corner_radius: impl Into<CornerRadiusF32>) -> Self {
+        let max_radius = 0.5 * rect.size().min_elem();
         Self {
             rect,
-            corner_radius: corner_radius.into().at_most(max_radius),
+            corner_radius: corner_radius.into().at_most(max_radius).at_least(0.0),
         }
     }
 
@@ -30,13 +30,13 @@ impl RoundedRect {
     }
 
     #[inline]
-    pub fn corner_radius(&self) -> CornerRadius {
+    pub fn corner_radius(&self) -> CornerRadiusF32 {
         self.corner_radius
     }
 
     /// Split into the rectangle and the corner radius.
     #[inline]
-    pub fn into_parts(self) -> (Rect, CornerRadius) {
+    pub fn into_parts(self) -> (Rect, CornerRadiusF32) {
         let Self {
             rect,
             corner_radius,
@@ -47,10 +47,10 @@ impl RoundedRect {
     /// Expand the rectangle and the corner radii by the given amount.
     #[inline]
     #[must_use]
-    pub fn expand(self, amount: u8) -> Self {
+    pub fn expand(self, amount: f32) -> Self {
         Self::new(
-            self.rect.expand(f32::from(amount)),
-            self.corner_radius + amount,
+            self.rect.expand(amount),
+            self.corner_radius + CornerRadiusF32::same(amount),
         )
     }
 
@@ -64,10 +64,10 @@ impl RoundedRect {
         } = *self;
         let pos = rect.clamp(pos);
         let corners = [
-            (f32::from(corner_radius.nw), vec2(-1.0, -1.0)),
-            (f32::from(corner_radius.ne), vec2(1.0, -1.0)),
-            (f32::from(corner_radius.sw), vec2(-1.0, 1.0)),
-            (f32::from(corner_radius.se), vec2(1.0, 1.0)),
+            (corner_radius.nw, vec2(-1.0, -1.0)),
+            (corner_radius.ne, vec2(1.0, -1.0)),
+            (corner_radius.sw, vec2(-1.0, 1.0)),
+            (corner_radius.se, vec2(1.0, 1.0)),
         ];
         for (radius, dir) in corners {
             let arc_center = rect.center() + dir * (rect.size() / 2.0 - Vec2::splat(radius));
@@ -85,7 +85,7 @@ impl From<Rect> for RoundedRect {
     fn from(rect: Rect) -> Self {
         Self {
             rect,
-            corner_radius: CornerRadius::ZERO,
+            corner_radius: CornerRadiusF32::ZERO,
         }
     }
 }
@@ -101,11 +101,11 @@ mod tests {
         let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0));
         let rounded = RoundedRect::new(
             rect,
-            CornerRadius {
-                nw: 10,
-                ne: 0,
-                sw: 0,
-                se: 20,
+            CornerRadiusF32 {
+                nw: 10.0,
+                ne: 0.0,
+                sw: 0.0,
+                se: 20.0,
             },
         );
 
@@ -132,22 +132,22 @@ mod tests {
     #[test]
     fn expand() {
         let rect = Rect::from_min_max(pos2(10.0, 10.0), pos2(90.0, 90.0));
-        let expanded = RoundedRect::new(rect, 20).expand(10);
+        let expanded = RoundedRect::new(rect, 20.0).expand(10.0);
         assert_eq!(
             expanded.rect(),
             Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0))
         );
-        assert_eq!(expanded.corner_radius(), CornerRadius::same(30));
+        assert_eq!(expanded.corner_radius(), CornerRadiusF32::same(30.0));
     }
 
     #[test]
     fn oversized_radius_is_clamped() {
         // A radius larger than half the rect is clamped, like in the tessellator:
         let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0));
-        assert_eq!(RoundedRect::new(rect, 200), RoundedRect::new(rect, 50));
+        assert_eq!(RoundedRect::new(rect, 200.0), RoundedRect::new(rect, 50.0));
         assert_eq!(
-            RoundedRect::new(rect, 200).corner_radius(),
-            CornerRadius::same(50)
+            RoundedRect::new(rect, 200.0).corner_radius(),
+            CornerRadiusF32::same(50.0)
         );
     }
 }

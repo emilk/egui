@@ -58,9 +58,9 @@ impl Shadow {
 
         let (rect, corner_radius) = RoundedRect::new(
             rect.translate(Vec2::new(offset_x as _, offset_y as _)),
-            corner_radius,
+            corner_radius.into(),
         )
-        .expand(spread)
+        .expand(f32::from(spread))
         .into_parts();
 
         RectShape::filled(rect, corner_radius, color).with_blur_width(blur as _)
