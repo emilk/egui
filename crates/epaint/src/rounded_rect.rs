@@ -13,8 +13,7 @@ pub struct RoundedRect {
 }
 
 impl RoundedRect {
-    /// The corner radius is clamped to half the size of the rectangle,
-    /// like in the tessellator, so that we agree with the rendered shape.
+    /// The corner radius is clamped to half the size of the rectangle.
     #[inline]
     pub fn new(rect: Rect, corner_radius: impl Into<CornerRadiusF32>) -> Self {
         let max_radius = 0.5 * rect.size().min_elem();
