@@ -744,7 +744,7 @@ impl TextEdit<'_> {
 
             let allocated = AtomLayout::new(atoms)
                 .id(id)
-                .min_size(Vec2::new(allocate_width, min_height))
+                .min_size(Vec2::new(allocate_width, min_height.at_least(min_size.y)))
                 .max_width(allocate_width)
                 .sense(sense)
                 .frame(frame)

@@ -65,6 +65,7 @@ pub struct DragValue<'a> {
     custom_parser: Option<NumParser<'a>>,
     update_while_editing: bool,
     classes: Classes,
+    min_size: Option<Vec2>,
 }
 
 impl<'a> DragValue<'a> {
@@ -100,7 +101,17 @@ impl<'a> DragValue<'a> {
             custom_parser: None,
             update_while_editing: true,
             classes: Classes::default(),
+            min_size: None,
         }
+    }
+
+    /// The minimum size of the drag value, in both its dragged and its text-edited state.
+    ///
+    /// Defaults to [`crate::style::Spacing::interact_size`].
+    #[inline]
+    pub fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = Some(min_size);
+        self
     }
 
     /// How much the value changes when dragged one point (logical pixel).
@@ -453,6 +464,7 @@ impl Widget for DragValue<'_> {
             custom_parser,
             update_while_editing,
             classes,
+            min_size,
         } = self;
 
         let mut prefix_text = String::new();
@@ -591,8 +603,7 @@ impl Widget for DragValue<'_> {
                     .clip_text(false)
                     .horizontal_align(ui.layout().horizontal_align())
                     .vertical_align(ui.layout().vertical_align())
-                    .margin(ui.spacing().button_padding)
-                    .min_size(ui.spacing().interact_size)
+                    .min_size(min_size.unwrap_or(ui.spacing().interact_size))
                     .id(id)
                     .desired_width(
                         ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
@@ -643,7 +654,7 @@ impl Widget for DragValue<'_> {
                 .wrap_mode(TextWrapMode::Extend)
                 .sense(Sense::click_and_drag())
                 .gap(0.0)
-                .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
+                .min_size(min_size.unwrap_or(ui.spacing().interact_size)); // TODO(emilk): find some more generic solution to `min_size`
 
             let cursor_icon = if value <= *range.start() {
                 CursorIcon::ResizeEast
