@@ -7,6 +7,7 @@ use crate::{
     Sense, Ui, UiKind, UiStackInfo,
     containers::menu::{MenuConfig, MenuState, menu_style},
     style::StyleModifier,
+    widget_style::HasClasses as _,
 };
 
 /// What should we anchor the popup to?
@@ -188,6 +189,12 @@ pub struct Popup<'a> {
 }
 
 impl<'a> Popup<'a> {
+    /// Present on the [`crate::Ui`] of a menu popup, and so on every widget in it.
+    ///
+    /// A menu lays its items out itself, so a widget in one is generally styled to fit that
+    /// layout rather than to stand on its own.
+    pub const CLASS_MENU: &'static str = "egui::popup::menu";
+
     /// Create a new popup
     pub fn new(id: Id, ctx: Context, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
         Self {
@@ -594,6 +601,7 @@ impl<'a> Popup<'a> {
         let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
 
         let mut area = Area::new(id)
+            .with_class_if(Self::CLASS_MENU, kind == PopupKind::Menu)
             .order(kind.order())
             .pivot(pivot)
             .fixed_pos(anchor)
