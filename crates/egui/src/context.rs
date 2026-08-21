@@ -2413,6 +2413,16 @@ impl Context {
     /// and only re-uploads the image when it changes.
     /// This makes it safe to call every frame,
     /// which is convenient for small, procedurally generated images.
+    ///
+    /// The `id` must be globally unique for each cached image
+    /// (e.g. derived from a widget [`Id`]),
+    /// or the callers will fight over the same texture, re-uploading it every frame.
+    ///
+    /// If this is not called for a full frame, the cache entry is evicted,
+    /// dropping both the cached [`ImageData`] (the CPU-side pixels)
+    /// and the cached [`TextureHandle`].
+    /// Dropping the handle also frees the texture itself,
+    /// unless you keep a clone of the handle alive.
     pub fn load_texture_cached(
         &self,
         name: impl Into<String>,
@@ -2420,20 +2430,36 @@ impl Context {
         image: impl Into<ImageData>,
         options: TextureOptions,
     ) -> TextureHandle {
+        profiling::function_scope!();
+
+        use crate::cache::FramePublisher;
+
+        type TextureCache = FramePublisher<Id, (ImageData, TextureHandle)>;
+
         let image = image.into();
-        let cached: Option<(ImageData, TextureHandle)> = self.data(|d| d.get_temp(id));
-        if let Some((cached_image, mut handle)) = cached {
-            if cached_image == image {
-                return handle;
+        let cached: Option<(ImageData, TextureHandle)> =
+            self.memory_mut(|mem| mem.caches.cache::<TextureCache>().get(&id).cloned());
+
+        let (image, handle) = match cached {
+            Some((cached_image, handle)) if cached_image == image => (cached_image, handle),
+            Some((_, mut handle)) => {
+                handle.set(image.clone(), options);
+                (image, handle)
             }
-            handle.set(image.clone(), options);
-            self.data_mut(|d| d.insert_temp(id, (image, handle.clone())));
-            handle
-        } else {
-            let handle = self.load_texture(name, image.clone(), options);
-            self.data_mut(|d| d.insert_temp(id, (image, handle.clone())));
-            handle
-        }
+            None => {
+                let handle = self.load_texture(name, image.clone(), options);
+                (image, handle)
+            }
+        };
+
+        // (Re-)publish to keep the entry from being evicted:
+        self.memory_mut(|mem| {
+            mem.caches
+                .cache::<TextureCache>()
+                .set(id, (image, handle.clone()));
+        });
+
+        handle
     }
 
     /// Low-level texture manager.
