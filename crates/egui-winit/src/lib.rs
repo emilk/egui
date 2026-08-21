@@ -813,6 +813,19 @@ impl State {
                 modifiers: self.modifiers,
             });
 
+            // Middle-click pastes the PRIMARY selection on X11 and Wayland.
+            // Only we can read it, so we do it here and hand egui the text
+            // together with the position that was clicked.
+            if pressed
+                && button == egui::PointerButton::Middle
+                && let Some(text) = self.clipboard.get_primary_text()
+                && !text.is_empty()
+            {
+                self.egui_input
+                    .events
+                    .push(egui::Event::MiddleClickPaste { pos, text });
+            }
+
             if self.simulate_touch_screen {
                 if pressed {
                     self.any_pointer_button_down = true;
@@ -1123,6 +1136,11 @@ impl State {
             match command {
                 egui::OutputCommand::CopyText(text) => {
                     self.clipboard.set_text(text);
+                }
+                egui::OutputCommand::TextSelectionSettled(text) => {
+                    // On X11 and Wayland the selection doubles as a clipboard
+                    // that is pasted with the middle mouse button.
+                    self.clipboard.set_primary_text(text);
                 }
                 egui::OutputCommand::CopyImage(image) => {
                     self.clipboard.set_image(&image);

@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    TextCursorState,
+    TextCursorState, settled,
     text_cursor_state::cursor_rect,
     visuals::{RowVertexIndices, paint_text_selection},
 };
@@ -111,6 +111,15 @@ struct ViewportLabelSelectionState {
     text_to_copy: String,
     last_copied_galley_rect: Option<Rect>,
 
+    /// Has the selection changed since it was last reported as settled?
+    selection_is_dirty: bool,
+
+    /// Should the text accumulated this pass be reported as settled?
+    ///
+    /// Decided in `on_begin_pass`, since the text is gathered label by label
+    /// as they are laid out, before `on_end_pass` gets to send it anywhere.
+    report_selection: bool,
+
     /// Painted selections this frame.
     ///
     /// Kept so we can undo a bad selection visualization if we don't see both ends of the selection this frame.
@@ -129,6 +138,8 @@ impl Default for ViewportLabelSelectionState {
             has_reached_secondary: Default::default(),
             text_to_copy: Default::default(),
             last_copied_galley_rect: Default::default(),
+            selection_is_dirty: Default::default(),
+            report_selection: Default::default(),
             painted_selections: Default::default(),
         }
     }
@@ -212,6 +223,7 @@ impl ViewportLabelSelectionState {
         self.text_to_copy.clear();
         self.last_copied_galley_rect = None;
         self.painted_selections.clear();
+        self.report_selection = settled::should_report(ui, self.selection_is_dirty);
     }
 
     fn on_end_pass(&mut self, ui: &Ui) {
@@ -272,8 +284,24 @@ impl ViewportLabelSelectionState {
         }
 
         let text_to_copy = core::mem::take(&mut self.text_to_copy);
+        let copy_to_clipboard = got_copy_event(ui.ctx());
+
+        if self.report_selection {
+            // Whether or not there was anything to report, the pending
+            // selection has now been dealt with.
+            self.selection_is_dirty = false;
+        }
+
         if !text_to_copy.is_empty() {
-            ui.copy_text(text_to_copy);
+            if self.report_selection {
+                if copy_to_clipboard {
+                    ui.copy_text(text_to_copy.clone());
+                }
+                ui.ctx()
+                    .send_cmd(crate::OutputCommand::TextSelectionSettled(text_to_copy));
+            } else if copy_to_clipboard {
+                ui.copy_text(text_to_copy);
+            }
         }
     }
 
@@ -572,7 +600,7 @@ impl ViewportLabelSelectionState {
                 process_selection_key_events(ui.ctx(), galley, response.id, &mut cursor_range);
             }
 
-            if got_copy_event(ui.ctx()) {
+            if got_copy_event(ui.ctx()) || self.report_selection {
                 self.copy_text(galley_rect, galley, &cursor_range);
             }
 
@@ -582,6 +610,7 @@ impl ViewportLabelSelectionState {
         // Look for changes due to keyboard and/or mouse interaction:
         let new_range = cursor_state.range(galley);
         let selection_changed = old_range != new_range;
+        self.selection_is_dirty |= selection_changed;
 
         if let (true, Some(range)) = (selection_changed, new_range) {
             // --------------

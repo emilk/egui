@@ -120,6 +120,144 @@ impl Clipboard {
         self.clipboard = text;
     }
 
+    /// Read the X11/Wayland PRIMARY selection.
+    ///
+    /// Returns `None` on platforms without a PRIMARY selection, and when
+    /// nothing owns it.
+    #[cfg_attr(
+        not(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            any(feature = "arboard", feature = "smithay-clipboard")
+        )),
+        expect(clippy::unused_self, clippy::needless_pass_by_ref_mut)
+    )]
+    pub fn get_primary_text(&mut self) -> Option<String> {
+        #[cfg(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            feature = "smithay-clipboard"
+        ))]
+        if let Some(clipboard) = &mut self.smithay {
+            return match clipboard.load_primary() {
+                Ok(text) => Some(text),
+                Err(err) => {
+                    log::debug!("smithay primary selection paste error: {err}");
+                    None
+                }
+            };
+        }
+
+        #[cfg(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            feature = "arboard",
+        ))]
+        if let Some(clipboard) = &mut self.arboard {
+            use arboard::GetExtLinux as _;
+
+            return match clipboard
+                .get()
+                .clipboard(arboard::LinuxClipboardKind::Primary)
+                .text()
+            {
+                Ok(text) => Some(text),
+                Err(err) => {
+                    // An empty PRIMARY selection is the normal state, not an
+                    // error worth shouting about.
+                    log::debug!("arboard primary selection paste error: {err}");
+                    None
+                }
+            };
+        }
+
+        None
+    }
+
+    /// Set the X11/Wayland PRIMARY selection, which is pasted with the middle
+    /// mouse button.
+    ///
+    /// The selection is served from this process for as long as this
+    /// [`Clipboard`] is alive, which is the same lifetime every other
+    /// application gives PRIMARY.
+    ///
+    /// Does nothing on platforms without a PRIMARY selection.
+    #[cfg_attr(
+        not(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            any(feature = "arboard", feature = "smithay-clipboard")
+        )),
+        expect(
+            clippy::unused_self,
+            clippy::needless_pass_by_ref_mut,
+            clippy::needless_pass_by_value
+        )
+    )]
+    pub fn set_primary_text(&mut self, text: String) {
+        #[cfg(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            feature = "smithay-clipboard"
+        ))]
+        if let Some(clipboard) = &mut self.smithay {
+            clipboard.store_primary(text);
+            return;
+        }
+
+        #[cfg(all(
+            any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ),
+            feature = "arboard",
+        ))]
+        if let Some(clipboard) = &mut self.arboard {
+            use arboard::SetExtLinux as _;
+
+            if let Err(err) = clipboard
+                .set()
+                .clipboard(arboard::LinuxClipboardKind::Primary)
+                .text(text)
+            {
+                log::error!("arboard primary selection error: {err}");
+            }
+            return;
+        }
+
+        // No PRIMARY selection on this platform, and nothing to fall back on:
+        // unlike the clipboard, PRIMARY is only ever read by other processes.
+        let _ = text;
+    }
+
     pub fn set_image(&mut self, image: &egui::ColorImage) {
         #[cfg(all(
             not(any(target_os = "android", target_os = "ios")),
