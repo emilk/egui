@@ -6,7 +6,7 @@ mod classes;
 
 pub use self::classes::{ClassName, Classes, HasClasses, ROOT_CLASS, SELECTED_CLASS};
 
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 use epaint::{Color32, FontId, Stroke, text::TextWrapMode};
 
@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// Each dedicated style must implement this trait to be used in the theme plugin system
-pub trait WidgetStyle: Debug + Clone + Send + Sync + std::any::Any + 'static {}
+pub trait WidgetStyle: Debug + Clone + Send + Sync + core::any::Any + 'static {}
 
 /// General text style
 #[derive(Debug, Clone)]

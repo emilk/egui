@@ -86,6 +86,11 @@ impl Themes {
     pub fn get<S: WidgetStyle + 'static>(&self) -> ThemeWrap<S> {
         let v = self.themes.get_temp::<ThemeWrap<S>>(Id::NULL);
 
-        v.unwrap_or_else(|| panic!("A style should be set for {:?}", std::any::type_name::<S>()))
+        v.unwrap_or_else(|| {
+            panic!(
+                "A style should be set for {:?}",
+                core::any::type_name::<S>()
+            )
+        })
     }
 }

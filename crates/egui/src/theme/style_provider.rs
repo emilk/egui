@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use core::any::TypeId;
 
 use crate::widget_style::StyleArgs;
 
