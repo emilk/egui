@@ -1411,7 +1411,7 @@ impl Prepared {
                             let handle_top_pos_at_bottom =
                                 scroll_bar_rect.max[d] - handle_rect.size()[d];
                             // Calculate the new handle top position, centering the handle on the mouse.
-                            let new_handle_top_pos = (pointer_pos[d] - handle_rect.size()[d] / 2.0)
+                            let new_handle_top_pos = (pointer_pos[d] - handle_rect.size()[d] * 0.5)
                                 .clamp(scroll_bar_rect.min[d], handle_top_pos_at_bottom);
                             pointer_pos[d] - new_handle_top_pos
                         }

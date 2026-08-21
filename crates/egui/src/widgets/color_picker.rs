@@ -33,7 +33,7 @@ fn background_checkers(painter: &Painter, rect: Rect) {
     let dark_color = Color32::from_gray(32);
     let bright_color = Color32::from_gray(128);
 
-    let checker_size = Vec2::splat(rect.height() / 2.0);
+    let checker_size = Vec2::splat(rect.height() * 0.5);
     let n = (rect.width() / checker_size.x).round() as u32;
 
     let mut mesh = Mesh::default();

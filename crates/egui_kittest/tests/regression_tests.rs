@@ -805,7 +805,7 @@ pub fn textedit_hint_text_should_follow_text_alignment() {
         })
         .expect("hint text shape should be painted");
 
-    let hint_center_x = hint_shape.pos.x + hint_shape.galley.size().x / 2.0;
+    let hint_center_x = hint_shape.pos.x + hint_shape.galley.size().x * 0.5;
     let edit_center_x = edit_rect.center().x;
 
     assert!(

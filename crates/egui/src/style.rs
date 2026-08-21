@@ -470,7 +470,7 @@ impl Spacing {
     pub fn icon_rectangles(&self, rect: Rect) -> (Rect, Rect) {
         let icon_width = self.icon_width;
         let big_icon_rect = Rect::from_center_size(
-            pos2(rect.left() + icon_width / 2.0, rect.center().y),
+            pos2(rect.left() + icon_width * 0.5, rect.center().y),
             vec2(icon_width, icon_width),
         );
 
@@ -2815,7 +2815,7 @@ impl Widget for &mut Margin {
         // Apply the checkbox:
         if same {
             *self =
-                Margin::from((self.leftf() + self.rightf() + self.topf() + self.bottomf()) / 4.0);
+                Margin::from((self.leftf() + self.rightf() + self.topf() + self.bottomf()) * 0.25);
         } else {
             // Make sure it is not same:
             if self.is_same() {

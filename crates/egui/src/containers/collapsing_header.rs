@@ -99,7 +99,7 @@ impl CollapsingState {
 
         let (mut icon_rect, _) = ui.spacing().icon_rectangles(response.rect);
         icon_rect.set_center(pos2(
-            response.rect.left() + ui.spacing().indent / 2.0,
+            response.rect.left() + ui.spacing().indent * 0.5,
             response.rect.center().y,
         ));
         let openness = self.openness(ui.ctx());
@@ -343,7 +343,7 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     let rect = rect.expand(visuals.expansion);
     let mut points = vec![rect.left_top(), rect.right_top(), rect.center_bottom()];
     use core::f32::consts::TAU;
-    let rotation = emath::Rot2::from_angle(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
+    let rotation = emath::Rot2::from_angle(remap(openness, 0.0..=1.0, -TAU * 0.25..=0.0));
     for p in &mut points {
         *p = rect.center() + rotation * (*p - rect.center());
     }
@@ -535,7 +535,7 @@ impl CollapsingHeader {
         let mut header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
             text_pos.x,
-            header_response.rect.center().y - galley.size().y / 2.0,
+            header_response.rect.center().y - galley.size().y * 0.5,
         );
 
         let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
@@ -584,7 +584,7 @@ impl CollapsingHeader {
             {
                 let (mut icon_rect, _) = ui.spacing().icon_rectangles(header_response.rect);
                 icon_rect.set_center(pos2(
-                    header_response.rect.left() + ui.spacing().indent / 2.0,
+                    header_response.rect.left() + ui.spacing().indent * 0.5,
                     header_response.rect.center().y,
                 ));
                 let icon_response = header_response.clone().with_new_rect(icon_rect);

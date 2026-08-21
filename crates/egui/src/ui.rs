@@ -1359,7 +1359,7 @@ impl Ui {
     /// let (response, painter) = ui.allocate_painter(size, Sense::hover());
     /// let rect = response.rect;
     /// let c = rect.center();
-    /// let r = rect.width() / 2.0 - 1.0;
+    /// let r = rect.width() * 0.5 - 1.0;
     /// let color = Color32::from_gray(128);
     /// let stroke = Stroke::new(1.0, color);
     /// painter.circle_stroke(c, r, stroke);

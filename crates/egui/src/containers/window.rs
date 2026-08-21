@@ -1019,7 +1019,7 @@ fn move_and_resize_window(ctx: &Context, id: Id, interaction: &ResizeInteraction
     let mut rect = rect_at_start_of_drag; // prevent drift
 
     // Put the rect in the center of the stroke:
-    rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
+    rect = rect.shrink(interaction.window_frame.stroke.width * 0.5);
 
     if interaction.left.drag {
         rect.min.x += total_drag_delta.x;
@@ -1034,7 +1034,7 @@ fn move_and_resize_window(ctx: &Context, id: Id, interaction: &ResizeInteraction
     }
 
     // Return to having the rect outside the stroke:
-    rect = rect.expand(interaction.window_frame.stroke.width / 2.0);
+    rect = rect.expand(interaction.window_frame.stroke.width * 0.5);
 
     Some(rect.round_ui())
 }
@@ -1059,7 +1059,7 @@ fn do_resize_interaction(
     }
 
     // The rect that is in the middle of the stroke:
-    let rect = outer_rect.shrink(window_frame.stroke.width / 2.0);
+    let rect = outer_rect.shrink(window_frame.stroke.width * 0.5);
 
     let side_response = |rect, id| {
         ctx.register_accesskit_parent(id, accessibility_parent);
@@ -1230,11 +1230,11 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
     let cr = CornerRadiusF32::from(ui.visuals().window_corner_radius);
 
     // Put the rect in the center of the fixed window stroke:
-    let rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
+    let rect = rect.shrink(interaction.window_frame.stroke.width * 0.5);
 
     // Make sure the inner part of the stroke is at a pixel boundary:
     let stroke = visuals.bg_stroke;
-    let half_stroke = stroke.width / 2.0;
+    let half_stroke = stroke.width * 0.5;
     let rect = rect
         .shrink(half_stroke)
         .round_to_pixels(ui.pixels_per_point())
@@ -1312,7 +1312,7 @@ fn title_ui(
     let heading_font_height =
         ui.fonts_mut(|f| f.row_height(&TextStyle::Heading.resolve(ui.style())));
     let button_allocation_size = Vec2::splat(heading_font_height);
-    let button_shrink = (button_allocation_size - button_size) / 2.0;
+    let button_shrink = (button_allocation_size - button_size) * 0.5;
 
     let collapse_atom_id = Id::new("__window_collapse_button");
     let close_atom_id = Id::new("__window_close_button");

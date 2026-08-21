@@ -767,7 +767,7 @@ impl Slider<'_> {
             let widget_visuals = &ui.visuals().widgets;
             let spacing = &ui.style().spacing;
 
-            let rail_radius = (spacing.slider_rail_height / 2.0).at_least(0.0);
+            let rail_radius = (spacing.slider_rail_height * 0.5).at_least(0.0);
             let rail_rect = self.rail_rect(rect, rail_radius);
             let corner_radius = widget_visuals.inactive.corner_radius;
 
@@ -882,7 +882,7 @@ impl Slider<'_> {
             SliderOrientation::Horizontal => rect.height(),
             SliderOrientation::Vertical => rect.width(),
         };
-        limit / 2.5
+        limit * 0.4
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: Rangef) -> Response {
