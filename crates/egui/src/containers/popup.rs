@@ -7,7 +7,7 @@ use crate::{
     Sense, Ui, UiKind, UiStackInfo,
     containers::menu::{MenuConfig, MenuState, menu_style},
     style::StyleModifier,
-    widget_style::{ClassName, Classes, HasClasses as _, PopupStyle},
+    widget_style::{ClassName, Classes, HasClasses, PopupStyle},
 };
 
 /// What should we anchor the popup to?
@@ -186,6 +186,17 @@ pub struct Popup<'a> {
     layout: Layout,
     frame: Option<Frame>,
     style: StyleModifier,
+    classes: Classes,
+}
+
+impl HasClasses for Popup<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
+    }
 }
 
 impl<'a> Popup<'a> {
@@ -216,6 +227,7 @@ impl<'a> Popup<'a> {
             layout: Layout::default(),
             frame: None,
             style: StyleModifier::default(),
+            classes: Classes::default(),
         }
     }
 
@@ -584,6 +596,7 @@ impl<'a> Popup<'a> {
             layout,
             frame,
             style,
+            mut classes,
         } = self;
 
         if kind != PopupKind::Tooltip {
@@ -600,7 +613,7 @@ impl<'a> Popup<'a> {
 
         let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
 
-        let classes = Classes::default().with_class_if(Self::CLASS_MENU, kind == PopupKind::Menu);
+        classes.add_class_if(Self::CLASS_MENU, kind == PopupKind::Menu);
 
         let mut area = Area::new(id)
             .with_classes(classes.clone())
