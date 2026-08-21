@@ -160,75 +160,63 @@ impl CornerRadiusF32 {
 
 impl core::ops::Add for CornerRadiusF32 {
     type Output = Self;
+
+    /// Saturates at zero: no corner radius will go negative.
     #[inline]
     fn add(self, rhs: Self) -> Self {
         Self {
-            nw: self.nw + rhs.nw,
-            ne: self.ne + rhs.ne,
-            sw: self.sw + rhs.sw,
-            se: self.se + rhs.se,
+            nw: (self.nw + rhs.nw).max(0.0),
+            ne: (self.ne + rhs.ne).max(0.0),
+            sw: (self.sw + rhs.sw).max(0.0),
+            se: (self.se + rhs.se).max(0.0),
         }
     }
 }
 
 impl core::ops::AddAssign for CornerRadiusF32 {
+    /// Saturates at zero: no corner radius will go negative.
     #[inline]
     fn add_assign(&mut self, rhs: Self) {
-        *self = Self {
-            nw: self.nw + rhs.nw,
-            ne: self.ne + rhs.ne,
-            sw: self.sw + rhs.sw,
-            se: self.se + rhs.se,
-        };
+        *self = *self + rhs;
     }
 }
 
 impl core::ops::AddAssign<f32> for CornerRadiusF32 {
+    /// Saturates at zero: no corner radius will go negative.
     #[inline]
     fn add_assign(&mut self, rhs: f32) {
-        *self = Self {
-            nw: self.nw + rhs,
-            ne: self.ne + rhs,
-            sw: self.sw + rhs,
-            se: self.se + rhs,
-        };
+        *self = *self + Self::same(rhs);
     }
 }
 
 impl core::ops::Sub for CornerRadiusF32 {
     type Output = Self;
+
+    /// Saturates at zero: no corner radius will go negative.
     #[inline]
     fn sub(self, rhs: Self) -> Self {
         Self {
-            nw: self.nw - rhs.nw,
-            ne: self.ne - rhs.ne,
-            sw: self.sw - rhs.sw,
-            se: self.se - rhs.se,
+            nw: (self.nw - rhs.nw).max(0.0),
+            ne: (self.ne - rhs.ne).max(0.0),
+            sw: (self.sw - rhs.sw).max(0.0),
+            se: (self.se - rhs.se).max(0.0),
         }
     }
 }
 
 impl core::ops::SubAssign for CornerRadiusF32 {
+    /// Saturates at zero: no corner radius will go negative.
     #[inline]
     fn sub_assign(&mut self, rhs: Self) {
-        *self = Self {
-            nw: self.nw - rhs.nw,
-            ne: self.ne - rhs.ne,
-            sw: self.sw - rhs.sw,
-            se: self.se - rhs.se,
-        };
+        *self = *self - rhs;
     }
 }
 
 impl core::ops::SubAssign<f32> for CornerRadiusF32 {
+    /// Saturates at zero: no corner radius will go negative.
     #[inline]
     fn sub_assign(&mut self, rhs: f32) {
-        *self = Self {
-            nw: self.nw - rhs,
-            ne: self.ne - rhs,
-            sw: self.sw - rhs,
-            se: self.se - rhs,
-        };
+        *self = *self - Self::same(rhs);
     }
 }
 
@@ -279,5 +267,28 @@ impl core::ops::MulAssign<f32> for CornerRadiusF32 {
             sw: self.sw * rhs,
             se: self.se * rhs,
         };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CornerRadiusF32;
+
+    #[test]
+    fn add_and_sub_saturate_at_zero() {
+        assert_eq!(
+            CornerRadiusF32::same(2.0) + CornerRadiusF32::same(-5.0),
+            CornerRadiusF32::ZERO
+        );
+        assert_eq!(
+            CornerRadiusF32::same(2.0) - CornerRadiusF32::same(5.0),
+            CornerRadiusF32::ZERO
+        );
+
+        let mut cr = CornerRadiusF32::same(1.0);
+        cr += -3.0;
+        assert_eq!(cr, CornerRadiusF32::ZERO);
+        cr -= -2.0;
+        assert_eq!(cr, CornerRadiusF32::same(2.0));
     }
 }
