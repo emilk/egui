@@ -1,4 +1,5 @@
-use std::{cell::RefCell, rc::Rc};
+use core::cell::RefCell;
+use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 
@@ -107,7 +108,7 @@ impl WebRunner {
 
     fn unsubscribe_from_all_events(&self) {
         let events_to_unsubscribe: Vec<_> =
-            std::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
+            core::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
 
         if !events_to_unsubscribe.is_empty() {
             log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
@@ -139,7 +140,7 @@ impl WebRunner {
 
     /// Returns `None` if there has been a panic, or if we have been destroyed.
     /// In that case, just return to JS.
-    pub(crate) fn try_lock(&self) -> Option<std::cell::RefMut<'_, AppRunner>> {
+    pub(crate) fn try_lock(&self) -> Option<core::cell::RefMut<'_, AppRunner>> {
         if self.panic_handler.has_panicked() {
             // Unsubscribe from all events so that we don't get any more callbacks
             // that will try to access the poisoned runner.
@@ -147,7 +148,7 @@ impl WebRunner {
             None
         } else {
             let lock = self.app_runner.try_borrow_mut().ok()?;
-            std::cell::RefMut::filter_map(lock, |lock| -> Option<&mut AppRunner> { lock.as_mut() })
+            core::cell::RefMut::filter_map(lock, |lock| -> Option<&mut AppRunner> { lock.as_mut() })
                 .ok()
         }
     }
@@ -158,9 +159,9 @@ impl WebRunner {
     /// and return `None` if this  runner has panicked.
     pub fn app_mut<ConcreteApp: 'static + App>(
         &self,
-    ) -> Option<std::cell::RefMut<'_, ConcreteApp>> {
+    ) -> Option<core::cell::RefMut<'_, ConcreteApp>> {
         self.try_lock()
-            .map(|lock| std::cell::RefMut::map(lock, |runner| runner.app_mut::<ConcreteApp>()))
+            .map(|lock| core::cell::RefMut::map(lock, |runner| runner.app_mut::<ConcreteApp>()))
     }
 
     /// Convenience function to reduce boilerplate and ensure that all event handlers

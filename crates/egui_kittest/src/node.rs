@@ -1,8 +1,8 @@
+use core::fmt::{Debug, Formatter};
 use egui::accesskit::ActionRequest;
 use egui::mutex::Mutex;
 use egui::{Modifiers, PointerButton, Pos2, accesskit};
 use kittest::{AccessKitNode, NodeT, debug_fmt_node};
-use std::fmt::{Debug, Formatter};
 
 pub type EventQueue = Mutex<Vec<egui::Event>>;
 
@@ -14,7 +14,7 @@ pub struct Node<'tree> {
 }
 
 impl Debug for Node<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         debug_fmt_node(self, f)
     }
 }

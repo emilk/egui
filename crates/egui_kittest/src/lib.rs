@@ -26,7 +26,7 @@ pub use {
     kittest,
 };
 
-use std::{
+use core::{
     fmt::{Debug, Display, Formatter},
     time::Duration,
 };
@@ -47,7 +47,7 @@ pub struct ExceededMaxStepsError {
 }
 
 impl Display for ExceededMaxStepsError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "Harness::run exceeded max_steps ({}). If your expect your ui to keep repainting \
@@ -90,7 +90,7 @@ pub struct Harness<'a, State = ()> {
 }
 
 impl<State> Debug for Harness<'_, State> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         self.kittest.fmt(f)
     }
 }
@@ -147,7 +147,7 @@ impl<'a, State> Harness<'a, State> {
             response = app.run(ui, &mut state, false);
         });
 
-        renderer.handle_delta(&output.textures_delta);
+        renderer.handle_delta(&mut output.textures_delta);
 
         let mut harness = Self {
             app,
@@ -245,18 +245,18 @@ impl<'a, State> Harness<'a, State> {
     /// This will call the app closure with each queued event and
     /// update the Harness.
     pub fn step(&mut self) {
-        let events = std::mem::take(&mut *self.queued_events.lock());
+        let events = core::mem::take(&mut *self.queued_events.lock());
         if events.is_empty() {
-            self._step(false);
+            self.step_impl(false);
         }
         for event in events {
             self.input.events.push(event);
-            self._step(false);
+            self.step_impl(false);
         }
     }
 
     /// Run a single step. This will not process any events.
-    fn _step(&mut self, sizing_pass: bool) {
+    fn step_impl(&mut self, sizing_pass: bool) {
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
@@ -269,7 +269,7 @@ impl<'a, State> Harness<'a, State> {
                 .take()
                 .expect("AccessKit was disabled"),
         );
-        self.renderer.handle_delta(&output.textures_delta);
+        self.renderer.handle_delta(&mut output.textures_delta);
         self.output = output;
 
         self.handle_viewport_commands();
@@ -297,7 +297,7 @@ impl<'a, State> Harness<'a, State> {
     /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
     /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
     pub fn fit_contents(&mut self) {
-        self._step(true);
+        self.step_impl(true);
 
         // Calculate size including all content (main UI + popups + tooltips)
         if let Some(rect) = self.compute_total_rect_with_popups() {
@@ -333,7 +333,7 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    fn _try_run(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+    fn try_run_impl(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
         let mut steps = 0;
         loop {
             steps += 1;
@@ -374,7 +374,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        self._try_run(false)
+        self.try_run_impl(false)
     }
 
     /// Run until
@@ -414,7 +414,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run`].
     pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        self._try_run(true)
+        self.try_run_impl(true)
     }
 
     /// Run a number of steps.
@@ -802,7 +802,7 @@ impl<'a, State> Harness<'a, State> {
             // SAFETY: `pthread_main_np` is a thread-safe libc query with no arguments.
             let is_main_thread = unsafe {
                 unsafe extern "C" {
-                    fn pthread_main_np() -> std::ffi::c_int;
+                    fn pthread_main_np() -> core::ffi::c_int;
                 }
                 pthread_main_np() != 0
             };

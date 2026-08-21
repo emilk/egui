@@ -67,8 +67,8 @@ pub struct Undoer<State> {
     flux: Option<Flux<State>>,
 }
 
-impl<State> std::fmt::Debug for Undoer<State> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<State> core::fmt::Debug for Undoer<State> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self { undos, redos, .. } = self;
         f.debug_struct("Undoer")
             .field("undo count", &undos.len())

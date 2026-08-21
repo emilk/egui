@@ -21,12 +21,15 @@ use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId
 pub use winit;
 
 pub mod clipboard;
+mod dropped_file;
 mod safe_area;
 mod window_settings;
 
 pub use window_settings::WindowSettings;
 
 use raw_window_handle::HasDisplayHandle;
+
+use dropped_file::NativeFile;
 
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -121,6 +124,7 @@ pub struct State {
 
     allow_ime: bool,
     ime_rect_px: Option<egui::Rect>,
+    old_ime_purpose: egui::IMEPurpose,
 
     /// Used by [`State::try_on_ime_processed_keyboard_input`] to track key
     /// release events that should be filtered out. See comments in that method
@@ -171,6 +175,7 @@ impl State {
 
             allow_ime: false,
             ime_rect_px: None,
+            old_ime_purpose: egui::IMEPurpose::Normal,
             #[cfg(target_os = "windows")]
             pressed_processed_physical_keys: HashSet::new(),
         };
@@ -468,10 +473,9 @@ impl State {
             }
             WindowEvent::DroppedFile(path) => {
                 self.egui_input.hovered_files.clear();
-                self.egui_input.dropped_files.push(egui::DroppedFile {
-                    path: Some(path.clone()),
-                    ..Default::default()
-                });
+                self.egui_input
+                    .dropped_files
+                    .push(std::sync::Arc::new(NativeFile::from(path.clone())));
                 EventResponse {
                     repaint: true,
                     consumed: false,
@@ -1156,6 +1160,11 @@ impl State {
 
                 window.set_ime_allowed(false);
                 window.set_ime_allowed(true);
+            }
+
+            if ime.purpose != self.old_ime_purpose {
+                self.old_ime_purpose = ime.purpose;
+                window.set_ime_purpose(to_winit_ime_purpose(ime.purpose));
             }
 
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
@@ -1880,11 +1889,7 @@ fn process_viewport_command(
             );
         }
         ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
-        ViewportCommand::IMEPurpose(p) => window.set_ime_purpose(match p {
-            egui::viewport::IMEPurpose::Password => winit::window::ImePurpose::Password,
-            egui::viewport::IMEPurpose::Terminal => winit::window::ImePurpose::Terminal,
-            egui::viewport::IMEPurpose::Normal => winit::window::ImePurpose::Normal,
-        }),
+        ViewportCommand::IMEPurpose(p) => window.set_ime_purpose(to_winit_ime_purpose(p)),
         ViewportCommand::Focus => {
             if !window.has_focus() {
                 window.focus_window();
@@ -1942,6 +1947,14 @@ fn process_viewport_command(
         ViewportCommand::RequestPaste => {
             actions_requested.push(ActionRequested::Paste);
         }
+    }
+}
+
+fn to_winit_ime_purpose(purpose: egui::IMEPurpose) -> winit::window::ImePurpose {
+    match purpose {
+        egui::IMEPurpose::Password => winit::window::ImePurpose::Password,
+        egui::IMEPurpose::Terminal => winit::window::ImePurpose::Terminal,
+        egui::IMEPurpose::Normal => winit::window::ImePurpose::Normal,
     }
 }
 

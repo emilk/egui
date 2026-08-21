@@ -5,12 +5,14 @@
 
 #![expect(clippy::identity_op)]
 
-use emath::{GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, pos2, remap, vec2};
+use emath::{
+    GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, fast_midpoint, pos2, remap, vec2,
+};
 
 use crate::{
     CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
-    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke,
-    StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath, stroke::PathStroke,
+    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, RoundedRect, Shape,
+    Stroke, StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath, stroke::PathStroke,
     texture_atlas::PreparedDisc,
 };
 
@@ -534,17 +536,18 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
-    use crate::CornerRadiusF32;
-    use emath::{Pos2, Rect, pos2};
+    use crate::{CornerRadiusF32, RoundedRect};
+    use emath::{Pos2, pos2};
 
     /// overwrites existing points
-    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, cr: CornerRadiusF32) {
+    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rounded_rect: RoundedRect) {
         path.clear();
+
+        // The corner radius is already clamped to half the rect size by `RoundedRect`:
+        let (rect, cr) = rounded_rect.into_parts();
 
         let min = rect.min;
         let max = rect.max;
-
-        let cr = clamp_corner_radius(cr, rect);
 
         if cr == CornerRadiusF32::ZERO {
             path.reserve(4);
@@ -630,14 +633,6 @@ pub mod path {
             let quadrant_vertices = &CIRCLE_128[offset..=offset + 32];
             path.extend(quadrant_vertices.iter().map(|&n| center + radius * n));
         }
-    }
-
-    // Ensures the radius of each corner is within a valid range
-    fn clamp_corner_radius(cr: CornerRadiusF32, rect: Rect) -> CornerRadiusF32 {
-        let half_width = rect.width() * 0.5;
-        let half_height = rect.height() * 0.5;
-        let max_cr = half_width.min(half_height);
-        cr.at_most(max_cr).at_least(0.0)
     }
 }
 
@@ -1074,7 +1069,7 @@ fn stroke_and_fill_path(
             */
 
             let inner_rad = 0.5 * (stroke.width - feathering);
-            let outer_rad = 0.5 * (stroke.width + feathering);
+            let outer_rad = fast_midpoint(stroke.width, feathering);
 
             match path_type {
                 PathType::Closed => {
@@ -1517,11 +1512,11 @@ impl Tessellator {
 
                     if stroke.is_empty() {
                         return; // we are done
-                    } else {
-                        // we still need to do the stroke
-                        fill = Color32::TRANSPARENT; // don't fill again below
-                        break;
                     }
+
+                    // we still need to do the stroke
+                    fill = Color32::TRANSPARENT; // don't fill again below
+                    break;
                 }
             }
         }
@@ -1577,7 +1572,7 @@ impl Tessellator {
                 let eased = 2.0 * (percent - percent.powf(2.0)) * ratio + percent.powf(2.0);
 
                 // Scale the ease to the quarter
-                let t = eased * std::f32::consts::FRAC_PI_2;
+                let t = eased * core::f32::consts::FRAC_PI_2;
                 Vec2::new(radius.x * f32::cos(t), radius.y * f32::sin(t))
             })
             .collect();
@@ -1936,7 +1931,10 @@ impl Tessellator {
 
         let path = &mut self.scratchpad_path;
         path.clear();
-        path::rounded_rectangle(&mut self.scratchpad_points, rect, corner_radius);
+        path::rounded_rectangle(
+            &mut self.scratchpad_points,
+            RoundedRect::new(rect, corner_radius),
+        );
 
         // Apply rotation if angle is non-zero
         if angle != 0.0 {

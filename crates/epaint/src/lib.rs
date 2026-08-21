@@ -33,6 +33,7 @@ mod margin;
 mod margin_f32;
 mod mesh;
 pub mod mutex;
+mod rounded_rect;
 mod shadow;
 pub mod shape_transform;
 mod shapes;
@@ -56,6 +57,7 @@ pub use self::{
     margin::Margin,
     margin_f32::*,
     mesh::{Mesh, Mesh16, Vertex},
+    rounded_rect::RoundedRect,
     shadow::Shadow,
     shapes::{
         CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape,

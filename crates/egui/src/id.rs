@@ -1,6 +1,6 @@
 // TODO(emilk): have separate types `PositionId` and `UniqueId`. ?
 
-use std::num::NonZeroU64;
+use core::num::NonZeroU64;
 
 use crate::{AsIdSalt, IdSalt};
 
@@ -8,9 +8,9 @@ use crate::{AsIdSalt, IdSalt};
 ///
 /// This is all types implementing `Hash` and `Debug`,
 /// which includes things like string, integers, tuples of those, etc.
-pub trait AsId: std::hash::Hash + std::fmt::Debug {}
+pub trait AsId: core::hash::Hash + core::fmt::Debug {}
 
-impl<T: std::hash::Hash + std::fmt::Debug> AsId for T {}
+impl<T: core::hash::Hash + core::fmt::Debug> AsId for T {}
 
 /// egui tracks widgets frame-to-frame using [`Id`]s.
 ///
@@ -41,6 +41,13 @@ impl<T: std::hash::Hash + std::fmt::Debug> AsId for T {}
 /// This is niche-optimized to that `Option<Id>` is the same size as `Id`.
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    expect(
+        clippy::unsafe_derive_deserialize,
+        reason = "`from_high_entropy_bits` is only `unsafe` about entropy, not memory safety"
+    )
+)]
 pub struct Id(NonZeroU64);
 
 impl nohash_hasher::IsEnabled for Id {}
@@ -75,7 +82,7 @@ impl Id {
 
     /// Generate a child [`Id`] by salting the parent [`Id`] with the given argument.
     pub fn with(self, salt: impl AsIdSalt) -> Self {
-        use std::hash::{BuildHasher as _, Hasher as _};
+        use core::hash::{BuildHasher as _, Hasher as _};
         let mut hasher = ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
         hasher.write_u64(self.value());
         hasher.write_u64(IdSalt::new(&salt).value());
@@ -124,8 +131,8 @@ impl Id {
     }
 }
 
-impl std::fmt::Debug for Id {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Id {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if *self == Self::NULL {
             return write!(f, "Id::NULL");
         }
@@ -204,8 +211,8 @@ mod id_source {
 
 #[test]
 fn id_size() {
-    assert_eq!(std::mem::size_of::<Id>(), 8);
-    assert_eq!(std::mem::size_of::<Option<Id>>(), 8);
+    assert_eq!(core::mem::size_of::<Id>(), 8);
+    assert_eq!(core::mem::size_of::<Option<Id>>(), 8);
 }
 
 #[cfg(test)]

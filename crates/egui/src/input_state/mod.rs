@@ -13,10 +13,8 @@ use crate::{
     },
     input_state::wheel_state::WheelState,
 };
-use std::{
-    collections::{BTreeMap, HashSet},
-    time::Duration,
-};
+use core::time::Duration;
+use std::collections::{BTreeMap, HashSet};
 
 pub use crate::Key;
 pub use touch_state::MultiTouchInfo;

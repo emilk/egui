@@ -225,8 +225,8 @@ fn test_atom_selectable_senses_click_and_drag() {
 /// See <https://github.com/emilk/egui/issues/8217>.
 #[test]
 fn test_atom_selectable_text_can_be_copied() {
+    use core::cell::Cell;
     use egui::{AtomLayout, Event, Modifiers, OutputCommand, PointerButton, Pos2, Rect};
-    use std::cell::Cell;
 
     fn copied_text(selectable: bool) -> Option<String> {
         let rect_cell = Cell::new(Rect::NOTHING);
