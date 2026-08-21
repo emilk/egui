@@ -158,7 +158,7 @@ fn color_button(ui: &mut Ui, srgba: [u8; 4], open: bool) -> Response {
             srgba,
             // Shrink both the rect and the corner radius,
             // so the fill arcs stay concentric with the inside stroke:
-            RoundedRect::new(rect, corner_radius).expand(-stroke_width),
+            RoundedRect::new(rect, corner_radius).shrink(stroke_width),
         );
 
         ui.painter().rect_stroke(
