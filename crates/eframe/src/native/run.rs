@@ -14,7 +14,8 @@ use crate::{
     Result, epi,
     native::{
         event_loop_context,
-        winit_integration::{EventResult, is_invisible_or_minimized},
+        frame_watchdog::FrameWatchdog,
+        winit_integration::{EventResult, PaintPolicy, is_invisible_or_minimized},
     },
 };
 
@@ -25,6 +26,13 @@ use crate::{
 /// processing viewport commands like `Visible(true)`.
 /// See <https://github.com/emilk/egui/issues/7776>.
 const INVISIBLE_WINDOW_REPAINT_INTERVAL: Duration = Duration::from_millis(100);
+
+/// How long to wait for a `RedrawRequested` before assuming it will never come.
+///
+/// A compositor may withhold the frame callback for a surface it considers
+/// hidden, which suppresses `RedrawRequested` indefinitely.
+/// See <https://github.com/emilk/egui/issues/5136>.
+const MISSED_FRAME_DEADLINE: Duration = Duration::from_millis(500);
 
 // ----------------------------------------------------------------------------
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
@@ -79,6 +87,7 @@ fn with_event_loop<R>(
 /// some events, but otherwise forwards events to the [`WinitApp`].
 struct WinitAppWrapper<T: WinitApp> {
     windows_next_repaint_times: HashMap<WindowId, Instant>,
+    frame_watchdog: FrameWatchdog,
     winit_app: T,
     return_result: Result<(), crate::Error>,
     run_and_return: bool,
@@ -88,6 +97,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
     fn new(winit_app: T, run_and_return: bool) -> Self {
         Self {
             windows_next_repaint_times: HashMap::default(),
+            frame_watchdog: FrameWatchdog::new(MISSED_FRAME_DEADLINE),
             winit_app,
             return_result: Ok(()),
             run_and_return,
@@ -114,7 +124,9 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 .insert(window_id, Instant::now());
 
             // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-            event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
+            event_result =
+                self.winit_app
+                    .run_ui_and_paint(event_loop, window_id, PaintPolicy::IfVisible);
         }
 
         let combined_result = event_result.map(|event_result| match event_result {
@@ -190,6 +202,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         let now = Instant::now();
 
         let mut invisible_window_ids = Vec::new();
+        let watchdog = &mut self.frame_watchdog;
 
         self.windows_next_repaint_times
             .retain(|window_id, repaint_time| {
@@ -214,6 +227,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                         // busy-loops a whole CPU core.
                         // See https://github.com/emilk/egui/issues/8326.
                         window.request_redraw();
+                        watchdog.note_redraw_requested(*window_id, now);
                     }
                 } else {
                     log::trace!("No window found for {window_id:?}");
@@ -225,7 +239,9 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         // RedrawRequested events on Windows. This ensures that viewport
         // commands like Visible(true) are still processed.
         for window_id in &invisible_window_ids {
-            let event_result = self.winit_app.run_ui_and_paint(event_loop, *window_id);
+            let event_result =
+                self.winit_app
+                    .run_ui_and_paint(event_loop, *window_id, PaintPolicy::IfVisible);
             self.handle_event_result(event_loop, event_result);
         }
 
@@ -247,9 +263,26 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         // `ControlFlow::Poll` set earlier was never undone once the last timed
         // repaint had been consumed, leaving the loop spinning.
         // See https://github.com/emilk/egui/issues/8326.
+        // A redraw we asked for may never be delivered: a compositor can withhold
+        // the frame callback for a surface it considers hidden, and winit then
+        // suppresses `RedrawRequested` indefinitely. Keep the app's logic ticking
+        // so it can still react (e.g. ask to be shown again).
+        // See https://github.com/emilk/egui/issues/5136.
+        for window_id in self.frame_watchdog.overdue(Instant::now()) {
+            log::debug!("No RedrawRequested for {window_id:?} within the deadline");
+            let event_result =
+                self.winit_app
+                    .run_ui_and_paint(event_loop, window_id, PaintPolicy::Never);
+            self.handle_event_result(event_loop, event_result);
+        }
+
         let next_repaint_time = self.windows_next_repaint_times.values().min().copied();
-        event_loop.set_control_flow(match next_repaint_time {
-            Some(next_repaint_time) => ControlFlow::WaitUntil(next_repaint_time),
+        let next_wakeup = match (next_repaint_time, self.frame_watchdog.next_check()) {
+            (Some(repaint), Some(check)) => Some(repaint.min(check)),
+            (repaint, check) => repaint.or(check),
+        };
+        event_loop.set_control_flow(match next_wakeup {
+            Some(next_wakeup) => ControlFlow::WaitUntil(next_wakeup),
             None => ControlFlow::Wait,
         });
     }
@@ -372,7 +405,13 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         event_loop_context::with_event_loop_context(event_loop, move || {
             let event_result = match event {
                 winit::event::WindowEvent::RedrawRequested => {
-                    self.winit_app.run_ui_and_paint(event_loop, window_id)
+                    self.frame_watchdog.note_redraw_delivered(window_id);
+                    self.winit_app
+                        .run_ui_and_paint(event_loop, window_id, PaintPolicy::IfVisible)
+                }
+                winit::event::WindowEvent::Destroyed => {
+                    self.frame_watchdog.forget(window_id);
+                    self.winit_app.window_event(event_loop, window_id, event)
                 }
                 _ => self.winit_app.window_event(event_loop, window_id, event),
             };
