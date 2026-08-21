@@ -127,6 +127,21 @@ pub struct ButtonStyle {
 
 impl WidgetStyle for ButtonStyle {}
 
+/// Dedicated text edit style
+#[derive(Debug, Clone)]
+pub struct TextEditStyle {
+    /// Style of the field's atom layout.
+    ///
+    /// [`AtomLayoutStyle::frame`] surrounds the text, including its padding, and
+    /// [`AtomLayoutStyle::text_style`] is the text being edited.
+    pub atom_layout: AtomLayoutStyle,
+
+    /// The color of the hint text shown while the buffer is empty.
+    pub hint_text_color: Color32,
+}
+
+impl WidgetStyle for TextEditStyle {}
+
 /// Dedicated checkbox style
 #[derive(Debug, Clone)]
 pub struct CheckboxStyle {

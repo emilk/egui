@@ -2,6 +2,7 @@ use crate::{
     Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IntoAtoms, Key, MINUS_CHAR_STR,
     Modifiers, NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget,
     WidgetInfo, emath, text,
+    widget_style::{Classes, HasClasses},
 };
 use core::{cmp::Ordering, ops::RangeInclusive};
 use emath::Vec2;
@@ -63,6 +64,7 @@ pub struct DragValue<'a> {
     custom_formatter: Option<NumFormatter<'a>>,
     custom_parser: Option<NumParser<'a>>,
     update_while_editing: bool,
+    classes: Classes,
 }
 
 impl<'a> DragValue<'a> {
@@ -97,6 +99,7 @@ impl<'a> DragValue<'a> {
             custom_formatter: None,
             custom_parser: None,
             update_while_editing: true,
+            classes: Classes::default(),
         }
     }
 
@@ -449,6 +452,7 @@ impl Widget for DragValue<'_> {
             custom_formatter,
             custom_parser,
             update_while_editing,
+            classes,
         } = self;
 
         let mut prefix_text = String::new();
@@ -583,6 +587,7 @@ impl Widget for DragValue<'_> {
                 .map_or_else(|| value_text.clone(), |edit_state| edit_state.text);
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
+                    .with_classes(classes)
                     .clip_text(false)
                     .horizontal_align(ui.layout().horizontal_align())
                     .vertical_align(ui.layout().vertical_align())
@@ -634,6 +639,7 @@ impl Widget for DragValue<'_> {
                 }
             });
             let button = Button::new(atoms)
+                .with_classes(classes)
                 .wrap_mode(TextWrapMode::Extend)
                 .sense(Sense::click_and_drag())
                 .gap(0.0)
@@ -862,5 +868,15 @@ mod tests {
             Some(-1.23),
             "Should handle special minus character (https://www.compart.com/en/unicode/U+2212)"
         );
+    }
+}
+
+impl HasClasses for DragValue<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }
