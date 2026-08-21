@@ -65,6 +65,9 @@ svg = ["resvg"]
 ## Support rendering text in svg images.
 svg_text = ["svg", "resvg/text", "resvg/system-fonts"]
 
+## Support rendering inline raster images in svg images.
+svg_images = ["svg", "resvg/raster-images"]
+
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
 
