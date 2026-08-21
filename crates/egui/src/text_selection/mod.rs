@@ -4,9 +4,11 @@ pub mod accesskit_text;
 
 mod cursor_range;
 mod label_text_selection;
+mod selection_mode;
 pub mod text_cursor_state;
 pub mod visuals;
 
 pub use cursor_range::CCursorRange;
 pub use label_text_selection::LabelSelectionState;
+pub(crate) use selection_mode::SelectionMode;
 pub use text_cursor_state::TextCursorState;
