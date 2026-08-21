@@ -32,9 +32,8 @@ impl Ui {
             response.widget_state()
         } else {
             // We don't know the state of the widget yet, so we would style it wrong.
-            // Discard this pass and style it correctly in the next one.
-            self.ctx()
-                .request_discard("Widget style depends on a widget response we don't have yet");
+            // It will be styled correctly on next frame.
+            self.ctx().request_repaint();
             WidgetState::default()
         };
 
