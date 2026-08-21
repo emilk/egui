@@ -29,7 +29,9 @@ const N: u32 = 6 * 6;
 fn background_checkers(painter: &Painter, bounds: RoundedRect) {
     // Shrink slightly, so the dark checkers don't peek through
     // the antialiased edge of the color painted on top:
-    let (rect, corner_radius) = bounds.shrink(0.5).into_parts();
+    let pixel_width = 1.0 / painter.ctx().pixels_per_point();
+    let (rect, corner_radius) = bounds.shrink(pixel_width).into_parts();
+
     if !rect.is_positive() || !rect.is_finite() {
         return;
     }
