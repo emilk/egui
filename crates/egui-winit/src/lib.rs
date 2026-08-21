@@ -1345,7 +1345,9 @@ pub fn update_viewport_info(
     profiling::function_scope!();
     let pixels_per_point = pixels_per_point(egui_ctx, window);
 
-    let has_a_position = match window.is_minimized() {
+    let is_minimized = window.is_minimized();
+
+    let has_a_position = match is_minimized {
         Some(true) => false,
         Some(false) | None => true,
     };
@@ -1379,12 +1381,24 @@ pub fn update_viewport_info(
     viewport_info.inner_rect = inner_rect;
     viewport_info.outer_rect = outer_rect;
 
-    if is_init || !cfg!(target_os = "macos") {
-        // Asking for minimized/maximized state at runtime leads to a deadlock on Mac when running
-        // `cargo run -p custom_window_frame`.
-        // See https://github.com/emilk/egui/issues/3494
+    // `is_minimized` is safe to query on every frame, on every platform: it is a plain
+    // state read. Note that we already call it above, for `has_a_position`.
+    if let Some(minimized) = is_minimized {
+        viewport_info.minimized = Some(minimized);
+    }
+
+    // `is_maximized` is not always safe. On macOS, for a window that is not both
+    // decorated and resizable, winit's `is_zoomed` temporarily rewrites the window's
+    // style mask to read `isZoomed`. That re-enters the window delegate, which can
+    // deadlock if we are already inside the event loop.
+    // See https://github.com/emilk/egui/issues/3494
+    let is_maximized_is_cheap = if cfg!(target_os = "macos") {
+        window.is_decorated() && window.is_resizable()
+    } else {
+        true
+    };
+    if is_init || is_maximized_is_cheap {
         viewport_info.maximized = Some(window.is_maximized());
-        viewport_info.minimized = Some(window.is_minimized().unwrap_or(false));
     }
 
     viewport_info.fullscreen = Some(window.fullscreen().is_some());
