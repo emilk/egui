@@ -73,6 +73,7 @@ impl CornerRadiusF32 {
 
     /// Same rounding on all four corners.
     #[inline]
+    #[must_use]
     pub const fn same(radius: f32) -> Self {
         Self {
             nw: radius,
@@ -90,6 +91,7 @@ impl CornerRadiusF32 {
 
     /// Make sure each corner has a rounding of at least this.
     #[inline]
+    #[must_use]
     pub fn at_least(&self, min: f32) -> Self {
         Self {
             nw: self.nw.max(min),
@@ -101,6 +103,7 @@ impl CornerRadiusF32 {
 
     /// Make sure each corner has a rounding of at most this.
     #[inline]
+    #[must_use]
     pub fn at_most(&self, max: f32) -> Self {
         Self {
             nw: self.nw.min(max),
@@ -112,6 +115,7 @@ impl CornerRadiusF32 {
 
     /// Set the rounding of the two east (right) corners.
     #[inline]
+    #[must_use]
     pub fn with_east(self, radius: f32) -> Self {
         Self {
             ne: radius,
@@ -122,6 +126,7 @@ impl CornerRadiusF32 {
 
     /// Set the rounding of the two north (top) corners.
     #[inline]
+    #[must_use]
     pub fn with_north(self, radius: f32) -> Self {
         Self {
             nw: radius,
@@ -132,6 +137,7 @@ impl CornerRadiusF32 {
 
     /// Set the rounding of the two south (bottom) corners.
     #[inline]
+    #[must_use]
     pub fn with_south(self, radius: f32) -> Self {
         Self {
             sw: radius,
@@ -142,6 +148,7 @@ impl CornerRadiusF32 {
 
     /// Set the rounding of the two west (left) corners.
     #[inline]
+    #[must_use]
     pub fn with_west(self, radius: f32) -> Self {
         Self {
             nw: radius,
