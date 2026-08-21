@@ -417,14 +417,20 @@ pub mod response;
 mod sense;
 pub mod style;
 pub mod text_selection;
+#[cfg(feature = "experimental")]
 pub mod theme;
+#[cfg(not(feature = "experimental"))]
+mod theme;
 mod ui;
 mod ui_builder;
 mod ui_stack;
 pub mod util;
 pub mod viewport;
 mod widget_rect;
+#[cfg(feature = "experimental")]
 pub mod widget_style;
+#[cfg(not(feature = "experimental"))]
+mod widget_style;
 pub mod widget_text;
 pub mod widgets;
 

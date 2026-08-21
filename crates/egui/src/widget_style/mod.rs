@@ -1,3 +1,7 @@
+// This module is only public with the `experimental_theme` feature,
+// so without it a lot of it looks unused:
+#![cfg_attr(not(feature = "experimental"), allow(dead_code, unused_imports))]
+
 mod classes;
 
 pub use self::classes::{ClassName, Classes, HasClasses, ROOT_CLASS, SELECTED_CLASS};

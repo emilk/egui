@@ -1,5 +1,9 @@
 //! Theming: pluggable [`StyleProvider`]s that compute the style of each widget.
 
+// This module is only public with the `experimental_theme` feature,
+// so without it a lot of it looks unused:
+#![cfg_attr(not(feature = "experimental"), allow(dead_code, unused_imports))]
+
 mod default_style;
 mod style_provider;
 mod themes;
@@ -12,8 +16,12 @@ use crate::{
 };
 
 impl Ui {
-    /// The style of the widget with the given [`crate::Id`] and [`Classes`],
+    /// The style of the widget with the given [`crate::Id`] and `Classes`,
     /// as computed by the registered theme.
+    ///
+    /// The types you need to call this are only public with the
+    /// `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
     pub fn widget_style<S: WidgetStyle + Clone + 'static>(
         &self,
         id: crate::Id,

@@ -57,7 +57,7 @@ pub trait HasClasses {
 
     fn classes_mut(&mut self) -> &mut Classes;
 
-    /// Add the given class by consuming [`self`]
+    /// Add the given class by consuming `self`
     #[inline]
     fn with_class(mut self, class: impl Into<ClassName>) -> Self
     where
@@ -67,7 +67,7 @@ pub trait HasClasses {
         self
     }
 
-    /// Add the given class by consuming [`self`] if the condition is true
+    /// Add the given class by consuming `self` if the condition is true
     #[inline]
     fn with_class_if(mut self, class: impl Into<ClassName>, condition: bool) -> Self
     where

@@ -15,5 +15,6 @@ workspace = true
 eframe = { workspace = true, features = [
   "default",
   "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
+    "experimental", # this example is all about the experimental theming API
 ] }
 env_logger = { workspace = true, features = ["auto-color", "humantime"] }
