@@ -6,7 +6,7 @@ use crate::{
     WidgetInfo, WidgetType, epaint, lerp, remap_clamp,
 };
 use epaint::{
-    ColorImage, CornerRadiusF32, Rect, RectShape, RoundedRect, Shape, Stroke, StrokeKind, Vec2,
+    ColorImage, Rect, RectShape, RoundedRect, Shape, Stroke, StrokeKind, Vec2,
     ecolor::{Color32, Hsva, HsvaGamma, Rgba},
     pos2,
     textures::TextureOptions,
@@ -127,16 +127,8 @@ fn show_srgba_unmultiplied_at(painter: &Painter, [r, g, b, a]: [u8; 4], bounds: 
         background_checkers(painter, bounds);
         let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
         let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
-        let left_corner_radius = CornerRadiusF32 {
-            ne: 0.0,
-            se: 0.0,
-            ..corner_radius
-        };
-        let right_corner_radius = CornerRadiusF32 {
-            nw: 0.0,
-            sw: 0.0,
-            ..corner_radius
-        };
+        let left_corner_radius = corner_radius.with_east(0.0);
+        let right_corner_radius = corner_radius.with_west(0.0);
         painter.rect_filled(
             left,
             left_corner_radius,

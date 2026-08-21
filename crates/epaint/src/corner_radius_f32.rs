@@ -109,6 +109,46 @@ impl CornerRadiusF32 {
             se: self.se.min(max),
         }
     }
+
+    /// Set the rounding of the two east (right) corners.
+    #[inline]
+    pub fn with_east(self, radius: f32) -> Self {
+        Self {
+            ne: radius,
+            se: radius,
+            ..self
+        }
+    }
+
+    /// Set the rounding of the two north (top) corners.
+    #[inline]
+    pub fn with_north(self, radius: f32) -> Self {
+        Self {
+            nw: radius,
+            ne: radius,
+            ..self
+        }
+    }
+
+    /// Set the rounding of the two south (bottom) corners.
+    #[inline]
+    pub fn with_south(self, radius: f32) -> Self {
+        Self {
+            sw: radius,
+            se: radius,
+            ..self
+        }
+    }
+
+    /// Set the rounding of the two west (left) corners.
+    #[inline]
+    pub fn with_west(self, radius: f32) -> Self {
+        Self {
+            nw: radius,
+            sw: radius,
+            ..self
+        }
+    }
 }
 
 impl core::ops::Add for CornerRadiusF32 {
