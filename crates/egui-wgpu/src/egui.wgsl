@@ -98,20 +98,31 @@ fn vs_main(
 @group(1) @binding(0) var r_tex_color: texture_2d<f32>;
 @group(1) @binding(1) var r_tex_sampler: sampler;
 
+/// 1 if the texture sampler uses nearest filtering, 0 if linear.
+/// Only read when `predictable_texture_filtering` is on.
+@group(1) @binding(2) var<uniform> r_tex_nearest_filtering: u32;
+
 fn sample_texture(in: VertexOutput) -> vec4<f32> {
     if r_locals.predictable_texture_filtering == 0 {
         // Hardware filtering: fast, but varies across GPUs and drivers.
         return textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     } else {
-        // Manual bilinear filtering with four taps at pixel centers using textureLoad
         let texture_size = vec2<i32>(textureDimensions(r_tex_color, 0));
         let texture_size_f = vec2<f32>(texture_size);
+        let max_coord = texture_size - vec2<i32>(1, 1);
+
+        if r_tex_nearest_filtering == 1 {
+            // Nearest filtering: load the texel under the sample position.
+            let texel = clamp(vec2<i32>(in.tex_coord * texture_size_f), vec2<i32>(0, 0), max_coord);
+            return textureLoad(r_tex_color, texel, 0);
+        }
+
+        // Manual bilinear filtering with four taps at pixel centers using textureLoad
         let pixel_coord = in.tex_coord * texture_size_f - 0.5;
         let pixel_fract = fract(pixel_coord);
         let pixel_floor = vec2<i32>(floor(pixel_coord));
 
         // Manual texture clamping
-        let max_coord = texture_size - vec2<i32>(1, 1);
         let p00 = clamp(pixel_floor + vec2<i32>(0, 0), vec2<i32>(0, 0), max_coord);
         let p10 = clamp(pixel_floor + vec2<i32>(1, 0), vec2<i32>(0, 0), max_coord);
         let p01 = clamp(pixel_floor + vec2<i32>(0, 1), vec2<i32>(0, 0), max_coord);
