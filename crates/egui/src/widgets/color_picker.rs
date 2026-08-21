@@ -27,8 +27,10 @@ fn contrast_color(color: impl Into<Rgba>) -> Color32 {
 const N: u32 = 6 * 6;
 
 fn background_checkers(painter: &Painter, bounds: RoundedRect) {
-    let (rect, corner_radius) = bounds.into_parts();
-    if !rect.is_positive() {
+    // Shrink slightly, so the dark checkers don't peek through
+    // the antialiased edge of the color painted on top:
+    let (rect, corner_radius) = bounds.shrink(0.5).into_parts();
+    if !rect.is_positive() || !rect.is_finite() {
         return;
     }
 
@@ -124,9 +126,15 @@ fn show_srgba_unmultiplied_at(painter: &Painter, [r, g, b, a]: [u8; 4], bounds: 
     if a == 255 {
         painter.rect_filled(rect, corner_radius, Color32::from_rgb(r, g, b));
     } else {
-        background_checkers(painter, bounds);
         let left = Rect::from_min_max(rect.left_top(), rect.center_bottom());
         let right = Rect::from_min_max(rect.center_top(), rect.right_bottom());
+
+        // Clamp to what the half-width rects can express,
+        // so the checkers and both halves all round their corners the same:
+        let corner_radius = corner_radius.at_most(0.5 * left.size().min_elem());
+
+        background_checkers(painter, RoundedRect::new(rect, corner_radius));
+
         let left_corner_radius = corner_radius.with_east(0.0);
         let right_corner_radius = corner_radius.with_west(0.0);
         painter.rect_filled(
