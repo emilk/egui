@@ -2434,15 +2434,19 @@ impl Context {
 
         use crate::cache::FramePublisher;
 
-        type TextureCache = FramePublisher<Id, (ImageData, TextureHandle)>;
+        type TextureCache = FramePublisher<Id, (ImageData, TextureOptions, TextureHandle)>;
 
         let image = image.into();
-        let cached: Option<(ImageData, TextureHandle)> =
+        let cached: Option<(ImageData, TextureOptions, TextureHandle)> =
             self.memory_mut(|mem| mem.caches.cache::<TextureCache>().get(&id).cloned());
 
         let (image, handle) = match cached {
-            Some((cached_image, handle)) if cached_image == image => (cached_image, handle),
-            Some((_, mut handle)) => {
+            Some((cached_image, cached_options, handle))
+                if cached_image == image && cached_options == options =>
+            {
+                (cached_image, handle)
+            }
+            Some((_, _, mut handle)) => {
                 handle.set(image.clone(), options);
                 (image, handle)
             }
@@ -2456,7 +2460,7 @@ impl Context {
         self.memory_mut(|mem| {
             mem.caches
                 .cache::<TextureCache>()
-                .set(id, (image, handle.clone()));
+                .set(id, (image, options, handle.clone()));
         });
 
         handle
