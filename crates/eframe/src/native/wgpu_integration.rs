@@ -497,27 +497,29 @@ impl WinitApp for WgpuWinitApp<'_> {
         if let winit::event::DeviceEvent::MouseMotion { delta } = event
             && let Some(running) = &mut self.running
         {
+            // Route MouseMotion deltas to the ROOT viewport rather than to
+            // `shared.focused_viewport`. Reasons:
+            //   * `DeviceEvent::MouseMotion` is a *device-level* relative
+            //     motion event with no surface association — there is no
+            //     compositor truth for "which viewport this belongs to".
+            //   * Under Mutter Wayland with multiple deferred viewports
+            //     (kiosk setups using `with_active(false)`), the playfield
+            //     viewport regularly loses focus to a secondary viewport
+            //     despite the cursor lock, making `focused_viewport` Some
+            //     of a non-root viewport (or None). Routing to that
+            //     viewport silently swallows the deltas because the
+            //     relative-pointer protocol is bound on root only.
+            //   * Single-window apps always have ROOT as the de-facto
+            //     target, so this change is a no-op there.
+            // We also drop the legacy `!has_focus() && !any_pointer_button_down`
+            // guard for the same Wayland-kiosk reason.
             let mut shared = running.shared.borrow_mut();
-            if let Some(viewport) = shared
-                .focused_viewport
-                .and_then(|viewport| shared.viewports.get_mut(&viewport))
+            if let Some(viewport) = shared.viewports.get_mut(&egui::ViewportId::ROOT)
                 && let Some(window) = viewport.window.as_ref()
+                && let Some(egui_winit) = viewport.egui_winit.as_mut()
+                && egui_winit.on_mouse_motion(delta)
             {
-                if !window.has_focus()
-                    && !viewport
-                        .egui_winit
-                        .as_ref()
-                        .map(|state| state.is_any_pointer_button_down())
-                        .unwrap_or(false)
-                {
-                    return Ok(EventResult::Wait);
-                }
-
-                if let Some(egui_winit) = viewport.egui_winit.as_mut()
-                    && egui_winit.on_mouse_motion(delta)
-                {
-                    return Ok(EventResult::RepaintNext(window.id()));
-                }
+                return Ok(EventResult::RepaintNext(window.id()));
             }
         }
 

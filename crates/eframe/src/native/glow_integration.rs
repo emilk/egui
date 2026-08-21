@@ -500,27 +500,16 @@ impl WinitApp for GlowWinitApp<'_> {
         if let winit::event::DeviceEvent::MouseMotion { delta } = event
             && let Some(running) = &mut self.running
         {
+            // Route MouseMotion deltas to the ROOT viewport rather than to
+            // `focused_viewport` (see matching change + rationale in
+            // wgpu_integration.rs).
             let mut glutin = running.glutin.borrow_mut();
-            if let Some(viewport) = glutin
-                .focused_viewport
-                .and_then(|viewport| glutin.viewports.get_mut(&viewport))
+            if let Some(viewport) = glutin.viewports.get_mut(&egui::ViewportId::ROOT)
                 && let Some(window) = viewport.window.as_ref()
+                && let Some(egui_winit) = viewport.egui_winit.as_mut()
+                && egui_winit.on_mouse_motion(delta)
             {
-                if !window.has_focus()
-                    && !viewport
-                        .egui_winit
-                        .as_ref()
-                        .map(|state| state.is_any_pointer_button_down())
-                        .unwrap_or(false)
-                {
-                    return Ok(EventResult::Wait);
-                }
-
-                if let Some(egui_winit) = viewport.egui_winit.as_mut()
-                    && egui_winit.on_mouse_motion(delta)
-                {
-                    return Ok(EventResult::RepaintNext(window.id()));
-                }
+                return Ok(EventResult::RepaintNext(window.id()));
             }
         }
 

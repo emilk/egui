@@ -764,11 +764,18 @@ impl State {
     }
 
     /// Returns `true` if the event was sent to egui.
+    ///
+    /// Forwards raw mouse delta unconditionally. The previous guard
+    /// (`is_pointer_in_window() || any_pointer_button_down`) was an
+    /// over-restriction: under `CursorGrab::Locked` on Wayland the OS never
+    /// fires `WindowEvent::CursorMoved` (the pointer-constraints "lock"
+    /// mode delivers only relative deltas via `DeviceEvent::MouseMotion`),
+    /// so `pointer_pos_in_points` stays `None` forever and
+    /// `is_pointer_in_window()` always returns `false` — silently dropping
+    /// every relative-motion event. Downstream consumers (egui's standard
+    /// pointer system, egui-rotate's `SoftwareCursor`) gate themselves on
+    /// their own state, so over-forwarding is harmless.
     pub fn on_mouse_motion(&mut self, delta: (f64, f64)) -> bool {
-        if !self.is_pointer_in_window() && !self.any_pointer_button_down {
-            return false;
-        }
-
         self.egui_input.events.push(egui::Event::MouseMoved(Vec2 {
             x: delta.0 as f32,
             y: delta.1 as f32,
