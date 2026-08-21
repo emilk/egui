@@ -1,5 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 //! A small styling engine: a custom [`StyleProvider`] that styles every [`egui::Button`]
 //! based on the _classes_ set on it, and that can be edited live.
