@@ -2407,6 +2407,35 @@ impl Context {
         TextureHandle::new(tex_mngr, tex_id)
     }
 
+    /// Load a texture, or update a previously cached one if the image changed.
+    ///
+    /// This is like [`Self::load_texture`], but caches the texture by `id`,
+    /// and only re-uploads the image when it changes.
+    /// This makes it safe to call every frame,
+    /// which is convenient for small, procedurally generated images.
+    pub fn load_texture_cached(
+        &self,
+        name: impl Into<String>,
+        id: Id,
+        image: impl Into<ImageData>,
+        options: TextureOptions,
+    ) -> TextureHandle {
+        let image = image.into();
+        let cached: Option<(ImageData, TextureHandle)> = self.data(|d| d.get_temp(id));
+        if let Some((cached_image, mut handle)) = cached {
+            if cached_image == image {
+                return handle;
+            }
+            handle.set(image.clone(), options);
+            self.data_mut(|d| d.insert_temp(id, (image, handle.clone())));
+            handle
+        } else {
+            let handle = self.load_texture(name, image.clone(), options);
+            self.data_mut(|d| d.insert_temp(id, (image, handle.clone())));
+            handle
+        }
+    }
+
     /// Low-level texture manager.
     ///
     /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].

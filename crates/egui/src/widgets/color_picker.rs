@@ -5,11 +5,8 @@ use crate::{
     Context, DragValue, Id, Painter, Popup, PopupCloseBehavior, Response, Sense, Ui, Widget as _,
     WidgetInfo, WidgetType, epaint, lerp, remap_clamp,
 };
-use std::sync::Arc;
-
 use epaint::{
-    ColorImage, CornerRadiusF32, Rect, RectShape, RoundedRect, Shape, Stroke, StrokeKind,
-    TextureHandle, Vec2,
+    ColorImage, CornerRadiusF32, Rect, RectShape, RoundedRect, Shape, Stroke, StrokeKind, Vec2,
     ecolor::{Color32, Hsva, HsvaGamma, Rgba},
     pos2,
     textures::TextureOptions,
@@ -28,30 +25,6 @@ fn contrast_color(color: impl Into<Rgba>) -> Color32 {
 /// We need at least 6 for hues, and more for smooth 2D areas.
 /// Should always be a multiple of 6 to hit the peak hues in HSV/HSL (every 60°).
 const N: u32 = 6 * 6;
-
-/// Upload a texture, or update a previously cached one if the image changed.
-fn cached_texture(
-    ctx: &Context,
-    id: Id,
-    image: ColorImage,
-    options: TextureOptions,
-) -> TextureHandle {
-    let cached: Option<(Arc<ColorImage>, TextureHandle)> = ctx.data(|d| d.get_temp(id));
-    if let Some((cached_image, mut handle)) = cached {
-        if *cached_image == image {
-            return handle;
-        }
-        let image = Arc::new(image);
-        handle.set(Arc::clone(&image), options);
-        ctx.data_mut(|d| d.insert_temp(id, (image, handle.clone())));
-        handle
-    } else {
-        let image = Arc::new(image);
-        let handle = ctx.load_texture("color_picker", Arc::clone(&image), options);
-        ctx.data_mut(|d| d.insert_temp(id, (image, handle.clone())));
-        handle
-    }
-}
 
 fn background_checkers(painter: &Painter, bounds: RoundedRect) {
     let (rect, corner_radius) = bounds.into_parts();
@@ -81,8 +54,8 @@ fn background_checkers(painter: &Painter, bounds: RoundedRect) {
         .collect();
     let image = ColorImage::new([width, height], pixels);
 
-    let texture = cached_texture(
-        painter.ctx(),
+    let texture = painter.ctx().load_texture_cached(
+        "color_picker_checkers",
         Id::new(("color_picker_checkers", width, height)),
         image,
         TextureOptions::NEAREST,
@@ -215,8 +188,8 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
             let width = N as usize + 1;
             let pixels = (0..width).map(|i| color_at(i as f32 / N as f32)).collect();
             let image = ColorImage::new([width, 1], pixels);
-            let texture = cached_texture(
-                ui.ctx(),
+            let texture = ui.ctx().load_texture_cached(
+                "color_slider_1d",
                 response.id.with("gradient"),
                 image,
                 TextureOptions::LINEAR,
@@ -296,8 +269,8 @@ fn color_slider_2d(
                 }
             }
             let image = ColorImage::new([width, width], pixels);
-            let texture = cached_texture(
-                ui.ctx(),
+            let texture = ui.ctx().load_texture_cached(
+                "color_slider_2d",
                 response.id.with("gradient"),
                 image,
                 TextureOptions::LINEAR,
