@@ -8,7 +8,7 @@ mod default_style;
 mod style_provider;
 mod themes;
 
-pub use self::{style_provider::StyleProvider, themes::Themes};
+pub use self::{style_provider::StyleProvider, themes::Themes, default_style::DefaultStyle};
 
 use crate::{
     Ui,

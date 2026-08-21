@@ -10,8 +10,10 @@ use crate::{
     },
 };
 
+/// The default [`StyleProvider`], implementing the default egui look based on
+/// [`crate::style::WidgetVisuals`].
 #[derive(Debug, Clone)]
-pub(super) struct DefaultStyle;
+pub struct DefaultStyle;
 
 impl StyleProvider<BaseStyle> for DefaultStyle {
     fn style(&mut self, modifiers: &StyleArgs<'_>) -> BaseStyle {
