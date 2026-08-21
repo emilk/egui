@@ -21,7 +21,7 @@ fn contrast_color(color: impl Into<Rgba>) -> Color32 {
     }
 }
 
-/// Number of vertices per dimension in the color sliders.
+/// Resolution of the color slider gradients: the textures have `N + 1` texels per dimension.
 /// We need at least 6 for hues, and more for smooth 2D areas.
 /// Should always be a multiple of 6 to hit the peak hues in HSV/HSL (every 60°).
 const N: u32 = 6 * 6;
@@ -35,35 +35,45 @@ fn background_checkers(painter: &Painter, bounds: RoundedRect) {
     let dark_color = Color32::from_gray(32);
     let bright_color = Color32::from_gray(128);
 
-    // Generate the texture at physical-pixel resolution, so the checkers stay sharp:
-    let pixels_per_point = painter.pixels_per_point();
-    let width = (pixels_per_point * rect.width()).round().max(1.0) as usize;
-    let height = (pixels_per_point * rect.height()).round().max(1.0) as usize;
-    let checker_size = (height as f32 / 2.0).max(1.0);
-
-    let pixels = (0..width * height)
-        .map(|i| {
-            let (x, y) = (i % width, i / width);
-            let checker = (x as f32 / checker_size) as usize + (y as f32 / checker_size) as usize;
-            if checker.is_multiple_of(2) {
-                bright_color
-            } else {
-                dark_color
-            }
-        })
-        .collect();
-    let image = ColorImage::new([width, height], pixels);
-
+    // A single repeating 2x2 checker tile, stretched so that
+    // each checker is half the rect height, like before:
+    let image = ColorImage::new(
+        [2, 2],
+        vec![bright_color, dark_color, dark_color, bright_color],
+    );
     let texture = painter.ctx().load_texture_cached(
         "color_picker_checkers",
-        Id::new(("color_picker_checkers", width, height)),
+        Id::new("color_picker_checkers"),
         image,
-        TextureOptions::NEAREST,
+        TextureOptions::NEAREST_REPEAT,
     );
 
-    let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+    // One tile (one uv unit) covers 2x2 checkers, i.e. the full rect height:
+    let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(rect.width() / rect.height(), 1.0));
     painter
         .add(RectShape::filled(rect, corner_radius, Color32::WHITE).with_texture(texture.id(), uv));
+}
+
+/// Paint a gradient image over the given rounded rect, with an outline.
+fn paint_gradient(ui: &Ui, id: Id, bounds: RoundedRect, outline: Stroke, image: ColorImage) {
+    let (rect, corner_radius) = bounds.into_parts();
+    let [width, height] = image.size;
+    let texture = ui
+        .ctx()
+        .load_texture_cached("color_gradient", id, image, TextureOptions::LINEAR);
+
+    // Inset the uv by half a texel, so the edges sample the exact edge colors:
+    let inset = vec2(0.5 / width as f32, 0.5 / height as f32);
+    let uv = Rect::from_min_max(inset.to_pos2(), pos2(1.0 - inset.x, 1.0 - inset.y));
+
+    ui.painter()
+        .add(RectShape::filled(rect, corner_radius, Color32::WHITE).with_texture(texture.id(), uv));
+
+    // The outline must be a separate shape:
+    // a textured `RectShape` cannot have a stroke,
+    // since the stroke vertices would sample the same texture.
+    ui.painter()
+        .rect_stroke(rect, corner_radius, outline, StrokeKind::Inside);
 }
 
 /// Show a color with background checkers to demonstrate transparency (if any).
@@ -154,7 +164,9 @@ fn color_button(ui: &mut Ui, srgba: [u8; 4], open: bool) -> Response {
         show_srgba_unmultiplied_at(
             ui.painter(),
             srgba,
-            RoundedRect::new(rect.shrink(stroke_width), corner_radius),
+            // Shrink both the rect and the corner radius,
+            // so the fill arcs stay concentric with the inside stroke:
+            RoundedRect::new(rect, corner_radius).expand(-stroke_width),
         );
 
         ui.painter().rect_stroke(
@@ -188,25 +200,12 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
             let width = N as usize + 1;
             let pixels = (0..width).map(|i| color_at(i as f32 / N as f32)).collect();
             let image = ColorImage::new([width, 1], pixels);
-            let texture = ui.ctx().load_texture_cached(
-                "color_slider_1d",
+            paint_gradient(
+                ui,
                 response.id.with("gradient"),
+                bounds,
+                visuals.bg_stroke,
                 image,
-                TextureOptions::LINEAR,
-            );
-
-            // Inset the uv by half a texel, so the ends sample the exact end colors:
-            let inset = 0.5 / width as f32;
-            let uv = Rect::from_min_max(pos2(inset, 0.5), pos2(1.0 - inset, 0.5));
-            ui.painter().add(
-                RectShape::new(
-                    rect,
-                    corner_radius,
-                    Color32::WHITE,
-                    visuals.bg_stroke,
-                    StrokeKind::Inside,
-                )
-                .with_texture(texture.id(), uv),
             );
         }
 
@@ -269,25 +268,12 @@ fn color_slider_2d(
                 }
             }
             let image = ColorImage::new([width, width], pixels);
-            let texture = ui.ctx().load_texture_cached(
-                "color_slider_2d",
+            paint_gradient(
+                ui,
                 response.id.with("gradient"),
+                RoundedRect::new(rect, corner_radius),
+                visuals.bg_stroke,
                 image,
-                TextureOptions::LINEAR,
-            );
-
-            // Inset the uv by half a texel, so the edges sample the exact edge colors:
-            let inset = 0.5 / width as f32;
-            let uv = Rect::from_min_max(pos2(inset, inset), pos2(1.0 - inset, 1.0 - inset));
-            ui.painter().add(
-                RectShape::new(
-                    rect,
-                    corner_radius,
-                    Color32::WHITE,
-                    visuals.bg_stroke,
-                    StrokeKind::Inside,
-                )
-                .with_texture(texture.id(), uv),
             );
         }
 
