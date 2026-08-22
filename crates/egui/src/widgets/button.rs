@@ -364,7 +364,12 @@ impl<'a> Button<'a> {
         layout = if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
             layout.frame(frame)
         } else {
-            layout.frame(Frame::new().inner_margin(frame.inner_margin))
+            let inner_margin = if has_frame_margin {
+                frame.inner_margin + Margin::from(frame.stroke.width)
+            } else {
+                frame.inner_margin
+            };
+            layout.frame(Frame::new().inner_margin(inner_margin))
         };
 
         let mut prepared = layout.min_size(min_size).allocate(ui);
