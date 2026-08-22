@@ -18,8 +18,8 @@ include = [
   "Cargo.toml",
   "fonts/*.ttf",
   "fonts/*.txt",
-  "fonts/OFL.txt",
   "fonts/AlbertSans-OFL.txt",
+  "fonts/OFL.txt",
 ]
 
 [lints]
