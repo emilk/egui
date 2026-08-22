@@ -3,10 +3,10 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::text::{FontData, FontFamily, font_provider::FontProvider};
 
 #[cfg(feature = "default_fonts")]
-use crate::text::FontTweak;
+use crate::text::{FontTweak, VariationCoords};
 
 #[cfg(feature = "default_fonts")]
-use epaint_default_fonts::{EGUI_ICONS, HACK_REGULAR, UBUNTU_LIGHT};
+use epaint_default_fonts::{ALBERT_SANS, EGUI_ICONS, HACK_REGULAR};
 #[cfg(feature = "monochrome_emoji_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, NOTO_EMOJI_REGULAR};
 
@@ -27,7 +27,7 @@ use epaint_default_fonts::{EMOJI_ICON, NOTO_EMOJI_REGULAR};
 /// fonts.font_data.insert("my_font".to_owned(),
 ///    std::sync::Arc::new(
 ///        // .ttf and .otf supported
-///        FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/Ubuntu-Light.ttf"))
+///        FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/AlbertSans-VariableFont_wght.ttf"))
 ///    )
 /// );
 ///
@@ -130,8 +130,13 @@ impl Default for FontDefinitions {
         );
 
         font_data.insert(
-            "Ubuntu-Light".to_owned(),
-            Arc::new(FontData::from_static(UBUNTU_LIGHT)),
+            "Albert Sans".to_owned(),
+            // Albert Sans is a variable font; a slightly-lighter-than-regular weight
+            // looks best for UI text.
+            Arc::new(FontData::from_static(ALBERT_SANS).tweak(FontTweak {
+                coords: VariationCoords::new([(b"wght", 350.0)]),
+                ..Default::default()
+            })),
         );
 
         // The handful of icons in `egui::special_emojis`, which no platform font has:
@@ -180,10 +185,10 @@ impl Default for FontDefinitions {
             FontFamily::Monospace,
             family(&[
                 "Hack",
-                "Ubuntu-Light", // fallback for √ etc
+                "Albert Sans", // fallback for √ etc
             ]),
         );
-        families.insert(FontFamily::Proportional, family(&["Ubuntu-Light"]));
+        families.insert(FontFamily::Proportional, family(&["Albert Sans"]));
 
         Self {
             font_data,
@@ -210,14 +215,14 @@ impl FontDefinitions {
     pub fn builtin_font_names() -> &'static [&'static str] {
         if cfg!(feature = "monochrome_emoji_fonts") {
             &[
-                "Ubuntu-Light",
+                "Albert Sans",
                 "egui-icons",
                 "NotoEmoji-Regular",
                 "emoji-icon-font",
                 "Hack",
             ]
         } else {
-            &["Ubuntu-Light", "egui-icons", "Hack"]
+            &["Albert Sans", "egui-icons", "Hack"]
         }
     }
 
