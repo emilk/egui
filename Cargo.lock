@@ -1299,6 +1299,7 @@ dependencies = [
  "ron",
  "serde",
  "smallvec",
+ "unicode-general-category",
  "unicode-segmentation",
  "web-sys",
 ]
