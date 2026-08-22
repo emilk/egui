@@ -249,7 +249,7 @@ pub struct Renderer {
     /// 1 if the texture sampler uses nearest filtering, 0 otherwise.
     /// Indexed by that flag value.
     /// Read by the shader when `predictable_texture_filtering` is on.
-    nearest_filtering_flag_buffers: [wgpu::Buffer; 2],
+    nearest_filtering_flag_buffers: [wgpu::Buffer; 4],
 
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
     /// sampler). The texture may be None if the `TextureId` is just a handle to a user-provided
@@ -358,7 +358,7 @@ impl Renderer {
                         visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
                             has_dynamic_offset: false,
-                            min_binding_size: NonZeroU64::new(core::mem::size_of::<u32>() as _),
+                            min_binding_size: NonZeroU64::new((core::mem::size_of::<u32>() * 4) as _),
                             ty: wgpu::BufferBindingType::Uniform,
                         },
                         count: None,
@@ -367,10 +367,10 @@ impl Renderer {
             })
         };
 
-        let nearest_filtering_flag_buffers = [0_u32, 1_u32].map(|flag| {
+        let nearest_filtering_flag_buffers = [0_u32, 1_u32, 2_u32, 3_u32].map(|flag| {
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(&format!("egui_nearest_filtering_flag_{flag}")),
-                contents: bytemuck::bytes_of(&flag),
+                contents: bytemuck::bytes_of(&[flag, 0, 0, 0]),
                 usage: wgpu::BufferUsages::UNIFORM,
             })
         });
