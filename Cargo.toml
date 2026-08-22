@@ -156,7 +156,7 @@ wasm-bindgen-futures = "0.4.76"
 wayland-cursor = { version = "0.31.14", default-features = false }
 web-sys = "0.3.103"
 web-time = "1.1" # Timekeeping for native and web
-webbrowser = "1.2"
+webbrowser = "1.2.2" # 1.2.2 fixes RUSTSEC-2026-0257 (`BROWSER` argument injection)
 wgpu = { version = "30.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
@@ -179,139 +179,66 @@ all = "warn"
 
 # See also clippy.toml
 [workspace.lints.clippy]
+# `all` = `correctness` + `suspicious` + `style` + `complexity` + `perf`.
+# The remaining groups are `nursery` and `restriction`,
+# which are not meant to be enabled wholesale - we cherry-pick from them below.
 all = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
 
 allow_attributes = "warn"
 as_ptr_cast_mut = "warn"
-bool_to_int_with_if = "warn"
 branches_sharing_code = "warn"
-checked_conversions = "warn"
 clear_with_drain = "warn"
 clone_on_ref_ptr = "warn"
-cloned_instead_of_copied = "warn"
 coerce_container_to_any = "warn"
 dbg_macro = "warn"
 debug_assert_with_mut_call = "warn"
-decimal_bitwise_operands = "warn"
 default_union_representation = "warn"
 derive_partial_eq_without_eq = "warn"
 disallowed_script_idents = "warn" # See clippy.toml
-doc_broken_link = "warn"
-doc_comment_double_space_linebreaks = "warn"
 doc_include_without_cfg = "warn"
-doc_link_with_quotes = "warn"
-doc_markdown = "warn"
-duration_suboptimal_units = "warn"
-elidable_lifetime_names = "warn"
 empty_enum_variants_with_brackets = "warn"
-empty_enums = "warn"
-enum_glob_use = "warn"
 equatable_if_let = "warn"
 exit = "warn"
-expl_impl_clone_on_copy = "warn"
-explicit_deref_methods = "warn"
-explicit_into_iter_loop = "warn"
-explicit_iter_loop = "warn"
 fallible_impl_from = "warn"
-filter_map_next = "warn"
-flat_map_option = "warn"
 float_cmp_const = "warn"
-fn_params_excessive_bools = "warn"
 fn_to_numeric_cast_any = "warn"
-format_push_string = "warn"
-from_iter_instead_of_collect = "warn"
 get_unwrap = "warn"
-ignore_without_reason = "warn"
-ignored_unit_patterns = "warn"
-implicit_clone = "warn"
 imprecise_flops = "warn"
-inconsistent_struct_constructor = "warn"
-index_refutable_slice = "warn"
-inefficient_to_string = "warn"
 infinite_loop = "warn"
-into_iter_without_iter = "warn"
-invalid_upcast_comparisons = "warn"
-ip_constant = "warn"
-iter_filter_is_ok = "warn"
-iter_filter_is_some = "warn"
-iter_not_returning_iterator = "warn"
 iter_on_empty_collections = "warn"
 iter_on_single_items = "warn"
 iter_over_hash_type = "warn"
-iter_without_into_iter = "warn"
-large_digit_groups = "warn"
-large_futures = "warn"
 large_include_file = "warn"
-large_stack_arrays = "warn"
 large_stack_frames = "warn"
-large_types_passed_by_value = "warn"
-linkedlist = "warn"
 literal_string_with_formatting_args = "warn"
 lossy_float_literal = "warn"
-macro_use_imports = "warn"
-manual_assert = "warn"
-manual_ilog2 = "warn"
-manual_instant_elapsed = "warn"
-manual_is_power_of_two = "warn"
-manual_is_variant_and = "warn"
-manual_let_else = "warn"
-manual_midpoint = "warn" # NOTE `midpoint` is often a lot slower for floats, so we have our own `emath::fast_midpoint` function.
-manual_string_new = "warn"
 map_err_ignore = "warn"
-match_bool = "warn"
-match_same_arms = "warn"
-match_wild_err_arm = "warn"
-match_wildcard_for_single_variants = "warn"
 mem_forget = "warn"
-mismatching_type_param_order = "warn"
 missing_assert_message = "warn"
-missing_errors_doc = "warn"
-missing_fields_in_debug = "warn"
-mut_mut = "warn"
 mutex_integer = "warn"
-needless_continue = "warn"
-needless_for_each = "warn"
 needless_pass_by_ref_mut = "warn"
-needless_pass_by_value = "warn"
-needless_raw_string_hashes = "warn"
 needless_type_cast = "warn"
-negative_feature_names = "warn"
-non_std_lazy_statics = "warn"
 non_zero_suggestions = "warn"
 nonstandard_macro_braces = "warn"
-option_as_ref_cloned = "warn"
-option_option = "warn"
 or_fun_call = "warn"
 path_buf_push_overwrite = "warn"
 pathbuf_init_then_push = "warn"
 precedence_bits = "warn"
 print_stderr = "warn"
 print_stdout = "warn"
-ptr_as_ptr = "warn"
-ptr_cast_constness = "warn"
-pub_underscore_fields = "warn"
 pub_without_shorthand = "warn"
 rc_mutex = "warn"
 redundant_type_annotations = "warn"
-ref_as_ptr = "warn"
-ref_option = "warn"
-ref_option_ref = "warn"
 ref_patterns = "warn"
 rest_pat_in_fully_bound_structs = "warn"
 return_and_then = "warn"
-same_functions_in_if_condition = "warn"
-same_length_and_capacity = "warn"
-self_only_used_in_recursion = "warn"
-semicolon_if_nothing_returned = "warn"
 set_contains_or_insert = "warn"
-single_char_pattern = "warn"
-single_match_else = "warn"
 single_option_map = "warn"
 std_instead_of_core = "warn"
-str_split_at_newline = "warn"
 str_to_string = "warn"
 string_add = "warn"
-string_add_assign = "warn"
 string_lit_as_bytes = "warn"
 string_lit_chars_any = "warn"
 suspicious_xor_used_as_pow = "warn"
@@ -319,52 +246,58 @@ todo = "warn"
 too_long_first_doc_paragraph = "warn"
 trailing_empty_array = "warn"
 trait_duplication_in_bounds = "warn"
-transmute_ptr_to_ptr = "warn"
 tuple_array_conversions = "warn"
-unchecked_time_subtraction = "warn"
 undocumented_unsafe_blocks = "warn"
 unimplemented = "warn"
 uninhabited_references = "warn"
-uninlined_format_args = "warn"
-unnecessary_box_returns = "warn"
-unnecessary_debug_formatting = "warn"
-unnecessary_literal_bound = "warn"
 unnecessary_safety_comment = "warn"
 unnecessary_safety_doc = "warn"
 unnecessary_self_imports = "warn"
-unnecessary_semicolon = "warn"
 unnecessary_struct_initialization = "warn"
-unnecessary_trailing_comma = "warn"
-unnecessary_wraps = "warn"
-unnested_or_patterns = "warn"
-unused_async = "warn"
 unused_peekable = "warn"
 unused_rounding = "warn"
-unused_self = "warn"
 unused_trait_names = "warn"
 unwrap_used = "warn"
 use_self = "warn"
 useless_let_if_seq = "warn"
 verbose_file_reads = "warn"
-wildcard_dependencies = "warn"
-zero_sized_map_values = "warn"
 
 
-# TODO(emilk): maybe enable more of these lints?
-# NOTE: these are all in `pedantic`/`restriction`/`nursery`, so the `allow` is a no-op today.
-# We keep them to record our intent in case we ever enable those groups.
-cast_possible_wrap = "allow"
+# Pedantic lints we opt out of, with the number of hits at the time we enabled `pedantic`:
+cast_lossless = "allow" # 204 hits
+cast_possible_truncation = "allow" # 287 hits
+cast_possible_wrap = "allow" # 43 hits
+cast_precision_loss = "allow" # 200 hits
+cast_sign_loss = "allow" # 98 hits
 comparison_chain = "allow"
+default_trait_access = "allow" # 278 hits
+float_cmp = "allow" # exact float comparisons are usually intentional (`float_cmp_const` is still on)
+inline_always = "allow" # 271 hits; we know what we are doing
+items_after_statements = "allow" # 82 hits
+many_single_char_names = "allow" # `r, g, b, a` and `h, s, v` are fine
+missing_panics_doc = "allow" # 68 hits
+must_use_candidate = "allow" # 1169 hits
+redundant_closure_for_method_calls = "allow" # 89 hits
+return_self_not_must_use = "allow" # 246 hits
 should_panic_without_expect = "allow"
+similar_names = "allow" # too many false positives, e.g. `encoder`/`encoded`
+struct_excessive_bools = "allow" # 32 hits
+struct_field_names = "allow" # 23 hits
 too_many_lines = "allow"
+trivially_copy_pass_by_ref = "allow" # 119 hits
+unreadable_literal = "allow" # 513 hits
+used_underscore_binding = "allow" # 25 hits
 
-# These are meh:
+# Other:
 assigning_clones = "allow" # No please
-cast_possible_truncation = "allow" # too many hits
-let_underscore_must_use = "allow"
-let_underscore_untyped = "allow"
 manual_range_contains = "allow" # this one is just worse imho
 map_unwrap_or = "allow" # so is this one
+multiple_crate_versions = "allow" # we handle this with `cargo deny`
+wildcard_imports = "allow" # `use crate::*` is useful to avoid merge conflicts when adding/removing imports
+
+# NOTE: these are in `restriction`/`nursery`, so the `allow` is a no-op today.
+# We keep them to record our intent in case we ever enable those groups.
+let_underscore_must_use = "allow"
+let_underscore_untyped = "allow"
 self_named_module_files = "allow" # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
-wildcard_imports = "allow" # `use crate::*` is useful to avoid merge conflicts when adding/removing imports

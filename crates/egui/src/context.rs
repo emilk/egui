@@ -36,9 +36,10 @@ use crate::{
     output::{FullOutput, LogicOutput},
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
-    resize, response, scroll_area,
+    resize, response, scroll_area, theme,
     util::IdTypeMap,
     viewport::ViewportClass,
+    widget_style::{StyleArgs, WidgetStyle},
 };
 
 use crate::IdMap;
@@ -412,6 +413,8 @@ struct ContextImpl {
     is_accesskit_enabled: bool,
 
     loaders: Arc<Loaders>,
+
+    themes: theme::Themes,
 }
 
 impl ContextImpl {
@@ -1764,11 +1767,11 @@ impl Context {
                 .get(&id)
                 .map(|v| v.repaint.cumulative_frame_nr)
                 .unwrap_or_else(|| {
-                    if cfg!(debug_assertions) {
-                        panic!("cumulative_frame_nr_for failed to find the viewport {id:?}");
-                    } else {
-                        0
-                    }
+                    debug_assert!(
+                        false,
+                        "cumulative_frame_nr_for failed to find the viewport {id:?}"
+                    );
+                    0
                 })
         })
     }
@@ -2093,6 +2096,48 @@ impl Context {
             self.add_plugin(default_plugin);
             self.plugin()
         }
+    }
+}
+
+/// Experimental theming, gated behind the `experimental_theme` feature.
+impl Context {
+    /// Register a [`StyleProvider`](crate::theme::StyleProvider) for the specified widget type.
+    ///
+    /// A theme can only be added once for a specified widget.
+    /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
+    ///
+    /// If you want to add the theme anyway, use [`Self::replace_widget_theme`] instead.
+    #[cfg(feature = "experimental")]
+    pub fn add_widget_theme<S: WidgetStyle + 'static>(
+        &self,
+        theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, false));
+    }
+
+    /// Register a [`StyleProvider`](crate::theme::StyleProvider) for the specified widget.
+    ///
+    /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
+    /// This allow to live edit a theme.
+    #[cfg(feature = "experimental")]
+    pub fn replace_widget_theme<S: WidgetStyle + 'static>(
+        &self,
+        theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, true));
+    }
+
+    /// Compute the `WidgetStyle` using the registered theme.
+    ///
+    /// The types you need to call this (e.g. `StyleArgs`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
+    pub fn get_widget_style<S: WidgetStyle + Clone + 'static>(
+        &self,
+        modifiers: &StyleArgs<'_>,
+    ) -> S {
+        let theme = self.read(move |ctx| ctx.themes.get::<S>());
+        theme.lock().style(modifiers)
     }
 }
 
