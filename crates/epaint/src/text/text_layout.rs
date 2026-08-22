@@ -1905,10 +1905,15 @@ mod tests {
             );
 
             // Round-trip: position → cursor → position should be stable.
+            //
+            // A continuation glyph mid-cluster is placed at the pixel-rounded
+            // cursor position, which can differ from the analytic (unrounded)
+            // position by up to one physical pixel depending on the font's
+            // glyph advance widths, so allow a one-pixel slack here.
             let cursor2 = galley.cursor_from_pos(Vec2::new(rect.center().x, rect.center().y));
             let rect2 = galley.pos_from_cursor(cursor2);
             assert!(
-                (rect.min.x - rect2.min.x).abs() < 1.0,
+                (rect.min.x - rect2.min.x).abs() <= 1.0,
                 "Cursor round-trip unstable at index {i}: \
                  first={}, second={}, cursor2.index={}",
                 rect.min.x,
