@@ -31,14 +31,15 @@ pub const HACK_REGULAR: &[u8] = include_bytes!("../fonts/Hack-Regular.ttf");
 #[cfg(feature = "monochrome_emoji_fonts")]
 pub const NOTO_EMOJI_REGULAR: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular.ttf");
 
-/// A typeface designed for use by Ubuntu.
+/// A contemporary sans serif typeface designed for user interfaces.
 ///
-/// The Ubuntu typeface has been specially created to complement the Ubuntu tone
-/// of voice. It has a contemporary style and contains characteristics unique to
-/// the Ubuntu brand that convey a precise, reliable and free attitude.
+/// Albert Sans is a grotesque-style typeface with a geometric skeleton and a
+/// low-contrast, high-legibility design suited to UI text at small sizes. It
+/// is a variable font with a weight axis.
 ///
-/// See [Ubuntu design](https://design.ubuntu.com/font) for more information.
-pub const UBUNTU_LIGHT: &[u8] = include_bytes!("../fonts/Ubuntu-Light.ttf");
+/// See [the Albert Sans repository](https://github.com/usted/Albert-Sans) for
+/// more information.
+pub const ALBERT_SANS: &[u8] = include_bytes!("../fonts/AlbertSans-VariableFont_wght.ttf");
 
 /// Requires the `monochrome_emoji_fonts` feature.
 ///
