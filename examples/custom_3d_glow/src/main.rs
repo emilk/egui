@@ -34,7 +34,8 @@ impl MyApp {
         let gl = cc
             .gl
             .as_ref()
-            .expect("You need to run eframe with the glow backend");
+            .expect("You need to run eframe with the glow backend")
+            .clone();
         Self {
             rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(gl))),
             angle: 0.0,
@@ -57,12 +58,6 @@ impl eframe::App for MyApp {
             });
             ui.label("Drag to rotate!");
         });
-    }
-
-    fn on_exit(&mut self, gl: Option<&glow::Context>) {
-        if let Some(gl) = gl {
-            self.rotating_triangle.lock().destroy(gl);
-        }
     }
 }
 
@@ -88,12 +83,13 @@ impl MyApp {
 }
 
 struct RotatingTriangle {
+    gl: Arc<glow::Context>,
     program: glow::Program,
     vertex_array: glow::VertexArray,
 }
 
 impl RotatingTriangle {
-    fn new(gl: &glow::Context) -> Self {
+    fn new(gl: Arc<glow::Context>) -> Self {
         use glow::HasContext as _;
 
         let shader_version = if cfg!(target_arch = "wasm32") {
@@ -175,17 +171,10 @@ impl RotatingTriangle {
                 .expect("Cannot create vertex array");
 
             Self {
+                gl,
                 program,
                 vertex_array,
             }
-        }
-    }
-
-    fn destroy(&self, gl: &glow::Context) {
-        use glow::HasContext as _;
-        unsafe {
-            gl.delete_program(self.program);
-            gl.delete_vertex_array(self.vertex_array);
         }
     }
 
@@ -199,6 +188,16 @@ impl RotatingTriangle {
             );
             gl.bind_vertex_array(Some(self.vertex_array));
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
+        }
+    }
+}
+
+impl Drop for RotatingTriangle {
+    fn drop(&mut self) {
+        use glow::HasContext as _;
+        unsafe {
+            self.gl.delete_program(self.program);
+            self.gl.delete_vertex_array(self.vertex_array);
         }
     }
 }
