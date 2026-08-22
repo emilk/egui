@@ -11,7 +11,7 @@ use crate::{
 use emath::{NumExt as _, OrderedFloat, Rangef};
 
 #[cfg(feature = "default_fonts")]
-use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
+use epaint_default_fonts::{ALBERT_SANS, EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR};
 
 // ----------------------------------------------------------------------------
 
@@ -411,7 +411,7 @@ fn blob_from_font_data(data: &FontData) -> Blob {
 /// fonts.font_data.insert("my_font".to_owned(),
 ///    std::sync::Arc::new(
 ///        // .ttf and .otf supported
-///        FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/Ubuntu-Light.ttf"))
+///        FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/AlbertSans-VariableFont_wght.ttf"))
 ///    )
 /// );
 ///
@@ -518,8 +518,13 @@ impl Default for FontDefinitions {
         );
 
         font_data.insert(
-            "Ubuntu-Light".to_owned(),
-            Arc::new(FontData::from_static(UBUNTU_LIGHT)),
+            "Albert Sans".to_owned(),
+            // Albert Sans is a variable font; a slightly-lighter-than-regular weight
+            // looks best for UI text.
+            Arc::new(FontData::from_static(ALBERT_SANS).tweak(FontTweak {
+                coords: VariationCoords::new([(b"wght", 350.0)]),
+                ..Default::default()
+            })),
         );
 
         // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
@@ -535,7 +540,7 @@ impl Default for FontDefinitions {
             FontFamily::Monospace,
             vec![
                 "Hack".to_owned(),
-                "Ubuntu-Light".to_owned(), // fallback for √ etc
+                "Albert Sans".to_owned(), // fallback for √ etc
                 "NotoEmoji-Regular".to_owned(),
                 "emoji-icon-font".to_owned(),
             ],
@@ -543,7 +548,7 @@ impl Default for FontDefinitions {
         families.insert(
             FontFamily::Proportional,
             vec![
-                "Ubuntu-Light".to_owned(),
+                "Albert Sans".to_owned(),
                 "NotoEmoji-Regular".to_owned(),
                 "emoji-icon-font".to_owned(),
             ],
@@ -573,7 +578,7 @@ impl FontDefinitions {
     #[cfg(feature = "default_fonts")]
     pub fn builtin_font_names() -> &'static [&'static str] {
         &[
-            "Ubuntu-Light",
+            "Albert Sans",
             "NotoEmoji-Regular",
             "emoji-icon-font",
             "Hack",

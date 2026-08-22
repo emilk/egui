@@ -2141,7 +2141,7 @@ impl Context {
 impl Context {
     /// Tell `egui` which fonts to use.
     ///
-    /// The default `egui` fonts only support latin and cyrillic alphabets,
+    /// The default `egui` fonts only support the latin alphabet,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new fonts will become active at the start of the next pass.
@@ -2164,7 +2164,7 @@ impl Context {
 
     /// Tell `egui` which fonts to use.
     ///
-    /// The default `egui` fonts only support latin and cyrillic alphabets,
+    /// The default `egui` fonts only support the latin alphabet,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new font will become active at the start of the next pass.

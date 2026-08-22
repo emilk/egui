@@ -237,7 +237,7 @@ fn label_ui(ui: &mut egui::Ui) {
             let _ = ui.small_button("this button");
             ui.label(".");
 
-            ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟🖩…).")
+            ui.label("The default font supports all latin characters (Åđ…), common math symbols (∫√∞²…), and many emojis (💓🌟🖩…).")
                 .on_hover_text("There is currently no support for right-to-left languages.");
             ui.label("See the 🔤 Font Book for more!");
 
