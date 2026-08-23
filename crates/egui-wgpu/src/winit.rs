@@ -36,7 +36,6 @@ pub struct Painter {
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
-    recovery_adapter: Option<wgpu::Adapter>,
     needs_render_state_recreate: bool,
 
     // Per viewport/window:
