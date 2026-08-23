@@ -245,12 +245,6 @@ pub struct Renderer {
     uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
-    /// Uniform buffers each holding a single `u32`:
-    /// 1 if the texture sampler uses nearest filtering, 0 otherwise.
-    /// Indexed by that flag value.
-    /// Read by the shader when `predictable_texture_filtering` is on.
-    nearest_filtering_flag_buffers: [wgpu::Buffer; 2],
-
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
     /// sampler). The texture may be None if the `TextureId` is just a handle to a user-provided
     /// sampler.
@@ -353,27 +347,9 @@ impl Renderer {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            has_dynamic_offset: false,
-                            min_binding_size: NonZeroU64::new(core::mem::size_of::<u32>() as _),
-                            ty: wgpu::BufferBindingType::Uniform,
-                        },
-                        count: None,
-                    },
                 ],
             })
         };
-
-        let nearest_filtering_flag_buffers = [0_u32, 1_u32].map(|flag| {
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(&format!("egui_nearest_filtering_flag_{flag}")),
-                contents: bytemuck::bytes_of(&flag),
-                usage: wgpu::BufferUsages::UNIFORM,
-            })
-        });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("egui_pipeline_layout"),
@@ -482,7 +458,6 @@ impl Renderer {
             previous_uniform_buffer_content: UniformBuffer::zeroed(),
             uniform_bind_group,
             texture_bind_group_layout,
-            nearest_filtering_flag_buffers,
             textures: HashMap::default(),
             next_user_texture_id: 0,
             samplers: HashMap::default(),
@@ -734,8 +709,6 @@ impl Renderer {
         };
 
         let bind_group = bind_group.unwrap_or_else(|| {
-            let nearest =
-                image_delta.options.magnification == epaint::textures::TextureFilter::Nearest;
             let sampler = self
                 .samplers
                 .entry(image_delta.options)
@@ -753,11 +726,6 @@ impl Renderer {
                     wgpu::BindGroupEntry {
                         binding: 1,
                         resource: wgpu::BindingResource::Sampler(sampler),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: self.nearest_filtering_flag_buffers[usize::from(nearest)]
-                            .as_entire_binding(),
                     },
                 ],
             })
@@ -861,7 +829,6 @@ impl Renderer {
     ) -> epaint::TextureId {
         profiling::function_scope!();
 
-        let nearest = sampler_descriptor.mag_filter == wgpu::FilterMode::Nearest;
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
             ..sampler_descriptor
@@ -878,11 +845,6 @@ impl Renderer {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: self.nearest_filtering_flag_buffers[usize::from(nearest)]
-                        .as_entire_binding(),
                 },
             ],
         });
@@ -923,7 +885,6 @@ impl Renderer {
             .get_mut(&id)
             .expect("Tried to update a texture that has not been allocated yet.");
 
-        let nearest = sampler_descriptor.mag_filter == wgpu::FilterMode::Nearest;
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
             ..sampler_descriptor
@@ -940,11 +901,6 @@ impl Renderer {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: self.nearest_filtering_flag_buffers[usize::from(nearest)]
-                        .as_entire_binding(),
                 },
             ],
         });
@@ -1024,28 +980,44 @@ impl Renderer {
                 NonZeroU64::new(required_index_buffer_size).unwrap(),
             );
 
-            let Some(mut index_buffer_staging) = index_buffer_staging else {
-                panic!(
-                    "Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)",
+            let mut index_offset = 0;
+            if let Some(mut index_buffer_staging) = index_buffer_staging {
+                for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
+                    match primitive {
+                        Primitive::Mesh(mesh) => {
+                            let size = mesh.indices.len() * core::mem::size_of::<u32>();
+                            let slice = index_offset..(size + index_offset);
+                            index_buffer_staging
+                                .slice(slice.clone())
+                                .copy_from_slice(bytemuck::cast_slice(&mesh.indices));
+                            self.index_buffer.slices.push(slice);
+                            index_offset += size;
+                        }
+                        Primitive::Callback(_) => {}
+                    }
+                }
+            } else {
+                log::warn!(
+                    "Failed to create staging buffer for index data; falling back to queue.write_buffer. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)",
                     self.index_buffer.buffer.size(),
                     self.index_buffer.capacity
                 );
-            };
 
-            let mut index_offset = 0;
-            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
-                match primitive {
-                    Primitive::Mesh(mesh) => {
-                        let size = mesh.indices.len() * core::mem::size_of::<u32>();
-                        let slice = index_offset..(size + index_offset);
-                        index_buffer_staging
-                            .slice(slice.clone())
-                            .copy_from_slice(bytemuck::cast_slice(&mesh.indices));
-                        self.index_buffer.slices.push(slice);
-                        index_offset += size;
+                let mut index_data = Vec::with_capacity(required_index_buffer_size as usize);
+                for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
+                    match primitive {
+                        Primitive::Mesh(mesh) => {
+                            let bytes = bytemuck::cast_slice(&mesh.indices);
+                            let size = bytes.len();
+                            let slice = index_offset..(size + index_offset);
+                            index_data.extend_from_slice(bytes);
+                            self.index_buffer.slices.push(slice);
+                            index_offset += size;
+                        }
+                        Primitive::Callback(_) => {}
                     }
-                    Primitive::Callback(_) => {}
                 }
+                queue.write_buffer(&self.index_buffer.buffer, 0, &index_data);
             }
         }
         if vertex_count > 0 {
@@ -1070,28 +1042,44 @@ impl Renderer {
                 NonZeroU64::new(required_vertex_buffer_size).unwrap(),
             );
 
-            let Some(mut vertex_buffer_staging) = vertex_buffer_staging else {
-                panic!(
-                    "Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)",
+            let mut vertex_offset = 0;
+            if let Some(mut vertex_buffer_staging) = vertex_buffer_staging {
+                for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
+                    match primitive {
+                        Primitive::Mesh(mesh) => {
+                            let size = mesh.vertices.len() * core::mem::size_of::<Vertex>();
+                            let slice = vertex_offset..(size + vertex_offset);
+                            vertex_buffer_staging
+                                .slice(slice.clone())
+                                .copy_from_slice(bytemuck::cast_slice(&mesh.vertices));
+                            self.vertex_buffer.slices.push(slice);
+                            vertex_offset += size;
+                        }
+                        Primitive::Callback(_) => {}
+                    }
+                }
+            } else {
+                log::warn!(
+                    "Failed to create staging buffer for vertex data; falling back to queue.write_buffer. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)",
                     self.vertex_buffer.buffer.size(),
                     self.vertex_buffer.capacity
                 );
-            };
 
-            let mut vertex_offset = 0;
-            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
-                match primitive {
-                    Primitive::Mesh(mesh) => {
-                        let size = mesh.vertices.len() * core::mem::size_of::<Vertex>();
-                        let slice = vertex_offset..(size + vertex_offset);
-                        vertex_buffer_staging
-                            .slice(slice.clone())
-                            .copy_from_slice(bytemuck::cast_slice(&mesh.vertices));
-                        self.vertex_buffer.slices.push(slice);
-                        vertex_offset += size;
+                let mut vertex_data = Vec::with_capacity(required_vertex_buffer_size as usize);
+                for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
+                    match primitive {
+                        Primitive::Mesh(mesh) => {
+                            let bytes = bytemuck::cast_slice(&mesh.vertices);
+                            let size = bytes.len();
+                            let slice = vertex_offset..(size + vertex_offset);
+                            vertex_data.extend_from_slice(bytes);
+                            self.vertex_buffer.slices.push(slice);
+                            vertex_offset += size;
+                        }
+                        Primitive::Callback(_) => {}
                     }
-                    Primitive::Callback(_) => {}
                 }
+                queue.write_buffer(&self.vertex_buffer.buffer, 0, &vertex_data);
             }
         }
 
