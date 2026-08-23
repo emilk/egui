@@ -36,6 +36,7 @@ pub struct Painter {
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
+    recovery_adapter: Option<wgpu::Adapter>,
     needs_render_state_recreate: bool,
 
     // Per viewport/window:
@@ -77,6 +78,7 @@ impl Painter {
 
             instance,
             render_state: None,
+            recovery_adapter: None,
             needs_render_state_recreate: false,
 
             depth_texture_view: Default::default(),
@@ -263,9 +265,35 @@ impl Painter {
         size: winit::dpi::PhysicalSize<u32>,
     ) -> Result<(), crate::WgpuError> {
         if self.render_state.is_none() {
-            let render_state =
+            let render_state = if let Some(adapter) = self.recovery_adapter.clone() {
+                match RenderState::create_with_adapter(
+                    &self.config,
+                    &self.instance,
+                    Some(&surface),
+                    self.options,
+                    adapter,
+                )
+                .await
+                {
+                    Ok(render_state) => render_state,
+                    Err(error) => {
+                        log::warn!(
+                            "Recreating egui-wgpu render state with the previous adapter failed: {error}. Falling back to adapter discovery"
+                        );
+                        RenderState::create(
+                            &self.config,
+                            &self.instance,
+                            Some(&surface),
+                            self.options,
+                        )
+                        .await?
+                    }
+                }
+            } else {
                 RenderState::create(&self.config, &self.instance, Some(&surface), self.options)
-                    .await?;
+                    .await?
+            };
+            self.recovery_adapter = Some(render_state.adapter.clone());
             self.render_state = Some(render_state);
         }
         self.install_surface(surface, viewport_id, size.width, size.height, false);
