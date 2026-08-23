@@ -36,6 +36,7 @@ pub struct Painter {
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
+    needs_render_state_recreate: bool,
 
     // Per viewport/window:
     depth_texture_view: ViewportIdMap<wgpu::TextureView>,
@@ -76,6 +77,7 @@ impl Painter {
 
             instance,
             render_state: None,
+            needs_render_state_recreate: false,
 
             depth_texture_view: Default::default(),
             surfaces: Default::default(),
@@ -165,6 +167,14 @@ impl Painter {
         Ok(())
     }
 
+    fn clear_render_state_for_recreate(&mut self) {
+        self.screen_capture_state = None;
+        self.render_state = None;
+        self.depth_texture_view.clear();
+        self.msaa_texture_view.clear();
+        self.surfaces.clear();
+    }
+
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
     ///
     /// This creates a [`wgpu::Surface`] for the given Window (as well as initializing render
@@ -195,9 +205,20 @@ impl Painter {
 
         if let Some(window) = window {
             let size = window.inner_size();
+            let recreate_render_state = self.needs_render_state_recreate;
+            if recreate_render_state {
+                log::warn!(
+                    "Recreating egui-wgpu render state after device/surface recovery request"
+                );
+                self.clear_render_state_for_recreate();
+            }
             if !self.surfaces.contains_key(&viewport_id) {
                 let surface = self.instance.create_surface(window)?;
                 self.add_surface(surface, viewport_id, size).await?;
+            }
+            if recreate_render_state {
+                self.context.request_full_texture_reupload();
+                self.needs_render_state_recreate = false;
             }
         } else {
             log::warn!("No window - clearing all surfaces");
@@ -571,12 +592,22 @@ impl Painter {
                 frame
             }
             other => {
-                let surface_error_action =
-                    if matches!(&other, wgpu::CurrentSurfaceTexture::Validation) {
-                        SurfaceErrorAction::Reconfigure
-                    } else {
-                        (*self.config.on_surface_status)(&other)
-                    };
+                let needs_render_state_recreate = matches!(
+                    &other,
+                    wgpu::CurrentSurfaceTexture::Validation | wgpu::CurrentSurfaceTexture::Lost
+                );
+                let surface_error_action = if needs_render_state_recreate {
+                    SurfaceErrorAction::SkipFrame
+                } else {
+                    (*self.config.on_surface_status)(&other)
+                };
+                if needs_render_state_recreate {
+                    log::warn!(
+                        "Requesting egui-wgpu render-state recreation after surface status for {viewport_id:?}"
+                    );
+                    self.needs_render_state_recreate = true;
+                    self.context.request_repaint_of(viewport_id);
+                }
                 match surface_error_action {
                     SurfaceErrorAction::Reconfigure => {
                         Self::configure_surface(surface_state, render_state, &self.config.surface);
