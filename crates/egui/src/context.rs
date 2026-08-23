@@ -2452,6 +2452,14 @@ impl Context {
         TextureHandle::new(tex_mngr, tex_id)
     }
 
+    /// Request full uploads of all managed textures after a renderer recovery.
+    ///
+    /// Integrations that recreate their GPU renderer while keeping this context need this
+    /// so live texture handles are restored in the new backend texture map.
+    pub fn request_full_texture_reupload(&self) {
+        self.tex_manager().write().request_full_reupload();
+    }
+
     /// Low-level texture manager.
     ///
     /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].
