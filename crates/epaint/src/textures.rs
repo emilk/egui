@@ -82,6 +82,17 @@ impl TextureManager {
         }
     }
 
+    /// Request full uploads of all live managed textures after renderer recovery.
+    pub fn request_full_reupload(&mut self) {
+        self.delta.set.clear();
+        for (id, image) in &self.images {
+            if let Some(meta) = self.metas.get(id) {
+                self.delta
+                    .push(*id, ImageDelta::full(image.clone(), meta.options));
+            }
+        }
+    }
+
     /// Increase the retain-count of the given texture.
     ///
     /// For each time you call [`Self::retain`] you must call [`Self::free`] on additional time.
