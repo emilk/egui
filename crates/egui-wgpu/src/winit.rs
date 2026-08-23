@@ -550,6 +550,54 @@ impl Painter {
             return vsync_sec;
         };
 
+        if surface_state.needs_reconfigure {
+            Self::configure_surface(surface_state, render_state, &self.config.surface);
+            surface_state.needs_reconfigure = false;
+        }
+
+        let output_frame = {
+            profiling::scope!("get_current_texture");
+            // This is what vsync-waiting happens on my Mac.
+            let start = web_time::Instant::now();
+            let output_frame = surface_state.surface.get_current_texture();
+            vsync_sec += start.elapsed().as_secs_f32();
+            output_frame
+        };
+
+        let output_frame = match output_frame {
+            wgpu::CurrentSurfaceTexture::Success(frame) => frame,
+            wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
+                surface_state.needs_reconfigure = true;
+                frame
+            }
+            other => {
+                let surface_error_action =
+                    if matches!(&other, wgpu::CurrentSurfaceTexture::Validation) {
+                        SurfaceErrorAction::Reconfigure
+                    } else {
+                        (*self.config.on_surface_status)(&other)
+                    };
+                match surface_error_action {
+                    SurfaceErrorAction::Reconfigure => {
+                        Self::configure_surface(surface_state, render_state, &self.config.surface);
+                        self.context.request_repaint_of(viewport_id);
+                    }
+                    SurfaceErrorAction::RecreateSurface => {
+                        // Because of ownership, I could not find an easy way to do a full recovery here,
+                        // as that would involve dropping the old surface and creating a new one.
+                        // For now, we defer the recreation to the beginning of the next frame (which
+                        // we ensure to arrive via `request_repaint_of`). A cleaner solution would be
+                        // to untangle the ownership of `RenderState`.
+                        surface_state.needs_recreate = true;
+                        self.context.request_repaint_of(viewport_id);
+                    }
+                    SurfaceErrorAction::SkipFrame => {}
+                }
+                return vsync_sec;
+            }
+        };
+
+        let mut capture_buffer = None;
         let mut encoder =
             render_state
                 .device
@@ -585,49 +633,6 @@ impl Painter {
                 &screen_descriptor,
             )
         };
-
-        if surface_state.needs_reconfigure {
-            Self::configure_surface(surface_state, render_state, &self.config.surface);
-            surface_state.needs_reconfigure = false;
-        }
-
-        let output_frame = {
-            profiling::scope!("get_current_texture");
-            // This is what vsync-waiting happens on my Mac.
-            let start = web_time::Instant::now();
-            let output_frame = surface_state.surface.get_current_texture();
-            vsync_sec += start.elapsed().as_secs_f32();
-            output_frame
-        };
-
-        let output_frame = match output_frame {
-            wgpu::CurrentSurfaceTexture::Success(frame) => frame,
-            wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
-                surface_state.needs_reconfigure = true;
-                frame
-            }
-            other => {
-                match (*self.config.on_surface_status)(&other) {
-                    SurfaceErrorAction::Reconfigure => {
-                        Self::configure_surface(surface_state, render_state, &self.config.surface);
-                        self.context.request_repaint_of(viewport_id);
-                    }
-                    SurfaceErrorAction::RecreateSurface => {
-                        // Because of ownership, I could not find an easy way to do a full recovery here,
-                        // as that would involve dropping the old surface and creating a new one.
-                        // For now, we defer the recreation to the beginning of the next frame (which
-                        // we ensure to arrive via `request_repaint_of`). A cleaner solution would be
-                        // to untangle the ownership of `RenderState`.
-                        surface_state.needs_recreate = true;
-                        self.context.request_repaint_of(viewport_id);
-                    }
-                    SurfaceErrorAction::SkipFrame => {}
-                }
-                return vsync_sec;
-            }
-        };
-
-        let mut capture_buffer = None;
         {
             let renderer = render_state.renderer.read();
 
