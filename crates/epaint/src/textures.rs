@@ -152,6 +152,7 @@ fn apply_partial_delta(image: &mut ImageData, pos: [usize; 2], patch: &ImageData
         }
     }
 }
+
 impl Drop for TextureManager {
     fn drop(&mut self) {
         self.delta.clear(); // Prevent a debug panic on application shutdown
