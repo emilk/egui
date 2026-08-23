@@ -95,10 +95,14 @@ impl TextureManager {
     /// Request full uploads of all live managed textures after renderer recovery.
     pub fn request_full_reupload(&mut self) {
         self.delta.set.clear();
-        for (id, image) in &self.images {
-            if let Some(meta) = self.metas.get(id) {
+
+        let mut ids = self.images.keys().copied().collect::<Vec<_>>();
+        ids.sort();
+
+        for id in ids {
+            if let (Some(image), Some(meta)) = (self.images.get(&id), self.metas.get(&id)) {
                 self.delta
-                    .push(*id, ImageDelta::full(image.clone(), meta.options));
+                    .push(id, ImageDelta::full(image.clone(), meta.options));
             }
         }
     }
