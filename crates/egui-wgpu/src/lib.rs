@@ -294,60 +294,6 @@ impl RenderState {
             surface_config: config.surface,
         })
     }
-
-    /// Recreates render state from an already selected adapter, avoiding adapter enumeration.
-    ///
-    /// Intended for native recovery. If this fails, callers should use [`Self::create`]
-    /// to repeat the normal adapter discovery and selection path.
-    pub async fn create_with_adapter(
-        config: &WgpuConfiguration,
-        instance: &wgpu::Instance,
-        compatible_surface: Option<&wgpu::Surface<'static>>,
-        options: RendererOptions,
-        adapter: wgpu::Adapter,
-    ) -> Result<Self, WgpuError> {
-        profiling::scope!("RenderState::create_with_adapter");
-
-        let WgpuSetup::CreateNew(WgpuSetupCreateNew {
-            device_descriptor, ..
-        }) = config.wgpu_setup.clone()
-        else {
-            return Self::create(config, instance, compatible_surface, options).await;
-        };
-
-        let (device, queue) = {
-            profiling::scope!("request_device");
-            adapter
-                .request_device(&(*device_descriptor)(&adapter))
-                .await?
-        };
-
-        log::info!("Recreating egui-wgpu render state with the previously selected adapter");
-        log_adapter_info(&adapter.get_info());
-
-        let surface_formats = {
-            profiling::scope!("get_capabilities");
-            compatible_surface.map_or_else(
-                || vec![wgpu::TextureFormat::Rgba8Unorm],
-                |surface| surface.get_capabilities(&adapter).formats,
-            )
-        };
-        let target_format = crate::preferred_framebuffer_format(&surface_formats)?;
-        let renderer = Renderer::new(&device, target_format, options);
-
-        #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)]
-        Ok(Self {
-            instance: instance.clone(),
-            adapter,
-            #[cfg(not(target_arch = "wasm32"))]
-            available_adapters: Vec::new(),
-            device,
-            queue,
-            target_format,
-            renderer: Arc::new(RwLock::new(renderer)),
-            surface_config: config.surface,
-        })
-    }
 }
 
 fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
