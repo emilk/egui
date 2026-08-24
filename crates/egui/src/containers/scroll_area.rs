@@ -361,6 +361,8 @@ pub struct ScrollArea {
     content_margin: Option<Margin>,
     overflow_margin: Option<Margin>,
 
+    extend_into_parent_margin: bool,
+
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
     /// again once scroll handle makes contact with end.
@@ -415,6 +417,7 @@ impl ScrollArea {
             wheel_scroll_multiplier: Vec2::splat(1.0),
             content_margin: None,
             overflow_margin: None,
+            extend_into_parent_margin: false,
             stick_to_end: Vec2b::FALSE,
             animated: true,
         }
@@ -654,6 +657,29 @@ impl ScrollArea {
         self
     }
 
+    /// Grow into the inner margin of the closest parent [`crate::Frame`], e.g. a
+    /// [`crate::Popup`] or a [`crate::containers::menu::MenuButton`] menu.
+    ///
+    /// The viewport, the clip rect and the scroll bar then reach all the way to the
+    /// edge of the frame, while the margin is added to [`Self::content_margin`],
+    /// so the contents keep the same padding as before.
+    ///
+    /// The scroll area paints into the margin, but does not allocate it: the frame
+    /// adds its margin back around the rect the scroll area painted into, so the
+    /// frame ends up the same size as it would be without this.
+    ///
+    /// Only the sides where the scroll area is flush with the frame are used, so a
+    /// widget added _before_ the scroll area keeps its normal padding. A widget added
+    /// _after_ the scroll area would be overlapped by it, so reserve the space for it
+    /// first, e.g. with [`Layout::bottom_up`](crate::Layout::bottom_up).
+    ///
+    /// Default: `false`.
+    #[inline]
+    pub fn extend_into_parent_margin(mut self, extend: bool) -> Self {
+        self.extend_into_parent_margin = extend;
+        self
+    }
+
     /// The scroll handle will stick to the rightmost position even while the content size
     /// changes dynamically. This can be useful to simulate text scrollers coming in from right
     /// hand side. The scroll handle remains stuck until user manually changes position. Once "unstuck"
@@ -708,6 +734,11 @@ struct Prepared {
     /// Where on the screen the content is (excludes scroll bars; includes `content_margin`).
     inner_rect: Rect,
 
+    /// The part of the parent frame's inner margin that we paint into, but do not allocate.
+    ///
+    /// See [`ScrollArea::extend_into_parent_margin`].
+    claimed_margin: Margin,
+
     content_ui: Ui,
 
     /// Relative coordinates: the offset and size of the view of the inner UI.
@@ -746,6 +777,7 @@ impl ScrollArea {
             wheel_scroll_multiplier,
             content_margin: _, // Used elsewhere
             overflow_margin,
+            extend_into_parent_margin,
             stick_to_end,
             animated,
         } = self;
@@ -782,7 +814,16 @@ impl ScrollArea {
             show_bars_factor.yx() * scroll_style.allocated_width()
         };
 
-        let available_outer = ui.available_rect_before_wrap();
+        // We paint into the margin of the parent frame, but we don't _allocate_ it.
+        // The frame will then add its margin around the rect we paint into, so it ends up
+        // exactly where the contents already are. See `Self::extend_into_parent_margin`.
+        let claimed_margin = if extend_into_parent_margin {
+            claimable_parent_margin(ui)
+        } else {
+            Margin::ZERO
+        };
+
+        let available_outer = ui.available_rect_before_wrap() + claimed_margin;
 
         let outer_size = available_outer.size().at_most(max_size);
 
@@ -979,6 +1020,7 @@ impl ScrollArea {
             scroll_bar_visibility,
             scroll_bar_rect,
             inner_rect,
+            claimed_margin,
             content_ui,
             viewport,
             scroll_source,
@@ -1067,13 +1109,16 @@ impl ScrollArea {
         ui: &mut Ui,
         add_contents: Box<dyn FnOnce(&mut Ui, Rect) -> R + 'c>,
     ) -> ScrollAreaOutput<R> {
-        let margin = self
-            .content_margin
-            .unwrap_or_else(|| ui.spacing().scroll.content_margin);
+        let content_margin = self.content_margin;
 
         let mut prepared = self.begin(ui);
         let id = prepared.id;
         let inner_rect = prepared.inner_rect;
+
+        // The margin we took over from the parent frame is applied to the contents instead,
+        // so they keep the same padding:
+        let margin = content_margin.unwrap_or_else(|| ui.spacing().scroll.content_margin)
+            + prepared.claimed_margin;
 
         let inner = crate::Frame::NONE
             .inner_margin(margin)
@@ -1106,6 +1151,7 @@ impl Prepared {
             current_bar_use,
             scroll_bar_visibility,
             scroll_bar_rect,
+            claimed_margin,
             content_ui,
             viewport: _,
             scroll_source,
@@ -1306,10 +1352,11 @@ impl Prepared {
 
         let scroll_style = ui.spacing().scroll;
 
-        // Reserve the scroll area before painting fades, because fade painting uses ui.min_rect().
-        ui.advance_cursor_after_rect(outer_rect);
+        // We paint into the margin of the parent frame, but we allocate only the rect we would
+        // have used without it. The frame then adds that margin back around what we painted.
+        ui.advance_cursor_after_rect(shrink_at_least_to_nothing(outer_rect, claimed_margin));
 
-        paint_fade_areas_impl(ui, inner_rect, content_size, state.offset);
+        paint_fade_areas_impl(ui, inner_rect, claimed_margin, content_size, state.offset);
 
         // Paint the bars:
         let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
@@ -1599,7 +1646,13 @@ impl Prepared {
 
 /// Paint fade-out gradients at the top and/or bottom of a scroll area to
 /// indicate that more content is available beyond the visible region.
-fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: Vec2) {
+fn paint_fade_areas_impl(
+    ui: &Ui,
+    inner_rect: Rect,
+    corner_inset: Margin,
+    content_size: Vec2,
+    offset: Vec2,
+) {
     let crate::style::ScrollFadeStyle {
         strength,
         size: fade_size,
@@ -1613,15 +1666,31 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
 
     let overflow = content_size - inner_rect.size();
 
-    let paint_rect = inner_rect.intersect(ui.min_rect());
+    let paint_rect = inner_rect.intersect(ui.min_rect().union(inner_rect));
+
+    // A fade runs along one edge. We keep it clear of the corners of the parent frame by
+    // insetting it _across_ its direction, so it cannot paint over a rounded corner.
+    // No content can be there anyway, because it is inset by the same margin.
+    let horizontal_fade_rect = paint_rect
+        - Margin {
+            left: corner_inset.left,
+            right: corner_inset.right,
+            ..Margin::ZERO
+        };
+    let vertical_fade_rect = paint_rect
+        - Margin {
+            top: corner_inset.top,
+            bottom: corner_inset.bottom,
+            ..Margin::ZERO
+        };
 
     // Top fade: animate opacity based on how far we've scrolled down.
     if 0.0 < offset.y {
         let t = (offset.y / fade_size).clamp(0.0, 1.0) * strength;
         let bg_faded = bg.gamma_multiply(t);
         let rect = Rect::from_min_max(
-            paint_rect.left_top(),
-            pos2(paint_rect.right(), paint_rect.top() + fade_size),
+            horizontal_fade_rect.left_top(),
+            pos2(horizontal_fade_rect.right(), paint_rect.top() + fade_size),
         );
         ui.painter().add(Shape::gradient_rect(
             rect,
@@ -1636,8 +1705,8 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
         let t = (distance_from_bottom / fade_size).clamp(0.0, 1.0) * strength;
         let bg_faded = bg.gamma_multiply(t);
         let rect = Rect::from_min_max(
-            pos2(paint_rect.left(), paint_rect.bottom() - fade_size),
-            paint_rect.right_bottom(),
+            pos2(horizontal_fade_rect.left(), paint_rect.bottom() - fade_size),
+            horizontal_fade_rect.right_bottom(),
         );
         ui.painter().add(Shape::gradient_rect(
             rect,
@@ -1651,8 +1720,8 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
         let t = (offset.x / fade_size).clamp(0.0, 1.0) * strength;
         let bg_faded = bg.gamma_multiply(t);
         let rect = Rect::from_min_max(
-            paint_rect.left_top(),
-            pos2(paint_rect.left() + fade_size, paint_rect.bottom()),
+            vertical_fade_rect.left_top(),
+            pos2(paint_rect.left() + fade_size, vertical_fade_rect.bottom()),
         );
         ui.painter().add(Shape::gradient_rect(
             rect,
@@ -1667,8 +1736,8 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
         let t = (distance_from_right / fade_size).clamp(0.0, 1.0) * strength;
         let bg_faded = bg.gamma_multiply(t);
         let rect = Rect::from_min_max(
-            pos2(paint_rect.right() - fade_size, paint_rect.top()),
-            paint_rect.right_bottom(),
+            pos2(paint_rect.right() - fade_size, vertical_fade_rect.top()),
+            vertical_fade_rect.right_bottom(),
         );
         ui.painter().add(Shape::gradient_rect(
             rect,
@@ -1676,4 +1745,62 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
             [bg_faded, Color32::TRANSPARENT],
         ));
     }
+}
+
+/// The inner margin of the closest parent [`crate::Frame`] that a [`ScrollArea`] may paint into.
+///
+/// Only the sides that the scroll area is flush with are returned; the others are zero, so that
+/// e.g. a widget above the scroll area keeps its normal padding.
+///
+/// See [`ScrollArea::extend_into_parent_margin`].
+fn claimable_parent_margin(ui: &Ui) -> Margin {
+    let mut frame_node = None;
+    for node in ui.stack().iter() {
+        if node.frame().inner_margin != Margin::ZERO {
+            frame_node = Some(node);
+            break;
+        }
+        if node.is_area_ui() || node.kind() == Some(UiKind::ScrollArea) {
+            // Don't reach outside of the closest container.
+            break;
+        }
+    }
+    let Some(frame_node) = frame_node else {
+        return Margin::ZERO;
+    };
+
+    // The rect the frame gave its contents, i.e. the frame rect minus the inner margin.
+    // If we are the content `Ui` of the frame we use its current `max_rect`, which honors
+    // e.g. `Ui::set_width`. The rect in the stack is a snapshot from when the `Ui` was created.
+    let frame_rect = if frame_node.id == ui.unique_id() {
+        ui.max_rect()
+    } else {
+        frame_node.max_rect
+    };
+    let full_margin = frame_node.frame().inner_margin;
+    let available = ui.available_rect_before_wrap();
+
+    // Only take over the sides we are flush with:
+    let tolerance = 0.1;
+    let mut margin = Margin::ZERO;
+    if available.left() <= frame_rect.left() + tolerance {
+        margin.left = full_margin.left;
+    }
+    if available.top() <= frame_rect.top() + tolerance {
+        margin.top = full_margin.top;
+    }
+    if frame_rect.right() - tolerance <= available.right() {
+        margin.right = full_margin.right;
+    }
+    if frame_rect.bottom() - tolerance <= available.bottom() {
+        margin.bottom = full_margin.bottom;
+    }
+
+    margin
+}
+
+/// Shrink the rect by the margin, but never past nothing.
+fn shrink_at_least_to_nothing(rect: Rect, margin: Margin) -> Rect {
+    let shrunk = rect - margin;
+    Rect::from_min_max(shrunk.min, shrunk.max.max(shrunk.min))
 }
