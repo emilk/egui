@@ -53,6 +53,13 @@ impl RoundedRect {
         )
     }
 
+    /// Shrink the rectangle and the corner radii by the given amount.
+    #[inline]
+    #[must_use]
+    pub fn shrink(self, amount: f32) -> Self {
+        self.expand(-amount)
+    }
+
     /// Clamp the given position to lie within this rounded rectangle.
     ///
     /// Positions in the corner regions are projected onto the corner arcs.
