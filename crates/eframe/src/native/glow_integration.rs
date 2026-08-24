@@ -1268,13 +1268,9 @@ impl GlutinWindowContext {
             );
             if window_attributes.transparent()
                 && self.gl_config.supports_transparency() == Some(false)
+                && !cfg!(target_os = "windows")
             {
-                #[cfg(not(target_os = "windows"))]
-                {
-                    log::error!(
-                        "Cannot create transparent window: the GL config does not support it"
-                    );
-                }
+                log::error!("Cannot create transparent window: the GL config does not support it");
             }
 
             let window = cfg_select! {
