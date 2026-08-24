@@ -36,6 +36,11 @@ pub struct State {
     /// The content were to large to fit large frame.
     content_is_too_large: Vec2b,
 
+    /// The largest offset the content allowed last frame.
+    ///
+    /// Zero or less when the content fits, so there is nothing to scroll.
+    max_offset: Vec2,
+
     /// Did the user interact (hover or drag) the scroll bars last frame?
     scroll_bar_interaction: Vec2b,
 
@@ -62,6 +67,7 @@ impl Default for State {
             offset_target: Default::default(),
             show_scroll: Vec2b::FALSE,
             content_is_too_large: Vec2b::FALSE,
+            max_offset: Vec2::ZERO,
             scroll_bar_interaction: Vec2b::FALSE,
             vel: Vec2::ZERO,
             scroll_start_offset_from_top_left: [None; 2],
@@ -353,6 +359,7 @@ pub struct ScrollArea {
     wheel_scroll_multiplier: Vec2,
 
     content_margin: Option<Margin>,
+    overflow_margin: Option<Margin>,
 
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
@@ -407,6 +414,7 @@ impl ScrollArea {
             scroll_source: ScrollSource::default(),
             wheel_scroll_multiplier: Vec2::splat(1.0),
             content_margin: None,
+            overflow_margin: None,
             stick_to_end: Vec2b::FALSE,
             animated: true,
         }
@@ -633,6 +641,19 @@ impl ScrollArea {
         self
     }
 
+    /// How far the contents may paint outside the viewport.
+    ///
+    /// Some widgets paint outside their own box — a menu item whose fill bleeds past it, say — and
+    /// the scroll area would otherwise cut that off. Only the ends of the scroll range are
+    /// widened, where there is nothing that could scroll into view through the gap.
+    ///
+    /// Default: [`crate::style::ScrollStyle::overflow_margin`].
+    #[inline]
+    pub fn overflow_margin(mut self, margin: impl Into<Margin>) -> Self {
+        self.overflow_margin = Some(margin.into());
+        self
+    }
+
     /// The scroll handle will stick to the rightmost position even while the content size
     /// changes dynamically. This can be useful to simulate text scrollers coming in from right
     /// hand side. The scroll handle remains stuck until user manually changes position. Once "unstuck"
@@ -724,6 +745,7 @@ impl ScrollArea {
             scroll_source,
             wheel_scroll_multiplier,
             content_margin: _, // Used elsewhere
+            overflow_margin,
             stick_to_end,
             animated,
         } = self;
@@ -811,6 +833,11 @@ impl ScrollArea {
         {
             // Clip the content, but only when we really need to:
             let mut content_clip_rect = ui.clip_rect();
+            let overflow_margin =
+                overflow_margin.unwrap_or_else(|| ui.spacing().scroll.overflow_margin);
+            let overflow_min = Vec2::new(overflow_margin.leftf(), overflow_margin.topf());
+            let overflow_max = Vec2::new(overflow_margin.rightf(), overflow_margin.bottomf());
+
             for d in 0..2 {
                 if direction_enabled[d] {
                     content_clip_rect.min[d] = inner_rect.min[d];
@@ -819,8 +846,18 @@ impl ScrollArea {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
                 }
+
+                // Let the contents paint a little outside the viewport, but only where nothing
+                // could scroll into view through the gap: at the start of the scroll range there
+                // is nothing above the first item, and at its end nothing below the last one.
+                if !direction_enabled[d] || state.offset[d] <= 0.0 {
+                    content_clip_rect.min[d] -= overflow_min[d];
+                }
+                if !direction_enabled[d] || state.max_offset[d] <= state.offset[d] {
+                    content_clip_rect.max[d] += overflow_max[d];
+                }
             }
-            // Make sure we didn't accidentally expand the clip rect
+            // Make sure we didn't grow past what our parent allows
             content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
             content_ui.set_clip_rect(content_clip_rect);
         }
@@ -1551,6 +1588,7 @@ impl Prepared {
 
         state.show_scroll = show_scroll_this_frame;
         state.content_is_too_large = content_is_too_large;
+        state.max_offset = max_offset;
         state.interact_rect = Some(inner_rect);
 
         state.store(ui.ctx(), id);

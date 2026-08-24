@@ -643,6 +643,7 @@ impl<'a> Popup<'a> {
             // The theme decides how the popup is framed and how tightly its items sit together.
             let popup_style: PopupStyle = ui.widget_style(id, &classes);
             ui.spacing_mut().item_spacing = popup_style.item_spacing;
+            ui.spacing_mut().scroll.overflow_margin = popup_style.scroll_overflow_margin;
 
             let frame = frame.unwrap_or(popup_style.frame);
             frame.show(ui, content).inner

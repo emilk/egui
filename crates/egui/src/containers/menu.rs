@@ -9,9 +9,11 @@
 //! See [`MenuBar`] for an example.
 
 use crate::style::StyleModifier;
+use crate::widget_style::{Classes, HasClasses as _, PopupStyle, StyleArgs, WidgetState};
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, PointerButton, Popup,
-    PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
+    Button, Color32, Context, Id, InnerResponse, IntoAtoms, Layout, PointerButton, Popup,
+    PopupCloseBehavior, PopupKind, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo,
+    Widget as _,
 };
 use emath::{Align, RectAlign, Vec2, vec2};
 use epaint::Stroke;
@@ -429,9 +431,21 @@ impl SubMenu {
         button_response: &Response,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let frame = Frame::menu(ui.style());
-
         let id = Self::id_from_widget_id(button_response.id);
+
+        // A submenu is a menu, so the theme frames it like one. `Popup` computes the same style
+        // itself; we need it here too, because its margin decides where the submenu sits and how
+        // much of the parent menu counts as hovered. A popup frame does not depend on any widget
+        // state, so we ask for it directly rather than through `Ui::widget_style`, which would
+        // want a response that does not exist while the submenu is closed.
+        let classes = Classes::default().with_class(Popup::CLASS_MENU);
+        let PopupStyle { frame, .. } = ui.ctx().get_widget_style(&StyleArgs {
+            classes: &classes,
+            state: WidgetState::default(),
+            stack: ui.stack(),
+            style: ui.style(),
+            ctx: ui.ctx(),
+        });
 
         // Get the state from the parent menu
         let (open_item, menu_id, parent_config) = MenuState::from_ui(ui, |state, stack| {
@@ -501,12 +515,12 @@ impl SubMenu {
 
         let popup_response = Popup::from_response(&response)
             .id(id)
+            .kind(PopupKind::Menu)
             .open(is_open)
             .align(RectAlign::RIGHT_START)
             .layout(Layout::top_down_justified(Align::Min))
             .gap(gap)
             .style(menu_config.style.clone())
-            .frame(frame)
             // The close behavior is handled by the menu (see below)
             .close_behavior(PopupCloseBehavior::IgnoreClicks)
             .info(

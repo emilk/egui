@@ -114,6 +114,7 @@ impl StyleProvider<PopupStyle> for DefaultStyle {
         PopupStyle {
             frame: Frame::popup(style),
             item_spacing: style.spacing.item_spacing,
+            scroll_overflow_margin: style.spacing.scroll.overflow_margin,
         }
     }
 }

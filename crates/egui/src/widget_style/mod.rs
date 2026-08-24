@@ -8,7 +8,7 @@ use emath::{Align2, Vec2};
 use epaint::{Color32, FontId, Stroke};
 
 use crate::{
-    AtomLayout, Context, FontSelection, Frame, Response, Style, UiStack,
+    AtomLayout, Context, FontSelection, Frame, Margin, Response, Style, UiStack,
     class::{Classes, HasClasses as _},
     style::{WidgetVisuals, Widgets},
 };
@@ -144,6 +144,13 @@ pub struct PopupStyle {
     /// A menu wants its items flush against each other, while a tooltip wants them spaced out
     /// like any other content.
     pub item_spacing: Vec2,
+
+    /// How far the contents of a [`crate::ScrollArea`] inside the popup may paint outside it.
+    ///
+    /// A [`crate::ScrollArea`] clips to its viewport, which would cut off anything a widget paints
+    /// outside its own box — an item whose fill bleeds past it, say. This is how much room such a
+    /// widget gets, applied via [`crate::style::ScrollStyle::overflow_margin`].
+    pub scroll_overflow_margin: Margin,
 }
 
 impl WidgetStyle for PopupStyle {}
