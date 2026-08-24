@@ -295,6 +295,15 @@ impl UiStack {
     pub fn has_class(&self, class: &str) -> bool {
         self.iter().any(|node| node.classes.has_class(class))
     }
+
+    /// Read a value from the classes up the stack, nearest node first.
+    ///
+    /// This is how an inherited property works in a stylesheet: a container states it once, and
+    /// everything inside picks it up. The nearest [`crate::Ui`] wins, so an inner container can
+    /// override an outer one.
+    pub fn inherited<T>(&self, from_classes: impl Fn(&Classes) -> Option<T>) -> Option<T> {
+        self.iter().find_map(|node| from_classes(&node.classes))
+    }
 }
 
 // ----------------------------------------------------------------------------
