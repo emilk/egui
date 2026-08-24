@@ -98,9 +98,38 @@ fn vs_main(
 @group(1) @binding(0) var r_tex_color: texture_2d<f32>;
 @group(1) @binding(1) var r_tex_sampler: sampler;
 
-/// 1 if the texture sampler uses nearest filtering, 0 if linear.
-/// Only read when `predictable_texture_filtering` is on.
-@group(1) @binding(2) var<uniform> r_tex_nearest_filtering: u32;
+/// Set in bit 0 of `r_tex_flags` if the sampler uses nearest filtering.
+///
+/// Must match `TEX_FLAG_NEAREST` in `renderer.rs`.
+const TEX_FLAG_NEAREST: u32 = 1u;
+
+/// Wrap modes, stored in bits 1+ of `r_tex_flags`.
+///
+/// Must match the `WRAP_MODE_*` constants in `renderer.rs`.
+const WRAP_MODE_CLAMP_TO_EDGE: u32 = 0u;
+const WRAP_MODE_REPEAT: u32 = 1u;
+const WRAP_MODE_MIRRORED_REPEAT: u32 = 2u;
+
+/// Texture flags, only read when `predictable_texture_filtering` is on.
+///
+/// Bit 0: `TEX_FLAG_NEAREST`.
+/// Bits 1+: one of the `WRAP_MODE_*` constants.
+@group(1) @binding(2) var<uniform> r_tex_flags: u32;
+
+/// Map a texel coordinate to a valid texel according to the texture's wrap mode.
+fn wrap_texel_coord(coord: vec2<i32>, texture_size: vec2<i32>) -> vec2<i32> {
+    let wrap_mode = r_tex_flags >> 1u;
+    if wrap_mode == WRAP_MODE_REPEAT {
+        return ((coord % texture_size) + texture_size) % texture_size;
+    } else if wrap_mode == WRAP_MODE_MIRRORED_REPEAT {
+        let period = 2 * texture_size;
+        let phase = ((coord % period) + period) % period;
+        return min(phase, period - vec2<i32>(1, 1) - phase);
+    } else {
+        // WRAP_MODE_CLAMP_TO_EDGE
+        return clamp(coord, vec2<i32>(0, 0), texture_size - vec2<i32>(1, 1));
+    }
+}
 
 fn sample_texture(in: VertexOutput) -> vec4<f32> {
     if r_locals.predictable_texture_filtering == 0 {
@@ -109,11 +138,10 @@ fn sample_texture(in: VertexOutput) -> vec4<f32> {
     } else {
         let texture_size = vec2<i32>(textureDimensions(r_tex_color, 0));
         let texture_size_f = vec2<f32>(texture_size);
-        let max_coord = texture_size - vec2<i32>(1, 1);
 
-        if r_tex_nearest_filtering == 1 {
+        if (r_tex_flags & TEX_FLAG_NEAREST) != 0u {
             // Nearest filtering: load the texel under the sample position.
-            let texel = clamp(vec2<i32>(in.tex_coord * texture_size_f), vec2<i32>(0, 0), max_coord);
+            let texel = wrap_texel_coord(vec2<i32>(floor(in.tex_coord * texture_size_f)), texture_size);
             return textureLoad(r_tex_color, texel, 0);
         }
 
@@ -122,11 +150,10 @@ fn sample_texture(in: VertexOutput) -> vec4<f32> {
         let pixel_fract = fract(pixel_coord);
         let pixel_floor = vec2<i32>(floor(pixel_coord));
 
-        // Manual texture clamping
-        let p00 = clamp(pixel_floor + vec2<i32>(0, 0), vec2<i32>(0, 0), max_coord);
-        let p10 = clamp(pixel_floor + vec2<i32>(1, 0), vec2<i32>(0, 0), max_coord);
-        let p01 = clamp(pixel_floor + vec2<i32>(0, 1), vec2<i32>(0, 0), max_coord);
-        let p11 = clamp(pixel_floor + vec2<i32>(1, 1), vec2<i32>(0, 0), max_coord);
+        let p00 = wrap_texel_coord(pixel_floor + vec2<i32>(0, 0), texture_size);
+        let p10 = wrap_texel_coord(pixel_floor + vec2<i32>(1, 0), texture_size);
+        let p01 = wrap_texel_coord(pixel_floor + vec2<i32>(0, 1), texture_size);
+        let p11 = wrap_texel_coord(pixel_floor + vec2<i32>(1, 1), texture_size);
 
         // Load at pixel centers
         let tl = textureLoad(r_tex_color, p00, 0);
