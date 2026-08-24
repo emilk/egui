@@ -234,4 +234,11 @@ impl StyleArgs<'_> {
     pub fn has_class(&self, class: &str) -> bool {
         self.classes.has_class(class) || self.stack.has_class(class)
     }
+
+    /// Read a value from the widget's own classes, falling back to the [`crate::Ui`]s it sits in.
+    ///
+    /// See [`UiStack::inherited`] for how the fallback resolves.
+    pub fn inherited<T>(&self, from_classes: impl Fn(&Classes) -> Option<T>) -> Option<T> {
+        from_classes(self.classes).or_else(|| self.stack.inherited(from_classes))
+    }
 }
