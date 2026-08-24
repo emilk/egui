@@ -16,6 +16,8 @@ pub struct TextureManager {
     /// Information about currently allocated textures.
     metas: ahash::HashMap<TextureId, TextureMeta>,
 
+    /// CPU-side copies of live managed textures, retained for renderer recovery.
+    images: ahash::HashMap<TextureId, ImageData>,
     delta: TexturesDelta,
 }
 
@@ -43,6 +45,7 @@ impl TextureManager {
             options,
         });
 
+        self.images.insert(id, image.clone());
         self.delta.push(id, ImageDelta::full(image, options));
         id
     }
@@ -61,6 +64,12 @@ impl TextureManager {
                 // whole update
                 meta.size = delta.image.size();
                 meta.bytes_per_pixel = delta.image.bytes_per_pixel();
+                self.images.insert(id, delta.image.clone());
+            }
+            if let Some(pos) = delta.pos
+                && let Some(image) = self.images.get_mut(&id)
+            {
+                apply_partial_delta(image, pos, &delta.image);
             }
             self.delta.push(id, delta);
         } else {
@@ -75,10 +84,26 @@ impl TextureManager {
             meta.retain_count -= 1;
             if meta.retain_count == 0 {
                 entry.remove();
+                self.images.remove(&id);
                 self.delta.free(id);
             }
         } else {
             debug_assert!(false, "Tried freeing texture {id:?} which is not allocated");
+        }
+    }
+
+    /// Request full uploads of all live managed textures after renderer recovery.
+    pub fn request_full_reupload(&mut self) {
+        self.delta.set.clear();
+
+        let mut ids = self.images.keys().copied().collect::<Vec<_>>();
+        ids.sort();
+
+        for id in ids {
+            if let (Some(image), Some(meta)) = (self.images.get(&id), self.metas.get(&id)) {
+                self.delta
+                    .push(id, ImageDelta::full(image.clone(), meta.options));
+            }
         }
     }
 
@@ -116,6 +141,19 @@ impl TextureManager {
     /// Total number of allocated textures.
     pub fn num_allocated(&self) -> usize {
         self.metas.len()
+    }
+}
+
+fn apply_partial_delta(image: &mut ImageData, pos: [usize; 2], patch: &ImageData) {
+    match (image, patch) {
+        (ImageData::Color(image), ImageData::Color(patch)) => {
+            let image = std::sync::Arc::make_mut(image);
+            let [x, y] = pos;
+            for (patch_y, patch_row) in patch.pixels.chunks(patch.width()).enumerate() {
+                let start = (y + patch_y) * image.width() + x;
+                image.pixels[start..start + patch.width()].copy_from_slice(patch_row);
+            }
+        }
     }
 }
 

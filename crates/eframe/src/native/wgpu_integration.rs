@@ -675,6 +675,7 @@ impl WgpuWinitRunning<'_> {
                 profiling::scope!("set_window");
                 pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(window))))?;
             }
+            integration.frame.wgpu_render_state = painter.render_state();
 
             let Some(egui_winit) = egui_winit.as_mut() else {
                 return Ok(EventResult::Wait);
