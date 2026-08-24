@@ -248,7 +248,7 @@ pub struct Renderer {
     /// Uniform buffers each holding a single `u32` of texture flags
     /// (see [`texture_flags`]), indexed by that flag value.
     /// Read by the shader when `predictable_texture_filtering` is on.
-    texture_flag_buffers: [wgpu::Buffer; 6],
+    texture_flag_buffers: [wgpu::Buffer; NUM_TEXTURE_FLAGS],
 
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
     /// sampler). The texture may be None if the `TextureId` is just a handle to a user-provided
@@ -366,7 +366,8 @@ impl Renderer {
             })
         };
 
-        let texture_flag_buffers = [0_u32, 1, 2, 3, 4, 5].map(|flag| {
+        let texture_flag_buffers = core::array::from_fn::<_, NUM_TEXTURE_FLAGS, _>(|flag| {
+            let flag = flag as u32;
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(&format!("egui_texture_flags_{flag}")),
                 contents: bytemuck::bytes_of(&flag),
@@ -735,11 +736,7 @@ impl Renderer {
         let bind_group = bind_group.unwrap_or_else(|| {
             let nearest =
                 image_delta.options.magnification == epaint::textures::TextureFilter::Nearest;
-            let wrap_mode = match image_delta.options.wrap_mode {
-                epaint::textures::TextureWrapMode::ClampToEdge => 0,
-                epaint::textures::TextureWrapMode::Repeat => 1,
-                epaint::textures::TextureWrapMode::MirroredRepeat => 2,
-            };
+            let wrap_mode = wrap_mode_flag(image_delta.options.wrap_mode);
             let sampler = self
                 .samplers
                 .entry(image_delta.options)
@@ -866,11 +863,7 @@ impl Renderer {
         profiling::function_scope!();
 
         let nearest = sampler_descriptor.mag_filter == wgpu::FilterMode::Nearest;
-        let wrap_mode = match sampler_descriptor.address_mode_u {
-            wgpu::AddressMode::Repeat => 1,
-            wgpu::AddressMode::MirrorRepeat => 2,
-            _ => 0,
-        };
+        let wrap_mode = address_mode_wrap_flag(sampler_descriptor.address_mode_u);
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
             ..sampler_descriptor
@@ -933,11 +926,7 @@ impl Renderer {
             .expect("Tried to update a texture that has not been allocated yet.");
 
         let nearest = sampler_descriptor.mag_filter == wgpu::FilterMode::Nearest;
-        let wrap_mode = match sampler_descriptor.address_mode_u {
-            wgpu::AddressMode::Repeat => 1,
-            wgpu::AddressMode::MirrorRepeat => 2,
-            _ => 0,
-        };
+        let wrap_mode = address_mode_wrap_flag(sampler_descriptor.address_mode_u);
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
             ..sampler_descriptor
@@ -1138,12 +1127,47 @@ impl Renderer {
     }
 }
 
+/// Set in bit 0 of the texture flags if the sampler uses nearest filtering.
+///
+/// Must match `TEX_FLAG_NEAREST` in `egui.wgsl`.
+const TEX_FLAG_NEAREST: u32 = 1;
+
+/// Wrap modes, stored in bits 1+ of the texture flags.
+///
+/// Must match the `WRAP_MODE_*` constants in `egui.wgsl`.
+const WRAP_MODE_CLAMP_TO_EDGE: u32 = 0;
+const WRAP_MODE_REPEAT: u32 = 1;
+const WRAP_MODE_MIRRORED_REPEAT: u32 = 2;
+
+/// Number of distinct values [`texture_flags`] can return.
+const NUM_TEXTURE_FLAGS: usize = 6;
+
+fn wrap_mode_flag(wrap_mode: epaint::textures::TextureWrapMode) -> u32 {
+    match wrap_mode {
+        epaint::textures::TextureWrapMode::ClampToEdge => WRAP_MODE_CLAMP_TO_EDGE,
+        epaint::textures::TextureWrapMode::Repeat => WRAP_MODE_REPEAT,
+        epaint::textures::TextureWrapMode::MirroredRepeat => WRAP_MODE_MIRRORED_REPEAT,
+    }
+}
+
+fn address_mode_wrap_flag(address_mode: wgpu::AddressMode) -> u32 {
+    match address_mode {
+        wgpu::AddressMode::Repeat => WRAP_MODE_REPEAT,
+        wgpu::AddressMode::MirrorRepeat => WRAP_MODE_MIRRORED_REPEAT,
+        wgpu::AddressMode::ClampToEdge | wgpu::AddressMode::ClampToBorder => {
+            WRAP_MODE_CLAMP_TO_EDGE
+        }
+    }
+}
+
 /// Index into [`Renderer::texture_flag_buffers`]: the texture flags
 /// read by the shader when `predictable_texture_filtering` is on.
-/// Bit 0: 1 if the texture sampler uses nearest filtering, 0 if linear.
-/// Bits 1+: wrap mode: 0 = clamp to edge, 1 = repeat, 2 = mirrored repeat.
+///
+/// Bit 0: [`TEX_FLAG_NEAREST`].
+/// Bits 1+: one of the `WRAP_MODE_*` constants.
 fn texture_flags(nearest: bool, wrap_mode: u32) -> usize {
-    (u32::from(nearest) | (wrap_mode << 1)) as usize
+    let nearest = if nearest { TEX_FLAG_NEAREST } else { 0 };
+    (nearest | (wrap_mode << 1)) as usize
 }
 
 fn create_sampler(
