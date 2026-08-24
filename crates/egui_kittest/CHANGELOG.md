@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
 ## 0.36.0 - 2026-08-05
 * Handle `ViewportCommand::InnerSize` in `egui_kittest` [#8350](https://github.com/emilk/egui/pull/8350) by [@lucasmerlin](https://github.com/lucasmerlin)
 * Report failing pixels by threshold when a kittest snapshot fails [#8360](https://github.com/emilk/egui/pull/8360) by [@emilk](https://github.com/emilk)

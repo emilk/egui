@@ -6,6 +6,10 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
 ## 0.36.0 - 2026-08-05
 Nothing new
 

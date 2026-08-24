@@ -1301,11 +1301,30 @@ impl GlutinWindowContext {
             );
             if window_attributes.transparent()
                 && self.gl_config.supports_transparency() == Some(false)
+                && !cfg!(target_os = "windows")
             {
                 log::error!("Cannot create transparent window: the GL config does not support it");
             }
-            let window =
-                glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?;
+
+            let window = cfg_select! {
+                target_os = "windows" => {
+                    if viewport_id != ViewportId::ROOT && window_attributes.transparent() {
+                        // Preserve explicitly requested transparent child viewports on Windows.
+                        // Some GL paths report no transparency support although composition works.
+                        event_loop.create_window(window_attributes)?
+                    } else {
+                        glutin_winit::finalize_window(
+                            event_loop,
+                            window_attributes,
+                            &self.gl_config,
+                        )?
+                    }
+                }
+                _ => {
+                    // Keep the normal platform-specific finalization path elsewhere.
+                    glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?
+                }
+            };
             egui_winit::apply_viewport_builder_to_window(
                 &self.egui_ctx,
                 &window,
@@ -1530,9 +1549,17 @@ fn initialize_or_update_viewport(
             .and_then(|vp| vp.builder.icon.clone());
     }
 
+    let root_transparent = viewports
+        .get(&ViewportId::ROOT)
+        .and_then(|viewport| viewport.builder.transparent);
+
     match viewports.entry(ids.this) {
         Entry::Vacant(entry) => {
             // New viewport:
+            if ids.this != ViewportId::ROOT && builder.transparent.is_none() {
+                // Child viewports inherit the root setting unless they explicitly override it.
+                builder.transparent = root_transparent;
+            }
             log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
             entry.insert(Viewport {
                 ids,
@@ -1753,7 +1780,7 @@ fn save_screenshot_and_exit(
     screen_size_in_pixels: [u32; 2],
 ) {
     assert!(
-        path.ends_with(".png"),
+        egui::load::has_extension(path, "png"),
         "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
     );
     let screenshot = painter.read_screen_rgba(screen_size_in_pixels);

@@ -36,9 +36,10 @@ use crate::{
     output::{FullOutput, LogicOutput},
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
-    resize, response, scroll_area,
+    resize, response, scroll_area, theme,
     util::IdTypeMap,
     viewport::ViewportClass,
+    widget_style::{StyleArgs, WidgetStyle},
 };
 
 use crate::IdMap;
@@ -412,6 +413,8 @@ struct ContextImpl {
     is_accesskit_enabled: bool,
 
     loaders: Arc<Loaders>,
+
+    themes: theme::Themes,
 }
 
 impl ContextImpl {
@@ -1761,11 +1764,11 @@ impl Context {
                 .get(&id)
                 .map(|v| v.repaint.cumulative_frame_nr)
                 .unwrap_or_else(|| {
-                    if cfg!(debug_assertions) {
-                        panic!("cumulative_frame_nr_for failed to find the viewport {id:?}");
-                    } else {
-                        0
-                    }
+                    debug_assert!(
+                        false,
+                        "cumulative_frame_nr_for failed to find the viewport {id:?}"
+                    );
+                    0
                 })
         })
     }
@@ -2093,6 +2096,48 @@ impl Context {
     }
 }
 
+/// Experimental theming, gated behind the `experimental_theme` feature.
+impl Context {
+    /// Register a [`StyleProvider`](crate::theme::StyleProvider) for the specified widget type.
+    ///
+    /// A theme can only be added once for a specified widget.
+    /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
+    ///
+    /// If you want to add the theme anyway, use [`Self::replace_widget_theme`] instead.
+    #[cfg(feature = "experimental")]
+    pub fn add_widget_theme<S: WidgetStyle + 'static>(
+        &self,
+        theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, false));
+    }
+
+    /// Register a [`StyleProvider`](crate::theme::StyleProvider) for the specified widget.
+    ///
+    /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
+    /// This allow to live edit a theme.
+    #[cfg(feature = "experimental")]
+    pub fn replace_widget_theme<S: WidgetStyle + 'static>(
+        &self,
+        theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, true));
+    }
+
+    /// Compute the `WidgetStyle` using the registered theme.
+    ///
+    /// The types you need to call this (e.g. `StyleArgs`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
+    pub fn get_widget_style<S: WidgetStyle + Clone + 'static>(
+        &self,
+        modifiers: &StyleArgs<'_>,
+    ) -> S {
+        let theme = self.read(move |ctx| ctx.themes.get::<S>());
+        theme.lock().style(modifiers)
+    }
+}
+
 impl Context {
     /// Tell `egui` which fonts to use.
     ///
@@ -2405,6 +2450,65 @@ impl Context {
         let tex_mngr = self.tex_manager();
         let tex_id = tex_mngr.write().alloc(name, image, options);
         TextureHandle::new(tex_mngr, tex_id)
+    }
+
+    /// Load a texture, or update a previously cached one if the image changed.
+    ///
+    /// This is like [`Self::load_texture`], but caches the texture by `id`,
+    /// and only re-uploads the image when it changes.
+    /// This makes it safe to call every frame,
+    /// which is convenient for small, procedurally generated images.
+    ///
+    /// The `id` must be globally unique for each cached image
+    /// (e.g. derived from a widget [`Id`]),
+    /// or the callers will fight over the same texture, re-uploading it every frame.
+    ///
+    /// If this is not called for a full frame, the cache entry is evicted,
+    /// dropping both the cached [`ImageData`] (the CPU-side pixels)
+    /// and the cached [`TextureHandle`].
+    /// Dropping the handle also frees the texture itself,
+    /// unless you keep a clone of the handle alive.
+    pub fn load_texture_cached(
+        &self,
+        name: impl Into<String>,
+        id: Id,
+        image: impl Into<ImageData>,
+        options: TextureOptions,
+    ) -> TextureHandle {
+        profiling::function_scope!();
+
+        use crate::cache::FramePublisher;
+
+        type TextureCache = FramePublisher<Id, (ImageData, TextureOptions, TextureHandle)>;
+
+        let image = image.into();
+        let cached: Option<(ImageData, TextureOptions, TextureHandle)> =
+            self.memory_mut(|mem| mem.caches.cache::<TextureCache>().get(&id).cloned());
+
+        let (image, handle) = match cached {
+            Some((cached_image, cached_options, handle))
+                if cached_image == image && cached_options == options =>
+            {
+                (cached_image, handle)
+            }
+            Some((_, _, mut handle)) => {
+                handle.set(image.clone(), options);
+                (image, handle)
+            }
+            None => {
+                let handle = self.load_texture(name, image.clone(), options);
+                (image, handle)
+            }
+        };
+
+        // (Re-)publish to keep the entry from being evicted:
+        self.memory_mut(|mem| {
+            mem.caches
+                .cache::<TextureCache>()
+                .set(id, (image, options, handle.clone()));
+        });
+
+        handle
     }
 
     /// Low-level texture manager.
