@@ -494,11 +494,17 @@ impl TextEdit<'_> {
             atom_layout:
                 AtomLayoutStyle {
                     frame: styled_frame,
+                    min_size: style_min_size,
+                    gap,
                     text_style: text_visuals,
                     ..
                 },
             hint_text_color,
         } = ui.widget_style(id, &classes);
+
+        // The theme sets a floor on the size; the builder's own `min_size` can only raise it,
+        // the same way it does for a button.
+        let min_size = min_size.max(style_min_size);
 
         let text_color = text_color
             .or_else(|| ui.visuals().override_text_color)
@@ -744,6 +750,7 @@ impl TextEdit<'_> {
 
             let allocated = AtomLayout::new(atoms)
                 .id(id)
+                .fallback_gap(gap)
                 .min_size(Vec2::new(allocate_width, min_height.at_least(min_size.y)))
                 .max_width(allocate_width)
                 .sense(sense)

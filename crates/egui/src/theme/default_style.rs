@@ -157,6 +157,10 @@ impl StyleProvider<TextEditStyle> for DefaultStyle {
                     outer_margin: Margin::same(-(widget_visuals.expansion as i8)),
                     ..Default::default()
                 },
+                // A text edit sizes itself from the rows it holds; egui's own theme adds no floor
+                // of its own.
+                min_size: Vec2::ZERO,
+                gap: style.spacing.icon_spacing,
                 text_style: text,
                 ..Default::default()
             },
