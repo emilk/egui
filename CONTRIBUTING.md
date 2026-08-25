@@ -53,7 +53,7 @@ We care about maintaining high code quality, no matter who or what wrote the cod
 
 You (human!) are always responsible for the quality of code, issues, and PR descriptions.
 
-A human should always review the code before opening the PR.
+A human should always review the code before undrafting the PR.
 
 Make sure the PR description is short and to the point.
 
