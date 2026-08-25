@@ -357,7 +357,9 @@ impl Renderer {
                         visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
                             has_dynamic_offset: false,
-                            min_binding_size: NonZeroU64::new((core::mem::size_of::<u32>() * 4) as _),
+                            min_binding_size: NonZeroU64::new(
+                                (core::mem::size_of::<u32>() * 4) as _,
+                            ),
                             ty: wgpu::BufferBindingType::Uniform,
                         },
                         count: None,
@@ -366,13 +368,12 @@ impl Renderer {
             })
         };
 
-
         let texture_flag_buffers = core::array::from_fn::<_, NUM_TEXTURE_FLAGS, _>(|flag| {
             let flag = flag as u32;
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(&format!("egui_texture_flags_{flag}")),
                 contents: bytemuck::bytes_of(&[flag, 0, 0, 0]),
-               usage: wgpu::BufferUsages::UNIFORM,
+                usage: wgpu::BufferUsages::UNIFORM,
             })
         });
 
@@ -1267,4 +1268,3 @@ fn renderer_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Renderer>();
 }
-
