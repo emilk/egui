@@ -1867,7 +1867,9 @@ fn process_viewport_command(
             #[cfg(target_os = "windows")]
             {
                 use winit::platform::windows::WindowExtWindows as _;
-                window.set_undecorated_shadow(!v);
+
+                // don't request the undecorated-window drop shadow in fullscreen (#8399)
+                window.set_undecorated_shadow(!v && window.fullscreen().is_none());
             }
         }
         ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
@@ -2189,7 +2191,10 @@ pub fn create_winit_window_attributes(
         if let Some(show) = _taskbar {
             window_attributes = window_attributes.with_skip_taskbar(!show);
         }
-        window_attributes = window_attributes.with_undecorated_shadow(!decorations.unwrap_or(true));
+
+        // don't request the undecorated-window drop shadow in fullscreen (#8399)
+        let want_undecorated_shadow = !decorations.unwrap_or(true) && !fullscreen.unwrap_or(false);
+        window_attributes = window_attributes.with_undecorated_shadow(want_undecorated_shadow);
     }
 
     #[cfg(target_os = "macos")]
