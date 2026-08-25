@@ -618,6 +618,27 @@ impl Focus {
                 self.id_requested_by_accesskit = Some(*target_node);
             }
         }
+
+        // `interested_in_focus` only picks the request up once the widget runs, which is too late
+        // for anything that reads the focus before it — styling the widget, for one. A widget in
+        // the cache asked for focus in an earlier pass, so it is one we can hand focus to now.
+        let accesskit_focus = self.id_requested_by_accesskit.and_then(|node_id| {
+            self.focus_widgets_cache
+                .keys()
+                .find(|id| id.accesskit_id() == node_id)
+                .copied()
+        });
+        if let Some(id) = accesskit_focus {
+            self.take_focus_from_accesskit(id);
+        }
+    }
+
+    /// Give a widget the focus that AccessKit asked for.
+    fn take_focus_from_accesskit(&mut self, id: Id) {
+        self.focused_widget = Some(FocusWidget::new(id));
+        self.id_requested_by_accesskit = None;
+        self.give_to_next = false;
+        self.reset_focus();
     }
 
     pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
@@ -645,11 +666,10 @@ impl Focus {
     }
 
     fn interested_in_focus(&mut self, id: Id) {
+        // `begin_pass` hands out the request as soon as it can, but it can only recognize a widget
+        // that has been here before. This catches the first pass a widget is focusable in.
         if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
-            self.focused_widget = Some(FocusWidget::new(id));
-            self.id_requested_by_accesskit = None;
-            self.give_to_next = false;
-            self.reset_focus();
+            self.take_focus_from_accesskit(id);
         }
 
         // The rect is updated at the end of the frame.
