@@ -57,6 +57,9 @@ A human should always review the code before opening the PR.
 
 Make sure the PR description is short and to the point.
 
+#### Undue burden
+We reserve the right to close any PRs that cause an undue burden on the maintainership. This could include, but is not limited to, massive PRs, LLM slop, or contributions not in good faith.
+
 ## Working with git lfs
 
 We use [git-lfs](https://git-lfs.com/) to store big files in the repository.
