@@ -8,8 +8,9 @@
 //!
 //! See [`MenuBar`] for an example.
 
+use crate::class::{Classes, HasClasses as _};
 use crate::style::StyleModifier;
-use crate::widget_style::{Classes, HasClasses as _, PopupStyle, StyleArgs, WidgetState};
+use crate::widget_style::{PopupStyle, StyleArgs, WidgetState};
 use crate::{
     Button, Color32, Context, Id, InnerResponse, IntoAtoms, Layout, PointerButton, Popup,
     PopupCloseBehavior, PopupKind, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo,

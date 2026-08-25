@@ -5,9 +5,10 @@ use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Ui, UiKind, UiStackInfo,
+    class::{ClassName, Classes, HasClasses},
     containers::menu::{MenuConfig, MenuState, menu_style},
     style::StyleModifier,
-    widget_style::{ClassName, Classes, HasClasses, PopupStyle},
+    widget_style::PopupStyle,
 };
 
 /// What should we anchor the popup to?
@@ -643,7 +644,6 @@ impl<'a> Popup<'a> {
             // The theme decides how the popup is framed and how tightly its items sit together.
             let popup_style: PopupStyle = ui.widget_style(id, &classes);
             ui.spacing_mut().item_spacing = popup_style.item_spacing;
-            ui.spacing_mut().scroll.overflow_margin = popup_style.scroll_overflow_margin;
 
             let frame = frame.unwrap_or(popup_style.frame);
             frame.show(ui, content).inner

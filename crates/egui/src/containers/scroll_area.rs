@@ -9,8 +9,10 @@ use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
     AsIdSalt, Context, CursorIcon, Id, IdSalt, NumExt as _, Pos2, Rangef, Rect, Response, Sense,
-    Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp, pass_state,
-    pos2, remap, remap_clamp,
+    Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo,
+    class::{Classes, HasClasses},
+    emath, epaint, lerp, pass_state, pos2, remap, remap_clamp,
+    widget_style::{ScrollAreaStyle, StyleArgs, WidgetState},
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -361,7 +363,9 @@ pub struct ScrollArea {
     content_margin: Option<Margin>,
     overflow_margin: Option<Margin>,
 
-    extend_into_parent_margin: bool,
+    extend_into_parent_margin: Option<bool>,
+
+    classes: Classes,
 
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
@@ -417,7 +421,8 @@ impl ScrollArea {
             wheel_scroll_multiplier: Vec2::splat(1.0),
             content_margin: None,
             overflow_margin: None,
-            extend_into_parent_margin: false,
+            extend_into_parent_margin: None,
+            classes: Classes::default(),
             stick_to_end: Vec2b::FALSE,
             animated: true,
         }
@@ -637,7 +642,7 @@ impl ScrollArea {
     /// The scroll bars will be either on top of this margin, or outside of it,
     /// depending on the value of [`crate::style::ScrollStyle::floating`].
     ///
-    /// Default: [`crate::style::ScrollStyle::content_margin`].
+    /// Default: [`crate::widget_style::ScrollAreaStyle::scroll`].
     #[inline]
     pub fn content_margin(mut self, margin: impl Into<Margin>) -> Self {
         self.content_margin = Some(margin.into());
@@ -650,7 +655,10 @@ impl ScrollArea {
     /// the scroll area would otherwise cut that off. Only the ends of the scroll range are
     /// widened, where there is nothing that could scroll into view through the gap.
     ///
-    /// Default: [`crate::style::ScrollStyle::overflow_margin`].
+    /// This covers the sides that [`Self::extend_into_parent_margin`] cannot: a side with a widget
+    /// between the scroll area and the frame edge stays where it is, and still clips.
+    ///
+    /// Default: [`crate::widget_style::ScrollAreaStyle::scroll`].
     #[inline]
     pub fn overflow_margin(mut self, margin: impl Into<Margin>) -> Self {
         self.overflow_margin = Some(margin.into());
@@ -673,10 +681,10 @@ impl ScrollArea {
     /// _after_ the scroll area would be overlapped by it, so reserve the space for it
     /// first, e.g. with [`Layout::bottom_up`](crate::Layout::bottom_up).
     ///
-    /// Default: `false`.
+    /// Default: [`crate::widget_style::ScrollAreaStyle::extend_into_parent_margin`].
     #[inline]
     pub fn extend_into_parent_margin(mut self, extend: bool) -> Self {
-        self.extend_into_parent_margin = extend;
+        self.extend_into_parent_margin = Some(extend);
         self
     }
 
@@ -739,6 +747,9 @@ struct Prepared {
     /// See [`ScrollArea::extend_into_parent_margin`].
     claimed_margin: Margin,
 
+    /// The resolved style, with the builder overrides already folded in.
+    scroll_style: crate::style::ScrollStyle,
+
     content_ui: Ui,
 
     /// Relative coordinates: the offset and size of the view of the inner UI.
@@ -759,6 +770,16 @@ struct Prepared {
     animated: bool,
 }
 
+impl HasClasses for ScrollArea {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
+    }
+}
+
 impl ScrollArea {
     fn begin(self, ui: &mut Ui) -> Prepared {
         let Self {
@@ -775,9 +796,10 @@ impl ScrollArea {
             on_drag_cursor,
             scroll_source,
             wheel_scroll_multiplier,
-            content_margin: _, // Used elsewhere
+            content_margin,
             overflow_margin,
             extend_into_parent_margin,
+            classes,
             stick_to_end,
             animated,
         } = self;
@@ -807,7 +829,27 @@ impl ScrollArea {
             ctx.animate_bool_responsive(id.with("v"), show_bars[1]),
         );
 
-        let scroll_style = ui.spacing().scroll;
+        // The theme decides how the scroll area looks; the builder methods override it.
+        let scroll_area_style: ScrollAreaStyle = ui.ctx().get_widget_style(&StyleArgs {
+            classes: &classes,
+            state: WidgetState::Inactive,
+            style: ui.style(),
+            stack: ui.stack(),
+            ctx: ui.ctx(),
+        });
+        let ScrollAreaStyle {
+            mut scroll,
+            extend_into_parent_margin: extend_by_default,
+        } = scroll_area_style;
+        if let Some(content_margin) = content_margin {
+            scroll.content_margin = content_margin;
+        }
+        if let Some(overflow_margin) = overflow_margin {
+            scroll.overflow_margin = overflow_margin;
+        }
+        let extend_into_parent_margin = extend_into_parent_margin.unwrap_or(extend_by_default);
+
+        let scroll_style = scroll;
         let current_bar_use = if scroll_style.floating {
             show_bars.to_vec2().yx() * scroll_style.allocated_width()
         } else {
@@ -874,8 +916,7 @@ impl ScrollArea {
         {
             // Clip the content, but only when we really need to:
             let mut content_clip_rect = ui.clip_rect();
-            let overflow_margin =
-                overflow_margin.unwrap_or_else(|| ui.spacing().scroll.overflow_margin);
+            let overflow_margin = scroll_style.overflow_margin;
             let overflow_min = Vec2::new(overflow_margin.leftf(), overflow_margin.topf());
             let overflow_max = Vec2::new(overflow_margin.rightf(), overflow_margin.bottomf());
 
@@ -1021,6 +1062,7 @@ impl ScrollArea {
             scroll_bar_rect,
             inner_rect,
             claimed_margin,
+            scroll_style,
             content_ui,
             viewport,
             scroll_source,
@@ -1109,16 +1151,13 @@ impl ScrollArea {
         ui: &mut Ui,
         add_contents: Box<dyn FnOnce(&mut Ui, Rect) -> R + 'c>,
     ) -> ScrollAreaOutput<R> {
-        let content_margin = self.content_margin;
-
         let mut prepared = self.begin(ui);
         let id = prepared.id;
         let inner_rect = prepared.inner_rect;
 
         // The margin we took over from the parent frame is applied to the contents instead,
         // so they keep the same padding:
-        let margin = content_margin.unwrap_or_else(|| ui.spacing().scroll.content_margin)
-            + prepared.claimed_margin;
+        let margin = prepared.scroll_style.content_margin + prepared.claimed_margin;
 
         let inner = crate::Frame::NONE
             .inner_margin(margin)
@@ -1152,6 +1191,7 @@ impl Prepared {
             scroll_bar_visibility,
             scroll_bar_rect,
             claimed_margin,
+            scroll_style,
             content_ui,
             viewport: _,
             scroll_source,
@@ -1277,7 +1317,7 @@ impl Prepared {
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
-        let limit_rect = if ui.spacing().scroll.floating {
+        let limit_rect = if scroll_style.floating {
             outer_rect
         } else {
             inner_rect
@@ -1350,13 +1390,18 @@ impl Prepared {
             show_bars_factor.y = ui.ctx().animate_bool_responsive(id.with("v"), true);
         }
 
-        let scroll_style = ui.spacing().scroll;
-
         // We paint into the margin of the parent frame, but we allocate only the rect we would
         // have used without it. The frame then adds that margin back around what we painted.
         ui.advance_cursor_after_rect(shrink_at_least_to_nothing(outer_rect, claimed_margin));
 
-        paint_fade_areas_impl(ui, inner_rect, claimed_margin, content_size, state.offset);
+        paint_fade_areas_impl(
+            ui,
+            scroll_style.fade,
+            inner_rect,
+            claimed_margin,
+            content_size,
+            state.offset,
+        );
 
         // Paint the bars:
         let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
@@ -1648,6 +1693,7 @@ impl Prepared {
 /// indicate that more content is available beyond the visible region.
 fn paint_fade_areas_impl(
     ui: &Ui,
+    fade: crate::style::ScrollFadeStyle,
     inner_rect: Rect,
     corner_inset: Margin,
     content_size: Vec2,
@@ -1656,7 +1702,7 @@ fn paint_fade_areas_impl(
     let crate::style::ScrollFadeStyle {
         strength,
         size: fade_size,
-    } = ui.spacing().scroll.fade;
+    } = fade;
 
     if strength <= 0.0 {
         return;

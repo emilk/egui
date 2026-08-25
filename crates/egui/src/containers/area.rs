@@ -6,8 +6,9 @@ use emath::GuiRounding as _;
 
 use crate::{
     Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2, Rect, Response,
-    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState, emath, pos2,
-    widget_style::{Classes, HasClasses},
+    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
+    class::{Classes, HasClasses},
+    emath, pos2,
 };
 
 /// State of an [`Area`] that is persisted between frames.
