@@ -603,7 +603,7 @@ impl Widget for DragValue<'_> {
                     .clip_text(false)
                     .horizontal_align(ui.layout().horizontal_align())
                     .vertical_align(ui.layout().vertical_align())
-                    .min_size(min_size.unwrap_or(ui.spacing().interact_size))
+                    .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size))
                     .id(id)
                     .desired_width(
                         ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
@@ -654,7 +654,7 @@ impl Widget for DragValue<'_> {
                 .wrap_mode(TextWrapMode::Extend)
                 .sense(Sense::click_and_drag())
                 .gap(0.0)
-                .min_size(min_size.unwrap_or(ui.spacing().interact_size)); // TODO(emilk): find some more generic solution to `min_size`
+                .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size)); // TODO(emilk): find some more generic solution to `min_size`
 
             let cursor_icon = if value <= *range.start() {
                 CursorIcon::ResizeEast
@@ -822,6 +822,16 @@ fn select_all_text(ui: &Ui, widget_id: Id, response_id: Id, value_text: &str) {
     state.store(ui.ctx(), response_id);
 }
 
+impl HasClasses for DragValue<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::clamp_value_to_range;
@@ -879,15 +889,5 @@ mod tests {
             Some(-1.23),
             "Should handle special minus character (https://www.compart.com/en/unicode/U+2212)"
         );
-    }
-}
-
-impl HasClasses for DragValue<'_> {
-    fn classes(&self) -> &Classes {
-        &self.classes
-    }
-
-    fn classes_mut(&mut self) -> &mut Classes {
-        &mut self.classes
     }
 }
