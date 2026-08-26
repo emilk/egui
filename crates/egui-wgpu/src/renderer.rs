@@ -357,7 +357,9 @@ impl Renderer {
                         visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
                             has_dynamic_offset: false,
-                            min_binding_size: NonZeroU64::new(core::mem::size_of::<u32>() as _),
+                            min_binding_size: NonZeroU64::new(
+                                (core::mem::size_of::<u32>() * 4) as _,
+                            ),
                             ty: wgpu::BufferBindingType::Uniform,
                         },
                         count: None,
@@ -370,7 +372,7 @@ impl Renderer {
             let flag = flag as u32;
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(&format!("egui_texture_flags_{flag}")),
-                contents: bytemuck::bytes_of(&flag),
+                contents: bytemuck::bytes_of(&[flag, 0, 0, 0]),
                 usage: wgpu::BufferUsages::UNIFORM,
             })
         });
