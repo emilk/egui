@@ -707,6 +707,7 @@ impl GlowWinitRunning<'_> {
                 not_current_gl_context,
                 ..
             } = &mut *glutin;
+            let single_viewport = viewports.len() == 1;
             let viewport = &viewports[&viewport_id];
             let Some(window) = viewport.window.as_ref() else {
                 return Ok(EventResult::Wait);
@@ -719,7 +720,12 @@ impl GlowWinitRunning<'_> {
 
             {
                 frame_timer.pause();
-                change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
+                change_gl_context(
+                    current_gl_context,
+                    not_current_gl_context,
+                    gl_surface,
+                    single_viewport,
+                );
                 frame_timer.resume();
             }
 
@@ -768,6 +774,7 @@ impl GlowWinitRunning<'_> {
             ..
         } = &mut *glutin;
 
+        let single_viewport = viewports.len() == 1;
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return Ok(EventResult::Wait);
         };
@@ -785,7 +792,12 @@ impl GlowWinitRunning<'_> {
             {
                 // We may need to switch contexts again, because of immediate viewports:
                 frame_timer.pause();
-                change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
+                change_gl_context(
+                    current_gl_context,
+                    not_current_gl_context,
+                    gl_surface,
+                    single_viewport,
+                );
                 frame_timer.resume();
             }
 
@@ -1005,20 +1017,28 @@ fn change_gl_context(
     current_gl_context: &mut Option<glutin::context::PossiblyCurrentContext>,
     not_current_gl_context: &mut Option<glutin::context::NotCurrentContext>,
     gl_surface: &glutin::surface::Surface<glutin::surface::WindowSurface>,
+    single_viewport: bool,
 ) {
     profiling::function_scope!();
 
-    if !cfg!(target_os = "windows") {
-        // According to https://github.com/emilk/egui/issues/4289
-        // we cannot do this early-out on Windows.
-        // TODO(emilk): optimize context switching on Windows too.
-        // See https://github.com/emilk/egui/issues/4173
-
-        if let Some(current_gl_context) = current_gl_context {
-            profiling::scope!("is_current");
-            if gl_surface.is_current(current_gl_context) {
-                return; // Early-out to save a lot of time.
-            }
+    // On Windows the early-out below was disabled entirely because it broke
+    // rendering when several viewports share one context:
+    // https://github.com/emilk/egui/issues/4289
+    //
+    // The cost of that blanket refusal is two `wglMakeCurrent` calls on every
+    // frame, which dominates the frame time of a light application:
+    // https://github.com/emilk/egui/issues/4173
+    //
+    // `single_viewport` narrows the refusal to the case #4289 is actually
+    // about. With one viewport there is one surface and one context, nothing
+    // can be swapped out from under us, and the early-out is safe; as soon as a
+    // second viewport exists we take the old path again.
+    if (!cfg!(target_os = "windows") || single_viewport)
+        && let Some(current_gl_context) = current_gl_context
+    {
+        profiling::scope!("is_current");
+        if gl_surface.is_current(current_gl_context) {
+            return; // Early-out to save a lot of time.
         }
     }
 
@@ -1412,6 +1432,7 @@ impl GlutinWindowContext {
     }
 
     fn resize(&mut self, viewport_id: ViewportId, physical_size: winit::dpi::PhysicalSize<u32>) {
+        let single_viewport = self.viewports.len() == 1;
         let width_px = NonZeroU32::new(physical_size.width).unwrap_or(NonZeroU32::MIN);
         let height_px = NonZeroU32::new(physical_size.height).unwrap_or(NonZeroU32::MIN);
 
@@ -1422,6 +1443,7 @@ impl GlutinWindowContext {
                 &mut self.current_gl_context,
                 &mut self.not_current_gl_context,
                 gl_surface,
+                single_viewport,
             );
             gl_surface.resize(
                 self.current_gl_context
@@ -1688,6 +1710,7 @@ fn render_immediate_viewport(
         ..
     } = &mut *glutin;
 
+    let single_viewport = viewports.len() == 1;
     let Some(viewport) = viewports.get_mut(&viewport_id) else {
         warn!("Viewport disappeared unexpectedly!");
         return;
@@ -1706,7 +1729,12 @@ fn render_immediate_viewport(
 
     let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-    change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
+    change_gl_context(
+        current_gl_context,
+        not_current_gl_context,
+        gl_surface,
+        single_viewport,
+    );
 
     let current_gl_context = current_gl_context.as_ref().unwrap();
 
