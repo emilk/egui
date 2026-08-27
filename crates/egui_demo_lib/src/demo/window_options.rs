@@ -71,13 +71,13 @@ impl crate::Demo for WindowOptions {
         let mut window = egui::Window::new(title)
             .id(egui::Id::new("demo_window_options")) // required since we change the title
             .resizable(resizable)
+            .constrain_to(ui.available_rect_before_wrap())
             .constrain(constrain)
             .collapsible(collapsible)
             .movable(movable)
             .title_bar(title_bar)
             .drag_area(drag_area)
             .scroll(scroll2)
-            .constrain_to(ui.available_rect_before_wrap())
             .enabled(enabled);
         if closable {
             window = window.open(open);
