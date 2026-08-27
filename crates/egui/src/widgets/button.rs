@@ -1,9 +1,9 @@
 use epaint::Margin;
 
 use crate::{
-    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Atoms, Color32, CornerRadius,
-    Frame, Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui,
-    Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    Atom, AtomExt as _, AtomKind, AtomLayout, AtomWidget, AtomWidgetContext, Atoms, Color32,
+    CornerRadius, FontSelection, Frame, Image, IntoAtoms, NumExt as _, Response, Sense, Stroke,
+    TextStyle, TextWrapMode, Vec2, WidgetInfo, WidgetText, WidgetType, impl_widget_for_atom_widget,
     widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState},
 };
 
@@ -285,9 +285,10 @@ impl<'a> Button<'a> {
     pub fn atoms(&self) -> &Atoms<'a> {
         &self.layout.atoms
     }
+}
 
-    /// Show the button and return a [`AtomLayoutResponse`] for painting custom contents.
-    pub fn atom_ui(self, ui: &mut Ui) -> AtomLayoutResponse {
+impl<'a> AtomWidget<'a> for Button<'a> {
+    fn atom_ui(self, ui: &mut AtomWidgetContext, response: &mut Response) -> AtomLayout<'a> {
         let Button {
             mut layout,
             fill,
@@ -309,9 +310,11 @@ impl<'a> Button<'a> {
         }
 
         if limit_image_size {
+            let font_id = FontSelection::default().resolve(ui.style());
+            let row_height = ui.ctx().fonts_mut(|fonts| fonts.row_height(&font_id));
             layout.map_atoms(|atom| {
                 if matches!(&atom.kind, AtomKind::Image(_)) {
-                    atom.atom_max_height_font_size(ui)
+                    atom.atom_max_height(row_height)
                 } else {
                     atom
                 }
@@ -322,9 +325,7 @@ impl<'a> Button<'a> {
 
         let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
-        let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        let state = response.widget_state();
 
         classes.add_class_if(SELECTED_CLASS, selected.unwrap_or(false));
 
@@ -360,6 +361,10 @@ impl<'a> Button<'a> {
             .fallback_font(text_style.font_id.clone())
             .fallback_text_color(text_style.color);
 
+        if image_tint_follows_text_color {
+            layout.map_images(|image| image.tint(text_style.color));
+        }
+
         // Retrocompatibility with button settings
         layout = if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
             layout.frame(frame)
@@ -367,28 +372,15 @@ impl<'a> Button<'a> {
             layout.frame(Frame::new().inner_margin(frame.inner_margin))
         };
 
-        let mut prepared = layout.min_size(min_size).allocate(ui);
-
-        // Get AtomLayoutResponse, empty if not visible
-        let response = if ui.is_rect_visible(prepared.response.rect) {
-            if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(text_style.color));
-            }
-
-            prepared.fallback_text_color = text_style.color;
-
-            prepared.paint(ui)
-        } else {
-            AtomLayoutResponse::empty(prepared.response)
-        };
+        layout = layout.min_size(min_size);
 
         if let Some(cursor) = ui.visuals().interact_cursor
-            && response.response.hovered()
+            && response.hovered()
         {
             ui.ctx().set_cursor_icon(cursor);
         }
 
-        response.response.widget_info(|| match (selected, &text) {
+        response.widget_info(|| match (selected, &text) {
             (Some(selected), Some(text)) => {
                 WidgetInfo::selected(WidgetType::Button, ui.is_enabled(), selected, text)
             }
@@ -402,15 +394,11 @@ impl<'a> Button<'a> {
             (None, None) => WidgetInfo::new(WidgetType::Button),
         });
 
-        response
+        layout
     }
 }
 
-impl Widget for Button<'_> {
-    fn ui(self, ui: &mut Ui) -> Response {
-        self.atom_ui(ui).response
-    }
-}
+impl_widget_for_atom_widget!(Button<'_>);
 
 impl HasClasses for Button<'_> {
     fn classes(&self) -> &Classes {

@@ -82,11 +82,12 @@ impl<'a> Atom<'a> {
     ///
     /// Example:
     /// ```
-    /// # use egui::{AtomExt, AtomKind, Atom, Button, Id, __run_test_ui};
+    /// # use egui::{AtomExt, AtomKind, Atom, AtomWidget, Button, Id, __run_test_ui};
     /// # use emath::Vec2;
     /// # __run_test_ui(|ui| {
     /// let id = Id::new("my_button");
-    /// let response = Button::new(("Hi!", Atom::custom(id, Vec2::splat(18.0)))).atom_ui(ui);
+    /// let button = Button::new(("Hi!", Atom::custom(id, Vec2::splat(18.0))));
+    /// let response = button.show_for(ui).0.show(ui);
     ///
     /// let rect = response.rect(id);
     /// if let Some(rect) = rect {
