@@ -617,10 +617,7 @@ impl Focus {
             }
         }
 
-        // AccessKit names the widget by the node id it read from the last tree we sent, so the
-        // widget has been here before and is in the cache. Handing the focus out here, instead of
-        // waiting for the widget to ask for it, means everything that reads the focus before the
-        // widget runs — styling it, for one — already sees the new focus.
+        // Handle accesskit focus requests
         let newly_focused = focus_requested_by_accesskit.and_then(|node_id| {
             self.focus_widgets_cache
                 .keys()
