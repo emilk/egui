@@ -1,6 +1,6 @@
 .DS_Store
 **/target
-**/target_ra
+**/target_ra # legacy Rust Analyzer target dir
 **/target_wasm
 **/tests/snapshots/**/*.diff.png
 **/tests/snapshots/**/*.new.png
