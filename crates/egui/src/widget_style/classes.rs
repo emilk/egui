@@ -4,22 +4,6 @@ use smallvec::SmallVec;
 
 use crate::TextBuffer as _;
 
-/// The root class is a special class present on every top-level [`crate::Ui`].
-pub const ROOT_CLASS: &str = "egui::root";
-
-/// The selected class is a special class present on selected [`crate::Button`].
-pub const SELECTED_CLASS: &str = "egui::selected";
-
-/// The small class is a special class present on small [`crate::Button`].
-pub const SMALL_CLASS: &str = "egui::small";
-
-/// Present on a [`crate::Button`] that should have no frame at all.
-pub const NO_FRAME_CLASS: &str = "egui::no_frame";
-
-/// Present on a [`crate::Button`] that should have no frame while it is
-/// [`crate::widget_style::WidgetState::Inactive`].
-pub const BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS: &str = "egui::button::no_frame_when_inactive";
-
 /// A class is a static string identifier.
 pub type ClassName = Cow<'static, str>;
 

@@ -4,10 +4,13 @@
 
 mod classes;
 
-pub use self::classes::{
-    ClassName, Classes, HasClasses, NO_FRAME_CLASS, BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS, ROOT_CLASS,
-    SELECTED_CLASS, SMALL_CLASS,
-};
+pub use self::classes::{ClassName, Classes, HasClasses};
+
+/// Built-in classes shared by all widgets.
+pub mod class {
+    /// Present on every top-level [`crate::Ui`].
+    pub const ROOT: &str = "egui::root";
+}
 
 use core::fmt::Debug;
 

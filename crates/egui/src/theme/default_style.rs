@@ -2,12 +2,12 @@ use emath::Vec2;
 use epaint::Margin;
 
 use crate::{
-    Frame, Style, TextStyle,
+    Button, Frame, Style, TextStyle,
     style::WidgetVisuals,
     theme::StyleProvider,
     widget_style::{
-        ButtonStyle, CheckboxStyle, HasClasses as _, NO_FRAME_CLASS, BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS,
-        SELECTED_CLASS, SMALL_CLASS, SeparatorStyle, StyleArgs, TextVisuals, WidgetState,
+        ButtonStyle, CheckboxStyle, HasClasses as _, SeparatorStyle, StyleArgs, TextVisuals,
+        WidgetState,
     },
 };
 
@@ -38,7 +38,7 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
         let spacing = &style.spacing;
         let mut widget_visuals = *style.visuals.widgets.state(*state);
 
-        if classes.has_class(SELECTED_CLASS) {
+        if classes.has_class(Button::CLASS_SELECTED) {
             let visuals = &style.visuals;
             widget_visuals.weak_bg_fill = visuals.selection.bg_fill;
             widget_visuals.bg_fill = visuals.selection.bg_fill;
@@ -51,15 +51,17 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
         .into();
 
         // A small button is meant to be embedded into text, so it must not add any height.
-        if classes.has_class(SMALL_CLASS) {
+        if classes.has_class(Button::CLASS_SMALL) {
             inner_margin.top = 0;
             inner_margin.bottom = 0;
         }
 
-        let frame = if classes.has_class(NO_FRAME_CLASS) {
+        let frame = if classes.has_class(Button::CLASS_NO_FRAME) {
             // No frame at all: the button takes up no more room than its contents.
             Frame::new()
-        } else if classes.has_class(BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS) && *state == WidgetState::Inactive {
+        } else if classes.has_class(Button::CLASS_NO_FRAME_WHEN_INACTIVE)
+            && *state == WidgetState::Inactive
+        {
             // Invisible, but as big as it will be once the user interacts with it.
             Frame::new().inner_margin(inner_margin)
         } else {

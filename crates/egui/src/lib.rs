@@ -499,6 +499,7 @@ pub use self::{
     ui_stack::*,
     viewport::*,
     widget_rect::{InteractOptions, WidgetRect, WidgetRects},
+    widget_style::class,
     widget_text::{RichText, WidgetText},
     widgets::*,
 };

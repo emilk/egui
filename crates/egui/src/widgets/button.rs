@@ -2,10 +2,7 @@ use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Atoms, Color32, CornerRadius,
     Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
     Widget, WidgetInfo, WidgetText, WidgetType,
-    widget_style::{
-        ButtonStyle, Classes, HasClasses, NO_FRAME_CLASS, BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS,
-        SELECTED_CLASS, SMALL_CLASS,
-    },
+    widget_style::{ButtonStyle, Classes, HasClasses},
 };
 
 /// Clickable button with text.
@@ -41,6 +38,18 @@ pub struct Button<'a> {
 }
 
 impl<'a> Button<'a> {
+    /// Present on a selected button.
+    pub const CLASS_SELECTED: &'static str = "egui::selected";
+
+    /// Present on a small button.
+    pub const CLASS_SMALL: &'static str = "egui::small";
+
+    /// Present on a button that should have no frame at all.
+    pub const CLASS_NO_FRAME: &'static str = "egui::no_frame";
+
+    /// Present on a button that should have no frame while it is inactive.
+    pub const CLASS_NO_FRAME_WHEN_INACTIVE: &'static str = "egui::button::no_frame_when_inactive";
+
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
             layout: AtomLayout::new(atoms.into_atoms())
@@ -69,7 +78,7 @@ impl<'a> Button<'a> {
     /// # });
     /// ```
     ///
-    /// When selected, [`SELECTED_CLASS`] is added.
+    /// When selected, [`Self::CLASS_SELECTED`] is added.
     ///
     /// See also:
     ///   - [`Ui::selectable_value`]
@@ -155,30 +164,30 @@ impl<'a> Button<'a> {
 
     /// Make this a small button, suitable for embedding into text.
     ///
-    /// This adds the built-in [`SMALL_CLASS`], which with the default style removes the top and
+    /// This adds the built-in [`Self::CLASS_SMALL`], which with the default style removes the top and
     /// bottom margin.
     #[inline]
     pub fn small(mut self) -> Self {
-        self.add_class(SMALL_CLASS);
+        self.add_class(Self::CLASS_SMALL);
         self
     }
 
     /// Turn off the frame
     ///
-    /// If `false`, this adds the built-in [`NO_FRAME_CLASS`], which with the default style
+    /// If `false`, this adds the built-in [`Self::CLASS_NO_FRAME`], which with the default style
     /// removes the fill, the stroke and the margin.
     ///
     /// Default: `ui.visuals().button_frame`.
     #[inline]
     pub fn frame(mut self, frame: bool) -> Self {
         self.frame = Some(frame);
-        self.set_class(NO_FRAME_CLASS, !frame);
+        self.set_class(Self::CLASS_NO_FRAME, !frame);
         self
     }
 
     /// If `false`, the button will not have a frame when inactive.
     ///
-    /// This adds the built-in [`BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS`], which with the
+    /// This adds the built-in [`Self::CLASS_NO_FRAME_WHEN_INACTIVE`], which with the
     /// default style removes the fill and the stroke, but keeps the margin, so the button does
     /// not change size once the user interacts with it.
     ///
@@ -188,7 +197,7 @@ impl<'a> Button<'a> {
     /// has no effect.
     #[inline]
     pub fn frame_when_inactive(mut self, frame_when_inactive: bool) -> Self {
-        self.set_class(BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS, !frame_when_inactive);
+        self.set_class(Self::CLASS_NO_FRAME_WHEN_INACTIVE, !frame_when_inactive);
         self
     }
 
@@ -279,12 +288,12 @@ impl<'a> Button<'a> {
     /// technologies (e.g. screen readers). Plain buttons that never call
     /// `selected` are not announced as toggles.
     ///
-    /// When selected, [`SELECTED_CLASS`] is added. You should prefer calling this though over
-    /// just adding [`SELECTED_CLASS`] manually, since this also exposes accessibility information.
+    /// When selected, [`Self::CLASS_SELECTED`] is added. You should prefer calling this though over
+    /// just adding [`Self::CLASS_SELECTED`] manually, since this also exposes accessibility information.
     #[inline]
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = Some(selected);
-        self.set_class(SELECTED_CLASS, selected);
+        self.set_class(Self::CLASS_SELECTED, selected);
         self
     }
 
@@ -318,7 +327,7 @@ impl<'a> Button<'a> {
         } = self;
 
         // Min size height always equal or greater than interact size if not small
-        if !classes.has_class(SMALL_CLASS) {
+        if !classes.has_class(Self::CLASS_SMALL) {
             min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
         }
 
@@ -337,7 +346,7 @@ impl<'a> Button<'a> {
         // An explicit `frame` call already updated the classes at the call site, preserving
         // its order relative to user classes. Only apply the global default here.
         if frame.is_none() {
-            classes.add_class_if(NO_FRAME_CLASS, !ui.visuals().button_frame);
+            classes.add_class_if(Self::CLASS_NO_FRAME, !ui.visuals().button_frame);
         }
 
         let id = ui.next_auto_id();
