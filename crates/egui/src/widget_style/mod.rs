@@ -14,7 +14,7 @@ pub mod class {
 
 use core::fmt::Debug;
 
-use epaint::{Color32, FontId, Stroke};
+use epaint::{Color32, FontId, Stroke, Vec2};
 
 use crate::{
     Context, Frame, Response, Style, UiStack,
@@ -37,6 +37,9 @@ pub struct TextVisuals {
 /// Dedicated button style
 #[derive(Debug, Clone)]
 pub struct ButtonStyle {
+    /// The minimum size of the button before any per-button override.
+    pub min_size: Vec2,
+
     pub frame: Frame,
     pub text_style: TextVisuals,
 }

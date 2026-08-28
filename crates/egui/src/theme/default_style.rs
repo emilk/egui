@@ -56,7 +56,10 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
             inner_margin.bottom = 0;
         }
 
-        let frame = if classes.has_class(Button::CLASS_NO_FRAME) {
+        let has_frame = classes.has_class(Button::CLASS_FRAME)
+            || (!classes.has_class(Button::CLASS_NO_FRAME) && style.visuals.button_frame);
+
+        let frame = if !has_frame {
             // No frame at all: the button takes up no more room than its contents.
             Frame::new()
         } else if classes.has_class(Button::CLASS_NO_FRAME_WHEN_INACTIVE)
@@ -76,6 +79,11 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
         };
 
         ButtonStyle {
+            min_size: if classes.has_class(Button::CLASS_SMALL) {
+                Vec2::ZERO
+            } else {
+                Vec2::new(0.0, spacing.interact_size.y)
+            },
             frame,
             text_style: text_visuals(style, &widget_visuals),
         }

@@ -60,6 +60,7 @@ impl StyleProvider<ButtonStyle> for MyTheme {
         };
 
         ButtonStyle {
+            min_size: egui::vec2(0.0, style.spacing.interact_size.y),
             frame: Frame::new()
                 .fill(fill)
                 .corner_radius(self.corner_radius)

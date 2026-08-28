@@ -28,7 +28,6 @@ pub struct Button<'a> {
     layout: AtomLayout<'a>,
     fill: Option<Color32>,
     stroke: Option<Stroke>,
-    frame: Option<bool>,
     min_size: Vec2,
     corner_radius: Option<CornerRadius>,
     selected: Option<bool>,
@@ -47,6 +46,9 @@ impl<'a> Button<'a> {
     /// Present on a button that should have no frame at all.
     pub const CLASS_NO_FRAME: &'static str = "egui::no_frame";
 
+    /// Present on a button that should have a frame, even when the global default is frameless.
+    pub const CLASS_FRAME: &'static str = "egui::frame";
+
     /// Present on a button that should have no frame while it is inactive.
     pub const CLASS_NO_FRAME_WHEN_INACTIVE: &'static str = "egui::button::no_frame_when_inactive";
 
@@ -57,7 +59,6 @@ impl<'a> Button<'a> {
                 .fallback_font(TextStyle::Button),
             fill: None,
             stroke: None,
-            frame: None,
             min_size: Vec2::ZERO,
             corner_radius: None,
             selected: None,
@@ -150,7 +151,7 @@ impl<'a> Button<'a> {
     #[inline]
     pub fn fill(mut self, fill: impl Into<Color32>) -> Self {
         self.fill = Some(fill.into());
-        self
+        self.frame(true)
     }
 
     /// Override button stroke. Note that this will override any on-hover effects.
@@ -158,8 +159,7 @@ impl<'a> Button<'a> {
     #[inline]
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = Some(stroke.into());
-        self.frame = Some(true);
-        self
+        self.frame(true)
     }
 
     /// Make this a small button, suitable for embedding into text.
@@ -174,13 +174,13 @@ impl<'a> Button<'a> {
 
     /// Turn off the frame
     ///
-    /// If `false`, this adds the built-in [`Self::CLASS_NO_FRAME`], which with the default style
-    /// removes the fill, the stroke and the margin.
+    /// This adds either the built-in [`Self::CLASS_FRAME`] or [`Self::CLASS_NO_FRAME`] class.
+    /// With the default style, the latter removes the fill, the stroke and the margin.
     ///
     /// Default: `ui.visuals().button_frame`.
     #[inline]
     pub fn frame(mut self, frame: bool) -> Self {
-        self.frame = Some(frame);
+        self.set_class(Self::CLASS_FRAME, frame);
         self.set_class(Self::CLASS_NO_FRAME, !frame);
         self
     }
@@ -317,19 +317,13 @@ impl<'a> Button<'a> {
             mut layout,
             fill,
             stroke,
-            frame,
             mut min_size,
             corner_radius,
             selected,
             image_tint_follows_text_color,
             limit_image_size,
-            mut classes,
+            classes,
         } = self;
-
-        // Min size height always equal or greater than interact size if not small
-        if !classes.has_class(Self::CLASS_SMALL) {
-            min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
-        }
 
         if limit_image_size {
             layout.map_atoms(|atom| {
@@ -343,17 +337,14 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
-        // An explicit `frame` call already updated the classes at the call site, preserving
-        // its order relative to user classes. Only apply the global default here.
-        if frame.is_none() {
-            classes.add_class_if(Self::CLASS_NO_FRAME, !ui.visuals().button_frame);
-        }
-
         let id = ui.next_auto_id();
         let ButtonStyle {
             mut frame,
             text_style,
+            min_size: style_min_size,
         } = ui.widget_style(id, &classes);
+
+        min_size = min_size.at_least(style_min_size);
 
         // Override global style by local style
         if let Some(fill) = fill {
