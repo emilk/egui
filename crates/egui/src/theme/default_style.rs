@@ -1,12 +1,13 @@
 use emath::Vec2;
-use epaint::{Shadow, Stroke, text::TextWrapMode};
+use epaint::Margin;
 
 use crate::{
-    Frame, TextStyle,
+    Frame, Style, TextStyle,
+    style::WidgetVisuals,
     theme::StyleProvider,
     widget_style::{
-        BaseStyle, ButtonStyle, CheckboxStyle, HasClasses as _, LabelStyle, SELECTED_CLASS,
-        SeparatorStyle, StyleArgs, TextVisuals, WidgetState,
+        ButtonStyle, CheckboxStyle, HasClasses as _, NO_FRAME_CLASS, BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS,
+        SELECTED_CLASS, SMALL_CLASS, SeparatorStyle, StyleArgs, TextVisuals, WidgetState,
     },
 };
 
@@ -15,97 +16,75 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct DefaultStyle;
 
-impl StyleProvider<BaseStyle> for DefaultStyle {
-    fn style(&mut self, modifiers: &StyleArgs<'_>) -> BaseStyle {
-        let StyleArgs { style, state, .. } = modifiers;
-        let spacing = &style.spacing;
-        let widget_visuals = match state {
-            WidgetState::Noninteractive => style.visuals.widgets.noninteractive,
-            WidgetState::Inactive => style.visuals.widgets.inactive,
-            WidgetState::Hovered => style.visuals.widgets.hovered,
-            WidgetState::Active => style.visuals.widgets.active,
-        };
-
-        BaseStyle {
-            frame: Frame {
-                fill: widget_visuals.bg_fill,
-                stroke: widget_visuals.bg_stroke,
-                corner_radius: widget_visuals.corner_radius,
-                inner_margin: spacing.button_padding.into(),
-                ..Default::default()
-            },
-            stroke: widget_visuals.fg_stroke,
-            text: TextVisuals {
-                color: widget_visuals.text_color(),
-                font_id: modifiers
-                    .style
-                    .override_font_id
-                    .clone()
-                    .unwrap_or_else(|| TextStyle::Body.resolve(style)),
-                strikethrough: Stroke::NONE,
-                underline: Stroke::NONE,
-            },
-        }
+/// The text of a widget, based on the [`WidgetVisuals`] of its current state.
+fn text_visuals(style: &Style, widget_visuals: &WidgetVisuals) -> TextVisuals {
+    TextVisuals {
+        color: widget_visuals.text_color(),
+        font_id: style
+            .override_font_id
+            .clone()
+            .unwrap_or_else(|| TextStyle::Body.resolve(style)),
     }
 }
 
 impl StyleProvider<ButtonStyle> for DefaultStyle {
     fn style(&mut self, modifiers: &StyleArgs<'_>) -> ButtonStyle {
         let StyleArgs {
-            ctx,
             classes,
             style,
             state,
             ..
         } = modifiers;
         let spacing = &style.spacing;
-        let mut widget_visuals = match state {
-            WidgetState::Noninteractive => style.visuals.widgets.noninteractive,
-            WidgetState::Inactive => style.visuals.widgets.inactive,
-            WidgetState::Hovered => style.visuals.widgets.hovered,
-            WidgetState::Active => style.visuals.widgets.active,
-        };
+        let mut widget_visuals = *style.visuals.widgets.state(*state);
 
-        let mut ws: BaseStyle = ctx.get_widget_style(modifiers);
-
-        if classes.has(SELECTED_CLASS) {
+        if classes.has_class(SELECTED_CLASS) {
             let visuals = &style.visuals;
             widget_visuals.weak_bg_fill = visuals.selection.bg_fill;
             widget_visuals.bg_fill = visuals.selection.bg_fill;
             widget_visuals.fg_stroke = visuals.selection.stroke;
-            ws.text.color = visuals.selection.stroke.color;
         }
 
-        ButtonStyle {
-            frame: Frame {
+        let mut inner_margin: Margin = (spacing.button_padding
+            + Vec2::splat(widget_visuals.expansion)
+            - Vec2::splat(widget_visuals.bg_stroke.width))
+        .into();
+
+        // A small button is meant to be embedded into text, so it must not add any height.
+        if classes.has_class(SMALL_CLASS) {
+            inner_margin.top = 0;
+            inner_margin.bottom = 0;
+        }
+
+        let frame = if classes.has_class(NO_FRAME_CLASS) {
+            // No frame at all: the button takes up no more room than its contents.
+            Frame::new()
+        } else if classes.has_class(BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS) && *state == WidgetState::Inactive {
+            // Invisible, but as big as it will be once the user interacts with it.
+            Frame::new().inner_margin(inner_margin)
+        } else {
+            Frame {
                 fill: widget_visuals.weak_bg_fill,
                 stroke: widget_visuals.bg_stroke,
                 corner_radius: widget_visuals.corner_radius,
                 outer_margin: (-Vec2::splat(widget_visuals.expansion)).into(),
-                inner_margin: (spacing.button_padding + Vec2::splat(widget_visuals.expansion)
-                    - Vec2::splat(widget_visuals.bg_stroke.width))
-                .into(),
+                inner_margin,
                 ..Default::default()
-            },
-            text_style: ws.text,
+            }
+        };
+
+        ButtonStyle {
+            frame,
+            text_style: text_visuals(style, &widget_visuals),
         }
     }
 }
 
 impl StyleProvider<CheckboxStyle> for DefaultStyle {
     fn style(&mut self, modifiers: &StyleArgs<'_>) -> CheckboxStyle {
-        let StyleArgs {
-            ctx, style, state, ..
-        } = modifiers;
+        let StyleArgs { style, state, .. } = modifiers;
         let spacing = &style.spacing;
-        let widget_visuals = match state {
-            WidgetState::Noninteractive => style.visuals.widgets.noninteractive,
-            WidgetState::Inactive => style.visuals.widgets.inactive,
-            WidgetState::Hovered => style.visuals.widgets.hovered,
-            WidgetState::Active => style.visuals.widgets.active,
-        };
-
-        let ws: BaseStyle = ctx.get_widget_style(modifiers);
+        let widget_visuals = *style.visuals.widgets.state(*state);
 
         CheckboxStyle {
             frame: Frame::new(),
@@ -117,28 +96,8 @@ impl StyleProvider<CheckboxStyle> for DefaultStyle {
                 stroke: widget_visuals.bg_stroke,
                 ..Default::default()
             },
-            text_style: ws.text,
-            check_stroke: ws.stroke,
-        }
-    }
-}
-
-impl StyleProvider<LabelStyle> for DefaultStyle {
-    fn style(&mut self, modifiers: &StyleArgs<'_>) -> LabelStyle {
-        let StyleArgs { ctx, .. } = modifiers;
-        let ws: BaseStyle = ctx.get_widget_style(modifiers);
-
-        LabelStyle {
-            frame: Frame {
-                fill: ws.frame.fill,
-                inner_margin: 0.0.into(),
-                outer_margin: 0.0.into(),
-                stroke: Stroke::NONE,
-                shadow: Shadow::NONE,
-                corner_radius: 0.into(),
-            },
-            text: ws.text,
-            wrap_mode: TextWrapMode::Wrap,
+            text_style: text_visuals(style, &widget_visuals),
+            check_stroke: widget_visuals.fg_stroke,
         }
     }
 }

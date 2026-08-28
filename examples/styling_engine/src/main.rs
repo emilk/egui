@@ -4,9 +4,9 @@
 //! based on the _classes_ set on it, and that can be edited live.
 
 use eframe::egui::{
-    self, CentralPanel, Color32, Frame, Panel,
+    self, CentralPanel, Color32, Frame, Panel, TextStyle,
     theme::StyleProvider,
-    widget_style::{BaseStyle, ButtonStyle, HasClasses as _, StyleArgs, WidgetState},
+    widget_style::{ButtonStyle, HasClasses as _, StyleArgs, TextVisuals, WidgetState},
 };
 
 /// Buttons with this class are styled as a destructive action.
@@ -42,14 +42,11 @@ impl StyleProvider<ButtonStyle> for MyTheme {
         let StyleArgs {
             classes,
             state,
-            ctx,
+            style,
             ..
         } = args;
 
-        // Start from the style egui computed for a generic widget, so we inherit e.g. the font:
-        let base: BaseStyle = ctx.get_widget_style(args);
-
-        let fill = if classes.has(DANGER) {
+        let fill = if classes.has_class(DANGER) {
             self.danger
         } else {
             self.normal
@@ -67,7 +64,11 @@ impl StyleProvider<ButtonStyle> for MyTheme {
                 .fill(fill)
                 .corner_radius(self.corner_radius)
                 .inner_margin(8),
-            text_style: base.text,
+            text_style: TextVisuals {
+                color: Color32::WHITE,
+                // Resolve the font from the style, so we follow the user's font sizes:
+                font_id: TextStyle::Button.resolve(style),
+            },
         }
     }
 }

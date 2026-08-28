@@ -6,9 +6,7 @@ use crate::{
     Id,
     theme::{StyleProvider, default_style::DefaultStyle},
     util::IdTypeMap,
-    widget_style::{
-        BaseStyle, ButtonStyle, CheckboxStyle, LabelStyle, SeparatorStyle, WidgetStyle,
-    },
+    widget_style::{ButtonStyle, CheckboxStyle, SeparatorStyle, WidgetStyle},
 };
 
 /// The registry of [`StyleProvider`]s, one per [`WidgetStyle`] type.
@@ -31,11 +29,6 @@ impl Default for Themes {
     fn default() -> Self {
         let mut themes = IdTypeMap::default();
 
-        themes.insert_temp::<ThemeWrap<BaseStyle>>(
-            Id::NULL,
-            Arc::new(Mutex::new(Box::new(DefaultStyle))),
-        );
-
         themes.insert_temp::<ThemeWrap<ButtonStyle>>(
             Id::NULL,
             Arc::new(Mutex::new(Box::new(DefaultStyle))),
@@ -47,11 +40,6 @@ impl Default for Themes {
         );
 
         themes.insert_temp::<ThemeWrap<CheckboxStyle>>(
-            Id::NULL,
-            Arc::new(Mutex::new(Box::new(DefaultStyle))),
-        );
-
-        themes.insert_temp::<ThemeWrap<LabelStyle>>(
             Id::NULL,
             Arc::new(Mutex::new(Box::new(DefaultStyle))),
         );

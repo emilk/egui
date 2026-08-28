@@ -4,11 +4,14 @@
 
 mod classes;
 
-pub use self::classes::{ClassName, Classes, HasClasses, ROOT_CLASS, SELECTED_CLASS};
+pub use self::classes::{
+    ClassName, Classes, HasClasses, NO_FRAME_CLASS, BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS, ROOT_CLASS,
+    SELECTED_CLASS, SMALL_CLASS,
+};
 
 use core::fmt::Debug;
 
-use epaint::{Color32, FontId, Stroke, text::TextWrapMode};
+use epaint::{Color32, FontId, Stroke};
 
 use crate::{
     Context, Frame, Response, Style, UiStack,
@@ -26,23 +29,7 @@ pub struct TextVisuals {
 
     /// Font color
     pub color: Color32,
-
-    /// Text decoration
-    pub underline: Stroke,
-    pub strikethrough: Stroke,
 }
-
-/// General widget style
-#[derive(Debug, Clone)]
-pub struct BaseStyle {
-    pub frame: Frame,
-
-    pub text: TextVisuals,
-
-    pub stroke: Stroke,
-}
-
-impl WidgetStyle for BaseStyle {}
 
 /// Dedicated button style
 #[derive(Debug, Clone)]
@@ -76,21 +63,6 @@ pub struct CheckboxStyle {
 }
 
 impl WidgetStyle for CheckboxStyle {}
-
-/// Dedicated label style
-#[derive(Debug, Clone)]
-pub struct LabelStyle {
-    /// Frame around
-    pub frame: Frame,
-
-    /// Text style
-    pub text: TextVisuals,
-
-    /// Wrap mode used
-    pub wrap_mode: TextWrapMode,
-}
-
-impl WidgetStyle for LabelStyle {}
 
 /// Dedicated separator style
 #[derive(Debug, Clone)]

@@ -5,10 +5,20 @@ use smallvec::SmallVec;
 use crate::TextBuffer as _;
 
 /// The root class is a special class present on every top-level [`crate::Ui`].
-pub const ROOT_CLASS: &str = "root";
+pub const ROOT_CLASS: &str = "egui::root";
 
 /// The selected class is a special class present on selected [`crate::Button`].
-pub const SELECTED_CLASS: &str = "selected";
+pub const SELECTED_CLASS: &str = "egui::selected";
+
+/// The small class is a special class present on small [`crate::Button`].
+pub const SMALL_CLASS: &str = "egui::small";
+
+/// Present on a [`crate::Button`] that should have no frame at all.
+pub const NO_FRAME_CLASS: &str = "egui::no_frame";
+
+/// Present on a [`crate::Button`] that should have no frame while it is
+/// [`crate::widget_style::WidgetState::Inactive`].
+pub const BUTTON_NO_FRAME_WHEN_INACTIVE_CLASS: &str = "egui::button::no_frame_when_inactive";
 
 /// A class is a static string identifier.
 pub type ClassName = Cow<'static, str>;
@@ -17,17 +27,34 @@ pub type ClassName = Cow<'static, str>;
 ///
 /// This can be used by styling engine to compute a different style
 /// based on the set of classes present on the widget/Ui.
+/// Class order is preserved and may be used by a style provider for precedence.
 #[derive(Debug, Default, Clone, Hash)]
 pub struct Classes {
     classes: SmallVec<[ClassName; 5]>,
 }
 
 impl Classes {
-    /// Add a class to the list if the condition is true
+    /// Add a class to the list if the condition is true.
+    ///
+    /// A class is never added twice. This never removes a class: use [`Self::set`] for that.
     #[inline]
     fn add_if(&mut self, class: impl Into<ClassName>, condition: bool) {
         if condition {
-            self.classes.push(class.into());
+            let class = class.into();
+            // Always retain and push again, since order of classes can matter.
+            self.classes.retain(|existing| existing != &class);
+            self.classes.push(class);
+        }
+    }
+
+    /// Add the class if `present`, remove it otherwise.
+    #[inline]
+    fn set(&mut self, class: impl Into<ClassName>, present: bool) {
+        let class = class.into();
+        // Always retain and push again, since order of classes can matter.
+        self.classes.retain(|existing| existing != &class);
+        if present {
+            self.classes.push(class);
         }
     }
 }
@@ -97,13 +124,65 @@ pub trait HasClasses {
         self
     }
 
+    /// Add the given class in-place if `present`, remove it otherwise
+    ///
+    /// Use this for a setter that takes a `bool`, so that the last call wins.
+    #[inline]
+    fn set_class(&mut self, class: impl Into<ClassName>, present: bool) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().set(class.into(), present);
+        self
+    }
+
+    /// Remove the given class in-place
+    #[inline]
+    fn remove_class(&mut self, class: impl Into<ClassName>) -> &mut Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().set(class.into(), false);
+        self
+    }
+
     /// True if the class is present
-    fn has(&self, class: impl Into<ClassName>) -> bool {
+    #[inline]
+    fn has_class(&self, class: impl Into<ClassName>) -> bool {
         self.classes().classes.contains(&class.into())
     }
 
     /// The list of class
     fn as_slice(&self) -> &[ClassName] {
         &self.classes().classes
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Classes, HasClasses as _};
+
+    #[test]
+    fn setting_a_class_moves_it_to_end() {
+        let mut classes = Classes::default();
+        classes.add_class("first");
+        classes.add_class("updated");
+        classes.add_class("second");
+
+        classes.set_class("updated", true);
+
+        assert_eq!(classes.as_slice(), ["first", "second", "updated"]);
+    }
+
+    #[test]
+    fn adding_a_class_twice_moves_it_to_end() {
+        let mut classes = Classes::default();
+        classes.add_class("first");
+        classes.add_class("updated");
+        classes.add_class("second");
+
+        classes.add_class("updated");
+
+        assert_eq!(classes.as_slice(), ["first", "second", "updated"]);
     }
 }
