@@ -3,10 +3,12 @@
 #![cfg_attr(not(feature = "experimental"), allow(dead_code, unused_imports))]
 
 use core::fmt::Debug;
-use epaint::{Color32, FontId, Stroke, Vec2};
+
+use emath::{Align2, Vec2};
+use epaint::{Color32, FontId, Stroke};
 
 use crate::{
-    Context, FontSelection, Frame, Response, Style, UiStack,
+    AtomLayout, Context, FontSelection, Frame, Response, Style, UiStack,
     class::{Classes, HasClasses as _},
     style::{WidgetVisuals, Widgets},
 };
@@ -48,14 +50,76 @@ impl TextVisuals {
     }
 }
 
+/// Visual and layout style shared by widgets built from an [`AtomLayout`].
+#[derive(Debug, Clone)]
+pub struct AtomLayoutStyle {
+    /// Alignment of the atoms within the allocated rectangle.
+    ///
+    /// `None` uses the alignment of the surrounding [`crate::Ui`].
+    pub align2: Option<Align2>,
+
+    /// Minimum size of the atom layout.
+    pub min_size: Vec2,
+
+    /// Space between adjacent atoms.
+    pub gap: f32,
+
+    /// Frame around the atoms.
+    pub frame: Frame,
+
+    /// Fallback visuals for text atoms.
+    pub text_style: TextVisuals,
+
+    /// Fallback tint for images whose tint is [`Color32::WHITE`] (untinted).
+    pub image_tint: Color32,
+}
+
+impl Default for AtomLayoutStyle {
+    fn default() -> Self {
+        Self {
+            align2: None,
+            min_size: Vec2::ZERO,
+            gap: 0.0,
+            frame: Frame::default(),
+            text_style: TextVisuals {
+                font_id: FontId::default(),
+                color: Color32::WHITE,
+            },
+            image_tint: Color32::WHITE,
+        }
+    }
+}
+
+impl AtomLayoutStyle {
+    /// Apply this style to an [`AtomLayout`].
+    pub fn apply<'a>(&self, mut layout: AtomLayout<'a>) -> AtomLayout<'a> {
+        layout.map_images(|image| {
+            if image.image_options().tint == Color32::WHITE {
+                image.tint(self.image_tint)
+            } else {
+                image
+            }
+        });
+
+        let layout = layout
+            .min_size(self.min_size)
+            .gap(self.gap)
+            .frame(self.frame)
+            .fallback_font(self.text_style.font_id.clone())
+            .fallback_text_color(self.text_style.color);
+
+        if let Some(align2) = self.align2 {
+            layout.align2(align2)
+        } else {
+            layout
+        }
+    }
+}
+
 /// Dedicated button style
 #[derive(Debug, Clone)]
 pub struct ButtonStyle {
-    /// The minimum size of the button before any per-button override.
-    pub min_size: Vec2,
-
-    pub frame: Frame,
-    pub text_style: TextVisuals,
+    pub atom_layout: AtomLayoutStyle,
 }
 
 impl WidgetStyle for ButtonStyle {}
@@ -63,11 +127,8 @@ impl WidgetStyle for ButtonStyle {}
 /// Dedicated checkbox style
 #[derive(Debug, Clone)]
 pub struct CheckboxStyle {
-    /// Frame around
-    pub frame: Frame,
-
-    /// Text next to it
-    pub text_style: TextVisuals,
+    /// Style of the checkbox's atom layout.
+    pub atom_layout: AtomLayoutStyle,
 
     /// Checkbox size
     pub checkbox_size: f32,

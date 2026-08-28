@@ -32,7 +32,6 @@ pub struct Button<'a> {
     min_size: Vec2,
     corner_radius: Option<CornerRadius>,
     selected: Option<bool>,
-    image_tint_follows_text_color: bool,
     limit_image_size: bool,
     classes: Classes,
 }
@@ -54,6 +53,10 @@ impl<'a> Button<'a> {
     pub const CLASS_HIDE_FRAME_WHEN_INACTIVE: ClassName =
         ClassName::from_static("egui::button::hide_frame_when_inactive");
 
+    /// Present when untinted images should follow the button text color.
+    pub const CLASS_IMAGE_TINT_FOLLOWS_TEXT_COLOR: ClassName =
+        ClassName::from_static("egui::button::image_tint_follows_text_color");
+
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
             layout: AtomLayout::new(atoms.into_atoms())
@@ -64,7 +67,6 @@ impl<'a> Button<'a> {
             min_size: Vec2::ZERO,
             corner_radius: None,
             selected: None,
-            image_tint_follows_text_color: false,
             limit_image_size: false,
             classes: Classes::default(),
         }
@@ -224,15 +226,19 @@ impl<'a> Button<'a> {
         self
     }
 
-    /// If true, the tint of the image is multiplied by the widget text color.
+    /// If true, use the widget text color as the fallback tint for images.
     ///
-    /// This makes sense for images that are white, that should have the same color as the text color.
-    /// This will also make the icon color depend on hover state.
+    /// This makes sense for monochrome images that should have the same color as the text. It also
+    /// makes the image color depend on hover state. A non-white tint set on an image takes
+    /// precedence over this fallback; [`Color32::WHITE`] means untinted.
     ///
     /// Default: `false`.
     #[inline]
     pub fn image_tint_follows_text_color(mut self, image_tint_follows_text_color: bool) -> Self {
-        self.image_tint_follows_text_color = image_tint_follows_text_color;
+        self.set_class(
+            Self::CLASS_IMAGE_TINT_FOLLOWS_TEXT_COLOR,
+            image_tint_follows_text_color,
+        );
         self
     }
 
@@ -318,10 +324,9 @@ impl<'a> Button<'a> {
             mut layout,
             fill,
             stroke,
-            mut min_size,
+            min_size,
             corner_radius,
             selected,
-            image_tint_follows_text_color,
             limit_image_size,
             classes,
         } = self;
@@ -340,39 +345,29 @@ impl<'a> Button<'a> {
 
         let id = ui.next_auto_id();
         let ButtonStyle {
-            mut frame,
-            text_style,
-            min_size: style_min_size,
+            atom_layout: mut atom_layout_style,
         } = ui.widget_style(id, &classes);
 
-        min_size = min_size.at_least(style_min_size);
+        let min_size = min_size.at_least(atom_layout_style.min_size);
 
         // Override global style by local style
+        if let Some(stroke) = stroke {
+            atom_layout_style.frame = atom_layout_style.frame.stroke(stroke);
+        }
         if let Some(fill) = fill {
-            frame = frame.fill(fill);
+            atom_layout_style.frame = atom_layout_style.frame.fill(fill);
         }
         if let Some(corner_radius) = corner_radius {
-            frame = frame.corner_radius(corner_radius);
-        }
-        if let Some(stroke) = stroke {
-            frame = frame.stroke(stroke);
+            atom_layout_style.frame = atom_layout_style.frame.corner_radius(corner_radius);
         }
 
-        // Apply the style font and color as fallback
-        layout = layout
-            .fallback_font(text_style.font_id.clone())
-            .fallback_text_color(text_style.color);
-
-        let mut prepared = layout.frame(frame).min_size(min_size).allocate(ui);
+        let prepared = atom_layout_style
+            .apply(layout)
+            .min_size(min_size)
+            .allocate(ui);
 
         // Get AtomLayoutResponse, empty if not visible
         let response = if ui.is_rect_visible(prepared.response.rect) {
-            if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(text_style.color));
-            }
-
-            prepared.fallback_text_color = text_style.color;
-
             prepared.paint(ui)
         } else {
             AtomLayoutResponse::empty(prepared.response)

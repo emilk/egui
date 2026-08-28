@@ -7,7 +7,7 @@ use eframe::egui::{
     self, CentralPanel, Color32, Frame, Panel, TextStyle,
     class::HasClasses as _,
     theme::StyleProvider,
-    widget_style::{ButtonStyle, StyleArgs, TextVisuals, WidgetState},
+    widget_style::{AtomLayoutStyle, ButtonStyle, StyleArgs, TextVisuals, WidgetState},
 };
 
 /// Buttons with this class are styled as a destructive action.
@@ -61,13 +61,17 @@ impl StyleProvider<ButtonStyle> for MyTheme {
         };
 
         ButtonStyle {
-            min_size: egui::vec2(0.0, style.spacing.interact_size.y),
-            frame: Frame::new()
-                .fill(fill)
-                .corner_radius(self.corner_radius)
-                .inner_margin(8),
-            // Resolve the font from the style, so we follow the user's font sizes:
-            text_style: TextVisuals::new(style, TextStyle::Button, Color32::WHITE),
+            atom_layout: AtomLayoutStyle {
+                min_size: egui::vec2(0.0, style.spacing.interact_size.y),
+                gap: style.spacing.icon_spacing,
+                frame: Frame::new()
+                    .fill(fill)
+                    .corner_radius(self.corner_radius)
+                    .inner_margin(8),
+                // Resolve the font from the style, so we follow the user's font sizes:
+                text_style: TextVisuals::new(style, TextStyle::Button, Color32::WHITE),
+                ..Default::default()
+            },
         }
     }
 }
