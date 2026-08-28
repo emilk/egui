@@ -35,7 +35,10 @@ use crate::{
     },
 };
 
-use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
+use super::{
+    epi_integration, event_loop_context, winit_integration,
+    winit_integration::{ViewportWindowKind, WinitApp},
+};
 
 // ----------------------------------------------------------------------------
 // Types:
@@ -401,6 +404,21 @@ impl WinitApp for WgpuWinitApp<'_> {
             .flatten()
     }
 
+    fn viewport_window_kind(&self, window_id: WindowId) -> Option<ViewportWindowKind> {
+        let running = self.running.as_ref()?;
+        let shared = running.shared.borrow();
+        let viewport_id = *shared.viewport_from_window.get(&window_id)?;
+        let viewport = shared.viewports.get(&viewport_id)?;
+
+        Some(if viewport_id == ViewportId::ROOT {
+            ViewportWindowKind::Root
+        } else if viewport.viewport_ui_cb.is_some() {
+            ViewportWindowKind::Deferred
+        } else {
+            ViewportWindowKind::Immediate
+        })
+    }
+
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
         Some(
             self.running
@@ -675,6 +693,7 @@ impl WgpuWinitRunning<'_> {
                 profiling::scope!("set_window");
                 pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(window))))?;
             }
+            integration.frame.wgpu_render_state = painter.render_state();
 
             let Some(egui_winit) = egui_winit.as_mut() else {
                 return Ok(EventResult::Wait);
