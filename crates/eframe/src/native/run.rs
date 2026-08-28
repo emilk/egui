@@ -356,6 +356,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
             self.handle_event_result(event_loop, event_result);
         });
     }
+
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
         profiling::function_scope!(match &event {
             UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
