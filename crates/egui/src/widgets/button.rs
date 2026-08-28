@@ -50,7 +50,8 @@ impl<'a> Button<'a> {
     pub const CLASS_FRAME: &'static str = "egui::frame";
 
     /// Present on a button that should have no frame while it is inactive.
-    pub const CLASS_NO_FRAME_WHEN_INACTIVE: &'static str = "egui::button::no_frame_when_inactive";
+    pub const CLASS_HIDE_FRAME_WHEN_INACTIVE: &'static str =
+        "egui::button::hide_frame_when_inactive";
 
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
@@ -187,7 +188,7 @@ impl<'a> Button<'a> {
 
     /// If `false`, the button will not have a frame when inactive.
     ///
-    /// This adds the built-in [`Self::CLASS_NO_FRAME_WHEN_INACTIVE`], which with the
+    /// This adds the built-in [`Self::CLASS_HIDE_FRAME_WHEN_INACTIVE`], which with the
     /// default style removes the fill and the stroke, but keeps the margin, so the button does
     /// not change size once the user interacts with it.
     ///
@@ -197,7 +198,7 @@ impl<'a> Button<'a> {
     /// has no effect.
     #[inline]
     pub fn frame_when_inactive(mut self, frame_when_inactive: bool) -> Self {
-        self.set_class(Self::CLASS_NO_FRAME_WHEN_INACTIVE, !frame_when_inactive);
+        self.set_class(Self::CLASS_HIDE_FRAME_WHEN_INACTIVE, !frame_when_inactive);
         self
     }
 

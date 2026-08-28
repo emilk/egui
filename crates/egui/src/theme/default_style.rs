@@ -62,7 +62,7 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
         let frame = if !has_frame {
             // No frame at all: the button takes up no more room than its contents.
             Frame::new()
-        } else if classes.has_class(Button::CLASS_NO_FRAME_WHEN_INACTIVE)
+        } else if classes.has_class(Button::CLASS_HIDE_FRAME_WHEN_INACTIVE)
             && *state == WidgetState::Inactive
         {
             // Invisible, but as big as it will be once the user interacts with it.
