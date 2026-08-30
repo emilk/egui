@@ -24,6 +24,15 @@ pub enum Event {
     /// The integration detected a "paste" event (e.g. Cmd+V).
     Paste(String),
 
+    /// The integration detected a "paste" event (e.g. Cmd+V) where the clipboard held an
+    /// image instead of text (e.g. a screenshot, or an image copied from another app).
+    ///
+    /// Mirrors [`crate::OutputCommand::CopyImage`] for the opposite direction: an integration
+    /// that supports copying an image out (via `arboard`, say) should support pasting one back
+    /// in the same way. Only emitted when the clipboard has no usable text representation —
+    /// [`Self::Paste`] still takes priority when both are available.
+    PasteImage(std::sync::Arc<ColorImage>),
+
     /// Text input, e.g. via keyboard.
     ///
     /// When the user presses enter/return, do not send a [`Text`](Event::Text) (just [`Key::Enter`]).
