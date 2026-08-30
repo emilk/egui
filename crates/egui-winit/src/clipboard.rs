@@ -120,6 +120,29 @@ impl Clipboard {
         self.clipboard = text;
     }
 
+    /// Get an image from the clipboard, if there is one and the platform backend supports it.
+    ///
+    /// This mirrors [`Self::set_image`] for the opposite direction, so that a Ctrl+V/Cmd+V
+    /// paste can carry an image (e.g. a screenshot or a copied image) instead of text — see
+    /// [`crate::Event::PasteImage`].
+    pub fn get_image(&mut self) -> Option<egui::ColorImage> {
+        #[cfg(all(
+            not(any(target_os = "android", target_os = "ios")),
+            feature = "arboard",
+        ))]
+        if let Some(clipboard) = &mut self.arboard {
+            return match clipboard.get_image() {
+                Ok(image) => Some(color_image_from_arboard(&image)),
+                Err(err) => {
+                    log::error!("arboard paste-image error: {err}");
+                    None
+                }
+            };
+        }
+
+        None
+    }
+
     pub fn set_image(&mut self, image: &egui::ColorImage) {
         #[cfg(all(
             not(any(target_os = "android", target_os = "ios")),
@@ -142,6 +165,19 @@ impl Clipboard {
         );
         _ = image;
     }
+}
+
+/// Converts `arboard`'s straight-alpha `ImageData` into an [`egui::ColorImage`], which stores
+/// _premultiplied_ alpha (see [`egui::Color32`]) — a plain byte-cast would be wrong for any
+/// pixel with partial transparency, hence [`egui::ColorImage::from_rgba_unmultiplied`] (the same
+/// helper the `image` crate loading example in its own docs uses) rather than reinterpreting
+/// the bytes directly, as `Self::set_image` does for the write direction.
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    feature = "arboard",
+))]
+fn color_image_from_arboard(image: &arboard::ImageData<'_>) -> egui::ColorImage {
+    egui::ColorImage::from_rgba_unmultiplied([image.width, image.height], &image.bytes)
 }
 
 #[cfg(all(
@@ -190,5 +226,35 @@ fn init_smithay_clipboard(
             "Cannot init smithay clipboard: the 'wayland' feature of 'egui-winit' is not enabled"
         );
         None
+    }
+}
+
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    feature = "arboard",
+))]
+#[cfg(test)]
+mod tests {
+    use super::color_image_from_arboard;
+
+    #[test]
+    fn color_image_from_arboard_converts_straight_to_premultiplied_alpha() {
+        // 2x1 image: opaque red, then half-transparent white — straight (unmultiplied) alpha,
+        // as arboard/the OS clipboard would hand it to us.
+        let image = arboard::ImageData {
+            width: 2,
+            height: 1,
+            bytes: std::borrow::Cow::Borrowed(&[255, 0, 0, 255, 255, 255, 255, 128]),
+        };
+        let color_image = color_image_from_arboard(&image);
+        assert_eq!(color_image.size, [2, 1]);
+        assert_eq!(
+            color_image.pixels[0],
+            egui::Color32::from_rgba_unmultiplied(255, 0, 0, 255)
+        );
+        assert_eq!(
+            color_image.pixels[1],
+            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 128)
+        );
     }
 }
