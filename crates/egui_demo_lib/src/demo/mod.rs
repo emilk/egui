@@ -13,6 +13,7 @@ pub mod drag_and_drop;
 pub mod extra_viewport;
 pub mod font_book;
 pub mod frame_demo;
+pub mod group_demo;
 pub mod highlighting;
 pub mod interactive_container;
 pub mod misc_demo_window;
