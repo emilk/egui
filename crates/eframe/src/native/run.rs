@@ -26,15 +26,12 @@ use crate::{
 /// See <https://github.com/emilk/egui/issues/7776>.
 const INVISIBLE_WINDOW_REPAINT_INTERVAL: Duration = Duration::from_millis(100);
 
-/// Maximum time spent directly painting Deferred viewports in one event-loop cycle.
+/// Minimum interval between direct Deferred viewport paints on Windows.
 ///
 /// Windows may omit `RedrawRequested` for inactive Deferred viewports. Direct
-/// painting keeps them updated, but this budget leaves the event loop time for
-/// root-window events when several Deferred viewports are open.
-const DEFERRED_DIRECT_PAINT_BUDGET: Duration = Duration::from_millis(16);
-
-/// Delay before retrying Deferred direct paints left over after a time budget.
-const DEFERRED_DIRECT_PAINT_RETRY_DELAY: Duration = Duration::from_millis(1);
+/// painting keeps them updated, but it must be rate-limited globally so several
+/// Deferred viewports cannot starve the event loop and the root viewport.
+const DEFERRED_DIRECT_PAINT_INTERVAL: Duration = Duration::from_millis(16);
 
 // ----------------------------------------------------------------------------
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
@@ -90,6 +87,7 @@ fn with_event_loop<R>(
 struct WinitAppWrapper<T: WinitApp> {
     windows_next_repaint_times: HashMap<WindowId, Instant>,
     deferred_direct_paint_in_progress: bool,
+    next_deferred_direct_paint: Option<Instant>,
     last_deferred_direct_paint: Option<WindowId>,
     winit_app: T,
     return_result: Result<(), crate::Error>,
@@ -101,6 +99,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         Self {
             windows_next_repaint_times: HashMap::default(),
             deferred_direct_paint_in_progress: false,
+            next_deferred_direct_paint: None,
             last_deferred_direct_paint: None,
             winit_app,
             return_result: Ok(()),
@@ -202,8 +201,11 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
     fn check_redraw_requests(&mut self, event_loop: &ActiveEventLoop) {
         let now = Instant::now();
-        let deferred_direct_paint_allowed =
-            cfg!(target_os = "windows") && !self.deferred_direct_paint_in_progress;
+        let deferred_direct_paint_allowed = cfg!(target_os = "windows")
+            && !self.deferred_direct_paint_in_progress
+            && self
+                .next_deferred_direct_paint
+                .is_none_or(|next_paint| now >= next_paint);
 
         let mut invisible_window_ids = Vec::new();
         let mut deferred_window_ids = Vec::new();
@@ -229,10 +231,11 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                         if deferred_direct_paint_allowed {
                             deferred_window_ids.push(*window_id);
                         } else {
-                            // A nested check can happen while direct painting. Keep this
-                            // request for the next event-loop wake-up instead of nesting
-                            // another Deferred paint loop.
-                            *repaint_time = now + DEFERRED_DIRECT_PAINT_RETRY_DELAY;
+                            // Preserve an expired request while another direct paint is
+                            // active or the global Deferred paint interval has not elapsed.
+                            *repaint_time = self
+                                .next_deferred_direct_paint
+                                .unwrap_or(now + DEFERRED_DIRECT_PAINT_INTERVAL);
                             return true;
                         }
                     } else {
@@ -260,45 +263,28 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         }
 
         // Windows can omit Deferred `RedrawRequested` events while the root window
-        // is active. Paint as many expired Deferred targets as fit in the time budget.
-        // Start after the previously painted target so deferred windows take turns.
-        if !deferred_window_ids.is_empty() {
-            let start_index = self
-                .last_deferred_direct_paint
-                .and_then(|last_window_id| {
-                    deferred_window_ids
-                        .iter()
-                        .position(|window_id| *window_id == last_window_id)
-                        .map(|index| (index + 1) % deferred_window_ids.len())
-                })
-                .unwrap_or(0);
-            deferred_window_ids.rotate_left(start_index);
-
-            let deadline = Instant::now() + DEFERRED_DIRECT_PAINT_BUDGET;
-            let mut painted_count = 0;
-            self.deferred_direct_paint_in_progress = true;
-
-            while painted_count < deferred_window_ids.len()
-                && (painted_count == 0 || Instant::now() < deadline)
-            {
-                let window_id = deferred_window_ids[painted_count];
-                self.last_deferred_direct_paint = Some(window_id);
-                let event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
-                self.handle_event_result(event_loop, event_result);
-                painted_count += 1;
-            }
-
-            self.deferred_direct_paint_in_progress = false;
-
-            // Preserve work that did not fit in this cycle. A short delay yields to
-            // root-window events while making the remaining Deferred targets eligible
-            // again on the next wake-up.
-            if painted_count < deferred_window_ids.len() {
-                let retry_at = Instant::now() + DEFERRED_DIRECT_PAINT_RETRY_DELAY;
-                for window_id in &deferred_window_ids[painted_count..] {
-                    self.windows_next_repaint_times.insert(*window_id, retry_at);
+        // is active. Paint one expired target at a time and preserve the rest for the
+        // next wake-up, so multiple Deferred windows cannot monopolize one cycle.
+        if let Some(window_id) = deferred_window_ids
+            .iter()
+            .copied()
+            .find(|window_id| Some(*window_id) != self.last_deferred_direct_paint)
+            .or_else(|| deferred_window_ids.first().copied())
+        {
+            let next_paint = Instant::now() + DEFERRED_DIRECT_PAINT_INTERVAL;
+            for deferred_window_id in deferred_window_ids {
+                if deferred_window_id != window_id {
+                    self.windows_next_repaint_times
+                        .insert(deferred_window_id, next_paint);
                 }
             }
+
+            self.deferred_direct_paint_in_progress = true;
+            self.next_deferred_direct_paint = Some(next_paint);
+            self.last_deferred_direct_paint = Some(window_id);
+            let event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
+            self.deferred_direct_paint_in_progress = false;
+            self.handle_event_result(event_loop, event_result);
         }
 
         // Throttle any already-scheduled repaints for invisible windows
