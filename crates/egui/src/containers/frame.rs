@@ -332,6 +332,7 @@ impl Frame {
     /// Make this frame invisible by setting background and stroke to transparent.
     ///
     /// Will not affect layout or contents.
+    #[inline]
     pub fn invisible(mut self) -> Self {
         self.fill = Color32::TRANSPARENT;
         self.stroke.color = Color32::TRANSPARENT;

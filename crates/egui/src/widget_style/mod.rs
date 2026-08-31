@@ -17,7 +17,7 @@ use core::fmt::Debug;
 use epaint::{Color32, FontId, Stroke, Vec2};
 
 use crate::{
-    Context, Frame, Response, Style, TextStyle, UiStack,
+    Context, FontSelection, Frame, Response, Style, UiStack,
     style::{WidgetVisuals, Widgets},
 };
 
@@ -35,26 +35,26 @@ pub struct TextVisuals {
 }
 
 impl TextVisuals {
-    /// Text in `color`, using the font of the given [`TextStyle`].
+    /// Text in `color`, using the given font.
     ///
-    /// `style.override_font_id` wins over `text_style`, if it is set.
-    pub fn new(style: &Style, text_style: TextStyle, color: Color32) -> Self {
+    /// `style.override_font_id` wins over `font`, if it is set.
+    pub fn new(style: &Style, font: impl Into<FontSelection>, color: Color32) -> Self {
         Self {
             color,
             font_id: style
                 .override_font_id
                 .clone()
-                .unwrap_or_else(|| text_style.resolve(style)),
+                .unwrap_or_else(|| font.into().resolve(style)),
         }
     }
 
     /// The text of a widget, colored by the [`WidgetVisuals`] of its current state.
     pub fn from_widget_visuals(
         style: &Style,
-        text_style: TextStyle,
+        font: impl Into<FontSelection>,
         widget_visuals: &WidgetVisuals,
     ) -> Self {
-        Self::new(style, text_style, widget_visuals.text_color())
+        Self::new(style, font, widget_visuals.text_color())
     }
 }
 
