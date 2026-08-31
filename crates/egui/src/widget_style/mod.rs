@@ -106,7 +106,7 @@ impl AtomLayoutStyle {
 
         let layout = layout
             .min_size(self.min_size)
-            .gap_if_unset(self.gap)
+            .fallback_gap(self.gap)
             .frame(self.frame)
             .fallback_font(self.text_style.font_id.clone())
             .fallback_text_color(self.text_style.color);
