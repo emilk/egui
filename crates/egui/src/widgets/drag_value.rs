@@ -1,8 +1,9 @@
 use crate::{
     Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IntoAtoms, Key, MINUS_CHAR_STR,
     Modifiers, NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget,
-    WidgetInfo, emath, text,
-    widget_style::{Classes, HasClasses},
+    WidgetInfo,
+    class::{ClassName, Classes, HasClasses},
+    emath, text,
 };
 use core::{cmp::Ordering, ops::RangeInclusive};
 use emath::Vec2;
@@ -72,7 +73,7 @@ impl<'a> DragValue<'a> {
     const ATOM_ID: &'static str = "drag_item";
 
     /// Present on the [`Button`] and the [`TextEdit`] a drag value is built from.
-    pub const CLASS: &'static str = "egui::drag_value";
+    pub const CLASS: ClassName = ClassName::from_static("egui::drag_value");
 
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
         let slf = Self::from_get_set(move |v: Option<f64>| {
