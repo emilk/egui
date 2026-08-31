@@ -1,9 +1,8 @@
+use core::borrow::Borrow;
 use smallvec::SmallVec;
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::fmt;
 use std::sync::Arc;
-
-use crate::TextBuffer as _;
 
 /// A class, used to customize widget styling and behavior.
 #[derive(Clone)]
@@ -24,7 +23,7 @@ impl ClassName {
 
     /// A class from anything that converts into one.
     #[inline]
-    pub fn new(class: impl Into<ClassName>) -> Self {
+    pub fn new(class: impl Into<Self>) -> Self {
         class.into()
     }
 
@@ -76,9 +75,9 @@ impl From<Cow<'static, str>> for ClassName {
     }
 }
 
-impl From<&ClassName> for ClassName {
+impl From<&Self> for ClassName {
     #[inline]
-    fn from(class: &ClassName) -> Self {
+    fn from(class: &Self) -> Self {
         class.clone()
     }
 }
@@ -97,7 +96,7 @@ impl AsRef<str> for ClassName {
     }
 }
 
-impl std::ops::Deref for ClassName {
+impl core::ops::Deref for ClassName {
     type Target = str;
 
     #[inline]
@@ -129,9 +128,9 @@ impl PartialEq<&str> for ClassName {
     }
 }
 
-impl std::hash::Hash for ClassName {
+impl core::hash::Hash for ClassName {
     #[inline]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.as_str().hash(state);
     }
 }
