@@ -8,6 +8,7 @@ use crate::{
     CursorIcon, Event, EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent,
     IntoAtoms, IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response,
     Sense, SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState,
+    class::{ClassName, Classes, HasClasses},
     epaint,
     os::OperatingSystem,
     output::OutputEvent,
@@ -17,7 +18,7 @@ use crate::{
         self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
     },
     vec2,
-    widget_style::{ClassName, Classes, HasClasses, TextEditStyle},
+    widget_style::TextEditStyle,
 };
 
 use super::{TextEditOutput, TextEditState};

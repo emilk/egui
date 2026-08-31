@@ -147,12 +147,11 @@ impl StyleProvider<TextEditStyle> for DefaultStyle {
             atom_layout: AtomLayoutStyle {
                 frame: Frame {
                     fill,
-                    stroke,
                     corner_radius: widget_visuals.corner_radius,
                     inner_margin: Margin::symmetric(4, 2),
                     ..Default::default()
                 }
-                .expand_in_place(widget_visuals.expansion),
+                .apply_stroke_and_expansion_without_layout_shift(stroke, widget_visuals.expansion),
                 gap: style.spacing.icon_spacing,
                 text_style: text,
                 ..Default::default()
