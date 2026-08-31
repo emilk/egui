@@ -71,7 +71,7 @@ impl Display for ExceededMaxStepsError {
 
         write!(
             f,
-            "If your expect your ui to keep repainting \
+            "If you expect your ui to keep repainting \
             (e.g. when showing a spinner) call Harness::step or Harness::run_steps instead.\
             \nRepaint causes: {:#?}",
             self.repaint_causes,
@@ -354,10 +354,20 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    fn try_run_impl(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+    /// When `sleep` is true, each step sleeps for `self.step_dt`.
+    /// When `diagnostic` is true, we run extra steps to find [`ExceededMaxStepsError::steps_to_settle`].
+    fn try_run_impl(
+        &mut self,
+        sleep: bool,
+        diagnostic: bool,
+    ) -> Result<u64, ExceededMaxStepsError> {
         // Once the budget is blown we keep going for a while, purely to find out how many steps
         // would have been needed. The repaint causes are the ones from the moment we blew it.
-        let diagnostic_max_steps = config().diagnostic_max_steps();
+        let diagnostic_max_steps = if diagnostic {
+            config().diagnostic_max_steps()
+        } else {
+            0
+        };
         let last_diagnostic_step = self.max_steps.saturating_add(diagnostic_max_steps);
         let mut repaint_causes_at_max_steps = None;
 
@@ -415,7 +425,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        self.try_run_impl(false)
+        self.try_run_impl(false, true)
     }
 
     /// Run until
@@ -425,6 +435,8 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// Returns the number of steps that were run, or None if the maximum number of steps was exceeded.
     ///
+    /// Unlike [`Harness::run`], this never steps past `max_steps`.
+    ///
     /// See also:
     /// - [`Harness::run`].
     /// - [`Harness::try_run`].
@@ -432,7 +444,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
     pub fn run_ok(&mut self) -> Option<u64> {
-        self.try_run().ok()
+        self.try_run_impl(false, false).ok()
     }
 
     /// Run multiple frames, sleeping for [`HarnessBuilder::with_step_dt`] between frames.
@@ -455,7 +467,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run`].
     pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        self.try_run_impl(true)
+        self.try_run_impl(true, true)
     }
 
     /// Run a number of steps.
