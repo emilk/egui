@@ -38,7 +38,7 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
         let spacing = &style.spacing;
         let mut widget_visuals = *style.visuals.widgets.state(*state);
 
-        if classes.has_class(Button::CLASS_SELECTED) {
+        if classes.has_class(&Button::CLASS_SELECTED) {
             let visuals = &style.visuals;
             widget_visuals.weak_bg_fill = visuals.selection.bg_fill;
             widget_visuals.bg_fill = visuals.selection.bg_fill;
@@ -48,7 +48,7 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
         let mut inner_margin: Margin = spacing.button_padding.into();
 
         // A small button as high as regular text
-        if classes.has_class(Button::CLASS_SMALL) {
+        if classes.has_class(&Button::CLASS_SMALL) {
             inner_margin.top = 0;
             inner_margin.bottom = 0;
         }
@@ -63,13 +63,13 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
         // Ensure changing expansion and stroke don't affect layout:
         .expand_in_place(widget_visuals.expansion);
 
-        let has_frame = classes.has_class(Button::CLASS_FRAME)
-            || (!classes.has_class(Button::CLASS_NO_FRAME) && style.visuals.button_frame);
+        let has_frame = classes.has_class(&Button::CLASS_FRAME)
+            || (!classes.has_class(&Button::CLASS_NO_FRAME) && style.visuals.button_frame);
 
         let frame = if !has_frame {
             // No frame at all: the button takes up no more room than its contents.
             Frame::new()
-        } else if classes.has_class(Button::CLASS_HIDE_FRAME_WHEN_INACTIVE)
+        } else if classes.has_class(&Button::CLASS_HIDE_FRAME_WHEN_INACTIVE)
             && *state == WidgetState::Inactive
         {
             // Hide the frame, but keep its spacing
@@ -79,7 +79,7 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
         };
 
         ButtonStyle {
-            min_size: if classes.has_class(Button::CLASS_SMALL) {
+            min_size: if classes.has_class(&Button::CLASS_SMALL) {
                 Vec2::ZERO
             } else {
                 Vec2::new(0.0, spacing.interact_size.y)

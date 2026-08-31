@@ -289,8 +289,11 @@ pub trait HasClasses {
 
     /// True if the class is present.
     #[inline]
-    fn has_class(&self, class: impl Into<ClassName>) -> bool {
-        self.classes().classes.contains(&class.into())
+    fn has_class(&self, class: &str) -> bool {
+        self.classes()
+            .classes
+            .iter()
+            .any(|existing| existing.as_str() == class)
     }
 
     /// The list of class.

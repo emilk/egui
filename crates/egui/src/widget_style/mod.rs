@@ -15,7 +15,6 @@ pub mod class {
 }
 
 use core::fmt::Debug;
-
 use epaint::{Color32, FontId, Stroke, Vec2};
 
 use crate::{
@@ -158,8 +157,7 @@ impl StyleArgs<'_> {
     /// See also:
     /// - [`Classes::has_class`]
     /// - [`UiStack::has_class`]
-    pub fn has_class(&self, class: impl Into<ClassName>) -> bool {
-        let class = class.into();
-        self.classes.has_class(class.clone()) || self.stack.has_class(class)
+    pub fn has_class(&self, class: &str) -> bool {
+        self.classes.has_class(class) || self.stack.has_class(class)
     }
 }

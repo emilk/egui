@@ -1,7 +1,7 @@
 use core::{any::Any, iter::FusedIterator};
 use std::sync::Arc;
 
-use crate::widget_style::{ClassName, Classes, HasClasses as _};
+use crate::widget_style::{Classes, HasClasses as _};
 use epaint::Color32;
 
 use crate::{Direction, Frame, Id, Rect};
@@ -292,10 +292,8 @@ impl UiStack {
     }
 
     /// Does this node, or any [`crate::Ui`] up the stack, carry this class?
-    pub fn has_class(&self, class: impl Into<ClassName>) -> bool {
-        let class = class.into();
-        self.iter()
-            .any(|node| node.classes.has_class(class.clone()))
+    pub fn has_class(&self, class: &str) -> bool {
+        self.iter().any(|node| node.classes.has_class(class))
     }
 }
 
