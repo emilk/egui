@@ -115,25 +115,24 @@ impl StyleProvider<TextEditStyle> for DefaultStyle {
             ..
         } = modifiers;
 
-        let widget_visuals = match state {
-            WidgetState::Noninteractive => style.visuals.widgets.noninteractive,
-            WidgetState::Inactive => style.visuals.widgets.inactive,
-            WidgetState::Hovered => style.visuals.widgets.hovered,
-            WidgetState::Active => style.visuals.widgets.active,
-        };
+        let widget_visuals = style.visuals.widgets.state(*state);
 
         // A text edit over an immutable buffer is painted without a background.
-        let (fill, stroke) = if classes.has_class(&TextEdit::CLASS_READ_ONLY) {
-            let visuals = &style.visuals.widgets.inactive;
-            (Color32::TRANSPARENT, visuals.bg_stroke)
+        let read_only = classes.has_class(&TextEdit::CLASS_READ_ONLY);
+
+        let fill = if read_only {
+            Color32::TRANSPARENT
+        } else {
+            style.visuals.text_edit_bg_color()
+        };
+
+        let stroke = if read_only {
+            style.visuals.widgets.inactive.bg_stroke
         } else if *state == WidgetState::Active {
             // While focused, the frame is outlined in the selection color.
-            (
-                style.visuals.text_edit_bg_color(),
-                style.visuals.selection.stroke,
-            )
+            style.visuals.selection.stroke
         } else {
-            (style.visuals.text_edit_bg_color(), widget_visuals.bg_stroke)
+            widget_visuals.bg_stroke
         };
 
         // The text of a text edit doesn't brighten on hover — that would be distracting while
@@ -150,21 +149,16 @@ impl StyleProvider<TextEditStyle> for DefaultStyle {
                     fill,
                     stroke,
                     corner_radius: widget_visuals.corner_radius,
-                    // The stroke is painted centered on the frame edge, so half of it eats into
-                    // the padding; compensate, like the other widgets do.
-                    inner_margin: Margin::symmetric(4, 2)
-                        + Margin::same((widget_visuals.expansion - stroke.width).round() as i8),
-                    outer_margin: Margin::same(-(widget_visuals.expansion as i8)),
+                    inner_margin: Margin::symmetric(4, 2),
                     ..Default::default()
-                },
-                // A text edit sizes itself from the rows it holds; egui's own theme adds no floor
-                // of its own.
-                min_size: Vec2::ZERO,
+                }
+                .expand_in_place(widget_visuals.expansion),
                 gap: style.spacing.icon_spacing,
                 text_style: text,
                 ..Default::default()
             },
             hint_text_color: style.visuals.weak_text_color(),
+            prefix_suffix_color: style.visuals.text_color(),
         }
     }
 }

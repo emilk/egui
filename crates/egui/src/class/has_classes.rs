@@ -108,17 +108,6 @@ pub trait HasClasses {
     fn classes_as_slice(&self) -> &[ClassName] {
         self.classes().as_slice()
     }
-
-    /// The last class that names a `T`, if any.
-    ///
-    /// Scanning backwards is what makes the last class win, so a widget given two classes of the
-    /// same kind takes the one set last — the way a later stylesheet rule overrides an earlier one.
-    fn last_class<T>(&self, from_class_name: impl Fn(&str) -> Option<T>) -> Option<T> {
-        self.classes_as_slice()
-            .iter()
-            .rev()
-            .find_map(|class| from_class_name(class))
-    }
 }
 
 #[cfg(test)]

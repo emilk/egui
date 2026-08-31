@@ -17,7 +17,7 @@ use crate::{
         self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
     },
     vec2,
-    widget_style::{AtomLayoutStyle, ClassName, Classes, HasClasses, TextEditStyle},
+    widget_style::{ClassName, Classes, HasClasses, TextEditStyle},
 };
 
 use super::{TextEditOutput, TextEditState};
@@ -491,30 +491,24 @@ impl TextEdit<'_> {
 
         classes.add_class_if(Self::CLASS_READ_ONLY, !text.is_mutable());
         let TextEditStyle {
-            atom_layout:
-                AtomLayoutStyle {
-                    frame: styled_frame,
-                    min_size: style_min_size,
-                    gap,
-                    text_style: text_visuals,
-                    ..
-                },
+            atom_layout: mut atom_layout_style,
             hint_text_color,
+            prefix_suffix_color,
         } = ui.widget_style(id, &classes);
 
         // The theme sets a floor on the size; the builder's own `min_size` can only raise it,
         // the same way it does for a button.
-        let min_size = min_size.max(style_min_size);
+        let min_size = min_size.at_least(atom_layout_style.min_size);
 
         let text_color = text_color
             .or_else(|| ui.visuals().override_text_color)
-            .unwrap_or(text_visuals.color);
+            .unwrap_or(atom_layout_style.text_style.color);
 
         let prev_text = text.as_str().to_owned();
         let hint_text_str = hint_text.text().unwrap_or_default().to_string();
 
         let font_id = match font_selection {
-            FontSelection::Default => text_visuals.font_id.clone(),
+            FontSelection::Default => atom_layout_style.text_style.font_id.clone(),
             font_selection => font_selection.resolve(ui.style()),
         };
         let row_height = ui.fonts_mut(|f| f.row_height(&font_id));
@@ -528,7 +522,7 @@ impl TextEdit<'_> {
         // `min_size` overrides available width
         let allocate_width = desired_width.at_most(available_width).at_least(min_size.x);
 
-        let font_id_clone = font_id.clone();
+        let font_id_clone = font_id;
         let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
             let text = mask_if_password(password, text.as_str());
             let mut layout_job = if multiline {
@@ -627,16 +621,17 @@ impl TextEdit<'_> {
         // We need to calculate the galley within the atom closure, so we can calculate it based on
         // the available width (in case of wrapping multiline text edits). But we show it later,
         // so we can clip it to the available size. Thus, extract it from the atom closure here.
-        let frame = frame.unwrap_or_else(|| {
-            let mut frame = styled_frame;
+        if let Some(frame) = frame {
+            atom_layout_style.frame = frame;
+        } else {
             if let Some(margin) = margin {
-                frame.inner_margin = margin;
+                atom_layout_style.frame.inner_margin = margin;
             }
             if let Some(background_color) = background_color {
-                frame.fill = background_color;
+                atom_layout_style.frame.fill = background_color;
             }
-            frame
-        });
+        }
+        let frame = atom_layout_style.frame;
 
         let mut get_galley = None;
         let inner_rect_id = Id::new("text_edit_rect");
@@ -748,13 +743,15 @@ impl TextEdit<'_> {
                 TextWrapMode::Truncate
             };
 
-            let allocated = AtomLayout::new(atoms)
+            let allocated = atom_layout_style
+                .apply(AtomLayout::new(atoms))
+                // The text being edited gets its color from the layouter, so the only atoms
+                // left to color are the prefix and the suffix.
+                .fallback_text_color(prefix_suffix_color)
                 .id(id)
-                .gap(gap)
                 .min_size(Vec2::new(allocate_width, min_height.at_least(min_size.y)))
                 .max_width(allocate_width)
                 .sense(sense)
-                .frame(frame)
                 .align2(align)
                 .wrap_mode(wrap_mode)
                 .allocate(ui);
