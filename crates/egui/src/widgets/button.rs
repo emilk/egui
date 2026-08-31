@@ -2,7 +2,7 @@ use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Atoms, Color32, CornerRadius,
     Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
     Widget, WidgetInfo, WidgetText, WidgetType,
-    widget_style::{ButtonStyle, Classes, HasClasses},
+    widget_style::{ButtonStyle, ClassName, Classes, HasClasses},
 };
 
 /// Clickable button with text.
@@ -38,20 +38,20 @@ pub struct Button<'a> {
 
 impl<'a> Button<'a> {
     /// Present on a selected button.
-    pub const CLASS_SELECTED: &'static str = "egui::selected";
+    pub const CLASS_SELECTED: ClassName = ClassName::from_static("egui::selected");
 
     /// Present on a small button.
-    pub const CLASS_SMALL: &'static str = "egui::small";
+    pub const CLASS_SMALL: ClassName = ClassName::from_static("egui::small");
 
     /// Present on a button that should have no frame at all.
-    pub const CLASS_NO_FRAME: &'static str = "egui::no_frame";
+    pub const CLASS_NO_FRAME: ClassName = ClassName::from_static("egui::no_frame");
 
     /// Present on a button that should have a frame, even when the global default is frameless.
-    pub const CLASS_FRAME: &'static str = "egui::frame";
+    pub const CLASS_FRAME: ClassName = ClassName::from_static("egui::frame");
 
     /// Present on a button that should have no frame while it is inactive.
-    pub const CLASS_HIDE_FRAME_WHEN_INACTIVE: &'static str =
-        "egui::button::hide_frame_when_inactive";
+    pub const CLASS_HIDE_FRAME_WHEN_INACTIVE: ClassName =
+        ClassName::from_static("egui::button::hide_frame_when_inactive");
 
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
@@ -168,9 +168,8 @@ impl<'a> Button<'a> {
     /// This adds the built-in [`Self::CLASS_SMALL`], which with the default style removes the top and
     /// bottom margin.
     #[inline]
-    pub fn small(mut self) -> Self {
-        self.add_class(Self::CLASS_SMALL);
-        self
+    pub fn small(self) -> Self {
+        self.with_class(Self::CLASS_SMALL)
     }
 
     /// Turn off the frame

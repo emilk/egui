@@ -12,6 +12,8 @@ use crate::{Id, theme::StyleProvider, util::IdTypeMap, widget_style::WidgetStyle
 ///
 /// A default provider is registered for every built-in style. Register your
 /// own with [`crate::Context::add_widget_theme`] or [`crate::Context::replace_widget_theme`].
+///
+/// The [`crate::theme::DefaultStyle`] is registered in [`crate::Context::default`].
 #[derive(Default)]
 pub struct Themes {
     themes: IdTypeMap,

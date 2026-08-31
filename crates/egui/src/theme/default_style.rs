@@ -21,11 +21,9 @@ impl DefaultStyle {
     /// [`Context::default`] does this. Any theme you register yourself
     /// replaces the default one for that widget style.
     pub fn register(ctx: &Context) {
-        ctx.write(|ctx| {
-            ctx.themes.register::<ButtonStyle>(Self, false);
-            ctx.themes.register::<SeparatorStyle>(Self, false);
-            ctx.themes.register::<CheckboxStyle>(Self, false);
-        });
+        ctx.add_widget_theme::<ButtonStyle>(Self);
+        ctx.add_widget_theme::<SeparatorStyle>(Self);
+        ctx.add_widget_theme::<CheckboxStyle>(Self);
     }
 }
 

@@ -8,8 +8,10 @@ pub use self::classes::{ClassName, Classes, HasClasses};
 
 /// Built-in classes shared by all widgets.
 pub mod class {
+    use super::ClassName;
+
     /// Present on every top-level [`crate::Ui`].
-    pub const ROOT: &str = "egui::root";
+    pub const ROOT: ClassName = ClassName::from_static("egui::root");
 }
 
 use core::fmt::Debug;

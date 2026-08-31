@@ -372,7 +372,7 @@ impl ViewportRepaintInfo {
 // ----------------------------------------------------------------------------
 
 #[derive(Default)]
-pub(crate) struct ContextImpl {
+struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
 
@@ -414,7 +414,7 @@ pub(crate) struct ContextImpl {
 
     loaders: Arc<Loaders>,
 
-    pub(crate) themes: theme::Themes,
+    themes: theme::Themes,
 }
 
 impl ContextImpl {
@@ -767,7 +767,7 @@ impl Context {
     }
 
     /// Do read-write (exclusive access) transaction on Context
-    pub(crate) fn write<R>(&self, writer: impl FnOnce(&mut ContextImpl) -> R) -> R {
+    fn write<R>(&self, writer: impl FnOnce(&mut ContextImpl) -> R) -> R {
         writer(&mut self.0.write())
     }
 
@@ -2107,7 +2107,10 @@ impl Context {
     /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
     ///
     /// If you want to add the theme anyway, use [`Self::replace_widget_theme`] instead.
-    #[cfg(feature = "experimental")]
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
     pub fn add_widget_theme<S: WidgetStyle + 'static>(
         &self,
         theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
@@ -2119,7 +2122,10 @@ impl Context {
     ///
     /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
     /// This allow to live edit a theme.
-    #[cfg(feature = "experimental")]
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
     pub fn replace_widget_theme<S: WidgetStyle + 'static>(
         &self,
         theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
