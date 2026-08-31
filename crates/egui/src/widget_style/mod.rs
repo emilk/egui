@@ -92,6 +92,9 @@ impl Default for AtomLayoutStyle {
 
 impl AtomLayoutStyle {
     /// Apply this style to an [`AtomLayout`].
+    ///
+    /// A per-widget [`AtomLayout::gap`] wins over [`Self::gap`], so widgets like
+    /// [`crate::DragValue`] can pack their atoms tighter than the theme does.
     pub fn apply<'a>(&self, mut layout: AtomLayout<'a>) -> AtomLayout<'a> {
         layout.map_images(|image| {
             if image.image_options().tint == Color32::WHITE {
@@ -103,7 +106,7 @@ impl AtomLayoutStyle {
 
         let layout = layout
             .min_size(self.min_size)
-            .gap(self.gap)
+            .gap_if_unset(self.gap)
             .frame(self.frame)
             .fallback_font(self.text_style.font_id.clone())
             .fallback_text_color(self.text_style.color);

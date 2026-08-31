@@ -107,6 +107,16 @@ impl<'a> AtomLayout<'a> {
         self
     }
 
+    /// Set the gap between atoms, unless the caller already set one.
+    ///
+    /// Used to apply a [`crate::widget_style::AtomLayoutStyle`] without overriding a per-widget
+    /// [`Self::gap`].
+    #[inline]
+    pub(crate) fn gap_if_unset(mut self, gap: f32) -> Self {
+        self.gap = self.gap.or(Some(gap));
+        self
+    }
+
     /// Set the [`Frame`].
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
