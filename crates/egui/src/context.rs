@@ -372,7 +372,7 @@ impl ViewportRepaintInfo {
 // ----------------------------------------------------------------------------
 
 #[derive(Default)]
-struct ContextImpl {
+pub(crate) struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
 
@@ -414,7 +414,7 @@ struct ContextImpl {
 
     loaders: Arc<Loaders>,
 
-    themes: theme::Themes,
+    pub(crate) themes: theme::Themes,
 }
 
 impl ContextImpl {
@@ -753,6 +753,9 @@ impl Default for Context {
         ctx.add_plugin(crate::text_selection::LabelSelectionState::default());
         ctx.add_plugin(crate::DragAndDrop::default());
 
+        // Register the default theme for all built-in widgets:
+        theme::DefaultStyle::register(&ctx);
+
         ctx
     }
 }
@@ -764,7 +767,7 @@ impl Context {
     }
 
     /// Do read-write (exclusive access) transaction on Context
-    fn write<R>(&self, writer: impl FnOnce(&mut ContextImpl) -> R) -> R {
+    pub(crate) fn write<R>(&self, writer: impl FnOnce(&mut ContextImpl) -> R) -> R {
         writer(&mut self.0.write())
     }
 

@@ -2,7 +2,7 @@ use emath::Vec2;
 use epaint::Margin;
 
 use crate::{
-    Button, Frame, Style, TextStyle,
+    Button, Context, Frame, Style, TextStyle,
     style::WidgetVisuals,
     theme::StyleProvider,
     widget_style::{
@@ -15,6 +15,20 @@ use crate::{
 /// [`crate::style::WidgetVisuals`].
 #[derive(Debug, Clone)]
 pub struct DefaultStyle;
+
+impl DefaultStyle {
+    /// Register `Self` as the [`StyleProvider`] of every built-in widget style.
+    ///
+    /// [`Context::default`] does this. Any theme you register yourself
+    /// replaces the default one for that widget style.
+    pub fn register(ctx: &Context) {
+        ctx.write(|ctx| {
+            ctx.themes.register::<ButtonStyle>(Self, false);
+            ctx.themes.register::<SeparatorStyle>(Self, false);
+            ctx.themes.register::<CheckboxStyle>(Self, false);
+        });
+    }
+}
 
 /// The text of a widget, based on the [`WidgetVisuals`] of its current state.
 fn text_visuals(style: &Style, widget_visuals: &WidgetVisuals) -> TextVisuals {
