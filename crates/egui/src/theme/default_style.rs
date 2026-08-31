@@ -55,13 +55,15 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
 
         let painted_frame = Frame {
             fill: widget_visuals.weak_bg_fill,
-            stroke: widget_visuals.bg_stroke,
             corner_radius: widget_visuals.corner_radius,
             inner_margin,
             ..Default::default()
         }
         // Ensure changing expansion and stroke don't affect layout:
-        .expand_in_place(widget_visuals.expansion);
+        .apply_stroke_and_expansion_without_layout_shift(
+            widget_visuals.bg_stroke,
+            widget_visuals.expansion,
+        );
 
         let has_frame = classes.has_class(&Button::CLASS_FRAME)
             || (!classes.has_class(&Button::CLASS_NO_FRAME) && style.visuals.button_frame);
