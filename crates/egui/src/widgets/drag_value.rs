@@ -71,6 +71,9 @@ pub struct DragValue<'a> {
 impl<'a> DragValue<'a> {
     const ATOM_ID: &'static str = "drag_item";
 
+    /// Present on the [`Button`] and the [`TextEdit`] a drag value is built from.
+    pub const CLASS: &'static str = "egui::drag_value";
+
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
         let slf = Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
@@ -100,7 +103,7 @@ impl<'a> DragValue<'a> {
             custom_formatter: None,
             custom_parser: None,
             update_while_editing: true,
-            classes: Classes::default(),
+            classes: Classes::default().with_class(Self::CLASS),
             min_size: None,
         }
     }
