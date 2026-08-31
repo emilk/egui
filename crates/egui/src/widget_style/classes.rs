@@ -78,6 +78,18 @@ pub trait HasClasses {
         self
     }
 
+    /// Add all the given classes by consuming `self`
+    ///
+    /// Useful to forward the classes of a composite widget to the widgets it is built from.
+    #[inline]
+    fn with_classes(mut self, classes: Classes) -> Self
+    where
+        Self: Sized,
+    {
+        self.classes_mut().classes.extend(classes.classes);
+        self
+    }
+
     /// Add the given class by consuming `self` if the condition is true
     #[inline]
     fn with_class_if(mut self, class: impl Into<ClassName>, condition: bool) -> Self
@@ -95,6 +107,12 @@ pub trait HasClasses {
         Self: Sized,
     {
         self.classes_mut().add_if(class.into(), true);
+        self
+    }
+
+    #[inline]
+    fn add_classes(&mut self, classes: Classes) -> &mut Self {
+        self.classes_mut().classes.extend(classes.classes);
         self
     }
 

@@ -2,8 +2,7 @@ use emath::Vec2;
 use epaint::Margin;
 
 use crate::{
-    Button, Context, Frame, Style, TextStyle,
-    style::WidgetVisuals,
+    Button, Context, Frame, TextStyle,
     theme::StyleProvider,
     widget_style::{
         ButtonStyle, CheckboxStyle, HasClasses as _, SeparatorStyle, StyleArgs, TextVisuals,
@@ -30,17 +29,6 @@ impl DefaultStyle {
     }
 }
 
-/// The text of a widget, based on the [`WidgetVisuals`] of its current state.
-fn text_visuals(style: &Style, widget_visuals: &WidgetVisuals) -> TextVisuals {
-    TextVisuals {
-        color: widget_visuals.text_color(),
-        font_id: style
-            .override_font_id
-            .clone()
-            .unwrap_or_else(|| TextStyle::Body.resolve(style)),
-    }
-}
-
 impl StyleProvider<ButtonStyle> for DefaultStyle {
     fn style(&mut self, modifiers: &StyleArgs<'_>) -> ButtonStyle {
         let StyleArgs {
@@ -59,16 +47,23 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
             widget_visuals.fg_stroke = visuals.selection.stroke;
         }
 
-        let mut inner_margin: Margin = (spacing.button_padding
-            + Vec2::splat(widget_visuals.expansion)
-            - Vec2::splat(widget_visuals.bg_stroke.width))
-        .into();
+        let mut inner_margin: Margin = spacing.button_padding.into();
 
-        // A small button is meant to be embedded into text, so it must not add any height.
+        // A small button as high as regular text
         if classes.has_class(Button::CLASS_SMALL) {
             inner_margin.top = 0;
             inner_margin.bottom = 0;
         }
+
+        let painted_frame = Frame {
+            fill: widget_visuals.weak_bg_fill,
+            stroke: widget_visuals.bg_stroke,
+            corner_radius: widget_visuals.corner_radius,
+            inner_margin,
+            ..Default::default()
+        }
+        // Ensure changing expansion and stroke don't affect layout:
+        .expand_in_place(widget_visuals.expansion);
 
         let has_frame = classes.has_class(Button::CLASS_FRAME)
             || (!classes.has_class(Button::CLASS_NO_FRAME) && style.visuals.button_frame);
@@ -79,17 +74,10 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
         } else if classes.has_class(Button::CLASS_HIDE_FRAME_WHEN_INACTIVE)
             && *state == WidgetState::Inactive
         {
-            // Invisible, but as big as it will be once the user interacts with it.
-            Frame::new().inner_margin(inner_margin)
+            // Hide the frame, but keep its spacing
+            painted_frame.invisible()
         } else {
-            Frame {
-                fill: widget_visuals.weak_bg_fill,
-                stroke: widget_visuals.bg_stroke,
-                corner_radius: widget_visuals.corner_radius,
-                outer_margin: (-Vec2::splat(widget_visuals.expansion)).into(),
-                inner_margin,
-                ..Default::default()
-            }
+            painted_frame
         };
 
         ButtonStyle {
@@ -99,7 +87,7 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
                 Vec2::new(0.0, spacing.interact_size.y)
             },
             frame,
-            text_style: text_visuals(style, &widget_visuals),
+            text_style: TextVisuals::from_widget_visuals(style, TextStyle::Body, &widget_visuals),
         }
     }
 }
@@ -120,7 +108,7 @@ impl StyleProvider<CheckboxStyle> for DefaultStyle {
                 stroke: widget_visuals.bg_stroke,
                 ..Default::default()
             },
-            text_style: text_visuals(style, &widget_visuals),
+            text_style: TextVisuals::from_widget_visuals(style, TextStyle::Body, &widget_visuals),
             check_stroke: widget_visuals.fg_stroke,
         }
     }

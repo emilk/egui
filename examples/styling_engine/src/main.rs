@@ -65,11 +65,8 @@ impl StyleProvider<ButtonStyle> for MyTheme {
                 .fill(fill)
                 .corner_radius(self.corner_radius)
                 .inner_margin(8),
-            text_style: TextVisuals {
-                color: Color32::WHITE,
-                // Resolve the font from the style, so we follow the user's font sizes:
-                font_id: TextStyle::Button.resolve(style),
-            },
+            // Resolve the font from the style, so we follow the user's font sizes:
+            text_style: TextVisuals::new(style, TextStyle::Button, Color32::WHITE),
         }
     }
 }

@@ -298,6 +298,18 @@ impl Frame {
         self
     }
 
+    /// Expand the frame without affecting layout.
+    ///
+    /// This handles `expansion` by subtracting it from the outer margin and adding it to the
+    /// inner margin. It also corrects for a stroke changing on hover, by subtracting the stroke
+    /// width from `inner_margin`.
+    #[inline]
+    pub fn expand_in_place(mut self, expansion: f32) -> Self {
+        self.outer_margin = self.outer_margin - Margin::from(expansion);
+        self.inner_margin = self.inner_margin + Margin::from(expansion - self.stroke.width);
+        self
+    }
+
     /// Optional drop-shadow behind the frame.
     #[inline]
     pub fn shadow(mut self, shadow: Shadow) -> Self {
@@ -314,6 +326,16 @@ impl Frame {
         self.fill = self.fill.gamma_multiply(opacity);
         self.stroke.color = self.stroke.color.gamma_multiply(opacity);
         self.shadow.color = self.shadow.color.gamma_multiply(opacity);
+        self
+    }
+
+    /// Make this frame invisible by setting background and stroke to transparent.
+    ///
+    /// Will not affect layout or contents.
+    pub fn invisible(mut self) -> Self {
+        self.fill = Color32::TRANSPARENT;
+        self.stroke.color = Color32::TRANSPARENT;
+        self.shadow = Shadow::NONE;
         self
     }
 }
