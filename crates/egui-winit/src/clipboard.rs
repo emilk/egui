@@ -130,7 +130,7 @@ impl Clipboard {
     ///
     /// This mirrors [`Self::set_image`] for the opposite direction, so that a Ctrl+V/Cmd+V
     /// paste can carry an image (e.g. a screenshot or a copied image) instead of text — see
-    /// [`crate::Event::PasteImage`].
+    /// [`egui::Event::PasteImage`].
     pub fn get_image(&mut self) -> Option<egui::ColorImage> {
         #[cfg(all(
             not(any(target_os = "android", target_os = "ios")),
