@@ -131,9 +131,10 @@ impl BandShape {
         }
 
         let stroke_width = match self.stroke_kind {
-            StrokeKind::Inside => 0.0,
+            // A band too thin for an inside stroke is widened to fit it,
+            // so the stroke can reach a full width past a pinch:
+            StrokeKind::Inside | StrokeKind::Outside => self.stroke.width,
             StrokeKind::Middle => self.stroke.width / 2.0,
-            StrokeKind::Outside => self.stroke.width,
         };
         rect.expand(stroke_width)
             .rotate_bb(emath::Rot2::from_angle(self.angle))

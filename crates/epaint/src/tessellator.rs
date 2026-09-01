@@ -6,7 +6,7 @@
 #![expect(clippy::identity_op)]
 
 use emath::{
-    GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, fast_midpoint, pos2, remap, vec2,
+    GuiRounding as _, NumExt as _, Pos2, Rangef, Rect, Rot2, Vec2, fast_midpoint, pos2, remap, vec2,
 };
 
 use crate::{
@@ -1857,6 +1857,32 @@ impl Tessellator {
         let rotation = Rot2::from_angle(*angle);
         let stroke = PathStroke::from(*stroke).with_kind(*stroke_kind);
 
+        // An inside stroke pulls both boundaries inward before anything is painted,
+        // and the feathering eats another pixel. A band any thinner than that would
+        // turn inside out, so widen it to what its own stroke needs:
+        let min_width = if stroke.width == 0.0 {
+            0.0
+        } else if stroke.color == ColorMode::TRANSPARENT {
+            // An invisible stroke that still takes up room:
+            match stroke_kind {
+                StrokeKind::Inside => 2.0 * stroke.width + self.feathering,
+                StrokeKind::Middle => stroke.width + self.feathering,
+                StrokeKind::Outside => 0.0,
+            }
+        } else {
+            match stroke_kind {
+                StrokeKind::Inside => 2.0 * stroke.width + self.feathering,
+                StrokeKind::Middle | StrokeKind::Outside => 0.0,
+            }
+        };
+        let widen = |y: Rangef| {
+            if y.span() < min_width {
+                Rangef::new(y.center() - 0.5 * min_width, y.center() + 0.5 * min_width)
+            } else {
+                y
+            }
+        };
+
         for run in BandRuns::new(points) {
             let num_samples = run.len();
 
@@ -1866,12 +1892,12 @@ impl Tessellator {
             self.scratchpad_points.reserve(2 * num_samples);
             self.scratchpad_points.extend(
                 run.iter()
-                    .map(|point| rotate_band_point(rotation, point.x, point.y.min)),
+                    .map(|point| rotate_band_point(rotation, point.x, widen(point.y).min)),
             );
             self.scratchpad_points.extend(
                 run.iter()
                     .rev()
-                    .map(|point| rotate_band_point(rotation, point.x, point.y.max)),
+                    .map(|point| rotate_band_point(rotation, point.x, widen(point.y).max)),
             );
 
             self.scratchpad_path.clear();
