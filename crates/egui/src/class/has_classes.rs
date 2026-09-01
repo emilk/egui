@@ -75,7 +75,7 @@ pub trait HasClasses {
 
     /// Add a class to the list if the condition is true.
     ///
-    /// A class is never added twice. This never removes a class: use [`Self::set`] for that.
+    /// A class is never added twice. This never removes a class: use [`Self::set_class`] for that.
     #[inline]
     fn add_class_if(&mut self, class: impl Into<ClassName>, condition: bool) -> &mut Self
     where
