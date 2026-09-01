@@ -478,7 +478,8 @@ impl TextEdit<'_> {
         let desired_width = desired_width
             .unwrap_or_else(|| ui.spacing().text_edit_width)
             .at_least(min_size.x);
-        let allocate_width = desired_width.at_most(available_width);
+        // `min_size` overrides available width
+        let allocate_width = desired_width.at_most(available_width).at_least(min_size.x);
 
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
@@ -695,7 +696,7 @@ impl TextEdit<'_> {
             let custom_frame = frame.is_some();
             let frame = frame.unwrap_or_else(|| Frame::new().inner_margin(margin));
 
-            let min_height = min_inner_height + frame.total_margin().sum().y;
+            let min_height = (min_inner_height + frame.total_margin().sum().y).at_least(min_size.y);
 
             // This wrap mode only affects the hint_text
             let wrap_mode = if multiline {
