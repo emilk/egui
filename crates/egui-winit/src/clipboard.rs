@@ -167,11 +167,6 @@ impl Clipboard {
     }
 }
 
-/// Converts `arboard`'s straight-alpha `ImageData` into an [`egui::ColorImage`], which stores
-/// _premultiplied_ alpha (see [`egui::Color32`]) — a plain byte-cast would be wrong for any
-/// pixel with partial transparency, hence [`egui::ColorImage::from_rgba_unmultiplied`] (the same
-/// helper the `image` crate loading example in its own docs uses) rather than reinterpreting
-/// the bytes directly, as `Self::set_image` does for the write direction.
 #[cfg(all(
     not(any(target_os = "android", target_os = "ios")),
     feature = "arboard",
