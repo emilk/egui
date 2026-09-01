@@ -437,6 +437,7 @@ pub mod widgets;
 #[cfg(feature = "callstack")]
 #[cfg(debug_assertions)]
 mod callstack;
+pub mod class;
 
 pub use accesskit;
 
