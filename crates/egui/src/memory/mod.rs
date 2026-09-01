@@ -361,13 +361,8 @@ impl Default for Options {
             input_options: Default::default(),
             reduce_texture_memory: false,
 
-            report_text_selection: cfg!(any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-            )),
+            report_text_selection: crate::os::OperatingSystem::from_target_os()
+                == crate::os::OperatingSystem::Nix,
         }
     }
 }
