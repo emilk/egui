@@ -753,6 +753,9 @@ impl Default for Context {
         ctx.add_plugin(crate::text_selection::LabelSelectionState::default());
         ctx.add_plugin(crate::DragAndDrop::default());
 
+        // Register the default theme for all built-in widgets:
+        theme::DefaultStyle::register(&ctx);
+
         ctx
     }
 }
@@ -2104,7 +2107,10 @@ impl Context {
     /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
     ///
     /// If you want to add the theme anyway, use [`Self::replace_widget_theme`] instead.
-    #[cfg(feature = "experimental")]
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
     pub fn add_widget_theme<S: WidgetStyle + 'static>(
         &self,
         theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
@@ -2116,7 +2122,10 @@ impl Context {
     ///
     /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
     /// This allow to live edit a theme.
-    #[cfg(feature = "experimental")]
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
     pub fn replace_widget_theme<S: WidgetStyle + 'static>(
         &self,
         theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
