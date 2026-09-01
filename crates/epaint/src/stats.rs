@@ -207,6 +207,9 @@ impl PaintStats {
             Shape::Path(path_shape) => {
                 self.shape_path += AllocInfo::from_slice(&path_shape.points);
             }
+            Shape::Band(band_shape) => {
+                self.shape_path += AllocInfo::from_slice(&band_shape.points);
+            }
             Shape::Text(text_shape) => {
                 self.shape_text += AllocInfo::from_galley(&text_shape.galley);
 

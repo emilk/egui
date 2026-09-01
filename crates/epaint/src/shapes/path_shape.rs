@@ -1,6 +1,8 @@
 use crate::*;
 
 /// A path which can be stroked and/or filled (if closed).
+///
+/// If you want a path of varying width, use [`BandShape`] instead.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PathShape {

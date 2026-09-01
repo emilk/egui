@@ -10,10 +10,10 @@ use emath::{
 };
 
 use crate::{
-    CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
-    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, RoundedRect, Shape,
-    Stroke, StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath, stroke::PathStroke,
-    texture_atlas::PreparedDisc,
+    BandPoint, BandShape, CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32,
+    CubicBezierShape, EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape,
+    RoundedRect, Shape, Stroke, StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath,
+    stroke::PathStroke, texture_atlas::PreparedDisc,
 };
 
 // ----------------------------------------------------------------------------
@@ -1449,6 +1449,9 @@ impl Tessellator {
             Shape::Path(path_shape) => {
                 self.tessellate_path(&path_shape, out);
             }
+            Shape::Band(band_shape) => {
+                self.tessellate_band(&band_shape, out);
+            }
             Shape::Rect(rect_shape) => {
                 self.tessellate_rect(&rect_shape, out);
             }
@@ -1741,6 +1744,136 @@ impl Tessellator {
             self.scratchpad_path
                 .stroke(self.feathering, PathType::Open, stroke, out);
         }
+    }
+
+    /// Tessellate a single [`BandShape`] into a [`Mesh`].
+    pub fn tessellate_band(&mut self, band_shape: &BandShape, out: &mut Mesh) {
+        fn triangle_is_degenerate(a: Pos2, b: Pos2, c: Pos2) -> bool {
+            let ab = b - a;
+            let ac = c - a;
+            ab.x * ac.y == ab.y * ac.x
+        }
+
+        fn rotate_band_point(rotation: Rot2, x: f32, y: f32) -> Pos2 {
+            (rotation * Vec2::new(x, y)).to_pos2()
+        }
+
+        if self.options.coarse_tessellation_culling
+            && !band_shape.visual_bounding_rect().intersects(self.clip_rect)
+        {
+            return;
+        }
+
+        let BandShape {
+            points,
+            fill,
+            stroke,
+            stroke_kind,
+            angle,
+        } = band_shape;
+        if !angle.is_finite() {
+            return;
+        }
+        let rotation = Rot2::from_angle(*angle);
+
+        if *fill != Color32::TRANSPARENT {
+            out.reserve_vertices(4 * points.len().saturating_sub(1));
+            out.reserve_triangles(2 * points.len().saturating_sub(1));
+
+            for &[left, right] in points.array_windows() {
+                if !left.is_valid() || !right.is_valid() || right.x <= left.x {
+                    continue;
+                }
+
+                let index = out.vertices.len() as u32;
+                let left_min = rotate_band_point(rotation, left.x, left.y.min);
+                let left_max = rotate_band_point(rotation, left.x, left.y.max);
+                let right_min = rotate_band_point(rotation, right.x, right.y.min);
+                let right_max = rotate_band_point(rotation, right.x, right.y.max);
+                out.colored_vertex(left_min, *fill);
+                out.colored_vertex(left_max, *fill);
+                out.colored_vertex(right_min, *fill);
+                out.colored_vertex(right_max, *fill);
+
+                if !triangle_is_degenerate(left_min, right_min, left_max) {
+                    out.add_triangle(index, index + 2, index + 1);
+                }
+                if !triangle_is_degenerate(left_max, right_min, right_max) {
+                    out.add_triangle(index + 1, index + 2, index + 3);
+                }
+            }
+        }
+
+        if !stroke.is_empty() {
+            let stroke = PathStroke::from(*stroke).with_kind(stroke_kind.flipped());
+            self.tessellate_band_boundary(
+                points,
+                &stroke,
+                true,
+                |point| rotate_band_point(rotation, point.x, point.y.min),
+                out,
+            );
+            self.tessellate_band_boundary(
+                points,
+                &stroke,
+                false,
+                |point| rotate_band_point(rotation, point.x, point.y.max),
+                out,
+            );
+        }
+    }
+
+    fn tessellate_band_boundary(
+        &mut self,
+        points: &[BandPoint],
+        stroke: &PathStroke,
+        reverse: bool,
+        point_to_pos: impl Fn(BandPoint) -> Pos2,
+        out: &mut Mesh,
+    ) {
+        self.scratchpad_points.clear();
+        let mut previous_x = None;
+
+        for index in 0..points.len() {
+            let point = if reverse {
+                points[points.len() - 1 - index]
+            } else {
+                points[index]
+            };
+            if !point.is_valid() {
+                self.tessellate_open_band_boundary(stroke, out);
+                previous_x = None;
+                continue;
+            }
+
+            if let Some(previous_x) = previous_x
+                && if reverse {
+                    previous_x <= point.x
+                } else {
+                    point.x <= previous_x
+                }
+            {
+                self.tessellate_open_band_boundary(stroke, out);
+            }
+            let pos = point_to_pos(point);
+            self.scratchpad_points.push(pos);
+            previous_x = Some(point.x);
+        }
+        self.tessellate_open_band_boundary(stroke, out);
+    }
+
+    fn tessellate_open_band_boundary(&mut self, stroke: &PathStroke, out: &mut Mesh) {
+        if self.scratchpad_points.len() < 2 {
+            self.scratchpad_points.clear();
+            return;
+        }
+
+        self.scratchpad_path.clear();
+        self.scratchpad_path
+            .add_open_points(&self.scratchpad_points);
+        self.scratchpad_path
+            .stroke_open(self.feathering, stroke, out);
+        self.scratchpad_points.clear();
     }
 
     /// Tessellate a single [`Rect`] into a [`Mesh`].
@@ -2274,6 +2407,8 @@ impl Tessellator {
 
                 Shape::Path(path_shape) => 32 < path_shape.points.len(),
 
+                Shape::Band(band_shape) => 32 < band_shape.points.len(),
+
                 Shape::QuadraticBezier(_) | Shape::CubicBezier(_) | Shape::Ellipse(_) => true,
 
                 Shape::Noop
@@ -2414,4 +2549,151 @@ fn path_bounding_box() {
             &mut mesh,
         );
     }
+}
+
+#[test]
+fn tessellate_band_fill() {
+    use crate::*;
+
+    let band = BandShape::filled(
+        vec![
+            BandPoint::new(0.0, 1.0..=3.0),
+            BandPoint::new(2.0, 2.0..=4.0),
+        ],
+        Color32::WHITE,
+    );
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, Default::default(), [1, 1], vec![])
+        .tessellate_shape(band.into(), &mut mesh);
+
+    assert_eq!(mesh.indices, [0, 2, 1, 1, 2, 3]);
+    assert_eq!(
+        mesh.vertices
+            .iter()
+            .map(|vertex| vertex.pos)
+            .collect::<Vec<_>>(),
+        [
+            pos2(0.0, 1.0),
+            pos2(0.0, 3.0),
+            pos2(2.0, 2.0),
+            pos2(2.0, 4.0)
+        ]
+    );
+}
+
+#[test]
+fn tessellate_band_connects_spans() {
+    use crate::*;
+
+    let band = BandShape::filled(
+        vec![
+            BandPoint::new(0.0, 1.0..=3.0),
+            BandPoint::new(2.0, 2.0..=4.0),
+            BandPoint::new(4.0, 3.0..=5.0),
+        ],
+        Color32::WHITE,
+    );
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, Default::default(), [1, 1], vec![])
+        .tessellate_shape(band.into(), &mut mesh);
+
+    assert_eq!(mesh.indices.len(), 12);
+    assert_eq!(mesh.vertices[2].pos, mesh.vertices[4].pos);
+    assert_eq!(mesh.vertices[3].pos, mesh.vertices[5].pos);
+}
+
+#[test]
+fn tessellate_band_skips_invalid_spans() {
+    use crate::*;
+
+    let band = BandShape::filled(
+        vec![
+            BandPoint::new(0.0, 1.0..=3.0),
+            BandPoint::new(0.0, 2.0..=4.0),
+            BandPoint::new(2.0, 5.0..=4.0),
+            BandPoint::new(f32::NAN, 2.0..=4.0),
+        ],
+        Color32::WHITE,
+    );
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, Default::default(), [1, 1], vec![])
+        .tessellate_shape(band.into(), &mut mesh);
+
+    assert!(mesh.is_empty());
+}
+
+#[test]
+fn tessellate_band_stroke_only() {
+    use crate::*;
+
+    let band = BandShape::stroke(
+        vec![
+            BandPoint::new(0.0, 1.0..=3.0),
+            BandPoint::new(2.0, 2.0..=4.0),
+        ],
+        (1.0, Color32::WHITE),
+    );
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, Default::default(), [1, 1], vec![])
+        .tessellate_shape(band.into(), &mut mesh);
+
+    assert!(!mesh.indices.is_empty());
+    assert!(
+        mesh.vertices
+            .iter()
+            .any(|vertex| vertex.color == Color32::WHITE)
+    );
+}
+
+#[test]
+fn tessellate_band_rotates_around_the_origin() {
+    use crate::*;
+
+    let band = BandShape::filled(
+        vec![
+            BandPoint::new(0.0, 1.0..=3.0),
+            BandPoint::new(2.0, 2.0..=4.0),
+        ],
+        Color32::WHITE,
+    )
+    .with_angle(core::f32::consts::FRAC_PI_2);
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, Default::default(), [1, 1], vec![])
+        .tessellate_shape(band.into(), &mut mesh);
+
+    assert!((mesh.vertices[0].pos - pos2(-1.0, 0.0)).length_sq() < 1e-10);
+    assert!((mesh.vertices[3].pos - pos2(-4.0, 2.0)).length_sq() < 1e-10);
+}
+
+#[test]
+fn tessellate_band_stroke_kind() {
+    use crate::*;
+
+    fn tessellate(stroke_kind: StrokeKind) -> Mesh {
+        let mut band = BandShape::stroke(
+            vec![
+                BandPoint::new(0.0, 0.0..=10.0),
+                BandPoint::new(10.0, 0.0..=10.0),
+            ],
+            (2.0, Color32::WHITE),
+        );
+        band.stroke_kind = stroke_kind;
+
+        let mut mesh = Mesh::default();
+        let options = TessellationOptions {
+            feathering: false,
+            ..Default::default()
+        };
+        Tessellator::new(1.0, options, [1, 1], vec![]).tessellate_shape(band.into(), &mut mesh);
+        mesh
+    }
+
+    assert_eq!(
+        tessellate(StrokeKind::Inside).calc_bounds().y_range(),
+        0.0..=10.0
+    );
+    assert_eq!(
+        tessellate(StrokeKind::Outside).calc_bounds().y_range(),
+        -2.0..=12.0
+    );
 }
