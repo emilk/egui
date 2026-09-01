@@ -1794,14 +1794,13 @@ impl Tessellator {
                 let right_min = rotate_band_point(rotation, right.x, right.y.min);
                 let right_max = rotate_band_point(rotation, right.x, right.y.max);
 
-                let left_index = match shared_edge {
-                    Some(index) => index,
-                    None => {
-                        let index = out.vertices.len() as u32;
-                        out.colored_vertex(left_min, *fill);
-                        out.colored_vertex(left_max, *fill);
-                        index
-                    }
+                let left_index = if let Some(index) = shared_edge {
+                    index
+                } else {
+                    let index = out.vertices.len() as u32;
+                    out.colored_vertex(left_min, *fill);
+                    out.colored_vertex(left_max, *fill);
+                    index
                 };
                 let right_index = out.vertices.len() as u32;
                 out.colored_vertex(right_min, *fill);
