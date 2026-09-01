@@ -32,7 +32,7 @@ impl BandPoint {
 /// The samples are x-monotone in the band's local coordinate system. Invalid points,
 /// reversed ranges, and spans with non-increasing x are ignored.
 ///
-/// If you want a path of fixed width, use [`PathShape`] instead.
+/// If you want a path of fixed width, use [`PathShape`](crate::PathShape) instead.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BandShape {
@@ -96,12 +96,16 @@ impl BandShape {
     }
 
     /// Set the rotation of the band (in radians, clockwise) around a custom pivot point.
+    ///
+    /// The band keeps the position it already had at `pivot`, so calling this again
+    /// with a different angle rotates around the same point.
     #[inline]
     pub fn with_angle_and_pivot(mut self, angle: f32, pivot: Pos2) -> Self {
+        let pivot = pivot.to_vec2();
+        // The points are stored pre-rotation, so undo each rotation to get the local offset:
+        let translation =
+            emath::Rot2::from_angle(-angle) * pivot - emath::Rot2::from_angle(-self.angle) * pivot;
         self.angle = angle;
-        let rotation = emath::Rot2::from_angle(angle);
-        let translation = pivot.to_vec2() - rotation * pivot.to_vec2();
-        let translation = emath::Rot2::from_angle(-self.angle) * translation;
         for point in &mut self.points {
             point.x += translation.x;
             point.y.min += translation.y;
@@ -201,6 +205,21 @@ mod tests {
         assert!((band.points[0].x - 0.0).abs() < 1e-6);
         assert!((band.points[0].y.min + 3.0).abs() < 1e-6);
         assert!((band.points[0].y.max + 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn with_angle_and_pivot_is_relative_to_the_previous_angle() {
+        let points = vec![BandPoint::new(1.0, 0.0..=2.0)];
+        let pivot = pos2(2.0, 1.0);
+        let once = BandShape::filled(points.clone(), Color32::WHITE)
+            .with_angle_and_pivot(core::f32::consts::FRAC_PI_2, pivot);
+        let twice = BandShape::filled(points, Color32::WHITE)
+            .with_angle_and_pivot(core::f32::consts::FRAC_PI_4, pivot)
+            .with_angle_and_pivot(core::f32::consts::FRAC_PI_2, pivot);
+
+        assert!((once.points[0].x - twice.points[0].x).abs() < 1e-6);
+        assert!((once.points[0].y.min - twice.points[0].y.min).abs() < 1e-6);
+        assert!((once.points[0].y.max - twice.points[0].y.max).abs() < 1e-6);
     }
 
     #[test]
