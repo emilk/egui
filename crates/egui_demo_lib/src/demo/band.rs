@@ -115,10 +115,10 @@ impl crate::View for BandDemo {
                 .collect();
             let mut band = epaint::BandShape::new(
                 points,
-                Color32::from_rgba_unmultiplied(80, 190, 255, (255.0 * self.fill_opacity) as u8),
+                Color32::from_rgb(80, 190, 255).gamma_multiply(self.fill_opacity),
                 Stroke::new(
                     self.stroke_width,
-                    Color32::from_white_alpha((255.0 * self.stroke_opacity) as u8),
+                    Color32::from_white_alpha((255.0 * self.stroke_opacity).round() as u8),
                 ),
             )
             .with_stroke_kind(self.stroke_kind);
