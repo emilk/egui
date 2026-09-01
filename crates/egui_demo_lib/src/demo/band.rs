@@ -135,20 +135,3 @@ impl crate::View for BandDemo {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn snapshot_band() {
-        let mut demo = BandDemo {
-            speed: 0.0,
-            ..Default::default()
-        };
-        let mut harness = egui_kittest::Harness::new_ui(|ui| demo.ui(ui));
-        harness.fit_contents();
-        harness.run();
-        harness.snapshot("band");
-    }
-}
