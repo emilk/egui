@@ -494,7 +494,7 @@ impl Path {
             PathType::Closed,
             stroke,
             fill,
-            triangulate_convex_path,
+            &triangulate_convex_path,
             out,
         );
     }
@@ -524,7 +524,13 @@ impl Path {
     /// Calling this may reverse the vertices in the path if they are wrong winding order.
     /// The preferred winding order is clockwise.
     pub fn fill(&mut self, feathering: f32, color: Color32, out: &mut Mesh) {
-        fill_closed_path(feathering, &mut self.0, color, triangulate_convex_path, out);
+        fill_closed_path(
+            feathering,
+            &mut self.0,
+            color,
+            &triangulate_convex_path,
+            out,
+        );
     }
 
     /// Like [`Self::fill`] but with texturing.
@@ -811,18 +817,44 @@ impl<'a> Iterator for BandRuns<'a> {
 
 /// Triangulates the interior of a closed path.
 ///
-/// The path's `num_points` vertices are found in the mesh at `first_index + stride * i`,
-/// in path order.
-type FillTriangulation = fn(out: &mut Mesh, first_index: u32, stride: u32, num_points: u32);
+/// The path's `num_points` fill-colored vertices are found in the mesh at
+/// `first_index + stride * i`, in path order. The colors are already written,
+/// so an implementation may also dim them.
+type FillTriangulation<'a> = &'a dyn Fn(&mut Mesh, u32, u32, u32);
 
 /// Triangulate the outline of one run of a [`BandShape`]: the lower boundary of the band,
 /// followed by the upper boundary backwards.
-fn triangulate_band_outline(out: &mut Mesh, first_index: u32, stride: u32, num_points: u32) {
+///
+/// Where the band was widened to `min_width` to survive the feathering and its own stroke,
+/// the fill is dimmed by as much as it was widened, so that a band pinching to nothing
+/// fades out instead of bottoming out as a hard, full-opacity line.
+fn triangulate_band_outline(
+    run: &[BandPoint],
+    min_width: f32,
+    out: &mut Mesh,
+    first_index: u32,
+    stride: u32,
+    num_points: u32,
+) {
     let vertex = |i: u32| first_index + stride * i;
     let last = num_points - 1;
+
     for i in 0..num_points / 2 - 1 {
         out.add_triangle(vertex(i), vertex(i + 1), vertex(last - i - 1));
         out.add_triangle(vertex(i), vertex(last - i - 1), vertex(last - i));
+    }
+
+    if 0.0 < min_width {
+        for (i, point) in run.iter().enumerate() {
+            let width = point.y.span();
+            if width < min_width {
+                let opacity = width / min_width;
+                for index in [vertex(i as u32), vertex(last - i as u32)] {
+                    let color = &mut out.vertices[index as usize].color;
+                    *color = mul_color(*color, opacity);
+                }
+            }
+        }
     }
 }
 
@@ -846,7 +878,7 @@ fn fill_closed_path(
     feathering: f32,
     path: &mut [PathPoint],
     fill_color: Color32,
-    triangulate: FillTriangulation,
+    triangulate: FillTriangulation<'_>,
     out: &mut Mesh,
 ) {
     if fill_color == Color32::TRANSPARENT {
@@ -872,9 +904,6 @@ fn fill_closed_path(
         let idx_inner = out.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
 
-        // The fill:
-        triangulate(out, idx_inner, 2, n);
-
         // The feathering:
         let mut i0 = n - 1;
         for i1 in 0..n {
@@ -890,6 +919,9 @@ fn fill_closed_path(
             out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
             i0 = i1;
         }
+
+        // The fill, last so that the triangulation can also see the vertices:
+        triangulate(out, idx_inner, 2, n);
     } else {
         out.reserve_triangles(n as usize);
         let idx = out.vertices.len() as u32;
@@ -997,7 +1029,7 @@ fn stroke_path(
         path_type,
         stroke,
         fill,
-        triangulate_convex_path,
+        &triangulate_convex_path,
         out,
     );
 }
@@ -1013,7 +1045,7 @@ fn stroke_and_fill_path(
     path_type: PathType,
     stroke: &PathStroke,
     color_fill: Color32,
-    triangulate: FillTriangulation,
+    triangulate: FillTriangulation<'_>,
     out: &mut Mesh,
 ) {
     let n = path.len() as u32;
@@ -1857,24 +1889,28 @@ impl Tessellator {
         let rotation = Rot2::from_angle(*angle);
         let stroke = PathStroke::from(*stroke).with_kind(*stroke_kind);
 
-        // An inside stroke pulls both boundaries inward before anything is painted,
-        // and the feathering eats another pixel. A band any thinner than that would
-        // turn inside out, so widen it to what its own stroke needs:
-        let min_width = if stroke.width == 0.0 {
+        // Everything downstream pulls the two boundaries towards each other before
+        // painting: the feathering insets the fill by half a pixel on each side, and an
+        // inside stroke moves the outline in by half its width. A band any thinner than
+        // the sum turns inside out - the boundaries swap, and a band that should fade to
+        // nothing comes out as a hard, full-opacity line instead. So give the band the
+        // width that its own feathering and stroke are about to take from it:
+        let inset = if stroke.width == 0.0 {
             0.0
         } else if stroke.color == ColorMode::TRANSPARENT {
             // An invisible stroke that still takes up room:
             match stroke_kind {
-                StrokeKind::Inside => 2.0 * stroke.width + self.feathering,
-                StrokeKind::Middle => stroke.width + self.feathering,
+                StrokeKind::Inside => stroke.width,
+                StrokeKind::Middle => 0.5 * stroke.width,
                 StrokeKind::Outside => 0.0,
             }
         } else {
             match stroke_kind {
-                StrokeKind::Inside => 2.0 * stroke.width + self.feathering,
+                StrokeKind::Inside => 0.5 * stroke.width,
                 StrokeKind::Middle | StrokeKind::Outside => 0.0,
             }
         };
+        let min_width = 2.0 * inset + self.feathering;
         let widen = |y: Rangef| {
             if y.span() < min_width {
                 Rangef::new(y.center() - 0.5 * min_width, y.center() + 0.5 * min_width)
@@ -1917,7 +1953,9 @@ impl Tessellator {
                 PathType::Closed,
                 &stroke,
                 *fill,
-                triangulate_band_outline,
+                &|out: &mut Mesh, first_index, stride, num_points| {
+                    triangulate_band_outline(run, min_width, out, first_index, stride, num_points);
+                },
                 out,
             );
         }
@@ -2721,6 +2759,36 @@ fn tessellate_band_skips_invalid_spans() {
         .tessellate_shape(band.into(), &mut mesh);
 
     assert!(mesh.is_empty());
+}
+
+#[test]
+fn tessellate_band_fades_out_at_a_pinch() {
+    use crate::*;
+
+    // A band thinner than the feathering is widened so that it cannot turn inside out,
+    // then dimmed by as much as it was widened, so that it still fades away:
+    let band = BandShape::filled(
+        vec![
+            BandPoint::new(0.0, -2.0..=2.0),
+            BandPoint::new(10.0, 0.0..=0.0),
+        ],
+        Color32::WHITE,
+    );
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, Default::default(), [1, 1], vec![])
+        .tessellate_shape(band.into(), &mut mesh);
+
+    // The lower boundary's fill vertices, at stride two:
+    assert_eq!(
+        mesh.vertices[0].color,
+        Color32::WHITE,
+        "the wide end is opaque"
+    );
+    assert_eq!(
+        mesh.vertices[2].color,
+        Color32::TRANSPARENT,
+        "the pinched end has faded away"
+    );
 }
 
 #[test]
