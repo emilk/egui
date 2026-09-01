@@ -523,13 +523,12 @@ impl TextEdit<'_> {
         // `min_size` overrides available width
         let allocate_width = desired_width.at_most(available_width).at_least(min_size.x);
 
-        let font_id_clone = font_id;
         let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
             let text = mask_if_password(password, text.as_str());
             let mut layout_job = if multiline {
-                LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
+                LayoutJob::simple(text, font_id.clone(), text_color, wrap_width)
             } else {
-                LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
+                LayoutJob::simple_singleline(text, font_id.clone(), text_color)
             };
             layout_job.halign = align.x();
             // We want to keep the trailing whitespace, since hiding it feels really weird when typing
