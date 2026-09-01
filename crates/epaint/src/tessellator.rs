@@ -1777,29 +1777,42 @@ impl Tessellator {
         let rotation = Rot2::from_angle(*angle);
 
         if *fill != Color32::TRANSPARENT {
-            out.reserve_vertices(4 * points.len().saturating_sub(1));
+            out.reserve_vertices(2 * points.len());
             out.reserve_triangles(2 * points.len().saturating_sub(1));
+
+            // The two vertices of the previous span's right edge, reused by the next span:
+            let mut shared_edge = None;
 
             for &[left, right] in points.array_windows() {
                 if !left.is_valid() || !right.is_valid() || right.x <= left.x {
+                    shared_edge = None;
                     continue;
                 }
 
-                let index = out.vertices.len() as u32;
                 let left_min = rotate_band_point(rotation, left.x, left.y.min);
                 let left_max = rotate_band_point(rotation, left.x, left.y.max);
                 let right_min = rotate_band_point(rotation, right.x, right.y.min);
                 let right_max = rotate_band_point(rotation, right.x, right.y.max);
-                out.colored_vertex(left_min, *fill);
-                out.colored_vertex(left_max, *fill);
+
+                let left_index = match shared_edge {
+                    Some(index) => index,
+                    None => {
+                        let index = out.vertices.len() as u32;
+                        out.colored_vertex(left_min, *fill);
+                        out.colored_vertex(left_max, *fill);
+                        index
+                    }
+                };
+                let right_index = out.vertices.len() as u32;
                 out.colored_vertex(right_min, *fill);
                 out.colored_vertex(right_max, *fill);
+                shared_edge = Some(right_index);
 
                 if !triangle_is_degenerate(left_min, right_min, left_max) {
-                    out.add_triangle(index, index + 2, index + 1);
+                    out.add_triangle(left_index, right_index, left_index + 1);
                 }
                 if !triangle_is_degenerate(left_max, right_min, right_max) {
-                    out.add_triangle(index + 1, index + 2, index + 3);
+                    out.add_triangle(left_index + 1, right_index, right_index + 1);
                 }
             }
         }
@@ -2597,9 +2610,10 @@ fn tessellate_band_connects_spans() {
     Tessellator::new(1.0, Default::default(), [1, 1], vec![])
         .tessellate_shape(band.into(), &mut mesh);
 
+    // The shared edge between the two spans is emitted once:
     assert_eq!(mesh.indices.len(), 12);
-    assert_eq!(mesh.vertices[2].pos, mesh.vertices[4].pos);
-    assert_eq!(mesh.vertices[3].pos, mesh.vertices[5].pos);
+    assert_eq!(mesh.vertices.len(), 6);
+    assert_eq!(mesh.indices, [0, 2, 1, 1, 2, 3, 2, 4, 3, 3, 4, 5]);
 }
 
 #[test]
