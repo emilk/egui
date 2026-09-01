@@ -2,23 +2,12 @@
 // so without it a lot of it looks unused:
 #![cfg_attr(not(feature = "experimental"), allow(dead_code, unused_imports))]
 
-mod classes;
-
-pub use self::classes::{ClassName, Classes, HasClasses};
-
-/// Built-in classes shared by all widgets.
-pub mod class {
-    use super::ClassName;
-
-    /// Present on every top-level [`crate::Ui`].
-    pub const ROOT: ClassName = ClassName::from_static("egui::root");
-}
-
 use core::fmt::Debug;
 use epaint::{Color32, FontId, Stroke, Vec2};
 
 use crate::{
     Context, FontSelection, Frame, Response, Style, UiStack,
+    class::{Classes, HasClasses as _},
     style::{WidgetVisuals, Widgets},
 };
 

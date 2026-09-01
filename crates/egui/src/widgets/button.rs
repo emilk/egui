@@ -2,7 +2,8 @@ use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Atoms, Color32, CornerRadius,
     Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
     Widget, WidgetInfo, WidgetText, WidgetType,
-    widget_style::{ButtonStyle, ClassName, Classes, HasClasses},
+    class::{ClassName, Classes, HasClasses},
+    widget_style::ButtonStyle,
 };
 
 /// Clickable button with text.

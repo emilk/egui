@@ -1,7 +1,7 @@
 use core::{any::Any, iter::FusedIterator};
 use std::sync::Arc;
 
-use crate::widget_style::{Classes, HasClasses as _};
+use crate::class::{Classes, HasClasses as _};
 use epaint::Color32;
 
 use crate::{Direction, Frame, Id, Rect};

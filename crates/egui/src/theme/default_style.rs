@@ -3,10 +3,10 @@ use epaint::Margin;
 
 use crate::{
     Button, Context, Frame, TextStyle,
+    class::HasClasses as _,
     theme::StyleProvider,
     widget_style::{
-        ButtonStyle, CheckboxStyle, HasClasses as _, SeparatorStyle, StyleArgs, TextVisuals,
-        WidgetState,
+        ButtonStyle, CheckboxStyle, SeparatorStyle, StyleArgs, TextVisuals, WidgetState,
     },
 };
 

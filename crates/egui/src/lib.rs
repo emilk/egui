@@ -437,6 +437,7 @@ pub mod widgets;
 #[cfg(feature = "callstack")]
 #[cfg(debug_assertions)]
 mod callstack;
+pub mod class;
 
 pub use accesskit;
 
@@ -499,7 +500,6 @@ pub use self::{
     ui_stack::*,
     viewport::*,
     widget_rect::{InteractOptions, WidgetRect, WidgetRects},
-    widget_style::class,
     widget_text::{RichText, WidgetText},
     widgets::*,
 };

@@ -5,8 +5,9 @@
 
 use eframe::egui::{
     self, CentralPanel, Color32, Frame, Panel, TextStyle,
+    class::HasClasses as _,
     theme::StyleProvider,
-    widget_style::{ButtonStyle, HasClasses as _, StyleArgs, TextVisuals, WidgetState},
+    widget_style::{ButtonStyle, StyleArgs, TextVisuals, WidgetState},
 };
 
 /// Buttons with this class are styled as a destructive action.

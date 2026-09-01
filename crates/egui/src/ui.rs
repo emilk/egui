@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::containers::menu;
 use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
-use crate::{class, widget_style::HasClasses as _};
+use crate::{class, class::HasClasses as _};
 use emath::GuiRounding as _;
 
 // ----------------------------------------------------------------------------
