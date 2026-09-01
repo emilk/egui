@@ -1,10 +1,9 @@
-use epaint::Margin;
-
 use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Atoms, Color32, CornerRadius,
-    Frame, Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui,
-    Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
-    widget_style::{ButtonStyle, Classes, HasClasses, SELECTED_CLASS, WidgetState},
+    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
+    Widget, WidgetInfo, WidgetText, WidgetType,
+    class::{ClassName, Classes, HasClasses},
+    widget_style::ButtonStyle,
 };
 
 /// Clickable button with text.
@@ -30,9 +29,6 @@ pub struct Button<'a> {
     layout: AtomLayout<'a>,
     fill: Option<Color32>,
     stroke: Option<Stroke>,
-    small: bool,
-    frame: Option<bool>,
-    frame_when_inactive: bool,
     min_size: Vec2,
     corner_radius: Option<CornerRadius>,
     selected: Option<bool>,
@@ -42,6 +38,22 @@ pub struct Button<'a> {
 }
 
 impl<'a> Button<'a> {
+    /// Present on a selected button.
+    pub const CLASS_SELECTED: ClassName = ClassName::from_static("egui::selected");
+
+    /// Present on a small button.
+    pub const CLASS_SMALL: ClassName = ClassName::from_static("egui::small");
+
+    /// Present on a button that should have no frame at all.
+    pub const CLASS_NO_FRAME: ClassName = ClassName::from_static("egui::no_frame");
+
+    /// Present on a button that should have a frame, even when the global default is frameless.
+    pub const CLASS_FRAME: ClassName = ClassName::from_static("egui::frame");
+
+    /// Present on a button that should have no frame while it is inactive.
+    pub const CLASS_HIDE_FRAME_WHEN_INACTIVE: ClassName =
+        ClassName::from_static("egui::button::hide_frame_when_inactive");
+
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
             layout: AtomLayout::new(atoms.into_atoms())
@@ -49,9 +61,6 @@ impl<'a> Button<'a> {
                 .fallback_font(TextStyle::Button),
             fill: None,
             stroke: None,
-            small: false,
-            frame: None,
-            frame_when_inactive: true,
             min_size: Vec2::ZERO,
             corner_radius: None,
             selected: None,
@@ -71,6 +80,8 @@ impl<'a> Button<'a> {
     /// ui.add(Button::new("toggle me").selected(selected).frame_when_inactive(!selected).frame(true));
     /// # });
     /// ```
+    ///
+    /// When selected, [`Self::CLASS_SELECTED`] is added.
     ///
     /// See also:
     ///   - [`Ui::selectable_value`]
@@ -142,7 +153,7 @@ impl<'a> Button<'a> {
     #[inline]
     pub fn fill(mut self, fill: impl Into<Color32>) -> Self {
         self.fill = Some(fill.into());
-        self
+        self.frame(true)
     }
 
     /// Override button stroke. Note that this will override any on-hover effects.
@@ -150,25 +161,36 @@ impl<'a> Button<'a> {
     #[inline]
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = Some(stroke.into());
-        self.frame = Some(true);
-        self
+        self.frame(true)
     }
 
     /// Make this a small button, suitable for embedding into text.
+    ///
+    /// This adds the built-in [`Self::CLASS_SMALL`], which with the default style removes the top and
+    /// bottom margin.
     #[inline]
-    pub fn small(mut self) -> Self {
-        self.small = true;
-        self
+    pub fn small(self) -> Self {
+        self.with_class(Self::CLASS_SMALL)
     }
 
     /// Turn off the frame
+    ///
+    /// This adds either the built-in [`Self::CLASS_FRAME`] or [`Self::CLASS_NO_FRAME`] class.
+    /// With the default style, the latter removes the fill, the stroke and the margin.
+    ///
+    /// Default: `ui.visuals().button_frame`.
     #[inline]
     pub fn frame(mut self, frame: bool) -> Self {
-        self.frame = Some(frame);
+        self.set_class(Self::CLASS_FRAME, frame);
+        self.set_class(Self::CLASS_NO_FRAME, !frame);
         self
     }
 
     /// If `false`, the button will not have a frame when inactive.
+    ///
+    /// This adds the built-in [`Self::CLASS_HIDE_FRAME_WHEN_INACTIVE`], which with the
+    /// default style removes the fill and the stroke, but keeps the margin, so the button does
+    /// not change size once the user interacts with it.
     ///
     /// Default: `true`.
     ///
@@ -176,7 +198,7 @@ impl<'a> Button<'a> {
     /// has no effect.
     #[inline]
     pub fn frame_when_inactive(mut self, frame_when_inactive: bool) -> Self {
-        self.frame_when_inactive = frame_when_inactive;
+        self.set_class(Self::CLASS_HIDE_FRAME_WHEN_INACTIVE, !frame_when_inactive);
         self
     }
 
@@ -266,9 +288,13 @@ impl<'a> Button<'a> {
     /// current pressed/not-pressed state will be reported to assistive
     /// technologies (e.g. screen readers). Plain buttons that never call
     /// `selected` are not announced as toggles.
+    ///
+    /// When selected, [`Self::CLASS_SELECTED`] is added. You should prefer calling this though over
+    /// just adding [`Self::CLASS_SELECTED`] manually, since this also exposes accessibility information.
     #[inline]
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = Some(selected);
+        self.set_class(Self::CLASS_SELECTED, selected);
         self
     }
 
@@ -292,21 +318,13 @@ impl<'a> Button<'a> {
             mut layout,
             fill,
             stroke,
-            small,
-            frame,
-            frame_when_inactive,
             mut min_size,
             corner_radius,
             selected,
             image_tint_follows_text_color,
             limit_image_size,
-            mut classes,
+            classes,
         } = self;
-
-        // Min size height always equal or greater than interact size if not small
-        if !small {
-            min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
-        }
 
         if limit_image_size {
             layout.map_atoms(|atom| {
@@ -320,29 +338,16 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
-        let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
-
         let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        let ButtonStyle {
+            mut frame,
+            text_style,
+            min_size: style_min_size,
+        } = ui.widget_style(id, &classes);
 
-        classes.add_class_if(SELECTED_CLASS, selected.unwrap_or(false));
-
-        let ButtonStyle { frame, text_style } = ui.widget_style(id, &classes);
-
-        let mut button_padding = if has_frame_margin {
-            frame.inner_margin
-        } else {
-            Margin::ZERO
-        };
-
-        if small {
-            button_padding.bottom = 0;
-            button_padding.top = 0;
-        }
+        min_size = min_size.at_least(style_min_size);
 
         // Override global style by local style
-        let mut frame = frame;
         if let Some(fill) = fill {
             frame = frame.fill(fill);
         }
@@ -353,21 +358,12 @@ impl<'a> Button<'a> {
             frame = frame.stroke(stroke);
         }
 
-        frame = frame.inner_margin(button_padding);
-
         // Apply the style font and color as fallback
         layout = layout
             .fallback_font(text_style.font_id.clone())
             .fallback_text_color(text_style.color);
 
-        // Retrocompatibility with button settings
-        layout = if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
-            layout.frame(frame)
-        } else {
-            layout.frame(Frame::new().inner_margin(frame.inner_margin))
-        };
-
-        let mut prepared = layout.min_size(min_size).allocate(ui);
+        let mut prepared = layout.frame(frame).min_size(min_size).allocate(ui);
 
         // Get AtomLayoutResponse, empty if not visible
         let response = if ui.is_rect_visible(prepared.response.rect) {

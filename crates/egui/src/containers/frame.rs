@@ -298,6 +298,25 @@ impl Frame {
         self
     }
 
+    /// Handle `stroke` and `expansion` without affecting layout.
+    ///
+    /// This handles `expansion` by subtracting it from the outer margin and adding it to the
+    /// inner margin. It also corrects for `stroke`, by subtracting the stroke width from `inner_margin`.
+    ///
+    /// Use this when stroke or expansion might change on hover, and you don't want it to cause
+    /// layout shifts.
+    #[inline]
+    pub fn apply_stroke_and_expansion_without_layout_shift(
+        mut self,
+        stroke: Stroke,
+        expansion: f32,
+    ) -> Self {
+        self.outer_margin = self.outer_margin - Margin::from(expansion);
+        self.inner_margin = self.inner_margin + Margin::from(expansion - stroke.width);
+        self.stroke = stroke;
+        self
+    }
+
     /// Optional drop-shadow behind the frame.
     #[inline]
     pub fn shadow(mut self, shadow: Shadow) -> Self {
@@ -314,6 +333,17 @@ impl Frame {
         self.fill = self.fill.gamma_multiply(opacity);
         self.stroke.color = self.stroke.color.gamma_multiply(opacity);
         self.shadow.color = self.shadow.color.gamma_multiply(opacity);
+        self
+    }
+
+    /// Make this frame invisible by setting background and stroke to transparent.
+    ///
+    /// Will not affect layout or contents.
+    #[inline]
+    pub fn invisible(mut self) -> Self {
+        self.fill = Color32::TRANSPARENT;
+        self.stroke.color = Color32::TRANSPARENT;
+        self.shadow = Shadow::NONE;
         self
     }
 }

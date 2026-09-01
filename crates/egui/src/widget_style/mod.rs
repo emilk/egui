@@ -2,16 +2,12 @@
 // so without it a lot of it looks unused:
 #![cfg_attr(not(feature = "experimental"), allow(dead_code, unused_imports))]
 
-mod classes;
-
-pub use self::classes::{ClassName, Classes, HasClasses, ROOT_CLASS, SELECTED_CLASS};
-
 use core::fmt::Debug;
-
-use epaint::{Color32, FontId, Stroke, text::TextWrapMode};
+use epaint::{Color32, FontId, Stroke, Vec2};
 
 use crate::{
-    Context, Frame, Response, Style, UiStack,
+    Context, FontSelection, Frame, Response, Style, UiStack,
+    class::{Classes, HasClasses as _},
     style::{WidgetVisuals, Widgets},
 };
 
@@ -26,27 +22,38 @@ pub struct TextVisuals {
 
     /// Font color
     pub color: Color32,
-
-    /// Text decoration
-    pub underline: Stroke,
-    pub strikethrough: Stroke,
 }
 
-/// General widget style
-#[derive(Debug, Clone)]
-pub struct BaseStyle {
-    pub frame: Frame,
+impl TextVisuals {
+    /// Text in `color`, using the given font.
+    ///
+    /// `style.override_font_id` wins over `font`, if it is set.
+    pub fn new(style: &Style, font: impl Into<FontSelection>, color: Color32) -> Self {
+        Self {
+            color,
+            font_id: style
+                .override_font_id
+                .clone()
+                .unwrap_or_else(|| font.into().resolve(style)),
+        }
+    }
 
-    pub text: TextVisuals,
-
-    pub stroke: Stroke,
+    /// The text of a widget, colored by the [`WidgetVisuals`] of its current state.
+    pub fn from_widget_visuals(
+        style: &Style,
+        font: impl Into<FontSelection>,
+        widget_visuals: &WidgetVisuals,
+    ) -> Self {
+        Self::new(style, font, widget_visuals.text_color())
+    }
 }
-
-impl WidgetStyle for BaseStyle {}
 
 /// Dedicated button style
 #[derive(Debug, Clone)]
 pub struct ButtonStyle {
+    /// The minimum size of the button before any per-button override.
+    pub min_size: Vec2,
+
     pub frame: Frame,
     pub text_style: TextVisuals,
 }
@@ -76,21 +83,6 @@ pub struct CheckboxStyle {
 }
 
 impl WidgetStyle for CheckboxStyle {}
-
-/// Dedicated label style
-#[derive(Debug, Clone)]
-pub struct LabelStyle {
-    /// Frame around
-    pub frame: Frame,
-
-    /// Text style
-    pub text: TextVisuals,
-
-    /// Wrap mode used
-    pub wrap_mode: TextWrapMode,
-}
-
-impl WidgetStyle for LabelStyle {}
 
 /// Dedicated separator style
 #[derive(Debug, Clone)]
@@ -146,4 +138,15 @@ pub struct StyleArgs<'a> {
     pub stack: &'a UiStack,
     pub style: &'a Style,
     pub ctx: &'a Context,
+}
+
+impl StyleArgs<'_> {
+    /// Does the widget or any of its parents contain this class?
+    ///
+    /// See also:
+    /// - [`Classes::has_class`]
+    /// - [`UiStack::has_class`]
+    pub fn has_class(&self, class: &str) -> bool {
+        self.classes.has_class(class) || self.stack.has_class(class)
+    }
 }

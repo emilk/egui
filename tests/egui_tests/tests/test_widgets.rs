@@ -337,7 +337,7 @@ impl<'a> VisualTests<'a> {
                 modifiers: Default::default(),
             });
         });
-        self.add_node("focussed", |node| {
+        self.add_node("focused", |node| {
             node.focus();
         });
         self.add_disabled();
