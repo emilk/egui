@@ -113,7 +113,7 @@ impl crate::View for BandDemo {
                     epaint::BandPoint::new(x, (y - radius)..=(y + radius))
                 })
                 .collect();
-            let mut band = epaint::BandShape::new(
+            let band = epaint::BandShape::new(
                 points,
                 Color32::from_rgba_unmultiplied(80, 190, 255, (255.0 * self.fill_opacity) as u8),
                 Stroke::new(
@@ -121,8 +121,8 @@ impl crate::View for BandDemo {
                     Color32::from_white_alpha((255.0 * self.stroke_opacity) as u8),
                 ),
             )
-            .rotated_around(center, self.angle);
-            band.stroke_kind = self.stroke_kind;
+            .with_stroke_kind(self.stroke_kind)
+            .with_angle_and_pivot(self.angle, center);
             painter.add(band);
         });
 

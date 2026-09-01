@@ -80,6 +80,13 @@ impl BandShape {
         Self::new(points, Color32::TRANSPARENT, stroke)
     }
 
+    /// Set if the stroke is on the inside, outside, or centered on the band edge.
+    #[inline]
+    pub fn with_stroke_kind(mut self, stroke_kind: StrokeKind) -> Self {
+        self.stroke_kind = stroke_kind;
+        self
+    }
+
     /// Set the rotation of the band (in radians, clockwise).
     /// The band rotates around the origin.
     #[inline]
@@ -88,12 +95,12 @@ impl BandShape {
         self
     }
 
-    /// Rotate the band by `angle` radians clockwise around `pivot`.
+    /// Set the rotation of the band (in radians, clockwise) around a custom pivot point.
     #[inline]
-    pub fn rotated_around(mut self, pivot: Pos2, delta_angle: f32) -> Self {
-        let delta_rotation = emath::Rot2::from_angle(delta_angle);
-        let translation = pivot.to_vec2() - delta_rotation * pivot.to_vec2();
-        self.angle += delta_angle;
+    pub fn with_angle_and_pivot(mut self, angle: f32, pivot: Pos2) -> Self {
+        self.angle = angle;
+        let rotation = emath::Rot2::from_angle(angle);
+        let translation = pivot.to_vec2() - rotation * pivot.to_vec2();
         let translation = emath::Rot2::from_angle(-self.angle) * translation;
         for point in &mut self.points {
             point.x += translation.x;
@@ -181,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn rotated_around_preserves_pivot() {
+    fn with_angle_and_pivot_preserves_pivot() {
         let band = BandShape::filled(
             vec![
                 BandPoint::new(1.0, 0.0..=2.0),
@@ -189,7 +196,7 @@ mod tests {
             ],
             Color32::WHITE,
         )
-        .rotated_around(pos2(2.0, 1.0), core::f32::consts::FRAC_PI_2);
+        .with_angle_and_pivot(core::f32::consts::FRAC_PI_2, pos2(2.0, 1.0));
 
         assert!((band.points[0].x - 0.0).abs() < 1e-6);
         assert!((band.points[0].y.min + 3.0).abs() < 1e-6);
