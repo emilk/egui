@@ -95,23 +95,29 @@ impl AtomLayoutStyle {
     ///
     /// A per-widget [`AtomLayout::gap`] wins over [`Self::gap`], so widgets like
     /// [`crate::DragValue`] can pack their atoms tighter than the theme does.
-    pub fn apply<'a>(&self, mut layout: AtomLayout<'a>) -> AtomLayout<'a> {
+    pub fn apply(self, mut layout: AtomLayout<'_>) -> AtomLayout<'_> {
+        let Self {
+            align2,
+            min_size,
+            gap,
+            frame,
+            text_style,
+            image_tint,
+        } = self;
         layout.map_images(|image| {
-            if image.image_options().tint == Color32::WHITE {
-                image.tint(self.image_tint)
-            } else {
-                image
-            }
+            let current_tint = image.image_options().tint;
+            // Multiply the tints so they are combined
+            image.tint(current_tint * image_tint)
         });
 
         let layout = layout
-            .min_size(self.min_size)
-            .fallback_gap(self.gap)
-            .frame(self.frame)
-            .fallback_font(self.text_style.font_id.clone())
-            .fallback_text_color(self.text_style.color);
+            .min_size(min_size)
+            .fallback_gap(gap)
+            .frame(frame)
+            .fallback_font(text_style.font_id)
+            .fallback_text_color(text_style.color);
 
-        if let Some(align2) = self.align2 {
+        if let Some(align2) = align2 {
             layout.align2(align2)
         } else {
             layout
