@@ -1,4 +1,4 @@
-use egui::{Color32, Sense, Stroke, StrokeKind, Vec2, epaint};
+use egui::{Color32, Sense, Stroke, StrokeKind, Vec2, emath::TSTransform, epaint};
 
 use crate::View as _;
 
@@ -113,7 +113,7 @@ impl crate::View for BandDemo {
                     epaint::BandPoint::new(x, (y - radius)..=(y + radius))
                 })
                 .collect();
-            let band = epaint::BandShape::new(
+            let mut band = epaint::BandShape::new(
                 points,
                 Color32::from_rgba_unmultiplied(80, 190, 255, (255.0 * self.fill_opacity) as u8),
                 Stroke::new(
@@ -121,9 +121,9 @@ impl crate::View for BandDemo {
                     Color32::from_white_alpha((255.0 * self.stroke_opacity) as u8),
                 ),
             )
-            .with_stroke_kind(self.stroke_kind)
-            .with_angle_and_pivot(self.angle, center);
-            painter.add(band);
+            .with_stroke_kind(self.stroke_kind);
+            band.transform(TSTransform::from_translation(center.to_vec2()));
+            painter.add(band.with_angle_and_pivot(self.angle, center));
         });
 
         self.phase += self.speed;

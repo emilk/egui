@@ -202,4 +202,20 @@ mod tests {
         assert!((band.points[0].y.min + 3.0).abs() < 1e-6);
         assert!((band.points[0].y.max + 1.0).abs() < 1e-6);
     }
+
+    #[test]
+    fn transform_before_with_angle_and_pivot_rotates_around_translated_origin() {
+        let mut band = BandShape::filled(vec![BandPoint::new(1.0, 0.0..=2.0)], Color32::WHITE);
+        let center = pos2(10.0, 20.0);
+        band.transform(TSTransform::from_translation(center.to_vec2()));
+        let band = band.with_angle_and_pivot(core::f32::consts::FRAC_PI_2, center);
+
+        let rotation = emath::Rot2::from_angle(band.angle);
+        let min = rotation * vec2(band.points[0].x, band.points[0].y.min);
+        let max = rotation * vec2(band.points[0].x, band.points[0].y.max);
+        assert!((min.x - 10.0).abs() < 1e-6);
+        assert!((min.y - 21.0).abs() < 1e-6);
+        assert!((max.x - 8.0).abs() < 1e-6);
+        assert!((max.y - 21.0).abs() < 1e-6);
+    }
 }
