@@ -89,6 +89,7 @@ impl Widget for &epaint::stats::PaintStats {
                 shapes,
                 shape_text,
                 shape_path,
+                shape_band,
                 shape_mesh,
                 shape_vec,
                 num_callbacks,
@@ -106,6 +107,7 @@ impl Widget for &epaint::stats::PaintStats {
                 ui.small("(mostly cached)");
             });
             label(ui, shape_path, "paths");
+            label(ui, shape_band, "bands");
             label(ui, shape_mesh, "nested meshes");
             label(ui, shape_vec, "nested shapes");
             ui.label(format!("{num_callbacks:6} callbacks"));

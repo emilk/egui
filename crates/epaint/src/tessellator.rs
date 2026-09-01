@@ -2669,7 +2669,7 @@ fn tessellate_band_rotates_around_the_origin() {
         ],
         Color32::WHITE,
     )
-    .with_angle(core::f32::consts::FRAC_PI_2);
+    .with_angle_and_pivot(core::f32::consts::FRAC_PI_2, Pos2::ZERO);
     let mut mesh = Mesh::default();
     Tessellator::new(1.0, Default::default(), [1, 1], vec![])
         .tessellate_shape(band.into(), &mut mesh);

@@ -29,7 +29,7 @@ impl Default for BandDemo {
 
 impl crate::Demo for BandDemo {
     fn name(&self) -> &'static str {
-        "Band"
+        "〰 Band"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {

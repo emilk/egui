@@ -87,14 +87,6 @@ impl BandShape {
         self
     }
 
-    /// Set the rotation of the band (in radians, clockwise).
-    /// The band rotates around the origin.
-    #[inline]
-    pub fn with_angle(mut self, angle: f32) -> Self {
-        self.angle = angle;
-        self
-    }
-
     /// Set the rotation of the band (in radians, clockwise) around a custom pivot point.
     ///
     /// The band keeps the position it already had at `pivot`, so calling this again
@@ -182,7 +174,7 @@ mod tests {
             ],
             Color32::WHITE,
         )
-        .with_angle(core::f32::consts::FRAC_PI_2);
+        .with_angle_and_pivot(core::f32::consts::FRAC_PI_2, Pos2::ZERO);
 
         band.transform(TSTransform::from_translation(vec2(2.0, 3.0)));
 
