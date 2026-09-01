@@ -88,6 +88,21 @@ impl BandShape {
         self
     }
 
+    /// Rotate the band by `angle` radians clockwise around `pivot`.
+    #[inline]
+    pub fn rotated_around(mut self, pivot: Pos2, delta_angle: f32) -> Self {
+        let delta_rotation = emath::Rot2::from_angle(delta_angle);
+        let translation = pivot.to_vec2() - delta_rotation * pivot.to_vec2();
+        self.angle += delta_angle;
+        let translation = emath::Rot2::from_angle(-self.angle) * translation;
+        for point in &mut self.points {
+            point.x += translation.x;
+            point.y.min += translation.y;
+            point.y.max += translation.y;
+        }
+        self
+    }
+
     /// Transform the band in-place.
     pub fn transform(&mut self, transform: TSTransform) {
         let translation = emath::Rot2::from_angle(-self.angle) * transform.translation;
@@ -143,7 +158,7 @@ impl From<BandShape> for Shape {
 
 #[cfg(test)]
 mod tests {
-    use emath::{TSTransform, vec2};
+    use emath::{TSTransform, pos2, vec2};
 
     use super::*;
 
@@ -163,5 +178,21 @@ mod tests {
         assert!((band.points[0].x - 3.0).abs() < 1e-6);
         assert!((band.points[0].y.min + 1.0).abs() < 1e-6);
         assert!((band.points[0].y.max - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn rotated_around_preserves_pivot() {
+        let band = BandShape::filled(
+            vec![
+                BandPoint::new(1.0, 0.0..=2.0),
+                BandPoint::new(3.0, 0.0..=2.0),
+            ],
+            Color32::WHITE,
+        )
+        .rotated_around(pos2(2.0, 1.0), core::f32::consts::FRAC_PI_2);
+
+        assert!((band.points[0].x - 0.0).abs() < 1e-6);
+        assert!((band.points[0].y.min + 3.0).abs() < 1e-6);
+        assert!((band.points[0].y.max + 1.0).abs() < 1e-6);
     }
 }

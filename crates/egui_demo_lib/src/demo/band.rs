@@ -1,4 +1,4 @@
-use egui::{Color32, Sense, Stroke, StrokeKind, Vec2, emath::TSTransform, epaint};
+use egui::{Color32, Sense, Stroke, StrokeKind, Vec2, epaint};
 
 use crate::View as _;
 
@@ -59,7 +59,11 @@ impl crate::View for BandDemo {
                 ui.end_row();
 
                 ui.label("Animation speed");
-                ui.add(egui::DragValue::new(&mut self.speed).speed(0.001));
+                ui.add(
+                    egui::DragValue::new(&mut self.speed)
+                        .speed(0.001)
+                        .range(0.0..=1.0),
+                );
                 ui.end_row();
 
                 ui.label("Fill opacity");
@@ -117,9 +121,8 @@ impl crate::View for BandDemo {
                     Color32::from_white_alpha((255.0 * self.stroke_opacity) as u8),
                 ),
             )
-            .with_angle(self.angle);
+            .rotated_around(center, self.angle);
             band.stroke_kind = self.stroke_kind;
-            band.transform(TSTransform::from_translation(center.to_vec2()));
             painter.add(band);
         });
 
