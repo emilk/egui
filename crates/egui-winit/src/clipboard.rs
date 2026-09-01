@@ -160,151 +160,147 @@ impl Clipboard {
 /// There is no such backend, in this build or on this platform.
 struct Unavailable;
 
-// The backends that only exist on X11 and Wayland. Everything below is written
-// twice, once for real and once as a no-op, so that the rest of this file can
-// call it without repeating the list of operating systems.
+// The backends that only exist on X11 and Wayland, written once for real and
+// once as a no-op, so the rest of this file can call them without repeating the
+// list of operating systems.
+cfg_select! {
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ) => {
+        #[cfg_attr(
+            not(any(feature = "arboard", feature = "smithay-clipboard")),
+            expect(
+                clippy::unused_self,
+                clippy::needless_pass_by_ref_mut,
+                clippy::unnecessary_wraps,
+                reason = "these do nothing without a clipboard backend to talk to"
+            )
+        )]
+        impl Clipboard {
+            #[cfg(feature = "smithay-clipboard")]
+            fn init_smithay(
+                raw_display_handle: Option<RawDisplayHandle>,
+            ) -> Option<smithay_clipboard::Clipboard> {
+                #![expect(clippy::undocumented_unsafe_blocks)]
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-))]
-#[cfg_attr(
-    not(any(feature = "arboard", feature = "smithay-clipboard")),
-    expect(
-        clippy::unused_self,
-        clippy::needless_pass_by_ref_mut,
-        clippy::unnecessary_wraps,
-        reason = "these do nothing without a clipboard backend to talk to"
-    )
-)]
-impl Clipboard {
-    #[cfg(feature = "smithay-clipboard")]
-    fn init_smithay(
-        raw_display_handle: Option<RawDisplayHandle>,
-    ) -> Option<smithay_clipboard::Clipboard> {
-        #![expect(clippy::undocumented_unsafe_blocks)]
+                profiling::function_scope!();
 
-        profiling::function_scope!();
-
-        if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
-            log::trace!("Initializing smithay clipboard…");
-            #[expect(unsafe_code)]
-            Some(unsafe { smithay_clipboard::Clipboard::new(display.display.as_ptr()) })
-        } else {
-            #[cfg(feature = "wayland")]
-            log::debug!("Cannot init smithay clipboard without a Wayland display handle");
-            #[cfg(not(feature = "wayland"))]
-            log::debug!(
-                "Cannot init smithay clipboard: the 'wayland' feature of 'egui-winit' is not enabled"
-            );
-            None
-        }
-    }
-
-    /// `Err` if there is no smithay clipboard; `Ok(None)` if reading failed.
-    fn smithay_get(&mut self, _selection: Selection) -> Result<Option<String>, Unavailable> {
-        #[cfg(feature = "smithay-clipboard")]
-        if let Some(clipboard) = &mut self.smithay {
-            let read = match _selection {
-                Selection::Clipboard => clipboard.load(),
-                Selection::Primary => clipboard.load_primary(),
-            };
-
-            return Ok(match read {
-                Ok(text) => Some(text),
-                Err(err) => {
-                    log::debug!("smithay paste error: {err}");
+                if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
+                    log::trace!("Initializing smithay clipboard…");
+                    #[expect(unsafe_code)]
+                    Some(unsafe { smithay_clipboard::Clipboard::new(display.display.as_ptr()) })
+                } else {
+                    #[cfg(feature = "wayland")]
+                    log::debug!("Cannot init smithay clipboard without a Wayland display handle");
+                    #[cfg(not(feature = "wayland"))]
+                    log::debug!(
+                        "Cannot init smithay clipboard: the 'wayland' feature of 'egui-winit' is not enabled"
+                    );
                     None
                 }
-            });
-        }
-
-        Err(Unavailable)
-    }
-
-    /// Returns the text back if there is no smithay clipboard to take it.
-    fn smithay_set(&mut self, _selection: Selection, _text: String) -> Option<String> {
-        #[cfg(feature = "smithay-clipboard")]
-        if let Some(clipboard) = &mut self.smithay {
-            match _selection {
-                Selection::Clipboard => clipboard.store(_text),
-                Selection::Primary => clipboard.store_primary(_text),
             }
-            return None;
-        }
 
-        Some(_text)
-    }
+            /// `Err` if there is no smithay clipboard; `Ok(None)` if reading failed.
+            fn smithay_get(&mut self, _selection: Selection) -> Result<Option<String>, Unavailable> {
+                #[cfg(feature = "smithay-clipboard")]
+                if let Some(clipboard) = &mut self.smithay {
+                    let read = match _selection {
+                        Selection::Clipboard => clipboard.load(),
+                        Selection::Primary => clipboard.load_primary(),
+                    };
 
-    fn arboard_get_primary(&mut self) -> Option<String> {
-        #[cfg(feature = "arboard")]
-        if let Some(clipboard) = &mut self.arboard {
-            use arboard::GetExtLinux as _;
-
-            return match clipboard
-                .get()
-                .clipboard(arboard::LinuxClipboardKind::Primary)
-                .text()
-            {
-                Ok(text) => Some(text),
-                Err(err) => {
-                    // An empty PRIMARY selection is the normal state, not an
-                    // error worth shouting about.
-                    log::debug!("arboard primary selection paste error: {err}");
-                    None
+                    return Ok(match read {
+                        Ok(text) => Some(text),
+                        Err(err) => {
+                            log::debug!("smithay paste error: {err}");
+                            None
+                        }
+                    });
                 }
-            };
-        }
 
-        None
-    }
+                Err(Unavailable)
+            }
 
-    fn arboard_set_primary(&mut self, _text: String) {
-        #[cfg(feature = "arboard")]
-        if let Some(clipboard) = &mut self.arboard {
-            use arboard::SetExtLinux as _;
+            /// Returns the text back if there is no smithay clipboard to take it.
+            fn smithay_set(&mut self, _selection: Selection, _text: String) -> Option<String> {
+                #[cfg(feature = "smithay-clipboard")]
+                if let Some(clipboard) = &mut self.smithay {
+                    match _selection {
+                        Selection::Clipboard => clipboard.store(_text),
+                        Selection::Primary => clipboard.store_primary(_text),
+                    }
+                    return None;
+                }
 
-            if let Err(err) = clipboard
-                .set()
-                .clipboard(arboard::LinuxClipboardKind::Primary)
-                .text(_text)
-            {
-                log::error!("arboard primary selection error: {err}");
+                Some(_text)
+            }
+
+            fn arboard_get_primary(&mut self) -> Option<String> {
+                #[cfg(feature = "arboard")]
+                if let Some(clipboard) = &mut self.arboard {
+                    use arboard::GetExtLinux as _;
+
+                    return match clipboard
+                        .get()
+                        .clipboard(arboard::LinuxClipboardKind::Primary)
+                        .text()
+                    {
+                        Ok(text) => Some(text),
+                        Err(err) => {
+                            // An empty PRIMARY selection is the normal state, not an
+                            // error worth shouting about.
+                            log::debug!("arboard primary selection paste error: {err}");
+                            None
+                        }
+                    };
+                }
+
+                None
+            }
+
+            fn arboard_set_primary(&mut self, _text: String) {
+                #[cfg(feature = "arboard")]
+                if let Some(clipboard) = &mut self.arboard {
+                    use arboard::SetExtLinux as _;
+
+                    if let Err(err) = clipboard
+                        .set()
+                        .clipboard(arboard::LinuxClipboardKind::Primary)
+                        .text(_text)
+                    {
+                        log::error!("arboard primary selection error: {err}");
+                    }
+                }
             }
         }
     }
-}
+    _ => {
+        #[expect(
+            clippy::unused_self,
+            clippy::needless_pass_by_ref_mut,
+            clippy::unnecessary_wraps,
+            reason = "these mirror the real implementations above"
+        )]
+        impl Clipboard {
+            fn smithay_get(&mut self, _selection: Selection) -> Result<Option<String>, Unavailable> {
+                Err(Unavailable)
+            }
 
-#[cfg(not(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-)))]
-#[expect(
-    clippy::unused_self,
-    clippy::needless_pass_by_ref_mut,
-    clippy::unnecessary_wraps,
-    reason = "these mirror the real implementations above"
-)]
-impl Clipboard {
-    fn smithay_get(&mut self, _selection: Selection) -> Result<Option<String>, Unavailable> {
-        Err(Unavailable)
+            fn smithay_set(&mut self, _selection: Selection, text: String) -> Option<String> {
+                Some(text)
+            }
+
+            fn arboard_get_primary(&mut self) -> Option<String> {
+                None
+            }
+
+            fn arboard_set_primary(&mut self, _text: String) {}
+        }
     }
-
-    fn smithay_set(&mut self, _selection: Selection, text: String) -> Option<String> {
-        Some(text)
-    }
-
-    fn arboard_get_primary(&mut self) -> Option<String> {
-        None
-    }
-
-    fn arboard_set_primary(&mut self, _text: String) {}
 }
 
 #[cfg(all(
