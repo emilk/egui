@@ -110,18 +110,6 @@ pub enum StrokeKind {
     Outside,
 }
 
-impl StrokeKind {
-    /// Swap [`Self::Inside`] and [`Self::Outside`].
-    #[inline]
-    pub fn flipped(self) -> Self {
-        match self {
-            Self::Inside => Self::Outside,
-            Self::Middle => Self::Middle,
-            Self::Outside => Self::Inside,
-        }
-    }
-}
-
 /// Describes the width and color of paths. The color can either be solid or provided by a callback. For more information, see [`ColorMode`]
 ///
 /// The default stroke is the same as [`Stroke::NONE`].
