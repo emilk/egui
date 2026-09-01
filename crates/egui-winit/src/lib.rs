@@ -220,6 +220,12 @@ impl State {
         self.clipboard.get()
     }
 
+    /// Fetches an image from the clipboard and returns it, if there is one and the platform
+    /// backend supports it. Mirrors [`Self::clipboard_text`] for images.
+    pub fn clipboard_image(&mut self) -> Option<egui::ColorImage> {
+        self.clipboard.get_image()
+    }
+
     /// Places the text onto the clipboard.
     pub fn set_clipboard_text(&mut self, text: String) {
         self.clipboard.set_text(text);
@@ -1030,6 +1036,14 @@ impl State {
                         if !contents.is_empty() {
                             self.egui_input.events.push(egui::Event::Paste(contents));
                         }
+                    } else if let Some(image) = self.clipboard.get_image() {
+                        // No usable text on the clipboard (e.g. an image was copied with
+                        // mspaint/Snipping Tool, which never puts a text representation
+                        // alongside it) — fall back to an image paste rather than doing
+                        // nothing, mirroring `Event::Copy`/`OutputCommand::CopyImage`.
+                        self.egui_input
+                            .events
+                            .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
                     }
                     return;
                 }
