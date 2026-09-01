@@ -225,7 +225,7 @@ impl State {
     pub fn clipboard_image(&mut self) -> Option<egui::ColorImage> {
         self.clipboard.get_image()
     }
-    
+
     /// Places the text onto the clipboard.
     pub fn set_clipboard_text(&mut self, text: String) {
         self.clipboard.set_text(text);

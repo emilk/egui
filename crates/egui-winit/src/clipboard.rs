@@ -81,7 +81,13 @@ impl Clipboard {
             return match clipboard.get_text() {
                 Ok(text) => Some(text),
                 Err(err) => {
-                    log::error!("arboard paste error: {err}");
+                    // Expected whenever the clipboard holds something other than text (e.g.
+                    // an image copied with a screenshot tool) — the caller falls back to
+                    // `Self::get_image` in that case, so this is not an error worth
+                    // alarming the user/log about.
+                    if !is_expected_content_absence(&err) {
+                        log::error!("arboard paste error: {err}");
+                    }
                     None
                 }
             };
@@ -134,7 +140,12 @@ impl Clipboard {
             return match clipboard.get_image() {
                 Ok(image) => Some(color_image_from_arboard(&image)),
                 Err(err) => {
-                    log::error!("arboard paste-image error: {err}");
+                    // Expected whenever the clipboard holds neither text nor an image (e.g.
+                    // it's simply empty) — `Self::get` was already tried first and came up
+                    // empty too, so this is the mundane "nothing to paste" case, not an error.
+                    if !is_expected_content_absence(&err) {
+                        log::error!("arboard paste-image error: {err}");
+                    }
                     None
                 }
             };
@@ -165,6 +176,21 @@ impl Clipboard {
         );
         _ = image;
     }
+}
+
+/// Whether an `arboard::Error` from reading the clipboard is the expected, mundane outcome
+/// of the clipboard simply not holding the requested content type (e.g. text was asked for
+/// but the clipboard holds an image, or vice versa, or it's just empty) — as opposed to a
+/// genuine failure (permissions, a locked clipboard, a conversion error) worth an `error!` log.
+///
+/// Pulled out as its own pure function (rather than inlined in the two `match`es above) so it
+/// can be unit-tested without touching the real OS clipboard, which CI can't rely on.
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    feature = "arboard",
+))]
+fn is_expected_content_absence(err: &arboard::Error) -> bool {
+    matches!(err, arboard::Error::ContentNotAvailable)
 }
 
 #[cfg(all(
@@ -230,7 +256,32 @@ fn init_smithay_clipboard(
 ))]
 #[cfg(test)]
 mod tests {
-    use super::color_image_from_arboard;
+    use super::{color_image_from_arboard, is_expected_content_absence};
+
+    /// Regression test for the spurious `error!`-level log a maintainer caught by manually
+    /// testing an image paste (nothing had exercised this distinction before): only
+    /// `ContentNotAvailable` — clipboard simply doesn't hold the requested content type — is
+    /// expected and should stay silent; every other `arboard::Error` variant is a real failure
+    /// and must still be logged.
+    #[test]
+    fn only_content_not_available_is_treated_as_expected() {
+        assert!(is_expected_content_absence(
+            &arboard::Error::ContentNotAvailable
+        ));
+
+        assert!(!is_expected_content_absence(
+            &arboard::Error::ClipboardNotSupported
+        ));
+        assert!(!is_expected_content_absence(
+            &arboard::Error::ClipboardOccupied
+        ));
+        assert!(!is_expected_content_absence(
+            &arboard::Error::ConversionFailure
+        ));
+        assert!(!is_expected_content_absence(&arboard::Error::Unknown {
+            description: "anything".to_owned(),
+        }));
+    }
 
     #[test]
     fn color_image_from_arboard_converts_straight_to_premultiplied_alpha() {
