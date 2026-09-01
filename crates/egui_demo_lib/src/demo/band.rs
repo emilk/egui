@@ -17,7 +17,7 @@ impl Default for BandDemo {
     fn default() -> Self {
         Self {
             phase: 0.0,
-            speed: 0.04,
+            speed: 2.5,
             angle: 0.0,
             fill_opacity: 0.38,
             stroke_opacity: 1.0,
@@ -61,8 +61,9 @@ impl crate::View for BandDemo {
                 ui.label("Animation speed");
                 ui.add(
                     egui::DragValue::new(&mut self.speed)
-                        .speed(0.001)
-                        .range(0.0..=1.0),
+                        .speed(0.05)
+                        .range(0.0..=10.0)
+                        .suffix(" rad/s"),
                 );
                 ui.end_row();
 
@@ -104,12 +105,14 @@ impl crate::View for BandDemo {
             let center = response.rect.center();
             let width = response.rect.width() - 80.0;
             let phase = self.phase;
-            let points = (0..=96)
+            let sample_count = 200;
+            let points = (0..=sample_count)
                 .map(|index| {
-                    let t = index as f32 / 96.0;
+                    let t = index as f32 / sample_count as f32;
                     let x = (t - 0.5) * width;
                     let y = 12.0 * (x * 0.025 + phase).sin();
-                    let radius = 14.0 + 20.0 * (x * 0.05 - phase).sin().abs();
+                    // Pinches all the way down to zero width at regular intervals:
+                    let radius = 30.0 * (x * 0.05 - phase).sin().abs();
                     epaint::BandPoint::new(x, (y - radius)..=(y + radius))
                 })
                 .collect();
@@ -126,8 +129,8 @@ impl crate::View for BandDemo {
             painter.add(band.with_angle_and_pivot(self.angle, center));
         });
 
-        self.phase += self.speed;
-        if 0.0 < self.speed.abs() {
+        self.phase += self.speed * ui.input(|input| input.stable_dt);
+        if self.speed != 0.0 {
             ui.ctx().request_repaint();
         }
     }
