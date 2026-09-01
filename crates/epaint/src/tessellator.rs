@@ -1887,37 +1887,20 @@ impl Tessellator {
             return;
         }
         let rotation = Rot2::from_angle(*angle);
-        let stroke = PathStroke::from(*stroke).with_kind(*stroke_kind);
 
-        // Everything downstream pulls the two boundaries towards each other before
-        // painting: the feathering insets the fill by half a pixel on each side, and an
-        // inside stroke moves the outline in by half its width. A band any thinner than
-        // the sum turns inside out - the boundaries swap, and a band that should fade to
-        // nothing comes out as a hard, full-opacity line instead. So give the band the
-        // width that its own feathering and stroke are about to take from it:
-        let inset = if stroke.width == 0.0 {
-            0.0
-        } else if stroke.color == ColorMode::TRANSPARENT {
-            // An invisible stroke that still takes up room:
-            match stroke_kind {
-                StrokeKind::Inside => stroke.width,
-                StrokeKind::Middle => 0.5 * stroke.width,
-                StrokeKind::Outside => 0.0,
-            }
-        } else {
-            match stroke_kind {
-                StrokeKind::Inside => 0.5 * stroke.width,
-                StrokeKind::Middle | StrokeKind::Outside => 0.0,
-            }
+        // Shrink the shape to make room for the stroke, as needed:
+        let inset = match stroke_kind {
+            StrokeKind::Inside => stroke.width,
+            StrokeKind::Middle => 0.5 * stroke.width,
+            StrokeKind::Outside => 0.0,
         };
-        let min_width = 2.0 * inset + self.feathering;
-        let widen = |y: Rangef| {
-            if y.span() < min_width {
-                Rangef::new(y.center() - 0.5 * min_width, y.center() + 0.5 * min_width)
-            } else {
-                y
-            }
+        let shrink = |y: Rangef| {
+            let center = y.center();
+            let width = (y.span() - inset).at_least(0.0);
+            Rangef::new(center - 0.5 * width, center + 0.5 * width)
         };
+
+        let stroke = PathStroke::from(*stroke).with_kind(StrokeKind::Outside);
 
         for run in BandRuns::new(points) {
             let num_samples = run.len();
@@ -1928,12 +1911,12 @@ impl Tessellator {
             self.scratchpad_points.reserve(2 * num_samples);
             self.scratchpad_points.extend(
                 run.iter()
-                    .map(|point| rotate_band_point(rotation, point.x, widen(point.y).min)),
+                    .map(|point| rotate_band_point(rotation, point.x, shrink(point.y).min)),
             );
             self.scratchpad_points.extend(
                 run.iter()
                     .rev()
-                    .map(|point| rotate_band_point(rotation, point.x, widen(point.y).max)),
+                    .map(|point| rotate_band_point(rotation, point.x, shrink(point.y).max)),
             );
 
             self.scratchpad_path.clear();
@@ -1954,7 +1937,14 @@ impl Tessellator {
                 &stroke,
                 *fill,
                 &|out: &mut Mesh, first_index, stride, num_points| {
-                    triangulate_band_outline(run, min_width, out, first_index, stride, num_points);
+                    triangulate_band_outline(
+                        run,
+                        self.feathering,
+                        out,
+                        first_index,
+                        stride,
+                        num_points,
+                    );
                 },
                 out,
             );
