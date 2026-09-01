@@ -815,6 +815,17 @@ impl<'a> Iterator for BandRuns<'a> {
 /// in path order.
 type FillTriangulation = fn(out: &mut Mesh, first_index: u32, stride: u32, num_points: u32);
 
+/// Triangulate the outline of one run of a [`BandShape`]: the lower boundary of the band,
+/// followed by the upper boundary backwards.
+fn triangulate_band_outline(out: &mut Mesh, first_index: u32, stride: u32, num_points: u32) {
+    let vertex = |i: u32| first_index + stride * i;
+    let last = num_points - 1;
+    for i in 0..num_points / 2 - 1 {
+        out.add_triangle(vertex(i), vertex(i + 1), vertex(last - i - 1));
+        out.add_triangle(vertex(i), vertex(last - i - 1), vertex(last - i));
+    }
+}
+
 /// Fan-triangulate a convex path.
 fn triangulate_convex_path(out: &mut Mesh, first_index: u32, stride: u32, num_points: u32) {
     for i in 2..num_points {
@@ -1844,111 +1855,46 @@ impl Tessellator {
             return;
         }
         let rotation = Rot2::from_angle(*angle);
-
-        // The two boundaries are stroked in opposite directions so that the band interior
-        // is on the same side of both of them, which is what `StrokeKind` refers to:
-        let stroke = (!stroke.is_empty())
-            .then(|| PathStroke::from(*stroke).with_kind(stroke_kind.flipped()));
+        let stroke = PathStroke::from(*stroke).with_kind(*stroke_kind);
 
         for run in BandRuns::new(points) {
-            if *fill != Color32::TRANSPARENT {
-                self.fill_band_run(run, rotation, *fill, out);
-            }
-            if let Some(stroke) = &stroke {
-                self.stroke_band_boundary(run, rotation, |point| point.y.min, true, stroke, out);
-                self.stroke_band_boundary(run, rotation, |point| point.y.max, false, stroke, out);
-            }
+            let num_samples = run.len();
+
+            // A clockwise outline of the run: the lower boundary,
+            // then the upper boundary backwards.
+            self.scratchpad_points.clear();
+            self.scratchpad_points.reserve(2 * num_samples);
+            self.scratchpad_points.extend(
+                run.iter()
+                    .map(|point| rotate_band_point(rotation, point.x, point.y.min)),
+            );
+            self.scratchpad_points.extend(
+                run.iter()
+                    .rev()
+                    .map(|point| rotate_band_point(rotation, point.x, point.y.max)),
+            );
+
+            self.scratchpad_path.clear();
+            self.scratchpad_path.add_line_loop(&self.scratchpad_points);
+            debug_assert_eq!(
+                self.scratchpad_path.0.len(),
+                2 * num_samples,
+                "`add_line_loop` must emit exactly one point per outline point"
+            );
+
+            // A band is rarely convex, so it brings its own triangulation.
+            // Everything else - the feathering, and letting the stroke cover the edge
+            // of the fill - is shared with the other closed shapes.
+            stroke_and_fill_path(
+                self.feathering,
+                &mut self.scratchpad_path.0,
+                PathType::Closed,
+                &stroke,
+                *fill,
+                triangulate_band_outline,
+                out,
+            );
         }
-    }
-
-    /// Fill one run of a [`BandShape`], with anti-aliasing.
-    fn fill_band_run(&mut self, run: &[BandPoint], rotation: Rot2, fill: Color32, out: &mut Mesh) {
-        let num_samples = run.len();
-
-        // A clockwise outline of the run: the lower boundary, then the upper boundary backwards.
-        // The band can be concave, so we cannot fan-triangulate it like a convex path;
-        // instead we fill it span by span, and only borrow the feathering from `Path`.
-        self.scratchpad_points.clear();
-        self.scratchpad_points.reserve(2 * num_samples);
-        self.scratchpad_points.extend(
-            run.iter()
-                .map(|point| rotate_band_point(rotation, point.x, point.y.min)),
-        );
-        self.scratchpad_points.extend(
-            run.iter()
-                .rev()
-                .map(|point| rotate_band_point(rotation, point.x, point.y.max)),
-        );
-
-        self.scratchpad_path.clear();
-        self.scratchpad_path.add_line_loop(&self.scratchpad_points);
-        let path = &self.scratchpad_path.0;
-        debug_assert_eq!(
-            path.len(),
-            2 * num_samples,
-            "`add_line_loop` must emit exactly one point per outline point"
-        );
-
-        let index = out.vertices.len() as u32;
-        let feathering = self.feathering;
-        let stride = if 0.0 < feathering { 2 } else { 1 };
-
-        if 0.0 < feathering {
-            out.reserve_vertices(2 * path.len());
-            out.reserve_triangles(2 * path.len());
-            for point in path {
-                let offset = 0.5 * feathering * point.normal;
-                out.colored_vertex(point.pos - offset, fill);
-                out.colored_vertex(point.pos + offset, Color32::TRANSPARENT);
-            }
-
-            let mut i0 = path.len() as u32 - 1;
-            for i1 in 0..path.len() as u32 {
-                out.add_triangle(index + 2 * i1, index + 2 * i0, index + 2 * i0 + 1);
-                out.add_triangle(index + 2 * i0 + 1, index + 2 * i1 + 1, index + 2 * i1);
-                i0 = i1;
-            }
-        } else {
-            out.reserve_vertices(path.len());
-            out.reserve_triangles(2 * (num_samples - 1));
-            out.vertices
-                .extend(path.iter().map(|p| Vertex::untextured(p.pos, fill)));
-        }
-
-        // Outline point `i` of the lower boundary is sample `i`;
-        // sample `i` of the upper boundary is outline point `2 * num_samples - 1 - i`:
-        let vertex = |i: usize| index + stride * i as u32;
-        let last = 2 * num_samples - 1;
-        for i in 0..num_samples - 1 {
-            out.add_triangle(vertex(i), vertex(i + 1), vertex(last - i - 1));
-            out.add_triangle(vertex(i), vertex(last - i - 1), vertex(last - i));
-        }
-    }
-
-    /// Stroke one boundary of one run of a [`BandShape`].
-    fn stroke_band_boundary(
-        &mut self,
-        run: &[BandPoint],
-        rotation: Rot2,
-        y_of: impl Fn(&BandPoint) -> f32,
-        reverse: bool,
-        stroke: &PathStroke,
-        out: &mut Mesh,
-    ) {
-        self.scratchpad_points.clear();
-        self.scratchpad_points.extend(
-            run.iter()
-                .map(|point| rotate_band_point(rotation, point.x, y_of(point))),
-        );
-        if reverse {
-            self.scratchpad_points.reverse();
-        }
-
-        self.scratchpad_path.clear();
-        self.scratchpad_path
-            .add_open_points(&self.scratchpad_points);
-        self.scratchpad_path
-            .stroke_open(self.feathering, stroke, out);
     }
 
     /// Tessellate a single [`Rect`] into a [`Mesh`].

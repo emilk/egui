@@ -42,9 +42,10 @@ pub struct BandShape {
     /// The fill color of the band.
     pub fill: Color32,
 
-    /// An optional stroke for the two boundaries.
+    /// An optional stroke around the band.
     ///
-    /// The stroke is painted on top of the fill. The end caps are left open.
+    /// The stroke follows the whole outline, end caps included,
+    /// and is painted on top of the fill.
     pub stroke: Stroke,
 
     /// Whether the stroke is inside, outside, or centered on the band edge.
