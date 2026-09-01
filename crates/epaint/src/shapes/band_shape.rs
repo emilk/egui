@@ -44,11 +44,12 @@ pub struct BandShape {
 
     /// An optional stroke around the band.
     ///
-    /// The stroke follows the whole outline, end caps included,
-    /// and is painted on top of the fill.
+    /// The stroke follows the whole outline, end caps included.
     pub stroke: Stroke,
 
     /// Whether the stroke is inside, outside, or centered on the band edge.
+    ///
+    /// For a anything but [`StrokeKind::Outside`], the stroke color replaces the fill color.
     pub stroke_kind: StrokeKind,
 
     /// Rotate the band by this many radians clockwise around the origin `(0, 0)`.
