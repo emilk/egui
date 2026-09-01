@@ -93,9 +93,12 @@ impl HasClasses for Classes {
 
 impl core::fmt::Display for Classes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.classes.iter().for_each(|class| {
-            let _ = f.write_str(class.as_str());
-        });
-        f.write_str("")
+        for (i, class) in self.classes.iter().enumerate() {
+            if i > 0 {
+                f.write_str(" ")?;
+            }
+            f.write_str(class.as_str())?;
+        }
+        Ok(())
     }
 }
