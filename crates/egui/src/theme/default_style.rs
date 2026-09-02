@@ -1,13 +1,13 @@
 use emath::Vec2;
-use epaint::Margin;
+use epaint::{Color32, Margin};
 
 use crate::{
-    Button, Context, Frame, TextStyle,
+    Button, Context, Frame, TextEdit, TextStyle,
     class::HasClasses as _,
     theme::StyleProvider,
     widget_style::{
-        AtomLayoutStyle, ButtonStyle, CheckboxStyle, SeparatorStyle, StyleArgs, TextVisuals,
-        WidgetState,
+        AtomLayoutStyle, ButtonStyle, CheckboxStyle, SeparatorStyle, StyleArgs, TextEditStyle,
+        TextVisuals, WidgetState,
     },
 };
 
@@ -25,6 +25,7 @@ impl DefaultStyle {
         ctx.add_widget_theme::<ButtonStyle>(Self);
         ctx.add_widget_theme::<SeparatorStyle>(Self);
         ctx.add_widget_theme::<CheckboxStyle>(Self);
+        ctx.add_widget_theme::<TextEditStyle>(Self);
     }
 }
 
@@ -85,7 +86,7 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
         let image_tint = if classes.has_class(&Button::CLASS_IMAGE_TINT_FOLLOWS_TEXT_COLOR) {
             text_style.color
         } else {
-            crate::Color32::WHITE
+            Color32::WHITE
         };
 
         ButtonStyle {
@@ -101,6 +102,62 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
                 image_tint,
                 ..Default::default()
             },
+        }
+    }
+}
+
+impl StyleProvider<TextEditStyle> for DefaultStyle {
+    fn style(&mut self, modifiers: &StyleArgs<'_>) -> TextEditStyle {
+        let StyleArgs {
+            classes,
+            style,
+            state,
+            ..
+        } = modifiers;
+
+        let widget_visuals = style.visuals.widgets.state(*state);
+
+        // A text edit over an immutable buffer is painted without a background.
+        let read_only = classes.has_class(&TextEdit::CLASS_READ_ONLY);
+
+        let fill = if read_only {
+            Color32::TRANSPARENT
+        } else {
+            style.visuals.text_edit_bg_color()
+        };
+
+        let stroke = if read_only {
+            style.visuals.widgets.inactive.bg_stroke
+        } else if *state == WidgetState::Active {
+            // While focused, the frame is outlined in the selection color.
+            style.visuals.selection.stroke
+        } else {
+            widget_visuals.bg_stroke
+        };
+
+        // The text of a text edit doesn't brighten on hover — that would be distracting while
+        // typing — so it keeps the inactive color no matter the state.
+        let text = TextVisuals::from_widget_visuals(
+            style,
+            TextStyle::Body,
+            &style.visuals.widgets.inactive,
+        );
+
+        TextEditStyle {
+            atom_layout: AtomLayoutStyle {
+                frame: Frame {
+                    fill,
+                    corner_radius: widget_visuals.corner_radius,
+                    inner_margin: Margin::symmetric(4, 2),
+                    ..Default::default()
+                }
+                .apply_stroke_and_expansion_without_layout_shift(stroke, widget_visuals.expansion),
+                gap: style.spacing.icon_spacing,
+                text_style: text,
+                ..Default::default()
+            },
+            hint_text_color: style.visuals.weak_text_color(),
+            prefix_suffix_color: style.visuals.text_color(),
         }
     }
 }
