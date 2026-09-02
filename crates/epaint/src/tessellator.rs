@@ -1800,7 +1800,7 @@ impl Tessellator {
             }
         }
 
-        if stroke.is_empty() && out.texture_id == TextureId::default() {
+        if angle == 0.0 && stroke.is_empty() && out.texture_id == TextureId::default() {
             // Approximate thin rectangles with line segments.
             // This is important so that thin rectangles look good.
             if rect.width() <= 2.0 * self.feathering {
