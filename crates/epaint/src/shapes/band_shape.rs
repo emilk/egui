@@ -27,12 +27,24 @@ impl BandPoint {
     }
 }
 
-/// A varying-width band along a direction.
+/// A varying-width band along a line segment.
 ///
-/// The samples are x-monotone in the band's local coordinate system. Invalid points,
-/// reversed ranges, and spans with non-increasing x are ignored.
+/// If you want a meandering path of fixed width, use [`PathShape`](crate::PathShape) instead.
 ///
-/// If you want a path of fixed width, use [`PathShape`](crate::PathShape) instead.
+/// ```text
+///              min_y
+///             __________
+///            /          \________
+///     ______/                    |
+///    |                   ________|
+///    |        __________/
+///    |_______/
+///            max_y
+///
+///
+///     x-----x-x---------x-x-------x
+///
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct BandShape {
