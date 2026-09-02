@@ -848,6 +848,7 @@ fn triangulate_band_outline(
         for (i, point) in run.iter().enumerate() {
             let width = point.y.span();
             if width < min_width {
+                // Fade out the fill when the width is below the feathering width
                 let opacity = width / min_width;
                 for index in [vertex(i as u32), vertex(last - i as u32)] {
                     let color = &mut out.vertices[index as usize].color;
