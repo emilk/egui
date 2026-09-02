@@ -19,6 +19,12 @@ impl BandPoint {
         Self { x, y: y.into() }
     }
 
+    #[inline]
+    pub fn from_pos_and_width(pos: Pos2, width: f32) -> Self {
+        let half_width = 0.5 * width;
+        Self::new(pos.x, (pos.y - half_width)..=(pos.y + half_width))
+    }
+
     /// Whether all coordinates are finite.
     #[inline]
     pub fn is_finite(self) -> bool {
@@ -189,6 +195,14 @@ mod tests {
         assert!(!BandPoint::new(f32::NAN, 1.0..=2.0).is_finite());
         assert!(!BandPoint::new(0.0, f32::NEG_INFINITY..=2.0).is_finite());
         assert!(!BandPoint::new(0.0, 1.0..=f32::INFINITY).is_finite());
+    }
+
+    #[test]
+    fn band_point_from_pos_and_width() {
+        assert_eq!(
+            BandPoint::from_pos_and_width(pos2(2.0, 3.0), 4.0),
+            BandPoint::new(2.0, 1.0..=5.0),
+        );
     }
 
     #[test]
