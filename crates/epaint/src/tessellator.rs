@@ -1897,7 +1897,7 @@ impl Tessellator {
         };
         let shrink = |y: Rangef| {
             let center = y.center();
-            let width = (y.span() - inset).at_least(0.0);
+            let width = (y.span() - 2.0 * inset).at_least(0.0);
             Rangef::new(center - 0.5 * width, center + 0.5 * width)
         };
 
