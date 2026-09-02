@@ -61,7 +61,7 @@ pub struct BandShape {
 
     /// Whether the stroke is inside, outside, or centered on the band edge.
     ///
-    /// For a anything but [`StrokeKind::Outside`], the stroke color replaces the fill color.
+    /// For anything but [`StrokeKind::Outside`], the stroke color replaces the fill color.
     pub stroke_kind: StrokeKind,
 
     /// Rotate the band by this many radians clockwise around the origin `(0, 0)`.
