@@ -107,6 +107,13 @@ impl<'a> AtomLayout<'a> {
         self
     }
 
+    /// Set the gap between atoms, unless one was already set.
+    #[inline]
+    pub(crate) fn fallback_gap(mut self, gap: f32) -> Self {
+        self.gap = self.gap.or(Some(gap));
+        self
+    }
+
     /// Set the [`Frame`].
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {

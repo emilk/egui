@@ -6,7 +6,8 @@ use crate::{
     class::HasClasses as _,
     theme::StyleProvider,
     widget_style::{
-        ButtonStyle, CheckboxStyle, SeparatorStyle, StyleArgs, TextVisuals, WidgetState,
+        AtomLayoutStyle, ButtonStyle, CheckboxStyle, SeparatorStyle, StyleArgs, TextVisuals,
+        WidgetState,
     },
 };
 
@@ -80,14 +81,26 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
             painted_frame
         };
 
+        let text_style = TextVisuals::from_widget_visuals(style, TextStyle::Body, &widget_visuals);
+        let image_tint = if classes.has_class(&Button::CLASS_IMAGE_TINT_FOLLOWS_TEXT_COLOR) {
+            text_style.color
+        } else {
+            crate::Color32::WHITE
+        };
+
         ButtonStyle {
-            min_size: if classes.has_class(&Button::CLASS_SMALL) {
-                Vec2::ZERO
-            } else {
-                Vec2::new(0.0, spacing.interact_size.y)
+            atom_layout: AtomLayoutStyle {
+                min_size: if classes.has_class(&Button::CLASS_SMALL) {
+                    Vec2::ZERO
+                } else {
+                    Vec2::new(0.0, spacing.interact_size.y)
+                },
+                gap: spacing.icon_spacing,
+                frame,
+                text_style,
+                image_tint,
+                ..Default::default()
             },
-            frame,
-            text_style: TextVisuals::from_widget_visuals(style, TextStyle::Body, &widget_visuals),
         }
     }
 }
@@ -99,7 +112,17 @@ impl StyleProvider<CheckboxStyle> for DefaultStyle {
         let widget_visuals = *style.visuals.widgets.state(*state);
 
         CheckboxStyle {
-            frame: Frame::new(),
+            atom_layout: AtomLayoutStyle {
+                min_size: Vec2::splat(spacing.interact_size.y),
+                gap: spacing.icon_spacing,
+                frame: Frame::new(),
+                text_style: TextVisuals::from_widget_visuals(
+                    style,
+                    TextStyle::Body,
+                    &widget_visuals,
+                ),
+                ..Default::default()
+            },
             checkbox_size: spacing.icon_width,
             check_size: spacing.icon_width_inner,
             checkbox_frame: Frame {
@@ -108,7 +131,6 @@ impl StyleProvider<CheckboxStyle> for DefaultStyle {
                 stroke: widget_visuals.bg_stroke,
                 ..Default::default()
             },
-            text_style: TextVisuals::from_widget_visuals(style, TextStyle::Body, &widget_visuals),
             check_stroke: widget_visuals.fg_stroke,
         }
     }

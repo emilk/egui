@@ -139,6 +139,7 @@ fn test_atom_layout_nesting_and_direction() {
                 stack: ui.stack(),
                 style,
             })
+            .atom_layout
             .frame;
 
         let row = |direction: Direction| {
