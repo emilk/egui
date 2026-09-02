@@ -19,11 +19,14 @@ impl BandPoint {
         Self { x, y: y.into() }
     }
 
+    /// Whether all coordinates are finite.
+    #[inline]
+    pub fn is_finite(self) -> bool {
+        self.x.is_finite() && self.y.min.is_finite() && self.y.max.is_finite()
+    }
+
     pub(crate) fn is_valid(self) -> bool {
-        self.x.is_finite()
-            && self.y.min.is_finite()
-            && self.y.max.is_finite()
-            && self.y.min <= self.y.max
+        self.is_finite() && self.y.min <= self.y.max
     }
 }
 
@@ -179,6 +182,14 @@ mod tests {
     use emath::{TSTransform, pos2, vec2};
 
     use super::*;
+
+    #[test]
+    fn band_point_is_finite() {
+        assert!(BandPoint::new(0.0, 1.0..=2.0).is_finite());
+        assert!(!BandPoint::new(f32::NAN, 1.0..=2.0).is_finite());
+        assert!(!BandPoint::new(0.0, f32::NEG_INFINITY..=2.0).is_finite());
+        assert!(!BandPoint::new(0.0, 1.0..=f32::INFINITY).is_finite());
+    }
 
     #[test]
     fn transform_preserves_rotation() {
