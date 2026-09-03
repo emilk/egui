@@ -131,9 +131,7 @@ struct AtomLayoutFields {
 
 impl Default for AtomLayoutFields {
     fn default() -> Self {
-        Self {
-            align_y: true,
-        }
+        Self { align_y: true }
     }
 }
 
