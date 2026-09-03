@@ -80,6 +80,7 @@ impl SystemFontProvider {
     /// A BCP-47 language tag like `"ja"` or `"zh-Hans"`, or `None` for the platform default.
     ///
     /// Default: the system locale.
+    #[inline]
     pub fn with_locale(mut self, locale: Option<&str>) -> Self {
         self.locale = locale.and_then(parse_locale);
         self
