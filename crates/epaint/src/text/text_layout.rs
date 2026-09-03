@@ -1506,6 +1506,32 @@ mod tests {
     }
 
     #[test]
+    fn color_raster_glyph_keeps_color_in_atlas() {
+        let rasterizer = Arc::new(|_: &GlyphRasterizerRequest<'_>| {
+            Some(RasterizedGlyph {
+                image: ColorImage::new([1, 1], vec![Color32::RED]),
+                offset_px: Vec2::ZERO,
+                advance_px: 10.0,
+                is_color: true,
+            })
+        });
+        // The default transfer function discards color for regular (white) glyphs:
+        let options = TextOptions {
+            color_transfer_function: crate::FontColorTransferFunction::TwoCoverageMinusCoverageSq,
+            ..Default::default()
+        };
+        let mut fonts = Fonts::new(options, FontDefinitions::default(), Some(rasterizer));
+        let galley = fonts.with_pixels_per_point(1.0).layout_no_wrap(
+            "한".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+        );
+
+        let [x, y] = galley.rows[0].row.glyphs[0].uv_rect.min;
+        assert_eq!(fonts.image()[(x as usize, y as usize)], Color32::RED);
+    }
+
+    #[test]
     fn test_zero_max_width() {
         let pixels_per_point = 1.0;
         let mut fonts = test_fonts();

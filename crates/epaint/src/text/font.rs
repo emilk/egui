@@ -713,7 +713,13 @@ impl Font<'_> {
         if width == 0 || height == 0 || MAX_GLYPH_SIZE < width || MAX_GLYPH_SIZE < height {
             return None;
         }
-        let transfer = self.atlas.options().color_transfer_function;
+        // The transfer function assumes white coverage glyphs and discards color,
+        // so color glyphs (e.g. emoji) must skip it.
+        let transfer = if glyph.is_color {
+            crate::FontColorTransferFunction::Off
+        } else {
+            self.atlas.options().color_transfer_function
+        };
         let (glyph_pos, image) = self.atlas.allocate((width, height));
         for y in 0..height {
             for x in 0..width {
