@@ -390,16 +390,16 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Set the horizontal align of the inner text.
-    #[inline]
     #[deprecated = "Use `align` instead"]
+    #[inline]
     pub fn horizontal_align(mut self, align: Align) -> Self {
         self.align = Some(self.align.unwrap_or(Align2::LEFT_TOP).with_x(align));
         self
     }
 
     /// Set the vertical align of the inner text.
-    #[inline]
     #[deprecated = "Use `align` instead"]
+    #[inline]
     pub fn vertical_align(mut self, align: Align) -> Self {
         self.align = Some(self.align.unwrap_or(Align2::LEFT_TOP).with_y(align));
         self

@@ -169,14 +169,14 @@ impl Align2 {
     }
 
     /// Set align on the horizontal axis.
-    #[inline(always)]
+    #[inline]
     pub fn with_x(mut self, x: Align) -> Self {
         self.set_x(x);
         self
     }
 
     /// Set align on the vertical axis.
-    #[inline(always)]
+    #[inline]
     pub fn with_y(mut self, y: Align) -> Self {
         self.set_y(y);
         self
