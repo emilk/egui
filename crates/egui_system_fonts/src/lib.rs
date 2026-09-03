@@ -247,4 +247,22 @@ mod tests {
             assert!(insert.name.starts_with("system:"));
         }
     }
+
+    #[test]
+    #[ignore = "Depends on which fonts are installed on this machine"]
+    fn renders_cjk_through_egui_context() {
+        let ctx = egui::Context::default();
+        let font_id = egui::FontId::proportional(14.0);
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            ui.fonts_mut(|fonts| assert!(!fonts.has_glyph(&font_id, '日')));
+        });
+        output.textures_delta.clear();
+
+        ctx.add_font_provider(Arc::new(SystemFontProvider::new()));
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            ui.fonts_mut(|fonts| assert!(fonts.has_glyph(&font_id, '日')));
+            assert_eq!(ui.fonts(|fonts| fonts.provided_fonts().len()), 1);
+        });
+        output.textures_delta.clear();
+    }
 }
