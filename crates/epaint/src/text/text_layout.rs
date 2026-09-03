@@ -1589,6 +1589,34 @@ mod tests {
     }
 
     #[test]
+    fn raster_glyph_failure_is_cached_and_falls_back_to_replacement() {
+        let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let rasterizer = recording_rasterizer(&requests, None);
+        let mut fonts = FontsImpl::new(
+            TextOptions::default(),
+            FontDefinitions::default(),
+            Some(rasterizer),
+        );
+        let job = Arc::new(LayoutJob::simple(
+            "한".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        ));
+
+        let galley = layout(&mut fonts, 1.0, job.clone());
+        layout(&mut fonts, 1.0, job);
+
+        assert_eq!(requests.lock().len(), 1, "Failures should be cached");
+        let glyph = &galley.rows[0].row.glyphs[0];
+        assert_eq!(glyph.chr, '한');
+        assert!(
+            !glyph.uv_rect.is_nothing(),
+            "Should render the replacement glyph"
+        );
+    }
+
+    #[test]
     fn test_zero_max_width() {
         let pixels_per_point = 1.0;
         let mut fonts = test_fonts();

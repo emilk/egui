@@ -683,17 +683,23 @@ pub struct Font<'a> {
     pub(super) atlas: &'a mut TextureAtlas,
     pub(super) family: crate::text::FontFamily,
     pub(super) glyph_rasterizer: Option<&'a crate::text::GlyphRasterizer>,
-    pub(super) raster_glyph_cache: &'a mut HashMap<RasterGlyphCacheKey, RasterGlyphAllocation>,
+    /// `None` means the rasterizer could not handle the cluster.
+    pub(super) raster_glyph_cache:
+        &'a mut HashMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
 }
 
 impl Font<'_> {
-    /// Rasterize a glyph using our fallback provider
+    /// Rasterize a glyph using our fallback provider.
+    ///
+    /// Failures are cached too, so the (potentially slow) rasterizer
+    /// is asked at most once per cluster and size.
     pub(crate) fn rasterize_glyph(
         &mut self,
         cluster: &str,
         pixels_per_point: f32,
         font_size: f32,
     ) -> Option<RasterGlyphAllocation> {
+        let rasterizer = self.glyph_rasterizer?;
         let key = RasterGlyphCacheKey {
             cluster: cluster.to_owned(),
             family: self.family.clone(),
@@ -701,16 +707,25 @@ impl Font<'_> {
             font_size: font_size.to_bits(),
         };
         if let Some(allocation) = self.raster_glyph_cache.get(&key) {
-            return Some(*allocation);
+            return *allocation;
         }
-        let rasterizer = self.glyph_rasterizer?;
         let request = crate::text::GlyphRasterizerRequest {
             cluster,
             family: &self.family,
             font_size_px: font_size * pixels_per_point,
             subpixel_offset_px: 0.0,
         };
-        let glyph = rasterizer(&request)?;
+        let allocation = rasterizer(&request)
+            .and_then(|glyph| Self::allocate_raster_glyph(self.atlas, &glyph, pixels_per_point));
+        self.raster_glyph_cache.insert(key, allocation);
+        allocation
+    }
+
+    fn allocate_raster_glyph(
+        atlas: &mut TextureAtlas,
+        glyph: &crate::text::RasterizedGlyph,
+        pixels_per_point: f32,
+    ) -> Option<RasterGlyphAllocation> {
         let [width, height] = glyph.image.size;
         if width == 0 || height == 0 || MAX_GLYPH_SIZE < width || MAX_GLYPH_SIZE < height {
             return None;
@@ -720,16 +735,16 @@ impl Font<'_> {
         let transfer = if glyph.is_color {
             crate::FontColorTransferFunction::Off
         } else {
-            self.atlas.options().color_transfer_function
+            atlas.options().color_transfer_function
         };
-        let (glyph_pos, image) = self.atlas.allocate((width, height));
+        let (glyph_pos, image) = atlas.allocate((width, height));
         for y in 0..height {
             for x in 0..width {
                 image[(glyph_pos.0 + x, glyph_pos.1 + y)] =
                     transfer.to_atlas_color(glyph.image[(x, y)]);
             }
         }
-        let allocation = RasterGlyphAllocation {
+        Some(RasterGlyphAllocation {
             allocation: GlyphAllocation {
                 uv_rect: UvRect {
                     offset: glyph.offset_px / pixels_per_point,
@@ -740,9 +755,7 @@ impl Font<'_> {
             },
             advance_px: glyph.advance_px,
             is_color: glyph.is_color,
-        };
-        self.raster_glyph_cache.insert(key, allocation);
-        Some(allocation)
+        })
     }
 
     pub fn preload_characters(&mut self, s: &str) {
