@@ -81,8 +81,8 @@ update the snapshot.
 ## Recording
 
 With the `recording` feature you can record a test as an animated GIF or an MP4 video, which is
-useful to see what a test actually does. Recording renders every egui pass, so it needs a renderer:
-enable the `wgpu` feature too.
+useful to see what a test actually does. Recording captures through the active renderer, so for a
+kittest harness you should also enable the `wgpu` feature, unless you provide a custom renderer.
 
 ```rust,no_run
 # use egui_kittest::Harness;
@@ -112,7 +112,8 @@ without it we save a GIF next to the requested path instead. MP4 also has no alp
 so transparent pixels turn black.
 
 The recorder is an `egui::Plugin` (`RecordingPlugin`), so you can also register it on any
-`egui::Context` yourself.
+`egui::Context` yourself. It captures through the integration's screenshot support; the harness
+does not need to render or hand off frames for it.
 
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.

@@ -28,9 +28,8 @@ snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 
 ## Record a test session as an animated GIF or a sequence of PNG files.
 ##
-## Needs a renderer, so enable the `wgpu` feature too, unless you bring your own.
-## Every harness then follows the egui textures, so that a recording can start at any time,
-## but nothing is rendered until a recording starts.
+## Frames are captured using the screenshot support of the active integration.
+## A kittest harness still needs the `wgpu` feature or a custom renderer.
 recording = ["snapshot", "dep:image", "image/gif"]
 
 ## Allows testing eframe::App

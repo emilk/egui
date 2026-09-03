@@ -183,39 +183,33 @@ fn recording_without_frames_is_an_error() {
     assert!(matches!(err, egui_kittest::RecordingError::NoFrames));
 }
 
-/// The recorder is a plain [`egui::Plugin`]: it records any [`egui::Context`],
-/// with no harness and no renderer of your own.
+/// The recorder is a plain [`egui::Plugin`]: the harness only needs to support screenshot
+/// callbacks and has no recording-specific integration.
 #[test]
-fn records_a_plain_context() {
+fn records_when_registered_directly_as_a_plugin() {
     let dir = tempdir().expect("tempdir");
     let gif_path = dir.path().join("plain.gif");
 
-    let ctx = egui::Context::default();
-    ctx.add_plugin(RecordingPlugin::new(RecordingOptions::gif(&gif_path, 10.0)));
+    let mut value = 0;
+    let mut harness = counter_harness(&mut value);
+    harness.ctx.add_plugin(RecordingPlugin::new(
+        RecordingOptions::gif(&gif_path, 10.0).with_trigger(RecordingTrigger::EveryFrame),
+    ));
 
-    let input = egui::RawInput {
-        screen_rect: Some(egui::Rect::from_min_size(
-            egui::Pos2::ZERO,
-            egui::Vec2::new(120.0, 60.0),
-        )),
-        ..Default::default()
-    };
+    // The final step must be captured immediately, without a follow-up pass.
+    harness.run_steps(3);
 
-    for pass in 0..3 {
-        let output = ctx.run_ui(input.clone(), |ui| {
-            ui.label(format!("pass {pass}"));
-        });
-        // We have no renderer of our own; the plugin already rendered what it needed.
-        output.drop_without_applying_deltas();
-    }
-
-    let frames = ctx
+    let frames = harness
+        .ctx
         .with_plugin::<RecordingPlugin, _>(|plugin| {
             plugin.save().expect("save gif");
             plugin.frames().len()
         })
         .expect("the plugin is registered");
 
-    assert_eq!(frames, 3, "each pass shows a different label");
+    assert_eq!(
+        frames, 3,
+        "each pass, including the final one, was captured"
+    );
     assert!(gif_path.exists(), "the GIF should have been written");
 }
