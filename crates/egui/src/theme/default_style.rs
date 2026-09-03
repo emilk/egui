@@ -1,4 +1,4 @@
-use emath::Vec2;
+use emath::{Align2, Vec2};
 use epaint::{Color32, Margin};
 
 use crate::{
@@ -154,6 +154,7 @@ impl StyleProvider<TextEditStyle> for DefaultStyle {
                 .apply_stroke_and_expansion_without_layout_shift(stroke, widget_visuals.expansion),
                 gap: style.spacing.icon_spacing,
                 text_style: text,
+                align2: Some(Align2::LEFT_TOP),
                 ..Default::default()
             },
             hint_text_color: style.visuals.weak_text_color(),

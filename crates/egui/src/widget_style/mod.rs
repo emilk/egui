@@ -155,6 +155,8 @@ impl WidgetStyle for TextEditStyle {}
 #[derive(Debug, Clone)]
 pub struct CheckboxStyle {
     /// Style of the checkbox's atom layout.
+    ///
+    /// [`AtomLayoutStyle::align2`] vertical align has no effect; the checkbox is always centered.
     pub atom_layout: AtomLayoutStyle,
 
     /// Checkbox size
