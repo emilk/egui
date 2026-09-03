@@ -48,7 +48,8 @@ pub enum GlyphSource {
     /// Predictable: looks the same everywhere, both on native and on web.
     Fonts,
 
-    /// What the platform offers, e.g. the [`GlyphRasterizer`] (the browser on web).
+    /// What the platform offers: fonts from the [`FontProvider`](crate::text::FontProvider)s
+    /// (e.g. the system fonts on native), and the [`GlyphRasterizer`] (e.g. the browser on web).
     ///
     /// Supports colored emojis.
     /// Unpredictable: may look different on different computers.

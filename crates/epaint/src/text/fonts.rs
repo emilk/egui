@@ -3,11 +3,12 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{
     Color32, TextureAtlas,
     text::{
-        FontDefinitions, FontFamily, FontId, Galley, GlyphRasterizer, GlyphSource,
-        GlyphSourcePreference, LayoutJob, TextOptions, VariationCoords,
+        FontDefinitions, FontFamily, FontId, FontInsert, FontProvider, Galley, GlyphRasterizer,
+        GlyphSource, GlyphSourcePreference, LayoutJob, TextOptions, VariationCoords,
         face_store::{FaceStore, FontFaceKey},
         family::{Family, FamilyKey},
         font_face::{FontFace, GlyphInfo, ShapedGlyph},
+        font_provider::FontProviders,
         galley_cache::GalleyCache,
         glyph_atlas::{GlyphAtlas, OutlineGlyph, RasterGlyphAllocation},
         glyph_rasterizer::default_glyph_source,
@@ -81,6 +82,23 @@ impl Fonts {
         self
     }
 
+    /// Ask these for fonts for characters that no font in the [`FontDefinitions`] has.
+    ///
+    /// The providers are asked in order, and the first font found is used.
+    #[inline]
+    pub fn with_font_providers(mut self, font_providers: Vec<Arc<dyn FontProvider>>) -> Self {
+        self.fonts
+            .set_font_providers(FontProviders::new(font_providers));
+        self
+    }
+
+    /// The fonts found by the [`FontProvider`]s so far, in the order they were found.
+    ///
+    /// These are not part of [`Self::definitions`].
+    pub fn provided_fonts(&self) -> &[FontInsert] {
+        self.fonts.provided_fonts()
+    }
+
     /// Call at the start of each frame with the latest known [`TextOptions`].
     ///
     /// Call after painting the previous frame, but before using [`Fonts`] for the new frame.
@@ -94,6 +112,7 @@ impl Fonts {
             let mut fonts = FontsImpl::new(options, definitions);
             fonts.set_glyph_rasterizer(self.fonts.glyph_rasterizer.take());
             fonts.glyph_source_preference = Arc::clone(&self.fonts.glyph_source_preference);
+            fonts.set_font_providers(core::mem::take(&mut self.fonts.font_providers));
             self.fonts = fonts;
             self.galley_cache = Default::default();
         } else if 0.8 < self.fonts.glyphs.fill_ratio() {
@@ -266,6 +285,13 @@ impl FontsView<'_> {
         self.fonts.definitions.families.keys().cloned().collect()
     }
 
+    /// The fonts found by the [`FontProvider`]s so far, in the order they were found.
+    ///
+    /// These are not part of [`Self::definitions`].
+    pub fn provided_fonts(&self) -> &[FontInsert] {
+        self.fonts.provided_fonts()
+    }
+
     /// Layout some text.
     ///
     /// This is the most advanced layout function.
@@ -351,6 +377,7 @@ pub(crate) struct FontsImpl {
     /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
     shape_buffer: Option<harfrust::UnicodeBuffer>,
     glyph_rasterizer: Option<GlyphRasterizer>,
+    font_providers: FontProviders,
     glyph_source_preference: GlyphSourcePreference,
 }
 
@@ -368,8 +395,25 @@ impl FontsImpl {
             family_keys: Default::default(),
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
             glyph_rasterizer: None,
+            font_providers: Default::default(),
             glyph_source_preference: Arc::new(default_glyph_source),
         }
+    }
+
+    /// Ask these for fonts for characters that no font in the [`FontDefinitions`] has.
+    ///
+    /// Fonts the providers found earlier are installed right away.
+    pub fn set_font_providers(&mut self, font_providers: FontProviders) {
+        font_providers.install_provided(&mut self.faces);
+        self.font_providers = font_providers;
+        // The fallback chains may have changed:
+        self.families.clear();
+        self.family_keys.clear();
+    }
+
+    /// The fonts found by the [`FontProvider`]s so far, in the order they were found.
+    pub fn provided_fonts(&self) -> &[FontInsert] {
+        self.font_providers.provided()
     }
 
     /// Use this platform glyph rasterizer, e.g. the browser on web.
@@ -425,8 +469,12 @@ impl FontsImpl {
             return *key;
         }
         let key = FamilyKey(self.families.len());
-        self.families
-            .push(Family::new(family, &self.definitions, &mut self.faces));
+        self.families.push(Family::new(
+            family,
+            &self.definitions,
+            &mut self.faces,
+            &self.font_providers,
+        ));
         self.family_keys.insert(family.clone(), key);
         key
     }
@@ -441,7 +489,24 @@ impl FontsImpl {
     /// See [`Family::resolve`].
     #[inline]
     pub fn resolve_face(&mut self, family: FamilyKey, c: char) -> FontFaceKey {
-        self.families[family.0].resolve(&mut self.faces, c)
+        self.families[family.0].resolve(&mut self.faces, &mut self.font_providers, c)
+    }
+
+    /// Like [`Self::resolve_face`] for the first char of `cluster`,
+    /// but lets the [`FontProvider`]s see the whole grapheme cluster.
+    #[inline]
+    pub fn resolve_cluster_face(
+        &mut self,
+        family: FamilyKey,
+        cluster: &str,
+        base_char: char,
+    ) -> FontFaceKey {
+        self.families[family.0].resolve_cluster(
+            &mut self.faces,
+            &mut self.font_providers,
+            cluster,
+            base_char,
+        )
     }
 
     /// Resolve `c` to its (face, [`GlyphInfo`]) at the given face's location.
@@ -520,8 +585,10 @@ impl FontsImpl {
     /// for a character that would still render via the rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, family: &FontFamily, c: char) -> bool {
         let family = self.family_key(family);
-        // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
-        self.resolve_face(family, c) != self.family(family).replacement_face_key()
+        let face_key = self.resolve_face(family, c);
+        self.faces
+            .get_mut(face_key)
+            .is_some_and(|face| face.glyph_id_resolution(c).is_some())
     }
 
     /// Do the installed fonts have all the glyphs in this text?
