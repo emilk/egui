@@ -616,31 +616,31 @@ fn layout_section(
                     &mut ctx,
                     paragraph,
                 );
-                continue;
+            } else {
+                // Set buffer flags for paragraph boundary context.
+                let mut flags = harfrust::BufferFlags::empty();
+                if run_idx == 0 {
+                    flags |= harfrust::BufferFlags::BEGINNING_OF_TEXT;
+                }
+                if run_idx + 1 == num_runs {
+                    flags |= harfrust::BufferFlags::END_OF_TEXT;
+                }
+
+                let glyph_buffer =
+                    shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
+
+                layout_shaped_run(
+                    font,
+                    run,
+                    run_text,
+                    &glyph_buffer,
+                    &face_metrics,
+                    &mut ctx,
+                    paragraph,
+                );
+
+                shape_buffer = glyph_buffer.clear();
             }
-
-            // Set buffer flags for paragraph boundary context.
-            let mut flags = harfrust::BufferFlags::empty();
-            if run_idx == 0 {
-                flags |= harfrust::BufferFlags::BEGINNING_OF_TEXT;
-            }
-            if run_idx + 1 == num_runs {
-                flags |= harfrust::BufferFlags::END_OF_TEXT;
-            }
-
-            let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
-
-            layout_shaped_run(
-                font,
-                run,
-                run_text,
-                &glyph_buffer,
-                &face_metrics,
-                &mut ctx,
-                paragraph,
-            );
-
-            shape_buffer = glyph_buffer.clear();
         }
     }
 
