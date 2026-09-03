@@ -317,12 +317,9 @@ impl<'a, State> Harness<'a, State> {
         self.output = output;
 
         #[cfg(any(feature = "wgpu", feature = "snapshot"))]
-        if self.always_render
-            && let Err(err) = self.render()
-        {
-            // Every following pass would fail the same way, so say it once.
-            self.always_render = false;
-            log::error!("egui_kittest: `always_render` failed to render a pass: {err}");
+        if self.always_render {
+            self.render()
+                .expect("Failed to render during `always_render`");
         }
 
         self.handle_viewport_commands();
@@ -727,10 +724,9 @@ impl<'a, State> Harness<'a, State> {
         });
     }
 
-    /// Render every pass from now on.
+    /// Should every pass be rendered?
     ///
-    /// See [`HarnessBuilder::with_always_render`] for when you want this. Turning it on does
-    /// not render the pass that already ended; the next one is the first to be rendered.
+    /// Useful when test logic requires some specific gpu logic, e.g. reading data back from the gpu.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     #[inline]
     pub fn set_always_render(&mut self, always_render: bool) {
@@ -739,9 +735,8 @@ impl<'a, State> Harness<'a, State> {
 
     /// Render the last output to an image.
     ///
-    /// The image of a pass is rendered once and then reused, so calling this repeatedly without
-    /// stepping is cheap — and paint callbacks, which may do GPU work of their own, run only
-    /// once per pass.
+    /// When calling this multiple times on the same frame, or when [`Self::set_always_render`] is
+    /// true, this will return the already-rendered frame.
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
