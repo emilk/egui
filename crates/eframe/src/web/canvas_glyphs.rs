@@ -1,9 +1,11 @@
 //! Browser glyph rasterization for egui's unsupported-glyph fallback.
 //!
 //! This draws unsupported grapheme clusters with Canvas 2D, then puts the resulting pixels in
-//! egui's font atlas.
+//! egui's font atlas. Clusters the browser cannot render either (tofu) are rejected,
+//! so egui draws its own replacement glyph.
 
 use core::cell::RefCell;
+use std::collections::HashMap;
 
 use egui::{
     ColorImage, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE, RasterizedGlyph, vec2,
@@ -14,6 +16,11 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 struct CanvasGlyphs {
     canvas: HtmlCanvasElement,
     context: CanvasRenderingContext2d,
+
+    /// What the browser draws for a missing glyph, per `(font, subpixel offset)`.
+    ///
+    /// `None` if the browser draws nothing.
+    tofu_cache: HashMap<(String, u32), Option<Drawn>>,
 }
 
 impl CanvasGlyphs {
@@ -29,10 +36,14 @@ impl CanvasGlyphs {
             .ok()??
             .dyn_into::<CanvasRenderingContext2d>()
             .ok()?;
-        Some(Self { canvas, context })
+        Some(Self {
+            canvas,
+            context,
+            tofu_cache: Default::default(),
+        })
     }
 
-    fn rasterize(&self, request: &GlyphRasterizerRequest<'_>) -> Option<RasterizedGlyph> {
+    fn rasterize(&mut self, request: &GlyphRasterizerRequest<'_>) -> Option<RasterizedGlyph> {
         let GlyphRasterizerRequest {
             cluster,
             family,
@@ -55,6 +66,10 @@ impl CanvasGlyphs {
         // White, like egui's own glyph rasterizer: the atlas stores coverage,
         // and the tessellator multiplies it with the text color.
         let white = self.draw(cluster, &font, "white", *subpixel_offset_px)?;
+
+        if self.is_tofu(&white, &font, *subpixel_offset_px) {
+            return None; // Let egui draw its own replacement glyph instead.
+        }
 
         // Color glyphs (e.g. emoji) ignore the fill style, so they come out
         // the same in black. Comparing the two is exact, unlike inspecting
@@ -80,6 +95,28 @@ impl CanvasGlyphs {
             advance_px: advance as f32,
             is_color,
         })
+    }
+
+    /// Did the browser draw its "missing glyph" box (tofu)?
+    ///
+    /// Browsers draw a box for glyphs they lack, and `measureText` reports
+    /// a width for it, so the only way to tell is to compare pixels.
+    fn is_tofu(&mut self, drawn: &Drawn, font: &str, subpixel_offset_px: f32) -> bool {
+        /// An unassigned code point, so no font has a glyph for it.
+        const MISSING_GLYPH: &str = "\u{0378}";
+
+        let key = (font.to_owned(), subpixel_offset_px.to_bits());
+        if !self.tofu_cache.contains_key(&key) {
+            let tofu = self.draw(MISSING_GLYPH, font, "white", subpixel_offset_px);
+            self.tofu_cache.insert(key.clone(), tofu);
+        }
+
+        self.tofu_cache
+            .get(&key)
+            .and_then(Option::as_ref)
+            .is_some_and(|tofu| {
+                tofu.width == drawn.width && tofu.height == drawn.height && tofu.rgba == drawn.rgba
+            })
     }
 
     /// Draw `text` with the given CSS `font` and `fill_style` and read back the pixels.
