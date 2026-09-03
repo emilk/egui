@@ -10,8 +10,8 @@ mod text_layout_types;
 pub use {
     fonts::{
         FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak,
-        FontVariationAxis, Fonts, FontsImpl, FontsView, HintingTarget, InsertFontFamily,
-        SmoothHinting,
+        FontVariationAxis, Fonts, FontsImpl, FontsView, GlyphRasterizer, GlyphRasterizerRequest,
+        HintingTarget, InsertFontFamily, MAX_GLYPH_SIZE, RasterizedGlyph, SmoothHinting,
     },
     index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
     text_layout::*,

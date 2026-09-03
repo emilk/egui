@@ -16,9 +16,9 @@ use epaint::{
 };
 
 use crate::{
-    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
-    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, GlyphRasterizer, Grid, Id,
+    ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId,
+    Memory, ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
     SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
     UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
     ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
@@ -375,6 +375,7 @@ impl ViewportRepaintInfo {
 struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
+    glyph_rasterizer: Option<GlyphRasterizer>,
 
     memory: Memory,
     animation_manager: AnimationManager,
@@ -591,7 +592,11 @@ impl ContextImpl {
 
             is_new = true;
             profiling::scope!("Fonts::new");
-            Fonts::new(text_options, self.font_definitions.clone())
+            Fonts::new(
+                text_options,
+                self.font_definitions.clone(),
+                self.glyph_rasterizer.clone(),
+            )
         });
 
         {
@@ -761,6 +766,14 @@ impl Default for Context {
 }
 
 impl Context {
+    /// Set the platform fallback used for unsupported glyph clusters.
+    pub fn set_glyph_rasterizer(&self, glyph_rasterizer: Option<GlyphRasterizer>) {
+        self.write(|ctx| {
+            ctx.glyph_rasterizer = glyph_rasterizer;
+            ctx.fonts = None;
+        });
+    }
+
     /// Do read-only (shared access) transaction on Context
     fn read<R>(&self, reader: impl FnOnce(&ContextImpl) -> R) -> R {
         reader(&self.0.read())

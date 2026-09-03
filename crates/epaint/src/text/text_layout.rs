@@ -205,6 +205,7 @@ impl ShapingContext {
             font_height: self.font_metrics.row_height,
             font_ascent: self.font_metrics.ascent,
             uv_rect,
+            is_color: false,
             section_index: self.section_index,
             first_vertex: 0,
         }
@@ -303,49 +304,72 @@ fn layout_shaped_run(
         ctx.prev_cluster = Some(cluster);
 
         let glyph = if glyph_id == skrifa::GlyphId::NOTDEF {
-            // The shaper couldn't map this character. Drop combining marks
-            // (Unicode category M) and duplicate NOTDEF glyphs within the same
-            // cluster — only the first base character gets a replacement glyph.
+            // The shaper couldn't map this character. Drop combining marks and duplicate
+            // NOTDEF glyphs within the same cluster. The first base character is rasterized,
+            // or rendered as a replacement glyph if no rasterizer can handle the cluster.
             if is_combining_mark(chr) || !is_new_cluster {
                 continue;
             }
 
-            // Use the fallback font face (not run.font_key which returned NOTDEF).
-            let fallback_key = font.resolve_face(chr);
-            let fallback_metrics = font
-                .fonts_by_id
-                .get(&fallback_key)
-                .map(|ff| {
-                    ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
+            let cluster_text = run_text
+                .get(cluster as usize..)
+                .and_then(|text| {
+                    unicode_segmentation::UnicodeSegmentation::graphemes(text, true).next()
                 })
                 .unwrap_or_default();
-            let (_, glyph_info) = font.glyph_info(chr, &fallback_metrics);
-            let advance_width_px =
-                glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
-            let (glyph_alloc, physical_x) =
-                if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
-                    ff.allocate_glyph(
-                        font.atlas,
-                        &fallback_metrics,
-                        &ShapedGlyph {
-                            glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                            h_pos: paragraph.cursor_x_px,
-                            is_cjk: is_cjk(chr),
-                        },
-                    )
-                } else {
-                    Default::default()
-                };
 
-            paragraph.cursor_x_px += advance_width_px;
+            if let Some(raster) =
+                font.rasterize_glyph(cluster_text, ctx.pixels_per_point, ctx.font_size)
+            {
+                let physical_x = paragraph.cursor_x_px.round() as i32;
+                paragraph.cursor_x_px += raster.advance_px;
+                let mut glyph = ctx.glyph(
+                    chr,
+                    physical_x,
+                    raster.advance_px,
+                    face_metrics,
+                    raster.allocation.uv_rect,
+                );
+                glyph.is_color = raster.is_color;
+                glyph
+            } else {
+                // Use the fallback font face (not run.font_key which returned NOTDEF).
+                let fallback_key = font.resolve_face(chr);
+                let fallback_metrics = font
+                    .fonts_by_id
+                    .get(&fallback_key)
+                    .map(|ff| {
+                        ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
+                    })
+                    .unwrap_or_default();
+                let (_, glyph_info) = font.glyph_info(chr, &fallback_metrics);
+                let advance_width_px =
+                    glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
+                let (glyph_alloc, physical_x) =
+                    if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
+                        ff.allocate_glyph(
+                            font.atlas,
+                            &fallback_metrics,
+                            &ShapedGlyph {
+                                glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
+                                h_pos: paragraph.cursor_x_px,
+                                is_cjk: is_cjk(chr),
+                            },
+                        )
+                    } else {
+                        Default::default()
+                    };
 
-            ctx.glyph(
-                chr,
-                physical_x,
-                advance_width_px,
-                &fallback_metrics,
-                glyph_alloc.uv_rect,
-            )
+                paragraph.cursor_x_px += advance_width_px;
+
+                ctx.glyph(
+                    chr,
+                    physical_x,
+                    advance_width_px,
+                    &fallback_metrics,
+                    glyph_alloc.uv_rect,
+                )
+            }
         } else {
             let (mut glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
@@ -834,6 +858,7 @@ fn replace_last_glyph_with_overflow_character(
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: replacement_glyph_alloc.uv_rect,
+                is_color: false,
                 section_index,
                 first_vertex: 0, // filled in later
             });
@@ -1168,7 +1193,12 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, me
 
             let format = &job.sections[glyph.section_index as usize].format;
 
-            let color = format.color;
+            let tint_color = if glyph.is_color {
+                // Not tint - preserve original glyph color
+                Color32::from_white_alpha(format.color.a())
+            } else {
+                format.color
+            };
 
             if format.italics {
                 let idx = mesh.vertices.len() as u32;
@@ -1180,25 +1210,25 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, me
                 mesh.vertices.push(Vertex {
                     pos: rect.left_top() + top_offset,
                     uv: uv.left_top(),
-                    color,
+                    color: tint_color,
                 });
                 mesh.vertices.push(Vertex {
                     pos: rect.right_top() + top_offset,
                     uv: uv.right_top(),
-                    color,
+                    color: tint_color,
                 });
                 mesh.vertices.push(Vertex {
                     pos: rect.left_bottom(),
                     uv: uv.left_bottom(),
-                    color,
+                    color: tint_color,
                 });
                 mesh.vertices.push(Vertex {
                     pos: rect.right_bottom(),
                     uv: uv.right_bottom(),
-                    color,
+                    color: tint_color,
                 });
             } else {
-                mesh.add_rect_with_uv(rect, uv, color);
+                mesh.add_rect_with_uv(rect, uv, tint_color);
             }
         }
     }
@@ -1438,14 +1468,47 @@ fn shape_text(
 #[cfg(test)]
 mod tests {
     use core::iter;
+    use std::sync::Arc;
 
     use super::{super::*, *};
-    use crate::text::cursor::CCursor;
+    use crate::{ColorImage, text::cursor::CCursor};
+
+    fn test_fonts() -> FontsImpl {
+        FontsImpl::new(TextOptions::default(), FontDefinitions::default(), None)
+    }
+
+    #[test]
+    fn color_raster_glyph_is_not_tinted() {
+        let rasterizer = Arc::new(|request: &GlyphRasterizerRequest<'_>| {
+            (request.cluster == "한").then(|| RasterizedGlyph {
+                image: ColorImage::new([1, 1], vec![Color32::RED]),
+                offset_px: Vec2::ZERO,
+                advance_px: 10.0,
+                is_color: true,
+            })
+        });
+        let mut fonts = FontsImpl::new(
+            TextOptions::default(),
+            FontDefinitions::default(),
+            Some(rasterizer),
+        );
+        let job = LayoutJob::simple(
+            "한".into(),
+            FontId::proportional(14.0),
+            Color32::GREEN,
+            f32::INFINITY,
+        );
+
+        let galley = layout(&mut fonts, 1.0, Arc::new(job));
+        let row = &galley.rows[0].row;
+        assert!(row.glyphs[0].is_color);
+        assert_eq!(row.visuals.mesh.vertices[0].color, Color32::WHITE);
+    }
 
     #[test]
     fn test_zero_max_width() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let mut layout_job = LayoutJob::single_section("W".into(), TextFormat::default());
         layout_job.wrap.max_width = 0.0;
         let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
@@ -1458,7 +1521,7 @@ mod tests {
 
         let pixels_per_point = 1.0;
 
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let text_format = TextFormat {
             font_id: FontId::monospace(12.0),
             ..Default::default()
@@ -1504,7 +1567,7 @@ mod tests {
     #[test]
     fn test_cjk() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let mut layout_job = LayoutJob::single_section(
             "日本語とEnglishの混在した文章".into(),
             TextFormat::default(),
@@ -1520,7 +1583,7 @@ mod tests {
     #[test]
     fn test_pre_cjk() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let mut layout_job = LayoutJob::single_section(
             "日本語とEnglishの混在した文章".into(),
             TextFormat::default(),
@@ -1536,7 +1599,7 @@ mod tests {
     #[test]
     fn test_truncate_width() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let mut layout_job =
             LayoutJob::single_section("# DNA\nMore text".into(), TextFormat::default());
         layout_job.wrap.max_width = f32::INFINITY;
@@ -1555,7 +1618,7 @@ mod tests {
 
     #[test]
     fn test_truncate_with_pixels_per_point() {
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         for pixels_per_point in [
             0.33, 0.5, 0.67, 1.0, 1.25, 1.33, 1.5, 1.75, 2.0, 3.0, 4.0, 5.0,
@@ -1593,7 +1656,7 @@ mod tests {
     #[test]
     fn test_empty_row() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let font_id = FontId::default();
         let font_height = fonts
@@ -1626,7 +1689,7 @@ mod tests {
     #[test]
     fn test_end_with_newline() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let font_id = FontId::default();
         let font_height = fonts
@@ -1664,7 +1727,7 @@ mod tests {
         // Note: the default fonts don't contain U+0254, so the replacement glyph
         // is used. The key test is that the combining mark does NOT add extra width.
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let job_combined = LayoutJob::simple(
             "ɔ\u{0303}".to_owned(),
@@ -1699,7 +1762,7 @@ mod tests {
     fn test_shaping_basic_latin() {
         // Basic test: shaped Latin text should produce the same number of glyphs as characters.
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let job = LayoutJob::simple(
             "Hello".to_owned(),
@@ -1717,7 +1780,7 @@ mod tests {
     #[test]
     fn test_shaping_empty_string() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let job = LayoutJob::simple(
             String::new(),
@@ -1734,7 +1797,7 @@ mod tests {
     #[test]
     fn test_shaping_multiple_newlines() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let job = LayoutJob::simple(
             "A\n\nB".to_owned(),
@@ -1755,7 +1818,7 @@ mod tests {
         // Text with both Latin and emoji should work without panicking,
         // even though they use different font faces.
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let job = LayoutJob::simple(
             "Hi 🎉 bye".to_owned(),
@@ -1781,7 +1844,7 @@ mod tests {
         // only uses the legacy `kern` table, so these pairs had diff ≈ 0.
         // With harfrust, GPOS kerning applies proper negative adjustments.
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let font_id = FontId::proportional(14.0);
 
         for pair in ["AV", "VA", "AT"] {
@@ -1819,7 +1882,7 @@ mod tests {
     #[test]
     fn test_grapheme_cluster_glyph_count() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let font_id = FontId::default();
 
         // Each test case: (input text, expected char count)
@@ -1879,7 +1942,7 @@ mod tests {
     #[test]
     fn test_grapheme_cluster_cursor_roundtrip() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let font_id = FontId::default();
 
         // "A" + flag emoji (2 codepoints) + "B" = 4 chars

@@ -455,7 +455,10 @@ pub use emath::{
 pub use epaint::{
     ClippedPrimitive, ColorImage, CornerRadius, Direction, ImageData, Margin, Mesh, PaintCallback,
     PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
-    text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
+    text::{
+        FontData, FontDefinitions, FontFamily, FontId, FontTweak, GlyphRasterizer,
+        GlyphRasterizerRequest, MAX_GLYPH_SIZE, RasterizedGlyph,
+    },
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
 };
 

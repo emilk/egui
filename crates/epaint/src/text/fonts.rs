@@ -2,16 +2,21 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use crate::{
-    TextureAtlas,
+    Color32, ColorImage, TextureAtlas,
     text::{
         ByteIndex, Galley, LayoutJob, LayoutSection, Tag, TextOptions, VariationCoords,
-        font::{Font, FontFace},
+        font::{Font, FontFace, RasterGlyphAllocation, RasterGlyphCacheKey},
     },
 };
 use emath::{NumExt as _, OrderedFloat, Rangef};
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
+
+// ----------------------------------------------------------------------------
+
+/// Maximum width or height of a glyph rasterized into the font atlas.
+pub const MAX_GLYPH_SIZE: usize = 1024;
 
 // ----------------------------------------------------------------------------
 
@@ -26,6 +31,40 @@ pub struct FontId {
     pub family: FontFamily,
     // TODO(emilk): weight (bold), italics, …
 }
+
+/// Input to a [`GlyphRasterizer`].
+pub struct GlyphRasterizerRequest<'a> {
+    /// An unsupported grapheme cluster.
+    pub cluster: &'a str,
+
+    /// The requested font family.
+    pub family: &'a FontFamily,
+
+    /// Requested font size in physical pixels.
+    pub font_size_px: f32,
+
+    /// Horizontal offset from the pixel grid in physical pixels.
+    pub subpixel_offset_px: f32,
+}
+
+/// A glyph rasterized by a platform fallback.
+pub struct RasterizedGlyph {
+    /// Pixels in physical pixels. Color glyphs retain their original colors.
+    pub image: ColorImage,
+
+    /// Offset from the baseline to the image top-left, in physical pixels.
+    pub offset_px: emath::Vec2,
+
+    /// Horizontal advance, in physical pixels.
+    pub advance_px: f32,
+
+    /// Do not tint this glyph with the text color.
+    pub is_color: bool,
+}
+
+/// Rasterizes unsupported grapheme clusters.
+pub type GlyphRasterizer =
+    Arc<dyn for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph> + Send + Sync>;
 
 impl Default for FontId {
     #[inline]
@@ -707,15 +746,22 @@ impl CachedFamily {
 pub struct Fonts {
     pub fonts: FontsImpl,
     galley_cache: GalleyCache,
+    glyph_rasterizer: Option<GlyphRasterizer>,
 }
 
 impl Fonts {
     /// Create a new [`Fonts`] for text layout.
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
-    pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
+    /// Create a new font collection with an optional platform glyph fallback.
+    pub fn new(
+        options: TextOptions,
+        definitions: FontDefinitions,
+        glyph_rasterizer: Option<GlyphRasterizer>,
+    ) -> Self {
         Self {
-            fonts: FontsImpl::new(options, definitions),
+            fonts: FontsImpl::new(options, definitions, glyph_rasterizer.clone()),
             galley_cache: Default::default(),
+            glyph_rasterizer,
         }
     }
 
@@ -732,10 +778,12 @@ impl Fonts {
 
         if needs_recreate {
             let definitions = self.fonts.definitions.clone();
+            let glyph_rasterizer = self.glyph_rasterizer.clone();
 
             *self = Self {
-                fonts: FontsImpl::new(options, definitions),
+                fonts: FontsImpl::new(options, definitions, glyph_rasterizer.clone()),
                 galley_cache: Default::default(),
+                glyph_rasterizer,
             };
         }
 
@@ -917,7 +965,7 @@ impl FontsView<'_> {
         &mut self,
         text: String,
         font_id: FontId,
-        color: crate::Color32,
+        color: Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
         let job = LayoutJob::simple(text, font_id, color, wrap_width);
@@ -928,12 +976,7 @@ impl FontsView<'_> {
     ///
     /// The implementation uses memoization so repeated calls are cheap.
     #[inline]
-    pub fn layout_no_wrap(
-        &mut self,
-        text: String,
-        font_id: FontId,
-        color: crate::Color32,
-    ) -> Arc<Galley> {
+    pub fn layout_no_wrap(&mut self, text: String, font_id: FontId, color: Color32) -> Arc<Galley> {
         let job = LayoutJob::simple(text, font_id, color, f32::INFINITY);
         self.layout_job(job)
     }
@@ -948,7 +991,7 @@ impl FontsView<'_> {
         font_id: FontId,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.layout(text, font_id, crate::Color32::PLACEHOLDER, wrap_width)
+        self.layout(text, font_id, Color32::PLACEHOLDER, wrap_width)
     }
 }
 
@@ -966,12 +1009,18 @@ pub struct FontsImpl {
 
     /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
     shape_buffer: Option<harfrust::UnicodeBuffer>,
+    glyph_rasterizer: Option<GlyphRasterizer>,
+    raster_glyph_cache: ahash::HashMap<RasterGlyphCacheKey, RasterGlyphAllocation>,
 }
 
 impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
-    pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
+    pub fn new(
+        options: TextOptions,
+        definitions: FontDefinitions,
+        glyph_rasterizer: Option<GlyphRasterizer>,
+    ) -> Self {
         let texture_width = options.max_texture_side.at_most(16 * 1024);
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height], options);
@@ -1000,6 +1049,8 @@ impl FontsImpl {
             fonts_by_name,
             family_cache: Default::default(),
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
+            glyph_rasterizer,
+            raster_glyph_cache: Default::default(),
         }
     }
 
@@ -1040,6 +1091,9 @@ impl FontsImpl {
             fonts_by_id: &mut self.fonts_by_id,
             cached_family,
             atlas: &mut self.atlas,
+            family: family.clone(),
+            glyph_rasterizer: self.glyph_rasterizer.as_ref(),
+            raster_glyph_cache: &mut self.raster_glyph_cache,
         }
     }
 }
@@ -1410,7 +1464,8 @@ mod tests {
     #[test]
     fn test_split_paragraphs() {
         for pixels_per_point in [1.0, 2.0_f32.sqrt(), 2.0] {
-            let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+            let mut fonts =
+                FontsImpl::new(TextOptions::default(), FontDefinitions::default(), None);
 
             for halign in [Align::Min, Align::Center, Align::Max] {
                 for justify in [false, true] {
@@ -1468,7 +1523,8 @@ mod tests {
         let rounded_output_to_gui = [false, true];
 
         for pixels_per_point in pixels_per_point {
-            let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+            let mut fonts =
+                FontsImpl::new(TextOptions::default(), FontDefinitions::default(), None);
 
             for &max_width in &max_widths {
                 for round_output_to_gui in rounded_output_to_gui {
@@ -1515,7 +1571,7 @@ mod tests {
 
     #[test]
     fn test_fallback_glyph_width() {
-        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty());
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty(), None);
         let mut view = fonts.with_pixels_per_point(1.0);
 
         let width = view.glyph_width(&FontId::new(12.0, FontFamily::Proportional), ' ');

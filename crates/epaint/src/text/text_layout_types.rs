@@ -915,6 +915,9 @@ pub struct Glyph {
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
 
+    /// Whether this glyph carries its own color, e.g. a color emoji.
+    pub is_color: bool,
+
     /// Index into [`LayoutJob::sections`]. Decides color etc.
     ///
     /// Only used during layout, then set to an invalid value in order to
