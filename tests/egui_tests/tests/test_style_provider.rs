@@ -120,10 +120,10 @@ fn frame_variants(variant: &mut VariantHandle) -> Frame {
     }
 }
 
-/// Which [`AtomLayoutStyle`] fields the widget under test can show.
+/// Which [`AtomLayoutStyle`] fields the widget under test honors.
 ///
-/// Every `false` is a field the theme cannot reach in that widget, because the widget either
-/// overrides it or leaves it no room. Each one has a comment at the call site saying why.
+/// A widget may ignore a field on purpose. Every `false` marks one of those, and says at
+/// the call site why the widget ignores it.
 #[derive(Clone, Copy)]
 struct AtomLayoutFields {
     align_x: bool,
@@ -215,8 +215,8 @@ fn ensure_all_checkbox_style_args_used() {
         |variant| {
             let frame = frame_variants(variant);
             let fields = AtomLayoutFields {
-                // The `Checkbox` grows its box atom to `min_size.y`, so the content is always
-                // exactly as tall as the space it gets aligned in. There is never any slack.
+                // A `Checkbox` always centers its box and its label in the row, so the
+                // vertical align has no effect. This is by design, see `Checkbox::ui`.
                 align_y: false,
                 ..Default::default()
             };

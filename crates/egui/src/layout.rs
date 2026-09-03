@@ -348,7 +348,7 @@ impl Layout {
     }
 
     /// e.g. for when aligning text within a button.
-    fn align2(&self) -> Align2 {
+    pub fn align2(&self) -> Align2 {
         Align2([self.horizontal_align(), self.vertical_align()])
     }
 

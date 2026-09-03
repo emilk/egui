@@ -163,6 +163,37 @@ impl Align2 {
 }
 
 impl Align2 {
+    #[inline(always)]
+    pub fn new(x: Align, y: Align) -> Self {
+        Self([x, y])
+    }
+
+    /// Set align on the horizontal axis.
+    #[inline(always)]
+    pub fn with_x(mut self, x: Align) -> Self {
+        self.set_x(x);
+        self
+    }
+
+    /// Set align on the vertical axis.
+    #[inline(always)]
+    pub fn with_y(mut self, y: Align) -> Self {
+        self.set_y(y);
+        self
+    }
+
+    /// Set align on the horizontal axis.
+    #[inline(always)]
+    pub fn set_x(&mut self, x: Align) {
+        self.0[0] = x;
+    }
+
+    /// Set align on the vertical axis.
+    #[inline(always)]
+    pub fn set_y(&mut self, y: Align) {
+        self.0[1] = y;
+    }
+
     /// Returns an alignment by the X (horizontal) axis
     #[inline(always)]
     pub fn x(self) -> Align {

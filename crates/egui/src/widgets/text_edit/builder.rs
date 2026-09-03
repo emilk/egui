@@ -393,7 +393,7 @@ impl<'t> TextEdit<'t> {
     #[inline]
     #[deprecated = "Use `align` instead"]
     pub fn horizontal_align(mut self, align: Align) -> Self {
-        self.align = Some(Align2([align, Align::Min]));
+        self.align = Some(self.align.unwrap_or(Align2::LEFT_TOP).with_x(align));
         self
     }
 
@@ -401,7 +401,7 @@ impl<'t> TextEdit<'t> {
     #[inline]
     #[deprecated = "Use `align` instead"]
     pub fn vertical_align(mut self, align: Align) -> Self {
-        self.align = Some(Align2([Align::Min, align]));
+        self.align = Some(self.align.unwrap_or(Align2::LEFT_TOP).with_y(align));
         self
     }
 
@@ -510,7 +510,6 @@ impl TextEdit<'_> {
         // the same way it does for a button.
         let min_size = min_size.at_least(atom_layout_style.min_size);
 
-        let theme_align = atom_layout_style.align2;
         let align = align
             .or(atom_layout_style.align2)
             .unwrap_or(Align2::LEFT_TOP);

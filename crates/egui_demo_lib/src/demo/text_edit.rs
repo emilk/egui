@@ -80,8 +80,7 @@ impl crate::View for TextEditDemo {
                 egui::Atom::custom(clear_id, clear_size)
                     .atom_align(Align2([Align::RIGHT, *valign])),
             )
-            .horizontal_align(*halign)
-            .vertical_align(*valign)
+            .align(Align2::new(*halign, *valign))
             .show(ui);
 
         if let Some(rect) = output.response.rect(clear_id)
