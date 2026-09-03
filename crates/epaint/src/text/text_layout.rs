@@ -1194,7 +1194,7 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, me
             let format = &job.sections[glyph.section_index as usize].format;
 
             let tint_color = if glyph.is_color {
-                // Not tint - preserve original glyph color
+                // Don't tint: keep the glyph's own color (e.g. color emoji).
                 Color32::from_white_alpha(format.color.a())
             } else {
                 format.color
@@ -1536,7 +1536,7 @@ mod tests {
         requests: &Arc<crate::mutex::Mutex<Vec<(String, FontFamily)>>>,
         result: Option<RasterizedGlyph>,
     ) -> GlyphRasterizer {
-        let requests = requests.clone();
+        let requests = Arc::clone(requests);
         Arc::new(move |request: &GlyphRasterizerRequest<'_>| {
             requests
                 .lock()
@@ -1604,7 +1604,7 @@ mod tests {
             f32::INFINITY,
         ));
 
-        let galley = layout(&mut fonts, 1.0, job.clone());
+        let galley = layout(&mut fonts, 1.0, Arc::clone(&job));
         layout(&mut fonts, 1.0, job);
 
         assert_eq!(requests.lock().len(), 1, "Failures should be cached");

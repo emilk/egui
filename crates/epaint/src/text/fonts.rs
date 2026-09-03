@@ -16,6 +16,8 @@ use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_
 // ----------------------------------------------------------------------------
 
 /// Maximum width or height of a glyph rasterized into the font atlas.
+///
+/// Must not exceed the minimum width of the [`TextureAtlas`] (1024).
 pub const MAX_GLYPH_SIZE: usize = 1024;
 
 // ----------------------------------------------------------------------------
@@ -750,9 +752,9 @@ pub struct Fonts {
 }
 
 impl Fonts {
-    /// Create a new [`Fonts`] for text layout.
+    /// Create a new [`Fonts`] for text layout, with an optional platform glyph fallback.
+    ///
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
-    /// Create a new font collection with an optional platform glyph fallback.
     pub fn new(
         options: TextOptions,
         definitions: FontDefinitions,
