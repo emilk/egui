@@ -1,7 +1,7 @@
 use core::any::Any;
 use std::sync::Arc;
 
-use crate::{ColorImage, Event, ViewportId, mutex::Mutex};
+use crate::{ColorImage, Context, Event, ViewportId, mutex::Mutex};
 
 type ScreenshotCallbackFn =
     dyn FnOnce(ViewportId, Arc<ColorImage>) -> Option<Event> + Send + 'static;
@@ -92,6 +92,8 @@ pub struct ScreenshotCallback {
 
 impl ScreenshotCallback {
     /// Create a callback that will be invoked once the screenshot is ready.
+    ///
+    /// This doesn't request a new frame when the data arrives. Call `ctx.request_repaint` if needed.
     pub fn new(callback: impl FnOnce(Arc<ColorImage>) + Send + 'static) -> Self {
         Self {
             callback: Arc::new(Mutex::new(Some(Box::new(move |_viewport_id, image| {
@@ -103,9 +105,10 @@ impl ScreenshotCallback {
 
     /// Adapt the event-based screenshot API to the callback-based implementation.
     #[doc(hidden)]
-    pub fn event(user_data: UserData) -> Self {
+    pub fn event(ctx: Context, user_data: UserData) -> Self {
         Self {
             callback: Arc::new(Mutex::new(Some(Box::new(move |viewport_id, image| {
+                ctx.request_repaint();
                 Some(Event::Screenshot {
                     viewport_id,
                     user_data,
