@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use egui::{Event, UserData, ViewportId};
+use egui::{Event, ScreenshotCallback, ViewportId};
 use egui_wgpu::{
     RenderState, SurfaceErrorAction,
     capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
@@ -165,7 +165,7 @@ impl WebPainter for WebPainterWgpu {
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &mut egui::TexturesDelta,
-        capture_data: Vec<UserData>,
+        capture_data: Vec<ScreenshotCallback>,
     ) -> Result<(), JsValue> {
         let capture = !capture_data.is_empty();
 
@@ -401,16 +401,7 @@ impl WebPainter for WebPainterWgpu {
     }
 
     fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
-        for (viewport_id, user_data, screenshot) in self.capture_rx.try_iter() {
-            let screenshot = Arc::new(screenshot);
-            for data in user_data {
-                events.push(Event::Screenshot {
-                    viewport_id,
-                    user_data: data,
-                    image: Arc::clone(&screenshot),
-                });
-            }
-        }
+        events.extend(self.capture_rx.try_iter());
     }
 
     fn destroy(&mut self) {

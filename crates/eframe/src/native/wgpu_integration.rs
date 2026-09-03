@@ -801,8 +801,8 @@ impl WgpuWinitRunning<'_> {
 
             let mut screenshot_commands = vec![];
             viewport.actions_requested.retain(|cmd| {
-                if let ActionRequested::Screenshot(info) = cmd {
-                    screenshot_commands.push(info.clone());
+                if let ActionRequested::Screenshot(callback) = cmd {
+                    screenshot_commands.push(callback.clone());
                     false
                 } else {
                     true

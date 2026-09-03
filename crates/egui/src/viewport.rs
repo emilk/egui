@@ -1198,6 +1198,12 @@ pub enum ViewportCommand {
     /// The results are returned in [`crate::Event::Screenshot`].
     Screenshot(crate::UserData),
 
+    /// Take a screenshot of the next frame after this and pass it to a callback.
+    ///
+    /// Unlike [`Self::Screenshot`], this does not deliver an input event or require another egui
+    /// pass. Use [`crate::Context::request_screenshot`] for a convenient way to send this command.
+    ScreenshotCallback(crate::ScreenshotCallback),
+
     /// Request cut of the current selection
     ///
     /// This is equivalent to the system keyboard shortcut for cut (e.g. CTRL + X).

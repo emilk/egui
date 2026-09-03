@@ -814,18 +814,23 @@ impl<'a, State> Harness<'a, State> {
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     fn handle_screenshots(&mut self) {
         // Collect all screenshot requests from this frame's viewport output.
-        let requests: Vec<(ViewportId, egui::UserData)> = self
+        let requests: Vec<(ViewportId, egui::ScreenshotCallback)> = self
             .output
             .viewport_output
             .iter()
             .flat_map(|(id, viewport)| {
-                viewport.commands.iter().filter_map(move |command| {
-                    if let egui::ViewportCommand::Screenshot(user_data) = command {
-                        Some((*id, user_data.clone()))
-                    } else {
-                        None
-                    }
-                })
+                viewport
+                    .commands
+                    .iter()
+                    .filter_map(move |command| match command {
+                        egui::ViewportCommand::Screenshot(user_data) => {
+                            Some((*id, egui::ScreenshotCallback::event(user_data.clone())))
+                        }
+                        egui::ViewportCommand::ScreenshotCallback(callback) => {
+                            Some((*id, callback.clone()))
+                        }
+                        _ => None,
+                    })
             })
             .collect();
 
@@ -844,17 +849,19 @@ impl<'a, State> Harness<'a, State> {
         };
         let image = std::sync::Arc::new(rgba_image_to_color_image(&image));
 
-        for (viewport_id, user_data) in requests {
-            self.input.events.push(egui::Event::Screenshot {
-                viewport_id,
-                user_data,
-                image: std::sync::Arc::clone(&image),
-            });
+        let mut sent_event = false;
+        for (viewport_id, callback) in requests {
+            if let Some(event) = callback.complete(viewport_id, std::sync::Arc::clone(&image)) {
+                self.input.events.push(event);
+                sent_event = true;
+            }
         }
 
         // Make sure the run loop runs at least one more frame so the app actually receives the
         // queued screenshot event.
-        self.ctx.request_repaint();
+        if sent_event {
+            self.ctx.request_repaint();
+        }
     }
 
     /// Get the root viewport output
