@@ -815,13 +815,18 @@ impl Font<'_> {
         glyph_info.advance_width_unscaled.0 * font_face.font.px_scale_factor(font_size)
     }
 
-    /// Can we display this glyph?
+    /// Do the installed fonts have this glyph?
+    ///
+    /// This does not consult the [`crate::text::GlyphRasterizer`], so it can return `false`
+    /// for a character that would still render via the rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, c: char) -> bool {
         // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
         self.resolve_face(c) != self.cached_family.replacement_face_key
     }
 
-    /// Can we display all the glyphs in this text?
+    /// Do the installed fonts have all the glyphs in this text?
+    ///
+    /// See [`Self::has_glyph`] for the caveat about the glyph rasterizer.
     pub fn has_glyphs(&mut self, s: &str) -> bool {
         s.chars().all(|c| self.has_glyph(c))
     }

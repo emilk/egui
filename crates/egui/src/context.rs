@@ -766,7 +766,12 @@ impl Default for Context {
 }
 
 impl Context {
-    /// Set the platform fallback used for unsupported glyph clusters.
+    /// Set the platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// It is used for grapheme clusters no installed font can render,
+    /// and for clusters where [`GlyphRasterizer::prefer`] says so (color emoji by default).
+    ///
+    /// `eframe` sets this on web. Pass `None` to only use the installed fonts.
     pub fn set_glyph_rasterizer(&self, glyph_rasterizer: Option<GlyphRasterizer>) {
         self.write(|ctx| {
             ctx.glyph_rasterizer = glyph_rasterizer;

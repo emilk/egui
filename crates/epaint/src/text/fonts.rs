@@ -971,12 +971,17 @@ impl Fonts {
         self.fonts.atlas.size()
     }
 
-    /// Can we display this glyph?
+    /// Do the installed fonts have this glyph?
+    ///
+    /// This does not consult the [`GlyphRasterizer`], so it can return `false`
+    /// for a character that would still render via the rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
         self.fonts.font(&font_id.family).has_glyph(c)
     }
 
-    /// Can we display all the glyphs in this text?
+    /// Do the installed fonts have all the glyphs in this text?
+    ///
+    /// See [`Self::has_glyph`] for the caveat about the [`GlyphRasterizer`].
     pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
         self.fonts.font(&font_id.family).has_glyphs(s)
     }
@@ -1044,12 +1049,17 @@ impl FontsView<'_> {
             .glyph_width(c, font_id.size)
     }
 
-    /// Can we display this glyph?
+    /// Do the installed fonts have this glyph?
+    ///
+    /// This does not consult the [`GlyphRasterizer`], so it can return `false`
+    /// for a character that would still render via the rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
         self.fonts.font(&font_id.family).has_glyph(c)
     }
 
-    /// Can we display all the glyphs in this text?
+    /// Do the installed fonts have all the glyphs in this text?
+    ///
+    /// See [`Self::has_glyph`] for the caveat about the [`GlyphRasterizer`].
     pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
         self.fonts.font(&font_id.family).has_glyphs(s)
     }
