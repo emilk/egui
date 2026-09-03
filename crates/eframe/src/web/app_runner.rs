@@ -332,6 +332,9 @@ impl AppRunner {
                     self.screenshot_commands_with_frame_delay
                         .push((user_data, 1));
                 }
+                ViewportCommand::SetTheme(_) => {
+                    // Web has no window decorations to theme, egui visuals follow the configured theme.
+                }
                 _ => {
                     // TODO(emilk): handle some of the commands
                     log::warn!(
