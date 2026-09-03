@@ -348,8 +348,8 @@ impl Layout {
     }
 
     /// e.g. for when aligning text within a button.
-    fn align2(&self) -> Align2 {
-        Align2([self.horizontal_align(), self.vertical_align()])
+    pub fn align2(&self) -> Align2 {
+        Align2::new(self.horizontal_align(), self.vertical_align())
     }
 
     pub fn horizontal_justify(&self) -> bool {
@@ -614,10 +614,10 @@ impl Layout {
         }
 
         let align2 = match self.main_dir {
-            Direction::LeftToRight => Align2([Align::LEFT, self.vertical_align()]),
-            Direction::RightToLeft => Align2([Align::RIGHT, self.vertical_align()]),
-            Direction::TopDown => Align2([self.horizontal_align(), Align::TOP]),
-            Direction::BottomUp => Align2([self.horizontal_align(), Align::BOTTOM]),
+            Direction::LeftToRight => self.align2().with_x(Align::LEFT),
+            Direction::RightToLeft => self.align2().with_x(Align::RIGHT),
+            Direction::TopDown => self.align2().with_y(Align::TOP),
+            Direction::BottomUp => self.align2().with_y(Align::BOTTOM),
         };
 
         let mut frame_rect = align2.align_size_within_rect(frame_size, available_rect);
@@ -818,22 +818,22 @@ impl Layout {
             Direction::LeftToRight => {
                 painter.line_segment([cursor.left_top(), cursor.left_bottom()], stroke);
                 painter.arrow(next_pos, vec2(l, 0.0), stroke);
-                Align2([Align::LEFT, self.vertical_align()])
+                self.align2().with_x(Align::LEFT)
             }
             Direction::RightToLeft => {
                 painter.line_segment([cursor.right_top(), cursor.right_bottom()], stroke);
                 painter.arrow(next_pos, vec2(-l, 0.0), stroke);
-                Align2([Align::RIGHT, self.vertical_align()])
+                self.align2().with_x(Align::RIGHT)
             }
             Direction::TopDown => {
                 painter.line_segment([cursor.left_top(), cursor.right_top()], stroke);
                 painter.arrow(next_pos, vec2(0.0, l), stroke);
-                Align2([self.horizontal_align(), Align::TOP])
+                self.align2().with_y(Align::TOP)
             }
             Direction::BottomUp => {
                 painter.line_segment([cursor.left_bottom(), cursor.right_bottom()], stroke);
                 painter.arrow(next_pos, vec2(0.0, -l), stroke);
-                Align2([self.horizontal_align(), Align::BOTTOM])
+                self.align2().with_y(Align::BOTTOM)
             }
         };
 
