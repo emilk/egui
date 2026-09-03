@@ -12,7 +12,7 @@ use crate::{
     TextOptions, TextureAtlas,
     text::{
         FontTweak, MAX_GLYPH_SIZE, VariationCoords,
-        fonts::{Blob, CachedFamily, FontFaceKey},
+        fonts::{Blob, CachedFamily, FontFaceKey, GlyphSourcePreference},
     },
 };
 
@@ -702,6 +702,8 @@ pub struct Font<'a> {
     /// `None` means the rasterizer could not handle the cluster.
     pub(super) raster_glyph_cache:
         &'a mut nohash_hasher::IntMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
+
+    pub(super) glyph_source_preference: &'a GlyphSourcePreference,
 }
 
 impl Font<'_> {

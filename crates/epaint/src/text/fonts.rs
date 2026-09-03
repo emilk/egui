@@ -70,41 +70,47 @@ type RasterizeFn =
 /// Where to look first for the glyphs of a grapheme cluster.
 ///
 /// The other source is used as a fallback if the first one cannot render the cluster.
+///
+/// See [`GlyphSourcePreference`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GlyphSource {
-    /// The installed fonts (see [`FontDefinitions`]).
+    /// The fonts in [`FontDefinitions`].
     ///
     /// Predictable: looks the same everywhere, both on native and on web.
     Fonts,
 
-    /// The [`GlyphRasterizer`], e.g. the browser on web.
+    /// What the platform offers, e.g. the [`GlyphRasterizer`] (the browser on web).
     ///
     /// Supports colored emojis.
     /// Unpredictable: may look different on different computers.
-    Rasterizer,
+    Platform,
 }
+
+/// Decides where to look first for the glyphs of each grapheme cluster.
+///
+/// Default: [`default_glyph_source`], so that color emoji come from the platform,
+/// while text-presentation symbols (e.g. ⏮︎) look the same on all platforms.
+///
+/// Use `|_| GlyphSource::Fonts` to only use the platform for clusters
+/// that no font in [`FontDefinitions`] can render.
+///
+/// Set with `egui::Context::set_glyph_source_preference` or [`Fonts::with_glyph_source_preference`].
+pub type GlyphSourcePreference = Arc<dyn Fn(&str) -> GlyphSource + Send + Sync>;
 
 /// Rasterizes grapheme clusters using something other than the installed fonts,
 /// e.g. the browser on web.
 ///
 /// Used for clusters no installed font can render,
-/// and for clusters where [`Self::prefer`] returns [`GlyphSource::Rasterizer`].
+/// and for clusters where the [`GlyphSourcePreference`] says [`GlyphSource::Platform`].
 #[derive(Clone)]
 pub struct GlyphRasterizer {
     /// Rasterize one grapheme cluster.
     ///
     /// Return `None` if the platform cannot render it either.
     pub rasterize: Arc<RasterizeFn>,
-
-    /// Where to look first for the glyphs of a grapheme cluster.
-    ///
-    /// Default: [`default_glyph_source`], so that color emoji come from the platform,
-    /// while text-presentation symbols (e.g. ⏮︎) look the same on all platforms.
-    pub prefer: Arc<dyn Fn(&str) -> GlyphSource + Send + Sync>,
 }
 
 impl GlyphRasterizer {
-    /// A rasterizer with [`default_glyph_source`] as [`Self::prefer`].
     pub fn new(
         rasterize: impl for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph>
         + Send
@@ -113,30 +119,16 @@ impl GlyphRasterizer {
     ) -> Self {
         Self {
             rasterize: Arc::new(rasterize),
-            prefer: Arc::new(default_glyph_source),
         }
-    }
-
-    /// Set where to look first for the glyphs of each grapheme cluster.
-    ///
-    /// Use `|_| GlyphSource::Fonts` to only use the rasterizer
-    /// for clusters no installed font can render.
-    #[inline]
-    pub fn with_prefer(
-        mut self,
-        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
-    ) -> Self {
-        self.prefer = Arc::new(prefer);
-        self
     }
 }
 
-/// The default [`GlyphRasterizer::prefer`]:
-/// [`GlyphSource::Rasterizer`] for clusters with emoji presentation
+/// The default [`GlyphSourcePreference`]:
+/// [`GlyphSource::Platform`] for clusters with emoji presentation
 /// (see [`has_emoji_presentation`]), [`GlyphSource::Fonts`] for everything else.
 pub fn default_glyph_source(cluster: &str) -> GlyphSource {
     if has_emoji_presentation(cluster) {
-        GlyphSource::Rasterizer
+        GlyphSource::Platform
     } else {
         GlyphSource::Fonts
     }
@@ -923,6 +915,18 @@ impl Fonts {
         }
     }
 
+    /// Decide where to look first for the glyphs of each grapheme cluster.
+    ///
+    /// See [`GlyphSourcePreference`].
+    #[inline]
+    pub fn with_glyph_source_preference(
+        mut self,
+        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
+    ) -> Self {
+        self.fonts.set_glyph_source_preference(prefer);
+        self
+    }
+
     /// Call at the start of each frame with the latest known [`TextOptions`].
     ///
     /// Call after painting the previous frame, but before using [`Fonts`] for the new frame.
@@ -938,8 +942,11 @@ impl Fonts {
             let definitions = self.fonts.definitions.clone();
             let glyph_rasterizer = self.glyph_rasterizer.clone();
 
+            let mut fonts = FontsImpl::new(options, definitions, glyph_rasterizer.clone());
+            fonts.glyph_source_preference = Arc::clone(&self.fonts.glyph_source_preference);
+
             *self = Self {
-                fonts: FontsImpl::new(options, definitions, glyph_rasterizer.clone()),
+                fonts,
                 galley_cache: Default::default(),
                 glyph_rasterizer,
             };
@@ -1179,6 +1186,7 @@ pub struct FontsImpl {
     shape_buffer: Option<harfrust::UnicodeBuffer>,
     glyph_rasterizer: Option<GlyphRasterizer>,
     raster_glyph_cache: nohash_hasher::IntMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
+    glyph_source_preference: GlyphSourcePreference,
 }
 
 impl FontsImpl {
@@ -1219,7 +1227,18 @@ impl FontsImpl {
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
             glyph_rasterizer,
             raster_glyph_cache: Default::default(),
+            glyph_source_preference: Arc::new(default_glyph_source),
         }
+    }
+
+    /// Decide where to look first for the glyphs of each grapheme cluster.
+    ///
+    /// See [`GlyphSourcePreference`].
+    pub fn set_glyph_source_preference(
+        &mut self,
+        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
+    ) {
+        self.glyph_source_preference = Arc::new(prefer);
     }
 
     pub fn options(&self) -> &TextOptions {
@@ -1262,6 +1281,7 @@ impl FontsImpl {
             family: family.clone(),
             glyph_rasterizer: self.glyph_rasterizer.as_ref(),
             raster_glyph_cache: &mut self.raster_glyph_cache,
+            glyph_source_preference: &self.glyph_source_preference,
         }
     }
 }

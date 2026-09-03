@@ -11,8 +11,8 @@ pub use {
     fonts::{
         FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontTweak,
         FontVariationAxis, Fonts, FontsImpl, FontsView, GlyphRasterizer, GlyphRasterizerRequest,
-        GlyphSource, HintingTarget, InsertFontFamily, MAX_GLYPH_SIZE, RasterizedGlyph,
-        SmoothHinting, default_glyph_source, has_emoji_presentation,
+        GlyphSource, GlyphSourcePreference, HintingTarget, InsertFontFamily, MAX_GLYPH_SIZE,
+        RasterizedGlyph, SmoothHinting, default_glyph_source, has_emoji_presentation,
     },
     index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
     text_layout::*,

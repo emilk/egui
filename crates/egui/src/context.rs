@@ -16,12 +16,13 @@ use epaint::{
 };
 
 use crate::{
-    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, GlyphRasterizer, Grid, Id,
-    ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId,
-    Memory, ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
-    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
-    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, GlyphRasterizer, GlyphSource,
+    GlyphSourcePreference, Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key,
+    KeyboardShortcut, Label, LayerId, Memory, ModifierNames, Modifiers, NumExt as _, Order,
+    Painter, RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle,
+    TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId,
+    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect,
+    WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -376,6 +377,7 @@ struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
     glyph_rasterizer: Option<GlyphRasterizer>,
+    glyph_source_preference: Option<GlyphSourcePreference>,
 
     memory: Memory,
     animation_manager: AnimationManager,
@@ -592,11 +594,16 @@ impl ContextImpl {
 
             is_new = true;
             profiling::scope!("Fonts::new");
-            Fonts::new(
+            let mut fonts = Fonts::new(
                 text_options,
                 self.font_definitions.clone(),
                 self.glyph_rasterizer.clone(),
-            )
+            );
+            if let Some(prefer) = &self.glyph_source_preference {
+                let prefer = Arc::clone(prefer);
+                fonts = fonts.with_glyph_source_preference(move |cluster| prefer(cluster));
+            }
+            fonts
         });
 
         {
@@ -769,12 +776,29 @@ impl Context {
     /// Set the platform glyph rasterizer, e.g. the browser on web.
     ///
     /// It is used for grapheme clusters no installed font can render,
-    /// and for clusters where [`GlyphRasterizer::prefer`] says so (color emoji by default).
+    /// and for clusters where the [`GlyphSourcePreference`] says so (color emoji by default).
     ///
     /// `eframe` sets this on web. Pass `None` to only use the installed fonts.
     pub fn set_glyph_rasterizer(&self, glyph_rasterizer: Option<GlyphRasterizer>) {
         self.write(|ctx| {
             ctx.glyph_rasterizer = glyph_rasterizer;
+            ctx.fonts = None;
+        });
+    }
+
+    /// Decide where to look first for the glyphs of each grapheme cluster:
+    /// the fonts in the [`FontDefinitions`], or what the platform offers (e.g. the browser on web).
+    ///
+    /// By default, color emoji come from the platform, and everything else from the fonts.
+    /// Use `|_| GlyphSource::Fonts` to only use the platform for characters no installed font has.
+    ///
+    /// See [`GlyphSourcePreference`].
+    pub fn set_glyph_source_preference(
+        &self,
+        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| {
+            ctx.glyph_source_preference = Some(Arc::new(prefer));
             ctx.fonts = None;
         });
     }

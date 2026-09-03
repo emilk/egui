@@ -225,7 +225,7 @@ struct TextRun {
     ///
     /// [`GlyphSource::Fonts`]: shape the whole run with `font_key`.
     ///
-    /// [`GlyphSource::Rasterizer`]: try the glyph rasterizer for each cluster,
+    /// [`GlyphSource::Platform`]: try the glyph rasterizer (if any) for each cluster,
     /// shaping with `font_key` only if that fails.
     source: GlyphSource,
 }
@@ -606,7 +606,7 @@ fn layout_section(
             let face_metrics =
                 font_face.styled_metrics(pixels_per_point, font_size, &format.coords);
 
-            if run.source == GlyphSource::Rasterizer {
+            if run.source == GlyphSource::Platform && font.glyph_rasterizer.is_some() {
                 shape_buffer = layout_raster_run(
                     font,
                     run,
@@ -1508,11 +1508,7 @@ fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
 
         let base_char = grapheme_str.chars().next().unwrap_or(' ');
         let font_key = font.resolve_face(base_char);
-        let source = font
-            .glyph_rasterizer
-            .map_or(GlyphSource::Fonts, |rasterizer| {
-                (rasterizer.prefer)(grapheme_str)
-            });
+        let source = (font.glyph_source_preference)(grapheme_str);
 
         if let Some(last_run) = out.last_mut()
             && last_run.font_key == font_key
@@ -1805,19 +1801,19 @@ mod tests {
     #[test]
     fn custom_prefer_predicate() {
         let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
-        let rasterizer =
-            recording_rasterizer(&requests, Some(color_raster_glyph())).with_prefer(|cluster| {
-                if cluster == "b" {
-                    GlyphSource::Rasterizer
-                } else {
-                    GlyphSource::Fonts
-                }
-            });
+        let rasterizer = recording_rasterizer(&requests, Some(color_raster_glyph()));
         let mut fonts = FontsImpl::new(
             TextOptions::default(),
             FontDefinitions::default(),
             Some(rasterizer),
         );
+        fonts.set_glyph_source_preference(|cluster| {
+            if cluster == "b" {
+                GlyphSource::Platform
+            } else {
+                GlyphSource::Fonts
+            }
+        });
         let job = LayoutJob::simple(
             "ab😀".into(),
             FontId::proportional(14.0),
