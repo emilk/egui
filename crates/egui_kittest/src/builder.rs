@@ -133,7 +133,7 @@ impl<State> HarnessBuilder<State> {
         self
     }
 
-    /// Should every pass be rendered?
+    /// Should every step be rendered?
     ///
     /// Useful when test logic requires some specific gpu logic, e.g. reading data back from the gpu.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
