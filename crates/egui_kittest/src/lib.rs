@@ -856,6 +856,12 @@ impl<'a, State> Harness<'a, State> {
                 sent_event = true;
             }
         }
+
+        // Make sure the run loop runs at least one more frame so the app actually receives the
+        // queued legacy screenshot event. Callback-based requests need no extra frame.
+        if sent_event {
+            self.ctx.request_repaint();
+        }
     }
 
     /// Get the root viewport output

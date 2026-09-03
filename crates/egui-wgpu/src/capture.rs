@@ -237,10 +237,14 @@ impl CaptureState {
                 [tex_extent.width as usize, tex_extent.height as usize],
                 pixels,
             ));
+            let mut sent_event = false;
             for callback in callbacks {
                 if let Some(event) = callback.complete(viewport_id, Arc::clone(&image)) {
-                    tx.send(event).ok();
+                    sent_event |= tx.send(event).is_ok();
                 }
+            }
+            if sent_event {
+                ctx.request_repaint_of(viewport_id);
             }
         });
     }
