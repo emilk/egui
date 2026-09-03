@@ -50,19 +50,56 @@ impl CanvasGlyphs {
                 "system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Noto Color Emoji\""
             }
         };
-        self.context.set_font(&format!("{font_size_px}px {family}"));
+        let font = format!("{font_size_px}px {family}");
+
+        // White, like egui's own glyph rasterizer: the atlas stores coverage,
+        // and the tessellator multiplies it with the text color.
+        let white = self.draw(cluster, &font, "white", *subpixel_offset_px)?;
+
+        // Color glyphs (e.g. emoji) ignore the fill style, so they come out
+        // the same in black. Comparing the two is exact, unlike inspecting
+        // the pixel colors: the browser's alpha (un)premultiplication rounds
+        // anti-aliased white text to slightly off-white.
+        let black = self.draw(cluster, &font, "black", *subpixel_offset_px)?;
+        let is_color = white.rgba == black.rgba;
+
+        let Drawn {
+            rgba,
+            width,
+            height,
+            left,
+            ascent,
+            advance,
+        } = white;
+
+        Some(RasterizedGlyph {
+            image: ColorImage::from_rgba_unmultiplied([width as _, height as _], &rgba),
+            // The pen sits at `(PADDING + left, PADDING + ascent)` in the image,
+            // so the image's top-left is this far from the pen:
+            offset_px: vec2(-(left + PADDING) as f32, -(ascent + PADDING) as f32),
+            advance_px: advance as f32,
+            is_color,
+        })
+    }
+
+    /// Draw `text` with the given CSS `font` and `fill_style` and read back the pixels.
+    fn draw(
+        &self,
+        text: &str,
+        font: &str,
+        fill_style: &str,
+        subpixel_offset_px: f32,
+    ) -> Option<Drawn> {
+        self.context.set_font(font);
         self.context.set_text_baseline("alphabetic");
-        let metrics = self.context.measure_text(request.cluster).ok()?;
+        let metrics = self.context.measure_text(text).ok()?;
         let left = metrics.actual_bounding_box_left();
         let ascent = metrics.actual_bounding_box_ascent();
         let right = metrics.actual_bounding_box_right();
         let descent = metrics.actual_bounding_box_descent();
 
-        // Leave room for anti-aliased pixels at the glyph bounds.
-        let padding = 2.0;
-
-        let width = (left + right + 2.0 * padding).ceil().max(1.0) as u32;
-        let height = (ascent + descent + 2.0 * padding).ceil().max(1.0) as u32;
+        let width = (left + right + 2.0 * PADDING).ceil().max(1.0) as u32;
+        let height = (ascent + descent + 2.0 * PADDING).ceil().max(1.0) as u32;
         if MAX_GLYPH_SIZE < width as usize || MAX_GLYPH_SIZE < height as usize {
             return None;
         }
@@ -76,18 +113,15 @@ impl CanvasGlyphs {
         }
         self.context
             .clear_rect(0.0, 0.0, width as f64, height as f64);
-        self.context.set_font(&format!("{font_size_px}px {family}"));
+        self.context.set_font(font);
         self.context.set_text_baseline("alphabetic");
-        // White, like egui's own glyph rasterizer: the atlas stores coverage,
-        // and the tessellator multiplies it with the text color.
-        // Color emoji ignore the fill style.
-        self.context.set_fill_style_str("white");
-        // Canvas positions text by its baseline, while the atlas image starts at its top-left.
+        self.context.set_fill_style_str(fill_style);
+        // Canvas positions text by its baseline, while the image starts at its top-left.
         self.context
             .fill_text(
-                cluster,
-                padding + left + *subpixel_offset_px as f64,
-                padding + ascent,
+                text,
+                PADDING + left + subpixel_offset_px as f64,
+                PADDING + ascent,
             )
             .ok()?;
         let rgba = self
@@ -96,22 +130,36 @@ impl CanvasGlyphs {
             .ok()?
             .data()
             .0;
-        let (pixels, []) = rgba.as_chunks::<4>() else {
-            return None;
-        };
-        let is_color = pixels
-            .iter()
-            .any(|&[r, g, b, a]| a != 0 && (r != g || g != b));
 
-        Some(RasterizedGlyph {
-            image: ColorImage::from_rgba_unmultiplied([width as _, height as _], &rgba),
-            // The pen sits at `(padding + left, padding + ascent)` in the image,
-            // so the image's top-left is this far from the pen:
-            offset_px: vec2(-(left + padding) as f32, -(ascent + padding) as f32),
-            advance_px: metrics.width() as f32,
-            is_color,
+        Some(Drawn {
+            rgba,
+            width,
+            height,
+            left,
+            ascent,
+            advance: metrics.width(),
         })
     }
+}
+
+/// Room for anti-aliased pixels at the glyph bounds, in physical pixels.
+const PADDING: f64 = 2.0;
+
+/// Result of drawing some text on the canvas.
+struct Drawn {
+    /// Straight (unpremultiplied) RGBA.
+    rgba: Vec<u8>,
+    width: u32,
+    height: u32,
+
+    /// Distance from the pen to the left edge of the ink.
+    left: f64,
+
+    /// Distance from the baseline to the top of the ink.
+    ascent: f64,
+
+    /// Horizontal advance.
+    advance: f64,
 }
 
 thread_local! {
