@@ -1010,7 +1010,7 @@ pub struct FontsImpl {
     /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
     shape_buffer: Option<harfrust::UnicodeBuffer>,
     glyph_rasterizer: Option<GlyphRasterizer>,
-    raster_glyph_cache: ahash::HashMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
+    raster_glyph_cache: nohash_hasher::IntMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
 }
 
 impl FontsImpl {

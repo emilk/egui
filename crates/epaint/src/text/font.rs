@@ -23,12 +23,27 @@ pub(crate) struct RasterGlyphAllocation {
     pub is_color: bool,
 }
 
+/// Hash of `(cluster, family, pixels_per_point, font_size)`,
+/// so that cache lookups do not allocate.
 #[derive(Hash, PartialEq, Eq)]
-pub(crate) struct RasterGlyphCacheKey {
-    cluster: String,
-    family: crate::text::FontFamily,
-    pixels_per_point: u32,
-    font_size: u32,
+pub(crate) struct RasterGlyphCacheKey(u64);
+
+impl nohash_hasher::IsEnabled for RasterGlyphCacheKey {}
+
+impl RasterGlyphCacheKey {
+    fn new(
+        cluster: &str,
+        family: &crate::text::FontFamily,
+        pixels_per_point: f32,
+        font_size: f32,
+    ) -> Self {
+        Self(crate::util::hash((
+            cluster,
+            family,
+            pixels_per_point.to_bits(),
+            font_size.to_bits(),
+        )))
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -685,7 +700,7 @@ pub struct Font<'a> {
     pub(super) glyph_rasterizer: Option<&'a crate::text::GlyphRasterizer>,
     /// `None` means the rasterizer could not handle the cluster.
     pub(super) raster_glyph_cache:
-        &'a mut HashMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
+        &'a mut nohash_hasher::IntMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
 }
 
 impl Font<'_> {
@@ -700,12 +715,7 @@ impl Font<'_> {
         font_size: f32,
     ) -> Option<RasterGlyphAllocation> {
         let rasterizer = self.glyph_rasterizer?;
-        let key = RasterGlyphCacheKey {
-            cluster: cluster.to_owned(),
-            family: self.family.clone(),
-            pixels_per_point: pixels_per_point.to_bits(),
-            font_size: font_size.to_bits(),
-        };
+        let key = RasterGlyphCacheKey::new(cluster, &self.family, pixels_per_point, font_size);
         if let Some(allocation) = self.raster_glyph_cache.get(&key) {
             return *allocation;
         }
