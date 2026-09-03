@@ -112,12 +112,8 @@ fn load_system_fonts() -> Mutex<SystemFonts> {
 
 impl FontProvider for SystemFontProvider {
     fn font_for(&self, request: &FallbackRequest<'_>) -> Option<FontInsert> {
-        let FallbackRequest {
-            cluster: _,
-            base_char,
-            family,
-        } = request;
-        let base_char = *base_char;
+        let FallbackRequest { cluster, family } = request;
+        let base_char = cluster.chars().next()?;
 
         let mut fonts = self.fonts.get_or_init(load_system_fonts).lock();
         let SystemFonts {
@@ -238,7 +234,6 @@ mod tests {
             let cluster = c.to_string();
             let request = FallbackRequest {
                 cluster: &cluster,
-                base_char: c,
                 family: &FontFamily::Proportional,
             };
             let Some(insert) = provider.font_for(&request) else {
