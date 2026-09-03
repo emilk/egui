@@ -26,6 +26,7 @@ pub(crate) struct RasterGlyphAllocation {
 #[derive(Hash, PartialEq, Eq)]
 pub(crate) struct RasterGlyphCacheKey {
     cluster: String,
+    family: crate::text::FontFamily,
     pixels_per_point: u32,
     font_size: u32,
 }
@@ -695,6 +696,7 @@ impl Font<'_> {
     ) -> Option<RasterGlyphAllocation> {
         let key = RasterGlyphCacheKey {
             cluster: cluster.to_owned(),
+            family: self.family.clone(),
             pixels_per_point: pixels_per_point.to_bits(),
             font_size: font_size.to_bits(),
         };

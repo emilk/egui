@@ -1531,6 +1531,63 @@ mod tests {
         assert_eq!(fonts.image()[(x as usize, y as usize)], Color32::RED);
     }
 
+    /// A rasterizer that records the requests it gets and returns a fixed glyph.
+    fn recording_rasterizer(
+        requests: &Arc<crate::mutex::Mutex<Vec<(String, FontFamily)>>>,
+        result: Option<RasterizedGlyph>,
+    ) -> GlyphRasterizer {
+        let requests = requests.clone();
+        Arc::new(move |request: &GlyphRasterizerRequest<'_>| {
+            requests
+                .lock()
+                .push((request.cluster.to_owned(), request.family.clone()));
+            result.as_ref().map(|glyph| RasterizedGlyph {
+                image: glyph.image.clone(),
+                offset_px: glyph.offset_px,
+                advance_px: glyph.advance_px,
+                is_color: glyph.is_color,
+            })
+        })
+    }
+
+    fn white_raster_glyph() -> RasterizedGlyph {
+        RasterizedGlyph {
+            image: ColorImage::new([1, 1], vec![Color32::WHITE]),
+            offset_px: Vec2::ZERO,
+            advance_px: 10.0,
+            is_color: false,
+        }
+    }
+
+    #[test]
+    fn raster_glyph_cache_is_keyed_by_family() {
+        let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let rasterizer = recording_rasterizer(&requests, Some(white_raster_glyph()));
+        let mut fonts = FontsImpl::new(
+            TextOptions::default(),
+            FontDefinitions::default(),
+            Some(rasterizer),
+        );
+
+        for family in [FontFamily::Proportional, FontFamily::Monospace] {
+            let job = LayoutJob::simple(
+                "한".into(),
+                FontId::new(14.0, family),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            layout(&mut fonts, 1.0, Arc::new(job));
+        }
+
+        assert_eq!(
+            *requests.lock(),
+            vec![
+                ("한".to_owned(), FontFamily::Proportional),
+                ("한".to_owned(), FontFamily::Monospace),
+            ]
+        );
+    }
+
     #[test]
     fn test_zero_max_width() {
         let pixels_per_point = 1.0;
