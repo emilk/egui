@@ -16,13 +16,13 @@ use epaint::{
 };
 
 use crate::{
-    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, GlyphRasterizer, GlyphSource,
-    GlyphSourcePreference, Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key,
-    KeyboardShortcut, Label, LayerId, Memory, ModifierNames, Modifiers, NumExt as _, Order,
-    Painter, RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle,
-    TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId,
-    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect,
-    WidgetText,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, FontProvider, GlyphRasterizer,
+    GlyphSource, GlyphSourcePreference, Grid, Id, ImmediateViewport,
+    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
+    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
+    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
+    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
+    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -377,6 +377,7 @@ struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
     glyph_rasterizer: Option<GlyphRasterizer>,
+    font_providers: Vec<Arc<dyn FontProvider>>,
     glyph_source_preference: Option<GlyphSourcePreference>,
 
     memory: Memory,
@@ -594,7 +595,8 @@ impl ContextImpl {
 
             is_new = true;
             profiling::scope!("Fonts::new");
-            let mut fonts = Fonts::new(text_options, self.font_definitions.clone());
+            let mut fonts = Fonts::new(text_options, self.font_definitions.clone())
+                .with_font_providers(self.font_providers.clone());
             if let Some(glyph_rasterizer) = &self.glyph_rasterizer {
                 fonts = fonts.with_glyph_rasterizer(glyph_rasterizer.clone());
             }
@@ -781,6 +783,29 @@ impl Context {
     pub fn set_glyph_rasterizer(&self, glyph_rasterizer: Option<GlyphRasterizer>) {
         self.write(|ctx| {
             ctx.glyph_rasterizer = glyph_rasterizer;
+            ctx.fonts = None;
+        });
+    }
+
+    /// Add a [`FontProvider`], asked for fonts for characters that no installed font has.
+    ///
+    /// Fonts it finds are appended to the fallback chain of the requested font family.
+    /// Providers are asked in the order they were added.
+    ///
+    /// `eframe` adds a system font provider on native (see its `system_fonts` feature).
+    pub fn add_font_provider(&self, font_provider: Arc<dyn FontProvider>) {
+        self.write(|ctx| {
+            ctx.font_providers.push(font_provider);
+            ctx.fonts = None;
+        });
+    }
+
+    /// Replace all [`FontProvider`]s. See [`Self::add_font_provider`].
+    ///
+    /// Pass an empty list to only use the installed fonts.
+    pub fn set_font_providers(&self, font_providers: Vec<Arc<dyn FontProvider>>) {
+        self.write(|ctx| {
+            ctx.font_providers = font_providers;
             ctx.fonts = None;
         });
     }

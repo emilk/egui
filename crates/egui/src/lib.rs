@@ -453,9 +453,10 @@ pub use epaint::{
     ClippedPrimitive, ColorImage, CornerRadius, Direction, ImageData, Margin, Mesh, PaintCallback,
     PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
     text::{
-        FontData, FontDefinitions, FontFamily, FontId, FontTweak, GlyphRasterizer,
-        GlyphRasterizerRequest, GlyphSource, GlyphSourcePreference, MAX_GLYPH_SIZE,
-        RasterizedGlyph, default_glyph_source, has_emoji_presentation,
+        FallbackRequest, FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority,
+        FontProvider, FontTweak, GlyphRasterizer, GlyphRasterizerRequest, GlyphSource,
+        GlyphSourcePreference, InsertFontFamily, MAX_GLYPH_SIZE, RasterizedGlyph,
+        default_glyph_source, has_emoji_presentation,
     },
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
 };
