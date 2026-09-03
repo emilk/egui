@@ -811,9 +811,11 @@ impl Context {
     }
 
     /// Decide where to look first for the glyphs of each grapheme cluster:
-    /// the fonts in the [`FontDefinitions`], or what the platform offers (e.g. the browser on web).
+    /// the fonts in the [`FontDefinitions`], or what the platform offers
+    /// (system fonts from a [`FontProvider`], and the browser on web).
     ///
-    /// By default, color emoji come from the platform, and everything else from the fonts.
+    /// By default, color emoji come from the platform, so that they keep their colors,
+    /// and everything else from the fonts, so that it looks the same on every computer.
     /// Use `|_| GlyphSource::Fonts` to only use the platform for characters no installed font has.
     ///
     /// See [`GlyphSourcePreference`].
