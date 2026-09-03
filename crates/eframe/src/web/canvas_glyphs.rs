@@ -4,7 +4,6 @@
 //! egui's font atlas.
 
 use core::cell::RefCell;
-use std::sync::Arc;
 
 use egui::{
     ColorImage, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE, RasterizedGlyph, vec2,
@@ -122,7 +121,7 @@ thread_local! {
 }
 
 pub(super) fn glyph_rasterizer() -> GlyphRasterizer {
-    Arc::new(|request| {
+    GlyphRasterizer::new(|request| {
         CANVAS_GLYPHS.with(|glyphs| {
             let mut glyphs = glyphs.borrow_mut();
             if glyphs.is_none() {

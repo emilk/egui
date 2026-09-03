@@ -457,7 +457,8 @@ pub use epaint::{
     PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
     text::{
         FontData, FontDefinitions, FontFamily, FontId, FontTweak, GlyphRasterizer,
-        GlyphRasterizerRequest, MAX_GLYPH_SIZE, RasterizedGlyph,
+        GlyphRasterizerRequest, GlyphSource, MAX_GLYPH_SIZE, RasterizedGlyph, default_glyph_source,
+        has_emoji_presentation,
     },
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
 };

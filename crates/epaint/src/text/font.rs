@@ -725,7 +725,7 @@ impl Font<'_> {
             font_size_px: font_size * pixels_per_point,
             subpixel_offset_px: 0.0,
         };
-        let allocation = rasterizer(&request)
+        let allocation = (rasterizer.rasterize)(&request)
             .and_then(|glyph| Self::allocate_raster_glyph(self.atlas, &glyph, pixels_per_point));
         self.raster_glyph_cache.insert(key, allocation);
         allocation

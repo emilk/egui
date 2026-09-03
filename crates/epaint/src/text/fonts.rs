@@ -64,9 +64,155 @@ pub struct RasterizedGlyph {
     pub is_color: bool,
 }
 
-/// Rasterizes unsupported grapheme clusters.
-pub type GlyphRasterizer =
-    Arc<dyn for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph> + Send + Sync>;
+type RasterizeFn =
+    dyn for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph> + Send + Sync;
+
+/// Where to look first for the glyphs of a grapheme cluster.
+///
+/// The other source is used as a fallback if the first one cannot render the cluster.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum GlyphSource {
+    /// The installed fonts (see [`FontDefinitions`]).
+    Fonts,
+
+    /// The [`GlyphRasterizer`], e.g. the browser on web.
+    Rasterizer,
+}
+
+/// Rasterizes grapheme clusters using something other than the installed fonts,
+/// e.g. the browser on web.
+///
+/// Used for clusters no installed font can render,
+/// and for clusters where [`Self::prefer`] returns [`GlyphSource::Rasterizer`].
+#[derive(Clone)]
+pub struct GlyphRasterizer {
+    /// Rasterize one grapheme cluster.
+    ///
+    /// Return `None` if the platform cannot render it either.
+    pub rasterize: Arc<RasterizeFn>,
+
+    /// Where to look first for the glyphs of a grapheme cluster.
+    ///
+    /// Default: [`default_glyph_source`], so that color emoji come from the platform,
+    /// while text-presentation symbols (e.g. ⏮︎) look the same on all platforms.
+    pub prefer: Arc<dyn Fn(&str) -> GlyphSource + Send + Sync>,
+}
+
+impl GlyphRasterizer {
+    /// A rasterizer with [`default_glyph_source`] as [`Self::prefer`].
+    pub fn new(
+        rasterize: impl for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph>
+        + Send
+        + Sync
+        + 'static,
+    ) -> Self {
+        Self {
+            rasterize: Arc::new(rasterize),
+            prefer: Arc::new(default_glyph_source),
+        }
+    }
+
+    /// Set where to look first for the glyphs of each grapheme cluster.
+    ///
+    /// Use `|_| GlyphSource::Fonts` to only use the rasterizer
+    /// for clusters no installed font can render.
+    #[inline]
+    pub fn with_prefer(
+        mut self,
+        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
+    ) -> Self {
+        self.prefer = Arc::new(prefer);
+        self
+    }
+}
+
+/// The default [`GlyphRasterizer::prefer`]:
+/// [`GlyphSource::Rasterizer`] for clusters with emoji presentation
+/// (see [`has_emoji_presentation`]), [`GlyphSource::Fonts`] for everything else.
+pub fn default_glyph_source(cluster: &str) -> GlyphSource {
+    if has_emoji_presentation(cluster) {
+        GlyphSource::Rasterizer
+    } else {
+        GlyphSource::Fonts
+    }
+}
+
+impl core::fmt::Debug for GlyphRasterizer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("GlyphRasterizer")
+    }
+}
+
+/// Does this grapheme cluster have emoji presentation, per Unicode (UTS #51)?
+///
+/// True for clusters that default to a color glyph (😀, 🦀, 🇸🇪, 👨‍👩‍👧),
+/// for clusters with an explicit emoji presentation selector (⏮️, U+FE0F),
+/// and for emoji modifier (skin tone) sequences (☝🏻).
+///
+/// False for text-presentation symbols (⏮, ✔, ♥) and for clusters
+/// with an explicit text presentation selector (⏮︎, U+FE0E).
+///
+/// Used by [`default_glyph_source`].
+pub fn has_emoji_presentation(cluster: &str) -> bool {
+    use unicode_properties::emoji::{
+        EmojiStatus, UnicodeEmoji as _, is_emoji_presentation_selector,
+        is_text_presentation_selector,
+    };
+
+    if cluster.chars().any(is_text_presentation_selector) {
+        return false;
+    }
+
+    cluster.chars().any(|c| {
+        is_emoji_presentation_selector(c)
+            || matches!(
+                c.emoji_status(),
+                EmojiStatus::EmojiPresentation
+                    | EmojiStatus::EmojiPresentationAndModifierBase
+                    | EmojiStatus::EmojiPresentationAndEmojiComponent
+                    | EmojiStatus::EmojiPresentationAndModifierAndEmojiComponent
+            )
+    })
+}
+
+#[cfg(test)]
+mod has_emoji_presentation_tests {
+    use super::has_emoji_presentation;
+
+    #[test]
+    fn emoji_presentation() {
+        for cluster in [
+            "😀",
+            "🦀",
+            "⏮\u{FE0F}",              // explicit emoji presentation
+            "☝🏻",                     // skin tone modifier sequence
+            "🇸🇪",                     // flag
+            "👨\u{200D}👩\u{200D}👧", // ZWJ sequence
+            "1\u{FE0F}\u{20E3}",      // keycap
+        ] {
+            assert!(has_emoji_presentation(cluster), "{cluster:?}");
+        }
+    }
+
+    #[test]
+    fn text_presentation() {
+        for cluster in [
+            "",
+            "a",
+            "1",
+            "⏮",
+            "⏮\u{FE0E}",  // explicit text presentation
+            "😀\u{FE0E}", // explicit text presentation wins
+            "✔",
+            "♥",
+            "©",
+            "→",
+            "√",
+        ] {
+            assert!(!has_emoji_presentation(cluster), "{cluster:?}");
+        }
+    }
+}
 
 impl Default for FontId {
     #[inline]
