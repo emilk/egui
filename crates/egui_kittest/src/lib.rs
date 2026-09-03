@@ -108,9 +108,9 @@ pub struct Harness<'a, State = ()> {
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     last_render: Option<(u64, image::RgbaImage)>,
 
-    /// Render every pass. See [`HarnessBuilder::with_always_render`].
+    /// Render every pass. See [`HarnessBuilder::with_render_every_step`].
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
-    always_render: bool,
+    render_every_step: bool,
 
     max_steps: u64,
     step_dt: f32,
@@ -149,7 +149,7 @@ impl<'a, State> Harness<'a, State> {
             wait_for_pending_images,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
-            always_render,
+            render_every_step,
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
@@ -206,7 +206,7 @@ impl<'a, State> Harness<'a, State> {
             last_render: None,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
-            always_render,
+            render_every_step,
 
             max_steps,
             step_dt,
@@ -317,9 +317,9 @@ impl<'a, State> Harness<'a, State> {
         self.output = output;
 
         #[cfg(any(feature = "wgpu", feature = "snapshot"))]
-        if self.always_render {
+        if self.render_every_step {
             self.render()
-                .expect("Failed to render during `always_render`");
+                .expect("Failed to render during `render_every_step`");
         }
 
         self.handle_viewport_commands();
@@ -729,13 +729,13 @@ impl<'a, State> Harness<'a, State> {
     /// Useful when test logic requires some specific gpu logic, e.g. reading data back from the gpu.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     #[inline]
-    pub fn set_always_render(&mut self, always_render: bool) {
-        self.always_render = always_render;
+    pub fn set_render_every_step(&mut self, render_every_step: bool) {
+        self.render_every_step = render_every_step;
     }
 
     /// Render the last output to an image.
     ///
-    /// When calling this multiple times on the same frame, or when [`Self::set_always_render`] is
+    /// When calling this multiple times on the same frame, or when [`Self::set_render_every_step`] is
     /// true, this will return the already-rendered frame.
     ///
     /// # Errors

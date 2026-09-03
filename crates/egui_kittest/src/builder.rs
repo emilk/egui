@@ -19,7 +19,7 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) wait_for_pending_images: bool,
 
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
-    pub(crate) always_render: bool,
+    pub(crate) render_every_step: bool,
 
     #[cfg(feature = "snapshot")]
     pub(crate) default_snapshot_options: crate::SnapshotOptions,
@@ -41,7 +41,7 @@ impl<State> Default for HarnessBuilder<State> {
             wait_for_pending_images: true,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
-            always_render: false,
+            render_every_step: false,
             os: egui::os::OperatingSystem::Nix,
 
             #[cfg(feature = "snapshot")]
@@ -138,8 +138,8 @@ impl<State> HarnessBuilder<State> {
     /// Useful when test logic requires some specific gpu logic, e.g. reading data back from the gpu.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     #[inline]
-    pub fn with_always_render(mut self, always_render: bool) -> Self {
-        self.always_render = always_render;
+    pub fn with_render_every_step(mut self, render_every_step: bool) -> Self {
+        self.render_every_step = render_every_step;
         self
     }
 
