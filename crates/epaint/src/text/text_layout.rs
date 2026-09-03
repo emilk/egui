@@ -12,7 +12,6 @@ use crate::{
         ByteIndex, ByteRange,
         face_store::FontFaceKey,
         fonts::FontsImpl,
-        glyph_atlas::UvRect,
         styled_metrics::StyledMetrics,
         unicode::{is_cjk, is_cjk_break_allowed, is_combining_mark},
     },
@@ -23,7 +22,7 @@ use super::{
     RowVisuals, VariationCoords,
     family::FamilyKey,
     font_face::{FontFace, ShapedGlyph},
-    glyph_atlas::{OutlineGlyph, RasterGlyphAllocation},
+    glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
 };
 
 // ----------------------------------------------------------------------------
@@ -184,7 +183,7 @@ impl ShapingContext {
         physical_x: i32,
         advance_width_px: f32,
         face_metrics: &StyledMetrics,
-        uv_rect: UvRect,
+        alloc: GlyphAllocation,
     ) -> Glyph {
         Glyph {
             chr,
@@ -195,8 +194,8 @@ impl ShapingContext {
             font_face_ascent: face_metrics.ascent,
             font_height: self.font_metrics.row_height,
             font_ascent: self.font_metrics.ascent,
-            uv_rect,
-            is_color: false,
+            uv_rect: alloc.uv_rect,
+            is_color: alloc.is_color,
             section_index: self.section_index,
             first_vertex: 0,
         }
@@ -218,6 +217,7 @@ struct TextRun {
     ///
     /// [`GlyphSource::Platform`]: try the glyph rasterizer (if any) for each cluster,
     /// shaping with `font_key` only if that fails.
+    /// `font_key` is then a discovered font, if one has the glyph.
     source: GlyphSource,
 }
 
@@ -352,13 +352,7 @@ fn layout_shaped_run(
 
                 paragraph.cursor_x_px += advance_width_px;
 
-                ctx.glyph(
-                    chr,
-                    x_px,
-                    advance_width_px,
-                    &fallback_metrics,
-                    allocation.uv_rect,
-                )
+                ctx.glyph(chr, x_px, advance_width_px, &fallback_metrics, allocation)
             }
         } else {
             let OutlineGlyph {
@@ -380,13 +374,7 @@ fn layout_shaped_run(
 
             paragraph.cursor_x_px += advance_width_px;
 
-            ctx.glyph(
-                chr,
-                x_px,
-                advance_width_px,
-                face_metrics,
-                glyph_alloc.uv_rect,
-            )
+            ctx.glyph(chr, x_px, advance_width_px, face_metrics, glyph_alloc)
         };
         paragraph.glyphs.push(glyph);
         cluster_glyph_count += 1;
@@ -415,15 +403,13 @@ fn raster_glyph(
 ) -> Glyph {
     let physical_x = paragraph.cursor_x_px.round() as i32;
     paragraph.cursor_x_px += raster.advance_px;
-    let mut glyph = ctx.glyph(
+    ctx.glyph(
         chr,
         physical_x,
         raster.advance_px,
         face_metrics,
-        raster.allocation.uv_rect,
-    );
-    glyph.is_color = raster.is_color;
-    glyph
+        raster.allocation,
+    )
 }
 
 /// Lay out a run whose clusters prefer the glyph rasterizer over the font.
@@ -503,7 +489,7 @@ fn layout_raster_run(
 ///
 /// This preserves the invariant `glyphs.len() == char_count` that all cursor
 /// and text-selection code depends on. Continuation glyphs have
-/// [`UvRect::default()`] so [`tessellate_glyphs`] skips them entirely.
+/// [`GlyphAllocation::default()`] so [`tessellate_glyphs`] skips them entirely.
 fn emit_continuation_glyphs(
     ctx: &ShapingContext,
     paragraph: &mut Paragraph,
@@ -523,9 +509,13 @@ fn emit_continuation_glyphs(
     let physical_x = paragraph.cursor_x_px.round() as i32;
 
     for chr in cluster_text.chars().skip(cluster_glyph_count) {
-        paragraph
-            .glyphs
-            .push(ctx.glyph(chr, physical_x, 0.0, face_metrics, UvRect::default()));
+        paragraph.glyphs.push(ctx.glyph(
+            chr,
+            physical_x,
+            0.0,
+            face_metrics,
+            GlyphAllocation::default(),
+        ));
     }
 }
 
@@ -1495,8 +1485,8 @@ fn segment_into_runs(fonts: &mut FontsImpl, family: FamilyKey, text: &str, out: 
         let byte_offset = ByteIndex(byte_offset);
         let byte_end = byte_offset + grapheme_str.len();
 
-        let font_key = fonts.resolve_cluster_face(family, grapheme_str);
         let source = fonts.glyph_source(grapheme_str);
+        let font_key = fonts.resolve_cluster_face(family, grapheme_str, source);
 
         if let Some(last_run) = out.last_mut()
             && last_run.font_key == font_key

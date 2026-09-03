@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::text::{
-    FontDefinitions, FontFamily,
+    FontDefinitions, FontFamily, GlyphSource,
     face_store::{FaceStore, FontFaceKey},
     font_provider::FontProviders,
 };
@@ -26,6 +26,9 @@ pub(crate) struct Family {
     /// Configured fonts (from [`FontDefinitions`]) first, then any discovered by the [`FontProviders`].
     chain: Vec<FontFaceKey>,
 
+    /// How many of [`Self::chain`] are configured fonts (from [`FontDefinitions`]).
+    num_configured_fonts: usize,
+
     /// The face used when no face in [`Self::chain`] supports a char.
     replacement_face_key: FontFaceKey,
 
@@ -35,11 +38,11 @@ pub(crate) struct Family {
     /// render this char in its place.
     replacement_char: char,
 
-    /// Cache: `char → which face in the fallback chain owns this char`.
+    /// Cache: `(where to look first, char) → which face in the fallback chain owns this char`.
     ///
     /// Location-independent (fallback choice depends only on charmap support,
     /// not on variation coordinates).
-    face_cache: ahash::HashMap<char, FontFaceKey>,
+    face_cache: ahash::HashMap<(GlyphSource, char), FontFaceKey>,
 
     /// Lazily calculated: every supported char, and the names of the faces that have it.
     characters: Option<BTreeMap<char, Vec<String>>>,
@@ -73,6 +76,7 @@ impl Family {
                 })
             })
             .collect();
+        let num_configured_fonts = chain.len();
 
         // Discovered fonts come after the configured ones:
         for key in providers.discovered_keys_for(name, faces) {
@@ -84,6 +88,7 @@ impl Family {
         let mut slf = Self {
             name: name.clone(),
             chain,
+            num_configured_fonts,
             replacement_face_key: FontFaceKey::INVALID,
             replacement_char: Self::PRIMARY_REPLACEMENT_CHAR,
             face_cache: Default::default(),
@@ -142,30 +147,34 @@ impl Family {
         providers: &mut FontProviders,
         c: char,
     ) -> FontFaceKey {
-        if let Some(font_key) = self.face_cache.get(&c) {
-            return *font_key;
-        }
         let mut utf8 = [0_u8; 4];
         let cluster = c.encode_utf8(&mut utf8);
-        self.resolve_slow(faces, providers, cluster, c)
+        self.resolve_cluster(faces, providers, cluster, GlyphSource::Fonts)
     }
 
     /// Like [`Self::resolve`] for the first char of `cluster`,
-    /// but lets the [`FontProviders`] see the whole grapheme cluster.
+    /// but lets the [`FontProviders`] see the whole grapheme cluster,
+    /// and lets the caller pick where to look first.
+    ///
+    /// [`GlyphSource::Fonts`]: the configured fonts (from [`FontDefinitions`]) first.
+    ///
+    /// [`GlyphSource::Platform`]: the discovered fonts first,
+    /// so that e.g. a color emoji from the system beats a configured monochrome one.
     #[inline]
     pub fn resolve_cluster(
         &mut self,
         faces: &mut FaceStore,
         providers: &mut FontProviders,
         cluster: &str,
+        source: GlyphSource,
     ) -> FontFaceKey {
         let Some(base_char) = cluster.chars().next() else {
             return self.replacement_face_key;
         };
-        if let Some(font_key) = self.face_cache.get(&base_char) {
+        if let Some(font_key) = self.face_cache.get(&(source, base_char)) {
             return *font_key;
         }
-        self.resolve_slow(faces, providers, cluster, base_char)
+        self.resolve_slow(faces, providers, cluster, base_char, source)
     }
 
     #[cold]
@@ -175,27 +184,65 @@ impl Family {
         providers: &mut FontProviders,
         cluster: &str,
         c: char,
+        source: GlyphSource,
     ) -> FontFaceKey {
-        let font_key = self
-            .find_face_for_char(c, faces)
-            .or_else(|| {
-                let key = providers.discover(faces, &self.name, cluster, c)?;
-                if !self.chain.contains(&key) {
-                    self.chain.push(key);
-                    self.characters = None;
-                }
-                Some(key)
-            })
-            .unwrap_or(self.replacement_face_key);
-        self.face_cache.insert(c, font_key);
+        let font_key = match source {
+            GlyphSource::Fonts => {
+                // All the fonts, i.e. the configured ones and then the discovered ones…
+                Self::find_face_for_char_in(&self.chain, c, faces)
+                    // …and if none of them has the char, ask the providers for a new font:
+                    .or_else(|| self.discover(faces, providers, cluster, c))
+            }
+
+            GlyphSource::Platform => {
+                // First the fonts we have already discovered…
+                Self::find_face_for_char_in(&self.chain[self.num_configured_fonts..], c, faces)
+                    // …then ask the providers for a new font, e.g. the system emoji font…
+                    .or_else(|| self.discover(faces, providers, cluster, c))
+                    // …and only then the configured fonts,
+                    // e.g. the bundled monochrome emoji font:
+                    .or_else(|| {
+                        let configured_fonts = &self.chain[..self.num_configured_fonts];
+                        Self::find_face_for_char_in(configured_fonts, c, faces)
+                    })
+            }
+        }
+        // No font has the char, so we will render the replacement glyph (e.g. `◻`):
+        .unwrap_or(self.replacement_face_key);
+        self.face_cache.insert((source, c), font_key);
         font_key
     }
 
-    /// Walk the fallback chain and return the first face whose charmap supports `c`.
+    /// Ask the providers for a new font with `c`, and append it to the chain.
+    fn discover(
+        &mut self,
+        faces: &mut FaceStore,
+        providers: &mut FontProviders,
+        cluster: &str,
+        c: char,
+    ) -> Option<FontFaceKey> {
+        let key = providers.discover(faces, &self.name, cluster, c)?;
+        if !self.chain.contains(&key) {
+            self.chain.push(key);
+            self.characters = None;
+        }
+        Some(key)
+    }
+
+    /// The first face in the whole chain whose charmap supports `c`.
+    fn find_face_for_char(&self, c: char, faces: &mut FaceStore) -> Option<FontFaceKey> {
+        Self::find_face_for_char_in(&self.chain, c, faces)
+    }
+
+    /// The first of `chain` whose charmap supports `c`.
     ///
     /// Does not touch [`Self::face_cache`].
-    fn find_face_for_char(&self, c: char, faces: &mut FaceStore) -> Option<FontFaceKey> {
-        self.chain.iter().copied().find(|&key| {
+    fn find_face_for_char_in(
+        chain: &[FontFaceKey],
+        c: char,
+        faces: &mut FaceStore,
+    ) -> Option<FontFaceKey> {
+        chain.iter().copied().find(|&key| {
             faces
                 .get_mut(key)
                 .is_some_and(|face| face.glyph_id_resolution(c).is_some())
