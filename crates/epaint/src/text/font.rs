@@ -698,6 +698,7 @@ pub struct Font<'a> {
     pub(super) atlas: &'a mut TextureAtlas,
     pub(super) family: crate::text::FontFamily,
     pub(super) glyph_rasterizer: Option<&'a crate::text::GlyphRasterizer>,
+
     /// `None` means the rasterizer could not handle the cluster.
     pub(super) raster_glyph_cache:
         &'a mut nohash_hasher::IntMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
