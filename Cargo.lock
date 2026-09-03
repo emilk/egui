@@ -1470,6 +1470,7 @@ dependencies = [
  "epaint",
  "fontique",
  "log",
+ "poll-promise",
  "skrifa",
  "sys-locale",
  "unicode-script",

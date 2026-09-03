@@ -28,6 +28,7 @@ epaint.workspace = true
 
 fontique.workspace = true
 log.workspace = true
+poll-promise.workspace = true
 skrifa.workspace = true
 sys-locale.workspace = true
 unicode-script.workspace = true

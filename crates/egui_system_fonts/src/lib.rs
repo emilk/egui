@@ -9,8 +9,6 @@
 //! egui_ctx.add_font_provider(std::sync::Arc::new(egui_system_fonts::SystemFontProvider::new()));
 //! ```
 
-use std::sync::{Arc, OnceLock};
-
 use epaint::{
     mutex::Mutex,
     text::{
@@ -22,6 +20,7 @@ use fontique::{
     Collection, CollectionOptions, FallbackKey, GenericFamily, Language, QueryFamily, QueryFont,
     QueryStatus, Script, SourceCache, SourceCacheOptions,
 };
+use poll_promise::Promise;
 
 struct SystemFonts {
     collection: Collection,
@@ -41,7 +40,8 @@ struct SystemFonts {
 /// so [`Self::new`] starts doing that on a background thread.
 /// A lookup before it is done blocks until it is.
 pub struct SystemFontProvider {
-    fonts: Arc<OnceLock<Mutex<SystemFonts>>>,
+    /// Loaded on a background thread by [`Self::new`].
+    fonts: Mutex<Promise<SystemFonts>>,
     locale: Option<Language>,
 }
 
@@ -56,22 +56,13 @@ impl SystemFontProvider {
     ///
     /// Uses the system locale to pick between fonts (see [`Self::with_locale`]).
     pub fn new() -> Self {
-        let fonts = Arc::new(OnceLock::new());
-        {
-            let fonts = Arc::clone(&fonts);
-            let spawned = std::thread::Builder::new()
-                .name("egui_system_fonts".to_owned())
-                .spawn(move || {
-                    fonts.get_or_init(load_system_fonts);
-                });
-            if let Err(err) = spawned {
-                log::warn!("Failed to spawn thread for enumerating system fonts: {err}");
-            }
+        Self {
+            fonts: Mutex::new(Promise::spawn_thread(
+                "egui_system_fonts",
+                load_system_fonts,
+            )),
+            locale: sys_locale::get_locale().and_then(|locale| parse_locale(&locale)),
         }
-
-        let locale = sys_locale::get_locale().and_then(|locale| parse_locale(&locale));
-
-        Self { fonts, locale }
     }
 
     /// The locale used to pick between fonts for the same script,
@@ -97,17 +88,17 @@ fn parse_locale(locale: &str) -> Option<Language> {
     }
 }
 
-fn load_system_fonts() -> Mutex<SystemFonts> {
+fn load_system_fonts() -> SystemFonts {
     let start = std::time::Instant::now();
     let collection = Collection::new(CollectionOptions {
         shared: false,
         system_fonts: true,
     });
     log::debug!("Enumerated system fonts in {:?}", start.elapsed());
-    Mutex::new(SystemFonts {
+    SystemFonts {
         collection,
         source_cache: SourceCache::new(SourceCacheOptions::default()),
-    })
+    }
 }
 
 impl FontProvider for SystemFontProvider {
@@ -115,11 +106,12 @@ impl FontProvider for SystemFontProvider {
         let FallbackRequest { cluster, family } = request;
         let base_char = cluster.chars().next()?;
 
-        let mut fonts = self.fonts.get_or_init(load_system_fonts).lock();
+        // Blocks if the background thread is not done enumerating the system fonts yet:
+        let mut fonts = self.fonts.lock();
         let SystemFonts {
             collection,
             source_cache,
-        } = &mut *fonts;
+        } = fonts.block_until_ready_mut();
 
         let generic = match family {
             FontFamily::Monospace => GenericFamily::Monospace,
@@ -206,6 +198,8 @@ fn has_outline_for(font: &QueryFont, c: char) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
 
     #[test]
