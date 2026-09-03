@@ -190,11 +190,6 @@ impl<'a, State> Harness<'a, State> {
         let viewport = input.viewports.get_mut(&ViewportId::ROOT).unwrap();
         viewport.native_pixels_per_point = Some(pixels_per_point);
 
-        // Follow the textures from the very first pass, so that a recording can be started
-        // at any time. This captures nothing until the recording starts.
-        #[cfg(feature = "recording")]
-        recording::install_idle(&ctx);
-
         let mut response = None;
 
         // We need to run egui for a single frame so that the AccessKit state can be initialized

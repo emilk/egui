@@ -1,8 +1,8 @@
 //! Record an egui session as an animated GIF, an MP4 video, or a sequence of PNG files.
 //!
 //! The recorder is an [`egui::Plugin`], so it can record any [`egui::Context`],
-//! not just a [`crate::Harness`]. It renders every pass with its own [`TestRenderer`]
-//! and keeps the frames in memory until you save them.
+//! not just a [`crate::Harness`]. It requests a screenshot from the integration for each
+//! selected pass and keeps the frames in memory until you save them.
 //!
 //! See [`crate::Harness::start_recording`] / [`crate::Harness::finish_recording`].
 
@@ -11,11 +11,9 @@ use std::io::{BufWriter, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use egui::{Context, FullOutput, TexturesDelta};
+use egui::{Context, FullOutput};
 use image::RgbaImage;
 use image::codecs::gif::{GifEncoder, Repeat};
-
-use crate::TestRenderer;
 
 /// Name of the environment variable that records every [`crate::Harness`] in the process.
 ///
@@ -187,27 +185,21 @@ impl From<image::ImageError> for RecordingError {
     }
 }
 
-/// Records an [`egui::Context`] by rendering each pass to an image.
+/// Records an [`egui::Context`] using the integration's screenshot support.
 ///
 /// Register it with [`egui::Context::add_plugin`], or let [`crate::Harness::start_recording`]
 /// do it for you.
 ///
-/// The plugin renders with its own [`TestRenderer`] (a `wgpu` one by default), so it does not
-/// interfere with the renderer of the harness.
+/// The plugin is self-contained: it adds a [`egui::ViewportCommand::ScreenshotCallback`] to each
+/// selected pass and receives the rendered image directly from the integration.
 pub struct RecordingPlugin {
     options: RecordingOptions,
-    renderer: LazyRenderer,
     frames: Vec<RgbaImage>,
     pass_nr: u32,
+    recording_id: u64,
 
-    /// While `false` the plugin still tracks textures, but captures no frames.
+    /// While `false` the plugin captures no frames.
     active: bool,
-
-    /// Did we give our renderer the whole font atlas?
-    ///
-    /// A plugin that is registered after the first pass never saw the font texture being
-    /// allocated, only the partial updates that follow it.
-    uploaded_font_atlas: bool,
 
     /// Set when the harness started the recording by itself (see [`crate::Harness`]).
     pub(crate) auto_save: Option<AutoSave>,
@@ -234,29 +226,15 @@ impl RecordingPlugin {
     }
 
     /// Create a plugin that captures nothing until [`Self::restart`] is called.
-    ///
-    /// It still follows the textures of the [`egui::Context`], so that it can render
-    /// correctly once it starts.
     pub fn idle() -> Self {
         Self {
             options: RecordingOptions::gif(PathBuf::new(), AUTO_FRAME_RATE),
-            renderer: LazyRenderer::default(),
             frames: Vec::new(),
             pass_nr: 0,
+            recording_id: 0,
             active: false,
-            uploaded_font_atlas: false,
             auto_save: None,
         }
-    }
-
-    /// Render with this renderer instead of the default `wgpu` one.
-    ///
-    /// The renderer must be `Send + Sync`, because [`egui::Plugin`] requires it.
-    #[inline]
-    #[must_use]
-    pub fn with_renderer(mut self, renderer: impl TestRenderer + Send + Sync + 'static) -> Self {
-        self.renderer = LazyRenderer::Ready(Box::new(renderer));
-        self
     }
 
     /// The options this recording uses.
@@ -288,6 +266,7 @@ impl RecordingPlugin {
         self.options = options;
         self.frames.clear();
         self.pass_nr = 0;
+        self.recording_id = self.recording_id.wrapping_add(1);
         self.active = true;
         self.auto_save = None;
     }
@@ -295,6 +274,7 @@ impl RecordingPlugin {
     /// Stop capturing and drop all frames.
     pub fn stop(&mut self) {
         self.frames.clear();
+        self.recording_id = self.recording_id.wrapping_add(1);
         self.active = false;
         self.auto_save = None;
     }
@@ -338,7 +318,12 @@ impl RecordingPlugin {
     }
 
     /// Add a frame, dropping it if the trigger says it is a duplicate.
-    fn push_frame(&mut self, image: RgbaImage) {
+    fn push_frame(&mut self, recording_id: u64, image: RgbaImage) {
+        // A screenshot can finish after the recording was stopped or restarted.
+        if !self.active || self.recording_id != recording_id {
+            return;
+        }
+
         if matches!(self.options.trigger, RecordingTrigger::ChangedFrames)
             && let Some(previous) = self.frames.last()
             && previous.as_raw() == image.as_raw()
@@ -350,23 +335,22 @@ impl RecordingPlugin {
     }
 }
 
+fn color_image_to_rgba(image: &egui::ColorImage) -> RgbaImage {
+    let pixels = image
+        .pixels
+        .iter()
+        .flat_map(|pixel| pixel.to_array())
+        .collect();
+    RgbaImage::from_raw(image.width() as u32, image.height() as u32, pixels)
+        .expect("ColorImage dimensions match its pixels")
+}
+
 impl egui::Plugin for RecordingPlugin {
     fn debug_name(&self) -> &'static str {
         "egui_kittest::RecordingPlugin"
     }
 
     fn output_hook(&mut self, ctx: &Context, output: &mut FullOutput) {
-        if !self.uploaded_font_atlas {
-            self.uploaded_font_atlas = true;
-            self.renderer.handle_delta(&mut font_atlas_delta(ctx));
-        }
-
-        // Our renderer needs the same textures as the renderer of the integration,
-        // so apply a copy of the deltas. Do this even while inactive, so that we can
-        // start recording at any time.
-        let mut textures_delta = output.textures_delta.clone();
-        self.renderer.handle_delta(&mut textures_delta);
-
         if !self.active {
             return;
         }
@@ -380,28 +364,24 @@ impl egui::Plugin for RecordingPlugin {
             return;
         }
 
-        // `FullOutput` cannot be cloned without cloning the texture deltas
-        // (which panic if they are dropped unapplied), so build the render input by hand.
-        // Renderers only need the shapes.
-        let mut shapes = output.shapes.clone();
-        crate::push_cursor_shape(ctx, &mut shapes);
+        let recording_id = self.recording_id;
+        let plugin = ctx.plugin::<Self>();
+        let callback = egui::ScreenshotCallback::new(move |image| {
+            plugin
+                .lock()
+                .push_frame(recording_id, color_image_to_rgba(&image));
+        });
 
-        let render_output = FullOutput {
-            shapes,
-            pixels_per_point: output.pixels_per_point,
-            viewport_output: output.viewport_output.clone(),
-            ..Default::default()
-        };
-
-        match self.renderer.render(ctx, &render_output) {
-            Ok(image) => self.push_frame(image),
-            Err(err) => {
-                log::error!("egui_kittest recording: failed to render a frame: {err}");
-                if self.renderer.is_failed() {
-                    // Nothing will ever render, so stop instead of complaining every pass.
-                    self.active = false;
-                }
-            }
+        // `output_hook` runs after `Context::end_pass`, so sending this through `Context` would
+        // put it in the next pass. Add it to the output being returned instead, ensuring that the
+        // final pass of a recording is captured without requesting another repaint.
+        let viewport_id = ctx.viewport_id();
+        if let Some(viewport) = output.viewport_output.get_mut(&viewport_id) {
+            viewport
+                .commands
+                .push(egui::ViewportCommand::ScreenshotCallback(callback));
+        } else {
+            log::error!("egui_kittest recording: output is missing viewport {viewport_id:?}");
         }
     }
 }
@@ -536,7 +516,8 @@ impl<State> crate::Harness<'_, State> {
     /// This registers a [`RecordingPlugin`] on the [`egui::Context`] of the harness, and
     /// restarts the recording if there already is one.
     ///
-    /// The recording renders with its own renderer, which by default needs the `wgpu` feature.
+    /// Recording uses the harness renderer through its screenshot support. The default renderer
+    /// needs the `wgpu` feature.
     ///
     /// ```no_run
     /// # use egui_kittest::{Harness, RecordingOptions};
@@ -610,14 +591,6 @@ impl<State> crate::Harness<'_, State> {
     }
 }
 
-/// Register an idle [`RecordingPlugin`], if there is none yet.
-///
-/// The harness does this before the first pass, so that the plugin sees every texture that
-/// egui allocates, no matter when the recording starts.
-pub(crate) fn install_idle(ctx: &Context) {
-    ctx.add_plugin(RecordingPlugin::idle());
-}
-
 /// Register a [`RecordingPlugin`] on `ctx`, or restart the one that is already registered.
 fn install(ctx: &Context, options: RecordingOptions, auto_save: Option<AutoSave>) {
     let restarted = ctx
@@ -675,91 +648,6 @@ impl Drop for AutoSaveOnDrop {
 
             plugin.stop();
         });
-    }
-}
-
-// ----------------------------------------------------------------------------
-// Renderer
-
-/// A [`TestRenderer`] that is created when it is first used.
-///
-/// This mirrors [`crate::LazyRenderer`], but is `Send + Sync`, as [`egui::Plugin`] requires.
-enum LazyRenderer {
-    Uninitialized {
-        textures_delta: TexturesDelta,
-    },
-    Ready(Box<dyn TestRenderer + Send + Sync>),
-
-    /// We failed to create a renderer, and already told the user about it.
-    #[cfg_attr(feature = "wgpu", expect(dead_code))]
-    // Only reachable without the `wgpu` feature.
-    Failed,
-}
-
-impl Default for LazyRenderer {
-    fn default() -> Self {
-        Self::Uninitialized {
-            textures_delta: TexturesDelta::default(),
-        }
-    }
-}
-
-/// A delta that sets the whole font atlas, as it looks right now.
-fn font_atlas_delta(ctx: &Context) -> TexturesDelta {
-    let image = ctx.fonts(|fonts| fonts.image());
-
-    let mut delta = TexturesDelta::default();
-    delta.push(
-        egui::TextureId::default(), // The font atlas is always the first texture.
-        egui::epaint::ImageDelta::full(image, egui::TextureOptions::default()),
-    );
-    delta
-}
-
-impl LazyRenderer {
-    fn handle_delta(&mut self, delta: &mut TexturesDelta) {
-        match self {
-            Self::Uninitialized { textures_delta } => textures_delta.append(core::mem::take(delta)),
-            Self::Ready(renderer) => renderer.handle_delta(delta),
-            Self::Failed => delta.clear(), // Don't panic when the delta is dropped.
-        }
-    }
-
-    fn render(&mut self, ctx: &Context, output: &FullOutput) -> Result<RgbaImage, String> {
-        if let Self::Uninitialized { textures_delta } = self {
-            #[cfg(feature = "wgpu")]
-            {
-                let mut renderer = crate::wgpu::WgpuTestRenderer::new();
-                renderer.handle_delta(textures_delta);
-                *self = Self::Ready(Box::new(renderer));
-            }
-
-            #[cfg(not(feature = "wgpu"))]
-            {
-                textures_delta.clear(); // Don't panic when the deltas are dropped.
-                *self = Self::Failed;
-            }
-        }
-
-        match self {
-            Self::Ready(renderer) => renderer.render(ctx, output),
-            Self::Uninitialized { .. } | Self::Failed => Err("A recording needs a renderer. \
-                Enable the `wgpu` feature, or pass one to `RecordingPlugin::with_renderer`."
-                .to_owned()),
-        }
-    }
-
-    /// Will this renderer never render anything?
-    fn is_failed(&self) -> bool {
-        matches!(self, Self::Failed)
-    }
-}
-
-impl Drop for LazyRenderer {
-    fn drop(&mut self) {
-        if let Self::Uninitialized { textures_delta } = self {
-            textures_delta.clear(); // Don't panic when dropping unapplied deltas.
-        }
     }
 }
 
