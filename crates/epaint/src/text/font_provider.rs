@@ -168,7 +168,9 @@ impl FontProviders {
 mod tests {
     use std::sync::Arc;
 
-    use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR};
+    #[cfg(feature = "monochrome_emoji_fonts")]
+    use epaint_default_fonts::{EMOJI_ICON, NOTO_EMOJI_REGULAR};
+    use epaint_default_fonts::{HACK_REGULAR, UBUNTU_LIGHT};
 
     use super::*;
     use crate::{
@@ -176,14 +178,19 @@ mod tests {
         mutex::Mutex,
         text::{
             FontData, FontDefinitions, FontId, Fonts, GlyphBitmap, GlyphRasterizer,
-            GlyphRasterizerRequest, GlyphSource, RasterizedGlyph, TextOptions,
+            GlyphRasterizerRequest, RasterizedGlyph, TextOptions,
         },
     };
 
-    const EMOJI: char = '😀'; // In NotoEmoji, but not in Hack.
-    const HANGUL: char = '한'; // In neither.
+    /// Latin capital letter schwa: in `Ubuntu-Light`, but not in `Hack`.
+    const SCHWA: char = 'Ə';
 
-    /// Only Hack, so that emoji are missing.
+    /// In neither `Hack` nor `Ubuntu-Light`.
+    const HANGUL: char = '한';
+
+    const DISCOVERED_FONT: &str = "discovered:Ubuntu-Light";
+
+    /// Only `Hack`, so that e.g. [`SCHWA`] is missing.
     fn hack_only() -> FontDefinitions {
         let mut definitions = FontDefinitions::empty();
         definitions.font_data.insert(
@@ -199,7 +206,7 @@ mod tests {
         definitions
     }
 
-    /// A provider that records its requests, and returns `NotoEmoji` for everything if `provide`.
+    /// A provider that records its requests, and returns `Ubuntu-Light` for everything if `provide`.
     fn recording_provider(
         requests: &Arc<Mutex<Vec<(FontFamily, String)>>>,
         provide: bool,
@@ -211,8 +218,8 @@ mod tests {
                 .push((request.family.clone(), request.cluster.to_owned()));
             provide.then(|| {
                 FontInsert::new(
-                    "discovered:NotoEmoji",
-                    FontData::from_static(NOTO_EMOJI_REGULAR),
+                    DISCOVERED_FONT,
+                    FontData::from_static(UBUNTU_LIGHT),
                     vec![InsertFontFamily {
                         family: request.family.clone(),
                         priority: FontPriority::Lowest,
@@ -257,16 +264,16 @@ mod tests {
         let mut fonts = fonts_with(recording_provider(&requests, true), None);
         let font_id = FontId::proportional(14.0);
 
-        assert!(fonts.has_glyph(&font_id, EMOJI));
-        assert!(fonts.has_glyph(&font_id, EMOJI));
+        assert!(fonts.has_glyph(&font_id, SCHWA));
+        assert!(fonts.has_glyph(&font_id, SCHWA));
         assert!(fonts.has_glyph(&font_id, 'a'));
         assert_eq!(
             *requests.lock(),
-            vec![(FontFamily::Proportional, EMOJI.to_string())]
+            vec![(FontFamily::Proportional, SCHWA.to_string())]
         );
         assert_eq!(fonts.discovered_fonts().len(), 1);
 
-        let glyph = first_glyph(&mut fonts, EMOJI);
+        let glyph = first_glyph(&mut fonts, SCHWA);
         assert!(!glyph.uv_rect.is_nothing());
         assert!(!glyph.is_color);
         assert_eq!(requests.lock().len(), 1);
@@ -275,8 +282,8 @@ mod tests {
             fonts
                 .with_pixels_per_point(1.0)
                 .characters(&FontFamily::Proportional)
-                .get(&EMOJI),
-            Some(&vec!["discovered:NotoEmoji".to_owned()])
+                .get(&SCHWA),
+            Some(&vec![DISCOVERED_FONT.to_owned()])
         );
     }
 
@@ -315,8 +322,8 @@ mod tests {
         let mut fonts = fonts_with(recording_provider(&requests, true), None);
         let font_id = FontId::proportional(14.0);
 
-        assert!(fonts.has_glyph(&font_id, EMOJI));
-        // The provider returns NotoEmoji for this too, but it has no glyph for it:
+        assert!(fonts.has_glyph(&font_id, SCHWA));
+        // The provider returns `Ubuntu-Light` for this too, but it has no glyph for it:
         assert!(!fonts.has_glyph(&font_id, HANGUL));
         assert_eq!(requests.lock().len(), 2);
         assert_eq!(fonts.discovered_fonts().len(), 1);
@@ -328,7 +335,7 @@ mod tests {
         };
         fonts.begin_pass(options);
 
-        assert!(fonts.has_glyph(&font_id, EMOJI));
+        assert!(fonts.has_glyph(&font_id, SCHWA));
         assert!(!fonts.has_glyph(&font_id, HANGUL));
         assert_eq!(
             requests.lock().len(),
@@ -344,15 +351,15 @@ mod tests {
         let mut fonts = fonts_with(
             recording_provider(&requests, true),
             Some(color_rasterizer()),
-        )
-        .with_glyph_source_preference(|_| GlyphSource::Fonts);
+        );
 
-        let glyph = first_glyph(&mut fonts, EMOJI);
+        let glyph = first_glyph(&mut fonts, SCHWA);
         assert!(!glyph.is_color, "Should come from the discovered font");
         assert_eq!(requests.lock().len(), 1);
     }
 
     #[test]
+    #[cfg(feature = "monochrome_emoji_fonts")]
     fn emoji_presentation_prefers_discovered_fonts_over_configured() {
         // Hack and NotoEmoji from the definitions, emoji-icon-font from the provider.
         // Both emoji fonts have 🚀.
