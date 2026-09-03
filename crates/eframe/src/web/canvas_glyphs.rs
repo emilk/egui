@@ -33,7 +33,7 @@ impl CanvasGlyphs {
         Some(Self { canvas, context })
     }
 
-    fn rasterize(&mut self, request: &GlyphRasterizerRequest<'_>) -> Option<RasterizedGlyph> {
+    fn rasterize(&self, request: &GlyphRasterizerRequest<'_>) -> Option<RasterizedGlyph> {
         let GlyphRasterizerRequest {
             cluster,
             family,
