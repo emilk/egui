@@ -1,0 +1,36 @@
+[package]
+name = "egui_system_fonts"
+version.workspace = true
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Load system fonts on demand for characters the egui fonts lack"
+edition.workspace = true
+rust-version.workspace = true
+homepage = "https://github.com/emilk/egui/tree/main/crates/egui_system_fonts"
+license.workspace = true
+readme = "README.md"
+repository = "https://github.com/emilk/egui/tree/main/crates/egui_system_fonts"
+categories = ["gui"]
+keywords = ["egui", "gui", "fonts", "text"]
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
+
+[lib]
+
+
+[dependencies]
+epaint.workspace = true
+
+fontique.workspace = true
+log.workspace = true
+skrifa.workspace = true
+sys-locale.workspace = true
+unicode-script.workspace = true
+
+[dev-dependencies]
+egui.workspace = true
