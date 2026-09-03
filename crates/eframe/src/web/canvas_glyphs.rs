@@ -68,9 +68,15 @@ impl CanvasGlyphs {
             return None;
         }
 
-        self.canvas.set_width(width);
-        self.canvas.set_height(height);
-        // Resizing resets Canvas state.
+        // Only grow: resizing reallocates the backing store and resets all canvas state.
+        if self.canvas.width() < width {
+            self.canvas.set_width(width);
+        }
+        if self.canvas.height() < height {
+            self.canvas.set_height(height);
+        }
+        self.context
+            .clear_rect(0.0, 0.0, width as f64, height as f64);
         self.context.set_font(&format!("{font_size_px}px {family}"));
         self.context.set_text_baseline("alphabetic");
         // White, like egui's own glyph rasterizer: the atlas stores coverage,
