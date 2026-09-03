@@ -99,6 +99,15 @@ pub struct Harness<'a, State = ()> {
     response: Option<egui::Response>,
     state: State,
     renderer: Box<dyn TestRenderer>,
+
+    /// The image of a pass we already rendered, keyed by [`egui::Context::cumulative_pass_nr`].
+    ///
+    /// A pass should be rendered at most once. A paint callback can do GPU work of its own —
+    /// schedule a readback, say — and running it a second time for the same pass corrupts that
+    /// work.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    last_render: Option<(u64, image::RgbaImage)>,
+
     max_steps: u64,
     step_dt: f32,
     wait_for_pending_images: bool,
@@ -185,6 +194,10 @@ impl<'a, State> Harness<'a, State> {
             response,
             state,
             renderer,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            last_render: None,
+
             max_steps,
             step_dt,
             wait_for_pending_images,
@@ -683,6 +696,12 @@ impl<'a, State> Harness<'a, State> {
     /// This will add a [`RectShape`] to the output shapes, for the current frame.
     /// Will be overwritten on the next call to [`Self::run`].
     pub fn mask(&mut self, rect: Rect) {
+        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+        {
+            // This changes what a render of this pass looks like.
+            self.last_render = None;
+        }
+
         self.output.shapes.push(ClippedShape {
             clip_rect: Rect::EVERYTHING,
             shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::MAGENTA)),
@@ -691,10 +710,23 @@ impl<'a, State> Harness<'a, State> {
 
     /// Render the last output to an image.
     ///
+    /// The image of a pass is rendered once and then reused, so calling this repeatedly without
+    /// stepping is cheap — and paint callbacks, which may do GPU work of their own, run only
+    /// once per pass.
+    ///
     /// # Errors
     /// Returns an error if the rendering fails.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
+        let pass_nr = self.ctx.cumulative_pass_nr();
+
+        // Rendering a pass twice would run its paint callbacks twice. See `last_render`.
+        if let Some((rendered_pass_nr, image)) = &self.last_render
+            && *rendered_pass_nr == pass_nr
+        {
+            return Ok(image.clone());
+        }
+
         let mut output = self.output.clone();
 
         if let Some(mouse_pos) = self.ctx.input(|i| i.pointer.hover_pos()) {
@@ -716,7 +748,9 @@ impl<'a, State> Harness<'a, State> {
             });
         }
 
-        self.renderer.render(&self.ctx, &output)
+        let image = self.renderer.render(&self.ctx, &output)?;
+        self.last_render = Some((pass_nr, image.clone()));
+        Ok(image)
     }
 
     /// Apply the [`egui::ViewportCommand`]s the app emitted during the last frame.
