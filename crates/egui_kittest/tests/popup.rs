@@ -175,3 +175,56 @@ fn test_interactive_tooltip() {
 
     assert!(harness.state().link_clicked);
 }
+
+#[cfg(all(feature = "snapshot", feature = "wgpu"))]
+#[test]
+fn scroll_area_extends_into_popup_margin() {
+    fn scroll_area(ui: &mut egui::Ui, extend: bool) {
+        egui::ScrollArea::vertical()
+            .max_height(110.0)
+            .auto_shrink([false, true])
+            .extend_into_parent_margin(extend)
+            .show(ui, |ui| {
+                for i in 0..20 {
+                    _ = ui.selectable_label(i == 2, format!("Item {i}"));
+                }
+            });
+    }
+
+    fn popup_with_scroll_area(ui: &mut egui::Ui, label: &str, extend: bool, nested: bool) {
+        let response = ui.button(label);
+        Popup::from_response(&response).open(true).show(|ui| {
+            ui.set_width(120.0);
+            if nested {
+                // The scroll area is not a direct child of the popup frame here,
+                // so we must find the frame by walking up the `UiStack`:
+                ui.vertical(|ui| {
+                    ui.label("Header");
+                    scroll_area(ui, extend);
+                });
+            } else {
+                ui.label("Header");
+                scroll_area(ui, extend);
+            }
+        });
+    }
+
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(600.0, 220.0))
+        .with_pixels_per_point(2.0)
+        .build_ui(|ui| {
+            // Solid scroll bars make it easy to see where the scroll area ends:
+            ui.ctx()
+                .all_styles_mut(|style| style.spacing.scroll = egui::style::ScrollStyle::solid());
+            ui.horizontal(|ui| {
+                popup_with_scroll_area(ui, "normal", false, false);
+                ui.add_space(140.0);
+                popup_with_scroll_area(ui, "full bleed", true, false);
+                ui.add_space(140.0);
+                popup_with_scroll_area(ui, "full bleed, nested", true, true);
+            });
+        });
+
+    harness.run();
+    harness.snapshot("popup_full_bleed_scroll_area");
+}
