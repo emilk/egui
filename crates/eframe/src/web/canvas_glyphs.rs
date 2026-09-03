@@ -73,7 +73,10 @@ impl CanvasGlyphs {
         // Resizing resets Canvas state.
         self.context.set_font(&format!("{font_size_px}px {family}"));
         self.context.set_text_baseline("alphabetic");
-        self.context.set_fill_style_str("black");
+        // White, like egui's own glyph rasterizer: the atlas stores coverage,
+        // and the tessellator multiplies it with the text color.
+        // Color emoji ignore the fill style.
+        self.context.set_fill_style_str("white");
         // Canvas positions text by its baseline, while the atlas image starts at its top-left.
         self.context
             .fill_text(
