@@ -2,11 +2,13 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use crate::text::{FontData, FontFamily};
 
-#[cfg(feature = "default_fonts")]
+#[cfg(feature = "monochrome_emoji_fonts")]
 use crate::text::FontTweak;
 
+#[cfg(feature = "monochrome_emoji_fonts")]
+use epaint_default_fonts::{EMOJI_ICON, NOTO_EMOJI_REGULAR};
 #[cfg(feature = "default_fonts")]
-use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
+use epaint_default_fonts::{HACK_REGULAR, UBUNTU_LIGHT};
 
 /// Describes the font data and the sizes to use.
 ///
@@ -126,46 +128,52 @@ impl Default for FontDefinitions {
             Arc::new(FontData::from_static(HACK_REGULAR)),
         );
 
-        // Some good looking emojis. Use as first priority:
-        font_data.insert(
-            "NotoEmoji-Regular".to_owned(),
-            Arc::new(FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
-                scale: 0.81, // Make smaller
-                ..Default::default()
-            })),
-        );
-
         font_data.insert(
             "Ubuntu-Light".to_owned(),
             Arc::new(FontData::from_static(UBUNTU_LIGHT)),
         );
 
-        // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
-        font_data.insert(
-            "emoji-icon-font".to_owned(),
-            Arc::new(FontData::from_static(EMOJI_ICON).tweak(FontTweak {
-                scale: 0.90, // Make smaller
-                ..Default::default()
-            })),
-        );
+        #[cfg(feature = "monochrome_emoji_fonts")]
+        {
+            // Some good looking emojis:
+            font_data.insert(
+                "NotoEmoji-Regular".to_owned(),
+                Arc::new(FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
+                    scale: 0.81, // Make smaller
+                    ..Default::default()
+                })),
+            );
+
+            // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
+            font_data.insert(
+                "emoji-icon-font".to_owned(),
+                Arc::new(FontData::from_static(EMOJI_ICON).tweak(FontTweak {
+                    scale: 0.90, // Make smaller
+                    ..Default::default()
+                })),
+            );
+        }
+
+        // Last resort, after the fonts that cover the text of a script:
+        let emoji_fonts: &[&str] = if cfg!(feature = "monochrome_emoji_fonts") {
+            &["NotoEmoji-Regular", "emoji-icon-font"]
+        } else {
+            &[]
+        };
+        let family = |fonts: &[&str]| -> Vec<String> {
+            core::iter::chain(fonts, emoji_fonts)
+                .map(|name| (*name).to_owned())
+                .collect()
+        };
 
         families.insert(
             FontFamily::Monospace,
-            vec![
-                "Hack".to_owned(),
-                "Ubuntu-Light".to_owned(), // fallback for √ etc
-                "NotoEmoji-Regular".to_owned(),
-                "emoji-icon-font".to_owned(),
-            ],
+            family(&[
+                "Hack",
+                "Ubuntu-Light", // fallback for √ etc
+            ]),
         );
-        families.insert(
-            FontFamily::Proportional,
-            vec![
-                "Ubuntu-Light".to_owned(),
-                "NotoEmoji-Regular".to_owned(),
-                "emoji-icon-font".to_owned(),
-            ],
-        );
+        families.insert(FontFamily::Proportional, family(&["Ubuntu-Light"]));
 
         Self {
             font_data,
@@ -190,12 +198,16 @@ impl FontDefinitions {
     /// List of all the builtin font names used by `epaint`.
     #[cfg(feature = "default_fonts")]
     pub fn builtin_font_names() -> &'static [&'static str] {
-        &[
-            "Ubuntu-Light",
-            "NotoEmoji-Regular",
-            "emoji-icon-font",
-            "Hack",
-        ]
+        if cfg!(feature = "monochrome_emoji_fonts") {
+            &[
+                "Ubuntu-Light",
+                "NotoEmoji-Regular",
+                "emoji-icon-font",
+                "Hack",
+            ]
+        } else {
+            &["Ubuntu-Light", "Hack"]
+        }
     }
 
     /// List of all the builtin font names used by `epaint`.

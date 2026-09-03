@@ -17,6 +17,8 @@ pub const HACK_REGULAR: &[u8] = include_bytes!("../fonts/Hack-Regular.ttf");
 
 /// A typeface containing emoji characters as designed for the Noto font family.
 ///
+/// Requires the `monochrome_emoji_fonts` feature.
+///
 /// Noto is a collection of high-quality fonts with multiple weights and widths
 /// in sans, serif, mono, and other styles, in more than 1,000 languages and
 /// over 150 writing systems. Noto Emoji contains black-and-white emoji
@@ -24,6 +26,7 @@ pub const HACK_REGULAR: &[u8] = include_bytes!("../fonts/Hack-Regular.ttf");
 ///
 /// See [Google Fonts](https://fonts.google.com/noto/specimen/Noto+Emoji) for
 /// more information.
+#[cfg(feature = "monochrome_emoji_fonts")]
 pub const NOTO_EMOJI_REGULAR: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular.ttf");
 
 /// A typeface designed for use by Ubuntu.
@@ -35,6 +38,8 @@ pub const NOTO_EMOJI_REGULAR: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular
 /// See [Ubuntu design](https://design.ubuntu.com/font) for more information.
 pub const UBUNTU_LIGHT: &[u8] = include_bytes!("../fonts/Ubuntu-Light.ttf");
 
+/// Requires the `monochrome_emoji_fonts` feature.
+///
 /// An experimental typeface that uses standardized
 /// [UNICODE planes](http://en.wikipedia.org/wiki/Plane_(Unicode))
 /// for icon fonts.
@@ -44,4 +49,5 @@ pub const UBUNTU_LIGHT: &[u8] = include_bytes!("../fonts/Ubuntu-Light.ttf");
 ///
 /// See [the `emoji-icon-font` repository](https://github.com/jslegers/emoji-icon-font)
 /// for more information.
+#[cfg(feature = "monochrome_emoji_fonts")]
 pub const EMOJI_ICON: &[u8] = include_bytes!("../fonts/emoji-icon-font.ttf");
