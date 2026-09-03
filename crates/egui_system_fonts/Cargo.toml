@@ -24,7 +24,7 @@ rustdoc-args = ["--generate-link-to-definition"]
 
 
 [dependencies]
-epaint.workspace = true
+epaint = { workspace = true, features = ["color_fonts"] }
 
 fontique.workspace = true
 log.workspace = true
