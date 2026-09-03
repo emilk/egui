@@ -126,14 +126,12 @@ fn frame_variants(variant: &mut VariantHandle) -> Frame {
 /// the call site why the widget ignores it.
 #[derive(Clone, Copy)]
 struct AtomLayoutFields {
-    align_x: bool,
     align_y: bool,
 }
 
 impl Default for AtomLayoutFields {
     fn default() -> Self {
         Self {
-            align_x: true,
             align_y: true,
         }
     }
@@ -148,11 +146,7 @@ fn atom_layout_variants(
 ) -> AtomLayoutStyle {
     AtomLayoutStyle {
         align2: Some(Align2::new(
-            if fields.align_x {
-                variant.get(Align::Min, Align::Max)
-            } else {
-                Align::Min
-            },
+            variant.get(Align::Min, Align::Max),
             if fields.align_y {
                 variant.get(Align::Min, Align::Max)
             } else {

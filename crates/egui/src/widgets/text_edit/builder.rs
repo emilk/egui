@@ -512,7 +512,7 @@ impl TextEdit<'_> {
 
         let align = align
             .or(atom_layout_style.align2)
-            .unwrap_or(Align2::LEFT_TOP);
+            .unwrap_or(ui.layout().align2());
 
         let text_color = text_color
             .or_else(|| ui.visuals().override_text_color)
