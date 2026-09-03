@@ -135,20 +135,7 @@ impl<State> HarnessBuilder<State> {
 
     /// Should every pass be rendered?
     ///
-    /// Off by default: rendering costs GPU time, and a test that only queries the
-    /// accessibility tree never needs it.
-    ///
-    /// Turn it on when the app under test paints through a callback that feeds state back into
-    /// the UI — a picking readback, for example, whose result decides what is hovered. Outside
-    /// a test such an app renders every frame, so a pass that renders nothing sees a stale
-    /// result, and the state can flip back and forth between passes that render and passes
-    /// that do not. That both gives [`Harness::run`] something that never settles and makes
-    /// what the test observes depend on where it happened to call [`Harness::render`].
-    ///
-    /// A pass is still rendered at most once, so this composes with an explicit
-    /// [`Harness::render`].
-    ///
-    /// Default: `false`
+    /// Useful when test logic requires some specific gpu logic, e.g. reading data back from the gpu.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     #[inline]
     pub fn with_always_render(mut self, always_render: bool) -> Self {
