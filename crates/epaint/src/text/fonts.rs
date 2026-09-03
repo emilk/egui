@@ -4,14 +4,13 @@ use crate::{
     Color32, TextureAtlas,
     text::{
         FontDefinitions, FontFamily, FontId, FontInsert, FontProvider, Galley, GlyphRasterizer,
-        GlyphSource, GlyphSourcePreference, LayoutJob, TextOptions, VariationCoords,
+        LayoutJob, TextOptions, VariationCoords,
         face_store::{FaceStore, FontFaceKey},
         family::{Family, FamilyKey},
         font_face::{FontFace, GlyphInfo, ShapedGlyph},
         font_provider::FontProviders,
         galley_cache::GalleyCache,
         glyph_atlas::{GlyphAtlas, OutlineGlyph, RasterGlyphAllocation},
-        glyph_rasterizer::default_glyph_source,
         styled_metrics::StyledMetrics,
         text_layout::layout,
     },
@@ -70,18 +69,6 @@ impl Fonts {
         self.galley_cache = Default::default();
     }
 
-    /// Decide where to look first for the glyphs of each grapheme cluster.
-    ///
-    /// See [`GlyphSourcePreference`].
-    #[inline]
-    pub fn with_glyph_source_preference(
-        mut self,
-        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
-    ) -> Self {
-        self.fonts.set_glyph_source_preference(prefer);
-        self
-    }
-
     /// Ask these for fonts for characters that no font in the [`FontDefinitions`] has.
     ///
     /// The providers are asked in order, and the first font found is used.
@@ -111,7 +98,6 @@ impl Fonts {
             let definitions = self.fonts.definitions.clone();
             let mut fonts = FontsImpl::new(options, definitions);
             fonts.set_glyph_rasterizer(self.fonts.glyph_rasterizer.take());
-            fonts.glyph_source_preference = Arc::clone(&self.fonts.glyph_source_preference);
             fonts.set_font_providers(core::mem::take(&mut self.fonts.font_providers));
             self.fonts = fonts;
             self.galley_cache = Default::default();
@@ -378,7 +364,6 @@ pub(crate) struct FontsImpl {
     shape_buffer: Option<harfrust::UnicodeBuffer>,
     glyph_rasterizer: Option<GlyphRasterizer>,
     font_providers: FontProviders,
-    glyph_source_preference: GlyphSourcePreference,
 }
 
 impl FontsImpl {
@@ -396,7 +381,6 @@ impl FontsImpl {
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
             glyph_rasterizer: None,
             font_providers: Default::default(),
-            glyph_source_preference: Arc::new(default_glyph_source),
         }
     }
 
@@ -432,16 +416,6 @@ impl FontsImpl {
     pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
         self.glyph_rasterizer = glyph_rasterizer;
         self.glyphs.clear_raster_glyphs();
-    }
-
-    /// Decide where to look first for the glyphs of each grapheme cluster.
-    ///
-    /// See [`GlyphSourcePreference`].
-    pub fn set_glyph_source_preference(
-        &mut self,
-        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
-    ) {
-        self.glyph_source_preference = Arc::new(prefer);
     }
 
     pub fn options(&self) -> &TextOptions {
@@ -493,23 +467,10 @@ impl FontsImpl {
     }
 
     /// Like [`Self::resolve_face`] for the first char of `cluster`,
-    /// but lets the [`FontProvider`]s see the whole grapheme cluster,
-    /// and lets the caller pick where to look first.
-    ///
-    /// See [`Family::resolve_cluster`].
+    /// but lets the [`FontProvider`]s see the whole grapheme cluster.
     #[inline]
-    pub fn resolve_cluster_face(
-        &mut self,
-        family: FamilyKey,
-        cluster: &str,
-        source: GlyphSource,
-    ) -> FontFaceKey {
-        self.families[family.0].resolve_cluster(
-            &mut self.faces,
-            &mut self.font_providers,
-            cluster,
-            source,
-        )
+    pub fn resolve_cluster_face(&mut self, family: FamilyKey, cluster: &str) -> FontFaceKey {
+        self.families[family.0].resolve_cluster(&mut self.faces, &mut self.font_providers, cluster)
     }
 
     /// Resolve `c` to its (face, [`GlyphInfo`]) at the given face's location.
@@ -558,12 +519,6 @@ impl FontsImpl {
             .and_then(|key| self.faces.get(key))
             .map(|face| face.styled_metrics(pixels_per_point, font_size, coords))
             .unwrap_or_default()
-    }
-
-    /// Where to look first for the glyphs of this grapheme cluster.
-    #[inline]
-    pub fn glyph_source(&self, cluster: &str) -> GlyphSource {
-        (self.glyph_source_preference)(cluster)
     }
 
     /// Width of this character in points, at the font's default variation location.
@@ -629,11 +584,6 @@ impl FontsImpl {
         };
         self.glyphs
             .allocate_outline(face_key, face, metrics, shaped)
-    }
-
-    #[inline]
-    pub fn has_glyph_rasterizer(&self) -> bool {
-        self.glyph_rasterizer.is_some()
     }
 
     /// Rasterize a grapheme cluster using the platform [`GlyphRasterizer`].

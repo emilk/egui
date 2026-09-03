@@ -92,7 +92,6 @@ self_cell.workspace = true
 skrifa.workspace = true
 smallvec.workspace = true
 unicode-general-category.workspace = true
-unicode-properties.workspace = true
 unicode-segmentation.workspace = true
 vello_cpu.workspace = true
 
