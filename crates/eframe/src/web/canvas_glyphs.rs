@@ -106,7 +106,9 @@ impl CanvasGlyphs {
 
         Some(RasterizedGlyph {
             image: ColorImage::from_rgba_unmultiplied([width as _, height as _], &rgba),
-            offset_px: vec2((-left + padding) as f32, (-ascent + padding) as f32),
+            // The pen sits at `(padding + left, padding + ascent)` in the image,
+            // so the image's top-left is this far from the pen:
+            offset_px: vec2(-(left + padding) as f32, -(ascent + padding) as f32),
             advance_px: metrics.width() as f32,
             is_color,
         })
