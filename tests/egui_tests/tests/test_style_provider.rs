@@ -210,7 +210,6 @@ fn ensure_all_checkbox_style_args_used() {
                 // A `Checkbox` always centers its box and its label in the row, so the
                 // vertical align has no effect. This is by design, see `Checkbox::ui`.
                 align_y: false,
-                ..Default::default()
             };
             CheckboxStyle {
                 atom_layout: atom_layout_variants(variant, fields, frame),
