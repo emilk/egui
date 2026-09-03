@@ -2051,6 +2051,18 @@ impl Tessellator {
 
             let index_offset = out.vertices.len() as u32;
 
+            // Vertices of color glyphs (e.g. color emoji) that must keep their own color.
+            // Usually empty, and then this does not allocate.
+            let color_glyph_vertices: Vec<core::ops::Range<usize>> = row
+                .glyphs
+                .iter()
+                .filter(|glyph| glyph.is_color && !glyph.uv_rect.is_nothing())
+                .map(|glyph| {
+                    let first = glyph.first_vertex as usize;
+                    first..first + 4
+                })
+                .collect();
+
             out.indices.extend(
                 row.visuals
                     .mesh
@@ -2075,6 +2087,11 @@ impl Tessellator {
                             }
                         } else if color == Color32::PLACEHOLDER {
                             color = *fallback_color;
+                        }
+
+                        if color_glyph_vertices.iter().any(|range| range.contains(&i)) {
+                            // Don't tint: keep the glyph's own color, but respect the text alpha.
+                            color = Color32::from_white_alpha(color.a());
                         }
 
                         if *opacity_factor < 1.0 {

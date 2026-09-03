@@ -1193,12 +1193,9 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, me
 
             let format = &job.sections[glyph.section_index as usize].format;
 
-            let tint_color = if glyph.is_color {
-                // Don't tint: keep the glyph's own color (e.g. color emoji).
-                Color32::from_white_alpha(format.color.a())
-            } else {
-                format.color
-            };
+            // Color glyphs (e.g. color emoji) are untinted by the tessellator,
+            // which is also where `Color32::PLACEHOLDER` and `override_text_color` are resolved.
+            let color = format.color;
 
             if format.italics {
                 let idx = mesh.vertices.len() as u32;
@@ -1210,25 +1207,25 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, me
                 mesh.vertices.push(Vertex {
                     pos: rect.left_top() + top_offset,
                     uv: uv.left_top(),
-                    color: tint_color,
+                    color,
                 });
                 mesh.vertices.push(Vertex {
                     pos: rect.right_top() + top_offset,
                     uv: uv.right_top(),
-                    color: tint_color,
+                    color,
                 });
                 mesh.vertices.push(Vertex {
                     pos: rect.left_bottom(),
                     uv: uv.left_bottom(),
-                    color: tint_color,
+                    color,
                 });
                 mesh.vertices.push(Vertex {
                     pos: rect.right_bottom(),
                     uv: uv.right_bottom(),
-                    color: tint_color,
+                    color,
                 });
             } else {
-                mesh.add_rect_with_uv(rect, uv, tint_color);
+                mesh.add_rect_with_uv(rect, uv, color);
             }
         }
     }
@@ -1492,17 +1489,52 @@ mod tests {
             FontDefinitions::default(),
             Some(rasterizer),
         );
-        let job = LayoutJob::simple(
-            "한".into(),
-            FontId::proportional(14.0),
-            Color32::GREEN,
-            f32::INFINITY,
+
+        // Returns the tessellated vertex color of 'a' (a normal glyph) and '한' (a color glyph).
+        let mut glyph_colors = |text_color: Color32, override_text_color: Option<Color32>| {
+            let job = LayoutJob::simple(
+                "a한".into(),
+                FontId::proportional(14.0),
+                text_color,
+                f32::INFINITY,
+            );
+            let galley = layout(&mut fonts, 1.0, Arc::new(job));
+            let row = &galley.rows[0].row;
+            assert!(!row.glyphs[0].is_color);
+            assert!(row.glyphs[1].is_color);
+            let first_vertices = [
+                row.glyphs[0].first_vertex as usize,
+                row.glyphs[1].first_vertex as usize,
+            ];
+
+            let mut text_shape =
+                crate::TextShape::new(Pos2::ZERO, Arc::new(galley), Color32::GREEN);
+            text_shape.override_text_color = override_text_color;
+            let mut mesh = crate::Mesh::default();
+            crate::Tessellator::new(1.0, Default::default(), [1024, 1024], vec![])
+                .tessellate_text(&text_shape, &mut mesh);
+            first_vertices.map(|i| mesh.vertices[i].color)
+        };
+
+        let half_alpha = Color32::from_white_alpha(128);
+
+        // Explicit text color:
+        assert_eq!(
+            glyph_colors(Color32::BLUE, None),
+            [Color32::BLUE, Color32::WHITE]
         );
 
-        let galley = layout(&mut fonts, 1.0, Arc::new(job));
-        let row = &galley.rows[0].row;
-        assert!(row.glyphs[0].is_color);
-        assert_eq!(row.visuals.mesh.vertices[0].color, Color32::WHITE);
+        // Delayed text color, resolved by the tessellator (used by most widgets):
+        assert_eq!(
+            glyph_colors(Color32::PLACEHOLDER, None),
+            [Color32::GREEN, Color32::WHITE]
+        );
+
+        // Override, e.g. for disabled widgets. The alpha should still apply:
+        assert_eq!(
+            glyph_colors(Color32::BLUE, Some(Color32::from_black_alpha(128))),
+            [Color32::from_black_alpha(128), half_alpha]
+        );
     }
 
     #[test]
