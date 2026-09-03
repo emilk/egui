@@ -393,7 +393,7 @@ impl<'t> TextEdit<'t> {
     #[deprecated = "Use `align` instead"]
     #[inline]
     pub fn horizontal_align(mut self, align: Align) -> Self {
-        self.align = Some(self.align.unwrap_or(Align2::LEFT_TOP).with_x(align));
+        self.align.get_or_insert(Align2::LEFT_TOP).set_x(align);
         self
     }
 
@@ -401,7 +401,7 @@ impl<'t> TextEdit<'t> {
     #[deprecated = "Use `align` instead"]
     #[inline]
     pub fn vertical_align(mut self, align: Align) -> Self {
-        self.align = Some(self.align.unwrap_or(Align2::LEFT_TOP).with_y(align));
+        self.align.get_or_insert(Align2::LEFT_TOP).set_y(align);
         self
     }
 
