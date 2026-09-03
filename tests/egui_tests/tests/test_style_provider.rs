@@ -70,7 +70,7 @@ fn test_variants<Variant: Clone, Comparison: PartialEq>(
     }
 }
 
-/// Helper that walks all fields of a struct, swaping each value one after the other, ensuring
+/// Helper that walks all fields of a struct, swapping each value one after the other, ensuring
 /// that any value change also results in a visual change of the UI.
 fn test_harness_variants<Variant: Clone>(
     size: Vec2,
