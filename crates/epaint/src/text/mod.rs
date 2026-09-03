@@ -19,7 +19,7 @@ mod text_layout_types;
 mod unicode;
 
 pub use {
-    font_data::{FontData, FontVariationAxis},
+    font_data::{Blob, FontData, FontVariationAxis},
     font_definitions::{FontDefinitions, FontInsert, FontPriority, InsertFontFamily},
     font_id::{FontFamily, FontId},
     font_tweak::{FontTweak, HintingTarget, SmoothHinting},
