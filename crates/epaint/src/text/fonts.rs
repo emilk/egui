@@ -73,9 +73,14 @@ type RasterizeFn =
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GlyphSource {
     /// The installed fonts (see [`FontDefinitions`]).
+    ///
+    /// Predictable: looks the same everywhere, both on native and on web.
     Fonts,
 
     /// The [`GlyphRasterizer`], e.g. the browser on web.
+    ///
+    /// Supports colored emojis.
+    /// Unpredictable: may look different on different computers.
     Rasterizer,
 }
 
@@ -159,20 +164,25 @@ pub fn has_emoji_presentation(cluster: &str) -> bool {
         is_text_presentation_selector,
     };
 
-    if cluster.chars().any(is_text_presentation_selector) {
-        return false;
+    if cluster.is_ascii() {
+        return false; // Fast path: no ASCII character has emoji presentation.
     }
 
-    cluster.chars().any(|c| {
-        is_emoji_presentation_selector(c)
+    let mut has_emoji_presentation = false;
+    for c in cluster.chars() {
+        if is_text_presentation_selector(c) {
+            return false; // Explicit text presentation wins.
+        }
+        has_emoji_presentation |= is_emoji_presentation_selector(c)
             || matches!(
                 c.emoji_status(),
                 EmojiStatus::EmojiPresentation
                     | EmojiStatus::EmojiPresentationAndModifierBase
                     | EmojiStatus::EmojiPresentationAndEmojiComponent
                     | EmojiStatus::EmojiPresentationAndModifierAndEmojiComponent
-            )
-    })
+            );
+    }
+    has_emoji_presentation
 }
 
 #[cfg(test)]
