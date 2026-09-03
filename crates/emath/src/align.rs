@@ -52,12 +52,21 @@ impl Align {
 
     /// Returns the inverse alignment.
     /// `Min` becomes `Max`, `Center` stays the same, `Max` becomes `Min`.
-    pub fn flip(self) -> Self {
+    #[must_use]
+    pub fn flipped(self) -> Self {
         match self {
             Self::Min => Self::Max,
             Self::Center => Self::Center,
             Self::Max => Self::Min,
         }
+    }
+
+    /// Returns the inverse alignment.
+    /// `Min` becomes `Max`, `Center` stays the same, `Max` becomes `Min`.
+    #[must_use]
+    #[deprecated = "Renamed to `flipped`"]
+    pub fn flip(self) -> Self {
+        self.flipped()
     }
 
     /// Returns a range of given size within a specified range.
@@ -213,20 +222,47 @@ impl Align2 {
 
     /// Flip on the x-axis
     /// e.g. `TOP_LEFT` -> `TOP_RIGHT`
+    #[must_use]
+    pub fn flipped_x(self) -> Self {
+        self.with_x(self.x().flipped())
+    }
+
+    /// Flip on the x-axis
+    /// e.g. `TOP_LEFT` -> `TOP_RIGHT`
+    #[must_use]
+    #[deprecated = "Renamed to `flipped_x`"]
     pub fn flip_x(self) -> Self {
-        self.with_x(self.x().flip())
+        self.flipped_x()
     }
 
     /// Flip on the y-axis
     /// e.g. `TOP_LEFT` -> `BOTTOM_LEFT`
+    #[must_use]
+    pub fn flipped_y(self) -> Self {
+        self.with_y(self.y().flipped())
+    }
+
+    /// Flip on the y-axis
+    /// e.g. `TOP_LEFT` -> `BOTTOM_LEFT`
+    #[must_use]
+    #[deprecated = "Renamed to `flipped_y`"]
     pub fn flip_y(self) -> Self {
-        self.with_y(self.y().flip())
+        self.flipped_y()
     }
 
     /// Flip on both axes
     /// e.g. `TOP_LEFT` -> `BOTTOM_RIGHT`
+    #[must_use]
+    pub fn flipped(self) -> Self {
+        Self::new(self.x().flipped(), self.y().flipped())
+    }
+
+    /// Flip on both axes
+    /// e.g. `TOP_LEFT` -> `BOTTOM_RIGHT`
+    #[must_use]
+    #[deprecated = "Renamed to `flipped`"]
     pub fn flip(self) -> Self {
-        Self::new(self.x().flip(), self.y().flip())
+        self.flipped()
     }
 
     /// Used e.g. to anchor a piece of text to a part of the rectangle.
