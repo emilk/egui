@@ -74,6 +74,23 @@ real change, such as a moved separator, a shifted one-pixel border, or a small i
 incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever you
 update the snapshot.
 
+## Rendering every pass
+
+By default a pass is only rendered when you ask for an image, with `Harness::render` or a
+snapshot.
+That is enough for most tests, and it keeps the GPU out of tests that only read the
+accessibility tree.
+
+`HarnessBuilder::with_always_render(true)` renders every pass instead.
+Reach for it when the app paints through a callback whose result feeds back into the UI — a
+picking readback that decides what is hovered, say.
+Such an app renders every frame outside of a test, so a pass that renders nothing sees a stale
+result, and what the test observes ends up depending on where it happened to call
+`Harness::render`.
+
+The image of a pass is rendered once and then reused, so this composes with an explicit
+`render`.
+
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.
 Once enabled, you can call `Harness::snapshot` to render the ui and save the image to the `tests/snapshots` directory.

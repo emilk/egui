@@ -18,6 +18,9 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) renderer: Box<dyn TestRenderer>,
     pub(crate) wait_for_pending_images: bool,
 
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    pub(crate) always_render: bool,
+
     #[cfg(feature = "snapshot")]
     pub(crate) default_snapshot_options: crate::SnapshotOptions,
 
@@ -36,6 +39,9 @@ impl<State> Default for HarnessBuilder<State> {
             max_steps: 4,
             step_dt: 1.0 / 4.0,
             wait_for_pending_images: true,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            always_render: false,
             os: egui::os::OperatingSystem::Nix,
 
             #[cfg(feature = "snapshot")]
@@ -124,6 +130,29 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_wait_for_pending_images(mut self, wait_for_pending_images: bool) -> Self {
         self.wait_for_pending_images = wait_for_pending_images;
+        self
+    }
+
+    /// Should every pass be rendered?
+    ///
+    /// Off by default: rendering costs GPU time, and a test that only queries the
+    /// accessibility tree never needs it.
+    ///
+    /// Turn it on when the app under test paints through a callback that feeds state back into
+    /// the UI — a picking readback, for example, whose result decides what is hovered. Outside
+    /// a test such an app renders every frame, so a pass that renders nothing sees a stale
+    /// result, and the state can flip back and forth between passes that render and passes
+    /// that do not. That both gives [`Harness::run`] something that never settles and makes
+    /// what the test observes depend on where it happened to call [`Harness::render`].
+    ///
+    /// A pass is still rendered at most once, so this composes with an explicit
+    /// [`Harness::render`].
+    ///
+    /// Default: `false`
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[inline]
+    pub fn with_always_render(mut self, always_render: bool) -> Self {
+        self.always_render = always_render;
         self
     }
 

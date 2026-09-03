@@ -108,6 +108,10 @@ pub struct Harness<'a, State = ()> {
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     last_render: Option<(u64, image::RgbaImage)>,
 
+    /// Render every pass. See [`HarnessBuilder::with_always_render`].
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    always_render: bool,
+
     max_steps: u64,
     step_dt: f32,
     wait_for_pending_images: bool,
@@ -143,6 +147,9 @@ impl<'a, State> Harness<'a, State> {
             state: _,
             mut renderer,
             wait_for_pending_images,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            always_render,
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
@@ -197,6 +204,9 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             last_render: None,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            always_render,
 
             max_steps,
             step_dt,
@@ -305,6 +315,15 @@ impl<'a, State> Harness<'a, State> {
         );
         self.renderer.handle_delta(&mut output.textures_delta);
         self.output = output;
+
+        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+        if self.always_render
+            && let Err(err) = self.render()
+        {
+            // Every following pass would fail the same way, so say it once.
+            self.always_render = false;
+            log::error!("egui_kittest: `always_render` failed to render a pass: {err}");
+        }
 
         self.handle_viewport_commands();
     }
@@ -706,6 +725,16 @@ impl<'a, State> Harness<'a, State> {
             clip_rect: Rect::EVERYTHING,
             shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::MAGENTA)),
         });
+    }
+
+    /// Render every pass from now on.
+    ///
+    /// See [`HarnessBuilder::with_always_render`] for when you want this. Turning it on does
+    /// not render the pass that already ended; the next one is the first to be rendered.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[inline]
+    pub fn set_always_render(&mut self, always_render: bool) {
+        self.always_render = always_render;
     }
 
     /// Render the last output to an image.
