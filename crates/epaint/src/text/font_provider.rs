@@ -168,7 +168,7 @@ impl FontProviders {
 mod tests {
     use std::sync::Arc;
 
-    use epaint_default_fonts::{HACK_REGULAR, NOTO_EMOJI_REGULAR};
+    use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR};
 
     use super::*;
     use crate::{
@@ -347,6 +347,61 @@ mod tests {
 
         let glyph = first_glyph(&mut fonts, EMOJI);
         assert!(!glyph.is_color, "Should come from the discovered font");
+        assert_eq!(requests.lock().len(), 1);
+    }
+
+    #[test]
+    fn emoji_presentation_prefers_discovered_fonts_over_configured() {
+        // Hack and NotoEmoji from the definitions, emoji-icon-font from the provider.
+        // Both emoji fonts have 🚀.
+        let mut definitions = hack_only();
+        definitions.font_data.insert(
+            "NotoEmoji-Regular".to_owned(),
+            Arc::new(FontData::from_static(NOTO_EMOJI_REGULAR)),
+        );
+        definitions.families.insert(
+            FontFamily::Proportional,
+            vec!["Hack".to_owned(), "NotoEmoji-Regular".to_owned()],
+        );
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let provider = {
+            let requests = Arc::clone(&requests);
+            Arc::new(move |request: &FallbackRequest<'_>| {
+                requests.lock().push(request.cluster.to_owned());
+                Some(FontInsert::new(
+                    "discovered:emoji-icon-font",
+                    FontData::from_static(EMOJI_ICON),
+                    vec![],
+                ))
+            })
+        };
+        let mut fonts =
+            Fonts::new(TextOptions::default(), definitions).with_font_providers(vec![provider]);
+        let font_id = FontId::proportional(14.0);
+        let mut layout = |text: &str| {
+            let galley = fonts.with_pixels_per_point(1.0).layout_no_wrap(
+                text.to_owned(),
+                font_id.clone(),
+                Color32::WHITE,
+            );
+            galley.rows[0].row.glyphs[0].uv_rect
+        };
+
+        // Text presentation: NotoEmoji from the definitions wins, and the provider is not asked.
+        let text_presentation = layout("🚀\u{FE0E}");
+        assert!(requests.lock().is_empty());
+
+        // Emoji presentation: the provider is asked first, even though NotoEmoji has the glyph.
+        let emoji_presentation = layout("🚀");
+        assert_eq!(*requests.lock(), ["🚀"]);
+        assert_ne!(
+            emoji_presentation.min, text_presentation.min,
+            "Should be different glyphs, from different fonts"
+        );
+
+        // Both are cached:
+        layout("🚀\u{FE0E}");
+        layout("🚀");
         assert_eq!(requests.lock().len(), 1);
     }
 
