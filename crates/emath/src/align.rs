@@ -214,19 +214,19 @@ impl Align2 {
     /// Flip on the x-axis
     /// e.g. `TOP_LEFT` -> `TOP_RIGHT`
     pub fn flip_x(self) -> Self {
-        Self([self.x().flip(), self.y()])
+        self.with_x(self.x().flip())
     }
 
     /// Flip on the y-axis
     /// e.g. `TOP_LEFT` -> `BOTTOM_LEFT`
     pub fn flip_y(self) -> Self {
-        Self([self.x(), self.y().flip()])
+        self.with_y(self.y().flip())
     }
 
     /// Flip on both axes
     /// e.g. `TOP_LEFT` -> `BOTTOM_RIGHT`
     pub fn flip(self) -> Self {
-        Self([self.x().flip(), self.y().flip()])
+        Self::new(self.x().flip(), self.y().flip())
     }
 
     /// Used e.g. to anchor a piece of text to a part of the rectangle.

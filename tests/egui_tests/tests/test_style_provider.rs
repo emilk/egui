@@ -147,7 +147,7 @@ fn atom_layout_variants(
     frame: Frame,
 ) -> AtomLayoutStyle {
     AtomLayoutStyle {
-        align2: Some(Align2([
+        align2: Some(Align2::new(
             if fields.align_x {
                 variant.get(Align::Min, Align::Max)
             } else {
@@ -158,7 +158,7 @@ fn atom_layout_variants(
             } else {
                 Align::Min
             },
-        ])),
+        )),
         min_size: Vec2::new(variant.get(100.0, 200.0), variant.get(40.0, 80.0)),
         gap: variant.get(0.0, 10.0),
         frame,
