@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::Ui;
 use crate::{
     AsIdSalt, ClosableTag, Id, IdSalt, LayerId, Layout, Rect, Sense, Style, UiStackInfo,
-    widget_style::{Classes, HasClasses},
+    class::{Classes, HasClasses},
 };
 
 /// The properties specified when creating a top-level or child [`Ui`].

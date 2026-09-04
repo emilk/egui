@@ -1,10 +1,12 @@
 use crate::{
     Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IntoAtoms, Key, MINUS_CHAR_STR,
     Modifiers, NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget,
-    WidgetInfo, emath, text,
+    WidgetInfo,
+    class::{ClassName, Classes, HasClasses},
+    emath, text,
 };
+use core::{cmp::Ordering, ops::RangeInclusive};
 use emath::Vec2;
-use std::{cmp::Ordering, ops::RangeInclusive};
 
 // ----------------------------------------------------------------------------
 
@@ -23,6 +25,24 @@ fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
 
 fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
     (get_set_value)(Some(value));
+}
+
+// ----------------------------------------------------------------------------
+
+/// What the user has typed into a [`DragValue`] that is being edited as text.
+///
+/// Stored in [`crate::Memory::data`] between frames, because the text can be
+/// something that doesn't (yet) parse to a number, e.g. `"1."` or `"-"`.
+#[derive(Clone, Default)]
+struct EditState {
+    /// The text the user is editing.
+    text: String,
+
+    /// The value of the [`DragValue`] the last time we stored `text`.
+    ///
+    /// If the value has changed since then it was changed by something other than
+    /// this widget, and `text` is stale and must not be written back to the value.
+    value: f64,
 }
 
 /// A numeric value that you can change by dragging the number. More compact than a [`crate::Slider`].
@@ -45,10 +65,15 @@ pub struct DragValue<'a> {
     custom_formatter: Option<NumFormatter<'a>>,
     custom_parser: Option<NumParser<'a>>,
     update_while_editing: bool,
+    classes: Classes,
+    min_size: Option<Vec2>,
 }
 
 impl<'a> DragValue<'a> {
     const ATOM_ID: &'static str = "drag_item";
+
+    /// Present on the [`Button`] and the [`TextEdit`] a drag value is built from.
+    pub const CLASS: ClassName = ClassName::from_static("egui::drag_value");
 
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
         let slf = Self::from_get_set(move |v: Option<f64>| {
@@ -79,7 +104,18 @@ impl<'a> DragValue<'a> {
             custom_formatter: None,
             custom_parser: None,
             update_while_editing: true,
+            classes: Classes::default().with_class(Self::CLASS),
+            min_size: None,
         }
+    }
+
+    /// The minimum size of the drag value, in both its dragged and its text-edited state.
+    ///
+    /// Defaults to [`crate::style::Spacing::interact_size`].
+    #[inline]
+    pub fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = Some(min_size);
+        self
     }
 
     /// How much the value changes when dragged one point (logical pixel).
@@ -431,6 +467,8 @@ impl Widget for DragValue<'_> {
             custom_formatter,
             custom_parser,
             update_while_editing,
+            classes,
+            min_size,
         } = self;
 
         let mut prefix_text = String::new();
@@ -466,7 +504,7 @@ impl Widget for DragValue<'_> {
             });
 
         if ui.memory_mut(|mem| mem.gained_focus(id)) {
-            ui.data_mut(|data| data.remove::<String>(id));
+            ui.data_mut(|data| data.remove::<EditState>(id));
         }
 
         let old_value = get(&mut get_set_value);
@@ -524,7 +562,7 @@ impl Widget for DragValue<'_> {
 
         if old_value != value {
             set(&mut get_set_value, value);
-            ui.data_mut(|data| data.remove::<String>(id));
+            ui.data_mut(|data| data.remove::<EditState>(id));
         }
 
         let value_text = match custom_formatter {
@@ -538,8 +576,13 @@ impl Widget for DragValue<'_> {
         let text_style = ui.style().drag_value_text_style.clone();
 
         if ui.memory(|mem| mem.lost_focus(id)) && !ui.input(|i| i.key_pressed(Key::Escape)) {
-            let value_text = ui.data_mut(|data| data.remove_temp::<String>(id));
-            if let Some(value_text) = value_text {
+            let edit_state = ui.data_mut(|data| data.remove_temp::<EditState>(id));
+            // Ignore the text if the value was changed by something else while we were editing it,
+            // or we would revert that change.
+            if let Some(value_text) = edit_state
+                .filter(|edit_state| edit_state.value == old_value)
+                .map(|edit_state| edit_state.text)
+            {
                 // We were editing the value as text last frame, but lost focus.
                 // Make sure we applied the last text value:
                 let parsed_value = parse(custom_parser.as_ref(), &value_text);
@@ -552,16 +595,18 @@ impl Widget for DragValue<'_> {
         }
 
         let mut response = if is_kb_editing {
+            // Keep editing the text from last frame, unless the value was changed by
+            // something else in the meantime, in which case the text is stale.
             let mut value_text = ui
-                .data_mut(|data| data.remove_temp::<String>(id))
-                .unwrap_or_else(|| value_text.clone());
+                .data_mut(|data| data.remove_temp::<EditState>(id))
+                .filter(|edit_state| edit_state.value == old_value)
+                .map_or_else(|| value_text.clone(), |edit_state| edit_state.text);
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
+                    .with_classes(classes)
                     .clip_text(false)
-                    .horizontal_align(ui.layout().horizontal_align())
-                    .vertical_align(ui.layout().vertical_align())
-                    .margin(ui.spacing().button_padding)
-                    .min_size(ui.spacing().interact_size)
+                    .align(ui.layout().align2())
+                    .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size))
                     .id(id)
                     .desired_width(
                         ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
@@ -589,7 +634,13 @@ impl Widget for DragValue<'_> {
                     set(&mut get_set_value, parsed_value);
                 }
             }
-            ui.data_mut(|data| data.insert_temp(id, value_text));
+            // Remember the value the text belongs to, so that next frame we can tell
+            // whether the value was changed by us or by something else.
+            let edit_state = EditState {
+                text: value_text,
+                value: get(&mut get_set_value),
+            };
+            ui.data_mut(|data| data.insert_temp(id, edit_state));
             response
         } else {
             atoms.map_atoms(|atom| {
@@ -602,10 +653,11 @@ impl Widget for DragValue<'_> {
                 }
             });
             let button = Button::new(atoms)
+                .with_classes(classes)
                 .wrap_mode(TextWrapMode::Extend)
                 .sense(Sense::click_and_drag())
                 .gap(0.0)
-                .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
+                .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size)); // TODO(emilk): find some more generic solution to `min_size`
 
             let cursor_icon = if value <= *range.start() {
                 CursorIcon::ResizeEast
@@ -631,7 +683,7 @@ impl Widget for DragValue<'_> {
             }
 
             if response.clicked() {
-                ui.data_mut(|data| data.remove::<String>(id));
+                ui.data_mut(|data| data.remove::<EditState>(id));
                 ui.memory_mut(|mem| mem.request_focus(id));
                 select_all_text(ui, id, response.id, &value_text);
             } else if response.dragged() {
@@ -773,6 +825,16 @@ fn select_all_text(ui: &Ui, widget_id: Id, response_id: Id, value_text: &str) {
     state.store(ui.ctx(), response_id);
 }
 
+impl HasClasses for DragValue<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::clamp_value_to_range;
@@ -780,7 +842,7 @@ mod tests {
     macro_rules! total_assert_eq {
         ($a:expr, $b:expr) => {
             assert!(
-                matches!($a.total_cmp(&$b), std::cmp::Ordering::Equal),
+                matches!($a.total_cmp(&$b), core::cmp::Ordering::Equal),
                 "{} != {}",
                 $a,
                 $b

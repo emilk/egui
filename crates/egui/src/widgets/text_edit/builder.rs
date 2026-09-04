@@ -5,9 +5,11 @@ use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
     Align, Align2, AsIdSalt, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context,
-    CursorIcon, Event, EventFilter, FontSelection, Frame, Id, IdSalt, ImeEvent, IntoAtoms,
-    IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense,
-    SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState, epaint,
+    CursorIcon, Event, EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent,
+    IntoAtoms, IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response,
+    Sense, SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState,
+    class::{ClassName, Classes, HasClasses},
+    epaint,
     os::OperatingSystem,
     output::OutputEvent,
     response,
@@ -16,6 +18,7 @@ use crate::{
         self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
     },
     vec2,
+    widget_style::TextEditStyle,
 };
 
 use super::{TextEditOutput, TextEditState};
@@ -78,7 +81,7 @@ pub struct TextEdit<'t> {
     layouter: Option<LayouterFn<'t>>,
     password: bool,
     frame: Option<Frame>,
-    margin: Margin,
+    margin: Option<Margin>,
     multiline: bool,
     interactive: bool,
     desired_width: Option<f32>,
@@ -86,11 +89,12 @@ pub struct TextEdit<'t> {
     event_filter: EventFilter,
     cursor_at_end: bool,
     min_size: Vec2,
-    align: Align2,
+    align: Option<Align2>,
     clip_text: bool,
     char_limit: usize,
     return_key: Option<KeyboardShortcut>,
     background_color: Option<Color32>,
+    classes: Classes,
 }
 
 impl WidgetWithState for TextEdit<'_> {
@@ -98,6 +102,9 @@ impl WidgetWithState for TextEdit<'_> {
 }
 
 impl TextEdit<'_> {
+    /// Present on a text edit whose buffer can't be edited.
+    pub const CLASS_READ_ONLY: ClassName = ClassName::from_static("egui::text_edit::read_only");
+
     pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
     }
@@ -132,7 +139,7 @@ impl<'t> TextEdit<'t> {
             layouter: None,
             password: false,
             frame: None,
-            margin: Margin::symmetric(4, 2),
+            margin: None,
             multiline: true,
             interactive: true,
             desired_width: None,
@@ -146,11 +153,12 @@ impl<'t> TextEdit<'t> {
             },
             cursor_at_end: true,
             min_size: Vec2::ZERO,
-            align: Align2::LEFT_TOP,
+            align: None,
             clip_text: false,
             char_limit: usize::MAX,
             return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
             background_color: None,
+            classes: Classes::default(),
         }
     }
 
@@ -307,10 +315,10 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Set margin of text. Default is `Margin::symmetric(4.0, 2.0)`
+    /// Override the padding around the text, which otherwise comes from the theme.
     #[inline]
     pub fn margin(mut self, margin: impl Into<Margin>) -> Self {
-        self.margin = margin.into();
+        self.margin = Some(margin.into());
         self
     }
 
@@ -374,17 +382,26 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Set the align of the inner text.
+    #[inline]
+    pub fn align(mut self, align: Align2) -> Self {
+        self.align = Some(align);
+        self
+    }
+
     /// Set the horizontal align of the inner text.
+    #[deprecated = "Use `align` instead"]
     #[inline]
     pub fn horizontal_align(mut self, align: Align) -> Self {
-        self.align.0[0] = align;
+        self.align.get_or_insert(Align2::LEFT_TOP).set_x(align);
         self
     }
 
     /// Set the vertical align of the inner text.
+    #[deprecated = "Use `align` instead"]
     #[inline]
     pub fn vertical_align(mut self, align: Align) -> Self {
-        self.align.0[1] = align;
+        self.align.get_or_insert(Align2::LEFT_TOP).set_y(align);
         self
     }
 
@@ -413,6 +430,16 @@ impl<'t> TextEdit<'t> {
 impl Widget for TextEdit<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.show(ui).response.response
+    }
+}
+
+impl HasClasses for TextEdit<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }
 
@@ -458,42 +485,8 @@ impl TextEdit<'_> {
             char_limit,
             return_key,
             background_color,
+            mut classes,
         } = self;
-
-        let text_color = text_color
-            .or_else(|| ui.visuals().override_text_color)
-            // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
-            .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
-
-        let prev_text = text.as_str().to_owned();
-        let hint_text_str = hint_text.text().unwrap_or_default().to_string();
-
-        let font_id = font_selection.resolve(ui.style());
-        let row_height = ui.fonts_mut(|f| f.row_height(&font_id));
-        const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
-        let available_width = ui.available_width().at_least(MIN_WIDTH);
-        let desired_width = desired_width
-            .unwrap_or_else(|| ui.spacing().text_edit_width)
-            .at_least(min_size.x);
-        let allocate_width = desired_width.at_most(available_width);
-
-        let font_id_clone = font_id.clone();
-        let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
-            let text = mask_if_password(password, text.as_str());
-            let mut layout_job = if multiline {
-                LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
-            } else {
-                LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
-            };
-            layout_job.halign = align.x();
-            // We want to keep the trailing whitespace, since hiding it feels really weird when typing
-            layout_job.keep_trailing_whitespace = true;
-            ui.fonts_mut(|f| f.layout_job(layout_job))
-        };
-
-        let layouter = layouter.unwrap_or(&mut default_layouter);
-
-        let min_inner_height = (desired_height_rows.at_least(1) as f32) * row_height;
 
         let id = id.unwrap_or_else(|| {
             if let Some(id_salt) = id_salt {
@@ -505,6 +498,65 @@ impl TextEdit<'_> {
                 id
             }
         });
+
+        classes.add_class_if(Self::CLASS_READ_ONLY, !text.is_mutable());
+        let TextEditStyle {
+            atom_layout: mut atom_layout_style,
+            hint_text_color,
+            prefix_suffix_color,
+        } = ui.widget_style(id, &classes);
+
+        // The theme sets a floor on the size; the builder's own `min_size` can only raise it,
+        // the same way it does for a button.
+        let min_size = min_size.at_least(atom_layout_style.min_size);
+
+        let align = align
+            .or(atom_layout_style.align2)
+            .unwrap_or_else(|| ui.layout().align2());
+
+        let text_color = text_color
+            .or_else(|| ui.visuals().override_text_color)
+            .unwrap_or(atom_layout_style.text_style.color);
+
+        let prev_text = text.as_str().to_owned();
+        let hint_text_str = hint_text.text().unwrap_or_default().to_string();
+
+        let font_id = match font_selection {
+            FontSelection::Default => atom_layout_style.text_style.font_id.clone(),
+            font_selection => font_selection.resolve(ui.style()),
+        };
+        let row_height = ui.fonts_mut(|f| f.row_height(&font_id));
+        let line_height = row_height + ui.spacing().extra_text_line_spacing;
+
+        const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
+        let available_width = ui.available_width().at_least(MIN_WIDTH);
+        let desired_width = desired_width
+            .unwrap_or_else(|| ui.spacing().text_edit_width)
+            .at_least(min_size.x);
+        // `min_size` overrides available width
+        let allocate_width = desired_width.at_most(available_width).at_least(min_size.x);
+
+        let mut default_layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
+            let text = mask_if_password(password, text.as_str());
+            let mut layout_job = if multiline {
+                LayoutJob::simple(text, font_id.clone(), text_color, wrap_width)
+            } else {
+                LayoutJob::simple_singleline(text, font_id.clone(), text_color)
+            };
+            layout_job.halign = align.x();
+            // We want to keep the trailing whitespace, since hiding it feels really weird when typing
+            layout_job.keep_trailing_whitespace = true;
+
+            for section in &mut layout_job.sections {
+                section.format.line_height = Some(line_height);
+            }
+
+            ui.fonts_mut(|f| f.layout_job(layout_job))
+        };
+
+        let layouter = layouter.unwrap_or(&mut default_layouter);
+
+        let min_inner_height = (desired_height_rows.at_least(1) as f32) * line_height;
 
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
@@ -527,8 +579,20 @@ impl TextEdit<'_> {
         let mut cursor_range = None;
         let mut prev_cursor_range = None;
 
+        let owns_ime_events = ui.memory(|mem| mem.owns_ime_events(id));
+        if !owns_ime_events {
+            state.cursor_purpose = TextEditCursorPurpose::Selection;
+            if !state.cursor.is_empty() {
+                state.cursor.set_char_range(
+                    state
+                        .cursor
+                        .char_range()
+                        .map(|r| CCursorRange::one(r.primary)),
+                );
+            }
+        }
+
         let mut text_changed = false;
-        let text_mutable = text.is_mutable();
 
         let mut handle_events = |ui: &Ui, galley: &mut Arc<Galley>, layouter, wrap_width, text| {
             if interactive && ui.memory(|mem| mem.has_focus(id)) {
@@ -547,14 +611,17 @@ impl TextEdit<'_> {
                     text,
                     galley,
                     layouter,
-                    id,
-                    wrap_width,
-                    multiline,
-                    password,
-                    default_cursor_range,
-                    char_limit,
-                    event_filter,
-                    return_key,
+                    &EventsOptions {
+                        id,
+                        wrap_width,
+                        multiline,
+                        password,
+                        default_cursor_range,
+                        owns_ime_events,
+                        char_limit,
+                        event_filter,
+                        return_key,
+                    },
                 );
 
                 if changed {
@@ -567,6 +634,18 @@ impl TextEdit<'_> {
         // We need to calculate the galley within the atom closure, so we can calculate it based on
         // the available width (in case of wrapping multiline text edits). But we show it later,
         // so we can clip it to the available size. Thus, extract it from the atom closure here.
+        if let Some(frame) = frame {
+            atom_layout_style.frame = frame;
+        } else {
+            if let Some(margin) = margin {
+                atom_layout_style.frame.inner_margin = margin;
+            }
+            if let Some(background_color) = background_color {
+                atom_layout_style.frame.fill = background_color;
+            }
+        }
+        let frame = atom_layout_style.frame;
+
         let mut get_galley = None;
         let inner_rect_id = Id::new("text_edit_rect");
         let mut response = {
@@ -588,7 +667,7 @@ impl TextEdit<'_> {
 
                 // Since we can't set a fallback color per atom, we have to override it here.
                 // Sucks, since it means users won't be able to override it.
-                hint_text.map_texts(|t| t.color(ui.style().visuals.weak_text_color()));
+                hint_text.map_texts(|t| t.color(hint_text_color));
 
                 for mut atom in hint_text {
                     if !shrunk && matches!(atom.kind, AtomKind::Text(_)) {
@@ -605,14 +684,15 @@ impl TextEdit<'_> {
                         first = false;
                     }
 
-                    // The hint text should be shown left top instead of centered (important for
-                    // multi line text edits)
-                    atoms.push_right(atom.atom_align(Align2::LEFT_TOP));
+                    // Align the hint text the same as the input text so the hint, the
+                    // cursor, and the typed text all share one alignment. The default
+                    // `align` is `LEFT_TOP`, which keeps multi line text edits unchanged.
+                    atoms.push_right(atom.atom_align(align));
                 }
 
                 // Calculate the empty galley, so it can be read later. The available width is
                 // technically wrong, but doesn't matter since the galley is empty
-                let available_width = allocate_width - margin.sum().x;
+                let available_width = allocate_width - frame.total_margin().sum().x;
                 let galley = layouter(ui, text, available_width);
 
                 // We can't update the galley immediately here, since it would show both hint text
@@ -655,7 +735,7 @@ impl TextEdit<'_> {
                         }
                     })
                     .atom_grow(true)
-                    .atom_align(self.align)
+                    .atom_align(align)
                     .atom_id(inner_rect_id)
                     .atom_shrink(should_shrink),
                 );
@@ -667,10 +747,7 @@ impl TextEdit<'_> {
                 atoms.push_right(atom);
             }
 
-            let custom_frame = frame.is_some();
-            let frame = frame.unwrap_or_else(|| Frame::new().inner_margin(margin));
-
-            let min_height = min_inner_height + frame.total_margin().sum().y;
+            let min_height = (min_inner_height + frame.total_margin().sum().y).at_least(min_size.y);
 
             // This wrap mode only affects the hint_text
             let wrap_mode = if multiline {
@@ -679,52 +756,18 @@ impl TextEdit<'_> {
                 TextWrapMode::Truncate
             };
 
-            let mut allocated = AtomLayout::new(atoms)
+            let allocated = atom_layout_style
+                .apply(AtomLayout::new(atoms))
+                // The text being edited gets its color from the layouter, so the only atoms
+                // left to color are the prefix and the suffix.
+                .fallback_text_color(prefix_suffix_color)
                 .id(id)
-                .min_size(Vec2::new(allocate_width, min_height))
+                .min_size(Vec2::new(allocate_width, min_height.at_least(min_size.y)))
                 .max_width(allocate_width)
                 .sense(sense)
-                .frame(frame)
                 .align2(align)
                 .wrap_mode(wrap_mode)
                 .allocate(ui);
-
-            allocated.frame = if custom_frame {
-                allocated.frame
-            } else {
-                let visuals = ui.style().interact(&allocated.response);
-                let background_color =
-                    background_color.unwrap_or_else(|| ui.visuals().text_edit_bg_color());
-
-                let (corner_radius, background_color, stroke) = if text_mutable {
-                    if allocated.response.has_focus() {
-                        (
-                            visuals.corner_radius,
-                            background_color,
-                            ui.visuals().selection.stroke,
-                        )
-                    } else {
-                        (visuals.corner_radius, background_color, visuals.bg_stroke)
-                    }
-                } else {
-                    let visuals = &ui.style().visuals.widgets.inactive;
-                    (
-                        visuals.corner_radius,
-                        Color32::TRANSPARENT,
-                        visuals.bg_stroke,
-                    )
-                };
-                allocated
-                    .frame
-                    .fill(background_color)
-                    .corner_radius(corner_radius)
-                    .inner_margin(
-                        allocated.frame.inner_margin
-                            + Margin::same((visuals.expansion - stroke.width).round() as i8),
-                    )
-                    .outer_margin(Margin::same(-(visuals.expansion as i8)))
-                    .stroke(stroke)
-            };
 
             allocated.paint(ui)
         };
@@ -772,6 +815,7 @@ impl TextEdit<'_> {
 
             if did_interact || response.clicked() {
                 ui.memory_mut(|mem| mem.request_focus(response.id));
+                state.cursor_purpose = TextEditCursorPurpose::Selection;
 
                 state.last_interaction_time = ui.input(|i| i.time);
             }
@@ -907,6 +951,11 @@ impl TextEdit<'_> {
                             .unwrap_or_default();
                         ui.output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
+                                purpose: if password {
+                                    IMEPurpose::Password
+                                } else {
+                                    IMEPurpose::Normal
+                                },
                                 rect: to_global * inner_rect,
                                 cursor_rect: to_global * primary_cursor_rect,
                                 should_interrupt_composition: false,
@@ -977,7 +1026,7 @@ impl TextEdit<'_> {
 
 fn mask_if_password(is_password: bool, text: &str) -> String {
     fn mask_password(text: &str) -> String {
-        std::iter::repeat_n(
+        core::iter::repeat_n(
             epaint::text::PASSWORD_REPLACEMENT_CHAR,
             text.chars().count(),
         )
@@ -993,23 +1042,41 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 
 // ----------------------------------------------------------------------------
 
+/// Bundles parameters for [`events`] to avoid `clippy::too_many_arguments` and
+/// `clippy::fn_params_excessive_bools`.
+struct EventsOptions {
+    id: Id,
+    wrap_width: f32,
+    multiline: bool,
+    password: bool,
+    default_cursor_range: CCursorRange,
+    owns_ime_events: bool,
+    char_limit: usize,
+    event_filter: EventFilter,
+    return_key: Option<KeyboardShortcut>,
+}
+
 /// Check for (keyboard) events to edit the cursor and/or text.
-#[expect(clippy::too_many_arguments)]
 fn events(
     ui: &crate::Ui,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
     layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
-    id: Id,
-    wrap_width: f32,
-    multiline: bool,
-    password: bool,
-    default_cursor_range: CCursorRange,
-    char_limit: usize,
-    event_filter: EventFilter,
-    return_key: Option<KeyboardShortcut>,
+    opts: &EventsOptions,
 ) -> (bool, CCursorRange) {
+    let EventsOptions {
+        id,
+        wrap_width,
+        multiline,
+        password,
+        default_cursor_range,
+        owns_ime_events,
+        char_limit,
+        event_filter,
+        return_key,
+    } = *opts;
+
     let os = ui.os();
 
     let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
@@ -1031,9 +1098,13 @@ fn events(
 
     let events = ui.input(|i| i.filtered_events(&event_filter));
 
-    let owns_ime_events = ui.memory(|mem| mem.owns_ime_events(id));
-    if !owns_ime_events {
-        state.cursor_purpose = TextEditCursorPurpose::Selection;
+    enum CursorMutation {
+        Selection(CCursorRange),
+        ImeComposition {
+            cursor_range: CCursorRange,
+            active_range: Option<core::ops::Range<CCursor>>,
+        },
+        ImeCompositionCursorRange(CCursorRange),
     }
 
     for event in &events {
@@ -1052,7 +1123,9 @@ fn events(
                     None
                 } else {
                     copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
-                    Some(CCursorRange::one(text.delete_selected(&cursor_range)))
+                    Some(CursorMutation::Selection(CCursorRange::one(
+                        text.delete_selected(&cursor_range),
+                    )))
                 }
             }
             Event::Paste(text_to_insert) => {
@@ -1067,7 +1140,7 @@ fn events(
                         text.insert_text_at(&mut ccursor, &single_line, char_limit);
                     }
 
-                    Some(CCursorRange::one(ccursor))
+                    Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
                 }
             }
             Event::Text(text_to_insert) => {
@@ -1077,7 +1150,7 @@ fn events(
 
                     text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
 
-                    Some(CCursorRange::one(ccursor))
+                    Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
                 } else {
                     None
                 }
@@ -1095,7 +1168,7 @@ fn events(
                 } else {
                     text.insert_text_at(&mut ccursor, "\t", char_limit);
                 }
-                Some(CCursorRange::one(ccursor))
+                Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
             }
             Event::Key {
                 key,
@@ -1110,7 +1183,7 @@ fn events(
                     let mut ccursor = text.delete_selected(&cursor_range);
                     text.insert_text_at(&mut ccursor, "\n", char_limit);
                     // TODO(emilk): if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
-                    Some(CCursorRange::one(ccursor))
+                    Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
                 } else {
                     ui.memory_mut(|mem| mem.surrender_focus(id)); // End input with enter
                     break;
@@ -1132,7 +1205,7 @@ fn events(
                     .redo(&(cursor_range, text.as_str().to_owned()))
                 {
                     text.replace_with(redo_txt);
-                    Some(*redo_ccursor_range)
+                    Some(CursorMutation::Selection(*redo_ccursor_range))
                 } else {
                     None
                 }
@@ -1150,7 +1223,7 @@ fn events(
                     .undo(&(cursor_range, text.as_str().to_owned()))
                 {
                     text.replace_with(undo_txt);
-                    Some(*undo_ccursor_range)
+                    Some(CursorMutation::Selection(*undo_ccursor_range))
                 } else {
                     None
                 }
@@ -1161,8 +1234,8 @@ fn events(
                 key,
                 pressed: true,
                 ..
-            } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
-
+            } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key)
+                .map(CursorMutation::Selection),
             Event::Ime(ime_event) if owns_ime_events => {
                 /// Both `ImeEvent::Preedit("")` and `ImeEvent::Commit("")`
                 /// might be emitted from different integrations to signify that
@@ -1235,22 +1308,20 @@ fn events(
                         text: preedit_text,
                         active_range_chars,
                     } => {
-                        state.cursor_purpose = if preedit_text.is_empty() {
-                            TextEditCursorPurpose::Selection
+                        let mut ccursor = clear_preedit_text(text, &cursor_range);
+
+                        if preedit_text.is_empty() {
+                            Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
                         } else {
-                            TextEditCursorPurpose::ImeComposition {
+                            let start_cursor = ccursor;
+                            text.insert_text_at(&mut ccursor, preedit_text, char_limit);
+                            Some(CursorMutation::ImeComposition {
+                                cursor_range: CCursorRange::two(start_cursor, ccursor),
                                 active_range: active_range_chars.clone().map(|range| {
                                     CCursor::new(range.start)..CCursor::new(range.end)
                                 }),
-                            }
-                        };
-                        let mut ccursor = clear_preedit_text(text, &cursor_range);
-
-                        let start_cursor = ccursor;
-                        if !preedit_text.is_empty() {
-                            text.insert_text_at(&mut ccursor, preedit_text, char_limit);
+                            })
                         }
-                        Some(CCursorRange::two(start_cursor, ccursor))
                     }
                     ImeEvent::Commit(commit_text) => {
                         state.cursor_purpose = TextEditCursorPurpose::Selection;
@@ -1260,22 +1331,43 @@ fn events(
                             text.insert_text_at(&mut ccursor, commit_text, char_limit);
                         }
 
-                        Some(CCursorRange::one(ccursor))
+                        Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
                     }
+                    ImeEvent::DeleteSurrounding {
+                        before_chars,
+                        after_chars,
+                    } => Some(CursorMutation::ImeCompositionCursorRange(
+                        text.delete_surrounding_chars(cursor_range, *before_chars, *after_chars),
+                    )),
                 }
             }
 
             _ => None,
         };
 
-        if let Some(new_ccursor_range) = did_mutate_text {
+        if let Some(cursor_mutation) = did_mutate_text {
             any_change = true;
 
             // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
             *galley = layouter(ui, text, wrap_width);
 
             // Set cursor_range using new galley:
-            cursor_range = new_ccursor_range;
+            match cursor_mutation {
+                CursorMutation::Selection(new_cursor_range) => {
+                    cursor_range = new_cursor_range;
+                    state.cursor_purpose = TextEditCursorPurpose::Selection;
+                }
+                CursorMutation::ImeComposition {
+                    cursor_range: new_cursor_range,
+                    active_range,
+                } => {
+                    cursor_range = new_cursor_range;
+                    state.cursor_purpose = TextEditCursorPurpose::ImeComposition { active_range };
+                }
+                CursorMutation::ImeCompositionCursorRange(new_cursor_range) => {
+                    cursor_range = new_cursor_range;
+                }
+            }
         }
     }
 

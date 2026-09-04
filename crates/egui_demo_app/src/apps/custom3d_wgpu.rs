@@ -1,6 +1,6 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
-use std::num::NonZeroU64;
+use core::num::NonZeroU64;
 
 use eframe::{
     egui_wgpu::wgpu::util::DeviceExt as _,

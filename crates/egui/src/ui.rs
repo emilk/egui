@@ -1,11 +1,12 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![expect(clippy::use_self)]
 
-use std::{any::Any, ops::Deref, sync::Arc};
+use core::{any::Any, ops::Deref};
+use std::sync::Arc;
 
 use crate::containers::menu;
-use crate::widget_style::{HasClasses as _, ROOT_CLASS};
 use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
+use crate::{class, class::HasClasses as _};
 use emath::GuiRounding as _;
 
 // ----------------------------------------------------------------------------
@@ -134,7 +135,7 @@ impl Ui {
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
-        let classes = classes.with_class(ROOT_CLASS);
+        let classes = classes.with_class(class::ROOT);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -1984,7 +1985,7 @@ impl Ui {
     /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
     /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
     pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
-        use std::f32::consts::TAU;
+        use core::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
         let mut response = self.add(DragValue::new(&mut taus).speed(0.01).suffix("τ"));
@@ -2599,7 +2600,7 @@ impl Ui {
         let column_width = (self.available_width() - total_spacing) / (NUM_COL as f32);
         let top_left = self.cursor().min;
 
-        let mut columns = std::array::from_fn(|col_idx| {
+        let mut columns = core::array::from_fn(|col_idx| {
             let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
             let child_rect = Rect::from_min_max(
                 pos,

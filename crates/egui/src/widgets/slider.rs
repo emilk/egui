@@ -1,6 +1,6 @@
 #![expect(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use std::ops::RangeInclusive;
+use core::ops::RangeInclusive;
 
 use crate::{
     Color32, DragValue, EventFilter, Key, Label, MINUS_CHAR_STR, NumExt as _, Pos2, Rangef, Rect,
@@ -860,7 +860,7 @@ impl Slider<'_> {
             SliderOrientation::Horizontal => rect.x_range().shrink(handle_radius),
             // The vertical case has to be flipped because the largest slider value maps to the
             // lowest y value (which is at the top)
-            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius).flip(),
+            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius).flipped(),
         }
     }
 

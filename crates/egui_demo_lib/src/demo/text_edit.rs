@@ -75,13 +75,12 @@ impl crate::View for TextEditDemo {
         let output = egui::TextEdit::multiline(text)
             .hint_text("Type something!")
             // Atoms are centered by default, so we need to pass the right align here:
-            .prefix("🔎".atom_align(Align2([Align::LEFT, *valign])))
+            .prefix("🔎".atom_align(Align2::new(Align::LEFT, *valign)))
             .suffix(
                 egui::Atom::custom(clear_id, clear_size)
-                    .atom_align(Align2([Align::RIGHT, *valign])),
+                    .atom_align(Align2::new(Align::RIGHT, *valign)),
             )
-            .horizontal_align(*halign)
-            .vertical_align(*valign)
+            .align(Align2::new(*halign, *valign))
             .show(ui);
 
         if let Some(rect) = output.response.rect(clear_id)

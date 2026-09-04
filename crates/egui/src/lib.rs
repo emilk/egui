@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.92.0 or later to use `egui`.
+//! You need to have rust 1.95.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -417,19 +417,27 @@ pub mod response;
 mod sense;
 pub mod style;
 pub mod text_selection;
+#[cfg(feature = "experimental")]
+pub mod theme;
+#[cfg(not(feature = "experimental"))]
+mod theme;
 mod ui;
 mod ui_builder;
 mod ui_stack;
 pub mod util;
 pub mod viewport;
 mod widget_rect;
+#[cfg(feature = "experimental")]
 pub mod widget_style;
+#[cfg(not(feature = "experimental"))]
+mod widget_style;
 pub mod widget_text;
 pub mod widgets;
 
 #[cfg(feature = "callstack")]
 #[cfg(debug_assertions)]
 mod callstack;
+pub mod class;
 
 pub use accesskit;
 
@@ -467,7 +475,7 @@ pub use self::{
         Key, UserData,
         input::*,
         output::{
-            self, CursorIcon, CustomCursorImage, FullOutput, OpenUrl, OutputCommand,
+            self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
             PlatformOutput, UserAttentionType, WidgetInfo,
         },
     },
@@ -673,18 +681,20 @@ pub enum WidgetType {
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run_ui(Default::default(), |ui| {
+    let output = ctx.run_ui(Default::default(), |ui| {
         run_ui(ui.ctx());
     });
+    output.drop_without_applying_deltas();
 }
 
 /// For use in tests; especially doctests.
 pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run_ui(Default::default(), |ui| {
+    let output = ctx.run_ui(Default::default(), |ui| {
         add_contents(ui);
     });
+    output.drop_without_applying_deltas();
 }
 
 pub fn accesskit_root_id() -> Id {

@@ -21,12 +21,15 @@ use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId
 pub use winit;
 
 pub mod clipboard;
+mod dropped_file;
 mod safe_area;
 mod window_settings;
 
 pub use window_settings::WindowSettings;
 
 use raw_window_handle::HasDisplayHandle;
+
+use dropped_file::NativeFile;
 
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -84,6 +87,13 @@ pub struct State {
     viewport_id: ViewportId,
     start_time: web_time::Instant,
     egui_input: egui::RawInput,
+
+    /// The current modifier state.
+    ///
+    /// We keep a copy so we can stamp
+    /// it onto per-event `modifiers` fields and emit [`egui::Event::ModifiersChanged`].
+    modifiers: egui::Modifiers,
+
     pointer_pos_in_points: Option<egui::Pos2>,
     any_pointer_button_down: bool,
     current_cursor_icon: Option<egui::CursorIcon>,
@@ -114,6 +124,7 @@ pub struct State {
 
     allow_ime: bool,
     ime_rect_px: Option<egui::Rect>,
+    old_ime_purpose: egui::IMEPurpose,
 
     /// Used by [`State::try_on_ime_processed_keyboard_input`] to track key
     /// release events that should be filtered out. See comments in that method
@@ -146,6 +157,7 @@ impl State {
                 .unwrap_or_else(web_time::Instant::now),
             egui_ctx,
             egui_input,
+            modifiers: egui::Modifiers::default(),
             pointer_pos_in_points: None,
             any_pointer_button_down: false,
             current_cursor_icon: None,
@@ -163,6 +175,7 @@ impl State {
 
             allow_ime: false,
             ime_rect_px: None,
+            old_ime_purpose: egui::IMEPurpose::Normal,
             #[cfg(target_os = "windows")]
             pressed_processed_physical_keys: HashSet::new(),
         };
@@ -205,6 +218,12 @@ impl State {
     /// Fetches text from the clipboard and returns it.
     pub fn clipboard_text(&mut self) -> Option<String> {
         self.clipboard.get()
+    }
+
+    /// Fetches an image from the clipboard and returns it, if there is one and the platform
+    /// backend supports it. Mirrors [`Self::clipboard_text`] for images.
+    pub fn clipboard_image(&mut self) -> Option<egui::ColorImage> {
+        self.clipboard.get_image()
     }
 
     /// Places the text onto the clipboard.
@@ -422,6 +441,10 @@ impl State {
                 };
 
                 self.egui_input.focused = focused;
+                if !focused {
+                    // Avoid sticky modifiers when focus is lost (egui clears its own copy too).
+                    self.modifiers = egui::Modifiers::default();
+                }
                 self.egui_input
                     .events
                     .push(egui::Event::WindowFocused(focused));
@@ -456,10 +479,9 @@ impl State {
             }
             WindowEvent::DroppedFile(path) => {
                 self.egui_input.hovered_files.clear();
-                self.egui_input.dropped_files.push(egui::DroppedFile {
-                    path: Some(path.clone()),
-                    ..Default::default()
-                });
+                self.egui_input
+                    .dropped_files
+                    .push(std::sync::Arc::new(NativeFile::from(path.clone())));
                 EventResponse {
                     repaint: true,
                     consumed: false,
@@ -473,15 +495,19 @@ impl State {
                 let shift = state.shift_key();
                 let super_ = state.super_key();
 
-                self.egui_input.modifiers.alt = alt;
-                self.egui_input.modifiers.ctrl = ctrl;
-                self.egui_input.modifiers.shift = shift;
-                self.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
-                self.egui_input.modifiers.command = if cfg!(target_os = "macos") {
+                self.modifiers.alt = alt;
+                self.modifiers.ctrl = ctrl;
+                self.modifiers.shift = shift;
+                self.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
+                self.modifiers.command = if cfg!(target_os = "macos") {
                     super_
                 } else {
                     ctrl
                 };
+
+                self.egui_input
+                    .events
+                    .push(egui::Event::ModifiersChanged(self.modifiers));
 
                 EventResponse {
                     repaint: true,
@@ -541,7 +567,7 @@ impl State {
                     unit: egui::MouseWheelUnit::Point,
                     delta: Vec2::new(delta.x, delta.y) / pixels_per_point,
                     phase: to_egui_touch_phase(*phase),
-                    modifiers: self.egui_input.modifiers,
+                    modifiers: self.modifiers,
                 });
                 EventResponse {
                     repaint: true,
@@ -790,7 +816,7 @@ impl State {
                 pos,
                 button,
                 pressed,
-                modifiers: self.egui_input.modifiers,
+                modifiers: self.modifiers,
             });
 
             if self.simulate_touch_screen {
@@ -937,7 +963,7 @@ impl State {
                 ),
             };
             let phase = to_egui_touch_phase(phase);
-            let modifiers = self.egui_input.modifiers;
+            let modifiers = self.modifiers;
             self.egui_input.events.push(egui::Event::MouseWheel {
                 unit,
                 delta,
@@ -998,18 +1024,26 @@ impl State {
         // See also: https://github.com/emilk/egui/issues/3653
         if let Some(active_key) = logical_key.or(physical_key) {
             if pressed {
-                if is_cut_command(self.egui_input.modifiers, active_key) {
+                if is_cut_command(self.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Cut);
                     return;
-                } else if is_copy_command(self.egui_input.modifiers, active_key) {
+                } else if is_copy_command(self.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Copy);
                     return;
-                } else if is_paste_command(self.egui_input.modifiers, active_key) {
+                } else if is_paste_command(self.modifiers, active_key) {
                     if let Some(contents) = self.clipboard.get() {
                         let contents = contents.replace("\r\n", "\n");
                         if !contents.is_empty() {
                             self.egui_input.events.push(egui::Event::Paste(contents));
                         }
+                    } else if let Some(image) = self.clipboard.get_image() {
+                        // No usable text on the clipboard (e.g. an image was copied with
+                        // mspaint/Snipping Tool, which never puts a text representation
+                        // alongside it) — fall back to an image paste rather than doing
+                        // nothing, mirroring `Event::Copy`/`OutputCommand::CopyImage`.
+                        self.egui_input
+                            .events
+                            .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
                     }
                     return;
                 }
@@ -1020,7 +1054,7 @@ impl State {
                 physical_key,
                 pressed,
                 repeat: false, // egui will fill this in for us!
-                modifiers: self.egui_input.modifiers,
+                modifiers: self.modifiers,
             });
         }
 
@@ -1036,9 +1070,8 @@ impl State {
                 // We need to ignore these characters that are side-effects of commands.
                 // Also make sure the key is pressed (not released). On Linux, text might
                 // contain some data even when the key is released.
-                let is_cmd = self.egui_input.modifiers.ctrl
-                    || self.egui_input.modifiers.command
-                    || self.egui_input.modifiers.mac_cmd;
+                let is_cmd =
+                    self.modifiers.ctrl || self.modifiers.command || self.modifiers.mac_cmd;
                 if pressed && !is_cmd {
                     self.egui_input
                         .events
@@ -1141,6 +1174,11 @@ impl State {
 
                 window.set_ime_allowed(false);
                 window.set_ime_allowed(true);
+            }
+
+            if ime.purpose != self.old_ime_purpose {
+                self.old_ime_purpose = ime.purpose;
+                window.set_ime_purpose(to_winit_ime_purpose(ime.purpose));
             }
 
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
@@ -1843,7 +1881,9 @@ fn process_viewport_command(
             #[cfg(target_os = "windows")]
             {
                 use winit::platform::windows::WindowExtWindows as _;
-                window.set_undecorated_shadow(!v);
+
+                // don't request the undecorated-window drop shadow in fullscreen (#8399)
+                window.set_undecorated_shadow(!v && window.fullscreen().is_none());
             }
         }
         ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
@@ -1865,11 +1905,7 @@ fn process_viewport_command(
             );
         }
         ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
-        ViewportCommand::IMEPurpose(p) => window.set_ime_purpose(match p {
-            egui::viewport::IMEPurpose::Password => winit::window::ImePurpose::Password,
-            egui::viewport::IMEPurpose::Terminal => winit::window::ImePurpose::Terminal,
-            egui::viewport::IMEPurpose::Normal => winit::window::ImePurpose::Normal,
-        }),
+        ViewportCommand::IMEPurpose(p) => window.set_ime_purpose(to_winit_ime_purpose(p)),
         ViewportCommand::Focus => {
             if !window.has_focus() {
                 window.focus_window();
@@ -1930,6 +1966,14 @@ fn process_viewport_command(
     }
 }
 
+fn to_winit_ime_purpose(purpose: egui::IMEPurpose) -> winit::window::ImePurpose {
+    match purpose {
+        egui::IMEPurpose::Password => winit::window::ImePurpose::Password,
+        egui::IMEPurpose::Terminal => winit::window::ImePurpose::Terminal,
+        egui::IMEPurpose::Normal => winit::window::ImePurpose::Normal,
+    }
+}
+
 /// Build and intitlaize a window.
 ///
 /// Wrapper around `create_winit_window_builder` and `apply_viewport_builder_to_window`.
@@ -1943,12 +1987,33 @@ pub fn create_window(
 ) -> Result<Window, winit::error::OsError> {
     profiling::function_scope!();
 
-    let mut window_attributes = create_winit_window_attributes(egui_ctx, viewport_builder.clone());
+    let window_attributes = apply_monitor_to_window_attributes(
+        create_winit_window_attributes(egui_ctx, viewport_builder.clone()),
+        viewport_builder,
+        event_loop,
+    );
 
-    // Resolve target monitor index → MonitorHandle, so the window is created
-    // directly in borderless fullscreen on the requested output. This is the
-    // only reliable way to target a specific monitor under Wayland, and also
-    // avoids the Mutter race where OuterPosition is ignored pre-mapping.
+    let window = event_loop.create_window(window_attributes)?;
+    apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
+    Ok(window)
+}
+
+/// Apply [`ViewportBuilder::with_monitor`] to freshly-built [`winit::window::WindowAttributes`].
+///
+/// Resolve the target monitor index → `MonitorHandle` and request borderless
+/// fullscreen on that output, so the window is created directly on the right
+/// monitor. This is the only reliable way to target a specific monitor under
+/// Wayland, and also avoids the Mutter race where `OuterPosition` is ignored
+/// pre-mapping.
+///
+/// Must be called by every backend that builds its own window from
+/// [`create_winit_window_attributes`] (the glow backend and per-viewport window
+/// creation do this) — otherwise `with_monitor` silently does nothing there.
+pub fn apply_monitor_to_window_attributes(
+    mut window_attributes: winit::window::WindowAttributes,
+    viewport_builder: &ViewportBuilder,
+    event_loop: &ActiveEventLoop,
+) -> winit::window::WindowAttributes {
     if let Some(idx) = viewport_builder.monitor {
         if let Some(monitor) = event_loop.available_monitors().nth(idx) {
             window_attributes = window_attributes
@@ -1960,10 +2025,7 @@ pub fn create_window(
             );
         }
     }
-
-    let window = event_loop.create_window(window_attributes)?;
-    apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
-    Ok(window)
+    window_attributes
 }
 
 pub fn create_winit_window_attributes(
@@ -2143,7 +2205,10 @@ pub fn create_winit_window_attributes(
         if let Some(show) = _taskbar {
             window_attributes = window_attributes.with_skip_taskbar(!show);
         }
-        window_attributes = window_attributes.with_undecorated_shadow(!decorations.unwrap_or(true));
+
+        // don't request the undecorated-window drop shadow in fullscreen (#8399)
+        let want_undecorated_shadow = !decorations.unwrap_or(true) && !fullscreen.unwrap_or(false);
+        window_attributes = window_attributes.with_undecorated_shadow(want_undecorated_shadow);
     }
 
     #[cfg(target_os = "macos")]

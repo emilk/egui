@@ -14,6 +14,66 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.1 - 2026-08-07
+* Fix `Sense::drag` detecting drags when clicking widget above it [#8396](https://github.com/emilk/egui/pull/8396) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.36.0 - 2026-08-05
+
+### Highlights ✨
+
+This release drastically improves the mobile keyboard experience (when using eframe web). It also adds drag-to-open 
+panels, window chrome theme sync and a lot of small bug fixes and improvements! 
+
+#### Improved mobile keyboard support
+
+Autocomplete, autocorrect and IMEs now work correctly on iOS and android (on eframe web)!
+
+https://github.com/user-attachments/assets/b0aa1084-0755-4e47-a0b3-0ce6890aca85
+
+- via [#8045](https://github.com/emilk/egui/pull/8045) by [@umajho](https://github.com/umajho) (and [@rustbasic](https://github.com/rustbasic) who helped a lot with testing)
+
+#### Drag to reopen panels
+
+You can now reopen closed panels by dragging the handle:
+
+https://github.com/user-attachments/assets/e02895c4-248e-4e22-9694-bdfcd9839bfd
+
+#### Window decoration theme is now synced with app theme
+
+Previously, when switching themes, the window chrome (OS titlebar) stayed in the OS theme. Now, it syncs with the app theme:
+
+https://github.com/user-attachments/assets/6b393057-fdfc-431b-b997-744bc183a8ac
+
+
+### ⭐ Added
+* Add `BoxedWidget`: dynamically dispatched widgets [#8378](https://github.com/emilk/egui/pull/8378) by [@emilk](https://github.com/emilk)
+* Add `WidgetText::size` [#8377](https://github.com/emilk/egui/pull/8377) by [@emilk](https://github.com/emilk)
+* Add `LayoutJob::clear` [#8376](https://github.com/emilk/egui/pull/8376) by [@emilk](https://github.com/emilk)
+* Sync window theme with egui theme [#8299](https://github.com/emilk/egui/pull/8299) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `egui::Window::title_frame` [#8353](https://github.com/emilk/egui/pull/8353) by [@Its-Just-Nans](https://github.com/Its-Just-Nans)
+* Add `extra_text_line_spacing` to control vertical spacing between text lines [#8040](https://github.com/emilk/egui/pull/8040) by [@rustbasic](https://github.com/rustbasic)
+* Add drag-to-open for collapsible panels [#8363](https://github.com/emilk/egui/pull/8363) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Rerun `sizing_pass` when reopening popup [#8315](https://github.com/emilk/egui/pull/8315) by [@yay](https://github.com/yay)
+* Update MSRV from 1.92 to 1.95 [#8348](https://github.com/emilk/egui/pull/8348) by [@emilk](https://github.com/emilk)
+* Treat a press that leaves a widget as a drag [#8365](https://github.com/emilk/egui/pull/8365) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove `Modifiers` from `RawInput` and make it a `egui::Event` [#8336](https://github.com/emilk/egui/pull/8336) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Remove `clip_rect_margin` [#8366](https://github.com/emilk/egui/pull/8366) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Improve backtrace trimming for cranelift [#8294](https://github.com/emilk/egui/pull/8294) by [@emilk](https://github.com/emilk)
+* Prevent accidentally dropping `TexturesDelta` [#8356](https://github.com/emilk/egui/pull/8356) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Make non-interactive tooltips not interactable [#8362](https://github.com/emilk/egui/pull/8362) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Panels: Take separator line width into account [#8367](https://github.com/emilk/egui/pull/8367) by [@emilk](https://github.com/emilk)
+* Fix TextEdit hint text not following horizontal_align/vertical_align [#8332](https://github.com/emilk/egui/pull/8332) by [@thedavidweng](https://github.com/thedavidweng)
+* Fix ScrollArea failure by handling horizontal and vertical scrolling separately in the missing place [#8275](https://github.com/emilk/egui/pull/8275) by [@rustbasic](https://github.com/rustbasic)
+* Fix window with a `Grid` being widenable but not shrinkable again [#8386](https://github.com/emilk/egui/pull/8386) by [@emilk](https://github.com/emilk)
+
+
 ## 0.35.0 - 2026-06-25 - Inspection, egui_mcp, classes and improved IME
 
 ### Highlights 

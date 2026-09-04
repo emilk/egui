@@ -85,6 +85,13 @@ impl AnimationManager {
                 value
             }
             Some(anim) => {
+                if animation_time == 0.0 {
+                    anim.from_value = value;
+                    anim.to_value = value;
+                    anim.toggle_time = input.time;
+                    return value;
+                }
+
                 let time_since_toggle = (input.time - anim.toggle_time) as f32;
                 // On the frame we toggle we don't want to return the old value,
                 // so we extrapolate forwards by half a frame:
@@ -95,16 +102,29 @@ impl AnimationManager {
                     anim.from_value..=anim.to_value,
                 );
                 if anim.to_value != value {
-                    anim.from_value = current_value; //start new animation from current position of playing animation
+                    anim.from_value = current_value; // start new animation from current position of playing animation
                     anim.to_value = value;
                     anim.toggle_time = input.time;
-                }
-                if animation_time == 0.0 {
-                    anim.from_value = value;
-                    anim.to_value = value;
                 }
                 current_value
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AnimationManager;
+    use crate::{Id, InputState};
+
+    #[test]
+    fn zero_duration_value_animation_reaches_target_immediately() {
+        let mut animations = AnimationManager::default();
+        let input = InputState::default();
+        let id = Id::new("value_animation");
+
+        assert_eq!(animations.animate_value(&input, 0.0, id, 0.0), 0.0);
+        assert_eq!(animations.animate_value(&input, 0.0, id, 1.0), 1.0);
+        assert_eq!(animations.animate_value(&input, 0.0, id, 2.0), 2.0);
     }
 }

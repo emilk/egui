@@ -99,7 +99,7 @@ impl CornerRadius {
     }
 }
 
-impl std::ops::Add for CornerRadius {
+impl core::ops::Add for CornerRadius {
     type Output = Self;
     #[inline]
     fn add(self, rhs: Self) -> Self {
@@ -112,7 +112,7 @@ impl std::ops::Add for CornerRadius {
     }
 }
 
-impl std::ops::Add<u8> for CornerRadius {
+impl core::ops::Add<u8> for CornerRadius {
     type Output = Self;
     #[inline]
     fn add(self, rhs: u8) -> Self {
@@ -125,7 +125,7 @@ impl std::ops::Add<u8> for CornerRadius {
     }
 }
 
-impl std::ops::AddAssign for CornerRadius {
+impl core::ops::AddAssign for CornerRadius {
     #[inline]
     fn add_assign(&mut self, rhs: Self) {
         *self = Self {
@@ -137,7 +137,7 @@ impl std::ops::AddAssign for CornerRadius {
     }
 }
 
-impl std::ops::AddAssign<u8> for CornerRadius {
+impl core::ops::AddAssign<u8> for CornerRadius {
     #[inline]
     fn add_assign(&mut self, rhs: u8) {
         *self = Self {
@@ -149,7 +149,7 @@ impl std::ops::AddAssign<u8> for CornerRadius {
     }
 }
 
-impl std::ops::Sub for CornerRadius {
+impl core::ops::Sub for CornerRadius {
     type Output = Self;
     #[inline]
     fn sub(self, rhs: Self) -> Self {
@@ -162,7 +162,7 @@ impl std::ops::Sub for CornerRadius {
     }
 }
 
-impl std::ops::Sub<u8> for CornerRadius {
+impl core::ops::Sub<u8> for CornerRadius {
     type Output = Self;
     #[inline]
     fn sub(self, rhs: u8) -> Self {
@@ -175,7 +175,7 @@ impl std::ops::Sub<u8> for CornerRadius {
     }
 }
 
-impl std::ops::SubAssign for CornerRadius {
+impl core::ops::SubAssign for CornerRadius {
     #[inline]
     fn sub_assign(&mut self, rhs: Self) {
         *self = Self {
@@ -187,7 +187,7 @@ impl std::ops::SubAssign for CornerRadius {
     }
 }
 
-impl std::ops::SubAssign<u8> for CornerRadius {
+impl core::ops::SubAssign<u8> for CornerRadius {
     #[inline]
     fn sub_assign(&mut self, rhs: u8) {
         *self = Self {
@@ -199,7 +199,7 @@ impl std::ops::SubAssign<u8> for CornerRadius {
     }
 }
 
-impl std::ops::Div<f32> for CornerRadius {
+impl core::ops::Div<f32> for CornerRadius {
     type Output = Self;
     #[inline]
     fn div(self, rhs: f32) -> Self {
@@ -212,7 +212,7 @@ impl std::ops::Div<f32> for CornerRadius {
     }
 }
 
-impl std::ops::DivAssign<f32> for CornerRadius {
+impl core::ops::DivAssign<f32> for CornerRadius {
     #[inline]
     fn div_assign(&mut self, rhs: f32) {
         *self = Self {
@@ -224,7 +224,7 @@ impl std::ops::DivAssign<f32> for CornerRadius {
     }
 }
 
-impl std::ops::Mul<f32> for CornerRadius {
+impl core::ops::Mul<f32> for CornerRadius {
     type Output = Self;
     #[inline]
     fn mul(self, rhs: f32) -> Self {
@@ -237,7 +237,7 @@ impl std::ops::Mul<f32> for CornerRadius {
     }
 }
 
-impl std::ops::MulAssign<f32> for CornerRadius {
+impl core::ops::MulAssign<f32> for CornerRadius {
     #[inline]
     fn mul_assign(&mut self, rhs: f32) {
         *self = Self {

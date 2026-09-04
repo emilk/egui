@@ -1,5 +1,7 @@
 use egui::{
-    Align, Atom, AtomExt as _, AtomLayout, Button, Direction, Frame, Layout, TextWrapMode, Ui, Vec2,
+    Align, Atom, AtomExt as _, AtomLayout, Button, Direction, Frame, Layout, TextWrapMode, Ui,
+    Vec2,
+    widget_style::{ButtonStyle, StyleArgs},
 };
 use egui_kittest::{HarnessBuilder, SnapshotResult, SnapshotResults};
 
@@ -129,11 +131,15 @@ fn test_atom_layout_nesting_and_direction() {
         let style = ui.style();
         let canvas_frame = Frame::canvas(style);
 
-        let button_frame = style
-            .button_style(
-                &egui::widget_style::Classes::default(),
-                egui::widget_style::WidgetState::Inactive,
-            )
+        let button_frame = ui
+            .get_widget_style::<ButtonStyle>(&StyleArgs {
+                classes: &egui::class::Classes::default(),
+                state: egui::widget_style::WidgetState::Inactive,
+                ctx: ui,
+                stack: ui.stack(),
+                style,
+            })
+            .atom_layout
             .frame;
 
         let row = |direction: Direction| {
@@ -220,8 +226,8 @@ fn test_atom_selectable_senses_click_and_drag() {
 /// See <https://github.com/emilk/egui/issues/8217>.
 #[test]
 fn test_atom_selectable_text_can_be_copied() {
+    use core::cell::Cell;
     use egui::{AtomLayout, Event, Modifiers, OutputCommand, PointerButton, Pos2, Rect};
-    use std::cell::Cell;
 
     fn copied_text(selectable: bool) -> Option<String> {
         let rect_cell = Cell::new(Rect::NOTHING);

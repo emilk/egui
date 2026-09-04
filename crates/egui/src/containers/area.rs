@@ -454,14 +454,12 @@ impl Area {
             state.size = None;
         }
         state.pivot = pivot;
-        state.interactable = interactable;
         if let Some(new_pos) = new_pos {
             state.pivot_pos = Some(new_pos);
         }
         state.pivot_pos.get_or_insert_with(|| {
             default_pos.unwrap_or_else(|| automatic_area_position(ctx, constrain_rect, layer_id))
         });
-        state.interactable = interactable;
 
         let size = *state.size.get_or_insert_with(|| {
             sizing_pass = true;
@@ -483,6 +481,10 @@ impl Area {
 
             size
         });
+
+        // We should never be interactable during a sizing pass, since then we are shown at a different
+        // size which might interfere with hover state of the hovered widget causing popup feedback loops.
+        state.interactable = interactable && !sizing_pass;
 
         // TODO(emilk): if last frame was sizing pass, it should be considered invisible for smoother fade-in
         let visible_last_frame = ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id));

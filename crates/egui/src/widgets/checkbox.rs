@@ -2,8 +2,10 @@ use emath::Rect;
 
 use crate::{
     Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType, epaint, pos2,
-    widget_style::{CheckboxStyle, Classes, HasClasses},
+    WidgetInfo, WidgetType,
+    class::{Classes, HasClasses},
+    epaint, pos2,
+    widget_style::CheckboxStyle,
 };
 
 // TODO(emilk): allow checkbox without a text label
@@ -70,20 +72,15 @@ impl Widget for Checkbox<'_> {
 
         // Get the widget style by reading the response from the previous pass
         let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
-
         let CheckboxStyle {
+            atom_layout,
             check_size,
             checkbox_frame,
             checkbox_size,
-            frame,
             check_stroke,
-            text_style,
-        } = ui.style().checkbox_style(&classes, state);
+        } = ui.widget_style(id, &classes);
 
-        let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
-        min_size.y = min_size.y.at_least(checkbox_size);
+        let min_size = atom_layout.min_size.at_least(Vec2::new(0.0, checkbox_size));
 
         // In order to center the checkbox based on min_size we set the icon height to at least min_size.y
         let mut icon_size = Vec2::splat(checkbox_size);
@@ -93,11 +90,8 @@ impl Widget for Checkbox<'_> {
 
         let text = atoms.text().map(String::from);
 
-        let mut prepared = AtomLayout::new(atoms)
-            .sense(Sense::click())
-            .min_size(min_size)
-            .frame(frame)
-            .allocate(ui);
+        let layout = AtomLayout::new(atoms).sense(Sense::click());
+        let mut prepared = atom_layout.apply(layout).min_size(min_size).allocate(ui);
 
         if prepared.response.clicked() {
             *checked = !*checked;
@@ -121,7 +115,6 @@ impl Widget for Checkbox<'_> {
         });
 
         if ui.is_rect_visible(prepared.response.rect) {
-            prepared.fallback_text_color = text_style.color;
             let response = prepared.paint(ui);
 
             if let Some(rect) = response.rect(rect_id) {

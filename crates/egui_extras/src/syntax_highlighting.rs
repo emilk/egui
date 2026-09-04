@@ -210,6 +210,13 @@ impl SyntectTheme {
     derive(serde::Deserialize, serde::Serialize),
     serde(default)
 )]
+#[cfg_attr(
+    all(feature = "serde", not(feature = "syntect")),
+    expect(
+        clippy::unsafe_derive_deserialize,
+        reason = "the `enum_map!` macro expands to `unsafe` code"
+    )
+)]
 pub struct CodeTheme {
     dark_mode: bool,
 
@@ -514,9 +521,9 @@ struct HighlightSettings<'a>(&'a SyntectSettings);
 #[derive(Copy, Clone)]
 struct HighlightSettings<'a>(&'a ());
 
-impl std::hash::Hash for HighlightSettings<'_> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.0, state);
+impl core::hash::Hash for HighlightSettings<'_> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        core::ptr::hash(self.0, state);
     }
 }
 
