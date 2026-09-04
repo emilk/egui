@@ -605,8 +605,7 @@ impl Widget for DragValue<'_> {
                 TextEdit::singleline(&mut value_text)
                     .with_classes(classes)
                     .clip_text(false)
-                    .horizontal_align(ui.layout().horizontal_align())
-                    .vertical_align(ui.layout().vertical_align())
+                    .align(ui.layout().align2())
                     .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size))
                     .id(id)
                     .desired_width(
