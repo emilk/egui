@@ -1,7 +1,7 @@
 use core::mem;
 
 use accesskit::{Action, ActionRequest};
-use accesskit_consumer::{FilterResult, Node, NodeId, Tree, TreeChangeHandler};
+use accesskit_consumer::{FilterResult, FullNodeId, NodeRef, Tree, TreeChangeHandler};
 
 use eframe::epaint::text::TextWrapMode;
 use egui::{
@@ -24,21 +24,21 @@ use egui::{
 #[derive(Default, Debug)]
 pub struct AccessibilityInspectorPlugin {
     pub open: bool,
-    tree: Option<accesskit_consumer::Tree>,
-    selected_node: Option<NodeId>,
+    tree: Option<Tree>,
+    selected_node: Option<FullNodeId>,
     queued_action: Option<ActionRequest>,
 }
 
 struct ChangeHandler;
 
 impl TreeChangeHandler for ChangeHandler {
-    fn node_added(&mut self, _node: &Node<'_>) {}
+    fn node_added(&mut self, _node: &NodeRef<'_>) {}
 
-    fn node_updated(&mut self, _old_node: &Node<'_>, _new_node: &Node<'_>) {}
+    fn node_updated(&mut self, _old_node: &NodeRef<'_>, _new_node: &NodeRef<'_>) {}
 
-    fn focus_moved(&mut self, _old_node: Option<&Node<'_>>, _new_node: Option<&Node<'_>>) {}
+    fn focus_moved(&mut self, _old_node: Option<&NodeRef<'_>>, _new_node: Option<&NodeRef<'_>>) {}
 
-    fn node_removed(&mut self, _node: &Node<'_>) {}
+    fn node_removed(&mut self, _node: &NodeRef<'_>) {}
 }
 
 impl egui::Plugin for AccessibilityInspectorPlugin {
@@ -113,7 +113,7 @@ impl AccessibilityInspectorPlugin {
         Id::new("Accessibility Inspector")
     }
 
-    fn selection_ui(&mut self, ui: &mut Ui, selected_node: NodeId) {
+    fn selection_ui(&mut self, ui: &mut Ui, selected_node: FullNodeId) {
         ui.separator();
 
         if let Some(tree) = &self.tree
@@ -194,7 +194,7 @@ impl AccessibilityInspectorPlugin {
         }
     }
 
-    fn node_ui(ui: &mut Ui, node: &Node<'_>, selected_node: &mut Option<NodeId>) {
+    fn node_ui(ui: &mut Ui, node: &NodeRef<'_>, selected_node: &mut Option<FullNodeId>) {
         if node.locate() == (Self::id().value().into(), accesskit::TreeId::ROOT)
             || node
                 .value()

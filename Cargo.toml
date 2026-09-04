@@ -70,9 +70,9 @@ egui_inspection = { version = "0.36.1", path = "crates/egui_inspection", default
 egui_kittest = { version = "0.36.1", path = "crates/egui_kittest", default-features = false }
 eframe = { version = "0.36.1", path = "crates/eframe", default-features = false }
 
-accesskit = "0.24.1"
-accesskit_consumer = "0.35.0" # Can't update to 0.36+: kittest 0.4 pins accesskit_consumer 0.35, so bumping splits it into two versions
-accesskit_winit = "0.32.0" # Can't update to 0.33: it needs accesskit_macos 0.26.2, which pulls accesskit_consumer 0.37, duplicating the 0.35 that kittest 0.4 needs. For the same reason, `accesskit_macos` is held at 0.26.0 in `Cargo.lock`.
+accesskit = "0.25.0"
+accesskit_consumer = "0.39.0"
+accesskit_winit = "0.34.0"
 ahash = { version = "0.8.12", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
   "std",
@@ -301,3 +301,7 @@ let_underscore_must_use = "allow"
 let_underscore_untyped = "allow"
 self_named_module_files = "allow" # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
+
+[patch.crates-io]
+# TODO: remove whenever kittest releases their next version
+kittest = { git = "https://github.com/rerun-io/kittest.git", rev = "46eb59019fa8b45871a7b83b8219b4c627c3db2f" }
