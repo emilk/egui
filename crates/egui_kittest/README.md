@@ -77,9 +77,9 @@ update the snapshot.
 
 ## Recording
 
-With the `recording` feature you can record a test as an animated GIF or an MP4 video, which is
-useful to see what a test actually does. Recording captures through the active renderer, so for a
-kittest harness you should also enable the `wgpu` feature, unless you provide a custom renderer.
+With the `recording` feature you can record a test as an MP4 video, which is useful to see what a
+test actually does. Recording captures through the active renderer, so for a kittest harness you
+should also enable the `wgpu` feature, unless you provide a custom renderer.
 
 ```rust,no_run
 # use egui_kittest::Harness;
@@ -88,8 +88,7 @@ kittest harness you should also enable the `wgpu` feature, unless you provide a 
 {
     use egui_kittest::RecordingOptions;
 
-    harness.start_recording(RecordingOptions::gif("hello.gif", 10.0));
-    // …or `RecordingOptions::mp4("hello.mp4", 10.0)`
+    harness.start_recording(RecordingOptions::mp4("hello.mp4", 10.0));
     harness.run();
     harness.finish_recording().unwrap();
 }
@@ -97,13 +96,12 @@ kittest harness you should also enable the `wgpu` feature, unless you provide a 
 
 You can also record without touching the test:
 
-* `KITTEST_RECORD=1 cargo test` writes a GIF per test to `tests/snapshots/recordings`
-* `KITTEST_RECORD=mp4 cargo test` writes MP4s instead of GIFs
+* `KITTEST_RECORD=1 cargo test` writes numbered MP4s to `tests/snapshots/recordings`
+  (`true`, `yes`, and `on` are also accepted)
 * `KITTEST_RECORD=open cargo test` writes each recording to a temporary file and opens it
-  (`open-mp4` for an MP4)
-MP4 files are much smaller than GIFs, but need [`ffmpeg`](https://ffmpeg.org/) on the `PATH`;
-without it we save a GIF next to the requested path instead. MP4 also has no alpha channel,
-so transparent pixels turn black.
+
+Recording needs [`ffmpeg`](https://ffmpeg.org/) on the `PATH`. MP4 has no alpha channel, so
+transparent pixels turn black.
 
 The recorder is an `egui::Plugin` (`RecordingPlugin`), so you can also register it on any
 `egui::Context` yourself. It captures through the integration's screenshot support; the harness
