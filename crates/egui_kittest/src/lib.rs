@@ -98,6 +98,8 @@ impl Display for ExceededMaxStepsError {
 /// - The cursor blinking is disabled
 /// - The scroll animation is disabled
 pub struct Harness<'a, State = ()> {
+    /// Notifies plugins before the rest of the harness is dropped.
+    _on_exit: ContextOnExit,
     pub ctx: egui::Context,
     input: egui::RawInput,
     kittest: kittest::State,
@@ -128,13 +130,23 @@ pub struct Harness<'a, State = ()> {
     default_snapshot_options: SnapshotOptions,
     #[cfg(feature = "snapshot")]
     snapshot_results: SnapshotResults,
+}
 
-    /// Saves an automatically started recording when the harness is dropped.
-    ///
-    /// Must be declared after `snapshot_results`: fields are dropped in order, so this way
-    /// the panic from a failed snapshot happens first and we can detect it.
-    #[cfg(feature = "recording")]
-    recording_auto_save: Option<recording::AutoSaveOnDrop>,
+struct ContextOnExit(Option<egui::Context>);
+
+impl ContextOnExit {
+    #[cfg(all(feature = "eframe", not(target_arch = "wasm32")))]
+    fn disarm(&mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for ContextOnExit {
+    fn drop(&mut self) {
+        if let Some(ctx) = &self.0 {
+            ctx.on_exit();
+        }
+    }
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -201,6 +213,7 @@ impl<'a, State> Harness<'a, State> {
         renderer.handle_delta(&mut output.textures_delta);
 
         let mut harness = Self {
+            _on_exit: ContextOnExit(Some(ctx.clone())),
             app,
             ctx,
             input,
@@ -232,9 +245,6 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(feature = "snapshot")]
             snapshot_results: SnapshotResults::default(),
-
-            #[cfg(feature = "recording")]
-            recording_auto_save: None,
         };
         // Handle any viewport commands (e.g. a screenshot or resize) requested during the initial
         // frame above (which didn't go through `_step`).
@@ -774,7 +784,26 @@ impl<'a, State> Harness<'a, State> {
         }
 
         let mut output = self.output.clone();
-        push_cursor_shape(&self.ctx, &mut output.shapes);
+
+        if let Some(mouse_pos) = self.ctx.input(|i| i.pointer.hover_pos()) {
+            // Paint a mouse cursor:
+            let triangle = vec![
+                mouse_pos,
+                mouse_pos + egui::vec2(16.0, 8.0),
+                mouse_pos + egui::vec2(8.0, 16.0),
+            ];
+
+            output.shapes.push(ClippedShape {
+                clip_rect: self.ctx.content_rect(),
+                shape: egui::epaint::PathShape::convex_polygon(
+                    triangle,
+                    Color32::WHITE,
+                    egui::Stroke::new(1.0, Color32::BLACK),
+                )
+                .into(),
+            });
+        }
+
         let image = self.renderer.render(&self.ctx, &output)?;
         self.last_render = Some((pass_nr, image.clone()));
         Ok(image)
@@ -970,8 +999,13 @@ impl<'a, State> Harness<'a, State> {
         use crate::app_kind::AppKindEframe;
 
         let Self {
-            ctx, state, app, ..
+            _on_exit: mut on_exit,
+            ctx,
+            state,
+            app,
+            ..
         } = self;
+        on_exit.disarm();
 
         let eframe_app: Box<dyn eframe::App> = match app {
             AppKind::Ui(f) => Box::new(UiApp { f }),
@@ -1008,31 +1042,6 @@ impl<'a> Harness<'a> {
     #[track_caller]
     pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
         Self::builder().build_ui(app)
-    }
-}
-
-/// Paint a mouse cursor at the current pointer position.
-///
-/// The test harness has no real cursor, so we draw one to show where the pointer is
-/// in screenshots and recordings.
-#[cfg(any(feature = "wgpu", feature = "snapshot"))]
-pub(crate) fn push_cursor_shape(ctx: &egui::Context, shapes: &mut Vec<ClippedShape>) {
-    if let Some(mouse_pos) = ctx.input(|i| i.pointer.hover_pos()) {
-        let triangle = vec![
-            mouse_pos,
-            mouse_pos + egui::vec2(16.0, 8.0),
-            mouse_pos + egui::vec2(8.0, 16.0),
-        ];
-
-        shapes.push(ClippedShape {
-            clip_rect: ctx.content_rect(),
-            shape: egui::epaint::PathShape::convex_polygon(
-                triangle,
-                Color32::WHITE,
-                egui::Stroke::new(1.0, Color32::BLACK),
-            )
-            .into(),
-        });
     }
 }
 

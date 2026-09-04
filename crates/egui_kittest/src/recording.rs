@@ -350,6 +350,10 @@ impl egui::Plugin for RecordingPlugin {
         "egui_kittest::RecordingPlugin"
     }
 
+    fn on_exit(&mut self, _ctx: &Context) {
+        self.save_automatically();
+    }
+
     fn output_hook(&mut self, ctx: &Context, output: &mut FullOutput) {
         if !self.active {
             return;
@@ -389,9 +393,6 @@ impl egui::Plugin for RecordingPlugin {
 /// When a recording that the harness started by itself is saved.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AutoSaveMode {
-    /// Save only if the test failed. Written to `{output_path}/failures/{test_name}.{ext}`.
-    OnFailure,
-
     /// Always save. Written to `{output_path}/recordings/{test_name}.{ext}`.
     Always,
 
@@ -438,7 +439,6 @@ impl AutoSave {
         let extension = self.format.extension();
 
         let subdirectory = match self.mode {
-            AutoSaveMode::OnFailure => "failures",
             AutoSaveMode::Always => "recordings",
             AutoSaveMode::Open => {
                 if let Some(path) = temp_recording_path(&name, extension) {
@@ -530,7 +530,6 @@ impl<State> crate::Harness<'_, State> {
     /// ```
     pub fn start_recording(&mut self, options: RecordingOptions) {
         install(&self.ctx, options, None);
-        self.recording_auto_save = None;
     }
 
     /// Stop the recording and write it to disk, returning the path that was written.
@@ -540,9 +539,8 @@ impl<State> crate::Harness<'_, State> {
     /// [`RecordingError::NoFrames`] if no frame was captured,
     /// or an I/O or encoding error if writing failed.
     pub fn finish_recording(&mut self) -> Result<PathBuf, RecordingError> {
-        self.recording_auto_save = None;
-
         let result = self.ctx.with_plugin::<RecordingPlugin, _>(|plugin| {
+            plugin.auto_save = None;
             if !plugin.is_active() {
                 return Err(RecordingError::NotRecording);
             }
@@ -568,16 +566,9 @@ impl<State> crate::Harness<'_, State> {
         self.ctx.with_plugin::<RecordingPlugin, _>(f)
     }
 
-    /// Start recording if the environment variable or the `kittest.toml` asks for it.
+    /// Start recording if the environment variable asks for it.
     pub(crate) fn maybe_start_auto_recording(&mut self) {
-        let auto_save = if let Some(auto_save) = record_env_var() {
-            auto_save
-        } else if crate::config::config().save_gif_on_failure() {
-            AutoSave {
-                mode: AutoSaveMode::OnFailure,
-                format: AutoSaveFormat::Gif,
-            }
-        } else {
+        let Some(auto_save) = record_env_var() else {
             return;
         };
 
@@ -585,9 +576,6 @@ impl<State> crate::Harness<'_, State> {
         // so record to a placeholder path for now.
         let options = auto_save.format.options(PathBuf::new());
         install(&self.ctx, options, Some(auto_save));
-        self.recording_auto_save = Some(AutoSaveOnDrop {
-            ctx: self.ctx.clone(),
-        });
     }
 }
 
@@ -607,47 +595,33 @@ fn install(ctx: &Context, options: RecordingOptions, auto_save: Option<AutoSave>
     }
 }
 
-/// Saves a recording that the harness started by itself, when the harness is dropped.
-pub(crate) struct AutoSaveOnDrop {
-    pub ctx: Context,
-}
+#[expect(clippy::print_stderr)]
+impl RecordingPlugin {
+    fn save_automatically(&mut self) {
+        let Some(auto_save) = self.auto_save.take() else {
+            return;
+        };
 
-#[expect(clippy::print_stderr)] // We are (probably) in a panic, so logging may not be shown.
-impl Drop for AutoSaveOnDrop {
-    fn drop(&mut self) {
-        self.ctx.with_plugin::<RecordingPlugin, _>(|plugin| {
-            let Some(auto_save) = plugin.auto_save.take() else {
-                return;
-            };
+        self.set_output_path(auto_save.path());
 
-            // A failing test panics, either from an assert or from the snapshot results,
-            // which are dropped before this.
-            if auto_save.mode == AutoSaveMode::OnFailure && !std::thread::panicking() {
-                plugin.stop();
-                return;
-            }
+        match self.save() {
+            Ok(path) => {
+                eprintln!("egui_kittest: saved a recording to {}", path.display());
 
-            plugin.set_output_path(auto_save.path());
-
-            match plugin.save() {
-                Ok(path) => {
-                    eprintln!("egui_kittest: saved a recording to {}", path.display());
-
-                    if auto_save.mode == AutoSaveMode::Open
-                        && let Err(err) = open::that_detached(&path)
-                    {
-                        eprintln!(
-                            "egui_kittest: failed to open {} in the default viewer: {err}",
-                            path.display()
-                        );
-                    }
+                if auto_save.mode == AutoSaveMode::Open
+                    && let Err(err) = open::that_detached(&path)
+                {
+                    eprintln!(
+                        "egui_kittest: failed to open {} in the default viewer: {err}",
+                        path.display()
+                    );
                 }
-                Err(RecordingError::NoFrames) => {}
-                Err(err) => eprintln!("egui_kittest: failed to save the recording: {err}"),
             }
+            Err(RecordingError::NoFrames) => {}
+            Err(err) => eprintln!("egui_kittest: failed to save the recording: {err}"),
+        }
 
-            plugin.stop();
-        });
+        self.stop();
     }
 }
 

@@ -380,6 +380,7 @@ struct ContextImpl {
     animation_manager: AnimationManager,
 
     plugins: plugin::Plugins,
+    called_on_exit: bool,
     safe_area: SafeAreaInsets,
 
     /// All viewports share the same texture manager and texture namespace.
@@ -2057,6 +2058,25 @@ impl Context {
 
         if added {
             handle.lock().dyn_plugin_mut().setup(self);
+        }
+    }
+
+    /// Notify all plugins that the integration is shutting down.
+    ///
+    /// Integrations should call this before persisting [`Memory`] and before destroying their
+    /// renderer and other resources. Only the first call invokes the plugins.
+    pub fn on_exit(&self) {
+        let plugins = self.write(|ctx| {
+            if ctx.called_on_exit {
+                None
+            } else {
+                ctx.called_on_exit = true;
+                Some(ctx.plugins.ordered_plugins())
+            }
+        });
+
+        if let Some(plugins) = plugins {
+            plugins.on_exit(self);
         }
     }
 

@@ -36,15 +36,6 @@ pub struct Config {
     /// Default is 100.
     diagnostic_max_steps: u64,
 
-    /// Record every harness and save a GIF of the failing ones to
-    /// `{output_path}/failures/{test_name}.gif`.
-    ///
-    /// Needs the `recording` feature; ignored without it.
-    ///
-    /// Default is `false`.
-    #[cfg_attr(not(feature = "recording"), expect(dead_code))]
-    save_gif_on_failure: bool,
-
     windows: OsConfig,
     mac: OsConfig,
     linux: OsConfig,
@@ -57,7 +48,6 @@ impl Default for Config {
             threshold: 0.6,
             max_failed_pixels: 0,
             diagnostic_max_steps: 100,
-            save_gif_on_failure: false,
             windows: Default::default(),
             mac: Default::default(),
             linux: Default::default(),
@@ -178,15 +168,6 @@ impl Config {
     pub fn output_path(&self) -> PathBuf {
         self.output_path.clone()
     }
-    /// Record every harness and save a GIF of the failing ones to
-    /// `{output_path}/failures/{test_name}.gif`.
-    ///
-    /// Default is `false`.
-    #[cfg(feature = "recording")]
-    pub fn save_gif_on_failure(&self) -> bool {
-        self.save_gif_on_failure
-    }
-
     pub fn os_threshold(&self) -> crate::OsThreshold<f32> {
         let fallback = self.threshold;
         crate::OsThreshold {
