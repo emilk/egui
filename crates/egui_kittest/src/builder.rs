@@ -17,6 +17,7 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) state: PhantomData<State>,
     pub(crate) renderer: Box<dyn TestRenderer>,
     pub(crate) wait_for_pending_images: bool,
+    pub(crate) fit_contents: bool,
 
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub(crate) render_every_step: bool,
@@ -39,6 +40,7 @@ impl<State> Default for HarnessBuilder<State> {
             max_steps: 4,
             step_dt: 1.0 / 4.0,
             wait_for_pending_images: true,
+            fit_contents: false,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step: false,
@@ -60,6 +62,16 @@ impl<State> HarnessBuilder<State> {
         let size = size.into();
         self.screen_rect.set_width(size.x);
         self.screen_rect.set_height(size.y);
+        self
+    }
+
+    /// Resize the harness to fit its initial contents before returning it.
+    ///
+    /// This happens before automatic recording starts. It only has an effect on harnesses built
+    /// with [`Self::build_ui`] or [`Self::build_ui_state`].
+    #[inline]
+    pub fn with_fit_contents(mut self) -> Self {
+        self.fit_contents = true;
         self
     }
 

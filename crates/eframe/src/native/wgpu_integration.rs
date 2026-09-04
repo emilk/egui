@@ -583,6 +583,7 @@ impl WgpuWinitRunning<'_> {
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
+        self.integration.egui_ctx.on_exit();
         self.save();
 
         #[cfg(feature = "glow")]

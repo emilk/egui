@@ -14,11 +14,16 @@ pub use crate::snapshot::*;
 mod app_kind;
 mod config;
 mod node;
+#[cfg(feature = "recording")]
+mod recording;
 mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
+
+#[cfg(feature = "recording")]
+pub use crate::recording::{RECORD_ENV_VAR, RecordingError, RecordingOptions, RecordingPlugin};
 
 // re-exports:
 pub use {
@@ -39,6 +44,29 @@ use egui::{
 use kittest::Queryable;
 
 use crate::{app_kind::AppKind, config::config};
+
+#[cfg(any(feature = "wgpu", feature = "snapshot"))]
+fn push_cursor_shape(ctx: &egui::Context, shapes: &mut Vec<ClippedShape>) {
+    let Some(mouse_pos) = ctx.input(|input| input.pointer.hover_pos()) else {
+        return;
+    };
+
+    let triangle = vec![
+        mouse_pos,
+        mouse_pos + egui::vec2(16.0, 8.0),
+        mouse_pos + egui::vec2(8.0, 16.0),
+    ];
+
+    shapes.push(ClippedShape {
+        clip_rect: ctx.content_rect(),
+        shape: egui::epaint::PathShape::convex_polygon(
+            triangle,
+            Color32::WHITE,
+            egui::Stroke::new(1.0, Color32::BLACK),
+        )
+        .into(),
+    });
+}
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
@@ -91,6 +119,8 @@ impl Display for ExceededMaxStepsError {
 /// - The cursor blinking is disabled
 /// - The scroll animation is disabled
 pub struct Harness<'a, State = ()> {
+    /// Notifies plugins before the rest of the harness is dropped.
+    _on_exit: ContextOnExit,
     pub ctx: egui::Context,
     input: egui::RawInput,
     kittest: kittest::State,
@@ -123,6 +153,23 @@ pub struct Harness<'a, State = ()> {
     snapshot_results: SnapshotResults,
 }
 
+struct ContextOnExit(Option<egui::Context>);
+
+impl ContextOnExit {
+    #[cfg(all(feature = "eframe", not(target_arch = "wasm32")))]
+    fn disarm(&mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for ContextOnExit {
+    fn drop(&mut self) {
+        if let Some(ctx) = &self.0 {
+            ctx.on_exit();
+        }
+    }
+}
+
 impl<State> Debug for Harness<'_, State> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         self.kittest.fmt(f)
@@ -147,6 +194,7 @@ impl<'a, State> Harness<'a, State> {
             state: _,
             mut renderer,
             wait_for_pending_images,
+            fit_contents,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step,
@@ -187,6 +235,7 @@ impl<'a, State> Harness<'a, State> {
         renderer.handle_delta(&mut output.textures_delta);
 
         let mut harness = Self {
+            _on_exit: ContextOnExit(Some(ctx.clone())),
             app,
             ctx,
             input,
@@ -225,6 +274,15 @@ impl<'a, State> Harness<'a, State> {
 
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
+
+        if fit_contents && harness.response.is_some() {
+            harness.fit_contents();
+        }
+
+        // Start recording only now, so that the setup frames above are not part of the recording.
+        #[cfg(feature = "recording")]
+        harness.maybe_start_auto_recording();
+
         harness
     }
 
@@ -752,25 +810,7 @@ impl<'a, State> Harness<'a, State> {
         }
 
         let mut output = self.output.clone();
-
-        if let Some(mouse_pos) = self.ctx.input(|i| i.pointer.hover_pos()) {
-            // Paint a mouse cursor:
-            let triangle = vec![
-                mouse_pos,
-                mouse_pos + egui::vec2(16.0, 8.0),
-                mouse_pos + egui::vec2(8.0, 16.0),
-            ];
-
-            output.shapes.push(ClippedShape {
-                clip_rect: self.ctx.content_rect(),
-                shape: egui::epaint::PathShape::convex_polygon(
-                    triangle,
-                    Color32::WHITE,
-                    egui::Stroke::new(1.0, Color32::BLACK),
-                )
-                .into(),
-            });
-        }
+        push_cursor_shape(&self.ctx, &mut output.shapes);
 
         let image = self.renderer.render(&self.ctx, &output)?;
         self.last_render = Some((pass_nr, image.clone()));
@@ -967,8 +1007,13 @@ impl<'a, State> Harness<'a, State> {
         use crate::app_kind::AppKindEframe;
 
         let Self {
-            ctx, state, app, ..
+            _on_exit: mut on_exit,
+            ctx,
+            state,
+            app,
+            ..
         } = self;
+        on_exit.disarm();
 
         let eframe_app: Box<dyn eframe::App> = match app {
             AppKind::Ui(f) => Box::new(UiApp { f }),

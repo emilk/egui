@@ -168,7 +168,6 @@ impl Config {
     pub fn output_path(&self) -> PathBuf {
         self.output_path.clone()
     }
-
     pub fn os_threshold(&self) -> crate::OsThreshold<f32> {
         let fallback = self.threshold;
         crate::OsThreshold {
