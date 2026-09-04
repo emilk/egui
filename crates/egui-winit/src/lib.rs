@@ -2169,6 +2169,37 @@ pub fn create_winit_window_attributes(
         window_attributes = window_attributes.with_name(app_id, "");
     }
 
+    // Consume the activation token our launcher handed us, so the first
+    // window actually gets the focus.
+    //
+    // A desktop entry with `StartupNotify=true` passes a token through
+    // `XDG_ACTIVATION_TOKEN` (Wayland) or `DESKTOP_STARTUP_ID` (X11), and
+    // winit can only apply it at window creation. eframe never read it, so
+    // under a compositor that enforces focus-stealing prevention the window
+    // opened unfocused and stayed that way: `ViewportCommand::Focus` is
+    // exactly the request such a compositor refuses, so nothing could
+    // recover it and the user had to click the window themselves.
+    //
+    // The variables are cleared once read, per the startup-notification
+    // spec: a token is single-use, and leaving it in the environment would
+    // have every later window — and every child process — replay it.
+    #[cfg(all(target_os = "linux", any(feature = "wayland", feature = "x11")))]
+    {
+        use winit::platform::startup_notify::{
+            WindowAttributesExtStartupNotify as _, reset_activation_token_env,
+        };
+        let token = std::env::var("XDG_ACTIVATION_TOKEN")
+            .or_else(|_| std::env::var("DESKTOP_STARTUP_ID"))
+            .ok()
+            .filter(|t| !t.is_empty());
+        if let Some(token) = token {
+            log::debug!("using the activation token from the environment to focus the window");
+            reset_activation_token_env();
+            window_attributes = window_attributes
+                .with_activation_token(winit::window::ActivationToken::from_raw(token));
+        }
+    }
+
     #[cfg(all(feature = "x11", target_os = "linux"))]
     {
         use winit::platform::x11::WindowAttributesExtX11 as _;
