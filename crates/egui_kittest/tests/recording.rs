@@ -1,6 +1,6 @@
 #![cfg(all(feature = "recording", feature = "wgpu"))]
 
-use egui_kittest::{Harness, RecordingOptions, RecordingPlugin};
+use egui_kittest::{Harness, HarnessRecordingExt as _, RecordingOptions, RecordingPlugin};
 use kittest::Queryable as _;
 use tempfile::tempdir;
 
@@ -27,8 +27,8 @@ fn records_an_mp4() {
     harness.start_recording(RecordingOptions::mp4(&mp4_path, 12.0));
 
     harness.run();
-    harness.get_by_label_contains("count").click();
-    harness.run();
+    let button = harness.get_by_label_contains("count").rect().center();
+    harness.natural_click_at(button).natural_pause(2);
 
     let path = harness.finish_recording().expect("save mp4");
 

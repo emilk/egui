@@ -23,7 +23,9 @@ mod texture_to_image;
 pub mod wgpu;
 
 #[cfg(feature = "recording")]
-pub use crate::recording::{RECORD_ENV_VAR, RecordingError, RecordingOptions, RecordingPlugin};
+pub use crate::recording::{
+    HarnessRecordingExt, RECORD_ENV_VAR, RecordingError, RecordingOptions, RecordingPlugin,
+};
 
 // re-exports:
 pub use {

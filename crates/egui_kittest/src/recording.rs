@@ -96,6 +96,7 @@ pub struct RecordingPlugin {
     mp4_stream: Option<Mp4Stream>,
     error: Option<RecordingError>,
     recording_id: u64,
+    force_next_frame: bool,
 
     /// While `false` the plugin captures no frames.
     active: bool,
@@ -121,6 +122,7 @@ impl RecordingPlugin {
             mp4_stream: None,
             error: None,
             recording_id: 0,
+            force_next_frame: false,
             active: true,
             auto_save: None,
         }
@@ -138,6 +140,7 @@ impl RecordingPlugin {
         self.options = options;
         self.error = None;
         self.recording_id = self.recording_id.wrapping_add(1);
+        self.force_next_frame = false;
         self.active = true;
         self.auto_save = None;
     }
@@ -149,6 +152,7 @@ impl RecordingPlugin {
     pub fn finish(&mut self) -> Result<PathBuf, RecordingError> {
         self.active = false;
         self.recording_id = self.recording_id.wrapping_add(1);
+        self.force_next_frame = false;
         self.auto_save = None;
 
         if let Some(err) = self.error.take() {
@@ -165,7 +169,7 @@ impl RecordingPlugin {
     }
 
     /// Add a frame, dropping it if it is a duplicate.
-    fn push_frame(&mut self, recording_id: u64, image: RgbaImage) {
+    fn push_frame(&mut self, recording_id: u64, image: RgbaImage, force: bool) {
         // A screenshot can finish after the recording was stopped or restarted.
         if !self.active || self.recording_id != recording_id {
             return;
@@ -175,12 +179,12 @@ impl RecordingPlugin {
             return;
         }
 
-        if let Err(err) = self.push_mp4_frame(image) {
+        if let Err(err) = self.push_mp4_frame(image, force) {
             self.error = Some(err);
         }
     }
 
-    fn push_mp4_frame(&mut self, image: RgbaImage) -> Result<(), RecordingError> {
+    fn push_mp4_frame(&mut self, image: RgbaImage, force: bool) -> Result<(), RecordingError> {
         if self.mp4_stream.is_none() {
             let path = &self.options.path;
             let frame_rate = self.options.frame_rate;
@@ -211,10 +215,11 @@ impl RecordingPlugin {
 
         let stream = self.mp4_stream.as_mut().expect("initialized above");
         let image = stream.prepare_frame(image);
-        if stream
-            .last_frame
-            .as_ref()
-            .is_some_and(|previous| previous.as_raw() == image.as_raw())
+        if !force
+            && stream
+                .last_frame
+                .as_ref()
+                .is_some_and(|previous| previous.as_raw() == image.as_raw())
         {
             return Ok(());
         }
@@ -270,11 +275,12 @@ impl egui::Plugin for RecordingPlugin {
         crate::push_cursor_shape(ctx, &mut output.shapes);
 
         let recording_id = self.recording_id;
+        let force = core::mem::take(&mut self.force_next_frame);
         let plugin = ctx.plugin::<Self>();
         let callback = egui::ScreenshotCallback::new(move |image| {
             plugin
                 .lock()
-                .push_frame(recording_id, color_image_to_rgba(&image));
+                .push_frame(recording_id, color_image_to_rgba(&image), force);
         });
 
         // `output_hook` runs after `Context::end_pass`, so sending this through `Context` would
@@ -372,6 +378,193 @@ const AUTO_FRAME_RATE: f32 = 10.0;
 
 /// Gives every automatically started recording a unique file name.
 static NEXT_RECORDING_ID: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(1);
+
+/// Natural-looking, deterministic interactions for recorded harness sessions.
+///
+/// These methods run the harness as they enqueue input, so each part of an interaction becomes a
+/// video frame. Resolve a [`crate::Node`] to a position before calling them:
+///
+/// ```no_run
+/// # use egui_kittest::{Harness, HarnessRecordingExt as _, kittest::Queryable as _};
+/// let mut harness = Harness::new_ui(|ui| {
+///     ui.button("Continue");
+/// });
+/// let button = harness.get_by_label("Continue").rect().center();
+/// harness.natural_click_at(button).natural_pause(3);
+/// ```
+pub trait HarnessRecordingExt {
+    /// Move the pointer to `pos` along a short eased curve.
+    fn natural_hover_at(&mut self, pos: egui::Pos2) -> &mut Self;
+
+    /// Move to `pos`, then press and release the primary pointer button over separate frames.
+    fn natural_click_at(&mut self, pos: egui::Pos2) -> &mut Self;
+
+    /// Move to `pos`, then press and release `button` over separate frames.
+    fn natural_click_button_at(
+        &mut self,
+        pos: egui::Pos2,
+        button: egui::PointerButton,
+    ) -> &mut Self;
+
+    /// Move to `pos`, then click the primary pointer button with `modifiers`.
+    fn natural_click_modifiers_at(
+        &mut self,
+        pos: egui::Pos2,
+        modifiers: egui::Modifiers,
+    ) -> &mut Self;
+
+    /// Move to `pos`, then click `button` with `modifiers`.
+    fn natural_click_button_modifiers_at(
+        &mut self,
+        pos: egui::Pos2,
+        button: egui::PointerButton,
+        modifiers: egui::Modifiers,
+    ) -> &mut Self;
+
+    /// Move to `pos` and press the primary pointer button to start dragging.
+    fn natural_drag_at(&mut self, pos: egui::Pos2) -> &mut Self;
+
+    /// Move a held pointer to `pos`, release it, and remove the cursor.
+    fn natural_drop_at(&mut self, pos: egui::Pos2) -> &mut Self;
+
+    /// Type into the focused widget at a natural pace.
+    fn natural_type_text(&mut self, text: &str) -> &mut Self;
+
+    /// Hold the current image for `frames` video frames.
+    fn natural_pause(&mut self, frames: usize) -> &mut Self;
+}
+
+impl<State> HarnessRecordingExt for crate::Harness<'_, State> {
+    fn natural_hover_at(&mut self, pos: egui::Pos2) -> &mut Self {
+        let current = self.ctx.input(|input| input.pointer.hover_pos());
+        let start = current.unwrap_or_else(|| {
+            let rect = self.ctx.content_rect().shrink(8.0);
+            egui::pos2(
+                (pos.x - 64.0).clamp(rect.left(), rect.right()),
+                (pos.y + 32.0).clamp(rect.top(), rect.bottom()),
+            )
+        });
+
+        if current.is_none() {
+            self.hover_at(start);
+            self.step();
+        }
+
+        let delta = pos - start;
+        let distance = delta.length();
+        if distance <= 1.0 {
+            return self;
+        }
+
+        let steps = (((distance / 48.0).ceil().clamp(3.0, 12.0)) * natural_frame_scale(self))
+            .round()
+            .max(1.0) as usize;
+        let normal = egui::vec2(-delta.y, delta.x) / distance;
+        let arc_height = (distance * 0.08).min(24.0);
+
+        for step in 1..=steps {
+            let t = step as f32 / steps as f32;
+            let eased = t * t * (3.0 - 2.0 * t);
+            let point = if step == steps {
+                pos
+            } else {
+                start.lerp(pos, eased) + normal * (core::f32::consts::PI * t).sin() * arc_height
+            };
+            self.hover_at(point);
+            self.step();
+        }
+        self
+    }
+
+    fn natural_click_at(&mut self, pos: egui::Pos2) -> &mut Self {
+        self.natural_click_button_at(pos, egui::PointerButton::Primary)
+    }
+
+    fn natural_click_button_at(
+        &mut self,
+        pos: egui::Pos2,
+        button: egui::PointerButton,
+    ) -> &mut Self {
+        self.natural_click_button_modifiers_at(pos, button, egui::Modifiers::NONE)
+    }
+
+    fn natural_click_modifiers_at(
+        &mut self,
+        pos: egui::Pos2,
+        modifiers: egui::Modifiers,
+    ) -> &mut Self {
+        self.natural_click_button_modifiers_at(pos, egui::PointerButton::Primary, modifiers)
+    }
+
+    fn natural_click_button_modifiers_at(
+        &mut self,
+        pos: egui::Pos2,
+        button: egui::PointerButton,
+        modifiers: egui::Modifiers,
+    ) -> &mut Self {
+        self.natural_hover_at(pos);
+        let frames_per_state = natural_frame_scale(self).round().max(1.0) as usize;
+        for pressed in [true, false] {
+            self.event(egui::Event::PointerButton {
+                pos,
+                button,
+                pressed,
+                modifiers,
+            });
+            self.step();
+            self.natural_pause(frames_per_state - 1);
+        }
+        self
+    }
+
+    fn natural_drag_at(&mut self, pos: egui::Pos2) -> &mut Self {
+        self.natural_hover_at(pos);
+        self.drag_at(pos);
+        self.step();
+        self
+    }
+
+    fn natural_drop_at(&mut self, pos: egui::Pos2) -> &mut Self {
+        self.natural_hover_at(pos);
+        self.drop_at(pos);
+        self.step();
+        self
+    }
+
+    fn natural_type_text(&mut self, text: &str) -> &mut Self {
+        let frames_per_character = natural_frame_scale(self).round().max(1.0) as usize;
+        for character in text.chars() {
+            self.event(egui::Event::Text(character.to_string()));
+            self.step();
+            self.natural_pause(frames_per_character - 1);
+        }
+        self
+    }
+
+    fn natural_pause(&mut self, frames: usize) -> &mut Self {
+        for _ in 0..frames {
+            self.ctx.with_plugin::<RecordingPlugin, _>(|plugin| {
+                if plugin.active {
+                    plugin.force_next_frame = true;
+                }
+            });
+            self.step();
+        }
+        self
+    }
+}
+
+fn natural_frame_scale<State>(harness: &crate::Harness<'_, State>) -> f32 {
+    harness
+        .ctx
+        .with_plugin::<RecordingPlugin, _>(|plugin| {
+            plugin.active.then_some(plugin.options.frame_rate)
+        })
+        .flatten()
+        .unwrap_or(AUTO_FRAME_RATE)
+        .clamp(1.0, MAX_FRAME_RATE)
+        / AUTO_FRAME_RATE
+}
 
 /// A [`crate::Harness`] can record itself.
 impl<State> crate::Harness<'_, State> {
@@ -674,8 +867,9 @@ fn fit_to_canvas(image: RgbaImage, (width, height): (u32, u32)) -> RgbaImage {
 #[cfg(test)]
 mod tests {
     use image::{Rgba, RgbaImage};
+    use kittest::Queryable as _;
 
-    use super::fit_to_canvas;
+    use super::{HarnessRecordingExt as _, fit_to_canvas};
 
     #[test]
     fn smaller_frames_are_padded() {
@@ -698,14 +892,59 @@ mod tests {
     }
 
     #[test]
+    fn natural_hover_reaches_its_target() {
+        let mut harness = crate::Harness::new_ui(|ui| {
+            ui.label("Hello");
+        });
+        let target = egui::pos2(120.0, 80.0);
+
+        harness.natural_hover_at(target);
+
+        assert_eq!(
+            harness.ctx.input(|input| input.pointer.hover_pos()),
+            Some(target)
+        );
+    }
+
+    #[test]
+    fn natural_type_text_types_into_the_focused_widget() {
+        let mut harness = crate::Harness::new_ui_state(
+            |ui, text| {
+                ui.text_edit_singleline(text);
+            },
+            String::new(),
+        );
+        harness
+            .get_by_role(egui::accesskit::Role::TextInput)
+            .focus();
+        harness.step();
+
+        harness.natural_type_text("Hello!");
+
+        assert_eq!(harness.state(), "Hello!");
+    }
+
+    #[test]
     fn mp4_frames_are_streamed() {
         let directory = tempfile::tempdir().expect("tempdir");
         let path = directory.path().join("stream.mp4");
         let mut plugin = super::RecordingPlugin::new(super::RecordingOptions::mp4(&path, 10.0));
 
-        plugin.push_frame(0, RgbaImage::from_pixel(4, 4, Rgba([255, 0, 0, 255])));
-        plugin.push_frame(0, RgbaImage::from_pixel(2, 2, Rgba([255, 0, 0, 255])));
-        plugin.push_frame(0, RgbaImage::from_pixel(8, 8, Rgba([255, 0, 0, 255])));
+        plugin.push_frame(
+            0,
+            RgbaImage::from_pixel(4, 4, Rgba([255, 0, 0, 255])),
+            false,
+        );
+        plugin.push_frame(
+            0,
+            RgbaImage::from_pixel(2, 2, Rgba([255, 0, 0, 255])),
+            false,
+        );
+        plugin.push_frame(
+            0,
+            RgbaImage::from_pixel(8, 8, Rgba([255, 0, 0, 255])),
+            false,
+        );
 
         let saved_path = plugin.finish().expect("finish recording");
         assert!(saved_path.exists());

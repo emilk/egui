@@ -103,6 +103,16 @@ You can also record without touching the test:
 Recording needs [`ffmpeg`](https://ffmpeg.org/) on the `PATH`. MP4 has no alpha channel, so
 transparent pixels turn black.
 
+For documentation videos, `HarnessRecordingExt` provides deterministic, natural-looking
+interactions. Its methods run one frame at a time and can be chained:
+
+```rust,no_run
+# use egui_kittest::{Harness, HarnessRecordingExt as _, kittest::Queryable as _};
+# let mut harness = Harness::new_ui(|ui| { ui.button("Continue"); });
+let button = harness.get_by_label("Continue").rect().center();
+harness.natural_click_at(button).natural_pause(3);
+```
+
 The recorder is an `egui::Plugin` (`RecordingPlugin`), so you can also register it on any
 `egui::Context` yourself. It captures through the integration's screenshot support; the harness
 does not need to render or hand off frames for it.
