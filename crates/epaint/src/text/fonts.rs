@@ -424,6 +424,10 @@ fn blob_from_font_data(data: &FontData) -> Blob {
 ///     .push("my_font".to_owned());
 ///
 /// egui_ctx.set_fonts(fonts);
+///
+/// // You will need to wait the next frame to use
+/// // egui_ctx.fonts_mut() and egui_ctx.fonts()
+/// // ui.fonts_mut() and ui.fonts()
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
