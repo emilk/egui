@@ -200,12 +200,15 @@ pub fn selectable_label_text_should_not_shift_when_inactive_stroke_is_unpainted(
     });
 
     harness.run();
+    let inactive_rect = harness.get_by_label("item").rect();
     let inactive_text_pos = text_shape_pos(harness.output(), "item");
 
     harness.get_by_label("item").hover();
     harness.run();
+    let hovered_rect = harness.get_by_label("item").rect();
     let hovered_text_pos = text_shape_pos(harness.output(), "item");
 
+    assert_eq!(inactive_rect.size(), hovered_rect.size());
     assert_eq!(inactive_text_pos, hovered_text_pos);
 }
 
