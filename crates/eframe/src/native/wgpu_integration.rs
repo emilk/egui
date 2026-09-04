@@ -31,7 +31,7 @@ use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
     native::{
         epi_integration::EpiIntegration,
-        winit_integration::{EventResult, sleep_if_invisible_or_minimized},
+        winit_integration::{EventResult, PaintPolicy, sleep_if_invisible_or_minimized},
     },
 };
 
@@ -432,11 +432,12 @@ impl WinitApp for WgpuWinitApp<'_> {
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        paint: PaintPolicy,
     ) -> Result<EventResult> {
         self.initialized_all_windows(event_loop);
 
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id, event_loop)
+            running.run_ui_and_paint(window_id, event_loop, paint)
         } else {
             Ok(EventResult::Wait)
         }
@@ -600,6 +601,7 @@ impl WgpuWinitRunning<'_> {
         &mut self,
         window_id: WindowId,
         event_loop: &ActiveEventLoop,
+        paint: PaintPolicy,
     ) -> Result<EventResult> {
         profiling::function_scope!();
 
@@ -681,7 +683,8 @@ impl WgpuWinitRunning<'_> {
             };
             let mut raw_input = egui_winit.take_egui_input(window);
 
-            let show_ui = is_visible || is_viewport_or_descendant_visible(viewports, viewport_id);
+            let show_ui = paint.may_paint()
+                && (is_visible || is_viewport_or_descendant_visible(viewports, viewport_id));
 
             integration.pre_update();
 
