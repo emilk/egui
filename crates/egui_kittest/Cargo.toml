@@ -26,11 +26,11 @@ wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image", "dep:wgpu", "eframe?/wgpu"
 ## Adds a dify-based image snapshot utility.
 snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 
-## Record a test session as an animated GIF or a sequence of PNG files.
+## Record a test session as an MP4 video.
 ##
 ## Frames are captured using the screenshot support of the active integration.
 ## A kittest harness still needs the `wgpu` feature or a custom renderer.
-recording = ["snapshot", "dep:image", "image/gif"]
+recording = ["snapshot", "dep:image"]
 
 ## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]

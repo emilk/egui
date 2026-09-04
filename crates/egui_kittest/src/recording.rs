@@ -1,139 +1,48 @@
-//! Record an egui session as an animated GIF, an MP4 video, or a sequence of PNG files.
+//! Record an egui session as an MP4 video.
 //!
 //! The recorder is an [`egui::Plugin`], so it can record any [`egui::Context`],
 //! not just a [`crate::Harness`]. It requests a screenshot from the integration for each
-//! selected pass and keeps the frames in memory until you save them.
+//! selected pass and streams the frames to `ffmpeg`.
 //!
 //! See [`crate::Harness::start_recording`] / [`crate::Harness::finish_recording`].
 
-use std::fs::File;
-use std::io::{BufWriter, Write as _};
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use egui::{Context, FullOutput};
 use image::RgbaImage;
-use image::codecs::gif::{GifEncoder, Repeat};
 
 /// Name of the environment variable that records every [`crate::Harness`] in the process.
 ///
-/// Every harness records itself and saves a GIF when it is dropped,
+/// Every harness records itself and saves an MP4 when it is dropped,
 /// whether the test passed or not:
 ///
-/// - `KITTEST_RECORD=1` writes to `{output_path}/recordings/{test_name}.gif`
-/// - `KITTEST_RECORD=mp4` writes an MP4 instead of a GIF
+/// - `KITTEST_RECORD=1` writes to `{output_path}/recordings/{test_name}_{recording_id}.mp4`
 /// - `KITTEST_RECORD=open` writes to a temporary file and shows it in the default viewer
-/// - `KITTEST_RECORD=open-mp4` does both
 pub const RECORD_ENV_VAR: &str = "KITTEST_RECORD";
-
-/// What to write when the recording is saved.
-#[derive(Debug, Clone)]
-pub enum RecordKind {
-    /// Save an animated GIF to `path` (looping forever).
-    Gif {
-        /// Where to write the GIF.
-        path: PathBuf,
-
-        /// Frames per second. The GIF format stores delays in 10 ms ticks,
-        /// so a frame rate that is not a divisor of 100 is approximated.
-        frame_rate: f32,
-    },
-
-    /// Save an H.264 MP4 to `path`.
-    ///
-    /// This pipes the frames into [`ffmpeg`](https://ffmpeg.org/), which must be installed
-    /// and on the `PATH`. Without it we save a GIF next to `path` instead.
-    ///
-    /// MP4 has no alpha channel, so transparent pixels turn black.
-    Mp4 {
-        /// Where to write the video.
-        path: PathBuf,
-
-        /// Frames per second.
-        frame_rate: f32,
-    },
-
-    /// Save a sequence of PNG files (`frame_0000.png`, `frame_0001.png`, …) into `directory`.
-    PngSequence {
-        /// Directory to write the PNG files into. It is created if it is missing.
-        directory: PathBuf,
-    },
-}
-
-/// Which passes to capture.
-///
-/// Passes that egui discards (see [`egui::Context::request_discard`]) are never captured,
-/// since they are never shown to the user either.
-#[derive(Debug, Clone, Copy, Default)]
-pub enum RecordingTrigger {
-    /// Capture every pass, but drop a frame if it looks exactly like the frame before it.
-    ///
-    /// This is the default. It gives the smallest recordings, because most passes
-    /// change nothing on screen.
-    #[default]
-    ChangedFrames,
-
-    /// Capture every pass, even if nothing changed.
-    EveryFrame,
-
-    /// Capture every `N`-th pass. `EveryNthFrame(1)` is the same as [`Self::EveryFrame`].
-    EveryNthFrame(u32),
-}
 
 /// How to record. Pass this to [`crate::Harness::start_recording`] or [`RecordingPlugin::new`].
 #[derive(Debug, Clone)]
 pub struct RecordingOptions {
-    /// What to write when the recording is saved.
-    pub kind: RecordKind,
+    /// Where to write the MP4.
+    pub path: PathBuf,
 
-    /// Which passes to capture. Defaults to [`RecordingTrigger::ChangedFrames`].
-    pub trigger: RecordingTrigger,
+    /// Frames per second.
+    pub frame_rate: f32,
 }
 
 impl RecordingOptions {
-    /// Record a GIF to `path` at the given frame rate,
-    /// with the default trigger ([`RecordingTrigger::ChangedFrames`]).
-    pub fn gif(path: impl Into<PathBuf>, frame_rate: f32) -> Self {
-        Self {
-            kind: RecordKind::Gif {
-                path: path.into(),
-                frame_rate,
-            },
-            trigger: RecordingTrigger::default(),
-        }
-    }
-
-    /// Record an MP4 to `path` at the given frame rate,
-    /// with the default trigger ([`RecordingTrigger::ChangedFrames`]).
+    /// Record an MP4 to `path` at the given frame rate.
     ///
-    /// Needs [`ffmpeg`](https://ffmpeg.org/) on the `PATH`; see [`RecordKind::Mp4`].
+    /// This pipes frames into [`ffmpeg`](https://ffmpeg.org/), which must be installed and on the
+    /// `PATH`. Frames are streamed as they are captured. If the viewport later shrinks, frames are
+    /// padded; if it grows, frames are scaled down to fit the initial size.
     pub fn mp4(path: impl Into<PathBuf>, frame_rate: f32) -> Self {
         Self {
-            kind: RecordKind::Mp4 {
-                path: path.into(),
-                frame_rate,
-            },
-            trigger: RecordingTrigger::default(),
+            path: path.into(),
+            frame_rate,
         }
-    }
-
-    /// Record a PNG sequence into `directory`,
-    /// with the default trigger ([`RecordingTrigger::ChangedFrames`]).
-    pub fn png_sequence(directory: impl Into<PathBuf>) -> Self {
-        Self {
-            kind: RecordKind::PngSequence {
-                directory: directory.into(),
-            },
-            trigger: RecordingTrigger::default(),
-        }
-    }
-
-    /// Replace the trigger.
-    #[inline]
-    #[must_use]
-    pub fn with_trigger(mut self, trigger: RecordingTrigger) -> Self {
-        self.trigger = trigger;
-        self
     }
 }
 
@@ -155,9 +64,6 @@ pub enum RecordingError {
         err: std::io::Error,
     },
 
-    /// Failed to encode the image data.
-    Encode(image::ImageError),
-
     /// `ffmpeg` ran, but did not produce a video.
     Ffmpeg {
         /// What `ffmpeg` complained about.
@@ -171,19 +77,12 @@ impl core::fmt::Display for RecordingError {
             Self::NotRecording => write!(f, "No recording is running"),
             Self::NoFrames => write!(f, "The recording contains no frames"),
             Self::Io { path, err } => write!(f, "Failed to write {}: {err}", path.display()),
-            Self::Encode(err) => write!(f, "Failed to encode the recording: {err}"),
             Self::Ffmpeg { message } => write!(f, "ffmpeg failed: {message}"),
         }
     }
 }
 
 impl core::error::Error for RecordingError {}
-
-impl From<image::ImageError> for RecordingError {
-    fn from(err: image::ImageError) -> Self {
-        Self::Encode(err)
-    }
-}
 
 /// Records an [`egui::Context`] using the integration's screenshot support.
 ///
@@ -194,15 +93,15 @@ impl From<image::ImageError> for RecordingError {
 /// selected pass and receives the rendered image directly from the integration.
 pub struct RecordingPlugin {
     options: RecordingOptions,
-    frames: Vec<RgbaImage>,
-    pass_nr: u32,
+    mp4_stream: Option<Mp4Stream>,
+    error: Option<RecordingError>,
     recording_id: u64,
 
     /// While `false` the plugin captures no frames.
     active: bool,
 
     /// Set when the harness started the recording by itself (see [`crate::Harness`]).
-    pub(crate) auto_save: Option<AutoSave>,
+    pub(crate) auto_save: Option<AutoSaveMode>,
 }
 
 impl core::fmt::Debug for RecordingPlugin {
@@ -210,7 +109,6 @@ impl core::fmt::Debug for RecordingPlugin {
         f.debug_struct("RecordingPlugin")
             .field("options", &self.options)
             .field("active", &self.active)
-            .field("frames", &self.frames.len())
             .finish_non_exhaustive()
     }
 }
@@ -220,33 +118,12 @@ impl RecordingPlugin {
     pub fn new(options: RecordingOptions) -> Self {
         Self {
             options,
-            active: true,
-            ..Self::idle()
-        }
-    }
-
-    /// Create a plugin that captures nothing until [`Self::restart`] is called.
-    pub fn idle() -> Self {
-        Self {
-            options: RecordingOptions::gif(PathBuf::new(), AUTO_FRAME_RATE),
-            frames: Vec::new(),
-            pass_nr: 0,
+            mp4_stream: None,
+            error: None,
             recording_id: 0,
-            active: false,
+            active: true,
             auto_save: None,
         }
-    }
-
-    /// The options this recording uses.
-    #[inline]
-    pub fn options(&self) -> &RecordingOptions {
-        &self.options
-    }
-
-    /// The options this recording uses, mutably.
-    #[inline]
-    pub fn options_mut(&mut self) -> &mut RecordingOptions {
-        &mut self.options
     }
 
     /// Is the plugin capturing frames?
@@ -255,83 +132,109 @@ impl RecordingPlugin {
         self.active
     }
 
-    /// The frames captured so far.
-    #[inline]
-    pub fn frames(&self) -> &[RgbaImage] {
-        &self.frames
-    }
-
     /// Start capturing again, with new options. Any earlier frames are dropped.
-    pub fn restart(&mut self, options: RecordingOptions) {
+    fn restart(&mut self, options: RecordingOptions) {
+        self.cancel_mp4();
         self.options = options;
-        self.frames.clear();
-        self.pass_nr = 0;
+        self.error = None;
         self.recording_id = self.recording_id.wrapping_add(1);
         self.active = true;
         self.auto_save = None;
     }
 
-    /// Stop capturing and drop all frames.
-    pub fn stop(&mut self) {
-        self.frames.clear();
-        self.recording_id = self.recording_id.wrapping_add(1);
-        self.active = false;
-        self.auto_save = None;
-    }
-
-    /// Write the captured frames to disk, and return the file or directory that was written.
-    ///
-    /// The returned path is not always the one in the options: an MP4 falls back to a GIF
-    /// when `ffmpeg` is missing.
+    /// Finish writing the captured frames and return the MP4 path.
     ///
     /// # Errors
     /// Returns an error if there are no frames, or if writing fails.
-    pub fn save(&self) -> Result<PathBuf, RecordingError> {
-        if self.frames.is_empty() {
-            return Err(RecordingError::NoFrames);
-        }
+    pub fn finish(&mut self) -> Result<PathBuf, RecordingError> {
+        self.active = false;
+        self.recording_id = self.recording_id.wrapping_add(1);
+        self.auto_save = None;
 
-        match &self.options.kind {
-            RecordKind::Gif { path, frame_rate } => save_gif(path, &self.frames, *frame_rate),
-            RecordKind::Mp4 { path, frame_rate } => save_mp4(path, &self.frames, *frame_rate),
-            RecordKind::PngSequence { directory } => save_png_sequence(directory, &self.frames),
-        }
-    }
-
-    /// Change where the recording will be written.
-    pub(crate) fn set_output_path(&mut self, new_path: PathBuf) {
-        match &mut self.options.kind {
-            RecordKind::Gif { path, .. } | RecordKind::Mp4 { path, .. } => *path = new_path,
-            RecordKind::PngSequence { directory } => *directory = new_path,
+        if let Some(err) = self.error.take() {
+            self.cancel_mp4();
+            Err(err)
+        } else if self.mp4_stream.is_none() {
+            Err(RecordingError::NoFrames)
+        } else {
+            self.mp4_stream
+                .take()
+                .expect("an MP4 with frames has a stream")
+                .finish()
         }
     }
 
-    /// Should we capture this pass?
-    fn should_capture(&mut self) -> bool {
-        let pass_nr = self.pass_nr;
-        self.pass_nr = self.pass_nr.wrapping_add(1);
-
-        match self.options.trigger {
-            RecordingTrigger::ChangedFrames | RecordingTrigger::EveryFrame => true,
-            RecordingTrigger::EveryNthFrame(n) => pass_nr.is_multiple_of(n.max(1)),
-        }
-    }
-
-    /// Add a frame, dropping it if the trigger says it is a duplicate.
+    /// Add a frame, dropping it if it is a duplicate.
     fn push_frame(&mut self, recording_id: u64, image: RgbaImage) {
         // A screenshot can finish after the recording was stopped or restarted.
         if !self.active || self.recording_id != recording_id {
             return;
         }
 
-        if matches!(self.options.trigger, RecordingTrigger::ChangedFrames)
-            && let Some(previous) = self.frames.last()
-            && previous.as_raw() == image.as_raw()
-        {
+        if self.error.is_some() {
             return;
         }
 
-        self.frames.push(image);
+        if let Err(err) = self.push_mp4_frame(image) {
+            self.error = Some(err);
+        }
+    }
+
+    fn push_mp4_frame(&mut self, image: RgbaImage) -> Result<(), RecordingError> {
+        if self.mp4_stream.is_none() {
+            let path = &self.options.path;
+            let frame_rate = self.options.frame_rate;
+            create_parent_dir(path)?;
+            let source_size = image.dimensions();
+            let canvas_size = (
+                round_up_to_even(source_size.0),
+                round_up_to_even(source_size.1),
+            );
+            match spawn_ffmpeg(path, canvas_size, frame_rate) {
+                Ok(child) => {
+                    self.mp4_stream = Some(Mp4Stream::new(
+                        child,
+                        path.clone(),
+                        frame_rate,
+                        source_size,
+                        canvas_size,
+                    ));
+                }
+                Err(err) => {
+                    return Err(RecordingError::Io {
+                        path: PathBuf::from(FFMPEG),
+                        err,
+                    });
+                }
+            }
+        }
+
+        let stream = self.mp4_stream.as_mut().expect("initialized above");
+        let image = stream.prepare_frame(image);
+        if stream
+            .last_frame
+            .as_ref()
+            .is_some_and(|previous| previous.as_raw() == image.as_raw())
+        {
+            return Ok(());
+        }
+        stream.push(image)?;
+        Ok(())
+    }
+
+    fn cancel_mp4(&mut self) {
+        if let Some(mut stream) = self.mp4_stream.take() {
+            drop(stream.stdin.take());
+            let _ = stream.child.kill();
+            let _ = stream.child.wait();
+            let _ = std::fs::remove_file(&stream.path);
+        }
+    }
+}
+
+impl Drop for RecordingPlugin {
+    fn drop(&mut self) {
+        self.cancel_mp4();
     }
 }
 
@@ -364,9 +267,7 @@ impl egui::Plugin for RecordingPlugin {
             return;
         }
 
-        if !self.should_capture() {
-            return;
-        }
+        crate::push_cursor_shape(ctx, &mut output.shapes);
 
         let recording_id = self.recording_id;
         let plugin = ctx.plugin::<Self>();
@@ -393,75 +294,41 @@ impl egui::Plugin for RecordingPlugin {
 /// When a recording that the harness started by itself is saved.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AutoSaveMode {
-    /// Always save. Written to `{output_path}/recordings/{test_name}.{ext}`.
+    /// Always save. Written to `{output_path}/recordings/{test_name}_{recording_id}.mp4`.
     Always,
 
     /// Always save to a temporary file, and show it in the default viewer.
     Open,
 }
 
-/// What such a recording is saved as.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum AutoSaveFormat {
-    Gif,
-    Mp4,
-}
-
-impl AutoSaveFormat {
-    fn extension(self) -> &'static str {
-        match self {
-            Self::Gif => "gif",
-            Self::Mp4 => "mp4",
-        }
-    }
-
-    fn options(self, path: PathBuf) -> RecordingOptions {
-        match self {
-            Self::Gif => RecordingOptions::gif(path, AUTO_FRAME_RATE),
-            Self::Mp4 => RecordingOptions::mp4(path, AUTO_FRAME_RATE),
-        }
-    }
-}
-
-/// How a recording that the harness started by itself is saved when the harness is dropped.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct AutoSave {
-    pub mode: AutoSaveMode,
-    pub format: AutoSaveFormat,
-}
-
-impl AutoSave {
-    /// Where to write the recording of the test we are running.
-    fn path(self) -> PathBuf {
-        let name = std::thread::current()
-            .name()
-            .map_or_else(|| "recording".to_owned(), sanitize_file_name);
-        let extension = self.format.extension();
-
-        let subdirectory = match self.mode {
-            AutoSaveMode::Always => "recordings",
-            AutoSaveMode::Open => {
-                if let Some(path) = temp_recording_path(&name, extension) {
-                    return path;
-                }
-                "recordings" // Fall back to a normal recording.
+/// Where to write an automatically started recording.
+fn auto_recording_path(mode: AutoSaveMode, recording_id: usize) -> PathBuf {
+    let name = std::thread::current()
+        .name()
+        .map_or_else(|| "recording".to_owned(), sanitize_file_name);
+    let subdirectory = match mode {
+        AutoSaveMode::Always => "recordings",
+        AutoSaveMode::Open => {
+            if let Some(path) = temp_recording_path(&name) {
+                return path;
             }
-        };
+            "recordings" // Fall back to a normal recording.
+        }
+    };
 
-        crate::config::config()
-            .output_path()
-            .join(subdirectory)
-            .join(format!("{name}.{extension}"))
-    }
+    crate::config::config()
+        .output_path()
+        .join(subdirectory)
+        .join(format!("{name}_{recording_id}.mp4"))
 }
 
 /// A file in the temporary directory, which we keep after the test, so that the
 /// viewer can still read it.
-fn temp_recording_path(name: &str, extension: &str) -> Option<PathBuf> {
+fn temp_recording_path(name: &str) -> Option<PathBuf> {
     tempfile::Builder::new()
         .disable_cleanup(true)
         .prefix(&format!("kittest-recording-{name}-"))
-        .suffix(&format!(".{extension}"))
+        .suffix(".mp4")
         .tempfile()
         .inspect_err(|err| log::error!("egui_kittest: failed to create a temporary file: {err}"))
         .ok()
@@ -476,27 +343,24 @@ fn sanitize_file_name(name: &str) -> String {
 /// What [`RECORD_ENV_VAR`] asks for.
 ///
 /// Read once, then cached, so that a test cannot change it halfway through a run.
-pub(crate) fn record_env_var() -> Option<AutoSave> {
-    static MODE: std::sync::OnceLock<Option<AutoSave>> = std::sync::OnceLock::new();
+pub(crate) fn record_env_var() -> Option<AutoSaveMode> {
+    static MODE: std::sync::OnceLock<Option<AutoSaveMode>> = std::sync::OnceLock::new();
     *MODE.get_or_init(|| {
         let value = std::env::var(RECORD_ENV_VAR).ok()?;
 
-        let (mode, format) = match value.trim().to_ascii_lowercase().as_str() {
-            "1" | "true" | "yes" | "on" | "gif" => (AutoSaveMode::Always, AutoSaveFormat::Gif),
-            "mp4" => (AutoSaveMode::Always, AutoSaveFormat::Mp4),
-            "open" | "open-gif" => (AutoSaveMode::Open, AutoSaveFormat::Gif),
-            "open-mp4" => (AutoSaveMode::Open, AutoSaveFormat::Mp4),
+        let mode = match value.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => AutoSaveMode::Always,
+            "open" => AutoSaveMode::Open,
             "" | "0" | "false" | "no" | "off" => return None,
             other => {
                 log::warn!(
-                    "Ignoring {RECORD_ENV_VAR}={other:?}: expected \
-                     `1`, `mp4`, `open` or `open-mp4`"
+                    "Ignoring {RECORD_ENV_VAR}={other:?}: expected a truthy value or `open`"
                 );
                 return None;
             }
         };
 
-        Some(AutoSave { mode, format })
+        Some(mode)
     })
 }
 
@@ -506,11 +370,14 @@ pub(crate) fn record_env_var() -> Option<AutoSave> {
 /// Frame rate of recordings that the harness starts by itself.
 const AUTO_FRAME_RATE: f32 = 10.0;
 
+/// Gives every automatically started recording a unique file name.
+static NEXT_RECORDING_ID: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(1);
+
 /// A [`crate::Harness`] can record itself.
 impl<State> crate::Harness<'_, State> {
     /// Record the rest of this test session.
     ///
-    /// One frame is captured per egui pass, as configured by [`RecordingOptions::trigger`].
+    /// One frame is captured per egui pass, with unchanged frames omitted.
     /// Call [`Self::finish_recording`] to write the result.
     ///
     /// This registers a [`RecordingPlugin`] on the [`egui::Context`] of the harness, and
@@ -524,11 +391,11 @@ impl<State> crate::Harness<'_, State> {
     /// let mut harness = Harness::new_ui(|ui| {
     ///     ui.label("Hello!");
     /// });
-    /// harness.start_recording(RecordingOptions::gif("hello.gif", 10.0));
+    /// harness.start_recording(RecordingOptions::mp4("hello.mp4", 10.0));
     /// harness.run();
     /// harness.finish_recording().unwrap();
     /// ```
-    pub fn start_recording(&mut self, options: RecordingOptions) {
+    pub fn start_recording(&self, options: RecordingOptions) {
         install(&self.ctx, options, None);
     }
 
@@ -538,15 +405,12 @@ impl<State> crate::Harness<'_, State> {
     /// Returns [`RecordingError::NotRecording`] if nothing was being recorded,
     /// [`RecordingError::NoFrames`] if no frame was captured,
     /// or an I/O or encoding error if writing failed.
-    pub fn finish_recording(&mut self) -> Result<PathBuf, RecordingError> {
+    pub fn finish_recording(&self) -> Result<PathBuf, RecordingError> {
         let result = self.ctx.with_plugin::<RecordingPlugin, _>(|plugin| {
-            plugin.auto_save = None;
             if !plugin.is_active() {
                 return Err(RecordingError::NotRecording);
             }
-            let result = plugin.save();
-            plugin.stop();
-            result
+            plugin.finish()
         });
 
         result.unwrap_or(Err(RecordingError::NotRecording))
@@ -559,28 +423,23 @@ impl<State> crate::Harness<'_, State> {
             .unwrap_or(false)
     }
 
-    /// Access the [`RecordingPlugin`], e.g. to read the captured frames.
-    ///
-    /// Returns `None` if the harness never recorded anything.
-    pub fn with_recording<R>(&self, f: impl FnOnce(&mut RecordingPlugin) -> R) -> Option<R> {
-        self.ctx.with_plugin::<RecordingPlugin, _>(f)
-    }
-
     /// Start recording if the environment variable asks for it.
-    pub(crate) fn maybe_start_auto_recording(&mut self) {
+    pub(crate) fn maybe_start_auto_recording(&self) {
         let Some(auto_save) = record_env_var() else {
             return;
         };
+        let recording_id = NEXT_RECORDING_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
 
-        // The file name contains the test name, which we only look up when we save,
-        // so record to a placeholder path for now.
-        let options = auto_save.format.options(PathBuf::new());
+        let options = RecordingOptions::mp4(
+            auto_recording_path(auto_save, recording_id),
+            AUTO_FRAME_RATE,
+        );
         install(&self.ctx, options, Some(auto_save));
     }
 }
 
 /// Register a [`RecordingPlugin`] on `ctx`, or restart the one that is already registered.
-fn install(ctx: &Context, options: RecordingOptions, auto_save: Option<AutoSave>) {
+fn install(ctx: &Context, options: RecordingOptions, auto_save: Option<AutoSaveMode>) {
     let restarted = ctx
         .with_plugin::<RecordingPlugin, _>(|plugin| {
             plugin.restart(options.clone());
@@ -602,13 +461,11 @@ impl RecordingPlugin {
             return;
         };
 
-        self.set_output_path(auto_save.path());
-
-        match self.save() {
+        match self.finish() {
             Ok(path) => {
                 eprintln!("egui_kittest: saved a recording to {}", path.display());
 
-                if auto_save.mode == AutoSaveMode::Open
+                if auto_save == AutoSaveMode::Open
                     && let Err(err) = open::that_detached(&path)
                 {
                     eprintln!(
@@ -620,110 +477,115 @@ impl RecordingPlugin {
             Err(RecordingError::NoFrames) => {}
             Err(err) => eprintln!("egui_kittest: failed to save the recording: {err}"),
         }
-
-        self.stop();
     }
 }
 
 // ----------------------------------------------------------------------------
 // Saving
 
-fn save_gif(path: &Path, frames: &[RgbaImage], frame_rate: f32) -> Result<PathBuf, RecordingError> {
-    create_parent_dir(path)?;
-
-    let file = File::create(path).map_err(|err| RecordingError::Io {
-        path: path.to_path_buf(),
-        err,
-    })?;
-    let mut encoder = GifEncoder::new(BufWriter::new(file));
-    encoder.set_repeat(Repeat::Infinite)?;
-
-    let fps = frame_rate.clamp(1.0, MAX_FRAME_RATE).round() as u32;
-    let frame_delay = image::Delay::from_numer_denom_ms(1000, fps);
-    // Hold the last frame for a second, so it is obvious where the loop restarts.
-    let last_delay = image::Delay::from_numer_denom_ms(1000, 1);
-
-    // All frames of a GIF share one canvas, so grow the smaller ones to fit.
-    let size = max_size(frames);
-
-    let last_index = frames.len() - 1;
-    for (i, frame) in frames.iter().enumerate() {
-        let delay = if i == last_index {
-            last_delay
-        } else {
-            frame_delay
-        };
-        let image = pad_to(frame, size);
-        encoder.encode_frame(image::Frame::from_parts(image, 0, 0, delay))?;
-    }
-
-    Ok(path.to_path_buf())
-}
-
 /// The encoder we pipe the frames into. It must be on the `PATH`.
 const FFMPEG: &str = "ffmpeg";
 
-/// Encode the frames as an H.264 MP4, or save a GIF if `ffmpeg` is not installed.
-fn save_mp4(path: &Path, frames: &[RgbaImage], frame_rate: f32) -> Result<PathBuf, RecordingError> {
-    create_parent_dir(path)?;
+struct Mp4Stream {
+    child: std::process::Child,
+    stdin: Option<std::process::ChildStdin>,
+    path: PathBuf,
+    frame_rate: f32,
+    source_size: (u32, u32),
+    canvas_size: (u32, u32),
+    last_frame: Option<RgbaImage>,
+    warned_about_resize: bool,
+}
 
-    // All frames of a video share one size, and H.264 wants both sides to be even.
-    let (width, height) = max_size(frames);
-    let size = (round_up_to_even(width), round_up_to_even(height));
-
-    let mut child = match spawn_ffmpeg(path, size, frame_rate) {
-        Ok(child) => child,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            let gif_path = path.with_extension("gif");
-            log::warn!(
-                "egui_kittest: `{FFMPEG}` is not installed, so {} is saved as {} instead",
-                path.display(),
-                gif_path.display()
-            );
-            return save_gif(&gif_path, frames, frame_rate);
+impl Mp4Stream {
+    fn new(
+        mut child: std::process::Child,
+        path: PathBuf,
+        frame_rate: f32,
+        source_size: (u32, u32),
+        canvas_size: (u32, u32),
+    ) -> Self {
+        let stdin = child.stdin.take().expect("`spawn_ffmpeg` pipes stdin");
+        Self {
+            child,
+            stdin: Some(stdin),
+            path,
+            frame_rate,
+            source_size,
+            canvas_size,
+            last_frame: None,
+            warned_about_resize: false,
         }
-        Err(err) => {
-            return Err(RecordingError::Io {
-                path: PathBuf::from(FFMPEG),
-                err,
-            });
-        }
-    };
-
-    // Hold the last frame for a second, like the GIF does.
-    let hold = frame_rate.clamp(1.0, MAX_FRAME_RATE).round() as usize;
-    let mut frames = frames.iter().chain(core::iter::repeat_n(
-        frames.last().expect("`save` rejects empty recordings"),
-        hold,
-    ));
-
-    // If ffmpeg dies early the pipe breaks; report what it said instead of the pipe error.
-    let mut stdin = child.stdin.take().expect("`spawn_ffmpeg` pipes stdin");
-    let write_result = frames.try_for_each(|frame| stdin.write_all(pad_to(frame, size).as_raw()));
-    drop(stdin); // Closing stdin tells ffmpeg to finish the file.
-
-    let output = child.wait_with_output().map_err(|err| RecordingError::Io {
-        path: PathBuf::from(FFMPEG),
-        err,
-    })?;
-
-    if !output.status.success() {
-        let message = String::from_utf8_lossy(&output.stderr).trim().to_owned();
-        return Err(RecordingError::Ffmpeg {
-            message: if message.is_empty() {
-                format!("{} while writing {}", output.status, path.display())
-            } else {
-                message
-            },
-        });
     }
 
-    write_result.map_err(|err| RecordingError::Io {
-        path: path.to_path_buf(),
-        err,
-    })?;
+    fn prepare_frame(&mut self, image: RgbaImage) -> RgbaImage {
+        let size = image.dimensions();
+        if size != self.source_size && !self.warned_about_resize {
+            let action = if size.0 <= self.source_size.0 && size.1 <= self.source_size.1 {
+                "padding it"
+            } else {
+                "scaling it to fit"
+            };
+            log::warn!(
+                "egui_kittest: MP4 recording changed size from {}x{} to {}x{}; {action} into the {}x{} recording canvas",
+                self.source_size.0,
+                self.source_size.1,
+                size.0,
+                size.1,
+                self.canvas_size.0,
+                self.canvas_size.1,
+            );
+            self.warned_about_resize = true;
+        }
+        let image = fit_to_canvas(image, self.source_size);
+        pad_to(&image, self.canvas_size)
+    }
 
-    Ok(path.to_path_buf())
+    fn push(&mut self, image: RgbaImage) -> Result<(), RecordingError> {
+        if let Some(previous) = self.last_frame.replace(image) {
+            self.stdin
+                .as_mut()
+                .expect("unfinished stream has stdin")
+                .write_all(previous.as_raw())
+                .map_err(|err| RecordingError::Io {
+                    path: self.path.clone(),
+                    err,
+                })?;
+        }
+        Ok(())
+    }
+
+    fn finish(mut self) -> Result<PathBuf, RecordingError> {
+        let last_frame = self.last_frame.take().expect("a stream with frames");
+        let hold = self.frame_rate.clamp(1.0, MAX_FRAME_RATE).round() as usize;
+        let stdin = self.stdin.as_mut().expect("unfinished stream has stdin");
+        let write_result = core::iter::repeat_n(&last_frame, hold + 1)
+            .try_for_each(|frame| stdin.write_all(frame.as_raw()));
+        drop(self.stdin.take());
+
+        let output = self
+            .child
+            .wait_with_output()
+            .map_err(|err| RecordingError::Io {
+                path: PathBuf::from(FFMPEG),
+                err,
+            })?;
+        if !output.status.success() {
+            let message = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+            return Err(RecordingError::Ffmpeg {
+                message: if message.is_empty() {
+                    format!("{} while writing {}", output.status, self.path.display())
+                } else {
+                    message
+                },
+            });
+        }
+        write_result.map_err(|err| RecordingError::Io {
+            path: self.path.clone(),
+            err,
+        })?;
+        Ok(self.path)
+    }
 }
 
 /// Start `ffmpeg`, ready to read raw RGBA frames of the given size from its stdin.
@@ -759,23 +621,6 @@ fn round_up_to_even(value: u32) -> u32 {
     value + value % 2
 }
 
-fn save_png_sequence(directory: &Path, frames: &[RgbaImage]) -> Result<PathBuf, RecordingError> {
-    std::fs::create_dir_all(directory).map_err(|err| RecordingError::Io {
-        path: directory.to_path_buf(),
-        err,
-    })?;
-
-    for (i, frame) in frames.iter().enumerate() {
-        let path = directory.join(format!("frame_{i:04}.png"));
-        frame.save(&path).map_err(|err| match err {
-            image::ImageError::IoError(err) => RecordingError::Io { path, err },
-            err => RecordingError::Encode(err),
-        })?;
-    }
-
-    Ok(directory.to_path_buf())
-}
-
 fn create_parent_dir(path: &Path) -> Result<(), RecordingError> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
@@ -786,13 +631,6 @@ fn create_parent_dir(path: &Path) -> Result<(), RecordingError> {
         })?;
     }
     Ok(())
-}
-
-/// The size of the largest frame, per axis.
-fn max_size(frames: &[RgbaImage]) -> (u32, u32) {
-    frames.iter().fold((1, 1), |(w, h), frame| {
-        (w.max(frame.width()), h.max(frame.height()))
-    })
 }
 
 /// Copy `image` into the top-left corner of a transparent image of the given size.
@@ -806,4 +644,70 @@ fn pad_to(image: &RgbaImage, (width, height): (u32, u32)) -> RgbaImage {
         padded.put_pixel(x, y, *pixel);
     }
     padded
+}
+
+/// Fit a frame into the fixed recording canvas.
+///
+/// Smaller frames keep their original size and are padded. Frames that exceed the canvas are
+/// scaled down proportionally, then padded along the remaining axis.
+fn fit_to_canvas(image: RgbaImage, (width, height): (u32, u32)) -> RgbaImage {
+    let (image_width, image_height) = image.dimensions();
+    if (image_width, image_height) == (width, height) {
+        return image;
+    }
+    if image_width <= width && image_height <= height {
+        return pad_to(&image, (width, height));
+    }
+
+    let scale = (width as f64 / image_width as f64).min(height as f64 / image_height as f64);
+    let scaled_width = ((image_width as f64 * scale).round() as u32).clamp(1, width);
+    let scaled_height = ((image_height as f64 * scale).round() as u32).clamp(1, height);
+    let scaled = image::imageops::resize(
+        &image,
+        scaled_width,
+        scaled_height,
+        image::imageops::FilterType::Triangle,
+    );
+    pad_to(&scaled, (width, height))
+}
+
+#[cfg(test)]
+mod tests {
+    use image::{Rgba, RgbaImage};
+
+    use super::fit_to_canvas;
+
+    #[test]
+    fn smaller_frames_are_padded() {
+        let image = RgbaImage::from_pixel(2, 2, Rgba([255, 0, 0, 255]));
+        let fitted = fit_to_canvas(image, (4, 4));
+
+        assert_eq!(fitted.dimensions(), (4, 4));
+        assert_eq!(fitted[(0, 0)], Rgba([255, 0, 0, 255]));
+        assert_eq!(fitted[(3, 3)], Rgba([0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn larger_frames_are_scaled_to_fit_and_padded() {
+        let image = RgbaImage::from_pixel(8, 4, Rgba([255, 0, 0, 255]));
+        let fitted = fit_to_canvas(image, (4, 4));
+
+        assert_eq!(fitted.dimensions(), (4, 4));
+        assert_eq!(fitted[(3, 1)], Rgba([255, 0, 0, 255]));
+        assert_eq!(fitted[(3, 3)], Rgba([0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn mp4_frames_are_streamed() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("stream.mp4");
+        let mut plugin = super::RecordingPlugin::new(super::RecordingOptions::mp4(&path, 10.0));
+
+        plugin.push_frame(0, RgbaImage::from_pixel(4, 4, Rgba([255, 0, 0, 255])));
+        plugin.push_frame(0, RgbaImage::from_pixel(2, 2, Rgba([255, 0, 0, 255])));
+        plugin.push_frame(0, RgbaImage::from_pixel(8, 8, Rgba([255, 0, 0, 255])));
+
+        let saved_path = plugin.finish().expect("finish recording");
+        assert!(saved_path.exists());
+    }
 }

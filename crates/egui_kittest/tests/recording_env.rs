@@ -1,5 +1,5 @@
-//! Checks that `KITTEST_RECORD` records every harness and writes the GIFs next to the
-//! snapshots, in `recordings/{test_name}.gif`.
+//! Checks that `KITTEST_RECORD` records every harness and writes the MP4s next to the
+//! snapshots, in `recordings/{test_name}_{recording_id}.mp4`.
 //!
 //! This is a test binary of its own because it changes the environment and the working
 //! directory of the whole process.
@@ -43,19 +43,21 @@ fn setup() -> &'static std::path::Path {
 fn env_var_records_every_harness() {
     let dir = setup();
 
-    {
+    for label in ["first harness", "second harness"] {
         let mut harness = Harness::new_ui(|ui| {
-            ui.label("recorded by the environment variable");
+            ui.label(label);
         });
         harness.run();
         // Dropping the harness saves the recording.
     }
 
-    let gif = dir
-        .join("recordings")
-        .join("env_var_records_every_harness.gif");
-    let size = std::fs::metadata(&gif)
-        .unwrap_or_else(|err| panic!("{} should exist: {err}", gif.display()))
-        .len();
-    assert!(size > 0, "the GIF should not be empty");
+    for recording_id in 1..=2 {
+        let mp4 = dir
+            .join("recordings")
+            .join(format!("env_var_records_every_harness_{recording_id}.mp4"));
+        let size = std::fs::metadata(&mp4)
+            .unwrap_or_else(|err| panic!("{} should exist: {err}", mp4.display()))
+            .len();
+        assert!(size > 0, "the MP4 should not be empty");
+    }
 }

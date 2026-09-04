@@ -1,6 +1,6 @@
 #![cfg(all(feature = "recording", feature = "wgpu"))]
 
-use egui_kittest::{Harness, RecordingOptions, RecordingPlugin, RecordingTrigger};
+use egui_kittest::{Harness, RecordingOptions, RecordingPlugin};
 use kittest::Queryable as _;
 use tempfile::tempdir;
 
@@ -17,39 +17,6 @@ fn counter_harness(value: &mut u32) -> Harness<'_, &mut u32> {
         )
 }
 
-fn count_pngs(dir: &std::path::Path) -> usize {
-    std::fs::read_dir(dir)
-        .expect("png output dir exists")
-        .filter_map(Result::ok)
-        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "png"))
-        .count()
-}
-
-#[test]
-fn records_a_gif() {
-    let dir = tempdir().expect("tempdir");
-    let gif_path = dir.path().join("counter.gif");
-
-    let mut value = 0;
-    let mut harness = counter_harness(&mut value);
-    harness.start_recording(RecordingOptions::gif(&gif_path, 12.0));
-
-    harness.run();
-    harness.get_by_label_contains("count").click();
-    harness.run();
-
-    assert!(harness.is_recording());
-    harness.finish_recording().expect("save gif");
-    assert!(!harness.is_recording());
-
-    let frames = decode_gif_frames(&gif_path);
-    assert!(
-        frames >= 2,
-        "the click should have produced at least two different frames, got {frames}"
-    );
-}
-
-/// Without `ffmpeg` this saves a GIF next to the requested path instead.
 #[test]
 fn records_an_mp4() {
     let dir = tempdir().expect("tempdir");
@@ -65,104 +32,17 @@ fn records_an_mp4() {
 
     let path = harness.finish_recording().expect("save mp4");
 
-    if which_ffmpeg() {
-        assert_eq!(path, mp4_path);
-    } else {
-        assert_eq!(
-            path,
-            mp4_path.with_extension("gif"),
-            "without ffmpeg we should fall back to a GIF"
-        );
-    }
+    assert_eq!(path, mp4_path);
     let size = std::fs::metadata(&path)
         .expect("the recording exists")
         .len();
     assert!(size > 0, "the recording should not be empty");
 }
 
-fn which_ffmpeg() -> bool {
-    std::process::Command::new("ffmpeg")
-        .arg("-version")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok()
-}
-
-fn decode_gif_frames(path: &std::path::Path) -> usize {
-    use image::AnimationDecoder as _;
-
-    let file = std::io::BufReader::new(std::fs::File::open(path).expect("gif exists"));
-    image::codecs::gif::GifDecoder::new(file)
-        .expect("decode gif")
-        .into_frames()
-        .count()
-}
-
-#[test]
-fn records_a_png_sequence() {
-    let dir = tempdir().expect("tempdir");
-    let out = dir.path().join("frames");
-
-    let mut value = 0;
-    let mut harness = counter_harness(&mut value);
-    harness.start_recording(
-        RecordingOptions::png_sequence(&out).with_trigger(RecordingTrigger::EveryFrame),
-    );
-
-    harness.run();
-    harness.get_by_label_contains("count").click();
-    harness.run();
-
-    harness.finish_recording().expect("save png sequence");
-
-    assert!(count_pngs(&out) > 0, "expected at least one frame");
-}
-
-#[test]
-fn changed_frames_drops_identical_frames() {
-    let dir = tempdir().expect("tempdir");
-    let out = dir.path().join("frames");
-
-    let mut value = 0;
-    let mut harness = counter_harness(&mut value);
-    harness.start_recording(
-        RecordingOptions::png_sequence(&out).with_trigger(RecordingTrigger::ChangedFrames),
-    );
-
-    for _ in 0..6 {
-        harness.run();
-    }
-    harness.finish_recording().expect("save png sequence");
-
-    assert_eq!(
-        count_pngs(&out),
-        1,
-        "nothing changed, so only the first frame should be kept"
-    );
-}
-
-#[test]
-fn every_nth_frame_skips_frames() {
-    let mut value = 0;
-    let mut harness = counter_harness(&mut value);
-
-    harness.start_recording(
-        RecordingOptions::gif(std::path::PathBuf::new(), 10.0)
-            .with_trigger(RecordingTrigger::EveryNthFrame(2)),
-    );
-    harness.run_steps(4);
-
-    let frames = harness
-        .with_recording(|plugin| plugin.frames().len())
-        .expect("the plugin is registered");
-    assert_eq!(frames, 2, "every second of the 4 passes should be captured");
-}
-
 #[test]
 fn finishing_without_recording_is_an_error() {
     let mut value = 0;
-    let mut harness = counter_harness(&mut value);
+    let harness = counter_harness(&mut value);
 
     let err = harness.finish_recording().expect_err("not recording");
     assert!(matches!(
@@ -176,8 +56,8 @@ fn recording_without_frames_is_an_error() {
     let dir = tempdir().expect("tempdir");
 
     let mut value = 0;
-    let mut harness = counter_harness(&mut value);
-    harness.start_recording(RecordingOptions::gif(dir.path().join("empty.gif"), 10.0));
+    let harness = counter_harness(&mut value);
+    harness.start_recording(RecordingOptions::mp4(dir.path().join("empty.mp4"), 10.0));
 
     let err = harness.finish_recording().expect_err("no frames");
     assert!(matches!(err, egui_kittest::RecordingError::NoFrames));
@@ -188,28 +68,22 @@ fn recording_without_frames_is_an_error() {
 #[test]
 fn records_when_registered_directly_as_a_plugin() {
     let dir = tempdir().expect("tempdir");
-    let gif_path = dir.path().join("plain.gif");
+    let mp4_path = dir.path().join("plain.mp4");
 
     let mut value = 0;
     let mut harness = counter_harness(&mut value);
-    harness.ctx.add_plugin(RecordingPlugin::new(
-        RecordingOptions::gif(&gif_path, 10.0).with_trigger(RecordingTrigger::EveryFrame),
-    ));
+    harness
+        .ctx
+        .add_plugin(RecordingPlugin::new(RecordingOptions::mp4(&mp4_path, 10.0)));
 
     // The final step must be captured immediately, without a follow-up pass.
     harness.run_steps(3);
 
-    let frames = harness
+    harness
         .ctx
-        .with_plugin::<RecordingPlugin, _>(|plugin| {
-            plugin.save().expect("save gif");
-            plugin.frames().len()
-        })
+        .with_plugin::<RecordingPlugin, _>(|plugin| plugin.finish().expect("finish mp4"))
         .expect("the plugin is registered");
 
-    assert_eq!(
-        frames, 3,
-        "each pass, including the final one, was captured"
-    );
-    assert!(gif_path.exists(), "the GIF should have been written");
+    assert!(!harness.is_recording());
+    assert!(mp4_path.exists(), "the MP4 should have been written");
 }
