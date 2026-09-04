@@ -68,9 +68,6 @@ max_failed_pixels = 0
 threshold = 0.6
 max_failed_pixels = 0
 
-# record every test and save a GIF of the failing ones
-# (needs the `recording` feature)
-save_gif_on_failure = false
 ```
 
 Raise `max_failed_pixels` only very carefully: a high value (more than ~10) is enough to hide a
@@ -104,9 +101,6 @@ You can also record without touching the test:
 * `KITTEST_RECORD=mp4 cargo test` writes MP4s instead of GIFs
 * `KITTEST_RECORD=open cargo test` writes each recording to a temporary file and opens it
   (`open-mp4` for an MP4)
-* `save_gif_on_failure = true` in `kittest.toml` writes a GIF to `tests/snapshots/failures`,
-  but only for tests that fail
-
 MP4 files are much smaller than GIFs, but need [`ffmpeg`](https://ffmpeg.org/) on the `PATH`;
 without it we save a GIF next to the requested path instead. MP4 also has no alpha channel,
 so transparent pixels turn black.
