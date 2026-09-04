@@ -59,21 +59,20 @@ fn window_chrome_metrics(window_handle: &RawWindowHandle) -> Option<WindowChrome
 
 fn traffic_lights_metrics(ns_window: &NSWindow) -> Option<Vec2> {
     // Button order is CloseButton, MiniaturizeButton, ZoomButton:
-    let close_button = ns_window
-        .standardWindowButton(NSWindowButton::CloseButton)?
-        .frame();
+    let close_button = ns_window.standardWindowButton(NSWindowButton::CloseButton)?;
+    let close_button_frame = close_button.frame();
     let zoom_button = ns_window
         .standardWindowButton(NSWindowButton::ZoomButton)?
         .frame();
 
-    let left_margin = close_button.origin.x;
+    let left_margin = close_button_frame.origin.x;
     let right_margin = left_margin; // for symmetry
 
     let total_width = zoom_button.origin.x + zoom_button.size.width + right_margin;
 
-    let top_margin = close_button.origin.y;
+    let top_margin = distance_from_top(&close_button)?;
     let bottom_margin = top_margin; // Usually symmetric
-    let total_height = top_margin + close_button.size.height + bottom_margin;
+    let total_height = top_margin + close_button_frame.size.height + bottom_margin;
 
     Some(Vec2::new(total_width as f32, total_height as f32))
 }
@@ -86,12 +85,37 @@ fn center_traffic_lights_in_title_bar(ns_window: &NSWindow, title_bar_height: f3
     ] {
         let button = ns_window.standardWindowButton(button_kind)?;
         let frame = button.frame();
+        // SAFETY: native eframe window updates run on the main thread, and `button` stays retained
+        // while its superview is accessed.
+        #[expect(unsafe_code)]
+        let superview = unsafe { button.superview()? };
+        let bounds = superview.bounds();
+        let top_margin = ((title_bar_height as f64 - frame.size.height) / 2.0).max(0.0);
         let mut origin = frame.origin;
-        origin.y = ((title_bar_height as f64 - frame.size.height) / 2.0).max(0.0);
+        origin.y = if superview.isFlipped() {
+            bounds.origin.y + top_margin
+        } else {
+            bounds.origin.y + bounds.size.height - top_margin - frame.size.height
+        };
         button.setFrameOrigin(origin);
     }
 
     Some(())
+}
+
+fn distance_from_top(view: &NSView) -> Option<f64> {
+    let frame = view.frame();
+    // SAFETY: native eframe window updates run on the main thread, and the caller retains `view`
+    // while its superview is accessed.
+    #[expect(unsafe_code)]
+    let superview = unsafe { view.superview()? };
+    let bounds = superview.bounds();
+
+    if superview.isFlipped() {
+        Some(frame.origin.y - bounds.origin.y)
+    } else {
+        Some(bounds.origin.y + bounds.size.height - frame.origin.y - frame.size.height)
+    }
 }
 
 fn ns_view_from_handle(handle: &AppKitWindowHandle) -> Option<&NSView> {
