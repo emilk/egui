@@ -12,7 +12,7 @@ use crate::{Div, Mul, Vec2, lerp};
 /// Mathematically this is known as a "point", but the term position was chosen so not to
 /// conflict with the unit (one point = X physical pixels).
 #[repr(C)]
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Pos2 {
@@ -230,6 +230,21 @@ impl core::ops::IndexMut<usize> for Pos2 {
     }
 }
 
+impl PartialEq for Pos2 {
+    #[track_caller]
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        debug_assert!(
+            !self.any_nan() && !other.any_nan(),
+            "Comparing NaN positions ({self:?} and {other:?}). \
+             A NaN is not even equal to itself, which leads to very confusing bugs."
+        );
+        self.x == other.x && self.y == other.y
+    }
+}
+
+/// This is a lie for NaN positions, which are not equal to themselves.
+/// [`PartialEq`] catches those in debug builds.
 impl Eq for Pos2 {}
 
 impl AddAssign<Vec2> for Pos2 {

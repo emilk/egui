@@ -89,7 +89,7 @@ pub struct TextEdit<'t> {
     event_filter: EventFilter,
     cursor_at_end: bool,
     min_size: Vec2,
-    align: Align2,
+    align: Option<Align2>,
     clip_text: bool,
     char_limit: usize,
     return_key: Option<KeyboardShortcut>,
@@ -153,7 +153,7 @@ impl<'t> TextEdit<'t> {
             },
             cursor_at_end: true,
             min_size: Vec2::ZERO,
-            align: Align2::LEFT_TOP,
+            align: None,
             clip_text: false,
             char_limit: usize::MAX,
             return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
@@ -382,17 +382,26 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Set the align of the inner text.
+    #[inline]
+    pub fn align(mut self, align: Align2) -> Self {
+        self.align = Some(align);
+        self
+    }
+
     /// Set the horizontal align of the inner text.
+    #[deprecated = "Use `align` instead"]
     #[inline]
     pub fn horizontal_align(mut self, align: Align) -> Self {
-        self.align.0[0] = align;
+        self.align.get_or_insert(Align2::LEFT_TOP).set_x(align);
         self
     }
 
     /// Set the vertical align of the inner text.
+    #[deprecated = "Use `align` instead"]
     #[inline]
     pub fn vertical_align(mut self, align: Align) -> Self {
-        self.align.0[1] = align;
+        self.align.get_or_insert(Align2::LEFT_TOP).set_y(align);
         self
     }
 
@@ -500,6 +509,10 @@ impl TextEdit<'_> {
         // The theme sets a floor on the size; the builder's own `min_size` can only raise it,
         // the same way it does for a button.
         let min_size = min_size.at_least(atom_layout_style.min_size);
+
+        let align = align
+            .or(atom_layout_style.align2)
+            .unwrap_or_else(|| ui.layout().align2());
 
         let text_color = text_color
             .or_else(|| ui.visuals().override_text_color)
@@ -722,7 +735,7 @@ impl TextEdit<'_> {
                         }
                     })
                     .atom_grow(true)
-                    .atom_align(self.align)
+                    .atom_align(align)
                     .atom_id(inner_rect_id)
                     .atom_shrink(should_shrink),
                 );
