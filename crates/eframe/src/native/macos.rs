@@ -21,6 +21,27 @@ impl WindowChromeMetrics {
     pub fn from_window_handle(window_handle: &RawWindowHandle) -> Option<Self> {
         window_chrome_metrics(window_handle)
     }
+
+    /// Vertically center the traffic lights in a title bar of the given height.
+    ///
+    /// The height uses the same native scale as [`Self::traffic_lights_size`].
+    /// Returns the updated window chrome metrics.
+    pub fn center_traffic_lights(
+        window_handle: &RawWindowHandle,
+        title_bar_height: f32,
+    ) -> Option<Self> {
+        let RawWindowHandle::AppKit(appkit_handle) = window_handle else {
+            return None;
+        };
+
+        let ns_view = ns_view_from_handle(appkit_handle)?;
+        let ns_window = ns_view.window()?;
+        center_traffic_lights_in_title_bar(&ns_window, title_bar_height)?;
+
+        Some(Self {
+            traffic_lights_size: traffic_lights_metrics(&ns_window)?,
+        })
+    }
 }
 
 fn window_chrome_metrics(window_handle: &RawWindowHandle) -> Option<WindowChromeMetrics> {
@@ -55,6 +76,22 @@ fn traffic_lights_metrics(ns_window: &NSWindow) -> Option<Vec2> {
     let total_height = top_margin + close_button.size.height + bottom_margin;
 
     Some(Vec2::new(total_width as f32, total_height as f32))
+}
+
+fn center_traffic_lights_in_title_bar(ns_window: &NSWindow, title_bar_height: f32) -> Option<()> {
+    for button_kind in [
+        NSWindowButton::CloseButton,
+        NSWindowButton::MiniaturizeButton,
+        NSWindowButton::ZoomButton,
+    ] {
+        let button = ns_window.standardWindowButton(button_kind)?;
+        let frame = button.frame();
+        let mut origin = frame.origin;
+        origin.y = ((title_bar_height as f64 - frame.size.height) / 2.0).max(0.0);
+        button.setFrameOrigin(origin);
+    }
+
+    Some(())
 }
 
 fn ns_view_from_handle(handle: &AppKitWindowHandle) -> Option<&NSView> {
