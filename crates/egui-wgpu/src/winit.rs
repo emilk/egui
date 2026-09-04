@@ -93,6 +93,19 @@ impl Painter {
         self.render_state.clone()
     }
 
+    /// Overwrite the runtime-mutable [`RenderState::surface_config`] held by this painter.
+    ///
+    /// The [`RenderState`] returned by [`Self::render_state`] is a clone, so mutating
+    /// `surface_config` on that clone (for example the copy `eframe` keeps in its `Frame`)
+    /// never reaches the copy consulted in [`Self::paint_and_update_textures`]. `eframe`
+    /// calls this once per frame to push the app-requested config into the painter's own
+    /// copy; the change is applied on the next paint.
+    pub fn set_surface_config(&mut self, surface_config: SurfaceConfig) {
+        if let Some(render_state) = self.render_state.as_mut() {
+            render_state.surface_config = surface_config;
+        }
+    }
+
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
