@@ -22,13 +22,15 @@ impl WindowChromeMetrics {
         window_chrome_metrics(window_handle)
     }
 
-    /// Vertically center the traffic lights in a title bar of the given height.
+    /// Position the traffic lights in a title bar of the given height.
     ///
-    /// The height uses the same native scale as [`Self::traffic_lights_size`].
+    /// The buttons are centered vertically and inset by `left_margin`.
+    /// Both arguments use the same native scale as [`Self::traffic_lights_size`].
     /// Returns the updated window chrome metrics.
-    pub fn center_traffic_lights(
+    pub fn position_traffic_lights(
         window_handle: &RawWindowHandle,
         title_bar_height: f32,
+        left_margin: f32,
     ) -> Option<Self> {
         let RawWindowHandle::AppKit(appkit_handle) = window_handle else {
             return None;
@@ -36,7 +38,7 @@ impl WindowChromeMetrics {
 
         let ns_view = ns_view_from_handle(appkit_handle)?;
         let ns_window = ns_view.window()?;
-        center_traffic_lights_in_title_bar(&ns_window, title_bar_height)?;
+        position_traffic_lights_in_title_bar(&ns_window, title_bar_height, left_margin)?;
 
         Some(Self {
             traffic_lights_size: traffic_lights_metrics(&ns_window)?,
@@ -77,7 +79,18 @@ fn traffic_lights_metrics(ns_window: &NSWindow) -> Option<Vec2> {
     Some(Vec2::new(total_width as f32, total_height as f32))
 }
 
-fn center_traffic_lights_in_title_bar(ns_window: &NSWindow, title_bar_height: f32) -> Option<()> {
+fn position_traffic_lights_in_title_bar(
+    ns_window: &NSWindow,
+    title_bar_height: f32,
+    left_margin: f32,
+) -> Option<()> {
+    let close_button_x = ns_window
+        .standardWindowButton(NSWindowButton::CloseButton)?
+        .frame()
+        .origin
+        .x;
+    let x_offset = left_margin as f64 - close_button_x;
+
     for button_kind in [
         NSWindowButton::CloseButton,
         NSWindowButton::MiniaturizeButton,
@@ -92,6 +105,7 @@ fn center_traffic_lights_in_title_bar(ns_window: &NSWindow, title_bar_height: f3
         let bounds = superview.bounds();
         let top_margin = ((title_bar_height as f64 - frame.size.height) / 2.0).max(0.0);
         let mut origin = frame.origin;
+        origin.x += x_offset;
         origin.y = if superview.isFlipped() {
             bounds.origin.y + top_margin
         } else {
