@@ -237,7 +237,9 @@ impl InputState {
         }
         self.ime_output = ime;
 
-        let Some(ime) = ime else { return Ok(()) };
+        let Some(ime) = &self.ime_output else {
+            return Ok(());
+        };
 
         // NOTE: we don't set the input's `type` to `password` based on
         // `ime.purpose`, because that would confuse some password managers.
@@ -273,12 +275,25 @@ impl InputState {
             &format!("{}px", canvas.offset_top() as f32 + clamped_y),
         )?;
 
+        self.clear();
+
         Ok(())
     }
 
     fn clear(&mut self) {
-        self.input.set_value("");
-        self.last_text.clear();
+        let text = self
+            .ime_output
+            .as_ref()
+            .and_then(|ime| ime.preceding_text.as_deref())
+            .unwrap_or("");
+        if text != self.input.value() {
+            self.input.set_value(text);
+            let len = text.encode_utf16().count() as u32;
+            self.input.set_selection_start(Some(len)).ok();
+        }
+        if text != self.last_text {
+            self.last_text = text.to_owned();
+        }
     }
 
     fn handle_input_event(&mut self, event: &web_sys::InputEvent, runner: &mut AppRunner) {
@@ -319,19 +334,21 @@ impl InputState {
         }
 
         let preedit_text: String = text.chars().skip(prefix_len).collect();
-        let out_event = if event.is_composing() {
-            // We handle the composition update here instead of in a
-            // `compositionupdate` event because the selection range
-            // has not yet been updated when `compositionupdate` fires.
-            let active_range_chars = self.active_range_chars(&text, prefix_len);
-            egui::Event::Ime(egui::ImeEvent::Preedit {
-                text: preedit_text,
-                active_range_chars,
-            })
-        } else {
-            egui::Event::Text(preedit_text)
-        };
-        runner.input.raw.events.push(out_event);
+        if !preedit_text.is_empty() {
+            let out_event = if event.is_composing() {
+                // We handle the composition update here instead of in a
+                // `compositionupdate` event because the selection range
+                // has not yet been updated when `compositionupdate` fires.
+                let active_range_chars = self.active_range_chars(&text, prefix_len);
+                egui::Event::Ime(egui::ImeEvent::Preedit {
+                    text: preedit_text,
+                    active_range_chars,
+                })
+            } else {
+                egui::Event::Text(preedit_text)
+            };
+            runner.input.raw.events.push(out_event);
+        }
 
         if event.is_composing() {
             self.last_text = text.chars().take(prefix_len).collect();
