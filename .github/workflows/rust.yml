@@ -36,6 +36,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Rustfmt
         run: cargo fmt --all -- --check
@@ -86,6 +89,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: clippy wasm32 egui_demo_app
         run: cargo clippy -p egui_demo_app --lib --target wasm32-unknown-unknown
@@ -117,6 +123,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{env.NIGHTLY_VERSION}}
@@ -174,6 +183,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
         # Default features disabled to turn off accesskit, which does not work
         # with NativeActivity.
@@ -196,6 +208,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
         # Default features are disabled because glutin doesn't compile for ios.
       - run: cargo check --features wgpu --target aarch64-apple-ios --no-default-features
@@ -215,6 +230,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - run: cargo clippy --all-targets --all-features
 
@@ -237,6 +255,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run tests
         run: cargo test --all-features
