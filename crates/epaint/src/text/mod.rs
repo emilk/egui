@@ -26,7 +26,9 @@ pub use {
     font_provider::{FallbackRequest, FontProvider},
     font_tweak::{FontTweak, HintingTarget, SmoothHinting},
     fonts::{Fonts, FontsView, MAX_GLYPH_SIZE},
-    glyph_rasterizer::{GlyphRasterizer, GlyphRasterizerRequest, RasterizedGlyph},
+    glyph_rasterizer::{
+        GlyphRasterizer, GlyphRasterizerRequest, RasterizedGlyph, has_emoji_presentation,
+    },
     index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
     text_layout_types::*,
 };

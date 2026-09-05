@@ -67,3 +67,79 @@ impl core::fmt::Debug for GlyphRasterizer {
         f.write_str("GlyphRasterizer")
     }
 }
+
+/// Does this grapheme cluster have emoji presentation, per Unicode (UTS #51)?
+///
+/// True for clusters that default to a color glyph (😀, 🦀, 🇸🇪, 👨‍👩‍👧),
+/// for clusters with an explicit emoji presentation selector (⏮️, U+FE0F),
+/// and for emoji modifier (skin tone) sequences (☝🏻).
+///
+/// False for text-presentation symbols (⏮, ✔, ♥) and for clusters
+/// with an explicit text presentation selector (⏮︎, U+FE0E).
+///
+/// Used by `eframe`'s web glyph rasterizer to guess whether a browser-drawn glyph is color.
+pub fn has_emoji_presentation(cluster: &str) -> bool {
+    use unicode_properties::emoji::{
+        EmojiStatus, UnicodeEmoji as _, is_emoji_presentation_selector,
+        is_text_presentation_selector,
+    };
+
+    if cluster.is_ascii() {
+        return false; // Fast path: no ASCII character has emoji presentation.
+    }
+
+    let mut has_emoji_presentation = false;
+    for c in cluster.chars() {
+        if is_text_presentation_selector(c) {
+            return false; // Explicit text presentation wins.
+        }
+        has_emoji_presentation |= is_emoji_presentation_selector(c)
+            || matches!(
+                c.emoji_status(),
+                EmojiStatus::EmojiPresentation
+                    | EmojiStatus::EmojiPresentationAndModifierBase
+                    | EmojiStatus::EmojiPresentationAndEmojiComponent
+                    | EmojiStatus::EmojiPresentationAndModifierAndEmojiComponent
+            );
+    }
+    has_emoji_presentation
+}
+
+#[cfg(test)]
+mod has_emoji_presentation_tests {
+    use super::has_emoji_presentation;
+
+    #[test]
+    fn emoji_presentation() {
+        for cluster in [
+            "😀",
+            "🦀",
+            "⏮\u{FE0F}",              // explicit emoji presentation
+            "☝🏻",                     // skin tone modifier sequence
+            "🇸🇪",                     // flag
+            "👨\u{200D}👩\u{200D}👧", // ZWJ sequence
+            "1\u{FE0F}\u{20E3}",      // keycap
+        ] {
+            assert!(has_emoji_presentation(cluster), "{cluster:?}");
+        }
+    }
+
+    #[test]
+    fn text_presentation() {
+        for cluster in [
+            "",
+            "a",
+            "1",
+            "⏮",
+            "⏮\u{FE0E}",  // explicit text presentation
+            "😀\u{FE0E}", // explicit text presentation wins
+            "✔",
+            "♥",
+            "©",
+            "→",
+            "√",
+        ] {
+            assert!(!has_emoji_presentation(cluster), "{cluster:?}");
+        }
+    }
+}
