@@ -462,7 +462,7 @@ impl FontFace {
 
     /// Render the outline of a glyph to a coverage bitmap.
     ///
-    /// Not cached: see [`GlyphAtlas::allocate_outline`].
+    /// Not cached: see [`crate::text::glyph_atlas::GlyphAtlas::allocate_outline`].
     pub(crate) fn rasterize_outline(
         &mut self,
         metrics: &StyledMetrics,

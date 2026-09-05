@@ -11,6 +11,7 @@ use crate::{
     text::{
         ByteIndex, ByteRange,
         face_store::FontFaceKey,
+        fonts::FontsImpl,
         glyph_atlas::UvRect,
         styled_metrics::StyledMetrics,
         unicode::{is_cjk, is_cjk_break_allowed},
@@ -18,8 +19,8 @@ use crate::{
 };
 
 use super::{
-    ByteRangeExt as _, FontsImpl, Galley, Glyph, GlyphSource, LayoutJob, LayoutSection, PlacedRow,
-    Row, RowVisuals, VariationCoords,
+    ByteRangeExt as _, Galley, Glyph, GlyphSource, LayoutJob, LayoutSection, PlacedRow, Row,
+    RowVisuals, VariationCoords,
     family::FamilyKey,
     font_face::{FontFace, ShapedGlyph},
     glyph_atlas::{OutlineGlyph, RasterGlyphAllocation},
@@ -102,7 +103,7 @@ impl Paragraph {
 ///
 /// In most cases you should use [`crate::FontsView::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
-pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>) -> Galley {
+pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>) -> Galley {
     profiling::function_scope!();
 
     job.debug_sanity_check();

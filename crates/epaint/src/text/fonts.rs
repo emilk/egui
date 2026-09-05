@@ -12,6 +12,7 @@ use crate::{
         glyph_atlas::{GlyphAtlas, OutlineGlyph, RasterGlyphAllocation},
         glyph_rasterizer::default_glyph_source,
         styled_metrics::StyledMetrics,
+        text_layout::layout,
     },
 };
 
@@ -34,7 +35,7 @@ pub const MAX_GLYPH_SIZE: usize = 1024;
 ///
 /// You need to call [`Self::begin_pass`] and [`Self::font_image_delta`] once every frame.
 pub struct Fonts {
-    pub fonts: FontsImpl,
+    fonts: FontsImpl,
     galley_cache: GalleyCache,
 }
 
@@ -164,6 +165,14 @@ impl Fonts {
         self.fonts.glyphs.fill_ratio()
     }
 
+    /// Lay out some text, bypassing the galley cache.
+    ///
+    /// Prefer [`FontsView::layout_job`], which memoizes.
+    /// This is mostly useful for benchmarking the layout code.
+    pub fn layout_uncached(&mut self, pixels_per_point: f32, job: Arc<LayoutJob>) -> Galley {
+        layout(&mut self.fonts, pixels_per_point, job)
+    }
+
     /// Returns a [`FontsView`] with the given `pixels_per_point` that can be used to do text layout.
     pub fn with_pixels_per_point(&mut self, pixels_per_point: f32) -> FontsView<'_> {
         FontsView {
@@ -178,7 +187,7 @@ impl Fonts {
 
 /// The context's collection of fonts, with this context's `pixels_per_point`. This is what you use to do text layout.
 pub struct FontsView<'a> {
-    pub fonts: &'a mut FontsImpl,
+    fonts: &'a mut FontsImpl,
     galley_cache: &'a mut GalleyCache,
     pixels_per_point: f32,
 }
@@ -330,7 +339,7 @@ impl FontsView<'_> {
 /// The collection of fonts used by `epaint`.
 ///
 /// Required in order to paint text.
-pub struct FontsImpl {
+pub(crate) struct FontsImpl {
     definitions: FontDefinitions,
     glyphs: GlyphAtlas,
     faces: FaceStore,
@@ -348,7 +357,7 @@ pub struct FontsImpl {
 impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
-    pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
+    pub(crate) fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
         let faces = FaceStore::new(options, &definitions);
 
         Self {
@@ -364,10 +373,8 @@ impl FontsImpl {
     }
 
     /// Use this platform glyph rasterizer, e.g. the browser on web.
-    ///
-    /// See [`GlyphRasterizer`].
-    #[inline]
-    pub fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
+    #[cfg(test)]
+    pub(crate) fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
         self.set_glyph_rasterizer(Some(glyph_rasterizer));
         self
     }
@@ -377,7 +384,7 @@ impl FontsImpl {
     /// Pass `None` to only use the installed fonts.
     ///
     /// See [`GlyphRasterizer`].
-    pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
+    pub(crate) fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
         self.glyph_rasterizer = glyph_rasterizer;
         self.glyphs.clear_raster_glyphs();
     }
@@ -385,24 +392,24 @@ impl FontsImpl {
     /// Decide where to look first for the glyphs of each grapheme cluster.
     ///
     /// See [`GlyphSourcePreference`].
-    pub fn set_glyph_source_preference(
+    pub(crate) fn set_glyph_source_preference(
         &mut self,
         prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
     ) {
         self.glyph_source_preference = Arc::new(prefer);
     }
 
-    pub fn options(&self) -> &TextOptions {
+    pub(crate) fn options(&self) -> &TextOptions {
         self.glyphs.options()
     }
 
     /// Take the recycled shaping buffer (or create a new one if already taken).
-    pub fn take_shape_buffer(&mut self) -> harfrust::UnicodeBuffer {
+    pub(crate) fn take_shape_buffer(&mut self) -> harfrust::UnicodeBuffer {
         self.shape_buffer.take().unwrap_or_default()
     }
 
     /// Return a shaping buffer for reuse.
-    pub fn return_shape_buffer(&mut self, buffer: harfrust::UnicodeBuffer) {
+    pub(crate) fn return_shape_buffer(&mut self, buffer: harfrust::UnicodeBuffer) {
         self.shape_buffer = Some(buffer);
     }
 
@@ -488,7 +495,7 @@ impl FontsImpl {
     /// Width of this character in points, at the font's default variation location.
     ///
     /// Returns `0.0` if no font has the character.
-    pub fn glyph_width(&mut self, family: &FontFamily, c: char, font_size: f32) -> f32 {
+    pub(crate) fn glyph_width(&mut self, family: &FontFamily, c: char, font_size: f32) -> f32 {
         let family = self.family_key(family);
         let face_key = self.resolve_face(family, c);
         let Some(face) = self.faces.get_mut(face_key) else {
@@ -505,7 +512,7 @@ impl FontsImpl {
     ///
     /// This does not consult the [`GlyphRasterizer`], so it can return `false`
     /// for a character that would still render via the rasterizer (e.g. the browser on web).
-    pub fn has_glyph(&mut self, family: &FontFamily, c: char) -> bool {
+    pub(crate) fn has_glyph(&mut self, family: &FontFamily, c: char) -> bool {
         let family = self.family_key(family);
         // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
         self.resolve_face(family, c) != self.family(family).replacement_face_key()
@@ -514,12 +521,12 @@ impl FontsImpl {
     /// Do the installed fonts have all the glyphs in this text?
     ///
     /// See [`Self::has_glyph`] for the caveat about the glyph rasterizer.
-    pub fn has_glyphs(&mut self, family: &FontFamily, s: &str) -> bool {
+    pub(crate) fn has_glyphs(&mut self, family: &FontFamily, s: &str) -> bool {
         s.chars().all(|c| self.has_glyph(family, c))
     }
 
     /// All characters the fonts of this family support, and the names of the fonts that have each.
-    pub fn characters(&mut self, family: &FontFamily) -> &BTreeMap<char, Vec<String>> {
+    pub(crate) fn characters(&mut self, family: &FontFamily) -> &BTreeMap<char, Vec<String>> {
         let family = self.family_key(family);
         self.families[family.0].characters(&self.faces)
     }

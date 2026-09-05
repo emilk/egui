@@ -15,7 +15,7 @@ use smallvec::SmallVec;
 ///
 /// This supports mixing different fonts, color and formats (underline etc).
 ///
-/// Pass this to [`crate::FontsView::layout_job`] or [`crate::text::layout`].
+/// Pass this to [`crate::FontsView::layout_job`].
 ///
 /// ## Example:
 /// ```
