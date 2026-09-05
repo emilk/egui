@@ -86,35 +86,68 @@ impl From<Theme> for ThemePreference {
 }
 
 impl ThemePreference {
-    /// Show radio-buttons to switch between light mode, dark mode and following the system theme.
-    pub fn radio_buttons(&mut self, ui: &mut crate::Ui) {
+    /// A short icon representing this preference.
+    pub fn icon(self) -> &'static str {
+        match self {
+            Self::Dark => "🌙",
+            Self::Light => "☀",
+            Self::System => "💻",
+        }
+    }
+
+    /// A short name for this preference, e.g. "dark".
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Dark => "dark",
+            Self::Light => "light",
+            Self::System => "system",
+        }
+    }
+
+    /// Show a row of buttons for picking between dark mode, light mode,
+    /// and following the system theme.
+    ///
+    /// The button of the current preference is highlighted.
+    /// Each button is an icon (see [`Self::icon`]) with a tooltip explaining it.
+    ///
+    /// See also [`crate::global_theme_preference_buttons`], which does the same
+    /// for the theme of the whole [`crate::Context`].
+    pub fn buttons(&mut self, ui: &mut crate::Ui) {
         ui.horizontal(|ui| {
-            let system_theme = ui.input(|i| i.raw.system_theme);
+            ui.spacing_mut().item_spacing.x = 2.0;
 
-            ui.selectable_value(self, Self::System, "💻 System")
-                .on_hover_ui(|ui| {
-                    ui.label("Follow the system theme preference.");
+            ui.selectable_value(self, Self::System, Self::System.icon())
+                .on_hover_ui(system_hover_ui);
 
-                    ui.add_space(4.0);
-
-                    if let Some(system_theme) = system_theme {
-                        ui.label(format!(
-                            "The current system theme is: {}",
-                            match system_theme {
-                                Theme::Dark => "dark",
-                                Theme::Light => "light",
-                            }
-                        ));
-                    } else {
-                        ui.label("The system theme is unknown.");
-                    }
-                });
-
-            ui.selectable_value(self, Self::Dark, "🌙 Dark")
+            ui.selectable_value(self, Self::Dark, Self::Dark.icon())
                 .on_hover_text("Use the dark mode theme");
 
-            ui.selectable_value(self, Self::Light, "☀ Light")
+            ui.selectable_value(self, Self::Light, Self::Light.icon())
                 .on_hover_text("Use the light mode theme");
         });
+    }
+
+    /// Show a row of buttons for picking the theme preference.
+    #[deprecated = "Renamed to `buttons`"]
+    pub fn radio_buttons(&mut self, ui: &mut crate::Ui) {
+        self.buttons(ui);
+    }
+}
+
+fn system_hover_ui(ui: &mut crate::Ui) {
+    ui.label("Follow the system theme preference.");
+
+    ui.add_space(4.0);
+
+    if let Some(system_theme) = ui.input(|i| i.raw.system_theme) {
+        ui.label(format!(
+            "The current system theme is: {}",
+            match system_theme {
+                Theme::Dark => "dark",
+                Theme::Light => "light",
+            }
+        ));
+    } else {
+        ui.label("The system theme is unknown.");
     }
 }

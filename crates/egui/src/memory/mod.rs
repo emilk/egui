@@ -441,7 +441,7 @@ impl Options {
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
-                theme_preference.radio_buttons(ui);
+                theme_preference.buttons(ui);
 
                 ui.checkbox(sync_window_theme, "Sync window theme with egui theme");
 
