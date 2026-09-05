@@ -20,7 +20,7 @@ impl Default for Panels {
 
 impl crate::Demo for Panels {
     fn name(&self) -> &'static str {
-        "🗖 Panels"
+        "📰 Panels"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {

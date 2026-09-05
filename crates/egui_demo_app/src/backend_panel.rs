@@ -328,7 +328,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             {
                 let mut fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
                 if ui
-                    .checkbox(&mut fullscreen, "🗖 Fullscreen (F11)")
+                    .checkbox(&mut fullscreen, "🔳 Fullscreen (F11)")
                     .on_hover_text("Fullscreen the window")
                     .changed()
                 {
