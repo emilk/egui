@@ -13,8 +13,8 @@ use crate::{
     text::{
         FontTweak, GlyphSourcePreference, VariationCoords,
         face_store::{FaceStore, FontFaceKey},
+        family::Family,
         font_data::Blob,
-        fonts::CachedFamily,
         glyph_atlas::{GlyphAtlas, GlyphBitmap, RasterGlyphAllocation, SubpixelBin},
         styled_metrics::{LocationHash, StyledMetrics},
         unicode::invisible_char,
@@ -302,13 +302,14 @@ impl FontFace {
         )
     }
 
+    /// The name the font was installed under, i.e. its key in `FontDefinitions::font_data`.
     #[inline]
-    pub(crate) fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
     /// An un-ordered iterator over all supported characters.
-    fn characters(&self) -> impl Iterator<Item = char> + '_ {
+    pub fn characters(&self) -> impl Iterator<Item = char> + '_ {
         self.font
             .borrow_dependent()
             .charmap
@@ -487,9 +488,8 @@ pub(crate) struct ShapedGlyph {
 /// Wrapper over multiple [`FontFace`] (e.g. a primary + fallbacks for emojis)
 pub struct Font<'a> {
     pub(super) faces: &'a mut FaceStore,
-    pub(super) cached_family: &'a mut CachedFamily,
+    pub(super) family: &'a mut Family,
     pub(super) glyphs: &'a mut GlyphAtlas,
-    pub(super) family: crate::text::FontFamily,
     pub(super) glyph_rasterizer: Option<&'a crate::text::GlyphRasterizer>,
     pub(super) glyph_source_preference: &'a GlyphSourcePreference,
 }
@@ -508,7 +508,7 @@ impl Font<'_> {
         self.glyphs.allocate_raster(
             rasterizer,
             cluster,
-            &self.family,
+            self.family.name(),
             pixels_per_point,
             font_size,
         )
@@ -522,16 +522,7 @@ impl Font<'_> {
 
     /// All supported characters, and in which font they are available in.
     pub fn characters(&mut self) -> &BTreeMap<char, Vec<String>> {
-        self.cached_family.characters.get_or_insert_with(|| {
-            let mut characters: BTreeMap<char, Vec<String>> = Default::default();
-            for font_id in &self.cached_family.fonts {
-                let font = self.faces.get(*font_id).expect("Nonexistent font ID");
-                for chr in font.characters() {
-                    characters.entry(chr).or_default().push(font.name.clone());
-                }
-            }
-            characters
-        })
+        self.family.characters(self.faces)
     }
 
     pub fn styled_metrics(
@@ -540,10 +531,9 @@ impl Font<'_> {
         font_size: f32,
         coords: &VariationCoords,
     ) -> StyledMetrics {
-        self.cached_family
-            .fonts
-            .first()
-            .and_then(|key| self.faces.get(*key))
+        self.family
+            .primary()
+            .and_then(|key| self.faces.get(key))
             .map(|font_face| font_face.styled_metrics(pixels_per_point, font_size, coords))
             .unwrap_or_default()
     }
@@ -567,7 +557,7 @@ impl Font<'_> {
     /// for a character that would still render via the rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, c: char) -> bool {
         // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
-        self.resolve_face(c) != self.cached_family.replacement_face_key
+        self.resolve_face(c) != self.family.replacement_face_key()
     }
 
     /// Do the installed fonts have all the glyphs in this text?
@@ -579,24 +569,10 @@ impl Font<'_> {
 
     /// Find which face in the fallback chain owns `c`.
     ///
-    /// Location-independent — fallback choice depends only on charmap support.
-    /// Falls back to the replacement-glyph face when no fallback face has `c`.
+    /// See [`Family::resolve`].
     #[inline]
     pub(crate) fn resolve_face(&mut self, c: char) -> FontFaceKey {
-        if let Some(font_key) = self.cached_family.face_cache.get(&c) {
-            return *font_key;
-        }
-        self.resolve_face_slow(c)
-    }
-
-    #[cold]
-    fn resolve_face_slow(&mut self, c: char) -> FontFaceKey {
-        let font_key = self
-            .cached_family
-            .find_face_for_char(c, self.faces)
-            .unwrap_or(self.cached_family.replacement_face_key);
-        self.cached_family.face_cache.insert(c, font_key);
-        font_key
+        self.family.resolve(self.faces, c)
     }
 
     /// Resolve `c` to its (face, [`GlyphInfo`]) at the given face's location.
@@ -619,7 +595,7 @@ impl Font<'_> {
         };
         let glyph_info = face.glyph_info(c, metrics).unwrap_or_else(|| {
             // `c` is in no face — render the replacement character instead.
-            face.glyph_info(self.cached_family.replacement_char, metrics)
+            face.glyph_info(self.family.replacement_char(), metrics)
                 .unwrap_or(GlyphInfo::INVISIBLE)
         });
         (face_key, glyph_info)

@@ -2,6 +2,7 @@
 
 pub mod cursor;
 mod face_store;
+mod family;
 mod font;
 mod font_data;
 mod font_definitions;

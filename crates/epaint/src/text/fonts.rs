@@ -1,14 +1,11 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     Color32, TextureAtlas,
     text::{
         FontDefinitions, FontFamily, FontId, Galley, GlyphRasterizer, GlyphSource,
-        GlyphSourcePreference, LayoutJob, TextOptions, VariationCoords,
-        face_store::{FaceStore, FontFaceKey},
-        font::Font,
-        galley_cache::GalleyCache,
-        glyph_atlas::GlyphAtlas,
+        GlyphSourcePreference, LayoutJob, TextOptions, VariationCoords, face_store::FaceStore,
+        family::Family, font::Font, galley_cache::GalleyCache, glyph_atlas::GlyphAtlas,
         glyph_rasterizer::default_glyph_source,
     },
 };
@@ -19,91 +16,6 @@ use crate::{
 ///
 /// Must not exceed the minimum width of the [`TextureAtlas`] (1024).
 pub const MAX_GLYPH_SIZE: usize = 1024;
-
-// ----------------------------------------------------------------------------
-
-/// Cached data for working with a font family (e.g. doing character lookups).
-#[derive(Debug)]
-pub(super) struct CachedFamily {
-    pub fonts: Vec<FontFaceKey>,
-
-    /// Lazily calculated.
-    pub characters: Option<BTreeMap<char, Vec<String>>>,
-
-    /// The face used when no face in [`Self::fonts`] supports a char.
-    pub replacement_face_key: FontFaceKey,
-
-    /// The char that [`Self::replacement_face_key`] actually contains.
-    ///
-    /// When the user asks about a char that no fallback face supports we
-    /// render this char in its place.
-    pub replacement_char: char,
-
-    /// Cache: `char → which face in the fallback chain owns this char`.
-    ///
-    /// Location-independent (fallback choice depends only on charmap support,
-    /// not on variation coordinates).
-    pub face_cache: ahash::HashMap<char, FontFaceKey>,
-}
-
-impl CachedFamily {
-    fn new(fonts: Vec<FontFaceKey>, faces: &mut FaceStore) -> Self {
-        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
-        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
-
-        if fonts.is_empty() {
-            return Self {
-                fonts,
-                characters: None,
-                replacement_face_key: FontFaceKey::INVALID,
-                replacement_char: PRIMARY_REPLACEMENT_CHAR,
-                face_cache: Default::default(),
-            };
-        }
-
-        let mut slf = Self {
-            fonts,
-            characters: None,
-            replacement_face_key: FontFaceKey::INVALID,
-            replacement_char: PRIMARY_REPLACEMENT_CHAR,
-            face_cache: Default::default(),
-        };
-
-        let (replacement_face_key, replacement_char) = slf
-            .find_face_for_char(PRIMARY_REPLACEMENT_CHAR, faces)
-            .map(|key| (key, PRIMARY_REPLACEMENT_CHAR))
-            .or_else(|| {
-                slf.find_face_for_char(FALLBACK_REPLACEMENT_CHAR, faces)
-                    .map(|key| (key, FALLBACK_REPLACEMENT_CHAR))
-            })
-            .unwrap_or_else(|| {
-                log::warn!(
-                    "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
-                );
-                (FontFaceKey::INVALID, PRIMARY_REPLACEMENT_CHAR)
-            });
-        slf.replacement_face_key = replacement_face_key;
-        slf.replacement_char = replacement_char;
-
-        slf
-    }
-
-    /// Walk the fallback chain and return the first face whose charmap supports `c`.
-    ///
-    /// Pure — does not touch any cache. Callers that want memoisation should
-    /// insert into [`Self::face_cache`] themselves.
-    pub(crate) fn find_face_for_char(&self, c: char, faces: &mut FaceStore) -> Option<FontFaceKey> {
-        for font_key in &self.fonts {
-            let font_face = faces.get_mut(*font_key).expect("Nonexistent font ID");
-            if font_face.glyph_id_resolution(c).is_some() {
-                return Some(*font_key);
-            }
-        }
-        None
-    }
-}
-
-// ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
 
@@ -411,7 +323,7 @@ pub struct FontsImpl {
     definitions: FontDefinitions,
     glyphs: GlyphAtlas,
     faces: FaceStore,
-    family_cache: ahash::HashMap<FontFamily, CachedFamily>,
+    families: ahash::HashMap<FontFamily, Family>,
 
     /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
     shape_buffer: Option<harfrust::UnicodeBuffer>,
@@ -429,7 +341,7 @@ impl FontsImpl {
             definitions,
             glyphs: GlyphAtlas::new(options),
             faces,
-            family_cache: Default::default(),
+            families: Default::default(),
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
             glyph_rasterizer: None,
             glyph_source_preference: Arc::new(default_glyph_source),
@@ -481,31 +393,14 @@ impl FontsImpl {
 
     /// Get the right font implementation from [`FontFamily`].
     pub fn font(&mut self, family: &FontFamily) -> Font<'_> {
-        let cached_family = self.family_cache.entry(family.clone()).or_insert_with(|| {
-            let fonts = &self.definitions.families.get(family);
-            let fonts =
-                fonts.unwrap_or_else(|| panic!("FontFamily::{family:?} is not bound to any fonts"));
-
-            let fonts: Vec<FontFaceKey> = fonts
-                .iter()
-                .map(|font_name| {
-                    self.faces.key_by_name(font_name).unwrap_or_else(|| {
-                        let available: Vec<&str> =
-                            self.faces.iter().map(|(_, face)| face.name()).collect();
-                        panic!(
-                            "No font data found for {font_name:?}. Installed fonts: {available:?}"
-                        )
-                    })
-                })
-                .collect();
-
-            CachedFamily::new(fonts, &mut self.faces)
-        });
+        let family = self
+            .families
+            .entry(family.clone())
+            .or_insert_with(|| Family::new(family, &self.definitions, &mut self.faces));
         Font {
             faces: &mut self.faces,
-            cached_family,
+            family,
             glyphs: &mut self.glyphs,
-            family: family.clone(),
             glyph_rasterizer: self.glyph_rasterizer.as_ref(),
             glyph_source_preference: &self.glyph_source_preference,
         }
