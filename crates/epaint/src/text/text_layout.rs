@@ -1495,8 +1495,7 @@ fn segment_into_runs(fonts: &mut FontsImpl, family: FamilyKey, text: &str, out: 
         let byte_offset = ByteIndex(byte_offset);
         let byte_end = byte_offset + grapheme_str.len();
 
-        let base_char = grapheme_str.chars().next().unwrap_or(' ');
-        let font_key = fonts.resolve_cluster_face(family, grapheme_str, base_char);
+        let font_key = fonts.resolve_cluster_face(family, grapheme_str);
         let source = fonts.glyph_source(grapheme_str);
 
         if let Some(last_run) = out.last_mut()

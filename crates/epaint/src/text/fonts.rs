@@ -495,18 +495,8 @@ impl FontsImpl {
     /// Like [`Self::resolve_face`] for the first char of `cluster`,
     /// but lets the [`FontProvider`]s see the whole grapheme cluster.
     #[inline]
-    pub fn resolve_cluster_face(
-        &mut self,
-        family: FamilyKey,
-        cluster: &str,
-        base_char: char,
-    ) -> FontFaceKey {
-        self.families[family.0].resolve_cluster(
-            &mut self.faces,
-            &mut self.font_providers,
-            cluster,
-            base_char,
-        )
+    pub fn resolve_cluster_face(&mut self, family: FamilyKey, cluster: &str) -> FontFaceKey {
+        self.families[family.0].resolve_cluster(&mut self.faces, &mut self.font_providers, cluster)
     }
 
     /// Resolve `c` to its (face, [`GlyphInfo`]) at the given face's location.

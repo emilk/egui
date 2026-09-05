@@ -158,8 +158,10 @@ impl Family {
         faces: &mut FaceStore,
         providers: &mut FontProviders,
         cluster: &str,
-        base_char: char,
     ) -> FontFaceKey {
+        let Some(base_char) = cluster.chars().next() else {
+            return self.replacement_face_key;
+        };
         if let Some(font_key) = self.face_cache.get(&base_char) {
             return *font_key;
         }
