@@ -16,7 +16,7 @@ pub(crate) struct FamilyKey(pub(crate) usize);
 ///
 /// This is the only place that decides which face renders a given char:
 /// first the fonts the [`FontProviders`] install up front (the configured fonts),
-/// then fonts they discover on demand, then the replacement glyph.
+/// then fonts they discover on demand, then the `.notdef` glyph ("tofu") of the primary face.
 #[derive(Debug)]
 pub(crate) struct Family {
     name: FontFamily,
@@ -25,15 +25,6 @@ pub(crate) struct Family {
     ///
     /// Configured fonts first, then any discovered by the [`FontProviders`].
     chain: Vec<FontFaceKey>,
-
-    /// The face used when no face in [`Self::chain`] supports a char.
-    replacement_face_key: FontFaceKey,
-
-    /// The char that [`Self::replacement_face_key`] actually contains.
-    ///
-    /// When the user asks about a char that no fallback face supports we
-    /// render this char in its place.
-    replacement_char: char,
 
     /// Cache: `char → which face in the fallback chain owns this char`.
     ///
@@ -46,9 +37,6 @@ pub(crate) struct Family {
 }
 
 impl Family {
-    const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
-    const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
-
     /// Install the fonts the providers want for `name` up front, in provider order.
     pub fn new(name: &FontFamily, faces: &mut FaceStore, providers: &FontProviders) -> Self {
         let mut chain: Vec<FontFaceKey> = Vec::new();
@@ -68,36 +56,12 @@ impl Family {
             log::error!("No font provider has any font for FontFamily::{name:?}");
         }
 
-        let mut slf = Self {
+        Self {
             name: name.clone(),
             chain,
-            replacement_face_key: FontFaceKey::INVALID,
-            replacement_char: Self::PRIMARY_REPLACEMENT_CHAR,
             face_cache: Default::default(),
             characters: None,
-        };
-
-        if !slf.chain.is_empty() {
-            let (replacement_face_key, replacement_char) = slf
-                .find_face_for_char(Self::PRIMARY_REPLACEMENT_CHAR, faces)
-                .map(|key| (key, Self::PRIMARY_REPLACEMENT_CHAR))
-                .or_else(|| {
-                    slf.find_face_for_char(Self::FALLBACK_REPLACEMENT_CHAR, faces)
-                        .map(|key| (key, Self::FALLBACK_REPLACEMENT_CHAR))
-                })
-                .unwrap_or_else(|| {
-                    log::warn!(
-                        "Failed to find replacement characters {:?} or {:?}. Will use empty glyph.",
-                        Self::PRIMARY_REPLACEMENT_CHAR,
-                        Self::FALLBACK_REPLACEMENT_CHAR
-                    );
-                    (FontFaceKey::INVALID, Self::PRIMARY_REPLACEMENT_CHAR)
-                });
-            slf.replacement_face_key = replacement_face_key;
-            slf.replacement_char = replacement_char;
         }
-
-        slf
     }
 
     #[inline]
@@ -111,17 +75,12 @@ impl Family {
         self.chain.first().copied()
     }
 
-    /// The char rendered in place of chars no face in the chain has.
-    #[inline]
-    pub fn replacement_char(&self) -> char {
-        self.replacement_char
-    }
-
     /// Find which face in the fallback chain owns `c`.
     ///
     /// Location-independent: fallback choice depends only on charmap support.
     /// Asks the [`FontProviders`] when no face has `c`,
-    /// and falls back to the replacement-glyph face when they have no font for it either.
+    /// and falls back to the primary face (whose `.notdef` glyph we then render)
+    /// when they have no font for it either.
     #[inline]
     pub fn resolve(
         &mut self,
@@ -144,7 +103,7 @@ impl Family {
         cluster: &str,
     ) -> FontFaceKey {
         let Some(base_char) = cluster.chars().next() else {
-            return self.replacement_face_key;
+            return self.notdef_face();
         };
         if let Some(font_key) = self.face_cache.get(&base_char) {
             return *font_key;
@@ -166,18 +125,23 @@ impl Family {
             .find_face_for_char(c, faces)
             // …and if none of them has the char, ask the providers for a new font:
             .or_else(|| self.discover(faces, providers, cluster))
-            // No font has the char, so we will render the replacement glyph (e.g. `◻`):
+            // No font has the char, so we will render the `.notdef` glyph ("tofu"):
             .unwrap_or_else(|| {
                 log::debug!(
-                    "No font for {c:?} (U+{:04X}) in {:?}: rendering {:?} instead",
+                    "No font for {c:?} (U+{:04X}) in {:?}: rendering the tofu glyph instead",
                     c as u32,
-                    self.name,
-                    self.replacement_char
+                    self.name
                 );
-                self.replacement_face_key
+                self.notdef_face()
             });
         self.face_cache.insert(c, font_key);
         font_key
+    }
+
+    /// The face whose `.notdef` glyph ("tofu") we render for chars no face has.
+    #[inline]
+    fn notdef_face(&self) -> FontFaceKey {
+        self.primary().unwrap_or(FontFaceKey::INVALID)
     }
 
     /// Ask the providers for a new font with the first char of `cluster`, and append it to the chain.

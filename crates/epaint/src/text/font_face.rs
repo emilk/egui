@@ -100,11 +100,6 @@ impl FontCell {
         bin: SubpixelBin,
         hinting_target: skrifa::outline::Target,
     ) -> Option<GlyphBitmap> {
-        debug_assert!(
-            glyph_id != skrifa::GlyphId::NOTDEF,
-            "Can't rasterize glyph id 0"
-        );
-
         let location: skrifa::instance::LocationRef<'_> = (&metrics.location).into();
 
         // Color emoji fonts often have empty outlines next to their bitmap or `COLR` glyphs,
@@ -454,7 +449,7 @@ impl FontFace {
         });
     }
 
-    /// Code points that will always be replaced by the replacement character.
+    /// Code points that will always be replaced by the `.notdef` glyph ("tofu").
     ///
     /// See also [`invisible_char`].
     fn ignore_character(&self, chr: char) -> bool {
@@ -507,7 +502,7 @@ impl FontFace {
         }
 
         if self.ignore_character(c) {
-            return None; // these will result in the replacement character when rendering
+            return None; // these will result in the `.notdef` glyph ("tofu") when rendering
         }
 
         let resolution = if c == '\t' || c == '\u{2009}' || c == '\u{202F}' {
@@ -576,6 +571,21 @@ impl FontFace {
             },
         };
         Some(glyph_info)
+    }
+
+    /// The `.notdef` glyph ("tofu"), rendered in place of chars that no face has.
+    pub(super) fn notdef_glyph_info(&self, metrics: &StyledMetrics) -> GlyphInfo {
+        let font_data = self.font.borrow_dependent();
+        let glyph_metrics = font_data
+            .skrifa
+            .glyph_metrics(skrifa::instance::Size::unscaled(), &metrics.location);
+        GlyphInfo {
+            id: Some(GlyphId::NOTDEF),
+            advance_width_unscaled: glyph_metrics
+                .advance_width(GlyphId::NOTDEF)
+                .unwrap_or_default()
+                .into(),
+        }
     }
 
     #[inline(always)]
