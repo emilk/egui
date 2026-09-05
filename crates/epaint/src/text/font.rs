@@ -3,7 +3,6 @@
 use ahash::HashMap;
 use ecolor::Color32;
 use emath::{GuiRounding as _, OrderedFloat, vec2};
-use nohash_hasher::IntMap;
 use self_cell::self_cell;
 use skrifa::{GlyphId, MetadataProvider as _};
 use std::collections::BTreeMap;
@@ -13,8 +12,9 @@ use crate::{
     ColorImage, TextOptions,
     text::{
         FontTweak, GlyphSourcePreference, VariationCoords,
+        face_store::{FaceStore, FontFaceKey},
         font_data::Blob,
-        fonts::{CachedFamily, FontFaceKey},
+        fonts::CachedFamily,
         glyph_atlas::{GlyphAtlas, GlyphBitmap, RasterGlyphAllocation, SubpixelBin},
         styled_metrics::{LocationHash, StyledMetrics},
         unicode::invisible_char,
@@ -302,6 +302,11 @@ impl FontFace {
         )
     }
 
+    #[inline]
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
     /// An un-ordered iterator over all supported characters.
     fn characters(&self) -> impl Iterator<Item = char> + '_ {
         self.font
@@ -481,7 +486,7 @@ pub(crate) struct ShapedGlyph {
 // TODO(emilk): rename?
 /// Wrapper over multiple [`FontFace`] (e.g. a primary + fallbacks for emojis)
 pub struct Font<'a> {
-    pub(super) fonts_by_id: &'a mut IntMap<FontFaceKey, FontFace>,
+    pub(super) faces: &'a mut FaceStore,
     pub(super) cached_family: &'a mut CachedFamily,
     pub(super) glyphs: &'a mut GlyphAtlas,
     pub(super) family: crate::text::FontFamily,
@@ -520,7 +525,7 @@ impl Font<'_> {
         self.cached_family.characters.get_or_insert_with(|| {
             let mut characters: BTreeMap<char, Vec<String>> = Default::default();
             for font_id in &self.cached_family.fonts {
-                let font = self.fonts_by_id.get(font_id).expect("Nonexistent font ID");
+                let font = self.faces.get(*font_id).expect("Nonexistent font ID");
                 for chr in font.characters() {
                     characters.entry(chr).or_default().push(font.name.clone());
                 }
@@ -538,7 +543,7 @@ impl Font<'_> {
         self.cached_family
             .fonts
             .first()
-            .and_then(|key| self.fonts_by_id.get(key))
+            .and_then(|key| self.faces.get(*key))
             .map(|font_face| font_face.styled_metrics(pixels_per_point, font_size, coords))
             .unwrap_or_default()
     }
@@ -546,7 +551,7 @@ impl Font<'_> {
     /// Width of this character in points, at the font's default variation location.
     pub fn glyph_width(&mut self, c: char, font_size: f32) -> f32 {
         let face_key = self.resolve_face(c);
-        let Some(font_face) = self.fonts_by_id.get_mut(&face_key) else {
+        let Some(font_face) = self.faces.get_mut(face_key) else {
             return 0.0;
         };
         let metrics = font_face.styled_metrics(1.0, font_size, &VariationCoords::default());
@@ -588,7 +593,7 @@ impl Font<'_> {
     fn resolve_face_slow(&mut self, c: char) -> FontFaceKey {
         let font_key = self
             .cached_family
-            .find_face_for_char(c, self.fonts_by_id)
+            .find_face_for_char(c, self.faces)
             .unwrap_or(self.cached_family.replacement_face_key);
         self.cached_family.face_cache.insert(c, font_key);
         font_key
@@ -609,7 +614,7 @@ impl Font<'_> {
         metrics: &StyledMetrics,
     ) -> (FontFaceKey, GlyphInfo) {
         let face_key = self.resolve_face(c);
-        let Some(face) = self.fonts_by_id.get_mut(&face_key) else {
+        let Some(face) = self.faces.get_mut(face_key) else {
             return (face_key, GlyphInfo::INVISIBLE);
         };
         let glyph_info = face.glyph_info(c, metrics).unwrap_or_else(|| {

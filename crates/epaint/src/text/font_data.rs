@@ -103,9 +103,12 @@ impl AsRef<[u8]> for FontData {
 /// Shared, immutable bytes of a font file.
 pub type Blob = Arc<dyn AsRef<[u8]> + Send + Sync>;
 
-pub(super) fn blob_from_font_data(data: &FontData) -> Blob {
-    match data.clone().font {
-        Cow::Borrowed(bytes) => Arc::new(bytes) as Blob,
-        Cow::Owned(bytes) => Arc::new(bytes) as Blob,
+impl FontData {
+    /// The font file bytes as a shared blob.
+    pub(crate) fn blob(&self) -> Blob {
+        match self.font.clone() {
+            Cow::Borrowed(bytes) => Arc::new(bytes) as Blob,
+            Cow::Owned(bytes) => Arc::new(bytes) as Blob,
+        }
     }
 }
