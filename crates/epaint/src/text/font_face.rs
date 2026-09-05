@@ -10,9 +10,9 @@ use vello_cpu::{color, kurbo};
 use crate::{
     ColorImage, TextOptions,
     text::{
-        FontTweak, VariationCoords,
+        FontTweak, GlyphBitmap, VariationCoords,
         font_data::Blob,
-        glyph_atlas::{GlyphBitmap, SubpixelBin},
+        glyph_atlas::SubpixelBin,
         styled_metrics::{LocationHash, StyledMetrics},
         unicode::invisible_char,
     },

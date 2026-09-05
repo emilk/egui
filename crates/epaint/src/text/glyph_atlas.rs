@@ -3,9 +3,10 @@ use nohash_hasher::IntMap;
 use skrifa::GlyphId;
 
 use crate::{
-    ColorImage, FontColorTransferFunction, ImageDelta, TextOptions, TextureAtlas,
+    FontColorTransferFunction, ImageDelta, TextOptions, TextureAtlas,
     text::{
-        FontFamily, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE,
+        FontFamily, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE,
+        RasterizedGlyph,
         face_store::FontFaceKey,
         font_face::{FontFace, ShapedGlyph},
         styled_metrics::StyledMetrics,
@@ -67,18 +68,6 @@ pub(crate) struct OutlineGlyph {
 pub(crate) struct RasterGlyphAllocation {
     pub allocation: GlyphAllocation,
     pub advance_px: f32,
-}
-
-/// A glyph bitmap, ready to be copied into the atlas.
-pub(crate) struct GlyphBitmap {
-    /// Physical pixels. Coverage glyphs are white with alpha; color glyphs keep their colors.
-    pub image: ColorImage,
-
-    /// Offset from the glyph origin to the top-left of the image, in physical pixels.
-    pub offset_px: Vec2,
-
-    /// A color glyph (e.g. emoji) that must not be tinted with the text color.
-    pub is_color: bool,
 }
 
 // ----------------------------------------------------------------------------
@@ -349,23 +338,17 @@ impl GlyphAtlas {
             font_size_px: font_size * pixels_per_point,
             subpixel_offset_px: 0.0,
         };
-        let allocation = (rasterizer.rasterize)(&request).and_then(|glyph| {
-            let transfer = Self::transfer_function(&self.atlas, glyph.is_color);
-            let bitmap = GlyphBitmap {
-                image: glyph.image,
-                offset_px: glyph.offset_px,
-                is_color: glyph.is_color,
-            };
-            let uv_rect =
-                Self::allocate_bitmap(&mut self.atlas, &bitmap, pixels_per_point, transfer)?;
-            Some(RasterGlyphAllocation {
-                allocation: GlyphAllocation {
-                    uv_rect,
-                    is_color: glyph.is_color,
-                },
-                advance_px: glyph.advance_px,
-            })
-        });
+        let allocation =
+            (rasterizer.rasterize)(&request).and_then(|RasterizedGlyph { bitmap, advance_px }| {
+                let is_color = bitmap.is_color;
+                let transfer = Self::transfer_function(&self.atlas, is_color);
+                let uv_rect =
+                    Self::allocate_bitmap(&mut self.atlas, &bitmap, pixels_per_point, transfer)?;
+                Some(RasterGlyphAllocation {
+                    allocation: GlyphAllocation { uv_rect, is_color },
+                    advance_px,
+                })
+            });
         self.raster_glyphs.insert(key, allocation);
         allocation
     }

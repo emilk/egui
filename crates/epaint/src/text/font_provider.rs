@@ -175,8 +175,8 @@ mod tests {
         Color32, ColorImage,
         mutex::Mutex,
         text::{
-            FontData, FontDefinitions, FontId, Fonts, GlyphRasterizer, GlyphRasterizerRequest,
-            GlyphSource, RasterizedGlyph, TextOptions,
+            FontData, FontDefinitions, FontId, Fonts, GlyphBitmap, GlyphRasterizer,
+            GlyphRasterizerRequest, GlyphSource, RasterizedGlyph, TextOptions,
         },
     };
 
@@ -225,10 +225,12 @@ mod tests {
     fn color_rasterizer() -> GlyphRasterizer {
         GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| {
             Some(RasterizedGlyph {
-                image: ColorImage::new([1, 1], vec![Color32::RED]),
-                offset_px: emath::Vec2::ZERO,
+                bitmap: GlyphBitmap {
+                    image: ColorImage::new([1, 1], vec![Color32::RED]),
+                    offset_px: emath::Vec2::ZERO,
+                    is_color: true,
+                },
                 advance_px: 10.0,
-                is_color: true,
             })
         })
     }

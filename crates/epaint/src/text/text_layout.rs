@@ -1562,12 +1562,7 @@ mod tests {
     #[test]
     fn color_raster_glyph_is_not_tinted() {
         let rasterizer = GlyphRasterizer::new(|request: &GlyphRasterizerRequest<'_>| {
-            (request.cluster == "한").then(|| RasterizedGlyph {
-                image: ColorImage::new([1, 1], vec![Color32::RED]),
-                offset_px: Vec2::ZERO,
-                advance_px: 10.0,
-                is_color: true,
-            })
+            (request.cluster == "한").then(color_raster_glyph)
         });
         let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
             .with_glyph_rasterizer(rasterizer);
@@ -1621,14 +1616,8 @@ mod tests {
 
     #[test]
     fn color_raster_glyph_keeps_color_in_atlas() {
-        let rasterizer = GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| {
-            Some(RasterizedGlyph {
-                image: ColorImage::new([1, 1], vec![Color32::RED]),
-                offset_px: Vec2::ZERO,
-                advance_px: 10.0,
-                is_color: true,
-            })
-        });
+        let rasterizer =
+            GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| Some(color_raster_glyph()));
         // The default transfer function discards color for regular (white) glyphs:
         let options = TextOptions {
             color_transfer_function: crate::FontColorTransferFunction::TwoCoverageMinusCoverageSq,
@@ -1662,17 +1651,22 @@ mod tests {
 
     fn white_raster_glyph() -> RasterizedGlyph {
         RasterizedGlyph {
-            image: ColorImage::new([1, 1], vec![Color32::WHITE]),
-            offset_px: Vec2::ZERO,
+            bitmap: GlyphBitmap {
+                image: ColorImage::new([1, 1], vec![Color32::WHITE]),
+                offset_px: Vec2::ZERO,
+                is_color: false,
+            },
             advance_px: 10.0,
-            is_color: false,
         }
     }
 
     fn color_raster_glyph() -> RasterizedGlyph {
         RasterizedGlyph {
-            image: ColorImage::new([1, 1], vec![Color32::RED]),
-            is_color: true,
+            bitmap: GlyphBitmap {
+                image: ColorImage::new([1, 1], vec![Color32::RED]),
+                is_color: true,
+                ..white_raster_glyph().bitmap
+            },
             ..white_raster_glyph()
         }
     }
