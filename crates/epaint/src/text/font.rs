@@ -3,6 +3,7 @@
 use ahash::HashMap;
 use ecolor::Color32;
 use emath::{GuiRounding as _, OrderedFloat, vec2};
+use nohash_hasher::IntMap;
 use self_cell::self_cell;
 use skrifa::{GlyphId, MetadataProvider as _};
 use std::collections::BTreeMap;
@@ -480,7 +481,7 @@ pub(crate) struct ShapedGlyph {
 // TODO(emilk): rename?
 /// Wrapper over multiple [`FontFace`] (e.g. a primary + fallbacks for emojis)
 pub struct Font<'a> {
-    pub(super) fonts_by_id: &'a mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
+    pub(super) fonts_by_id: &'a mut IntMap<FontFaceKey, FontFace>,
     pub(super) cached_family: &'a mut CachedFamily,
     pub(super) glyphs: &'a mut GlyphAtlas,
     pub(super) family: crate::text::FontFamily,

@@ -21,7 +21,7 @@ use super::{
     ByteRangeExt as _, FontsImpl, Galley, Glyph, GlyphSource, LayoutJob, LayoutSection, PlacedRow,
     Row, RowVisuals, VariationCoords,
     font::{Font, FontFace, ShapedGlyph},
-    glyph_atlas::RasterGlyphAllocation,
+    glyph_atlas::{OutlineGlyph, RasterGlyphAllocation},
 };
 
 // ----------------------------------------------------------------------------
@@ -274,7 +274,7 @@ fn layout_shaped_run(
         // Tab is a layout concept, not a glyph — the shaper doesn't know about tab stops.
         // Override the advance width using the font's configured tab size.
         if chr == '\t' {
-            let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
+            let tweak = font.fonts_by_id.get(&run.font_key).map(|face| face.tweak());
             let tab_size = tweak.map_or(4.0, |t| t.tab_size);
             let (_, space_info) = font.glyph_info(' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
@@ -284,7 +284,7 @@ fn layout_shaped_run(
         // Thin space (U+2009) and narrow no-break space (U+202F):
         // override the shaper's advance width with the configured fraction of a space.
         if chr == '\u{2009}' || chr == '\u{202F}' {
-            let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
+            let tweak = font.fonts_by_id.get(&run.font_key).map(|face| face.tweak());
             let thin_space_width = tweak.map_or(0.5, |t| t.thin_space_width);
             let (_, space_info) = font.glyph_info(' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
@@ -339,18 +339,22 @@ fn layout_shaped_run(
                 let fallback_metrics = font
                     .fonts_by_id
                     .get(&fallback_key)
-                    .map(|ff| {
-                        ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
+                    .map(|face| {
+                        face.styled_metrics(
+                            ctx.pixels_per_point,
+                            ctx.font_size,
+                            &Default::default(),
+                        )
                     })
                     .unwrap_or_default();
                 let (_, glyph_info) = font.glyph_info(chr, &fallback_metrics);
                 let advance_width_px =
                     glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
-                let (glyph_alloc, physical_x) =
-                    if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
+                let OutlineGlyph { allocation, x_px } =
+                    if let Some(face) = font.fonts_by_id.get_mut(&fallback_key) {
                         font.glyphs.allocate_outline(
                             fallback_key,
-                            ff,
+                            face,
                             &fallback_metrics,
                             &ShapedGlyph {
                                 glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
@@ -366,28 +370,30 @@ fn layout_shaped_run(
 
                 ctx.glyph(
                     chr,
-                    physical_x,
+                    x_px,
                     advance_width_px,
                     &fallback_metrics,
-                    glyph_alloc.uv_rect,
+                    allocation.uv_rect,
                 )
             }
         } else {
-            let (mut glyph_alloc, physical_x) =
-                if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
-                    font.glyphs.allocate_outline(
-                        run.font_key,
-                        ff,
-                        face_metrics,
-                        &ShapedGlyph {
-                            glyph_id,
-                            h_pos: paragraph.cursor_x_px + x_offset_px,
-                            is_cjk: is_cjk(chr),
-                        },
-                    )
-                } else {
-                    Default::default()
-                };
+            let OutlineGlyph {
+                allocation: mut glyph_alloc,
+                x_px,
+            } = if let Some(face) = font.fonts_by_id.get_mut(&run.font_key) {
+                font.glyphs.allocate_outline(
+                    run.font_key,
+                    face,
+                    face_metrics,
+                    &ShapedGlyph {
+                        glyph_id,
+                        h_pos: paragraph.cursor_x_px + x_offset_px,
+                        is_cjk: is_cjk(chr),
+                    },
+                )
+            } else {
+                Default::default()
+            };
 
             // Apply shaper y_offset — this varies per glyph instance so it
             // is not part of the cached ShapedGlyph / GlyphAllocation.
@@ -397,7 +403,7 @@ fn layout_shaped_run(
 
             ctx.glyph(
                 chr,
-                physical_x,
+                x_px,
                 advance_width_px,
                 face_metrics,
                 glyph_alloc.uv_rect,
@@ -913,7 +919,7 @@ fn replace_last_glyph_with_overflow_character(
         let font_face_metrics = font
             .fonts_by_id
             .get(&font_id)
-            .map(|f| f.styled_metrics(pixels_per_point, font_size, &section.format.coords))
+            .map(|face| face.styled_metrics(pixels_per_point, font_size, &section.format.coords))
             .unwrap_or_default();
         let (_, glyph_info) = font.glyph_info(overflow_character, &font_face_metrics);
         let mut font_face = font.fonts_by_id.get_mut(&font_id);
@@ -934,12 +940,15 @@ fn replace_last_glyph_with_overflow_character(
         {
             // we are done
 
-            let (replacement_glyph_alloc, physical_x) = font_face
+            let OutlineGlyph {
+                allocation: replacement_glyph_alloc,
+                x_px,
+            } = font_face
                 .as_mut()
-                .map(|f| {
+                .map(|face| {
                     font.glyphs.allocate_outline(
                         font_id,
-                        f,
+                        face,
                         &font_face_metrics,
                         &ShapedGlyph {
                             glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
@@ -959,7 +968,7 @@ fn replace_last_glyph_with_overflow_character(
 
             row.glyphs.push(Glyph {
                 chr: overflow_character,
-                pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
+                pos: pos2(x_px as f32 / pixels_per_point, f32::NAN),
                 advance_width: advance_width_px / pixels_per_point,
                 line_height,
                 font_face_height: font_face_metrics.row_height,

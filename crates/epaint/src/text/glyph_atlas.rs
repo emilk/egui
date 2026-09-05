@@ -1,4 +1,5 @@
 use emath::{NumExt as _, Vec2, vec2};
+use nohash_hasher::IntMap;
 use skrifa::GlyphId;
 
 use crate::{
@@ -42,6 +43,19 @@ impl UvRect {
 pub struct GlyphAllocation {
     /// UV rectangle for drawing.
     pub uv_rect: UvRect,
+}
+
+/// An outline glyph in the atlas, positioned for one [`ShapedGlyph`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct OutlineGlyph {
+    pub allocation: GlyphAllocation,
+
+    /// Left edge of the glyph's pixel grid, in physical pixels.
+    ///
+    /// This is [`ShapedGlyph::h_pos`] rounded to the pixel (or sub-pixel bin)
+    /// the bitmap was rendered for. Draw the bitmap here, not at the
+    /// un-rounded `h_pos`, or it will be blurry.
+    pub x_px: i32,
 }
 
 /// A glyph from the [`GlyphRasterizer`], allocated in the atlas.
@@ -192,12 +206,12 @@ pub(crate) struct GlyphAtlas {
     atlas: TextureAtlas,
 
     /// Glyphs rendered from font outlines.
-    outline_glyphs: nohash_hasher::IntMap<OutlineGlyphKey, GlyphAllocation>,
+    outline_glyphs: IntMap<OutlineGlyphKey, GlyphAllocation>,
 
     /// Glyphs from the [`GlyphRasterizer`].
     ///
     /// `None` means the rasterizer could not handle the cluster.
-    raster_glyphs: nohash_hasher::IntMap<RasterGlyphKey, Option<RasterGlyphAllocation>>,
+    raster_glyphs: IntMap<RasterGlyphKey, Option<RasterGlyphAllocation>>,
 }
 
 impl GlyphAtlas {
@@ -246,14 +260,18 @@ impl GlyphAtlas {
 
     /// Get or render the glyph of `face` for `shaped`.
     ///
-    /// Returns the allocation and the rounded horizontal position (in physical pixels).
+    /// The bitmap is rendered at the sub-pixel bin of [`ShapedGlyph::h_pos`]
+    /// (if the face has sub-pixel binning on, and the glyph is not CJK),
+    /// so the same glyph can occupy up to four slots in the atlas.
+    ///
+    /// Never fails: see [`Self::allocate_bitmap`] for what happens when the atlas is full.
     pub fn allocate_outline(
         &mut self,
         face_key: FontFaceKey,
         face: &mut FontFace,
         metrics: &StyledMetrics,
         shaped: &ShapedGlyph,
-    ) -> (GlyphAllocation, i32) {
+    ) -> OutlineGlyph {
         let ShapedGlyph {
             glyph_id,
             h_pos,
@@ -262,10 +280,13 @@ impl GlyphAtlas {
 
         if glyph_id == GlyphId::NOTDEF {
             // invisible
-            return (GlyphAllocation::default(), h_pos.round() as i32);
+            return OutlineGlyph {
+                allocation: GlyphAllocation::default(),
+                x_px: h_pos.round() as i32,
+            };
         }
 
-        let (h_pos_round, bin) = if face.subpixel_binning() && !is_cjk {
+        let (x_px, bin) = if face.subpixel_binning() && !is_cjk {
             SubpixelBin::new(h_pos)
         } else {
             // CJK scripts contain a lot of characters and could hog the glyph atlas
@@ -280,7 +301,7 @@ impl GlyphAtlas {
             outline_glyphs,
             ..
         } = self;
-        let alloc = *outline_glyphs.entry(key).or_insert_with(|| {
+        let allocation = *outline_glyphs.entry(key).or_insert_with(|| {
             face.rasterize_outline(metrics, glyph_id, bin)
                 .and_then(|bitmap| {
                     let transfer = atlas.options().color_transfer_function;
@@ -293,13 +314,15 @@ impl GlyphAtlas {
                 .unwrap_or_default()
         });
 
-        (alloc, h_pos_round)
+        OutlineGlyph { allocation, x_px }
     }
 
     /// Get or rasterize `cluster` using the platform [`GlyphRasterizer`].
     ///
     /// Failures are cached too, so the (potentially slow) rasterizer
     /// is asked at most once per cluster and size.
+    ///
+    /// See [`Self::allocate_bitmap`] for what happens when the atlas is full.
     pub fn allocate_raster(
         &mut self,
         rasterizer: &GlyphRasterizer,
@@ -345,6 +368,11 @@ impl GlyphAtlas {
     /// Copy a bitmap into the atlas.
     ///
     /// Returns `None` for empty and oversized bitmaps.
+    ///
+    /// Never fails for lack of space: the [`TextureAtlas`] grows in height as needed,
+    /// and once it hits its maximum it logs a warning and starts overwriting old glyphs
+    /// (see [`TextureAtlas::allocate`]). We avoid getting there because `Fonts::begin_pass`
+    /// calls [`Self::clear`] as soon as [`Self::fill_ratio`] passes 80%.
     fn allocate_bitmap(
         atlas: &mut TextureAtlas,
         bitmap: &GlyphBitmap,

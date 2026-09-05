@@ -1,6 +1,8 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::{collections::BTreeMap, sync::Arc};
 
+use nohash_hasher::IntMap;
+
 use crate::{
     Color32, TextureAtlas,
     text::{
@@ -66,10 +68,7 @@ pub(super) struct CachedFamily {
 }
 
 impl CachedFamily {
-    fn new(
-        fonts: Vec<FontFaceKey>,
-        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
-    ) -> Self {
+    fn new(fonts: Vec<FontFaceKey>, fonts_by_id: &mut IntMap<FontFaceKey, FontFace>) -> Self {
         const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
         const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
 
@@ -117,7 +116,7 @@ impl CachedFamily {
     pub(crate) fn find_face_for_char(
         &self,
         c: char,
-        fonts_by_id: &mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
+        fonts_by_id: &mut IntMap<FontFaceKey, FontFace>,
     ) -> Option<FontFaceKey> {
         for font_key in &self.fonts {
             let font_face = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
@@ -436,7 +435,7 @@ impl FontsView<'_> {
 pub struct FontsImpl {
     definitions: FontDefinitions,
     glyphs: GlyphAtlas,
-    fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace>,
+    fonts_by_id: IntMap<FontFaceKey, FontFace>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
 
@@ -450,7 +449,7 @@ impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
     pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
-        let mut fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace> = Default::default();
+        let mut fonts_by_id: IntMap<FontFaceKey, FontFace> = Default::default();
         let mut fonts_by_name: ahash::HashMap<String, FontFaceKey> = Default::default();
         for (name, font_data) in &definitions.font_data {
             let blob = blob_from_font_data(font_data);
