@@ -152,6 +152,7 @@ toml = { version = "1.1", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "3.1", default-features = false }
 unicode-general-category = "1.1"
+unicode-properties = { version = "0.1.4", default-features = false, features = ["emoji"] }
 unicode-script = "0.5.8"
 unicode-segmentation = "1.13"
 vello_cpu = { version = "0.2.0", default-features = false, features = [
