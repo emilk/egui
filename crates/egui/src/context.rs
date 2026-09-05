@@ -594,11 +594,10 @@ impl ContextImpl {
 
             is_new = true;
             profiling::scope!("Fonts::new");
-            let mut fonts = Fonts::new(
-                text_options,
-                self.font_definitions.clone(),
-                self.glyph_rasterizer.clone(),
-            );
+            let mut fonts = Fonts::new(text_options, self.font_definitions.clone());
+            if let Some(glyph_rasterizer) = &self.glyph_rasterizer {
+                fonts = fonts.with_glyph_rasterizer(glyph_rasterizer.clone());
+            }
             if let Some(prefer) = &self.glyph_source_preference {
                 let prefer = Arc::clone(prefer);
                 fonts = fonts.with_glyph_source_preference(move |cluster| prefer(cluster));

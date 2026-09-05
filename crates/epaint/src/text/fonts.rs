@@ -900,19 +900,35 @@ pub struct Fonts {
 }
 
 impl Fonts {
-    /// Create a new [`Fonts`] for text layout, with an optional platform glyph fallback.
+    /// Create a new [`Fonts`] for text layout.
     ///
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
-    pub fn new(
-        options: TextOptions,
-        definitions: FontDefinitions,
-        glyph_rasterizer: Option<GlyphRasterizer>,
-    ) -> Self {
+    pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
         Self {
-            fonts: FontsImpl::new(options, definitions, glyph_rasterizer.clone()),
+            fonts: FontsImpl::new(options, definitions),
             galley_cache: Default::default(),
-            glyph_rasterizer,
+            glyph_rasterizer: None,
         }
+    }
+
+    /// Use this platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// See [`GlyphRasterizer`].
+    #[inline]
+    pub fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
+        self.set_glyph_rasterizer(Some(glyph_rasterizer));
+        self
+    }
+
+    /// Use this platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// Pass `None` to only use the installed fonts.
+    ///
+    /// See [`GlyphRasterizer`].
+    pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
+        self.glyph_rasterizer = glyph_rasterizer.clone();
+        self.fonts.set_glyph_rasterizer(glyph_rasterizer);
+        self.galley_cache = Default::default();
     }
 
     /// Decide where to look first for the glyphs of each grapheme cluster.
@@ -942,7 +958,8 @@ impl Fonts {
             let definitions = self.fonts.definitions.clone();
             let glyph_rasterizer = self.glyph_rasterizer.clone();
 
-            let mut fonts = FontsImpl::new(options, definitions, glyph_rasterizer.clone());
+            let mut fonts = FontsImpl::new(options, definitions);
+            fonts.set_glyph_rasterizer(glyph_rasterizer.clone());
             fonts.glyph_source_preference = Arc::clone(&self.fonts.glyph_source_preference);
 
             *self = Self {
@@ -1192,11 +1209,7 @@ pub struct FontsImpl {
 impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
-    pub fn new(
-        options: TextOptions,
-        definitions: FontDefinitions,
-        glyph_rasterizer: Option<GlyphRasterizer>,
-    ) -> Self {
+    pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
         let texture_width = options.max_texture_side.at_most(16 * 1024);
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height], options);
@@ -1225,10 +1238,29 @@ impl FontsImpl {
             fonts_by_name,
             family_cache: Default::default(),
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
-            glyph_rasterizer,
+            glyph_rasterizer: None,
             raster_glyph_cache: Default::default(),
             glyph_source_preference: Arc::new(default_glyph_source),
         }
+    }
+
+    /// Use this platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// See [`GlyphRasterizer`].
+    #[inline]
+    pub fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
+        self.set_glyph_rasterizer(Some(glyph_rasterizer));
+        self
+    }
+
+    /// Use this platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// Pass `None` to only use the installed fonts.
+    ///
+    /// See [`GlyphRasterizer`].
+    pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
+        self.glyph_rasterizer = glyph_rasterizer;
+        self.raster_glyph_cache = Default::default();
     }
 
     /// Decide where to look first for the glyphs of each grapheme cluster.
@@ -1652,8 +1684,7 @@ mod tests {
     #[test]
     fn test_split_paragraphs() {
         for pixels_per_point in [1.0, 2.0_f32.sqrt(), 2.0] {
-            let mut fonts =
-                FontsImpl::new(TextOptions::default(), FontDefinitions::default(), None);
+            let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
 
             for halign in [Align::Min, Align::Center, Align::Max] {
                 for justify in [false, true] {
@@ -1711,8 +1742,7 @@ mod tests {
         let rounded_output_to_gui = [false, true];
 
         for pixels_per_point in pixels_per_point {
-            let mut fonts =
-                FontsImpl::new(TextOptions::default(), FontDefinitions::default(), None);
+            let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
 
             for &max_width in &max_widths {
                 for round_output_to_gui in rounded_output_to_gui {
@@ -1759,7 +1789,7 @@ mod tests {
 
     #[test]
     fn test_fallback_glyph_width() {
-        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty(), None);
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty());
         let mut view = fonts.with_pixels_per_point(1.0);
 
         let width = view.glyph_width(&FontId::new(12.0, FontFamily::Proportional), ' ');

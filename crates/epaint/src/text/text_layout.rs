@@ -1577,7 +1577,7 @@ mod tests {
     use crate::{ColorImage, text::cursor::CCursor};
 
     fn test_fonts() -> FontsImpl {
-        FontsImpl::new(TextOptions::default(), FontDefinitions::default(), None)
+        FontsImpl::new(TextOptions::default(), FontDefinitions::default())
     }
 
     #[test]
@@ -1590,11 +1590,8 @@ mod tests {
                 is_color: true,
             })
         });
-        let mut fonts = FontsImpl::new(
-            TextOptions::default(),
-            FontDefinitions::default(),
-            Some(rasterizer),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+            .with_glyph_rasterizer(rasterizer);
 
         // Returns the tessellated vertex color of 'a' (a normal glyph) and '한' (a color glyph).
         let mut glyph_colors = |text_color: Color32, override_text_color: Option<Color32>| {
@@ -1658,7 +1655,8 @@ mod tests {
             color_transfer_function: crate::FontColorTransferFunction::TwoCoverageMinusCoverageSq,
             ..Default::default()
         };
-        let mut fonts = Fonts::new(options, FontDefinitions::default(), Some(rasterizer));
+        let mut fonts =
+            Fonts::new(options, FontDefinitions::default()).with_glyph_rasterizer(rasterizer);
         let galley = fonts.with_pixels_per_point(1.0).layout_no_wrap(
             "한".into(),
             FontId::proportional(14.0),
@@ -1719,11 +1717,8 @@ mod tests {
     fn preferred_clusters_use_rasterizer_before_fonts() {
         let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
         let rasterizer = recording_rasterizer(&requests, Some(color_raster_glyph()));
-        let mut fonts = FontsImpl::new(
-            TextOptions::default(),
-            FontDefinitions::default(),
-            Some(rasterizer),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+            .with_glyph_rasterizer(rasterizer);
 
         // The bundled fonts have all of these, but 😀 has emoji presentation,
         // so it should be rasterized, while ⏮ should stay a font glyph.
@@ -1749,11 +1744,8 @@ mod tests {
     fn preferred_cluster_falls_back_to_font_when_rasterizer_fails() {
         let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
         let rasterizer = recording_rasterizer(&requests, None);
-        let mut fonts = FontsImpl::new(
-            TextOptions::default(),
-            FontDefinitions::default(),
-            Some(rasterizer),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+            .with_glyph_rasterizer(rasterizer);
         let job = LayoutJob::simple(
             "a😀b".into(),
             FontId::proportional(14.0),
@@ -1773,11 +1765,8 @@ mod tests {
     fn rasterized_sequence_keeps_one_glyph_per_char() {
         let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
         let rasterizer = recording_rasterizer(&requests, Some(color_raster_glyph()));
-        let mut fonts = FontsImpl::new(
-            TextOptions::default(),
-            FontDefinitions::default(),
-            Some(rasterizer),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+            .with_glyph_rasterizer(rasterizer);
         let family = "👨\u{200D}👩\u{200D}👧";
         let job = LayoutJob::simple(
             family.to_owned(),
@@ -1802,11 +1791,8 @@ mod tests {
     fn custom_prefer_predicate() {
         let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
         let rasterizer = recording_rasterizer(&requests, Some(color_raster_glyph()));
-        let mut fonts = FontsImpl::new(
-            TextOptions::default(),
-            FontDefinitions::default(),
-            Some(rasterizer),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+            .with_glyph_rasterizer(rasterizer);
         fonts.set_glyph_source_preference(|cluster| {
             if cluster == "b" {
                 GlyphSource::Platform
@@ -1836,11 +1822,8 @@ mod tests {
     fn raster_glyph_cache_is_keyed_by_family() {
         let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
         let rasterizer = recording_rasterizer(&requests, Some(white_raster_glyph()));
-        let mut fonts = FontsImpl::new(
-            TextOptions::default(),
-            FontDefinitions::default(),
-            Some(rasterizer),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+            .with_glyph_rasterizer(rasterizer);
 
         for family in [FontFamily::Proportional, FontFamily::Monospace] {
             let job = LayoutJob::simple(
@@ -1865,11 +1848,8 @@ mod tests {
     fn raster_glyph_failure_is_cached_and_falls_back_to_replacement() {
         let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
         let rasterizer = recording_rasterizer(&requests, None);
-        let mut fonts = FontsImpl::new(
-            TextOptions::default(),
-            FontDefinitions::default(),
-            Some(rasterizer),
-        );
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+            .with_glyph_rasterizer(rasterizer);
         let job = Arc::new(LayoutJob::simple(
             "한".into(),
             FontId::proportional(14.0),

@@ -171,11 +171,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let wrap_width = 512.0;
         let font_id = egui::FontId::default();
         let text_color = egui::Color32::WHITE;
-        let mut fonts = egui::epaint::text::Fonts::new(
-            Default::default(),
-            egui::FontDefinitions::default(),
-            None,
-        );
+        let mut fonts =
+            egui::epaint::text::Fonts::new(Default::default(), egui::FontDefinitions::default());
         {
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
