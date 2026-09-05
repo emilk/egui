@@ -11,8 +11,8 @@ use crate::{
 };
 
 use super::{
-    CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PathShape, QuadraticBezierShape,
-    RectShape, TextShape,
+    BandShape, CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PathShape,
+    QuadraticBezierShape, RectShape, TextShape,
 };
 
 /// A paint primitive such as a circle or a piece of text.
@@ -43,7 +43,14 @@ pub enum Shape {
 
     /// A series of lines between points.
     /// The path can have a stroke and/or fill (if closed).
+    ///
+    /// If you want a path of varying width, use [`Self::Band`] instead.
     Path(PathShape),
+
+    /// A varying-width band along a direction.
+    ///
+    /// If you want a path of fixed width, use [`Self::Path`] instead.
+    Band(BandShape),
 
     /// Rectangle with optional outline and fill.
     Rect(RectShape),
@@ -397,6 +404,7 @@ impl Shape {
                 }
             }
             Self::Path(path_shape) => path_shape.visual_bounding_rect(),
+            Self::Band(band_shape) => band_shape.visual_bounding_rect(),
             Self::Rect(rect_shape) => rect_shape.visual_bounding_rect(),
             Self::Text(text_shape) => text_shape.visual_bounding_rect(),
             Self::Mesh(mesh) => mesh.calc_bounds(),
@@ -470,6 +478,7 @@ impl Shape {
                 }
                 path_shape.stroke.width *= transform.scaling;
             }
+            Self::Band(band_shape) => band_shape.transform(transform),
             Self::Rect(rect_shape) => {
                 rect_shape.rect = transform * rect_shape.rect;
                 rect_shape.corner_radius *= transform.scaling;
