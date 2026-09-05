@@ -5,6 +5,7 @@
 
 mod app_runner;
 mod backend;
+mod canvas_glyphs;
 mod dropped_file;
 mod events;
 mod input;
