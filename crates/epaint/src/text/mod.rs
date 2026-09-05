@@ -1,5 +1,6 @@
 //! Everything related to text, fonts, text layout, cursors etc.
 
+mod configured_fonts;
 pub mod cursor;
 mod face_store;
 mod family;
@@ -20,6 +21,7 @@ mod text_layout_types;
 mod unicode;
 
 pub use {
+    configured_fonts::ConfiguredFonts,
     font_data::{Blob, FontData, FontVariationAxis},
     font_definitions::{FontDefinitions, FontInsert, FontPriority, InsertFontFamily},
     font_id::{FontFamily, FontId},
