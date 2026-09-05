@@ -1,6 +1,7 @@
 //! Everything related to text, fonts, text layout, cursors etc.
 
 pub mod cursor;
+mod face_store;
 mod font;
 mod font_data;
 mod font_definitions;

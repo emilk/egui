@@ -1,15 +1,12 @@
-use core::sync::atomic::{AtomicUsize, Ordering};
 use std::{collections::BTreeMap, sync::Arc};
-
-use nohash_hasher::IntMap;
 
 use crate::{
     Color32, TextureAtlas,
     text::{
         FontDefinitions, FontFamily, FontId, Galley, GlyphRasterizer, GlyphSource,
         GlyphSourcePreference, LayoutJob, TextOptions, VariationCoords,
-        font::{Font, FontFace},
-        font_data::blob_from_font_data,
+        face_store::{FaceStore, FontFaceKey},
+        font::Font,
         galley_cache::GalleyCache,
         glyph_atlas::GlyphAtlas,
         glyph_rasterizer::default_glyph_source,
@@ -24,24 +21,6 @@ use crate::{
 pub const MAX_GLYPH_SIZE: usize = 1024;
 
 // ----------------------------------------------------------------------------
-
-/// Unique ID for looking up a single font face/file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct FontFaceKey(u64);
-
-impl FontFaceKey {
-    pub const INVALID: Self = Self(0);
-
-    fn new() -> Self {
-        static KEY_COUNTER: AtomicUsize = AtomicUsize::new(1);
-        Self(crate::util::hash(
-            KEY_COUNTER.fetch_add(1, Ordering::Relaxed),
-        ))
-    }
-}
-
-// Safe, because we hash the value in the constructor.
-impl nohash_hasher::IsEnabled for FontFaceKey {}
 
 /// Cached data for working with a font family (e.g. doing character lookups).
 #[derive(Debug)]
@@ -68,7 +47,7 @@ pub(super) struct CachedFamily {
 }
 
 impl CachedFamily {
-    fn new(fonts: Vec<FontFaceKey>, fonts_by_id: &mut IntMap<FontFaceKey, FontFace>) -> Self {
+    fn new(fonts: Vec<FontFaceKey>, faces: &mut FaceStore) -> Self {
         const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
         const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
 
@@ -91,10 +70,10 @@ impl CachedFamily {
         };
 
         let (replacement_face_key, replacement_char) = slf
-            .find_face_for_char(PRIMARY_REPLACEMENT_CHAR, fonts_by_id)
+            .find_face_for_char(PRIMARY_REPLACEMENT_CHAR, faces)
             .map(|key| (key, PRIMARY_REPLACEMENT_CHAR))
             .or_else(|| {
-                slf.find_face_for_char(FALLBACK_REPLACEMENT_CHAR, fonts_by_id)
+                slf.find_face_for_char(FALLBACK_REPLACEMENT_CHAR, faces)
                     .map(|key| (key, FALLBACK_REPLACEMENT_CHAR))
             })
             .unwrap_or_else(|| {
@@ -113,13 +92,9 @@ impl CachedFamily {
     ///
     /// Pure — does not touch any cache. Callers that want memoisation should
     /// insert into [`Self::face_cache`] themselves.
-    pub(crate) fn find_face_for_char(
-        &self,
-        c: char,
-        fonts_by_id: &mut IntMap<FontFaceKey, FontFace>,
-    ) -> Option<FontFaceKey> {
+    pub(crate) fn find_face_for_char(&self, c: char, faces: &mut FaceStore) -> Option<FontFaceKey> {
         for font_key in &self.fonts {
-            let font_face = fonts_by_id.get_mut(font_key).expect("Nonexistent font ID");
+            let font_face = faces.get_mut(*font_key).expect("Nonexistent font ID");
             if font_face.glyph_id_resolution(c).is_some() {
                 return Some(*font_key);
             }
@@ -435,8 +410,7 @@ impl FontsView<'_> {
 pub struct FontsImpl {
     definitions: FontDefinitions,
     glyphs: GlyphAtlas,
-    fonts_by_id: IntMap<FontFaceKey, FontFace>,
-    fonts_by_name: ahash::HashMap<String, FontFaceKey>,
+    faces: FaceStore,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
 
     /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
@@ -449,28 +423,12 @@ impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
     pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
-        let mut fonts_by_id: IntMap<FontFaceKey, FontFace> = Default::default();
-        let mut fonts_by_name: ahash::HashMap<String, FontFaceKey> = Default::default();
-        for (name, font_data) in &definitions.font_data {
-            let blob = blob_from_font_data(font_data);
-            let font_face = FontFace::new(
-                options,
-                name.clone(),
-                blob,
-                font_data.index,
-                font_data.tweak.clone(),
-            )
-            .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"));
-            let key = FontFaceKey::new();
-            fonts_by_id.insert(key, font_face);
-            fonts_by_name.insert(name.clone(), key);
-        }
+        let faces = FaceStore::new(options, &definitions);
 
         Self {
             definitions,
             glyphs: GlyphAtlas::new(options),
-            fonts_by_id,
-            fonts_by_name,
+            faces,
             family_cache: Default::default(),
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
             glyph_rasterizer: None,
@@ -531,17 +489,16 @@ impl FontsImpl {
             let fonts: Vec<FontFaceKey> = fonts
                 .iter()
                 .map(|font_name| {
-                    *self
-                        .fonts_by_name
-                        .get(font_name)
+                    self.faces
+                        .key_by_name(font_name)
                         .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
                 })
                 .collect();
 
-            CachedFamily::new(fonts, &mut self.fonts_by_id)
+            CachedFamily::new(fonts, &mut self.faces)
         });
         Font {
-            fonts_by_id: &mut self.fonts_by_id,
+            faces: &mut self.faces,
             cached_family,
             glyphs: &mut self.glyphs,
             family: family.clone(),

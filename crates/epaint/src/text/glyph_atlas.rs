@@ -6,8 +6,8 @@ use crate::{
     ColorImage, FontColorTransferFunction, ImageDelta, TextOptions, TextureAtlas,
     text::{
         FontFamily, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE,
+        face_store::FontFaceKey,
         font::{FontFace, ShapedGlyph},
-        fonts::FontFaceKey,
         styled_metrics::StyledMetrics,
     },
 };

@@ -10,7 +10,7 @@ use crate::{
     stroke::PathStroke,
     text::{
         ByteIndex, ByteRange,
-        fonts::FontFaceKey,
+        face_store::FontFaceKey,
         glyph_atlas::UvRect,
         styled_metrics::StyledMetrics,
         unicode::{is_cjk, is_cjk_break_allowed},
@@ -274,7 +274,7 @@ fn layout_shaped_run(
         // Tab is a layout concept, not a glyph — the shaper doesn't know about tab stops.
         // Override the advance width using the font's configured tab size.
         if chr == '\t' {
-            let tweak = font.fonts_by_id.get(&run.font_key).map(|face| face.tweak());
+            let tweak = font.faces.get(run.font_key).map(|face| face.tweak());
             let tab_size = tweak.map_or(4.0, |t| t.tab_size);
             let (_, space_info) = font.glyph_info(' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
@@ -284,7 +284,7 @@ fn layout_shaped_run(
         // Thin space (U+2009) and narrow no-break space (U+202F):
         // override the shaper's advance width with the configured fraction of a space.
         if chr == '\u{2009}' || chr == '\u{202F}' {
-            let tweak = font.fonts_by_id.get(&run.font_key).map(|face| face.tweak());
+            let tweak = font.faces.get(run.font_key).map(|face| face.tweak());
             let thin_space_width = tweak.map_or(0.5, |t| t.thin_space_width);
             let (_, space_info) = font.glyph_info(' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
@@ -337,8 +337,8 @@ fn layout_shaped_run(
                 // Use the fallback font face (not run.font_key which returned NOTDEF).
                 let fallback_key = font.resolve_face(chr);
                 let fallback_metrics = font
-                    .fonts_by_id
-                    .get(&fallback_key)
+                    .faces
+                    .get(fallback_key)
                     .map(|face| {
                         face.styled_metrics(
                             ctx.pixels_per_point,
@@ -351,7 +351,7 @@ fn layout_shaped_run(
                 let advance_width_px =
                     glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
                 let OutlineGlyph { allocation, x_px } =
-                    if let Some(face) = font.fonts_by_id.get_mut(&fallback_key) {
+                    if let Some(face) = font.faces.get_mut(fallback_key) {
                         font.glyphs.allocate_outline(
                             fallback_key,
                             face,
@@ -380,7 +380,7 @@ fn layout_shaped_run(
             let OutlineGlyph {
                 allocation: mut glyph_alloc,
                 x_px,
-            } = if let Some(face) = font.fonts_by_id.get_mut(&run.font_key) {
+            } = if let Some(face) = font.faces.get_mut(run.font_key) {
                 font.glyphs.allocate_outline(
                     run.font_key,
                     face,
@@ -462,7 +462,7 @@ fn layout_raster_run(
 ) -> harfrust::UnicodeBuffer {
     use unicode_segmentation::UnicodeSegmentation as _;
 
-    let Some(font_face) = font.fonts_by_id.get(&run.font_key) else {
+    let Some(font_face) = font.faces.get(run.font_key) else {
         return shape_buffer;
     };
     let face_metrics = &font_face.styled_metrics(ctx.pixels_per_point, ctx.font_size, coords);
@@ -475,7 +475,7 @@ fn layout_raster_run(
         let Some(raster) = font.rasterize_glyph(cluster, ctx.pixels_per_point, ctx.font_size)
         else {
             // Shape this one cluster with the font instead.
-            let Some(font_face) = font.fonts_by_id.get(&run.font_key) else {
+            let Some(font_face) = font.faces.get(run.font_key) else {
                 continue;
             };
             let glyph_buffer = shape_text(
@@ -610,7 +610,7 @@ fn layout_section(
         let num_runs = runs.len();
         for (run_idx, run) in runs.iter().enumerate() {
             let run_text = &segment[run.byte_range.as_usize()];
-            let Some(font_face) = font.fonts_by_id.get(&run.font_key) else {
+            let Some(font_face) = font.faces.get(run.font_key) else {
                 continue;
             };
 
@@ -917,12 +917,12 @@ fn replace_last_glyph_with_overflow_character(
 
         let font_id = font.resolve_face(overflow_character);
         let font_face_metrics = font
-            .fonts_by_id
-            .get(&font_id)
+            .faces
+            .get(font_id)
             .map(|face| face.styled_metrics(pixels_per_point, font_size, &section.format.coords))
             .unwrap_or_default();
         let (_, glyph_info) = font.glyph_info(overflow_character, &font_face_metrics);
-        let mut font_face = font.fonts_by_id.get_mut(&font_id);
+        let mut font_face = font.faces.get_mut(font_id);
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
             prev_glyph.max_x() + extra_letter_spacing
