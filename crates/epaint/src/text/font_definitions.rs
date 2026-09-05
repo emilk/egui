@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::text::{FontData, FontFamily};
+use crate::text::{FontData, FontFamily, font_provider::FontProvider};
 
 #[cfg(feature = "monochrome_emoji_fonts")]
 use crate::text::FontTweak;
@@ -214,5 +214,35 @@ impl FontDefinitions {
     #[cfg(not(feature = "default_fonts"))]
     pub fn builtin_font_names() -> &'static [&'static str] {
         &[]
+    }
+}
+
+/// The configured fonts are the head of every family's fallback chain:
+/// for each family they are handed out in the order they are listed,
+/// so the same text looks the same on every machine.
+///
+/// [`FontDefinitions`] never discovers anything on demand,
+/// and is always the first [`FontProvider`] asked.
+impl FontProvider for FontDefinitions {
+    fn fonts_for_family(&self, family: &FontFamily) -> Vec<FontInsert> {
+        let Some(font_names) = self.families.get(family) else {
+            log::warn!("FontFamily::{family:?} is not bound to any fonts");
+            return Vec::new();
+        };
+
+        font_names
+            .iter()
+            .map(|name| {
+                let data = self.font_data.get(name).unwrap_or_else(|| {
+                    let available: Vec<&String> = self.font_data.keys().collect();
+                    panic!("No font data found for {name:?}. Configured fonts: {available:?}")
+                });
+                FontInsert {
+                    name: name.clone(),
+                    data: (**data).clone(),
+                    families: Vec::new(),
+                }
+            })
+            .collect()
     }
 }

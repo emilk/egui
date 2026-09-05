@@ -23,8 +23,8 @@ pub struct FallbackRequest<'a> {
 /// shaped, hinted, and kerned like any other font.
 ///
 /// * *Configured* fonts are known up front, and form the head of every family's fallback chain.
-///   [`ConfiguredFonts`](crate::text::ConfiguredFonts) wraps [`FontDefinitions`](crate::text::FontDefinitions)
-///   and is always the first provider.
+///   [`FontDefinitions`](crate::text::FontDefinitions) is itself such a provider,
+///   and is always the first one asked.
 /// * *Discovered* fonts are found on demand for a character no installed font has,
 ///   e.g. among the system fonts. They are appended to the family's fallback chain.
 ///
@@ -68,7 +68,7 @@ where
 
 /// The installed [`FontProvider`]s, in the order they are asked.
 ///
-/// The first one is always the [`ConfiguredFonts`](crate::text::ConfiguredFonts).
+/// The first one is always the configured [`FontDefinitions`](crate::text::FontDefinitions).
 #[derive(Default)]
 pub(crate) struct FontProviders {
     providers: Vec<Arc<dyn FontProvider>>,

@@ -3,8 +3,8 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{
     Color32, TextureAtlas,
     text::{
-        ConfiguredFonts, FontDefinitions, FontFamily, FontId, FontInsert, FontProvider, Galley,
-        GlyphRasterizer, LayoutJob, TextOptions, VariationCoords,
+        FontDefinitions, FontFamily, FontId, FontInsert, FontProvider, Galley, GlyphRasterizer,
+        LayoutJob, TextOptions, VariationCoords,
         face_store::{FaceStore, FontFaceKey},
         family::{Family, FamilyKey},
         font_face::{FontFace, GlyphInfo, ShapedGlyph},
@@ -346,7 +346,7 @@ impl FontsView<'_> {
 ///
 /// Required in order to paint text.
 pub(crate) struct FontsImpl {
-    definitions: FontDefinitions,
+    definitions: Arc<FontDefinitions>,
     glyphs: GlyphAtlas,
     faces: FaceStore,
 
@@ -365,7 +365,7 @@ impl FontsImpl {
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
     pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
         let mut slf = Self {
-            definitions,
+            definitions: Arc::new(definitions),
             glyphs: GlyphAtlas::new(options),
             faces: FaceStore::new(options),
             families: Default::default(),
@@ -378,12 +378,11 @@ impl FontsImpl {
         slf
     }
 
-    /// Ask these for fonts, after the [`ConfiguredFonts`] from the [`FontDefinitions`].
+    /// Ask these for fonts, after the configured [`FontDefinitions`].
     ///
     /// Forgets the fallback chains, so the providers are asked again for each family.
     pub fn set_font_providers(&mut self, font_providers: Vec<Arc<dyn FontProvider>>) {
-        let configured: Arc<dyn FontProvider> =
-            Arc::new(ConfiguredFonts::new(self.definitions.clone()));
+        let configured: Arc<dyn FontProvider> = Arc::<FontDefinitions>::clone(&self.definitions);
         let providers = core::iter::chain(core::iter::once(configured), font_providers).collect();
         self.font_providers = FontProviders::new(providers);
         self.families.clear();
