@@ -427,10 +427,7 @@ mod ui_stack;
 pub mod util;
 pub mod viewport;
 mod widget_rect;
-#[cfg(feature = "experimental")]
 pub mod widget_style;
-#[cfg(not(feature = "experimental"))]
-mod widget_style;
 pub mod widget_text;
 pub mod widgets;
 
