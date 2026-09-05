@@ -1,6 +1,9 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::text::{FontData, FontFamily, FontTweak};
+use crate::text::{FontData, FontFamily};
+
+#[cfg(feature = "default_fonts")]
+use crate::text::FontTweak;
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
