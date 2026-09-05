@@ -357,7 +357,7 @@ pub(crate) struct FontsImpl {
 impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
-    pub(crate) fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
+    pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
         let faces = FaceStore::new(options, &definitions);
 
         Self {
@@ -374,7 +374,7 @@ impl FontsImpl {
 
     /// Use this platform glyph rasterizer, e.g. the browser on web.
     #[cfg(test)]
-    pub(crate) fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
+    pub fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
         self.set_glyph_rasterizer(Some(glyph_rasterizer));
         self
     }
@@ -384,7 +384,7 @@ impl FontsImpl {
     /// Pass `None` to only use the installed fonts.
     ///
     /// See [`GlyphRasterizer`].
-    pub(crate) fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
+    pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
         self.glyph_rasterizer = glyph_rasterizer;
         self.glyphs.clear_raster_glyphs();
     }
@@ -392,24 +392,24 @@ impl FontsImpl {
     /// Decide where to look first for the glyphs of each grapheme cluster.
     ///
     /// See [`GlyphSourcePreference`].
-    pub(crate) fn set_glyph_source_preference(
+    pub fn set_glyph_source_preference(
         &mut self,
         prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
     ) {
         self.glyph_source_preference = Arc::new(prefer);
     }
 
-    pub(crate) fn options(&self) -> &TextOptions {
+    pub fn options(&self) -> &TextOptions {
         self.glyphs.options()
     }
 
     /// Take the recycled shaping buffer (or create a new one if already taken).
-    pub(crate) fn take_shape_buffer(&mut self) -> harfrust::UnicodeBuffer {
+    pub fn take_shape_buffer(&mut self) -> harfrust::UnicodeBuffer {
         self.shape_buffer.take().unwrap_or_default()
     }
 
     /// Return a shaping buffer for reuse.
-    pub(crate) fn return_shape_buffer(&mut self, buffer: harfrust::UnicodeBuffer) {
+    pub fn return_shape_buffer(&mut self, buffer: harfrust::UnicodeBuffer) {
         self.shape_buffer = Some(buffer);
     }
 
@@ -419,7 +419,7 @@ impl FontsImpl {
     /// Look up (or build) the fallback chain of a family.
     ///
     /// Panics if the family is not in the [`FontDefinitions`].
-    pub(crate) fn family_key(&mut self, family: &FontFamily) -> FamilyKey {
+    pub fn family_key(&mut self, family: &FontFamily) -> FamilyKey {
         if let Some(key) = self.family_keys.get(family) {
             return *key;
         }
@@ -439,7 +439,7 @@ impl FontsImpl {
     ///
     /// See [`Family::resolve`].
     #[inline]
-    pub(crate) fn resolve_face(&mut self, family: FamilyKey, c: char) -> FontFaceKey {
+    pub fn resolve_face(&mut self, family: FamilyKey, c: char) -> FontFaceKey {
         self.families[family.0].resolve(&mut self.faces, c)
     }
 
@@ -452,7 +452,7 @@ impl FontsImpl {
     /// face, which is correct as long as `c` is in that face. For correct
     /// fallback-face advances, resolve the face first with [`Self::resolve_face`]
     /// and build metrics for that face.
-    pub(crate) fn glyph_info(
+    pub fn glyph_info(
         &mut self,
         family: FamilyKey,
         c: char,
@@ -472,7 +472,7 @@ impl FontsImpl {
     }
 
     /// Metrics of the primary face of the family.
-    pub(crate) fn family_metrics(
+    pub fn family_metrics(
         &self,
         family: FamilyKey,
         pixels_per_point: f32,
@@ -488,14 +488,14 @@ impl FontsImpl {
 
     /// Where to look first for the glyphs of this grapheme cluster.
     #[inline]
-    pub(crate) fn glyph_source(&self, cluster: &str) -> GlyphSource {
+    pub fn glyph_source(&self, cluster: &str) -> GlyphSource {
         (self.glyph_source_preference)(cluster)
     }
 
     /// Width of this character in points, at the font's default variation location.
     ///
     /// Returns `0.0` if no font has the character.
-    pub(crate) fn glyph_width(&mut self, family: &FontFamily, c: char, font_size: f32) -> f32 {
+    pub fn glyph_width(&mut self, family: &FontFamily, c: char, font_size: f32) -> f32 {
         let family = self.family_key(family);
         let face_key = self.resolve_face(family, c);
         let Some(face) = self.faces.get_mut(face_key) else {
@@ -512,7 +512,7 @@ impl FontsImpl {
     ///
     /// This does not consult the [`GlyphRasterizer`], so it can return `false`
     /// for a character that would still render via the rasterizer (e.g. the browser on web).
-    pub(crate) fn has_glyph(&mut self, family: &FontFamily, c: char) -> bool {
+    pub fn has_glyph(&mut self, family: &FontFamily, c: char) -> bool {
         let family = self.family_key(family);
         // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
         self.resolve_face(family, c) != self.family(family).replacement_face_key()
@@ -521,12 +521,12 @@ impl FontsImpl {
     /// Do the installed fonts have all the glyphs in this text?
     ///
     /// See [`Self::has_glyph`] for the caveat about the glyph rasterizer.
-    pub(crate) fn has_glyphs(&mut self, family: &FontFamily, s: &str) -> bool {
+    pub fn has_glyphs(&mut self, family: &FontFamily, s: &str) -> bool {
         s.chars().all(|c| self.has_glyph(family, c))
     }
 
     /// All characters the fonts of this family support, and the names of the fonts that have each.
-    pub(crate) fn characters(&mut self, family: &FontFamily) -> &BTreeMap<char, Vec<String>> {
+    pub fn characters(&mut self, family: &FontFamily) -> &BTreeMap<char, Vec<String>> {
         let family = self.family_key(family);
         self.families[family.0].characters(&self.faces)
     }
@@ -535,14 +535,14 @@ impl FontsImpl {
     // Faces and glyphs
 
     #[inline]
-    pub(crate) fn face(&self, key: FontFaceKey) -> Option<&FontFace> {
+    pub fn face(&self, key: FontFaceKey) -> Option<&FontFace> {
         self.faces.get(key)
     }
 
     /// Get or render the glyph of a face, and put it in the atlas.
     ///
     /// See [`GlyphAtlas::allocate_outline`].
-    pub(crate) fn allocate_glyph(
+    pub fn allocate_glyph(
         &mut self,
         face_key: FontFaceKey,
         metrics: &StyledMetrics,
@@ -556,14 +556,14 @@ impl FontsImpl {
     }
 
     #[inline]
-    pub(crate) fn has_glyph_rasterizer(&self) -> bool {
+    pub fn has_glyph_rasterizer(&self) -> bool {
         self.glyph_rasterizer.is_some()
     }
 
     /// Rasterize a grapheme cluster using the platform [`GlyphRasterizer`].
     ///
     /// Returns `None` if there is no rasterizer, or it could not handle the cluster.
-    pub(crate) fn rasterize_cluster(
+    pub fn rasterize_cluster(
         &mut self,
         family: FamilyKey,
         cluster: &str,
