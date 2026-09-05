@@ -4,6 +4,7 @@ use emath::OrderedFloat;
 
 use crate::text::{ByteIndex, FontsImpl, Galley, LayoutJob, LayoutSection};
 
+/// A laid-out [`Galley`], and what we need to know to evict it.
 struct CachedGalley {
     /// When it was last used
     last_used: u32,
@@ -16,6 +17,9 @@ struct CachedGalley {
     galley: Arc<Galley>,
 }
 
+/// Memoizes [`LayoutJob`] → [`Galley`], so that repeated layout of the same text is cheap.
+///
+/// Entries not used during a frame are evicted in [`Self::flush_cache`].
 #[derive(Default)]
 pub(super) struct GalleyCache {
     /// Frame counter used to do garbage collection on the cache

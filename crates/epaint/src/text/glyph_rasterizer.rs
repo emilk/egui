@@ -32,6 +32,7 @@ pub struct RasterizedGlyph {
     pub is_color: bool,
 }
 
+/// The callback of a [`GlyphRasterizer`].
 type RasterizeFn =
     dyn for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph> + Send + Sync;
 

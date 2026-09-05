@@ -100,6 +100,7 @@ impl AsRef<[u8]> for FontData {
 
 // ----------------------------------------------------------------------------
 
+/// Shared, immutable bytes of a font file.
 pub type Blob = Arc<dyn AsRef<[u8]> + Send + Sync>;
 
 pub(super) fn blob_from_font_data(data: &FontData) -> Blob {

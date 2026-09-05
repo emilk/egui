@@ -56,6 +56,9 @@ pub struct FontDefinitions {
     pub families: BTreeMap<FontFamily, Vec<String>>,
 }
 
+/// A font to add to [`FontDefinitions`], and which families to add it to.
+///
+/// Used by `egui::Context::add_font`.
 #[derive(Debug, Clone)]
 pub struct FontInsert {
     /// Font name
@@ -68,6 +71,7 @@ pub struct FontInsert {
     pub families: Vec<InsertFontFamily>,
 }
 
+/// Where in the fallback chain of a [`FontFamily`] a [`FontInsert`] goes.
 #[derive(Debug, Clone)]
 pub struct InsertFontFamily {
     /// Font family
@@ -77,6 +81,7 @@ pub struct InsertFontFamily {
     pub priority: FontPriority,
 }
 
+/// Whether an inserted font goes before or after the existing fonts of a family.
 #[derive(Debug, Clone)]
 pub enum FontPriority {
     /// Prefer this font before all existing ones.
