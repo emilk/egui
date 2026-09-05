@@ -10,8 +10,10 @@ use crate::{
     stroke::PathStroke,
     text::{
         ByteIndex, ByteRange,
-        font::{StyledMetrics, UvRect, is_cjk, is_cjk_break_allowed},
+        font::UvRect,
         fonts::FontFaceKey,
+        styled_metrics::StyledMetrics,
+        unicode::{is_cjk, is_cjk_break_allowed},
     },
 };
 

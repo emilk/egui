@@ -11,8 +11,11 @@ use vello_cpu::{color, kurbo};
 use crate::{
     TextOptions, TextureAtlas,
     text::{
-        FontTweak, MAX_GLYPH_SIZE, VariationCoords,
-        fonts::{Blob, CachedFamily, FontFaceKey, GlyphSourcePreference},
+        FontTweak, GlyphSourcePreference, MAX_GLYPH_SIZE, VariationCoords,
+        font_data::Blob,
+        fonts::{CachedFamily, FontFaceKey},
+        styled_metrics::{LocationHash, StyledMetrics},
+        unicode::invisible_char,
     },
 };
 
@@ -101,28 +104,6 @@ pub(super) enum GlyphIdResolution {
 
     /// A valid char, but rendered as zero-width (control chars, joiners, …).
     Invisible,
-}
-
-/// A precomputed hash of a [`skrifa::instance::Location`].
-///
-/// Used as a cache key so that we don't have to re-hash the coordinate list
-/// for every glyph lookup. Compute once per text run and reuse for every glyph
-/// in the run.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub(crate) struct LocationHash(u64);
-
-impl nohash_hasher::IsEnabled for LocationHash {}
-
-impl LocationHash {
-    #[inline]
-    pub fn new(location: &skrifa::instance::Location) -> Self {
-        if location.coords().is_empty() {
-            // Fast path for the (common) default-coords case.
-            Self(0)
-        } else {
-            Self(crate::util::hash(location))
-        }
-    }
 }
 
 // Subpixel binning, taken from cosmic-text:
@@ -881,113 +862,4 @@ impl Font<'_> {
         });
         (face_key, glyph_info)
     }
-}
-
-/// Metrics for a font at a specific screen-space scale.
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct StyledMetrics {
-    /// The DPI part of the screen-space scale.
-    pub pixels_per_point: f32,
-
-    /// Scale factor, relative to the font's units per em (so, probably much less than 1).
-    ///
-    /// Translates "unscaled" units to physical (screen) pixels.
-    pub px_scale_factor: f32,
-
-    /// Absolute scale in screen pixels, for skrifa.
-    pub scale: f32,
-
-    /// Vertical offset, in UI points (not screen-space).
-    pub y_offset_in_points: f32,
-
-    /// This is the distance from the top to the baseline.
-    ///
-    /// Unit: points.
-    pub ascent: f32,
-
-    /// Height of one row of text in points.
-    ///
-    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub row_height: f32,
-
-    /// Resolved variation coordinates.
-    pub location: skrifa::instance::Location,
-
-    /// Precomputed hash of [`Self::location`].
-    ///
-    /// Hashed once per run of text so per-glyph cache lookups don't have to
-    /// re-hash the full coordinate list.
-    pub(crate) location_hash: LocationHash,
-}
-
-/// Code points that will always be invisible (zero width).
-///
-/// See also [`FontFace::ignore_character`].
-#[inline]
-fn invisible_char(c: char) -> bool {
-    if c == '\r' {
-        // A character most vile and pernicious. Don't display it.
-        return true;
-    }
-
-    // See https://github.com/emilk/egui/issues/336
-
-    // From https://www.fileformat.info/info/unicode/category/Cf/list.htm
-
-    // TODO(emilk): heed bidi characters
-
-    matches!(
-        c,
-        '\u{200B}' // ZERO WIDTH SPACE
-            | '\u{200C}' // ZERO WIDTH NON-JOINER
-            | '\u{200D}' // ZERO WIDTH JOINER
-            | '\u{200E}' // LEFT-TO-RIGHT MARK
-            | '\u{200F}' // RIGHT-TO-LEFT MARK
-            | '\u{202A}' // LEFT-TO-RIGHT EMBEDDING
-            | '\u{202B}' // RIGHT-TO-LEFT EMBEDDING
-            | '\u{202C}' // POP DIRECTIONAL FORMATTING
-            | '\u{202D}' // LEFT-TO-RIGHT OVERRIDE
-            | '\u{202E}' // RIGHT-TO-LEFT OVERRIDE
-            | '\u{2060}' // WORD JOINER
-            | '\u{2061}' // FUNCTION APPLICATION
-            | '\u{2062}' // INVISIBLE TIMES
-            | '\u{2063}' // INVISIBLE SEPARATOR
-            | '\u{2064}' // INVISIBLE PLUS
-            | '\u{2066}' // LEFT-TO-RIGHT ISOLATE
-            | '\u{2067}' // RIGHT-TO-LEFT ISOLATE
-            | '\u{2068}' // FIRST STRONG ISOLATE
-            | '\u{2069}' // POP DIRECTIONAL ISOLATE
-            | '\u{206A}' // INHIBIT SYMMETRIC SWAPPING
-            | '\u{206B}' // ACTIVATE SYMMETRIC SWAPPING
-            | '\u{206C}' // INHIBIT ARABIC FORM SHAPING
-            | '\u{206D}' // ACTIVATE ARABIC FORM SHAPING
-            | '\u{206E}' // NATIONAL DIGIT SHAPES
-            | '\u{206F}' // NOMINAL DIGIT SHAPES
-            | '\u{FEFF}' // ZERO WIDTH NO-BREAK SPACE
-    )
-}
-
-#[inline]
-pub(super) fn is_cjk_ideograph(c: char) -> bool {
-    ('\u{4E00}' <= c && c <= '\u{9FFF}')
-        || ('\u{3400}' <= c && c <= '\u{4DBF}')
-        || ('\u{2B740}' <= c && c <= '\u{2B81F}')
-}
-
-#[inline]
-pub(super) fn is_kana(c: char) -> bool {
-    ('\u{3040}' <= c && c <= '\u{309F}') // Hiragana block
-        || ('\u{30A0}' <= c && c <= '\u{30FF}') // Katakana block
-}
-
-#[inline]
-pub(super) fn is_cjk(c: char) -> bool {
-    // TODO(bigfarts): Add support for Korean Hangul.
-    is_cjk_ideograph(c) || is_kana(c)
-}
-
-#[inline]
-pub(super) fn is_cjk_break_allowed(c: char) -> bool {
-    // See: https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages#Characters_not_permitted_on_the_start_of_a_line.
-    !")]｝〕〉》」』】〙〗〟'\"｠»ヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻‐゠–〜?!‼⁇⁈⁉・、:;,。.".contains(c)
 }
