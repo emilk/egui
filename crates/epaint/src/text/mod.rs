@@ -8,6 +8,7 @@ mod font_id;
 mod font_tweak;
 mod fonts;
 mod galley_cache;
+mod glyph_atlas;
 mod glyph_rasterizer;
 mod index;
 mod styled_metrics;

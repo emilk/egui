@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use emath::OrderedFloat;
+use nohash_hasher::IntMap;
 
 use crate::text::{ByteIndex, FontsImpl, Galley, LayoutJob, LayoutSection};
 
@@ -24,7 +25,7 @@ struct CachedGalley {
 pub(super) struct GalleyCache {
     /// Frame counter used to do garbage collection on the cache
     generation: u32,
-    cache: nohash_hasher::IntMap<u64, CachedGalley>,
+    cache: IntMap<u64, CachedGalley>,
 }
 
 impl GalleyCache {
