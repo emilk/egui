@@ -2,77 +2,23 @@
 
 use ahash::HashMap;
 use ecolor::Color32;
-use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
+use emath::{GuiRounding as _, OrderedFloat, vec2};
 use self_cell::self_cell;
 use skrifa::{GlyphId, MetadataProvider as _};
 use std::collections::BTreeMap;
 use vello_cpu::{color, kurbo};
 
 use crate::{
-    TextOptions, TextureAtlas,
+    ColorImage, TextOptions,
     text::{
-        FontTweak, GlyphSourcePreference, MAX_GLYPH_SIZE, VariationCoords,
+        FontTweak, GlyphSourcePreference, VariationCoords,
         font_data::Blob,
         fonts::{CachedFamily, FontFaceKey},
+        glyph_atlas::{GlyphAtlas, GlyphBitmap, RasterGlyphAllocation, SubpixelBin},
         styled_metrics::{LocationHash, StyledMetrics},
         unicode::invisible_char,
     },
 };
-
-#[derive(Clone, Copy)]
-pub(crate) struct RasterGlyphAllocation {
-    pub allocation: GlyphAllocation,
-    pub advance_px: f32,
-    pub is_color: bool,
-}
-
-/// Hash of `(cluster, family, pixels_per_point, font_size)`,
-/// so that cache lookups do not allocate.
-#[derive(Hash, PartialEq, Eq)]
-pub(crate) struct RasterGlyphCacheKey(u64);
-
-impl nohash_hasher::IsEnabled for RasterGlyphCacheKey {}
-
-impl RasterGlyphCacheKey {
-    fn new(
-        cluster: &str,
-        family: &crate::text::FontFamily,
-        pixels_per_point: f32,
-        font_size: f32,
-    ) -> Self {
-        Self(crate::util::hash((
-            cluster,
-            family,
-            pixels_per_point.to_bits(),
-            font_size.to_bits(),
-        )))
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct UvRect {
-    /// X/Y offset for nice rendering (unit: points).
-    pub offset: Vec2,
-
-    /// Screen size (in points) of this glyph.
-    /// Note that the height is different from the font height.
-    pub size: Vec2,
-
-    /// Top left corner UV in texture.
-    pub min: [u16; 2],
-
-    /// Bottom right corner (exclusive).
-    pub max: [u16; 2],
-}
-
-impl UvRect {
-    pub fn is_nothing(&self) -> bool {
-        self.min == self.max
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct GlyphInfo {
@@ -106,104 +52,6 @@ pub(super) enum GlyphIdResolution {
     Invisible,
 }
 
-// Subpixel binning, taken from cosmic-text:
-// https://github.com/pop-os/cosmic-text/blob/974ddaed96b334f560b606ebe5d2ca2d2f9f23ef/src/glyph_cache.rs
-
-/// Bin for subpixel positioning of glyphs.
-///
-/// For accurate glyph positioning, we want to render each glyph at a subpixel coordinate. However, we also want to
-/// cache each glyph's bitmap. As a compromise, we bin each subpixel offset into one of four fractional values. This
-/// means one glyph can have up to four subpixel-positioned bitmaps in the cache.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub(super) enum SubpixelBin {
-    #[default]
-    Zero,
-    One,
-    Two,
-    Three,
-}
-
-impl SubpixelBin {
-    /// Bin the given position and return the new integral coordinate.
-    fn new(pos: f32) -> (i32, Self) {
-        let trunc = pos as i32;
-        let fract = pos - trunc as f32;
-
-        if pos.is_sign_negative() {
-            if fract > -0.125 {
-                (trunc, Self::Zero)
-            } else if fract > -0.375 {
-                (trunc - 1, Self::Three)
-            } else if fract > -0.625 {
-                (trunc - 1, Self::Two)
-            } else if fract > -0.875 {
-                (trunc - 1, Self::One)
-            } else {
-                (trunc - 1, Self::Zero)
-            }
-        } else {
-            if fract < 0.125 {
-                (trunc, Self::Zero)
-            } else if fract < 0.375 {
-                (trunc, Self::One)
-            } else if fract < 0.625 {
-                (trunc, Self::Two)
-            } else if fract < 0.875 {
-                (trunc, Self::Three)
-            } else {
-                (trunc + 1, Self::Zero)
-            }
-        }
-    }
-
-    pub fn as_float(&self) -> f32 {
-        match self {
-            Self::Zero => 0.0,
-            Self::One => 0.25,
-            Self::Two => 0.5,
-            Self::Three => 0.75,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct GlyphAllocation {
-    /// UV rectangle for drawing.
-    pub uv_rect: UvRect,
-}
-
-#[derive(Hash, PartialEq, Eq)]
-struct GlyphCacheKey(u64);
-
-impl nohash_hasher::IsEnabled for GlyphCacheKey {}
-
-impl GlyphCacheKey {
-    #[inline]
-    fn new(glyph_id: GlyphId, metrics: &StyledMetrics, bin: SubpixelBin) -> Self {
-        let StyledMetrics {
-            pixels_per_point,
-            px_scale_factor,
-            location_hash,
-            ..
-        } = *metrics;
-        debug_assert!(
-            0.0 < pixels_per_point && pixels_per_point.is_finite(),
-            "Bad pixels_per_point {pixels_per_point}"
-        );
-        debug_assert!(
-            0.0 < px_scale_factor && px_scale_factor.is_finite(),
-            "Bad px_scale_factor: {px_scale_factor}"
-        );
-        Self(crate::util::hash((
-            glyph_id,
-            pixels_per_point.to_bits(),
-            px_scale_factor.to_bits(),
-            bin,
-            location_hash,
-        )))
-    }
-}
-
 // ----------------------------------------------------------------------------
 
 struct DependentFontData<'a> {
@@ -229,19 +77,22 @@ impl FontCell {
         scale / units_per_em
     }
 
-    fn allocate_glyph_uncached(
+    /// Render the outline of a glyph to a coverage bitmap.
+    ///
+    /// Returns `None` if the glyph has no outline (e.g. a space).
+    fn rasterize_outline(
         &mut self,
-        atlas: &mut TextureAtlas,
         metrics: &StyledMetrics,
         glyph_id: GlyphId,
         bin: SubpixelBin,
-        location: skrifa::instance::LocationRef<'_>,
         hinting_target: skrifa::outline::Target,
-    ) -> Option<GlyphAllocation> {
+    ) -> Option<GlyphBitmap> {
         debug_assert!(
             glyph_id != skrifa::GlyphId::NOTDEF,
-            "Can't allocate glyph for id 0"
+            "Can't rasterize glyph id 0"
         );
+
+        let location: skrifa::instance::LocationRef<'_> = (&metrics.location).into();
 
         let mut path = kurbo::BezPath::new();
         let mut pen = VelloPen {
@@ -278,51 +129,29 @@ impl FontCell {
         let bounds = path.control_box().expand();
         let width = bounds.width() as u16;
         let height = bounds.height() as u16;
+        if width == 0 || height == 0 {
+            return None;
+        }
 
-        let uv_rect = if width == 0 || height == 0 {
-            UvRect::default()
-        } else {
-            let mut ctx = vello_cpu::RenderContext::new(width, height);
-            ctx.set_transform(kurbo::Affine::translate((-bounds.x0, -bounds.y0)));
-            ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
-            ctx.fill_path(&path);
-            let mut dest = vello_cpu::Pixmap::new(width, height);
-            let mut resources = vello_cpu::Resources::new();
-            ctx.render(&mut dest, &mut resources);
+        let mut ctx = vello_cpu::RenderContext::new(width, height);
+        ctx.set_transform(kurbo::Affine::translate((-bounds.x0, -bounds.y0)));
+        ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
+        ctx.fill_path(&path);
+        let mut dest = vello_cpu::Pixmap::new(width, height);
+        let mut resources = vello_cpu::Resources::new();
+        ctx.render(&mut dest, &mut resources);
 
-            let glyph_pos = {
-                let color_transfer_function = atlas.options().color_transfer_function;
-                let (glyph_pos, image) = atlas.allocate((width as usize, height as usize));
-                let pixels = dest.data_as_u8_slice();
-                for y in 0..height as usize {
-                    for x in 0..width as usize {
-                        let pixel_offset = 4 * ((y * width as usize) + x);
-                        image[(x + glyph_pos.0, y + glyph_pos.1)] = color_transfer_function
-                            .to_atlas_color(Color32::from_rgba_premultiplied(
-                                pixels[pixel_offset],
-                                pixels[pixel_offset + 1],
-                                pixels[pixel_offset + 2],
-                                pixels[pixel_offset + 3],
-                            ));
-                    }
-                }
-                glyph_pos
-            };
-            let offset_in_pixels = vec2(bounds.x0 as f32, bounds.y0 as f32);
-            let offset =
-                offset_in_pixels / metrics.pixels_per_point + metrics.y_offset_in_points * Vec2::Y;
-            UvRect {
-                offset,
-                size: vec2(width as f32, height as f32) / metrics.pixels_per_point,
-                min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
-                max: [
-                    (glyph_pos.0 + width as usize) as u16,
-                    (glyph_pos.1 + height as usize) as u16,
-                ],
-            }
-        };
+        let pixels = dest
+            .data_as_u8_slice()
+            .chunks_exact(4)
+            .map(|px| Color32::from_rgba_premultiplied(px[0], px[1], px[2], px[3]))
+            .collect();
+        let image = ColorImage::new([width as usize, height as usize], pixels);
 
-        Some(GlyphAllocation { uv_rect })
+        Some(GlyphBitmap {
+            image,
+            offset_px: vec2(bounds.x0 as f32, bounds.y0 as f32),
+        })
     }
 }
 
@@ -383,8 +212,6 @@ pub struct FontFace {
     /// Variable fonts can vary advance widths per axis (HVAR table), so this
     /// must be re-keyed per resolved [`skrifa::instance::Location`].
     advance_width_cache: HashMap<(char, LocationHash), OrderedFloat<f32>>,
-
-    glyph_alloc_cache: HashMap<GlyphCacheKey, GlyphAllocation>,
 }
 
 impl FontFace {
@@ -447,7 +274,6 @@ impl FontFace {
             shaper_data,
             glyph_id_cache: Default::default(),
             advance_width_cache: Default::default(),
-            glyph_alloc_cache: Default::default(),
         })
     }
 
@@ -614,48 +440,24 @@ impl FontFace {
         &self.shaper_data
     }
 
-    pub fn allocate_glyph(
+    /// Whether to render this face at up to four sub-pixel offsets.
+    #[inline]
+    pub(crate) fn subpixel_binning(&self) -> bool {
+        self.subpixel_binning
+    }
+
+    /// Render the outline of a glyph to a coverage bitmap.
+    ///
+    /// Not cached: see [`GlyphAtlas::allocate_outline`].
+    pub(crate) fn rasterize_outline(
         &mut self,
-        atlas: &mut TextureAtlas,
         metrics: &StyledMetrics,
-        shaped: &ShapedGlyph,
-    ) -> (GlyphAllocation, i32) {
-        let ShapedGlyph {
-            glyph_id,
-            h_pos,
-            is_cjk,
-        } = *shaped;
-
-        if glyph_id == GlyphId::NOTDEF {
-            // invisible
-            return (GlyphAllocation::default(), h_pos.round() as i32);
-        }
-
-        let (h_pos_round, bin) = if self.subpixel_binning && !is_cjk {
-            SubpixelBin::new(h_pos)
-        } else {
-            // CJK scripts contain a lot of characters and could hog the glyph atlas
-            // if we stored 4 subpixel offsets per glyph.
-            (h_pos.round() as i32, SubpixelBin::Zero)
-        };
-
-        let cache_key = GlyphCacheKey::new(glyph_id, metrics, bin);
-
+        glyph_id: GlyphId,
+        bin: SubpixelBin,
+    ) -> Option<GlyphBitmap> {
         let hinting_target = self.tweak.hinting_target.into();
-        let alloc = *self.glyph_alloc_cache.entry(cache_key).or_insert_with(|| {
-            self.font
-                .allocate_glyph_uncached(
-                    atlas,
-                    metrics,
-                    glyph_id,
-                    bin,
-                    (&metrics.location).into(),
-                    hinting_target,
-                )
-                .unwrap_or_default()
-        });
-
-        (alloc, h_pos_round)
+        self.font
+            .rasterize_outline(metrics, glyph_id, bin, hinting_target)
     }
 }
 
@@ -676,22 +478,16 @@ pub(crate) struct ShapedGlyph {
 pub struct Font<'a> {
     pub(super) fonts_by_id: &'a mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     pub(super) cached_family: &'a mut CachedFamily,
-    pub(super) atlas: &'a mut TextureAtlas,
+    pub(super) glyphs: &'a mut GlyphAtlas,
     pub(super) family: crate::text::FontFamily,
     pub(super) glyph_rasterizer: Option<&'a crate::text::GlyphRasterizer>,
-
-    /// `None` means the rasterizer could not handle the cluster.
-    pub(super) raster_glyph_cache:
-        &'a mut nohash_hasher::IntMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
-
     pub(super) glyph_source_preference: &'a GlyphSourcePreference,
 }
 
 impl Font<'_> {
-    /// Rasterize a glyph using our fallback provider.
+    /// Rasterize a grapheme cluster using the platform [`crate::text::GlyphRasterizer`].
     ///
-    /// Failures are cached too, so the (potentially slow) rasterizer
-    /// is asked at most once per cluster and size.
+    /// Returns `None` if there is no rasterizer, or it could not handle the cluster.
     pub(crate) fn rasterize_glyph(
         &mut self,
         cluster: &str,
@@ -699,57 +495,13 @@ impl Font<'_> {
         font_size: f32,
     ) -> Option<RasterGlyphAllocation> {
         let rasterizer = self.glyph_rasterizer?;
-        let key = RasterGlyphCacheKey::new(cluster, &self.family, pixels_per_point, font_size);
-        if let Some(allocation) = self.raster_glyph_cache.get(&key) {
-            return *allocation;
-        }
-        let request = crate::text::GlyphRasterizerRequest {
+        self.glyphs.allocate_raster(
+            rasterizer,
             cluster,
-            family: &self.family,
-            font_size_px: font_size * pixels_per_point,
-            subpixel_offset_px: 0.0,
-        };
-        let allocation = (rasterizer.rasterize)(&request)
-            .and_then(|glyph| Self::allocate_raster_glyph(self.atlas, &glyph, pixels_per_point));
-        self.raster_glyph_cache.insert(key, allocation);
-        allocation
-    }
-
-    fn allocate_raster_glyph(
-        atlas: &mut TextureAtlas,
-        glyph: &crate::text::RasterizedGlyph,
-        pixels_per_point: f32,
-    ) -> Option<RasterGlyphAllocation> {
-        let [width, height] = glyph.image.size;
-        if width == 0 || height == 0 || MAX_GLYPH_SIZE < width || MAX_GLYPH_SIZE < height {
-            return None;
-        }
-        // The transfer function assumes white coverage glyphs and discards color,
-        // so color glyphs (e.g. emoji) must skip it.
-        let transfer = if glyph.is_color {
-            crate::FontColorTransferFunction::Off
-        } else {
-            atlas.options().color_transfer_function
-        };
-        let (glyph_pos, image) = atlas.allocate((width, height));
-        for y in 0..height {
-            for x in 0..width {
-                image[(glyph_pos.0 + x, glyph_pos.1 + y)] =
-                    transfer.to_atlas_color(glyph.image[(x, y)]);
-            }
-        }
-        Some(RasterGlyphAllocation {
-            allocation: GlyphAllocation {
-                uv_rect: UvRect {
-                    offset: glyph.offset_px / pixels_per_point,
-                    size: vec2(width as f32, height as f32) / pixels_per_point,
-                    min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
-                    max: [(glyph_pos.0 + width) as u16, (glyph_pos.1 + height) as u16],
-                },
-            },
-            advance_px: glyph.advance_px,
-            is_color: glyph.is_color,
-        })
+            &self.family,
+            pixels_per_point,
+            font_size,
+        )
     }
 
     pub fn preload_characters(&mut self, s: &str) {

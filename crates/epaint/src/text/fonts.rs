@@ -1,16 +1,15 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::{collections::BTreeMap, sync::Arc};
 
-use emath::NumExt as _;
-
 use crate::{
     Color32, TextureAtlas,
     text::{
         FontDefinitions, FontFamily, FontId, Galley, GlyphRasterizer, GlyphSource,
         GlyphSourcePreference, LayoutJob, TextOptions, VariationCoords,
-        font::{Font, FontFace, RasterGlyphAllocation, RasterGlyphCacheKey},
+        font::{Font, FontFace},
         font_data::blob_from_font_data,
         galley_cache::GalleyCache,
+        glyph_atlas::GlyphAtlas,
         glyph_rasterizer::default_glyph_source,
     },
 };
@@ -146,7 +145,6 @@ impl CachedFamily {
 pub struct Fonts {
     pub fonts: FontsImpl,
     galley_cache: GalleyCache,
-    glyph_rasterizer: Option<GlyphRasterizer>,
 }
 
 impl Fonts {
@@ -157,7 +155,6 @@ impl Fonts {
         Self {
             fonts: FontsImpl::new(options, definitions),
             galley_cache: Default::default(),
-            glyph_rasterizer: None,
         }
     }
 
@@ -176,7 +173,6 @@ impl Fonts {
     ///
     /// See [`GlyphRasterizer`].
     pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
-        self.glyph_rasterizer = glyph_rasterizer.clone();
         self.fonts.set_glyph_rasterizer(glyph_rasterizer);
         self.galley_cache = Default::default();
     }
@@ -200,23 +196,18 @@ impl Fonts {
     /// This function will react to changes in [`TextOptions`],
     /// as well as notice when the font atlas is getting full, and handle that.
     pub fn begin_pass(&mut self, options: TextOptions) {
-        let text_options_changed = self.fonts.options() != &options;
-        let font_atlas_almost_full = self.fonts.atlas.fill_ratio() > 0.8;
-        let needs_recreate = text_options_changed || font_atlas_almost_full;
-
-        if needs_recreate {
+        if self.fonts.options() != &options {
+            // Hinting and other options are baked into each parsed face, so start over:
             let definitions = self.fonts.definitions.clone();
-            let glyph_rasterizer = self.glyph_rasterizer.clone();
-
             let mut fonts = FontsImpl::new(options, definitions);
-            fonts.set_glyph_rasterizer(glyph_rasterizer.clone());
+            fonts.set_glyph_rasterizer(self.fonts.glyph_rasterizer.take());
             fonts.glyph_source_preference = Arc::clone(&self.fonts.glyph_source_preference);
-
-            *self = Self {
-                fonts,
-                galley_cache: Default::default(),
-                glyph_rasterizer,
-            };
+            self.fonts = fonts;
+            self.galley_cache = Default::default();
+        } else if 0.8 < self.fonts.glyphs.fill_ratio() {
+            // The parsed faces are still fine; only the bitmaps need to go.
+            self.fonts.glyphs.clear();
+            self.galley_cache = Default::default(); // Galleys point into the old atlas.
         }
 
         self.galley_cache.flush_cache();
@@ -224,7 +215,7 @@ impl Fonts {
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
     pub fn font_image_delta(&mut self) -> Option<crate::ImageDelta> {
-        self.fonts.atlas.take_delta()
+        self.fonts.glyphs.take_delta()
     }
 
     #[inline]
@@ -240,19 +231,19 @@ impl Fonts {
     /// The font atlas.
     /// Pass this to [`crate::Tessellator`].
     pub fn texture_atlas(&self) -> &TextureAtlas {
-        &self.fonts.atlas
+        self.fonts.glyphs.atlas()
     }
 
     /// The full font atlas image.
     #[inline]
     pub fn image(&self) -> crate::ColorImage {
-        self.fonts.atlas.image().clone()
+        self.fonts.glyphs.atlas().image().clone()
     }
 
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
-        self.fonts.atlas.size()
+        self.fonts.glyphs.atlas().size()
     }
 
     /// Do the installed fonts have this glyph?
@@ -279,7 +270,7 @@ impl Fonts {
     /// This increases as new fonts and/or glyphs are used,
     /// but can also decrease in a call to [`Self::begin_pass`].
     pub fn font_atlas_fill_ratio(&self) -> f32 {
-        self.fonts.atlas.fill_ratio()
+        self.fonts.glyphs.fill_ratio()
     }
 
     /// Returns a [`FontsView`] with the given `pixels_per_point` that can be used to do text layout.
@@ -315,13 +306,13 @@ impl FontsView<'_> {
     /// The full font atlas image.
     #[inline]
     pub fn image(&self) -> crate::ColorImage {
-        self.fonts.atlas.image().clone()
+        self.fonts.glyphs.atlas().image().clone()
     }
 
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
-        self.fonts.atlas.size()
+        self.fonts.glyphs.atlas().size()
     }
 
     /// Width of this character in points.
@@ -396,7 +387,7 @@ impl FontsView<'_> {
     /// This increases as new fonts and/or glyphs are used,
     /// but can also decrease in a call to [`Fonts::begin_pass`].
     pub fn font_atlas_fill_ratio(&self) -> f32 {
-        self.fonts.atlas.fill_ratio()
+        self.fonts.glyphs.fill_ratio()
     }
 
     /// Will wrap text at the given width and line break at `\n`.
@@ -444,7 +435,7 @@ impl FontsView<'_> {
 /// Required in order to paint text.
 pub struct FontsImpl {
     definitions: FontDefinitions,
-    atlas: TextureAtlas,
+    glyphs: GlyphAtlas,
     fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace>,
     fonts_by_name: ahash::HashMap<String, FontFaceKey>,
     family_cache: ahash::HashMap<FontFamily, CachedFamily>,
@@ -452,7 +443,6 @@ pub struct FontsImpl {
     /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
     shape_buffer: Option<harfrust::UnicodeBuffer>,
     glyph_rasterizer: Option<GlyphRasterizer>,
-    raster_glyph_cache: nohash_hasher::IntMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
     glyph_source_preference: GlyphSourcePreference,
 }
 
@@ -460,10 +450,6 @@ impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
     pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
-        let texture_width = options.max_texture_side.at_most(16 * 1024);
-        let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
-        let atlas = TextureAtlas::new([texture_width, initial_height], options);
-
         let mut fonts_by_id: nohash_hasher::IntMap<FontFaceKey, FontFace> = Default::default();
         let mut fonts_by_name: ahash::HashMap<String, FontFaceKey> = Default::default();
         for (name, font_data) in &definitions.font_data {
@@ -483,13 +469,12 @@ impl FontsImpl {
 
         Self {
             definitions,
-            atlas,
+            glyphs: GlyphAtlas::new(options),
             fonts_by_id,
             fonts_by_name,
             family_cache: Default::default(),
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
             glyph_rasterizer: None,
-            raster_glyph_cache: Default::default(),
             glyph_source_preference: Arc::new(default_glyph_source),
         }
     }
@@ -510,7 +495,7 @@ impl FontsImpl {
     /// See [`GlyphRasterizer`].
     pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
         self.glyph_rasterizer = glyph_rasterizer;
-        self.raster_glyph_cache = Default::default();
+        self.glyphs.clear_raster_glyphs();
     }
 
     /// Decide where to look first for the glyphs of each grapheme cluster.
@@ -524,7 +509,7 @@ impl FontsImpl {
     }
 
     pub fn options(&self) -> &TextOptions {
-        self.atlas.options()
+        self.glyphs.options()
     }
 
     /// Take the recycled shaping buffer (or create a new one if already taken).
@@ -559,10 +544,9 @@ impl FontsImpl {
         Font {
             fonts_by_id: &mut self.fonts_by_id,
             cached_family,
-            atlas: &mut self.atlas,
+            glyphs: &mut self.glyphs,
             family: family.clone(),
             glyph_rasterizer: self.glyph_rasterizer.as_ref(),
-            raster_glyph_cache: &mut self.raster_glyph_cache,
             glyph_source_preference: &self.glyph_source_preference,
         }
     }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::{
     cursor::{CCursor, LayoutCursor},
-    font::UvRect,
+    glyph_atlas::UvRect,
     index::{ByteIndex, ByteRange, ByteRangeExt as _, CharIndex},
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};

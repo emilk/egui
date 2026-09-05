@@ -10,8 +10,8 @@ use crate::{
     stroke::PathStroke,
     text::{
         ByteIndex, ByteRange,
-        font::UvRect,
         fonts::FontFaceKey,
+        glyph_atlas::UvRect,
         styled_metrics::StyledMetrics,
         unicode::{is_cjk, is_cjk_break_allowed},
     },
@@ -20,7 +20,8 @@ use crate::{
 use super::{
     ByteRangeExt as _, FontsImpl, Galley, Glyph, GlyphSource, LayoutJob, LayoutSection, PlacedRow,
     Row, RowVisuals, VariationCoords,
-    font::{Font, FontFace, RasterGlyphAllocation, ShapedGlyph},
+    font::{Font, FontFace, ShapedGlyph},
+    glyph_atlas::RasterGlyphAllocation,
 };
 
 // ----------------------------------------------------------------------------
@@ -347,8 +348,9 @@ fn layout_shaped_run(
                     glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
                 let (glyph_alloc, physical_x) =
                     if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
-                        ff.allocate_glyph(
-                            font.atlas,
+                        font.glyphs.allocate_outline(
+                            fallback_key,
+                            ff,
                             &fallback_metrics,
                             &ShapedGlyph {
                                 glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
@@ -373,8 +375,9 @@ fn layout_shaped_run(
         } else {
             let (mut glyph_alloc, physical_x) =
                 if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
-                    ff.allocate_glyph(
-                        font.atlas,
+                    font.glyphs.allocate_outline(
+                        run.font_key,
+                        ff,
                         face_metrics,
                         &ShapedGlyph {
                             glyph_id,
@@ -934,8 +937,9 @@ fn replace_last_glyph_with_overflow_character(
             let (replacement_glyph_alloc, physical_x) = font_face
                 .as_mut()
                 .map(|f| {
-                    f.allocate_glyph(
-                        font.atlas,
+                    font.glyphs.allocate_outline(
+                        font_id,
+                        f,
                         &font_face_metrics,
                         &ShapedGlyph {
                             glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
