@@ -69,3 +69,18 @@ pub(super) fn is_cjk_break_allowed(c: char) -> bool {
     // See: https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages#Characters_not_permitted_on_the_start_of_a_line.
     !")]｝〕〉》」』】〙〗〟'\"｠»ヽヾーァィゥェォッャュョヮヵヶぁぃぅぇぉっゃゅょゎゕゖㇰㇱㇲㇳㇴㇵㇶㇷㇸㇹㇺㇻㇼㇽㇾㇿ々〻‐゠–〜?!‼⁇⁈⁉・、:;,。.".contains(c)
 }
+
+/// Returns `true` if the character is a Unicode combining mark (categories Mn, Mc, Me).
+///
+/// These characters modify the preceding base character and should not be
+/// rendered as standalone replacement glyphs when the shaper can't handle them.
+#[inline]
+pub(super) fn is_combining_mark(c: char) -> bool {
+    use unicode_general_category::{GeneralCategory, get_general_category};
+    matches!(
+        get_general_category(c),
+        GeneralCategory::NonspacingMark
+            | GeneralCategory::SpacingMark
+            | GeneralCategory::EnclosingMark
+    )
+}

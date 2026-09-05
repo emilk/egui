@@ -14,7 +14,7 @@ use crate::{
         fonts::FontsImpl,
         glyph_atlas::UvRect,
         styled_metrics::StyledMetrics,
-        unicode::{is_cjk, is_cjk_break_allowed},
+        unicode::{is_cjk, is_cjk_break_allowed, is_combining_mark},
     },
 };
 
@@ -27,21 +27,6 @@ use super::{
 };
 
 // ----------------------------------------------------------------------------
-
-/// Returns `true` if the character is a Unicode combining mark (categories Mn, Mc, Me).
-///
-/// These characters modify the preceding base character and should not be
-/// rendered as standalone replacement glyphs when the shaper can't handle them.
-#[inline]
-fn is_combining_mark(c: char) -> bool {
-    use unicode_general_category::{GeneralCategory, get_general_category};
-    matches!(
-        get_general_category(c),
-        GeneralCategory::NonspacingMark
-            | GeneralCategory::SpacingMark
-            | GeneralCategory::EnclosingMark
-    )
-}
 
 /// Represents GUI scale and convenience methods for rounding to pixels.
 #[derive(Clone, Copy)]
@@ -1510,8 +1495,7 @@ fn segment_into_runs(fonts: &mut FontsImpl, family: FamilyKey, text: &str, out: 
         let byte_offset = ByteIndex(byte_offset);
         let byte_end = byte_offset + grapheme_str.len();
 
-        let base_char = grapheme_str.chars().next().unwrap_or(' ');
-        let font_key = fonts.resolve_face(family, base_char);
+        let font_key = fonts.resolve_cluster_face(family, grapheme_str);
         let source = fonts.glyph_source(grapheme_str);
 
         if let Some(last_run) = out.last_mut()

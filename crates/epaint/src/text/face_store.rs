@@ -1,4 +1,5 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use nohash_hasher::IntMap;
 
@@ -63,7 +64,7 @@ impl FaceStore {
         let font_face = FontFace::new(
             self.options,
             name.to_owned(),
-            font_data.blob(),
+            Arc::clone(&font_data.font),
             font_data.index,
             font_data.tweak.clone(),
         )?;

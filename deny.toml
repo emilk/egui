@@ -62,6 +62,7 @@ skip = [
   { name = "phf_shared" }, # same phf split as phf
   { name = "rand_core" }, # rand ecosystem is migrating 0.8 -> 0.10; phf_generator's rand 0.8 needs rand_core 0.6, getrandom 0.4/chacha20 need rand_core 0.10
   { name = "redox_syscall" }, # old version via winit
+  { name = "roxmltree" }, # fontique (Android backend) depends on 0.21, resvg's usvg on 0.20
   { name = "rustc-hash" }, # Small enough
   { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "thiserror-impl" }, # same as above

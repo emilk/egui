@@ -8,6 +8,7 @@ members = [
   "crates/egui_glow",
   "crates/egui_inspection",
   "crates/egui_kittest",
+  "crates/egui_system_fonts",
   "crates/egui-wgpu",
   "crates/egui-winit",
   "crates/egui",
@@ -68,6 +69,7 @@ egui_demo_lib = { version = "0.36.1", path = "crates/egui_demo_lib", default-fea
 egui_glow = { version = "0.36.1", path = "crates/egui_glow", default-features = false }
 egui_inspection = { version = "0.36.1", path = "crates/egui_inspection", default-features = false }
 egui_kittest = { version = "0.36.1", path = "crates/egui_kittest", default-features = false }
+egui_system_fonts = { version = "0.36.1", path = "crates/egui_system_fonts", default-features = false }
 eframe = { version = "0.36.1", path = "crates/eframe", default-features = false }
 
 accesskit = "0.24.1"
@@ -92,6 +94,10 @@ ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7" # Can't update to 3.1: its `enum-map-derive` moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
 env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x/2.x, duplicating the 0.1.x that android_logger needs
 font-types = { version = "0.12.2", default-features = false, features = ["std"] }
+fontique = { version = "0.11.1", default-features = false, features = [
+  "system",
+  "fontconfig-dlopen", # Load libfontconfig at runtime, so builds don't need its headers
+] }
 glow = "0.17.0" # Can't update to 0.18: wgpu 30's wgpu-hal pins glow 0.17, so bumping splits it into two versions
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
@@ -138,6 +144,7 @@ smallvec = "1.15"
 smithay-clipboard = "0.7.2" # 0.7.3 pulls smithay-client-toolkit 0.20 (calloop 0.14), duplicating the 0.19/0.13 that winit 0.30 needs
 static_assertions = "1.1"
 syntect = { version = "5.3", default-features = false }
+sys-locale = "0.3.2"
 tempfile = "3.27"
 thiserror = "2.0" # Held at 2.0.18 in `Cargo.lock`: `thiserror-impl` 2.0.19 moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
 tokio = "1.53"
@@ -146,6 +153,7 @@ type-map = "0.5.1"
 unicode_names2 = { version = "3.1", default-features = false }
 unicode-general-category = "1.1"
 unicode-properties = { version = "0.1.4", default-features = false, features = ["emoji"] }
+unicode-script = "0.5.8"
 unicode-segmentation = "1.13"
 vello_cpu = { version = "0.2.0", default-features = false, features = [
   "std",

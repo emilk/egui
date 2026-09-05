@@ -217,6 +217,11 @@ impl EpiIntegration {
             Some(icon),
         );
 
+        #[cfg(feature = "system_fonts")]
+        if native_options.system_font_fallback {
+            egui_ctx.add_font_provider(Arc::new(egui_system_fonts::SystemFontProvider::new()));
+        }
+
         Self {
             frame,
             last_auto_save: Instant::now(),
