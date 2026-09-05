@@ -25,8 +25,6 @@ impl crate::Demo for About {
 
 impl crate::View for About {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        use egui::special_emojis::{OS_APPLE, OS_LINUX, OS_WINDOWS};
-
         ui.vertical_centered(|ui| {
             ui.add_space(4.0);
             ui.add(
@@ -38,9 +36,8 @@ impl crate::View for About {
         });
 
         ui.label(format!(
-            "egui is an immediate mode GUI library written in Rust. egui runs natively on {}{}{}, and \
+            "egui is an immediate mode GUI library written in Rust. egui runs natively on Mac, Linux, and Windows, and \
             on the web it is compiled to WebAssembly and rendered with WebGL or WebGPU.{}",
-            OS_APPLE, OS_LINUX, OS_WINDOWS,
             if cfg!(target_arch = "wasm32") {
                 " Everything you see is rendered as textured triangles. There is no DOM, HTML, JS or CSS. Just Rust."
             } else {""}
@@ -106,11 +103,7 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
 }
 
 fn links(ui: &mut egui::Ui) {
-    use egui::special_emojis::GITHUB;
-    ui.hyperlink_to(
-        format!("{GITHUB} github.com/emilk/egui"),
-        "https://github.com/emilk/egui",
-    );
+    ui.hyperlink_to("🐙 github.com/emilk/egui", "https://github.com/emilk/egui");
     ui.hyperlink_to(
         "@ernerfeldt.bsky.social",
         "https://bsky.app/profile/ernerfeldt.bsky.social",

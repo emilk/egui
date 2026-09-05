@@ -274,13 +274,12 @@ impl DemoWindows {
                     });
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        use egui::special_emojis::GITHUB;
                         ui.hyperlink_to(
                             egui::RichText::new("🦋").size(font_size),
                             "https://bsky.app/profile/ernerfeldt.bsky.social",
                         );
                         ui.hyperlink_to(
-                            egui::RichText::new(GITHUB).size(font_size),
+                            egui::RichText::new("🐙").size(font_size),
                             "https://github.com/emilk/egui",
                         );
                     });

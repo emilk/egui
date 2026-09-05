@@ -151,11 +151,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Hyperlink", "Hyperlink"));
-        use egui::special_emojis::GITHUB;
-        ui.hyperlink_to(
-            format!("{GITHUB} egui on GitHub"),
-            "https://github.com/emilk/egui",
-        );
+        ui.hyperlink_to("🐙 egui on GitHub", "https://github.com/emilk/egui");
         ui.end_row();
 
         ui.add(doc_link_label("TextEdit", "TextEdit"));
