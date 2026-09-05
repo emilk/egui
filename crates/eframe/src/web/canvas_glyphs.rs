@@ -13,6 +13,41 @@ use egui::{
 use wasm_bindgen::JsCast as _;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 
+/// Room for anti-aliased pixels at the glyph bounds, in physical pixels.
+const PADDING: f64 = 2.0;
+
+/// Result of drawing some text on the canvas.
+struct Drawn {
+    /// Straight (unpremultiplied) RGBA.
+    rgba: Vec<u8>,
+    width: u32,
+    height: u32,
+
+    /// Distance from the pen to the left edge of the ink.
+    left: f64,
+
+    /// Distance from the baseline to the top of the ink.
+    ascent: f64,
+
+    /// Horizontal advance.
+    advance: f64,
+}
+
+impl Drawn {
+    fn is_all_black(&self) -> bool {
+        let (rgba, []) = self.rgba.as_chunks() else {
+            panic!("Drawn glyph not RGBA!?");
+        };
+        for &[r, g, b, a] in rgba {
+            // only look at opaque pixels (ignore edges).
+            if a == 255 && [r, g, b] != [0, 0, 0] {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 struct CanvasGlyphs {
     canvas: HtmlCanvasElement,
     context: CanvasRenderingContext2d,
@@ -71,11 +106,25 @@ impl CanvasGlyphs {
             return None; // Let egui draw its own replacement glyph instead.
         }
 
-        // Color glyphs (e.g. emoji) ignore the fill style, so they come out
-        // the same in black. Comparing the two is exact, unlike inspecting
-        // the pixel colors: the browser's alpha (un)premultiplication rounds
-        // anti-aliased white text to slightly off-white.
+        // We want to figure out "is this a monochrome glyph, or a colorful emoji"?
+        // (the former should be tinted by the egui text color, the latter not).
+        // How do we figure this out? Here are some ideas:
+        //
+        // A) look at the pixels of the `white` image above and look for non-gray pixels.
+        // This produces miss-classifications of e.g. Thai and Korean scripts.
+        //
+        // B) render the glyph twice: once with a `white` color, and once more with black color.
+        // Look at the pixels of the `black` image and see if it is indeed black.
+        // This fails for the same glyphs as A.
+        //
+        // C) compare the `black` and `white` images.
+        // A colored emoji should look the same in both cases.
+        // Unfortunately this method also have some false positives on some platforms,
+        // such as Firefox for Android: https://github.com/emilk/egui/pull/8490#issuecomment-5538631164
+
         let black = self.draw(cluster, &font, "black", *subpixel_offset_px)?;
+
+        // Alternative C)
         let is_color = white.rgba == black.rgba;
 
         let Drawn {
@@ -177,26 +226,6 @@ impl CanvasGlyphs {
             advance: metrics.width(),
         })
     }
-}
-
-/// Room for anti-aliased pixels at the glyph bounds, in physical pixels.
-const PADDING: f64 = 2.0;
-
-/// Result of drawing some text on the canvas.
-struct Drawn {
-    /// Straight (unpremultiplied) RGBA.
-    rgba: Vec<u8>,
-    width: u32,
-    height: u32,
-
-    /// Distance from the pen to the left edge of the ink.
-    left: f64,
-
-    /// Distance from the baseline to the top of the ink.
-    ascent: f64,
-
-    /// Horizontal advance.
-    advance: f64,
 }
 
 thread_local! {
