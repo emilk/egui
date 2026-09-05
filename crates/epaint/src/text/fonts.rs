@@ -374,6 +374,7 @@ impl FontsImpl {
 
     /// Use this platform glyph rasterizer, e.g. the browser on web.
     #[cfg(test)]
+    #[inline]
     pub fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
         self.set_glyph_rasterizer(Some(glyph_rasterizer));
         self
