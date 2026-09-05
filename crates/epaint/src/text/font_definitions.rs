@@ -10,9 +10,10 @@ use epaint_default_fonts::{EGUI_ICONS, HACK_REGULAR, UBUNTU_LIGHT};
 #[cfg(feature = "monochrome_emoji_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, NOTO_EMOJI_REGULAR};
 
-/// Describes the font data and the sizes to use.
+/// Describes a set of pre-configured fonts.
 ///
-/// Often you would start with [`FontDefinitions::default()`] and then add/change the contents.
+/// These are the fonts epaint will use first, before falling back to any system fonts
+/// (if configured).
 ///
 /// This is how you install your own custom fonts:
 /// ```

@@ -2198,6 +2198,8 @@ impl Context {
     ///
     /// The new fonts will become active at the start of the next pass.
     /// This will overwrite the existing fonts.
+    ///
+    /// These fonts will be used before any system fallback.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         profiling::function_scope!();
 
@@ -2214,13 +2216,15 @@ impl Context {
         }
     }
 
-    /// Tell `egui` which fonts to use.
+    /// Add an additional font to `egui`.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new font will become active at the start of the next pass.
     /// This will keep the existing fonts.
+    ///
+    /// This font will be used before any system fallback.
     pub fn add_font(&self, new_font: FontInsert) {
         profiling::function_scope!();
 
