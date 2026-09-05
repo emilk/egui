@@ -367,7 +367,7 @@ impl CodeTheme {
             ui.selectable_value(&mut self.dark_mode, true, "🌙 Dark theme")
                 .on_hover_text("Use the dark mode theme");
 
-            ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
+            ui.selectable_value(&mut self.dark_mode, false, "☀️ Light theme")
                 .on_hover_text("Use the light mode theme");
         });
         let current_theme_is_dark = self.is_dark();
@@ -436,7 +436,7 @@ impl CodeTheme {
                     ui.selectable_value(&mut self.dark_mode, true, "🌙 Dark theme")
                         .on_hover_text("Use the dark mode theme");
 
-                    ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
+                    ui.selectable_value(&mut self.dark_mode, false, "☀️ Light theme")
                         .on_hover_text("Use the light mode theme");
                 });
                 ui.scope(|ui| {

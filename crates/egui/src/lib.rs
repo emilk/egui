@@ -511,7 +511,7 @@ pub use self::{
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
     if cfg!(debug_assertions) {
         ui.label(
-            RichText::new("⚠ Debug build ⚠")
+            RichText::new("⚠️ Debug build ⚠️")
                 .small()
                 .color(ui.visuals().warn_fg_color),
         )

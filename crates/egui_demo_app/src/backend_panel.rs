@@ -349,12 +349,12 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1280.0, 720.0)),
-                        "🖥 Desktop 720p",
+                        "🖥️ Desktop 720p",
                     );
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1920.0, 1080.0)),
-                        "🖥 Desktop 1080p",
+                        "🖥️ Desktop 1080p",
                     );
                 });
 
