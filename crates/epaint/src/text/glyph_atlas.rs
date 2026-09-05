@@ -7,7 +7,7 @@ use crate::{
     text::{
         FontFamily, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE,
         face_store::FontFaceKey,
-        font::{FontFace, ShapedGlyph},
+        font_face::{FontFace, ShapedGlyph},
         styled_metrics::StyledMetrics,
     },
 };
@@ -86,7 +86,7 @@ pub(crate) struct GlyphBitmap {
 /// cache each glyph's bitmap. As a compromise, we bin each subpixel offset into one of four fractional values. This
 /// means one glyph can have up to four subpixel-positioned bitmaps in the cache.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub(super) enum SubpixelBin {
+pub(crate) enum SubpixelBin {
     #[default]
     Zero,
     One,

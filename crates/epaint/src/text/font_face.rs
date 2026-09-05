@@ -5,17 +5,14 @@ use ecolor::Color32;
 use emath::{GuiRounding as _, OrderedFloat, vec2};
 use self_cell::self_cell;
 use skrifa::{GlyphId, MetadataProvider as _};
-use std::collections::BTreeMap;
 use vello_cpu::{color, kurbo};
 
 use crate::{
     ColorImage, TextOptions,
     text::{
-        FontTweak, GlyphSourcePreference, VariationCoords,
-        face_store::{FaceStore, FontFaceKey},
-        family::Family,
+        FontTweak, VariationCoords,
         font_data::Blob,
-        glyph_atlas::{GlyphAtlas, GlyphBitmap, RasterGlyphAllocation, SubpixelBin},
+        glyph_atlas::{GlyphBitmap, SubpixelBin},
         styled_metrics::{LocationHash, StyledMetrics},
         unicode::invisible_char,
     },
@@ -308,6 +305,12 @@ impl FontFace {
         &self.name
     }
 
+    /// Scale factor from the font's unscaled units to `scale` (points or pixels).
+    #[inline]
+    pub(crate) fn px_scale_factor(&self, scale: f32) -> f32 {
+        self.font.px_scale_factor(scale)
+    }
+
     /// An un-ordered iterator over all supported characters.
     pub fn characters(&self) -> impl Iterator<Item = char> + '_ {
         self.font
@@ -482,122 +485,4 @@ pub(crate) struct ShapedGlyph {
 
     /// CJK glyphs skip subpixel positioning to save atlas space.
     pub is_cjk: bool,
-}
-
-// TODO(emilk): rename?
-/// Wrapper over multiple [`FontFace`] (e.g. a primary + fallbacks for emojis)
-pub struct Font<'a> {
-    pub(super) faces: &'a mut FaceStore,
-    pub(super) family: &'a mut Family,
-    pub(super) glyphs: &'a mut GlyphAtlas,
-    pub(super) glyph_rasterizer: Option<&'a crate::text::GlyphRasterizer>,
-    pub(super) glyph_source_preference: &'a GlyphSourcePreference,
-}
-
-impl Font<'_> {
-    /// Rasterize a grapheme cluster using the platform [`crate::text::GlyphRasterizer`].
-    ///
-    /// Returns `None` if there is no rasterizer, or it could not handle the cluster.
-    pub(crate) fn rasterize_glyph(
-        &mut self,
-        cluster: &str,
-        pixels_per_point: f32,
-        font_size: f32,
-    ) -> Option<RasterGlyphAllocation> {
-        let rasterizer = self.glyph_rasterizer?;
-        self.glyphs.allocate_raster(
-            rasterizer,
-            cluster,
-            self.family.name(),
-            pixels_per_point,
-            font_size,
-        )
-    }
-
-    pub fn preload_characters(&mut self, s: &str) {
-        for c in s.chars() {
-            self.resolve_face(c);
-        }
-    }
-
-    /// All supported characters, and in which font they are available in.
-    pub fn characters(&mut self) -> &BTreeMap<char, Vec<String>> {
-        self.family.characters(self.faces)
-    }
-
-    pub fn styled_metrics(
-        &self,
-        pixels_per_point: f32,
-        font_size: f32,
-        coords: &VariationCoords,
-    ) -> StyledMetrics {
-        self.family
-            .primary()
-            .and_then(|key| self.faces.get(key))
-            .map(|font_face| font_face.styled_metrics(pixels_per_point, font_size, coords))
-            .unwrap_or_default()
-    }
-
-    /// Width of this character in points, at the font's default variation location.
-    pub fn glyph_width(&mut self, c: char, font_size: f32) -> f32 {
-        let face_key = self.resolve_face(c);
-        let Some(font_face) = self.faces.get_mut(face_key) else {
-            return 0.0;
-        };
-        let metrics = font_face.styled_metrics(1.0, font_size, &VariationCoords::default());
-        let Some(glyph_info) = font_face.glyph_info(c, &metrics) else {
-            return 0.0;
-        };
-        glyph_info.advance_width_unscaled.0 * font_face.font.px_scale_factor(font_size)
-    }
-
-    /// Do the installed fonts have this glyph?
-    ///
-    /// This does not consult the [`crate::text::GlyphRasterizer`], so it can return `false`
-    /// for a character that would still render via the rasterizer (e.g. the browser on web).
-    pub fn has_glyph(&mut self, c: char) -> bool {
-        // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
-        self.resolve_face(c) != self.family.replacement_face_key()
-    }
-
-    /// Do the installed fonts have all the glyphs in this text?
-    ///
-    /// See [`Self::has_glyph`] for the caveat about the glyph rasterizer.
-    pub fn has_glyphs(&mut self, s: &str) -> bool {
-        s.chars().all(|c| self.has_glyph(c))
-    }
-
-    /// Find which face in the fallback chain owns `c`.
-    ///
-    /// See [`Family::resolve`].
-    #[inline]
-    pub(crate) fn resolve_face(&mut self, c: char) -> FontFaceKey {
-        self.family.resolve(self.faces, c)
-    }
-
-    /// Resolve `c` to its (face, [`GlyphInfo`]) at the given face's location.
-    ///
-    /// `\n` will (intentionally) show up as the replacement character.
-    ///
-    /// `metrics` must be the resolved [`StyledMetrics`] for the face that ends
-    /// up owning `c`. Most callers pass the metrics of their text run's primary
-    /// face — that is correct as long as `c` is in that face. For correct
-    /// fallback-face advances, resolve the face first with [`Self::resolve_face`]
-    /// and build metrics for that face.
-    pub(crate) fn glyph_info(
-        &mut self,
-        c: char,
-        metrics: &StyledMetrics,
-    ) -> (FontFaceKey, GlyphInfo) {
-        let face_key = self.resolve_face(c);
-        let Some(face) = self.faces.get_mut(face_key) else {
-            return (face_key, GlyphInfo::INVISIBLE);
-        };
-        let glyph_info = face.glyph_info(c, metrics).unwrap_or_else(|| {
-            // `c` is in no face — render the replacement character instead.
-            face.glyph_info(self.family.replacement_char(), metrics)
-                .unwrap_or(GlyphInfo::INVISIBLE)
-        });
-        (face_key, glyph_info)
-    }
 }

@@ -3,9 +3,9 @@
 pub mod cursor;
 mod face_store;
 mod family;
-mod font;
 mod font_data;
 mod font_definitions;
+mod font_face;
 mod font_id;
 mod font_tweak;
 mod fonts;

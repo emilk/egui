@@ -20,7 +20,8 @@ use crate::{
 use super::{
     ByteRangeExt as _, FontsImpl, Galley, Glyph, GlyphSource, LayoutJob, LayoutSection, PlacedRow,
     Row, RowVisuals, VariationCoords,
-    font::{Font, FontFace, ShapedGlyph},
+    family::FamilyKey,
+    font_face::{FontFace, ShapedGlyph},
     glyph_atlas::{OutlineGlyph, RasterGlyphAllocation},
 };
 
@@ -127,9 +128,8 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
     {
         let mut shape_buffer = fonts.take_shape_buffer();
         for (section_index, section) in job.sections.iter().enumerate() {
-            let mut font = fonts.font(&section.format.font_id.family);
             shape_buffer = layout_section(
-                &mut font,
+                fonts,
                 shape_buffer,
                 pixels_per_point,
                 &job,
@@ -179,6 +179,8 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
 
 /// Shared context for emitting shaped glyphs into a [`Paragraph`].
 struct ShapingContext {
+    /// The family of the section being shaped.
+    family: FamilyKey,
     pixels_per_point: f32,
     font_size: f32,
     line_height: f32,
@@ -240,7 +242,7 @@ struct TextRun {
 /// characters so that `glyphs.len() == char_count` — an invariant that all
 /// cursor and selection code relies on.
 fn layout_shaped_run(
-    font: &mut Font<'_>,
+    fonts: &mut FontsImpl,
     run: &TextRun,
     run_text: &str,
     glyph_buffer: &harfrust::GlyphBuffer,
@@ -274,9 +276,9 @@ fn layout_shaped_run(
         // Tab is a layout concept, not a glyph — the shaper doesn't know about tab stops.
         // Override the advance width using the font's configured tab size.
         if chr == '\t' {
-            let tweak = font.faces.get(run.font_key).map(|face| face.tweak());
+            let tweak = fonts.face(run.font_key).map(|face| face.tweak());
             let tab_size = tweak.map_or(4.0, |t| t.tab_size);
-            let (_, space_info) = font.glyph_info(' ', face_metrics);
+            let (_, space_info) = fonts.glyph_info(ctx.family, ' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
             advance_width_px = tab_size * space_width_px;
         }
@@ -284,9 +286,9 @@ fn layout_shaped_run(
         // Thin space (U+2009) and narrow no-break space (U+202F):
         // override the shaper's advance width with the configured fraction of a space.
         if chr == '\u{2009}' || chr == '\u{202F}' {
-            let tweak = font.faces.get(run.font_key).map(|face| face.tweak());
+            let tweak = fonts.face(run.font_key).map(|face| face.tweak());
             let thin_space_width = tweak.map_or(0.5, |t| t.thin_space_width);
-            let (_, space_info) = font.glyph_info(' ', face_metrics);
+            let (_, space_info) = fonts.glyph_info(ctx.family, ' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
             advance_width_px = thin_space_width * space_width_px;
         }
@@ -329,16 +331,18 @@ fn layout_shaped_run(
                 })
                 .unwrap_or_default();
 
-            if let Some(raster) =
-                font.rasterize_glyph(cluster_text, ctx.pixels_per_point, ctx.font_size)
-            {
+            if let Some(raster) = fonts.rasterize_cluster(
+                ctx.family,
+                cluster_text,
+                ctx.pixels_per_point,
+                ctx.font_size,
+            ) {
                 raster_glyph(ctx, paragraph, chr, &raster, face_metrics)
             } else {
                 // Use the fallback font face (not run.font_key which returned NOTDEF).
-                let fallback_key = font.resolve_face(chr);
-                let fallback_metrics = font
-                    .faces
-                    .get(fallback_key)
+                let fallback_key = fonts.resolve_face(ctx.family, chr);
+                let fallback_metrics = fonts
+                    .face(fallback_key)
                     .map(|face| {
                         face.styled_metrics(
                             ctx.pixels_per_point,
@@ -347,24 +351,18 @@ fn layout_shaped_run(
                         )
                     })
                     .unwrap_or_default();
-                let (_, glyph_info) = font.glyph_info(chr, &fallback_metrics);
+                let (_, glyph_info) = fonts.glyph_info(ctx.family, chr, &fallback_metrics);
                 let advance_width_px =
                     glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
-                let OutlineGlyph { allocation, x_px } =
-                    if let Some(face) = font.faces.get_mut(fallback_key) {
-                        font.glyphs.allocate_outline(
-                            fallback_key,
-                            face,
-                            &fallback_metrics,
-                            &ShapedGlyph {
-                                glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                                h_pos: paragraph.cursor_x_px,
-                                is_cjk: is_cjk(chr),
-                            },
-                        )
-                    } else {
-                        Default::default()
-                    };
+                let OutlineGlyph { allocation, x_px } = fonts.allocate_glyph(
+                    fallback_key,
+                    &fallback_metrics,
+                    &ShapedGlyph {
+                        glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
+                        h_pos: paragraph.cursor_x_px,
+                        is_cjk: is_cjk(chr),
+                    },
+                );
 
                 paragraph.cursor_x_px += advance_width_px;
 
@@ -380,20 +378,15 @@ fn layout_shaped_run(
             let OutlineGlyph {
                 allocation: mut glyph_alloc,
                 x_px,
-            } = if let Some(face) = font.faces.get_mut(run.font_key) {
-                font.glyphs.allocate_outline(
-                    run.font_key,
-                    face,
-                    face_metrics,
-                    &ShapedGlyph {
-                        glyph_id,
-                        h_pos: paragraph.cursor_x_px + x_offset_px,
-                        is_cjk: is_cjk(chr),
-                    },
-                )
-            } else {
-                Default::default()
-            };
+            } = fonts.allocate_glyph(
+                run.font_key,
+                face_metrics,
+                &ShapedGlyph {
+                    glyph_id,
+                    h_pos: paragraph.cursor_x_px + x_offset_px,
+                    is_cjk: is_cjk(chr),
+                },
+            );
 
             // Apply shaper y_offset — this varies per glyph instance so it
             // is not part of the cached ShapedGlyph / GlyphAllocation.
@@ -452,7 +445,7 @@ fn raster_glyph(
 /// Clusters the rasterizer cannot handle are shaped with the run's font face instead.
 #[must_use]
 fn layout_raster_run(
-    font: &mut Font<'_>,
+    fonts: &mut FontsImpl,
     run: &TextRun,
     run_text: &str,
     coords: &VariationCoords,
@@ -462,7 +455,7 @@ fn layout_raster_run(
 ) -> harfrust::UnicodeBuffer {
     use unicode_segmentation::UnicodeSegmentation as _;
 
-    let Some(font_face) = font.faces.get(run.font_key) else {
+    let Some(font_face) = fonts.face(run.font_key) else {
         return shape_buffer;
     };
     let face_metrics = &font_face.styled_metrics(ctx.pixels_per_point, ctx.font_size, coords);
@@ -472,10 +465,11 @@ fn layout_raster_run(
             continue;
         };
 
-        let Some(raster) = font.rasterize_glyph(cluster, ctx.pixels_per_point, ctx.font_size)
+        let Some(raster) =
+            fonts.rasterize_cluster(ctx.family, cluster, ctx.pixels_per_point, ctx.font_size)
         else {
             // Shape this one cluster with the font instead.
-            let Some(font_face) = font.faces.get(run.font_key) else {
+            let Some(font_face) = fonts.face(run.font_key) else {
                 continue;
             };
             let glyph_buffer = shape_text(
@@ -492,7 +486,7 @@ fn layout_raster_run(
                 source: GlyphSource::Fonts,
             };
             layout_shaped_run(
-                font,
+                fonts,
                 &cluster_run,
                 cluster,
                 &glyph_buffer,
@@ -552,7 +546,7 @@ fn emit_continuation_glyphs(
 // Ignores the Y coordinate.
 #[must_use]
 fn layout_section(
-    font: &mut Font<'_>,
+    fonts: &mut FontsImpl,
     mut shape_buffer: harfrust::UnicodeBuffer,
     pixels_per_point: f32,
     job: &LayoutJob,
@@ -566,8 +560,9 @@ fn layout_section(
         format,
     } = section;
 
+    let family = fonts.family_key(&format.font_id.family);
     let font_size = format.font_id.size;
-    let font_metrics = font.styled_metrics(pixels_per_point, font_size, &format.coords);
+    let font_metrics = fonts.family_metrics(family, pixels_per_point, font_size, &format.coords);
     let line_height = section
         .format
         .line_height
@@ -582,6 +577,7 @@ fn layout_section(
 
     let section_text = &job.text[byte_range.as_usize()];
     let mut ctx = ShapingContext {
+        family,
         pixels_per_point,
         font_size,
         line_height,
@@ -605,21 +601,21 @@ fn layout_section(
             continue;
         }
 
-        segment_into_runs(font, segment, &mut runs);
+        segment_into_runs(fonts, family, segment, &mut runs);
 
         let num_runs = runs.len();
         for (run_idx, run) in runs.iter().enumerate() {
             let run_text = &segment[run.byte_range.as_usize()];
-            let Some(font_face) = font.faces.get(run.font_key) else {
+            let Some(font_face) = fonts.face(run.font_key) else {
                 continue;
             };
 
             let face_metrics =
                 font_face.styled_metrics(pixels_per_point, font_size, &format.coords);
 
-            if run.source == GlyphSource::Platform && font.glyph_rasterizer.is_some() {
+            if run.source == GlyphSource::Platform && fonts.has_glyph_rasterizer() {
                 shape_buffer = layout_raster_run(
-                    font,
+                    fonts,
                     run,
                     run_text,
                     &format.coords,
@@ -641,7 +637,7 @@ fn layout_section(
                     shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
 
                 layout_shaped_run(
-                    font,
+                    fonts,
                     run,
                     run_text,
                     &glyph_buffer,
@@ -912,17 +908,15 @@ fn replace_last_glyph_with_overflow_character(
     loop {
         let section = &job.sections[section_index as usize];
         let extra_letter_spacing = section.format.extra_letter_spacing;
-        let mut font = fonts.font(&section.format.font_id.family);
+        let family = fonts.family_key(&section.format.font_id.family);
         let font_size = section.format.font_id.size;
 
-        let font_id = font.resolve_face(overflow_character);
-        let font_face_metrics = font
-            .faces
-            .get(font_id)
+        let face_key = fonts.resolve_face(family, overflow_character);
+        let font_face_metrics = fonts
+            .face(face_key)
             .map(|face| face.styled_metrics(pixels_per_point, font_size, &section.format.coords))
             .unwrap_or_default();
-        let (_, glyph_info) = font.glyph_info(overflow_character, &font_face_metrics);
-        let mut font_face = font.faces.get_mut(font_id);
+        let (_, glyph_info) = fonts.glyph_info(family, overflow_character, &font_face_metrics);
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
             prev_glyph.max_x() + extra_letter_spacing
@@ -943,24 +937,18 @@ fn replace_last_glyph_with_overflow_character(
             let OutlineGlyph {
                 allocation: replacement_glyph_alloc,
                 x_px,
-            } = font_face
-                .as_mut()
-                .map(|face| {
-                    font.glyphs.allocate_outline(
-                        font_id,
-                        face,
-                        &font_face_metrics,
-                        &ShapedGlyph {
-                            glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                            h_pos: overflow_glyph_x * pixels_per_point,
-                            is_cjk: is_cjk(overflow_character),
-                        },
-                    )
-                })
-                .unwrap_or_default();
+            } = fonts.allocate_glyph(
+                face_key,
+                &font_face_metrics,
+                &ShapedGlyph {
+                    glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
+                    h_pos: overflow_glyph_x * pixels_per_point,
+                    is_cjk: is_cjk(overflow_character),
+                },
+            );
 
             let font_metrics =
-                font.styled_metrics(pixels_per_point, font_size, &section.format.coords);
+                fonts.family_metrics(family, pixels_per_point, font_size, &section.format.coords);
             let line_height = section
                 .format
                 .line_height
@@ -1512,7 +1500,7 @@ impl RowBreakCandidates {
 ///
 /// Results are appended to `out` (which is cleared first) to allow
 /// the caller to reuse the allocation across calls.
-fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
+fn segment_into_runs(fonts: &mut FontsImpl, family: FamilyKey, text: &str, out: &mut Vec<TextRun>) {
     use unicode_segmentation::UnicodeSegmentation as _;
 
     out.clear();
@@ -1522,8 +1510,8 @@ fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
         let byte_end = byte_offset + grapheme_str.len();
 
         let base_char = grapheme_str.chars().next().unwrap_or(' ');
-        let font_key = font.resolve_face(base_char);
-        let source = (font.glyph_source_preference)(grapheme_str);
+        let font_key = fonts.resolve_face(family, base_char);
+        let source = fonts.glyph_source(grapheme_str);
 
         if let Some(last_run) = out.last_mut()
             && last_run.font_key == font_key
@@ -2038,9 +2026,14 @@ mod tests {
         let mut fonts = test_fonts();
 
         let font_id = FontId::default();
+        let family = fonts.family_key(&font_id.family);
         let font_height = fonts
-            .font(&font_id.family)
-            .styled_metrics(pixels_per_point, font_id.size, &VariationCoords::default())
+            .family_metrics(
+                family,
+                pixels_per_point,
+                font_id.size,
+                &VariationCoords::default(),
+            )
             .row_height;
 
         let job = LayoutJob::simple(String::new(), font_id, Color32::WHITE, f32::INFINITY);
@@ -2071,9 +2064,14 @@ mod tests {
         let mut fonts = test_fonts();
 
         let font_id = FontId::default();
+        let family = fonts.family_key(&font_id.family);
         let font_height = fonts
-            .font(&font_id.family)
-            .styled_metrics(pixels_per_point, font_id.size, &VariationCoords::default())
+            .family_metrics(
+                family,
+                pixels_per_point,
+                font_id.size,
+                &VariationCoords::default(),
+            )
             .row_height;
 
         let job = LayoutJob::simple("Hi!\n".to_owned(), font_id, Color32::WHITE, f32::INFINITY);

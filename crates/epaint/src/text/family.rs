@@ -5,6 +5,12 @@ use crate::text::{
     face_store::{FaceStore, FontFaceKey},
 };
 
+/// Index of a [`Family`] in `FontsImpl`.
+///
+/// Cheaper to pass around and look up than a [`FontFamily`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct FamilyKey(pub(crate) usize);
+
 /// The fallback chain of one [`FontFamily`], and the caches for resolving chars against it.
 ///
 /// This is the only place that decides which face renders a given char.

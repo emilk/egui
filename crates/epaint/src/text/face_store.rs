@@ -2,7 +2,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use nohash_hasher::IntMap;
 
-use crate::text::{FontData, FontDefinitions, TextOptions, font::FontFace};
+use crate::text::{FontData, FontDefinitions, TextOptions, font_face::FontFace};
 
 /// Unique ID for looking up a single font face/file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

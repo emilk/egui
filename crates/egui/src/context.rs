@@ -1754,11 +1754,9 @@ impl Context {
 
         let font_id = TextStyle::Body.resolve(&self.global_style());
         self.fonts_mut(|f| {
-            let mut font = f.fonts.font(&font_id.family);
-            font.has_glyphs(alt)
-                && font.has_glyphs(ctrl)
-                && font.has_glyphs(shift)
-                && font.has_glyphs(mac_cmd)
+            [alt, ctrl, shift, mac_cmd]
+                .iter()
+                .all(|symbols| f.has_glyphs(&font_id, symbols))
         })
     }
 
