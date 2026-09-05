@@ -302,13 +302,14 @@ impl FontFace {
         )
     }
 
+    /// The name the font was installed under, i.e. its key in `FontDefinitions::font_data`.
     #[inline]
-    pub(crate) fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
     /// An un-ordered iterator over all supported characters.
-    pub(crate) fn characters(&self) -> impl Iterator<Item = char> + '_ {
+    pub fn characters(&self) -> impl Iterator<Item = char> + '_ {
         self.font
             .borrow_dependent()
             .charmap
