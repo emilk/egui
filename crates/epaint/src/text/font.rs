@@ -302,6 +302,11 @@ impl FontFace {
         )
     }
 
+    #[inline]
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
     /// An un-ordered iterator over all supported characters.
     fn characters(&self) -> impl Iterator<Item = char> + '_ {
         self.font

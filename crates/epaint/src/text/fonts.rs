@@ -489,9 +489,13 @@ impl FontsImpl {
             let fonts: Vec<FontFaceKey> = fonts
                 .iter()
                 .map(|font_name| {
-                    self.faces
-                        .key_by_name(font_name)
-                        .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
+                    self.faces.key_by_name(font_name).unwrap_or_else(|| {
+                        let available: Vec<&str> =
+                            self.faces.iter().map(|(_, face)| face.name()).collect();
+                        panic!(
+                            "No font data found for {font_name:?}. Installed fonts: {available:?}"
+                        )
+                    })
                 })
                 .collect();
 

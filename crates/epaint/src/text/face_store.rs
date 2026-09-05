@@ -87,4 +87,9 @@ impl FaceStore {
     pub fn get_mut(&mut self, key: FontFaceKey) -> Option<&mut FontFace> {
         self.by_key.get_mut(&key)
     }
+
+    /// All installed faces, in no particular order.
+    pub fn iter(&self) -> impl Iterator<Item = (FontFaceKey, &FontFace)> {
+        self.by_key.iter().map(|(key, face)| (*key, face))
+    }
 }
