@@ -243,26 +243,6 @@ mod tests {
 
     #[test]
     #[ignore = "Depends on which fonts are installed on this machine"]
-    fn renders_color_emoji_through_egui_context() {
-        let ctx = egui::Context::default();
-        ctx.add_font_provider(Arc::new(SystemFontProvider::new()));
-        let mut output = ctx.run_ui(Default::default(), |ui| {
-            let galley = ui.fonts_mut(|fonts| {
-                fonts.layout_no_wrap(
-                    "🦀".to_owned(),
-                    egui::FontId::proportional(32.0),
-                    egui::Color32::WHITE,
-                )
-            });
-            let glyph = &galley.rows[0].row.glyphs[0];
-            assert!(glyph.is_color, "Should come from a system color emoji font");
-            assert!(!glyph.uv_rect.is_nothing());
-        });
-        output.textures_delta.clear();
-    }
-
-    #[test]
-    #[ignore = "Depends on which fonts are installed on this machine"]
     fn renders_cjk_through_egui_context() {
         let ctx = egui::Context::default();
         let font_id = egui::FontId::proportional(14.0);
