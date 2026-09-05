@@ -1615,7 +1615,7 @@ impl InputState {
             });
         }
 
-        crate::containers::CollapsingHeader::new("⬍ Scroll")
+        crate::containers::CollapsingHeader::new("↕️ Scroll")
             .default_open(false)
             .show(ui, |ui| {
                 wheel.ui(ui);

@@ -226,7 +226,7 @@ impl WrapApp {
             ),
             #[cfg(feature = "easymark")]
             (
-                "🖹 EasyMark editor",
+                "📝 EasyMark editor",
                 Anchor::EasyMarkEditor,
                 &mut self.state.easy_mark_editor as &mut dyn DemoApp,
             ),

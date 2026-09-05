@@ -29,7 +29,7 @@ impl Modals {
 
 impl crate::Demo for Modals {
     fn name(&self) -> &'static str {
-        "🗖 Modals"
+        "💭 Modals"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
