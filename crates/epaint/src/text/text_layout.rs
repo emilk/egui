@@ -185,6 +185,7 @@ impl ShapingContext {
         face_metrics: &StyledMetrics,
         alloc: GlyphAllocation,
     ) -> Glyph {
+        let GlyphAllocation { uv_rect, is_color } = alloc;
         Glyph {
             chr,
             pos: pos2(physical_x as f32 / self.pixels_per_point, f32::NAN),
@@ -194,8 +195,8 @@ impl ShapingContext {
             font_face_ascent: face_metrics.ascent,
             font_height: self.font_metrics.row_height,
             font_ascent: self.font_metrics.ascent,
-            uv_rect: alloc.uv_rect,
-            is_color: alloc.is_color,
+            uv_rect,
+            is_color,
             section_index: self.section_index,
             first_vertex: 0,
         }
