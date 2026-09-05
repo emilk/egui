@@ -111,9 +111,7 @@ impl FontCell {
         // so try those first:
         core::cfg_select! {
             feature = "color_fonts" => {
-                if self.borrow_dependent().has_color_glyphs
-                    && let Some(bitmap) = self.rasterize_color_glyph(metrics, glyph_id, bin, location)
-                {
+                if let Some(bitmap) = self.rasterize_color_glyph(metrics, glyph_id, bin, location) {
                     return Some(bitmap);
                 }
             }
@@ -181,6 +179,19 @@ impl FontCell {
         })
     }
 
+    /// Does this glyph have a color bitmap (`sbix`, `CBDT`) or a `COLR` paint graph?
+    #[cfg(feature = "color_fonts")]
+    fn has_color_glyph(&self, glyph_id: GlyphId, size: skrifa::instance::Size) -> bool {
+        let font_data = self.borrow_dependent();
+        font_data.has_color_glyphs
+            && (font_data.skrifa.color_glyphs().get(glyph_id).is_some()
+                || font_data
+                    .skrifa
+                    .bitmap_strikes()
+                    .glyph_for_size(size, glyph_id)
+                    .is_some())
+    }
+
     /// Rasterize a bitmap (`sbix`, `CBDT`) or `COLR` glyph, e.g. a color emoji.
     ///
     /// Returns `None` if the glyph has neither.
@@ -198,13 +209,8 @@ impl FontCell {
         let font_size_px = metrics.scale;
         let size = skrifa::instance::Size::new(font_size_px);
 
-        let has_color_glyph = font_data.skrifa.color_glyphs().get(glyph_id).is_some()
-            || font_data
-                .skrifa
-                .bitmap_strikes()
-                .glyph_for_size(size, glyph_id)
-                .is_some();
-        if !(has_color_glyph && 0.0 < font_size_px && font_size_px.is_finite()) {
+        if !self.has_color_glyph(glyph_id, size) || font_size_px == 0.0 || !font_size_px.is_finite()
+        {
             return None;
         }
 
@@ -598,6 +604,20 @@ impl FontFace {
     #[inline]
     pub(crate) fn subpixel_binning(&self) -> bool {
         self.subpixel_binning
+    }
+
+    /// Will this glyph be rendered as a color bitmap or `COLR` glyph, e.g. a color emoji?
+    pub(crate) fn is_color_glyph(&self, metrics: &StyledMetrics, glyph_id: GlyphId) -> bool {
+        core::cfg_select! {
+            feature = "color_fonts" => {
+                self.font
+                    .has_color_glyph(glyph_id, skrifa::instance::Size::new(metrics.scale))
+            }
+            _ => {
+                let _ = (self, metrics, glyph_id);
+                false
+            }
+        }
     }
 
     /// Render a glyph to a bitmap: a color glyph if the font has one, else the outline as coverage.

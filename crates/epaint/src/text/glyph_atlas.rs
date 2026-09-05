@@ -281,11 +281,14 @@ impl GlyphAtlas {
             };
         }
 
-        let (x_px, bin) = if face.subpixel_binning() && !is_cjk {
+        let subpixel_binning =
+            face.subpixel_binning() && !is_cjk && !face.is_color_glyph(metrics, glyph_id);
+        let (x_px, bin) = if subpixel_binning {
             SubpixelBin::new(h_pos)
         } else {
             // CJK scripts contain a lot of characters and could hog the glyph atlas
             // if we stored 4 subpixel offsets per glyph.
+            // Color glyphs (emoji) are big, and gain nothing from subpixel positioning.
             (h_pos.round() as i32, SubpixelBin::Zero)
         };
 
