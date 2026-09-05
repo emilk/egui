@@ -27,7 +27,7 @@ pub use {
     font_tweak::{FontTweak, HintingTarget, SmoothHinting},
     fonts::{Fonts, FontsView, MAX_GLYPH_SIZE},
     glyph_rasterizer::{
-        GlyphRasterizer, GlyphRasterizerRequest, GlyphSource, GlyphSourcePreference,
+        GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, GlyphSource, GlyphSourcePreference,
         RasterizedGlyph, default_glyph_source, has_emoji_presentation,
     },
     index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},

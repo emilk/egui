@@ -3,9 +3,10 @@ use nohash_hasher::IntMap;
 use skrifa::GlyphId;
 
 use crate::{
-    ColorImage, FontColorTransferFunction, ImageDelta, TextOptions, TextureAtlas,
+    FontColorTransferFunction, ImageDelta, TextOptions, TextureAtlas,
     text::{
-        FontFamily, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE,
+        FontFamily, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE,
+        RasterizedGlyph,
         face_store::FontFaceKey,
         font_face::{FontFace, ShapedGlyph},
         styled_metrics::StyledMetrics,
@@ -43,6 +44,10 @@ impl UvRect {
 pub struct GlyphAllocation {
     /// UV rectangle for drawing.
     pub uv_rect: UvRect,
+
+    /// A color glyph (e.g. emoji), stored with its own colors in the atlas.
+    /// Do not tint it with the text color.
+    pub is_color: bool,
 }
 
 /// An outline glyph in the atlas, positioned for one [`ShapedGlyph`].
@@ -63,16 +68,6 @@ pub(crate) struct OutlineGlyph {
 pub(crate) struct RasterGlyphAllocation {
     pub allocation: GlyphAllocation,
     pub advance_px: f32,
-    pub is_color: bool,
-}
-
-/// A glyph bitmap, ready to be copied into the atlas.
-pub(crate) struct GlyphBitmap {
-    /// Physical pixels. Coverage glyphs are white with alpha; color glyphs keep their colors.
-    pub image: ColorImage,
-
-    /// Offset from the glyph origin to the top-left of the image, in physical pixels.
-    pub offset_px: Vec2,
 }
 
 // ----------------------------------------------------------------------------
@@ -286,11 +281,14 @@ impl GlyphAtlas {
             };
         }
 
-        let (x_px, bin) = if face.subpixel_binning() && !is_cjk {
+        let subpixel_binning =
+            face.subpixel_binning() && !is_cjk && !face.is_color_glyph(metrics, glyph_id);
+        let (x_px, bin) = if subpixel_binning {
             SubpixelBin::new(h_pos)
         } else {
             // CJK scripts contain a lot of characters and could hog the glyph atlas
             // if we stored 4 subpixel offsets per glyph.
+            // Color glyphs (emoji) are big, and gain nothing from subpixel positioning.
             (h_pos.round() as i32, SubpixelBin::Zero)
         };
 
@@ -302,14 +300,16 @@ impl GlyphAtlas {
             ..
         } = self;
         let allocation = *outline_glyphs.entry(key).or_insert_with(|| {
-            face.rasterize_outline(metrics, glyph_id, bin)
+            face.rasterize_glyph(metrics, glyph_id, bin)
                 .and_then(|bitmap| {
-                    let transfer = atlas.options().color_transfer_function;
-                    Self::allocate_bitmap(atlas, &bitmap, metrics.pixels_per_point, transfer)
-                })
-                .map(|mut uv_rect| {
+                    let transfer = Self::transfer_function(atlas, bitmap.is_color);
+                    let mut uv_rect =
+                        Self::allocate_bitmap(atlas, &bitmap, metrics.pixels_per_point, transfer)?;
                     uv_rect.offset.y += metrics.y_offset_in_points;
-                    GlyphAllocation { uv_rect }
+                    Some(GlyphAllocation {
+                        uv_rect,
+                        is_color: bitmap.is_color,
+                    })
                 })
                 .unwrap_or_default()
         });
@@ -341,28 +341,29 @@ impl GlyphAtlas {
             font_size_px: font_size * pixels_per_point,
             subpixel_offset_px: 0.0,
         };
-        let allocation = (rasterizer.rasterize)(&request).and_then(|glyph| {
-            // The transfer function assumes white coverage glyphs and discards color,
-            // so color glyphs (e.g. emoji) must skip it.
-            let transfer = if glyph.is_color {
-                FontColorTransferFunction::Off
-            } else {
-                self.atlas.options().color_transfer_function
-            };
-            let bitmap = GlyphBitmap {
-                image: glyph.image,
-                offset_px: glyph.offset_px,
-            };
-            let uv_rect =
-                Self::allocate_bitmap(&mut self.atlas, &bitmap, pixels_per_point, transfer)?;
-            Some(RasterGlyphAllocation {
-                allocation: GlyphAllocation { uv_rect },
-                advance_px: glyph.advance_px,
-                is_color: glyph.is_color,
-            })
-        });
+        let allocation =
+            (rasterizer.rasterize)(&request).and_then(|RasterizedGlyph { bitmap, advance_px }| {
+                let is_color = bitmap.is_color;
+                let transfer = Self::transfer_function(&self.atlas, is_color);
+                let uv_rect =
+                    Self::allocate_bitmap(&mut self.atlas, &bitmap, pixels_per_point, transfer)?;
+                Some(RasterGlyphAllocation {
+                    allocation: GlyphAllocation { uv_rect, is_color },
+                    advance_px,
+                })
+            });
         self.raster_glyphs.insert(key, allocation);
         allocation
+    }
+
+    /// The transfer function assumes white coverage glyphs and discards color,
+    /// so color glyphs (e.g. emoji) must skip it.
+    fn transfer_function(atlas: &TextureAtlas, is_color: bool) -> FontColorTransferFunction {
+        if is_color {
+            FontColorTransferFunction::Off
+        } else {
+            atlas.options().color_transfer_function
+        }
     }
 
     /// Copy a bitmap into the atlas.

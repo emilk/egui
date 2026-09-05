@@ -58,6 +58,7 @@ skip = [
   { name = "jni-sys" }, # 0.3.1 depends on 0.4
   { name = "kurbo" }, # Old version because of resvg
   { name = "phf" }, # mime_guess2 -> 0.11, unicode_names2 -> 0.13
+  { name = "png" }, # glifo (vello_cpu's text feature, for bitmap emoji) depends on 0.18, image 0.25.6 on 0.17
   { name = "phf_generator" }, # same phf split as phf
   { name = "phf_shared" }, # same phf split as phf
   { name = "rand_core" }, # rand ecosystem is migrating 0.8 -> 0.10; phf_generator's rand 0.8 needs rand_core 0.6, getrandom 0.4/chacha20 need rand_core 0.10

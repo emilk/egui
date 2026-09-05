@@ -8,8 +8,8 @@ use core::cell::RefCell;
 use std::collections::HashMap;
 
 use egui::{
-    ColorImage, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE, RasterizedGlyph,
-    has_emoji_presentation, vec2,
+    ColorImage, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE,
+    RasterizedGlyph, has_emoji_presentation, vec2,
 };
 use wasm_bindgen::JsCast as _;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
@@ -108,12 +108,14 @@ impl CanvasGlyphs {
         } = white;
 
         Some(RasterizedGlyph {
-            image: ColorImage::from_rgba_unmultiplied([width as _, height as _], &rgba),
-            // The pen sits at `(PADDING + left, PADDING + ascent)` in the image,
-            // so the image's top-left is this far from the pen:
-            offset_px: vec2(-(left + PADDING) as f32, -(ascent + PADDING) as f32),
+            bitmap: GlyphBitmap {
+                image: ColorImage::from_rgba_unmultiplied([width as _, height as _], &rgba),
+                // The pen sits at `(PADDING + left, PADDING + ascent)` in the image,
+                // so the image's top-left is this far from the pen:
+                offset_px: vec2(-(left + PADDING) as f32, -(ascent + PADDING) as f32),
+                is_color,
+            },
             advance_px: advance as f32,
-            is_color,
         })
     }
 
