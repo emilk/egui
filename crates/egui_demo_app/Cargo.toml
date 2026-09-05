@@ -43,7 +43,7 @@ x11 = ["eframe/x11"]
 
 [dependencies]
 eframe = { workspace = true, default-features = false, features = ["web_screen_reader"] }
-egui = { workspace = true, features = ["callstack", "default"] }
+egui = { workspace = true, features = ["callstack", "default", "monochrome_emoji_fonts"] }
 egui_demo_lib = { workspace = true, features = ["default", "jiff"] }
 egui_extras = { workspace = true, features = ["default", "image"] }
 image = { workspace = true, default-features = false, features = [
