@@ -111,7 +111,7 @@ impl FontCell {
         // so try those first:
         core::cfg_select! {
             feature = "color_fonts" => {
-                if let Some(bitmap) = self.rasterize_color_glyph(metrics, glyph_id, bin, location) {
+                if let Some(bitmap) = self.rasterize_color_glyph(metrics, glyph_id, location) {
                     return Some(bitmap);
                 }
             }
@@ -195,12 +195,14 @@ impl FontCell {
     /// Rasterize a bitmap (`sbix`, `CBDT`) or `COLR` glyph, e.g. a color emoji.
     ///
     /// Returns `None` if the glyph has neither.
+    ///
+    /// Never sub-pixel positioned: [`crate::text::glyph_atlas::GlyphAtlas::allocate_outline`]
+    /// bins color glyphs to whole pixels.
     #[cfg(feature = "color_fonts")]
     fn rasterize_color_glyph(
         &self,
         metrics: &StyledMetrics,
         glyph_id: GlyphId,
-        bin: SubpixelBin,
         location: skrifa::instance::LocationRef<'_>,
     ) -> Option<GlyphBitmap> {
         use vello_cpu::peniko;
@@ -219,7 +221,7 @@ impl FontCell {
         let canvas_size = (3.0 * font_size_px)
             .ceil()
             .clamp(1.0, crate::text::MAX_GLYPH_SIZE as f32) as u16;
-        let origin_x = font_size_px as f64 + bin.as_float() as f64;
+        let origin_x = font_size_px as f64;
         let origin_y = 2.0 * font_size_px as f64;
 
         let font = peniko::FontData::new(
