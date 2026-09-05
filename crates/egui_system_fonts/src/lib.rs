@@ -33,9 +33,6 @@ struct SystemFonts {
 /// so e.g. 日本語 gets a Japanese font and العربية an Arabic font.
 /// The font files are memory-mapped, not copied.
 ///
-/// Only fonts with outline glyphs are returned. System emoji fonts contain
-/// bitmaps or color glyphs, which epaint cannot render yet, so they are skipped.
-///
 /// Enumerating the system fonts can take hundreds of milliseconds,
 /// so [`Self::new`] starts doing that on a background thread.
 /// A lookup before it is done blocks until it is.
@@ -123,12 +120,13 @@ impl FontProvider for SystemFontProvider {
             query.set_families([QueryFamily::Generic(generic)]);
             query.set_fallbacks(FallbackKey::new(script, self.locale.as_ref()));
         } else {
-            // Punctuation, symbols, etc. belong to no script, so there is no fallback for them.
+            // Punctuation, symbols, emoji, etc. belong to no script, so there is no fallback for them.
             // Try the generic families instead.
             query.set_families(
                 [
                     generic,
                     GenericFamily::SystemUi,
+                    GenericFamily::Emoji,
                     GenericFamily::Math,
                     GenericFamily::Serif,
                     GenericFamily::Monospace,
@@ -139,7 +137,7 @@ impl FontProvider for SystemFontProvider {
 
         let mut found = None;
         query.matches_with(|font| {
-            if has_outline_for(font, base_char) {
+            if can_render(font, base_char) {
                 found = Some(font.clone());
                 QueryStatus::Stop
             } else {
@@ -177,10 +175,10 @@ fn script_of(c: char) -> Option<Script> {
     }
 }
 
-/// Does the font have an outline glyph for the character?
+/// Does the font have a glyph for the character that epaint can render?
 ///
-/// False for bitmap and color glyphs, which epaint cannot render yet.
-fn has_outline_for(font: &QueryFont, c: char) -> bool {
+/// That is an outline, a bitmap (`sbix`, `CBDT`), or a `COLR` glyph.
+fn can_render(font: &QueryFont, c: char) -> bool {
     use skrifa::MetadataProvider as _;
 
     let Some(glyph_id) = font.charmap().and_then(|charmap| charmap.map(c)) else {
@@ -194,6 +192,11 @@ fn has_outline_for(font: &QueryFont, c: char) -> bool {
         return false;
     };
     font_ref.outline_glyphs().get(glyph_id).is_some()
+        || font_ref.color_glyphs().get(glyph_id).is_some()
+        || font_ref
+            .bitmap_strikes()
+            .glyph_for_size(skrifa::instance::Size::unscaled(), glyph_id)
+            .is_some()
 }
 
 #[cfg(test)]

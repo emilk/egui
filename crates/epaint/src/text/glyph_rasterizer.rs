@@ -17,19 +17,27 @@ pub struct GlyphRasterizerRequest<'a> {
     pub subpixel_offset_px: f32,
 }
 
-/// A glyph rasterized by a platform fallback.
-pub struct RasterizedGlyph {
-    /// Pixels in physical pixels. Color glyphs retain their original colors.
+/// A glyph bitmap, ready to be copied into the glyph atlas.
+#[derive(Clone)]
+pub struct GlyphBitmap {
+    /// Pixels in physical pixels. Coverage glyphs are white with alpha;
+    /// color glyphs retain their original colors.
     pub image: ColorImage,
 
-    /// Offset from the baseline to the image top-left, in physical pixels.
+    /// Offset from the glyph origin to the image top-left, in physical pixels.
     pub offset_px: emath::Vec2,
+
+    /// A color glyph (e.g. emoji) that must not be tinted with the text color.
+    pub is_color: bool,
+}
+
+/// A glyph rasterized by a platform fallback.
+#[derive(Clone)]
+pub struct RasterizedGlyph {
+    pub bitmap: GlyphBitmap,
 
     /// Horizontal advance, in physical pixels.
     pub advance_px: f32,
-
-    /// Do not tint this glyph with the text color.
-    pub is_color: bool,
 }
 
 /// The callback of a [`GlyphRasterizer`].

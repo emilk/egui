@@ -12,7 +12,6 @@ use crate::{
         ByteIndex, ByteRange,
         face_store::FontFaceKey,
         fonts::FontsImpl,
-        glyph_atlas::UvRect,
         styled_metrics::StyledMetrics,
         unicode::{is_cjk, is_cjk_break_allowed, is_combining_mark},
     },
@@ -23,7 +22,7 @@ use super::{
     RowVisuals, VariationCoords,
     family::FamilyKey,
     font_face::{FontFace, ShapedGlyph},
-    glyph_atlas::{OutlineGlyph, RasterGlyphAllocation},
+    glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
 };
 
 // ----------------------------------------------------------------------------
@@ -184,8 +183,9 @@ impl ShapingContext {
         physical_x: i32,
         advance_width_px: f32,
         face_metrics: &StyledMetrics,
-        uv_rect: UvRect,
+        alloc: GlyphAllocation,
     ) -> Glyph {
+        let GlyphAllocation { uv_rect, is_color } = alloc;
         Glyph {
             chr,
             pos: pos2(physical_x as f32 / self.pixels_per_point, f32::NAN),
@@ -196,7 +196,7 @@ impl ShapingContext {
             font_height: self.font_metrics.row_height,
             font_ascent: self.font_metrics.ascent,
             uv_rect,
-            is_color: false,
+            is_color,
             section_index: self.section_index,
             first_vertex: 0,
         }
@@ -218,6 +218,7 @@ struct TextRun {
     ///
     /// [`GlyphSource::Platform`]: try the glyph rasterizer (if any) for each cluster,
     /// shaping with `font_key` only if that fails.
+    /// `font_key` is then a discovered font, if one has the glyph.
     source: GlyphSource,
 }
 
@@ -352,13 +353,7 @@ fn layout_shaped_run(
 
                 paragraph.cursor_x_px += advance_width_px;
 
-                ctx.glyph(
-                    chr,
-                    x_px,
-                    advance_width_px,
-                    &fallback_metrics,
-                    allocation.uv_rect,
-                )
+                ctx.glyph(chr, x_px, advance_width_px, &fallback_metrics, allocation)
             }
         } else {
             let OutlineGlyph {
@@ -380,13 +375,7 @@ fn layout_shaped_run(
 
             paragraph.cursor_x_px += advance_width_px;
 
-            ctx.glyph(
-                chr,
-                x_px,
-                advance_width_px,
-                face_metrics,
-                glyph_alloc.uv_rect,
-            )
+            ctx.glyph(chr, x_px, advance_width_px, face_metrics, glyph_alloc)
         };
         paragraph.glyphs.push(glyph);
         cluster_glyph_count += 1;
@@ -415,15 +404,13 @@ fn raster_glyph(
 ) -> Glyph {
     let physical_x = paragraph.cursor_x_px.round() as i32;
     paragraph.cursor_x_px += raster.advance_px;
-    let mut glyph = ctx.glyph(
+    ctx.glyph(
         chr,
         physical_x,
         raster.advance_px,
         face_metrics,
-        raster.allocation.uv_rect,
-    );
-    glyph.is_color = raster.is_color;
-    glyph
+        raster.allocation,
+    )
 }
 
 /// Lay out a run whose clusters prefer the glyph rasterizer over the font.
@@ -503,7 +490,7 @@ fn layout_raster_run(
 ///
 /// This preserves the invariant `glyphs.len() == char_count` that all cursor
 /// and text-selection code depends on. Continuation glyphs have
-/// [`UvRect::default()`] so [`tessellate_glyphs`] skips them entirely.
+/// [`GlyphAllocation::default()`] so [`tessellate_glyphs`] skips them entirely.
 fn emit_continuation_glyphs(
     ctx: &ShapingContext,
     paragraph: &mut Paragraph,
@@ -523,9 +510,13 @@ fn emit_continuation_glyphs(
     let physical_x = paragraph.cursor_x_px.round() as i32;
 
     for chr in cluster_text.chars().skip(cluster_glyph_count) {
-        paragraph
-            .glyphs
-            .push(ctx.glyph(chr, physical_x, 0.0, face_metrics, UvRect::default()));
+        paragraph.glyphs.push(ctx.glyph(
+            chr,
+            physical_x,
+            0.0,
+            face_metrics,
+            GlyphAllocation::default(),
+        ));
     }
 }
 
@@ -1495,8 +1486,8 @@ fn segment_into_runs(fonts: &mut FontsImpl, family: FamilyKey, text: &str, out: 
         let byte_offset = ByteIndex(byte_offset);
         let byte_end = byte_offset + grapheme_str.len();
 
-        let font_key = fonts.resolve_cluster_face(family, grapheme_str);
         let source = fonts.glyph_source(grapheme_str);
+        let font_key = fonts.resolve_cluster_face(family, grapheme_str, source);
 
         if let Some(last_run) = out.last_mut()
             && last_run.font_key == font_key
@@ -1571,12 +1562,7 @@ mod tests {
     #[test]
     fn color_raster_glyph_is_not_tinted() {
         let rasterizer = GlyphRasterizer::new(|request: &GlyphRasterizerRequest<'_>| {
-            (request.cluster == "한").then(|| RasterizedGlyph {
-                image: ColorImage::new([1, 1], vec![Color32::RED]),
-                offset_px: Vec2::ZERO,
-                advance_px: 10.0,
-                is_color: true,
-            })
+            (request.cluster == "한").then(color_raster_glyph)
         });
         let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
             .with_glyph_rasterizer(rasterizer);
@@ -1630,14 +1616,8 @@ mod tests {
 
     #[test]
     fn color_raster_glyph_keeps_color_in_atlas() {
-        let rasterizer = GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| {
-            Some(RasterizedGlyph {
-                image: ColorImage::new([1, 1], vec![Color32::RED]),
-                offset_px: Vec2::ZERO,
-                advance_px: 10.0,
-                is_color: true,
-            })
-        });
+        let rasterizer =
+            GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| Some(color_raster_glyph()));
         // The default transfer function discards color for regular (white) glyphs:
         let options = TextOptions {
             color_transfer_function: crate::FontColorTransferFunction::TwoCoverageMinusCoverageSq,
@@ -1665,28 +1645,28 @@ mod tests {
             requests
                 .lock()
                 .push((request.cluster.to_owned(), request.family.clone()));
-            result.as_ref().map(|glyph| RasterizedGlyph {
-                image: glyph.image.clone(),
-                offset_px: glyph.offset_px,
-                advance_px: glyph.advance_px,
-                is_color: glyph.is_color,
-            })
+            result.clone()
         })
     }
 
     fn white_raster_glyph() -> RasterizedGlyph {
         RasterizedGlyph {
-            image: ColorImage::new([1, 1], vec![Color32::WHITE]),
-            offset_px: Vec2::ZERO,
+            bitmap: GlyphBitmap {
+                image: ColorImage::new([1, 1], vec![Color32::WHITE]),
+                offset_px: Vec2::ZERO,
+                is_color: false,
+            },
             advance_px: 10.0,
-            is_color: false,
         }
     }
 
     fn color_raster_glyph() -> RasterizedGlyph {
         RasterizedGlyph {
-            image: ColorImage::new([1, 1], vec![Color32::RED]),
-            is_color: true,
+            bitmap: GlyphBitmap {
+                image: ColorImage::new([1, 1], vec![Color32::RED]),
+                is_color: true,
+                ..white_raster_glyph().bitmap
+            },
             ..white_raster_glyph()
         }
     }

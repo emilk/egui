@@ -35,6 +35,11 @@ cint = ["ecolor/cint"]
 ## Enable the [`hex_color`] macro.
 color-hex = ["ecolor/color-hex"]
 
+## Support bitmap (`sbix`, `CBDT`) and `COLR` glyphs, i.e. color emoji fonts like Apple Color Emoji and Segoe UI Emoji.
+##
+## Adds a PNG decoder to the binary, so it is off by default. `eframe` enables it on native via `egui_system_fonts`.
+color_fonts = ["vello_cpu/png", "vello_cpu/text"]
+
 ## If set, epaint will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint_default_fonts"]

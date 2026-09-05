@@ -1,5 +1,8 @@
 #![expect(clippy::mem_forget)]
 
+#[cfg(feature = "color_fonts")]
+use std::sync::Arc;
+
 use ahash::HashMap;
 use ecolor::Color32;
 use emath::{GuiRounding as _, OrderedFloat, vec2};
@@ -10,9 +13,9 @@ use vello_cpu::{color, kurbo};
 use crate::{
     ColorImage, TextOptions,
     text::{
-        FontTweak, VariationCoords,
+        FontTweak, GlyphBitmap, VariationCoords,
         font_data::Blob,
-        glyph_atlas::{GlyphBitmap, SubpixelBin},
+        glyph_atlas::SubpixelBin,
         styled_metrics::{LocationHash, StyledMetrics},
         unicode::invisible_char,
     },
@@ -56,6 +59,15 @@ pub(super) enum GlyphIdResolution {
 /// The parsed `skrifa` views into a font file, borrowing from the file's [`Blob`].
 struct DependentFontData<'a> {
     skrifa: skrifa::FontRef<'a>,
+
+    /// Index of this face in the font file (a font collection, e.g. `.ttc`, holds several).
+    #[cfg(feature = "color_fonts")]
+    index: u32,
+
+    /// Does the font have a `COLR`, `sbix`, `CBDT`, or `EBDT` table?
+    #[cfg(feature = "color_fonts")]
+    has_color_glyphs: bool,
+
     charmap: skrifa::charmap::Charmap<'a>,
     outline_glyphs: skrifa::outline::OutlineGlyphCollection<'a>,
     metrics: skrifa::metrics::Metrics,
@@ -78,10 +90,10 @@ impl FontCell {
         scale / units_per_em
     }
 
-    /// Render the outline of a glyph to a coverage bitmap.
+    /// Render a glyph to a bitmap: a color glyph if the font has one, else the outline as coverage.
     ///
-    /// Returns `None` if the glyph has no outline (e.g. a space).
-    fn rasterize_outline(
+    /// Returns `None` if the glyph has neither (e.g. a space).
+    fn rasterize_glyph(
         &mut self,
         metrics: &StyledMetrics,
         glyph_id: GlyphId,
@@ -94,6 +106,17 @@ impl FontCell {
         );
 
         let location: skrifa::instance::LocationRef<'_> = (&metrics.location).into();
+
+        // Color emoji fonts often have empty outlines next to their bitmap or `COLR` glyphs,
+        // so try those first:
+        core::cfg_select! {
+            feature = "color_fonts" => {
+                if let Some(bitmap) = self.rasterize_color_glyph(metrics, glyph_id, location) {
+                    return Some(bitmap);
+                }
+            }
+            _ => {}
+        }
 
         let mut path = kurbo::BezPath::new();
         let mut pen = VelloPen {
@@ -152,6 +175,118 @@ impl FontCell {
         Some(GlyphBitmap {
             image,
             offset_px: vec2(bounds.x0 as f32, bounds.y0 as f32),
+            is_color: false,
+        })
+    }
+
+    /// Does this glyph have a color bitmap (`sbix`, `CBDT`) or a `COLR` paint graph?
+    #[cfg(feature = "color_fonts")]
+    fn has_color_glyph(&self, glyph_id: GlyphId, size: skrifa::instance::Size) -> bool {
+        let font_data = self.borrow_dependent();
+        font_data.has_color_glyphs
+            && (font_data.skrifa.color_glyphs().get(glyph_id).is_some()
+                || font_data
+                    .skrifa
+                    .bitmap_strikes()
+                    .glyph_for_size(size, glyph_id)
+                    .is_some())
+    }
+
+    /// Rasterize a bitmap (`sbix`, `CBDT`) or `COLR` glyph, e.g. a color emoji.
+    ///
+    /// Returns `None` if the glyph has neither.
+    ///
+    /// Never sub-pixel positioned: [`crate::text::glyph_atlas::GlyphAtlas::allocate_outline`]
+    /// bins color glyphs to whole pixels.
+    #[cfg(feature = "color_fonts")]
+    fn rasterize_color_glyph(
+        &self,
+        metrics: &StyledMetrics,
+        glyph_id: GlyphId,
+        location: skrifa::instance::LocationRef<'_>,
+    ) -> Option<GlyphBitmap> {
+        use vello_cpu::peniko;
+
+        let font_data = self.borrow_dependent();
+        let font_size_px = metrics.scale;
+        let size = skrifa::instance::Size::new(font_size_px);
+
+        if !self.has_color_glyph(glyph_id, size) || font_size_px == 0.0 || !font_size_px.is_finite()
+        {
+            return None;
+        }
+
+        // We don't know the bounds of the glyph up front, so we render it onto a
+        // canvas with room for one em on each side of the em box, then crop.
+        let canvas_size = (3.0 * font_size_px)
+            .ceil()
+            .clamp(1.0, crate::text::MAX_GLYPH_SIZE as f32) as u16;
+        let origin_x = font_size_px as f64;
+        let origin_y = 2.0 * font_size_px as f64;
+
+        let font = peniko::FontData::new(
+            peniko::Blob::new(Arc::clone(self.borrow_owner())),
+            font_data.index,
+        );
+        let coords: Vec<i16> = location.coords().iter().map(|c| c.to_bits()).collect();
+
+        let mut ctx = vello_cpu::RenderContext::new(canvas_size, canvas_size);
+        let mut resources = vello_cpu::Resources::new();
+        ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
+        ctx.glyph_run(&mut resources, &font)
+            .font_size(font_size_px)
+            .hint(false)
+            .normalized_coords(&coords)
+            .fill_glyphs(core::iter::once(vello_cpu::Glyph {
+                id: glyph_id.to_u32(),
+                x: origin_x as f32,
+                y: origin_y as f32,
+            }));
+        let mut pixmap = vello_cpu::Pixmap::new(canvas_size, canvas_size);
+        ctx.render(&mut pixmap, &mut resources);
+
+        let canvas_size = canvas_size as usize;
+        let pixels = pixmap.data_as_u8_slice();
+        let alpha_at = |x: usize, y: usize| pixels[4 * (y * canvas_size + x) + 3];
+
+        // Crop to the painted pixels:
+        let mut min = [canvas_size, canvas_size];
+        let mut max = [0, 0];
+        for y in 0..canvas_size {
+            for x in 0..canvas_size {
+                if alpha_at(x, y) != 0 {
+                    min = [min[0].min(x), min[1].min(y)];
+                    max = [max[0].max(x + 1), max[1].max(y + 1)];
+                }
+            }
+        }
+        if max[0] <= min[0] || max[1] <= min[1] {
+            return None; // Nothing painted
+        }
+        let width = max[0] - min[0];
+        let height = max[1] - min[1];
+
+        let cropped: Vec<Color32> = (min[1]..max[1])
+            .flat_map(|y| (min[0]..max[0]).map(move |x| (x, y)))
+            .map(|(x, y)| {
+                let i = 4 * (y * canvas_size + x);
+                // `vello_cpu::Pixmap` holds premultiplied RGBA8:
+                Color32::from_rgba_premultiplied(
+                    pixels[i],
+                    pixels[i + 1],
+                    pixels[i + 2],
+                    pixels[i + 3],
+                )
+            })
+            .collect();
+
+        Some(GlyphBitmap {
+            image: ColorImage::new([width, height], cropped),
+            offset_px: vec2(
+                min[0] as f32 - origin_x as f32,
+                min[1] as f32 - origin_y as f32,
+            ),
+            is_color: true,
         })
     }
 }
@@ -255,8 +390,21 @@ impl FontFace {
                 })
                 .flatten();
 
+            #[cfg(feature = "color_fonts")]
+            let has_color_glyphs = {
+                use skrifa::raw::TableProvider as _;
+                skrifa_font.colr().is_ok()
+                    || skrifa_font.sbix().is_ok()
+                    || skrifa_font.cbdt().is_ok()
+                    || skrifa_font.ebdt().is_ok()
+            };
+
             Ok::<DependentFontData<'_>, Box<dyn core::error::Error>>(DependentFontData {
                 skrifa: skrifa_font,
+                #[cfg(feature = "color_fonts")]
+                index,
+                #[cfg(feature = "color_fonts")]
+                has_color_glyphs,
                 charmap,
                 outline_glyphs: glyphs,
                 metrics,
@@ -460,10 +608,24 @@ impl FontFace {
         self.subpixel_binning
     }
 
-    /// Render the outline of a glyph to a coverage bitmap.
+    /// Will this glyph be rendered as a color bitmap or `COLR` glyph, e.g. a color emoji?
+    pub(crate) fn is_color_glyph(&self, metrics: &StyledMetrics, glyph_id: GlyphId) -> bool {
+        core::cfg_select! {
+            feature = "color_fonts" => {
+                self.font
+                    .has_color_glyph(glyph_id, skrifa::instance::Size::new(metrics.scale))
+            }
+            _ => {
+                let _ = (self, metrics, glyph_id);
+                false
+            }
+        }
+    }
+
+    /// Render a glyph to a bitmap: a color glyph if the font has one, else the outline as coverage.
     ///
     /// Not cached: see [`crate::text::glyph_atlas::GlyphAtlas::allocate_outline`].
-    pub(crate) fn rasterize_outline(
+    pub(crate) fn rasterize_glyph(
         &mut self,
         metrics: &StyledMetrics,
         glyph_id: GlyphId,
@@ -471,7 +633,7 @@ impl FontFace {
     ) -> Option<GlyphBitmap> {
         let hinting_target = self.tweak.hinting_target.into();
         self.font
-            .rasterize_outline(metrics, glyph_id, bin, hinting_target)
+            .rasterize_glyph(metrics, glyph_id, bin, hinting_target)
     }
 }
 
