@@ -74,7 +74,7 @@ impl Painting {
 
 impl crate::Demo for Painting {
     fn name(&self) -> &'static str {
-        "🖊 Painting"
+        "🖊️ Painting"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {

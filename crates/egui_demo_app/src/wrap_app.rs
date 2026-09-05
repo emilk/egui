@@ -232,7 +232,7 @@ impl WrapApp {
             ),
             #[cfg(feature = "http")]
             (
-                "⬇ HTTP",
+                "⬇️ HTTP",
                 Anchor::Http,
                 &mut self.state.http as &mut dyn DemoApp,
             ),
@@ -243,7 +243,7 @@ impl WrapApp {
             ),
             #[cfg(feature = "image_viewer")]
             (
-                "🖼 Image Viewer",
+                "🖼️ Image Viewer",
                 Anchor::ImageViewer,
                 &mut self.state.image_viewer as &mut dyn DemoApp,
             ),

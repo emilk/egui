@@ -122,10 +122,10 @@ impl crate::View for Panels {
 
             ui.horizontal(|ui| {
                 ui.label("Panel toggles:");
-                ui.toggle_value(left, "⬅");
-                ui.toggle_value(top, "⬆");
-                ui.toggle_value(bottom, "⬇");
-                ui.toggle_value(right, "➡");
+                ui.toggle_value(left, "⬅️");
+                ui.toggle_value(top, "⬆️");
+                ui.toggle_value(bottom, "⬇️");
+                ui.toggle_value(right, "➡️");
             });
 
             ui.separator();
