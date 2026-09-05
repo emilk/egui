@@ -47,6 +47,7 @@ impl AppRunner {
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
+        egui_ctx.set_glyph_rasterizer(Some(super::canvas_glyphs::glyph_rasterizer()));
 
         #[allow(clippy::allow_attributes, unused_assignments)]
         #[cfg(feature = "glow")]

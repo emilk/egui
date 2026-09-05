@@ -1,5 +1,6 @@
 #![expect(clippy::mem_forget)]
 
+use ahash::HashMap;
 use ecolor::Color32;
 use emath::{GuiRounding as _, OrderedFloat, Vec2, vec2};
 use self_cell::self_cell;
@@ -10,10 +11,40 @@ use vello_cpu::{color, kurbo};
 use crate::{
     TextOptions, TextureAtlas,
     text::{
-        FontTweak, VariationCoords,
-        fonts::{Blob, CachedFamily, FontFaceKey},
+        FontTweak, MAX_GLYPH_SIZE, VariationCoords,
+        fonts::{Blob, CachedFamily, FontFaceKey, GlyphSourcePreference},
     },
 };
+
+#[derive(Clone, Copy)]
+pub(crate) struct RasterGlyphAllocation {
+    pub allocation: GlyphAllocation,
+    pub advance_px: f32,
+    pub is_color: bool,
+}
+
+/// Hash of `(cluster, family, pixels_per_point, font_size)`,
+/// so that cache lookups do not allocate.
+#[derive(Hash, PartialEq, Eq)]
+pub(crate) struct RasterGlyphCacheKey(u64);
+
+impl nohash_hasher::IsEnabled for RasterGlyphCacheKey {}
+
+impl RasterGlyphCacheKey {
+    fn new(
+        cluster: &str,
+        family: &crate::text::FontFamily,
+        pixels_per_point: f32,
+        font_size: f32,
+    ) -> Self {
+        Self(crate::util::hash((
+            cluster,
+            family,
+            pixels_per_point.to_bits(),
+            font_size.to_bits(),
+        )))
+    }
+}
 
 // ----------------------------------------------------------------------------
 
@@ -364,15 +395,15 @@ pub struct FontFace {
     ///
     /// Only depends on the font's charmap + `FontTweak`. A miss means the char
     /// is not in this face's repertoire and the fallback chain should be tried.
-    glyph_id_cache: ahash::HashMap<char, GlyphIdResolution>,
+    glyph_id_cache: HashMap<char, GlyphIdResolution>,
 
     /// Location-dependent: `(char, LocationHash) → unscaled advance width`.
     ///
     /// Variable fonts can vary advance widths per axis (HVAR table), so this
     /// must be re-keyed per resolved [`skrifa::instance::Location`].
-    advance_width_cache: ahash::HashMap<(char, LocationHash), OrderedFloat<f32>>,
+    advance_width_cache: HashMap<(char, LocationHash), OrderedFloat<f32>>,
 
-    glyph_alloc_cache: ahash::HashMap<GlyphCacheKey, GlyphAllocation>,
+    glyph_alloc_cache: HashMap<GlyphCacheKey, GlyphAllocation>,
 }
 
 impl FontFace {
@@ -665,9 +696,81 @@ pub struct Font<'a> {
     pub(super) fonts_by_id: &'a mut nohash_hasher::IntMap<FontFaceKey, FontFace>,
     pub(super) cached_family: &'a mut CachedFamily,
     pub(super) atlas: &'a mut TextureAtlas,
+    pub(super) family: crate::text::FontFamily,
+    pub(super) glyph_rasterizer: Option<&'a crate::text::GlyphRasterizer>,
+
+    /// `None` means the rasterizer could not handle the cluster.
+    pub(super) raster_glyph_cache:
+        &'a mut nohash_hasher::IntMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
+
+    pub(super) glyph_source_preference: &'a GlyphSourcePreference,
 }
 
 impl Font<'_> {
+    /// Rasterize a glyph using our fallback provider.
+    ///
+    /// Failures are cached too, so the (potentially slow) rasterizer
+    /// is asked at most once per cluster and size.
+    pub(crate) fn rasterize_glyph(
+        &mut self,
+        cluster: &str,
+        pixels_per_point: f32,
+        font_size: f32,
+    ) -> Option<RasterGlyphAllocation> {
+        let rasterizer = self.glyph_rasterizer?;
+        let key = RasterGlyphCacheKey::new(cluster, &self.family, pixels_per_point, font_size);
+        if let Some(allocation) = self.raster_glyph_cache.get(&key) {
+            return *allocation;
+        }
+        let request = crate::text::GlyphRasterizerRequest {
+            cluster,
+            family: &self.family,
+            font_size_px: font_size * pixels_per_point,
+            subpixel_offset_px: 0.0,
+        };
+        let allocation = (rasterizer.rasterize)(&request)
+            .and_then(|glyph| Self::allocate_raster_glyph(self.atlas, &glyph, pixels_per_point));
+        self.raster_glyph_cache.insert(key, allocation);
+        allocation
+    }
+
+    fn allocate_raster_glyph(
+        atlas: &mut TextureAtlas,
+        glyph: &crate::text::RasterizedGlyph,
+        pixels_per_point: f32,
+    ) -> Option<RasterGlyphAllocation> {
+        let [width, height] = glyph.image.size;
+        if width == 0 || height == 0 || MAX_GLYPH_SIZE < width || MAX_GLYPH_SIZE < height {
+            return None;
+        }
+        // The transfer function assumes white coverage glyphs and discards color,
+        // so color glyphs (e.g. emoji) must skip it.
+        let transfer = if glyph.is_color {
+            crate::FontColorTransferFunction::Off
+        } else {
+            atlas.options().color_transfer_function
+        };
+        let (glyph_pos, image) = atlas.allocate((width, height));
+        for y in 0..height {
+            for x in 0..width {
+                image[(glyph_pos.0 + x, glyph_pos.1 + y)] =
+                    transfer.to_atlas_color(glyph.image[(x, y)]);
+            }
+        }
+        Some(RasterGlyphAllocation {
+            allocation: GlyphAllocation {
+                uv_rect: UvRect {
+                    offset: glyph.offset_px / pixels_per_point,
+                    size: vec2(width as f32, height as f32) / pixels_per_point,
+                    min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+                    max: [(glyph_pos.0 + width) as u16, (glyph_pos.1 + height) as u16],
+                },
+            },
+            advance_px: glyph.advance_px,
+            is_color: glyph.is_color,
+        })
+    }
+
     pub fn preload_characters(&mut self, s: &str) {
         for c in s.chars() {
             self.resolve_face(c);
@@ -715,13 +818,18 @@ impl Font<'_> {
         glyph_info.advance_width_unscaled.0 * font_face.font.px_scale_factor(font_size)
     }
 
-    /// Can we display this glyph?
+    /// Do the installed fonts have this glyph?
+    ///
+    /// This does not consult the [`crate::text::GlyphRasterizer`], so it can return `false`
+    /// for a character that would still render via the rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, c: char) -> bool {
         // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
         self.resolve_face(c) != self.cached_family.replacement_face_key
     }
 
-    /// Can we display all the glyphs in this text?
+    /// Do the installed fonts have all the glyphs in this text?
+    ///
+    /// See [`Self::has_glyph`] for the caveat about the glyph rasterizer.
     pub fn has_glyphs(&mut self, s: &str) -> bool {
         s.chars().all(|c| self.has_glyph(c))
     }
