@@ -43,7 +43,7 @@ x11 = ["eframe/x11"]
 
 [dependencies]
 eframe = { workspace = true, default-features = false, features = ["web_screen_reader"] }
-egui = { workspace = true, features = ["callstack", "default", "monochrome_emoji_fonts"] }
+egui = { workspace = true, features = ["callstack", "default"] }
 egui_demo_lib = { workspace = true, features = ["default", "jiff"] }
 egui_extras = { workspace = true, features = ["default", "image"] }
 image = { workspace = true, default-features = false, features = [
@@ -86,4 +86,6 @@ wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
 
 [dev-dependencies]
+# `monochrome_emoji_fonts` so that the snapshots keep their emoji:
+egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
 egui_kittest = { workspace = true, features = ["eframe", "snapshot", "wgpu"] }
