@@ -69,13 +69,12 @@ impl Fonts {
         self.galley_cache = Default::default();
     }
 
-    /// Ask these for fonts for characters that no font in the [`FontDefinitions`] has.
+    /// Ask these for fonts, after the [`FontDefinitions`].
     ///
     /// The providers are asked in order, and the first font found is used.
     #[inline]
     pub fn with_font_providers(mut self, font_providers: Vec<Arc<dyn FontProvider>>) -> Self {
-        self.fonts
-            .set_font_providers(FontProviders::new(font_providers));
+        self.fonts.set_font_providers(font_providers);
         self
     }
 
@@ -94,13 +93,8 @@ impl Fonts {
     /// as well as notice when the font atlas is getting full, and handle that.
     pub fn begin_pass(&mut self, options: TextOptions) {
         if self.fonts.options() != &options {
-            // Hinting and other options are baked into each parsed face, so start over:
-            let definitions = self.fonts.definitions.clone();
-            let mut fonts = FontsImpl::new(options, definitions);
-            fonts.set_glyph_rasterizer(self.fonts.glyph_rasterizer.take());
-            fonts.set_font_providers(core::mem::take(&mut self.fonts.font_providers));
-            self.fonts = fonts;
-            self.galley_cache = Default::default();
+            self.fonts.set_options(options);
+            self.galley_cache = Default::default(); // Galleys point into the old atlas.
         } else if 0.8 < self.fonts.glyphs.fill_ratio() {
             // The parsed faces are still fine; only the bitmaps need to go.
             self.fonts.glyphs.clear();
@@ -352,7 +346,7 @@ impl FontsView<'_> {
 ///
 /// Required in order to paint text.
 pub(crate) struct FontsImpl {
-    definitions: FontDefinitions,
+    definitions: Arc<FontDefinitions>,
     glyphs: GlyphAtlas,
     faces: FaceStore,
 
@@ -370,27 +364,27 @@ impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
     pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
-        let faces = FaceStore::new(options, &definitions);
-
-        Self {
-            definitions,
+        let mut slf = Self {
+            definitions: Arc::new(definitions),
             glyphs: GlyphAtlas::new(options),
-            faces,
+            faces: FaceStore::new(options),
             families: Default::default(),
             family_keys: Default::default(),
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
             glyph_rasterizer: None,
             font_providers: Default::default(),
-        }
+        };
+        slf.set_font_providers(Vec::new());
+        slf
     }
 
-    /// Ask these for fonts for characters that no font in the [`FontDefinitions`] has.
+    /// Ask these for fonts, after the configured [`FontDefinitions`].
     ///
-    /// Fonts the providers discovered earlier are installed right away.
-    pub fn set_font_providers(&mut self, font_providers: FontProviders) {
-        font_providers.install_discovered(&mut self.faces);
-        self.font_providers = font_providers;
-        // The fallback chains may have changed:
+    /// Forgets the fallback chains, so the providers are asked again for each family.
+    pub fn set_font_providers(&mut self, font_providers: Vec<Arc<dyn FontProvider>>) {
+        let configured: Arc<dyn FontProvider> = Arc::<FontDefinitions>::clone(&self.definitions);
+        let providers = core::iter::chain(core::iter::once(configured), font_providers).collect();
+        self.font_providers = FontProviders::new(providers);
         self.families.clear();
         self.family_keys.clear();
     }
@@ -398,6 +392,14 @@ impl FontsImpl {
     /// The fonts discovered by the [`FontProvider`]s so far, in the order they were found.
     pub fn discovered_fonts(&self) -> &[FontInsert] {
         self.font_providers.discovered()
+    }
+
+    /// Apply new [`TextOptions`].
+    ///
+    /// The parsed faces and the fallback chains survive; only the atlas starts over.
+    pub fn set_options(&mut self, options: TextOptions) {
+        self.faces.set_options(options);
+        self.glyphs = GlyphAtlas::new(options);
     }
 
     /// Use this platform glyph rasterizer, e.g. the browser on web.
@@ -443,12 +445,8 @@ impl FontsImpl {
             return *key;
         }
         let key = FamilyKey(self.families.len());
-        self.families.push(Family::new(
-            family,
-            &self.definitions,
-            &mut self.faces,
-            &self.font_providers,
-        ));
+        self.families
+            .push(Family::new(family, &mut self.faces, &self.font_providers));
         self.family_keys.insert(family.clone(), key);
         key
     }
