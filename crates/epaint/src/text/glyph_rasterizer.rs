@@ -18,6 +18,7 @@ pub struct GlyphRasterizerRequest<'a> {
 }
 
 /// A glyph rasterized by a platform fallback.
+#[derive(Clone)]
 pub struct RasterizedGlyph {
     /// Pixels in physical pixels. Color glyphs retain their original colors.
     pub image: ColorImage,

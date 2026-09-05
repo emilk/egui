@@ -1656,12 +1656,7 @@ mod tests {
             requests
                 .lock()
                 .push((request.cluster.to_owned(), request.family.clone()));
-            result.as_ref().map(|glyph| RasterizedGlyph {
-                image: glyph.image.clone(),
-                offset_px: glyph.offset_px,
-                advance_px: glyph.advance_px,
-                is_color: glyph.is_color,
-            })
+            result.clone()
         })
     }
 
