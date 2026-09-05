@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::text::{
-    FontDefinitions, FontFamily,
+    FontFamily,
     face_store::{FaceStore, FontFaceKey},
     font_provider::FontProviders,
 };
@@ -15,15 +15,15 @@ pub(crate) struct FamilyKey(pub(crate) usize);
 /// The fallback chain of one [`FontFamily`], and the caches for resolving chars against it.
 ///
 /// This is the only place that decides which face renders a given char:
-/// first the configured fonts (from [`FontDefinitions`]), then fonts discovered by the [`FontProviders`],
-/// then the replacement glyph.
+/// first the fonts the [`FontProviders`] install up front (the configured fonts),
+/// then fonts they discover on demand, then the replacement glyph.
 #[derive(Debug)]
 pub(crate) struct Family {
     name: FontFamily,
 
     /// Faces in priority order: the primary first, then the fallbacks.
     ///
-    /// Configured fonts (from [`FontDefinitions`]) first, then any discovered by the [`FontProviders`].
+    /// Configured fonts first, then any discovered by the [`FontProviders`].
     chain: Vec<FontFaceKey>,
 
     /// The face used when no face in [`Self::chain`] supports a char.
@@ -49,36 +49,23 @@ impl Family {
     const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
     const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
 
-    /// Look up the configured fallback chain of `name` in the definitions,
-    /// followed by the fonts the providers have already discovered for it.
-    ///
-    /// Panics if the family or one of its fonts is missing from the definitions.
-    pub fn new(
-        name: &FontFamily,
-        definitions: &FontDefinitions,
-        faces: &mut FaceStore,
-        providers: &FontProviders,
-    ) -> Self {
-        let font_names = definitions
-            .families
-            .get(name)
-            .unwrap_or_else(|| panic!("FontFamily::{name:?} is not bound to any fonts"));
-
-        let mut chain: Vec<FontFaceKey> = font_names
-            .iter()
-            .map(|font_name| {
-                faces.key_by_name(font_name).unwrap_or_else(|| {
-                    let available: Vec<&str> = faces.iter().map(|(_, face)| face.name()).collect();
-                    panic!("No font data found for {font_name:?}. Installed fonts: {available:?}")
-                })
-            })
-            .collect();
-
-        // Discovered fonts come after the configured ones:
-        for key in providers.discovered_keys_for(name, faces) {
-            if !chain.contains(&key) {
-                chain.push(key);
+    /// Install the fonts the providers want for `name` up front, in provider order.
+    pub fn new(name: &FontFamily, faces: &mut FaceStore, providers: &FontProviders) -> Self {
+        let mut chain: Vec<FontFaceKey> = Vec::new();
+        for insert in providers.fonts_for_family(name) {
+            match faces.install(&insert.name, &insert.data) {
+                Ok(key) => {
+                    if !chain.contains(&key) {
+                        chain.push(key);
+                    }
+                }
+                Err(err) => {
+                    panic!("Error parsing {:?} TTF/OTF font file: {err}", insert.name);
+                }
             }
+        }
+        if chain.is_empty() {
+            log::error!("No font provider has any font for FontFamily::{name:?}");
         }
 
         let mut slf = Self {
@@ -178,22 +165,21 @@ impl Family {
             // and then the ones we have already discovered…
             .find_face_for_char(c, faces)
             // …and if none of them has the char, ask the providers for a new font:
-            .or_else(|| self.discover(faces, providers, cluster, c))
+            .or_else(|| self.discover(faces, providers, cluster))
             // No font has the char, so we will render the replacement glyph (e.g. `◻`):
             .unwrap_or(self.replacement_face_key);
         self.face_cache.insert(c, font_key);
         font_key
     }
 
-    /// Ask the providers for a new font with `c`, and append it to the chain.
+    /// Ask the providers for a new font with the first char of `cluster`, and append it to the chain.
     fn discover(
         &mut self,
         faces: &mut FaceStore,
         providers: &mut FontProviders,
         cluster: &str,
-        c: char,
     ) -> Option<FontFaceKey> {
-        let key = providers.discover(faces, &self.name, cluster, c)?;
+        let key = providers.discover(faces, &self.name, cluster)?;
         if !self.chain.contains(&key) {
             self.chain.push(key);
             self.characters = None;

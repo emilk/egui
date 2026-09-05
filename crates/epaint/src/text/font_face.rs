@@ -414,6 +414,33 @@ impl FontFace {
         })
     }
 
+    /// Apply new [`TextOptions`]: hinting on/off and sub-pixel binning.
+    ///
+    /// Anything cached about glyph ids and advances stays valid, since neither affects them.
+    pub(crate) fn set_options(&mut self, options: TextOptions) {
+        let Self {
+            font,
+            tweak,
+            subpixel_binning,
+            ..
+        } = self;
+        *subpixel_binning = tweak.subpixel_binning.unwrap_or(options.subpixel_binning);
+        let hinting_enabled = tweak.hinting.unwrap_or(options.font_hinting);
+        font.with_dependent_mut(|_, font_data| {
+            font_data.hinting_instance = hinting_enabled
+                .then(|| {
+                    skrifa::outline::HintingInstance::new(
+                        &font_data.outline_glyphs,
+                        skrifa::instance::Size::unscaled(),
+                        skrifa::instance::LocationRef::default(),
+                        skrifa::outline::Target::default(),
+                    )
+                    .ok()
+                })
+                .flatten();
+        });
+    }
+
     /// Code points that will always be replaced by the replacement character.
     ///
     /// See also [`invisible_char`].

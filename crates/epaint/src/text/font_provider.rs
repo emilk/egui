@@ -17,27 +17,44 @@ pub struct FallbackRequest<'a> {
     pub family: &'a FontFamily,
 }
 
-/// Finds a font file for text that no installed font covers, e.g. among the system fonts.
+/// A source of fonts.
 ///
-/// The returned font is appended to the fallback chain of the requested family,
-/// after the fonts in [`FontDefinitions`](crate::text::FontDefinitions), and is then used like any other font:
-/// shaped, hinted, and kerned.
+/// Fonts come from two kinds of providers, and egui treats them the same once they are installed:
+/// shaped, hinted, and kerned like any other font.
+///
+/// * *Configured* fonts are known up front, and form the head of every family's fallback chain.
+///   [`ConfiguredFonts`](crate::text::ConfiguredFonts) wraps [`FontDefinitions`](crate::text::FontDefinitions)
+///   and is always the first provider.
+/// * *Discovered* fonts are found on demand for a character no installed font has,
+///   e.g. among the system fonts. They are appended to the family's fallback chain.
+///
+/// A provider can do either or both. Providers are asked in order, and the first answer wins.
 ///
 /// Install one with `egui::Context::add_font_provider` or [`Fonts::with_font_providers`](crate::text::Fonts::with_font_providers).
-/// `eframe` installs one on native (behind its `system_fonts` feature).
+/// `eframe` installs a system font provider on native (behind its `system_fonts` feature).
 ///
-/// Any `Fn(&FallbackRequest<'_>) -> Option<FontInsert>` is a [`FontProvider`].
+/// Any `Fn(&FallbackRequest<'_>) -> Option<FontInsert>` is a discovering [`FontProvider`].
 pub trait FontProvider: Send + Sync {
-    /// Find a font with a glyph for the first character of `request.cluster`.
+    /// The fonts to install for `family` up front, in priority order.
     ///
-    /// Called at most once per (family, character), also when returning `None`,
-    /// until the [`FontDefinitions`](crate::text::FontDefinitions) change.
+    /// Called once per family (again after the providers change).
+    fn fonts_for_family(&self, family: &FontFamily) -> Vec<FontInsert> {
+        let _ = family;
+        Vec::new()
+    }
+
+    /// Find a font with a glyph for the first character of `request.cluster`,
+    /// after every installed font of the family missed.
+    ///
+    /// Called at most once per (family, character), also when returning `None`.
     ///
     /// The font is appended to the fallback chain of `request.family`
     /// and of the families in [`FontInsert::families`].
-    /// The [`FontPriority`] is ignored: discovered fonts always come after the configured ones
-    /// (the fonts in [`FontDefinitions`](crate::text::FontDefinitions)).
-    fn font_for(&self, request: &FallbackRequest<'_>) -> Option<FontInsert>;
+    /// The [`FontPriority`] is ignored: discovered fonts always come after the configured ones.
+    fn font_for(&self, request: &FallbackRequest<'_>) -> Option<FontInsert> {
+        let _ = request;
+        None
+    }
 }
 
 impl<F> FontProvider for F
@@ -49,20 +66,15 @@ where
     }
 }
 
-/// The installed [`FontProvider`]s, and what they have discovered so far.
+/// The installed [`FontProvider`]s, in the order they are asked.
 ///
-/// Survives atlas clears and `TextOptions` changes,
-/// so the providers are asked at most once per (family, char).
+/// The first one is always the [`ConfiguredFonts`](crate::text::ConfiguredFonts).
 #[derive(Default)]
 pub(crate) struct FontProviders {
-    /// Asked in order; the first font found wins.
     providers: Vec<Arc<dyn FontProvider>>,
 
     /// Fonts discovered so far, in the order they were found.
     discovered: Vec<FontInsert>,
-
-    /// No provider had a font for these.
-    misses: ahash::HashSet<(FontFamily, char)>,
 }
 
 impl FontProviders {
@@ -70,7 +82,6 @@ impl FontProviders {
         Self {
             providers,
             discovered: Vec::new(),
-            misses: Default::default(),
         }
     }
 
@@ -79,45 +90,26 @@ impl FontProviders {
         &self.discovered
     }
 
-    /// Parse the discovered fonts into `faces`, e.g. after `faces` was rebuilt.
-    pub fn install_discovered(&self, faces: &mut FaceStore) {
-        for insert in &self.discovered {
-            if let Err(err) = faces.install(&insert.name, &insert.data) {
-                log::warn!("Failed to parse discovered font {:?}: {err}", insert.name);
-            }
-        }
-    }
-
-    /// The discovered fonts that belong in the fallback chain of `family`.
-    pub fn discovered_keys_for<'a>(
-        &'a self,
-        family: &'a FontFamily,
-        faces: &'a FaceStore,
-    ) -> impl Iterator<Item = FontFaceKey> + 'a {
-        self.discovered
+    /// The fonts every provider wants installed for `family` up front, in priority order.
+    pub fn fonts_for_family(&self, family: &FontFamily) -> Vec<FontInsert> {
+        self.providers
             .iter()
-            .filter(move |insert| insert.families.iter().any(|f| f.family == *family))
-            .filter_map(move |insert| faces.key_by_name(&insert.name))
+            .flat_map(|provider| provider.fonts_for_family(family))
+            .collect()
     }
 
-    /// Ask the providers for a font with a glyph for `base_char`, and install it into `faces`.
+    /// Ask the providers for a font with a glyph for the first char of `cluster`,
+    /// and install it into `faces`.
     ///
-    /// A font found this way is a *discovered* font, as opposed to the *configured* ones in
-    /// [`FontDefinitions`](crate::text::FontDefinitions).
-    ///
-    /// Misses are remembered, so each provider is asked at most once per (family, char).
+    /// The caller caches the result, so each provider is asked at most once per (family, char).
     pub fn discover(
         &mut self,
         faces: &mut FaceStore,
         family: &FontFamily,
         cluster: &str,
-        base_char: char,
     ) -> Option<FontFaceKey> {
-        if self.providers.is_empty()
-            || base_char.is_control()
-            || is_combining_mark(base_char)
-            || self.misses.contains(&(family.clone(), base_char))
-        {
+        let base_char = cluster.chars().next()?;
+        if base_char.is_control() || is_combining_mark(base_char) {
             return None;
         }
 
@@ -158,7 +150,6 @@ impl FontProviders {
             return Some(key);
         }
 
-        self.misses.insert((family.clone(), base_char));
         None
     }
 }
@@ -313,7 +304,7 @@ mod tests {
     }
 
     #[test]
-    fn discovered_fonts_and_misses_survive_a_rebuild() {
+    fn discovered_fonts_and_misses_survive_an_options_change() {
         let requests = Arc::new(Mutex::new(Vec::new()));
         let mut fonts = fonts_with(recording_provider(&requests, true), None);
         let font_id = FontId::proportional(14.0);
@@ -324,7 +315,7 @@ mod tests {
         assert_eq!(requests.lock().len(), 2);
         assert_eq!(fonts.discovered_fonts().len(), 1);
 
-        // Force a rebuild by changing the text options:
+        // Change the text options; the faces and families must survive:
         let options = TextOptions {
             font_hinting: !TextOptions::default().font_hinting,
             ..Default::default()
