@@ -20,6 +20,7 @@ use crate::{
     },
 };
 
+/// A glyph id and its advance, as resolved from a `char` in one [`FontFace`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct GlyphInfo {
     /// Doesn't need to be unique.
@@ -54,6 +55,7 @@ pub(super) enum GlyphIdResolution {
 
 // ----------------------------------------------------------------------------
 
+/// The parsed `skrifa` views into a font file, borrowing from the file's [`Blob`].
 struct DependentFontData<'a> {
     skrifa: skrifa::FontRef<'a>,
     charmap: skrifa::charmap::Charmap<'a>,
@@ -63,6 +65,7 @@ struct DependentFontData<'a> {
 }
 
 self_cell! {
+    /// A font file together with the parsed [`DependentFontData`] that borrows from it.
     struct FontCell {
         owner: Blob,
 
@@ -155,6 +158,7 @@ impl FontCell {
     }
 }
 
+/// Collects a `skrifa` glyph outline into a `kurbo` path, flipping Y to point down.
 struct VelloPen<'a> {
     path: &'a mut kurbo::BezPath,
     x_offset: f64,

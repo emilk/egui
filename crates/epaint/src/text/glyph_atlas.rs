@@ -35,6 +35,9 @@ impl UvRect {
     }
 }
 
+/// Where a glyph is in the font atlas.
+///
+/// The default value is the invisible, zero-size glyph.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct GlyphAllocation {
     /// UV rectangle for drawing.
