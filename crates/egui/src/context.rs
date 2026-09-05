@@ -4171,6 +4171,19 @@ impl Context {
         self.send_viewport_cmd_to(self.viewport_id(), command);
     }
 
+    /// Request a screenshot of the current viewport.
+    ///
+    /// The callback is invoked once the integration has read the rendered pixels.
+    /// This doesn't request a new frame when the data arrives. Call `ctx.request_repaint` if needed.
+    pub fn request_screenshot(
+        &self,
+        callback: impl FnOnce(std::sync::Arc<crate::ColorImage>) + Send + 'static,
+    ) {
+        self.send_viewport_cmd(ViewportCommand::ScreenshotCallback(
+            crate::ScreenshotCallback::new(callback),
+        ));
+    }
+
     /// Send a command to a specific viewport.
     ///
     /// This lets you affect another viewport, e.g. resizing its window.

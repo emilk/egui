@@ -1719,9 +1719,9 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 
 // Helpers for egui Viewports
 // ---------------------------------------------------------------------------
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(Debug)]
 pub enum ActionRequested {
-    Screenshot(egui::UserData),
+    Screenshot(egui::ScreenshotCallback),
     Cut,
     Copy,
     Paste,
@@ -1952,7 +1952,12 @@ fn process_viewport_command(
             }
         }
         ViewportCommand::Screenshot(user_data) => {
-            actions_requested.push(ActionRequested::Screenshot(user_data));
+            actions_requested.push(ActionRequested::Screenshot(
+                egui::ScreenshotCallback::event(user_data),
+            ));
+        }
+        ViewportCommand::ScreenshotCallback(callback) => {
+            actions_requested.push(ActionRequested::Screenshot(callback));
         }
         ViewportCommand::RequestCut => {
             actions_requested.push(ActionRequested::Cut);

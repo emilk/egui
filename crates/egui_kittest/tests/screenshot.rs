@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use egui::{Color32, ColorImage, Vec2};
+use egui::{Color32, ColorImage, Vec2, mutex::Mutex};
 use egui_kittest::Harness;
 
 /// Requesting a screenshot via [`egui::ViewportCommand::Screenshot`] from within the app should
@@ -60,4 +60,34 @@ fn screenshot_viewport_command() {
     let rendered = harness.render().unwrap();
     assert_eq!(screenshot.width() as u32, rendered.width());
     assert_eq!(screenshot.height() as u32, rendered.height());
+}
+
+/// Callback screenshots are delivered directly, without an `Event::Screenshot` pass.
+#[test]
+fn screenshot_callback() {
+    let screenshot = Arc::new(Mutex::new(None));
+    let screenshot_from_callback = Arc::clone(&screenshot);
+    let mut requested = false;
+
+    let _harness = Harness::builder()
+        .with_size(Vec2::new(100.0, 80.0))
+        .build_ui(move |ui| {
+            ui.painter()
+                .rect_filled(ui.ctx().content_rect(), 0.0, Color32::RED);
+
+            if !requested {
+                requested = true;
+                let screenshot = Arc::clone(&screenshot_from_callback);
+                ui.ctx().request_screenshot(move |image| {
+                    *screenshot.lock() = Some(image);
+                });
+            }
+        });
+
+    let screenshot = screenshot
+        .lock()
+        .clone()
+        .expect("Expected the screenshot callback to be invoked");
+    let center = screenshot.pixels[screenshot.pixels.len() / 2];
+    assert_eq!(center, Color32::RED, "center pixel should be red");
 }
