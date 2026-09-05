@@ -21,7 +21,7 @@ use super::{
     ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
     VariationCoords,
     family::FamilyKey,
-    font_face::{FontFace, ShapedGlyph},
+    font_face::{FontFace, GlyphInfo, ShapedGlyph},
     glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
 };
 
@@ -297,7 +297,7 @@ fn layout_shaped_run(
         let glyph = if glyph_id == skrifa::GlyphId::NOTDEF {
             // The shaper couldn't map this character. Drop combining marks and duplicate
             // NOTDEF glyphs within the same cluster. The first base character is rasterized,
-            // or rendered as a replacement glyph if no rasterizer can handle the cluster.
+            // or rendered as the `.notdef` glyph ("tofu") if no rasterizer can handle the cluster.
             if is_combining_mark(chr) || !is_new_cluster {
                 continue;
             }
@@ -332,14 +332,13 @@ fn layout_shaped_run(
                 let (_, glyph_info) = fonts.glyph_info(ctx.family, chr, &fallback_metrics);
                 let advance_width_px =
                     glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
-                let OutlineGlyph { allocation, x_px } = fonts.allocate_glyph(
+                let OutlineGlyph { allocation, x_px } = allocate_glyph_info(
+                    fonts,
                     fallback_key,
                     &fallback_metrics,
-                    &ShapedGlyph {
-                        glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                        h_pos: paragraph.cursor_x_px,
-                        is_cjk: is_cjk(chr),
-                    },
+                    glyph_info,
+                    paragraph.cursor_x_px,
+                    chr,
                 );
 
                 paragraph.cursor_x_px += advance_width_px;
@@ -383,6 +382,32 @@ fn layout_shaped_run(
             face_metrics,
         );
     }
+}
+
+/// Put `glyph_info` in the atlas, or nothing at all if it is invisible.
+fn allocate_glyph_info(
+    fonts: &mut FontsImpl,
+    face_key: FontFaceKey,
+    metrics: &StyledMetrics,
+    glyph_info: GlyphInfo,
+    h_pos_px: f32,
+    chr: char,
+) -> OutlineGlyph {
+    let Some(glyph_id) = glyph_info.id else {
+        return OutlineGlyph {
+            allocation: GlyphAllocation::default(),
+            x_px: h_pos_px.round() as i32,
+        };
+    };
+    fonts.allocate_glyph(
+        face_key,
+        metrics,
+        &ShapedGlyph {
+            glyph_id,
+            h_pos: h_pos_px,
+            is_cjk: is_cjk(chr),
+        },
+    )
 }
 
 /// Emit one glyph for a rasterized cluster and advance the cursor.
@@ -820,14 +845,13 @@ fn replace_last_glyph_with_overflow_character(
             let OutlineGlyph {
                 allocation: replacement_glyph_alloc,
                 x_px,
-            } = fonts.allocate_glyph(
+            } = allocate_glyph_info(
+                fonts,
                 face_key,
                 &font_face_metrics,
-                &ShapedGlyph {
-                    glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                    h_pos: overflow_glyph_x * pixels_per_point,
-                    is_cjk: is_cjk(overflow_character),
-                },
+                glyph_info,
+                overflow_glyph_x * pixels_per_point,
+                overflow_character,
             );
 
             let font_metrics =
@@ -1675,7 +1699,7 @@ mod tests {
         assert_eq!(glyph.chr, '한');
         assert!(
             !glyph.uv_rect.is_nothing(),
-            "Should render the replacement glyph"
+            "Should render the `.notdef` glyph"
         );
     }
 
@@ -1739,9 +1763,8 @@ mod tests {
     }
 
     #[test]
-    // No bundled font has CJK glyphs, so the line breaks depend on the width of the
-    // replacement glyph, and that depends on which fonts are bundled.
-    #[cfg(feature = "monochrome_emoji_fonts")]
+    // No bundled font has CJK glyphs, so the line breaks depend on
+    // the width of the `.notdef` glyph of the primary font.
     fn test_cjk() {
         let pixels_per_point = 1.0;
         let mut fonts = test_fonts();
@@ -1753,14 +1776,13 @@ mod tests {
         let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
-            vec!["日本語と", "Englishの混在", "した文章"]
+            vec!["日本語とEnglishの混", "在した文章"]
         );
     }
 
     #[test]
-    // No bundled font has CJK glyphs, so the line breaks depend on the width of the
-    // replacement glyph, and that depends on which fonts are bundled.
-    #[cfg(feature = "monochrome_emoji_fonts")]
+    // No bundled font has CJK glyphs, so the line breaks depend on
+    // the width of the `.notdef` glyph of the primary font.
     fn test_pre_cjk() {
         let pixels_per_point = 1.0;
         let mut fonts = test_fonts();
@@ -1772,7 +1794,7 @@ mod tests {
         let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
-            vec!["日本語とEnglish", "の混在した文章"]
+            vec!["日本語とEnglishの混在した", "文章"]
         );
     }
 
@@ -1914,7 +1936,7 @@ mod tests {
         // ɔ̃ = U+0254 (LATIN SMALL LETTER OPEN O) + U+0303 (COMBINING TILDE)
         // With text shaping, the combining tilde should NOT produce a separate
         // advance — it should be positioned above ɔ via GPOS anchors.
-        // Note: the default fonts don't contain U+0254, so the replacement glyph
+        // Note: the default fonts don't contain U+0254, so the `.notdef` glyph
         // is used. The key test is that the combining mark does NOT add extra width.
         let pixels_per_point = 1.0;
         let mut fonts = test_fonts();

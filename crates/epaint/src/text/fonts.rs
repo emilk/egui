@@ -473,7 +473,7 @@ impl FontsImpl {
 
     /// Resolve `c` to its (face, [`GlyphInfo`]) at the given face's location.
     ///
-    /// `\n` will (intentionally) show up as the replacement character.
+    /// `\n` will (intentionally) show up as the `.notdef` glyph ("tofu").
     ///
     /// `metrics` must be the resolved [`StyledMetrics`] for the face that ends
     /// up owning `c`. Most callers pass the metrics of their text run's primary
@@ -494,12 +494,11 @@ impl FontsImpl {
             return (face_key, glyph_info);
         }
 
-        // `c` is in no face: render the replacement character instead.
-        let replacement_char = self.family(family).replacement_char();
+        // `c` is in no face: render the face's `.notdef` glyph ("tofu") instead.
         let glyph_info = self
             .faces
-            .get_mut(face_key)
-            .and_then(|face| face.glyph_info(replacement_char, metrics))
+            .get(face_key)
+            .map(|face| face.notdef_glyph_info(metrics))
             .unwrap_or(GlyphInfo::INVISIBLE);
         (face_key, glyph_info)
     }

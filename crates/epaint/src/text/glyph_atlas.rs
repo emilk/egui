@@ -255,6 +255,9 @@ impl GlyphAtlas {
 
     /// Get or render the glyph of `face` for `shaped`.
     ///
+    /// [`GlyphId::NOTDEF`] renders the face's `.notdef` glyph ("tofu"),
+    /// which is what we show for characters no font has.
+    ///
     /// The bitmap is rendered at the sub-pixel bin of [`ShapedGlyph::h_pos`]
     /// (if the face has sub-pixel binning on, and the glyph is not CJK),
     /// so the same glyph can occupy up to four slots in the atlas.
@@ -272,14 +275,6 @@ impl GlyphAtlas {
             h_pos,
             is_cjk,
         } = *shaped;
-
-        if glyph_id == GlyphId::NOTDEF {
-            // invisible
-            return OutlineGlyph {
-                allocation: GlyphAllocation::default(),
-                x_px: h_pos.round() as i32,
-            };
-        }
 
         let subpixel_binning =
             face.subpixel_binning() && !is_cjk && !face.is_color_glyph(metrics, glyph_id);
