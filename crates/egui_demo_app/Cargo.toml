@@ -86,4 +86,6 @@ wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
 
 [dev-dependencies]
+# `monochrome_emoji_fonts` so that the snapshots keep their emoji:
+egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
 egui_kittest = { workspace = true, features = ["eframe", "snapshot", "wgpu"] }
