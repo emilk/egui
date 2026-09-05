@@ -22,7 +22,7 @@ impl Default for TextEditDemo {
 
 impl crate::Demo for TextEditDemo {
     fn name(&self) -> &'static str {
-        "🖹 TextEdit"
+        "✏️ TextEdit"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
