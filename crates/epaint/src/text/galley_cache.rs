@@ -3,7 +3,9 @@ use std::sync::Arc;
 use emath::OrderedFloat;
 use nohash_hasher::IntMap;
 
-use crate::text::{ByteIndex, FontsImpl, Galley, LayoutJob, LayoutSection};
+use crate::text::{
+    ByteIndex, Galley, LayoutJob, LayoutSection, fonts::FontsImpl, text_layout::layout,
+};
 
 /// A laid-out [`Galley`], and what we need to know to evict it.
 struct CachedGalley {
@@ -107,7 +109,7 @@ impl GalleyCache {
                     );
                     galley
                 } else {
-                    let galley = super::layout(fonts, pixels_per_point, job);
+                    let galley = layout(fonts, pixels_per_point, job);
                     let galley = Arc::new(galley);
                     entry.insert(CachedGalley {
                         last_used: self.generation,
@@ -270,7 +272,7 @@ mod tests {
     use core::f32;
 
     use super::*;
-    use crate::text::{FontDefinitions, FontFamily, FontId, TextOptions, TextWrapping, layout};
+    use crate::text::{FontDefinitions, FontFamily, FontId, TextOptions, TextWrapping};
     use crate::{Stroke, text::TextFormat};
     use ecolor::Color32;
     use emath::Align;

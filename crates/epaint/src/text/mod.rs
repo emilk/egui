@@ -3,9 +3,9 @@
 pub mod cursor;
 mod face_store;
 mod family;
-mod font;
 mod font_data;
 mod font_definitions;
+mod font_face;
 mod font_id;
 mod font_tweak;
 mod fonts;
@@ -23,13 +23,12 @@ pub use {
     font_definitions::{FontDefinitions, FontInsert, FontPriority, InsertFontFamily},
     font_id::{FontFamily, FontId},
     font_tweak::{FontTweak, HintingTarget, SmoothHinting},
-    fonts::{Fonts, FontsImpl, FontsView, MAX_GLYPH_SIZE},
+    fonts::{Fonts, FontsView, MAX_GLYPH_SIZE},
     glyph_rasterizer::{
         GlyphRasterizer, GlyphRasterizerRequest, GlyphSource, GlyphSourcePreference,
         RasterizedGlyph, default_glyph_source, has_emoji_presentation,
     },
     index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
-    text_layout::*,
     text_layout_types::*,
 };
 

@@ -145,9 +145,7 @@ fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: e
 
 fn available_characters(ui: &egui::Ui, family: &egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
     ui.fonts_mut(|f| {
-        f.fonts
-            .font(family)
-            .characters()
+        f.characters(family)
             .iter()
             .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control())
             .map(|(chr, fonts)| {
