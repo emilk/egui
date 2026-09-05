@@ -233,11 +233,16 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
+      # `--no-fail-fast` so that a failing snapshot test in one crate doesn't
+      # stop the tests of the other crates from running.
+      # That way a single CI run reports _all_ failing snapshots,
+      # and all the new snapshots end up in the uploaded artifact.
       - name: Run tests
-        run: cargo test --all-features
+        run: cargo test --all-features --no-fail-fast
 
       - name: Run doc-tests
-        run: cargo test --all-features --doc
+        if: always()
+        run: cargo test --all-features --doc --no-fail-fast
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
