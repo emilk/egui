@@ -167,7 +167,15 @@ impl Family {
             // …and if none of them has the char, ask the providers for a new font:
             .or_else(|| self.discover(faces, providers, cluster))
             // No font has the char, so we will render the replacement glyph (e.g. `◻`):
-            .unwrap_or(self.replacement_face_key);
+            .unwrap_or_else(|| {
+                log::debug!(
+                    "No font for {c:?} (U+{:04X}) in {:?}: rendering {:?} instead",
+                    c as u32,
+                    self.name,
+                    self.replacement_char
+                );
+                self.replacement_face_key
+            });
         self.face_cache.insert(c, font_key);
         font_key
     }
