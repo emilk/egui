@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crate::text::{
     FontDefinitions, FontFamily,
     face_store::{FaceStore, FontFaceKey},
+    font_provider::FontProviders,
 };
 
 /// Index of a [`Family`] in `FontsImpl`.
@@ -13,12 +14,16 @@ pub(crate) struct FamilyKey(pub(crate) usize);
 
 /// The fallback chain of one [`FontFamily`], and the caches for resolving chars against it.
 ///
-/// This is the only place that decides which face renders a given char.
+/// This is the only place that decides which face renders a given char:
+/// first the configured fonts (from [`FontDefinitions`]), then fonts discovered by the [`FontProviders`],
+/// then the replacement glyph.
 #[derive(Debug)]
 pub(crate) struct Family {
     name: FontFamily,
 
     /// Faces in priority order: the primary first, then the fallbacks.
+    ///
+    /// Configured fonts (from [`FontDefinitions`]) first, then any discovered by the [`FontProviders`].
     chain: Vec<FontFaceKey>,
 
     /// The face used when no face in [`Self::chain`] supports a char.
@@ -44,16 +49,22 @@ impl Family {
     const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
     const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
 
-    /// Look up the fallback chain of `name` in the definitions.
+    /// Look up the configured fallback chain of `name` in the definitions,
+    /// followed by the fonts the providers have already discovered for it.
     ///
     /// Panics if the family or one of its fonts is missing from the definitions.
-    pub fn new(name: &FontFamily, definitions: &FontDefinitions, faces: &mut FaceStore) -> Self {
+    pub fn new(
+        name: &FontFamily,
+        definitions: &FontDefinitions,
+        faces: &mut FaceStore,
+        providers: &FontProviders,
+    ) -> Self {
         let font_names = definitions
             .families
             .get(name)
             .unwrap_or_else(|| panic!("FontFamily::{name:?} is not bound to any fonts"));
 
-        let chain: Vec<FontFaceKey> = font_names
+        let mut chain: Vec<FontFaceKey> = font_names
             .iter()
             .map(|font_name| {
                 faces.key_by_name(font_name).unwrap_or_else(|| {
@@ -62,6 +73,13 @@ impl Family {
                 })
             })
             .collect();
+
+        // Discovered fonts come after the configured ones:
+        for key in providers.discovered_keys_for(name, faces) {
+            if !chain.contains(&key) {
+                chain.push(key);
+            }
+        }
 
         let mut slf = Self {
             name: name.clone(),
@@ -106,12 +124,6 @@ impl Family {
         self.chain.first().copied()
     }
 
-    /// The face used for chars no face in the chain has.
-    #[inline]
-    pub fn replacement_face_key(&self) -> FontFaceKey {
-        self.replacement_face_key
-    }
-
     /// The char rendered in place of chars no face in the chain has.
     #[inline]
     pub fn replacement_char(&self) -> char {
@@ -121,19 +133,59 @@ impl Family {
     /// Find which face in the fallback chain owns `c`.
     ///
     /// Location-independent: fallback choice depends only on charmap support.
-    /// Falls back to the replacement-glyph face when no face has `c`.
+    /// Asks the [`FontProviders`] when no face has `c`,
+    /// and falls back to the replacement-glyph face when they have no font for it either.
     #[inline]
-    pub fn resolve(&mut self, faces: &mut FaceStore, c: char) -> FontFaceKey {
+    pub fn resolve(
+        &mut self,
+        faces: &mut FaceStore,
+        providers: &mut FontProviders,
+        c: char,
+    ) -> FontFaceKey {
         if let Some(font_key) = self.face_cache.get(&c) {
             return *font_key;
         }
-        self.resolve_slow(faces, c)
+        let mut utf8 = [0_u8; 4];
+        let cluster = c.encode_utf8(&mut utf8);
+        self.resolve_slow(faces, providers, cluster, c)
+    }
+
+    /// Like [`Self::resolve`] for the first char of `cluster`,
+    /// but lets the [`FontProviders`] see the whole grapheme cluster.
+    #[inline]
+    pub fn resolve_cluster(
+        &mut self,
+        faces: &mut FaceStore,
+        providers: &mut FontProviders,
+        cluster: &str,
+    ) -> FontFaceKey {
+        let Some(base_char) = cluster.chars().next() else {
+            return self.replacement_face_key;
+        };
+        if let Some(font_key) = self.face_cache.get(&base_char) {
+            return *font_key;
+        }
+        self.resolve_slow(faces, providers, cluster, base_char)
     }
 
     #[cold]
-    fn resolve_slow(&mut self, faces: &mut FaceStore, c: char) -> FontFaceKey {
+    fn resolve_slow(
+        &mut self,
+        faces: &mut FaceStore,
+        providers: &mut FontProviders,
+        cluster: &str,
+        c: char,
+    ) -> FontFaceKey {
         let font_key = self
             .find_face_for_char(c, faces)
+            .or_else(|| {
+                let key = providers.discover(faces, &self.name, cluster, c)?;
+                if !self.chain.contains(&key) {
+                    self.chain.push(key);
+                    self.characters = None;
+                }
+                Some(key)
+            })
             .unwrap_or(self.replacement_face_key);
         self.face_cache.insert(c, font_key);
         font_key
