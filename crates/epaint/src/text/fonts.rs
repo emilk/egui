@@ -610,6 +610,26 @@ impl FontsImpl {
 mod tests {
     use super::*;
 
+    /// The special emojis are in the private use area, so only our own bundled
+    /// `egui-icons.ttf` has them.
+    #[test]
+    fn special_emojis_come_from_the_bundled_icon_font() {
+        use epaint_default_fonts::special_emojis::{GIT, GITHUB, OS_ANDROID, OS_APPLE, OS_WINDOWS};
+
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        let mut view = fonts.with_pixels_per_point(1.0);
+        let characters = view.characters(&FontFamily::Proportional).clone();
+
+        for chr in [GIT, GITHUB, OS_ANDROID, OS_APPLE, OS_WINDOWS] {
+            let faces = characters.get(&chr);
+            assert!(
+                faces.is_some_and(|faces| faces.iter().any(|name| name == "egui-icons")),
+                "{chr:?} (U+{:04X}) should be in egui-icons, but was only in {faces:?}",
+                chr as u32
+            );
+        }
+    }
+
     #[test]
     fn test_fallback_glyph_width() {
         let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty());

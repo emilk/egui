@@ -2,6 +2,8 @@
 //!
 //! This is intended to be consumed through the `epaint` crate.
 
+pub mod special_emojis;
+
 /// A typeface designed for source code.
 ///
 /// Hack is designed to be a workhorse typeface for source code. It has deep
@@ -51,3 +53,13 @@ pub const UBUNTU_LIGHT: &[u8] = include_bytes!("../fonts/Ubuntu-Light.ttf");
 /// for more information.
 #[cfg(feature = "monochrome_emoji_fonts")]
 pub const EMOJI_ICON: &[u8] = include_bytes!("../fonts/emoji-icon-font.ttf");
+
+/// The few icons that egui exposes as `egui::special_emojis`:
+/// the Android, Apple, GitHub, and Windows logos, and the word `git`.
+///
+/// This is a small (3.5 kB) subset of the
+/// [`emoji-icon-font`](https://github.com/jslegers/emoji-icon-font), bundled
+/// unconditionally because no platform font has these private-use codepoints.
+///
+/// See `fonts/egui-icons.txt` for how to regenerate it.
+pub const EGUI_ICONS: &[u8] = include_bytes!("../fonts/egui-icons.ttf");

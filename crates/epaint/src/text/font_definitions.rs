@@ -2,13 +2,13 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use crate::text::{FontData, FontFamily, font_provider::FontProvider};
 
-#[cfg(feature = "monochrome_emoji_fonts")]
+#[cfg(feature = "default_fonts")]
 use crate::text::FontTweak;
 
+#[cfg(feature = "default_fonts")]
+use epaint_default_fonts::{EGUI_ICONS, HACK_REGULAR, UBUNTU_LIGHT};
 #[cfg(feature = "monochrome_emoji_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, NOTO_EMOJI_REGULAR};
-#[cfg(feature = "default_fonts")]
-use epaint_default_fonts::{HACK_REGULAR, UBUNTU_LIGHT};
 
 /// Describes the font data and the sizes to use.
 ///
@@ -133,6 +133,15 @@ impl Default for FontDefinitions {
             Arc::new(FontData::from_static(UBUNTU_LIGHT)),
         );
 
+        // The handful of icons in `egui::special_emojis`, which no platform font has:
+        font_data.insert(
+            "egui-icons".to_owned(),
+            Arc::new(FontData::from_static(EGUI_ICONS).tweak(FontTweak {
+                scale: 0.90, // Make smaller
+                ..Default::default()
+            })),
+        );
+
         #[cfg(feature = "monochrome_emoji_fonts")]
         {
             // Some good looking emojis:
@@ -155,13 +164,13 @@ impl Default for FontDefinitions {
         }
 
         // Last resort, after the fonts that cover the text of a script:
-        let emoji_fonts: &[&str] = if cfg!(feature = "monochrome_emoji_fonts") {
-            &["NotoEmoji-Regular", "emoji-icon-font"]
+        let fallback_fonts: &[&str] = if cfg!(feature = "monochrome_emoji_fonts") {
+            &["egui-icons", "NotoEmoji-Regular", "emoji-icon-font"]
         } else {
-            &[]
+            &["egui-icons"]
         };
         let family = |fonts: &[&str]| -> Vec<String> {
-            core::iter::chain(fonts, emoji_fonts)
+            core::iter::chain(fonts, fallback_fonts)
                 .map(|name| (*name).to_owned())
                 .collect()
         };
@@ -201,12 +210,13 @@ impl FontDefinitions {
         if cfg!(feature = "monochrome_emoji_fonts") {
             &[
                 "Ubuntu-Light",
+                "egui-icons",
                 "NotoEmoji-Regular",
                 "emoji-icon-font",
                 "Hack",
             ]
         } else {
-            &["Ubuntu-Light", "Hack"]
+            &["Ubuntu-Light", "egui-icons", "Hack"]
         }
     }
 
