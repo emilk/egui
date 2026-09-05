@@ -1,5 +1,8 @@
 #![expect(clippy::mem_forget)]
 
+#[cfg(feature = "color_fonts")]
+use std::sync::Arc;
+
 use ahash::HashMap;
 use ecolor::Color32;
 use emath::{GuiRounding as _, OrderedFloat, vec2};
@@ -57,6 +60,7 @@ pub(super) enum GlyphIdResolution {
 struct DependentFontData<'a> {
     skrifa: skrifa::FontRef<'a>,
 
+    /// Index of this face in the font file (a font collection, e.g. `.ttc`, holds several).
     #[cfg(feature = "color_fonts")]
     index: u32,
 
@@ -213,7 +217,7 @@ impl FontCell {
         let origin_y = 2.0 * font_size_px as f64;
 
         let font = peniko::FontData::new(
-            peniko::Blob::new(std::sync::Arc::clone(self.borrow_owner())),
+            peniko::Blob::new(Arc::clone(self.borrow_owner())),
             font_data.index,
         );
         let coords: Vec<i16> = location.coords().iter().map(|c| c.to_bits()).collect();
@@ -258,6 +262,7 @@ impl FontCell {
             .flat_map(|y| (min[0]..max[0]).map(move |x| (x, y)))
             .map(|(x, y)| {
                 let i = 4 * (y * canvas_size + x);
+                // `vello_cpu::Pixmap` holds premultiplied RGBA8:
                 Color32::from_rgba_premultiplied(
                     pixels[i],
                     pixels[i + 1],
