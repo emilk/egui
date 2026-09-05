@@ -459,15 +459,20 @@ impl FontsImpl {
         metrics: &StyledMetrics,
     ) -> (FontFaceKey, GlyphInfo) {
         let face_key = self.resolve_face(family, c);
-        let replacement_char = self.family(family).replacement_char();
         let Some(face) = self.faces.get_mut(face_key) else {
             return (face_key, GlyphInfo::INVISIBLE);
         };
-        let glyph_info = face.glyph_info(c, metrics).unwrap_or_else(|| {
-            // `c` is in no face: render the replacement character instead.
-            face.glyph_info(replacement_char, metrics)
-                .unwrap_or(GlyphInfo::INVISIBLE)
-        });
+        if let Some(glyph_info) = face.glyph_info(c, metrics) {
+            return (face_key, glyph_info);
+        }
+
+        // `c` is in no face: render the replacement character instead.
+        let replacement_char = self.family(family).replacement_char();
+        let glyph_info = self
+            .faces
+            .get_mut(face_key)
+            .and_then(|face| face.glyph_info(replacement_char, metrics))
+            .unwrap_or(GlyphInfo::INVISIBLE);
         (face_key, glyph_info)
     }
 
