@@ -251,7 +251,7 @@ mod tests {
         ctx.add_font_provider(Arc::new(SystemFontProvider::new()));
         let mut output = ctx.run_ui(Default::default(), |ui| {
             ui.fonts_mut(|fonts| assert!(fonts.has_glyph(&font_id, '日')));
-            assert_eq!(ui.fonts(|fonts| fonts.provided_fonts().len()), 1);
+            assert_eq!(ui.fonts(|fonts| fonts.discovered_fonts().len()), 1);
         });
         output.textures_delta.clear();
     }

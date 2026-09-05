@@ -15,7 +15,7 @@ pub(crate) struct FamilyKey(pub(crate) usize);
 /// The fallback chain of one [`FontFamily`], and the caches for resolving chars against it.
 ///
 /// This is the only place that decides which face renders a given char:
-/// first the fonts from [`FontDefinitions`], then fonts found by the [`FontProviders`],
+/// first the configured fonts (from [`FontDefinitions`]), then fonts discovered by the [`FontProviders`],
 /// then the replacement glyph.
 #[derive(Debug)]
 pub(crate) struct Family {
@@ -23,7 +23,7 @@ pub(crate) struct Family {
 
     /// Faces in priority order: the primary first, then the fallbacks.
     ///
-    /// Fonts from [`FontDefinitions`] first, then any found by the [`FontProviders`].
+    /// Configured fonts (from [`FontDefinitions`]) first, then any discovered by the [`FontProviders`].
     chain: Vec<FontFaceKey>,
 
     /// The face used when no face in [`Self::chain`] supports a char.
@@ -49,8 +49,8 @@ impl Family {
     const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
     const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
 
-    /// Look up the fallback chain of `name` in the definitions,
-    /// followed by the fonts the providers have already found for it.
+    /// Look up the configured fallback chain of `name` in the definitions,
+    /// followed by the fonts the providers have already discovered for it.
     ///
     /// Panics if the family or one of its fonts is missing from the definitions.
     pub fn new(
@@ -74,8 +74,8 @@ impl Family {
             })
             .collect();
 
-        // Fonts found by the providers come after the ones in the definitions:
-        for key in providers.provided_keys_for(name, faces) {
+        // Discovered fonts come after the configured ones:
+        for key in providers.discovered_keys_for(name, faces) {
             if !chain.contains(&key) {
                 chain.push(key);
             }
@@ -179,7 +179,7 @@ impl Family {
         let font_key = self
             .find_face_for_char(c, faces)
             .or_else(|| {
-                let key = providers.provide(faces, &self.name, cluster, c)?;
+                let key = providers.discover(faces, &self.name, cluster, c)?;
                 if !self.chain.contains(&key) {
                     self.chain.push(key);
                     self.characters = None;

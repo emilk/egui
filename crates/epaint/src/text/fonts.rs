@@ -92,11 +92,11 @@ impl Fonts {
         self
     }
 
-    /// The fonts found by the [`FontProvider`]s so far, in the order they were found.
+    /// The fonts discovered by the [`FontProvider`]s so far, in the order they were found.
     ///
     /// These are not part of [`Self::definitions`].
-    pub fn provided_fonts(&self) -> &[FontInsert] {
-        self.fonts.provided_fonts()
+    pub fn discovered_fonts(&self) -> &[FontInsert] {
+        self.fonts.discovered_fonts()
     }
 
     /// Call at the start of each frame with the latest known [`TextOptions`].
@@ -285,11 +285,11 @@ impl FontsView<'_> {
         self.fonts.definitions.families.keys().cloned().collect()
     }
 
-    /// The fonts found by the [`FontProvider`]s so far, in the order they were found.
+    /// The fonts discovered by the [`FontProvider`]s so far, in the order they were found.
     ///
     /// These are not part of [`Self::definitions`].
-    pub fn provided_fonts(&self) -> &[FontInsert] {
-        self.fonts.provided_fonts()
+    pub fn discovered_fonts(&self) -> &[FontInsert] {
+        self.fonts.discovered_fonts()
     }
 
     /// Layout some text.
@@ -402,18 +402,18 @@ impl FontsImpl {
 
     /// Ask these for fonts for characters that no font in the [`FontDefinitions`] has.
     ///
-    /// Fonts the providers found earlier are installed right away.
+    /// Fonts the providers discovered earlier are installed right away.
     pub fn set_font_providers(&mut self, font_providers: FontProviders) {
-        font_providers.install_provided(&mut self.faces);
+        font_providers.install_discovered(&mut self.faces);
         self.font_providers = font_providers;
         // The fallback chains may have changed:
         self.families.clear();
         self.family_keys.clear();
     }
 
-    /// The fonts found by the [`FontProvider`]s so far, in the order they were found.
-    pub fn provided_fonts(&self) -> &[FontInsert] {
-        self.font_providers.provided()
+    /// The fonts discovered by the [`FontProvider`]s so far, in the order they were found.
+    pub fn discovered_fonts(&self) -> &[FontInsert] {
+        self.font_providers.discovered()
     }
 
     /// Use this platform glyph rasterizer, e.g. the browser on web.

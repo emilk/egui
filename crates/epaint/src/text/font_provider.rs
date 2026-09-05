@@ -35,8 +35,8 @@ pub trait FontProvider: Send + Sync {
     ///
     /// The font is appended to the fallback chain of `request.family`
     /// and of the families in [`FontInsert::families`].
-    /// The [`FontPriority`] is ignored: provided fonts always come after the fonts in
-    /// [`FontDefinitions`](crate::text::FontDefinitions).
+    /// The [`FontPriority`] is ignored: discovered fonts always come after the configured ones
+    /// (the fonts in [`FontDefinitions`](crate::text::FontDefinitions)).
     fn font_for(&self, request: &FallbackRequest<'_>) -> Option<FontInsert>;
 }
 
@@ -49,7 +49,7 @@ where
     }
 }
 
-/// The installed [`FontProvider`]s, and what they have found so far.
+/// The installed [`FontProvider`]s, and what they have discovered so far.
 ///
 /// Survives atlas clears and `TextOptions` changes,
 /// so the providers are asked at most once per (family, char).
@@ -58,8 +58,8 @@ pub(crate) struct FontProviders {
     /// Asked in order; the first font found wins.
     providers: Vec<Arc<dyn FontProvider>>,
 
-    /// Fonts found so far, in the order they were found.
-    provided: Vec<FontInsert>,
+    /// Fonts discovered so far, in the order they were found.
+    discovered: Vec<FontInsert>,
 
     /// No provider had a font for these.
     misses: ahash::HashSet<(FontFamily, char)>,
@@ -69,32 +69,32 @@ impl FontProviders {
     pub fn new(providers: Vec<Arc<dyn FontProvider>>) -> Self {
         Self {
             providers,
-            provided: Vec::new(),
+            discovered: Vec::new(),
             misses: Default::default(),
         }
     }
 
-    /// Fonts found so far, in the order they were found.
-    pub fn provided(&self) -> &[FontInsert] {
-        &self.provided
+    /// Fonts discovered so far, in the order they were found.
+    pub fn discovered(&self) -> &[FontInsert] {
+        &self.discovered
     }
 
-    /// Parse the provided fonts into `faces`, e.g. after `faces` was rebuilt.
-    pub fn install_provided(&self, faces: &mut FaceStore) {
-        for insert in &self.provided {
+    /// Parse the discovered fonts into `faces`, e.g. after `faces` was rebuilt.
+    pub fn install_discovered(&self, faces: &mut FaceStore) {
+        for insert in &self.discovered {
             if let Err(err) = faces.install(&insert.name, &insert.data) {
-                log::warn!("Failed to parse provided font {:?}: {err}", insert.name);
+                log::warn!("Failed to parse discovered font {:?}: {err}", insert.name);
             }
         }
     }
 
-    /// The provided fonts that belong in the fallback chain of `family`.
-    pub fn provided_keys_for<'a>(
+    /// The discovered fonts that belong in the fallback chain of `family`.
+    pub fn discovered_keys_for<'a>(
         &'a self,
         family: &'a FontFamily,
         faces: &'a FaceStore,
     ) -> impl Iterator<Item = FontFaceKey> + 'a {
-        self.provided
+        self.discovered
             .iter()
             .filter(move |insert| insert.families.iter().any(|f| f.family == *family))
             .filter_map(move |insert| faces.key_by_name(&insert.name))
@@ -102,8 +102,11 @@ impl FontProviders {
 
     /// Ask the providers for a font with a glyph for `base_char`, and install it into `faces`.
     ///
+    /// A font found this way is a *discovered* font, as opposed to the *configured* ones in
+    /// [`FontDefinitions`](crate::text::FontDefinitions).
+    ///
     /// Misses are remembered, so each provider is asked at most once per (family, char).
-    pub fn provide(
+    pub fn discover(
         &mut self,
         faces: &mut FaceStore,
         family: &FontFamily,
@@ -151,7 +154,7 @@ impl FontProviders {
                     priority: FontPriority::Lowest,
                 });
             }
-            self.provided.push(insert);
+            self.discovered.push(insert);
             return Some(key);
         }
 
@@ -208,7 +211,7 @@ mod tests {
                 .push((request.family.clone(), request.cluster.to_owned()));
             provide.then(|| {
                 FontInsert::new(
-                    "provided:NotoEmoji",
+                    "discovered:NotoEmoji",
                     FontData::from_static(NOTO_EMOJI_REGULAR),
                     vec![InsertFontFamily {
                         family: request.family.clone(),
@@ -259,7 +262,7 @@ mod tests {
             *requests.lock(),
             vec![(FontFamily::Proportional, EMOJI.to_string())]
         );
-        assert_eq!(fonts.provided_fonts().len(), 1);
+        assert_eq!(fonts.discovered_fonts().len(), 1);
 
         let glyph = first_glyph(&mut fonts, EMOJI);
         assert!(!glyph.uv_rect.is_nothing());
@@ -271,7 +274,7 @@ mod tests {
                 .with_pixels_per_point(1.0)
                 .characters(&FontFamily::Proportional)
                 .get(&EMOJI),
-            Some(&vec!["provided:NotoEmoji".to_owned()])
+            Some(&vec!["discovered:NotoEmoji".to_owned()])
         );
     }
 
@@ -290,7 +293,7 @@ mod tests {
                 (FontFamily::Monospace, HANGUL.to_string()),
             ]
         );
-        assert!(fonts.provided_fonts().is_empty());
+        assert!(fonts.discovered_fonts().is_empty());
     }
 
     #[test]
@@ -305,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    fn provided_fonts_and_misses_survive_a_rebuild() {
+    fn discovered_fonts_and_misses_survive_a_rebuild() {
         let requests = Arc::new(Mutex::new(Vec::new()));
         let mut fonts = fonts_with(recording_provider(&requests, true), None);
         let font_id = FontId::proportional(14.0);
@@ -314,7 +317,7 @@ mod tests {
         // The provider returns NotoEmoji for this too, but it has no glyph for it:
         assert!(!fonts.has_glyph(&font_id, HANGUL));
         assert_eq!(requests.lock().len(), 2);
-        assert_eq!(fonts.provided_fonts().len(), 1);
+        assert_eq!(fonts.discovered_fonts().len(), 1);
 
         // Force a rebuild by changing the text options:
         let options = TextOptions {
@@ -330,11 +333,11 @@ mod tests {
             2,
             "The provider should not be asked again"
         );
-        assert_eq!(fonts.provided_fonts().len(), 1);
+        assert_eq!(fonts.discovered_fonts().len(), 1);
     }
 
     #[test]
-    fn provided_font_beats_the_rasterizer() {
+    fn discovered_font_beats_the_rasterizer() {
         let requests = Arc::new(Mutex::new(Vec::new()));
         let mut fonts = fonts_with(
             recording_provider(&requests, true),
@@ -343,7 +346,7 @@ mod tests {
         .with_glyph_source_preference(|_| GlyphSource::Fonts);
 
         let glyph = first_glyph(&mut fonts, EMOJI);
-        assert!(!glyph.is_color, "Should come from the provided font");
+        assert!(!glyph.is_color, "Should come from the discovered font");
         assert_eq!(requests.lock().len(), 1);
     }
 
