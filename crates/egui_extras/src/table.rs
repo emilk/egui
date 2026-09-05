@@ -482,7 +482,7 @@ impl<'a> TableBuilder<'a> {
         let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
-        let mut ui_builder = egui::UiBuilder::new();
+        let mut ui_builder = egui::UiBuilder::new().id(state_id.with("__header"));
         if is_sizing_pass {
             ui_builder = ui_builder.sizing_pass();
         }
@@ -762,7 +762,7 @@ impl Table<'_> {
 
             let clip_rect = ui.clip_rect();
 
-            let mut ui_builder = egui::UiBuilder::new();
+            let mut ui_builder = egui::UiBuilder::new().id(self.state_id.with("__body"));
             if is_sizing_pass {
                 ui_builder = ui_builder.sizing_pass();
             }

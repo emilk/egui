@@ -193,7 +193,7 @@ impl<'l> StripLayout<'l> {
         let before = self.cursor;
         self.cursor += delta;
         let rect = Rect::from_two_pos(before, self.cursor);
-        self.ui.allocate_rect(rect, Sense::hover());
+        self.ui.expand_to_include_rect(rect);
     }
 
     /// Return the Ui to which the contents where added
@@ -204,8 +204,9 @@ impl<'l> StripLayout<'l> {
         child_ui_id_salt: egui::Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
+        let child_ui_id = self.ui.id().with(child_ui_id_salt);
         let mut ui_builder = UiBuilder::new()
-            .id_salt(child_ui_id_salt)
+            .id(child_ui_id)
             .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::TableCell))
             .max_rect(max_rect)
             .layout(self.cell_layout)
@@ -250,5 +251,29 @@ impl<'l> StripLayout<'l> {
         rect.set_bottom(self.max.y);
 
         self.ui.allocate_rect(rect, Sense::hover())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CellDirection, StripLayout};
+
+    #[test]
+    fn skip_space_expands_ui_without_consuming_widget_id() {
+        egui::__run_test_ui(|ui| {
+            let mut layout = StripLayout::new(
+                ui,
+                CellDirection::Horizontal,
+                egui::Layout::left_to_right(egui::Align::Center),
+                egui::Sense::hover(),
+            );
+            let next_auto_id = layout.ui.next_auto_id();
+            let expected_bottom = layout.cursor.y + 100.0;
+
+            layout.skip_space(egui::vec2(0.0, 100.0));
+
+            assert_eq!(layout.ui.next_auto_id(), next_auto_id);
+            assert_eq!(layout.ui.min_rect().bottom(), expected_bottom);
+        });
     }
 }
