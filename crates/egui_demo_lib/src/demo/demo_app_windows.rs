@@ -331,6 +331,7 @@ impl DemoWindows {
                 if ui.button("Organize windows").clicked() {
                     ui.memory_mut(|mem| mem.reset_areas());
                 }
+                ui.add_space(4.0);
             });
         });
     }
