@@ -16,12 +16,13 @@ use epaint::{
 };
 
 use crate::{
-    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
-    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
-    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
-    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, GlyphRasterizer, GlyphSource,
+    GlyphSourcePreference, Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key,
+    KeyboardShortcut, Label, LayerId, Memory, ModifierNames, Modifiers, NumExt as _, Order,
+    Painter, RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle,
+    TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId,
+    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect,
+    WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -375,6 +376,8 @@ impl ViewportRepaintInfo {
 struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
+    glyph_rasterizer: Option<GlyphRasterizer>,
+    glyph_source_preference: Option<GlyphSourcePreference>,
 
     memory: Memory,
     animation_manager: AnimationManager,
@@ -591,7 +594,15 @@ impl ContextImpl {
 
             is_new = true;
             profiling::scope!("Fonts::new");
-            Fonts::new(text_options, self.font_definitions.clone())
+            let mut fonts = Fonts::new(text_options, self.font_definitions.clone());
+            if let Some(glyph_rasterizer) = &self.glyph_rasterizer {
+                fonts = fonts.with_glyph_rasterizer(glyph_rasterizer.clone());
+            }
+            if let Some(prefer) = &self.glyph_source_preference {
+                let prefer = Arc::clone(prefer);
+                fonts = fonts.with_glyph_source_preference(move |cluster| prefer(cluster));
+            }
+            fonts
         });
 
         {
@@ -753,11 +764,44 @@ impl Default for Context {
         ctx.add_plugin(crate::text_selection::LabelSelectionState::default());
         ctx.add_plugin(crate::DragAndDrop::default());
 
+        // Register the default theme for all built-in widgets:
+        theme::DefaultStyle::register(&ctx);
+
         ctx
     }
 }
 
 impl Context {
+    /// Set the platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// It is used for grapheme clusters no installed font can render,
+    /// and for clusters where the [`GlyphSourcePreference`] says so (color emoji by default).
+    ///
+    /// `eframe` sets this on web. Pass `None` to only use the installed fonts.
+    pub fn set_glyph_rasterizer(&self, glyph_rasterizer: Option<GlyphRasterizer>) {
+        self.write(|ctx| {
+            ctx.glyph_rasterizer = glyph_rasterizer;
+            ctx.fonts = None;
+        });
+    }
+
+    /// Decide where to look first for the glyphs of each grapheme cluster:
+    /// the fonts in the [`FontDefinitions`], or what the platform offers (e.g. the browser on web).
+    ///
+    /// By default, color emoji come from the platform, and everything else from the fonts.
+    /// Use `|_| GlyphSource::Fonts` to only use the platform for characters no installed font has.
+    ///
+    /// See [`GlyphSourcePreference`].
+    pub fn set_glyph_source_preference(
+        &self,
+        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| {
+            ctx.glyph_source_preference = Some(Arc::new(prefer));
+            ctx.fonts = None;
+        });
+    }
+
     /// Do read-only (shared access) transaction on Context
     fn read<R>(&self, reader: impl FnOnce(&ContextImpl) -> R) -> R {
         reader(&self.0.read())
@@ -1254,6 +1298,8 @@ impl Context {
         allow_focus: bool,
         options: crate::InteractOptions,
     ) -> Response {
+        debug_assert!(!w.rect.any_nan(), "widget rect is NaN: {:?}", w.rect);
+
         let interested_in_focus = w.enabled
             && w.sense.is_focusable()
             && self.memory(|mem| mem.allows_interaction(w.layer_id));
@@ -2104,7 +2150,10 @@ impl Context {
     /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
     ///
     /// If you want to add the theme anyway, use [`Self::replace_widget_theme`] instead.
-    #[cfg(feature = "experimental")]
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
     pub fn add_widget_theme<S: WidgetStyle + 'static>(
         &self,
         theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
@@ -2116,7 +2165,10 @@ impl Context {
     ///
     /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
     /// This allow to live edit a theme.
-    #[cfg(feature = "experimental")]
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
     pub fn replace_widget_theme<S: WidgetStyle + 'static>(
         &self,
         theme: impl theme::StyleProvider<S> + Send + Sync + 'static,

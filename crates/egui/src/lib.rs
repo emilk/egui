@@ -437,6 +437,7 @@ pub mod widgets;
 #[cfg(feature = "callstack")]
 #[cfg(debug_assertions)]
 mod callstack;
+pub mod class;
 
 pub use accesskit;
 
@@ -454,7 +455,11 @@ pub use emath::{
 pub use epaint::{
     ClippedPrimitive, ColorImage, CornerRadius, Direction, ImageData, Margin, Mesh, PaintCallback,
     PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
-    text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
+    text::{
+        FontData, FontDefinitions, FontFamily, FontId, FontTweak, GlyphRasterizer,
+        GlyphRasterizerRequest, GlyphSource, GlyphSourcePreference, MAX_GLYPH_SIZE,
+        RasterizedGlyph, default_glyph_source, has_emoji_presentation,
+    },
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
 };
 

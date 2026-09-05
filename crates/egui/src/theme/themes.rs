@@ -2,63 +2,24 @@ use std::sync::Arc;
 
 use epaint::mutex::Mutex;
 
-use crate::{
-    Id,
-    theme::{StyleProvider, default_style::DefaultStyle},
-    util::IdTypeMap,
-    widget_style::{
-        BaseStyle, ButtonStyle, CheckboxStyle, LabelStyle, SeparatorStyle, WidgetStyle,
-    },
-};
+use crate::{Id, theme::StyleProvider, util::IdTypeMap, widget_style::WidgetStyle};
 
 /// The registry of [`StyleProvider`]s, one per [`WidgetStyle`] type.
 ///
 /// Each widget asks this registry for the provider of its style type
-/// (e.g. [`ButtonStyle`]), and that provider computes the final style from the
+/// (e.g. [`crate::widget_style::ButtonStyle`]), and that provider computes the final style from the
 /// widget's classes and state.
 ///
-/// A default provider is registered for every built-in style; register your
-/// own with [`Context::add_widget_theme`](crate::Context::add_widget_theme) or
-/// [`Context::replace_widget_theme`](crate::Context::replace_widget_theme).
+/// A default provider is registered for every built-in style. Register your
+/// own with [`crate::Context::add_widget_theme`] or [`crate::Context::replace_widget_theme`].
+///
+/// The [`crate::theme::DefaultStyle`] is registered in [`crate::Context::default`].
+#[derive(Default)]
 pub struct Themes {
     themes: IdTypeMap,
 }
 
 type ThemeWrap<S> = Arc<Mutex<Box<dyn StyleProvider<S> + Send + Sync>>>;
-
-impl Default for Themes {
-    /// Register the default egui theme
-    fn default() -> Self {
-        let mut themes = IdTypeMap::default();
-
-        themes.insert_temp::<ThemeWrap<BaseStyle>>(
-            Id::NULL,
-            Arc::new(Mutex::new(Box::new(DefaultStyle))),
-        );
-
-        themes.insert_temp::<ThemeWrap<ButtonStyle>>(
-            Id::NULL,
-            Arc::new(Mutex::new(Box::new(DefaultStyle))),
-        );
-
-        themes.insert_temp::<ThemeWrap<SeparatorStyle>>(
-            Id::NULL,
-            Arc::new(Mutex::new(Box::new(DefaultStyle))),
-        );
-
-        themes.insert_temp::<ThemeWrap<CheckboxStyle>>(
-            Id::NULL,
-            Arc::new(Mutex::new(Box::new(DefaultStyle))),
-        );
-
-        themes.insert_temp::<ThemeWrap<LabelStyle>>(
-            Id::NULL,
-            Arc::new(Mutex::new(Box::new(DefaultStyle))),
-        );
-
-        Self { themes }
-    }
-}
 
 impl Themes {
     /// Register a [`StyleProvider`] for the specified widget [`WidgetStyle`] `S`

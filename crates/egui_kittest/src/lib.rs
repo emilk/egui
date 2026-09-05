@@ -38,22 +38,43 @@ use egui::{
 };
 use kittest::Queryable;
 
-use crate::app_kind::AppKind;
+use crate::{app_kind::AppKind, config::config};
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
     pub max_steps: u64,
+
+    /// How many steps the ui would have needed to settle.
+    ///
+    /// `None` if it did not settle within `diagnostic_max_steps` (see `kittest.toml`) further
+    /// steps either, i.e. it just keeps repainting.
+    pub steps_to_settle: Option<u64>,
+
+    /// How far past [`Self::max_steps`] we kept stepping to find [`Self::steps_to_settle`].
+    pub diagnostic_max_steps: u64,
+
     pub repaint_causes: Vec<RepaintCause>,
 }
 
 impl Display for ExceededMaxStepsError {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Harness::run exceeded max_steps ({}). ", self.max_steps)?;
+
+        match self.steps_to_settle {
+            Some(steps) => write!(f, "It would have settled after {steps} steps. ")?,
+            None => write!(
+                f,
+                "It did not settle within {} further steps either. ",
+                self.diagnostic_max_steps
+            )?,
+        }
+
         write!(
             f,
-            "Harness::run exceeded max_steps ({}). If your expect your ui to keep repainting \
+            "If you expect your ui to keep repainting \
             (e.g. when showing a spinner) call Harness::step or Harness::run_steps instead.\
             \nRepaint causes: {:#?}",
-            self.max_steps, self.repaint_causes,
+            self.repaint_causes,
         )
     }
 }
@@ -78,6 +99,19 @@ pub struct Harness<'a, State = ()> {
     response: Option<egui::Response>,
     state: State,
     renderer: Box<dyn TestRenderer>,
+
+    /// The image of a pass we already rendered, keyed by [`egui::Context::cumulative_pass_nr`].
+    ///
+    /// A pass should be rendered at most once. A paint callback can do GPU work of its own —
+    /// schedule a readback, say — and running it a second time for the same pass corrupts that
+    /// work.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    last_render: Option<(u64, image::RgbaImage)>,
+
+    /// Render every pass. See [`HarnessBuilder::with_render_every_step`].
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    render_every_step: bool,
+
     max_steps: u64,
     step_dt: f32,
     wait_for_pending_images: bool,
@@ -113,6 +147,9 @@ impl<'a, State> Harness<'a, State> {
             state: _,
             mut renderer,
             wait_for_pending_images,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_every_step,
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
@@ -164,6 +201,13 @@ impl<'a, State> Harness<'a, State> {
             response,
             state,
             renderer,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            last_render: None,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_every_step,
+
             max_steps,
             step_dt,
             wait_for_pending_images,
@@ -272,6 +316,12 @@ impl<'a, State> Harness<'a, State> {
         self.renderer.handle_delta(&mut output.textures_delta);
         self.output = output;
 
+        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+        if self.render_every_step {
+            self.render()
+                .expect("Failed to render during `render_every_step`");
+        }
+
         self.handle_viewport_commands();
     }
 
@@ -333,7 +383,23 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    fn try_run_impl(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+    /// When `sleep` is true, each step sleeps for `self.step_dt`.
+    /// When `diagnostic` is true, we run extra steps to find [`ExceededMaxStepsError::steps_to_settle`].
+    fn try_run_impl(
+        &mut self,
+        sleep: bool,
+        diagnostic: bool,
+    ) -> Result<u64, ExceededMaxStepsError> {
+        // Once the budget is blown we keep going for a while, purely to find out how many steps
+        // would have been needed. The repaint causes are the ones from the moment we blew it.
+        let diagnostic_max_steps = if diagnostic {
+            config().diagnostic_max_steps()
+        } else {
+            0
+        };
+        let last_diagnostic_step = self.max_steps.saturating_add(diagnostic_max_steps);
+        let mut repaint_causes_at_max_steps = None;
+
         let mut steps = 0;
         loop {
             steps += 1;
@@ -343,14 +409,28 @@ impl<'a, State> Harness<'a, State> {
 
             // We only care about immediate repaints
             if self.root_viewport_output().repaint_delay != Duration::ZERO && !wait_for_images {
+                if let Some(repaint_causes) = repaint_causes_at_max_steps {
+                    return Err(ExceededMaxStepsError {
+                        max_steps: self.max_steps,
+                        steps_to_settle: Some(steps),
+                        diagnostic_max_steps,
+                        repaint_causes,
+                    });
+                }
                 break;
             } else if sleep || wait_for_images {
                 std::thread::sleep(Duration::from_secs_f32(self.step_dt));
             }
-            if steps > self.max_steps {
+            if steps > self.max_steps && repaint_causes_at_max_steps.is_none() {
+                repaint_causes_at_max_steps = Some(self.ctx.repaint_causes());
+            }
+            if steps > last_diagnostic_step {
                 return Err(ExceededMaxStepsError {
                     max_steps: self.max_steps,
-                    repaint_causes: self.ctx.repaint_causes(),
+                    steps_to_settle: None,
+                    diagnostic_max_steps,
+                    repaint_causes: repaint_causes_at_max_steps
+                        .unwrap_or_else(|| self.ctx.repaint_causes()),
                 });
             }
         }
@@ -374,7 +454,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        self.try_run_impl(false)
+        self.try_run_impl(false, true)
     }
 
     /// Run until
@@ -384,6 +464,8 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// Returns the number of steps that were run, or None if the maximum number of steps was exceeded.
     ///
+    /// Unlike [`Harness::run`], this never steps past `max_steps`.
+    ///
     /// See also:
     /// - [`Harness::run`].
     /// - [`Harness::try_run`].
@@ -391,7 +473,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
     pub fn run_ok(&mut self) -> Option<u64> {
-        self.try_run().ok()
+        self.try_run_impl(false, false).ok()
     }
 
     /// Run multiple frames, sleeping for [`HarnessBuilder::with_step_dt`] between frames.
@@ -414,7 +496,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run`].
     pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        self.try_run_impl(true)
+        self.try_run_impl(true, true)
     }
 
     /// Run a number of steps.
@@ -630,18 +712,45 @@ impl<'a, State> Harness<'a, State> {
     /// This will add a [`RectShape`] to the output shapes, for the current frame.
     /// Will be overwritten on the next call to [`Self::run`].
     pub fn mask(&mut self, rect: Rect) {
+        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+        {
+            // This changes what a render of this pass looks like.
+            self.last_render = None;
+        }
+
         self.output.shapes.push(ClippedShape {
             clip_rect: Rect::EVERYTHING,
             shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::MAGENTA)),
         });
     }
 
+    /// Should every step be rendered?
+    ///
+    /// Useful when test logic requires some specific gpu logic, e.g. reading data back from the gpu.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[inline]
+    pub fn set_render_every_step(&mut self, render_every_step: bool) {
+        self.render_every_step = render_every_step;
+    }
+
     /// Render the last output to an image.
+    ///
+    /// When calling this multiple times on the same frame, or when [`Self::set_render_every_step`] is
+    /// true, this will return the already-rendered frame.
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
+        let pass_nr = self.ctx.cumulative_pass_nr();
+
+        // Rendering a pass twice would run its paint callbacks twice. See `last_render`.
+        if let Some((rendered_pass_nr, image)) = &self.last_render
+            && *rendered_pass_nr == pass_nr
+        {
+            return Ok(image.clone());
+        }
+
         let mut output = self.output.clone();
 
         if let Some(mouse_pos) = self.ctx.input(|i| i.pointer.hover_pos()) {
@@ -663,7 +772,9 @@ impl<'a, State> Harness<'a, State> {
             });
         }
 
-        self.renderer.render(&self.ctx, &output)
+        let image = self.renderer.render(&self.ctx, &output)?;
+        self.last_render = Some((pass_nr, image.clone()));
+        Ok(image)
     }
 
     /// Apply the [`egui::ViewportCommand`]s the app emitted during the last frame.

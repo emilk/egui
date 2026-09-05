@@ -2,16 +2,23 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use crate::{
-    TextureAtlas,
+    Color32, ColorImage, TextureAtlas,
     text::{
         ByteIndex, Galley, LayoutJob, LayoutSection, Tag, TextOptions, VariationCoords,
-        font::{Font, FontFace},
+        font::{Font, FontFace, RasterGlyphAllocation, RasterGlyphCacheKey},
     },
 };
 use emath::{NumExt as _, OrderedFloat, Rangef};
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
+
+// ----------------------------------------------------------------------------
+
+/// Maximum width or height of a glyph rasterized into the font atlas.
+///
+/// Must not exceed the minimum width of the [`TextureAtlas`] (1024).
+pub const MAX_GLYPH_SIZE: usize = 1024;
 
 // ----------------------------------------------------------------------------
 
@@ -25,6 +32,188 @@ pub struct FontId {
     /// What font family to use.
     pub family: FontFamily,
     // TODO(emilk): weight (bold), italics, …
+}
+
+/// Input to a [`GlyphRasterizer`].
+pub struct GlyphRasterizerRequest<'a> {
+    /// An unsupported grapheme cluster.
+    pub cluster: &'a str,
+
+    /// The requested font family.
+    pub family: &'a FontFamily,
+
+    /// Requested font size in physical pixels.
+    pub font_size_px: f32,
+
+    /// Horizontal offset from the pixel grid in physical pixels.
+    pub subpixel_offset_px: f32,
+}
+
+/// A glyph rasterized by a platform fallback.
+pub struct RasterizedGlyph {
+    /// Pixels in physical pixels. Color glyphs retain their original colors.
+    pub image: ColorImage,
+
+    /// Offset from the baseline to the image top-left, in physical pixels.
+    pub offset_px: emath::Vec2,
+
+    /// Horizontal advance, in physical pixels.
+    pub advance_px: f32,
+
+    /// Do not tint this glyph with the text color.
+    pub is_color: bool,
+}
+
+type RasterizeFn =
+    dyn for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph> + Send + Sync;
+
+/// Where to look first for the glyphs of a grapheme cluster.
+///
+/// The other source is used as a fallback if the first one cannot render the cluster.
+///
+/// See [`GlyphSourcePreference`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum GlyphSource {
+    /// The fonts in [`FontDefinitions`].
+    ///
+    /// Predictable: looks the same everywhere, both on native and on web.
+    Fonts,
+
+    /// What the platform offers, e.g. the [`GlyphRasterizer`] (the browser on web).
+    ///
+    /// Supports colored emojis.
+    /// Unpredictable: may look different on different computers.
+    Platform,
+}
+
+/// Decides where to look first for the glyphs of each grapheme cluster.
+///
+/// Default: [`default_glyph_source`], so that color emoji come from the platform,
+/// while text-presentation symbols (e.g. ⏮︎) look the same on all platforms.
+///
+/// Use `|_| GlyphSource::Fonts` to only use the platform for clusters
+/// that no font in [`FontDefinitions`] can render.
+///
+/// Set with `egui::Context::set_glyph_source_preference` or [`Fonts::with_glyph_source_preference`].
+pub type GlyphSourcePreference = Arc<dyn Fn(&str) -> GlyphSource + Send + Sync>;
+
+/// Rasterizes grapheme clusters using something other than the installed fonts,
+/// e.g. the browser on web.
+///
+/// Used for clusters no installed font can render,
+/// and for clusters where the [`GlyphSourcePreference`] says [`GlyphSource::Platform`].
+#[derive(Clone)]
+pub struct GlyphRasterizer {
+    /// Rasterize one grapheme cluster.
+    ///
+    /// Return `None` if the platform cannot render it either.
+    pub rasterize: Arc<RasterizeFn>,
+}
+
+impl GlyphRasterizer {
+    pub fn new(
+        rasterize: impl for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph>
+        + Send
+        + Sync
+        + 'static,
+    ) -> Self {
+        Self {
+            rasterize: Arc::new(rasterize),
+        }
+    }
+}
+
+/// The default [`GlyphSourcePreference`]:
+/// [`GlyphSource::Platform`] for clusters with emoji presentation
+/// (see [`has_emoji_presentation`]), [`GlyphSource::Fonts`] for everything else.
+pub fn default_glyph_source(cluster: &str) -> GlyphSource {
+    if has_emoji_presentation(cluster) {
+        GlyphSource::Platform
+    } else {
+        GlyphSource::Fonts
+    }
+}
+
+impl core::fmt::Debug for GlyphRasterizer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("GlyphRasterizer")
+    }
+}
+
+/// Does this grapheme cluster have emoji presentation, per Unicode (UTS #51)?
+///
+/// True for clusters that default to a color glyph (😀, 🦀, 🇸🇪, 👨‍👩‍👧),
+/// for clusters with an explicit emoji presentation selector (⏮️, U+FE0F),
+/// and for emoji modifier (skin tone) sequences (☝🏻).
+///
+/// False for text-presentation symbols (⏮, ✔, ♥) and for clusters
+/// with an explicit text presentation selector (⏮︎, U+FE0E).
+///
+/// Used by [`default_glyph_source`].
+pub fn has_emoji_presentation(cluster: &str) -> bool {
+    use unicode_properties::emoji::{
+        EmojiStatus, UnicodeEmoji as _, is_emoji_presentation_selector,
+        is_text_presentation_selector,
+    };
+
+    if cluster.is_ascii() {
+        return false; // Fast path: no ASCII character has emoji presentation.
+    }
+
+    let mut has_emoji_presentation = false;
+    for c in cluster.chars() {
+        if is_text_presentation_selector(c) {
+            return false; // Explicit text presentation wins.
+        }
+        has_emoji_presentation |= is_emoji_presentation_selector(c)
+            || matches!(
+                c.emoji_status(),
+                EmojiStatus::EmojiPresentation
+                    | EmojiStatus::EmojiPresentationAndModifierBase
+                    | EmojiStatus::EmojiPresentationAndEmojiComponent
+                    | EmojiStatus::EmojiPresentationAndModifierAndEmojiComponent
+            );
+    }
+    has_emoji_presentation
+}
+
+#[cfg(test)]
+mod has_emoji_presentation_tests {
+    use super::has_emoji_presentation;
+
+    #[test]
+    fn emoji_presentation() {
+        for cluster in [
+            "😀",
+            "🦀",
+            "⏮\u{FE0F}",              // explicit emoji presentation
+            "☝🏻",                     // skin tone modifier sequence
+            "🇸🇪",                     // flag
+            "👨\u{200D}👩\u{200D}👧", // ZWJ sequence
+            "1\u{FE0F}\u{20E3}",      // keycap
+        ] {
+            assert!(has_emoji_presentation(cluster), "{cluster:?}");
+        }
+    }
+
+    #[test]
+    fn text_presentation() {
+        for cluster in [
+            "",
+            "a",
+            "1",
+            "⏮",
+            "⏮\u{FE0E}",  // explicit text presentation
+            "😀\u{FE0E}", // explicit text presentation wins
+            "✔",
+            "♥",
+            "©",
+            "→",
+            "√",
+        ] {
+            assert!(!has_emoji_presentation(cluster), "{cluster:?}");
+        }
+    }
 }
 
 impl Default for FontId {
@@ -707,16 +896,51 @@ impl CachedFamily {
 pub struct Fonts {
     pub fonts: FontsImpl,
     galley_cache: GalleyCache,
+    glyph_rasterizer: Option<GlyphRasterizer>,
 }
 
 impl Fonts {
     /// Create a new [`Fonts`] for text layout.
+    ///
     /// This call is expensive, so only create one [`Fonts`] and then reuse it.
     pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
         Self {
             fonts: FontsImpl::new(options, definitions),
             galley_cache: Default::default(),
+            glyph_rasterizer: None,
         }
+    }
+
+    /// Use this platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// See [`GlyphRasterizer`].
+    #[inline]
+    pub fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
+        self.set_glyph_rasterizer(Some(glyph_rasterizer));
+        self
+    }
+
+    /// Use this platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// Pass `None` to only use the installed fonts.
+    ///
+    /// See [`GlyphRasterizer`].
+    pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
+        self.glyph_rasterizer = glyph_rasterizer.clone();
+        self.fonts.set_glyph_rasterizer(glyph_rasterizer);
+        self.galley_cache = Default::default();
+    }
+
+    /// Decide where to look first for the glyphs of each grapheme cluster.
+    ///
+    /// See [`GlyphSourcePreference`].
+    #[inline]
+    pub fn with_glyph_source_preference(
+        mut self,
+        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
+    ) -> Self {
+        self.fonts.set_glyph_source_preference(prefer);
+        self
     }
 
     /// Call at the start of each frame with the latest known [`TextOptions`].
@@ -732,10 +956,16 @@ impl Fonts {
 
         if needs_recreate {
             let definitions = self.fonts.definitions.clone();
+            let glyph_rasterizer = self.glyph_rasterizer.clone();
+
+            let mut fonts = FontsImpl::new(options, definitions);
+            fonts.set_glyph_rasterizer(glyph_rasterizer.clone());
+            fonts.glyph_source_preference = Arc::clone(&self.fonts.glyph_source_preference);
 
             *self = Self {
-                fonts: FontsImpl::new(options, definitions),
+                fonts,
                 galley_cache: Default::default(),
+                glyph_rasterizer,
             };
         }
 
@@ -775,12 +1005,17 @@ impl Fonts {
         self.fonts.atlas.size()
     }
 
-    /// Can we display this glyph?
+    /// Do the installed fonts have this glyph?
+    ///
+    /// This does not consult the [`GlyphRasterizer`], so it can return `false`
+    /// for a character that would still render via the rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
         self.fonts.font(&font_id.family).has_glyph(c)
     }
 
-    /// Can we display all the glyphs in this text?
+    /// Do the installed fonts have all the glyphs in this text?
+    ///
+    /// See [`Self::has_glyph`] for the caveat about the [`GlyphRasterizer`].
     pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
         self.fonts.font(&font_id.family).has_glyphs(s)
     }
@@ -848,12 +1083,17 @@ impl FontsView<'_> {
             .glyph_width(c, font_id.size)
     }
 
-    /// Can we display this glyph?
+    /// Do the installed fonts have this glyph?
+    ///
+    /// This does not consult the [`GlyphRasterizer`], so it can return `false`
+    /// for a character that would still render via the rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
         self.fonts.font(&font_id.family).has_glyph(c)
     }
 
-    /// Can we display all the glyphs in this text?
+    /// Do the installed fonts have all the glyphs in this text?
+    ///
+    /// See [`Self::has_glyph`] for the caveat about the [`GlyphRasterizer`].
     pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
         self.fonts.font(&font_id.family).has_glyphs(s)
     }
@@ -917,7 +1157,7 @@ impl FontsView<'_> {
         &mut self,
         text: String,
         font_id: FontId,
-        color: crate::Color32,
+        color: Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
         let job = LayoutJob::simple(text, font_id, color, wrap_width);
@@ -928,12 +1168,7 @@ impl FontsView<'_> {
     ///
     /// The implementation uses memoization so repeated calls are cheap.
     #[inline]
-    pub fn layout_no_wrap(
-        &mut self,
-        text: String,
-        font_id: FontId,
-        color: crate::Color32,
-    ) -> Arc<Galley> {
+    pub fn layout_no_wrap(&mut self, text: String, font_id: FontId, color: Color32) -> Arc<Galley> {
         let job = LayoutJob::simple(text, font_id, color, f32::INFINITY);
         self.layout_job(job)
     }
@@ -948,7 +1183,7 @@ impl FontsView<'_> {
         font_id: FontId,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.layout(text, font_id, crate::Color32::PLACEHOLDER, wrap_width)
+        self.layout(text, font_id, Color32::PLACEHOLDER, wrap_width)
     }
 }
 
@@ -966,6 +1201,9 @@ pub struct FontsImpl {
 
     /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
     shape_buffer: Option<harfrust::UnicodeBuffer>,
+    glyph_rasterizer: Option<GlyphRasterizer>,
+    raster_glyph_cache: nohash_hasher::IntMap<RasterGlyphCacheKey, Option<RasterGlyphAllocation>>,
+    glyph_source_preference: GlyphSourcePreference,
 }
 
 impl FontsImpl {
@@ -1000,7 +1238,39 @@ impl FontsImpl {
             fonts_by_name,
             family_cache: Default::default(),
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
+            glyph_rasterizer: None,
+            raster_glyph_cache: Default::default(),
+            glyph_source_preference: Arc::new(default_glyph_source),
         }
+    }
+
+    /// Use this platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// See [`GlyphRasterizer`].
+    #[inline]
+    pub fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
+        self.set_glyph_rasterizer(Some(glyph_rasterizer));
+        self
+    }
+
+    /// Use this platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// Pass `None` to only use the installed fonts.
+    ///
+    /// See [`GlyphRasterizer`].
+    pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
+        self.glyph_rasterizer = glyph_rasterizer;
+        self.raster_glyph_cache = Default::default();
+    }
+
+    /// Decide where to look first for the glyphs of each grapheme cluster.
+    ///
+    /// See [`GlyphSourcePreference`].
+    pub fn set_glyph_source_preference(
+        &mut self,
+        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
+    ) {
+        self.glyph_source_preference = Arc::new(prefer);
     }
 
     pub fn options(&self) -> &TextOptions {
@@ -1040,6 +1310,10 @@ impl FontsImpl {
             fonts_by_id: &mut self.fonts_by_id,
             cached_family,
             atlas: &mut self.atlas,
+            family: family.clone(),
+            glyph_rasterizer: self.glyph_rasterizer.as_ref(),
+            raster_glyph_cache: &mut self.raster_glyph_cache,
+            glyph_source_preference: &self.glyph_source_preference,
         }
     }
 }

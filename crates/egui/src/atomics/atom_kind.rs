@@ -31,7 +31,6 @@ pub enum AtomKind<'a> {
     /// Text atom.
     ///
     /// Truncation within [`crate::AtomLayout`] works like this:
-    /// -
     /// - if `wrap_mode` is not Extend
     ///   - if no atom is `shrink`
     ///     - the first text atom is selected and will be marked as `shrink`
