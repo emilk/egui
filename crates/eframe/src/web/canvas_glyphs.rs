@@ -8,7 +8,8 @@ use core::cell::RefCell;
 use std::collections::HashMap;
 
 use egui::{
-    ColorImage, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE, RasterizedGlyph, vec2,
+    ColorImage, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE, RasterizedGlyph,
+    has_emoji_presentation, vec2,
 };
 use wasm_bindgen::JsCast as _;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
@@ -31,21 +32,6 @@ struct Drawn {
 
     /// Horizontal advance.
     advance: f64,
-}
-
-impl Drawn {
-    fn is_all_black(&self) -> bool {
-        let (rgba, []) = self.rgba.as_chunks() else {
-            panic!("Drawn glyph not RGBA!?");
-        };
-        for &[r, g, b, a] in rgba {
-            // only look at opaque pixels (ignore edges).
-            if a == 255 && [r, g, b] != [0, 0, 0] {
-                return false;
-            }
-        }
-        true
-    }
 }
 
 struct CanvasGlyphs {
@@ -106,26 +92,11 @@ impl CanvasGlyphs {
             return None; // Let egui draw its own replacement glyph instead.
         }
 
-        // We want to figure out "is this a monochrome glyph, or a colorful emoji"?
-        // (the former should be tinted by the egui text color, the latter not).
-        // How do we figure this out? Here are some ideas:
-        //
-        // A) look at the pixels of the `white` image above and look for non-gray pixels.
-        // This produces miss-classifications of e.g. Thai and Korean scripts.
-        //
-        // B) render the glyph twice: once with a `white` color, and once more with black color.
-        // Look at the pixels of the `black` image and see if it is indeed black.
-        // This fails for the same glyphs as A.
-        //
-        // C) compare the `black` and `white` images.
-        // A colored emoji should look the same in both cases.
-        // Unfortunately this method also have some false positives on some platforms,
-        // such as Firefox for Android: https://github.com/emilk/egui/pull/8490#issuecomment-5538631164
-
+        // Is this a monochrome glyph (to be tinted by the text color) or a color emoji (not)?
+        // Monochrome glyphs take the fill color, color glyphs ignore it,
+        // so we draw twice and see if the fill color made a difference.
         let black = self.draw(cluster, &font, "black", *subpixel_offset_px)?;
-
-        // Alternative C)
-        let is_color = white.rgba == black.rgba;
+        let is_color = is_color(cluster, &white, &black);
 
         let Drawn {
             rgba,
@@ -225,6 +196,50 @@ impl CanvasGlyphs {
             ascent,
             advance: metrics.width(),
         })
+    }
+}
+
+/// Did the fill color affect the pixels?
+///
+/// Compares a `white` and a `black` draw of the same cluster, pixel by pixel.
+/// A monochrome glyph takes the fill color, so its pixels differ between the two.
+/// A color glyph (emoji) ignores it, so its pixels stay the same.
+///
+/// This is a majority vote rather than an exact comparison:
+/// some browsers (e.g. Firefox for Android) are not pixel-exact between two draws,
+/// and some color glyphs have layers that take the fill color.
+/// Unicode emoji presentation breaks ties, e.g. for glyphs with no opaque pixels.
+///
+/// Looking at the pixels of a single draw does not work:
+/// a black-and-white emoji (⚫, 🖤) looks monochrome but must not be tinted,
+/// and some platforms draw e.g. Thai and Korean with colored (subpixel-antialiased) fringes.
+fn is_color(cluster: &str, white: &Drawn, black: &Drawn) -> bool {
+    let mut monochrome_votes = 0_usize;
+    let mut color_votes = 0_usize;
+
+    for (&[white_r, white_g, white_b, white_a], &[black_r, black_g, black_b, black_a]) in
+        core::iter::zip(white.rgba.as_chunks::<4>().0, black.rgba.as_chunks::<4>().0)
+    {
+        if white_a < 255 || black_a < 255 {
+            continue; // let's only count opaque pixels
+        }
+        let diff_r = white_r.abs_diff(black_r);
+        let diff_g = white_g.abs_diff(black_g);
+        let diff_b = white_b.abs_diff(black_b);
+        let max_diff = diff_r.max(diff_g).max(diff_b);
+        let similar = max_diff < 128;
+
+        if similar {
+            color_votes += 1;
+        } else {
+            monochrome_votes += 1;
+        }
+    }
+
+    if monochrome_votes == color_votes {
+        has_emoji_presentation(cluster)
+    } else {
+        monochrome_votes < color_votes
     }
 }
 
