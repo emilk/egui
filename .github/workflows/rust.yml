@@ -1,4 +1,9 @@
-on: [push, pull_request]
+on:
+  # Only on `main`, so that a PR from a branch in this repo
+  # doesn't run the whole workflow twice (once for the push, once for the PR):
+  push:
+    branches: ["main"]
+  pull_request:
 
 name: Rust
 
@@ -31,6 +36,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Rustfmt
         run: cargo fmt --all -- --check
@@ -81,6 +89,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: clippy wasm32 egui_demo_app
         run: cargo clippy -p egui_demo_app --lib --target wasm32-unknown-unknown
@@ -112,6 +123,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{env.NIGHTLY_VERSION}}
@@ -169,6 +183,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
         # Default features disabled to turn off accesskit, which does not work
         # with NativeActivity.
@@ -191,6 +208,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
         # Default features are disabled because glutin doesn't compile for ios.
       - run: cargo check --features wgpu --target aarch64-apple-ios --no-default-features
@@ -210,6 +230,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - run: cargo clippy --all-targets --all-features
 
@@ -232,6 +255,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # `--no-fail-fast` so that a failing snapshot test in one crate doesn't
       # stop the tests of the other crates from running.
