@@ -93,7 +93,7 @@ document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7" # Can't update to 3.1: its `enum-map-derive` moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
 env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x/2.x, duplicating the 0.1.x that android_logger needs
-font-types = { version = "0.12.2", default-features = false, features = ["std"] }
+font-types = { version = "0.12.4", default-features = false, features = ["std"] }
 fontique = { version = "0.11.1", default-features = false, features = [
   "system",
   "fontconfig-dlopen", # Load libfontconfig at runtime, so builds don't need its headers
@@ -107,7 +107,7 @@ itertools = "0.15.0"
 jiff = { version = "0.2.35", default-features = false }
 js-sys = "0.3.103"
 kittest = { version = "0.4.0" }
-log = { version = "0.4.33", features = ["std"] }
+log = { version = "0.4.34", features = ["std"] }
 mimalloc = "0.1.52"
 mime_guess2 = { version = "2.3", default-features = false }
 mint = "0.5.9"
@@ -140,7 +140,7 @@ skrifa = { version = "0.44.0", default-features = false, features = [
   "std",
   "autohint_shaping",
 ] } # Can't update to 0.45: it needs read-fonts 0.42, but harfrust 0.12 pins read-fonts 0.41, so bumping splits read-fonts into two versions
-smallvec = "1.15"
+smallvec = "1.16"
 smithay-clipboard = "0.7.2" # 0.7.3 pulls smithay-client-toolkit 0.20 (calloop 0.14), duplicating the 0.19/0.13 that winit 0.30 needs
 static_assertions = "1.1"
 syntect = { version = "5.3", default-features = false }
@@ -165,7 +165,7 @@ wasm-bindgen-futures = "0.4.76"
 wayland-cursor = { version = "0.31.14", default-features = false }
 web-sys = "0.3.103"
 web-time = "1.1" # Timekeeping for native and web
-webbrowser = "1.2.2" # 1.2.2 fixes RUSTSEC-2026-0257 (`BROWSER` argument injection)
+webbrowser = "1.2.4" # 1.2.2 fixes RUSTSEC-2026-0257 (`BROWSER` argument injection)
 wgpu = { version = "30.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
