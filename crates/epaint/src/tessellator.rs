@@ -6,14 +6,14 @@
 #![expect(clippy::identity_op)]
 
 use emath::{
-    GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, fast_midpoint, pos2, remap, vec2,
+    GuiRounding as _, NumExt as _, Pos2, Rangef, Rect, Rot2, Vec2, fast_midpoint, pos2, remap, vec2,
 };
 
 use crate::{
-    CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
-    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, RoundedRect, Shape,
-    Stroke, StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath, stroke::PathStroke,
-    texture_atlas::PreparedDisc,
+    BandPoint, BandShape, CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32,
+    CubicBezierShape, EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape,
+    RoundedRect, Shape, Stroke, StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath,
+    stroke::PathStroke, texture_atlas::PreparedDisc,
 };
 
 // ----------------------------------------------------------------------------
@@ -488,7 +488,15 @@ impl Path {
         stroke: &PathStroke,
         out: &mut Mesh,
     ) {
-        stroke_and_fill_path(feathering, &mut self.0, PathType::Closed, stroke, fill, out);
+        stroke_and_fill_path(
+            feathering,
+            &mut self.0,
+            PathType::Closed,
+            stroke,
+            fill,
+            &triangulate_convex_path,
+            out,
+        );
     }
 
     /// Open-ended.
@@ -516,7 +524,13 @@ impl Path {
     /// Calling this may reverse the vertices in the path if they are wrong winding order.
     /// The preferred winding order is clockwise.
     pub fn fill(&mut self, feathering: f32, color: Color32, out: &mut Mesh) {
-        fill_closed_path(feathering, &mut self.0, color, out);
+        fill_closed_path(
+            feathering,
+            &mut self.0,
+            color,
+            &triangulate_convex_path,
+            out,
+        );
     }
 
     /// Like [`Self::fill`] but with texturing.
@@ -752,12 +766,122 @@ fn cw_signed_area(path: &[PathPoint]) -> f64 {
     }
 }
 
+#[inline]
+fn rotate_band_point(rotation: Rot2, x: f32, y: f32) -> Pos2 {
+    (rotation * Vec2::new(x, y)).to_pos2()
+}
+
+/// The maximal runs of a [`BandShape`] that can be drawn as one connected piece.
+///
+/// A run is at least two valid [`BandPoint`]s with strictly increasing `x`.
+/// Everything else in between is skipped.
+struct BandRuns<'a> {
+    points: &'a [BandPoint],
+    next: usize,
+}
+
+impl<'a> BandRuns<'a> {
+    fn new(points: &'a [BandPoint]) -> Self {
+        Self { points, next: 0 }
+    }
+}
+
+impl<'a> Iterator for BandRuns<'a> {
+    type Item = &'a [BandPoint];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.next < self.points.len() {
+            let start = self.next;
+            if !self.points[start].is_valid() {
+                self.next = start + 1;
+                continue;
+            }
+
+            let mut end = start;
+            while end + 1 < self.points.len()
+                && self.points[end + 1].is_valid()
+                && self.points[end].x < self.points[end + 1].x
+            {
+                end += 1;
+            }
+            // The point that broke the run may still start the next one:
+            self.next = end + 1;
+
+            if start < end {
+                return Some(&self.points[start..=end]);
+            }
+        }
+        None
+    }
+}
+
+/// Triangulates the interior of a closed path.
+///
+/// The path's `num_points` fill-colored vertices are found in the mesh at
+/// `first_index + stride * i`, in path order. The colors are already written,
+/// so an implementation may also dim them.
+type FillTriangulation<'a> = &'a dyn Fn(&mut Mesh, u32, u32, u32);
+
+/// Triangulate the outline of one run of a [`BandShape`]: the lower boundary of the band,
+/// followed by the upper boundary backwards.
+///
+/// Where the band was widened to `min_width` to survive the feathering and its own stroke,
+/// the fill is dimmed by as much as it was widened, so that a band pinching to nothing
+/// fades out instead of bottoming out as a hard, full-opacity line.
+fn triangulate_band_outline(
+    run: &[BandPoint],
+    min_width: f32,
+    out: &mut Mesh,
+    first_index: u32,
+    stride: u32,
+    num_points: u32,
+) {
+    let vertex = |i: u32| first_index + stride * i;
+    let last = num_points - 1;
+
+    for i in 0..num_points / 2 - 1 {
+        out.add_triangle(vertex(i), vertex(i + 1), vertex(last - i - 1));
+        out.add_triangle(vertex(i), vertex(last - i - 1), vertex(last - i));
+    }
+
+    if 0.0 < min_width {
+        for (i, point) in run.iter().enumerate() {
+            let width = point.y.span();
+            if width < min_width {
+                // Fade out the fill when the width is below the feathering width
+                let opacity = width / min_width;
+                for index in [vertex(i as u32), vertex(last - i as u32)] {
+                    let color = &mut out.vertices[index as usize].color;
+                    *color = mul_color(*color, opacity);
+                }
+            }
+        }
+    }
+}
+
+/// Fan-triangulate a convex path.
+fn triangulate_convex_path(out: &mut Mesh, first_index: u32, stride: u32, num_points: u32) {
+    for i in 2..num_points {
+        out.add_triangle(
+            first_index,
+            first_index + stride * (i - 1),
+            first_index + stride * i,
+        );
+    }
+}
+
 /// Tessellate the given convex area into a polygon.
 ///
 /// Calling this may reverse the vertices in the path if they are wrong winding order.
 ///
 /// The preferred winding order is clockwise.
-fn fill_closed_path(feathering: f32, path: &mut [PathPoint], fill_color: Color32, out: &mut Mesh) {
+fn fill_closed_path(
+    feathering: f32,
+    path: &mut [PathPoint],
+    fill_color: Color32,
+    triangulate: FillTriangulation<'_>,
+    out: &mut Mesh,
+) {
     if fill_color == Color32::TRANSPARENT {
         return;
     }
@@ -781,11 +905,6 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], fill_color: Color32
         let idx_inner = out.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
 
-        // The fill:
-        for i in 2..n {
-            out.add_triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
-        }
-
         // The feathering:
         let mut i0 = n - 1;
         for i1 in 0..n {
@@ -801,14 +920,15 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], fill_color: Color32
             out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
             i0 = i1;
         }
+
+        // The fill, last so that the triangulation can also see the vertices:
+        triangulate(out, idx_inner, 2, n);
     } else {
         out.reserve_triangles(n as usize);
         let idx = out.vertices.len() as u32;
         out.vertices
             .extend(path.iter().map(|p| Vertex::untextured(p.pos, fill_color)));
-        for i in 2..n {
-            out.add_triangle(idx, idx + i - 1, idx + i);
-        }
+        triangulate(out, idx, 1, n);
     }
 }
 
@@ -904,7 +1024,15 @@ fn stroke_path(
     out: &mut Mesh,
 ) {
     let fill = Color32::TRANSPARENT;
-    stroke_and_fill_path(feathering, path, path_type, stroke, fill, out);
+    stroke_and_fill_path(
+        feathering,
+        path,
+        path_type,
+        stroke,
+        fill,
+        &triangulate_convex_path,
+        out,
+    );
 }
 
 /// Tessellate the given path as a stroke with thickness, with optional fill color.
@@ -918,6 +1046,7 @@ fn stroke_and_fill_path(
     path_type: PathType,
     stroke: &PathStroke,
     color_fill: Color32,
+    triangulate: FillTriangulation<'_>,
     out: &mut Mesh,
 ) {
     let n = path.len() as u32;
@@ -928,7 +1057,7 @@ fn stroke_and_fill_path(
 
     if stroke.width == 0.0 {
         // Skip the stroke, just fill.
-        return fill_closed_path(feathering, path, color_fill, out);
+        return fill_closed_path(feathering, path, color_fill, triangulate, out);
     }
 
     if color_fill != Color32::TRANSPARENT && cw_signed_area(path) < 0.0 {
@@ -956,7 +1085,7 @@ fn stroke_and_fill_path(
         }
 
         // Skip the stroke, just fill.
-        return fill_closed_path(feathering, path, color_fill, out);
+        return fill_closed_path(feathering, path, color_fill, triangulate, out);
     }
 
     let idx = out.vertices.len() as u32;
@@ -1050,10 +1179,7 @@ fn stroke_and_fill_path(
 
             if color_fill != Color32::TRANSPARENT {
                 out.reserve_triangles(n as usize - 2);
-                let idx_fill = idx + 2;
-                for i in 2..n {
-                    out.add_triangle(idx_fill + 3 * (i - 1), idx_fill, idx_fill + 3 * i);
-                }
+                triangulate(out, idx + 2, 3, n);
             }
         } else {
             // thick anti-aliased line
@@ -1106,10 +1232,7 @@ fn stroke_and_fill_path(
 
                     if color_fill != Color32::TRANSPARENT {
                         out.reserve_triangles(n as usize - 2);
-                        let idx_fill = idx + 3;
-                        for i in 2..n {
-                            out.add_triangle(idx_fill + 4 * (i - 1), idx_fill, idx_fill + 4 * i);
-                        }
+                        triangulate(out, idx + 3, 4, n);
                     }
                 }
                 PathType::Open => {
@@ -1276,7 +1399,7 @@ fn stroke_and_fill_path(
                 point.pos -= 0.5 * stroke.width * point.normal;
             }
             // …then fill:
-            fill_closed_path(feathering, path, color_fill, out);
+            fill_closed_path(feathering, path, color_fill, triangulate, out);
         }
     }
 }
@@ -1448,6 +1571,9 @@ impl Tessellator {
             }
             Shape::Path(path_shape) => {
                 self.tessellate_path(&path_shape, out);
+            }
+            Shape::Band(band_shape) => {
+                self.tessellate_band(&band_shape, out);
             }
             Shape::Rect(rect_shape) => {
                 self.tessellate_rect(&rect_shape, out);
@@ -1740,6 +1866,89 @@ impl Tessellator {
 
             self.scratchpad_path
                 .stroke(self.feathering, PathType::Open, stroke, out);
+        }
+    }
+
+    /// Tessellate a single [`BandShape`] into a [`Mesh`].
+    pub fn tessellate_band(&mut self, band_shape: &BandShape, out: &mut Mesh) {
+        if self.options.coarse_tessellation_culling
+            && !band_shape.visual_bounding_rect().intersects(self.clip_rect)
+        {
+            return;
+        }
+
+        let BandShape {
+            points,
+            fill,
+            stroke,
+            stroke_kind,
+            angle,
+        } = band_shape;
+        if !angle.is_finite() {
+            return;
+        }
+        let rotation = Rot2::from_angle(*angle);
+
+        // Shrink the shape to make room for the stroke, as needed:
+        let inset = match stroke_kind {
+            StrokeKind::Inside => stroke.width,
+            StrokeKind::Middle => 0.5 * stroke.width,
+            StrokeKind::Outside => 0.0,
+        };
+        let shrink = |y: Rangef| {
+            let center = y.center();
+            let width = (y.span() - 2.0 * inset).at_least(0.0);
+            Rangef::new(center - 0.5 * width, center + 0.5 * width)
+        };
+
+        let stroke = PathStroke::from(*stroke).with_kind(StrokeKind::Outside);
+
+        for run in BandRuns::new(points) {
+            let num_samples = run.len();
+
+            // A clockwise outline of the run: the lower boundary,
+            // then the upper boundary backwards.
+            self.scratchpad_points.clear();
+            self.scratchpad_points.reserve(2 * num_samples);
+            self.scratchpad_points.extend(
+                run.iter()
+                    .map(|point| rotate_band_point(rotation, point.x, shrink(point.y).min)),
+            );
+            self.scratchpad_points.extend(
+                run.iter()
+                    .rev()
+                    .map(|point| rotate_band_point(rotation, point.x, shrink(point.y).max)),
+            );
+
+            self.scratchpad_path.clear();
+            self.scratchpad_path.add_line_loop(&self.scratchpad_points);
+            debug_assert_eq!(
+                self.scratchpad_path.0.len(),
+                2 * num_samples,
+                "`add_line_loop` must emit exactly one point per outline point"
+            );
+
+            // A band is rarely convex, so it brings its own triangulation.
+            // Everything else - the feathering, and letting the stroke cover the edge
+            // of the fill - is shared with the other closed shapes.
+            stroke_and_fill_path(
+                self.feathering,
+                &mut self.scratchpad_path.0,
+                PathType::Closed,
+                &stroke,
+                *fill,
+                &|out: &mut Mesh, first_index, stride, num_points| {
+                    triangulate_band_outline(
+                        run,
+                        self.feathering,
+                        out,
+                        first_index,
+                        stride,
+                        num_points,
+                    );
+                },
+                out,
+            );
         }
     }
 
@@ -2299,6 +2508,8 @@ impl Tessellator {
 
                 Shape::Path(path_shape) => 32 < path_shape.points.len(),
 
+                Shape::Band(band_shape) => 32 < band_shape.points.len(),
+
                 Shape::QuadraticBezier(_) | Shape::CubicBezier(_) | Shape::Ellipse(_) => true,
 
                 Shape::Noop
@@ -2439,4 +2650,234 @@ fn path_bounding_box() {
             &mut mesh,
         );
     }
+}
+
+#[cfg(test)]
+fn tessellate_band_without_feathering(band: BandShape) -> Mesh {
+    let options = TessellationOptions {
+        feathering: false,
+        ..Default::default()
+    };
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, options, [1, 1], vec![]).tessellate_shape(band.into(), &mut mesh);
+    mesh
+}
+
+#[test]
+fn tessellate_band_fill() {
+    use crate::*;
+
+    let mesh = tessellate_band_without_feathering(BandShape::filled(
+        vec![
+            BandPoint::new(0.0, 1.0..=3.0),
+            BandPoint::new(2.0, 2.0..=4.0),
+        ],
+        Color32::WHITE,
+    ));
+
+    // The lower boundary, then the upper boundary backwards:
+    assert_eq!(
+        mesh.vertices
+            .iter()
+            .map(|vertex| vertex.pos)
+            .collect::<Vec<_>>(),
+        [
+            pos2(0.0, 1.0),
+            pos2(2.0, 2.0),
+            pos2(2.0, 4.0),
+            pos2(0.0, 3.0)
+        ]
+    );
+    assert_eq!(mesh.indices, [0, 1, 2, 0, 2, 3]);
+}
+
+#[test]
+fn tessellate_band_connects_spans() {
+    use crate::*;
+
+    let mesh = tessellate_band_without_feathering(BandShape::filled(
+        vec![
+            BandPoint::new(0.0, 1.0..=3.0),
+            BandPoint::new(2.0, 2.0..=4.0),
+            BandPoint::new(4.0, 3.0..=5.0),
+        ],
+        Color32::WHITE,
+    ));
+
+    // Each sample contributes one vertex per boundary, shared by the two spans:
+    assert_eq!(mesh.vertices.len(), 6);
+    assert_eq!(mesh.indices, [0, 1, 4, 0, 4, 5, 1, 2, 3, 1, 3, 4]);
+}
+
+#[test]
+fn tessellate_band_splits_at_invalid_points() {
+    use crate::*;
+
+    // The middle point is invalid, so this is two separate two-sample runs:
+    let mesh = tessellate_band_without_feathering(BandShape::filled(
+        vec![
+            BandPoint::new(0.0, 0.0..=1.0),
+            BandPoint::new(1.0, 0.0..=1.0),
+            BandPoint::new(2.0, 1.0..=0.0),
+            BandPoint::new(3.0, 0.0..=1.0),
+            BandPoint::new(4.0, 0.0..=1.0),
+        ],
+        Color32::WHITE,
+    ));
+
+    assert_eq!(mesh.vertices.len(), 8);
+    assert_eq!(mesh.indices, [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
+}
+
+#[test]
+fn tessellate_band_fill_is_feathered() {
+    use crate::*;
+
+    let band = BandShape::filled(
+        vec![
+            BandPoint::new(0.0, 0.0..=10.0),
+            BandPoint::new(10.0, 0.0..=10.0),
+        ],
+        Color32::WHITE,
+    );
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, Default::default(), [1, 1], vec![])
+        .tessellate_shape(band.into(), &mut mesh);
+
+    // The fill is inset by half a feather and faded out over the other half,
+    // so the band keeps its size but gains a soft edge:
+    assert_eq!(
+        mesh.calc_bounds(),
+        Rect::from_min_max(pos2(-0.5, -0.5), pos2(10.5, 10.5))
+    );
+    assert!(
+        mesh.vertices
+            .iter()
+            .any(|vertex| vertex.color == Color32::TRANSPARENT)
+    );
+}
+
+#[test]
+fn tessellate_band_skips_invalid_spans() {
+    use crate::*;
+
+    let band = BandShape::filled(
+        vec![
+            BandPoint::new(0.0, 1.0..=3.0),
+            BandPoint::new(0.0, 2.0..=4.0),
+            BandPoint::new(2.0, 5.0..=4.0),
+            BandPoint::new(f32::NAN, 2.0..=4.0),
+        ],
+        Color32::WHITE,
+    );
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, Default::default(), [1, 1], vec![])
+        .tessellate_shape(band.into(), &mut mesh);
+
+    assert!(mesh.is_empty());
+}
+
+#[test]
+fn tessellate_band_fades_out_at_a_pinch() {
+    use crate::*;
+
+    // A band thinner than the feathering is widened so that it cannot turn inside out,
+    // then dimmed by as much as it was widened, so that it still fades away:
+    let band = BandShape::filled(
+        vec![
+            BandPoint::new(0.0, -2.0..=2.0),
+            BandPoint::new(10.0, 0.0..=0.0),
+        ],
+        Color32::WHITE,
+    );
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, Default::default(), [1, 1], vec![])
+        .tessellate_shape(band.into(), &mut mesh);
+
+    // The lower boundary's fill vertices, at stride two:
+    assert_eq!(
+        mesh.vertices[0].color,
+        Color32::WHITE,
+        "the wide end is opaque"
+    );
+    assert_eq!(
+        mesh.vertices[2].color,
+        Color32::TRANSPARENT,
+        "the pinched end has faded away"
+    );
+}
+
+#[test]
+fn tessellate_band_stroke_only() {
+    use crate::*;
+
+    let band = BandShape::stroke(
+        vec![
+            BandPoint::new(0.0, 1.0..=3.0),
+            BandPoint::new(2.0, 2.0..=4.0),
+        ],
+        (1.0, Color32::WHITE),
+    );
+    let mut mesh = Mesh::default();
+    Tessellator::new(1.0, Default::default(), [1, 1], vec![])
+        .tessellate_shape(band.into(), &mut mesh);
+
+    assert!(!mesh.indices.is_empty());
+    assert!(
+        mesh.vertices
+            .iter()
+            .any(|vertex| vertex.color == Color32::WHITE)
+    );
+}
+
+#[test]
+fn tessellate_band_rotates_around_the_origin() {
+    use crate::*;
+
+    let mesh = tessellate_band_without_feathering(
+        BandShape::filled(
+            vec![
+                BandPoint::new(0.0, 1.0..=3.0),
+                BandPoint::new(2.0, 2.0..=4.0),
+            ],
+            Color32::WHITE,
+        )
+        .with_angle_and_pivot(core::f32::consts::FRAC_PI_2, Pos2::ZERO),
+    );
+
+    assert!((mesh.vertices[0].pos - pos2(-1.0, 0.0)).length_sq() < 1e-10);
+    assert!((mesh.vertices[2].pos - pos2(-4.0, 2.0)).length_sq() < 1e-10);
+}
+
+#[test]
+fn tessellate_band_stroke_kind() {
+    use crate::*;
+
+    fn tessellate(stroke_kind: StrokeKind) -> Mesh {
+        let mut band = BandShape::stroke(
+            vec![
+                BandPoint::new(0.0, 0.0..=10.0),
+                BandPoint::new(10.0, 0.0..=10.0),
+            ],
+            (2.0, Color32::WHITE),
+        );
+        band.stroke_kind = stroke_kind;
+
+        let mut mesh = Mesh::default();
+        let options = TessellationOptions {
+            feathering: false,
+            ..Default::default()
+        };
+        Tessellator::new(1.0, options, [1, 1], vec![]).tessellate_shape(band.into(), &mut mesh);
+        mesh
+    }
+
+    assert_eq!(
+        tessellate(StrokeKind::Inside).calc_bounds().y_range(),
+        0.0..=10.0
+    );
+    assert_eq!(
+        tessellate(StrokeKind::Outside).calc_bounds().y_range(),
+        -2.0..=12.0
+    );
 }
