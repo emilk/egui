@@ -196,6 +196,11 @@ impl EpiIntegration {
             #[cfg(feature = "glow")]
             glow_register_native_texture,
             #[cfg(feature = "wgpu_no_default_features")]
+            // We only care about the surface config if we are using wgpu
+            wgpu_surface_config: wgpu_render_state
+                .is_some()
+                .then_some(native_options.wgpu_options.surface),
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
             window: Some(Arc::clone(window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),

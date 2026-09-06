@@ -779,6 +779,11 @@ impl WgpuWinitRunning<'_> {
 
         remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
 
+        // Synchronization between the integration layer and the painter layer
+        if let Some(surface_config) = integration.frame.wgpu_surface_config {
+            painter.set_surface_config(surface_config);
+        }
+
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return Ok(EventResult::Wait);
         };
