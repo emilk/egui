@@ -65,6 +65,7 @@ skip = [
   { name = "redox_syscall" }, # old version via winit
   { name = "roxmltree" }, # fontique (Android backend) depends on 0.21, resvg's usvg on 0.20
   { name = "rustc-hash" }, # Small enough
+  { name = "syn" }, # ecosystem is in the process of migrating from 2.x to 3.x; build-time only
   { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "thiserror-impl" }, # same as above
 ]
