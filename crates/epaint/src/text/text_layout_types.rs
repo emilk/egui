@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::{
     cursor::{CCursor, LayoutCursor},
-    font::UvRect,
+    glyph_atlas::UvRect,
     index::{ByteIndex, ByteRange, ByteRangeExt as _, CharIndex},
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
@@ -15,7 +15,7 @@ use smallvec::SmallVec;
 ///
 /// This supports mixing different fonts, color and formats (underline etc).
 ///
-/// Pass this to [`crate::FontsView::layout_job`] or [`crate::text::layout`].
+/// Pass this to [`crate::FontsView::layout_job`].
 ///
 /// ## Example:
 /// ```
@@ -73,7 +73,7 @@ pub struct LayoutJob {
     /// starting on a new row.
     ///
     /// If `false`, all `\n` characters will be ignored
-    /// and show up as the replacement character.
+    /// and show up as the `.notdef` glyph ("tofu").
     ///
     /// Default: `true`.
     pub break_on_newline: bool,
@@ -155,7 +155,7 @@ impl LayoutJob {
         }
     }
 
-    /// Does not break on `\n`, but shows the replacement character instead.
+    /// Does not break on `\n`, but shows the `.notdef` glyph ("tofu") instead.
     #[inline]
     pub fn simple_singleline(text: String, font_id: FontId, color: Color32) -> Self {
         Self {

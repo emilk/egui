@@ -35,12 +35,25 @@ cint = ["ecolor/cint"]
 ## Enable the [`hex_color`] macro.
 color-hex = ["ecolor/color-hex"]
 
+## Support bitmap (`sbix`, `CBDT`) and `COLR` glyphs, i.e. color emoji fonts like Apple Color Emoji and Segoe UI Emoji.
+##
+## Adds a PNG decoder to the binary, so it is off by default. `eframe` enables it on native via `egui_system_fonts`.
+color_fonts = ["vello_cpu/png", "vello_cpu/text"]
+
 ## If set, epaint will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint_default_fonts"]
 
 ## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["emath/mint"]
+
+## Bundle the monochrome emoji fonts `NotoEmoji-Regular` and `emoji-icon-font`,
+## and put them in the default [`text::FontDefinitions`].
+##
+## They add about 1 MB to the binary, and are only needed if you want the same
+## (monochrome) emoji on every platform, instead of the platform's own color emoji
+## (see [`text::GlyphRasterizer`] and [`text::FontProvider`]).
+monochrome_emoji_fonts = ["default_fonts", "epaint_default_fonts/monochrome_emoji_fonts"]
 
 ## Enable parallel tessellation using [`rayon`](https://docs.rs/rayon).
 ##

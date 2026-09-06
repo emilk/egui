@@ -29,7 +29,7 @@ cargo check --quiet  --all-targets
 cargo check --quiet  --all-targets --all-features
 cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown
 cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
-cargo test  --quiet --all-targets --all-features
+cargo test  --quiet --all-targets --all-features --no-fail-fast # `--no-fail-fast` so that all failing snapshots are reported at once
 cargo test  --quiet --doc # slow - checks all doc-tests
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then

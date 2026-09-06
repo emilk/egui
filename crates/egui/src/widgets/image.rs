@@ -683,7 +683,7 @@ pub fn paint_texture_load_result(
                 ..Default::default()
             };
             job.append(
-                "⚠",
+                "⚠️",
                 0.0,
                 TextFormat::simple(font_id.clone(), ui.visuals().error_fg_color),
             );

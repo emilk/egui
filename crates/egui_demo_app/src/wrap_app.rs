@@ -226,13 +226,13 @@ impl WrapApp {
             ),
             #[cfg(feature = "easymark")]
             (
-                "🖹 EasyMark editor",
+                "📝 EasyMark editor",
                 Anchor::EasyMarkEditor,
                 &mut self.state.easy_mark_editor as &mut dyn DemoApp,
             ),
             #[cfg(feature = "http")]
             (
-                "⬇ HTTP",
+                "⬇️ HTTP",
                 Anchor::Http,
                 &mut self.state.http as &mut dyn DemoApp,
             ),
@@ -243,7 +243,7 @@ impl WrapApp {
             ),
             #[cfg(feature = "image_viewer")]
             (
-                "🖼 Image Viewer",
+                "🖼️ Image Viewer",
                 Anchor::ImageViewer,
                 &mut self.state.image_viewer as &mut dyn DemoApp,
             ),
@@ -428,7 +428,7 @@ impl WrapApp {
     fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame, cmd: &mut Command) {
         ui.add_space(8.0);
 
-        egui::widgets::global_theme_preference_switch(ui);
+        egui::widgets::global_theme_preference_buttons(ui);
 
         ui.separator();
 

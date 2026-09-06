@@ -331,6 +331,7 @@ impl DemoWindows {
                 if ui.button("Organize windows").clicked() {
                     ui.memory_mut(|mem| mem.reset_areas());
                 }
+                ui.add_space(4.0);
             });
         });
     }
@@ -445,7 +446,7 @@ mod tests {
 
     fn remove_leading_emoji(full_name: &str) -> &str {
         if let Some((start, name)) = full_name.split_once(' ')
-            && start.len() <= 4
+            && start.len() <= 7 // An emoji, plus an optional variation selector
             && start.bytes().next().is_some_and(|byte| byte >= 128)
         {
             return name;

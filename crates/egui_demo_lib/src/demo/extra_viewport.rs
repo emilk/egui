@@ -7,7 +7,7 @@ impl crate::Demo for ExtraViewport {
     }
 
     fn name(&self) -> &'static str {
-        "🗖 Extra Viewport"
+        "🖥️ Extra Viewport"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
