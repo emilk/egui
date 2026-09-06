@@ -72,7 +72,7 @@ egui_kittest = { version = "0.36.1", path = "crates/egui_kittest", default-featu
 egui_system_fonts = { version = "0.36.1", path = "crates/egui_system_fonts", default-features = false }
 eframe = { version = "0.36.1", path = "crates/eframe", default-features = false }
 
-accesskit = "0.24.1"
+accesskit = "0.24.1" # Can't update to 0.25: kittest 0.4 needs accesskit 0.24, so bumping splits it into two versions
 accesskit_consumer = "0.35.0" # Can't update to 0.36+: kittest 0.4 pins accesskit_consumer 0.35, so bumping splits it into two versions
 accesskit_winit = "0.32.0" # Can't update to 0.33: it needs accesskit_macos 0.26.2, which pulls accesskit_consumer 0.37, duplicating the 0.35 that kittest 0.4 needs. For the same reason, `accesskit_macos` is held at 0.26.0 in `Cargo.lock`.
 ahash = { version = "0.8.12", default-features = false, features = [
