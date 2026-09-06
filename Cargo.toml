@@ -92,7 +92,7 @@ directories = "6.0"
 document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
 enum-map = "2.7" # Can't update to 3.1: its `enum-map-derive` moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
-env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x/2.x, duplicating the 0.1.x that android_logger needs
+env_logger = { version = "0.11.11", default-features = false }
 font-types = { version = "0.12.4", default-features = false, features = ["std"] }
 fontique = { version = "0.11.1", default-features = false, features = [
   "system",
