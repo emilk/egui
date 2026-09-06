@@ -159,7 +159,7 @@ impl FontProviders {
 mod tests {
     use std::sync::Arc;
 
-    use epaint_default_fonts::{HACK_REGULAR, UBUNTU_LIGHT};
+    use epaint_default_fonts::{ALBERT_SANS, HACK_REGULAR};
 
     use super::*;
     use crate::{
@@ -171,13 +171,13 @@ mod tests {
         },
     };
 
-    /// Latin capital letter schwa: in `Ubuntu-Light`, but not in `Hack`.
+    /// Latin capital letter schwa: in `Albert Sans`, but not in `Hack`.
     const SCHWA: char = 'Ə';
 
-    /// In neither `Hack` nor `Ubuntu-Light`.
+    /// In neither `Hack` nor `Albert Sans`.
     const HANGUL: char = '한';
 
-    const DISCOVERED_FONT: &str = "discovered:Ubuntu-Light";
+    const DISCOVERED_FONT: &str = "discovered:Albert Sans";
 
     /// Only `Hack`, so that e.g. [`SCHWA`] is missing.
     fn hack_only() -> FontDefinitions {
@@ -195,7 +195,7 @@ mod tests {
         definitions
     }
 
-    /// A provider that records its requests, and returns `Ubuntu-Light` for everything if `provide`.
+    /// A provider that records its requests, and returns `Albert Sans` for everything if `provide`.
     fn recording_provider(
         requests: &Arc<Mutex<Vec<(FontFamily, String)>>>,
         provide: bool,
@@ -208,7 +208,7 @@ mod tests {
             provide.then(|| {
                 FontInsert::new(
                     DISCOVERED_FONT,
-                    FontData::from_static(UBUNTU_LIGHT),
+                    FontData::from_static(ALBERT_SANS),
                     vec![InsertFontFamily {
                         family: request.family.clone(),
                         priority: FontPriority::Lowest,
@@ -312,7 +312,7 @@ mod tests {
         let font_id = FontId::proportional(14.0);
 
         assert!(fonts.has_glyph(&font_id, SCHWA));
-        // The provider returns `Ubuntu-Light` for this too, but it has no glyph for it:
+        // The provider returns `Albert Sans` for this too, but it has no glyph for it:
         assert!(!fonts.has_glyph(&font_id, HANGUL));
         assert_eq!(requests.lock().len(), 2);
         assert_eq!(fonts.discovered_fonts().len(), 1);
