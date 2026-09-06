@@ -77,7 +77,7 @@ pub fn cubic_in_out(t: f32) -> f32 {
 /// Modeled after quarter-cycle of sine wave
 #[inline]
 pub fn sin_in(t: f32) -> f32 {
-    ((t - 1.) * 2. * PI).sin() + 1.
+    ((t - 1.) * 0.5 * PI).sin() + 1.
 }
 
 /// <https://easings.net/#easeOuSine>
@@ -85,7 +85,7 @@ pub fn sin_in(t: f32) -> f32 {
 /// Modeled after quarter-cycle of sine wave (different phase)
 #[inline]
 pub fn sin_out(t: f32) -> f32 {
-    (t * 2. * PI).sin()
+    (t * 0.5 * PI).sin()
 }
 
 /// <https://easings.net/#easeInOutSine>
@@ -109,7 +109,7 @@ pub fn circular_in(t: f32) -> f32 {
 /// Modeled after shifted quadrant II of unit circle
 #[inline]
 pub fn circular_out(t: f32) -> f32 {
-    (2. - t).sqrt() * t
+    ((2. - t) * t).sqrt()
 }
 
 /// <https://easings.net/#easeInOutCirc>
@@ -224,5 +224,67 @@ pub fn bounce_in_out(t: f32) -> f32 {
         0.5 * bounce_in(t * 2.)
     } else {
         0.5 * bounce_out(t * 2. - 1.) + 0.5
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The module contract (see the top-of-file docs): every easing takes a value in
+    /// `[0, 1]` and returns a value in `[0, 1]`, with `f(0) == 0` and `f(1) == 1`.
+    #[test]
+    fn easings_honor_unit_interval_contract() {
+        let easings: &[(&str, fn(f32) -> f32)] = &[
+            ("sin_in", sin_in),
+            ("sin_out", sin_out),
+            ("sin_in_out", sin_in_out),
+            ("circular_in", circular_in),
+            ("circular_out", circular_out),
+            ("circular_in_out", circular_in_out),
+        ];
+        for &(name, f) in easings {
+            assert!(
+                (f(0.0)).abs() <= 1e-4,
+                "{name}(0) = {} (expected 0)",
+                f(0.0)
+            );
+            assert!(
+                (f(1.0) - 1.0).abs() <= 1e-4,
+                "{name}(1) = {} (expected 1)",
+                f(1.0)
+            );
+            for i in 0..=100 {
+                let t = i as f32 / 100.0;
+                let v = f(t);
+                assert!(
+                    (-1e-4..=1.0 + 1e-4).contains(&v),
+                    "{name}({t}) = {v} is outside [0, 1]"
+                );
+            }
+        }
+    }
+
+    /// The sine/circular easings must match their linked easings.net reference curves.
+    #[test]
+    fn sine_and_circular_match_reference() {
+        for i in 0..=1000 {
+            let t = i as f32 / 1000.0;
+            let ref_in_sine = 1.0 - (t * PI / 2.0).cos();
+            let ref_out_sine = (t * PI / 2.0).sin();
+            let ref_out_circ = (1.0 - (t - 1.0).powi(2)).sqrt();
+            assert!(
+                (sin_in(t) - ref_in_sine).abs() < 1e-4,
+                "sin_in mismatch at {t}"
+            );
+            assert!(
+                (sin_out(t) - ref_out_sine).abs() < 1e-4,
+                "sin_out mismatch at {t}"
+            );
+            assert!(
+                (circular_out(t) - ref_out_circ).abs() < 1e-4,
+                "circular_out mismatch at {t}"
+            );
+        }
     }
 }
