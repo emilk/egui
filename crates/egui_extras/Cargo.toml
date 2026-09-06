@@ -102,3 +102,6 @@ resvg = { workspace = true, optional = true }
 
 # http feature
 ehttp = { workspace = true, optional = true }
+
+[dev-dependencies]
+egui = { workspace = true, features = ["default_fonts"] }

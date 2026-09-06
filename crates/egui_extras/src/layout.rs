@@ -158,7 +158,12 @@ impl<'l> StripLayout<'l> {
         child_ui.set_min_size(max_rect.size());
 
         let allocation_rect = if self.ui.is_sizing_pass() {
-            used_rect
+            if flags.clip {
+                // Clipped content must not increase the parent's measured minimum size.
+                used_rect.intersect(max_rect)
+            } else {
+                used_rect
+            }
         } else if flags.clip {
             max_rect
         } else {
