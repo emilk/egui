@@ -508,6 +508,13 @@ pub struct ScrollStyle {
     /// depending on the value of [`Self::floating`].
     pub content_margin: Margin,
 
+    /// How far the contents of a [`crate::ScrollArea`] may paint outside its viewport.
+    ///
+    /// Some widgets paint outside their own box — a menu item whose fill bleeds past it, say — and
+    /// a [`crate::ScrollArea`] would otherwise cut that off. Only the ends of the scroll range are
+    /// widened, where there is nothing that could scroll into view through the gap.
+    pub overflow_margin: Margin,
+
     /// The width of the scroll bars at it largest.
     pub bar_width: f32,
 
@@ -594,6 +601,7 @@ impl ScrollStyle {
         Self {
             floating: false,
             content_margin: Margin::ZERO,
+            overflow_margin: Margin::ZERO,
             bar_width: 6.0,
             handle_min_length: 12.0,
             bar_inner_margin: 4.0,
@@ -679,6 +687,7 @@ impl ScrollStyle {
             floating,
 
             content_margin,
+            overflow_margin,
 
             bar_width,
             handle_min_length,
@@ -708,6 +717,11 @@ impl ScrollStyle {
         ui.horizontal(|ui| {
             ui.label("Content margin:");
             content_margin.ui(ui);
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Overflow margin:");
+            overflow_margin.ui(ui);
         });
 
         ui.horizontal(|ui| {
