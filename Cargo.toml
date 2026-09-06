@@ -72,9 +72,9 @@ egui_kittest = { version = "0.36.1", path = "crates/egui_kittest", default-featu
 egui_system_fonts = { version = "0.36.1", path = "crates/egui_system_fonts", default-features = false }
 eframe = { version = "0.36.1", path = "crates/eframe", default-features = false }
 
-accesskit = "0.24.1"
+accesskit = "0.24.1" # Can't update to 0.25: kittest 0.4 needs accesskit 0.24, so bumping splits it into two versions
 accesskit_consumer = "0.35.0" # Can't update to 0.36+: kittest 0.4 pins accesskit_consumer 0.35, so bumping splits it into two versions
-accesskit_winit = "0.32.0" # Can't update to 0.33: it needs accesskit_macos 0.26.2, which pulls accesskit_consumer 0.37, duplicating the 0.35 that kittest 0.4 needs. For the same reason, `accesskit_macos` is held at 0.26.0 in `Cargo.lock`.
+accesskit_winit = "0.32.0" # Can't update to 0.33: it needs accesskit_macos 0.26.2, which pulls accesskit_consumer 0.37, duplicating the 0.35 that kittest 0.4 needs. For the same reason, `accesskit_macos` is held at 0.26.0 and `accesskit_atspi_common` at 0.18.0 in `Cargo.lock`.
 ahash = { version = "0.8.12", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
   "std",
@@ -91,9 +91,9 @@ dify = { version = "0.8.0", default-features = false }
 directories = "6.0"
 document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
-enum-map = "2.7" # Can't update to 3.1: its `enum-map-derive` moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
-env_logger = { version = "0.11.8", default-features = false } # 0.11.9+ pulls env_filter 1.x/2.x, duplicating the 0.1.x that android_logger needs
-font-types = { version = "0.12.2", default-features = false, features = ["std"] }
+enum-map = "3.1"
+env_logger = { version = "0.11.11", default-features = false }
+font-types = { version = "0.12.4", default-features = false, features = ["std"] }
 fontique = { version = "0.11.1", default-features = false, features = [
   "system",
   "fontconfig-dlopen", # Load libfontconfig at runtime, so builds don't need its headers
@@ -101,13 +101,13 @@ fontique = { version = "0.11.1", default-features = false, features = [
 glow = "0.17.0" # Can't update to 0.18: wgpu 30's wgpu-hal pins glow 0.17, so bumping splits it into two versions
 glutin = { version = "0.32.3", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
-harfrust = "0.12.0"
-image = { version = "0.25.6", default-features = false } # Can't update to 0.25.7+: it needs png 0.18, which only matches resvg once resvg moves to tiny-skia 0.12 — blocked, see resvg below
+harfrust = "0.12.0" # Can't update to 0.13: it needs read-fonts 0.43, but fontique 0.11 pins read-fonts 0.41, so bumping splits read-fonts into two versions
+image = { version = "0.25.10", default-features = false } # `flate2` is held at 1.1.9 in `Cargo.lock`: 1.1.10 moved to miniz_oxide 0.9, duplicating the 0.8 that png needs
 itertools = "0.15.0"
 jiff = { version = "0.2.35", default-features = false }
 js-sys = "0.3.103"
 kittest = { version = "0.4.0" }
-log = { version = "0.4.33", features = ["std"] }
+log = { version = "0.4.34", features = ["std"] }
 mimalloc = "0.1.52"
 mime_guess2 = { version = "2.3", default-features = false }
 mint = "0.5.9"
@@ -127,26 +127,25 @@ puffin_http = "0.17.0"
 rand = "0.10.2"
 raw-window-handle = "0.6.2"
 rayon = "1.12"
-resvg = { version = "0.45.1", default-features = false } # Can't update to 0.47+: it needs tiny-skia 0.12, but winit 0.30's sctk-adwaita 0.10 is stuck on tiny-skia 0.11, so bumping duplicates tiny-skia. (0.46 keeps tiny-skia 0.11 but its fontconfig-parser duplicates roxmltree.)
+resvg = { version = "0.45.1", default-features = false } # Can't update to 0.46+: it needs tiny-skia 0.12, but winit 0.30's sctk-adwaita 0.10 is stuck on tiny-skia 0.11, so bumping duplicates tiny-skia
 rfd = "0.17.2"
 rmp-serde = "1.3"
 ron = "0.12.2"
 self_cell = "1.3"
-# `serde_derive` is held at 1.0.228 in `Cargo.lock`: 1.0.229 moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11.19"
 similar-asserts = "2.0"
 skrifa = { version = "0.44.0", default-features = false, features = [
   "std",
   "autohint_shaping",
-] } # Can't update to 0.45: it needs read-fonts 0.42, but harfrust 0.12 pins read-fonts 0.41, so bumping splits read-fonts into two versions
-smallvec = "1.15"
+] } # Can't update to 0.45+: `glifo` (via vello_cpu 0.2) pins skrifa 0.44, so bumping splits skrifa into two versions
+smallvec = "1.16"
 smithay-clipboard = "0.7.2" # 0.7.3 pulls smithay-client-toolkit 0.20 (calloop 0.14), duplicating the 0.19/0.13 that winit 0.30 needs
 static_assertions = "1.1"
 syntect = { version = "5.3", default-features = false }
 sys-locale = "0.3.2"
 tempfile = "3.27"
-thiserror = "2.0" # Held at 2.0.18 in `Cargo.lock`: `thiserror-impl` 2.0.19 moved to syn 3, duplicating the syn 2 that most other proc-macro crates still use
+thiserror = "2.0"
 tokio = "1.53"
 toml = { version = "1.1", default-features = false }
 type-map = "0.5.1"
@@ -165,7 +164,8 @@ wasm-bindgen-futures = "0.4.76"
 wayland-cursor = { version = "0.31.14", default-features = false }
 web-sys = "0.3.103"
 web-time = "1.1" # Timekeeping for native and web
-webbrowser = "1.2.2" # 1.2.2 fixes RUSTSEC-2026-0257 (`BROWSER` argument injection)
+webbrowser = "1.2.4" # 1.2.2 fixes RUSTSEC-2026-0257 (`BROWSER` argument injection)
+# `wgpu` is held at 30.0.0 in `Cargo.lock`: 30.0.1 needs wasm-bindgen-futures 0.4.77, which would force a wasm-bindgen bump
 wgpu = { version = "30.0", default-features = false, features = ["std"] }
 windows-sys = "0.61.2"
 winit = { version = "0.30.13", default-features = false }
