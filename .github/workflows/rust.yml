@@ -91,6 +91,10 @@ jobs:
       - name: clippy wasm32 eframe
         run: cargo clippy -p eframe --lib --no-default-features --features wgpu,persistence --target wasm32-unknown-unknown
 
+      # eframe only depends on egui-winit on native targets, so check it directly on wasm.
+      - name: check wasm32 egui-winit
+        run: cargo check -p egui-winit --no-default-features --target wasm32-unknown-unknown --locked
+
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
