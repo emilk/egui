@@ -473,7 +473,7 @@ pub use self::{
     containers::{menu::MenuBar, *},
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
-        Key, UserData,
+        Key, ScreenshotCallback, UserData,
         input::*,
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,

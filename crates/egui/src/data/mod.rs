@@ -6,4 +6,4 @@ pub mod output;
 mod user_data;
 
 pub use key::Key;
-pub use user_data::UserData;
+pub use user_data::{ScreenshotCallback, UserData};

@@ -1,4 +1,4 @@
-use egui::{Event, UserData};
+use egui::{Event, ScreenshotCallback};
 use wasm_bindgen::JsValue;
 
 /// Renderer for a browser canvas.
@@ -25,7 +25,7 @@ pub(crate) trait WebPainter {
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &mut egui::TexturesDelta,
-        capture: Vec<UserData>,
+        capture: Vec<ScreenshotCallback>,
     ) -> Result<(), JsValue>;
 
     fn handle_screenshots(&mut self, events: &mut Vec<Event>);

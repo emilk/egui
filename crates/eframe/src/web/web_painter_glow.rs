@@ -1,4 +1,4 @@
-use egui::{Event, UserData, ViewportId};
+use egui::{Event, ScreenshotCallback, ViewportId};
 use egui_glow::glow;
 use std::sync::Arc;
 use wasm_bindgen::JsCast as _;
@@ -12,7 +12,7 @@ use super::web_painter::WebPainter;
 pub(crate) struct WebPainterGlow {
     canvas: HtmlCanvasElement,
     painter: egui_glow::Painter,
-    screenshots: Vec<(egui::ColorImage, Vec<UserData>)>,
+    screenshot_events: Vec<Event>,
 }
 
 impl WebPainterGlow {
@@ -42,7 +42,7 @@ impl WebPainterGlow {
         Ok(Self {
             canvas,
             painter,
-            screenshots: Vec::new(),
+            screenshot_events: Vec::new(),
         })
     }
 }
@@ -62,7 +62,7 @@ impl WebPainter for WebPainterGlow {
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &mut egui::TexturesDelta,
-        capture: Vec<UserData>,
+        capture: Vec<ScreenshotCallback>,
     ) -> Result<(), JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
 
@@ -78,8 +78,12 @@ impl WebPainter for WebPainterGlow {
             .paint_primitives(canvas_dimension, pixels_per_point, clipped_primitives);
 
         if !capture.is_empty() {
-            let image = self.painter.read_screen_rgba(canvas_dimension);
-            self.screenshots.push((image, capture));
+            let image = Arc::new(self.painter.read_screen_rgba(canvas_dimension));
+            for callback in capture {
+                if let Some(event) = callback.complete(ViewportId::default(), Arc::clone(&image)) {
+                    self.screenshot_events.push(event);
+                }
+            }
         }
 
         #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
@@ -95,16 +99,7 @@ impl WebPainter for WebPainterGlow {
     }
 
     fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
-        for (image, data) in self.screenshots.drain(..) {
-            let image = Arc::new(image);
-            for data in data {
-                events.push(Event::Screenshot {
-                    viewport_id: ViewportId::default(),
-                    image: Arc::clone(&image),
-                    user_data: data,
-                });
-            }
-        }
+        events.append(&mut self.screenshot_events);
     }
 }
 

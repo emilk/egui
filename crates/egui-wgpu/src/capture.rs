@@ -1,4 +1,4 @@
-use egui::{UserData, ViewportId};
+use egui::{Event, ScreenshotCallback, ViewportId};
 use epaint::ColorImage;
 use std::sync::{Arc, mpsc};
 use wgpu::{BindGroupLayout, MultisampleState, StoreOp};
@@ -18,8 +18,8 @@ pub struct CaptureState {
     bind_group: wgpu::BindGroup,
 }
 
-pub type CaptureReceiver = mpsc::Receiver<(ViewportId, Vec<UserData>, ColorImage)>;
-pub type CaptureSender = mpsc::Sender<(ViewportId, Vec<UserData>, ColorImage)>;
+pub type CaptureReceiver = mpsc::Receiver<Event>;
+pub type CaptureSender = mpsc::Sender<Event>;
 pub use mpsc::channel as capture_channel;
 
 impl CaptureState {
@@ -183,7 +183,7 @@ impl CaptureState {
         &self,
         ctx: egui::Context,
         buffer: wgpu::Buffer,
-        data: Vec<UserData>,
+        callbacks: Vec<ScreenshotCallback>,
         tx: CaptureSender,
         viewport_id: ViewportId,
     ) {
@@ -233,16 +233,19 @@ impl CaptureState {
             drop(mapped_range);
             buffer.unmap();
 
-            tx.send((
-                viewport_id,
-                data,
-                ColorImage::new(
-                    [tex_extent.width as usize, tex_extent.height as usize],
-                    pixels,
-                ),
-            ))
-            .ok();
-            ctx.request_repaint();
+            let image = Arc::new(ColorImage::new(
+                [tex_extent.width as usize, tex_extent.height as usize],
+                pixels,
+            ));
+            let mut sent_event = false;
+            for callback in callbacks {
+                if let Some(event) = callback.complete(viewport_id, Arc::clone(&image)) {
+                    sent_event |= tx.send(event).is_ok();
+                }
+            }
+            if sent_event {
+                ctx.request_repaint_of(viewport_id);
+            }
         });
     }
 }

@@ -9,7 +9,7 @@ use crate::{
     capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
 };
 use core::num::NonZeroU32;
-use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
+use egui::{Context, Event, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::sync::Arc;
 
 struct SurfaceState {
@@ -480,7 +480,7 @@ impl Painter {
         clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &mut epaint::textures::TexturesDelta,
-        capture_data: Vec<UserData>,
+        capture_data: Vec<egui::ScreenshotCallback>,
         window: &Arc<winit::window::Window>,
     ) -> f32 {
         profiling::function_scope!();
@@ -771,18 +771,10 @@ impl Painter {
         vsync_sec
     }
 
-    /// Call this at the beginning of each frame to receive the requested screenshots.
+    /// Call this at the beginning of each frame to receive screenshot events requested through
+    /// [`egui::ViewportCommand::Screenshot`]. Callback-based screenshots are completed directly.
     pub fn handle_screenshots(&self, events: &mut Vec<Event>) {
-        for (viewport_id, user_data, screenshot) in self.capture_rx.try_iter() {
-            let screenshot = Arc::new(screenshot);
-            for data in user_data {
-                events.push(Event::Screenshot {
-                    viewport_id,
-                    user_data: data,
-                    image: Arc::clone(&screenshot),
-                });
-            }
-        }
+        events.extend(self.capture_rx.try_iter());
     }
 
     pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {
