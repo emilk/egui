@@ -3,14 +3,14 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{
     Color32, TextureAtlas,
     text::{
-        FontDefinitions, FontFamily, FontId, Galley, GlyphRasterizer, GlyphSource,
-        GlyphSourcePreference, LayoutJob, TextOptions, VariationCoords,
+        FontDefinitions, FontFamily, FontId, FontInsert, FontProvider, Galley, GlyphRasterizer,
+        LayoutJob, TextOptions, VariationCoords,
         face_store::{FaceStore, FontFaceKey},
         family::{Family, FamilyKey},
         font_face::{FontFace, GlyphInfo, ShapedGlyph},
+        font_provider::FontProviders,
         galley_cache::GalleyCache,
         glyph_atlas::{GlyphAtlas, OutlineGlyph, RasterGlyphAllocation},
-        glyph_rasterizer::default_glyph_source,
         styled_metrics::StyledMetrics,
         text_layout::layout,
     },
@@ -69,16 +69,20 @@ impl Fonts {
         self.galley_cache = Default::default();
     }
 
-    /// Decide where to look first for the glyphs of each grapheme cluster.
+    /// Ask these for fonts, after the [`FontDefinitions`].
     ///
-    /// See [`GlyphSourcePreference`].
+    /// The providers are asked in order, and the first font found is used.
     #[inline]
-    pub fn with_glyph_source_preference(
-        mut self,
-        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
-    ) -> Self {
-        self.fonts.set_glyph_source_preference(prefer);
+    pub fn with_font_providers(mut self, font_providers: Vec<Arc<dyn FontProvider>>) -> Self {
+        self.fonts.set_font_providers(font_providers);
         self
+    }
+
+    /// The fonts discovered by the [`FontProvider`]s so far, in the order they were found.
+    ///
+    /// These are not part of [`Self::definitions`].
+    pub fn discovered_fonts(&self) -> &[FontInsert] {
+        self.fonts.discovered_fonts()
     }
 
     /// Call at the start of each frame with the latest known [`TextOptions`].
@@ -89,13 +93,8 @@ impl Fonts {
     /// as well as notice when the font atlas is getting full, and handle that.
     pub fn begin_pass(&mut self, options: TextOptions) {
         if self.fonts.options() != &options {
-            // Hinting and other options are baked into each parsed face, so start over:
-            let definitions = self.fonts.definitions.clone();
-            let mut fonts = FontsImpl::new(options, definitions);
-            fonts.set_glyph_rasterizer(self.fonts.glyph_rasterizer.take());
-            fonts.glyph_source_preference = Arc::clone(&self.fonts.glyph_source_preference);
-            self.fonts = fonts;
-            self.galley_cache = Default::default();
+            self.fonts.set_options(options);
+            self.galley_cache = Default::default(); // Galleys point into the old atlas.
         } else if 0.8 < self.fonts.glyphs.fill_ratio() {
             // The parsed faces are still fine; only the bitmaps need to go.
             self.fonts.glyphs.clear();
@@ -266,6 +265,13 @@ impl FontsView<'_> {
         self.fonts.definitions.families.keys().cloned().collect()
     }
 
+    /// The fonts discovered by the [`FontProvider`]s so far, in the order they were found.
+    ///
+    /// These are not part of [`Self::definitions`].
+    pub fn discovered_fonts(&self) -> &[FontInsert] {
+        self.fonts.discovered_fonts()
+    }
+
     /// Layout some text.
     ///
     /// This is the most advanced layout function.
@@ -340,7 +346,7 @@ impl FontsView<'_> {
 ///
 /// Required in order to paint text.
 pub(crate) struct FontsImpl {
-    definitions: FontDefinitions,
+    definitions: Arc<FontDefinitions>,
     glyphs: GlyphAtlas,
     faces: FaceStore,
 
@@ -351,25 +357,49 @@ pub(crate) struct FontsImpl {
     /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
     shape_buffer: Option<harfrust::UnicodeBuffer>,
     glyph_rasterizer: Option<GlyphRasterizer>,
-    glyph_source_preference: GlyphSourcePreference,
+    font_providers: FontProviders,
 }
 
 impl FontsImpl {
     /// Create a new [`FontsImpl`] for text layout.
     /// This call is expensive, so only create one [`FontsImpl`] and then reuse it.
     pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
-        let faces = FaceStore::new(options, &definitions);
-
-        Self {
-            definitions,
+        let mut slf = Self {
+            definitions: Arc::new(definitions),
             glyphs: GlyphAtlas::new(options),
-            faces,
+            faces: FaceStore::new(options),
             families: Default::default(),
             family_keys: Default::default(),
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
             glyph_rasterizer: None,
-            glyph_source_preference: Arc::new(default_glyph_source),
-        }
+            font_providers: Default::default(),
+        };
+        slf.set_font_providers(Vec::new());
+        slf
+    }
+
+    /// Ask these for fonts, after the configured [`FontDefinitions`].
+    ///
+    /// Forgets the fallback chains, so the providers are asked again for each family.
+    pub fn set_font_providers(&mut self, font_providers: Vec<Arc<dyn FontProvider>>) {
+        let configured: Arc<dyn FontProvider> = Arc::<FontDefinitions>::clone(&self.definitions);
+        let providers = core::iter::chain(core::iter::once(configured), font_providers).collect();
+        self.font_providers = FontProviders::new(providers);
+        self.families.clear();
+        self.family_keys.clear();
+    }
+
+    /// The fonts discovered by the [`FontProvider`]s so far, in the order they were found.
+    pub fn discovered_fonts(&self) -> &[FontInsert] {
+        self.font_providers.discovered()
+    }
+
+    /// Apply new [`TextOptions`].
+    ///
+    /// The parsed faces and the fallback chains survive; only the atlas starts over.
+    pub fn set_options(&mut self, options: TextOptions) {
+        self.faces.set_options(options);
+        self.glyphs = GlyphAtlas::new(options);
     }
 
     /// Use this platform glyph rasterizer, e.g. the browser on web.
@@ -388,16 +418,6 @@ impl FontsImpl {
     pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
         self.glyph_rasterizer = glyph_rasterizer;
         self.glyphs.clear_raster_glyphs();
-    }
-
-    /// Decide where to look first for the glyphs of each grapheme cluster.
-    ///
-    /// See [`GlyphSourcePreference`].
-    pub fn set_glyph_source_preference(
-        &mut self,
-        prefer: impl Fn(&str) -> GlyphSource + Send + Sync + 'static,
-    ) {
-        self.glyph_source_preference = Arc::new(prefer);
     }
 
     pub fn options(&self) -> &TextOptions {
@@ -426,7 +446,7 @@ impl FontsImpl {
         }
         let key = FamilyKey(self.families.len());
         self.families
-            .push(Family::new(family, &self.definitions, &mut self.faces));
+            .push(Family::new(family, &mut self.faces, &self.font_providers));
         self.family_keys.insert(family.clone(), key);
         key
     }
@@ -441,12 +461,19 @@ impl FontsImpl {
     /// See [`Family::resolve`].
     #[inline]
     pub fn resolve_face(&mut self, family: FamilyKey, c: char) -> FontFaceKey {
-        self.families[family.0].resolve(&mut self.faces, c)
+        self.families[family.0].resolve(&mut self.faces, &mut self.font_providers, c)
+    }
+
+    /// Like [`Self::resolve_face`] for the first char of `cluster`,
+    /// but lets the [`FontProvider`]s see the whole grapheme cluster.
+    #[inline]
+    pub fn resolve_cluster_face(&mut self, family: FamilyKey, cluster: &str) -> FontFaceKey {
+        self.families[family.0].resolve_cluster(&mut self.faces, &mut self.font_providers, cluster)
     }
 
     /// Resolve `c` to its (face, [`GlyphInfo`]) at the given face's location.
     ///
-    /// `\n` will (intentionally) show up as the replacement character.
+    /// `\n` will (intentionally) show up as the `.notdef` glyph ("tofu").
     ///
     /// `metrics` must be the resolved [`StyledMetrics`] for the face that ends
     /// up owning `c`. Most callers pass the metrics of their text run's primary
@@ -467,12 +494,11 @@ impl FontsImpl {
             return (face_key, glyph_info);
         }
 
-        // `c` is in no face: render the replacement character instead.
-        let replacement_char = self.family(family).replacement_char();
+        // `c` is in no face: render the face's `.notdef` glyph ("tofu") instead.
         let glyph_info = self
             .faces
-            .get_mut(face_key)
-            .and_then(|face| face.glyph_info(replacement_char, metrics))
+            .get(face_key)
+            .map(|face| face.notdef_glyph_info(metrics))
             .unwrap_or(GlyphInfo::INVISIBLE);
         (face_key, glyph_info)
     }
@@ -490,12 +516,6 @@ impl FontsImpl {
             .and_then(|key| self.faces.get(key))
             .map(|face| face.styled_metrics(pixels_per_point, font_size, coords))
             .unwrap_or_default()
-    }
-
-    /// Where to look first for the glyphs of this grapheme cluster.
-    #[inline]
-    pub fn glyph_source(&self, cluster: &str) -> GlyphSource {
-        (self.glyph_source_preference)(cluster)
     }
 
     /// Width of this character in points, at the font's default variation location.
@@ -520,8 +540,10 @@ impl FontsImpl {
     /// for a character that would still render via the rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, family: &FontFamily, c: char) -> bool {
         let family = self.family_key(family);
-        // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
-        self.resolve_face(family, c) != self.family(family).replacement_face_key()
+        let face_key = self.resolve_face(family, c);
+        self.faces
+            .get_mut(face_key)
+            .is_some_and(|face| face.glyph_id_resolution(c).is_some())
     }
 
     /// Do the installed fonts have all the glyphs in this text?
@@ -561,11 +583,6 @@ impl FontsImpl {
             .allocate_outline(face_key, face, metrics, shaped)
     }
 
-    #[inline]
-    pub fn has_glyph_rasterizer(&self) -> bool {
-        self.glyph_rasterizer.is_some()
-    }
-
     /// Rasterize a grapheme cluster using the platform [`GlyphRasterizer`].
     ///
     /// Returns `None` if there is no rasterizer, or it could not handle the cluster.
@@ -592,6 +609,26 @@ impl FontsImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The special emojis are in the private use area, so only our own bundled
+    /// `egui-icons.ttf` has them.
+    #[test]
+    fn special_emojis_come_from_the_bundled_icon_font() {
+        use epaint_default_fonts::special_emojis::{GIT, GITHUB, OS_ANDROID, OS_APPLE, OS_WINDOWS};
+
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        let mut view = fonts.with_pixels_per_point(1.0);
+        let characters = view.characters(&FontFamily::Proportional).clone();
+
+        for chr in [GIT, GITHUB, OS_ANDROID, OS_APPLE, OS_WINDOWS] {
+            let faces = characters.get(&chr);
+            assert!(
+                faces.is_some_and(|faces| faces.iter().any(|name| name == "egui-icons")),
+                "{chr:?} (U+{:04X}) should be in egui-icons, but was only in {faces:?}",
+                chr as u32
+            );
+        }
+    }
 
     #[test]
     fn test_fallback_glyph_width() {

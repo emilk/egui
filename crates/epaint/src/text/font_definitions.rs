@@ -1,16 +1,19 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::text::{FontData, FontFamily};
+use crate::text::{FontData, FontFamily, font_provider::FontProvider};
 
 #[cfg(feature = "default_fonts")]
 use crate::text::FontTweak;
 
 #[cfg(feature = "default_fonts")]
-use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
+use epaint_default_fonts::{EGUI_ICONS, HACK_REGULAR, UBUNTU_LIGHT};
+#[cfg(feature = "monochrome_emoji_fonts")]
+use epaint_default_fonts::{EMOJI_ICON, NOTO_EMOJI_REGULAR};
 
-/// Describes the font data and the sizes to use.
+/// Describes a set of pre-configured fonts.
 ///
-/// Often you would start with [`FontDefinitions::default()`] and then add/change the contents.
+/// These are the fonts epaint will use first, before falling back to any system fonts
+/// (if configured).
 ///
 /// This is how you install your own custom fonts:
 /// ```
@@ -126,46 +129,61 @@ impl Default for FontDefinitions {
             Arc::new(FontData::from_static(HACK_REGULAR)),
         );
 
-        // Some good looking emojis. Use as first priority:
-        font_data.insert(
-            "NotoEmoji-Regular".to_owned(),
-            Arc::new(FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
-                scale: 0.81, // Make smaller
-                ..Default::default()
-            })),
-        );
-
         font_data.insert(
             "Ubuntu-Light".to_owned(),
             Arc::new(FontData::from_static(UBUNTU_LIGHT)),
         );
 
-        // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
+        // The handful of icons in `egui::special_emojis`, which no platform font has:
         font_data.insert(
-            "emoji-icon-font".to_owned(),
-            Arc::new(FontData::from_static(EMOJI_ICON).tweak(FontTweak {
+            "egui-icons".to_owned(),
+            Arc::new(FontData::from_static(EGUI_ICONS).tweak(FontTweak {
                 scale: 0.90, // Make smaller
                 ..Default::default()
             })),
         );
 
+        #[cfg(feature = "monochrome_emoji_fonts")]
+        {
+            // Some good looking emojis:
+            font_data.insert(
+                "NotoEmoji-Regular".to_owned(),
+                Arc::new(FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
+                    scale: 0.81, // Make smaller
+                    ..Default::default()
+                })),
+            );
+
+            // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
+            font_data.insert(
+                "emoji-icon-font".to_owned(),
+                Arc::new(FontData::from_static(EMOJI_ICON).tweak(FontTweak {
+                    scale: 0.90, // Make smaller
+                    ..Default::default()
+                })),
+            );
+        }
+
+        // Last resort, after the fonts that cover the text of a script:
+        let fallback_fonts: &[&str] = if cfg!(feature = "monochrome_emoji_fonts") {
+            &["egui-icons", "NotoEmoji-Regular", "emoji-icon-font"]
+        } else {
+            &["egui-icons"]
+        };
+        let family = |fonts: &[&str]| -> Vec<String> {
+            core::iter::chain(fonts, fallback_fonts)
+                .map(|name| (*name).to_owned())
+                .collect()
+        };
+
         families.insert(
             FontFamily::Monospace,
-            vec![
-                "Hack".to_owned(),
-                "Ubuntu-Light".to_owned(), // fallback for √ etc
-                "NotoEmoji-Regular".to_owned(),
-                "emoji-icon-font".to_owned(),
-            ],
+            family(&[
+                "Hack",
+                "Ubuntu-Light", // fallback for √ etc
+            ]),
         );
-        families.insert(
-            FontFamily::Proportional,
-            vec![
-                "Ubuntu-Light".to_owned(),
-                "NotoEmoji-Regular".to_owned(),
-                "emoji-icon-font".to_owned(),
-            ],
-        );
+        families.insert(FontFamily::Proportional, family(&["Ubuntu-Light"]));
 
         Self {
             font_data,
@@ -190,17 +208,52 @@ impl FontDefinitions {
     /// List of all the builtin font names used by `epaint`.
     #[cfg(feature = "default_fonts")]
     pub fn builtin_font_names() -> &'static [&'static str] {
-        &[
-            "Ubuntu-Light",
-            "NotoEmoji-Regular",
-            "emoji-icon-font",
-            "Hack",
-        ]
+        if cfg!(feature = "monochrome_emoji_fonts") {
+            &[
+                "Ubuntu-Light",
+                "egui-icons",
+                "NotoEmoji-Regular",
+                "emoji-icon-font",
+                "Hack",
+            ]
+        } else {
+            &["Ubuntu-Light", "egui-icons", "Hack"]
+        }
     }
 
     /// List of all the builtin font names used by `epaint`.
     #[cfg(not(feature = "default_fonts"))]
     pub fn builtin_font_names() -> &'static [&'static str] {
         &[]
+    }
+}
+
+/// The configured fonts are the head of every family's fallback chain:
+/// for each family they are handed out in the order they are listed,
+/// so the same text looks the same on every machine.
+///
+/// [`FontDefinitions`] never discovers anything on demand,
+/// and is always the first [`FontProvider`] asked.
+impl FontProvider for FontDefinitions {
+    fn fonts_for_family(&self, family: &FontFamily) -> Vec<FontInsert> {
+        let Some(font_names) = self.families.get(family) else {
+            log::warn!("FontFamily::{family:?} is not bound to any fonts");
+            return Vec::new();
+        };
+
+        font_names
+            .iter()
+            .map(|name| {
+                let data = self.font_data.get(name).unwrap_or_else(|| {
+                    let available: Vec<&String> = self.font_data.keys().collect();
+                    panic!("No font data found for {name:?}. Configured fonts: {available:?}")
+                });
+                FontInsert {
+                    name: name.clone(),
+                    data: (**data).clone(),
+                    families: Vec::new(),
+                }
+            })
+            .collect()
     }
 }

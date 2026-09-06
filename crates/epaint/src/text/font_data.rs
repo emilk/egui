@@ -1,15 +1,23 @@
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 use emath::Rangef;
 
 use crate::text::{FontTweak, Tag};
 
+/// Shared, immutable bytes of a font file.
+///
+/// Cheap to clone. Can wrap static bytes, a `Vec<u8>`, or a memory-mapped file.
+pub type Blob = Arc<dyn AsRef<[u8]> + Send + Sync>;
+
 /// A `.ttf` or `.otf` file and a font face index.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontData {
     /// The content of a `.ttf` or `.otf` file.
-    pub font: Cow<'static, [u8]>,
+    ///
+    /// Shared, so that cloning a [`FontData`] does not copy the file.
+    #[cfg_attr(feature = "serde", serde(with = "blob_serde"))]
+    pub font: Blob,
 
     /// Which font face in the file to use.
     /// When in doubt, use `0`.
@@ -21,19 +29,26 @@ pub struct FontData {
 
 impl FontData {
     pub fn from_static(font: &'static [u8]) -> Self {
+        Self::from_blob(Arc::new(font), 0)
+    }
+
+    pub fn from_owned(font: Vec<u8>) -> Self {
+        Self::from_blob(Arc::new(font), 0)
+    }
+
+    /// Use already shared bytes, e.g. a memory-mapped system font file, without copying them.
+    pub fn from_blob(font: Blob, index: u32) -> Self {
         Self {
-            font: Cow::Borrowed(font),
-            index: 0,
+            font,
+            index,
             tweak: Default::default(),
         }
     }
 
-    pub fn from_owned(font: Vec<u8>) -> Self {
-        Self {
-            font: Cow::Owned(font),
-            index: 0,
-            tweak: Default::default(),
-        }
+    /// The content of the font file.
+    #[inline]
+    pub fn bytes(&self) -> &[u8] {
+        (*self.font).as_ref()
     }
 
     pub fn tweak(self, tweak: FontTweak) -> Self {
@@ -51,7 +66,7 @@ impl FontData {
     pub fn variation_axes(&self) -> Vec<FontVariationAxis> {
         use skrifa::MetadataProvider as _;
 
-        let Ok(font) = skrifa::FontRef::from_index(self.font.as_ref(), self.index) else {
+        let Ok(font) = skrifa::FontRef::from_index(self.bytes(), self.index) else {
             return Vec::new();
         };
 
@@ -94,21 +109,42 @@ pub struct FontVariationAxis {
 
 impl AsRef<[u8]> for FontData {
     fn as_ref(&self) -> &[u8] {
-        self.font.as_ref()
+        self.bytes()
     }
 }
 
-// ----------------------------------------------------------------------------
+impl PartialEq for FontData {
+    fn eq(&self, other: &Self) -> bool {
+        let Self { font, index, tweak } = self;
+        *index == other.index
+            && *tweak == other.tweak
+            && (Arc::ptr_eq(font, &other.font) || self.bytes() == other.bytes())
+    }
+}
 
-/// Shared, immutable bytes of a font file.
-pub type Blob = Arc<dyn AsRef<[u8]> + Send + Sync>;
+impl core::fmt::Debug for FontData {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let Self { font, index, tweak } = self;
+        f.debug_struct("FontData")
+            .field("font", &format_args!("{} bytes", (**font).as_ref().len()))
+            .field("index", index)
+            .field("tweak", tweak)
+            .finish()
+    }
+}
 
-impl FontData {
-    /// The font file bytes as a shared blob.
-    pub(crate) fn blob(&self) -> Blob {
-        match self.font.clone() {
-            Cow::Borrowed(bytes) => Arc::new(bytes) as Blob,
-            Cow::Owned(bytes) => Arc::new(bytes) as Blob,
-        }
+#[cfg(feature = "serde")]
+mod blob_serde {
+    use super::Blob;
+
+    pub fn serialize<S: serde::Serializer>(blob: &Blob, serializer: S) -> Result<S::Ok, S::Error> {
+        serde::Serialize::serialize((**blob).as_ref(), serializer)
+    }
+
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Blob, D::Error> {
+        let bytes: Vec<u8> = serde::Deserialize::deserialize(deserializer)?;
+        Ok(std::sync::Arc::new(bytes))
     }
 }

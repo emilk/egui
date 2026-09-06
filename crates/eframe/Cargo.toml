@@ -29,6 +29,7 @@ default = [
   "accesskit",
   "default_fonts",
   "links",
+  "system_fonts",
   "wayland", # Required for Linux support (including CI!)
   "web_screen_reader",
   "wgpu",
@@ -79,6 +80,11 @@ wayland = [
   "glutin?/wayland",
   "glutin-winit?/wayland",
 ]
+
+## Load system fonts on demand for characters that the installed fonts lack (native only).
+##
+## Turn it off at runtime with [`NativeOptions::system_font_fallback`].
+system_fonts = ["dep:egui_system_fonts"]
 
 ## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
 ##
@@ -160,6 +166,7 @@ image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 # optional native:
+egui_system_fonts = { workspace = true, optional = true }
 egui-wgpu = { workspace = true, optional = true, features = [
   "winit",
   "capture",

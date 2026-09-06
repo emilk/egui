@@ -453,9 +453,9 @@ pub use epaint::{
     ClippedPrimitive, ColorImage, CornerRadius, Direction, ImageData, Margin, Mesh, PaintCallback,
     PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
     text::{
-        FontData, FontDefinitions, FontFamily, FontId, FontTweak, GlyphRasterizer,
-        GlyphRasterizerRequest, GlyphSource, GlyphSourcePreference, MAX_GLYPH_SIZE,
-        RasterizedGlyph, default_glyph_source, has_emoji_presentation,
+        FallbackRequest, FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority,
+        FontProvider, FontTweak, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest,
+        InsertFontFamily, MAX_GLYPH_SIZE, RasterizedGlyph, has_emoji_presentation,
     },
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
 };
@@ -511,7 +511,7 @@ pub use self::{
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
     if cfg!(debug_assertions) {
         ui.label(
-            RichText::new("⚠ Debug build ⚠")
+            RichText::new("⚠️ Debug build ⚠️")
                 .small()
                 .color(ui.visuals().warn_fg_color),
         )
@@ -585,46 +585,10 @@ macro_rules! github_link_file {
 /// The minus character: <https://www.compart.com/en/unicode/U+2212>
 pub(crate) const MINUS_CHAR_STR: &str = "−";
 
-/// The default egui fonts supports around 1216 emojis in total.
-/// Here are some of the most useful:
-/// ∞⊗⎗⎘⎙⏏⏴⏵⏶⏷
-/// ⏩⏪⏭⏮⏸⏹⏺■▶📾🔀🔁🔃
-/// ☀☁★☆☐☑☜☝☞☟⛃⛶✔
-/// ↺↻⟲⟳⬅➡⬆⬇⬈⬉⬊⬋⬌⬍⮨⮩⮪⮫
-/// ♡
-/// 📅📆
-/// 📈📉📊
-/// 📋📌📎📤📥🔆
-/// 🔈🔉🔊🔍🔎🔗🔘
-/// 🕓🖧🖩🖮🖱🖴🖵🖼🗀🗁🗋🗐🗑🗙🚫❓
-///
-/// NOTE: In egui all emojis are monochrome!
-///
-/// You can explore them all in the Font Book in [the online demo](https://www.egui.rs/#demo).
-///
-/// In addition, egui supports a few special emojis that are not part of the unicode standard.
-/// This module contains some of them:
-pub mod special_emojis {
-    /// Tux, the Linux penguin.
-    pub const OS_LINUX: char = '🐧';
-
-    /// The Windows logo.
-    pub const OS_WINDOWS: char = '';
-
-    /// The Android logo.
-    pub const OS_ANDROID: char = '';
-
-    /// The Apple logo.
-    pub const OS_APPLE: char = '';
-
-    /// The Github logo.
-    pub const GITHUB: char = '';
-
-    /// The word `git`.
-    pub const GIT: char = '';
-
-    // I really would like to have ferris here.
-}
+/// A few special emojis that are not part of the unicode standard,
+/// plus a list of the emojis in the default fonts.
+#[cfg(feature = "default_fonts")]
+pub use epaint::special_emojis;
 
 /// The different types of built-in widgets in egui
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

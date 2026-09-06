@@ -7,6 +7,7 @@ mod font_data;
 mod font_definitions;
 mod font_face;
 mod font_id;
+mod font_provider;
 mod font_tweak;
 mod fonts;
 mod galley_cache;
@@ -19,14 +20,15 @@ mod text_layout_types;
 mod unicode;
 
 pub use {
-    font_data::{FontData, FontVariationAxis},
+    font_data::{Blob, FontData, FontVariationAxis},
     font_definitions::{FontDefinitions, FontInsert, FontPriority, InsertFontFamily},
     font_id::{FontFamily, FontId},
+    font_provider::{FallbackRequest, FontProvider},
     font_tweak::{FontTweak, HintingTarget, SmoothHinting},
     fonts::{Fonts, FontsView, MAX_GLYPH_SIZE},
     glyph_rasterizer::{
-        GlyphRasterizer, GlyphRasterizerRequest, GlyphSource, GlyphSourcePreference,
-        RasterizedGlyph, default_glyph_source, has_emoji_presentation,
+        GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, RasterizedGlyph,
+        has_emoji_presentation,
     },
     index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
     text_layout_types::*,
