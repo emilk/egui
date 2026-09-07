@@ -183,6 +183,10 @@ unused_lifetimes = "warn"
 trivial_casts = "allow"
 unused_qualifications = "allow"
 
+# `web_sys_unstable_apis` changes some signatures, so we need to check for presence of that flag. This whitelists
+# checking `cfg(web_sys_unstable_apis)` (which the unexpected_cfgs would otherwise deny):
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(web_sys_unstable_apis)'] }
+
 [workspace.lints.rustdoc]
 all = "warn"
 
