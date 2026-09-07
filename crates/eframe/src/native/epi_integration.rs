@@ -247,11 +247,10 @@ impl EpiIntegration {
         );
 
         if native_options.system_font_fallback {
-            #[cfg(feature = "system_fonts")]
-            egui_ctx.add_font_provider(Arc::new(egui_system_fonts::SystemFontProvider::new()));
-
-            #[cfg(not(feature = "system_fonts"))]
-            egui_ctx.add_font_provider(Arc::new(MissingSystemFontsWarning::default()));
+            egui_ctx.add_font_provider(cfg_select! {
+                feature = "system_fonts" => Arc::new(egui_system_fonts::SystemFontProvider::new()),
+                _ => Arc::new(MissingSystemFontsWarning::default()),
+            });
         }
 
         Self {
