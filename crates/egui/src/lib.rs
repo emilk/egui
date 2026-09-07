@@ -472,7 +472,7 @@ pub use self::{
     containers::{menu::MenuBar, *},
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
-        Key, ScreenshotCallback, UserData,
+        Key, ScreenshotCallback,
         input::*,
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,

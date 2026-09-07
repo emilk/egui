@@ -1951,11 +1951,6 @@ fn process_viewport_command(
                 log::warn!("{command:?}: {err}");
             }
         }
-        ViewportCommand::Screenshot(user_data) => {
-            actions_requested.push(ActionRequested::Screenshot(
-                egui::ScreenshotCallback::event(user_data),
-            ));
-        }
         ViewportCommand::ScreenshotCallback(callback) => {
             actions_requested.push(ActionRequested::Screenshot(callback));
         }

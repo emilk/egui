@@ -1,4 +1,4 @@
-use egui::{Event, ScreenshotCallback};
+use egui::ScreenshotCallback;
 use wasm_bindgen::JsValue;
 
 /// Renderer for a browser canvas.
@@ -17,8 +17,8 @@ pub(crate) trait WebPainter {
     fn max_texture_side(&self) -> usize;
 
     /// Update all internal textures and paint gui.
-    /// When `capture` isn't empty, the rendered screen should be captured.
-    /// Once the screenshot is ready, the screenshot should be returned via [`Self::handle_screenshots`].
+    /// When `capture` isn't empty, the rendered screen should be captured
+    /// and passed to the callbacks once it is ready.
     fn paint_and_update_textures(
         &mut self,
         clear_color: [f32; 4],
@@ -27,8 +27,6 @@ pub(crate) trait WebPainter {
         textures_delta: &mut egui::TexturesDelta,
         capture: Vec<ScreenshotCallback>,
     ) -> Result<(), JsValue>;
-
-    fn handle_screenshots(&mut self, events: &mut Vec<Event>);
 
     /// Destroy all resources.
     fn destroy(&mut self);

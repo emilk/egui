@@ -807,30 +807,25 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    /// Fulfill any [`egui::ViewportCommand::Screenshot`] requests made by the app during the
-    /// last frame.
+    /// Fulfill any [`egui::ViewportCommand::ScreenshotCallback`] requests made by the app during
+    /// the last frame.
     ///
     /// If a screenshot was requested and no renderer is available, an error will be logged.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     fn handle_screenshots(&mut self) {
         // Collect all screenshot requests from this frame's viewport output.
-        let requests: Vec<(ViewportId, egui::ScreenshotCallback)> = self
+        let requests: Vec<egui::ScreenshotCallback> = self
             .output
             .viewport_output
-            .iter()
-            .flat_map(|(id, viewport)| {
-                viewport
-                    .commands
-                    .iter()
-                    .filter_map(move |command| match command {
-                        egui::ViewportCommand::Screenshot(user_data) => {
-                            Some((*id, egui::ScreenshotCallback::event(user_data.clone())))
-                        }
-                        egui::ViewportCommand::ScreenshotCallback(callback) => {
-                            Some((*id, callback.clone()))
-                        }
-                        _ => None,
-                    })
+            .values()
+            .flat_map(|viewport| {
+                viewport.commands.iter().filter_map(|command| {
+                    if let egui::ViewportCommand::ScreenshotCallback(callback) = command {
+                        Some(callback.clone())
+                    } else {
+                        None
+                    }
+                })
             })
             .collect();
 
@@ -849,18 +844,8 @@ impl<'a, State> Harness<'a, State> {
         };
         let image = std::sync::Arc::new(rgba_image_to_color_image(&image));
 
-        let mut sent_event = false;
-        for (viewport_id, callback) in requests {
-            if let Some(event) = callback.complete(viewport_id, std::sync::Arc::clone(&image)) {
-                self.input.events.push(event);
-                sent_event = true;
-            }
-        }
-
-        // Make sure the run loop runs at least one more frame so the app actually receives the
-        // queued legacy screenshot event. Callback-based requests need no extra frame.
-        if sent_event {
-            self.ctx.request_repaint();
+        for callback in requests {
+            callback.complete(std::sync::Arc::clone(&image));
         }
     }
 
@@ -1009,7 +994,7 @@ impl<'a> Harness<'a> {
 }
 
 /// Convert a rendered [`image::RgbaImage`] (premultiplied alpha, as produced by the renderer)
-/// into an [`egui::ColorImage`] suitable for [`egui::Event::Screenshot`].
+/// into an [`egui::ColorImage`] suitable for [`egui::ScreenshotCallback`].
 #[cfg(any(feature = "wgpu", feature = "snapshot"))]
 fn rgba_image_to_color_image(image: &image::RgbaImage) -> egui::ColorImage {
     let size = [image.width() as usize, image.height() as usize];

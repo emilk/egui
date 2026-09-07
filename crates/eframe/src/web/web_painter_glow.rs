@@ -1,4 +1,4 @@
-use egui::{Event, ScreenshotCallback, ViewportId};
+use egui::ScreenshotCallback;
 use egui_glow::glow;
 use std::sync::Arc;
 use wasm_bindgen::JsCast as _;
@@ -12,7 +12,6 @@ use super::web_painter::WebPainter;
 pub(crate) struct WebPainterGlow {
     canvas: HtmlCanvasElement,
     painter: egui_glow::Painter,
-    screenshot_events: Vec<Event>,
 }
 
 impl WebPainterGlow {
@@ -39,11 +38,7 @@ impl WebPainterGlow {
         )
         .map_err(|err| format!("Error starting glow painter: {err}"))?;
 
-        Ok(Self {
-            canvas,
-            painter,
-            screenshot_events: Vec::new(),
-        })
+        Ok(Self { canvas, painter })
     }
 }
 
@@ -80,9 +75,7 @@ impl WebPainter for WebPainterGlow {
         if !capture.is_empty() {
             let image = Arc::new(self.painter.read_screen_rgba(canvas_dimension));
             for callback in capture {
-                if let Some(event) = callback.complete(ViewportId::default(), Arc::clone(&image)) {
-                    self.screenshot_events.push(event);
-                }
+                callback.complete(Arc::clone(&image));
             }
         }
 
@@ -96,10 +89,6 @@ impl WebPainter for WebPainterGlow {
 
     fn destroy(&mut self) {
         self.painter.destroy();
-    }
-
-    fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
-        events.append(&mut self.screenshot_events);
     }
 }
 

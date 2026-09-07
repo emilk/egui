@@ -1193,15 +1193,9 @@ pub enum ViewportCommand {
     /// Enable mouse pass-through: mouse clicks pass through the window, used for non-interactable overlays.
     MousePassthrough(bool),
 
-    /// Take a screenshot of the next frame after this.
-    ///
-    /// The results are returned in [`crate::Event::Screenshot`].
-    Screenshot(crate::UserData),
-
     /// Take a screenshot of the next frame after this and pass it to a callback.
     ///
-    /// Unlike [`Self::Screenshot`], this does not deliver an input event or require another egui
-    /// pass. Use [`crate::Context::request_screenshot`] for a convenient way to send this command.
+    /// Use [`crate::Context::request_screenshot`] for a convenient way to send this command.
     ScreenshotCallback(crate::ScreenshotCallback),
 
     /// Request cut of the current selection

@@ -4,12 +4,9 @@
 #![expect(unsafe_code)]
 
 use crate::{RenderState, SurfaceConfig, SurfaceErrorAction, WgpuConfiguration, renderer};
-use crate::{
-    RendererOptions,
-    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
-};
+use crate::{RendererOptions, capture::CaptureState};
 use core::num::NonZeroU32;
-use egui::{Context, Event, ViewportId, ViewportIdMap, ViewportIdSet};
+use egui::{Context, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::sync::Arc;
 
 struct SurfaceState {
@@ -41,8 +38,6 @@ pub struct Painter {
     depth_texture_view: ViewportIdMap<wgpu::TextureView>,
     msaa_texture_view: ViewportIdMap<wgpu::TextureView>,
     surfaces: ViewportIdMap<SurfaceState>,
-    capture_tx: CaptureSender,
-    capture_rx: CaptureReceiver,
 }
 
 impl Painter {
@@ -64,7 +59,6 @@ impl Painter {
         support_transparent_backbuffer: bool,
         options: RendererOptions,
     ) -> Self {
-        let (capture_tx, capture_rx) = capture_channel();
         let instance = config.wgpu_setup.new_instance().await;
 
         Self {
@@ -80,9 +74,6 @@ impl Painter {
             depth_texture_view: Default::default(),
             surfaces: Default::default(),
             msaa_texture_view: Default::default(),
-
-            capture_tx,
-            capture_rx,
         }
     }
 
@@ -749,13 +740,7 @@ impl Painter {
         if let Some(capture_buffer) = capture_buffer
             && let Some(screen_capture_state) = &mut self.screen_capture_state
         {
-            screen_capture_state.read_screen_rgba(
-                self.context.clone(),
-                capture_buffer,
-                capture_data,
-                self.capture_tx.clone(),
-                viewport_id,
-            );
+            screen_capture_state.read_screen_rgba(capture_buffer, capture_data);
         }
 
         window.pre_present_notify();
@@ -769,12 +754,6 @@ impl Painter {
         }
 
         vsync_sec
-    }
-
-    /// Call this at the beginning of each frame to receive screenshot events requested through
-    /// [`egui::ViewportCommand::Screenshot`]. Callback-based screenshots are completed directly.
-    pub fn handle_screenshots(&self, events: &mut Vec<Event>) {
-        events.extend(self.capture_rx.try_iter());
     }
 
     pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {

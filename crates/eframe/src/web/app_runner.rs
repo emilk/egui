@@ -254,8 +254,6 @@ impl AppRunner {
     pub fn logic(&mut self) {
         // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
         self.update_focus();
-        // We might have received a screenshot
-        self.painter.handle_screenshots(&mut self.input.raw.events);
 
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
@@ -328,10 +326,6 @@ impl AppRunner {
     fn handle_viewport_commands(&mut self, commands: impl Iterator<Item = ViewportCommand>) {
         for command in commands {
             match command {
-                ViewportCommand::Screenshot(user_data) => {
-                    self.screenshot_commands_with_frame_delay
-                        .push((ScreenshotCallback::event(user_data), 1));
-                }
                 ViewportCommand::ScreenshotCallback(callback) => {
                     self.screenshot_commands_with_frame_delay
                         .push((callback, 1));

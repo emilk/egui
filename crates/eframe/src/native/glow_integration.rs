@@ -837,10 +837,7 @@ impl GlowWinitRunning<'_> {
                 if !screenshot_callbacks.is_empty() {
                     let screenshot = Arc::new(painter.read_screen_rgba(screen_size_in_pixels));
                     for callback in screenshot_callbacks {
-                        if let Some(event) = callback.complete(viewport_id, Arc::clone(&screenshot))
-                        {
-                            egui_winit.egui_input_mut().events.push(event);
-                        }
+                        callback.complete(Arc::clone(&screenshot));
                     }
                 }
 

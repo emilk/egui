@@ -691,8 +691,6 @@ impl WgpuWinitRunning<'_> {
                 .map(|(id, viewport)| (*id, viewport.info.clone()))
                 .collect();
 
-            painter.handle_screenshots(&mut raw_input.events);
-
             (viewport_ui_cb, raw_input, is_visible, show_ui)
         };
 
