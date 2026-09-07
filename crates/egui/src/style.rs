@@ -1901,7 +1901,7 @@ impl Style {
 
         ui.collapsing("🔠 Text styles", |ui| text_styles_ui(ui, text_styles));
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
-        ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
+        ui.collapsing("☝️ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
         ui.collapsing("🔄 Scroll animation", |ui| scroll_animation.ui(ui));
 

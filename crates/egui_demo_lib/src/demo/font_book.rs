@@ -45,20 +45,14 @@ impl crate::View for FontBook {
             ui.add(crate::egui_github_link_file!());
         });
 
-        ui.label(format!(
-            "The selected font supports {} characters.",
-            self.available_glyphs
-                .get(&self.font_id.family)
-                .map(|map| map.len())
-                .unwrap_or_default()
-        ));
-
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            ui.label("You can add more characters by installing additional fonts with ");
+            ui.label("On web, the browser draws missing glyphs instead. ");
+            ui.label("On native, eframe falls back to looking for a matching system font. ");
+            ui.label("Bundle fonts with ");
             ui.add(egui::Hyperlink::from_label_and_url(
-                egui::RichText::new("Context::set_fonts").text_style(egui::TextStyle::Monospace),
-                "https://docs.rs/egui/latest/egui/struct.Context.html#method.set_fonts",
+                egui::RichText::new("Context::add_font").text_style(egui::TextStyle::Monospace),
+                "https://docs.rs/egui/latest/egui/struct.Context.html#method.add_font",
             ));
             ui.label(".");
         });
@@ -66,6 +60,26 @@ impl crate::View for FontBook {
         ui.separator();
 
         egui::introspection::font_id_ui(ui, &mut self.font_id);
+
+        let font_id = self.font_id.clone();
+        let available_glyphs = self
+            .available_glyphs
+            .entry(font_id.family.clone())
+            .or_insert_with(|| available_characters(ui, &font_id.family));
+
+        let fonts_in_family = fonts_in_family(ui, &font_id.family);
+
+        egui::CollapsingHeader::new(format!(
+            "The selected family has {} characters, from {} fonts",
+            available_glyphs.len(),
+            fonts_in_family.len()
+        ))
+        .show(ui, |ui| {
+            ui.label("In fallback order:");
+            for name in fonts_in_family {
+                ui.label(egui::RichText::new(name).text_style(egui::TextStyle::Monospace));
+            }
+        });
 
         ui.horizontal(|ui| {
             ui.label("Filter:");
@@ -77,41 +91,81 @@ impl crate::View for FontBook {
         });
 
         let filter = &self.filter;
-        let available_glyphs = self
-            .available_glyphs
-            .entry(self.font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, &self.font_id.family));
+
+        let matching_glyphs: Vec<(char, &GlyphInfo)> = available_glyphs
+            .iter()
+            .filter(|(chr, glyph_info)| {
+                filter.is_empty() || glyph_info.name.contains(filter) || *filter == chr.to_string()
+            })
+            .map(|(&chr, glyph_info)| (chr, glyph_info))
+            .collect();
 
         ui.separator();
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.spacing_mut().item_spacing = egui::Vec2::splat(2.0);
+        // Each glyph gets a fixed-size cell so we can calculate what is visible,
+        // and only paint those glyphs.
+        let spacing = egui::Vec2::splat(2.0);
+        let cell_size = egui::Vec2::splat((1.5 * font_id.size).round());
 
-                for (&chr, glyph_info) in available_glyphs.iter() {
-                    if filter.is_empty()
-                        || glyph_info.name.contains(filter)
-                        || *filter == chr.to_string()
-                    {
-                        let button = egui::Button::new(
-                            egui::RichText::new(chr.to_string()).font(self.font_id.clone()),
-                        )
-                        .frame(false);
+        let num_columns = ((ui.available_width() + spacing.x) / (cell_size.x + spacing.x)).floor();
+        let num_columns = (num_columns as usize).max(1);
+        let num_rows = matching_glyphs.len().div_ceil(num_columns);
 
-                        let tooltip_ui = |ui: &mut egui::Ui| {
-                            let font_id = self.font_id.clone();
+        egui::ScrollArea::vertical().auto_shrink(false).show_rows(
+            ui,
+            cell_size.y + spacing.y,
+            num_rows,
+            |ui, rows| {
+                ui.spacing_mut().item_spacing = spacing;
 
-                            char_info_ui(ui, chr, glyph_info, font_id);
-                        };
+                for row in rows {
+                    ui.horizontal(|ui| {
+                        let start = row * num_columns;
+                        let end = (start + num_columns).min(matching_glyphs.len());
+                        for &(chr, glyph_info) in &matching_glyphs[start..end] {
+                            let button =
+                                egui::Button::new(egui::RichText::new(chr).font(font_id.clone()))
+                                    .frame(false);
 
-                        if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
-                            ui.copy_text(chr.to_string());
+                            let tooltip_ui = |ui: &mut egui::Ui| {
+                                char_info_ui(ui, chr, glyph_info, font_id.clone());
+                            };
+
+                            if ui
+                                .add_sized(cell_size, button)
+                                .on_hover_ui(tooltip_ui)
+                                .clicked()
+                            {
+                                ui.copy_text(chr.to_string());
+                            }
                         }
-                    }
+                    });
                 }
-            });
-        });
+            },
+        );
     }
+}
+
+fn fonts_in_family(ui: &egui::Ui, family: &egui::FontFamily) -> Vec<String> {
+    ui.fonts(|fonts| {
+        let mut names = fonts
+            .definitions()
+            .families
+            .get(family)
+            .cloned()
+            .unwrap_or_default();
+
+        // Fonts found by a `FontProvider`, e.g. among the system fonts:
+        names.extend(
+            fonts
+                .discovered_fonts()
+                .iter()
+                .filter(|font| font.families.iter().any(|insert| &insert.family == family))
+                .map(|font| font.name.clone()),
+        );
+
+        names
+    })
 }
 
 fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: egui::FontId) {
@@ -145,9 +199,7 @@ fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: e
 
 fn available_characters(ui: &egui::Ui, family: &egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
     ui.fonts_mut(|f| {
-        f.fonts
-            .font(family)
-            .characters()
+        f.characters(family)
             .iter()
             .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control())
             .map(|(chr, fonts)| {

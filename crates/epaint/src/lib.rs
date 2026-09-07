@@ -79,6 +79,12 @@ pub use emath::{Pos2, Rect, Vec2, pos2, vec2};
 pub use ecolor;
 pub use emath;
 
+/// A few special emojis that are not part of the unicode standard.
+///
+/// Bundled in the default fonts, since no platform font has them.
+#[cfg(feature = "default_fonts")]
+pub use epaint_default_fonts::special_emojis;
+
 #[cfg(feature = "color-hex")]
 pub use ecolor::hex_color;
 

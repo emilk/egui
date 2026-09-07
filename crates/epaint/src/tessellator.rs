@@ -2051,6 +2051,26 @@ impl Tessellator {
 
             let index_offset = out.vertices.len() as u32;
 
+            // Color glyphs (e.g. color emoji) must keep their own color.
+            // Rows rarely have any, so check once per row before searching per vertex.
+            let row_has_color_glyphs = row.glyphs.iter().any(|glyph| glyph.is_color);
+            let is_color_glyph_vertex = |vertex_index: usize| {
+                if !row_has_color_glyphs || !row.visuals.glyph_vertex_range.contains(&vertex_index)
+                {
+                    return false;
+                }
+                // `first_vertex` is non-decreasing along `glyphs`, so binary search for
+                // the glyph owning this vertex. Glyphs without pixels emit no vertices
+                // and share `first_vertex` with the next glyph, so take the last match.
+                let glyph_index = row
+                    .glyphs
+                    .partition_point(|glyph| glyph.first_vertex as usize <= vertex_index);
+                glyph_index
+                    .checked_sub(1)
+                    .and_then(|glyph_index| row.glyphs.get(glyph_index))
+                    .is_some_and(|glyph| glyph.is_color && !glyph.uv_rect.is_nothing())
+            };
+
             out.indices.extend(
                 row.visuals
                     .mesh
@@ -2075,6 +2095,11 @@ impl Tessellator {
                             }
                         } else if color == Color32::PLACEHOLDER {
                             color = *fallback_color;
+                        }
+
+                        if is_color_glyph_vertex(i) {
+                            // Don't tint: keep the glyph's own color, but respect the text alpha.
+                            color = Color32::from_white_alpha(color.a());
                         }
 
                         if *opacity_factor < 1.0 {

@@ -55,7 +55,7 @@ impl crate::DemoApp for ImageViewer {
                 let label = ui.label("URI:");
                 ui.text_edit_singleline(&mut self.uri_edit_text)
                     .labelled_by(label.id);
-                if ui.small_button("✔").clicked() {
+                if ui.small_button("✔️").clicked() {
                     ui.ctx().forget_image(&self.current_uri);
                     self.uri_edit_text = self.uri_edit_text.trim().to_owned();
                     self.current_uri = self.uri_edit_text.clone();

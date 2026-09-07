@@ -1,0 +1,33 @@
+# Delete the GitHub Actions caches of a pull request once it is closed.
+#
+# A repository can only hold 10 GB of caches, and the oldest ones are evicted when it is full.
+# Without this the caches of merged pull requests would push out the `main` cache
+# that every new pull request starts from.
+
+name: Cache Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    name: Delete the caches of the closed PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Delete caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_REF: refs/pull/${{ github.event.pull_request.number }}/merge
+          BRANCH_REF: refs/heads/${{ github.event.pull_request.head.ref }}
+        run: |
+          for ref in "$PR_REF" "$BRANCH_REF"; do
+            echo "Deleting the caches of $ref"
+            gh cache list --ref "$ref" --limit 100 --json id --jq '.[].id' \
+              | xargs -r -I {} gh cache delete {}
+          done

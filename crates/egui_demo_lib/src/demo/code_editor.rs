@@ -23,7 +23,7 @@ fn main() {\n\
 
 impl crate::Demo for CodeEditor {
     fn name(&self) -> &'static str {
-        "🖮 Code Editor"
+        "⌨️ Code Editor"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {

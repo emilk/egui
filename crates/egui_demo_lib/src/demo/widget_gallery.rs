@@ -61,7 +61,7 @@ impl WidgetGallery {
 
 impl crate::Demo for WidgetGallery {
     fn name(&self) -> &'static str {
-        "🗄 Widget Gallery"
+        "🗄️ Widget Gallery"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {

@@ -367,7 +367,7 @@ impl CodeTheme {
             ui.selectable_value(&mut self.dark_mode, true, "🌙 Dark theme")
                 .on_hover_text("Use the dark mode theme");
 
-            ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
+            ui.selectable_value(&mut self.dark_mode, false, "☀️ Light theme")
                 .on_hover_text("Use the light mode theme");
         });
         let current_theme_is_dark = self.is_dark();
@@ -383,7 +383,6 @@ impl CodeTheme {
     // function, but at the cost of more code duplication.
     #[expect(clippy::needless_pass_by_value)]
     fn dark_with_font_id(font_id: egui::FontId) -> Self {
-        #![expect(clippy::mem_forget)]
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: true,
@@ -401,7 +400,6 @@ impl CodeTheme {
     // The syntect version takes it by value
     #[expect(clippy::needless_pass_by_value)]
     fn light_with_font_id(font_id: egui::FontId) -> Self {
-        #![expect(clippy::mem_forget)]
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: false,
@@ -436,7 +434,7 @@ impl CodeTheme {
                     ui.selectable_value(&mut self.dark_mode, true, "🌙 Dark theme")
                         .on_hover_text("Use the dark mode theme");
 
-                    ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
+                    ui.selectable_value(&mut self.dark_mode, false, "☀️ Light theme")
                         .on_hover_text("Use the light mode theme");
                 });
                 ui.scope(|ui| {
