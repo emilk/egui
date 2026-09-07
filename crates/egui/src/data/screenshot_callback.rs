@@ -6,7 +6,7 @@ type ScreenshotCallbackFn = dyn FnOnce(Arc<ColorImage>) + Send + 'static;
 
 /// A one-shot callback for receiving a screenshot.
 ///
-/// Create one with [`Self::new`] and send it with [`crate::ViewportCommand::ScreenshotCallback`],
+/// Create one with [`Self::new`] and send it with [`crate::ViewportCommand::Screenshot`],
 /// or use the convenience method [`crate::Context::request_screenshot`].
 ///
 /// Clones share the same callback. Whichever clone is completed first consumes it, so it is

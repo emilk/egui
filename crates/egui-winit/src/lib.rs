@@ -1951,7 +1951,7 @@ fn process_viewport_command(
                 log::warn!("{command:?}: {err}");
             }
         }
-        ViewportCommand::ScreenshotCallback(callback) => {
+        ViewportCommand::Screenshot(callback) => {
             actions_requested.push(ActionRequested::Screenshot(callback));
         }
         ViewportCommand::RequestCut => {

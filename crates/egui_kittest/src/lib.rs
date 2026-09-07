@@ -807,7 +807,7 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    /// Fulfill any [`egui::ViewportCommand::ScreenshotCallback`] requests made by the app during
+    /// Fulfill any [`egui::ViewportCommand::Screenshot`] requests made by the app during
     /// the last frame.
     ///
     /// If a screenshot was requested and no renderer is available, an error will be logged.
@@ -820,7 +820,7 @@ impl<'a, State> Harness<'a, State> {
             .values()
             .flat_map(|viewport| {
                 viewport.commands.iter().filter_map(|command| {
-                    if let egui::ViewportCommand::ScreenshotCallback(callback) = command {
+                    if let egui::ViewportCommand::Screenshot(callback) = command {
                         Some(callback.clone())
                     } else {
                         None

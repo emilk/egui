@@ -1196,7 +1196,7 @@ pub enum ViewportCommand {
     /// Take a screenshot of the next frame after this and pass it to a callback.
     ///
     /// Use [`crate::Context::request_screenshot`] for a convenient way to send this command.
-    ScreenshotCallback(crate::ScreenshotCallback),
+    Screenshot(crate::ScreenshotCallback),
 
     /// Request cut of the current selection
     ///

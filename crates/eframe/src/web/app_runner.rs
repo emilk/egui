@@ -326,7 +326,7 @@ impl AppRunner {
     fn handle_viewport_commands(&mut self, commands: impl Iterator<Item = ViewportCommand>) {
         for command in commands {
             match command {
-                ViewportCommand::ScreenshotCallback(callback) => {
+                ViewportCommand::Screenshot(callback) => {
                     self.screenshot_commands_with_frame_delay
                         .push((callback, 1));
                 }
