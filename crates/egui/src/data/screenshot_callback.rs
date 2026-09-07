@@ -31,6 +31,7 @@ impl ScreenshotCallback {
     /// Complete this screenshot request, invoking the callback.
     ///
     /// Does nothing if the request was already completed.
+    #[must_use]
     pub fn complete(self, image: Arc<ColorImage>) {
         let Some(callback) = self.callback.lock().take() else {
             return;
