@@ -39,9 +39,7 @@ fn editing_alpha_does_not_change_rgb() {
 
         let rgb_before = harness.state().to_rgb();
         let alpha_before = harness.state().a;
-        let drag_values: Vec<_> = harness
-            .query_all_by_role(Role::SpinButton)
-            .collect();
+        let drag_values: Vec<_> = harness.query_all_by_role(Role::SpinButton).collect();
         assert_eq!(drag_values.len(), 4);
         let grab = drag_values[3].rect().center();
         let target = grab + Vec2::new(20.0, 0.0);
