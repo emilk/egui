@@ -183,16 +183,17 @@ impl CanvasGlyphs {
                 PADDING + ascent,
             )
             .ok()?;
+
         // `web-sys` changes the signature of `get_image_data` based on `web_sys_unstable_apis`,
         // so we need to call it differently depending on that cfg.
-        #[cfg(not(web_sys_unstable_apis))]
-        let image_data = self
+        let image_data = cfg_select! {
+            web_sys_unstable_apis => self
             .context
-            .get_image_data(0.0, 0.0, width as f64, height as f64);
-        #[cfg(web_sys_unstable_apis)]
-        let image_data = self
+            .get_image_data(0, 0, width as i32, height as i32),
+            _ => self
             .context
-            .get_image_data(0, 0, width as i32, height as i32);
+            .get_image_data(0.0, 0.0, width as f64, height as f64),
+        };
         let rgba = image_data.ok()?.data().0;
 
         Some(Drawn {

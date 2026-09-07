@@ -183,8 +183,7 @@ unused_lifetimes = "warn"
 trivial_casts = "allow"
 unused_qualifications = "allow"
 
-# `web-sys` gates some APIs (and even some signatures) behind this cfg,
-# which downstream crates may set globally via `.cargo/config.toml`.
+# `web_sys_unstable_apis` changes some signatures, so we need to check for presence of that flag
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(web_sys_unstable_apis)'] }
 
 [workspace.lints.rustdoc]
