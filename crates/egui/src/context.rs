@@ -4138,9 +4138,9 @@ impl Context {
         &self,
         callback: impl FnOnce(std::sync::Arc<crate::ColorImage>) + Send + 'static,
     ) {
-        self.send_viewport_cmd(ViewportCommand::Screenshot(
-            crate::ScreenshotCallback::new(callback),
-        ));
+        self.send_viewport_cmd(ViewportCommand::Screenshot(crate::ScreenshotCallback::new(
+            callback,
+        )));
     }
 
     /// Send a command to a specific viewport.
