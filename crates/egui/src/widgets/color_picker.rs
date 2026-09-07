@@ -7,7 +7,7 @@ use crate::{
 };
 use epaint::{
     ColorImage, Rect, RectShape, RoundedRect, Shape, Stroke, StrokeKind, Vec2,
-    ecolor::{Color32, Hsva, HsvaGamma, Rgba},
+    ecolor::{Color32, Hsva, HsvaGamma, Rgba, linear_f32_from_linear_u8},
     pos2,
     textures::TextureOptions,
     vec2,
@@ -326,50 +326,37 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     match ui.style().visuals.numeric_color_space {
         NumericColorSpace::GammaByte => {
             let mut srgba_unmultiplied = Hsva::from(*hsvag).to_srgba_unmultiplied();
-            // Only update if changed to avoid rounding issues.
-            if srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control) {
-                if is_additive_alpha(hsvag.a) {
-                    let alpha = hsvag.a;
+            let edited = srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control);
 
-                    *hsvag = HsvaGamma::from(Hsva::from_additive_srgb([
-                        srgba_unmultiplied[0],
-                        srgba_unmultiplied[1],
-                        srgba_unmultiplied[2],
-                    ]));
-
-                    // Don't edit the alpha:
-                    hsvag.a = alpha;
-                } else {
-                    // Normal blending.
-                    *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
-                }
+            if edited.rgb {
+                let alpha = hsvag.a;
+                *hsvag = HsvaGamma::from(Hsva::from_srgb([
+                    srgba_unmultiplied[0],
+                    srgba_unmultiplied[1],
+                    srgba_unmultiplied[2],
+                ]));
+                hsvag.a = alpha;
+            }
+            if edited.alpha {
+                hsvag.a = linear_f32_from_linear_u8(srgba_unmultiplied[3]);
             }
         }
 
         NumericColorSpace::Linear => {
             let mut rgba_unmultiplied = Hsva::from(*hsvag).to_rgba_unmultiplied();
-            // Only update if changed to avoid rounding issues.
-            if rgba_edit_ui(ui, &mut rgba_unmultiplied, alpha_control) {
-                if is_additive_alpha(hsvag.a) {
-                    let alpha = hsvag.a;
+            let edited = rgba_edit_ui(ui, &mut rgba_unmultiplied, alpha_control);
 
-                    *hsvag = HsvaGamma::from(Hsva::from_rgb([
-                        rgba_unmultiplied[0],
-                        rgba_unmultiplied[1],
-                        rgba_unmultiplied[2],
-                    ]));
-
-                    // Don't edit the alpha:
-                    hsvag.a = alpha;
-                } else {
-                    // Normal blending.
-                    *hsvag = HsvaGamma::from(Hsva::from_rgba_unmultiplied(
-                        rgba_unmultiplied[0],
-                        rgba_unmultiplied[1],
-                        rgba_unmultiplied[2],
-                        rgba_unmultiplied[3],
-                    ));
-                }
+            if edited.rgb {
+                let alpha = hsvag.a;
+                *hsvag = HsvaGamma::from(Hsva::from_rgb([
+                    rgba_unmultiplied[0],
+                    rgba_unmultiplied[1],
+                    rgba_unmultiplied[2],
+                ]));
+                hsvag.a = alpha;
+            }
+            if edited.alpha {
+                hsvag.a = rgba_unmultiplied[3];
             }
         }
     }
@@ -455,9 +442,9 @@ fn input_type_button_ui(ui: &mut Ui) {
 /// Shows 4 `DragValue` widgets to be used to edit the RGBA u8 values.
 /// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
 ///
-/// Returns `true` on change.
-fn srgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [u8; 4], alpha: Alpha) -> bool {
-    let mut edited = false;
+/// Returns which channels changed.
+fn srgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [u8; 4], alpha: Alpha) -> ColorEditResult {
+    let mut edited = ColorEditResult::default();
 
     ui.horizontal(|ui| {
         input_type_button_ui(ui);
@@ -473,11 +460,11 @@ fn srgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [u8; 4], alpha: Alpha) -> bool 
                 ui.copy_text(format!("{r}, {g}, {b}, {a}"));
             }
         }
-        edited |= DragValue::new(r).speed(0.5).prefix("R ").ui(ui).changed();
-        edited |= DragValue::new(g).speed(0.5).prefix("G ").ui(ui).changed();
-        edited |= DragValue::new(b).speed(0.5).prefix("B ").ui(ui).changed();
+        edited.rgb |= DragValue::new(r).speed(0.5).prefix("R ").ui(ui).changed();
+        edited.rgb |= DragValue::new(g).speed(0.5).prefix("G ").ui(ui).changed();
+        edited.rgb |= DragValue::new(b).speed(0.5).prefix("B ").ui(ui).changed();
         if alpha != Alpha::Opaque {
-            edited |= DragValue::new(a).speed(0.5).prefix("A ").ui(ui).changed();
+            edited.alpha = DragValue::new(a).speed(0.5).prefix("A ").ui(ui).changed();
         }
     });
 
@@ -487,8 +474,8 @@ fn srgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [u8; 4], alpha: Alpha) -> bool 
 /// Shows 4 `DragValue` widgets to be used to edit the RGBA f32 values.
 /// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
 ///
-/// Returns `true` on change.
-fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool {
+/// Returns which channels changed.
+fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> ColorEditResult {
     fn drag_value(ui: &mut Ui, prefix: &str, value: &mut f32) -> Response {
         DragValue::new(value)
             .speed(0.003)
@@ -498,7 +485,7 @@ fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool 
             .ui(ui)
     }
 
-    let mut edited = false;
+    let mut edited = ColorEditResult::default();
 
     ui.horizontal(|ui| {
         input_type_button_ui(ui);
@@ -515,15 +502,21 @@ fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool 
             }
         }
 
-        edited |= drag_value(ui, "R ", r).changed();
-        edited |= drag_value(ui, "G ", g).changed();
-        edited |= drag_value(ui, "B ", b).changed();
+        edited.rgb |= drag_value(ui, "R ", r).changed();
+        edited.rgb |= drag_value(ui, "G ", g).changed();
+        edited.rgb |= drag_value(ui, "B ", b).changed();
         if alpha != Alpha::Opaque {
-            edited |= drag_value(ui, "A ", a).changed();
+            edited.alpha = drag_value(ui, "A ", a).changed();
         }
     });
 
     edited
+}
+
+#[derive(Default)]
+struct ColorEditResult {
+    rgb: bool,
+    alpha: bool,
 }
 
 /// Shows a color picker where the user can change the given [`Hsva`] color.
