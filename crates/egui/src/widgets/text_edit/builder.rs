@@ -359,7 +359,7 @@ impl<'t> TextEdit<'t> {
     /// This is useful e.g. to implement a code completion popup,
     /// where tab and escape should act on the popup instead of moving focus away.
     ///
-    /// See also [`Self::lock_focus`].
+    /// See also [`Self::lock_focus`] and [`crate::CompletionPopup`].
     #[inline]
     pub fn event_filter(mut self, event_filter: EventFilter) -> Self {
         self.event_filter = event_filter;
