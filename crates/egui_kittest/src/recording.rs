@@ -405,7 +405,10 @@ impl<State> crate::Harness<'_, State> {
             RecordingOptions {
                 auto_save: true,
                 open,
-                ..RecordingOptions::new(auto_recording_path(open, recording_id), DEFAULT_FRAME_RATE_STEPS_PER_SECOND)
+                ..RecordingOptions::new(
+                    auto_recording_path(open, recording_id),
+                    DEFAULT_FRAME_RATE_STEPS_PER_SECOND,
+                )
             },
         );
     }
@@ -425,7 +428,6 @@ fn install(ctx: &Context, options: RecordingOptions) {
     }
 }
 
-#[expect(clippy::print_stderr)]
 impl RecordingPlugin {
     fn save_automatically(&mut self) {
         if !self.active || !self.options.auto_save {
