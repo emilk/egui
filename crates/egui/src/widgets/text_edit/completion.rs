@@ -1,13 +1,15 @@
+use core::ops::Range;
+
 use emath::RectAlign;
 
 use crate::{
-    Button, EventFilter, Id, Key, Modifiers, Popup, PopupKind, ScrollArea, TextEdit, Ui,
+    Button, Event, EventFilter, Id, InputState, Key, Popup, PopupKind, ScrollArea, TextEdit, Ui,
     WidgetText,
     text::{CCursor, CCursorRange, CharIndex},
     vec2,
 };
 
-use super::{TextBuffer, TextEditOutput, TextEditState};
+use super::{TextEditOutput, TextEditState};
 
 /// One item in a [`CompletionPopup`].
 #[derive(Clone)]
@@ -48,6 +50,26 @@ impl Suggestion {
     }
 }
 
+/// What the [`CompletionPopup`] asks for suggestions for.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompletionQuery<'a> {
+    /// The full text of the [`TextEdit`].
+    pub text: &'a str,
+
+    /// The word that ends at the cursor (see [`CompletionPopup::word_boundary`]).
+    pub word: &'a str,
+
+    /// Where in [`Self::text`] the word is, as char indices.
+    pub word_range: Range<CharIndex>,
+}
+
+impl CompletionQuery<'_> {
+    /// Is the word at the very start of the text?
+    pub fn is_at_start(&self) -> bool {
+        self.word_range.start == CharIndex(0)
+    }
+}
+
 /// The result of [`CompletionPopup::show`].
 pub struct CompletionOutput {
     /// The output of the wrapped [`TextEdit`].
@@ -65,6 +87,9 @@ pub struct CompletionOutput {
 struct CompletionState {
     /// Index of the selected suggestion.
     selected: usize,
+
+    /// The word the selection belongs to. The selection resets when the word changes.
+    selected_word: String,
 
     /// Was the popup open at the end of the last frame?
     was_open: bool,
@@ -84,6 +109,15 @@ impl CompletionState {
     }
 }
 
+/// Keys pressed while the popup was open, consumed before the [`TextEdit`] sees them.
+#[derive(Default)]
+struct PopupKeys {
+    /// How many steps to move the selection (down is positive).
+    selection_delta: isize,
+    accept: bool,
+    dismiss: bool,
+}
+
 /// A code completion popup over a [`TextEdit`].
 ///
 /// Shows a list of suggestions for the word under the cursor.
@@ -93,18 +127,23 @@ impl CompletionState {
 ///
 /// Keyboard focus stays in the [`TextEdit`] the whole time.
 ///
+/// The popup starts intercepting keys the frame after it opens,
+/// so an accept key pressed in the same frame as the popup appears goes to the [`TextEdit`].
+///
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// # let mut text = String::new();
 /// let commands = ["/help", "/clear", "/quit"];
-/// let output = egui::CompletionPopup::new(egui::Id::new("prompt")).show(
+/// let output = egui::CompletionPopup::new(ui.make_persistent_id("prompt")).show(
 ///     ui,
-///     &mut text,
-///     |text| egui::TextEdit::singleline(text).hint_text("Type / for commands"),
-///     |word| {
+///     egui::TextEdit::singleline(&mut text).hint_text("Type / for commands"),
+///     |query| {
+///         if !query.is_at_start() {
+///             return vec![];
+///         }
 ///         commands
 ///             .iter()
-///             .filter(|command| word.starts_with('/') && command.starts_with(word))
+///             .filter(|command| command.starts_with(query.word))
 ///             .map(|command| egui::Suggestion::new(format!("{command} ")))
 ///             .collect()
 ///     },
@@ -115,20 +154,23 @@ impl CompletionState {
 /// # });
 /// ```
 #[must_use = "You should call .show()"]
-pub struct CompletionPopup {
+pub struct CompletionPopup<'a> {
     id: Id,
-    is_word_boundary: fn(char) -> bool,
+    is_word_boundary: Box<dyn Fn(char) -> bool + 'a>,
     align: RectAlign,
     max_height: f32,
     accept_keys: Vec<Key>,
 }
 
-impl CompletionPopup {
+impl<'a> CompletionPopup<'a> {
     /// The `id` is given to the [`TextEdit`], and is also used to store the popup state.
+    ///
+    /// It must be unique, so if you show several completion popups (e.g. one per tab),
+    /// use e.g. [`Ui::make_persistent_id`] rather than a constant [`Id`].
     pub fn new(id: Id) -> Self {
         Self {
             id,
-            is_word_boundary: char::is_whitespace,
+            is_word_boundary: Box::new(char::is_whitespace),
             align: RectAlign::TOP_START,
             max_height: 200.0,
             accept_keys: vec![Key::Enter, Key::Tab],
@@ -140,8 +182,8 @@ impl CompletionPopup {
     ///
     /// Default: [`char::is_whitespace`].
     #[inline]
-    pub fn word_boundary(mut self, is_word_boundary: fn(char) -> bool) -> Self {
-        self.is_word_boundary = is_word_boundary;
+    pub fn word_boundary(mut self, is_word_boundary: impl Fn(char) -> bool + 'a) -> Self {
+        self.is_word_boundary = Box::new(is_word_boundary);
         self
     }
 
@@ -175,17 +217,16 @@ impl CompletionPopup {
 
     /// Show the [`TextEdit`] and, when `suggest` returns anything for the word under the cursor, the popup.
     ///
-    /// `make_text_edit` builds the [`TextEdit`] from `text`, e.g. `|text| TextEdit::singleline(text)`.
-    /// The popup needs the buffer separately, to insert the accepted suggestion.
+    /// The [`TextEdit`] is given the [`Id`] of this popup.
+    /// Its [`TextEdit::event_filter`] is respected, except that Tab and Escape
+    /// are also captured while the popup is open.
     ///
-    /// `suggest` is given the word before the cursor (see [`Self::word_boundary`]).
-    /// It is called up to twice per frame: before the [`TextEdit`] handles input, and after.
+    /// `suggest` is called once per frame, after the [`TextEdit`] has handled input.
     pub fn show(
         self,
         ui: &mut Ui,
-        text: &mut dyn TextBuffer,
-        make_text_edit: impl for<'t> FnOnce(&'t mut dyn TextBuffer) -> TextEdit<'t>,
-        mut suggest: impl FnMut(&str) -> Vec<Suggestion>,
+        text_edit: TextEdit<'_>,
+        suggest: impl FnOnce(&CompletionQuery<'_>) -> Vec<Suggestion>,
     ) -> CompletionOutput {
         let Self {
             id,
@@ -196,69 +237,67 @@ impl CompletionPopup {
         } = self;
 
         let mut state = CompletionState::load(ui, id);
-        let mut accepted = None;
 
-        // Where is the cursor? We use the state from the last frame, before the `TextEdit` runs.
-        let cursor = TextEditState::load(ui.ctx(), id)
-            .and_then(|state| state.cursor.char_range())
-            .map_or_else(
-                || text.as_str().chars().count(),
-                |range| range.primary.index.0,
-            );
-        let word = word_before_cursor(text.as_str(), cursor, is_word_boundary);
-        let suggestions = state.filtered(&word, &mut suggest);
-
-        // Handle the popup keys before the `TextEdit` sees them:
-        let mut selection_changed = false;
-        if state.was_open && !suggestions.is_empty() {
-            let mut accept = false;
+        // Consume the popup keys before the `TextEdit` sees them.
+        // We act on them after the `TextEdit` has run, when we know the current text and cursor.
+        let mut keys = PopupKeys::default();
+        if state.was_open {
             ui.input_mut(|input| {
-                if input.consume_key(Modifiers::NONE, Key::ArrowDown) {
-                    state.selected = (state.selected + 1) % suggestions.len();
-                    selection_changed = true;
+                keys.selection_delta += consume_unmodified_key(input, Key::ArrowDown) as isize;
+                keys.selection_delta -= consume_unmodified_key(input, Key::ArrowUp) as isize;
+                for &key in &accept_keys {
+                    if 0 < consume_unmodified_key(input, key) {
+                        keys.accept = true;
+                    }
                 }
-                if input.consume_key(Modifiers::NONE, Key::ArrowUp) {
-                    state.selected = (state.selected + suggestions.len() - 1) % suggestions.len();
-                    selection_changed = true;
-                }
-                if accept_keys
-                    .iter()
-                    .any(|&key| input.consume_key(Modifiers::NONE, key))
-                {
-                    accept = true;
-                }
-                if input.consume_key(Modifiers::NONE, Key::Escape) {
-                    state.dismissed_word = Some(word.clone());
-                }
+                keys.dismiss = 0 < consume_unmodified_key(input, Key::Escape);
             });
-
-            if accept && let Some(suggestion) = suggestions.get(state.selected) {
-                state.accept(ui, id, text, cursor, &word, suggestion);
-                accepted = Some(suggestion.clone());
-            }
         }
 
-        let text_edit = make_text_edit(text).id(id).event_filter(EventFilter {
-            horizontal_arrows: true,
-            vertical_arrows: true,
+        let event_filter = text_edit.get_event_filter();
+        let text_edit = text_edit.id(id).event_filter(EventFilter {
             // Keep focus on Tab and Escape while the popup is open, so they can act on the popup:
-            tab: state.was_open,
-            escape: state.was_open,
+            tab: event_filter.tab || state.was_open,
+            escape: event_filter.escape || state.was_open,
+            ..event_filter
         });
-        let output = text_edit.show(ui);
+        let (output, text) = text_edit.show_returning_text(ui);
         let response = output.response.response.clone();
 
-        // Recompute with the up-to-date text and cursor, so the popup reacts to typing without a frame delay:
         let cursor = output.cursor_range.map_or_else(
             || text.as_str().chars().count(),
             |range| range.primary.index.0,
         );
-        let word = word_before_cursor(text.as_str(), cursor, is_word_boundary);
-        let suggestions = state.filtered(&word, &mut suggest);
-        state.selected = state.selected.min(suggestions.len().saturating_sub(1));
+        let word_range = word_range_before_cursor(text.as_str(), cursor, &*is_word_boundary);
+        let word = text.char_range(word_range.clone()).to_owned();
 
-        let is_open = response.has_focus() && !suggestions.is_empty();
-        state.was_open = is_open;
+        if keys.dismiss {
+            state.dismissed_word = Some(word.clone());
+        }
+
+        let mut suggestions = if state.dismissed_word.as_deref() == Some(word.as_str()) {
+            vec![]
+        } else {
+            suggest(&CompletionQuery {
+                text: text.as_str(),
+                word: &word,
+                word_range: word_range.clone(),
+            })
+        };
+
+        if state.selected_word != word {
+            state.selected = 0;
+            state.selected_word = word.clone();
+        }
+        if !suggestions.is_empty() {
+            state.selected = (state.selected as isize + keys.selection_delta)
+                .rem_euclid(suggestions.len() as isize) as usize;
+        }
+
+        let mut accepted_index = (keys.accept && !suggestions.is_empty()).then_some(state.selected);
+
+        // Don't show the popup in the frame we accept, to avoid a one-frame flash of stale suggestions:
+        let is_open = response.has_focus() && !suggestions.is_empty() && accepted_index.is_none();
 
         let clicked = Popup::from_response(&response)
             .id(id.with("completion_popup"))
@@ -271,6 +310,7 @@ impl CompletionPopup {
                 ScrollArea::vertical()
                     .max_height(max_height)
                     .show(ui, |ui| {
+                        let pointer_moved = ui.input(|input| input.pointer.is_moving());
                         let mut clicked = None;
                         for (i, suggestion) in suggestions.iter().enumerate() {
                             let is_selected = i == state.selected;
@@ -281,8 +321,11 @@ impl CompletionPopup {
                                 button = button.right_text(description.clone().weak());
                             }
                             let response = ui.add(button);
-                            if is_selected && selection_changed {
+                            if is_selected && keys.selection_delta != 0 {
                                 response.scroll_to_me(None);
+                            }
+                            if response.hovered() && pointer_moved {
+                                state.selected = i;
                             }
                             if response.clicked() {
                                 clicked = Some(i);
@@ -294,15 +337,31 @@ impl CompletionPopup {
             })
             .and_then(|inner| inner.inner);
 
-        if let Some(i) = clicked
-            && let Some(suggestion) = suggestions.get(i)
-        {
-            state.accept(ui, id, text, cursor, &word, suggestion);
-            accepted = Some(suggestion.clone());
+        if clicked.is_some() {
+            accepted_index = clicked;
             // Clicking the popup took focus from the text field, so give it back:
             ui.memory_mut(|mem| mem.request_focus(id));
         }
 
+        let accepted = accepted_index
+            .filter(|&i| i < suggestions.len())
+            .map(|i| suggestions.swap_remove(i));
+        if let Some(accepted) = &accepted {
+            text.delete_char_range(word_range.clone());
+            let mut ccursor = CCursor::new(word_range.start);
+            text.insert_text_at(&mut ccursor, &accepted.insert, usize::MAX);
+
+            let mut text_edit_state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
+            text_edit_state
+                .cursor
+                .set_char_range(Some(CCursorRange::one(ccursor)));
+            text_edit_state.store(ui.ctx(), id);
+
+            state.dismissed_word = None;
+            state.selected = 0;
+        }
+
+        state.was_open = is_open;
         state.store(ui, id);
 
         CompletionOutput {
@@ -313,53 +372,42 @@ impl CompletionPopup {
     }
 }
 
-impl CompletionState {
-    fn filtered(
-        &self,
-        word: &str,
-        suggest: &mut impl FnMut(&str) -> Vec<Suggestion>,
-    ) -> Vec<Suggestion> {
-        if self.dismissed_word.as_deref() == Some(word) {
-            vec![]
-        } else {
-            suggest(word)
-        }
-    }
-
-    /// Replace `word` (which ends at `cursor`) with the suggestion, and move the cursor after it.
-    fn accept(
-        &mut self,
-        ui: &Ui,
-        id: Id,
-        text: &mut dyn TextBuffer,
-        cursor: usize,
-        word: &str,
-        suggestion: &Suggestion,
-    ) {
-        let start = cursor - word.chars().count();
-        text.delete_char_range(CharIndex(start)..CharIndex(cursor));
-        let mut ccursor = CCursor::new(start);
-        text.insert_text_at(&mut ccursor, &suggestion.insert, usize::MAX);
-
-        let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
-        state
-            .cursor
-            .set_char_range(Some(CCursorRange::one(ccursor)));
-        state.store(ui.ctx(), id);
-
-        self.dismissed_word = None;
-        self.selected = 0;
-    }
+/// Consume presses of `key` with no modifiers held, returning how many there were.
+///
+/// Unlike [`InputState::consume_key`], this leaves e.g. Shift+Enter and Shift+ArrowDown alone,
+/// so they still reach the [`TextEdit`].
+fn consume_unmodified_key(input: &mut InputState, key: Key) -> usize {
+    let mut count = 0;
+    input.events.retain(|event| {
+        let is_match = matches!(
+            event,
+            Event::Key {
+                key: event_key,
+                modifiers,
+                pressed: true,
+                ..
+            } if *event_key == key && modifiers.is_none()
+        );
+        count += usize::from(is_match);
+        !is_match
+    });
+    count
 }
 
-/// The word that ends at the cursor (a char index).
-fn word_before_cursor(text: &str, cursor: usize, is_word_boundary: fn(char) -> bool) -> String {
-    let before_cursor: Vec<char> = text.chars().take(cursor).collect();
-    let start = before_cursor
-        .iter()
-        .rposition(|&c| is_word_boundary(c))
-        .map_or(0, |i| i + 1);
-    before_cursor[start..].iter().collect()
+/// The char range of the word that ends at the cursor (a char index).
+fn word_range_before_cursor(
+    text: &str,
+    cursor: usize,
+    is_word_boundary: &dyn Fn(char) -> bool,
+) -> Range<CharIndex> {
+    let start = text
+        .chars()
+        .take(cursor)
+        .enumerate()
+        .filter(|&(_, c)| is_word_boundary(c))
+        .last()
+        .map_or(0, |(i, _)| i + 1);
+    CharIndex(start)..CharIndex(cursor)
 }
 
 #[cfg(test)]
@@ -367,19 +415,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn word_before_cursor_works() {
-        assert_eq!(word_before_cursor("", 0, char::is_whitespace), "");
-        assert_eq!(word_before_cursor("/gr", 3, char::is_whitespace), "/gr");
-        assert_eq!(
-            word_before_cursor("hello /gr", 9, char::is_whitespace),
-            "/gr"
-        );
-        assert_eq!(word_before_cursor("hello /gr", 6, char::is_whitespace), "");
-        assert_eq!(
-            word_before_cursor("hello /gr", 8, char::is_whitespace),
-            "/g"
-        );
-        assert_eq!(word_before_cursor("héllo", 5, char::is_whitespace), "héllo");
-        assert_eq!(word_before_cursor("a.b", 3, |c| c == '.'), "b");
+    fn word_range_before_cursor_works() {
+        let range = |text, cursor| {
+            let range = word_range_before_cursor(text, cursor, &char::is_whitespace);
+            range.start.0..range.end.0
+        };
+        assert_eq!(range("", 0), 0..0);
+        assert_eq!(range("/gr", 3), 0..3);
+        assert_eq!(range("hello /gr", 9), 6..9);
+        assert_eq!(range("hello /gr", 6), 6..6);
+        assert_eq!(range("hello /gr", 8), 6..8);
+        assert_eq!(range("héllo wörld", 11), 6..11);
+
+        let range = word_range_before_cursor("a.b", 3, &|c| c == '.');
+        assert_eq!(range.start.0..range.end.0, 2..3);
     }
 }

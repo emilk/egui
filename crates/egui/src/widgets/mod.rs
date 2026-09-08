@@ -41,7 +41,9 @@ pub use self::{
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
     spinner::Spinner,
-    text_edit::{CompletionOutput, CompletionPopup, Suggestion, TextBuffer, TextEdit},
+    text_edit::{
+        CompletionOutput, CompletionPopup, CompletionQuery, Suggestion, TextBuffer, TextEdit,
+    },
 };
 
 // ----------------------------------------------------------------------------
