@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use egui::{TexturesDelta, UserData, ViewportCommand};
+use egui::{ScreenshotCallback, TexturesDelta, ViewportCommand};
 
 use crate::{App, epi, web::web_painter::WebPainter};
 
@@ -20,7 +20,7 @@ pub struct AppRunner {
 
     // If not empty, the painter should capture n frames from now.
     // zero means capture the exact next frame.
-    screenshot_commands_with_frame_delay: Vec<(UserData, usize)>,
+    screenshot_commands_with_frame_delay: Vec<(ScreenshotCallback, usize)>,
 
     // Output for the last run:
     textures_delta: TexturesDelta,
@@ -255,8 +255,6 @@ impl AppRunner {
     pub fn logic(&mut self) {
         // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
         self.update_focus();
-        // We might have received a screenshot
-        self.painter.handle_screenshots(&mut self.input.raw.events);
 
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
@@ -329,9 +327,9 @@ impl AppRunner {
     fn handle_viewport_commands(&mut self, commands: impl Iterator<Item = ViewportCommand>) {
         for command in commands {
             match command {
-                ViewportCommand::Screenshot(user_data) => {
+                ViewportCommand::Screenshot(callback) => {
                     self.screenshot_commands_with_frame_delay
-                        .push((user_data, 1));
+                        .push((callback, 1));
                 }
                 _ => {
                     // TODO(emilk): handle some of the commands
@@ -350,9 +348,9 @@ impl AppRunner {
         if let Some(clipped_primitives) = clipped_primitives {
             let mut screenshot_commands = vec![];
             self.screenshot_commands_with_frame_delay
-                .retain_mut(|(user_data, frame_delay)| {
+                .retain_mut(|(callback, frame_delay)| {
                     if *frame_delay == 0 {
-                        screenshot_commands.push(user_data.clone());
+                        screenshot_commands.push(callback.clone());
                         false
                     } else {
                         *frame_delay -= 1;

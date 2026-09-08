@@ -803,18 +803,11 @@ impl GlowWinitRunning<'_> {
             );
 
             {
+                let mut screenshot_callbacks = Vec::new();
                 for action in viewport.actions_requested.drain(..) {
                     match action {
-                        ActionRequested::Screenshot(user_data) => {
-                            let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-                            egui_winit
-                                .egui_input_mut()
-                                .events
-                                .push(egui::Event::Screenshot {
-                                    viewport_id,
-                                    user_data,
-                                    image: screenshot.into(),
-                                });
+                        ActionRequested::Screenshot(callback) => {
+                            screenshot_callbacks.push(callback);
                         }
                         ActionRequested::Cut => {
                             egui_winit.egui_input_mut().events.push(egui::Event::Cut);
@@ -838,6 +831,13 @@ impl GlowWinitRunning<'_> {
                                     .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
                             }
                         }
+                    }
+                }
+
+                if !screenshot_callbacks.is_empty() {
+                    let screenshot = Arc::new(painter.read_screen_rgba(screen_size_in_pixels));
+                    for callback in screenshot_callbacks {
+                        callback.complete(Arc::clone(&screenshot));
                     }
                 }
 

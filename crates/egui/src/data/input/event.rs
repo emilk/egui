@@ -185,14 +185,4 @@ pub enum Event {
 
     /// An assistive technology (e.g. screen reader) requested an action.
     AccessKitActionRequest(accesskit::ActionRequest),
-
-    /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].
-    Screenshot {
-        viewport_id: crate::ViewportId,
-
-        /// Whatever was passed to [`crate::ViewportCommand::Screenshot`].
-        user_data: crate::UserData,
-
-        image: std::sync::Arc<ColorImage>,
-    },
 }
