@@ -258,8 +258,8 @@ impl Shape {
 
     /// A filled triangle inscribed in `rect`, pointing down.
     ///
-    /// `rotation` is in radians, and rotates the triangle around the center of `rect`,
-    /// e.g. `-TAU / 4.0` makes it point to the right.
+    /// `rotation` is in radians, and rotates the triangle around the center of `rect`:
+    /// `0.0` points down, `TAU / 4.0` left, `TAU / 2.0` up, and `-TAU / 4.0` right.
     ///
     /// Useful to paint small arrow icons in the ui, like the on combo boxes or submenu buttons.
     pub fn rotated_triangle(rect: Rect, rotation: f32, fill: impl Into<Color32>) -> Self {
