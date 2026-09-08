@@ -8,7 +8,9 @@
 //! Escape closes the popup.
 //! The text field keeps keyboard focus the whole time.
 
-use eframe::egui::{self, CompletionPopup, Id, Key, RichText, ScrollArea, Suggestion, TextEdit};
+use eframe::egui::{
+    self, CompletionPopup, CompletionQuery, Key, RichText, ScrollArea, Suggestion, TextEdit,
+};
 
 /// A command that can be completed.
 struct Command {
@@ -100,14 +102,11 @@ impl eframe::App for MyApp {
 
 /// A prompt with command completion. Returns the text when the user presses Enter (with no popup open).
 fn prompt(ui: &mut egui::Ui, text: &mut String) -> Option<String> {
-    let output = CompletionPopup::new(Id::new("prompt")).show(
+    let output = CompletionPopup::new(ui.make_persistent_id("prompt")).show(
         ui,
-        text,
-        |text| {
-            TextEdit::singleline(text)
-                .hint_text("Type / for commands…")
-                .desired_width(f32::INFINITY)
-        },
+        TextEdit::singleline(text)
+            .hint_text("Type / for commands…")
+            .desired_width(f32::INFINITY),
         suggest_commands,
     );
 
@@ -120,13 +119,14 @@ fn prompt(ui: &mut egui::Ui, text: &mut String) -> Option<String> {
     }
 }
 
-fn suggest_commands(word: &str) -> Vec<Suggestion> {
-    if !word.starts_with('/') {
+/// Commands are only valid at the start of the prompt.
+fn suggest_commands(query: &CompletionQuery<'_>) -> Vec<Suggestion> {
+    if !query.is_at_start() || !query.word.starts_with('/') {
         return vec![];
     }
     COMMANDS
         .iter()
-        .filter(|command| command.name.starts_with(word))
+        .filter(|command| command.name.starts_with(query.word))
         .map(|command| {
             Suggestion::new(format!("{} ", command.name))
                 .label(RichText::new(command.name).monospace())
@@ -140,7 +140,12 @@ mod tests {
     use super::*;
     use egui::accesskit::Role;
     use egui::text_edit::TextEditState;
+    use egui::{Id, KeyboardShortcut, Modifiers};
     use egui_kittest::{Harness, kittest::Queryable as _};
+
+    fn id() -> Id {
+        Id::new("prompt")
+    }
 
     #[derive(Default)]
     struct State {
@@ -150,17 +155,35 @@ mod tests {
     }
 
     fn harness<'a>() -> Harness<'a, State> {
+        harness_with(|text| TextEdit::singleline(text))
+    }
+
+    /// A chat composer: multiline, Shift+Enter for newline, Enter to send.
+    fn chat_harness<'a>() -> Harness<'a, State> {
+        harness_with(|text| {
+            TextEdit::multiline(text)
+                .return_key(KeyboardShortcut::new(Modifiers::SHIFT, Key::Enter))
+        })
+    }
+
+    fn harness_with<'a>(
+        make_text_edit: impl for<'t> Fn(&'t mut String) -> TextEdit<'t> + 'a,
+    ) -> Harness<'a, State> {
         let mut harness = Harness::new_ui_state(
-            |ui, state: &mut State| {
-                let output = CompletionPopup::new(Id::new("prompt")).show(
+            move |ui, state: &mut State| {
+                let output = CompletionPopup::new(id()).show(
                     ui,
-                    &mut state.text,
-                    |text| TextEdit::singleline(text),
+                    make_text_edit(&mut state.text),
                     suggest_commands,
                 );
                 state.popup_open = output.is_open;
                 let response = &output.text_edit.response.response;
-                if response.lost_focus() && ui.input(|input| input.key_pressed(Key::Enter)) {
+                let enter = response.has_focus()
+                    && ui.input_mut(|input| {
+                        !input.modifiers.shift && input.consume_key(Modifiers::NONE, Key::Enter)
+                    });
+                if response.lost_focus() && ui.input(|input| input.key_pressed(Key::Enter)) || enter
+                {
                     response.request_focus();
                     state.submitted = Some(core::mem::take(&mut state.text));
                 }
@@ -168,17 +191,24 @@ mod tests {
             State::default(),
         );
         harness.run();
-        harness.get_by_role(Role::TextInput).focus();
+        text_input(&harness).focus();
         harness.run();
         harness
     }
 
+    fn text_input<'h>(harness: &'h Harness<'_, State>) -> egui_kittest::Node<'h> {
+        harness
+            .query_by_role(Role::TextInput)
+            .or_else(|| harness.query_by_role(Role::MultilineTextInput))
+            .expect("no text input")
+    }
+
     fn text_input_has_focus(harness: &Harness<'_, State>) -> bool {
-        harness.get_by_role(Role::TextInput).is_focused()
+        text_input(harness).is_focused()
     }
 
     fn cursor(harness: &Harness<'_, State>) -> Option<usize> {
-        TextEditState::load(&harness.ctx, Id::new("prompt"))
+        TextEditState::load(&harness.ctx, id())
             .and_then(|state| state.cursor.char_range())
             .map(|range| range.primary.index.0)
     }
@@ -186,7 +216,7 @@ mod tests {
     #[test]
     fn arrows_and_enter_accept_completion() {
         let mut harness = harness();
-        harness.get_by_role(Role::TextInput).type_text("/gr");
+        text_input(&harness).type_text("/gr");
         harness.run();
         assert!(harness.state().popup_open);
 
@@ -214,18 +244,18 @@ mod tests {
     #[test]
     fn tab_accepts_completion_and_keeps_focus() {
         let mut harness = harness();
-        harness.get_by_role(Role::TextInput).type_text("hello /he");
+        text_input(&harness).type_text("/he");
         harness.run();
         harness.key_press(Key::Tab);
         harness.run();
-        assert_eq!(harness.state().text, "hello /help ");
+        assert_eq!(harness.state().text, "/help ");
         assert!(text_input_has_focus(&harness));
     }
 
     #[test]
     fn escape_closes_popup_and_keeps_focus() {
         let mut harness = harness();
-        harness.get_by_role(Role::TextInput).type_text("/c");
+        text_input(&harness).type_text("/c");
         harness.run();
         assert!(harness.state().popup_open);
 
@@ -236,15 +266,73 @@ mod tests {
         assert_eq!(harness.state().text, "/c");
 
         // Typing more reopens the popup:
-        harness.get_by_role(Role::TextInput).type_text("o");
+        text_input(&harness).type_text("o");
         harness.run();
         assert!(harness.state().popup_open);
     }
 
     #[test]
+    fn selection_resets_when_word_changes() {
+        let mut harness = harness();
+        text_input(&harness).type_text("/c");
+        harness.run();
+        harness.key_press(Key::ArrowDown); // selects /compact
+        harness.run();
+
+        text_input(&harness).type_text("o"); // /compact, /config
+        harness.run();
+        harness.key_press(Key::Enter);
+        harness.run();
+        assert_eq!(harness.state().text, "/compact ");
+    }
+
+    #[test]
+    fn typing_and_accepting_in_the_same_frame() {
+        let mut harness = harness();
+        text_input(&harness).type_text("/gr");
+        harness.run();
+        text_input(&harness).type_text("i");
+        harness.key_press(Key::Enter);
+        harness.run();
+        assert_eq!(harness.state().text, "/grill-me ");
+        assert_eq!(cursor(&harness), Some("/grill-me ".len()));
+    }
+
+    #[test]
+    fn commands_only_complete_at_start_of_prompt() {
+        let mut harness = harness();
+        text_input(&harness).type_text("fix /he");
+        harness.run();
+        assert!(!harness.state().popup_open);
+    }
+
+    #[test]
+    fn multiline_chat_composer() {
+        let mut harness = chat_harness();
+        text_input(&harness).type_text("/he");
+        harness.run();
+        assert!(harness.state().popup_open);
+
+        harness.key_press(Key::Enter);
+        harness.run();
+        assert_eq!(harness.state().text, "/help ", "Enter accepts, no newline");
+        assert!(text_input_has_focus(&harness));
+        assert!(harness.state().submitted.is_none());
+
+        harness.key_press_modifiers(Modifiers::SHIFT, Key::Enter);
+        harness.run();
+        assert_eq!(harness.state().text, "/help \n");
+
+        harness.key_press(Key::Enter);
+        harness.run();
+        assert_eq!(harness.state().submitted.as_deref(), Some("/help \n"));
+        assert!(text_input_has_focus(&harness));
+    }
+
+    #[test]
     fn enter_without_popup_submits() {
         let mut harness = harness();
-        harness.get_by_role(Role::TextInput).type_text("hello");
+        text_input(&harness).type_text("hello");
         harness.run();
         assert!(!harness.state().popup_open);
 
