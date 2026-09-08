@@ -343,6 +343,22 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Set which key presses this [`TextEdit`] captures while it has focus.
+    ///
+    /// Keys not captured by the filter are instead used by egui for
+    /// keyboard navigation (tab and arrows move focus, escape surrenders focus).
+    ///
+    /// The default captures the arrow keys, but not tab or escape.
+    /// This is useful e.g. to implement a code completion popup,
+    /// where tab and escape should act on the popup instead of moving focus away.
+    ///
+    /// See also [`Self::lock_focus`].
+    #[inline]
+    pub fn event_filter(mut self, event_filter: EventFilter) -> Self {
+        self.event_filter = event_filter;
+        self
+    }
+
     /// When `true` (default), the cursor will initially be placed at the end of the text.
     ///
     /// When `false`, the cursor will initially be placed at the beginning of the text.
