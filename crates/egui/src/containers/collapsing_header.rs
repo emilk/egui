@@ -1,10 +1,10 @@
 use crate::{
-    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke,
-    TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText,
-    WidgetType, emath, epaint, pos2, remap, remap_clamp, vec2,
+    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Sense, TextStyle,
+    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, WidgetType, emath,
+    epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
-use epaint::{Shape, StrokeKind};
+use epaint::StrokeKind;
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -341,17 +341,13 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     // Draw a pointy triangle arrow:
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
     let rect = rect.expand(visuals.expansion);
-    let mut points = vec![rect.left_top(), rect.right_top(), rect.center_bottom()];
     use core::f32::consts::TAU;
-    let rotation = emath::Rot2::from_angle(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
-    for p in &mut points {
-        *p = rect.center() + rotation * (*p - rect.center());
-    }
+    let rotation = remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0);
 
-    ui.painter().add(Shape::convex_polygon(
-        points,
+    ui.painter().add(epaint::Shape::rotated_triangle(
+        rect,
+        rotation,
         visuals.fg_stroke.color,
-        Stroke::NONE,
     ));
 }
 

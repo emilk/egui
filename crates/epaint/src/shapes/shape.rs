@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
+use emath::{Align2, Pos2, Rangef, Rect, Rot2, TSTransform, Vec2, pos2};
 
 use crate::{
     Color32, CornerRadius, Direction, Mesh, Stroke, StrokeKind, TextureId, Vertex,
@@ -254,6 +254,22 @@ impl Shape {
         stroke: impl Into<PathStroke>,
     ) -> Self {
         Self::Path(PathShape::convex_polygon(points, fill, stroke))
+    }
+
+    /// A filled triangle inscribed in `rect`, pointing down.
+    ///
+    /// `rotation` is in radians, and rotates the triangle around the center of `rect`,
+    /// e.g. `-TAU / 4.0` makes it point to the right.
+    ///
+    /// This is used for the `ComboBox` icon, the `CollapsingHeader` arrow,
+    /// and the submenu arrow in egui.
+    pub fn rotated_triangle(rect: Rect, rotation: f32, fill: impl Into<Color32>) -> Self {
+        let rotation = Rot2::from_angle(rotation);
+        let points = [rect.left_top(), rect.right_top(), rect.center_bottom()]
+            .into_iter()
+            .map(|point| rect.center() + rotation * (point - rect.center()))
+            .collect();
+        Self::convex_polygon(points, fill, Stroke::NONE)
     }
 
     #[inline]

@@ -10,11 +10,13 @@
 
 use crate::style::StyleModifier;
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, PointerButton, Popup,
-    PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
+    Atom, AtomKind, AtomPaintArgs, Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms,
+    IntoSizedResult, Layout, PointerButton, Popup, PopupCloseBehavior, Response, SizedAtomKind,
+    Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
 };
-use emath::{Align, RectAlign, Vec2, vec2};
-use epaint::Stroke;
+use emath::{Align, Rect, RectAlign, Vec2, vec2};
+use epaint::{Shape, Stroke};
+use std::sync::Arc;
 
 /// Apply a menu style to the [`Style`].
 ///
@@ -340,17 +342,44 @@ pub struct SubMenuButton<'a> {
 }
 
 impl<'a> SubMenuButton<'a> {
-    /// The default right arrow symbol: `"⏵"`
-    pub const RIGHT_ARROW: &'static str = "⏵";
+    /// The submenu arrow triangle shape
+    pub fn arrow_shape(rect: Rect, color: impl Into<Color32>) -> Shape {
+        let rect = Rect::from_center_size(
+            rect.center(),
+            vec2(rect.width() * 0.55, rect.height() * 0.35),
+        );
+        Shape::rotated_triangle(rect, -core::f32::consts::TAU / 4.0, color)
+    }
+
+    /// An [`Atom`] painting the [`Self::arrow_shape`].
+    ///
+    /// With `None` the arrow follows the buttons text color, `Some(color)` overrides it.
+    pub fn right_arrow(color: Option<Color32>) -> Atom<'static> {
+        // A closure, so the size can be based on the `Ui`s spacing.
+        AtomKind::closure(move |ui, _args| {
+            let size = Vec2::splat(ui.spacing().icon_width);
+            IntoSizedResult {
+                intrinsic_size: size,
+                sized: SizedAtomKind::Paint {
+                    paint: Arc::new(move |ui: &Ui, args: AtomPaintArgs| {
+                        let color = color.unwrap_or(args.fallback_text_color);
+                        ui.painter().add(Self::arrow_shape(args.rect, color));
+                    }),
+                    size,
+                },
+            }
+        })
+        .into()
+    }
 
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
-        Self::from_button(Button::new(atoms.into_atoms()).right_text("⏵"))
+        Self::from_button(Button::new(atoms.into_atoms()).right_text(Self::right_arrow(None)))
     }
 
     /// Create a new submenu button from a [`Button`].
     ///
-    /// Use [`Button::right_text`] and [`SubMenuButton::RIGHT_ARROW`] to add the default right
-    /// arrow symbol.
+    /// Use [`Button::right_text`] and [`SubMenuButton::right_arrow`] to add the default right
+    /// arrow.
     pub fn from_button(button: Button<'a>) -> Self {
         Self {
             button,
