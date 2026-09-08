@@ -12,6 +12,7 @@ use std::process::{Command, Stdio};
 
 use egui::{Context, FullOutput};
 use image::RgbaImage;
+use log::warn;
 
 /// Name of the environment variable that records every [`crate::Harness`] in the process.
 ///
@@ -335,7 +336,9 @@ pub(crate) fn record_env_var() -> Option<bool> {
 // Harness integration
 
 /// Frame rate of recordings that the harness starts by itself.
-const AUTO_FRAME_RATE: f32 = 10.0;
+///
+/// Each frame will show a single step.
+const DEFAULT_FRAME_RATE_STEPS_PER_SECOND: f32 = 10.0;
 
 /// Gives every automatically started recording a unique file name.
 static NEXT_RECORDING_ID: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(1);
@@ -402,7 +405,7 @@ impl<State> crate::Harness<'_, State> {
             RecordingOptions {
                 auto_save: true,
                 open,
-                ..RecordingOptions::new(auto_recording_path(open, recording_id), AUTO_FRAME_RATE)
+                ..RecordingOptions::new(auto_recording_path(open, recording_id), DEFAULT_FRAME_RATE_STEPS_PER_SECOND)
             },
         );
     }
@@ -432,17 +435,17 @@ impl RecordingPlugin {
 
         match self.finish() {
             Ok(path) => {
-                eprintln!("egui_kittest: saved a recording to {}", path.display());
+                warn!("egui_kittest: saved a recording to {}", path.display());
 
                 if open && let Err(err) = open::that_detached(&path) {
-                    eprintln!(
+                    warn!(
                         "egui_kittest: failed to open {} in the default viewer: {err}",
                         path.display()
                     );
                 }
             }
             Err(RecordingError::NoFrames) => {}
-            Err(err) => eprintln!("egui_kittest: failed to save the recording: {err}"),
+            Err(err) => warn!("egui_kittest: failed to save the recording: {err}"),
         }
     }
 }

@@ -14,7 +14,7 @@ pub use crate::snapshot::*;
 mod app_kind;
 mod config;
 mod node;
-#[cfg(feature = "recording")]
+#[cfg(feature = "video")]
 mod recording;
 mod renderer;
 #[cfg(feature = "wgpu")]
@@ -22,7 +22,7 @@ mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
-#[cfg(feature = "recording")]
+#[cfg(feature = "video")]
 pub use crate::recording::{RECORD_ENV_VAR, RecordingError, RecordingOptions, RecordingPlugin};
 
 // re-exports:
@@ -280,7 +280,7 @@ impl<'a, State> Harness<'a, State> {
         }
 
         // Start recording only now, so that the setup frames above are not part of the recording.
-        #[cfg(feature = "recording")]
+        #[cfg(feature = "video")]
         harness.maybe_start_auto_recording();
 
         harness
