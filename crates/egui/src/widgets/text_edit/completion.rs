@@ -112,10 +112,20 @@ impl CompletionState {
 /// Keys pressed while the popup was open, consumed before the [`TextEdit`] sees them.
 #[derive(Default)]
 struct PopupKeys {
-    /// How many steps to move the selection (down is positive).
-    selection_delta: isize,
+    /// How many times `ArrowDown` was pressed.
+    down: usize,
+
+    /// How many times `ArrowUp` was pressed.
+    up: usize,
+
     accept: bool,
     dismiss: bool,
+}
+
+impl PopupKeys {
+    fn moved_selection(&self) -> bool {
+        self.down != self.up
+    }
 }
 
 /// A code completion popup over a [`TextEdit`].
@@ -243,8 +253,8 @@ impl<'a> CompletionPopup<'a> {
         let mut keys = PopupKeys::default();
         if state.was_open {
             ui.input_mut(|input| {
-                keys.selection_delta += consume_unmodified_key(input, Key::ArrowDown) as isize;
-                keys.selection_delta -= consume_unmodified_key(input, Key::ArrowUp) as isize;
+                keys.down = consume_unmodified_key(input, Key::ArrowDown);
+                keys.up = consume_unmodified_key(input, Key::ArrowUp);
                 for &key in &accept_keys {
                     if 0 < consume_unmodified_key(input, key) {
                         keys.accept = true;
@@ -290,8 +300,8 @@ impl<'a> CompletionPopup<'a> {
             state.selected_word = word.clone();
         }
         if !suggestions.is_empty() {
-            state.selected = (state.selected as isize + keys.selection_delta)
-                .rem_euclid(suggestions.len() as isize) as usize;
+            let len = suggestions.len();
+            state.selected = (state.selected + keys.down + (len - keys.up % len)) % len;
         }
 
         let mut accepted_index = (keys.accept && !suggestions.is_empty()).then_some(state.selected);
@@ -321,7 +331,7 @@ impl<'a> CompletionPopup<'a> {
                                 button = button.right_text(description.clone().weak());
                             }
                             let response = ui.add(button);
-                            if is_selected && keys.selection_delta != 0 {
+                            if is_selected && keys.moved_selection() {
                                 response.scroll_to_me(None);
                             }
                             if response.hovered() && pointer_moved {
