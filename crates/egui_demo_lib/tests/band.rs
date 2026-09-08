@@ -1,5 +1,5 @@
 use egui::{
-    Color32, Pos2, Rect, Stroke, StrokeKind, Vec2,
+    Align2, Color32, FontId, Pos2, Rect, Stroke, StrokeKind, Vec2,
     epaint::{self, BandPoint, BandShape},
     pos2,
 };
@@ -8,6 +8,17 @@ use egui_kittest::Harness;
 /// The band is 25 pixels long, and pinches smoothly from 5 pixels wide, to nothing, and back.
 const LENGTH: f32 = 25.0;
 const WIDTH: f32 = 5.0;
+
+/// Room for the row labels, to the left of the shapes.
+const LABEL_WIDTH: f32 = 120.0;
+
+/// Room for the line that says what the snapshot should show.
+const HEADER_HEIGHT: f32 = 16.0;
+
+/// Wide enough for the header line, which is longer than the labels plus the shapes.
+const IMAGE_WIDTH: f32 = 220.0;
+
+const TEXT_COLOR: Color32 = Color32::from_gray(200);
 
 fn band_points(origin: Pos2) -> Vec<epaint::BandPoint> {
     let num_samples = 101;
@@ -19,6 +30,16 @@ fn band_points(origin: Pos2) -> Vec<epaint::BandPoint> {
             BandPoint::new(origin.x + x, (origin.y - radius)..=(origin.y + radius))
         })
         .collect()
+}
+
+fn text(painter: &egui::Painter, left_center: Pos2, text: &str) {
+    painter.text(
+        left_center,
+        Align2::LEFT_CENTER,
+        text,
+        FontId::proportional(10.0),
+        TEXT_COLOR,
+    );
 }
 
 /// A band that pinches down to zero width, with each of the [`StrokeKind`]s.
@@ -36,7 +57,10 @@ fn band_pinch() {
         ("inside", Some(StrokeKind::Inside)),
     ];
 
-    let size = Vec2::new(LENGTH + 2.0 * padding, row_height * strokes.len() as f32);
+    let size = Vec2::new(
+        IMAGE_WIDTH,
+        HEADER_HEIGHT + row_height * strokes.len() as f32,
+    );
     let mut harness = Harness::builder()
         .with_size(size)
         .with_pixels_per_point(1.0)
@@ -47,9 +71,17 @@ fn band_pinch() {
                 0.0,
                 Color32::from_gray(32),
             );
+            text(
+                painter,
+                pos2(padding, 0.5 * HEADER_HEIGHT),
+                "Every row should survive the pinch",
+            );
 
-            for (row, (_name, stroke_kind)) in strokes.iter().enumerate() {
-                let origin = pos2(padding, row as f32 * row_height + 0.5 * row_height);
+            for (row, (name, stroke_kind)) in strokes.iter().enumerate() {
+                let y = HEADER_HEIGHT + (row as f32 + 0.5) * row_height;
+                text(painter, pos2(padding, y), name);
+
+                let origin = pos2(LABEL_WIDTH + padding, y);
                 let stroke = match stroke_kind {
                     Some(_) => Stroke::new(1.0, Color32::WHITE),
                     None => Stroke::NONE,
@@ -72,7 +104,10 @@ fn fixed_width_band_matches_path_stroke() {
     let padding = 6.0;
     let line_width = 2.5;
     let row_height = line_width + 2.0 * padding;
-    let size = Vec2::new(LENGTH + 2.0 * padding, 6.0 * row_height);
+    let size = Vec2::new(IMAGE_WIDTH, HEADER_HEIGHT + 6.0 * row_height);
+    let left = LABEL_WIDTH + padding;
+    let row_center = |row: f32| pos2(left, HEADER_HEIGHT + (row + 0.5) * row_height);
+
     let mut harness = Harness::builder()
         .with_size(size)
         .with_pixels_per_point(1.0)
@@ -83,8 +118,27 @@ fn fixed_width_band_matches_path_stroke() {
                 0.0,
                 Color32::from_gray(32),
             );
+            text(
+                painter,
+                pos2(padding, 0.5 * HEADER_HEIGHT),
+                "Each group of three should look the same",
+            );
 
-            let band_center = pos2(padding, 0.5 * row_height);
+            for (row, name) in [
+                "band",
+                "path stroke",
+                "rect",
+                "band, rotated",
+                "path stroke, rotated",
+                "rect, rotated",
+            ]
+            .iter()
+            .enumerate()
+            {
+                text(painter, pos2(padding, row_center(row as f32).y), name);
+            }
+
+            let band_center = row_center(0.0);
             painter.add(BandShape::filled(
                 vec![
                     BandPoint::from_pos_and_width(band_center, line_width),
@@ -96,13 +150,13 @@ fn fixed_width_band_matches_path_stroke() {
                 Color32::WHITE,
             ));
 
-            let path_center = pos2(padding, 1.5 * row_height);
+            let path_center = row_center(1.0);
             painter.add(epaint::PathShape::line(
                 vec![path_center, pos2(path_center.x + LENGTH, path_center.y)],
                 Stroke::new(line_width, Color32::WHITE),
             ));
 
-            let rect_center = pos2(padding, 2.5 * row_height);
+            let rect_center = row_center(2.0);
             painter.add(epaint::RectShape::filled(
                 Rect::from_center_size(
                     rect_center + Vec2::new(0.5 * LENGTH, 0.0),
@@ -113,7 +167,7 @@ fn fixed_width_band_matches_path_stroke() {
             ));
 
             let angle = -0.4;
-            let band_center = pos2(padding, 3.5 * row_height);
+            let band_center = row_center(3.0);
             painter.add(
                 BandShape::filled(
                     vec![
@@ -128,14 +182,14 @@ fn fixed_width_band_matches_path_stroke() {
                 .with_angle_and_pivot(angle, band_center),
             );
 
-            let path_center = pos2(padding, 4.5 * row_height);
+            let path_center = row_center(4.0);
             let rotation = egui::emath::Rot2::from_angle(angle);
             painter.add(epaint::PathShape::line(
                 vec![path_center, path_center + rotation * Vec2::new(LENGTH, 0.0)],
                 Stroke::new(line_width, Color32::WHITE),
             ));
 
-            let rect_center = pos2(padding, 5.5 * row_height);
+            let rect_center = row_center(5.0);
             painter.add(
                 epaint::RectShape::filled(
                     Rect::from_center_size(
