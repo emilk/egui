@@ -261,8 +261,7 @@ impl Shape {
     /// `rotation` is in radians, and rotates the triangle around the center of `rect`,
     /// e.g. `-TAU / 4.0` makes it point to the right.
     ///
-    /// This is used for the `ComboBox` icon, the `CollapsingHeader` arrow,
-    /// and the submenu arrow in egui.
+    /// Useful to paint small arrow icons in the ui, like the on combo boxes or submenu buttons.
     pub fn rotated_triangle(rect: Rect, rotation: f32, fill: impl Into<Color32>) -> Self {
         let rotation = Rot2::from_angle(rotation);
         let points = [rect.left_top(), rect.right_top(), rect.center_bottom()]
