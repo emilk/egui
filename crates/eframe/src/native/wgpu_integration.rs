@@ -583,6 +583,7 @@ impl WgpuWinitRunning<'_> {
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
+        self.integration.egui_ctx.on_exit();
         self.save();
 
         #[cfg(feature = "glow")]
@@ -690,8 +691,6 @@ impl WgpuWinitRunning<'_> {
                 .iter()
                 .map(|(id, viewport)| (*id, viewport.info.clone()))
                 .collect();
-
-            painter.handle_screenshots(&mut raw_input.events);
 
             (viewport_ui_cb, raw_input, is_visible, show_ui)
         };
@@ -801,8 +800,8 @@ impl WgpuWinitRunning<'_> {
 
             let mut screenshot_commands = vec![];
             viewport.actions_requested.retain(|cmd| {
-                if let ActionRequested::Screenshot(info) = cmd {
-                    screenshot_commands.push(info.clone());
+                if let ActionRequested::Screenshot(callback) = cmd {
+                    screenshot_commands.push(callback.clone());
                     false
                 } else {
                     true
