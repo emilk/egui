@@ -215,6 +215,7 @@ impl AppRunner {
 
     pub fn destroy(mut self) {
         log::debug!("Destroying AppRunner");
+        self.egui_ctx.on_exit();
         self.painter.destroy();
     }
 

@@ -445,6 +445,7 @@ impl WinitApp for GlowWinitApp<'_> {
         if let Some(mut running) = self.running.take() {
             profiling::function_scope!();
 
+            running.integration.egui_ctx.on_exit();
             running.integration.save(
                 running.app.as_mut(),
                 Some(&running.glutin.borrow().window(ViewportId::ROOT)),
