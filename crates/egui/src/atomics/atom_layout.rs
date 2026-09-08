@@ -1,6 +1,7 @@
 use crate::{
-    AtomKind, Atoms, Direction, FontSelection, Frame, Id, Image, IntoAtoms, Response, Sense,
-    SizedAtom, SizedAtomKind, Stroke, Ui, Widget, text_selection::LabelSelectionState,
+    AtomKind, AtomPaintArgs, Atoms, Direction, FontSelection, Frame, Id, Image, IntoAtoms,
+    Response, Sense, SizedAtom, SizedAtomKind, Stroke, Ui, Widget,
+    text_selection::LabelSelectionState,
 };
 use core::ops::{Deref, DerefMut};
 use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
@@ -678,6 +679,15 @@ impl<'atom> SizedAtomLayout<'atom> {
                     image.paint_at(ui, item_rect);
                 }
                 SizedAtomKind::Empty { .. } => {}
+                SizedAtomKind::Paint { paint, size: _ } => {
+                    paint(
+                        ui,
+                        AtomPaintArgs {
+                            rect: item_rect,
+                            fallback_text_color,
+                        },
+                    );
+                }
                 SizedAtomKind::Layout(layout) => {
                     // TODO(lucasmerlin): Add some kind of justify flag, right now nested atoms are always
                     // shown fully stretched.
