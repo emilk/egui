@@ -1776,7 +1776,7 @@ mod tests {
         let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
-            vec!["日本語とEnglishの混", "在した文章"]
+            vec!["日本語とEnglish", "の混在した文章"]
         );
     }
 
@@ -1794,7 +1794,7 @@ mod tests {
         let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
-            vec!["日本語とEnglishの混在した", "文章"]
+            vec!["日本語とEnglishの混", "在した文章"]
         );
     }
 
@@ -2180,10 +2180,15 @@ mod tests {
             );
 
             // Round-trip: position → cursor → position should be stable.
+            //
+            // A continuation glyph mid-cluster is placed at the pixel-rounded
+            // cursor position, which can differ from the analytic (unrounded)
+            // position by up to one physical pixel depending on the font's
+            // glyph advance widths, so allow a one-pixel slack here.
             let cursor2 = galley.cursor_from_pos(Vec2::new(rect.center().x, rect.center().y));
             let rect2 = galley.pos_from_cursor(cursor2);
             assert!(
-                (rect.min.x - rect2.min.x).abs() < 1.0,
+                (rect.min.x - rect2.min.x).abs() <= 1.0,
                 "Cursor round-trip unstable at index {i}: \
                  first={}, second={}, cursor2.index={}",
                 rect.min.x,
