@@ -459,7 +459,7 @@ impl HasClasses for TextEdit<'_> {
     }
 }
 
-impl TextEdit<'_> {
+impl<'t> TextEdit<'t> {
     /// Show the [`TextEdit`], returning a rich [`TextEditOutput`].
     ///
     /// ```
@@ -476,6 +476,20 @@ impl TextEdit<'_> {
     /// # });
     /// ```
     pub fn show(self, ui: &mut Ui) -> TextEditOutput {
+        self.show_returning_text(ui).0
+    }
+
+    /// The event filter set with [`Self::event_filter`] or [`Self::lock_focus`].
+    pub(super) fn get_event_filter(&self) -> EventFilter {
+        self.event_filter
+    }
+
+    /// Like [`Self::show`], but also gives back the text buffer,
+    /// so the caller can keep editing it after the text edit has been shown.
+    pub(super) fn show_returning_text(
+        self,
+        ui: &mut Ui,
+    ) -> (TextEditOutput, &'t mut dyn TextBuffer) {
         let TextEdit {
             text,
             prefix,
@@ -610,42 +624,43 @@ impl TextEdit<'_> {
 
         let mut text_changed = false;
 
-        let mut handle_events = |ui: &Ui, galley: &mut Arc<Galley>, layouter, wrap_width, text| {
-            if interactive && ui.memory(|mem| mem.has_focus(id)) {
-                ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
+        let mut handle_events =
+            |ui: &Ui, galley: &mut Arc<Galley>, layouter, wrap_width, text: &mut dyn TextBuffer| {
+                if interactive && ui.memory(|mem| mem.has_focus(id)) {
+                    ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
 
-                let default_cursor_range = if cursor_at_end {
-                    CCursorRange::one(galley.end())
-                } else {
-                    CCursorRange::default()
-                };
-                prev_cursor_range = state.cursor.range(galley);
+                    let default_cursor_range = if cursor_at_end {
+                        CCursorRange::one(galley.end())
+                    } else {
+                        CCursorRange::default()
+                    };
+                    prev_cursor_range = state.cursor.range(galley);
 
-                let (changed, new_cursor_range) = events(
-                    ui,
-                    &mut state,
-                    text,
-                    galley,
-                    layouter,
-                    &EventsOptions {
-                        id,
-                        wrap_width,
-                        multiline,
-                        password,
-                        default_cursor_range,
-                        owns_ime_events,
-                        char_limit,
-                        event_filter,
-                        return_key,
-                    },
-                );
+                    let (changed, new_cursor_range) = events(
+                        ui,
+                        &mut state,
+                        text,
+                        galley,
+                        layouter,
+                        &EventsOptions {
+                            id,
+                            wrap_width,
+                            multiline,
+                            password,
+                            default_cursor_range,
+                            owns_ime_events,
+                            char_limit,
+                            event_filter,
+                            return_key,
+                        },
+                    );
 
-                if changed {
-                    text_changed = true;
+                    if changed {
+                        text_changed = true;
+                    }
+                    cursor_range = Some(new_cursor_range);
                 }
-                cursor_range = Some(new_cursor_range);
-            }
-        };
+            };
 
         // We need to calculate the galley within the atom closure, so we can calculate it based on
         // the available width (in case of wrapping multiline text edits). But we show it later,
@@ -715,7 +730,7 @@ impl TextEdit<'_> {
                 // and the newly typed letter. So we pass a clone instead, and accept having a frame
                 // delay on the very first keystroke.
                 let mut galley_clone = Arc::clone(&galley);
-                handle_events(ui, &mut galley_clone, layouter, available_width, text);
+                handle_events(ui, &mut galley_clone, layouter, available_width, &mut *text);
 
                 get_galley = Some(galley);
             } else {
@@ -734,7 +749,7 @@ impl TextEdit<'_> {
                         // Handling events here allows us to update the galley immediately on
                         // keystrokes, avoiding frame delays, and ensuring the scroll_to within
                         // ScrollAreas works correctly.
-                        handle_events(ui, &mut galley, layouter, args.available_size.x, text);
+                        handle_events(ui, &mut galley, layouter, args.available_size.x, &mut *text);
 
                         let intrinsic_size = galley.intrinsic_size();
                         let mut size = galley.size();
@@ -1029,14 +1044,15 @@ impl TextEdit<'_> {
             &galley,
         );
 
-        TextEditOutput {
+        let output = TextEditOutput {
             response,
             galley,
             galley_pos,
             text_clip_rect,
             state,
             cursor_range,
-        }
+        };
+        (output, text)
     }
 }
 
