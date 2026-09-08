@@ -342,7 +342,7 @@ pub struct SubMenuButton<'a> {
 }
 
 impl<'a> SubMenuButton<'a> {
-    /// The submenu arrow triangle shape
+    /// The submenu arrow triangle shape.
     pub fn arrow_shape(rect: Rect, color: impl Into<Color32>) -> Shape {
         let rect = Rect::from_center_size(
             rect.center(),
@@ -354,7 +354,7 @@ impl<'a> SubMenuButton<'a> {
     /// An [`Atom`] painting the [`Self::arrow_shape`].
     ///
     /// With `None` the arrow follows the buttons text color, `Some(color)` overrides it.
-    pub fn right_arrow(color: Option<Color32>) -> Atom<'static> {
+    pub fn arrow_atom(color: Option<Color32>) -> Atom<'static> {
         // A closure, so the size can be based on the `Ui`s spacing.
         AtomKind::closure(move |ui, _args| {
             let size = Vec2::splat(ui.spacing().icon_width);
@@ -373,12 +373,12 @@ impl<'a> SubMenuButton<'a> {
     }
 
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
-        Self::from_button(Button::new(atoms.into_atoms()).right_text(Self::right_arrow(None)))
+        Self::from_button(Button::new(atoms.into_atoms()).right_text(Self::arrow_atom(None)))
     }
 
     /// Create a new submenu button from a [`Button`].
     ///
-    /// Use [`Button::right_text`] and [`SubMenuButton::right_arrow`] to add the default right
+    /// Use [`Button::right_text`] and [`SubMenuButton::arrow_atom`] to add the default right
     /// arrow.
     pub fn from_button(button: Button<'a>) -> Self {
         Self {

@@ -99,7 +99,7 @@ impl PopupsDemo {
                 let button = Button::new((
                     RichText::new("Background").color(text_color),
                     Atom::grow(),
-                    SubMenuButton::right_arrow(Some(text_color)),
+                    SubMenuButton::arrow_atom(Some(text_color)),
                 ))
                 .fill(self.color);
 
