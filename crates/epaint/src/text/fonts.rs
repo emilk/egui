@@ -23,6 +23,10 @@ use crate::{
 /// Must not exceed the minimum width of the [`TextureAtlas`] (1024).
 pub const MAX_GLYPH_SIZE: usize = 1024;
 
+/// Identifies a viewport's local text-layout cache.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ViewportKey(pub u64);
+
 // ----------------------------------------------------------------------------
 
 /// The collection of fonts used by `epaint`.
@@ -36,7 +40,9 @@ pub const MAX_GLYPH_SIZE: usize = 1024;
 /// You need to call [`Self::begin_pass`] and [`Self::font_image_delta`] once every frame.
 pub struct Fonts {
     fonts: FontsImpl,
-    galley_cache: GalleyCache,
+    // Text layouts are local to a viewport pass: different viewport widths must not
+    // evict each other's cached galleys while sharing the same font atlas.
+    galley_caches: BTreeMap<ViewportKey, GalleyCache>,
 }
 
 impl Fonts {
@@ -46,7 +52,7 @@ impl Fonts {
     pub fn new(options: TextOptions, definitions: FontDefinitions) -> Self {
         Self {
             fonts: FontsImpl::new(options, definitions),
-            galley_cache: Default::default(),
+            galley_caches: Default::default(),
         }
     }
 
@@ -66,7 +72,7 @@ impl Fonts {
     /// See [`GlyphRasterizer`].
     pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
         self.fonts.set_glyph_rasterizer(glyph_rasterizer);
-        self.galley_cache = Default::default();
+        self.galley_caches = Default::default();
     }
 
     /// Ask these for fonts, after the [`FontDefinitions`].
@@ -91,17 +97,20 @@ impl Fonts {
     ///
     /// This function will react to changes in [`TextOptions`],
     /// as well as notice when the font atlas is getting full, and handle that.
-    pub fn begin_pass(&mut self, options: TextOptions) {
+    pub fn begin_pass(&mut self, options: TextOptions, viewport_key: ViewportKey) {
         if self.fonts.options() != &options {
             self.fonts.set_options(options);
-            self.galley_cache = Default::default(); // Galleys point into the old atlas.
+            self.galley_caches = Default::default(); // Galleys point into the old atlas.
         } else if 0.8 < self.fonts.glyphs.fill_ratio() {
             // The parsed faces are still fine; only the bitmaps need to go.
             self.fonts.glyphs.clear();
-            self.galley_cache = Default::default(); // Galleys point into the old atlas.
+            self.galley_caches = Default::default(); // Galleys point into the old atlas.
         }
 
-        self.galley_cache.flush_cache();
+        self.galley_caches
+            .entry(viewport_key)
+            .or_default()
+            .flush_cache();
     }
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
@@ -153,7 +162,16 @@ impl Fonts {
     }
 
     pub fn num_galleys_in_cache(&self) -> usize {
-        self.galley_cache.num_galleys_in_cache()
+        self.galley_caches
+            .values()
+            .map(GalleyCache::num_galleys_in_cache)
+            .sum()
+    }
+
+    /// Drop cached layouts belonging to viewports that are no longer alive.
+    pub fn retain_galley_cache_viewports(&mut self, mut keep: impl FnMut(ViewportKey) -> bool) {
+        self.galley_caches
+            .retain(|&viewport_key, _| keep(viewport_key));
     }
 
     /// How full is the font atlas?
@@ -174,9 +192,19 @@ impl Fonts {
 
     /// Returns a [`FontsView`] with the given `pixels_per_point` that can be used to do text layout.
     pub fn with_pixels_per_point(&mut self, pixels_per_point: f32) -> FontsView<'_> {
+        self.with_pixels_per_point_for_viewport(pixels_per_point, ViewportKey::default())
+    }
+
+    /// Returns a [`FontsView`] with the given `pixels_per_point` for the specified
+    /// viewport that can be used to do text layout with a viewport-specific galley cache.
+    pub fn with_pixels_per_point_for_viewport(
+        &mut self,
+        pixels_per_point: f32,
+        viewport_key: ViewportKey,
+    ) -> FontsView<'_> {
         FontsView {
             fonts: &mut self.fonts,
-            galley_cache: &mut self.galley_cache,
+            galley_cache: self.galley_caches.entry(viewport_key).or_default(),
             pixels_per_point,
         }
     }
