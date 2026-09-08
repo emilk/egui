@@ -76,36 +76,15 @@ incorrectly. Prefer the smallest value that makes the test pass, and re-check it
 update the snapshot.
 
 ## Recording
-
-With the `recording` feature you can record a test as an MP4 video, which is useful to see what a
-test actually does. Recording captures through the active renderer, so for a kittest harness you
-should also enable the `wgpu` feature, unless you provide a custom renderer.
-
-```rust,no_run
-# use egui_kittest::Harness;
-# let mut harness = Harness::new_ui(|ui| { ui.label("Hello!"); });
-#[cfg(all(feature = "recording", feature = "wgpu"))]
-{
-    use egui_kittest::RecordingOptions;
-
-    harness.start_recording(RecordingOptions::mp4("hello.mp4", 10.0));
-    harness.run();
-    harness.finish_recording().unwrap();
-}
-```
-
-You can also record without touching the test:
-
+When enabling the `recording` feature, you can record tests to mp4s via these env vars:
 * `KITTEST_RECORD=1 cargo test` writes numbered MP4s to `tests/snapshots/recordings`
-  (`true`, `yes`, and `on` are also accepted)
 * `KITTEST_RECORD=open cargo test` writes each recording to a temporary file and opens it
 
 Recording needs [`ffmpeg`](https://ffmpeg.org/) on the `PATH`. MP4 has no alpha channel, so
 transparent pixels turn black.
 
 The recorder is an `egui::Plugin` (`RecordingPlugin`), so you can also register it on any
-`egui::Context` yourself. It captures through the integration's screenshot support; the harness
-does not need to render or hand off frames for it.
+`egui::Context` yourself to record any egui app.
 
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.

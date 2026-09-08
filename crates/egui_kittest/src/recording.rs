@@ -30,18 +30,24 @@ pub struct RecordingOptions {
 
     /// Frames per second.
     pub frame_rate: f32,
+
+    /// Save the recording when the integration shuts down.
+    ///
+    /// Without this you must call [`crate::Harness::finish_recording`] yourself.
+    pub auto_save: bool,
+
+    /// Show the saved recording in the default viewer.
+    pub open: bool,
 }
 
 impl RecordingOptions {
     /// Record an MP4 to `path` at the given frame rate.
-    ///
-    /// This pipes frames into [`ffmpeg`](https://ffmpeg.org/), which must be installed and on the
-    /// `PATH`. Frames are streamed as they are captured. If the viewport later shrinks, frames are
-    /// padded; if it grows, frames are scaled down to fit the initial size.
-    pub fn mp4(path: impl Into<PathBuf>, frame_rate: f32) -> Self {
+    pub fn new(path: impl Into<PathBuf>, frame_rate: f32) -> Self {
         Self {
             path: path.into(),
             frame_rate,
+            auto_save: false,
+            open: false,
         }
     }
 }
@@ -95,13 +101,9 @@ pub struct RecordingPlugin {
     options: RecordingOptions,
     mp4_stream: Option<Mp4Stream>,
     error: Option<RecordingError>,
-    recording_id: u64,
 
     /// While `false` the plugin captures no frames.
     active: bool,
-
-    /// Set when the harness started the recording by itself (see [`crate::Harness`]).
-    pub(crate) auto_save: Option<AutoSaveMode>,
 }
 
 impl core::fmt::Debug for RecordingPlugin {
@@ -120,9 +122,7 @@ impl RecordingPlugin {
             options,
             mp4_stream: None,
             error: None,
-            recording_id: 0,
             active: true,
-            auto_save: None,
         }
     }
 
@@ -132,24 +132,12 @@ impl RecordingPlugin {
         self.active
     }
 
-    /// Start capturing again, with new options. Any earlier frames are dropped.
-    fn restart(&mut self, options: RecordingOptions) {
-        self.cancel_mp4();
-        self.options = options;
-        self.error = None;
-        self.recording_id = self.recording_id.wrapping_add(1);
-        self.active = true;
-        self.auto_save = None;
-    }
-
     /// Finish writing the captured frames and return the MP4 path.
     ///
     /// # Errors
     /// Returns an error if there are no frames, or if writing fails.
     pub fn finish(&mut self) -> Result<PathBuf, RecordingError> {
         self.active = false;
-        self.recording_id = self.recording_id.wrapping_add(1);
-        self.auto_save = None;
 
         if let Some(err) = self.error.take() {
             self.cancel_mp4();
@@ -165,13 +153,9 @@ impl RecordingPlugin {
     }
 
     /// Add a frame, dropping it if it is a duplicate.
-    fn push_frame(&mut self, recording_id: u64, image: RgbaImage) {
-        // A screenshot can finish after the recording was stopped or restarted.
-        if !self.active || self.recording_id != recording_id {
-            return;
-        }
-
-        if self.error.is_some() {
+    fn push_frame(&mut self, image: RgbaImage) {
+        // A screenshot can finish after the recording was stopped.
+        if !self.active || self.error.is_some() {
             return;
         }
 
@@ -269,12 +253,9 @@ impl egui::Plugin for RecordingPlugin {
 
         crate::push_cursor_shape(ctx, &mut output.shapes);
 
-        let recording_id = self.recording_id;
         let plugin = ctx.plugin::<Self>();
         let callback = egui::ScreenshotCallback::new(move |image| {
-            plugin
-                .lock()
-                .push_frame(recording_id, color_image_to_rgba(&image));
+            plugin.lock().push_frame(color_image_to_rgba(&image));
         });
 
         // `output_hook` runs after `Context::end_pass`, so sending this through `Context` would
@@ -291,34 +272,21 @@ impl egui::Plugin for RecordingPlugin {
     }
 }
 
-/// When a recording that the harness started by itself is saved.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum AutoSaveMode {
-    /// Always save. Written to `{output_path}/recordings/{test_name}_{recording_id}.mp4`.
-    Always,
-
-    /// Always save to a temporary file, and show it in the default viewer.
-    Open,
-}
-
 /// Where to write an automatically started recording.
-fn auto_recording_path(mode: AutoSaveMode, recording_id: usize) -> PathBuf {
+///
+/// A recording we open goes to a temporary file, everything else to
+/// `{output_path}/recordings/{test_name}_{recording_id}.mp4`.
+fn auto_recording_path(open: bool, recording_id: usize) -> PathBuf {
     let name = std::thread::current()
         .name()
         .map_or_else(|| "recording".to_owned(), sanitize_file_name);
-    let subdirectory = match mode {
-        AutoSaveMode::Always => "recordings",
-        AutoSaveMode::Open => {
-            if let Some(path) = temp_recording_path(&name) {
-                return path;
-            }
-            "recordings" // Fall back to a normal recording.
-        }
-    };
+    if open && let Some(path) = temp_recording_path(&name) {
+        return path;
+    }
 
     crate::config::config()
         .output_path()
-        .join(subdirectory)
+        .join("recordings")
         .join(format!("{name}_{recording_id}.mp4"))
 }
 
@@ -340,27 +308,26 @@ fn sanitize_file_name(name: &str) -> String {
     name.replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-', "_")
 }
 
-/// What [`RECORD_ENV_VAR`] asks for.
+/// What [`RECORD_ENV_VAR`] asks for: [`None`] to not record, or `Some(open)`, where `open`
+/// means show the video in the default viewer afterwards.
 ///
 /// Read once, then cached, so that a test cannot change it halfway through a run.
-pub(crate) fn record_env_var() -> Option<AutoSaveMode> {
-    static MODE: std::sync::OnceLock<Option<AutoSaveMode>> = std::sync::OnceLock::new();
-    *MODE.get_or_init(|| {
+pub(crate) fn record_env_var() -> Option<bool> {
+    static OPEN: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *OPEN.get_or_init(|| {
         let value = std::env::var(RECORD_ENV_VAR).ok()?;
 
-        let mode = match value.trim().to_ascii_lowercase().as_str() {
-            "1" | "true" | "yes" | "on" => AutoSaveMode::Always,
-            "open" => AutoSaveMode::Open,
-            "" | "0" | "false" | "no" | "off" => return None,
+        match value.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => Some(false),
+            "open" => Some(true),
+            "" | "0" | "false" | "no" | "off" => None,
             other => {
                 log::warn!(
                     "Ignoring {RECORD_ENV_VAR}={other:?}: expected a truthy value or `open`"
                 );
-                return None;
+                None
             }
-        };
-
-        Some(mode)
+        }
     })
 }
 
@@ -391,12 +358,12 @@ impl<State> crate::Harness<'_, State> {
     /// let mut harness = Harness::new_ui(|ui| {
     ///     ui.label("Hello!");
     /// });
-    /// harness.start_recording(RecordingOptions::mp4("hello.mp4", 10.0));
+    /// harness.start_recording(RecordingOptions::new("hello.mp4", 10.0));
     /// harness.run();
     /// harness.finish_recording().unwrap();
     /// ```
     pub fn start_recording(&self, options: RecordingOptions) {
-        install(&self.ctx, options, None);
+        install(&self.ctx, options);
     }
 
     /// Stop the recording and write it to disk, returning the path that was written.
@@ -425,49 +392,49 @@ impl<State> crate::Harness<'_, State> {
 
     /// Start recording if the environment variable asks for it.
     pub(crate) fn maybe_start_auto_recording(&self) {
-        let Some(auto_save) = record_env_var() else {
+        let Some(open) = record_env_var() else {
             return;
         };
         let recording_id = NEXT_RECORDING_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
 
-        let options = RecordingOptions::mp4(
-            auto_recording_path(auto_save, recording_id),
-            AUTO_FRAME_RATE,
+        install(
+            &self.ctx,
+            RecordingOptions {
+                auto_save: true,
+                open,
+                ..RecordingOptions::new(auto_recording_path(open, recording_id), AUTO_FRAME_RATE)
+            },
         );
-        install(&self.ctx, options, Some(auto_save));
     }
 }
 
 /// Register a [`RecordingPlugin`] on `ctx`, or restart the one that is already registered.
-fn install(ctx: &Context, options: RecordingOptions, auto_save: Option<AutoSaveMode>) {
+fn install(ctx: &Context, options: RecordingOptions) {
     let restarted = ctx
         .with_plugin::<RecordingPlugin, _>(|plugin| {
-            plugin.restart(options.clone());
-            plugin.auto_save = auto_save;
+            // Dropping the old plugin throws away the frames it captured.
+            *plugin = RecordingPlugin::new(options.clone());
         })
         .is_some();
 
     if !restarted {
-        let mut plugin = RecordingPlugin::new(options);
-        plugin.auto_save = auto_save;
-        ctx.add_plugin(plugin);
+        ctx.add_plugin(RecordingPlugin::new(options));
     }
 }
 
 #[expect(clippy::print_stderr)]
 impl RecordingPlugin {
     fn save_automatically(&mut self) {
-        let Some(auto_save) = self.auto_save.take() else {
+        if !self.active || !self.options.auto_save {
             return;
-        };
+        }
+        let open = self.options.open;
 
         match self.finish() {
             Ok(path) => {
                 eprintln!("egui_kittest: saved a recording to {}", path.display());
 
-                if auto_save == AutoSaveMode::Open
-                    && let Err(err) = open::that_detached(&path)
-                {
+                if open && let Err(err) = open::that_detached(&path) {
                     eprintln!(
                         "egui_kittest: failed to open {} in the default viewer: {err}",
                         path.display()
@@ -527,7 +494,7 @@ impl Mp4Stream {
                 "scaling it to fit"
             };
             log::warn!(
-                "egui_kittest: MP4 recording changed size from {}x{} to {}x{}; {action} into the {}x{} recording canvas",
+                "MP4 recording changed size from {}x{} to {}x{}; {action} into the {}x{} recording canvas",
                 self.source_size.0,
                 self.source_size.1,
                 size.0,
@@ -701,11 +668,11 @@ mod tests {
     fn mp4_frames_are_streamed() {
         let directory = tempfile::tempdir().expect("tempdir");
         let path = directory.path().join("stream.mp4");
-        let mut plugin = super::RecordingPlugin::new(super::RecordingOptions::mp4(&path, 10.0));
+        let mut plugin = super::RecordingPlugin::new(super::RecordingOptions::new(&path, 10.0));
 
-        plugin.push_frame(0, RgbaImage::from_pixel(4, 4, Rgba([255, 0, 0, 255])));
-        plugin.push_frame(0, RgbaImage::from_pixel(2, 2, Rgba([255, 0, 0, 255])));
-        plugin.push_frame(0, RgbaImage::from_pixel(8, 8, Rgba([255, 0, 0, 255])));
+        plugin.push_frame(RgbaImage::from_pixel(4, 4, Rgba([255, 0, 0, 255])));
+        plugin.push_frame(RgbaImage::from_pixel(2, 2, Rgba([255, 0, 0, 255])));
+        plugin.push_frame(RgbaImage::from_pixel(8, 8, Rgba([255, 0, 0, 255])));
 
         let saved_path = plugin.finish().expect("finish recording");
         assert!(saved_path.exists());

@@ -24,7 +24,7 @@ fn records_an_mp4() {
 
     let mut value = 0;
     let mut harness = counter_harness(&mut value);
-    harness.start_recording(RecordingOptions::mp4(&mp4_path, 12.0));
+    harness.start_recording(RecordingOptions::new(&mp4_path, 12.0));
 
     harness.run();
     harness.get_by_label_contains("count").click();
@@ -57,7 +57,7 @@ fn recording_without_frames_is_an_error() {
 
     let mut value = 0;
     let harness = counter_harness(&mut value);
-    harness.start_recording(RecordingOptions::mp4(dir.path().join("empty.mp4"), 10.0));
+    harness.start_recording(RecordingOptions::new(dir.path().join("empty.mp4"), 10.0));
 
     let err = harness.finish_recording().expect_err("no frames");
     assert!(matches!(err, egui_kittest::RecordingError::NoFrames));
@@ -74,7 +74,7 @@ fn records_when_registered_directly_as_a_plugin() {
     let mut harness = counter_harness(&mut value);
     harness
         .ctx
-        .add_plugin(RecordingPlugin::new(RecordingOptions::mp4(&mp4_path, 10.0)));
+        .add_plugin(RecordingPlugin::new(RecordingOptions::new(&mp4_path, 10.0)));
 
     // The final step must be captured immediately, without a follow-up pass.
     harness.run_steps(3);
