@@ -24,6 +24,15 @@ pub enum Event {
     /// The integration detected a "paste" event (e.g. Cmd+V).
     Paste(String),
 
+    /// The integration detected a "paste" event (e.g. Cmd+V) where the clipboard held an
+    /// image instead of text (e.g. a screenshot, or an image copied from another app).
+    ///
+    /// Mirrors [`crate::OutputCommand::CopyImage`] for the opposite direction: an integration
+    /// that supports copying an image out (via `arboard`, say) should support pasting one back
+    /// in the same way. Only emitted when the clipboard has no usable text representation —
+    /// [`Self::Paste`] still takes priority when both are available.
+    PasteImage(std::sync::Arc<ColorImage>),
+
     /// The user middle-clicked at `pos` to paste the X11/Wayland PRIMARY selection.
     ///
     /// The integration reads PRIMARY and sends the text along with the position,
@@ -194,14 +203,4 @@ pub enum Event {
 
     /// An assistive technology (e.g. screen reader) requested an action.
     AccessKitActionRequest(accesskit::ActionRequest),
-
-    /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].
-    Screenshot {
-        viewport_id: crate::ViewportId,
-
-        /// Whatever was passed to [`crate::ViewportCommand::Screenshot`].
-        user_data: crate::UserData,
-
-        image: std::sync::Arc<ColorImage>,
-    },
 }

@@ -1,4 +1,4 @@
-use egui::{Frame, Label, RichText, Sense, UiBuilder, Widget as _};
+use egui::{Frame, Label, RichText, Sense, Stroke, UiBuilder, Widget as _};
 
 /// Showcase [`egui::Ui::response`].
 #[derive(PartialEq, Eq, Default)]
@@ -51,7 +51,7 @@ impl crate::View for InteractiveContainerDemo {
 
                     Frame::canvas(ui.style())
                         .fill(visuals.bg_fill.gamma_multiply(0.3))
-                        .stroke(visuals.bg_stroke)
+                        .stroke(Stroke::new(1.0, visuals.bg_stroke.color))
                         .inner_margin(ui.spacing().menu_margin)
                         .show(ui, |ui| {
                             ui.set_width(ui.available_width());

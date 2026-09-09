@@ -102,11 +102,19 @@ impl Rangef {
     /// Flip the min and the max
     #[inline]
     #[must_use]
-    pub fn flip(self) -> Self {
+    pub fn flipped(self) -> Self {
         Self {
             min: self.max,
             max: self.min,
         }
+    }
+
+    /// Flip the min and the max
+    #[inline]
+    #[must_use]
+    #[deprecated = "Renamed to `flipped`"]
+    pub fn flip(self) -> Self {
+        self.flipped()
     }
 
     /// The overlap of two ranges, i.e. the range that is contained by both.

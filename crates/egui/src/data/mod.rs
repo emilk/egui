@@ -3,7 +3,7 @@
 pub mod input;
 mod key;
 pub mod output;
-mod user_data;
+mod screenshot_callback;
 
 pub use key::Key;
-pub use user_data::UserData;
+pub use screenshot_callback::ScreenshotCallback;

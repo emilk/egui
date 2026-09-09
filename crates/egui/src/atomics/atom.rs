@@ -1,5 +1,6 @@
 use crate::{
-    AtomKind, AtomLayout, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui,
+    AtomKind, AtomLayout, AtomPaintArgs, FontSelection, Id, IntoSizedArgs, IntoSizedResult,
+    SizedAtom, Ui,
 };
 use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
@@ -99,6 +100,30 @@ impl<'a> Atom<'a> {
             size: Some(size.into()),
             kind: AtomKind::Empty,
             id: Some(id),
+            ..Default::default()
+        }
+    }
+
+    /// Create an [`AtomKind::Paint`] with a specific size.
+    ///
+    /// The closure paints the atom at the [`AtomPaintArgs::rect`] the layout gives it.
+    ///
+    /// Example:
+    /// ```
+    /// # use egui::{Atom, Button, Color32, CornerRadius, __run_test_ui};
+    /// # use emath::Vec2;
+    /// # __run_test_ui(|ui| {
+    /// let dot = Atom::paint(Vec2::splat(8.0), |ui, args| {
+    ///     ui.painter()
+    ///         .rect_filled(args.rect, CornerRadius::same(4), Color32::RED);
+    /// });
+    /// ui.add(Button::new((dot, "Recording")));
+    /// # });
+    /// ```
+    pub fn paint(size: impl Into<Vec2>, func: impl Fn(&Ui, AtomPaintArgs) + 'a) -> Self {
+        Atom {
+            size: Some(size.into()),
+            kind: AtomKind::paint(func),
             ..Default::default()
         }
     }

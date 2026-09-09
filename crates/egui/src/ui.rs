@@ -5,8 +5,8 @@ use core::{any::Any, ops::Deref};
 use std::sync::Arc;
 
 use crate::containers::menu;
-use crate::widget_style::{HasClasses as _, ROOT_CLASS};
 use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
+use crate::{class, class::HasClasses as _};
 use emath::GuiRounding as _;
 
 // ----------------------------------------------------------------------------
@@ -135,7 +135,7 @@ impl Ui {
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
-        let classes = classes.with_class(ROOT_CLASS);
+        let classes = classes.with_class(class::ROOT);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {

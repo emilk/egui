@@ -65,7 +65,7 @@ pub fn hit_test(
         .filter(|layer| layer.order.allow_interaction())
         .flat_map(|&layer_id| widgets.get_layer(layer_id))
         .filter(|&w| {
-            if w.interact_rect.is_negative() || w.interact_rect.any_nan() {
+            if w.interact_rect.is_negative() || w.rect.any_nan() || w.interact_rect.any_nan() {
                 return false;
             }
 
@@ -91,7 +91,10 @@ pub fn hit_test(
         }
     }
 
-    close.retain(|rect| !rect.interact_rect.any_nan()); // Protect against bad input and transforms
+    // Protect against bad input and transforms.
+    // NOTE: `Rect::intersect` scrubs NaNs (`f32::max(NAN, x) == x`),
+    // so `interact_rect` can be finite even when `rect` is not.
+    close.retain(|w| !w.rect.any_nan() && !w.interact_rect.any_nan());
 
     // When using layer transforms it is common to stack layers close to each other.
     // For instance, you may have a resize-separator on a panel, with two
@@ -359,11 +362,10 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
 
         (Some(hit_click), Some(hit_drag)) => {
             // We have a perfect hit on both click and drag. Which is the topmost?
-            #[expect(clippy::unwrap_used)]
-            let click_idx = close.iter().position(|w| *w == hit_click).unwrap();
-
-            #[expect(clippy::unwrap_used)]
-            let drag_idx = close.iter().position(|w| *w == hit_drag).unwrap();
+            // We look them up by id, because a `WidgetRect` with a NaN coordinate
+            // is not equal even to itself.
+            let click_idx = close.iter().position(|w| w.id == hit_click.id);
+            let drag_idx = close.iter().position(|w| w.id == hit_drag.id);
 
             let click_is_on_top_of_drag = drag_idx < click_idx;
             if click_is_on_top_of_drag {

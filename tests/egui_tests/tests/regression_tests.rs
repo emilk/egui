@@ -6,8 +6,8 @@ use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::text::{LayoutJob, TextWrapping};
 use egui::{
-    Align, Button, Color32, FontFamily, FontId, Image, Label, Layout, Rect, RichText, Sense,
-    TextBuffer, TextFormat, TextWrapMode, Ui, Vec2, include_image, vec2,
+    Align, Align2, Button, Color32, FontFamily, FontId, Image, Label, Layout, Rect, RichText,
+    Sense, TextBuffer, TextFormat, TextWrapMode, Ui, Vec2, include_image, vec2,
 };
 use egui::{Pos2, ScrollArea};
 use egui_kittest::Harness;
@@ -131,8 +131,7 @@ fn text_edit_halign() {
                             "{widget_alignment:?}\n+\n{text_alignment:?}",
                         ))
                         .layouter(&mut layouter(text_alignment))
-                        .vertical_align(widget_alignment)
-                        .horizontal_align(widget_alignment),
+                        .align(Align2::new(widget_alignment, widget_alignment)),
                     );
                 }
             });

@@ -29,7 +29,7 @@ impl Default for TextLayoutDemo {
 
 impl crate::Demo for TextLayoutDemo {
     fn name(&self) -> &'static str {
-        "🖹 Text Layout"
+        "📄 Text Layout"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {

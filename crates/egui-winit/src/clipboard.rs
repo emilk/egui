@@ -77,7 +77,13 @@ impl Clipboard {
             return match clipboard.get_text() {
                 Ok(text) => Some(text),
                 Err(err) => {
-                    log::error!("arboard paste error: {err}");
+                    // Expected whenever the clipboard holds something other than text (e.g.
+                    // an image copied with a screenshot tool) — the caller falls back to
+                    // `Self::get_image` in that case, so this is not an error worth
+                    // alarming the user/log about.
+                    if !is_expected_content_absence(&err) {
+                        log::error!("arboard paste error: {err}");
+                    }
                     None
                 }
             };
@@ -131,6 +137,34 @@ impl Clipboard {
             // PRIMARY only exists to be read by other processes.
             self.arboard_set_primary(text);
         }
+    }
+
+    /// Get an image from the clipboard, if there is one and the platform backend supports it.
+    ///
+    /// This mirrors [`Self::set_image`] for the opposite direction, so that a Ctrl+V/Cmd+V
+    /// paste can carry an image (e.g. a screenshot or a copied image) instead of text — see
+    /// [`egui::Event::PasteImage`].
+    pub fn get_image(&mut self) -> Option<egui::ColorImage> {
+        #[cfg(all(
+            not(any(target_os = "android", target_os = "ios")),
+            feature = "arboard",
+        ))]
+        if let Some(clipboard) = &mut self.arboard {
+            return match clipboard.get_image() {
+                Ok(image) => Some(color_image_from_arboard(&image)),
+                Err(err) => {
+                    // Expected whenever the clipboard holds neither text nor an image (e.g.
+                    // it's simply empty) — `Self::get` was already tried first and came up
+                    // empty too, so this is the mundane "nothing to paste" case, not an error.
+                    if !is_expected_content_absence(&err) {
+                        log::error!("arboard paste-image error: {err}");
+                    }
+                    None
+                }
+            };
+        }
+
+        None
     }
 
     pub fn set_image(&mut self, image: &egui::ColorImage) {
@@ -301,6 +335,29 @@ cfg_select! {
             fn arboard_set_primary(&mut self, _text: String) {}
         }
     }
+}
+
+/// Whether an `arboard::Error` from reading the clipboard is the expected, mundane outcome
+/// of the clipboard simply not holding the requested content type (e.g. text was asked for
+/// but the clipboard holds an image, or vice versa, or it's just empty) — as opposed to a
+/// genuine failure (permissions, a locked clipboard, a conversion error) worth an `error!` log.
+///
+/// Pulled out as its own pure function (rather than inlined in the two `match`es above) so it
+/// can be unit-tested without touching the real OS clipboard, which CI can't rely on.
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    feature = "arboard",
+))]
+fn is_expected_content_absence(err: &arboard::Error) -> bool {
+    matches!(err, arboard::Error::ContentNotAvailable)
+}
+
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    feature = "arboard",
+))]
+fn color_image_from_arboard(image: &arboard::ImageData<'_>) -> egui::ColorImage {
+    egui::ColorImage::from_rgba_unmultiplied([image.width, image.height], &image.bytes)
 }
 
 #[cfg(all(

@@ -426,7 +426,7 @@ impl Options {
         use crate::Widget as _;
         use crate::containers::CollapsingHeader;
 
-        CollapsingHeader::new("⚙ Options")
+        CollapsingHeader::new("⚙️ Options")
             .default_open(false)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -459,7 +459,7 @@ impl Options {
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
-                theme_preference.radio_buttons(ui);
+                theme_preference.buttons(ui);
 
                 ui.checkbox(sync_window_theme, "Sync window theme with egui theme");
 
@@ -470,7 +470,7 @@ impl Options {
                 style.ui(ui);
             });
 
-        CollapsingHeader::new("✒ Painting")
+        CollapsingHeader::new("✒️ Painting")
             .default_open(false)
             .show(ui, |ui| {
                 tessellation_options.ui(ui);
@@ -479,7 +479,7 @@ impl Options {
                 });
             });
 
-        CollapsingHeader::new("🖱 Input")
+        CollapsingHeader::new("🖱️ Input")
             .default_open(false)
             .show(ui, |ui| {
                 input_options.ui(ui);
@@ -533,8 +533,6 @@ pub(crate) struct Focus {
 
     /// The ID of a widget to give the focus to in the next frame.
     id_next_frame: Option<Id>,
-
-    id_requested_by_accesskit: Option<accesskit::NodeId>,
 
     /// If set, the next widget that is interested in focus will automatically get it.
     /// Probably because the user pressed Tab.
@@ -593,9 +591,9 @@ impl Focus {
         }
         let event_filter = self.focused_widget.map(|w| w.filter).unwrap_or_default();
 
-        self.id_requested_by_accesskit = None;
-
         self.focus_direction = FocusDirection::None;
+
+        let mut focus_requested_by_accesskit = None;
 
         for event in &new_input.events {
             if !event_filter.matches(event)
@@ -633,8 +631,21 @@ impl Focus {
             }) = event
                 && *target_tree == accesskit::TreeId::ROOT
             {
-                self.id_requested_by_accesskit = Some(*target_node);
+                focus_requested_by_accesskit = Some(*target_node);
             }
+        }
+
+        // Handle accesskit focus requests
+        let newly_focused = focus_requested_by_accesskit.and_then(|node_id| {
+            self.focus_widgets_cache
+                .keys()
+                .find(|id| id.accesskit_id() == node_id)
+                .copied()
+        });
+        if let Some(id) = newly_focused {
+            self.focused_widget = Some(FocusWidget::new(id));
+            self.give_to_next = false;
+            self.reset_focus();
         }
     }
 
@@ -663,13 +674,6 @@ impl Focus {
     }
 
     fn interested_in_focus(&mut self, id: Id) {
-        if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
-            self.focused_widget = Some(FocusWidget::new(id));
-            self.id_requested_by_accesskit = None;
-            self.give_to_next = false;
-            self.reset_focus();
-        }
-
         // The rect is updated at the end of the frame.
         self.focus_widgets_cache
             .entry(id)
