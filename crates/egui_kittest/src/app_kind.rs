@@ -76,7 +76,7 @@ impl<State> AppKind<'_, State> {
                             "run_ui should only be called with AppKind::Ui or AppKind::UiState"
                         ),
                     }
-                    ui.id()
+                    ui.scope_id()
                 })
                 .inner
         });
