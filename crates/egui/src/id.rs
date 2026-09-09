@@ -73,13 +73,23 @@ impl Id {
     }
 
     /// Generate a new, globally unique, root [`Id`] by hashing some source (e.g. a string or integer).
-    pub fn new(source: impl AsId) -> Self {
+    ///
+    /// The source must be unique within the whole application,
+    /// or else you risk [`Id`] clashes with other widgets.
+    ///
+    /// If you only need something unique within a parent widget, use [`IdSalt`] instead.
+    pub fn unique(source: impl AsId) -> Self {
         let id = Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(&source));
 
         #[cfg(debug_assertions)]
         id_source::insert_root(id, &source);
 
         id
+    }
+
+    /// Generate a new, globally unique, root [`Id`] by hashing some source (e.g. a string or integer).
+    pub fn new(source: impl AsId) -> Self {
+        Self::unique(source)
     }
 
     /// Generate a child [`Id`] by salting the parent [`Id`] with the given argument.
