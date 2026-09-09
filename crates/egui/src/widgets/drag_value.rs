@@ -1,7 +1,7 @@
 use crate::{
-    Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IntoAtoms, Key, MINUS_CHAR_STR,
-    Modifiers, NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget,
-    WidgetInfo,
+    Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IdSalt, IntoAtoms, Key,
+    MINUS_CHAR_STR, Modifiers, NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui,
+    Widget, WidgetInfo,
     class::{ClassName, Classes, HasClasses},
     emath, text,
 };
@@ -91,7 +91,8 @@ impl<'a> DragValue<'a> {
     }
 
     pub fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
-        let atoms = Atoms::new(Atom::custom(Id::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
+        let atoms =
+            Atoms::new(Atom::custom(IdSalt::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
 
         Self {
             get_set_value: Box::new(get_set_value),
@@ -474,7 +475,7 @@ impl Widget for DragValue<'_> {
         let mut prefix_text = String::new();
         let mut suffix_text = String::new();
         let mut past_value = false;
-        let atom_id = Id::new(Self::ATOM_ID);
+        let atom_id = IdSalt::new(Self::ATOM_ID);
         for atom in atoms.iter() {
             if atom.id == Some(atom_id) {
                 past_value = true;

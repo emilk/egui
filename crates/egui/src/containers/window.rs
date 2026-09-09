@@ -1314,8 +1314,8 @@ fn title_ui(
     let button_allocation_size = Vec2::splat(heading_font_height);
     let button_shrink = (button_allocation_size - button_size) / 2.0;
 
-    let collapse_atom_id = Id::new("__window_collapse_button");
-    let close_atom_id = Id::new("__window_close_button");
+    let collapse_atom_id = IdSalt::new("__window_collapse_button");
+    let close_atom_id = IdSalt::new("__window_close_button");
 
     let expanded = collapsing.openness(ui.ctx()) > 0.0;
 
