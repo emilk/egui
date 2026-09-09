@@ -412,11 +412,11 @@ impl CollapsingHeader {
     /// Custom collapsing
     pub fn custom(
         ui: &mut Ui,
-        id: impl Into<Id>,
+        id: impl AsIdSalt,
         ui_header: impl FnOnce(&mut Ui),
         ui_body: impl FnOnce(&mut Ui),
     ) {
-        let id = ui.make_persistent_id(id.into());
+        let id = ui.make_persistent_id(id);
         CollapsingState::load_with_default_open(ui.ctx(), id, false)
             .show_header(ui, |ui| {
                 ui_header(ui);
