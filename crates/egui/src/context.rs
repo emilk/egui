@@ -851,7 +851,7 @@ impl Context {
         self.run_dyn(new_input, &mut |ctx| {
             let mut root_ui = Ui::new(
                 ctx.clone(),
-                Id::new((ctx.viewport_id(), "__top_ui")),
+                Id::unique((ctx.viewport_id(), "__top_ui")),
                 UiBuilder::new()
                     .layer_id(LayerId::background())
                     .max_rect(ctx.viewport_rect()),

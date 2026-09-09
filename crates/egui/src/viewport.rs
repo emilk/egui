@@ -150,7 +150,7 @@ impl ViewportId {
 
     #[inline]
     pub fn from_hash_of(source: impl AsId) -> Self {
-        Self(Id::new(source))
+        Self(Id::unique(source))
     }
 }
 

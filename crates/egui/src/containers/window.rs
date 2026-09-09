@@ -101,7 +101,7 @@ impl<'a> Window<'a> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl IntoAtoms<'a>) -> Self {
         let title: Atoms<'_> = title.into_atoms();
-        let area = Area::new(Id::new(title.text())).kind(UiKind::Window);
+        let area = Area::new(Id::unique(title.text())).kind(UiKind::Window);
         Self {
             title,
             open: None,
@@ -137,7 +137,7 @@ impl<'a> Window<'a> {
             .. // A lot of things not implemented yet
         } = viewport;
 
-        let mut window = Self::new(title.or(app_id).unwrap_or_else(String::new)).id(Id::new(id));
+        let mut window = Self::new(title.or(app_id).unwrap_or_else(String::new)).id(Id::unique(id));
 
         if let Some(inner_size) = inner_size {
             window = window.default_size(inner_size);
@@ -1090,7 +1090,7 @@ fn do_resize_interaction(
         }
     };
 
-    let id = Id::new(layer_id).with("edge_drag");
+    let id = Id::unique(layer_id).with("edge_drag");
 
     let style = ctx.global_style();
 

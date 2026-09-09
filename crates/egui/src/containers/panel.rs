@@ -245,21 +245,21 @@ pub struct Panel {
 impl Panel {
     /// Create a left panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_left_panel")`.
+    /// The id should be globally unique, e.g. `Id::unique("my_left_panel")`.
     pub fn left(id: impl Into<Id>) -> Self {
         Self::new(PanelSide::Left, id)
     }
 
     /// Create a right panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_right_panel")`.
+    /// The id should be globally unique, e.g. `Id::unique("my_right_panel")`.
     pub fn right(id: impl Into<Id>) -> Self {
         Self::new(PanelSide::Right, id)
     }
 
     /// Create a top panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_top_panel")`.
+    /// The id should be globally unique, e.g. `Id::unique("my_top_panel")`.
     ///
     /// By default this is NOT resizable.
     pub fn top(id: impl Into<Id>) -> Self {
@@ -268,7 +268,7 @@ impl Panel {
 
     /// Create a bottom panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_bottom_panel")`.
+    /// The id should be globally unique, e.g. `Id::unique("my_bottom_panel")`.
     ///
     /// By default this is NOT resizable.
     pub fn bottom(id: impl Into<Id>) -> Self {
@@ -277,7 +277,7 @@ impl Panel {
 
     /// Create a panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
+    /// The id should be globally unique, e.g. `Id::unique("my_panel")`.
     fn new(side: PanelSide, id: impl Into<Id>) -> Self {
         let default_outer_size: Option<f32> = match side {
             PanelSide::Left | PanelSide::Right => Some(200.0),

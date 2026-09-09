@@ -162,14 +162,14 @@ impl core::fmt::Debug for Id {
 impl From<&'static str> for Id {
     #[inline]
     fn from(string: &'static str) -> Self {
-        Self::new(string)
+        Self::unique(string)
     }
 }
 
 impl From<String> for Id {
     #[inline]
     fn from(string: String) -> Self {
-        Self::new(string)
+        Self::unique(string)
     }
 }
 
@@ -185,8 +185,8 @@ pub type IdMap<V> = nohash_hasher::IntMap<Id, V>;
 
 /// In debug builds, remember the `Debug`-formatted call chain that produced each [`Id`].
 ///
-/// Used by [`Id`]'s `Debug` impl so that `Id::new("foo")` prints as `Id::new("foo")`,
-/// and `Id::new("foo").with("bar")` prints as `Id::new("foo").with("bar")`, etc.
+/// Used by [`Id`]'s `Debug` impl so that `Id::unique("foo")` prints as `Id::unique("foo")`,
+/// and `Id::unique("foo").with("bar")` prints as `Id::unique("foo").with("bar")`, etc.
 #[cfg(debug_assertions)]
 mod id_source {
     use super::{AsId, AsIdSalt, Id, IdMap};
@@ -200,7 +200,7 @@ mod id_source {
             return;
         }
         // Format outside the lock since `{source:?}` may itself recurse into [`Id`]'s `Debug` impl.
-        let formatted = format!("Id::new({source:?})");
+        let formatted = format!("Id::unique({source:?})");
         SOURCE_MAP.write().insert(id, formatted);
     }
 
@@ -236,42 +236,42 @@ mod debug_format_tests {
 
     #[test]
     fn root_string() {
-        let id = Id::new("foo");
-        assert_eq!(format!("{id:?}"), r#"Id::new("foo")"#);
+        let id = Id::unique("foo");
+        assert_eq!(format!("{id:?}"), r#"Id::unique("foo")"#);
     }
 
     #[test]
     fn root_integer() {
-        let id = Id::new(42_i32);
-        assert_eq!(format!("{id:?}"), "Id::new(42)");
+        let id = Id::unique(42_i32);
+        assert_eq!(format!("{id:?}"), "Id::unique(42)");
     }
 
     #[test]
     fn root_id_salt() {
-        let id = Id::new(IdSalt::new("foo"));
-        assert_eq!(format!("{id:?}"), r#"Id::new(IdSalt::new("foo"))"#);
+        let id = Id::unique(IdSalt::new("foo"));
+        assert_eq!(format!("{id:?}"), r#"Id::unique(IdSalt::new("foo"))"#);
     }
 
     #[test]
     fn with_one_child() {
-        let id = Id::new("parent").with("child");
-        assert_eq!(format!("{id:?}"), r#"Id::new("parent").with("child")"#);
+        let id = Id::unique("parent").with("child");
+        assert_eq!(format!("{id:?}"), r#"Id::unique("parent").with("child")"#);
     }
 
     #[test]
     fn with_chain() {
-        let id = Id::new("a").with("b").with("c").with(7_i32);
+        let id = Id::unique("a").with("b").with("c").with(7_i32);
         assert_eq!(
             format!("{id:?}"),
-            r#"Id::new("a").with("b").with("c").with(7)"#
+            r#"Id::unique("a").with("b").with("c").with(7)"#
         );
     }
 
     #[test]
     fn nested_id_as_source() {
-        let inner = Id::new("foo");
-        let outer = Id::new(inner);
-        assert_eq!(format!("{outer:?}"), r#"Id::new(Id::new("foo"))"#);
+        let inner = Id::unique("foo");
+        let outer = Id::unique(inner);
+        assert_eq!(format!("{outer:?}"), r#"Id::unique(Id::unique("foo"))"#);
     }
 
     #[test]
