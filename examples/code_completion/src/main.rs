@@ -1,5 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 //! A code completion popup over a [`egui::TextEdit`], using [`egui::CompletionPopup`].
 //!
