@@ -85,7 +85,11 @@ struct CompletionState {
     /// Index of the selected suggestion.
     selected: usize,
 
-    /// The word the selection belongs to. The selection resets when the word changes.
+    /// The word under the cursor when the selection was last used.
+    ///
+    /// When the user types, the word and thus the suggestions change,
+    /// and the old selection index would point at an unrelated suggestion.
+    /// So when the word differs from this, the selection resets to the first suggestion.
     selected_word: String,
 
     /// Was the popup open at the end of the last frame?
