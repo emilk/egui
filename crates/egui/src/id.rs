@@ -88,6 +88,7 @@ impl Id {
     }
 
     /// Generate a new, globally unique, root [`Id`] by hashing some source (e.g. a string or integer).
+    #[deprecated = "Use `Id::unique` (for a globally unique id) or `IdSalt::new` (for a locally unique salt) instead"]
     pub fn new(source: impl AsId) -> Self {
         Self::unique(source)
     }
