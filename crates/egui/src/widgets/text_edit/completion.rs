@@ -92,8 +92,8 @@ struct CompletionState {
     /// So when the word differs from this, the selection resets to the first suggestion.
     selected_word: String,
 
-    /// Was the popup open at the end of the last frame?
-    was_open: bool,
+    /// Is the popup open? Updated at the end of each frame.
+    open: bool,
 
     /// The word for which the user dismissed the popup with Escape.
     /// The popup stays hidden until the word changes.
@@ -252,7 +252,7 @@ impl<'a> CompletionPopup<'a> {
         // Consume the popup keys before the `TextEdit` sees them.
         // We act on them after the `TextEdit` has run, when we know the current text and cursor.
         let mut keys = PopupKeys::default();
-        if state.was_open {
+        if state.open {
             ui.input_mut(|input| {
                 keys.down = consume_unmodified_key(input, Key::ArrowDown);
                 keys.up = consume_unmodified_key(input, Key::ArrowUp);
@@ -268,8 +268,8 @@ impl<'a> CompletionPopup<'a> {
         let event_filter = text_edit.get_event_filter();
         let text_edit = text_edit.id(id).event_filter(EventFilter {
             // Keep focus on Tab and Escape while the popup is open, so they can act on the popup:
-            tab: event_filter.tab || state.was_open,
-            escape: event_filter.escape || state.was_open,
+            tab: event_filter.tab || state.open,
+            escape: event_filter.escape || state.open,
             ..event_filter
         });
         let (output, text) = text_edit.show_returning_text(ui);
@@ -369,7 +369,7 @@ impl<'a> CompletionPopup<'a> {
             state.selected = 0;
         }
 
-        state.was_open = is_open;
+        state.open = is_open;
         state.store(ui, id);
 
         CompletionOutput {
