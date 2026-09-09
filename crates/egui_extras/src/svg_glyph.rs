@@ -8,19 +8,20 @@ use egui::{
 };
 use resvg::{
     tiny_skia::Pixmap,
-    usvg::{Transform, Tree},
+    usvg::{Color, Group, Node, Paint, Transform, Tree},
 };
 
 /// A glyph rendered from an SVG, for a [`GlyphRasterizer`].
 ///
-/// Use it to override how a character looks (e.g. `…`),
+/// Use it to override how a character looks
 /// or to add your own icons to a (private use) character.
 ///
 /// The SVG is scaled so that its height is [`Self::with_height`] (default: one em),
 /// and placed with its bottom edge [`Self::with_baseline_offset`] above the baseline (default: on it).
 ///
-/// By default the SVG is treated as a monochrome shape and tinted with the text color.
-/// Use [`Self::with_color`] to keep its own colors.
+/// An SVG that only uses shades of gray is tinted with the text color, like a normal glyph.
+/// One with other colors keeps them, like a color emoji.
+/// Use [`Self::with_color`] to decide yourself.
 ///
 /// ```no_run
 /// # let ctx = egui::Context::default();
@@ -42,6 +43,8 @@ pub struct SvgGlyph {
     advance_em: Option<f32>,
 
     /// Keep the colors of the SVG, instead of tinting it with the text color?
+    ///
+    /// Default: whether the SVG uses any color that is not a shade of gray.
     is_color: bool,
 }
 
@@ -59,11 +62,11 @@ impl SvgGlyph {
     /// Use an already parsed SVG.
     pub fn from_tree(tree: Tree) -> Self {
         Self {
+            is_color: has_color(tree.root()),
             tree: Arc::new(tree),
             height_em: 1.0,
             baseline_offset_em: 0.0,
             advance_em: None,
-            is_color: false,
         }
     }
 
@@ -99,7 +102,7 @@ impl SvgGlyph {
     /// Keep the colors of the SVG (like a color emoji),
     /// instead of tinting its shape with the text color?
     ///
-    /// Default: `false`.
+    /// Default: `true` if the SVG uses any color that is not a shade of gray.
     #[inline]
     pub fn with_color(mut self, is_color: bool) -> Self {
         self.is_color = is_color;
@@ -188,20 +191,63 @@ impl SvgGlyph {
     }
 }
 
+/// Does anything in this group use a color that is not a shade of gray?
+fn has_color(group: &Group) -> bool {
+    group.children().iter().any(|node| match node {
+        Node::Group(group) => has_color(group),
+        Node::Path(path) => {
+            path.fill()
+                .is_some_and(|fill| paint_has_color(fill.paint()))
+                || path
+                    .stroke()
+                    .is_some_and(|stroke| paint_has_color(stroke.paint()))
+        }
+        Node::Image(_) => true,
+        Node::Text(text) => has_color(text.flattened()),
+    })
+}
+
+fn paint_has_color(paint: &Paint) -> bool {
+    match paint {
+        Paint::Color(color) => !is_gray(*color),
+        Paint::LinearGradient(gradient) => {
+            gradient.stops().iter().any(|stop| !is_gray(stop.color()))
+        }
+        Paint::RadialGradient(gradient) => {
+            gradient.stops().iter().any(|stop| !is_gray(stop.color()))
+        }
+        Paint::Pattern(pattern) => has_color(pattern.root()),
+    }
+}
+
+fn is_gray(color: Color) -> bool {
+    let Color { red, green, blue } = color;
+    red == green && green == blue
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// A 10x20 red rectangle.
-    const RED_RECT: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"><rect width="10" height="20" fill="red"/></svg>"#;
+    /// A 10x20 rectangle.
+    fn rect_svg(fill: &str) -> Vec<u8> {
+        format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"><rect width="10" height="20" fill="{fill}"/></svg>"#
+        )
+        .into_bytes()
+    }
 
     fn red_rect() -> SvgGlyph {
-        SvgGlyph::from_bytes(RED_RECT).unwrap()
+        SvgGlyph::from_bytes(&rect_svg("red")).unwrap()
+    }
+
+    fn gray_rect() -> SvgGlyph {
+        SvgGlyph::from_bytes(&rect_svg("#808080")).unwrap()
     }
 
     #[test]
-    fn monochrome_by_default() {
-        let glyph = red_rect().rasterize(40.0).unwrap();
+    fn gray_is_tinted() {
+        let glyph = gray_rect().rasterize(40.0).unwrap();
         assert_eq!(glyph.bitmap.image.size, [20, 40]);
         assert!(!glyph.bitmap.is_color);
         assert!(
@@ -217,10 +263,44 @@ mod tests {
     }
 
     #[test]
-    fn keeps_color_when_asked() {
-        let glyph = red_rect().with_color(true).rasterize(40.0).unwrap();
+    fn color_is_kept() {
+        let glyph = red_rect().rasterize(40.0).unwrap();
         assert!(glyph.bitmap.is_color);
         assert!(glyph.bitmap.image.pixels.iter().all(|&p| p == Color32::RED));
+    }
+
+    #[test]
+    fn color_detection_can_be_overridden() {
+        assert!(
+            !red_rect()
+                .with_color(false)
+                .rasterize(40.0)
+                .unwrap()
+                .bitmap
+                .is_color
+        );
+        assert!(
+            gray_rect()
+                .with_color(true)
+                .rasterize(40.0)
+                .unwrap()
+                .bitmap
+                .is_color
+        );
+    }
+
+    #[test]
+    fn detects_color_in_gradients_and_nested_groups() {
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">
+            <defs><linearGradient id="g"><stop offset="0" stop-color="black"/><stop offset="1" stop-color="blue"/></linearGradient></defs>
+            <g><g><rect width="10" height="10" fill="url(#g)"/></g></g>
+        </svg>"#;
+        assert!(SvgGlyph::from_bytes(svg).unwrap().is_color);
+
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">
+            <g><circle cx="5" cy="5" r="4" fill="none" stroke="white"/></g>
+        </svg>"#;
+        assert!(!SvgGlyph::from_bytes(svg).unwrap().is_color);
     }
 
     #[test]
