@@ -19,6 +19,7 @@ pub(crate) mod drag_value;
 mod hyperlink;
 mod image;
 mod label;
+mod on_response;
 mod progress_bar;
 mod radio_button;
 mod separator;
@@ -36,6 +37,7 @@ pub use self::{
         decode_animated_image_uri, has_gif_magic_header, has_webp_header, paint_texture_at,
     },
     label::Label,
+    on_response::{OnResponse, OnResponseExt},
     progress_bar::ProgressBar,
     radio_button::RadioButton,
     separator::Separator,
