@@ -187,6 +187,25 @@ impl ContextImpl {
 
 // ----------------------------------------------------------------------------
 
+/// The root [`Ui`] of the current pass of a viewport.
+///
+/// See [`Context::root_ui`].
+#[derive(Default)]
+#[expect(clippy::large_enum_variant, reason = "There is only one per viewport")]
+enum RootUi {
+    /// Not yet created this pass.
+    ///
+    /// It is created on demand by [`Context::root_ui`].
+    #[default]
+    Pending,
+
+    /// Created, and ready to be borrowed by [`Context::root_ui`].
+    Available(Ui),
+
+    /// Currently borrowed by a call to [`Context::root_ui`].
+    Borrowed,
+}
+
 /// State stored per viewport.
 ///
 /// Mostly for internal use.
@@ -251,6 +270,11 @@ pub struct ViewportState {
     ///
     /// See [`crate::Options::sync_window_theme`].
     pub(crate) last_sent_window_theme: Option<crate::SystemTheme>,
+
+    /// The root [`Ui`] of the current pass.
+    ///
+    /// Only set between [`Context::begin_pass`] and [`Context::end_pass`].
+    root_ui: RootUi,
 }
 
 /// What called [`Context::request_repaint`] or [`Context::request_discard`]?
@@ -826,7 +850,8 @@ impl Context {
     ///
     /// You can organize your GUI using [`crate::Panel`].
     ///
-    /// Instead of calling `run_ui`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
+    /// Instead of calling `run_ui`, you can alternatively use [`Self::run_pass`],
+    /// or [`Self::begin_pass`] and [`Context::end_pass`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -842,32 +867,132 @@ impl Context {
     /// ```
     #[must_use]
     pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
-        self.run_ui_dyn(new_input, &mut run_ui)
+        self.run_pass(new_input, |ctx| ctx.root_ui(|ui| run_ui(ui)))
+    }
+
+    /// Run the ui code for one frame, without being handed the root [`Ui`].
+    ///
+    /// This is the same as [`Self::run_ui`], except the callback is given the [`Context`]
+    /// rather than the root [`Ui`].
+    /// Use [`Self::root_ui`] to access the root [`Ui`] from anywhere during the pass,
+    /// e.g. to add a [`crate::Panel`] to it.
+    ///
+    /// This is useful for integrations where the ui code is split over several places
+    /// that only share a [`Context`] (which is cheap to clone), and not a `&mut Ui`.
+    ///
+    /// Prefer [`Self::run_ui`] when you can.
+    ///
+    /// ```
+    /// // One egui context that you keep reusing:
+    /// let mut ctx = egui::Context::default();
+    ///
+    /// // Each frame:
+    /// let input = egui::RawInput::default();
+    /// let full_output = ctx.run_pass(input, |ctx| {
+    ///     ctx.root_ui(|ui| {
+    ///         egui::Panel::top("top").show(ui, |ui| {
+    ///             ui.label("Hello egui!");
+    ///         });
+    ///     });
+    /// });
+    /// // handle full_output
+    /// # full_output.drop_without_applying_deltas();
+    /// ```
+    #[must_use]
+    pub fn run_pass(&self, new_input: RawInput, mut run_pass: impl FnMut(&Self)) -> FullOutput {
+        self.run_pass_dyn(new_input, &mut run_pass)
     }
 
     #[must_use]
-    fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
+    fn run_pass_dyn(&self, new_input: RawInput, run_pass: &mut dyn FnMut(&Self)) -> FullOutput {
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
         self.run_dyn(new_input, &mut |ctx| {
-            let mut root_ui = Ui::new(
-                ctx.clone(),
-                ctx.viewport_id().root_ui_id(),
+            ctx.root_ui(|ui| plugins.on_begin_pass(ui));
+            run_pass(ctx);
+            ctx.root_ui(|ui| plugins.on_end_pass(ui));
+        })
+    }
+
+    /// Access the root [`Ui`] of the current pass.
+    ///
+    /// The root [`Ui`] covers the entire [`Self::viewport_rect`].
+    /// It is the [`Ui`] given to the callback of [`Self::run_ui`],
+    /// and the one that eframe gives to your app each frame.
+    ///
+    /// This lets you add e.g. a [`crate::Panel`] from code that only has access to a [`Context`],
+    /// such as when the ui code is split over several places that share a [`Context`].
+    /// Panels added this way share the root [`Ui`], so they stack correctly.
+    ///
+    /// The root [`Ui`] is created on demand on the first call during a pass,
+    /// so this also works when using [`Self::begin_pass`] and [`Self::end_pass`] directly.
+    ///
+    /// # Panics
+    /// This panics if the root [`Ui`] is already borrowed, e.g. if called from within
+    /// the callback of [`Self::run_ui`], or from within another call to `root_ui`.
+    /// In those cases, use the `&mut Ui` you already have instead.
+    ///
+    /// ```
+    /// # egui::__run_test_ctx(|ctx| {
+    /// ctx.root_ui(|ui| {
+    ///     egui::Panel::left("left").show(ui, |ui| {
+    ///         ui.label("Hello egui!");
+    ///     });
+    /// });
+    /// # });
+    /// ```
+    pub fn root_ui<R>(&self, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+        let mut root_ui = self.take_root_ui();
+        let result = add_contents(&mut root_ui);
+        self.write(|ctx| ctx.viewport().root_ui = RootUi::Available(root_ui));
+        result
+    }
+
+    /// Take the root [`Ui`] out of the viewport state, creating it if needed.
+    ///
+    /// The [`Ui`] must be put back with [`RootUi::Available`] when done,
+    /// so that the next call to [`Self::root_ui`] can find it.
+    fn take_root_ui(&self) -> Ui {
+        let root_ui =
+            self.write(|ctx| core::mem::replace(&mut ctx.viewport().root_ui, RootUi::Borrowed));
+        match root_ui {
+            RootUi::Available(root_ui) => root_ui,
+            RootUi::Pending => Ui::new(
+                self.clone(),
+                self.viewport_id().root_ui_id(),
                 UiBuilder::new()
                     .layer_id(LayerId::background())
-                    .max_rect(ctx.viewport_rect()),
-            );
-
-            {
-                plugins.on_begin_pass(&mut root_ui);
-                run_ui(&mut root_ui);
-                plugins.on_end_pass(&mut root_ui);
+                    .max_rect(self.viewport_rect()),
+            ),
+            RootUi::Borrowed => {
+                panic!(
+                    "Context::root_ui was called while the root Ui was already borrowed. \
+                     You are probably calling it from within `Context::run_ui` or `Context::root_ui`. \
+                     Use the `&mut Ui` you were given instead."
+                );
             }
+        }
+    }
 
-            ctx.pass_state_mut(|state| {
-                state.root_ui_available_rect = Some(root_ui.available_rect_before_wrap());
-                state.root_ui_min_rect = Some(root_ui.min_rect());
-            });
-        })
+    /// Drop the root [`Ui`] of the current pass, if any,
+    /// remembering how much of it was used.
+    ///
+    /// Called at the end of each pass.
+    fn finish_root_ui(&self) {
+        let root_ui = self.write(|ctx| core::mem::take(&mut ctx.viewport().root_ui));
+        match root_ui {
+            RootUi::Pending => {}
+            RootUi::Available(root_ui) => {
+                self.pass_state_mut(|state| {
+                    state.root_ui_available_rect = Some(root_ui.available_rect_before_wrap());
+                    state.root_ui_min_rect = Some(root_ui.min_rect());
+                });
+                // Drop outside of the lock, since `Ui::drop` locks the `Context`.
+                drop(root_ui);
+            }
+            RootUi::Borrowed => {
+                log::error!("Context::end_pass was called while the root Ui was borrowed");
+            }
+        }
     }
 
     #[must_use]
@@ -1003,7 +1128,7 @@ impl Context {
     /// let input = egui::RawInput::default();
     /// ctx.begin_pass(input);
     ///
-    /// // … add panels and windows here …
+    /// // … add panels and windows here, e.g. using `ctx.root_ui(…)` …
     ///
     /// let full_output = ctx.end_pass();
     /// // handle full_output
@@ -2620,6 +2745,8 @@ impl Context {
     #[must_use]
     pub fn end_pass(&self) -> FullOutput {
         profiling::function_scope!();
+
+        self.finish_root_ui();
 
         if self.options(|o| o.zoom_with_keyboard) {
             crate::gui_zoom::zoom_with_keyboard(self);
@@ -4570,7 +4697,61 @@ fn warn_if_rect_changes_id(
 
 #[cfg(test)]
 mod test {
+    use crate::{FontDefinitions, Panel};
+
     use super::Context;
+
+    #[test]
+    fn test_root_ui_with_begin_and_end_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        ctx.begin_pass(Default::default());
+
+        let full_rect = ctx.root_ui(|ui| ui.available_rect_before_wrap());
+        ctx.root_ui(|ui| {
+            Panel::left("left").exact_size(100.0).show(ui, |_| {});
+        });
+        let remaining_rect = ctx.root_ui(|ui| ui.available_rect_before_wrap());
+        assert!(
+            full_rect.left() < remaining_rect.left(),
+            "The panel should consume space in the shared root Ui"
+        );
+        assert_eq!(remaining_rect.right(), full_rect.right());
+
+        let output = ctx.end_pass();
+        output.drop_without_applying_deltas();
+
+        let remembered_rect = ctx
+            .pass_state(|state| state.root_ui_available_rect)
+            .or_else(|| ctx.prev_pass_state(|state| state.root_ui_available_rect));
+        assert_eq!(remembered_rect, Some(remaining_rect));
+    }
+
+    #[test]
+    fn test_root_ui_with_run_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        let mut num_calls = 0;
+        let output = ctx.run_pass(Default::default(), |ctx| {
+            ctx.root_ui(|ui| {
+                Panel::top("top").exact_size(20.0).show(ui, |_| {});
+            });
+            num_calls += 1;
+        });
+        assert_eq!(num_calls, 1);
+        output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    #[should_panic(expected = "already borrowed")]
+    fn test_root_ui_while_borrowed_panics() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.ctx().root_ui(|_| {});
+        });
+        output.drop_without_applying_deltas();
+    }
 
     #[test]
     fn test_single_pass() {
