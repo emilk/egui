@@ -615,6 +615,9 @@ impl<'a> Popup<'a> {
         }
 
         let mut response = area.show(&ctx, |ui| {
+            if kind == PopupKind::Menu {
+                ui.memory_mut(|mem| mem.set_menu_layer(ui.layer_id()));
+            }
             style.apply(ui.style_mut());
             let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
             frame.show(ui, content).inner
