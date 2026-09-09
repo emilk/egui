@@ -24,22 +24,12 @@ struct State {
     /// deliberately doesn't persist its size while its resize handle is being
     /// dragged — which is exactly when these tests need to observe it.
     panel_width: Option<f32>,
-
-    /// [`egui::Ui::id`] of the ui the panels are shown in, recorded each pass.
-    ///
-    /// Panel ids are salted with this, so we need it to look up [`egui::PanelState`].
-    /// This is not the viewport root ui, since kittest wraps the closure in a [`egui::CentralPanel`].
-    parent_ui_id: Option<egui::Id>,
 }
 
 /// Load the persisted [`egui::PanelState`] of the panel with the given `id_salt`,
-/// shown directly in the harness ui (whose [`egui::Ui::id`] is `parent_ui_id`).
-fn load_panel_state(
-    ctx: &egui::Context,
-    parent_ui_id: Option<egui::Id>,
-    id_salt: &str,
-) -> Option<egui::PanelState> {
-    egui::PanelState::load(ctx, parent_ui_id?.with(id_salt))
+/// shown directly in the harness ui.
+fn load_panel_state<S>(harness: &Harness<'_, S>, id_salt: &str) -> Option<egui::PanelState> {
+    egui::PanelState::load(&harness.ctx, harness.ui_id().with(id_salt))
 }
 
 #[test]
@@ -50,7 +40,6 @@ fn drag_to_close_animated_inside() {
         .with_size(Vec2::new(400.0, 200.0))
         .build_ui_state(
             |ui, state: &mut State| {
-                state.parent_ui_id = Some(ui.id());
                 Panel::left("test_left_panel")
                     .resizable(true)
                     .default_size(120.0)
@@ -74,12 +63,8 @@ fn drag_to_close_animated_inside() {
 
     // Query the actual resize edge from PanelState (avoids assumptions about
     // Frame margins and the harness's ui padding).
-    let panel_state = load_panel_state(
-        &harness.ctx,
-        harness.state().parent_ui_id,
-        "test_left_panel",
-    )
-    .expect("PanelState should be persisted after the first frame");
+    let panel_state = load_panel_state(&harness, "test_left_panel")
+        .expect("PanelState should be persisted after the first frame");
     let resize_x = panel_state.outer_rect.right();
     let resize_y = panel_state.outer_rect.center().y;
 
@@ -112,7 +97,6 @@ fn collapsible_left_panel_harness(drag_to_open: bool) -> Harness<'static, State>
         .with_size(Vec2::new(400.0, 200.0))
         .build_ui_state(
             move |ui, state: &mut State| {
-                state.parent_ui_id = Some(ui.id());
                 let response = Panel::left("test_left_panel")
                     .resizable(true)
                     .drag_to_open(drag_to_open)
@@ -133,7 +117,6 @@ fn collapsible_left_panel_harness(drag_to_open: bool) -> Harness<'static, State>
             State {
                 is_expanded: true,
                 panel_width: None,
-                parent_ui_id: None,
             },
         )
 }
@@ -154,12 +137,8 @@ fn collapse_by_drag(harness: &mut Harness<'_, State>) -> Pos2 {
 
     // Query the actual resize edge from PanelState (avoids assumptions about
     // Frame margins and the harness's ui padding).
-    let panel_state = load_panel_state(
-        &harness.ctx,
-        harness.state().parent_ui_id,
-        "test_left_panel",
-    )
-    .expect("PanelState should be persisted after the first frame");
+    let panel_state = load_panel_state(harness, "test_left_panel")
+        .expect("PanelState should be persisted after the first frame");
     let fixed_edge = Pos2::new(
         panel_state.outer_rect.left(),
         panel_state.outer_rect.center().y,
@@ -268,7 +247,6 @@ fn drag_to_close_and_reopen_animated_between() {
         .with_size(Vec2::new(panel_size, 300.0))
         .build_ui_state(
             |ui, state: &mut State| {
-                state.parent_ui_id = Some(ui.id());
                 let collapsed = Panel::bottom("between_collapsed")
                     .resizable(true)
                     .exact_size(collapsed_size);
@@ -312,12 +290,8 @@ fn drag_to_close_and_reopen_animated_between() {
 
     // Drag-to-close: grab the top edge of the expanded bottom panel and drag
     // it down past the panel's minimum height to collapse.
-    let expanded_state = load_panel_state(
-        &harness.ctx,
-        harness.state().parent_ui_id,
-        "between_expanded",
-    )
-    .expect("expanded PanelState should be persisted");
+    let expanded_state = load_panel_state(&harness, "between_expanded")
+        .expect("expanded PanelState should be persisted");
     let expanded_resize_y = expanded_state.outer_rect.top();
     let drag_x = expanded_state.outer_rect.center().x;
     let bottom_y = expanded_state.outer_rect.bottom();
@@ -337,12 +311,8 @@ fn drag_to_close_and_reopen_animated_between() {
 
     // Drag-to-expand: grab the top edge of the (now visible) collapsed panel
     // and drag it upward past the collapsed panel's exact_size cap.
-    let collapsed_state = load_panel_state(
-        &harness.ctx,
-        harness.state().parent_ui_id,
-        "between_collapsed",
-    )
-    .expect("collapsed PanelState should be persisted");
+    let collapsed_state = load_panel_state(&harness, "between_collapsed")
+        .expect("collapsed PanelState should be persisted");
     let collapsed_resize_y = collapsed_state.outer_rect.top();
 
     harness.drag_at(Pos2::new(drag_x, collapsed_resize_y));
@@ -370,12 +340,6 @@ struct SwitchedState {
     /// Read from the ui rather than [`egui::PanelState`], which a panel doesn't
     /// persist while its resize handle is held.
     panel_top: f32,
-
-    /// [`egui::Ui::id`] of the ui the panels are shown in, recorded each pass.
-    ///
-    /// Panel ids are salted with this, so we need it to look up [`egui::PanelState`].
-    /// This is not the viewport root ui, since kittest wraps the closure in a [`egui::CentralPanel`].
-    parent_ui_id: Option<egui::Id>,
 }
 
 /// The sizes a `show_switched` bottom panel moves between in these tests.
@@ -391,7 +355,6 @@ fn switched_bottom_panel_harness(start_expanded: bool) -> Harness<'static, Switc
         .with_step_dt(1.0 / 60.0)
         .build_ui_state(
             move |ui, state: &mut SwitchedState| {
-                state.parent_ui_id = Some(ui.id());
                 Panel::show_switched(
                     ui,
                     &mut state.is_expanded,
@@ -447,12 +410,8 @@ fn drag_to_close_switched_animates_while_held() {
 
     let mut harness = switched_bottom_panel_harness(true);
 
-    let expanded = load_panel_state(
-        &harness.ctx,
-        harness.state().parent_ui_id,
-        "switched_expanded",
-    )
-    .expect("PanelState should be persisted after the first frame");
+    let expanded = load_panel_state(&harness, "switched_expanded")
+        .expect("PanelState should be persisted after the first frame");
     let (x, bottom) = (expanded.outer_rect.center().x, expanded.outer_rect.bottom());
     let collapsed_top = bottom - collapsed_size;
 
@@ -501,12 +460,8 @@ fn drag_to_close_switched_animates_while_held() {
 fn drag_to_open_switched_animates_while_held() {
     let mut harness = switched_bottom_panel_harness(false);
 
-    let collapsed = load_panel_state(
-        &harness.ctx,
-        harness.state().parent_ui_id,
-        "switched_collapsed",
-    )
-    .expect("PanelState should be persisted after the first frame");
+    let collapsed = load_panel_state(&harness, "switched_collapsed")
+        .expect("PanelState should be persisted after the first frame");
     let (x, collapsed_top, bottom) = (
         collapsed.outer_rect.center().x,
         collapsed.outer_rect.top(),
