@@ -17,7 +17,9 @@ pub mod scroll_area;
 mod sides;
 mod tooltip;
 pub(crate) mod window;
+mod group;
 
+pub use group::Group;
 pub use {
     area::{Area, AreaState},
     close_tag::ClosableTag,
