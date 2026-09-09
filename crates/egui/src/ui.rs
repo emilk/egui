@@ -316,7 +316,7 @@ impl Ui {
 
     // -------------------------------------------------
 
-    /// The [`Id`] scope of this `Ui`.
+    /// The stable [`Id`] scope of this `Ui`.
     ///
     /// This is _stable_ from one frame to the next,
     /// so it should be used as the base for the [`Id`]s of widgets that store state
@@ -342,7 +342,7 @@ impl Ui {
         self.scope_id
     }
 
-    /// A globally unique [`Id`] of this `Ui`.
+    /// A globally unique, but unstable, [`Id`] of this `Ui`.
     ///
     /// This is NOT _stable_: it is based on where in the widget hierarchy this `Ui` is,
     /// so it changes if widgets are added or removed before it.
