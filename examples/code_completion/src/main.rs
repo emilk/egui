@@ -129,7 +129,7 @@ fn suggest_commands(query: &CompletionQuery<'_>) -> Vec<Suggestion> {
         .filter(|command| command.name.starts_with(query.word))
         .map(|command| {
             Suggestion::new(format!("{} ", command.name))
-                .label(RichText::new(command.name).monospace())
+                .content(RichText::new(command.name).monospace())
                 .description(command.description)
         })
         .collect()

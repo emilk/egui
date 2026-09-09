@@ -3,8 +3,8 @@ use core::ops::Range;
 use emath::RectAlign;
 
 use crate::{
-    Button, Event, EventFilter, Id, InputState, Key, Popup, PopupKind, ScrollArea, TextEdit, Ui,
-    WidgetText,
+    Atom, Atoms, Button, Event, EventFilter, Id, InputState, IntoAtoms, Key, Popup, PopupKind,
+    ScrollArea, TextEdit, Ui, WidgetText,
     text::{CCursor, CCursorRange, CharIndex},
     vec2,
 };
@@ -18,10 +18,7 @@ pub struct Suggestion {
     pub insert: String,
 
     /// What to show in the popup. Defaults to [`Self::insert`].
-    pub label: WidgetText,
-
-    /// Optional extra text shown weakly to the right of the label.
-    pub description: Option<WidgetText>,
+    pub content: Atoms<'static>,
 }
 
 impl Suggestion {
@@ -29,23 +26,23 @@ impl Suggestion {
     pub fn new(insert: impl Into<String>) -> Self {
         let insert = insert.into();
         Self {
-            label: WidgetText::from(insert.as_str()),
+            content: insert.clone().into_atoms(),
             insert,
-            description: None,
         }
     }
 
     /// What to show in the popup instead of [`Self::insert`].
     #[inline]
-    pub fn label(mut self, label: impl Into<WidgetText>) -> Self {
-        self.label = label.into();
+    pub fn content(mut self, content: impl IntoAtoms<'static>) -> Self {
+        self.content = content.into_atoms();
         self
     }
 
-    /// Extra text shown weakly to the right of the label.
+    /// Add weak text to the far right of the suggestion.
     #[inline]
     pub fn description(mut self, description: impl Into<WidgetText>) -> Self {
-        self.description = Some(description.into());
+        self.content.push_right(Atom::grow());
+        self.content.push_right(description.into().weak());
         self
     }
 }
@@ -324,13 +321,10 @@ impl<'a> CompletionPopup<'a> {
                         let mut clicked = None;
                         for (i, suggestion) in suggestions.iter().enumerate() {
                             let is_selected = i == state.selected;
-                            let mut button =
-                                Button::selectable(is_selected, suggestion.label.clone())
-                                    .min_size(vec2(ui.available_width(), 0.0));
-                            if let Some(description) = &suggestion.description {
-                                button = button.right_text(description.clone().weak());
-                            }
-                            let response = ui.add(button);
+                            let response = ui.add(
+                                Button::selectable(is_selected, suggestion.content.clone())
+                                    .min_size(vec2(ui.available_width(), 0.0)),
+                            );
                             if is_selected && keys.moved_selection() {
                                 response.scroll_to_me(None);
                             }
