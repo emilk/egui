@@ -110,7 +110,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
 
 impl AccessibilityInspectorPlugin {
     fn id() -> Id {
-        Id::new("Accessibility Inspector")
+        Id::unique("Accessibility Inspector")
     }
 
     fn selection_ui(&mut self, ui: &mut Ui, selected_node: NodeId) {
