@@ -1635,7 +1635,7 @@ impl InputState {
 
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
-        crate::containers::CollapsingHeader::new("🖱 Pointer")
+        crate::containers::CollapsingHeader::new("🖱️ Pointer")
             .default_open(false)
             .show(ui, |ui| {
                 pointer.ui(ui);
@@ -1647,7 +1647,7 @@ impl InputState {
             });
         }
 
-        crate::containers::CollapsingHeader::new("⬍ Scroll")
+        crate::containers::CollapsingHeader::new("↕️ Scroll")
             .default_open(false)
             .show(ui, |ui| {
                 wheel.ui(ui);

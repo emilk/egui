@@ -784,7 +784,7 @@ pub fn textedit_hint_text_should_follow_text_alignment() {
                 egui::TextEdit::singleline(&mut input)
                     .hint_text("Hint")
                     .desired_width(200.0)
-                    .horizontal_align(egui::Align::Center),
+                    .align(egui::Align2::CENTER_TOP),
             );
         });
     harness.run();

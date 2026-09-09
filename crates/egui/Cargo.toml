@@ -45,8 +45,22 @@ color-hex = ["epaint/color-hex"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]
 
+## Enable experimental egui features that might have massive breaking changes or be removed entirely in future updates.
+## Enabling this won't break semver, it's just future compatibility risk.
+##
+## Currently, this enables the theme plugin.
+experimental = []
+
 ## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["epaint/mint"]
+
+## Bundle the monochrome emoji fonts `NotoEmoji-Regular` and `emoji-icon-font`,
+## and put them in the default [`FontDefinitions`].
+##
+## They add about 1 MB to the binary, and are only needed if you want the same
+## (monochrome) emoji on every platform, instead of the platform's own color emoji
+## (see [`GlyphRasterizer`] and [`FontProvider`]).
+monochrome_emoji_fonts = ["default_fonts", "epaint/monochrome_emoji_fonts"]
 
 ## Enable persistence of memory (window positions etc).
 persistence = ["serde", "epaint/serde", "ron"]

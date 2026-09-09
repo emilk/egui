@@ -7,6 +7,13 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.2 - 2026-09-08
+* Don't busy-loop a CPU core while waiting for a redraw [#8398](https://github.com/emilk/egui/pull/8398) by [@42Pupusas](https://github.com/42Pupusas)
+* Hide drop shadow window decoration when in fullscreen mode [#8449](https://github.com/emilk/egui/pull/8449) by [@tarolling](https://github.com/tarolling)
+* Fix transparent child viewports on `Windows` with `glow` [#8423](https://github.com/emilk/egui/pull/8423) by [@rustbasic](https://github.com/rustbasic)
+* Apply ViewportBuilder::with_monitor on the glow backend [#8302](https://github.com/emilk/egui/pull/8302) by [@Le-Syl21](https://github.com/Le-Syl21)
+
+
 ## 0.36.1 - 2026-08-07
 Nothing new
 

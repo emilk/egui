@@ -1,6 +1,7 @@
 use crate::{
-    AtomKind, Atoms, Direction, FontSelection, Frame, Id, Image, IntoAtoms, Response, Sense,
-    SizedAtom, SizedAtomKind, Stroke, Ui, Widget, text_selection::LabelSelectionState,
+    AtomKind, AtomPaintArgs, Atoms, Direction, FontSelection, Frame, Id, Image, IntoAtoms,
+    Response, Sense, SizedAtom, SizedAtomKind, Stroke, Ui, Widget,
+    text_selection::LabelSelectionState,
 };
 use core::ops::{Deref, DerefMut};
 use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
@@ -104,6 +105,13 @@ impl<'a> AtomLayout<'a> {
     #[inline]
     pub fn gap(mut self, gap: f32) -> Self {
         self.gap = Some(gap);
+        self
+    }
+
+    /// Set the gap between atoms, unless one was already set.
+    #[inline]
+    pub(crate) fn fallback_gap(mut self, gap: f32) -> Self {
+        self.gap = self.gap.or(Some(gap));
         self
     }
 
@@ -338,9 +346,7 @@ impl<'a> AtomLayout<'a> {
 
         let mut shrink_item = None;
 
-        let align2 = align2.unwrap_or_else(|| {
-            Align2([ui.layout().horizontal_align(), ui.layout().vertical_align()])
-        });
+        let align2 = align2.unwrap_or_else(|| ui.layout().align2());
 
         if atoms.len() > 1 {
             let gap_space = gap * (atoms.len() as f32 - 1.0);
@@ -673,6 +679,15 @@ impl<'atom> SizedAtomLayout<'atom> {
                     image.paint_at(ui, item_rect);
                 }
                 SizedAtomKind::Empty { .. } => {}
+                SizedAtomKind::Paint { paint, size: _ } => {
+                    paint(
+                        ui,
+                        AtomPaintArgs {
+                            rect: item_rect,
+                            fallback_text_color,
+                        },
+                    );
+                }
                 SizedAtomKind::Layout(layout) => {
                     // TODO(lucasmerlin): Add some kind of justify flag, right now nested atoms are always
                     // shown fully stretched.

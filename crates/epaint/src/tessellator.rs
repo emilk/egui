@@ -11,8 +11,8 @@ use emath::{
 
 use crate::{
     CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
-    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke,
-    StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath, stroke::PathStroke,
+    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, RoundedRect, Shape,
+    Stroke, StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath, stroke::PathStroke,
     texture_atlas::PreparedDisc,
 };
 
@@ -536,17 +536,18 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
-    use crate::CornerRadiusF32;
-    use emath::{Pos2, Rect, pos2};
+    use crate::{CornerRadiusF32, RoundedRect};
+    use emath::{Pos2, pos2};
 
     /// overwrites existing points
-    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, cr: CornerRadiusF32) {
+    pub fn rounded_rectangle(path: &mut Vec<Pos2>, rounded_rect: RoundedRect) {
         path.clear();
+
+        // The corner radius is already clamped to half the rect size by `RoundedRect`:
+        let (rect, cr) = rounded_rect.into_parts();
 
         let min = rect.min;
         let max = rect.max;
-
-        let cr = clamp_corner_radius(cr, rect);
 
         if cr == CornerRadiusF32::ZERO {
             path.reserve(4);
@@ -632,14 +633,6 @@ pub mod path {
             let quadrant_vertices = &CIRCLE_128[offset..=offset + 32];
             path.extend(quadrant_vertices.iter().map(|&n| center + radius * n));
         }
-    }
-
-    // Ensures the radius of each corner is within a valid range
-    fn clamp_corner_radius(cr: CornerRadiusF32, rect: Rect) -> CornerRadiusF32 {
-        let half_width = rect.width() * 0.5;
-        let half_height = rect.height() * 0.5;
-        let max_cr = half_width.min(half_height);
-        cr.at_most(max_cr).at_least(0.0)
     }
 }
 
@@ -1807,7 +1800,7 @@ impl Tessellator {
             }
         }
 
-        if stroke.is_empty() && out.texture_id == TextureId::default() {
+        if angle == 0.0 && stroke.is_empty() && out.texture_id == TextureId::default() {
             // Approximate thin rectangles with line segments.
             // This is important so that thin rectangles look good.
             if rect.width() <= 2.0 * self.feathering {
@@ -1938,7 +1931,10 @@ impl Tessellator {
 
         let path = &mut self.scratchpad_path;
         path.clear();
-        path::rounded_rectangle(&mut self.scratchpad_points, rect, corner_radius);
+        path::rounded_rectangle(
+            &mut self.scratchpad_points,
+            RoundedRect::new(rect, corner_radius),
+        );
 
         // Apply rotation if angle is non-zero
         if angle != 0.0 {
@@ -2055,6 +2051,26 @@ impl Tessellator {
 
             let index_offset = out.vertices.len() as u32;
 
+            // Color glyphs (e.g. color emoji) must keep their own color.
+            // Rows rarely have any, so check once per row before searching per vertex.
+            let row_has_color_glyphs = row.glyphs.iter().any(|glyph| glyph.is_color);
+            let is_color_glyph_vertex = |vertex_index: usize| {
+                if !row_has_color_glyphs || !row.visuals.glyph_vertex_range.contains(&vertex_index)
+                {
+                    return false;
+                }
+                // `first_vertex` is non-decreasing along `glyphs`, so binary search for
+                // the glyph owning this vertex. Glyphs without pixels emit no vertices
+                // and share `first_vertex` with the next glyph, so take the last match.
+                let glyph_index = row
+                    .glyphs
+                    .partition_point(|glyph| glyph.first_vertex as usize <= vertex_index);
+                glyph_index
+                    .checked_sub(1)
+                    .and_then(|glyph_index| row.glyphs.get(glyph_index))
+                    .is_some_and(|glyph| glyph.is_color && !glyph.uv_rect.is_nothing())
+            };
+
             out.indices.extend(
                 row.visuals
                     .mesh
@@ -2079,6 +2095,11 @@ impl Tessellator {
                             }
                         } else if color == Color32::PLACEHOLDER {
                             color = *fallback_color;
+                        }
+
+                        if is_color_glyph_vertex(i) {
+                            // Don't tint: keep the glyph's own color, but respect the text alpha.
+                            color = Color32::from_white_alpha(color.a());
                         }
 
                         if *opacity_factor < 1.0 {
