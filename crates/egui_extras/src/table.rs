@@ -1307,7 +1307,7 @@ impl TableRow<'_, '_> {
             flags,
             width,
             height,
-            egui::Id::new((self.row_index, col_index)),
+            egui::IdSalt::new((self.row_index, col_index)),
             add_cell_contents,
         );
 

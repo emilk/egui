@@ -1,5 +1,5 @@
 use crate::{
-    AtomKind, AtomLayout, AtomPaintArgs, FontSelection, Id, IntoSizedArgs, IntoSizedResult,
+    AtomKind, AtomLayout, AtomPaintArgs, FontSelection, IdSalt, IntoSizedArgs, IntoSizedResult,
     SizedAtom, Ui,
 };
 use emath::{Align2, NumExt as _, Vec2};
@@ -32,7 +32,7 @@ use epaint::text::TextWrapMode;
 #[derive(Clone, Debug)]
 pub struct Atom<'a> {
     /// See [`crate::AtomExt::atom_id`]
-    pub id: Option<Id>,
+    pub id: Option<IdSalt>,
 
     /// See [`crate::AtomExt::atom_size`]
     pub size: Option<Vec2>,
@@ -83,10 +83,10 @@ impl<'a> Atom<'a> {
     ///
     /// Example:
     /// ```
-    /// # use egui::{AtomExt, AtomKind, Atom, Button, Id, __run_test_ui};
+    /// # use egui::{AtomExt, AtomKind, Atom, Button, IdSalt, __run_test_ui};
     /// # use emath::Vec2;
     /// # __run_test_ui(|ui| {
-    /// let id = Id::new("my_button");
+    /// let id = IdSalt::new("my_button");
     /// let response = Button::new(("Hi!", Atom::custom(id, Vec2::splat(18.0)))).atom_ui(ui);
     ///
     /// let rect = response.rect(id);
@@ -95,7 +95,7 @@ impl<'a> Atom<'a> {
     /// }
     /// # });
     /// ```
-    pub fn custom(id: Id, size: impl Into<Vec2>) -> Self {
+    pub fn custom(id: IdSalt, size: impl Into<Vec2>) -> Self {
         Atom {
             size: Some(size.into()),
             kind: AtomKind::Empty,

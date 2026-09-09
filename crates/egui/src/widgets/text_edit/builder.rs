@@ -663,7 +663,7 @@ impl TextEdit<'_> {
         let frame = atom_layout_style.frame;
 
         let mut get_galley = None;
-        let inner_rect_id = Id::new("text_edit_rect");
+        let inner_rect_id = IdSalt::new("text_edit_rect");
         let mut response = {
             let any_shrink = hint_text.any_shrink();
             // Ideally we could just do `let mut atoms = prefix` here, but that won't compile

@@ -572,7 +572,7 @@ fn run_logic_should_not_disturb_ui_state() {
     const FOCUSED_BUTTON: &str = "Click me";
 
     let child_viewport = egui::ViewportId::from_hash_of("My child viewport");
-    let area_id = egui::Id::new("My area");
+    let area_id = egui::Id::unique("My area");
     let area_layer = egui::LayerId::new(egui::Order::Middle, area_id);
 
     let mut harness = Harness::builder()

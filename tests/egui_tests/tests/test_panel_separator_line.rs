@@ -73,7 +73,7 @@ fn build_harness(show_separator_line: bool) -> Harness<'static> {
 }
 
 fn hover_resize_handle(harness: &mut Harness<'_>) {
-    let outer = egui::PanelState::load(&harness.ctx, egui::Id::new(PANEL_ID))
+    let outer = egui::PanelState::load(&harness.ctx, harness.ui_id().with(PANEL_ID))
         .expect("PanelState should be persisted after the first frame")
         .outer_rect;
 
