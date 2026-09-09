@@ -48,7 +48,7 @@ impl UiBuilder {
     }
 
     /// Seed the child `Ui` with this `id_salt`, which will be mixed
-    /// with the [`Ui::id`] of the parent.
+    /// with the [`Ui::scope_id`] of the parent.
     ///
     /// You should give each [`Ui`] an `id_salt` that is unique
     /// within the parent, or give it none at all.

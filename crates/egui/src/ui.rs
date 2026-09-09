@@ -28,25 +28,10 @@ use emath::GuiRounding as _;
 /// # });
 /// ```
 pub struct Ui {
-    /// Generated based on id of parent ui together with an optional id salt.
-    ///
-    /// This should be stable from one frame to next
-    /// so it can be used as a source for storing state
-    /// (e.g. window position, or if a collapsing header is open).
-    ///
-    /// However, it is not necessarily globally unique.
-    /// For instance, sibling `Ui`s share the same [`Self::id`]
-    /// unless they where explicitly given different id salts using
-    /// [`UiBuilder::id_salt`].
-    id: Id,
+    /// The [`Id`] scope of this `Ui`. See [`Self::scope_id`].
+    scope_id: Id,
 
-    /// This is a globally unique ID of this `Ui`,
-    /// based on where in the hierarchy of widgets this Ui is in.
-    ///
-    /// This means it is not _stable_, as it can change if new widgets
-    /// are added or removed prior to this one.
-    /// It should therefore only be used for transient interactions (clicks etc),
-    /// not for storing state over time.
+    /// A globally unique, but unstable, [`Id`] of this `Ui`. See [`Self::unique_id`].
     unique_id: Id,
 
     /// This is used to create a unique interact ID for some widgets.
@@ -149,7 +134,7 @@ impl Ui {
         };
 
         let mut ui = Ui {
-            id,
+            scope_id: id,
             unique_id: id,
             next_auto_id_salt: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
@@ -172,7 +157,7 @@ impl Ui {
         ui.ctx().create_widget(
             WidgetRect {
                 id: ui.unique_id,
-                parent_id: ui.id,
+                parent_id: ui.scope_id,
                 layer_id: ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
@@ -252,7 +237,7 @@ impl Ui {
         let (stable_id, unique_id) = match id_source {
             IdSource::Explicit(id) => (id, id),
             IdSource::Child(id_salt) => {
-                let stable_id = self.id.with(id_salt);
+                let stable_id = self.scope_id.with(id_salt);
                 let unique_id = stable_id.with(self.next_auto_id_salt);
                 (stable_id, unique_id)
             }
@@ -273,7 +258,7 @@ impl Ui {
         };
 
         let mut child_ui = Ui {
-            id: stable_id,
+            scope_id: stable_id,
             unique_id,
             next_auto_id_salt,
             painter,
@@ -300,7 +285,7 @@ impl Ui {
         child_ui.ctx().create_widget(
             WidgetRect {
                 id: child_ui.unique_id,
-                parent_id: self.id,
+                parent_id: self.scope_id,
                 layer_id: child_ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
@@ -331,28 +316,40 @@ impl Ui {
 
     // -------------------------------------------------
 
-    /// Generated based on id of parent ui together with an optional id salt.
+    /// The [`Id`] scope of this `Ui`.
     ///
-    /// This should be stable from one frame to next
-    /// so it can be used as a source for storing state
-    /// (e.g. window position, or if a collapsing header is open).
+    /// This is _stable_ from one frame to the next,
+    /// so it should be used as the base for the [`Id`]s of widgets that store state
+    /// (e.g. window position, or if a collapsing header is open):
+    /// `ui.scope_id().with("my_widget")`.
+    /// See also [`Self::make_persistent_id`].
     ///
-    /// However, it is not necessarily globally unique.
-    /// For instance, sibling `Ui`s share the same [`Self::id`]
-    /// unless they were explicitly given different id salts using
-    /// [`UiBuilder::id_salt`].
+    /// This is NOT the [`Id`] of this particular `Ui`, but of its _scope_.
+    /// A child `Ui` inherits the scope of its parent (mixed with an optional [`UiBuilder::id_salt`]),
+    /// so sibling `Ui`s share the same scope unless given different salts.
+    /// Use [`Self::push_id`] to create a new scope.
+    ///
+    /// For a globally unique (but unstable) [`Id`] of this `Ui`, see [`Self::unique_id`].
     #[inline]
-    pub fn id(&self) -> Id {
-        self.id
+    pub fn scope_id(&self) -> Id {
+        self.scope_id
     }
 
-    /// This is a globally unique ID of this `Ui`,
-    /// based on where in the hierarchy of widgets this Ui is in.
+    /// Renamed to [`Self::scope_id`].
+    #[deprecated = "Renamed to `Ui::scope_id`"]
+    #[inline]
+    pub fn id(&self) -> Id {
+        self.scope_id
+    }
+
+    /// A globally unique [`Id`] of this `Ui`.
     ///
-    /// This means it is not _stable_, as it can change if new widgets
-    /// are added or removed prior to this one.
+    /// This is NOT _stable_: it is based on where in the widget hierarchy this `Ui` is,
+    /// so it changes if widgets are added or removed before it.
     /// It should therefore only be used for transient interactions (clicks etc),
-    /// not for storing state over time.
+    /// never for storing state over time.
+    ///
+    /// For a stable [`Id`] to base widget state on, see [`Self::scope_id`].
     #[inline]
     pub fn unique_id(&self) -> Id {
         self.unique_id
@@ -882,7 +879,7 @@ impl Ui {
 impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
     pub fn make_persistent_id(&self, id_salt: impl AsIdSalt) -> Id {
-        self.id.with(id_salt)
+        self.scope_id.with(id_salt)
     }
 
     /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
@@ -921,7 +918,7 @@ impl Ui {
         self.ctx().create_widget(
             WidgetRect {
                 id,
-                parent_id: self.id,
+                parent_id: self.scope_id,
                 layer_id: self.layer_id(),
                 rect,
                 interact_rect: self.clip_rect().intersect(rect),
@@ -979,7 +976,7 @@ impl Ui {
         let mut response = self.ctx().create_widget(
             WidgetRect {
                 id: self.unique_id,
-                parent_id: self.id,
+                parent_id: self.scope_id,
                 layer_id: self.layer_id(),
                 rect: self.min_rect(),
                 interact_rect: self.clip_rect().intersect(self.min_rect()),
