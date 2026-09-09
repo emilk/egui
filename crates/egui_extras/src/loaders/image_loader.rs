@@ -5,8 +5,7 @@ use egui::{
     load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
 };
-use image::ImageFormat;
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::thread;
@@ -22,62 +21,16 @@ impl ImageCrateLoader {
     pub const ID: &'static str = egui::generate_loader_id!(ImageCrateLoader);
 }
 
-fn is_supported_uri(uri: &str) -> bool {
-    let Some(ext) = Path::new(uri)
-        .extension()
-        .and_then(|ext| ext.to_str().map(|ext| ext.to_lowercase()))
-    else {
-        // `true` because if there's no extension, assume that we support it
-        return true;
-    };
-
-    // Uses only the enabled image crate features
-    ImageFormat::from_extension(ext).is_some_and(|format| format.reading_enabled())
-}
-
-fn is_supported_mime(mime: &str) -> bool {
-    // some mime types e.g. reflect binary files or mark the content as a download, which
-    // may be a valid image or not, in this case, defer the decision on the format guessing
-    // or the image crate and return true here
-    let mimes_to_defer = [
-        "application/octet-stream",
-        "application/x-msdownload",
-        "application/force-download",
-    ];
-    for m in &mimes_to_defer {
-        // use contains instead of direct equality, as e.g. encoding info might be appended
-        if mime.contains(m) {
-            return true;
-        }
-    }
-
-    // Some servers may return a media type with an optional parameter, e.g. "image/jpeg; charset=utf-8".
-    let (mime_type, _) = mime.split_once(';').unwrap_or((mime, ""));
-
-    // Uses only the enabled image crate features
-    ImageFormat::from_mime_type(mime_type).is_some_and(|format| format.reading_enabled())
-}
-
 impl ImageLoader for ImageCrateLoader {
     fn id(&self) -> &str {
         Self::ID
     }
 
     fn load(&self, ctx: &egui::Context, uri: &str, _: SizeHint) -> ImageLoadResult {
-        // three stages of guessing if we support loading the image:
-        // 1. URI extension (only done for files)
-        // 2. Mime from `BytesPoll::Ready`
-        // 3. image::guess_format (used internally by image::load_from_memory)
-
         // TODO(lucasmerlin): Egui currently changes all URIs for webp and gif files to include
         // the frame index (#0), which breaks if the animated image loader is disabled.
         // We work around this by removing the frame index from the URI here
         let uri = decode_animated_image_uri(uri).map_or(uri, |(uri, _frame_index)| uri);
-
-        // (1)
-        if uri.starts_with("file://") && !is_supported_uri(uri) {
-            return Err(LoadError::NotSupported);
-        }
 
         #[cfg(not(target_arch = "wasm32"))]
         #[expect(clippy::unnecessary_wraps)] // needed here to match other return types
@@ -164,14 +117,6 @@ impl ImageLoader for ImageCrateLoader {
         } else {
             match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, mime, .. }) => {
-                    // (2)
-                    if let Some(mime) = mime
-                        && !is_supported_mime(&mime)
-                    {
-                        return Err(LoadError::FormatNotSupported {
-                            detected_format: Some(mime),
-                        });
-                    }
                     load_image(ctx, uri, &self.cache, &bytes)
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
