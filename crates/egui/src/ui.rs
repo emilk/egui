@@ -91,7 +91,7 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
-    pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
+    pub fn new(ctx: Context, scope_id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_source,
             ui_stack_info,
@@ -124,7 +124,7 @@ impl Ui {
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
-            id,
+            id: scope_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
             parent: None,
@@ -134,9 +134,9 @@ impl Ui {
         };
 
         let mut ui = Ui {
-            scope_id: id,
-            unique_id: id,
-            next_auto_id_salt: id.with("auto").value(),
+            scope_id,
+            unique_id: scope_id,
+            next_auto_id_salt: scope_id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer,
