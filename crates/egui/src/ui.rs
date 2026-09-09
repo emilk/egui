@@ -877,22 +877,33 @@ impl Ui {
 
 /// # [`Id`] creation
 impl Ui {
-    /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
+    /// Generate an [`Id`] for a widget that has persistent state in [`Memory`].
+    ///
+    /// This is the same as `ui.scope_id().with(id_salt)`.
+    /// Since it is based on the stable [`Self::scope_id`], it is stable from frame to frame,
+    /// as long as `id_salt` is unique within the current id scope.
     pub fn make_persistent_id(&self, id_salt: impl AsIdSalt) -> Id {
         self.scope_id.with(id_salt)
     }
 
-    /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
+    /// The `Id` that will be assigned to the next widget added to this `Ui`,
+    /// unless it has an explicit `Id`.
+    ///
+    /// This is based on the [`Self::unique_id`] of this `Ui` and the number of widgets added so far.
+    /// It is therefore NOT stable: it changes if widgets are added or removed before it.
+    /// Do not use it for widgets that store state; use [`Self::make_persistent_id`] for that.
     pub fn next_auto_id(&self) -> Id {
         Id::unique(self.next_auto_id_salt)
     }
 
-    /// Same as `ui.next_auto_id().with(id_salt)`
+    /// Same as `ui.next_auto_id().with(id_salt)`.
+    ///
+    /// Like [`Self::next_auto_id`], this is NOT stable from frame to frame.
     pub fn auto_id_with(&self, id_salt: impl AsIdSalt) -> Id {
         Id::unique(self.next_auto_id_salt).with(id_salt)
     }
 
-    /// Pretend like `count` widgets have been allocated.
+    /// Pretend like `count` widgets have been allocated, advancing [`Self::next_auto_id`].
     pub fn skip_ahead_auto_ids(&mut self, count: usize) {
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(count as u64);
     }
