@@ -94,17 +94,35 @@ impl Id {
     }
 
     /// Generate a child [`Id`] by salting the parent [`Id`] with the given argument.
+    ///
+    /// `id.with(salt)` is the same as `id.with_salt(IdSalt::new(salt))`.
     pub fn with(self, salt: impl AsIdSalt) -> Self {
-        use core::hash::{BuildHasher as _, Hasher as _};
-        let mut hasher = ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
-        hasher.write_u64(self.value());
-        hasher.write_u64(IdSalt::new(&salt).value());
-        let id = Self::from_hash(hasher.finish());
+        let id = self.hash_with_salt(IdSalt::new(&salt));
 
         #[cfg(debug_assertions)]
         id_source::insert_child(id, self, &salt);
 
         id
+    }
+
+    /// Generate a child [`Id`] by salting the parent [`Id`] with the given [`IdSalt`].
+    ///
+    /// `id.with_salt(IdSalt::new(salt))` is the same as `id.with(salt)`.
+    pub fn with_salt(self, salt: IdSalt) -> Self {
+        let id = self.hash_with_salt(salt);
+
+        #[cfg(debug_assertions)]
+        id_source::insert_child(id, self, &salt);
+
+        id
+    }
+
+    fn hash_with_salt(self, salt: IdSalt) -> Self {
+        use core::hash::{BuildHasher as _, Hasher as _};
+        let mut hasher = ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
+        hasher.write_u64(self.value());
+        hasher.write_u64(salt.value());
+        Self::from_hash(hasher.finish())
     }
 
     /// Short and readable summary
@@ -234,6 +252,12 @@ mod debug_format_tests {
     fn root_id_salt() {
         let id = Id::unique(IdSalt::new("foo"));
         assert_eq!(format!("{id:?}"), r#"Id::unique(IdSalt::new("foo"))"#);
+    }
+
+    #[test]
+    fn with_salt_matches_with() {
+        let parent = Id::unique("parent");
+        assert_eq!(parent.with_salt(IdSalt::new("child")), parent.with("child"));
     }
 
     #[test]
