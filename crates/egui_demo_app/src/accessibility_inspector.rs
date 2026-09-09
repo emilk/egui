@@ -87,10 +87,10 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
 
         ui.enable_accesskit();
 
-        Panel::right(Self::id()).show(ui, |ui| {
+        Panel::right("accessibility_inspector").show(ui, |ui| {
             ui.heading("🔎 AccessKit Inspector");
             if let Some(selected_node) = self.selected_node {
-                Panel::bottom(Self::id().with("details_panel"))
+                Panel::bottom("details_panel")
                     .frame(Frame::new())
                     .show_separator_line(false)
                     .show(ui, |ui| {
