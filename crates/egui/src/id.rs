@@ -72,7 +72,7 @@ impl Id {
         }
     }
 
-    /// Generate a new, globally unique, root [`Id`] by hashing some source (e.g. a string or integer).
+    /// Creates a new root [`Id`] from a globally unique source (e.g. a string or integer) by hashing it.
     ///
     /// The source must be unique within the whole application,
     /// or else you risk [`Id`] clashes with other widgets.
