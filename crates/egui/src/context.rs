@@ -769,10 +769,8 @@ impl Default for Context {
 impl Context {
     /// Add a [`GlyphRasterizer`], e.g. the browser on web, or for custom glyphs.
     ///
-    /// By default it is a fallback, used for grapheme clusters that no installed font can render,
-    /// and that no [`FontProvider`] has a font for.
-    /// With [`crate::FontPriority::Highest`] it instead overrides the installed fonts.
-    /// See [`GlyphRasterizer`] for details.
+    /// Depending on [`FontPriority`] this is either a fallback or an override
+    /// (see [`GlyphRasterizer`] for details).
     ///
     /// Rasterizers are asked in the order they were added.
     /// `eframe` adds the browser rasterizer on web.
