@@ -375,7 +375,7 @@ impl ViewportRepaintInfo {
 struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
-    glyph_rasterizer: Option<GlyphRasterizer>,
+    glyph_rasterizers: Vec<GlyphRasterizer>,
     font_providers: Vec<Arc<dyn FontProvider>>,
 
     memory: Memory,
@@ -596,9 +596,7 @@ impl ContextImpl {
             profiling::scope!("Fonts::new");
             let mut fonts = Fonts::new(text_options, self.font_definitions.clone())
                 .with_font_providers(self.font_providers.clone());
-            if let Some(glyph_rasterizer) = &self.glyph_rasterizer {
-                fonts = fonts.with_glyph_rasterizer(glyph_rasterizer.clone());
-            }
+            fonts.set_glyph_rasterizers(self.glyph_rasterizers.clone());
             fonts
         });
 
@@ -769,15 +767,29 @@ impl Default for Context {
 }
 
 impl Context {
-    /// Set the platform glyph rasterizer, e.g. the browser on web.
+    /// Add a [`GlyphRasterizer`], e.g. the browser on web, or for custom glyphs.
     ///
-    /// It is used for grapheme clusters that no installed font can render,
+    /// By default it is a fallback, used for grapheme clusters that no installed font can render,
     /// and that no [`FontProvider`] has a font for.
+    /// With [`crate::FontPriority::Highest`] it instead overrides the installed fonts.
+    /// See [`GlyphRasterizer`] for details.
     ///
-    /// `eframe` sets this on web. Pass `None` to only use the installed fonts.
-    pub fn set_glyph_rasterizer(&self, glyph_rasterizer: Option<GlyphRasterizer>) {
+    /// Rasterizers are asked in the order they were added.
+    /// `eframe` adds the browser rasterizer on web.
+    pub fn add_glyph_rasterizer(&self, glyph_rasterizer: GlyphRasterizer) {
         self.write(|ctx| {
-            ctx.glyph_rasterizer = glyph_rasterizer;
+            ctx.glyph_rasterizers.push(glyph_rasterizer);
+            ctx.fonts = None;
+        });
+    }
+
+    /// Replace all [`GlyphRasterizer`]s. See [`Self::add_glyph_rasterizer`].
+    ///
+    /// Pass an empty list to only use the installed fonts.
+    /// Note that this also removes the browser rasterizer that `eframe` adds on web.
+    pub fn set_glyph_rasterizers(&self, glyph_rasterizers: Vec<GlyphRasterizer>) {
+        self.write(|ctx| {
+            ctx.glyph_rasterizers = glyph_rasterizers;
             ctx.fonts = None;
         });
     }
