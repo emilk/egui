@@ -1,15 +1,17 @@
-use crate::{Atom, FontSelection, Id, Ui};
+use crate::{Atom, FontSelection, IdSalt, Ui};
 use emath::Vec2;
 
 /// A trait for conveniently building [`Atom`]s.
 ///
 /// The functions are prefixed with `atom_` to avoid conflicts with e.g. [`crate::RichText::size`].
 pub trait AtomExt<'a> {
-    /// Set the [`Id`] for custom rendering.
+    /// Set the [`IdSalt`] for custom rendering.
     ///
-    /// You can get the [`crate::Rect`] with the [`Id`] from [`crate::AtomLayoutResponse`] and use a
+    /// The salt only needs to be unique among the atoms of the same widget.
+    ///
+    /// You can get the [`crate::Rect`] with the [`IdSalt`] from [`crate::AtomLayoutResponse`] and use a
     /// [`crate::Painter`] or [`Ui::place`] to add/draw some custom content.
-    fn atom_id(self, id: Id) -> Atom<'a>;
+    fn atom_id(self, id: IdSalt) -> Atom<'a>;
 
     /// Set the atom to a fixed size.
     ///
@@ -80,7 +82,7 @@ impl<'a, T> AtomExt<'a> for T
 where
     T: Into<Atom<'a>> + Sized,
 {
-    fn atom_id(self, id: Id) -> Atom<'a> {
+    fn atom_id(self, id: IdSalt) -> Atom<'a> {
         let mut atom = self.into();
         atom.id = Some(id);
         atom

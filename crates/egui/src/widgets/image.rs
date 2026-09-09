@@ -910,7 +910,7 @@ pub fn decode_animated_image_uri(uri: &str) -> Result<(&str, usize), String> {
 fn animated_image_frame_index(ctx: &Context, uri: &str) -> usize {
     let now = ctx.input(|input| Duration::from_secs_f64(input.time));
 
-    let durations: Option<FrameDurations> = ctx.data(|data| data.get_temp(Id::new(uri)));
+    let durations: Option<FrameDurations> = ctx.data(|data| data.get_temp(Id::unique(uri)));
 
     if let Some(durations) = durations {
         let frames: Duration = durations.all().sum();
