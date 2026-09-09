@@ -819,7 +819,7 @@ dependencies = [
 
 [[package]]
 name = "code_completion"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "eframe",
  "egui_kittest",
