@@ -159,23 +159,6 @@ impl core::fmt::Debug for Id {
 
 // ----------------------------------------------------------------------------
 
-/// Convenience
-impl From<&'static str> for Id {
-    #[inline]
-    fn from(string: &'static str) -> Self {
-        Self::unique(string)
-    }
-}
-
-impl From<String> for Id {
-    #[inline]
-    fn from(string: String) -> Self {
-        Self::unique(string)
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 /// `IdSet` is a `HashSet<Id>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
 pub type IdSet = nohash_hasher::IntSet<Id>;
 

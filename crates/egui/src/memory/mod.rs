@@ -1016,8 +1016,8 @@ impl Memory {
     }
 
     /// Obtain the previous rectangle of an area.
-    pub fn area_rect(&self, id: impl Into<Id>) -> Option<Rect> {
-        self.areas().get(id.into()).map(|state| state.rect())
+    pub fn area_rect(&self, id: Id) -> Option<Rect> {
+        self.areas().get(id).map(|state| state.rect())
     }
 
     pub(crate) fn interaction(&self) -> &InteractionState {
