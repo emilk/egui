@@ -558,6 +558,35 @@ impl Default for WidgetText {
 }
 
 impl WidgetText {
+    /// Concatenate several differently styled pieces of text into a single [`WidgetText`].
+    ///
+    /// The pieces are laid out as one paragraph, without any spacing between them.
+    ///
+    /// ```
+    /// # use egui::{RichText, WidgetText};
+    /// # egui::__run_test_ui(|ui| {
+    /// let text = WidgetText::concat(
+    ///     ui.style(),
+    ///     [
+    ///         RichText::new("Normal, "),
+    ///         RichText::new("strong, ").strong(),
+    ///         RichText::new("and small").small(),
+    ///     ],
+    /// );
+    /// ui.label(text);
+    /// # });
+    /// ```
+    ///
+    /// See also [`RichText::append_to`] for more control over the resulting [`LayoutJob`].
+    pub fn concat(style: &Style, parts: impl IntoIterator<Item = impl Into<RichText>>) -> Self {
+        let mut job = LayoutJob::default();
+        for part in parts {
+            part.into()
+                .append_to(&mut job, style, FontSelection::Default, Align::Center);
+        }
+        job.into()
+    }
+
     /// Override the font size.
     ///
     /// For [`Self::Galley`], this does nothing because it has already been laid out.
