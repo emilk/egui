@@ -207,7 +207,11 @@ impl UiTags {
 #[derive(Debug)]
 pub struct UiStack {
     // stuff that `Ui::child_ui` can deal with directly
-    pub id: Id,
+    /// The [`crate::Ui::unique_id`] of this [`crate::Ui`].
+    ///
+    /// Globally unique, but NOT stable from frame to frame.
+    /// For the stable id scope, see [`crate::Ui::scope_id`].
+    pub unique_id: Id,
     pub info: UiStackInfo,
     pub layout_direction: Direction,
     pub min_rect: Rect,

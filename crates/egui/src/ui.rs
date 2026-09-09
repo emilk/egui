@@ -124,7 +124,7 @@ impl Ui {
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
-            id: scope_id,
+            unique_id: scope_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
             parent: None,
@@ -248,7 +248,7 @@ impl Ui {
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
-            id: unique_id,
+            unique_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
             parent: Some(Arc::clone(&self.stack)),
