@@ -1,5 +1,5 @@
 use crate::{
-    AtomKind, AtomPaintArgs, Atoms, Direction, FontSelection, Frame, Id, Image, IntoAtoms,
+    AtomKind, AtomPaintArgs, Atoms, Direction, FontSelection, Frame, Id, IdSalt, Image, IntoAtoms,
     Response, Sense, SizedAtom, SizedAtomKind, Stroke, Ui, Widget,
     text_selection::LabelSelectionState,
 };
@@ -716,7 +716,7 @@ impl AllocatedAtomLayout<'_> {
 pub struct AtomLayoutResponse {
     pub response: Response,
     // There should rarely be more than one custom rect.
-    custom_rects: SmallVec<[(Id, Rect); 1]>,
+    custom_rects: SmallVec<[(IdSalt, Rect); 1]>,
 }
 
 impl AtomLayoutResponse {
@@ -727,14 +727,14 @@ impl AtomLayoutResponse {
         }
     }
 
-    pub fn custom_rects(&self) -> impl Iterator<Item = (Id, Rect)> + '_ {
+    pub fn custom_rects(&self) -> impl Iterator<Item = (IdSalt, Rect)> + '_ {
         self.custom_rects.iter().copied()
     }
 
     /// Use this together with [`crate::Atom::custom`] to add custom painting / child widgets.
     ///
     /// NOTE: Don't `unwrap` rects, they might be empty when the widget is not visible.
-    pub fn rect(&self, id: Id) -> Option<Rect> {
+    pub fn rect(&self, id: IdSalt) -> Option<Rect> {
         self.custom_rects
             .iter()
             .find_map(|(i, r)| if *i == id { Some(*r) } else { None })

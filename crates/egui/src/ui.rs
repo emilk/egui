@@ -884,12 +884,12 @@ impl Ui {
 
     /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
     pub fn next_auto_id(&self) -> Id {
-        Id::new(self.next_auto_id_salt)
+        Id::unique(self.next_auto_id_salt)
     }
 
     /// Same as `ui.next_auto_id().with(id_salt)`
     pub fn auto_id_with(&self, id_salt: impl AsIdSalt) -> Id {
-        Id::new(self.next_auto_id_salt).with(id_salt)
+        Id::unique(self.next_auto_id_salt).with(id_salt)
     }
 
     /// Pretend like `count` widgets have been allocated.
@@ -1225,7 +1225,7 @@ impl Ui {
             }
         }
 
-        let id = Id::new(self.next_auto_id_salt);
+        let id = Id::unique(self.next_auto_id_salt);
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
 
         (id, rect)
@@ -1266,7 +1266,7 @@ impl Ui {
         self.placer.advance_after_rects(rect, rect, item_spacing);
         register_rect(self, rect);
 
-        let id = Id::new(self.next_auto_id_salt);
+        let id = Id::unique(self.next_auto_id_salt);
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
         id
     }

@@ -93,7 +93,7 @@ impl AreaState {
 ///
 /// ```
 /// # egui::__run_test_ctx(|ctx| {
-/// egui::Area::new(egui::Id::new("my_area"))
+/// egui::Area::new(egui::Id::unique("my_area"))
 ///     .fixed_pos(egui::pos2(32.0, 32.0))
 ///     .show(ctx, |ui| {
 ///         ui.label("Floating text!");

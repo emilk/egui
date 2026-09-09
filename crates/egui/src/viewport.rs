@@ -150,7 +150,13 @@ impl ViewportId {
 
     #[inline]
     pub fn from_hash_of(source: impl AsId) -> Self {
-        Self(Id::new(source))
+        Self(Id::unique(source))
+    }
+
+    /// The [`Id`] of the root [`crate::Ui`] of this viewport,
+    /// i.e. the `Ui` passed to the closure of [`crate::Context::run_ui`].
+    pub fn root_ui_id(&self) -> Id {
+        Id::unique((*self, "__top_ui"))
     }
 }
 
