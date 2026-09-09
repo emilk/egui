@@ -57,6 +57,21 @@ impl IdSalt {
     }
 }
 
+/// Convenience
+impl From<&'static str> for IdSalt {
+    #[inline]
+    fn from(string: &'static str) -> Self {
+        Self::new(string)
+    }
+}
+
+impl From<String> for IdSalt {
+    #[inline]
+    fn from(string: String) -> Self {
+        Self::new(string)
+    }
+}
+
 impl core::fmt::Debug for IdSalt {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         #[cfg(debug_assertions)]
