@@ -5,7 +5,7 @@
 //! All functions take a value in `[0, 1]` and return a value in `[0, 1]`.
 //!
 //! Derived from <https://github.com/warrenm/AHEasing/blob/master/AHEasing/easing.c>.
-use core::f32::consts::PI;
+use core::f32::consts::{FRAC_PI_2, PI};
 
 use crate::fast_midpoint;
 
@@ -77,7 +77,7 @@ pub fn cubic_in_out(t: f32) -> f32 {
 /// Modeled after quarter-cycle of sine wave
 #[inline]
 pub fn sin_in(t: f32) -> f32 {
-    ((t - 1.) * 0.5 * PI).sin() + 1.
+    ((t - 1.) * FRAC_PI_2).sin() + 1.
 }
 
 /// <https://easings.net/#easeOuSine>
@@ -85,7 +85,7 @@ pub fn sin_in(t: f32) -> f32 {
 /// Modeled after quarter-cycle of sine wave (different phase)
 #[inline]
 pub fn sin_out(t: f32) -> f32 {
-    (t * 0.5 * PI).sin()
+    (t * FRAC_PI_2).sin()
 }
 
 /// <https://easings.net/#easeInOutSine>
