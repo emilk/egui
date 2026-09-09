@@ -949,8 +949,6 @@ impl<'a, State> Harness<'a, State> {
             }
         }
 
-        use crate::app_kind::AppKindEframe;
-
         let Self {
             ctx, state, app, ..
         } = self;
@@ -958,7 +956,7 @@ impl<'a, State> Harness<'a, State> {
         let eframe_app: Box<dyn eframe::App> = match app {
             AppKind::Ui(f) => Box::new(UiApp { f }),
             AppKind::UiState(f) => Box::new(UiStateApp { f, state }),
-            AppKind::Eframe(AppKindEframe { take_app, .. }) => take_app(state),
+            AppKind::Eframe(eframe_kind) => (eframe_kind.take_app)(state),
         };
 
         eframe::run_native_ext(

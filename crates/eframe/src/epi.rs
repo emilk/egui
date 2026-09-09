@@ -701,6 +701,11 @@ pub struct Frame {
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
+
+    /// The activation token the windowing system last handed us, waiting to be
+    /// taken by the app. See [`Frame::request_activation_token`].
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) activation_token: Option<String>,
 }
 
 // Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
@@ -741,6 +746,8 @@ impl Frame {
             raw_window_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
             window: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            activation_token: None,
             storage: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: None,
@@ -776,6 +783,50 @@ impl Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn winit_window(&self) -> Option<&std::sync::Arc<winit::window::Window>> {
         self.window.as_ref()
+    }
+
+    /// Ask the windowing system for a fresh activation token (Linux only).
+    ///
+    /// The token lets you hand your focus to a process you are about to spawn:
+    /// pass it in the `XDG_ACTIVATION_TOKEN` environment variable and the
+    /// compositor grants the new window focus instead of tripping its
+    /// focus-stealing prevention. On X11 the token is a startup-notification id,
+    /// which the child reads from `DESKTOP_STARTUP_ID`.
+    ///
+    /// The answer arrives asynchronously, a frame or more later — collect it
+    /// with [`Frame::take_activation_token`]. Nothing is delivered on platforms
+    /// without an activation protocol, so give up after a deadline of your own
+    /// rather than waiting forever.
+    ///
+    /// This is a no-op off Linux, and when running headless.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn request_activation_token(&self) {
+        let Some(window) = self.window.as_ref() else {
+            return;
+        };
+
+        cfg_select! {
+            all(any(feature = "wayland", feature = "x11"), target_os = "linux") => {
+                use winit::platform::startup_notify::WindowExtStartupNotify as _;
+                if let Err(err) = window.request_activation_token() {
+                    log::debug!("request_activation_token failed: {err}");
+                }
+            }
+            _ => {
+                let _ = window;
+            }
+        }
+    }
+
+    /// Take the activation token asked for with
+    /// [`Frame::request_activation_token`], if one has arrived.
+    ///
+    /// Returns it at most once: a token is single-use, and the compositor
+    /// invalidates it shortly after issuing it, so spawn the child process
+    /// with it right away rather than storing it.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn take_activation_token(&mut self) -> Option<String> {
+        self.activation_token.take()
     }
 
     /// A reference to the underlying [`glow`] (OpenGL) context.
