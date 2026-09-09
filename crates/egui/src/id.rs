@@ -12,6 +12,8 @@ pub trait AsId: core::hash::Hash + core::fmt::Debug {}
 
 impl<T: core::hash::Hash + core::fmt::Debug> AsId for T {}
 
+/// A (hopefully) unique identity within this application.
+///
 /// egui tracks widgets frame-to-frame using [`Id`]s.
 ///
 /// For instance, if you start dragging a slider one frame, egui stores
@@ -22,7 +24,7 @@ impl<T: core::hash::Hash + core::fmt::Debug> AsId for T {}
 /// For some widgets [`Id`]s are also used to persist some state about the
 /// widgets, such as Window position or whether not a collapsing header region is open.
 ///
-/// This implies that the [`Id`]s must be unique.
+/// This implies that the [`Id`]s must be "globally" unique (unique within the running app).
 ///
 /// For simple things like sliders and buttons that don't have any memory and
 /// doesn't move we can use the location of the widget as a source of identity.
@@ -60,7 +62,7 @@ impl Id {
     /// though obviously it will lead to a lot of collisions if you do use it!
     pub const NULL: Self = Self(NonZeroU64::MAX);
 
-    /// Create a new root [`Id`] from a high-entropy hash.
+    /// Create a new, globally unique, root [`Id`] from a high-entropy hash.
     #[inline]
     const fn from_hash(hash: u64) -> Self {
         if let Some(nonzero) = NonZeroU64::new(hash) {
@@ -70,7 +72,7 @@ impl Id {
         }
     }
 
-    /// Generate a new root [`Id`] by hashing some source (e.g. a string or integer).
+    /// Generate a new, globally unique, root [`Id`] by hashing some source (e.g. a string or integer).
     pub fn new(source: impl AsId) -> Self {
         let id = Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(&source));
 

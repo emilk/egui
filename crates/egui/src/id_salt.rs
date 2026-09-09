@@ -8,7 +8,7 @@ pub trait AsIdSalt: core::hash::Hash + core::fmt::Debug {}
 
 impl<T: core::hash::Hash + core::fmt::Debug> AsIdSalt for T {}
 
-/// Uniquely identifies a child widget within a parent widget.
+/// A "locally unique" identifier, e.g. to identify a child widget within a parent widget.
 ///
 /// An [`IdSalt`] is only unique within a parent [`crate::Id`].
 /// An [`IdSalt`] is NOT globally unique.
