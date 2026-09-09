@@ -10,7 +10,10 @@ use crate::{
     ViewportIdMap, ViewportIdSet, area, vec2,
 };
 
+mod garbage_collector;
 mod theme;
+
+pub use garbage_collector::MemoryGarbageCollector;
 pub use theme::{Theme, ThemePreference};
 
 // ----------------------------------------------------------------------------

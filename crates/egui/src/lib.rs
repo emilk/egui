@@ -489,7 +489,7 @@ pub use self::{
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
-    memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
+    memory::{FocusDirection, Memory, MemoryGarbageCollector, Options, Theme, ThemePreference},
     painter::Painter,
     plugin::Plugin,
     response::{InnerResponse, Response},

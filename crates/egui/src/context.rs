@@ -760,6 +760,7 @@ impl Default for Context {
         ctx.add_plugin(crate::debug_text::DebugTextPlugin::default());
         ctx.add_plugin(crate::text_selection::LabelSelectionState::default());
         ctx.add_plugin(crate::DragAndDrop::default());
+        ctx.add_plugin(crate::MemoryGarbageCollector::default());
 
         // Register the default theme for all built-in widgets:
         theme::DefaultStyle::register(&ctx);
