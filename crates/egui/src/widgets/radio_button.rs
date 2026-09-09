@@ -1,5 +1,5 @@
 use crate::{
-    Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Ui, Vec2, Widget,
+    Atom, AtomLayout, Atoms, IdSalt, IntoAtoms, NumExt as _, Response, Sense, Ui, Vec2, Widget,
     WidgetInfo, WidgetType, epaint,
 };
 
@@ -57,7 +57,7 @@ impl Widget for RadioButton<'_> {
         // In order to center the checkbox based on min_size we set the icon height to at least min_size.y
         let mut icon_size = Vec2::splat(icon_width);
         icon_size.y = icon_size.y.at_least(min_size.y);
-        let rect_id = Id::new("egui::radio_button");
+        let rect_id = IdSalt::new("radio_button_icon");
         atoms.push_left(Atom::custom(rect_id, icon_size));
 
         let text = atoms.text().map(String::from);
