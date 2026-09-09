@@ -70,8 +70,8 @@ impl Plugin for MemoryGarbageCollector {
 
 #[cfg(test)]
 mod tests {
+    use core::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::*;
 
