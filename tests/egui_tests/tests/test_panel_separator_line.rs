@@ -31,17 +31,17 @@ const HOVERED_SEPARATOR: Color32 = Color32::from_rgb(255, 255, 0);
 
 const PANEL_ID: &str = "test_panel";
 
-/// The harness state: [`egui::Ui::id`] of the root ui, which the panel id is salted with.
-type UiId = Option<egui::Id>;
+/// The harness state: [`egui::Ui::id`] of the ui the panel is shown in, which the panel id is salted with.
+type ParentUiId = Option<egui::Id>;
 
-fn build_harness(show_separator_line: bool) -> Harness<'static, UiId> {
+fn build_harness(show_separator_line: bool) -> Harness<'static, ParentUiId> {
     let mut harness = Harness::builder()
         .with_size(Vec2::new(200.0, 120.0))
         // So the thin lines are legible to a human reviewing the snapshots:
         .with_pixels_per_point(2.0)
         .build_ui_state(
-            move |ui, ui_id: &mut UiId| {
-                *ui_id = Some(ui.id());
+            move |ui, parent_ui_id: &mut ParentUiId| {
+                *parent_ui_id = Some(ui.id());
                 // Loud, distinguishable colors, so we can tell the separator line, the frame outline
                 // and the frame fill apart.
                 let widgets = &mut ui.visuals_mut().widgets;
@@ -79,10 +79,10 @@ fn build_harness(show_separator_line: bool) -> Harness<'static, UiId> {
     harness
 }
 
-fn hover_resize_handle(harness: &mut Harness<'_, UiId>) {
+fn hover_resize_handle(harness: &mut Harness<'_, ParentUiId>) {
     let outer = harness
         .state()
-        .and_then(|ui_id| egui::PanelState::load(&harness.ctx, ui_id.with(PANEL_ID)))
+        .and_then(|parent_ui_id| egui::PanelState::load(&harness.ctx, parent_ui_id.with(PANEL_ID)))
         .expect("PanelState should be persisted after the first frame")
         .outer_rect;
 
