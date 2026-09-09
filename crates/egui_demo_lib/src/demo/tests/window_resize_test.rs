@@ -18,7 +18,7 @@ impl crate::Demo for WindowResizeTest {
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use egui::{Resize, ScrollArea, TextEdit, Window};
 
-        Window::new("↔ auto-sized")
+        Window::new("↔️ auto-sized")
             .open(open)
             .auto_sized()
             .constrain_to(ui.available_rect_before_wrap())
@@ -31,7 +31,7 @@ impl crate::Demo for WindowResizeTest {
                 ui.heading("Resize the above area!");
             });
 
-        Window::new("↔ resizable + scroll")
+        Window::new("↔️ resizable + scroll")
             .open(open)
             .vscroll(true)
             .resizable(true)
@@ -45,7 +45,7 @@ impl crate::Demo for WindowResizeTest {
                 lorem_ipsum(ui, crate::LOREM_IPSUM_LONG);
             });
 
-        Window::new("↔ resizable + embedded scroll")
+        Window::new("↔️ resizable + embedded scroll")
             .open(open)
             .vscroll(false)
             .resizable(true)
@@ -63,7 +63,7 @@ impl crate::Demo for WindowResizeTest {
                 // ui.heading("Some additional text here, that should also be visible"); // this works, but messes with the resizing a bit
             });
 
-        Window::new("↔ resizable without scroll")
+        Window::new("↔️ resizable without scroll")
             .open(open)
             .vscroll(false)
             .resizable(true)
@@ -75,7 +75,7 @@ impl crate::Demo for WindowResizeTest {
                 lorem_ipsum(ui, crate::LOREM_IPSUM);
             });
 
-        Window::new("↔ resizable with TextEdit")
+        Window::new("↔️ resizable with TextEdit")
             .open(open)
             .vscroll(false)
             .resizable(true)
@@ -86,7 +86,7 @@ impl crate::Demo for WindowResizeTest {
                 ui.add_sized(ui.available_size(), TextEdit::multiline(&mut self.text));
             });
 
-        Window::new("↔ freely resized")
+        Window::new("↔️ freely resized")
             .open(open)
             .vscroll(false)
             .resizable(true)

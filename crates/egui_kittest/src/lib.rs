@@ -807,21 +807,21 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    /// Fulfill any [`egui::ViewportCommand::Screenshot`] requests made by the app during the
-    /// last frame.
+    /// Fulfill any [`egui::ViewportCommand::Screenshot`] requests made by the app during
+    /// the last frame.
     ///
     /// If a screenshot was requested and no renderer is available, an error will be logged.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     fn handle_screenshots(&mut self) {
         // Collect all screenshot requests from this frame's viewport output.
-        let requests: Vec<(ViewportId, egui::UserData)> = self
+        let requests: Vec<egui::ScreenshotCallback> = self
             .output
             .viewport_output
-            .iter()
-            .flat_map(|(id, viewport)| {
-                viewport.commands.iter().filter_map(move |command| {
-                    if let egui::ViewportCommand::Screenshot(user_data) = command {
-                        Some((*id, user_data.clone()))
+            .values()
+            .flat_map(|viewport| {
+                viewport.commands.iter().filter_map(|command| {
+                    if let egui::ViewportCommand::Screenshot(callback) = command {
+                        Some(callback.clone())
                     } else {
                         None
                     }
@@ -844,17 +844,9 @@ impl<'a, State> Harness<'a, State> {
         };
         let image = std::sync::Arc::new(rgba_image_to_color_image(&image));
 
-        for (viewport_id, user_data) in requests {
-            self.input.events.push(egui::Event::Screenshot {
-                viewport_id,
-                user_data,
-                image: std::sync::Arc::clone(&image),
-            });
+        for callback in requests {
+            callback.complete(std::sync::Arc::clone(&image));
         }
-
-        // Make sure the run loop runs at least one more frame so the app actually receives the
-        // queued screenshot event.
-        self.ctx.request_repaint();
     }
 
     /// Get the root viewport output
@@ -1002,7 +994,7 @@ impl<'a> Harness<'a> {
 }
 
 /// Convert a rendered [`image::RgbaImage`] (premultiplied alpha, as produced by the renderer)
-/// into an [`egui::ColorImage`] suitable for [`egui::Event::Screenshot`].
+/// into an [`egui::ColorImage`] suitable for [`egui::ScreenshotCallback`].
 #[cfg(any(feature = "wgpu", feature = "snapshot"))]
 fn rgba_image_to_color_image(image: &image::RgbaImage) -> egui::ColorImage {
     let size = [image.width() as usize, image.height() as usize];

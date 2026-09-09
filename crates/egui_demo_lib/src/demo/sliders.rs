@@ -40,7 +40,7 @@ impl Default for Sliders {
 
 impl crate::Demo for Sliders {
     fn name(&self) -> &'static str {
-        "⬌ Sliders"
+        "↔️ Sliders"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {

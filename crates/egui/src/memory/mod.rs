@@ -410,7 +410,7 @@ impl Options {
         use crate::Widget as _;
         use crate::containers::CollapsingHeader;
 
-        CollapsingHeader::new("⚙ Options")
+        CollapsingHeader::new("⚙️ Options")
             .default_open(false)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -441,7 +441,7 @@ impl Options {
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
-                theme_preference.radio_buttons(ui);
+                theme_preference.buttons(ui);
 
                 ui.checkbox(sync_window_theme, "Sync window theme with egui theme");
 
@@ -452,7 +452,7 @@ impl Options {
                 style.ui(ui);
             });
 
-        CollapsingHeader::new("✒ Painting")
+        CollapsingHeader::new("✒️ Painting")
             .default_open(false)
             .show(ui, |ui| {
                 tessellation_options.ui(ui);
@@ -461,7 +461,7 @@ impl Options {
                 });
             });
 
-        CollapsingHeader::new("🖱 Input")
+        CollapsingHeader::new("🖱️ Input")
             .default_open(false)
             .show(ui, |ui| {
                 input_options.ui(ui);

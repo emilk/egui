@@ -1,6 +1,11 @@
 name: All; .png on git LFS
 
-on: [push, pull_request]
+on:
+  # Only on `main`, so that a PR from a branch in this repo
+  # doesn't run the whole workflow twice (once for the push, once for the PR):
+  push:
+    branches: ["main"]
+  pull_request:
 
 jobs:
   check-binary-files:
