@@ -19,7 +19,7 @@ const COMMANDS: &[&str] = &[
 ];
 
 fn id() -> Id {
-    Id::new("prompt")
+    Id::unique("prompt")
 }
 
 /// Commands are only valid at the start of the prompt.
