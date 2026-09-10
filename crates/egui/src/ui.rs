@@ -122,9 +122,13 @@ impl Ui {
         let sense = sense.unwrap_or_else(Sense::hover);
         let classes = classes.with_class(class::ROOT);
 
+        // A root `Ui` has no parent to derive a unique id from,
+        // so the caller must provide a globally unique id, which serves as both:
+        let unique_id = scope_id;
+
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
-            unique_id: scope_id,
+            unique_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
             parent: None,
@@ -135,8 +139,8 @@ impl Ui {
 
         let mut ui = Ui {
             scope_id,
-            unique_id: scope_id,
-            next_auto_id_salt: scope_id.with("auto").value(),
+            unique_id,
+            next_auto_id_salt: unique_id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer,
