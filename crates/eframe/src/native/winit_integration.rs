@@ -29,6 +29,29 @@ pub fn sleep_if_invisible_or_minimized(window: Option<&Window>) {
     }
 }
 
+/// Whether an egui pass is allowed to paint.
+///
+/// A pass that may not paint still runs the app's logic, so the app keeps
+/// ticking and can react (e.g. ask to be shown again).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PaintPolicy {
+    /// Paint if the viewport is visible. This is the normal case.
+    IfVisible,
+
+    /// Never paint, no matter what the viewport reports.
+    ///
+    /// Used when a requested redraw was never delivered, so painting would be
+    /// pointless: see <https://github.com/emilk/egui/issues/5136>.
+    Never,
+}
+
+impl PaintPolicy {
+    /// May a pass under this policy paint?
+    pub fn may_paint(self) -> bool {
+        self == Self::IfVisible
+    }
+}
+
 /// Create an egui context, restoring it from storage if possible.
 pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Context {
     profiling::function_scope!();
@@ -97,10 +120,12 @@ pub trait WinitApp {
 
     fn save_and_destroy(&mut self);
 
+    /// Run an egui pass, painting the result unless `paint` forbids it.
     fn run_ui_and_paint(
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        paint: PaintPolicy,
     ) -> crate::Result<EventResult>;
 
     fn suspended(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
