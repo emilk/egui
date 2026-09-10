@@ -137,7 +137,7 @@ impl<'tree> Node<'tree> {
     }
 
     pub fn type_text(&self, text: &str) {
-        self.event(egui::Event::from_text(text.to_owned()));
+        self.event(egui::Event::from_text(text.to_owned()).expect("Text is not valid Event"));
     }
 
     pub fn value(&self) -> Option<String> {
