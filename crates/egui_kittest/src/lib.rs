@@ -24,7 +24,8 @@ pub mod wgpu;
 
 #[cfg(feature = "recording")]
 pub use crate::recording::{
-    HarnessRecordingExt, RECORD_ENV_VAR, RecordingError, RecordingOptions, RecordingPlugin,
+    HarnessRecordingExt, NATURAL_RECORD_ENV_VAR, RECORD_ENV_VAR, RecordingError, RecordingOptions,
+    RecordingPlugin,
 };
 
 // re-exports:
@@ -149,6 +150,10 @@ pub struct Harness<'a, State = ()> {
     wait_for_pending_images: bool,
     queued_events: EventQueue,
 
+    /// Expand queued test input into human-looking recording frames.
+    #[cfg(feature = "recording")]
+    naturalize_recording: bool,
+
     #[cfg(feature = "snapshot")]
     default_snapshot_options: SnapshotOptions,
     #[cfg(feature = "snapshot")]
@@ -264,6 +269,9 @@ impl<'a, State> Harness<'a, State> {
             wait_for_pending_images,
             queued_events: Default::default(),
 
+            #[cfg(feature = "recording")]
+            naturalize_recording: false,
+
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
 
@@ -350,6 +358,13 @@ impl<'a, State> Harness<'a, State> {
     /// update the Harness.
     pub fn step(&mut self) {
         let events = core::mem::take(&mut *self.queued_events.lock());
+
+        #[cfg(feature = "recording")]
+        if self.naturalize_recording {
+            self.step_natural_events(events);
+            return;
+        }
+
         if events.is_empty() {
             self.step_impl(false);
         }

@@ -99,6 +99,8 @@ You can also record without touching the test:
 * `KITTEST_RECORD=1 cargo test` writes numbered MP4s to `tests/snapshots/recordings`
   (`true`, `yes`, and `on` are also accepted)
 * `KITTEST_RECORD=open cargo test` writes each recording to a temporary file and opens it
+* Add `KITTEST_RECORD_NATURAL=1` to either command to record at 30 FPS and expand the existing
+  test's clicks, pointer movement, drags, and typing into natural-looking interactions
 
 Recording needs [`ffmpeg`](https://ffmpeg.org/) on the `PATH`. MP4 has no alpha channel, so
 transparent pixels turn black.

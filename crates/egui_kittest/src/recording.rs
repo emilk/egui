@@ -22,6 +22,13 @@ use image::RgbaImage;
 /// - `KITTEST_RECORD=open` writes to a temporary file and shows it in the default viewer
 pub const RECORD_ENV_VAR: &str = "KITTEST_RECORD";
 
+/// Set this to a truthy value to make automatically recorded existing tests look natural.
+///
+/// Pointer movement and drags are interpolated, clicks are held briefly, and text is typed one
+/// character at a time. This applies to automatic recordings and recordings started explicitly
+/// with [`crate::Harness::start_recording`].
+pub const NATURAL_RECORD_ENV_VAR: &str = "KITTEST_RECORD_NATURAL";
+
 /// How to record. Pass this to [`crate::Harness::start_recording`] or [`RecordingPlugin::new`].
 #[derive(Debug, Clone)]
 pub struct RecordingOptions {
@@ -370,11 +377,32 @@ pub(crate) fn record_env_var() -> Option<AutoSaveMode> {
     })
 }
 
+fn natural_record_env_var() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        let Ok(value) = std::env::var(NATURAL_RECORD_ENV_VAR) else {
+            return false;
+        };
+
+        match value.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => true,
+            "" | "0" | "false" | "no" | "off" => false,
+            other => {
+                log::warn!("Ignoring {NATURAL_RECORD_ENV_VAR}={other:?}: expected a truthy value");
+                false
+            }
+        }
+    })
+}
+
 // ----------------------------------------------------------------------------
 // Harness integration
 
 /// Frame rate of recordings that the harness starts by itself.
 const AUTO_FRAME_RATE: f32 = 10.0;
+
+/// Frame rate used when naturalizing an automatically recorded existing test.
+const NATURAL_AUTO_FRAME_RATE: f32 = 30.0;
 
 /// Gives every automatically started recording a unique file name.
 static NEXT_RECORDING_ID: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(1);
@@ -456,11 +484,9 @@ impl<State> HarnessRecordingExt for crate::Harness<'_, State> {
             return self;
         }
 
-        let steps = (((distance / 48.0).ceil().clamp(3.0, 12.0)) * natural_frame_scale(self))
-            .round()
-            .max(1.0) as usize;
+        let steps = natural_pointer_steps(&self.ctx, distance, natural_frame_scale(self));
         let normal = egui::vec2(-delta.y, delta.x) / distance;
-        let arc_height = (distance * 0.08).min(24.0);
+        let arc_height = natural_pointer_arc_height(&self.ctx, distance);
 
         for step in 1..=steps {
             let t = step as f32 / steps as f32;
@@ -566,6 +592,28 @@ fn natural_frame_scale<State>(harness: &crate::Harness<'_, State>) -> f32 {
         / AUTO_FRAME_RATE
 }
 
+fn natural_pointer_steps(ctx: &egui::Context, distance: f32, frame_scale: f32) -> usize {
+    if ctx.input(|input| input.pointer.primary_down()) {
+        // Drawing supplies closely spaced points already. Follow those at roughly 240 points/s,
+        // while still interpolating long drag-and-drop movements.
+        ((distance / 24.0 * frame_scale).ceil() as usize).clamp(1, 36)
+    } else {
+        (((distance / 48.0).ceil().clamp(3.0, 12.0)) * frame_scale)
+            .round()
+            .max(1.0) as usize
+    }
+}
+
+fn natural_pointer_arc_height(ctx: &egui::Context, distance: f32) -> f32 {
+    if ctx.input(|input| input.pointer.primary_down()) {
+        // A held pointer may be tracing a deliberate path, so do not bend it away from the
+        // supplied points. This also keeps drag-and-drop motion predictable.
+        0.0
+    } else {
+        (distance * 0.08).min(24.0)
+    }
+}
+
 /// A [`crate::Harness`] can record itself.
 impl<State> crate::Harness<'_, State> {
     /// Record the rest of this test session.
@@ -617,17 +665,138 @@ impl<State> crate::Harness<'_, State> {
     }
 
     /// Start recording if the environment variable asks for it.
-    pub(crate) fn maybe_start_auto_recording(&self) {
+    pub(crate) fn maybe_start_auto_recording(&mut self) {
+        self.naturalize_recording = natural_record_env_var();
+
         let Some(auto_save) = record_env_var() else {
             return;
         };
         let recording_id = NEXT_RECORDING_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
 
-        let options = RecordingOptions::mp4(
-            auto_recording_path(auto_save, recording_id),
-            AUTO_FRAME_RATE,
-        );
+        let frame_rate = if self.naturalize_recording {
+            NATURAL_AUTO_FRAME_RATE
+        } else {
+            AUTO_FRAME_RATE
+        };
+
+        let options =
+            RecordingOptions::mp4(auto_recording_path(auto_save, recording_id), frame_rate);
         install(&self.ctx, options, Some(auto_save));
+    }
+
+    /// Process ordinary test input as a human-looking sequence of recording frames.
+    pub(crate) fn step_natural_events(&mut self, events: Vec<egui::Event>) {
+        if events.is_empty() {
+            self.ctx.with_plugin::<RecordingPlugin, _>(|plugin| {
+                if plugin.active {
+                    plugin.force_next_frame = true;
+                }
+            });
+            self.step_impl(false);
+            return;
+        }
+
+        for event in events {
+            match event {
+                egui::Event::PointerMoved(pos) => self.step_natural_pointer_to(pos),
+                egui::Event::PointerButton { pos, .. } => {
+                    if self
+                        .ctx
+                        .input(|input| input.pointer.hover_pos())
+                        .is_none_or(|current| current.distance(pos) > 1.0)
+                    {
+                        self.step_natural_pointer_to(pos);
+                    }
+                    self.step_natural_event(event);
+                    self.hold_natural_recording(2);
+                }
+                egui::Event::Text(text) if text.chars().count() > 1 => {
+                    for character in text.chars() {
+                        self.step_natural_event(egui::Event::Text(character.to_string()));
+                        self.hold_natural_recording(2);
+                    }
+                }
+                egui::Event::AccessKitActionRequest(request)
+                    if request.action == egui::accesskit::Action::Click =>
+                {
+                    if let Some(pos) = self.accesskit_action_position(&request) {
+                        self.step_natural_pointer_to(pos);
+                    }
+                    self.step_natural_event(egui::Event::AccessKitActionRequest(request));
+                    self.hold_natural_recording(2);
+                }
+                _ => self.step_natural_event(event),
+            }
+        }
+    }
+
+    fn step_natural_event(&mut self, event: egui::Event) {
+        self.input.events.push(event);
+        self.step_impl(false);
+    }
+
+    fn step_natural_pointer_to(&mut self, pos: egui::Pos2) {
+        let current = self.ctx.input(|input| input.pointer.hover_pos());
+        let start = current.unwrap_or_else(|| {
+            let rect = self.ctx.content_rect().shrink(8.0);
+            egui::pos2(
+                (pos.x - 64.0).clamp(rect.left(), rect.right()),
+                (pos.y + 32.0).clamp(rect.top(), rect.bottom()),
+            )
+        });
+
+        if current.is_none() && start.distance(pos) > 1.0 {
+            self.step_natural_event(egui::Event::PointerMoved(start));
+        }
+
+        let delta = pos - start;
+        let distance = delta.length();
+        if distance <= 1.0 {
+            self.step_natural_event(egui::Event::PointerMoved(pos));
+            return;
+        }
+
+        let steps = natural_pointer_steps(&self.ctx, distance, natural_frame_scale(self));
+        let normal = egui::vec2(-delta.y, delta.x) / distance;
+        let arc_height = natural_pointer_arc_height(&self.ctx, distance);
+
+        for step in 1..=steps {
+            let t = step as f32 / steps as f32;
+            let eased = t * t * (3.0 - 2.0 * t);
+            let point = if step == steps {
+                pos
+            } else {
+                start.lerp(pos, eased) + normal * (core::f32::consts::PI * t).sin() * arc_height
+            };
+            self.step_natural_event(egui::Event::PointerMoved(point));
+        }
+    }
+
+    fn hold_natural_recording(&mut self, frames: usize) {
+        for _ in 0..frames {
+            self.ctx.with_plugin::<RecordingPlugin, _>(|plugin| {
+                if plugin.active {
+                    plugin.force_next_frame = true;
+                }
+            });
+            self.step_impl(false);
+        }
+    }
+
+    fn accesskit_action_position(
+        &self,
+        request: &egui::accesskit::ActionRequest,
+    ) -> Option<egui::Pos2> {
+        use kittest::NodeT as _;
+
+        let root = self.root();
+        core::iter::once(root)
+            .chain(root.children_recursive())
+            .find(|node| {
+                node.accesskit_node().locate() == (request.target_node, request.target_tree)
+            })
+            .map(|node| node.rect().center())
+            .filter(|pos| self.ctx.content_rect().contains(*pos))
     }
 }
 
@@ -922,6 +1091,93 @@ mod tests {
         harness.natural_type_text("Hello!");
 
         assert_eq!(harness.state(), "Hello!");
+    }
+
+    #[test]
+    fn natural_recording_expands_existing_test_interactions() {
+        #[derive(Default)]
+        struct State {
+            clicks: usize,
+            text: String,
+            drag_positions: Vec<egui::Pos2>,
+        }
+
+        let mut harness = crate::Harness::new_ui_state(
+            |ui, state: &mut State| {
+                if ui.button("Click me").clicked() {
+                    state.clicks += 1;
+                }
+                ui.text_edit_singleline(&mut state.text);
+                ui.input(|input| {
+                    if input.pointer.primary_down()
+                        && let Some(pos) = input.pointer.hover_pos()
+                    {
+                        state.drag_positions.push(pos);
+                    }
+                });
+            },
+            State::default(),
+        );
+        harness.naturalize_recording = true;
+
+        let passes_before_click = harness.ctx.cumulative_pass_nr();
+        harness.get_by_label("Click me").click();
+        harness.step();
+
+        assert_eq!(harness.state().clicks, 1);
+        assert!(
+            harness.ctx.cumulative_pass_nr() > passes_before_click + 3,
+            "the queued click should expand into several passes"
+        );
+
+        harness
+            .get_by_role(egui::accesskit::Role::TextInput)
+            .focus();
+        harness
+            .get_by_role(egui::accesskit::Role::TextInput)
+            .type_text("Hello!");
+        harness.step();
+
+        assert_eq!(harness.state().text, "Hello!");
+
+        harness.state_mut().drag_positions.clear();
+        let drag_start = egui::pos2(20.0, 20.0);
+        let drag_end = egui::pos2(120.0, 80.0);
+        harness.drag_at(drag_start);
+        harness.drop_at(drag_end);
+        harness.step();
+
+        assert!(
+            harness.state().drag_positions.len() > 3,
+            "the held pointer should move across several passes"
+        );
+        let delta = drag_end - drag_start;
+        for pos in &harness.state().drag_positions {
+            let from_start = *pos - drag_start;
+            let cross = from_start.x * delta.y - from_start.y * delta.x;
+            assert!(cross.abs() < 0.01, "held-pointer path bowed at {pos:?}");
+        }
+    }
+
+    #[test]
+    fn natural_recording_moves_to_accesskit_clicks() {
+        let mut harness = crate::Harness::new_ui_state(
+            |ui, clicked| {
+                *clicked |= ui.button("Click me").clicked();
+            },
+            false,
+        );
+        harness.naturalize_recording = true;
+        let target = harness.get_by_label("Click me").rect().center();
+
+        harness.get_by_label("Click me").click_accesskit();
+        harness.step();
+
+        assert!(*harness.state());
+        assert_eq!(
+            harness.ctx.input(|input| input.pointer.hover_pos()),
+            Some(target)
+        );
     }
 
     #[test]

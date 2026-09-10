@@ -10,6 +10,7 @@
 use std::sync::OnceLock;
 
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable as _;
 use tempfile::TempDir;
 
 /// Run the process in a temporary directory, with recording turned on.
@@ -32,6 +33,7 @@ fn setup() -> &'static std::path::Path {
             unsafe {
                 std::env::set_current_dir(dir.path()).expect("chdir to the tempdir");
                 std::env::set_var(egui_kittest::RECORD_ENV_VAR, "1");
+                std::env::set_var(egui_kittest::NATURAL_RECORD_ENV_VAR, "1");
             }
 
             dir
@@ -44,10 +46,17 @@ fn env_var_records_every_harness() {
     let dir = setup();
 
     for label in ["first harness", "second harness"] {
-        let mut harness = Harness::new_ui(|ui| {
-            ui.label(label);
-        });
+        let mut harness = Harness::new_ui_state(
+            |ui, clicks| {
+                if ui.button(label).clicked() {
+                    *clicks += 1;
+                }
+            },
+            0,
+        );
+        harness.get_by_label(label).click();
         harness.run();
+        assert_eq!(*harness.state(), 1);
         // Dropping the harness saves the recording.
     }
 
