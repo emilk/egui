@@ -7,6 +7,24 @@ use crate::{NumExt as _, Rect, Response, Ui, epaint};
 
 use super::CCursorRange;
 
+/// The unit by which a mouse-drag extends a text selection:
+/// whole words after a double-click, whole lines after a triple-click.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SelectGranularity {
+    Word,
+    Line,
+}
+
+/// A selection that started with a double- or triple-click,
+/// remembered so that dragging extends it by whole words or lines.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct GranularDragSelect {
+    pub granularity: SelectGranularity,
+
+    /// The word or line that was initially clicked.
+    pub anchor: CCursorRange,
+}
+
 /// The state of a text cursor selection.
 ///
 /// Used for [`crate::TextEdit`] and [`crate::Label`].
@@ -15,12 +33,17 @@ use super::CCursorRange;
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextCursorState {
     ccursor_range: Option<CCursorRange>,
+
+    /// Transient state of the current mouse gesture, so not serialized.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    granular_drag: Option<GranularDragSelect>,
 }
 
 impl From<CCursorRange> for TextCursorState {
     fn from(ccursor_range: CCursorRange) -> Self {
         Self {
             ccursor_range: Some(ccursor_range),
+            granular_drag: None,
         }
     }
 }
@@ -48,6 +71,11 @@ impl TextCursorState {
     /// Sets the currently selected range of characters.
     pub fn set_char_range(&mut self, ccursor_range: Option<CCursorRange>) {
         self.ccursor_range = ccursor_range;
+    }
+
+    /// If the selection started with a double- or triple-click, the word or line that anchors it.
+    pub(crate) fn granular_drag(&self) -> Option<GranularDragSelect> {
+        self.granular_drag
     }
 }
 
@@ -78,20 +106,39 @@ impl TextCursorState {
         } else if response.sense.senses_drag() {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
                 // The start of a drag (or a click).
-                if ui.input(|i| i.modifiers.shift) {
-                    if let Some(mut cursor_range) = self.range(galley) {
-                        cursor_range.primary = cursor_at_pointer;
-                        self.set_char_range(Some(cursor_range));
+                // Clicks are counted on release, but for double-click-and-drag
+                // we need to select the word (or line) already on the second (or third) press:
+                let press_click_count = ui.input(|i| i.pointer.press_click_count());
+                if 3 <= press_click_count {
+                    self.begin_granular_drag(SelectGranularity::Line, text, cursor_at_pointer);
+                } else if press_click_count == 2 {
+                    self.begin_granular_drag(SelectGranularity::Word, text, cursor_at_pointer);
+                } else {
+                    self.granular_drag = None;
+                    if ui.input(|i| i.modifiers.shift) {
+                        if let Some(mut cursor_range) = self.range(galley) {
+                            cursor_range.primary = cursor_at_pointer;
+                            self.set_char_range(Some(cursor_range));
+                        } else {
+                            self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
+                        }
                     } else {
                         self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
                     }
-                } else {
-                    self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
                 }
                 true
             } else if is_being_dragged {
                 // Drag to select text:
-                if let Some(mut cursor_range) = self.range(galley) {
+                if let Some(granular) = self.granular_drag {
+                    // Extend the selection by whole words or lines:
+                    let new_range = extend_granular_select(
+                        granular.granularity,
+                        granular.anchor,
+                        text,
+                        cursor_at_pointer,
+                    );
+                    self.set_char_range(Some(new_range));
+                } else if let Some(mut cursor_range) = self.range(galley) {
                     cursor_range.primary = cursor_at_pointer;
                     self.set_char_range(Some(cursor_range));
                 }
@@ -102,6 +149,68 @@ impl TextCursorState {
         } else {
             false
         }
+    }
+
+    /// Start a double- or triple-click selection: select the whole word (or line) at the pointer,
+    /// and remember it so that a subsequent drag extends the selection by that granularity.
+    fn begin_granular_drag(
+        &mut self,
+        granularity: SelectGranularity,
+        text: &str,
+        cursor_at_pointer: CCursor,
+    ) {
+        let anchor = select_unit_at(granularity, text, cursor_at_pointer);
+        self.granular_drag = Some(GranularDragSelect {
+            granularity,
+            anchor,
+        });
+        self.set_char_range(Some(anchor));
+    }
+}
+
+/// The whole word or line at the given position.
+pub(crate) fn select_unit_at(
+    granularity: SelectGranularity,
+    text: &str,
+    ccursor: CCursor,
+) -> CCursorRange {
+    match granularity {
+        SelectGranularity::Word => select_word_at(text, ccursor),
+        SelectGranularity::Line => select_line_at(text, ccursor),
+    }
+}
+
+/// Extend a double- or triple-click selection to also cover the word (or line) at the pointer.
+///
+/// Returns the union of the anchor word/line and the word/line at the pointer,
+/// with `primary` at the pointer end.
+pub(crate) fn extend_granular_select(
+    granularity: SelectGranularity,
+    anchor: CCursorRange,
+    text: &str,
+    cursor_at_pointer: CCursor,
+) -> CCursorRange {
+    let unit = select_unit_at(granularity, text, cursor_at_pointer);
+    let [anchor_min, anchor_max] = anchor.sorted_cursors();
+    let [unit_min, unit_max] = unit.sorted_cursors();
+
+    if unit_min.index < anchor_min.index {
+        // Dragging backwards, before the anchor:
+        CCursorRange {
+            primary: unit_min,
+            secondary: anchor_max,
+            h_pos: None,
+        }
+    } else if anchor_max.index < unit_max.index {
+        // Dragging forwards, after the anchor:
+        CCursorRange {
+            primary: unit_max,
+            secondary: anchor_min,
+            h_pos: None,
+        }
+    } else {
+        // The pointer is inside the anchor word/line:
+        anchor
     }
 }
 
@@ -429,6 +538,46 @@ mod test {
         );
         assert_eq!(lo.0, 6);
         assert_eq!(hi.0, 11);
+    }
+
+    #[test]
+    fn test_extend_granular_select_words() {
+        let text = "alpha beta gamma";
+        let anchor = select_word_at(text, CCursor::new(8)); // "beta"
+        assert_eq!(anchor.slice_str(text), "beta");
+
+        // Dragging forward into "gamma" extends the selection to the end of that word:
+        let range = extend_granular_select(SelectGranularity::Word, anchor, text, CCursor::new(13));
+        assert_eq!(range.slice_str(text), "beta gamma");
+        assert_eq!(
+            range.primary.index.0, 16,
+            "primary should be at the pointer end"
+        );
+
+        // Dragging backward into "alpha" extends the selection to the start of that word:
+        let range = extend_granular_select(SelectGranularity::Word, anchor, text, CCursor::new(2));
+        assert_eq!(range.slice_str(text), "alpha beta");
+        assert_eq!(
+            range.primary.index.0, 0,
+            "primary should be at the pointer end"
+        );
+
+        // With the pointer still inside the anchor word, the selection stays the anchor word:
+        let range = extend_granular_select(SelectGranularity::Word, anchor, text, CCursor::new(7));
+        assert_eq!(range.slice_str(text), "beta");
+    }
+
+    #[test]
+    fn test_extend_granular_select_lines() {
+        let text = "first\nsecond\nthird";
+        let anchor = select_line_at(text, CCursor::new(8)); // "second"
+        assert_eq!(anchor.slice_str(text), "second");
+
+        let range = extend_granular_select(SelectGranularity::Line, anchor, text, CCursor::new(15));
+        assert_eq!(range.slice_str(text), "second\nthird");
+
+        let range = extend_granular_select(SelectGranularity::Line, anchor, text, CCursor::new(2));
+        assert_eq!(range.slice_str(text), "first\nsecond");
     }
 
     #[test]
