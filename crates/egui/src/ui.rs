@@ -238,12 +238,12 @@ impl Ui {
         debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
 
         let id_source = id_source.unwrap_or_else(|| IdSource::Child(IdSalt::new("child")));
-        let (stable_id, unique_id) = match id_source {
+        let (scope_id, unique_id) = match id_source {
             IdSource::Explicit(id) => (id, id),
             IdSource::Child(id_salt) => {
-                let stable_id = self.scope_id.with(id_salt);
-                let unique_id = stable_id.with(self.next_auto_id_salt);
-                (stable_id, unique_id)
+                let scope_id = self.scope_id.with(id_salt);
+                let unique_id = scope_id.with(self.next_auto_id_salt);
+                (scope_id, unique_id)
             }
         };
         let next_auto_id_salt = unique_id.value().wrapping_add(1);
@@ -262,7 +262,7 @@ impl Ui {
         };
 
         let mut child_ui = Ui {
-            scope_id: stable_id,
+            scope_id,
             unique_id,
             next_auto_id_salt,
             painter,
