@@ -165,7 +165,7 @@ impl Tooltip<'_> {
     }
 
     fn when_was_a_toolip_last_shown_id() -> Id {
-        Id::new("when_was_a_toolip_last_shown")
+        Id::unique("when_was_a_toolip_last_shown")
     }
 
     pub fn seconds_since_last_tooltip(ctx: &Context) -> f32 {

@@ -18,8 +18,9 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, Margin, NumExt as _,
-    Order, Rangef, Rect, Response, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp,
+    Align, Context, CursorIcon, Frame, Id, IdSalt, InnerResponse, LayerId, Layout, Margin,
+    NumExt as _, Order, Rangef, Rect, Response, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo,
+    Vec2, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -205,7 +206,9 @@ impl PanelSide {
 #[must_use = "You should call .show()"]
 pub struct Panel {
     side: PanelSide,
-    id: Id,
+
+    /// Combined with the parent [`Ui::id`] to form the [`Id`] of the panel.
+    id_salt: IdSalt,
     frame: Option<Frame>,
     resizable: bool,
     drag_to_open: bool,
@@ -245,40 +248,40 @@ pub struct Panel {
 impl Panel {
     /// Create a left panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_left_panel")`.
-    pub fn left(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Left, id)
+    /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_left_panel"`.
+    pub fn left(id_salt: impl Into<IdSalt>) -> Self {
+        Self::new(PanelSide::Left, id_salt)
     }
 
     /// Create a right panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_right_panel")`.
-    pub fn right(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Right, id)
+    /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_right_panel"`.
+    pub fn right(id_salt: impl Into<IdSalt>) -> Self {
+        Self::new(PanelSide::Right, id_salt)
     }
 
     /// Create a top panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_top_panel")`.
+    /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_top_panel"`.
     ///
     /// By default this is NOT resizable.
-    pub fn top(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Top, id).resizable(false)
+    pub fn top(id_salt: impl Into<IdSalt>) -> Self {
+        Self::new(PanelSide::Top, id_salt).resizable(false)
     }
 
     /// Create a bottom panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_bottom_panel")`.
+    /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_bottom_panel"`.
     ///
     /// By default this is NOT resizable.
-    pub fn bottom(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Bottom, id).resizable(false)
+    pub fn bottom(id_salt: impl Into<IdSalt>) -> Self {
+        Self::new(PanelSide::Bottom, id_salt).resizable(false)
     }
 
     /// Create a panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    fn new(side: PanelSide, id: impl Into<Id>) -> Self {
+    /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_panel"`.
+    fn new(side: PanelSide, id_salt: impl Into<IdSalt>) -> Self {
         let default_outer_size: Option<f32> = match side {
             PanelSide::Left | PanelSide::Right => Some(200.0),
             PanelSide::Top | PanelSide::Bottom => None,
@@ -291,7 +294,7 @@ impl Panel {
 
         Self {
             side,
-            id: id.into(),
+            id_salt: id_salt.into(),
             frame: None,
             resizable: true,
             drag_to_open: true,
@@ -454,7 +457,7 @@ impl Panel {
         is_expanded: &mut bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ui, self.id.with("animation"), *is_expanded);
+        let how_expanded = animate_expansion(ui, self.id(ui).with("animation"), *is_expanded);
 
         if how_expanded == 0.0 {
             // Panel is fully closed, but we still leave a grab handle at its fixed
@@ -470,7 +473,7 @@ impl Panel {
 
         // Don't lose the drag during the slide-back-open animation:
         let drag_in_progress = ui
-            .read_response(self.resize_id())
+            .read_response(self.resize_id(ui))
             .is_some_and(|r| r.dragged());
 
         let panel = if how_expanded < 1.0 {
@@ -568,7 +571,7 @@ impl Panel {
         add_contents: impl FnOnce(&mut Ui, bool) -> R,
     ) -> InnerResponse<R> {
         debug_assert!(
-            collapsed_panel.id != expanded_panel.id,
+            collapsed_panel.id_salt != expanded_panel.id_salt,
             "show_switched: the collapsed and expanded panels must have distinct ids \
              (their persisted sizes are stored per-id, and sharing one id would let the collapsed \
              size overwrite the expanded size)."
@@ -576,7 +579,7 @@ impl Panel {
         // Share one resize-handle widget across the collapsed and expanded panels
         // by routing both through the expanded panel's id. A drag that starts on
         // either panel survives the swap to the other view.
-        let resize_id_source = expanded_panel.id;
+        let resize_id_source = expanded_panel.id(ui);
         // Drag-to-collapse fires when the drag crosses the collapsed panel's
         // size, so the swap lines up with the visual size at that moment.
         let collapse_threshold = collapsed_panel.outer_size(ui);
@@ -586,7 +589,7 @@ impl Panel {
             .read_response(resize_widget_id(resize_id_source))
             .is_some_and(|r| r.dragged());
 
-        let animation_id = expanded_panel.id.with("animation");
+        let animation_id = expanded_panel.id(ui).with("animation");
         let how_expanded = animate_expansion(ui, animation_id, *is_expanded);
 
         // When expanding, the user sees the expanded content the moment animation starts.
@@ -690,7 +693,7 @@ impl Panel {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let side = self.side;
-        let id = self.id;
+        let id = self.id(parent_ui);
         let resizable = self.resizable;
         let show_separator_line = self.show_separator_line;
 
@@ -739,7 +742,7 @@ impl Panel {
             // released size gets persisted into [`PanelState`] — without this the
             // store-skipped-during-drag rule would leave the stored size at the
             // pre-drag value.
-            let resize_id = self.resize_id();
+            let resize_id = self.resize_id(parent_ui);
             let resize_response = parent_ui.read_response(resize_id);
 
             // Double-click on the resize edge toggles `*is_expanded` for the
@@ -939,8 +942,15 @@ impl Panel {
     /// [`Id`] of this panel's resize-handle widget.
     ///
     /// See [`resize_widget_id`] for why open and collapsed panels must share it.
-    fn resize_id(&self) -> Id {
-        resize_widget_id(self.resize_id_source.unwrap_or(self.id))
+    fn resize_id(&self, parent_ui: &Ui) -> Id {
+        resize_widget_id(self.resize_id_source.unwrap_or_else(|| self.id(parent_ui)))
+    }
+
+    /// The [`Id`] of this panel, given the [`Ui`] it is shown in.
+    ///
+    /// Used as the key for the persisted [`PanelState`].
+    fn id(&self, parent_ui: &Ui) -> Id {
+        parent_ui.id().with_salt(self.id_salt)
     }
 
     /// The configured [`Frame`], or the default side/top panel frame for this [`Ui`].
@@ -995,7 +1005,7 @@ impl Panel {
             ui.style().interaction.resize_grab_radius_side,
         );
 
-        let resize_id = self.resize_id();
+        let resize_id = self.resize_id(ui);
         let response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
 
         if response.double_clicked() {
@@ -1063,7 +1073,7 @@ impl Panel {
     /// previous build with a different range.
     fn outer_size(&self, ui: &Ui) -> f32 {
         let axis = self.side.axis();
-        let raw = if let Some(state) = PanelState::load(ui, self.id) {
+        let raw = if let Some(state) = PanelState::load(ui, self.id(ui)) {
             state.outer_rect.size_along(axis)
         } else if let Some(default_outer_size) = self.default_outer_size {
             default_outer_size
@@ -1087,7 +1097,7 @@ impl Panel {
 
         // Use `resize_id_source` so collapsed/expanded panels in
         // `show_switched` share one resize widget.
-        let resize_id = self.resize_id();
+        let resize_id = self.resize_id(ui);
         let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
         ui.interact(resize_rect, resize_id, Sense::click_and_drag())
     }
@@ -1137,7 +1147,7 @@ impl Panel {
         self
     }
 
-    /// Register the resize-handle widget under this `Id` instead of `self.id`.
+    /// Register the resize-handle widget under this `Id` instead of [`Self::id`].
     ///
     /// Used by [`Self::show_switched`] to share one widget across
     /// the collapsed and expanded panels.

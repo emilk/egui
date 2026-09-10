@@ -38,7 +38,10 @@ use egui::{
 };
 use kittest::Queryable;
 
-use crate::{app_kind::AppKind, config::config};
+use crate::{
+    app_kind::{AppKind, UiRunOutput},
+    config::config,
+};
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
@@ -96,7 +99,7 @@ pub struct Harness<'a, State = ()> {
     kittest: kittest::State,
     output: egui::FullOutput,
     app: AppKind<'a, State>,
-    response: Option<egui::Response>,
+    ui_output: Option<UiRunOutput>,
     state: State,
     renderer: Box<dyn TestRenderer>,
 
@@ -176,12 +179,12 @@ impl<'a, State> Harness<'a, State> {
         let viewport = input.viewports.get_mut(&ViewportId::ROOT).unwrap();
         viewport.native_pixels_per_point = Some(pixels_per_point);
 
-        let mut response = None;
+        let mut ui_output = None;
 
         // We need to run egui for a single frame so that the AccessKit state can be initialized
         // and users can immediately start querying for widgets.
         let mut output = ctx.run_ui(input.clone(), |ui| {
-            response = app.run(ui, &mut state, false);
+            ui_output = app.run(ui, &mut state, false);
         });
 
         renderer.handle_delta(&mut output.textures_delta);
@@ -198,7 +201,7 @@ impl<'a, State> Harness<'a, State> {
                     .expect("AccessKit was disabled"),
             ),
             output,
-            response,
+            ui_output,
             state,
             renderer,
 
@@ -304,7 +307,7 @@ impl<'a, State> Harness<'a, State> {
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
-            self.response = self.app.run(ui, &mut self.state, sizing_pass);
+            self.ui_output = self.app.run(ui, &mut self.state, sizing_pass);
         });
         self.kittest.update(
             output
@@ -328,7 +331,7 @@ impl<'a, State> Harness<'a, State> {
     /// Calculate the rect that includes all popups and tooltips.
     fn compute_total_rect_with_popups(&self) -> Option<Rect> {
         // Start with the standard response rect
-        let mut used = self.response.as_ref()?.rect;
+        let mut used = self.ui_output.as_ref()?.response.rect;
 
         // Add all visible areas from other orders (popups, tooltips, etc.)
         self.ctx.memory(|mem| {
@@ -528,6 +531,22 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Access the state.
+    /// The [`egui::Ui::id`] of the [`egui::Ui`] passed to the ui closure.
+    ///
+    /// Use this to compute the [`egui::Id`] of things shown directly in that ui,
+    /// e.g. `harness.ui_id().with("my_panel")`.
+    ///
+    /// # Panics
+    /// If the harness was built from an eframe app rather than a ui closure.
+    pub fn ui_id(&self) -> egui::Id {
+        match &self.ui_output {
+            Some(ui_output) => ui_output.ui_id,
+            None => {
+                panic!("Harness::ui_id is only available for harnesses built with a ui closure")
+            }
+        }
+    }
+
     pub fn state(&self) -> &State {
         &self.state
     }
@@ -807,21 +826,21 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    /// Fulfill any [`egui::ViewportCommand::Screenshot`] requests made by the app during the
-    /// last frame.
+    /// Fulfill any [`egui::ViewportCommand::Screenshot`] requests made by the app during
+    /// the last frame.
     ///
     /// If a screenshot was requested and no renderer is available, an error will be logged.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     fn handle_screenshots(&mut self) {
         // Collect all screenshot requests from this frame's viewport output.
-        let requests: Vec<(ViewportId, egui::UserData)> = self
+        let requests: Vec<egui::ScreenshotCallback> = self
             .output
             .viewport_output
-            .iter()
-            .flat_map(|(id, viewport)| {
-                viewport.commands.iter().filter_map(move |command| {
-                    if let egui::ViewportCommand::Screenshot(user_data) = command {
-                        Some((*id, user_data.clone()))
+            .values()
+            .flat_map(|viewport| {
+                viewport.commands.iter().filter_map(|command| {
+                    if let egui::ViewportCommand::Screenshot(callback) = command {
+                        Some(callback.clone())
                     } else {
                         None
                     }
@@ -844,17 +863,9 @@ impl<'a, State> Harness<'a, State> {
         };
         let image = std::sync::Arc::new(rgba_image_to_color_image(&image));
 
-        for (viewport_id, user_data) in requests {
-            self.input.events.push(egui::Event::Screenshot {
-                viewport_id,
-                user_data,
-                image: std::sync::Arc::clone(&image),
-            });
+        for callback in requests {
+            callback.complete(std::sync::Arc::clone(&image));
         }
-
-        // Make sure the run loop runs at least one more frame so the app actually receives the
-        // queued screenshot event.
-        self.ctx.request_repaint();
     }
 
     /// Get the root viewport output
@@ -1002,7 +1013,7 @@ impl<'a> Harness<'a> {
 }
 
 /// Convert a rendered [`image::RgbaImage`] (premultiplied alpha, as produced by the renderer)
-/// into an [`egui::ColorImage`] suitable for [`egui::Event::Screenshot`].
+/// into an [`egui::ColorImage`] suitable for [`egui::ScreenshotCallback`].
 #[cfg(any(feature = "wgpu", feature = "snapshot"))]
 fn rgba_image_to_color_image(image: &image::RgbaImage) -> egui::ColorImage {
     let size = [image.width() as usize, image.height() as usize];

@@ -382,6 +382,7 @@ struct ContextImpl {
     animation_manager: AnimationManager,
 
     plugins: plugin::Plugins,
+    called_on_exit: bool,
     safe_area: SafeAreaInsets,
 
     /// All viewports share the same texture manager and texture namespace.
@@ -850,7 +851,7 @@ impl Context {
         self.run_dyn(new_input, &mut |ctx| {
             let mut root_ui = Ui::new(
                 ctx.clone(),
-                Id::new((ctx.viewport_id(), "__top_ui")),
+                ctx.viewport_id().root_ui_id(),
                 UiBuilder::new()
                     .layer_id(LayerId::background())
                     .max_rect(ctx.viewport_rect()),
@@ -2098,6 +2099,25 @@ impl Context {
 
         if added {
             handle.lock().dyn_plugin_mut().setup(self);
+        }
+    }
+
+    /// Notify all plugins that the integration is shutting down.
+    ///
+    /// Integrations should call this before persisting [`Memory`] and before destroying their
+    /// renderer and other resources. Only the first call invokes the plugins.
+    pub fn on_exit(&self) {
+        let plugins = self.write(|ctx| {
+            if ctx.called_on_exit {
+                None
+            } else {
+                ctx.called_on_exit = true;
+                Some(ctx.plugins.ordered_plugins())
+            }
+        });
+
+        if let Some(plugins) = plugins {
+            plugins.on_exit(self);
         }
     }
 
@@ -4173,6 +4193,19 @@ impl Context {
     /// This lets you affect the current viewport, e.g. resizing the window.
     pub fn send_viewport_cmd(&self, command: ViewportCommand) {
         self.send_viewport_cmd_to(self.viewport_id(), command);
+    }
+
+    /// Request a screenshot of the current viewport.
+    ///
+    /// The callback is invoked once the integration has read the rendered pixels.
+    /// This doesn't request a new frame when the data arrives. Call `ctx.request_repaint` if needed.
+    pub fn request_screenshot(
+        &self,
+        callback: impl FnOnce(std::sync::Arc<crate::ColorImage>) + Send + 'static,
+    ) {
+        self.send_viewport_cmd(ViewportCommand::Screenshot(crate::ScreenshotCallback::new(
+            callback,
+        )));
     }
 
     /// Send a command to a specific viewport.

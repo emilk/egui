@@ -473,7 +473,7 @@ pub use self::{
     containers::{menu::MenuBar, *},
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
-        Key, UserData,
+        Key, ScreenshotCallback,
         input::*,
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
@@ -663,5 +663,5 @@ pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
 }
 
 pub fn accesskit_root_id() -> Id {
-    Id::new("accesskit_root")
+    Id::unique("accesskit_root")
 }

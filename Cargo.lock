@@ -1239,7 +1239,7 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 
 [[package]]
 name = "ecolor"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "bytemuck",
  "cint",
@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "eframe"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1290,7 +1290,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1312,7 +1312,7 @@ dependencies = [
 
 [[package]]
 name = "egui-wgpu"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1330,7 +1330,7 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "accesskit_winit",
  "arboard",
@@ -1353,7 +1353,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_app"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -1382,7 +1382,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "criterion",
  "document-features",
@@ -1400,7 +1400,7 @@ dependencies = [
 
 [[package]]
 name = "egui_extras"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "ahash",
  "document-features",
@@ -1420,7 +1420,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1436,7 +1436,7 @@ dependencies = [
 
 [[package]]
 name = "egui_inspection"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "document-features",
  "egui",
@@ -1449,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "egui_kittest"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "dify",
  "document-features",
@@ -1470,7 +1470,7 @@ dependencies = [
 
 [[package]]
 name = "egui_system_fonts"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "egui",
  "epaint",
@@ -1484,7 +1484,7 @@ dependencies = [
 
 [[package]]
 name = "egui_tests"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "egui",
  "egui_extras",
@@ -1514,7 +1514,7 @@ checksum = "252afb9ae5eaa683babdc6a068b3f5726eb19e05070c731f9b2a23a7c3e8ed34"
 
 [[package]]
 name = "emath"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1622,7 +1622,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1652,7 +1652,7 @@ dependencies = [
 
 [[package]]
 name = "epaint_default_fonts"
-version = "0.36.1"
+version = "0.36.2"
 
 [[package]]
 name = "equivalent"
@@ -3679,7 +3679,7 @@ dependencies = [
 
 [[package]]
 name = "popups"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "eframe",
  "env_logger",
@@ -6026,7 +6026,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "0.36.1"
+version = "0.36.2"
 
 [[package]]
 name = "yaml-rust"
