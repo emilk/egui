@@ -6,8 +6,8 @@ use crate::{
     class::HasClasses as _,
     theme::StyleProvider,
     widget_style::{
-        AtomLayoutStyle, ButtonStyle, CheckboxStyle, SeparatorStyle, StyleArgs, TextEditStyle,
-        TextVisuals, WidgetState,
+        AtomLayoutStyle, ButtonStyle, CheckboxStyle, PopupStyle, ScrollAreaStyle, SeparatorStyle,
+        StyleArgs, TextEditStyle, TextVisuals, WidgetState,
     },
 };
 
@@ -26,6 +26,8 @@ impl DefaultStyle {
         ctx.add_widget_theme::<SeparatorStyle>(Self);
         ctx.add_widget_theme::<CheckboxStyle>(Self);
         ctx.add_widget_theme::<TextEditStyle>(Self);
+        ctx.add_widget_theme::<PopupStyle>(Self);
+        ctx.add_widget_theme::<ScrollAreaStyle>(Self);
     }
 }
 
@@ -102,6 +104,26 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
                 image_tint,
                 ..Default::default()
             },
+        }
+    }
+}
+
+impl StyleProvider<PopupStyle> for DefaultStyle {
+    fn style(&mut self, modifiers: &StyleArgs<'_>) -> PopupStyle {
+        let StyleArgs { style, .. } = modifiers;
+
+        PopupStyle {
+            frame: Frame::popup(style),
+            item_spacing: style.spacing.item_spacing,
+        }
+    }
+}
+
+impl StyleProvider<ScrollAreaStyle> for DefaultStyle {
+    fn style(&mut self, modifiers: &StyleArgs<'_>) -> ScrollAreaStyle {
+        ScrollAreaStyle {
+            scroll: modifiers.style.spacing.scroll,
+            extend_into_parent_margin: false,
         }
     }
 }

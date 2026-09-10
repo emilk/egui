@@ -5,8 +5,10 @@ use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
 use crate::{
     Area, AreaState, Context, Frame, Id, InnerResponse, Key, LayerId, Layout, Order, Response,
     Sense, Ui, UiKind, UiStackInfo,
+    class::{ClassName, Classes, HasClasses},
     containers::menu::{MenuConfig, MenuState, menu_style},
     style::StyleModifier,
+    widget_style::PopupStyle,
 };
 
 /// What should we anchor the popup to?
@@ -185,9 +187,26 @@ pub struct Popup<'a> {
     layout: Layout,
     frame: Option<Frame>,
     style: StyleModifier,
+    classes: Classes,
+}
+
+impl HasClasses for Popup<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
+    }
 }
 
 impl<'a> Popup<'a> {
+    /// Present on the [`crate::Ui`] of a menu popup, and so on every widget in it.
+    ///
+    /// A menu lays its items out itself, so a widget in one is generally styled to fit that
+    /// layout rather than to stand on its own.
+    pub const CLASS_MENU: ClassName = ClassName::from_static("egui::popup::menu");
+
     /// Create a new popup
     pub fn new(id: Id, ctx: Context, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
         Self {
@@ -209,6 +228,7 @@ impl<'a> Popup<'a> {
             layout: Layout::default(),
             frame: None,
             style: StyleModifier::default(),
+            classes: Classes::default(),
         }
     }
 
@@ -577,6 +597,7 @@ impl<'a> Popup<'a> {
             layout,
             frame,
             style,
+            mut classes,
         } = self;
 
         if kind != PopupKind::Tooltip {
@@ -593,7 +614,10 @@ impl<'a> Popup<'a> {
 
         let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
 
+        classes.add_class_if(Self::CLASS_MENU, kind == PopupKind::Menu);
+
         let mut area = Area::new(id)
+            .with_classes(classes.clone())
             .order(kind.order())
             .pivot(pivot)
             .fixed_pos(anchor)
@@ -616,7 +640,12 @@ impl<'a> Popup<'a> {
 
         let mut response = area.show(&ctx, |ui| {
             style.apply(ui.style_mut());
-            let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
+
+            // The theme decides how the popup is framed and how tightly its items sit together.
+            let popup_style: PopupStyle = ui.widget_style(id, &classes);
+            ui.spacing_mut().item_spacing = popup_style.item_spacing;
+
+            let frame = frame.unwrap_or(popup_style.frame);
             frame.show(ui, content).inner
         });
 

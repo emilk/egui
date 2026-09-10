@@ -6,7 +6,9 @@ use emath::GuiRounding as _;
 
 use crate::{
     Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2, Rect, Response,
-    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState, emath, pos2,
+    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
+    class::{Classes, HasClasses},
+    emath, pos2,
 };
 
 /// State of an [`Area`] that is persisted between frames.
@@ -122,10 +124,21 @@ pub struct Area {
     fade_in: bool,
     layout: Layout,
     sizing_pass: bool,
+    classes: Classes,
 }
 
 impl WidgetWithState for Area {
     type State = AreaState;
+}
+
+impl HasClasses for Area {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
+    }
 }
 
 impl Area {
@@ -149,6 +162,7 @@ impl Area {
             fade_in: true,
             layout: Layout::default(),
             sizing_pass: false,
+            classes: Classes::default(),
         }
     }
 
@@ -400,6 +414,7 @@ pub(crate) struct Prepared {
 
     fade_in: bool,
     layout: Layout,
+    classes: Classes,
 }
 
 impl Area {
@@ -434,6 +449,7 @@ impl Area {
             fade_in,
             layout,
             sizing_pass: force_sizing_pass,
+            classes,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
@@ -581,6 +597,7 @@ impl Area {
             sizing_pass,
             fade_in,
             layout,
+            classes,
         }
     }
 }
@@ -612,6 +629,7 @@ impl Prepared {
         let max_rect = self.state.rect();
 
         let mut ui_builder = UiBuilder::new()
+            .with_classes(core::mem::take(&mut self.classes))
             .ui_stack_info(self.info.take().unwrap_or_default())
             .layer_id(self.layer_id)
             .max_rect(max_rect)

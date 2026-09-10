@@ -3,7 +3,7 @@ use egui::color_picker::{Alpha, color_picker_color32};
 use egui::containers::menu::{MenuConfig, SubMenuButton};
 use egui::{
     Align, Align2, Atom, Button, ComboBox, Frame, Id, Layout, Popup, PopupCloseBehavior, RectAlign,
-    RichText, Tooltip, Ui, UiBuilder, include_image,
+    RichText, ScrollArea, Tooltip, Ui, UiBuilder, include_image,
 };
 
 /// Showcase [`Popup`].
@@ -65,6 +65,57 @@ impl PopupsDemo {
             if ui.button("Open…").clicked() {
                 ui.close();
             }
+        });
+        ui.menu_button("Full-bleed ScrollArea", |ui| {
+            ui.menu_button("…with a header", |ui| {
+                ui.set_width(180.0);
+
+                // The header is added before the scroll area, so it keeps the padding
+                // of the menu frame:
+                ui.label(RichText::new("Pick a number").strong());
+
+                ScrollArea::vertical()
+                    .max_height(150.0)
+                    .auto_shrink([false, true])
+                    // The scroll area is flush with the left, right and bottom of the
+                    // menu frame, so it grows into the padding on those sides. The scroll
+                    // bar ends up at the very edge of the menu:
+                    .extend_into_parent_margin(true)
+                    .show(ui, |ui| {
+                        for i in 0..30 {
+                            if ui.button(format!("Item {i}")).clicked() {
+                                ui.close();
+                            }
+                        }
+                    });
+            });
+
+            ui.menu_button("…with a footer", |ui| {
+                ui.set_width(180.0);
+                ui.set_height(200.0);
+
+                // A widget _after_ the scroll area would be overlapped by it, so we
+                // reserve the space for the footer first, from the bottom up:
+                ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+                    if ui.button("Footers keep their padding").clicked() {
+                        ui.close();
+                    }
+                    ui.separator();
+
+                    ui.with_layout(Layout::top_down(Align::Min), |ui| {
+                        ScrollArea::vertical()
+                            .auto_shrink(false)
+                            .extend_into_parent_margin(true)
+                            .show(ui, |ui| {
+                                for i in 0..30 {
+                                    if ui.button(format!("Item {i}")).clicked() {
+                                        ui.close();
+                                    }
+                                }
+                            });
+                    });
+                });
+            });
         });
         ui.add_enabled_ui(false, |ui| {
             ui.menu_button("SubMenus can be disabled", |_| {});

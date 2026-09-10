@@ -133,6 +133,35 @@ pub struct ButtonStyle {
 
 impl WidgetStyle for ButtonStyle {}
 
+/// Dedicated style for a [`crate::Popup`], including menus and tooltips
+#[derive(Debug, Clone)]
+pub struct PopupStyle {
+    /// Frame around the popup's contents, including its padding.
+    pub frame: Frame,
+
+    /// Spacing between the items inside the popup.
+    ///
+    /// A menu wants its items flush against each other, while a tooltip wants them spaced out
+    /// like any other content.
+    pub item_spacing: Vec2,
+}
+
+impl WidgetStyle for PopupStyle {}
+
+/// Dedicated style for a [`crate::ScrollArea`]
+#[derive(Debug, Clone)]
+pub struct ScrollAreaStyle {
+    /// How the scroll bars look, and how much room the contents get.
+    pub scroll: crate::style::ScrollStyle,
+
+    /// Grow into the inner margin of the closest parent [`Frame`].
+    ///
+    /// See [`crate::ScrollArea::extend_into_parent_margin`], which overrides this.
+    pub extend_into_parent_margin: bool,
+}
+
+impl WidgetStyle for ScrollAreaStyle {}
+
 /// Dedicated text edit style
 #[derive(Debug, Clone)]
 pub struct TextEditStyle {
