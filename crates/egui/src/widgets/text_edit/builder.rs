@@ -480,16 +480,16 @@ impl<'t> TextEdit<'t> {
     }
 
     /// The event filter set with [`Self::event_filter`] or [`Self::lock_focus`].
-    pub(super) fn get_event_filter(&self) -> EventFilter {
+    pub fn get_event_filter(&self) -> EventFilter {
         self.event_filter
     }
 
     /// Like [`Self::show`], but also gives back the text buffer,
     /// so the caller can keep editing it after the text edit has been shown.
-    pub(super) fn show_returning_text(
-        self,
-        ui: &mut Ui,
-    ) -> (TextEditOutput, &'t mut dyn TextBuffer) {
+    ///
+    /// This is what [`crate::CompletionPopup`] uses to wrap a [`TextEdit`].
+    /// Use it to build your own widgets that edit the text after showing it.
+    pub fn show_returning_text(self, ui: &mut Ui) -> (TextEditOutput, &'t mut dyn TextBuffer) {
         let TextEdit {
             text,
             prefix,
