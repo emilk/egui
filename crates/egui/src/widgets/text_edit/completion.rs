@@ -5,6 +5,7 @@ use emath::RectAlign;
 use crate::{
     Atom, Atoms, Button, Event, EventFilter, Id, InputState, IntoAtoms, Key, Popup, PopupKind,
     ScrollArea, TextEdit, Ui, WidgetText,
+    class::{ClassName, HasClasses as _},
     text::{CCursor, CCursorRange, CharIndex},
     vec2,
 };
@@ -174,6 +175,9 @@ pub struct CompletionPopup<'a> {
 }
 
 impl<'a> CompletionPopup<'a> {
+    /// Present on every suggestion button in the popup, so they can be styled.
+    pub const CLASS_SUGGESTION: ClassName = ClassName::from_static("egui::button::completion");
+
     /// The `id` is given to the [`TextEdit`], and is also used to store the popup state.
     ///
     /// It must be unique, so if you show several completion popups (e.g. one per tab),
@@ -327,6 +331,7 @@ impl<'a> CompletionPopup<'a> {
                             let is_selected = i == state.selected;
                             let response = ui.add(
                                 Button::selectable(is_selected, suggestion.content.clone())
+                                    .with_class(Self::CLASS_SUGGESTION)
                                     .min_size(vec2(ui.available_width(), 0.0)),
                             );
                             if is_selected && keys.moved_selection() {
