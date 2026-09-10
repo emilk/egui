@@ -21,6 +21,29 @@ impl WindowChromeMetrics {
     pub fn from_window_handle(window_handle: &RawWindowHandle) -> Option<Self> {
         window_chrome_metrics(window_handle)
     }
+
+    /// Position the traffic lights in a title bar of the given height.
+    ///
+    /// The buttons are centered vertically and inset by `left_margin`.
+    /// Both arguments use the same native scale as [`Self::traffic_lights_size`].
+    /// Returns the updated window chrome metrics.
+    pub fn position_traffic_lights(
+        window_handle: &RawWindowHandle,
+        title_bar_height: f32,
+        left_margin: f32,
+    ) -> Option<Self> {
+        let RawWindowHandle::AppKit(appkit_handle) = window_handle else {
+            return None;
+        };
+
+        let ns_view = ns_view_from_handle(appkit_handle)?;
+        let ns_window = ns_view.window()?;
+        position_traffic_lights_in_title_bar(&ns_window, title_bar_height, left_margin)?;
+
+        Some(Self {
+            traffic_lights_size: traffic_lights_metrics(&ns_window)?,
+        })
+    }
 }
 
 fn window_chrome_metrics(window_handle: &RawWindowHandle) -> Option<WindowChromeMetrics> {
@@ -38,23 +61,75 @@ fn window_chrome_metrics(window_handle: &RawWindowHandle) -> Option<WindowChrome
 
 fn traffic_lights_metrics(ns_window: &NSWindow) -> Option<Vec2> {
     // Button order is CloseButton, MiniaturizeButton, ZoomButton:
-    let close_button = ns_window
-        .standardWindowButton(NSWindowButton::CloseButton)?
-        .frame();
+    let close_button = ns_window.standardWindowButton(NSWindowButton::CloseButton)?;
+    let close_button_frame = close_button.frame();
     let zoom_button = ns_window
         .standardWindowButton(NSWindowButton::ZoomButton)?
         .frame();
 
-    let left_margin = close_button.origin.x;
+    let left_margin = close_button_frame.origin.x;
     let right_margin = left_margin; // for symmetry
 
     let total_width = zoom_button.origin.x + zoom_button.size.width + right_margin;
 
-    let top_margin = close_button.origin.y;
+    let top_margin = distance_from_top(&close_button)?;
     let bottom_margin = top_margin; // Usually symmetric
-    let total_height = top_margin + close_button.size.height + bottom_margin;
+    let total_height = top_margin + close_button_frame.size.height + bottom_margin;
 
     Some(Vec2::new(total_width as f32, total_height as f32))
+}
+
+fn position_traffic_lights_in_title_bar(
+    ns_window: &NSWindow,
+    title_bar_height: f32,
+    left_margin: f32,
+) -> Option<()> {
+    let close_button_x = ns_window
+        .standardWindowButton(NSWindowButton::CloseButton)?
+        .frame()
+        .origin
+        .x;
+    let x_offset = left_margin as f64 - close_button_x;
+
+    for button_kind in [
+        NSWindowButton::CloseButton,
+        NSWindowButton::MiniaturizeButton,
+        NSWindowButton::ZoomButton,
+    ] {
+        let button = ns_window.standardWindowButton(button_kind)?;
+        let frame = button.frame();
+        // SAFETY: native eframe window updates run on the main thread, and `button` stays retained
+        // while its superview is accessed.
+        #[expect(unsafe_code)]
+        let superview = unsafe { button.superview()? };
+        let bounds = superview.bounds();
+        let top_margin = ((title_bar_height as f64 - frame.size.height) / 2.0).max(0.0);
+        let mut origin = frame.origin;
+        origin.x += x_offset;
+        origin.y = if superview.isFlipped() {
+            bounds.origin.y + top_margin
+        } else {
+            bounds.origin.y + bounds.size.height - top_margin - frame.size.height
+        };
+        button.setFrameOrigin(origin);
+    }
+
+    Some(())
+}
+
+fn distance_from_top(view: &NSView) -> Option<f64> {
+    let frame = view.frame();
+    // SAFETY: native eframe window updates run on the main thread, and the caller retains `view`
+    // while its superview is accessed.
+    #[expect(unsafe_code)]
+    let superview = unsafe { view.superview()? };
+    let bounds = superview.bounds();
+
+    if superview.isFlipped() {
+        Some(frame.origin.y - bounds.origin.y)
+    } else {
+        Some(bounds.origin.y + bounds.size.height - frame.origin.y - frame.size.height)
+    }
 }
 
 fn ns_view_from_handle(handle: &AppKitWindowHandle) -> Option<&NSView> {
