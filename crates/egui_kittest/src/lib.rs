@@ -278,7 +278,7 @@ impl<'a, State> Harness<'a, State> {
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
 
-        if fit_contents && harness.response.is_some() {
+        if fit_contents && harness.ui_output.is_some() {
             harness.fit_contents();
         }
 
