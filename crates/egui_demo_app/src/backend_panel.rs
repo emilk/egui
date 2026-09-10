@@ -193,6 +193,16 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
     });
 
     #[cfg(target_arch = "wasm32")]
+    ui.horizontal(|ui| {
+        ui.label("Canvas:");
+        if _frame.info().web_info.offscreen_canvas {
+            ui.monospace("OffscreenCanvas (web worker)");
+        } else {
+            ui.monospace("HtmlCanvasElement (main thread)");
+        }
+    });
+
+    #[cfg(target_arch = "wasm32")]
     ui.collapsing("Web info (location)", |ui| {
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
         ui.monospace(format!("{:#?}", _frame.info().web_info.location));

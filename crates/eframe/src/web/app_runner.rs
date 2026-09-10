@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use egui::{ScreenshotCallback, TexturesDelta, ViewportCommand};
 
-use crate::{App, epi, web::web_painter::WebPainter};
+use crate::{App, epi, web::web_painter::WebPainter, web_events::WebEventState};
 
-use super::{NeedRepaint, now_sec, text_agent::TextAgent};
+use super::{NeedRepaint, WebCanvas, WebHost, now_sec, text_agent::TextAgent};
 
 pub struct AppRunner {
     #[allow(clippy::allow_attributes, dead_code)]
@@ -12,11 +12,24 @@ pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: Box<dyn WebPainter>,
+
+    /// The canvas we render to: DOM (`Html`) or worker-owned (`Offscreen`).
+    canvas: WebCanvas,
+
+    /// The channel back to the host page. `None` in DOM mode.
+    host: Option<WebHost>,
+
     pub(crate) input: super::WebInput,
+
+    /// Pointer/wheel state for messages from the host page (worker mode only).
+    pub(crate) offscreen_events: WebEventState,
+
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: Arc<NeedRepaint>,
     last_save_time: f64,
-    pub(crate) text_agent: TextAgent,
+
+    /// DOM-only hidden `<input>` used for IME. `None` in worker mode.
+    pub(crate) text_agent: Option<TextAgent>,
 
     // If not empty, the painter should capture n frames from now.
     // zero means capture the exact next frame.
@@ -40,11 +53,12 @@ impl AppRunner {
         not(feature = "wgpu_no_default_features"),
         expect(clippy::unused_async)
     )]
-    pub async fn new(
-        canvas: web_sys::HtmlCanvasElement,
+    pub(crate) async fn new(
+        canvas: WebCanvas,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator<'static>,
-        text_agent: TextAgent,
+        host: Option<WebHost>,
+        text_agent: Option<TextAgent>,
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
         egui_ctx.set_glyph_rasterizer(Some(super::canvas_glyphs::glyph_rasterizer()));
@@ -63,7 +77,7 @@ impl AppRunner {
                 log::debug!("Using the glow renderer");
                 let painter = super::web_painter_glow::WebPainterGlow::new(
                     egui_ctx.clone(),
-                    canvas,
+                    canvas.clone(),
                     &web_options,
                 )?;
                 gl = Some(Arc::clone(painter.gl()));
@@ -75,7 +89,7 @@ impl AppRunner {
                 log::debug!("Using the wgpu renderer");
                 let painter = super::web_painter_wgpu::WebPainterWgpu::new(
                     egui_ctx.clone(),
-                    canvas,
+                    canvas.clone(),
                     &web_options,
                 )
                 .await?;
@@ -84,18 +98,27 @@ impl AppRunner {
             }
         };
 
+        // `user_agent` and `web_location` read from `window`, which a worker
+        // does not have.
+        let user_agent = super::user_agent().unwrap_or_default();
+        let location = if web_sys::window().is_some() {
+            super::web_location()
+        } else {
+            Default::default()
+        };
+
+        egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(&user_agent));
+
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
-                user_agent: super::user_agent().unwrap_or_default(),
-                location: super::web_location(),
+                user_agent,
+                location,
+                offscreen_canvas: canvas.as_offscreen().is_some(),
             },
             cpu_usage: None,
         };
         let storage = LocalStorage::default();
 
-        egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
-            &super::user_agent().unwrap_or_default(),
-        ));
         super::storage::load_memory(&egui_ctx);
 
         egui_ctx.options_mut(|o| {
@@ -154,7 +177,10 @@ impl AppRunner {
             frame,
             egui_ctx,
             painter,
+            canvas,
+            host,
             input: Default::default(),
+            offscreen_events: Default::default(),
             app,
             needs_repaint,
             last_save_time: now_sec(),
@@ -209,8 +235,12 @@ impl AppRunner {
         self.last_save_time = now_sec();
     }
 
+    pub fn html_canvas(&self) -> &web_sys::HtmlCanvasElement {
+        self.canvas.expect_html()
+    }
+
     pub fn canvas(&self) -> &web_sys::HtmlCanvasElement {
-        self.painter.canvas()
+        self.html_canvas()
     }
 
     pub fn destroy(mut self) {
@@ -227,19 +257,31 @@ impl AppRunner {
     ///
     /// Technically: does either the canvas or the [`TextAgent`] have focus?
     pub fn has_focus(&self) -> bool {
+        if self.host.is_some() {
+            return self.input.focused;
+        }
+
+        let focused = super::has_focus(self.html_canvas());
+
         let window = web_sys::window().unwrap();
         let document = window.document().unwrap();
         if document.hidden() {
             return false;
         }
 
-        super::has_focus(self.canvas()) || self.text_agent.has_focus()
+        focused || self.text_agent.as_ref().is_some_and(|t| t.has_focus())
+    }
+
+    /// Called from the host page's `resize` message.
+    pub(crate) fn on_offscreen_resize(&self, width: u32, height: u32) {
+        self.canvas.set_size(width, height);
+        self.needs_repaint.repaint_asap();
     }
 
     pub fn update_focus(&mut self) {
         let has_focus = self.has_focus();
         if self.input.raw.focused != has_focus {
-            log::trace!("{} Focus changed to {has_focus}", self.canvas().id());
+            log::trace!("{} Focus changed to {has_focus}", self.canvas.id());
             self.input.set_focus(has_focus);
 
             if !has_focus {
@@ -257,14 +299,14 @@ impl AppRunner {
         // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
         self.update_focus();
 
-        let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
+        let canvas_size = super::canvas_size_in_points(&self.canvas, self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
 
         if super::DEBUG_RESIZE {
             log::info!(
                 "egui running at canvas size: {}x{}, DPR: {}, zoom_factor: {}. egui size: {}x{} points",
-                self.canvas().width(),
-                self.canvas().height(),
+                self.canvas.width(),
+                self.canvas.height(),
                 super::native_pixels_per_point(),
                 self.egui_ctx.zoom_factor(),
                 canvas_size.x,
@@ -410,26 +452,36 @@ impl AppRunner {
             }
         }
 
-        super::set_cursor_icon(self.canvas(), cursor_icon);
+        if let Some(host) = &self.host {
+            host.send_cursor_icon(cursor_icon);
+        } else {
+            super::set_cursor_icon(self.html_canvas(), cursor_icon);
+        }
 
         if self.has_focus() {
             // The eframe app has focus.
-            if let Some(ime) = ime {
+            if let Some(ime) = ime
+                && let Some(text_agent) = &self.text_agent
+            {
                 if ime.should_interrupt_composition {
-                    self.text_agent.interrupt_ime_composition();
+                    text_agent.interrupt_ime_composition();
                 }
                 // We are editing text: give the focus to the text agent.
-                self.text_agent.focus();
+                text_agent.focus();
             } else {
-                // We are not editing text - give the focus to the canvas.
-                self.text_agent.blur();
-                super::focus_without_scroll(self.canvas()).ok();
+                if let Some(text_agent) = &self.text_agent {
+                    // We are not editing text - give the focus to the canvas.
+                    text_agent.blur();
+                }
+                if let Some(canvas) = self.canvas.as_html() {
+                    super::focus_without_scroll(canvas).ok();
+                }
             }
         }
 
-        if let Err(err) = self
-            .text_agent
-            .update(ime, self.canvas(), self.egui_ctx.zoom_factor())
+        if let Some(text_agent) = &self.text_agent
+            && let Err(err) =
+                text_agent.update(ime, self.html_canvas(), self.egui_ctx.zoom_factor())
         {
             log::error!(
                 "failed to update text agent position: {}",
