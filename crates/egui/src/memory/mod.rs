@@ -410,7 +410,7 @@ impl Options {
         use crate::Widget as _;
         use crate::containers::CollapsingHeader;
 
-        CollapsingHeader::new("⚙ Options")
+        CollapsingHeader::new("⚙️ Options")
             .default_open(false)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -441,7 +441,7 @@ impl Options {
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
-                theme_preference.radio_buttons(ui);
+                theme_preference.buttons(ui);
 
                 ui.checkbox(sync_window_theme, "Sync window theme with egui theme");
 
@@ -452,7 +452,7 @@ impl Options {
                 style.ui(ui);
             });
 
-        CollapsingHeader::new("✒ Painting")
+        CollapsingHeader::new("✒️ Painting")
             .default_open(false)
             .show(ui, |ui| {
                 tessellation_options.ui(ui);
@@ -461,7 +461,7 @@ impl Options {
                 });
             });
 
-        CollapsingHeader::new("🖱 Input")
+        CollapsingHeader::new("🖱️ Input")
             .default_open(false)
             .show(ui, |ui| {
                 input_options.ui(ui);
@@ -1016,8 +1016,8 @@ impl Memory {
     }
 
     /// Obtain the previous rectangle of an area.
-    pub fn area_rect(&self, id: impl Into<Id>) -> Option<Rect> {
-        self.areas().get(id.into()).map(|state| state.rect())
+    pub fn area_rect(&self, id: Id) -> Option<Rect> {
+        self.areas().get(id).map(|state| state.rect())
     }
 
     pub(crate) fn interaction(&self) -> &InteractionState {
@@ -1416,8 +1416,8 @@ fn memory_impl_send_sync() {
 #[test]
 fn lost_focus_fires_after_mid_frame_focus_transfer() {
     use crate::data::input::RawInput;
-    let a = Id::new("A");
-    let b = Id::new("B");
+    let a = Id::unique("A");
+    let b = Id::unique("B");
     let mut focus = Focus::default();
     let raw = RawInput::default();
 
@@ -1463,13 +1463,13 @@ fn lost_focus_fires_after_mid_frame_focus_transfer() {
 #[test]
 fn order_map_total_ordering() {
     let mut layers = [
-        LayerId::new(Order::Tooltip, Id::new("a")),
-        LayerId::new(Order::Background, Id::new("b")),
-        LayerId::new(Order::Background, Id::new("c")),
-        LayerId::new(Order::Tooltip, Id::new("d")),
-        LayerId::new(Order::Background, Id::new("e")),
-        LayerId::new(Order::Background, Id::new("f")),
-        LayerId::new(Order::Tooltip, Id::new("g")),
+        LayerId::new(Order::Tooltip, Id::unique("a")),
+        LayerId::new(Order::Background, Id::unique("b")),
+        LayerId::new(Order::Background, Id::unique("c")),
+        LayerId::new(Order::Tooltip, Id::unique("d")),
+        LayerId::new(Order::Background, Id::unique("e")),
+        LayerId::new(Order::Background, Id::unique("f")),
+        LayerId::new(Order::Tooltip, Id::unique("g")),
     ];
     let mut areas = Areas::default();
 

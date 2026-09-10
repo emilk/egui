@@ -1,8 +1,8 @@
 use emath::Rect;
 
 use crate::{
-    Atom, AtomLayout, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType,
+    Atom, AtomLayout, Atoms, IdSalt, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2,
+    Widget, WidgetInfo, WidgetType,
     class::{Classes, HasClasses},
     epaint, pos2,
     widget_style::CheckboxStyle,
@@ -85,7 +85,7 @@ impl Widget for Checkbox<'_> {
         // In order to center the checkbox based on min_size we set the icon height to at least min_size.y
         let mut icon_size = Vec2::splat(checkbox_size);
         icon_size.y = icon_size.y.at_least(min_size.y);
-        let rect_id = Id::new("egui::checkbox");
+        let rect_id = IdSalt::new("checkbox_icon");
         atoms.push_left(Atom::custom(rect_id, icon_size));
 
         let text = atoms.text().map(String::from);

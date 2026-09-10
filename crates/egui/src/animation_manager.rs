@@ -121,7 +121,7 @@ mod tests {
     fn zero_duration_value_animation_reaches_target_immediately() {
         let mut animations = AnimationManager::default();
         let input = InputState::default();
-        let id = Id::new("value_animation");
+        let id = Id::unique("value_animation");
 
         assert_eq!(animations.animate_value(&input, 0.0, id, 0.0), 0.0);
         assert_eq!(animations.animate_value(&input, 0.0, id, 1.0), 1.0);

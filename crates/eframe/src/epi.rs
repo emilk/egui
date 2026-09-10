@@ -378,6 +378,15 @@ pub struct NativeOptions {
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
 
+    /// Load system fonts on demand for characters that the installed fonts lack,
+    /// e.g. CJK, Arabic, or Devanagari (only if the `system_fonts` feature is enabled).
+    ///
+    /// Turn this off if you bundle fonts that cover everything your app shows,
+    /// or if you need identical text rendering on all machines.
+    ///
+    /// Default: `true`.
+    pub system_font_fallback: bool,
+
     /// The folder where `eframe` will store the app state. If not set, eframe will use a default
     /// data storage path for each target system.
     pub persistence_path: Option<std::path::PathBuf>,
@@ -461,6 +470,8 @@ impl Default for NativeOptions {
                 .with_surface_config(egui_wgpu::SurfaceConfig::LOW_LATENCY),
 
             persist_window: true,
+
+            system_font_fallback: true,
 
             persistence_path: None,
 

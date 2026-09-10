@@ -12,6 +12,8 @@ pub trait AsId: core::hash::Hash + core::fmt::Debug {}
 
 impl<T: core::hash::Hash + core::fmt::Debug> AsId for T {}
 
+/// A (hopefully) unique identity within this application.
+///
 /// egui tracks widgets frame-to-frame using [`Id`]s.
 ///
 /// For instance, if you start dragging a slider one frame, egui stores
@@ -22,7 +24,7 @@ impl<T: core::hash::Hash + core::fmt::Debug> AsId for T {}
 /// For some widgets [`Id`]s are also used to persist some state about the
 /// widgets, such as Window position or whether not a collapsing header region is open.
 ///
-/// This implies that the [`Id`]s must be unique.
+/// This implies that the [`Id`]s must be "globally" unique (unique within the running app).
 ///
 /// For simple things like sliders and buttons that don't have any memory and
 /// doesn't move we can use the location of the widget as a source of identity.
@@ -60,7 +62,7 @@ impl Id {
     /// though obviously it will lead to a lot of collisions if you do use it!
     pub const NULL: Self = Self(NonZeroU64::MAX);
 
-    /// Create a new root [`Id`] from a high-entropy hash.
+    /// Create a new, globally unique, root [`Id`] from a high-entropy hash.
     #[inline]
     const fn from_hash(hash: u64) -> Self {
         if let Some(nonzero) = NonZeroU64::new(hash) {
@@ -70,8 +72,13 @@ impl Id {
         }
     }
 
-    /// Generate a new root [`Id`] by hashing some source (e.g. a string or integer).
-    pub fn new(source: impl AsId) -> Self {
+    /// Creates a new root [`Id`] from a globally unique source (e.g. a string or integer) by hashing it.
+    ///
+    /// The source must be unique within the whole application,
+    /// or else you risk [`Id`] clashes with other widgets.
+    ///
+    /// If you only need something unique within a parent widget, use [`IdSalt`] instead.
+    pub fn unique(source: impl AsId) -> Self {
         let id = Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(&source));
 
         #[cfg(debug_assertions)]
@@ -80,18 +87,42 @@ impl Id {
         id
     }
 
+    /// Generate a new, globally unique, root [`Id`] by hashing some source (e.g. a string or integer).
+    #[deprecated = "Use `Id::unique` (for a globally unique id) or `IdSalt::new` (for a locally unique salt) instead"]
+    pub fn new(source: impl AsId) -> Self {
+        Self::unique(source)
+    }
+
     /// Generate a child [`Id`] by salting the parent [`Id`] with the given argument.
+    ///
+    /// `id.with(salt)` is the same as `id.with_salt(IdSalt::new(salt))`.
     pub fn with(self, salt: impl AsIdSalt) -> Self {
-        use core::hash::{BuildHasher as _, Hasher as _};
-        let mut hasher = ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
-        hasher.write_u64(self.value());
-        hasher.write_u64(IdSalt::new(&salt).value());
-        let id = Self::from_hash(hasher.finish());
+        let id = self.hash_with_salt(IdSalt::new(&salt));
 
         #[cfg(debug_assertions)]
         id_source::insert_child(id, self, &salt);
 
         id
+    }
+
+    /// Generate a child [`Id`] by salting the parent [`Id`] with the given [`IdSalt`].
+    ///
+    /// `id.with_salt(IdSalt::new(salt))` is the same as `id.with(salt)`.
+    pub fn with_salt(self, salt: IdSalt) -> Self {
+        let id = self.hash_with_salt(salt);
+
+        #[cfg(debug_assertions)]
+        id_source::insert_child(id, self, &salt);
+
+        id
+    }
+
+    fn hash_with_salt(self, salt: IdSalt) -> Self {
+        use core::hash::{BuildHasher as _, Hasher as _};
+        let mut hasher = ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
+        hasher.write_u64(self.value());
+        hasher.write_u64(salt.value());
+        Self::from_hash(hasher.finish())
     }
 
     /// Short and readable summary
@@ -146,23 +177,6 @@ impl core::fmt::Debug for Id {
 
 // ----------------------------------------------------------------------------
 
-/// Convenience
-impl From<&'static str> for Id {
-    #[inline]
-    fn from(string: &'static str) -> Self {
-        Self::new(string)
-    }
-}
-
-impl From<String> for Id {
-    #[inline]
-    fn from(string: String) -> Self {
-        Self::new(string)
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 /// `IdSet` is a `HashSet<Id>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
 pub type IdSet = nohash_hasher::IntSet<Id>;
 
@@ -173,8 +187,8 @@ pub type IdMap<V> = nohash_hasher::IntMap<Id, V>;
 
 /// In debug builds, remember the `Debug`-formatted call chain that produced each [`Id`].
 ///
-/// Used by [`Id`]'s `Debug` impl so that `Id::new("foo")` prints as `Id::new("foo")`,
-/// and `Id::new("foo").with("bar")` prints as `Id::new("foo").with("bar")`, etc.
+/// Used by [`Id`]'s `Debug` impl so that `Id::unique("foo")` prints as `Id::unique("foo")`,
+/// and `Id::unique("foo").with("bar")` prints as `Id::unique("foo").with("bar")`, etc.
 #[cfg(debug_assertions)]
 mod id_source {
     use super::{AsId, AsIdSalt, Id, IdMap};
@@ -188,7 +202,7 @@ mod id_source {
             return;
         }
         // Format outside the lock since `{source:?}` may itself recurse into [`Id`]'s `Debug` impl.
-        let formatted = format!("Id::new({source:?})");
+        let formatted = format!("Id::unique({source:?})");
         SOURCE_MAP.write().insert(id, formatted);
     }
 
@@ -224,42 +238,48 @@ mod debug_format_tests {
 
     #[test]
     fn root_string() {
-        let id = Id::new("foo");
-        assert_eq!(format!("{id:?}"), r#"Id::new("foo")"#);
+        let id = Id::unique("foo");
+        assert_eq!(format!("{id:?}"), r#"Id::unique("foo")"#);
     }
 
     #[test]
     fn root_integer() {
-        let id = Id::new(42_i32);
-        assert_eq!(format!("{id:?}"), "Id::new(42)");
+        let id = Id::unique(42_i32);
+        assert_eq!(format!("{id:?}"), "Id::unique(42)");
     }
 
     #[test]
     fn root_id_salt() {
-        let id = Id::new(IdSalt::new("foo"));
-        assert_eq!(format!("{id:?}"), r#"Id::new(IdSalt::new("foo"))"#);
+        let id = Id::unique(IdSalt::new("foo"));
+        assert_eq!(format!("{id:?}"), r#"Id::unique(IdSalt::new("foo"))"#);
+    }
+
+    #[test]
+    fn with_salt_matches_with() {
+        let parent = Id::unique("parent");
+        assert_eq!(parent.with_salt(IdSalt::new("child")), parent.with("child"));
     }
 
     #[test]
     fn with_one_child() {
-        let id = Id::new("parent").with("child");
-        assert_eq!(format!("{id:?}"), r#"Id::new("parent").with("child")"#);
+        let id = Id::unique("parent").with("child");
+        assert_eq!(format!("{id:?}"), r#"Id::unique("parent").with("child")"#);
     }
 
     #[test]
     fn with_chain() {
-        let id = Id::new("a").with("b").with("c").with(7_i32);
+        let id = Id::unique("a").with("b").with("c").with(7_i32);
         assert_eq!(
             format!("{id:?}"),
-            r#"Id::new("a").with("b").with("c").with(7)"#
+            r#"Id::unique("a").with("b").with("c").with(7)"#
         );
     }
 
     #[test]
     fn nested_id_as_source() {
-        let inner = Id::new("foo");
-        let outer = Id::new(inner);
-        assert_eq!(format!("{outer:?}"), r#"Id::new(Id::new("foo"))"#);
+        let inner = Id::unique("foo");
+        let outer = Id::unique(inner);
+        assert_eq!(format!("{outer:?}"), r#"Id::unique(Id::unique("foo"))"#);
     }
 
     #[test]

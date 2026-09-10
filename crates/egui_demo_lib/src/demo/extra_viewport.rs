@@ -7,7 +7,7 @@ impl crate::Demo for ExtraViewport {
     }
 
     fn name(&self) -> &'static str {
-        "🗖 Extra Viewport"
+        "🖥️ Extra Viewport"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -15,7 +15,7 @@ impl crate::Demo for ExtraViewport {
             return;
         }
 
-        let id = egui::Id::new(self.name());
+        let id = egui::Id::unique(self.name());
 
         ui.show_viewport_immediate(
             egui::ViewportId(id),

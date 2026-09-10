@@ -375,7 +375,7 @@ impl<'a> TableBuilder<'a> {
     /// Don't make the scroll area higher than this (add scroll-bars instead!).
     ///
     /// In other words: add scroll-bars when this height is reached.
-    /// Default: `800.0`.
+    /// Default: `f32::INFINITY`.
     #[inline]
     pub fn max_scroll_height(mut self, max_scroll_height: f32) -> Self {
         self.scroll_options.max_scroll_height = max_scroll_height;
@@ -1307,7 +1307,7 @@ impl TableRow<'_, '_> {
             flags,
             width,
             height,
-            egui::Id::new((self.row_index, col_index)),
+            egui::IdSalt::new((self.row_index, col_index)),
             add_cell_contents,
         );
 

@@ -23,7 +23,7 @@ pub struct WindowOptions {
 impl Default for WindowOptions {
     fn default() -> Self {
         Self {
-            title: "🗖 Window Options".to_owned(),
+            title: "🔲 Window Options".to_owned(),
             title_bar: true,
             closable: true,
             collapsible: true,
@@ -42,7 +42,7 @@ impl Default for WindowOptions {
 
 impl crate::Demo for WindowOptions {
     fn name(&self) -> &'static str {
-        "🗖 Window Options"
+        "🔲 Window Options"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -69,7 +69,7 @@ impl crate::Demo for WindowOptions {
 
         use crate::View as _;
         let mut window = egui::Window::new(title)
-            .id(egui::Id::new("demo_window_options")) // required since we change the title
+            .id(egui::Id::unique("demo_window_options")) // required since we change the title
             .resizable(resizable)
             .constrain_to(ui.available_rect_before_wrap())
             .constrain(constrain)

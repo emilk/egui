@@ -154,7 +154,7 @@ impl ImageLoader for WebPLoader {
 
                     if let Ok(WebP::Animated(animated_image)) = &result {
                         ctx.data_mut(|data| {
-                            *data.get_temp_mut_or_default(Id::new(image_uri)) =
+                            *data.get_temp_mut_or_default(Id::unique(image_uri)) =
                                 animated_image.frame_durations.clone();
                         });
                     }

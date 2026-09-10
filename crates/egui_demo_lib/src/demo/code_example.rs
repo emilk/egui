@@ -102,7 +102,7 @@ impl CodeExample {
 
 impl crate::Demo for CodeExample {
     fn name(&self) -> &'static str {
-        "🖮 Code Example"
+        "⌨️ Code Example"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {

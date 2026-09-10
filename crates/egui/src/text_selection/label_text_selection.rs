@@ -750,7 +750,7 @@ mod tests {
 
     fn test_selection() -> CurrentSelection {
         let cursor = WidgetTextCursor {
-            widget_id: Id::new("selected_label"),
+            widget_id: Id::unique("selected_label"),
             ccursor: CCursor::default(),
             pos: Pos2::ZERO,
         };
