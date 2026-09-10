@@ -5,8 +5,8 @@ use skrifa::GlyphId;
 use crate::{
     FontColorTransferFunction, ImageDelta, TextOptions, TextureAtlas,
     text::{
-        FontFamily, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE,
-        RasterizedGlyph,
+        FontFamily, FontPriority, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest,
+        MAX_GLYPH_SIZE, RasterizedGlyph,
         face_store::FontFaceKey,
         font_face::{FontFace, ShapedGlyph},
         styled_metrics::StyledMetrics,
@@ -63,8 +63,8 @@ pub(crate) struct OutlineGlyph {
     pub x_px: i32,
 }
 
-/// A glyph from the [`GlyphRasterizer`], allocated in the atlas.
-#[derive(Clone, Copy)]
+/// A glyph from a [`GlyphRasterizer`], allocated in the atlas.
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct RasterGlyphAllocation {
     pub allocation: GlyphAllocation,
     pub advance_px: f32,
@@ -173,7 +173,7 @@ impl OutlineGlyphKey {
     }
 }
 
-/// Hash of `(cluster, family, pixels_per_point, font_size)`,
+/// Hash of `(priority, cluster, family, pixels_per_point, font_size)`,
 /// so that cache lookups do not allocate.
 #[derive(Hash, PartialEq, Eq)]
 struct RasterGlyphKey(u64);
@@ -181,8 +181,15 @@ struct RasterGlyphKey(u64);
 impl nohash_hasher::IsEnabled for RasterGlyphKey {}
 
 impl RasterGlyphKey {
-    fn new(cluster: &str, family: &FontFamily, pixels_per_point: f32, font_size: f32) -> Self {
+    fn new(
+        priority: FontPriority,
+        cluster: &str,
+        family: &FontFamily,
+        pixels_per_point: f32,
+        font_size: f32,
+    ) -> Self {
         Self(crate::util::hash((
+            priority,
             cluster,
             family,
             pixels_per_point.to_bits(),
@@ -203,9 +210,9 @@ pub(crate) struct GlyphAtlas {
     /// Glyphs rendered from font outlines.
     outline_glyphs: IntMap<OutlineGlyphKey, GlyphAllocation>,
 
-    /// Glyphs from the [`GlyphRasterizer`].
+    /// Glyphs from the [`GlyphRasterizer`]s.
     ///
-    /// `None` means the rasterizer could not handle the cluster.
+    /// `None` means no rasterizer of that priority could handle the cluster.
     raster_glyphs: IntMap<RasterGlyphKey, Option<RasterGlyphAllocation>>,
 }
 
@@ -248,7 +255,7 @@ impl GlyphAtlas {
         *self = Self::new(*self.atlas.options());
     }
 
-    /// Forget what the [`GlyphRasterizer`] produced, e.g. because it was replaced.
+    /// Forget what the [`GlyphRasterizer`]s produced, e.g. because they were replaced.
     pub fn clear_raster_glyphs(&mut self) {
         self.raster_glyphs.clear();
     }
@@ -312,21 +319,24 @@ impl GlyphAtlas {
         OutlineGlyph { allocation, x_px }
     }
 
-    /// Get or rasterize `cluster` using the platform [`GlyphRasterizer`].
+    /// Get or rasterize `cluster` using the [`GlyphRasterizer`]s of the given `priority`.
     ///
-    /// Failures are cached too, so the (potentially slow) rasterizer
-    /// is asked at most once per cluster and size.
+    /// The rasterizers are asked in order, and the first to return `Some` wins.
+    ///
+    /// Failures are cached too, so the (potentially slow) rasterizers
+    /// are asked at most once per cluster and size.
     ///
     /// See [`Self::allocate_bitmap`] for what happens when the atlas is full.
-    pub fn allocate_raster(
+    pub fn allocate_raster<'r>(
         &mut self,
-        rasterizer: &GlyphRasterizer,
+        rasterizers: impl IntoIterator<Item = &'r GlyphRasterizer>,
+        priority: FontPriority,
         cluster: &str,
         family: &FontFamily,
         pixels_per_point: f32,
         font_size: f32,
     ) -> Option<RasterGlyphAllocation> {
-        let key = RasterGlyphKey::new(cluster, family, pixels_per_point, font_size);
+        let key = RasterGlyphKey::new(priority, cluster, family, pixels_per_point, font_size);
         if let Some(allocation) = self.raster_glyphs.get(&key) {
             return *allocation;
         }
@@ -336,8 +346,11 @@ impl GlyphAtlas {
             font_size_px: font_size * pixels_per_point,
             subpixel_offset_px: 0.0,
         };
-        let allocation =
-            (rasterizer.rasterize)(&request).and_then(|RasterizedGlyph { bitmap, advance_px }| {
+        let allocation = rasterizers
+            .into_iter()
+            .filter(|rasterizer| rasterizer.priority == priority)
+            .find_map(|rasterizer| (rasterizer.rasterize)(&request))
+            .and_then(|RasterizedGlyph { bitmap, advance_px }| {
                 let is_color = bitmap.is_color;
                 let transfer = Self::transfer_function(&self.atlas, is_color);
                 let uv_rect =
