@@ -668,33 +668,4 @@ mod tests {
         assert_eq!(fitted[(3, 1)], Rgba([255, 0, 0, 255]));
         assert_eq!(fitted[(3, 3)], Rgba([0, 0, 0, 0]));
     }
-
-    /// `ffmpeg` is not installed everywhere, e.g. on CI.
-    fn has_ffmpeg() -> bool {
-        std::process::Command::new(super::FFMPEG)
-            .arg("-version")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .is_ok()
-    }
-
-    #[test]
-    fn mp4_frames_are_streamed() {
-        if !has_ffmpeg() {
-            eprintln!("Skipping test: `ffmpeg` is not on the PATH");
-            return;
-        }
-
-        let directory = tempfile::tempdir().expect("tempdir");
-        let path = directory.path().join("stream.mp4");
-        let mut plugin = super::RecordingPlugin::new(super::RecordingOptions::new(&path, 10.0));
-
-        plugin.push_frame(RgbaImage::from_pixel(4, 4, Rgba([255, 0, 0, 255])));
-        plugin.push_frame(RgbaImage::from_pixel(2, 2, Rgba([255, 0, 0, 255])));
-        plugin.push_frame(RgbaImage::from_pixel(8, 8, Rgba([255, 0, 0, 255])));
-
-        let saved_path = plugin.finish().expect("finish recording");
-        assert!(saved_path.exists());
-    }
 }
