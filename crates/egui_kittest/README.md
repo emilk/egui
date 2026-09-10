@@ -67,12 +67,24 @@ max_failed_pixels = 0
 [linux]
 threshold = 0.6
 max_failed_pixels = 0
+
 ```
 
 Raise `max_failed_pixels` only very carefully: a high value (more than ~10) is enough to hide a
 real change, such as a moved separator, a shifted one-pixel border, or a small icon rendering
 incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever you
 update the snapshot.
+
+## Recording
+When enabling the `recording` feature, you can record tests to mp4s via these env vars:
+* `KITTEST_RECORD=1 cargo test` writes numbered MP4s to `tests/snapshots/recordings`
+* `KITTEST_RECORD=open cargo test` writes each recording to a temporary file and opens it
+
+Recording needs [`ffmpeg`](https://ffmpeg.org/) on the `PATH`. MP4 has no alpha channel, so
+transparent pixels turn black.
+
+The recorder is an `egui::Plugin` (`RecordingPlugin`), so you can also register it on any
+`egui::Context` yourself to record any egui app.
 
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.
