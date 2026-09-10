@@ -269,6 +269,8 @@ web-sys = { workspace = true, features = [
   "Navigator",
   "Node",
   "NodeList",
+  "OffscreenCanvas",
+  "OffscreenCanvasRenderingContext2d",
   "Performance",
   "ResizeObserver",
   "ResizeObserverBoxOptions",

@@ -884,6 +884,10 @@ pub struct WebInfo {
 
     /// Information about the URL.
     pub location: Location,
+
+    /// True if the app is rendering to an `OffscreenCanvas` (e.g. inside a
+    /// web worker) rather than to a `<canvas>` element in the main thread.
+    pub offscreen_canvas: bool,
 }
 
 /// Information about the URL.
@@ -975,6 +979,7 @@ impl IntegrationInfo {
                     query_map: Default::default(),
                     origin: "http://localhost".to_owned(),
                 },
+                offscreen_canvas: false,
             },
             cpu_usage: None,
         }
