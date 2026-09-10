@@ -1,9 +1,9 @@
 use epaint::Shape;
 
 use crate::{
-    Align2, AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Popup,
-    PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui,
-    UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType, epaint,
+    Align, Align2, AsIdSalt, Context, Id, IdSalt, InnerResponse, Layout, NumExt as _, Painter,
+    Popup, PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode,
+    Ui, UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType, epaint,
     style::{StyleModifier, WidgetVisuals},
     vec2,
 };
@@ -231,6 +231,7 @@ impl ComboBox {
 
         let button_id = ui.make_persistent_id(id_salt);
 
+        let root_layout = ui.into();
         ui.horizontal(|ui| {
             let mut ir = combo_box_dyn(
                 ui,
@@ -242,6 +243,7 @@ impl ComboBox {
                 close_behavior,
                 popup_style,
                 (width, height),
+                &root_layout,
             );
             ir.response.widget_info(|| {
                 let mut info = WidgetInfo::new(WidgetType::ComboBox);
@@ -327,6 +329,7 @@ fn combo_box_dyn<'c, R>(
     close_behavior: Option<PopupCloseBehavior>,
     popup_style: StyleModifier,
     (width, height): (Option<f32>, Option<f32>),
+    root_layout: &RootLayout,
 ) -> InnerResponse<Option<R>> {
     let popup_id = ComboBox::widget_to_popup_id(button_id);
 
@@ -360,7 +363,7 @@ fn combo_box_dyn<'c, R>(
         let actual_width = (galley.size().x + icon_spacing + icon_size.x).at_least(minimum_width);
         let actual_height = galley.size().y.max(icon_size.y);
 
-        let (_, rect) = ui.allocate_space(Vec2::new(actual_width, actual_height));
+        let rect = allocate_and_position(root_layout, ui, Vec2::new(actual_width, actual_height));
         let button_rect = ui.min_rect().expand2(ui.spacing().button_padding);
         let response = ui.interact(button_rect, button_id, Sense::click());
         // response.active |= is_popup_open;
@@ -484,4 +487,54 @@ fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
         visuals.fg_stroke.color,
         Stroke::NONE,
     ));
+}
+
+struct RootLayout {
+    layout: Layout,
+    cursor: Rect,
+    gridded: bool,
+    max_rect: Rect,
+}
+
+impl From<&mut Ui> for RootLayout {
+    fn from(ui: &mut Ui) -> Self {
+        Self {
+            layout: *ui.layout(),
+            cursor: ui.cursor(),
+            gridded: ui.is_grid(),
+            max_rect: ui.max_rect(),
+        }
+    }
+}
+
+fn allocate_and_position(root: &RootLayout, ui: &mut Ui, mut size: Vec2) -> Rect {
+    let interact_size = ui.spacing().interact_size;
+    // Ignore the first `ComboBox` widget of a `horizontal()` layout.
+    let premier_widget = root.max_rect.max.y - root.max_rect.min.y == interact_size.y;
+    // Ignore vertical and grid layouts; justified layouts are already correctly aligned.
+    if premier_widget || root.layout.is_vertical() || root.gridded || root.layout.cross_justify {
+        // Pre-workaround rect.
+        ui.allocate_space(size).1
+    } else {
+        let margin = ui.spacing().button_padding;
+        size.y = size.y.max(interact_size.y - 2.0 * margin.y);
+
+        let min = (
+            match root.layout.horizontal_placement() {
+                Align::Min => ui.min_rect().min.x,
+                Align::Center => ui.min_rect().center().x - size.x / 2.0,
+                Align::Max => ui.min_rect().max.x - size.x,
+            },
+            match root.layout.cross_align {
+                Align::Min => root.cursor.min.y + margin.y,
+                Align::Center => root.cursor.center().y - size.y / 2.0,
+                Align::Max => root.cursor.max.y - size.y - margin.y,
+            },
+        )
+            .into();
+
+        let rect = Rect::from_min_size(min, size);
+        let _ = ui.allocate_rect(rect, Sense::empty());
+        rect
+    }
 }
