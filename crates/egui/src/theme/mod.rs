@@ -12,7 +12,8 @@ pub use self::{default_style::DefaultStyle, style_provider::StyleProvider, theme
 
 use crate::{
     Ui,
-    widget_style::{Classes, StyleArgs, WidgetState, WidgetStyle},
+    class::Classes,
+    widget_style::{StyleArgs, WidgetState, WidgetStyle},
 };
 
 impl Ui {

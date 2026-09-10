@@ -1,7 +1,9 @@
 use crate::{
-    Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IntoAtoms, Key, MINUS_CHAR_STR,
-    Modifiers, NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget,
-    WidgetInfo, emath, text,
+    Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IdSalt, IntoAtoms, Key,
+    MINUS_CHAR_STR, Modifiers, NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui,
+    Widget, WidgetInfo,
+    class::{ClassName, Classes, HasClasses},
+    emath, text,
 };
 use core::{cmp::Ordering, ops::RangeInclusive};
 use emath::Vec2;
@@ -63,10 +65,15 @@ pub struct DragValue<'a> {
     custom_formatter: Option<NumFormatter<'a>>,
     custom_parser: Option<NumParser<'a>>,
     update_while_editing: bool,
+    classes: Classes,
+    min_size: Option<Vec2>,
 }
 
 impl<'a> DragValue<'a> {
     const ATOM_ID: &'static str = "drag_item";
+
+    /// Present on the [`Button`] and the [`TextEdit`] a drag value is built from.
+    pub const CLASS: ClassName = ClassName::from_static("egui::drag_value");
 
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
         let slf = Self::from_get_set(move |v: Option<f64>| {
@@ -84,7 +91,8 @@ impl<'a> DragValue<'a> {
     }
 
     pub fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
-        let atoms = Atoms::new(Atom::custom(Id::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
+        let atoms =
+            Atoms::new(Atom::custom(IdSalt::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
 
         Self {
             get_set_value: Box::new(get_set_value),
@@ -97,7 +105,18 @@ impl<'a> DragValue<'a> {
             custom_formatter: None,
             custom_parser: None,
             update_while_editing: true,
+            classes: Classes::default().with_class(Self::CLASS),
+            min_size: None,
         }
+    }
+
+    /// The minimum size of the drag value, in both its dragged and its text-edited state.
+    ///
+    /// Defaults to [`crate::style::Spacing::interact_size`].
+    #[inline]
+    pub fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = Some(min_size);
+        self
     }
 
     /// How much the value changes when dragged one point (logical pixel).
@@ -449,12 +468,14 @@ impl Widget for DragValue<'_> {
             custom_formatter,
             custom_parser,
             update_while_editing,
+            classes,
+            min_size,
         } = self;
 
         let mut prefix_text = String::new();
         let mut suffix_text = String::new();
         let mut past_value = false;
-        let atom_id = Id::new(Self::ATOM_ID);
+        let atom_id = IdSalt::new(Self::ATOM_ID);
         for atom in atoms.iter() {
             if atom.id == Some(atom_id) {
                 past_value = true;
@@ -583,11 +604,10 @@ impl Widget for DragValue<'_> {
                 .map_or_else(|| value_text.clone(), |edit_state| edit_state.text);
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
+                    .with_classes(classes)
                     .clip_text(false)
-                    .horizontal_align(ui.layout().horizontal_align())
-                    .vertical_align(ui.layout().vertical_align())
-                    .margin(ui.spacing().button_padding)
-                    .min_size(ui.spacing().interact_size)
+                    .align(ui.layout().align2())
+                    .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size))
                     .id(id)
                     .desired_width(
                         ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
@@ -634,10 +654,11 @@ impl Widget for DragValue<'_> {
                 }
             });
             let button = Button::new(atoms)
+                .with_classes(classes)
                 .wrap_mode(TextWrapMode::Extend)
                 .sense(Sense::click_and_drag())
                 .gap(0.0)
-                .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
+                .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size)); // TODO(emilk): find some more generic solution to `min_size`
 
             let cursor_icon = if value <= *range.start() {
                 CursorIcon::ResizeEast
@@ -803,6 +824,16 @@ fn select_all_text(ui: &Ui, widget_id: Id, response_id: Id, value_text: &str) {
         text::CCursor::new(value_text.chars().count()),
     )));
     state.store(ui.ctx(), response_id);
+}
+
+impl HasClasses for DragValue<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
+    }
 }
 
 #[cfg(test)]

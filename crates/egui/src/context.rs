@@ -16,11 +16,11 @@ use epaint::{
 };
 
 use crate::{
-    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
-    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
-    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
-    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, FontProvider, GlyphRasterizer,
+    Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label,
+    LayerId, Memory, ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response,
+    RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions,
+    Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
     ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
@@ -375,11 +375,14 @@ impl ViewportRepaintInfo {
 struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
+    glyph_rasterizer: Option<GlyphRasterizer>,
+    font_providers: Vec<Arc<dyn FontProvider>>,
 
     memory: Memory,
     animation_manager: AnimationManager,
 
     plugins: plugin::Plugins,
+    called_on_exit: bool,
     safe_area: SafeAreaInsets,
 
     /// All viewports share the same texture manager and texture namespace.
@@ -591,7 +594,12 @@ impl ContextImpl {
 
             is_new = true;
             profiling::scope!("Fonts::new");
-            Fonts::new(text_options, self.font_definitions.clone())
+            let mut fonts = Fonts::new(text_options, self.font_definitions.clone())
+                .with_font_providers(self.font_providers.clone());
+            if let Some(glyph_rasterizer) = &self.glyph_rasterizer {
+                fonts = fonts.with_glyph_rasterizer(glyph_rasterizer.clone());
+            }
+            fonts
         });
 
         {
@@ -753,11 +761,50 @@ impl Default for Context {
         ctx.add_plugin(crate::text_selection::LabelSelectionState::default());
         ctx.add_plugin(crate::DragAndDrop::default());
 
+        // Register the default theme for all built-in widgets:
+        theme::DefaultStyle::register(&ctx);
+
         ctx
     }
 }
 
 impl Context {
+    /// Set the platform glyph rasterizer, e.g. the browser on web.
+    ///
+    /// It is used for grapheme clusters that no installed font can render,
+    /// and that no [`FontProvider`] has a font for.
+    ///
+    /// `eframe` sets this on web. Pass `None` to only use the installed fonts.
+    pub fn set_glyph_rasterizer(&self, glyph_rasterizer: Option<GlyphRasterizer>) {
+        self.write(|ctx| {
+            ctx.glyph_rasterizer = glyph_rasterizer;
+            ctx.fonts = None;
+        });
+    }
+
+    /// Add a [`FontProvider`], asked for fonts for characters that no installed font has.
+    ///
+    /// Fonts it finds are appended to the fallback chain of the requested font family.
+    /// Providers are asked in the order they were added.
+    ///
+    /// `eframe` adds a system font provider on native (see its `system_fonts` feature).
+    pub fn add_font_provider(&self, font_provider: Arc<dyn FontProvider>) {
+        self.write(|ctx| {
+            ctx.font_providers.push(font_provider);
+            ctx.fonts = None;
+        });
+    }
+
+    /// Replace all [`FontProvider`]s. See [`Self::add_font_provider`].
+    ///
+    /// Pass an empty list to only use the installed fonts.
+    pub fn set_font_providers(&self, font_providers: Vec<Arc<dyn FontProvider>>) {
+        self.write(|ctx| {
+            ctx.font_providers = font_providers;
+            ctx.fonts = None;
+        });
+    }
+
     /// Do read-only (shared access) transaction on Context
     fn read<R>(&self, reader: impl FnOnce(&ContextImpl) -> R) -> R {
         reader(&self.0.read())
@@ -804,7 +851,7 @@ impl Context {
         self.run_dyn(new_input, &mut |ctx| {
             let mut root_ui = Ui::new(
                 ctx.clone(),
-                Id::new((ctx.viewport_id(), "__top_ui")),
+                ctx.viewport_id().root_ui_id(),
                 UiBuilder::new()
                     .layer_id(LayerId::background())
                     .max_rect(ctx.viewport_rect()),
@@ -1254,6 +1301,8 @@ impl Context {
         allow_focus: bool,
         options: crate::InteractOptions,
     ) -> Response {
+        debug_assert!(!w.rect.any_nan(), "widget rect is NaN: {:?}", w.rect);
+
         let interested_in_focus = w.enabled
             && w.sense.is_focusable()
             && self.memory(|mem| mem.allows_interaction(w.layer_id));
@@ -1708,11 +1757,9 @@ impl Context {
 
         let font_id = TextStyle::Body.resolve(&self.global_style());
         self.fonts_mut(|f| {
-            let mut font = f.fonts.font(&font_id.family);
-            font.has_glyphs(alt)
-                && font.has_glyphs(ctrl)
-                && font.has_glyphs(shift)
-                && font.has_glyphs(mac_cmd)
+            [alt, ctrl, shift, mac_cmd]
+                .iter()
+                .all(|symbols| f.has_glyphs(&font_id, symbols))
         })
     }
 
@@ -2055,6 +2102,25 @@ impl Context {
         }
     }
 
+    /// Notify all plugins that the integration is shutting down.
+    ///
+    /// Integrations should call this before persisting [`Memory`] and before destroying their
+    /// renderer and other resources. Only the first call invokes the plugins.
+    pub fn on_exit(&self) {
+        let plugins = self.write(|ctx| {
+            if ctx.called_on_exit {
+                None
+            } else {
+                ctx.called_on_exit = true;
+                Some(ctx.plugins.ordered_plugins())
+            }
+        });
+
+        if let Some(plugins) = plugins {
+            plugins.on_exit(self);
+        }
+    }
+
     /// Call the provided closure with the plugin of type `T`, if it was registered.
     ///
     /// Returns `None` if the plugin was not registered.
@@ -2104,7 +2170,10 @@ impl Context {
     /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
     ///
     /// If you want to add the theme anyway, use [`Self::replace_widget_theme`] instead.
-    #[cfg(feature = "experimental")]
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
     pub fn add_widget_theme<S: WidgetStyle + 'static>(
         &self,
         theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
@@ -2116,7 +2185,10 @@ impl Context {
     ///
     /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
     /// This allow to live edit a theme.
-    #[cfg(feature = "experimental")]
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
     pub fn replace_widget_theme<S: WidgetStyle + 'static>(
         &self,
         theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
@@ -2146,6 +2218,8 @@ impl Context {
     ///
     /// The new fonts will become active at the start of the next pass.
     /// This will overwrite the existing fonts.
+    ///
+    /// These fonts will be used before any system fallback.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         profiling::function_scope!();
 
@@ -2162,13 +2236,15 @@ impl Context {
         }
     }
 
-    /// Tell `egui` which fonts to use.
+    /// Add an additional font to `egui`.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new font will become active at the start of the next pass.
     /// This will keep the existing fonts.
+    ///
+    /// This font will be used before any system fallback.
     pub fn add_font(&self, new_font: FontInsert) {
         profiling::function_scope!();
 
@@ -3511,13 +3587,13 @@ impl Context {
                 paint_stats.ui(ui);
             });
 
-        CollapsingHeader::new("🖼 Textures")
+        CollapsingHeader::new("🖼️ Textures")
             .default_open(false)
             .show(ui, |ui| {
                 self.texture_ui(ui);
             });
 
-        CollapsingHeader::new("🖼 Image loaders")
+        CollapsingHeader::new("🖼️ Image loaders")
             .default_open(false)
             .show(ui, |ui| {
                 self.loaders_ui(ui);
@@ -4117,6 +4193,19 @@ impl Context {
     /// This lets you affect the current viewport, e.g. resizing the window.
     pub fn send_viewport_cmd(&self, command: ViewportCommand) {
         self.send_viewport_cmd_to(self.viewport_id(), command);
+    }
+
+    /// Request a screenshot of the current viewport.
+    ///
+    /// The callback is invoked once the integration has read the rendered pixels.
+    /// This doesn't request a new frame when the data arrives. Call `ctx.request_repaint` if needed.
+    pub fn request_screenshot(
+        &self,
+        callback: impl FnOnce(std::sync::Arc<crate::ColorImage>) + Send + 'static,
+    ) {
+        self.send_viewport_cmd(ViewportCommand::Screenshot(crate::ScreenshotCallback::new(
+            callback,
+        )));
     }
 
     /// Send a command to a specific viewport.

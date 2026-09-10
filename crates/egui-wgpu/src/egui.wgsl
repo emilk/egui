@@ -98,6 +98,7 @@ fn vs_main(
 @group(1) @binding(0) var r_tex_color: texture_2d<f32>;
 @group(1) @binding(1) var r_tex_sampler: sampler;
 
+
 /// Set in bit 0 of `r_tex_flags` if the sampler uses nearest filtering.
 ///
 /// Must match `TEX_FLAG_NEAREST` in `renderer.rs`.
@@ -114,11 +115,11 @@ const WRAP_MODE_MIRRORED_REPEAT: u32 = 2u;
 ///
 /// Bit 0: `TEX_FLAG_NEAREST`.
 /// Bits 1+: one of the `WRAP_MODE_*` constants.
-@group(1) @binding(2) var<uniform> r_tex_flags: u32;
+@group(1) @binding(2) var<uniform> r_tex_flags: vec4<u32>;
 
 /// Map a texel coordinate to a valid texel according to the texture's wrap mode.
 fn wrap_texel_coord(coord: vec2<i32>, texture_size: vec2<i32>) -> vec2<i32> {
-    let wrap_mode = r_tex_flags >> 1u;
+    let wrap_mode = r_tex_flags[0] >> 1u;
     if wrap_mode == WRAP_MODE_REPEAT {
         return ((coord % texture_size) + texture_size) % texture_size;
     } else if wrap_mode == WRAP_MODE_MIRRORED_REPEAT {
@@ -131,6 +132,7 @@ fn wrap_texel_coord(coord: vec2<i32>, texture_size: vec2<i32>) -> vec2<i32> {
     }
 }
 
+
 fn sample_texture(in: VertexOutput) -> vec4<f32> {
     if r_locals.predictable_texture_filtering == 0 {
         // Hardware filtering: fast, but varies across GPUs and drivers.
@@ -139,7 +141,7 @@ fn sample_texture(in: VertexOutput) -> vec4<f32> {
         let texture_size = vec2<i32>(textureDimensions(r_tex_color, 0));
         let texture_size_f = vec2<f32>(texture_size);
 
-        if (r_tex_flags & TEX_FLAG_NEAREST) != 0u {
+        if (r_tex_flags[0] & TEX_FLAG_NEAREST) != 0u {
             // Nearest filtering: load the texel under the sample position.
             let texel = wrap_texel_coord(vec2<i32>(floor(in.tex_coord * texture_size_f)), texture_size);
             return textureLoad(r_tex_color, texel, 0);

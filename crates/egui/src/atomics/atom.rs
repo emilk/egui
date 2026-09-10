@@ -1,5 +1,6 @@
 use crate::{
-    AtomKind, AtomLayout, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui,
+    AtomKind, AtomLayout, AtomPaintArgs, FontSelection, IdSalt, IntoSizedArgs, IntoSizedResult,
+    SizedAtom, Ui,
 };
 use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
@@ -31,7 +32,7 @@ use epaint::text::TextWrapMode;
 #[derive(Clone, Debug)]
 pub struct Atom<'a> {
     /// See [`crate::AtomExt::atom_id`]
-    pub id: Option<Id>,
+    pub id: Option<IdSalt>,
 
     /// See [`crate::AtomExt::atom_size`]
     pub size: Option<Vec2>,
@@ -82,10 +83,10 @@ impl<'a> Atom<'a> {
     ///
     /// Example:
     /// ```
-    /// # use egui::{AtomExt, AtomKind, Atom, Button, Id, __run_test_ui};
+    /// # use egui::{AtomExt, AtomKind, Atom, Button, IdSalt, __run_test_ui};
     /// # use emath::Vec2;
     /// # __run_test_ui(|ui| {
-    /// let id = Id::new("my_button");
+    /// let id = IdSalt::new("my_button");
     /// let response = Button::new(("Hi!", Atom::custom(id, Vec2::splat(18.0)))).atom_ui(ui);
     ///
     /// let rect = response.rect(id);
@@ -94,11 +95,35 @@ impl<'a> Atom<'a> {
     /// }
     /// # });
     /// ```
-    pub fn custom(id: Id, size: impl Into<Vec2>) -> Self {
+    pub fn custom(id: IdSalt, size: impl Into<Vec2>) -> Self {
         Atom {
             size: Some(size.into()),
             kind: AtomKind::Empty,
             id: Some(id),
+            ..Default::default()
+        }
+    }
+
+    /// Create an [`AtomKind::Paint`] with a specific size.
+    ///
+    /// The closure paints the atom at the [`AtomPaintArgs::rect`] the layout gives it.
+    ///
+    /// Example:
+    /// ```
+    /// # use egui::{Atom, Button, Color32, CornerRadius, __run_test_ui};
+    /// # use emath::Vec2;
+    /// # __run_test_ui(|ui| {
+    /// let dot = Atom::paint(Vec2::splat(8.0), |ui, args| {
+    ///     ui.painter()
+    ///         .rect_filled(args.rect, CornerRadius::same(4), Color32::RED);
+    /// });
+    /// ui.add(Button::new((dot, "Recording")));
+    /// # });
+    /// ```
+    pub fn paint(size: impl Into<Vec2>, func: impl Fn(&Ui, AtomPaintArgs) + 'a) -> Self {
+        Atom {
+            size: Some(size.into()),
+            kind: AtomKind::paint(func),
             ..Default::default()
         }
     }

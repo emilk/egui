@@ -48,6 +48,18 @@ Don't worry about having many small commits in the PR - they will be squashed to
 
 Please keep pull requests small and focused. The smaller it is, the more likely it is to get merged.
 
+### Agents & LLM policy
+We care about maintaining high code quality, no matter who or what wrote the code.
+
+You (human!) are always responsible for the quality of code, issues, and PR descriptions.
+
+A human should always review the code before undrafting the PR.
+
+Make sure the PR description is short and to the point.
+
+#### Undue burden
+We reserve the right to close any PRs that cause an undue burden on the maintainership. This could include, but is not limited to, massive PRs, LLM slop, or contributions not in good faith.
+
 ## Working with git lfs
 
 We use [git-lfs](https://git-lfs.com/) to store big files in the repository.

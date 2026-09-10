@@ -38,22 +38,46 @@ use egui::{
 };
 use kittest::Queryable;
 
-use crate::app_kind::AppKind;
+use crate::{
+    app_kind::{AppKind, UiRunOutput},
+    config::config,
+};
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
     pub max_steps: u64,
+
+    /// How many steps the ui would have needed to settle.
+    ///
+    /// `None` if it did not settle within `diagnostic_max_steps` (see `kittest.toml`) further
+    /// steps either, i.e. it just keeps repainting.
+    pub steps_to_settle: Option<u64>,
+
+    /// How far past [`Self::max_steps`] we kept stepping to find [`Self::steps_to_settle`].
+    pub diagnostic_max_steps: u64,
+
     pub repaint_causes: Vec<RepaintCause>,
 }
 
 impl Display for ExceededMaxStepsError {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Harness::run exceeded max_steps ({}). ", self.max_steps)?;
+
+        match self.steps_to_settle {
+            Some(steps) => write!(f, "It would have settled after {steps} steps. ")?,
+            None => write!(
+                f,
+                "It did not settle within {} further steps either. ",
+                self.diagnostic_max_steps
+            )?,
+        }
+
         write!(
             f,
-            "Harness::run exceeded max_steps ({}). If your expect your ui to keep repainting \
+            "If you expect your ui to keep repainting \
             (e.g. when showing a spinner) call Harness::step or Harness::run_steps instead.\
             \nRepaint causes: {:#?}",
-            self.max_steps, self.repaint_causes,
+            self.repaint_causes,
         )
     }
 }
@@ -75,9 +99,22 @@ pub struct Harness<'a, State = ()> {
     kittest: kittest::State,
     output: egui::FullOutput,
     app: AppKind<'a, State>,
-    response: Option<egui::Response>,
+    ui_output: Option<UiRunOutput>,
     state: State,
     renderer: Box<dyn TestRenderer>,
+
+    /// The image of a pass we already rendered, keyed by [`egui::Context::cumulative_pass_nr`].
+    ///
+    /// A pass should be rendered at most once. A paint callback can do GPU work of its own —
+    /// schedule a readback, say — and running it a second time for the same pass corrupts that
+    /// work.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    last_render: Option<(u64, image::RgbaImage)>,
+
+    /// Render every pass. See [`HarnessBuilder::with_render_every_step`].
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    render_every_step: bool,
+
     max_steps: u64,
     step_dt: f32,
     wait_for_pending_images: bool,
@@ -114,6 +151,9 @@ impl<'a, State> Harness<'a, State> {
             mut renderer,
             wait_for_pending_images,
 
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_every_step,
+
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
 
@@ -139,12 +179,12 @@ impl<'a, State> Harness<'a, State> {
         let viewport = input.viewports.get_mut(&ViewportId::ROOT).unwrap();
         viewport.native_pixels_per_point = Some(pixels_per_point);
 
-        let mut response = None;
+        let mut ui_output = None;
 
         // We need to run egui for a single frame so that the AccessKit state can be initialized
         // and users can immediately start querying for widgets.
         let mut output = ctx.run_ui(input.clone(), |ui| {
-            response = app.run(ui, &mut state, false);
+            ui_output = app.run(ui, &mut state, false);
         });
 
         renderer.handle_delta(&mut output.textures_delta);
@@ -161,9 +201,16 @@ impl<'a, State> Harness<'a, State> {
                     .expect("AccessKit was disabled"),
             ),
             output,
-            response,
+            ui_output,
             state,
             renderer,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            last_render: None,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_every_step,
+
             max_steps,
             step_dt,
             wait_for_pending_images,
@@ -260,7 +307,7 @@ impl<'a, State> Harness<'a, State> {
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
-            self.response = self.app.run(ui, &mut self.state, sizing_pass);
+            self.ui_output = self.app.run(ui, &mut self.state, sizing_pass);
         });
         self.kittest.update(
             output
@@ -272,13 +319,19 @@ impl<'a, State> Harness<'a, State> {
         self.renderer.handle_delta(&mut output.textures_delta);
         self.output = output;
 
+        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+        if self.render_every_step {
+            self.render()
+                .expect("Failed to render during `render_every_step`");
+        }
+
         self.handle_viewport_commands();
     }
 
     /// Calculate the rect that includes all popups and tooltips.
     fn compute_total_rect_with_popups(&self) -> Option<Rect> {
         // Start with the standard response rect
-        let mut used = self.response.as_ref()?.rect;
+        let mut used = self.ui_output.as_ref()?.response.rect;
 
         // Add all visible areas from other orders (popups, tooltips, etc.)
         self.ctx.memory(|mem| {
@@ -333,7 +386,23 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    fn try_run_impl(&mut self, sleep: bool) -> Result<u64, ExceededMaxStepsError> {
+    /// When `sleep` is true, each step sleeps for `self.step_dt`.
+    /// When `diagnostic` is true, we run extra steps to find [`ExceededMaxStepsError::steps_to_settle`].
+    fn try_run_impl(
+        &mut self,
+        sleep: bool,
+        diagnostic: bool,
+    ) -> Result<u64, ExceededMaxStepsError> {
+        // Once the budget is blown we keep going for a while, purely to find out how many steps
+        // would have been needed. The repaint causes are the ones from the moment we blew it.
+        let diagnostic_max_steps = if diagnostic {
+            config().diagnostic_max_steps()
+        } else {
+            0
+        };
+        let last_diagnostic_step = self.max_steps.saturating_add(diagnostic_max_steps);
+        let mut repaint_causes_at_max_steps = None;
+
         let mut steps = 0;
         loop {
             steps += 1;
@@ -343,14 +412,28 @@ impl<'a, State> Harness<'a, State> {
 
             // We only care about immediate repaints
             if self.root_viewport_output().repaint_delay != Duration::ZERO && !wait_for_images {
+                if let Some(repaint_causes) = repaint_causes_at_max_steps {
+                    return Err(ExceededMaxStepsError {
+                        max_steps: self.max_steps,
+                        steps_to_settle: Some(steps),
+                        diagnostic_max_steps,
+                        repaint_causes,
+                    });
+                }
                 break;
             } else if sleep || wait_for_images {
                 std::thread::sleep(Duration::from_secs_f32(self.step_dt));
             }
-            if steps > self.max_steps {
+            if steps > self.max_steps && repaint_causes_at_max_steps.is_none() {
+                repaint_causes_at_max_steps = Some(self.ctx.repaint_causes());
+            }
+            if steps > last_diagnostic_step {
                 return Err(ExceededMaxStepsError {
                     max_steps: self.max_steps,
-                    repaint_causes: self.ctx.repaint_causes(),
+                    steps_to_settle: None,
+                    diagnostic_max_steps,
+                    repaint_causes: repaint_causes_at_max_steps
+                        .unwrap_or_else(|| self.ctx.repaint_causes()),
                 });
             }
         }
@@ -374,7 +457,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        self.try_run_impl(false)
+        self.try_run_impl(false, true)
     }
 
     /// Run until
@@ -384,6 +467,8 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// Returns the number of steps that were run, or None if the maximum number of steps was exceeded.
     ///
+    /// Unlike [`Harness::run`], this never steps past `max_steps`.
+    ///
     /// See also:
     /// - [`Harness::run`].
     /// - [`Harness::try_run`].
@@ -391,7 +476,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run_realtime`].
     pub fn run_ok(&mut self) -> Option<u64> {
-        self.try_run().ok()
+        self.try_run_impl(false, false).ok()
     }
 
     /// Run multiple frames, sleeping for [`HarnessBuilder::with_step_dt`] between frames.
@@ -414,7 +499,7 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::run_steps`].
     /// - [`Harness::try_run`].
     pub fn try_run_realtime(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        self.try_run_impl(true)
+        self.try_run_impl(true, true)
     }
 
     /// Run a number of steps.
@@ -446,6 +531,22 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Access the state.
+    /// The [`egui::Ui::id`] of the [`egui::Ui`] passed to the ui closure.
+    ///
+    /// Use this to compute the [`egui::Id`] of things shown directly in that ui,
+    /// e.g. `harness.ui_id().with("my_panel")`.
+    ///
+    /// # Panics
+    /// If the harness was built from an eframe app rather than a ui closure.
+    pub fn ui_id(&self) -> egui::Id {
+        match &self.ui_output {
+            Some(ui_output) => ui_output.ui_id,
+            None => {
+                panic!("Harness::ui_id is only available for harnesses built with a ui closure")
+            }
+        }
+    }
+
     pub fn state(&self) -> &State {
         &self.state
     }
@@ -630,18 +731,45 @@ impl<'a, State> Harness<'a, State> {
     /// This will add a [`RectShape`] to the output shapes, for the current frame.
     /// Will be overwritten on the next call to [`Self::run`].
     pub fn mask(&mut self, rect: Rect) {
+        #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+        {
+            // This changes what a render of this pass looks like.
+            self.last_render = None;
+        }
+
         self.output.shapes.push(ClippedShape {
             clip_rect: Rect::EVERYTHING,
             shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::MAGENTA)),
         });
     }
 
+    /// Should every step be rendered?
+    ///
+    /// Useful when test logic requires some specific gpu logic, e.g. reading data back from the gpu.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[inline]
+    pub fn set_render_every_step(&mut self, render_every_step: bool) {
+        self.render_every_step = render_every_step;
+    }
+
     /// Render the last output to an image.
+    ///
+    /// When calling this multiple times on the same frame, or when [`Self::set_render_every_step`] is
+    /// true, this will return the already-rendered frame.
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
+        let pass_nr = self.ctx.cumulative_pass_nr();
+
+        // Rendering a pass twice would run its paint callbacks twice. See `last_render`.
+        if let Some((rendered_pass_nr, image)) = &self.last_render
+            && *rendered_pass_nr == pass_nr
+        {
+            return Ok(image.clone());
+        }
+
         let mut output = self.output.clone();
 
         if let Some(mouse_pos) = self.ctx.input(|i| i.pointer.hover_pos()) {
@@ -663,7 +791,9 @@ impl<'a, State> Harness<'a, State> {
             });
         }
 
-        self.renderer.render(&self.ctx, &output)
+        let image = self.renderer.render(&self.ctx, &output)?;
+        self.last_render = Some((pass_nr, image.clone()));
+        Ok(image)
     }
 
     /// Apply the [`egui::ViewportCommand`]s the app emitted during the last frame.
@@ -696,21 +826,21 @@ impl<'a, State> Harness<'a, State> {
         }
     }
 
-    /// Fulfill any [`egui::ViewportCommand::Screenshot`] requests made by the app during the
-    /// last frame.
+    /// Fulfill any [`egui::ViewportCommand::Screenshot`] requests made by the app during
+    /// the last frame.
     ///
     /// If a screenshot was requested and no renderer is available, an error will be logged.
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     fn handle_screenshots(&mut self) {
         // Collect all screenshot requests from this frame's viewport output.
-        let requests: Vec<(ViewportId, egui::UserData)> = self
+        let requests: Vec<egui::ScreenshotCallback> = self
             .output
             .viewport_output
-            .iter()
-            .flat_map(|(id, viewport)| {
-                viewport.commands.iter().filter_map(move |command| {
-                    if let egui::ViewportCommand::Screenshot(user_data) = command {
-                        Some((*id, user_data.clone()))
+            .values()
+            .flat_map(|viewport| {
+                viewport.commands.iter().filter_map(|command| {
+                    if let egui::ViewportCommand::Screenshot(callback) = command {
+                        Some(callback.clone())
                     } else {
                         None
                     }
@@ -733,17 +863,9 @@ impl<'a, State> Harness<'a, State> {
         };
         let image = std::sync::Arc::new(rgba_image_to_color_image(&image));
 
-        for (viewport_id, user_data) in requests {
-            self.input.events.push(egui::Event::Screenshot {
-                viewport_id,
-                user_data,
-                image: std::sync::Arc::clone(&image),
-            });
+        for callback in requests {
+            callback.complete(std::sync::Arc::clone(&image));
         }
-
-        // Make sure the run loop runs at least one more frame so the app actually receives the
-        // queued screenshot event.
-        self.ctx.request_repaint();
     }
 
     /// Get the root viewport output
@@ -891,7 +1013,7 @@ impl<'a> Harness<'a> {
 }
 
 /// Convert a rendered [`image::RgbaImage`] (premultiplied alpha, as produced by the renderer)
-/// into an [`egui::ColorImage`] suitable for [`egui::Event::Screenshot`].
+/// into an [`egui::ColorImage`] suitable for [`egui::ScreenshotCallback`].
 #[cfg(any(feature = "wgpu", feature = "snapshot"))]
 fn rgba_image_to_color_image(image: &image::RgbaImage) -> egui::ColorImage {
     let size = [image.width() as usize, image.height() as usize];

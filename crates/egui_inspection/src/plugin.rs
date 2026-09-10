@@ -27,16 +27,16 @@
 //! `GetInfo` replies immediately; `GetTree` replies with the current frame's tree;
 //! `Resize` / `ApplyEvents` apply their effect and reply [`Response::Done`] *after* the frame
 //! has processed them (so a following `GetTree` reflects them); `GetScreenshot` dispatches a
-//! viewport screenshot and replies once the resulting [`egui::Event::Screenshot`] arrives,
-//! matched back to the request by a `user_data` id.
+//! viewport screenshot and replies once the screenshot callback has delivered the pixels,
+//! matched back to the request by an id.
 //!
 //! Note that [`serve`]'s threads hold an [`egui::Context`] clone, so the context stays alive
 //! for as long as the listener runs (the lifetime of the process, for a debug attach).
 
 use core::time::Duration;
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 
-use egui::{Context, FullOutput, RawInput};
+use egui::{ColorImage, Context, FullOutput, RawInput, mutex::Mutex};
 
 use crate::protocol::{EncodedPng, Request, Response};
 
@@ -53,8 +53,8 @@ enum Phase {
     /// Effect applied (or nothing to apply); reply at the end of this frame.
     AwaitOutput,
 
-    /// A screenshot was dispatched with this `user_data` id; reply when the matching
-    /// [`egui::Event::Screenshot`] arrives.
+    /// A screenshot was dispatched with this id; reply when the matching callback has
+    /// delivered the pixels.
     AwaitScreenshot { id: u64 },
 
     /// Watching for the app to go idle.
@@ -77,9 +77,14 @@ pub struct InspectionPlugin {
 
     step: u64,
 
-    /// Counter for screenshot `user_data` ids, so each [`egui::Event::Screenshot`] maps back
-    /// to the request that asked for it.
+    /// Counter for screenshot ids, so each delivered screenshot maps back to the request that
+    /// asked for it.
     next_screenshot_id: u64,
+
+    /// Screenshots delivered by [`egui::Context::request_screenshot`] callbacks, tagged with the
+    /// id of the request that asked for them. Written from whichever thread the renderer
+    /// completes the capture on, drained by `input_hook`.
+    received_screenshots: Arc<Mutex<Vec<(u64, Arc<ColorImage>)>>>,
 
     /// App label reported in [`Response::Info`].
     label: Option<String>,
@@ -93,6 +98,7 @@ impl InspectionPlugin {
             in_flight: Vec::new(),
             step: 0,
             next_screenshot_id: 0,
+            received_screenshots: Default::default(),
             label,
         }
     }
@@ -146,24 +152,9 @@ impl egui::Plugin for InspectionPlugin {
             return;
         }
 
-        // Match screenshot replies to the requests that asked for them, by `user_data` id. We
-        // observe (don't consume) the event so the host app still receives it.
+        // Match delivered screenshots to the requests that asked for them, by id.
         let pixels_per_point = ctx.pixels_per_point();
-        for ev in &input.events {
-            let egui::Event::Screenshot {
-                user_data, image, ..
-            } = ev
-            else {
-                continue;
-            };
-            let Some(id) = user_data
-                .data
-                .as_ref()
-                .and_then(|d| d.downcast_ref::<u64>())
-                .copied()
-            else {
-                continue; // not one of ours
-            };
+        for (id, image) in core::mem::take(&mut *self.received_screenshots.lock()) {
             self.in_flight.retain_mut(|item| {
                 if item.phase != (Phase::AwaitScreenshot { id }) {
                     return true;
@@ -197,6 +188,7 @@ impl egui::Plugin for InspectionPlugin {
         // `label`/`next_id` are pulled out so the closure doesn't borrow `self` alongside the
         // `retain_mut` borrow of `in_flight`.
         let label = self.label.clone();
+        let received_screenshots = Arc::clone(&self.received_screenshots);
         let mut next_id = self.next_screenshot_id;
         self.in_flight.retain_mut(|item| {
             if item.phase != Phase::New {
@@ -235,12 +227,13 @@ impl egui::Plugin for InspectionPlugin {
                 Request::GetScreenshot { .. } => {
                     // Dispatch now so the command lands in this frame's output and the capture
                     // is one frame sooner; the pixels arrive in a later `input_hook`. The id
-                    // ties that `Event::Screenshot` back to this request.
+                    // ties the delivered screenshot back to this request.
                     let id = next_id;
                     next_id += 1;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::new(
-                        id,
-                    )));
+                    let received = Arc::clone(&received_screenshots);
+                    ctx.request_screenshot(move |image| {
+                        received.lock().push((id, image));
+                    });
                     item.phase = Phase::AwaitScreenshot { id };
                     true
                 }

@@ -150,7 +150,13 @@ impl ViewportId {
 
     #[inline]
     pub fn from_hash_of(source: impl AsId) -> Self {
-        Self(Id::new(source))
+        Self(Id::unique(source))
+    }
+
+    /// The [`Id`] of the root [`crate::Ui`] of this viewport,
+    /// i.e. the `Ui` passed to the closure of [`crate::Context::run_ui`].
+    pub fn root_ui_id(&self) -> Id {
+        Id::unique((*self, "__top_ui"))
     }
 }
 
@@ -1193,10 +1199,10 @@ pub enum ViewportCommand {
     /// Enable mouse pass-through: mouse clicks pass through the window, used for non-interactable overlays.
     MousePassthrough(bool),
 
-    /// Take a screenshot of the next frame after this.
+    /// Take a screenshot of the next frame after this and pass it to a callback.
     ///
-    /// The results are returned in [`crate::Event::Screenshot`].
-    Screenshot(crate::UserData),
+    /// Use [`crate::Context::request_screenshot`] for a convenient way to send this command.
+    Screenshot(crate::ScreenshotCallback),
 
     /// Request cut of the current selection
     ///
