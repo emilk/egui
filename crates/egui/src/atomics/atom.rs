@@ -1,4 +1,7 @@
-use crate::{AtomKind, AtomPaintArgs, ContainerAtom, FontSelection, IdSalt, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui, WidgetAtom};
+use crate::{
+    AtomKind, AtomPaintArgs, ContainerAtom, FontSelection, IdSalt, IntoSizedArgs, IntoSizedResult,
+    SizedAtom, Ui, WidgetAtom,
+};
 use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
 
