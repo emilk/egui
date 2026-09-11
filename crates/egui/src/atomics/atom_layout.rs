@@ -354,7 +354,11 @@ impl<'a> AtomLayout<'a> {
             intrinsic_main += gap_space;
         }
 
-        for (idx, item) in atoms.into_iter().enumerate() {
+        for (idx, mut item) in atoms.into_iter().enumerate() {
+            if let AtomKind::Layout(layout) = &mut item.kind {
+                // Ensure children have unique ids
+                layout.id.get_or_insert_with(|| id.with(idx));
+            }
             if item.grow {
                 grow_count += 1;
             }

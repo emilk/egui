@@ -6,6 +6,27 @@ use egui::{
 use egui_kittest::{HarnessBuilder, SnapshotResult, SnapshotResults};
 
 #[test]
+fn test_button_with_nested_layouts_is_clickable() {
+    use egui_kittest::kittest::Queryable as _;
+
+    let mut harness = HarnessBuilder::default().build_ui_state(
+        |ui, clicks| {
+            if ui
+                .button((AtomLayout::new("abcdef"), AtomLayout::new("123")))
+                .clicked()
+            {
+                *clicks += 1;
+            }
+        },
+        0,
+    );
+
+    harness.get_by_role(egui::accesskit::Role::Button).click();
+    harness.run();
+    assert_eq!(*harness.state(), 1);
+}
+
+#[test]
 fn test_atoms() {
     let mut results = SnapshotResults::new();
 
