@@ -1,7 +1,7 @@
 use crate::{
     Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Atoms, Color32, CornerRadius,
-    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType,
+    Image, IntoAtoms, NumExt as _, Response, Role, Sense, Stroke, TextStyle, TextWrapMode, Ui,
+    Vec2, Widget, WidgetInfo, WidgetText,
     class::{ClassName, Classes, HasClasses},
     widget_style::ButtonStyle,
 };
@@ -381,16 +381,16 @@ impl<'a> Button<'a> {
 
         response.response.widget_info(|| match (selected, &text) {
             (Some(selected), Some(text)) => {
-                WidgetInfo::selected(WidgetType::Button, ui.is_enabled(), selected, text)
+                WidgetInfo::selected(Role::Button, ui.is_enabled(), selected, text)
             }
             (Some(selected), None) => {
-                let mut info = WidgetInfo::new(WidgetType::Button);
+                let mut info = WidgetInfo::new(Role::Button);
                 info.enabled = ui.is_enabled();
                 info.selected = Some(selected);
                 info
             }
-            (None, Some(text)) => WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), text),
-            (None, None) => WidgetInfo::new(WidgetType::Button),
+            (None, Some(text)) => WidgetInfo::labeled(Role::Button, ui.is_enabled(), text),
+            (None, None) => WidgetInfo::new(Role::Button),
         });
 
         response

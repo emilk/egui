@@ -971,34 +971,10 @@ impl Response {
         builder: &mut accesskit::Node,
         info: crate::WidgetInfo,
     ) {
-        use crate::WidgetType;
         use accesskit::{Role, Toggled};
 
         self.fill_accesskit_node_common(builder);
-        builder.set_role(match info.typ {
-            WidgetType::Label => Role::Label,
-            WidgetType::Link => Role::Link,
-            WidgetType::TextEdit => Role::TextInput,
-            WidgetType::Button | WidgetType::CollapsingHeader | WidgetType::SelectableLabel => {
-                Role::Button
-            }
-            WidgetType::Image => Role::Image,
-            WidgetType::Checkbox => Role::CheckBox,
-            WidgetType::RadioButton => Role::RadioButton,
-            WidgetType::RadioGroup => Role::RadioGroup,
-            WidgetType::ComboBox => Role::ComboBox,
-            WidgetType::Slider => Role::Slider,
-            WidgetType::DragValue => Role::SpinButton,
-            WidgetType::ColorButton => Role::ColorWell,
-            WidgetType::Panel => Role::Pane,
-            WidgetType::ProgressIndicator => Role::ProgressIndicator,
-            WidgetType::Window => Role::Window,
-
-            WidgetType::ResizeHandle => Role::Splitter,
-            WidgetType::ScrollBar => Role::ScrollBar,
-
-            WidgetType::Other => Role::Unknown,
-        });
+        builder.set_role(info.role);
         if !info.enabled {
             builder.set_disabled();
         }
@@ -1021,7 +997,7 @@ impl Response {
             } else {
                 Toggled::False
             });
-        } else if matches!(info.typ, WidgetType::Checkbox) {
+        } else if matches!(info.role, Role::CheckBox) {
             // Indeterminate state
             builder.set_toggled(Toggled::Mixed);
         }

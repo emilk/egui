@@ -437,6 +437,7 @@ mod callstack;
 pub mod class;
 
 pub use accesskit;
+pub use accesskit::Role;
 
 pub use epaint;
 pub use epaint::ecolor;
@@ -589,56 +590,6 @@ pub(crate) const MINUS_CHAR_STR: &str = "−";
 /// plus a list of the emojis in the default fonts.
 #[cfg(feature = "default_fonts")]
 pub use epaint::special_emojis;
-
-/// The different types of built-in widgets in egui
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum WidgetType {
-    Label, // TODO(emilk): emit Label events
-
-    /// e.g. a hyperlink
-    Link,
-
-    TextEdit,
-
-    Button,
-
-    Checkbox,
-
-    RadioButton,
-
-    /// A group of radio buttons.
-    RadioGroup,
-
-    SelectableLabel,
-
-    ComboBox,
-
-    Slider,
-
-    DragValue,
-
-    ColorButton,
-
-    Image,
-
-    CollapsingHeader,
-
-    Panel,
-
-    ProgressIndicator,
-
-    Window,
-
-    ResizeHandle,
-
-    ScrollBar,
-
-    /// If you cannot fit any of the above slots.
-    ///
-    /// If this is something you think should be added, file an issue.
-    Other,
-}
 
 // ----------------------------------------------------------------------------
 
