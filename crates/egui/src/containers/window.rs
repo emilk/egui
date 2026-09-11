@@ -679,11 +679,7 @@ impl Window<'_> {
         }
 
         area.with_widget_info(|| {
-            WidgetInfo::labeled(
-                WidgetType::Window,
-                true,
-                title.text().as_deref().unwrap_or(""),
-            )
+            WidgetInfo::labeled(Role::Window, true, title.text().as_deref().unwrap_or(""))
         });
 
         {
@@ -1082,7 +1078,7 @@ fn do_resize_interaction(
             },
         );
 
-        response.widget_info(|| WidgetInfo::new(crate::WidgetType::ResizeHandle));
+        response.widget_info(|| WidgetInfo::new(Role::Splitter));
 
         SideResponse {
             hover: response.hovered(),
@@ -1381,7 +1377,7 @@ fn title_ui(
         );
         icon_response.widget_info(|| {
             WidgetInfo::labeled(
-                WidgetType::Button,
+                Role::Button,
                 child_ui.is_enabled(),
                 if collapsing.is_open() { "Hide" } else { "Show" },
             )
@@ -1466,8 +1462,7 @@ fn title_ui(
 fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     let close_id = ui.auto_id_with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
-    response
-        .widget_info(|| WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), "Close window"));
+    response.widget_info(|| WidgetInfo::labeled(Role::Button, ui.is_enabled(), "Close window"));
 
     ui.expand_to_include_rect(response.rect);
 

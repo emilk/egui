@@ -4,7 +4,7 @@ use core::ops::Range;
 
 use epaint::text::CharIndex;
 
-use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
+use crate::{OrderedViewportIdMap, RepaintCause, Role, ViewportOutput};
 
 /// What egui emits each frame from [`crate::Context::run_ui`].
 ///
@@ -561,8 +561,8 @@ impl core::fmt::Debug for OutputEvent {
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetInfo {
-    /// The type of widget this is.
-    pub typ: WidgetType,
+    /// The accessibility role of this widget.
+    pub role: Role,
 
     /// Whether the widget is enabled.
     pub enabled: bool,
@@ -594,7 +594,7 @@ pub struct WidgetInfo {
 impl core::fmt::Debug for WidgetInfo {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self {
-            typ,
+            role,
             enabled,
             label,
             current_text_value: text_value,
@@ -607,7 +607,7 @@ impl core::fmt::Debug for WidgetInfo {
 
         let mut s = f.debug_struct("WidgetInfo");
 
-        s.field("typ", typ);
+        s.field("role", role);
 
         if !enabled {
             s.field("enabled", enabled);
@@ -640,9 +640,9 @@ impl core::fmt::Debug for WidgetInfo {
 }
 
 impl WidgetInfo {
-    pub fn new(typ: WidgetType) -> Self {
+    pub fn new(role: Role) -> Self {
         Self {
-            typ,
+            role,
             enabled: true,
             label: None,
             current_text_value: None,
@@ -655,22 +655,22 @@ impl WidgetInfo {
     }
 
     #[expect(clippy::needless_pass_by_value)]
-    pub fn labeled(typ: WidgetType, enabled: bool, label: impl ToString) -> Self {
+    pub fn labeled(role: Role, enabled: bool, label: impl ToString) -> Self {
         Self {
             enabled,
             label: Some(label.to_string()),
-            ..Self::new(typ)
+            ..Self::new(role)
         }
     }
 
     /// checkboxes, radio-buttons etc
     #[expect(clippy::needless_pass_by_value)]
-    pub fn selected(typ: WidgetType, enabled: bool, selected: bool, label: impl ToString) -> Self {
+    pub fn selected(role: Role, enabled: bool, selected: bool, label: impl ToString) -> Self {
         Self {
             enabled,
             label: Some(label.to_string()),
             selected: Some(selected),
-            ..Self::new(typ)
+            ..Self::new(role)
         }
     }
 
@@ -678,7 +678,7 @@ impl WidgetInfo {
         Self {
             enabled,
             value: Some(value),
-            ..Self::new(WidgetType::DragValue)
+            ..Self::new(Role::SpinButton)
         }
     }
 
@@ -689,7 +689,7 @@ impl WidgetInfo {
             enabled,
             label: if label.is_empty() { None } else { Some(label) },
             value: Some(value),
-            ..Self::new(WidgetType::Slider)
+            ..Self::new(Role::Slider)
         }
     }
 
@@ -713,7 +713,7 @@ impl WidgetInfo {
             current_text_value: Some(text_value),
             prev_text_value,
             hint_text: Some(hint_text),
-            ..Self::new(WidgetType::TextEdit)
+            ..Self::new(Role::TextInput)
         }
     }
 
@@ -727,14 +727,14 @@ impl WidgetInfo {
             enabled,
             text_selection: Some(text_selection),
             current_text_value: Some(current_text_value.to_string()),
-            ..Self::new(WidgetType::TextEdit)
+            ..Self::new(Role::TextInput)
         }
     }
 
     /// This can be used by a text-to-speech system to describe the widget.
     pub fn description(&self) -> String {
         let Self {
-            typ,
+            role,
             enabled,
             label,
             current_text_value: text_value,
@@ -745,33 +745,16 @@ impl WidgetInfo {
             hint_text: _,
         } = self;
 
-        // TODO(emilk): localization
-        let widget_type = match typ {
-            WidgetType::Link => "link",
-            WidgetType::TextEdit => "text edit",
-            WidgetType::Button => "button",
-            WidgetType::Checkbox => "checkbox",
-            WidgetType::RadioButton => "radio",
-            WidgetType::RadioGroup => "radio group",
-            WidgetType::SelectableLabel => "selectable",
-            WidgetType::ComboBox => "combo",
-            WidgetType::Slider => "slider",
-            WidgetType::DragValue => "drag value",
-            WidgetType::ColorButton => "color button",
-            WidgetType::Image => "image",
-            WidgetType::CollapsingHeader => "collapsing header",
-            WidgetType::Panel => "panel",
-            WidgetType::ProgressIndicator => "progress indicator",
-            WidgetType::Window => "window",
-            WidgetType::ScrollBar => "scroll bar",
-            WidgetType::ResizeHandle => "resize handle",
-            WidgetType::Label | WidgetType::Other => "",
-        };
-
-        let mut description = widget_type.to_owned();
+        let mut description = String::new();
+        for ch in format!("{role:?}").chars() {
+            if ch.is_ascii_uppercase() && !description.is_empty() {
+                description.push(' ');
+            }
+            description.push(ch.to_ascii_lowercase());
+        }
 
         if let Some(selected) = selected {
-            if *typ == WidgetType::Checkbox {
+            if *role == Role::CheckBox {
                 let state = if *selected { "checked" } else { "unchecked" };
                 description = format!("{state} {description}");
             } else {
@@ -783,7 +766,7 @@ impl WidgetInfo {
             description = format!("{label}: {description}");
         }
 
-        if typ == &WidgetType::TextEdit {
+        if role == &Role::TextInput {
             let text = if let Some(text_value) = text_value {
                 if text_value.is_empty() {
                     "blank".into()
