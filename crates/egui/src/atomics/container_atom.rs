@@ -312,6 +312,11 @@ shared_container_builders! {
         self.gap = Some(gap);
     }
 
+    /// Set the gap between atoms if no gap has been set yet.
+    fn fallback_gap(self, gap: f32) {
+        self.gap = self.gap.or(Some(gap));
+    }
+
     /// Set the direction the atoms are laid out along.
     fn direction(self, direction: Direction) {
         self.direction = direction;
@@ -655,18 +660,5 @@ impl<'a> Deref for SizedContainerAtom<'a> {
 impl DerefMut for SizedContainerAtom<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.sized_atoms
-    }
-}
-
-impl ContainerAtom<'_> {
-    pub(crate) fn fallback_gap(mut self, gap: f32) -> Self {
-        self.gap = self.gap.or(Some(gap));
-        self
-    }
-}
-impl WidgetAtom<'_> {
-    pub(crate) fn fallback_gap(mut self, gap: f32) -> Self {
-        self.container = self.container.fallback_gap(gap);
-        self
     }
 }

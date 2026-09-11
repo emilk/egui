@@ -1,7 +1,4 @@
-use crate::{
-    AtomKind, AtomPaintArgs, ContainerAtom, FontSelection, IdSalt, IntoSizedArgs, IntoSizedResult,
-    SizedAtom, Ui, WidgetAtom,
-};
+use crate::{AtomKind, AtomPaintArgs, ContainerAtom, FontSelection, IdSalt, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui, WidgetAtom};
 use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
 
@@ -128,10 +125,12 @@ impl<'a> Atom<'a> {
         }
     }
 
-    /// Nest a [`WidgetAtom`] (e.g. an atom-based widget) as a single atom.
+    /// Nest a [`WidgetAtom`] (interactive and requests a response) as a single atom.
     ///
     /// The nested widget is sized when the parent is sized and painted (and interacted with)
     /// at the cell the parent computes for it. See [`AtomKind::Widget`].
+    ///
+    /// You can get the response by setting an explicit [`crate::Id`] and using [`crate::Context::read_response`]
     pub fn widget(widget: WidgetAtom<'a>) -> Self {
         Atom {
             kind: AtomKind::Widget(Box::new(widget)),
