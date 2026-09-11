@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    Align, Direction, FontSelection, Galley, Pos2, Response, Sense, Stroke, TextWrapMode, Ui,
-    Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2, text_selection::LabelSelectionState,
+    Align, Direction, FontSelection, Galley, Pos2, Response, Role, Sense, Stroke, TextWrapMode, Ui,
+    Widget, WidgetInfo, WidgetText, epaint, pos2, text_selection::LabelSelectionState,
 };
 
 /// Static text.
@@ -278,8 +278,7 @@ impl Widget for Label {
         let show_tooltip_when_elided = self.show_tooltip_when_elided;
 
         let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
-        response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::Label, ui.is_enabled(), galley.text()));
+        response.widget_info(|| WidgetInfo::labeled(Role::Label, ui.is_enabled(), galley.text()));
 
         if ui.is_rect_visible(response.rect) {
             if show_tooltip_when_elided && galley.elided {

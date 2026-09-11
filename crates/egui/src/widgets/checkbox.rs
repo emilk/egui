@@ -1,8 +1,8 @@
 use emath::Rect;
 
 use crate::{
-    Atom, AtomLayout, Atoms, IdSalt, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2,
-    Widget, WidgetInfo, WidgetType,
+    Atom, AtomLayout, Atoms, IdSalt, IntoAtoms, NumExt as _, Response, Role, Sense, Shape, Ui,
+    Vec2, Widget, WidgetInfo,
     class::{Classes, HasClasses},
     epaint, pos2,
     widget_style::CheckboxStyle,
@@ -100,13 +100,13 @@ impl Widget for Checkbox<'_> {
         prepared.response.widget_info(|| {
             if indeterminate {
                 WidgetInfo::labeled(
-                    WidgetType::Checkbox,
+                    Role::CheckBox,
                     ui.is_enabled(),
                     text.as_deref().unwrap_or(""),
                 )
             } else {
                 WidgetInfo::selected(
-                    WidgetType::Checkbox,
+                    Role::CheckBox,
                     ui.is_enabled(),
                     *checked,
                     text.as_deref().unwrap_or(""),
