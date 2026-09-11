@@ -272,6 +272,16 @@ fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
     })
 }
 
+fn has_red_warning_rect_at(output: &egui::FullOutput, rect: egui::Rect) -> bool {
+    output.shapes.iter().any(|clipped| {
+        matches!(
+            &clipped.shape,
+            Shape::Rect(rect_shape)
+                if rect_shape.stroke.color == Color32::RED && rect_shape.rect == rect
+        )
+    })
+}
+
 /// A button that changes its text on hover, with the Id derived from the text.
 /// This is a plausible bug: the widget keeps the same rect, but its Id changes
 /// between frames because the label (and thus the Id salt) changes on hover.
@@ -352,6 +362,46 @@ fn warn_if_rect_changes_id_false_positive_parent_shift() {
     assert!(
         !has_red_warning_rect(harness.output()),
         "Should NOT warn when parent Ui's id shifted (cascading id change)"
+    );
+}
+
+/// When the auto-id of a parent Ui shifts (e.g. a widget is added before a child Ui),
+/// the child Ui's `unique_id` changes, and so do all auto-ids inside it.
+/// This should NOT trigger `warn_if_rect_changes_id`, since the `parent_id` also changed.
+#[test]
+#[cfg(debug_assertions)]
+fn warn_if_rect_changes_id_false_positive_auto_id_shift() {
+    use core::cell::Cell;
+
+    let skip = Cell::new(false);
+    let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
+
+    let mut harness = Harness::builder().with_size((200.0, 100.0)).build_ui(|ui| {
+        ui.global_style_mut(|style| style.debug.warn_if_rect_changes_id = true);
+
+        // Shifts the auto-id of the child Ui without changing any layout:
+        if skip.get() {
+            ui.skip_ahead_auto_ids(1);
+        }
+
+        ui.horizontal(|ui| {
+            let id = ui.auto_id_with("my_widget");
+            let _response = ui.interact(button_rect, id, Sense::click());
+        });
+    });
+
+    harness.step();
+    harness.step();
+    assert!(
+        !has_red_warning_rect_at(harness.output(), button_rect),
+        "Should not warn when nothing changed"
+    );
+
+    skip.set(true);
+    harness.step();
+    assert!(
+        !has_red_warning_rect_at(harness.output(), button_rect),
+        "Should NOT warn when parent Ui's auto-id shifted (cascading id change)"
     );
 }
 
