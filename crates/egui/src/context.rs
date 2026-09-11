@@ -2858,7 +2858,8 @@ impl ContextImpl {
 
         viewport.repaint.cumulative_pass_nr += 1;
 
-        self.memory.end_pass(&viewport.this_pass.used_ids);
+        self.memory
+            .end_pass(&viewport.this_pass.used_ids, &viewport.this_pass.layers);
 
         if let Some(fonts) = self.fonts.as_mut() {
             let tex_mngr = &mut self.tex_manager.0.write();

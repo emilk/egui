@@ -7,7 +7,7 @@ use epaint::emath::TSTransform;
 
 use crate::{
     EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2, ViewportId,
-    ViewportIdMap, ViewportIdSet, area, vec2,
+    ViewportIdMap, ViewportIdSet, area, pass_state::PerLayerState, vec2,
 };
 
 mod theme;
@@ -532,8 +532,11 @@ pub(crate) struct Focus {
     /// The top-most modal layer from the current frame.
     top_modal_layer_current_frame: Option<LayerId>,
 
-    /// A cache of widget IDs that are interested in focus with their corresponding rectangles.
-    focus_widgets_cache: IdMap<Rect>,
+    /// Widgets interested in focus, with their layers and rectangles.
+    focus_widgets_cache: IdMap<(LayerId, Rect)>,
+
+    /// Menu layers shown this pass. Directional navigation also includes their popup descendants.
+    menu_layers: HashSet<LayerId>,
 }
 
 /// The widget with focus.
@@ -566,6 +569,7 @@ impl Focus {
     }
 
     fn begin_pass(&mut self, new_input: &crate::data::input::RawInput) {
+        self.menu_layers.clear();
         self.id_two_frames_ago = self.id_previous_frame;
         self.id_previous_frame = self.focused();
         if let Some(id) = self.id_next_frame.take() {
@@ -631,9 +635,13 @@ impl Focus {
         }
     }
 
-    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(
+        &mut self,
+        used_ids: &IdMap<Rect>,
+        layers: &HashMap<LayerId, PerLayerState>,
+    ) {
         if self.focus_direction.is_cardinal()
-            && let Some(found_widget) = self.find_widget_in_direction(used_ids)
+            && let Some(found_widget) = self.find_widget_in_direction(used_ids, layers)
         {
             self.focused_widget = Some(FocusWidget::new(found_widget));
         }
@@ -655,11 +663,12 @@ impl Focus {
         self.id_previous_frame == Some(id)
     }
 
-    fn interested_in_focus(&mut self, id: Id) {
+    fn interested_in_focus(&mut self, id: Id, layer_id: LayerId) {
         // The rect is updated at the end of the frame.
         self.focus_widgets_cache
             .entry(id)
-            .or_insert(Rect::EVERYTHING);
+            .and_modify(|(layer, _)| *layer = layer_id)
+            .or_insert((layer_id, Rect::EVERYTHING));
 
         if self.give_to_next && !self.had_focus_last_frame(id) {
             self.focused_widget = Some(FocusWidget::new(id));
@@ -704,7 +713,11 @@ impl Focus {
         self.focus_direction = FocusDirection::None;
     }
 
-    fn find_widget_in_direction(&mut self, new_rects: &IdMap<Rect>) -> Option<Id> {
+    fn find_widget_in_direction(
+        &mut self,
+        new_rects: &IdMap<Rect>,
+        layers: &HashMap<LayerId, PerLayerState>,
+    ) -> Option<Id> {
         // NOTE: `new_rects` here include some widgets _not_ interested in focus.
 
         /// * negative if `a` is left of `b`
@@ -733,7 +746,7 @@ impl Focus {
         };
 
         // Update cache with new rects
-        self.focus_widgets_cache.retain(|id, old_rect| {
+        self.focus_widgets_cache.retain(|id, (_, old_rect)| {
             if let Some(new_rect) = new_rects.get(id) {
                 *old_rect = *new_rect;
                 true // Keep the item
@@ -742,15 +755,34 @@ impl Focus {
             }
         });
 
-        let current_rect = self.focus_widgets_cache.get(&current_focused.id)?;
+        let (_, current_rect) = self.focus_widgets_cache.get(&current_focused.id)?;
+
+        // Resolve descendants after all popups have been shown, since a submenu can make
+        // its parent a menu after another child popup has already been rendered.
+        let mut pending: Vec<_> = self.menu_layers.iter().copied().collect();
+        while let Some(layer) = pending.pop() {
+            if let Some(state) = layers.get(&layer) {
+                #[expect(clippy::iter_over_hash_type)]
+                // Traversal order does not affect membership.
+                for &popup_id in &state.open_popups {
+                    let popup_layer = LayerId::new(Order::Foreground, popup_id);
+                    if self.menu_layers.insert(popup_layer) {
+                        pending.push(popup_layer);
+                    }
+                }
+            }
+        }
 
         let mut best_score = f32::INFINITY;
         let mut best_id = None;
 
         // iteration order should only matter in case of a tie, and that should be very rare
         #[expect(clippy::iter_over_hash_type)]
-        for (candidate_id, candidate_rect) in &self.focus_widgets_cache {
+        for (candidate_id, (layer_id, candidate_rect)) in &self.focus_widgets_cache {
             if *candidate_id == current_focused.id {
+                continue;
+            }
+            if !self.menu_layers.is_empty() && !self.menu_layers.contains(layer_id) {
                 continue;
             }
 
@@ -807,10 +839,14 @@ impl Memory {
             .begin_pass(new_raw_input);
     }
 
-    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(
+        &mut self,
+        used_ids: &IdMap<Rect>,
+        layers: &HashMap<LayerId, PerLayerState>,
+    ) {
         self.caches.update();
         self.areas_mut().end_pass();
-        self.focus_mut().end_pass(used_ids);
+        self.focus_mut().end_pass(used_ids, layers);
 
         // Clean up abandoned popups.
         if let Some(popup) = self.popups.get_mut(&self.viewport_id) {
@@ -977,7 +1013,14 @@ impl Memory {
         if !self.allows_interaction(layer_id) {
             return;
         }
-        self.focus_mut().interested_in_focus(id);
+        self.focus_mut().interested_in_focus(id, layer_id);
+    }
+
+    /// Include this menu layer in directional navigation for the current pass.
+    pub(crate) fn set_menu_layer(&mut self, layer_id: LayerId) {
+        if self.allows_interaction(layer_id) {
+            self.focus_mut().menu_layers.insert(layer_id);
+        }
     }
 
     /// Limit focus to widgets on the given layer and above.

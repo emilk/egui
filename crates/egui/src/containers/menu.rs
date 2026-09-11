@@ -472,6 +472,9 @@ impl SubMenu {
 
         #[expect(clippy::unwrap_used)] // Since we are a child of that ui, this should always exist
         let menu_root_response = ui.ctx().read_response(menu_id).unwrap();
+        let menu_root = find_menu_root(ui);
+        let parent_is_popup = menu_root.is_root_ui()
+            && matches!(menu_root.kind(), Some(UiKind::Popup | UiKind::Menu));
 
         let hover_pos = ui.ctx().pointer_hover_pos();
 
@@ -543,6 +546,12 @@ impl SubMenu {
                     .with_tag_value(MenuConfig::MENU_CONFIG_TAG, menu_config.clone()),
             )
             .show(|ui| {
+                ui.memory_mut(|mem| {
+                    mem.set_menu_layer(ui.layer_id());
+                    if parent_is_popup {
+                        mem.set_menu_layer(menu_root_response.layer_id);
+                    }
+                });
                 // Ensure our layer stays on top when the button is clicked
                 if button_response.clicked() || button_response.is_pointer_button_down_on() {
                     ui.ctx().move_to_top(ui.layer_id());
