@@ -847,13 +847,17 @@ pub struct WebInfo {
 
     /// Information about the URL.
     pub location: Location,
+
+    /// True if the app is rendering to an `OffscreenCanvas` (e.g. inside a
+    /// web worker) rather than to a `<canvas>` element in the main thread.
+    pub offscreen_canvas: bool,
 }
 
 /// Information about the URL.
 ///
 /// Everything has been percent decoded (`%20` -> ` ` etc).
 #[cfg(target_arch = "wasm32")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Location {
     /// The full URL (`location.href`) without the hash, percent-decoded.
     ///
@@ -938,6 +942,7 @@ impl IntegrationInfo {
                     query_map: Default::default(),
                     origin: "http://localhost".to_owned(),
                 },
+                offscreen_canvas: false,
             },
             cpu_usage: None,
         }
