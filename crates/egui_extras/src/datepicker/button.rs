@@ -1,7 +1,7 @@
 use super::popup::DatePickerPopup;
+use core::ops::RangeInclusive;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
 use jiff::civil::Date;
-use std::ops::RangeInclusive;
 
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

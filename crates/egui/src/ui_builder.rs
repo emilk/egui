@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::Ui;
 use crate::{
     AsIdSalt, ClosableTag, Id, IdSalt, LayerId, Layout, Rect, Sense, Style, UiStackInfo,
-    widget_style::{Classes, HasClasses},
+    class::{Classes, HasClasses},
 };
 
 /// The properties specified when creating a top-level or child [`Ui`].
@@ -117,6 +117,8 @@ impl UiBuilder {
     /// Make the new `Ui` disabled, i.e. grayed-out and non-interactive.
     ///
     /// Note that if the parent `Ui` is disabled, the child will always be disabled.
+    ///
+    /// See also [`crate::Ui::add_enabled`], [`crate::Ui::add_enabled_ui`] and [`crate::Ui::is_enabled`].
     #[inline]
     pub fn disabled(mut self) -> Self {
         self.disabled = true;

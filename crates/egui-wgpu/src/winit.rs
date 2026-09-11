@@ -4,12 +4,10 @@
 #![expect(unsafe_code)]
 
 use crate::{RenderState, SurfaceConfig, SurfaceErrorAction, WgpuConfiguration, renderer};
-use crate::{
-    RendererOptions,
-    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
-};
-use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
-use std::{num::NonZeroU32, sync::Arc};
+use crate::{RendererOptions, capture::CaptureState};
+use core::num::NonZeroU32;
+use egui::{Context, ViewportId, ViewportIdMap, ViewportIdSet};
+use std::sync::Arc;
 
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
@@ -40,8 +38,6 @@ pub struct Painter {
     depth_texture_view: ViewportIdMap<wgpu::TextureView>,
     msaa_texture_view: ViewportIdMap<wgpu::TextureView>,
     surfaces: ViewportIdMap<SurfaceState>,
-    capture_tx: CaptureSender,
-    capture_rx: CaptureReceiver,
 }
 
 impl Painter {
@@ -63,7 +59,6 @@ impl Painter {
         support_transparent_backbuffer: bool,
         options: RendererOptions,
     ) -> Self {
-        let (capture_tx, capture_rx) = capture_channel();
         let instance = config.wgpu_setup.new_instance().await;
 
         Self {
@@ -79,9 +74,6 @@ impl Painter {
             depth_texture_view: Default::default(),
             surfaces: Default::default(),
             msaa_texture_view: Default::default(),
-
-            capture_tx,
-            capture_rx,
         }
     }
 
@@ -103,6 +95,15 @@ impl Painter {
             present_mode,
             desired_maximum_frame_latency,
         } = *config;
+
+        // Transaction presentation can hold a drawable during AppKit live resize. Keep the
+        // configured low-latency path normally, but use three Metal drawables while resizing.
+        #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
+        let desired_maximum_frame_latency = if surface_state.resizing {
+            Some(desired_maximum_frame_latency.unwrap_or(2).max(2))
+        } else {
+            desired_maximum_frame_latency
+        };
 
         let width = surface_state.width;
         let height = surface_state.height;
@@ -406,6 +407,9 @@ impl Painter {
             return;
         }
 
+        // Set before reconfiguring so macOS live resize uses the temporary latency bump above.
+        state.resizing = resizing;
+
         // Resizing is a bit tricky on macOS.
         // It requires enabling ["present_with_transaction"](https://developer.apple.com/documentation/quartzcore/cametallayer/presentswithtransaction)
         // flag to avoid jittering during the resize. Even though resize jittering on macOS
@@ -414,32 +418,22 @@ impl Painter {
         // See https://github.com/emilk/egui/issues/903
         #[cfg(all(target_os = "macos", feature = "macos-window-resize-jitter-fix"))]
         {
-            // setPresentsWithTransaction causes hangs when desired_maximum_frame_latency == 1
-            let is_low_latency = self
-                .render_state
-                .as_ref()
-                .is_some_and(|rs| rs.surface_config.desired_maximum_frame_latency == Some(1));
-            if !is_low_latency {
-                // SAFETY: The cast is checked with if condition. If the used backend is not metal
-                // it gracefully fails.
-                unsafe {
-                    if let Some(hal_surface) = state.surface.as_hal::<wgpu::hal::api::Metal>() {
-                        hal_surface
-                            .render_layer()
-                            .lock()
-                            .setPresentsWithTransaction(resizing);
+            // SAFETY: `as_hal::<Metal>()` returns `None` unless this surface is backed by wgpu's
+            // Metal backend.
+            unsafe {
+                if let (Some(render_state), Some(hal_surface)) = (
+                    self.render_state.as_ref(),
+                    state.surface.as_hal::<wgpu::hal::api::Metal>(),
+                ) {
+                    hal_surface
+                        .render_layer()
+                        .lock()
+                        .setPresentsWithTransaction(resizing);
 
-                        Self::configure_surface(
-                            state,
-                            self.render_state.as_ref().unwrap(),
-                            &self.config.surface,
-                        );
-                    }
+                    Self::configure_surface(state, render_state, &self.config.surface);
                 }
             }
         }
-
-        state.resizing = resizing;
     }
 
     pub fn on_window_resized(
@@ -476,8 +470,8 @@ impl Painter {
         pixels_per_point: f32,
         clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
-        textures_delta: &epaint::textures::TexturesDelta,
-        capture_data: Vec<UserData>,
+        textures_delta: &mut epaint::textures::TexturesDelta,
+        capture_data: Vec<egui::ScreenshotCallback>,
         window: &Arc<winit::window::Window>,
     ) -> f32 {
         profiling::function_scope!();
@@ -562,13 +556,16 @@ impl Painter {
 
         let user_cmd_bufs = {
             let mut renderer = render_state.renderer.write();
-            for (id, image_delta) in &textures_delta.set {
-                renderer.update_texture(
-                    &render_state.device,
-                    &render_state.queue,
-                    *id,
-                    image_delta,
-                );
+            #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+            for (id, image_deltas) in textures_delta.set.drain() {
+                for image_delta in image_deltas {
+                    renderer.update_texture(
+                        &render_state.device,
+                        &render_state.queue,
+                        id,
+                        &image_delta,
+                    );
+                }
             }
 
             renderer.update_buffers(
@@ -722,7 +719,7 @@ impl Painter {
             let start = web_time::Instant::now();
             render_state
                 .queue
-                .submit(std::iter::chain(user_cmd_bufs, [encoded]));
+                .submit(core::iter::chain(user_cmd_bufs, [encoded]));
             vsync_sec += start.elapsed().as_secs_f32();
         };
 
@@ -734,21 +731,16 @@ impl Painter {
         // However, once we called `wgpu::Queue::submit`, it is up for wgpu to determine how long the underlying gpu resource has to live.
         {
             let mut renderer = render_state.renderer.write();
-            for id in &textures_delta.free {
-                renderer.free_texture(id);
+            #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+            for id in textures_delta.free.drain() {
+                renderer.free_texture(&id);
             }
         }
 
         if let Some(capture_buffer) = capture_buffer
             && let Some(screen_capture_state) = &mut self.screen_capture_state
         {
-            screen_capture_state.read_screen_rgba(
-                self.context.clone(),
-                capture_buffer,
-                capture_data,
-                self.capture_tx.clone(),
-                viewport_id,
-            );
+            screen_capture_state.read_screen_rgba(capture_buffer, capture_data);
         }
 
         window.pre_present_notify();
@@ -757,25 +749,11 @@ impl Painter {
             profiling::scope!("present");
             // wgpu doesn't document where vsync can happen. Maybe here?
             let start = web_time::Instant::now();
-            output_frame.present();
+            render_state.queue.present(output_frame);
             vsync_sec += start.elapsed().as_secs_f32();
         }
 
         vsync_sec
-    }
-
-    /// Call this at the beginning of each frame to receive the requested screenshots.
-    pub fn handle_screenshots(&self, events: &mut Vec<Event>) {
-        for (viewport_id, user_data, screenshot) in self.capture_rx.try_iter() {
-            let screenshot = Arc::new(screenshot);
-            for data in user_data {
-                events.push(Event::Screenshot {
-                    viewport_id,
-                    user_data: data,
-                    image: Arc::clone(&screenshot),
-                });
-            }
-        }
     }
 
     pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {

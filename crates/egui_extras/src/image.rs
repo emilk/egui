@@ -12,8 +12,23 @@ use egui::SizeHint;
 /// On invalid image or unsupported image format.
 #[cfg(feature = "image")]
 pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, egui::load::LoadError> {
+    fn load_image_with_orientation(image_bytes: &[u8]) -> image::ImageResult<image::DynamicImage> {
+        use std::io::Cursor;
+
+        use image::{DynamicImage, ImageDecoder, ImageReader};
+
+        let format = image::guess_format(image_bytes)?;
+        let reader = Cursor::new(image_bytes);
+        let reader = ImageReader::with_format(reader, format);
+        let mut decoder = reader.into_decoder()?;
+        let orientation = ImageDecoder::orientation(&mut decoder)?;
+        let mut image = DynamicImage::from_decoder(decoder)?;
+        image.apply_orientation(orientation);
+        Ok(image)
+    }
+
     profiling::function_scope!();
-    let image = image::load_from_memory(image_bytes).map_err(|err| match err {
+    let image = load_image_with_orientation(image_bytes).map_err(|err| match err {
         image::ImageError::Unsupported(err) => match err.kind() {
             image::error::UnsupportedErrorKind::Format(format) => {
                 egui::load::LoadError::FormatNotSupported {

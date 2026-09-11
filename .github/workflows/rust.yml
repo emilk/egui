@@ -1,11 +1,16 @@
-on: [push, pull_request]
+on:
+  # Only on `main`, so that a PR from a branch in this repo
+  # doesn't run the whole workflow twice (once for the push, once for the PR):
+  push:
+    branches: ["main"]
+  pull_request:
 
 name: Rust
 
 env:
   RUSTFLAGS: -D warnings
   RUSTDOCFLAGS: -D warnings
-  NIGHTLY_VERSION: nightly-2025-09-16
+  NIGHTLY_VERSION: nightly-2026-04-02
 
 jobs:
   fmt-crank-check-test:
@@ -19,7 +24,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.92.0
+          toolchain: 1.95.0
 
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -31,6 +36,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Rustfmt
         run: cargo fmt --all -- --check
@@ -74,13 +82,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.92.0
+          toolchain: 1.95.0
           targets: wasm32-unknown-unknown
 
       - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: clippy wasm32 egui_demo_app
         run: cargo clippy -p egui_demo_app --lib --target wasm32-unknown-unknown
@@ -91,10 +102,14 @@ jobs:
       - name: clippy wasm32 eframe
         run: cargo clippy -p eframe --lib --no-default-features --features wgpu,persistence --target wasm32-unknown-unknown
 
+      # eframe only depends on egui-winit on native targets, so check it directly on wasm.
+      - name: check wasm32 egui-winit
+        run: cargo check -p egui-winit --no-default-features --target wasm32-unknown-unknown --locked
+
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
-          version: "0.2.108" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
+          version: "0.2.126" # Keep wasm-bindgen version in sync in: setup_web.sh, Cargo.toml, Cargo.lock, rust.yml
 
       - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
@@ -112,6 +127,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{env.NIGHTLY_VERSION}}
@@ -148,7 +166,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          rust-version: "1.92.0"
+          rust-version: "1.95.0"
           log-level: error
           command: check
           arguments: --target  ${{ matrix.target }}
@@ -164,11 +182,14 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.92.0
+          toolchain: 1.95.0
           targets: aarch64-linux-android
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
         # Default features disabled to turn off accesskit, which does not work
         # with NativeActivity.
@@ -186,11 +207,14 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.92.0
+          toolchain: 1.95.0
           targets: aarch64-apple-ios
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
         # Default features are disabled because glutin doesn't compile for ios.
       - run: cargo check --features wgpu --target aarch64-apple-ios --no-default-features
@@ -206,10 +230,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.92.0
+          toolchain: 1.95.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - run: cargo clippy --all-targets --all-features
 
@@ -228,16 +255,24 @@ jobs:
           lfs: true
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.92.0
+          toolchain: 1.95.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Only `main` writes to the cache, so PR caches can't evict it (10 GB repository limit).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
+      # `--no-fail-fast` so that a failing snapshot test in one crate doesn't
+      # stop the tests of the other crates from running.
+      # That way a single CI run reports _all_ failing snapshots,
+      # and all the new snapshots end up in the uploaded artifact.
       - name: Run tests
-        run: cargo test --all-features
+        run: cargo test --all-features --no-fail-fast
 
       - name: Run doc-tests
-        run: cargo test --all-features --doc
+        if: always()
+        run: cargo test --all-features --doc --no-fail-fast
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

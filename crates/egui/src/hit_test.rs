@@ -65,7 +65,7 @@ pub fn hit_test(
         .filter(|layer| layer.order.allow_interaction())
         .flat_map(|&layer_id| widgets.get_layer(layer_id))
         .filter(|&w| {
-            if w.interact_rect.is_negative() || w.interact_rect.any_nan() {
+            if w.interact_rect.is_negative() || w.rect.any_nan() || w.interact_rect.any_nan() {
                 return false;
             }
 
@@ -91,7 +91,10 @@ pub fn hit_test(
         }
     }
 
-    close.retain(|rect| !rect.interact_rect.any_nan()); // Protect against bad input and transforms
+    // Protect against bad input and transforms.
+    // NOTE: `Rect::intersect` scrubs NaNs (`f32::max(NAN, x) == x`),
+    // so `interact_rect` can be finite even when `rect` is not.
+    close.retain(|w| !w.rect.any_nan() && !w.interact_rect.any_nan());
 
     // When using layer transforms it is common to stack layers close to each other.
     // For instance, you may have a resize-separator on a panel, with two
@@ -201,8 +204,6 @@ fn contains_circle(interact_rect: emath::Rect, pos: Pos2, radius: f32) -> bool {
 }
 
 fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
-    #![expect(clippy::collapsible_else_if)]
-
     // First find the best direct hits:
     let hit_click = find_closest_within(
         close.iter().copied().filter(|w| w.sense.senses_click()),
@@ -361,11 +362,10 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
 
         (Some(hit_click), Some(hit_drag)) => {
             // We have a perfect hit on both click and drag. Which is the topmost?
-            #[expect(clippy::unwrap_used)]
-            let click_idx = close.iter().position(|w| *w == hit_click).unwrap();
-
-            #[expect(clippy::unwrap_used)]
-            let drag_idx = close.iter().position(|w| *w == hit_drag).unwrap();
+            // We look them up by id, because a `WidgetRect` with a NaN coordinate
+            // is not equal even to itself.
+            let click_idx = close.iter().position(|w| w.id == hit_click.id);
+            let drag_idx = close.iter().position(|w| w.id == hit_drag.id);
 
             let click_is_on_top_of_drag = drag_idx < click_idx;
             if click_is_on_top_of_drag {
@@ -463,17 +463,17 @@ mod tests {
     fn buttons_on_window() {
         let widgets = vec![
             wr(
-                Id::new("bg-area"),
+                Id::unique("bg-area"),
                 Sense::drag(),
                 Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0)),
             ),
             wr(
-                Id::new("click"),
+                Id::unique("click"),
                 Sense::click(),
                 Rect::from_min_size(pos2(10.0, 10.0), vec2(10.0, 10.0)),
             ),
             wr(
-                Id::new("click-and-drag"),
+                Id::unique("click-and-drag"),
                 Sense::click_and_drag(),
                 Rect::from_min_size(pos2(100.0, 10.0), vec2(10.0, 10.0)),
             ),
@@ -481,45 +481,45 @@ mod tests {
 
         // Perfect hit:
         let hits = hit_test_on_close(&widgets, pos2(15.0, 15.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("click"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("bg-area"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("click"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("bg-area"));
 
         // Close hit:
         let hits = hit_test_on_close(&widgets, pos2(5.0, 5.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("click"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("bg-area"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("click"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("bg-area"));
 
         // Perfect hit:
         let hits = hit_test_on_close(&widgets, pos2(105.0, 15.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("click-and-drag"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("click-and-drag"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("click-and-drag"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("click-and-drag"));
 
         // Close hit - should still ignore the drag-background so as not to confuse the user:
         let hits = hit_test_on_close(&widgets, pos2(105.0, 5.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("click-and-drag"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("click-and-drag"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("click-and-drag"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("click-and-drag"));
     }
 
     #[test]
     fn thin_resize_handle_next_to_label() {
         let widgets = vec![
             wr(
-                Id::new("bg-area"),
+                Id::unique("bg-area"),
                 Sense::drag(),
                 Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0)),
             ),
             wr(
-                Id::new("bg-left-label"),
+                Id::unique("bg-left-label"),
                 Sense::click_and_drag(),
                 Rect::from_min_size(pos2(0.0, 0.0), vec2(40.0, 100.0)),
             ),
             wr(
-                Id::new("thin-drag-handle"),
+                Id::unique("thin-drag-handle"),
                 Sense::drag(),
                 Rect::from_min_size(pos2(30.0, 0.0), vec2(70.0, 100.0)),
             ),
             wr(
-                Id::new("fg-right-label"),
+                Id::unique("fg-right-label"),
                 Sense::click_and_drag(),
                 Rect::from_min_size(pos2(60.0, 0.0), vec2(50.0, 100.0)),
             ),
@@ -531,22 +531,22 @@ mod tests {
 
         // In the middle of the bg-left-label:
         let hits = hit_test_on_close(&widgets, pos2(25.0, 50.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("bg-left-label"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("bg-left-label"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("bg-left-label"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("bg-left-label"));
 
         // On both the left click-and-drag and thin handle, but the thin handle is on top and should win:
         let hits = hit_test_on_close(&widgets, pos2(35.0, 50.0));
         assert_eq!(hits.click, None);
-        assert_eq!(hits.drag.unwrap().id, Id::new("thin-drag-handle"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("thin-drag-handle"));
 
         // Only on the thin-drag-handle:
         let hits = hit_test_on_close(&widgets, pos2(50.0, 50.0));
         assert_eq!(hits.click, None);
-        assert_eq!(hits.drag.unwrap().id, Id::new("thin-drag-handle"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("thin-drag-handle"));
 
         // On both the thin handle and right label. The label is on top and should win
         let hits = hit_test_on_close(&widgets, pos2(65.0, 50.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("fg-right-label"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("fg-right-label"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("fg-right-label"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("fg-right-label"));
     }
 }

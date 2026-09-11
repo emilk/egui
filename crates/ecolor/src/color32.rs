@@ -1,4 +1,4 @@
-use crate::{Rgba, fast_round, linear_f32_from_linear_u8};
+use crate::{Rgba, fast_round, mul_frac_round};
 
 /// This format is used for space-efficient color representation (32 bits).
 ///
@@ -30,15 +30,15 @@ use crate::{Rgba, fast_round, linear_f32_from_linear_u8};
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Color32(pub(crate) [u8; 4]);
 
-impl std::fmt::Debug for Color32 {
+impl core::fmt::Debug for Color32 {
     /// Prints the contents with premultiplied alpha!
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let [r, g, b, a] = self.0;
         write!(f, "#{r:02X}_{g:02X}_{b:02X}_{a:02X}")
     }
 }
 
-impl std::ops::Index<usize> for Color32 {
+impl core::ops::Index<usize> for Color32 {
     type Output = u8;
 
     #[inline]
@@ -47,7 +47,7 @@ impl std::ops::Index<usize> for Color32 {
     }
 }
 
-impl std::ops::IndexMut<usize> for Color32 {
+impl core::ops::IndexMut<usize> for Color32 {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut u8 {
         &mut self.0[index]
@@ -131,35 +131,10 @@ impl Color32 {
     /// but for transparent colors what you get back might be slightly different (rounding errors).
     #[inline]
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
-        use std::sync::OnceLock;
-        match a {
-            // common-case optimization:
-            0 => Self::TRANSPARENT,
-
-            // common-case optimization:
-            255 => Self::from_rgb(r, g, b),
-
-            a => {
-                static LOOKUP_TABLE: OnceLock<Box<[u8]>> = OnceLock::new();
-                let lut = LOOKUP_TABLE.get_or_init(|| {
-                    (0..=u16::MAX)
-                        .map(|i| {
-                            let [value, alpha] = i.to_ne_bytes();
-                            fast_round(value as f32 * linear_f32_from_linear_u8(alpha))
-                        })
-                        .collect()
-                });
-
-                let [r, g, b] =
-                    [r, g, b].map(|value| lut[usize::from(u16::from_ne_bytes([value, a]))]);
-                Self::from_rgba_premultiplied(r, g, b, a)
-            }
-        }
+        Self::from_rgba_unmultiplied_const(r, g, b, a)
     }
 
-    /// Same as [`Self::from_rgba_unmultiplied`], but can be used in a const context.
-    ///
-    /// It is slightly slower when operating on non-const data.
+    /// This is the same as [`Self::from_rgba_unmultiplied`], but for const contexts.
     #[inline]
     pub const fn from_rgba_unmultiplied_const(r: u8, g: u8, b: u8, a: u8) -> Self {
         match a {
@@ -170,9 +145,9 @@ impl Color32 {
             255 => Self::from_rgb(r, g, b),
 
             a => {
-                let r = fast_round(r as f32 * linear_f32_from_linear_u8(a));
-                let g = fast_round(g as f32 * linear_f32_from_linear_u8(a));
-                let b = fast_round(b as f32 * linear_f32_from_linear_u8(a));
+                let r = mul_frac_round(r, a);
+                let g = mul_frac_round(g, a);
+                let b = mul_frac_round(b, a);
                 Self::from_rgba_premultiplied(r, g, b, a)
             }
         }
@@ -378,7 +353,7 @@ impl Color32 {
     }
 }
 
-impl std::ops::Mul for Color32 {
+impl core::ops::Mul for Color32 {
     type Output = Self;
 
     /// Fast gamma-space multiplication.
@@ -393,7 +368,7 @@ impl std::ops::Mul for Color32 {
     }
 }
 
-impl std::ops::Add for Color32 {
+impl core::ops::Add for Color32 {
     type Output = Self;
 
     #[inline]
@@ -489,7 +464,7 @@ mod test {
             } else {
                 // There will be small rounding errors whenever the alpha is not 0 or 255,
                 // because we multiply and then unmultiply the alpha.
-                for (&a, &b) in std::iter::zip(&in_rgba, &out_rgba) {
+                for (&a, &b) in core::iter::zip(&in_rgba, &out_rgba) {
                     assert!(a.abs_diff(b) <= 3, "{in_rgba:?} != {out_rgba:?}");
                 }
             }
@@ -534,5 +509,15 @@ mod test {
             Color32::from(Rgba::from_rgba_unmultiplied(1.0, 0.0, 0.0, 0.5)),
             Color32::from_rgba_unmultiplied(255, 0, 0, 128)
         );
+    }
+
+    #[test]
+    fn mul_frac_round_vs_old() {
+        for x in (0..=255u8).step_by(4) {
+            for a in (1..=255u8).step_by(4) {
+                let old = fast_round(x as f32 * crate::linear_f32_from_linear_u8(a));
+                assert_eq!(old, mul_frac_round(x, a));
+            }
+        }
     }
 }

@@ -1,6 +1,6 @@
-use egui::{UserData, ViewportId};
+use egui::ScreenshotCallback;
 use epaint::ColorImage;
-use std::sync::{Arc, mpsc};
+use std::sync::Arc;
 use wgpu::{BindGroupLayout, MultisampleState, StoreOp};
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
@@ -17,10 +17,6 @@ pub struct CaptureState {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
 }
-
-pub type CaptureReceiver = mpsc::Receiver<(ViewportId, Vec<UserData>, ColorImage)>;
-pub type CaptureSender = mpsc::Sender<(ViewportId, Vec<UserData>, ColorImage)>;
-pub use mpsc::channel as capture_channel;
 
 impl CaptureState {
     pub fn new(device: &wgpu::Device, surface_texture: &wgpu::Texture) -> Self {
@@ -179,14 +175,7 @@ impl CaptureState {
     /// This function is non-blocking and will send the data to the given sender when it's ready.
     /// Pass in the buffer returned from [`CaptureState::copy_textures`].
     /// Make sure to call this after the encoder has been submitted.
-    pub fn read_screen_rgba(
-        &self,
-        ctx: egui::Context,
-        buffer: wgpu::Buffer,
-        data: Vec<UserData>,
-        tx: CaptureSender,
-        viewport_id: ViewportId,
-    ) {
+    pub fn read_screen_rgba(&self, buffer: wgpu::Buffer, callbacks: Vec<ScreenshotCallback>) {
         #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         let buffer = Arc::new(buffer);
         let buffer_clone = Arc::clone(&buffer);
@@ -212,10 +201,14 @@ impl CaptureState {
             let buffer_slice = buffer.slice(..);
 
             let mut pixels = Vec::with_capacity((tex_extent.width * tex_extent.height) as usize);
-            for padded_row in buffer_slice
-                .get_mapped_range()
-                .chunks(padding.padded_bytes_per_row as usize)
-            {
+            let mapped_range = match buffer_slice.get_mapped_range() {
+                Ok(range) => range,
+                Err(err) => {
+                    log::error!("Failed to get mapped range for reading: {err}");
+                    return;
+                }
+            };
+            for padded_row in mapped_range.chunks(padding.padded_bytes_per_row as usize) {
                 let row = &padded_row[..padding.unpadded_bytes_per_row as usize];
                 for color in row.chunks(4) {
                     pixels.push(epaint::Color32::from_rgba_premultiplied(
@@ -226,18 +219,16 @@ impl CaptureState {
                     ));
                 }
             }
+            drop(mapped_range);
             buffer.unmap();
 
-            tx.send((
-                viewport_id,
-                data,
-                ColorImage::new(
-                    [tex_extent.width as usize, tex_extent.height as usize],
-                    pixels,
-                ),
-            ))
-            .ok();
-            ctx.request_repaint();
+            let image = Arc::new(ColorImage::new(
+                [tex_extent.width as usize, tex_extent.height as usize],
+                pixels,
+            ));
+            for callback in callbacks {
+                callback.complete(Arc::clone(&image));
+            }
         });
     }
 }
@@ -250,7 +241,7 @@ struct BufferPadding {
 
 impl BufferPadding {
     fn new(width: u32) -> Self {
-        let bytes_per_pixel = std::mem::size_of::<u32>() as u32;
+        let bytes_per_pixel = core::mem::size_of::<u32>() as u32;
         let unpadded_bytes_per_row = width * bytes_per_pixel;
         let padded_bytes_per_row =
             wgpu::util::align_to(unpadded_bytes_per_row, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);

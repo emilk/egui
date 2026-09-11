@@ -13,7 +13,7 @@ struct DemoGroup {
     demos: Vec<Box<dyn Demo>>,
 }
 
-impl std::ops::Add for DemoGroup {
+impl core::ops::Add for DemoGroup {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
@@ -47,6 +47,12 @@ impl DemoGroup {
             set_open(open, demo.name(), is_open);
         }
     }
+
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        for demo in &mut self.demos {
+            demo.logic(ctx);
+        }
+    }
 }
 
 fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
@@ -75,6 +81,7 @@ impl Default for DemoGroups {
                 Box::<super::paint_bezier::PaintBezier>::default(),
                 Box::<super::code_editor::CodeEditor>::default(),
                 Box::<super::code_example::CodeExample>::default(),
+                Box::<super::completion::CompletionDemo>::default(),
                 Box::<super::dancing_strings::DancingStrings>::default(),
                 Box::<super::drag_and_drop::DragAndDropDemo>::default(),
                 Box::<super::extra_viewport::ExtraViewport>::default(),
@@ -160,6 +167,11 @@ impl DemoGroups {
         demos.windows(ui, open);
         tests.windows(ui, open);
     }
+
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        self.demos.logic(ctx);
+        self.tests.logic(ctx);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -210,6 +222,13 @@ impl DemoWindows {
         } else {
             self.desktop_ui(ui);
         }
+    }
+
+    /// Run background logic for all demos.
+    ///
+    /// Called every frame, even when hidden, so demos can keep working in the background.
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        self.groups.logic(ctx);
     }
 
     fn about_is_open(&self) -> bool {
@@ -313,6 +332,7 @@ impl DemoWindows {
                 if ui.button("Organize windows").clicked() {
                     ui.memory_mut(|mem| mem.reset_areas());
                 }
+                ui.add_space(4.0);
             });
         });
     }
@@ -427,7 +447,7 @@ mod tests {
 
     fn remove_leading_emoji(full_name: &str) -> &str {
         if let Some((start, name)) = full_name.split_once(' ')
-            && start.len() <= 4
+            && start.len() <= 7 // An emoji, plus an optional variation selector
             && start.bytes().next().is_some_and(|byte| byte >= 128)
         {
             return name;

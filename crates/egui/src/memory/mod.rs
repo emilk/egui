@@ -1,6 +1,6 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
-use std::num::NonZeroUsize;
+use core::num::NonZeroUsize;
 
 use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
@@ -216,6 +216,18 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) system_theme: Option<Theme>,
 
+    /// If `true`, egui will keep the native window theme in sync with
+    /// [`Self::theme_preference`] by sending a [`crate::ViewportCommand::SetTheme`]
+    /// to the root viewport whenever the preference changes.
+    ///
+    /// This makes the native window decorations (title bar, borders, …) match the
+    /// theme selected inside egui.
+    ///
+    /// Set this to `false` if you want to manage the native window theme yourself.
+    ///
+    /// This is `true` by default.
+    pub sync_window_theme: bool,
+
     /// Global zoom factor of the UI.
     ///
     /// This is used to calculate the `pixels_per_point`
@@ -318,6 +330,7 @@ impl Default for Options {
             theme_preference: Default::default(),
             fallback_theme: Theme::Dark,
             system_theme: None,
+            sync_window_theme: true,
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
             quit_shortcuts: vec![crate::KeyboardShortcut::new(
@@ -381,6 +394,7 @@ impl Options {
             theme_preference,
             fallback_theme: _,
             system_theme: _,
+            sync_window_theme,
             zoom_factor,
             zoom_with_keyboard,
             quit_shortcuts: _, // not shown in ui
@@ -396,7 +410,7 @@ impl Options {
         use crate::Widget as _;
         use crate::containers::CollapsingHeader;
 
-        CollapsingHeader::new("⚙ Options")
+        CollapsingHeader::new("⚙️ Options")
             .default_open(false)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -427,7 +441,9 @@ impl Options {
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
-                theme_preference.radio_buttons(ui);
+                theme_preference.buttons(ui);
+
+                ui.checkbox(sync_window_theme, "Sync window theme with egui theme");
 
                 let style = std::sync::Arc::make_mut(match theme {
                     Theme::Dark => dark_style,
@@ -436,7 +452,7 @@ impl Options {
                 style.ui(ui);
             });
 
-        CollapsingHeader::new("✒ Painting")
+        CollapsingHeader::new("✒️ Painting")
             .default_open(false)
             .show(ui, |ui| {
                 tessellation_options.ui(ui);
@@ -445,7 +461,7 @@ impl Options {
                 });
             });
 
-        CollapsingHeader::new("🖱 Input")
+        CollapsingHeader::new("🖱️ Input")
             .default_open(false)
             .show(ui, |ui| {
                 input_options.ui(ui);
@@ -490,10 +506,15 @@ pub(crate) struct Focus {
     /// The ID of a widget that had keyboard focus during the previous frame.
     id_previous_frame: Option<Id>,
 
+    /// The ID of a widget that had keyboard focus *two* frames ago.
+    ///
+    /// Kept so `Response::lost_focus` can still fire after a mid-frame
+    /// focus transition (e.g. clicking a `TextEdit` that was added to
+    /// the UI later than the currently focused one).
+    id_two_frames_ago: Option<Id>,
+
     /// The ID of a widget to give the focus to in the next frame.
     id_next_frame: Option<Id>,
-
-    id_requested_by_accesskit: Option<accesskit::NodeId>,
 
     /// If set, the next widget that is interested in focus will automatically get it.
     /// Probably because the user pressed Tab.
@@ -545,15 +566,16 @@ impl Focus {
     }
 
     fn begin_pass(&mut self, new_input: &crate::data::input::RawInput) {
+        self.id_two_frames_ago = self.id_previous_frame;
         self.id_previous_frame = self.focused();
         if let Some(id) = self.id_next_frame.take() {
             self.focused_widget = Some(FocusWidget::new(id));
         }
         let event_filter = self.focused_widget.map(|w| w.filter).unwrap_or_default();
 
-        self.id_requested_by_accesskit = None;
-
         self.focus_direction = FocusDirection::None;
+
+        let mut focus_requested_by_accesskit = None;
 
         for event in &new_input.events {
             if !event_filter.matches(event)
@@ -591,8 +613,21 @@ impl Focus {
             }) = event
                 && *target_tree == accesskit::TreeId::ROOT
             {
-                self.id_requested_by_accesskit = Some(*target_node);
+                focus_requested_by_accesskit = Some(*target_node);
             }
+        }
+
+        // Handle accesskit focus requests
+        let newly_focused = focus_requested_by_accesskit.and_then(|node_id| {
+            self.focus_widgets_cache
+                .keys()
+                .find(|id| id.accesskit_id() == node_id)
+                .copied()
+        });
+        if let Some(id) = newly_focused {
+            self.focused_widget = Some(FocusWidget::new(id));
+            self.give_to_next = false;
+            self.reset_focus();
         }
     }
 
@@ -621,13 +656,6 @@ impl Focus {
     }
 
     fn interested_in_focus(&mut self, id: Id) {
-        if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
-            self.focused_widget = Some(FocusWidget::new(id));
-            self.id_requested_by_accesskit = None;
-            self.give_to_next = false;
-            self.reset_focus();
-        }
-
         // The rect is updated at the end of the frame.
         self.focus_widgets_cache
             .entry(id)
@@ -831,10 +859,21 @@ impl Memory {
         self.focus().and_then(|f| f.id_previous_frame) == Some(id)
     }
 
-    /// Check if the layer lost focus last frame.
-    /// returns `true` if the layer lost focus last frame, but not this one.
+    /// Check if the widget lost keyboard focus.
+    ///
+    /// Returns `true` when `id` was the focused widget at the start
+    /// of this frame *or* the start of the previous frame — but is
+    /// not focused now. The two-frame window matters when focus
+    /// transfers mid-frame: the previously-focused widget has
+    /// usually already been rendered by the time another widget
+    /// claims focus, so the loss signal can only reach it on its
+    /// next render pass.
     pub(crate) fn lost_focus(&self, id: Id) -> bool {
-        self.had_focus_last_frame(id) && !self.has_focus(id)
+        let had_recent_focus = self
+            .focus()
+            .map(|f| f.id_previous_frame == Some(id) || f.id_two_frames_ago == Some(id))
+            .unwrap_or(false);
+        had_recent_focus && !self.has_focus(id)
     }
 
     /// Check if the layer gained focus this frame.
@@ -907,7 +946,7 @@ impl Memory {
         if let Some(modal_layer) = self.focus().and_then(|f| f.top_modal_layer) {
             matches!(
                 self.areas().compare_order(layer_id, modal_layer),
-                std::cmp::Ordering::Equal | std::cmp::Ordering::Greater
+                core::cmp::Ordering::Equal | core::cmp::Ordering::Greater
             )
         } else {
             true
@@ -947,7 +986,7 @@ impl Memory {
         if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame)
             && matches!(
                 self.areas().compare_order(layer_id, current),
-                std::cmp::Ordering::Less
+                core::cmp::Ordering::Less
             )
         {
             return;
@@ -977,8 +1016,8 @@ impl Memory {
     }
 
     /// Obtain the previous rectangle of an area.
-    pub fn area_rect(&self, id: impl Into<Id>) -> Option<Rect> {
-        self.areas().get(id.into()).map(|state| state.rect())
+    pub fn area_rect(&self, id: Id) -> Option<Rect> {
+        self.areas().get(id).map(|state| state.rect())
     }
 
     pub(crate) fn interaction(&self) -> &InteractionState {
@@ -1175,6 +1214,11 @@ impl Areas {
         self.areas.get_mut(&id)
     }
 
+    /// Can the user interact with this layer or it's widgets, or do clicks go straight through it?
+    pub(crate) fn is_interactable(&self, layer_id: LayerId) -> bool {
+        self.get(layer_id.id).is_none_or(|area| area.interactable)
+    }
+
     /// All layers back-to-front, top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
@@ -1183,12 +1227,12 @@ impl Areas {
     /// Compare the order of two layers, based on the order list from last frame.
     ///
     /// May return [`std::cmp::Ordering::Equal`] if the layers are not in the order list.
-    pub(crate) fn compare_order(&self, a: LayerId, b: LayerId) -> std::cmp::Ordering {
+    pub(crate) fn compare_order(&self, a: LayerId, b: LayerId) -> core::cmp::Ordering {
         // Sort by layer `order` first and use `order_map` to resolve disputes.
         // If `order_map` only contains one layer ID, then the other one will be
         // lower because `None < Some(x)`.
         match a.order.cmp(&b.order) {
-            std::cmp::Ordering::Equal => self.order_map.get(&a).cmp(&self.order_map.get(&b)),
+            core::cmp::Ordering::Equal => self.order_map.get(&a).cmp(&self.order_map.get(&b)),
             cmp => cmp,
         }
     }
@@ -1236,7 +1280,7 @@ impl Areas {
     }
 
     pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
-        std::iter::chain(
+        core::iter::chain(
             &self.visible_areas_last_frame,
             &self.visible_areas_current_frame,
         )
@@ -1325,7 +1369,7 @@ impl Areas {
             ..
         } = self;
 
-        std::mem::swap(visible_areas_last_frame, visible_areas_current_frame);
+        core::mem::swap(visible_areas_last_frame, visible_areas_current_frame);
         visible_areas_current_frame.clear();
 
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
@@ -1334,7 +1378,7 @@ impl Areas {
         // For all layers with sublayers, put the sublayers directly after the parent layer:
         // (it doesn't matter in which order we replace parents with their children)
         #[expect(clippy::iter_over_hash_type)]
-        for (parent, children) in std::mem::take(sublayers) {
+        for (parent, children) in core::mem::take(sublayers) {
             let mut moved_layers = vec![parent]; // parent first…
 
             order.retain(|l| {
@@ -1368,16 +1412,64 @@ fn memory_impl_send_sync() {
     assert_send_sync::<Memory>();
 }
 
+// Regression test for https://github.com/emilk/egui/issues/2142.
+#[test]
+fn lost_focus_fires_after_mid_frame_focus_transfer() {
+    use crate::data::input::RawInput;
+    let a = Id::unique("A");
+    let b = Id::unique("B");
+    let mut focus = Focus::default();
+    let raw = RawInput::default();
+
+    fn lost_focus_check(focus: &Focus, id: Id) -> bool {
+        let was_focused =
+            focus.id_previous_frame == Some(id) || focus.id_two_frames_ago == Some(id);
+        was_focused && focus.focused() != Some(id)
+    }
+
+    // Frame N-1
+    {
+        focus.begin_pass(&raw);
+        focus.focused_widget = Some(FocusWidget::new(a));
+    }
+
+    // Frame N: `A` is focused at start; user clicks `B` mid-frame
+    {
+        focus.begin_pass(&raw);
+        assert_eq!(focus.id_previous_frame, Some(a));
+        assert!(!lost_focus_check(&focus, a));
+        focus.focused_widget = Some(FocusWidget::new(b));
+    }
+
+    // Frame N+1: `A` deferred lost_focus signal must fire
+    {
+        focus.begin_pass(&raw);
+        assert_eq!(focus.id_two_frames_ago, Some(a));
+        assert_eq!(focus.id_previous_frame, Some(b));
+        assert!(lost_focus_check(&focus, a), "`A` lost_focus must fire");
+        assert!(!lost_focus_check(&focus, b));
+    }
+
+    // Frame N+2
+    {
+        focus.begin_pass(&raw);
+        assert!(
+            !lost_focus_check(&focus, a),
+            "A's lost_focus must stop firing once the two-frame window passes",
+        );
+    }
+}
+
 #[test]
 fn order_map_total_ordering() {
     let mut layers = [
-        LayerId::new(Order::Tooltip, Id::new("a")),
-        LayerId::new(Order::Background, Id::new("b")),
-        LayerId::new(Order::Background, Id::new("c")),
-        LayerId::new(Order::Tooltip, Id::new("d")),
-        LayerId::new(Order::Background, Id::new("e")),
-        LayerId::new(Order::Background, Id::new("f")),
-        LayerId::new(Order::Tooltip, Id::new("g")),
+        LayerId::new(Order::Tooltip, Id::unique("a")),
+        LayerId::new(Order::Background, Id::unique("b")),
+        LayerId::new(Order::Background, Id::unique("c")),
+        LayerId::new(Order::Tooltip, Id::unique("d")),
+        LayerId::new(Order::Background, Id::unique("e")),
+        LayerId::new(Order::Background, Id::unique("f")),
+        LayerId::new(Order::Tooltip, Id::unique("g")),
     ];
     let mut areas = Areas::default();
 
@@ -1393,16 +1485,16 @@ fn order_map_total_ordering() {
     // Assert that `areas.compare_order()` forms a total ordering
     let mut equivalence_classes = vec![0];
     let mut i = 0;
-    for l in layers.windows(2) {
-        assert!(l[0].order <= l[1].order, "does not follow LayerId.order");
-        if areas.compare_order(l[0], l[1]) != std::cmp::Ordering::Equal {
+    for &[a, b] in layers.array_windows() {
+        assert!(a.order <= b.order, "does not follow LayerId.order");
+        if areas.compare_order(a, b) != core::cmp::Ordering::Equal {
             i += 1;
         }
         equivalence_classes.push(i);
     }
     assert_eq!(layers.len(), equivalence_classes.len());
-    for (&l1, c1) in std::iter::zip(&layers, &equivalence_classes) {
-        for (&l2, c2) in std::iter::zip(&layers, &equivalence_classes) {
+    for (&l1, c1) in core::iter::zip(&layers, &equivalence_classes) {
+        for (&l2, c2) in core::iter::zip(&layers, &equivalence_classes) {
             assert_eq!(
                 c1.cmp(c2),
                 areas.compare_order(l1, l2),

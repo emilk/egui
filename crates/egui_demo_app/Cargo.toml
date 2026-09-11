@@ -72,6 +72,9 @@ serde = { workspace = true, optional = true }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Always enable eframe's `inspection` feature on native so `EGUI_INSPECTION=1 cargo run -p
+# egui_demo_app` opens an inspection port for `egui_mcp` (no-op when the env var is unset).
+eframe = { workspace = true, features = ["inspection", "system_fonts"] }
 env_logger = { workspace = true, features = ["auto-color", "humantime"] }
 mimalloc.workspace = true
 rfd = { workspace = true, optional = true }
@@ -83,4 +86,6 @@ wasm-bindgen-futures.workspace = true
 web-sys.workspace = true
 
 [dev-dependencies]
+# `monochrome_emoji_fonts` so that the snapshots keep their emoji:
+egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
 egui_kittest = { workspace = true, features = ["eframe", "snapshot", "wgpu"] }

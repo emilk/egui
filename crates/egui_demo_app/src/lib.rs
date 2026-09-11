@@ -19,6 +19,11 @@ pub(crate) fn seconds_since_midnight() -> f64 {
 pub trait DemoApp {
     fn demo_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame);
 
+    /// Run background logic, called every frame even when the app is hidden.
+    ///
+    /// See [`eframe::App::logic`].
+    fn logic(&mut self, _ctx: &egui::Context) {}
+
     #[cfg(feature = "glow")]
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {}
 }

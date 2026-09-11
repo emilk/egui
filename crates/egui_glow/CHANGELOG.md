@@ -6,6 +6,22 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.36.2 - 2026-09-08
+* Fix transparent child viewports on `Windows` with `glow` [#8423](https://github.com/emilk/egui/pull/8423) by [@rustbasic](https://github.com/rustbasic)
+
+
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
+## 0.36.0 - 2026-08-05
+Nothing new
+
+
+## 0.35.0 - 2026-06-25
+* Group `glow` config in a `struct` [#8108](https://github.com/emilk/egui/pull/8108) by [@TapGhoul](https://github.com/TapGhoul)
+
+
 ## 0.34.3 - 2026-05-27
 Nothing new
 

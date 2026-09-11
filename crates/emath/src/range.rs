@@ -1,4 +1,6 @@
-use std::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
+use core::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
+
+use crate::fast_midpoint;
 
 /// Inclusive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
 #[repr(C)]
@@ -52,7 +54,7 @@ impl Rangef {
     /// The center of the range
     #[inline]
     pub fn center(self) -> f32 {
-        0.5 * (self.min + self.max)
+        fast_midpoint(self.min, self.max)
     }
 
     #[inline]
@@ -100,11 +102,19 @@ impl Rangef {
     /// Flip the min and the max
     #[inline]
     #[must_use]
-    pub fn flip(self) -> Self {
+    pub fn flipped(self) -> Self {
         Self {
             min: self.max,
             max: self.min,
         }
+    }
+
+    /// Flip the min and the max
+    #[inline]
+    #[must_use]
+    #[deprecated = "Renamed to `flipped`"]
+    pub fn flip(self) -> Self {
+        self.flipped()
     }
 
     /// The overlap of two ranges, i.e. the range that is contained by both.
@@ -167,6 +177,14 @@ impl From<&RangeInclusive<f32>> for Rangef {
     #[inline]
     fn from(range: &RangeInclusive<f32>) -> Self {
         Self::new(*range.start(), *range.end())
+    }
+}
+
+/// Makes specifying size ranges slightly more convenient (no need for the extra `.0` suffixes)
+impl From<RangeInclusive<i32>> for Rangef {
+    #[inline]
+    fn from(range: RangeInclusive<i32>) -> Self {
+        Self::new(*range.start() as _, *range.end() as _)
     }
 }
 

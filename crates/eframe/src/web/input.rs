@@ -32,7 +32,7 @@ pub fn primary_touch_pos(
     event: &web_sys::TouchEvent,
 ) -> Option<(egui::Pos2, web_sys::Touch)> {
     // On touchend we don't get anything in `touches`, but we still get `changed_touches`, so include those:
-    let all_touches: Vec<_> = std::iter::chain(
+    let all_touches: Vec<_> = core::iter::chain(
         (0..event.touches().length()).filter_map(|i| event.touches().get(i)),
         (0..event.changed_touches().length()).filter_map(|i| event.changed_touches().get(i)),
     )

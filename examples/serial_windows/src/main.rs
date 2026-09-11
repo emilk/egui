@@ -19,7 +19,7 @@ fn main() -> eframe::Result {
         Box::new(|_cc| Ok(Box::new(MyApp { has_next: true }))),
     )?;
 
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    std::thread::sleep(core::time::Duration::from_secs(2));
 
     log::info!("Starting second window…");
     eframe::run_native(
@@ -28,7 +28,7 @@ fn main() -> eframe::Result {
         Box::new(|_cc| Ok(Box::new(MyApp { has_next: true }))),
     )?;
 
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    std::thread::sleep(core::time::Duration::from_secs(2));
 
     log::info!("Starting third window…");
     eframe::run_native(

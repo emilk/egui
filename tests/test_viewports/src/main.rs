@@ -334,7 +334,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             assert!(col < COLS, "The coll should be less than: {COLS}");
 
             let value: String = value.into();
-            let id = Id::new(format!("%{}% {}", self.counter, value));
+            let id = Id::unique(format!("%{}% {}", self.counter, value));
             self.data.insert(id, value);
             let viewport_data = self.containers_data.entry(container).or_insert_with(|| {
                 let mut res = Vec::new();
@@ -451,17 +451,13 @@ fn drop_target<R>(
 ) -> egui::InnerResponse<R> {
     let is_being_dragged = ui.ctx().dragged_id().is_some();
 
-    let margin = egui::Vec2::splat(ui.visuals().clip_rect_margin); // 3.0
-
     let background_id = ui.painter().add(egui::Shape::Noop);
 
     let available_rect = ui.available_rect_before_wrap();
-    let inner_rect = available_rect.shrink2(margin);
-    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(inner_rect));
+    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(available_rect));
     let ret = body(&mut content_ui);
 
-    let outer_rect =
-        egui::Rect::from_min_max(available_rect.min, content_ui.min_rect().max + margin);
+    let outer_rect = egui::Rect::from_min_max(available_rect.min, content_ui.min_rect().max);
     let (rect, response) = ui.allocate_at_least(outer_rect.size(), egui::Sense::hover());
 
     let style = if is_being_dragged && response.hovered() {

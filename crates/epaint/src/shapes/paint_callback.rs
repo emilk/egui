@@ -1,4 +1,5 @@
-use std::{any::Any, sync::Arc};
+use core::any::Any;
+use std::sync::Arc;
 
 use crate::*;
 
@@ -32,7 +33,7 @@ fn test_viewport_rounding() {
         let left = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0)).with_max_x(x);
         let right = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0)).with_min_x(x);
 
-        for pixels_per_point in [0.618, 1.0, std::f32::consts::PI] {
+        for pixels_per_point in [0.618, 1.0, core::f32::consts::PI] {
             let left = ViewportInPixels::from_points(&left, pixels_per_point, [100, 100]);
             let right = ViewportInPixels::from_points(&right, pixels_per_point, [100, 100]);
             assert_eq!(left.left_px + left.width_px, right.left_px);
@@ -81,15 +82,15 @@ pub struct PaintCallback {
     pub callback: Arc<dyn Any + Send + Sync>,
 }
 
-impl std::fmt::Debug for PaintCallback {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for PaintCallback {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("CustomShape")
             .field("rect", &self.rect)
             .finish_non_exhaustive()
     }
 }
 
-impl std::cmp::PartialEq for PaintCallback {
+impl core::cmp::PartialEq for PaintCallback {
     fn eq(&self, other: &Self) -> bool {
         self.rect.eq(&other.rect) && Arc::ptr_eq(&self.callback, &other.callback)
     }

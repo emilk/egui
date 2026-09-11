@@ -301,7 +301,7 @@ impl ColorImage {
     }
 }
 
-impl std::ops::Index<(usize, usize)> for ColorImage {
+impl core::ops::Index<(usize, usize)> for ColorImage {
     type Output = Color32;
 
     #[inline]
@@ -312,7 +312,7 @@ impl std::ops::Index<(usize, usize)> for ColorImage {
     }
 }
 
-impl std::ops::IndexMut<(usize, usize)> for ColorImage {
+impl core::ops::IndexMut<(usize, usize)> for ColorImage {
     #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Color32 {
         let [w, h] = self.size;
@@ -335,8 +335,8 @@ impl From<Arc<ColorImage>> for ImageData {
     }
 }
 
-impl std::fmt::Debug for ColorImage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for ColorImage {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ColorImage")
             .field("size", &self.size)
             .field("pixel-count", &self.pixels.len())

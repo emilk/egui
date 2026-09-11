@@ -1,9 +1,11 @@
 use emath::Rect;
 
 use crate::{
-    Atom, Atoms, Id, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget, WidgetAtom,
-    WidgetInfo, WidgetType, epaint, pos2,
-    widget_style::{CheckboxStyle, Classes, HasClasses},
+    Atom, Atoms, IdSalt, IntoAtoms, NumExt as _, Response, Sense, Shape, Ui, Vec2, Widget,
+    WidgetAtom, WidgetInfo, WidgetType,
+    class::{Classes, HasClasses},
+    epaint, pos2,
+    widget_style::CheckboxStyle,
 };
 
 // TODO(emilk): allow checkbox without a text label
@@ -41,6 +43,13 @@ impl<'a> Checkbox<'a> {
         Self::new(checked, ())
     }
 
+    /// Output the checkbox's [`Atoms`].
+    ///
+    /// This includes any images you have on the checkbox.
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.atoms
+    }
+
     /// Display an indeterminate state (neither checked nor unchecked)
     ///
     /// This only affects the checkbox's appearance. It will still toggle its boolean value when
@@ -63,34 +72,26 @@ impl Widget for Checkbox<'_> {
 
         // Get the widget style by reading the response from the previous pass
         let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
-
         let CheckboxStyle {
+            atom_layout,
             check_size,
             checkbox_frame,
             checkbox_size,
-            frame,
             check_stroke,
-            text_style,
-        } = ui.style().checkbox_style(&classes, state);
+        } = ui.widget_style(id, &classes);
 
-        let mut min_size = Vec2::splat(ui.spacing().interact_size.y);
-        min_size.y = min_size.y.at_least(checkbox_size);
+        let min_size = atom_layout.min_size.at_least(Vec2::new(0.0, checkbox_size));
 
         // In order to center the checkbox based on min_size we set the icon height to at least min_size.y
         let mut icon_size = Vec2::splat(checkbox_size);
         icon_size.y = icon_size.y.at_least(min_size.y);
-        let rect_id = Id::new("egui::checkbox");
+        let rect_id = IdSalt::new("checkbox_icon");
         atoms.push_left(Atom::custom(rect_id, icon_size));
 
         let text = atoms.text().map(String::from);
 
-        let mut prepared = WidgetAtom::new(atoms)
-            .sense(Sense::click())
-            .min_size(min_size)
-            .frame(frame)
-            .allocate(ui);
+        let layout = WidgetAtom::new(atoms).sense(Sense::click());
+        let mut prepared = atom_layout.apply(layout).min_size(min_size).allocate(ui);
 
         if prepared.response.clicked() {
             *checked = !*checked;
@@ -114,7 +115,6 @@ impl Widget for Checkbox<'_> {
         });
 
         if ui.is_rect_visible(prepared.response.rect) {
-            prepared.fallback_text_color = text_style.color;
             let response = prepared.paint(ui);
 
             if let Some(rect) = response.rect(rect_id) {

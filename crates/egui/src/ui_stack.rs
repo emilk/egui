@@ -1,7 +1,7 @@
+use core::{any::Any, iter::FusedIterator};
 use std::sync::Arc;
-use std::{any::Any, iter::FusedIterator};
 
-use crate::widget_style::Classes;
+use crate::class::{Classes, HasClasses as _};
 use epaint::Color32;
 
 use crate::{Direction, Frame, Id, Rect};
@@ -289,6 +289,11 @@ impl UiStack {
     /// Check if this node is or is contained in a [`crate::Ui`] of a specific kind.
     pub fn contained_in(&self, kind: UiKind) -> bool {
         self.iter().any(|frame| frame.kind() == Some(kind))
+    }
+
+    /// Does this node, or any [`crate::Ui`] up the stack, carry this class?
+    pub fn has_class(&self, class: &str) -> bool {
+        self.iter().any(|node| node.classes.has_class(class))
     }
 }
 

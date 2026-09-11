@@ -67,7 +67,7 @@ impl From<[bool; 2]> for Vec2b {
     }
 }
 
-impl std::ops::Index<usize> for Vec2b {
+impl core::ops::Index<usize> for Vec2b {
     type Output = bool;
 
     #[inline(always)]
@@ -80,7 +80,7 @@ impl std::ops::Index<usize> for Vec2b {
     }
 }
 
-impl std::ops::IndexMut<usize> for Vec2b {
+impl core::ops::IndexMut<usize> for Vec2b {
     #[inline(always)]
     fn index_mut(&mut self, index: usize) -> &mut bool {
         match index {
@@ -91,7 +91,7 @@ impl std::ops::IndexMut<usize> for Vec2b {
     }
 }
 
-impl std::ops::Not for Vec2b {
+impl core::ops::Not for Vec2b {
     type Output = Self;
 
     #[inline]

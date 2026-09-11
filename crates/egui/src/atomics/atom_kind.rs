@@ -1,9 +1,11 @@
 use crate::{
     ContainerAtom, FontSelection, Image, ImageSource, SizedAtomKind, Ui, WidgetAtom, WidgetText,
 };
-use emath::Vec2;
+use core::fmt::Debug;
+use emath::{Rect, Vec2};
+use epaint::Color32;
 use epaint::text::TextWrapMode;
-use std::fmt::Debug;
+use std::sync::Arc;
 
 /// Args passed when sizing an [`super::Atom`]
 pub struct IntoSizedArgs {
@@ -23,6 +25,22 @@ pub struct IntoSizedResult<'a> {
 // Otherwise, a single 'static Atom would force the closure to be 'static.
 pub type AtomClosure<'a> = Box<dyn FnOnce(&Ui, IntoSizedArgs) -> IntoSizedResult<'static> + 'a>;
 
+/// Args passed when painting an [`AtomKind::Paint`] atom.
+#[derive(Clone, Copy, Debug)]
+pub struct AtomPaintArgs {
+    /// The rect the layout gave this atom.
+    pub rect: Rect,
+
+    /// The text color of the containing widget, e.g. the color the [`AtomKind::Text`] atoms
+    /// next to this one are painted in.
+    pub fallback_text_color: Color32,
+}
+
+/// See [`AtomKind::Paint`]
+///
+/// It is an [`Arc`] so the atom stays cloneable.
+pub type AtomPaint<'a> = Arc<dyn Fn(&Ui, AtomPaintArgs) + 'a>;
+
 /// The different kinds of [`crate::Atom`]s.
 #[derive(Default)]
 pub enum AtomKind<'a> {
@@ -32,8 +50,7 @@ pub enum AtomKind<'a> {
 
     /// Text atom.
     ///
-    /// Truncation within a [`crate::ContainerAtom`] works like this:
-    /// -
+    /// Truncation within [`crate::WidgetAtom`] works like this:
     /// - if `wrap_mode` is not Extend
     ///   - if no atom is `shrink`
     ///     - the first text atom is selected and will be marked as `shrink`
@@ -68,6 +85,16 @@ pub enum AtomKind<'a> {
     /// When cloning, this will be cloned as [`AtomKind::Empty`].
     Closure(AtomClosure<'a>),
 
+    /// A closure that paints the atom at the [`Rect`] the layout gives it.
+    ///
+    /// It has no size of its own, so set one with [`crate::AtomExt::atom_size`], or use
+    /// [`crate::Atom::paint`], which does that for you. If the size depends on the [`Ui`],
+    /// return a [`SizedAtomKind::Paint`] from an [`AtomKind::Closure`] instead.
+    ///
+    /// Use this for widgets that draw their own shapes, like the check mark of
+    /// [`crate::Checkbox`].
+    Paint(AtomPaint<'a>),
+
     /// A nested [`WidgetAtom`], letting you embed an atom-based widget as a single atom
     /// inside another [`WidgetAtom`].
     ///
@@ -96,6 +123,7 @@ impl Clone for AtomKind<'_> {
                 log::warn!("Cannot clone atom closures");
                 AtomKind::Empty
             }
+            AtomKind::Paint(paint) => AtomKind::Paint(Arc::clone(paint)),
             AtomKind::Widget(layout) => AtomKind::Widget(layout.clone()),
             AtomKind::Container(container) => AtomKind::Container(container.clone()),
         }
@@ -103,12 +131,13 @@ impl Clone for AtomKind<'_> {
 }
 
 impl Debug for AtomKind<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             AtomKind::Empty => write!(f, "AtomKind::Empty"),
             AtomKind::Text(text) => write!(f, "AtomKind::Text({text:?})"),
             AtomKind::Image(image) => write!(f, "AtomKind::Image({image:?})"),
             AtomKind::Closure(_) => write!(f, "AtomKind::Closure(<closure>)"),
+            AtomKind::Paint(_) => write!(f, "AtomKind::Paint(<closure>)"),
             AtomKind::Widget(_) => write!(f, "AtomKind::Widget(<widget>)"),
             AtomKind::Container(_) => write!(f, "AtomKind::Container(<container>)"),
         }
@@ -124,6 +153,11 @@ impl<'a> AtomKind<'a> {
     /// See [`Self::Image`]
     pub fn image(image: impl Into<Image<'a>>) -> Self {
         AtomKind::Image(image.into())
+    }
+
+    /// See [`Self::Paint`]
+    pub fn paint(func: impl Fn(&Ui, AtomPaintArgs) + 'a) -> Self {
+        AtomKind::Paint(Arc::new(func))
     }
 
     /// See [`Self::Closure`]
@@ -172,15 +206,22 @@ impl<'a> AtomKind<'a> {
                     fallback_font,
                 },
             ),
-            AtomKind::Widget(widget) => {
-                let sized = widget.measure(ui, available_size);
+            AtomKind::Paint(paint) => IntoSizedResult {
+                intrinsic_size: Vec2::ZERO,
+                sized: SizedAtomKind::Paint {
+                    paint,
+                    size: Vec2::ZERO,
+                },
+            },
+            AtomKind::Widget(layout) => {
+                let sized = layout.measure(ui, available_size);
                 IntoSizedResult {
                     intrinsic_size: sized.intrinsic_size,
                     sized: SizedAtomKind::Widget(Box::new(sized)),
                 }
             }
-            AtomKind::Container(container) => {
-                let sized = container.measure(ui, available_size);
+            AtomKind::Container(layout) => {
+                let sized = layout.measure(ui, available_size);
                 IntoSizedResult {
                     intrinsic_size: sized.intrinsic_size,
                     sized: SizedAtomKind::Container(Box::new(sized)),
@@ -212,8 +253,8 @@ where
 }
 
 impl<'a> From<WidgetAtom<'a>> for AtomKind<'a> {
-    fn from(widget: WidgetAtom<'a>) -> Self {
-        AtomKind::Widget(Box::new(widget))
+    fn from(layout: WidgetAtom<'a>) -> Self {
+        AtomKind::Widget(Box::new(layout))
     }
 }
 

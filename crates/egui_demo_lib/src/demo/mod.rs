@@ -7,6 +7,7 @@
 pub mod about;
 pub mod code_editor;
 pub mod code_example;
+pub mod completion;
 pub mod dancing_strings;
 pub mod demo_app_windows;
 pub mod drag_and_drop;
@@ -62,4 +63,8 @@ pub trait Demo {
 
     /// Show windows, etc
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool);
+
+    /// Run background logic, called every frame even when the demo window is closed
+    /// or the app is hidden.
+    fn logic(&mut self, _ctx: &egui::Context) {}
 }

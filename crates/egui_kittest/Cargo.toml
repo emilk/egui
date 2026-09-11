@@ -26,6 +26,9 @@ wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image", "dep:wgpu", "eframe?/wgpu"
 ## Adds a dify-based image snapshot utility.
 snapshot = ["dep:dify", "dep:image", "dep:open", "dep:tempfile", "image/png"]
 
+## Record a test session as an MP4 video.
+video = ["snapshot"]
+
 ## Allows testing eframe::App
 eframe = ["dep:eframe", "eframe/accesskit"]
 
@@ -37,6 +40,7 @@ x11 = ["eframe?/x11"]
 egui.workspace = true
 eframe = { workspace = true, optional = true }
 kittest.workspace = true
+log.workspace = true
 serde.workspace = true
 toml = { workspace = true, features = ["parse", "serde"] }
 
@@ -59,9 +63,11 @@ open = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 
 [dev-dependencies]
-egui = { workspace = true, features = ["default_fonts"] }
+# `monochrome_emoji_fonts` so that the snapshots keep their emoji:
+egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
 image = { workspace = true, features = ["png"] }
 egui_extras = { workspace = true, features = ["image", "http"] }
+tempfile.workspace = true
 
 [lints]
 workspace = true

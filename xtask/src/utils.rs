@@ -27,7 +27,7 @@ pub fn ask_to_run(mut cmd: Command, ask: bool, reason: &str) -> Result<(), DynEr
     let is_ci = env::var_os("CI").is_some() || env::var_os("TF_BUILD").is_some();
     if ask && !is_ci {
         let mut buf = String::new();
-        print!("The script is going to run: \n\n`{cmd:?}`\n\n To {reason}.\nProceed? [Y/n] ",);
+        print!("The script is going to run: \n\n`{cmd:?}`\n\n To {reason}.\nProceed? [Y/n] ");
         io::stdout().flush().unwrap();
         io::stdin().read_line(&mut buf).unwrap();
         match buf.trim().to_lowercase().as_ref() {

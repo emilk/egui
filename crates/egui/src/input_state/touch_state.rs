@@ -1,4 +1,5 @@
-use std::{collections::BTreeMap, fmt::Debug};
+use core::fmt::Debug;
+use std::collections::BTreeMap;
 
 use crate::{
     Event, RawInput, TouchId, TouchPhase,
@@ -305,7 +306,7 @@ impl TouchState {
 
 impl Debug for TouchState {
     // This outputs less clutter than `#[derive(Debug)]`:
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for (id, touch) in &self.active_touches {
             f.write_fmt(format_args!("#{id:?}: {touch:#?}\n"))?;
         }

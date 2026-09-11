@@ -5,6 +5,26 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.2 - 2026-09-08
+* Hide drop shadow window decoration when in fullscreen mode [#8449](https://github.com/emilk/egui/pull/8449) by [@tarolling](https://github.com/tarolling)
+
+
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
+## 0.36.0 - 2026-08-05
+Nothing new
+
+
+## 0.35.0 - 2026-06-25
+* Delegate handling of IME interruptions to integrations to fix virtual keyboard flickering on web [#8078](https://github.com/emilk/egui/pull/8078) by [@umajho](https://github.com/umajho)
+* Always enable windows undecorated shadows [#8169](https://github.com/emilk/egui/pull/8169) by [@Wumpf](https://github.com/Wumpf)
+* Choose restored window monitor by overlap [#8191](https://github.com/emilk/egui/pull/8191) by [@YelovSK](https://github.com/YelovSK)
+* Add `ViewportBuilder::with_monitor` + `ViewportCommand::SetMonitor` [#8140](https://github.com/emilk/egui/pull/8140) by [@Le-Syl21](https://github.com/Le-Syl21)
+* Implement proper visuals for IME composition [#8083](https://github.com/emilk/egui/pull/8083) by [@umajho](https://github.com/umajho)
+
+
 ## 0.34.3 - 2026-05-27
 Nothing new
 

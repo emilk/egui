@@ -1,4 +1,8 @@
-use egui::{Align, AtomExt as _, Button, Layout, TextWrapMode, Ui, Vec2};
+use egui::{
+    Align, Atom, AtomExt as _, Button, Direction, Frame, Layout, TextWrapMode, Ui, Vec2,
+    WidgetAtom,
+    widget_style::{ButtonStyle, StyleArgs},
+};
 use egui_kittest::{HarnessBuilder, SnapshotResult, SnapshotResults};
 
 #[test]
@@ -120,6 +124,54 @@ fn test_button_shortcut_text() {
     harness.snapshot("button_shortcut");
 }
 
+/// Test atom nesting and [`egui::WidgetAtom::direction`].
+#[test]
+fn test_atom_layout_nesting_and_direction() {
+    let mut harness = HarnessBuilder::default().build_ui(|ui| {
+        let style = ui.style();
+        let canvas_frame = Frame::canvas(style);
+
+        let button_frame = ui
+            .get_widget_style::<ButtonStyle>(&StyleArgs {
+                classes: &egui::class::Classes::default(),
+                state: egui::widget_style::WidgetState::Inactive,
+                ctx: ui,
+                stack: ui.stack(),
+                style,
+            })
+            .atom_layout
+            .frame;
+
+        let row = |direction: Direction| {
+            Atom::widget(
+                WidgetAtom::new(("one", "two", "three"))
+                    .direction(direction)
+                    .frame(button_frame),
+            )
+        };
+
+        WidgetAtom::new((
+            Atom::widget(
+                WidgetAtom::new((
+                    row(Direction::LeftToRight).atom_grow(true),
+                    row(Direction::RightToLeft).atom_grow(true),
+                ))
+                .direction(Direction::TopDown),
+            )
+            .atom_grow(true),
+            row(Direction::TopDown),
+            row(Direction::BottomUp),
+        ))
+        .direction(Direction::LeftToRight)
+        .frame(canvas_frame)
+        .show(ui);
+    });
+
+    harness.fit_contents();
+
+    harness.snapshot("atom_layout_nesting");
+}
+
 /// Tests the spacing between galleys.
 /// All of these should look the same.
 #[test]
@@ -139,4 +191,95 @@ fn test_atom_letter_spacing() {
     harness.fit_contents();
 
     harness.snapshot("atom_letter_spacing");
+}
+
+/// `WidgetAtom::selectable(true)` should opt the layout into click+drag sensing
+/// so its text can be selected, while the default layout stays inert.
+/// See <https://github.com/emilk/egui/issues/8217>.
+#[test]
+fn test_atom_selectable_senses_click_and_drag() {
+    use egui::{Sense, WidgetAtom};
+
+    let mut captured = (Sense::hover(), Sense::hover());
+    {
+        let mut harness = HarnessBuilder::default().build_ui(|ui| {
+            let selectable = WidgetAtom::new("selectable").selectable(true).show(ui);
+            let default = WidgetAtom::new("default").show(ui);
+            captured = (selectable.response.sense, default.response.sense);
+        });
+        harness.run();
+    }
+
+    let (selectable_sense, default_sense) = captured;
+    assert!(
+        selectable_sense.senses_click() && selectable_sense.senses_drag(),
+        "a selectable WidgetAtom should sense clicks and drags"
+    );
+    assert!(
+        !default_sense.senses_drag(),
+        "a non-selectable WidgetAtom should stay inert"
+    );
+}
+
+/// Selecting the text of a `selectable` [`egui::WidgetAtom`] and copying it should
+/// yield the text, while a non-selectable one yields nothing.
+/// See <https://github.com/emilk/egui/issues/8217>.
+#[test]
+fn test_atom_selectable_text_can_be_copied() {
+    use core::cell::Cell;
+    use egui::{Event, Modifiers, OutputCommand, PointerButton, Pos2, Rect, WidgetAtom};
+
+    fn copied_text(selectable: bool) -> Option<String> {
+        let rect_cell = Cell::new(Rect::NOTHING);
+        let mut harness = HarnessBuilder::default()
+            .with_size(Vec2::new(400.0, 100.0))
+            .build_ui(|ui| {
+                let response = WidgetAtom::new("selectable atoms")
+                    .selectable(selectable)
+                    .show(ui);
+                rect_cell.set(response.response.rect);
+            });
+        harness.run();
+
+        let rect = rect_cell.get();
+        let left = Pos2::new(rect.left() + 1.0, rect.center().y);
+        let right = Pos2::new(rect.right() - 1.0, rect.center().y);
+
+        // Press at the start of the text and drag to the end to select all of it.
+        harness.event(Event::PointerMoved(left));
+        harness.event(Event::PointerButton {
+            pos: left,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        });
+        harness.run();
+        harness.event(Event::PointerMoved(right));
+        harness.run();
+
+        // Copy, then read back the clipboard command produced by this frame.
+        harness.event(Event::Copy);
+        harness.step();
+
+        harness
+            .output()
+            .platform_output
+            .commands
+            .iter()
+            .find_map(|cmd| match cmd {
+                OutputCommand::CopyText(text) => Some(text.clone()),
+                _ => None,
+            })
+    }
+
+    assert_eq!(
+        copied_text(true).as_deref(),
+        Some("selectable atoms"),
+        "selectable atom text should be copyable after selecting it"
+    );
+    assert_eq!(
+        copied_text(false),
+        None,
+        "non-selectable atom text should not be selectable"
+    );
 }

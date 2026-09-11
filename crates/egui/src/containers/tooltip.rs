@@ -129,7 +129,15 @@ impl Tooltip<'_> {
         });
 
         let tooltip_area_id = Self::tooltip_id(parent_widget, state.tooltip_count);
-        popup = popup.anchor(state.bounding_rect).id(tooltip_area_id);
+
+        // Tooltips without interactive contents should not be interactable (hover should pass
+        // through to the widget below).
+        let interactable = Self::had_interactive_widgets(popup.ctx(), tooltip_area_id);
+
+        popup = popup
+            .anchor(state.bounding_rect)
+            .id(tooltip_area_id)
+            .interactable(interactable);
 
         let response = popup.show(|ui| {
             // By default, the text in tooltips aren't selectable.
@@ -157,7 +165,7 @@ impl Tooltip<'_> {
     }
 
     fn when_was_a_toolip_last_shown_id() -> Id {
-        Id::new("when_was_a_toolip_last_shown")
+        Id::unique("when_was_a_toolip_last_shown")
     }
 
     pub fn seconds_since_last_tooltip(ctx: &Context) -> f32 {
@@ -190,6 +198,20 @@ impl Tooltip<'_> {
 
     pub fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
         widget_id.with(tooltip_count)
+    }
+
+    /// Did this tooltip contain anything the user can interact with, last pass?
+    ///
+    /// Most tooltips are just text. Those should not react to the pointer at all,
+    /// or they would steal the hover from the widget they belong to.
+    fn had_interactive_widgets(ctx: &Context, tooltip_id: Id) -> bool {
+        let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
+        ctx.viewport(|vp| {
+            vp.prev_pass
+                .widgets
+                .get_layer(tooltip_layer_id)
+                .any(|w| w.enabled && w.sense.interactive())
+        })
     }
 
     /// Should we show a tooltip for this response?
@@ -247,15 +269,9 @@ impl Tooltip<'_> {
             // Check if we should automatically stay open:
 
             let tooltip_id = Self::next_tooltip_id(&response.ctx, response.id);
-            let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
             let tooltip_has_interactive_widget = allow_interactive_tooltip
-                && response.ctx.viewport(|vp| {
-                    vp.prev_pass
-                        .widgets
-                        .get_layer(tooltip_layer_id)
-                        .any(|w| w.enabled && w.sense.interactive())
-                });
+                && Self::had_interactive_widgets(&response.ctx, tooltip_id);
 
             if tooltip_has_interactive_widget {
                 // We keep the tooltip open if hovered,

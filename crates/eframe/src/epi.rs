@@ -7,7 +7,7 @@
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
 #[cfg(target_arch = "wasm32")]
-use std::any::Any;
+use core::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
@@ -41,7 +41,7 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
-type DynError = Box<dyn std::error::Error + Send + Sync>;
+type DynError = Box<dyn core::error::Error + Send + Sync>;
 
 /// This is how your app is created.
 ///
@@ -73,7 +73,7 @@ pub struct CreationContext<'s> {
     /// The `get_proc_address` wrapper of underlying GL context
     #[cfg(feature = "glow")]
     pub get_proc_address:
-        Option<std::sync::Arc<dyn Fn(&std::ffi::CStr) -> *const std::ffi::c_void + Send + Sync>>,
+        Option<std::sync::Arc<dyn Fn(&core::ffi::CStr) -> *const core::ffi::c_void + Send + Sync>>,
 
     /// The underlying WGPU render state.
     ///
@@ -155,6 +155,12 @@ pub trait App {
     ///
     /// You may NOT show any ui or do any painting during the call to [`Self::logic`].
     ///
+    /// While the window is hidden, `eframe` runs no egui pass at all (so that no ui state is
+    /// disturbed), and calls this via [`egui::Context::run_logic`] instead.
+    /// You can then still tell that the window is hidden with
+    /// [`egui::InputState::viewport`], but the rest of [`egui::Context::input`]
+    /// (events, time, …) is that of the last shown frame.
+    ///
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force another call to [`Self::logic`], call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
@@ -225,8 +231,8 @@ pub trait App {
     // Settings:
 
     /// Time between automatic calls to [`Self::save`]
-    fn auto_save_interval(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(30)
+    fn auto_save_interval(&self) -> core::time::Duration {
+        core::time::Duration::from_secs(30)
     }
 
     /// Background color values for the app, e.g. what is sent to `gl.clearColor`.
@@ -372,6 +378,15 @@ pub struct NativeOptions {
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
 
+    /// Load system fonts on demand for characters that the installed fonts lack,
+    /// e.g. CJK, Arabic, or Devanagari (only if the `system_fonts` feature is enabled).
+    ///
+    /// Turn this off if you bundle fonts that cover everything your app shows,
+    /// or if you need identical text rendering on all machines.
+    ///
+    /// Default: `true`.
+    pub system_font_fallback: bool,
+
     /// The folder where `eframe` will store the app state. If not set, eframe will use a default
     /// data storage path for each target system.
     pub persistence_path: Option<std::path::PathBuf>,
@@ -455,6 +470,8 @@ impl Default for NativeOptions {
                 .with_surface_config(egui_wgpu::SurfaceConfig::LOW_LATENCY),
 
             persist_window: true,
+
+            system_font_fallback: true,
 
             persistence_path: None,
 
@@ -615,8 +632,8 @@ impl Default for Renderer {
 }
 
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-impl std::fmt::Display for Renderer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Renderer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             #[cfg(feature = "glow")]
             Self::Glow => "glow".fmt(f),
@@ -628,7 +645,7 @@ impl std::fmt::Display for Renderer {
 }
 
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-impl std::str::FromStr for Renderer {
+impl core::str::FromStr for Renderer {
     type Err = String;
 
     fn from_str(name: &str) -> Result<Self, String> {
@@ -941,6 +958,9 @@ pub trait Storage {
 
     /// Set the value for the given key.
     fn set_string(&mut self, key: &str, value: String);
+
+    /// Remove a given key.
+    fn remove_string(&mut self, key: &str);
 
     /// write-to-disk or similar
     fn flush(&mut self);

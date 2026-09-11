@@ -1,6 +1,12 @@
-use std::{borrow::Cow, ops::Range};
+use core::ops::Range;
+use std::borrow::Cow;
 
-use epaint::{Galley, text::cursor::CCursor};
+use epaint::{
+    Galley,
+    text::{
+        ByteIndex, ByteRangeExt as _, CharIndex, CharRange, CharRangeExt as _, cursor::CCursor,
+    },
+};
 
 /// One `\t` character is this many spaces wide (for indentation purposes).
 const TAB_SIZE: usize = 4;
@@ -31,36 +37,36 @@ pub trait TextBuffer {
     ///
     /// # Return
     /// Returns how many *characters* were successfully inserted
-    fn insert_text(&mut self, text: &str, char_index: usize) -> usize;
+    fn insert_text(&mut self, text: &str, char_index: CharIndex) -> usize;
 
     /// Deletes a range of text `char_range` from this buffer.
     ///
     /// # Notes
     /// `char_range` is a *character range*, not a byte range.
-    fn delete_char_range(&mut self, char_range: Range<usize>);
+    fn delete_char_range(&mut self, char_range: Range<CharIndex>);
 
     /// Reads the given character range.
-    fn char_range(&self, char_range: Range<usize>) -> &str {
+    fn char_range(&self, char_range: Range<CharIndex>) -> &str {
         slice_char_range(self.as_str(), char_range)
     }
 
-    fn byte_index_from_char_index(&self, char_index: usize) -> usize {
+    fn byte_index_from_char_index(&self, char_index: CharIndex) -> ByteIndex {
         byte_index_from_char_index(self.as_str(), char_index)
     }
 
-    fn char_index_from_byte_index(&self, char_index: usize) -> usize {
-        char_index_from_byte_index(self.as_str(), char_index)
+    fn char_index_from_byte_index(&self, byte_index: ByteIndex) -> CharIndex {
+        char_index_from_byte_index(self.as_str(), byte_index)
     }
 
     /// Clears all characters in this buffer
     fn clear(&mut self) {
-        self.delete_char_range(0..self.as_str().len());
+        self.delete_char_range(CharRange::full(self.as_str()));
     }
 
     /// Replaces all contents of this string with `text`
     fn replace_with(&mut self, text: &str) {
         self.clear();
-        self.insert_text(text, 0);
+        self.insert_text(text, CharIndex(0));
     }
 
     /// Clears all characters in this buffer and returns a string of the contents.
@@ -90,12 +96,12 @@ pub trait TextBuffer {
     fn decrease_indentation(&mut self, ccursor: &mut CCursor) {
         let line_start = find_line_start(self.as_str(), *ccursor);
 
-        let remove_len = if self.as_str().chars().nth(line_start.index) == Some('\t') {
+        let remove_len = if self.as_str().chars().nth(line_start.index.0) == Some('\t') {
             Some(1)
         } else if self
             .as_str()
             .chars()
-            .skip(line_start.index)
+            .skip(line_start.index.0)
             .take(TAB_SIZE)
             .all(|c| c == ' ')
         {
@@ -126,7 +132,7 @@ pub trait TextBuffer {
     }
 
     fn delete_previous_char(&mut self, ccursor: CCursor) -> CCursor {
-        if ccursor.index > 0 {
+        if CharIndex::ZERO < ccursor.index {
             let max_ccursor = ccursor;
             let min_ccursor = max_ccursor - 1;
             self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
@@ -147,6 +153,30 @@ pub trait TextBuffer {
     fn delete_next_word(&mut self, min_ccursor: CCursor) -> CCursor {
         let max_ccursor = ccursor_next_word(self.as_str(), min_ccursor);
         self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
+    }
+
+    /// Deletes characters surrounding the current cursor range.
+    ///
+    /// Removes `before_chars` characters before the selection start and
+    /// `after_chars` characters after the selection end.
+    /// The returned [`CCursorRange`] is adjusted to account for the removed
+    /// characters before the selection.
+    fn delete_surrounding_chars(
+        &mut self,
+        mut cursor_range: CCursorRange,
+        before_chars: usize,
+        after_chars: usize,
+    ) -> CCursorRange {
+        let [min, max] = cursor_range.sorted_cursors();
+        if after_chars > 0 {
+            self.delete_selected_ccursor_range([max, max + after_chars]);
+        }
+        if before_chars > 0 {
+            self.delete_selected_ccursor_range([min - before_chars, min]);
+            cursor_range.primary -= before_chars;
+            cursor_range.secondary -= before_chars;
+        }
+        cursor_range
     }
 
     fn delete_paragraph_before_cursor(
@@ -190,8 +220,8 @@ pub trait TextBuffer {
     /// impl TextBuffer for ExampleBuffer {
     ///     fn is_mutable(&self) -> bool { unimplemented!() }
     ///     fn as_str(&self) -> &str { unimplemented!() }
-    ///     fn insert_text(&mut self, text: &str, char_index: usize) -> usize { unimplemented!() }
-    ///     fn delete_char_range(&mut self, char_range: std::ops::Range<usize>) { unimplemented!() }
+    ///     fn insert_text(&mut self, text: &str, char_index: egui::text::CharIndex) -> usize { unimplemented!() }
+    ///     fn delete_char_range(&mut self, char_range: std::ops::Range<egui::text::CharIndex>) { unimplemented!() }
     ///
     ///     // Implement it like the following:
     ///     fn type_id(&self) -> TypeId {
@@ -208,7 +238,7 @@ pub trait TextBuffer {
     ///     }
     /// }
     /// ```
-    fn type_id(&self) -> std::any::TypeId;
+    fn type_id(&self) -> core::any::TypeId;
 }
 
 impl TextBuffer for String {
@@ -220,17 +250,17 @@ impl TextBuffer for String {
         self.as_ref()
     }
 
-    fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
+    fn insert_text(&mut self, text: &str, char_index: CharIndex) -> usize {
         // Get the byte index from the character index
         let byte_idx = byte_index_from_char_index(self.as_str(), char_index);
 
         // Then insert the string
-        self.insert_str(byte_idx, text);
+        self.insert_str(byte_idx.into(), text);
 
         text.chars().count()
     }
 
-    fn delete_char_range(&mut self, char_range: Range<usize>) {
+    fn delete_char_range(&mut self, char_range: Range<CharIndex>) {
         assert!(
             char_range.start <= char_range.end,
             "start must be <= end, but got {char_range:?}"
@@ -241,7 +271,7 @@ impl TextBuffer for String {
         let byte_end = byte_index_from_char_index(self.as_str(), char_range.end);
 
         // Then drain all characters within this range
-        self.drain(byte_start..byte_end);
+        self.drain((byte_start..byte_end).as_usize());
     }
 
     fn clear(&mut self) {
@@ -253,11 +283,11 @@ impl TextBuffer for String {
     }
 
     fn take(&mut self) -> String {
-        std::mem::take(self)
+        core::mem::take(self)
     }
 
-    fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<Self>()
+    fn type_id(&self) -> core::any::TypeId {
+        core::any::TypeId::of::<Self>()
     }
 }
 
@@ -270,11 +300,11 @@ impl TextBuffer for Cow<'_, str> {
         self.as_ref()
     }
 
-    fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
+    fn insert_text(&mut self, text: &str, char_index: CharIndex) -> usize {
         <String as TextBuffer>::insert_text(self.to_mut(), text, char_index)
     }
 
-    fn delete_char_range(&mut self, char_range: Range<usize>) {
+    fn delete_char_range(&mut self, char_range: Range<CharIndex>) {
         <String as TextBuffer>::delete_char_range(self.to_mut(), char_range);
     }
 
@@ -287,11 +317,11 @@ impl TextBuffer for Cow<'_, str> {
     }
 
     fn take(&mut self) -> String {
-        std::mem::take(self).into_owned()
+        core::mem::take(self).into_owned()
     }
 
-    fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<Cow<'_, str>>()
+    fn type_id(&self) -> core::any::TypeId {
+        core::any::TypeId::of::<Cow<'_, str>>()
     }
 }
 
@@ -305,13 +335,119 @@ impl TextBuffer for &str {
         self
     }
 
-    fn insert_text(&mut self, _text: &str, _ch_idx: usize) -> usize {
+    fn insert_text(&mut self, _text: &str, _ch_idx: CharIndex) -> usize {
         0
     }
 
-    fn delete_char_range(&mut self, _ch_range: Range<usize>) {}
+    fn delete_char_range(&mut self, _ch_range: Range<CharIndex>) {}
 
-    fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<&str>()
+    fn type_id(&self) -> core::any::TypeId {
+        core::any::TypeId::of::<&str>()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn txt_n_sel(input: &str) -> (String, CCursorRange) {
+        assert!(
+            input.matches('[').count() == 1 && input.matches(']').count() == 1,
+            "`input` must contain exactly one `[` and one `]` to indicate the selection (cursor range)"
+        );
+        let mut primary_index = input.chars().position(|c| c == ']').unwrap();
+        let mut secondary_index = input.chars().position(|c| c == '[').unwrap();
+        let text = input.replace(['[', ']'], "");
+        if primary_index > secondary_index {
+            primary_index -= 1;
+        } else {
+            secondary_index -= 1;
+        }
+        let cursor_range = CCursorRange {
+            primary: CCursor::new(primary_index),
+            secondary: CCursor::new(secondary_index),
+            h_pos: None,
+        };
+        (text, cursor_range)
+    }
+
+    #[test]
+    fn test_txt_n_sel() {
+        assert_eq!(
+            txt_n_sel("<<L[]R>>"),
+            ("<<LR>>".to_owned(), CCursorRange::one(CCursor::new(3)))
+        );
+        assert_eq!(
+            txt_n_sel("<<L[_]R>>"),
+            (
+                "<<L_R>>".to_owned(),
+                CCursorRange::two(CCursor::new(3), CCursor::new(4))
+            )
+        );
+        assert_eq!(
+            txt_n_sel("<<左[_]右>>"),
+            (
+                "<<左_右>>".to_owned(),
+                CCursorRange::two(CCursor::new(3), CCursor::new(4))
+            )
+        );
+        assert_eq!(
+            txt_n_sel("<<L]_[R>>"),
+            (
+                "<<L_R>>".to_owned(),
+                CCursorRange::two(CCursor::new(4), CCursor::new(3))
+            )
+        );
+    }
+
+    #[test]
+    fn test_delete_surrounding_chars() {
+        fn test_case(
+            (mut input_text, input_cursor_range): (String, CCursorRange),
+            before_chars: usize,
+            after_chars: usize,
+            (expected_text, expected_cursor_range): (String, CCursorRange),
+        ) {
+            let new_cursor_range =
+                input_text.delete_surrounding_chars(input_cursor_range, before_chars, after_chars);
+            assert_eq!(input_text, expected_text);
+            assert_eq!(new_cursor_range, expected_cursor_range);
+        }
+
+        // 1 byte per char
+        test_case(txt_n_sel("<<L[]R>>"), 1, 1, txt_n_sel("<<[]>>"));
+        test_case(txt_n_sel("<<L[_]R>>"), 1, 0, txt_n_sel("<<[_]R>>"));
+        test_case(txt_n_sel("<<L[_]R>>"), 0, 1, txt_n_sel("<<L[_]>>"));
+        test_case(txt_n_sel("<<L[_]R>>"), 1, 1, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<L[__]R>>"), 1, 1, txt_n_sel("<<[__]>>"));
+        test_case(txt_n_sel("<<LL[_]RR>>"), 2, 2, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<L]_[R>>"), 1, 0, txt_n_sel("<<]_[R>>"));
+        test_case(txt_n_sel("<<L]_[R>>"), 0, 1, txt_n_sel("<<L]_[>>"));
+        test_case(txt_n_sel("<<L]_[R>>"), 1, 1, txt_n_sel("<<]_[>>"));
+
+        // 2 bytes per char: `˻` = `0xCB 0xBB`, `˼` = `0xCB 0xBC`
+        test_case(txt_n_sel("<<˻[]˼>>"), 1, 1, txt_n_sel("<<[]>>"));
+        test_case(txt_n_sel("<<˻[_]˼>>"), 1, 0, txt_n_sel("<<[_]˼>>"));
+        test_case(txt_n_sel("<<˻[_]˼>>"), 0, 1, txt_n_sel("<<˻[_]>>"));
+        test_case(txt_n_sel("<<˻[_]˼>>"), 1, 1, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<˻[__]˼>>"), 1, 1, txt_n_sel("<<[__]>>"));
+        test_case(txt_n_sel("<<˻˻[_]˼˼>>"), 2, 2, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<˻]_[˼>>"), 1, 0, txt_n_sel("<<]_[˼>>"));
+        test_case(txt_n_sel("<<˻]_[˼>>"), 0, 1, txt_n_sel("<<˻]_[>>"));
+        test_case(txt_n_sel("<<˻]_[˼>>"), 1, 1, txt_n_sel("<<]_[>>"));
+
+        // 3 bytes per char: `左` = `0xE5 0xB7 0xA6`, `右` = `0xE5 0x8F 0xB3`
+        test_case(txt_n_sel("<<左[]右>>"), 1, 1, txt_n_sel("<<[]>>"));
+        test_case(txt_n_sel("<<左[_]右>>"), 1, 0, txt_n_sel("<<[_]右>>"));
+        test_case(txt_n_sel("<<左[_]右>>"), 0, 1, txt_n_sel("<<左[_]>>"));
+        test_case(txt_n_sel("<<左[_]右>>"), 1, 1, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<左[__]右>>"), 1, 1, txt_n_sel("<<[__]>>"));
+        test_case(txt_n_sel("<<左左[_]右右>>"), 2, 2, txt_n_sel("<<[_]>>"));
+        test_case(txt_n_sel("<<左]_[右>>"), 1, 0, txt_n_sel("<<]_[右>>"));
+        test_case(txt_n_sel("<<左]_[右>>"), 0, 1, txt_n_sel("<<左]_[>>"));
+        test_case(txt_n_sel("<<左]_[右>>"), 1, 1, txt_n_sel("<<]_[>>"));
+
+        // mixed
+        test_case(txt_n_sel("<<L˻左[_]R˼右>>"), 3, 3, txt_n_sel("<<[_]>>"));
     }
 }

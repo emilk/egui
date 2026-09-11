@@ -1,7 +1,7 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
+use core::{iter, ops::Range};
 use std::sync::Arc;
-use std::{iter, ops::Range};
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
@@ -9,33 +9,23 @@ use crate::{
     Color32, Mesh, Stroke, Vertex,
     stroke::PathStroke,
     text::{
-        font::{StyledMetrics, UvRect, is_cjk, is_cjk_break_allowed},
-        fonts::FontFaceKey,
+        ByteIndex, ByteRange, FontPriority,
+        face_store::FontFaceKey,
+        fonts::FontsImpl,
+        styled_metrics::StyledMetrics,
+        unicode::{is_cjk, is_cjk_break_allowed, is_combining_mark},
     },
 };
 
 use super::{
-    FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
+    ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
     VariationCoords,
-    font::{Font, FontFace, ShapedGlyph},
+    family::FamilyKey,
+    font_face::{FontFace, GlyphInfo, ShapedGlyph},
+    glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
 };
 
 // ----------------------------------------------------------------------------
-
-/// Returns `true` if the character is a Unicode combining mark (categories Mn, Mc, Me).
-///
-/// These characters modify the preceding base character and should not be
-/// rendered as standalone replacement glyphs when the shaper can't handle them.
-#[inline]
-fn is_combining_mark(c: char) -> bool {
-    use unicode_general_category::{GeneralCategory, get_general_category};
-    matches!(
-        get_general_category(c),
-        GeneralCategory::NonspacingMark
-            | GeneralCategory::SpacingMark
-            | GeneralCategory::EnclosingMark
-    )
-}
 
 /// Represents GUI scale and convenience methods for rounding to pixels.
 #[derive(Clone, Copy)]
@@ -97,8 +87,10 @@ impl Paragraph {
 ///
 /// In most cases you should use [`crate::FontsView::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
-pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>) -> Galley {
+pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>) -> Galley {
     profiling::function_scope!();
+
+    job.debug_sanity_check();
 
     if job.wrap.max_rows == 0 {
         // Early-out: no text
@@ -121,9 +113,8 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
     {
         let mut shape_buffer = fonts.take_shape_buffer();
         for (section_index, section) in job.sections.iter().enumerate() {
-            let mut font = fonts.font(&section.format.font_id.family);
             shape_buffer = layout_section(
-                &mut font,
+                fonts,
                 shape_buffer,
                 pixels_per_point,
                 &job,
@@ -173,6 +164,8 @@ pub fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<LayoutJob>)
 
 /// Shared context for emitting shaped glyphs into a [`Paragraph`].
 struct ShapingContext {
+    /// The family of the section being shaped.
+    family: FamilyKey,
     pixels_per_point: f32,
     font_size: f32,
     line_height: f32,
@@ -190,8 +183,9 @@ impl ShapingContext {
         physical_x: i32,
         advance_width_px: f32,
         face_metrics: &StyledMetrics,
-        uv_rect: UvRect,
+        alloc: GlyphAllocation,
     ) -> Glyph {
+        let GlyphAllocation { uv_rect, is_color } = alloc;
         Glyph {
             chr,
             pos: pos2(physical_x as f32 / self.pixels_per_point, f32::NAN),
@@ -202,6 +196,7 @@ impl ShapingContext {
             font_height: self.font_metrics.row_height,
             font_ascent: self.font_metrics.ascent,
             uv_rect,
+            is_color,
             section_index: self.section_index,
             first_vertex: 0,
         }
@@ -212,10 +207,17 @@ impl ShapingContext {
 #[derive(Debug)]
 struct TextRun {
     /// Which font face should shape this run.
+    ///
+    /// Ignored if `raster` is set.
     font_key: FontFaceKey,
 
     /// Byte range within the section text.
-    byte_range: std::ops::Range<usize>,
+    byte_range: ByteRange,
+
+    /// Set if a priority [`GlyphRasterizer`](crate::text::GlyphRasterizer) rendered this run.
+    ///
+    /// Such a run is exactly one grapheme cluster, and is not shaped.
+    raster: Option<RasterGlyphAllocation>,
 }
 
 /// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
@@ -225,7 +227,7 @@ struct TextRun {
 /// characters so that `glyphs.len() == char_count` — an invariant that all
 /// cursor and selection code relies on.
 fn layout_shaped_run(
-    font: &mut Font<'_>,
+    fonts: &mut FontsImpl,
     run: &TextRun,
     run_text: &str,
     glyph_buffer: &harfrust::GlyphBuffer,
@@ -259,9 +261,9 @@ fn layout_shaped_run(
         // Tab is a layout concept, not a glyph — the shaper doesn't know about tab stops.
         // Override the advance width using the font's configured tab size.
         if chr == '\t' {
-            let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
+            let tweak = fonts.face(run.font_key).map(|face| face.tweak());
             let tab_size = tweak.map_or(4.0, |t| t.tab_size);
-            let (_, space_info) = font.glyph_info(' ', face_metrics);
+            let (_, space_info) = fonts.glyph_info(ctx.family, ' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
             advance_width_px = tab_size * space_width_px;
         }
@@ -269,9 +271,9 @@ fn layout_shaped_run(
         // Thin space (U+2009) and narrow no-break space (U+202F):
         // override the shaper's advance width with the configured fraction of a space.
         if chr == '\u{2009}' || chr == '\u{202F}' {
-            let tweak = font.fonts_by_id.get(&run.font_key).map(|ff| ff.tweak());
+            let tweak = fonts.face(run.font_key).map(|face| face.tweak());
             let thin_space_width = tweak.map_or(0.5, |t| t.thin_space_width);
-            let (_, space_info) = font.glyph_info(' ', face_metrics);
+            let (_, space_info) = fonts.glyph_info(ctx.family, ' ', face_metrics);
             let space_width_px = space_info.advance_width_unscaled.0 * px_scale;
             advance_width_px = thin_space_width * space_width_px;
         }
@@ -300,64 +302,70 @@ fn layout_shaped_run(
         ctx.prev_cluster = Some(cluster);
 
         let glyph = if glyph_id == skrifa::GlyphId::NOTDEF {
-            // The shaper couldn't map this character. Drop combining marks
-            // (Unicode category M) and duplicate NOTDEF glyphs within the same
-            // cluster — only the first base character gets a replacement glyph.
+            // The shaper couldn't map this character. Drop combining marks and duplicate
+            // NOTDEF glyphs within the same cluster. The first base character is rasterized,
+            // or rendered as the `.notdef` glyph ("tofu") if no rasterizer can handle the cluster.
             if is_combining_mark(chr) || !is_new_cluster {
                 continue;
             }
 
-            // Use the fallback font face (not run.font_key which returned NOTDEF).
-            let fallback_key = font.resolve_face(chr);
-            let fallback_metrics = font
-                .fonts_by_id
-                .get(&fallback_key)
-                .map(|ff| {
-                    ff.styled_metrics(ctx.pixels_per_point, ctx.font_size, &Default::default())
+            let cluster_text = run_text
+                .get(cluster as usize..)
+                .and_then(|text| {
+                    unicode_segmentation::UnicodeSegmentation::graphemes(text, true).next()
                 })
                 .unwrap_or_default();
-            let (_, glyph_info) = font.glyph_info(chr, &fallback_metrics);
-            let advance_width_px =
-                glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
-            let (glyph_alloc, physical_x) =
-                if let Some(ff) = font.fonts_by_id.get_mut(&fallback_key) {
-                    ff.allocate_glyph(
-                        font.atlas,
-                        &fallback_metrics,
-                        &ShapedGlyph {
-                            glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                            h_pos: paragraph.cursor_x_px,
-                            is_cjk: is_cjk(chr),
-                        },
-                    )
-                } else {
-                    Default::default()
-                };
 
-            paragraph.cursor_x_px += advance_width_px;
+            if let Some(raster) = fonts.rasterize_cluster(
+                FontPriority::Lowest,
+                ctx.family,
+                cluster_text,
+                ctx.pixels_per_point,
+                ctx.font_size,
+            ) {
+                raster_glyph(ctx, paragraph, chr, &raster, face_metrics)
+            } else {
+                // Use the fallback font face (not run.font_key which returned NOTDEF).
+                let fallback_key = fonts.resolve_face(ctx.family, chr);
+                let fallback_metrics = fonts
+                    .face(fallback_key)
+                    .map(|face| {
+                        face.styled_metrics(
+                            ctx.pixels_per_point,
+                            ctx.font_size,
+                            &Default::default(),
+                        )
+                    })
+                    .unwrap_or_default();
+                let (_, glyph_info) = fonts.glyph_info(ctx.family, chr, &fallback_metrics);
+                let advance_width_px =
+                    glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
+                let OutlineGlyph { allocation, x_px } = allocate_glyph_info(
+                    fonts,
+                    fallback_key,
+                    &fallback_metrics,
+                    glyph_info,
+                    paragraph.cursor_x_px,
+                    chr,
+                );
 
-            ctx.glyph(
-                chr,
-                physical_x,
-                advance_width_px,
-                &fallback_metrics,
-                glyph_alloc.uv_rect,
-            )
+                paragraph.cursor_x_px += advance_width_px;
+
+                ctx.glyph(chr, x_px, advance_width_px, &fallback_metrics, allocation)
+            }
         } else {
-            let (mut glyph_alloc, physical_x) =
-                if let Some(ff) = font.fonts_by_id.get_mut(&run.font_key) {
-                    ff.allocate_glyph(
-                        font.atlas,
-                        face_metrics,
-                        &ShapedGlyph {
-                            glyph_id,
-                            h_pos: paragraph.cursor_x_px + x_offset_px,
-                            is_cjk: is_cjk(chr),
-                        },
-                    )
-                } else {
-                    Default::default()
-                };
+            let OutlineGlyph {
+                allocation: mut glyph_alloc,
+                x_px,
+            } = fonts.allocate_glyph(
+                run.font_key,
+                face_metrics,
+                &ShapedGlyph {
+                    glyph_id,
+                    h_pos: paragraph.cursor_x_px + x_offset_px,
+                    is_cjk: is_cjk(chr),
+                },
+            );
 
             // Apply shaper y_offset — this varies per glyph instance so it
             // is not part of the cached ShapedGlyph / GlyphAllocation.
@@ -365,13 +373,7 @@ fn layout_shaped_run(
 
             paragraph.cursor_x_px += advance_width_px;
 
-            ctx.glyph(
-                chr,
-                physical_x,
-                advance_width_px,
-                face_metrics,
-                glyph_alloc.uv_rect,
-            )
+            ctx.glyph(chr, x_px, advance_width_px, face_metrics, glyph_alloc)
         };
         paragraph.glyphs.push(glyph);
         cluster_glyph_count += 1;
@@ -390,12 +392,88 @@ fn layout_shaped_run(
     }
 }
 
+/// Put `glyph_info` in the atlas, or nothing at all if it is invisible.
+fn allocate_glyph_info(
+    fonts: &mut FontsImpl,
+    face_key: FontFaceKey,
+    metrics: &StyledMetrics,
+    glyph_info: GlyphInfo,
+    h_pos_px: f32,
+    chr: char,
+) -> OutlineGlyph {
+    let Some(glyph_id) = glyph_info.id else {
+        return OutlineGlyph {
+            allocation: GlyphAllocation::default(),
+            x_px: h_pos_px.round() as i32,
+        };
+    };
+    fonts.allocate_glyph(
+        face_key,
+        metrics,
+        &ShapedGlyph {
+            glyph_id,
+            h_pos: h_pos_px,
+            is_cjk: is_cjk(chr),
+        },
+    )
+}
+
+/// Emit one glyph for a rasterized cluster and advance the cursor.
+fn raster_glyph(
+    ctx: &ShapingContext,
+    paragraph: &mut Paragraph,
+    chr: char,
+    raster: &RasterGlyphAllocation,
+    face_metrics: &StyledMetrics,
+) -> Glyph {
+    let physical_x = paragraph.cursor_x_px.round() as i32;
+    paragraph.cursor_x_px += raster.advance_px;
+    ctx.glyph(
+        chr,
+        physical_x,
+        raster.advance_px,
+        face_metrics,
+        raster.allocation,
+    )
+}
+
+/// Emit the glyphs of a run that a priority [`GlyphRasterizer`](crate::text::GlyphRasterizer) rendered.
+///
+/// The run is one grapheme cluster: its first char gets the bitmap,
+/// and the rest zero-width continuation glyphs.
+fn layout_raster_run(
+    ctx: &mut ShapingContext,
+    paragraph: &mut Paragraph,
+    run_text: &str,
+    raster: &RasterGlyphAllocation,
+) {
+    let Some(chr) = run_text.chars().next() else {
+        return;
+    };
+    if !ctx.is_first_glyph_in_section {
+        paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
+    }
+    ctx.is_first_glyph_in_section = false;
+
+    let face_metrics = ctx.font_metrics.clone();
+    let glyph = raster_glyph(ctx, paragraph, chr, raster, &face_metrics);
+    paragraph.glyphs.push(glyph);
+    emit_continuation_glyphs(
+        ctx,
+        paragraph,
+        run_text,
+        0..run_text.len(),
+        1,
+        &face_metrics,
+    );
+}
+
 /// Emit zero-width continuation glyphs when a cluster has more characters than
 /// shaped glyphs.
 ///
 /// This preserves the invariant `glyphs.len() == char_count` that all cursor
 /// and text-selection code depends on. Continuation glyphs have
-/// [`UvRect::default()`] so [`tessellate_glyphs`] skips them entirely.
+/// [`GlyphAllocation::default()`] so [`tessellate_glyphs`] skips them entirely.
 fn emit_continuation_glyphs(
     ctx: &ShapingContext,
     paragraph: &mut Paragraph,
@@ -415,16 +493,20 @@ fn emit_continuation_glyphs(
     let physical_x = paragraph.cursor_x_px.round() as i32;
 
     for chr in cluster_text.chars().skip(cluster_glyph_count) {
-        paragraph
-            .glyphs
-            .push(ctx.glyph(chr, physical_x, 0.0, face_metrics, UvRect::default()));
+        paragraph.glyphs.push(ctx.glyph(
+            chr,
+            physical_x,
+            0.0,
+            face_metrics,
+            GlyphAllocation::default(),
+        ));
     }
 }
 
 // Ignores the Y coordinate.
 #[must_use]
 fn layout_section(
-    font: &mut Font<'_>,
+    fonts: &mut FontsImpl,
     mut shape_buffer: harfrust::UnicodeBuffer,
     pixels_per_point: f32,
     job: &LayoutJob,
@@ -438,8 +520,9 @@ fn layout_section(
         format,
     } = section;
 
+    let family = fonts.family_key(&format.font_id.family);
     let font_size = format.font_id.size;
-    let font_metrics = font.styled_metrics(pixels_per_point, font_size, &format.coords);
+    let font_metrics = fonts.family_metrics(family, pixels_per_point, font_size, &format.coords);
     let line_height = section
         .format
         .line_height
@@ -452,8 +535,9 @@ fn layout_section(
     }
     paragraph.cursor_x_px += leading_space * pixels_per_point;
 
-    let section_text = &job.text[byte_range.clone()];
+    let section_text = &job.text[byte_range.as_usize()];
     let mut ctx = ShapingContext {
+        family,
         pixels_per_point,
         font_size,
         line_height,
@@ -468,8 +552,7 @@ fn layout_section(
     // Process each paragraph segment (split on newlines — the shaper can't handle them).
     for (seg_idx, segment) in SplitOrWhole::new(section_text, job.break_on_newline).enumerate() {
         if 0 < seg_idx {
-            out_paragraphs.push(Paragraph::from_section_index(section_index));
-            paragraph = out_paragraphs.last_mut().unwrap();
+            paragraph = out_paragraphs.push_mut(Paragraph::from_section_index(section_index));
             paragraph.empty_paragraph_height = line_height;
             ctx.is_first_glyph_in_section = true;
         }
@@ -478,12 +561,16 @@ fn layout_section(
             continue;
         }
 
-        segment_into_runs(font, segment, &mut runs);
+        segment_into_runs(fonts, &ctx, segment, &mut runs);
 
         let num_runs = runs.len();
         for (run_idx, run) in runs.iter().enumerate() {
-            let run_text = &segment[run.byte_range.clone()];
-            let Some(font_face) = font.fonts_by_id.get(&run.font_key) else {
+            let run_text = &segment[run.byte_range.as_usize()];
+            if let Some(raster) = &run.raster {
+                layout_raster_run(&mut ctx, paragraph, run_text, raster);
+                continue;
+            }
+            let Some(font_face) = fonts.face(run.font_key) else {
                 continue;
             };
 
@@ -502,7 +589,7 @@ fn layout_section(
             let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
 
             layout_shaped_run(
-                font,
+                fonts,
                 run,
                 run_text,
                 &glyph_buffer,
@@ -521,7 +608,7 @@ fn layout_section(
 /// Iterator that either splits on `'\n'` or yields the whole string once.
 /// Avoids `Box<dyn Iterator>` and `Vec<&str>` allocation.
 enum SplitOrWhole<'a> {
-    Split(std::str::Split<'a, char>),
+    Split(core::str::Split<'a, char>),
     Whole(iter::Once<&'a str>),
 }
 
@@ -569,7 +656,7 @@ fn calculate_intrinsic_size(
             .glyphs
             .iter()
             .map(|g| g.line_height)
-            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(core::cmp::Ordering::Equal))
             .unwrap_or(paragraph.empty_paragraph_height);
         if idx == 0 {
             height = f32::max(height, job.first_row_min_height);
@@ -772,17 +859,39 @@ fn replace_last_glyph_with_overflow_character(
     loop {
         let section = &job.sections[section_index as usize];
         let extra_letter_spacing = section.format.extra_letter_spacing;
-        let mut font = fonts.font(&section.format.font_id.family);
+        let family = fonts.family_key(&section.format.font_id.family);
         let font_size = section.format.font_id.size;
 
-        let font_id = font.resolve_face(overflow_character);
-        let font_face_metrics = font
-            .fonts_by_id
-            .get(&font_id)
-            .map(|f| f.styled_metrics(pixels_per_point, font_size, &section.format.coords))
-            .unwrap_or_default();
-        let (_, glyph_info) = font.glyph_info(overflow_character, &font_face_metrics);
-        let mut font_face = font.fonts_by_id.get_mut(&font_id);
+        let font_metrics =
+            fonts.family_metrics(family, pixels_per_point, font_size, &section.format.coords);
+
+        // A priority rasterizer may override the overflow character, just like any other glyph:
+        let mut utf8 = [0_u8; 4];
+        let raster = fonts.rasterize_cluster(
+            FontPriority::Highest,
+            family,
+            overflow_character.encode_utf8(&mut utf8),
+            pixels_per_point,
+            font_size,
+        );
+
+        let (face_key, font_face_metrics, glyph_info) = if raster.is_some() {
+            (
+                FontFaceKey::INVALID,
+                font_metrics.clone(),
+                GlyphInfo::INVISIBLE,
+            )
+        } else {
+            let face_key = fonts.resolve_face(family, overflow_character);
+            let font_face_metrics = fonts
+                .face(face_key)
+                .map(|face| {
+                    face.styled_metrics(pixels_per_point, font_size, &section.format.coords)
+                })
+                .unwrap_or_default();
+            let (_, glyph_info) = fonts.glyph_info(family, overflow_character, &font_face_metrics);
+            (face_key, font_face_metrics, glyph_info)
+        };
 
         let overflow_glyph_x = if let Some(prev_glyph) = row.glyphs.last() {
             prev_glyph.max_x() + extra_letter_spacing
@@ -790,8 +899,10 @@ fn replace_last_glyph_with_overflow_character(
             0.0 // TODO(emilk): heed paragraph leading_space 😬
         };
 
-        let advance_width_px =
-            glyph_info.advance_width_unscaled.0 * font_face_metrics.px_scale_factor;
+        let advance_width_px = match &raster {
+            Some(raster) => raster.advance_px,
+            None => glyph_info.advance_width_unscaled.0 * font_face_metrics.px_scale_factor,
+        };
         let replacement_glyph_width = advance_width_px / pixels_per_point;
 
         // Check if we're within width budget:
@@ -800,23 +911,24 @@ fn replace_last_glyph_with_overflow_character(
         {
             // we are done
 
-            let (replacement_glyph_alloc, physical_x) = font_face
-                .as_mut()
-                .map(|f| {
-                    f.allocate_glyph(
-                        font.atlas,
-                        &font_face_metrics,
-                        &ShapedGlyph {
-                            glyph_id: glyph_info.id.unwrap_or(skrifa::GlyphId::NOTDEF),
-                            h_pos: overflow_glyph_x * pixels_per_point,
-                            is_cjk: is_cjk(overflow_character),
-                        },
-                    )
-                })
-                .unwrap_or_default();
+            let OutlineGlyph {
+                allocation: replacement_glyph_alloc,
+                x_px,
+            } = match &raster {
+                Some(raster) => OutlineGlyph {
+                    allocation: raster.allocation,
+                    x_px: (overflow_glyph_x * pixels_per_point).round() as i32,
+                },
+                None => allocate_glyph_info(
+                    fonts,
+                    face_key,
+                    &font_face_metrics,
+                    glyph_info,
+                    overflow_glyph_x * pixels_per_point,
+                    overflow_character,
+                ),
+            };
 
-            let font_metrics =
-                font.styled_metrics(pixels_per_point, font_size, &section.format.coords);
             let line_height = section
                 .format
                 .line_height
@@ -824,7 +936,7 @@ fn replace_last_glyph_with_overflow_character(
 
             row.glyphs.push(Glyph {
                 chr: overflow_character,
-                pos: pos2(physical_x as f32 / pixels_per_point, f32::NAN),
+                pos: pos2(x_px as f32 / pixels_per_point, f32::NAN),
                 advance_width: advance_width_px / pixels_per_point,
                 line_height,
                 font_face_height: font_face_metrics.row_height,
@@ -832,6 +944,7 @@ fn replace_last_glyph_with_overflow_character(
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: replacement_glyph_alloc.uv_rect,
+                is_color: replacement_glyph_alloc.is_color,
                 section_index,
                 first_vertex: 0, // filled in later
             });
@@ -1166,6 +1279,8 @@ fn tessellate_glyphs(point_scale: PointScale, job: &LayoutJob, row: &mut Row, me
 
             let format = &job.sections[glyph.section_index as usize].format;
 
+            // Color glyphs (e.g. color emoji) are untinted by the tessellator,
+            // which is also where `Color32::PLACEHOLDER` and `override_text_color` are resolved.
             let color = format.color;
 
             if format.italics {
@@ -1358,6 +1473,9 @@ impl RowBreakCandidates {
 /// falls back to a different font than its base character, it stays
 /// with the base character's font (the shaper will handle it).
 ///
+/// Clusters that a priority [`GlyphRasterizer`](crate::text::GlyphRasterizer)
+/// handles get a run of their own, with [`TextRun::raster`] set.
+///
 /// NOTE: Segmentation is by font face, not by Unicode script. A run may
 /// mix scripts (e.g. Latin + Cyrillic) when they share the same font.
 /// This is acceptable for scripts with similar shaping rules, but would
@@ -1365,18 +1483,39 @@ impl RowBreakCandidates {
 ///
 /// Results are appended to `out` (which is cleared first) to allow
 /// the caller to reuse the allocation across calls.
-fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
+fn segment_into_runs(
+    fonts: &mut FontsImpl,
+    ctx: &ShapingContext,
+    text: &str,
+    out: &mut Vec<TextRun>,
+) {
     use unicode_segmentation::UnicodeSegmentation as _;
 
     out.clear();
 
     for (byte_offset, grapheme_str) in text.grapheme_indices(true) {
+        let byte_offset = ByteIndex(byte_offset);
         let byte_end = byte_offset + grapheme_str.len();
 
-        let base_char = grapheme_str.chars().next().unwrap_or(' ');
-        let font_key = font.resolve_face(base_char);
+        if let Some(raster) = fonts.rasterize_cluster(
+            FontPriority::Highest,
+            ctx.family,
+            grapheme_str,
+            ctx.pixels_per_point,
+            ctx.font_size,
+        ) {
+            out.push(TextRun {
+                font_key: FontFaceKey::INVALID,
+                byte_range: byte_offset..byte_end,
+                raster: Some(raster),
+            });
+            continue;
+        }
+
+        let font_key = fonts.resolve_cluster_face(ctx.family, grapheme_str);
 
         if let Some(last_run) = out.last_mut()
+            && last_run.raster.is_none()
             && last_run.font_key == font_key
         {
             last_run.byte_range.end = byte_end;
@@ -1385,6 +1524,7 @@ fn segment_into_runs(font: &mut Font<'_>, text: &str, out: &mut Vec<TextRun>) {
         out.push(TextRun {
             font_key,
             byte_range: byte_offset..byte_end,
+            raster: None,
         });
     }
 }
@@ -1427,22 +1567,382 @@ fn shape_text(
     buffer.push_str(text);
     buffer.guess_segment_properties();
 
-    shaper.shape(buffer, &[])
+    shaper.shape(buffer, harfrust::ShapeOptions::new())
 }
 
 // ----------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
-    use std::iter;
+    use core::iter;
+    use std::sync::Arc;
 
     use super::{super::*, *};
-    use crate::text::cursor::CCursor;
+    use crate::{ColorImage, text::cursor::CCursor};
+
+    fn test_fonts() -> FontsImpl {
+        FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+    }
+
+    /// Only `Hack`, which has no emoji.
+    #[cfg(feature = "default_fonts")]
+    fn hack_only() -> FontDefinitions {
+        let mut definitions = FontDefinitions::empty();
+        definitions.font_data.insert(
+            "Hack".to_owned(),
+            Arc::new(FontData::from_static(epaint_default_fonts::HACK_REGULAR)),
+        );
+        definitions
+            .families
+            .insert(FontFamily::Proportional, vec!["Hack".to_owned()]);
+        definitions
+    }
+
+    #[test]
+    fn color_raster_glyph_is_not_tinted() {
+        let rasterizer = GlyphRasterizer::new(|request: &GlyphRasterizerRequest<'_>| {
+            (request.cluster == "한").then(color_raster_glyph)
+        });
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+            .with_glyph_rasterizer(rasterizer);
+
+        // Returns the tessellated vertex color of 'a' (a normal glyph) and '한' (a color glyph).
+        let mut glyph_colors = |text_color: Color32, override_text_color: Option<Color32>| {
+            let job = LayoutJob::simple(
+                "a한".into(),
+                FontId::proportional(14.0),
+                text_color,
+                f32::INFINITY,
+            );
+            let galley = layout(&mut fonts, 1.0, Arc::new(job));
+            let row = &galley.rows[0].row;
+            assert!(!row.glyphs[0].is_color);
+            assert!(row.glyphs[1].is_color);
+            let first_vertices = [
+                row.glyphs[0].first_vertex as usize,
+                row.glyphs[1].first_vertex as usize,
+            ];
+
+            let mut text_shape =
+                crate::TextShape::new(Pos2::ZERO, Arc::new(galley), Color32::GREEN);
+            text_shape.override_text_color = override_text_color;
+            let mut mesh = crate::Mesh::default();
+            crate::Tessellator::new(1.0, Default::default(), [1024, 1024], vec![])
+                .tessellate_text(&text_shape, &mut mesh);
+            first_vertices.map(|i| mesh.vertices[i].color)
+        };
+
+        let half_alpha = Color32::from_white_alpha(128);
+
+        // Explicit text color:
+        assert_eq!(
+            glyph_colors(Color32::BLUE, None),
+            [Color32::BLUE, Color32::WHITE]
+        );
+
+        // Delayed text color, resolved by the tessellator (used by most widgets):
+        assert_eq!(
+            glyph_colors(Color32::PLACEHOLDER, None),
+            [Color32::GREEN, Color32::WHITE]
+        );
+
+        // Override, e.g. for disabled widgets. The alpha should still apply:
+        assert_eq!(
+            glyph_colors(Color32::BLUE, Some(Color32::from_black_alpha(128))),
+            [Color32::from_black_alpha(128), half_alpha]
+        );
+    }
+
+    #[test]
+    fn color_raster_glyph_keeps_color_in_atlas() {
+        let rasterizer =
+            GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| Some(color_raster_glyph()));
+        // The default transfer function discards color for regular (white) glyphs:
+        let options = TextOptions {
+            color_transfer_function: crate::FontColorTransferFunction::TwoCoverageMinusCoverageSq,
+            ..Default::default()
+        };
+        let mut fonts =
+            Fonts::new(options, FontDefinitions::default()).with_glyph_rasterizer(rasterizer);
+        let galley = fonts.with_pixels_per_point(1.0).layout_no_wrap(
+            "한".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+        );
+
+        let [x, y] = galley.rows[0].row.glyphs[0].uv_rect.min;
+        assert_eq!(fonts.image()[(x as usize, y as usize)], Color32::RED);
+    }
+
+    /// A rasterizer that records the requests it gets and returns a fixed glyph.
+    fn recording_rasterizer(
+        requests: &Arc<crate::mutex::Mutex<Vec<(String, FontFamily)>>>,
+        result: Option<RasterizedGlyph>,
+    ) -> GlyphRasterizer {
+        let requests = Arc::clone(requests);
+        GlyphRasterizer::new(move |request: &GlyphRasterizerRequest<'_>| {
+            requests
+                .lock()
+                .push((request.cluster.to_owned(), request.family.clone()));
+            result.clone()
+        })
+    }
+
+    fn white_raster_glyph() -> RasterizedGlyph {
+        RasterizedGlyph {
+            bitmap: GlyphBitmap {
+                image: ColorImage::new([1, 1], vec![Color32::WHITE]),
+                offset_px: Vec2::ZERO,
+                is_color: false,
+            },
+            advance_px: 10.0,
+        }
+    }
+
+    #[cfg(feature = "default_fonts")]
+    fn color_raster_glyph() -> RasterizedGlyph {
+        RasterizedGlyph {
+            bitmap: GlyphBitmap {
+                image: ColorImage::new([1, 1], vec![Color32::RED]),
+                is_color: true,
+                ..white_raster_glyph().bitmap
+            },
+            ..white_raster_glyph()
+        }
+    }
+
+    /// `(chr, is_color, has_pixels)` for each glyph.
+    #[cfg(feature = "default_fonts")]
+    fn glyph_summary(galley: &Galley) -> Vec<(char, bool, bool)> {
+        galley
+            .rows
+            .iter()
+            .flat_map(|row| &row.row.glyphs)
+            .map(|glyph| (glyph.chr, glyph.is_color, !glyph.uv_rect.is_nothing()))
+            .collect()
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")] // Needs `hack_only`
+    fn rasterized_sequence_keeps_one_glyph_per_char() {
+        let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let rasterizer = recording_rasterizer(&requests, Some(color_raster_glyph()));
+        // No font has the emoji, so the rasterizer gets the whole cluster:
+        let mut fonts =
+            FontsImpl::new(TextOptions::default(), hack_only()).with_glyph_rasterizer(rasterizer);
+        let family = "👨\u{200D}👩\u{200D}👧";
+        let job = LayoutJob::simple(
+            family.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        let galley = layout(&mut fonts, 1.0, Arc::new(job));
+
+        // One visible glyph for the whole cluster, plus zero-width continuation glyphs:
+        let summary = glyph_summary(&galley);
+        assert_eq!(summary.len(), family.chars().count());
+        assert_eq!(summary[0], ('👨', true, true));
+        assert!(summary[1..].iter().all(|(_, _, has_pixels)| !has_pixels));
+        assert_eq!(
+            *requests.lock(),
+            [(family.to_owned(), FontFamily::Proportional)]
+        );
+    }
+
+    #[test]
+    fn raster_glyph_cache_is_keyed_by_family() {
+        let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let rasterizer = recording_rasterizer(&requests, Some(white_raster_glyph()));
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+            .with_glyph_rasterizer(rasterizer);
+
+        for family in [FontFamily::Proportional, FontFamily::Monospace] {
+            let job = LayoutJob::simple(
+                "한".into(),
+                FontId::new(14.0, family),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            layout(&mut fonts, 1.0, Arc::new(job));
+        }
+
+        assert_eq!(
+            *requests.lock(),
+            vec![
+                ("한".to_owned(), FontFamily::Proportional),
+                ("한".to_owned(), FontFamily::Monospace),
+            ]
+        );
+    }
+
+    #[test]
+    fn raster_glyph_failure_is_cached_and_falls_back_to_replacement() {
+        let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let rasterizer = recording_rasterizer(&requests, None);
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+            .with_glyph_rasterizer(rasterizer);
+        let job = Arc::new(LayoutJob::simple(
+            "한".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        ));
+
+        let galley = layout(&mut fonts, 1.0, Arc::clone(&job));
+        layout(&mut fonts, 1.0, job);
+
+        assert_eq!(requests.lock().len(), 1, "Failures should be cached");
+        let glyph = &galley.rows[0].row.glyphs[0];
+        assert_eq!(glyph.chr, '한');
+        assert!(
+            !glyph.uv_rect.is_nothing(),
+            "Should render the `.notdef` glyph"
+        );
+    }
+
+    /// A priority rasterizer that only handles `cluster`, and records every request.
+    fn priority_rasterizer_for(
+        cluster: &'static str,
+        requests: &Arc<crate::mutex::Mutex<Vec<(String, FontFamily)>>>,
+    ) -> GlyphRasterizer {
+        let requests = Arc::clone(requests);
+        GlyphRasterizer::new(move |request: &GlyphRasterizerRequest<'_>| {
+            requests
+                .lock()
+                .push((request.cluster.to_owned(), request.family.clone()));
+            (request.cluster == cluster).then(color_raster_glyph)
+        })
+        .with_priority(FontPriority::Highest)
+    }
+
+    fn layout_simple(fonts: &mut FontsImpl, text: &str) -> Galley {
+        let job = LayoutJob::simple(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        layout(fonts, 1.0, Arc::new(job))
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")] // The font must have `…` for the override to mean anything
+    fn priority_rasterizer_overrides_installed_glyph() {
+        let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let mut fonts = test_fonts().with_glyph_rasterizer(priority_rasterizer_for("…", &requests));
+        assert!(fonts.has_glyph(&FontFamily::Proportional, '…'));
+
+        let galley = layout_simple(&mut fonts, "a…b");
+
+        assert_eq!(
+            glyph_summary(&galley),
+            [('a', false, true), ('…', true, true), ('b', false, true)]
+        );
+        let clusters: Vec<_> = requests
+            .lock()
+            .iter()
+            .map(|(cluster, _)| cluster.clone())
+            .collect();
+        assert_eq!(clusters, ["a", "…", "b"], "Asked about every cluster");
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")] // Needs `glyph_summary`
+    fn priority_rasterizer_miss_falls_through_to_font_before_fallback() {
+        let priority_requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let fallback_requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let mut fonts = test_fonts()
+            .with_glyph_rasterizer(priority_rasterizer_for("never", &priority_requests))
+            .with_glyph_rasterizer(recording_rasterizer(
+                &fallback_requests,
+                Some(color_raster_glyph()),
+            ));
+
+        let galley = layout_simple(&mut fonts, "a한");
+
+        // 'a' comes from the font, '한' from the fallback:
+        assert_eq!(
+            glyph_summary(&galley),
+            [('a', false, true), ('한', true, true)]
+        );
+        assert_eq!(priority_requests.lock().len(), 2);
+        assert_eq!(
+            *fallback_requests.lock(),
+            [("한".to_owned(), FontFamily::Proportional)],
+            "The fallback should only see what the fonts lack"
+        );
+    }
+
+    #[test]
+    fn rasterizers_are_asked_in_order_until_one_succeeds() {
+        let first_requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let second_requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let third_requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let mut fonts = test_fonts()
+            .with_glyph_rasterizer(recording_rasterizer(&first_requests, None))
+            .with_glyph_rasterizer(recording_rasterizer(
+                &second_requests,
+                Some(white_raster_glyph()),
+            ))
+            .with_glyph_rasterizer(recording_rasterizer(
+                &third_requests,
+                Some(white_raster_glyph()),
+            ));
+
+        let galley = layout_simple(&mut fonts, "한");
+
+        assert!(!galley.rows[0].row.glyphs[0].uv_rect.is_nothing());
+        assert_eq!(first_requests.lock().len(), 1);
+        assert_eq!(second_requests.lock().len(), 1);
+        assert_eq!(
+            third_requests.lock().len(),
+            0,
+            "The second one already succeeded"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")] // Needs `glyph_summary`
+    fn priority_rasterizer_keeps_one_glyph_per_char() {
+        let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let family = "👨\u{200D}👩\u{200D}👧";
+        let mut fonts =
+            test_fonts().with_glyph_rasterizer(priority_rasterizer_for(family, &requests));
+
+        let galley = layout_simple(&mut fonts, family);
+
+        let summary = glyph_summary(&galley);
+        assert_eq!(summary.len(), family.chars().count());
+        assert_eq!(summary[0], ('👨', true, true));
+        assert!(summary[1..].iter().all(|(_, _, has_pixels)| !has_pixels));
+    }
+
+    #[test]
+    fn overflow_character_uses_priority_rasterizer() {
+        let requests = Arc::new(crate::mutex::Mutex::new(Vec::new()));
+        let mut fonts = test_fonts().with_glyph_rasterizer(priority_rasterizer_for("…", &requests));
+
+        let mut job = LayoutJob::simple(
+            "Hello wide world".to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        job.wrap = TextWrapping::truncate_at_width(40.0);
+        let galley = layout(&mut fonts, 1.0, Arc::new(job));
+
+        let glyphs = &galley.rows[0].row.glyphs;
+        let last = &glyphs[glyphs.len() - 1];
+        assert_eq!(last.chr, '…');
+        assert!(last.is_color, "Should come from the priority rasterizer");
+        assert!(!last.uv_rect.is_nothing());
+    }
 
     #[test]
     fn test_zero_max_width() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let mut layout_job = LayoutJob::single_section("W".into(), TextFormat::default());
         layout_job.wrap.max_width = 0.0;
         let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
@@ -1455,7 +1955,7 @@ mod tests {
 
         let pixels_per_point = 1.0;
 
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let text_format = TextFormat {
             font_id: FontId::monospace(12.0),
             ..Default::default()
@@ -1499,9 +1999,11 @@ mod tests {
     }
 
     #[test]
+    // No bundled font has CJK glyphs, so the line breaks depend on
+    // the width of the `.notdef` glyph of the primary font.
     fn test_cjk() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let mut layout_job = LayoutJob::single_section(
             "日本語とEnglishの混在した文章".into(),
             TextFormat::default(),
@@ -1510,14 +2012,16 @@ mod tests {
         let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
-            vec!["日本語と", "Englishの混在", "した文章"]
+            vec!["日本語とEnglishの混", "在した文章"]
         );
     }
 
     #[test]
+    // No bundled font has CJK glyphs, so the line breaks depend on
+    // the width of the `.notdef` glyph of the primary font.
     fn test_pre_cjk() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let mut layout_job = LayoutJob::single_section(
             "日本語とEnglishの混在した文章".into(),
             TextFormat::default(),
@@ -1526,14 +2030,14 @@ mod tests {
         let galley = layout(&mut fonts, pixels_per_point, layout_job.into());
         assert_eq!(
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
-            vec!["日本語とEnglish", "の混在した文章"]
+            vec!["日本語とEnglishの混在した", "文章"]
         );
     }
 
     #[test]
     fn test_truncate_width() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let mut layout_job =
             LayoutJob::single_section("# DNA\nMore text".into(), TextFormat::default());
         layout_job.wrap.max_width = f32::INFINITY;
@@ -1552,7 +2056,7 @@ mod tests {
 
     #[test]
     fn test_truncate_with_pixels_per_point() {
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         for pixels_per_point in [
             0.33, 0.5, 0.67, 1.0, 1.25, 1.33, 1.5, 1.75, 2.0, 3.0, 4.0, 5.0,
@@ -1572,7 +2076,7 @@ mod tests {
                     pixels_per_point,
                     Arc::new(LayoutJob::single_section(
                         iter::chain(
-                            (0..elided_galley.rows[0].char_count_excluding_newline()).map(|_| ch),
+                            (0..elided_galley.rows[0].char_count_excluding_newline().0).map(|_| ch),
                             iter::once('…'),
                         )
                         .collect::<String>(),
@@ -1590,12 +2094,17 @@ mod tests {
     #[test]
     fn test_empty_row() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let font_id = FontId::default();
+        let family = fonts.family_key(&font_id.family);
         let font_height = fonts
-            .font(&font_id.family)
-            .styled_metrics(pixels_per_point, font_id.size, &VariationCoords::default())
+            .family_metrics(
+                family,
+                pixels_per_point,
+                font_id.size,
+                &VariationCoords::default(),
+            )
             .row_height;
 
         let job = LayoutJob::simple(String::new(), font_id, Color32::WHITE, f32::INFINITY);
@@ -1623,12 +2132,17 @@ mod tests {
     #[test]
     fn test_end_with_newline() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let font_id = FontId::default();
+        let family = fonts.family_key(&font_id.family);
         let font_height = fonts
-            .font(&font_id.family)
-            .styled_metrics(pixels_per_point, font_id.size, &VariationCoords::default())
+            .family_metrics(
+                family,
+                pixels_per_point,
+                font_id.size,
+                &VariationCoords::default(),
+            )
             .row_height;
 
         let job = LayoutJob::simple("Hi!\n".to_owned(), font_id, Color32::WHITE, f32::INFINITY);
@@ -1658,10 +2172,10 @@ mod tests {
         // ɔ̃ = U+0254 (LATIN SMALL LETTER OPEN O) + U+0303 (COMBINING TILDE)
         // With text shaping, the combining tilde should NOT produce a separate
         // advance — it should be positioned above ɔ via GPOS anchors.
-        // Note: the default fonts don't contain U+0254, so the replacement glyph
+        // Note: the default fonts don't contain U+0254, so the `.notdef` glyph
         // is used. The key test is that the combining mark does NOT add extra width.
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let job_combined = LayoutJob::simple(
             "ɔ\u{0303}".to_owned(),
@@ -1696,7 +2210,7 @@ mod tests {
     fn test_shaping_basic_latin() {
         // Basic test: shaped Latin text should produce the same number of glyphs as characters.
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let job = LayoutJob::simple(
             "Hello".to_owned(),
@@ -1714,7 +2228,7 @@ mod tests {
     #[test]
     fn test_shaping_empty_string() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let job = LayoutJob::simple(
             String::new(),
@@ -1731,7 +2245,7 @@ mod tests {
     #[test]
     fn test_shaping_multiple_newlines() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let job = LayoutJob::simple(
             "A\n\nB".to_owned(),
@@ -1752,7 +2266,7 @@ mod tests {
         // Text with both Latin and emoji should work without panicking,
         // even though they use different font faces.
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
 
         let job = LayoutJob::simple(
             "Hi 🎉 bye".to_owned(),
@@ -1778,7 +2292,7 @@ mod tests {
         // only uses the legacy `kern` table, so these pairs had diff ≈ 0.
         // With harfrust, GPOS kerning applies proper negative adjustments.
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let font_id = FontId::proportional(14.0);
 
         for pair in ["AV", "VA", "AT"] {
@@ -1816,7 +2330,7 @@ mod tests {
     #[test]
     fn test_grapheme_cluster_glyph_count() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let font_id = FontId::default();
 
         // Each test case: (input text, expected char count)
@@ -1860,11 +2374,11 @@ mod tests {
 
             // Verify that Row::text() reconstructs the input text.
             let row_text: String = galley.rows.iter().map(|r| r.text()).collect();
-            assert_eq!(row_text, text, "Row::text() mismatch for {text:?}",);
+            assert_eq!(row_text, text, "Row::text() mismatch for {text:?}");
 
             // Verify cursor round-trip: end cursor index == char count.
             assert_eq!(
-                galley.end().index,
+                galley.end().index.0,
                 expected_chars,
                 "Galley::end().index mismatch for {text:?}",
             );
@@ -1876,7 +2390,7 @@ mod tests {
     #[test]
     fn test_grapheme_cluster_cursor_roundtrip() {
         let pixels_per_point = 1.0;
-        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default());
+        let mut fonts = test_fonts();
         let font_id = FontId::default();
 
         // "A" + flag emoji (2 codepoints) + "B" = 4 chars
@@ -1890,9 +2404,9 @@ mod tests {
         let galley = layout(&mut fonts, pixels_per_point, job.into());
 
         // Walking through every cursor index should produce valid positions.
-        for i in 0..=galley.end().index {
+        for i in 0..=galley.end().index.0 {
             let cursor = CCursor {
-                index: i,
+                index: CharIndex(i),
                 prefer_next_row: false,
             };
             let rect = galley.pos_from_cursor(cursor);

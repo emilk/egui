@@ -6,6 +6,12 @@
 
 use crate::{Response, Ui};
 
+/// A dynamically dispatched [`Widget`].
+///
+/// [`Widget`] is not dyn compatible because [`Widget::ui`] takes `self` by value.
+/// This alias uses a closure, which implements [`Widget`].
+pub type BoxedWidget<'a> = Box<dyn FnOnce(&mut Ui) -> Response + 'a>;
+
 mod button;
 mod checkbox;
 pub mod color_picker;
@@ -35,7 +41,9 @@ pub use self::{
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
     spinner::Spinner,
-    text_edit::{TextBuffer, TextEdit},
+    text_edit::{
+        CompletionOutput, CompletionPopup, CompletionQuery, Suggestion, TextBuffer, TextEdit,
+    },
 };
 
 // ----------------------------------------------------------------------------
@@ -63,6 +71,20 @@ pub trait Widget {
     ///
     /// Tip: you can `impl Widget for &mut YourObject { }`.
     fn ui(self, ui: &mut Ui) -> Response;
+
+    /// Box this widget for dynamic dispatch.
+    #[inline]
+    fn boxed<'a>(self) -> BoxedWidget<'a>
+    where
+        Self: Sized + 'a,
+    {
+        Box::new(move |ui: &mut Ui| ui.add(self))
+    }
+}
+
+#[test]
+fn widgets_can_be_boxed() {
+    let _: BoxedWidget<'static> = Button::new("boxed").boxed();
 }
 
 /// This enables functions that return `impl Widget`, so that you can
@@ -121,15 +143,25 @@ pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, text: &str, r
 // ----------------------------------------------------------------------------
 
 /// Show a small button to switch to/from dark/light mode (globally).
+///
+/// This does not allow switching back to following the system theme,
+/// which is why [`global_theme_preference_buttons`] is preferred.
+#[deprecated = "Use `global_theme_preference_buttons` instead: it also covers following the system theme"]
 pub fn global_theme_preference_switch(ui: &mut Ui) {
     if let Some(new_theme) = ui.ctx().theme().small_toggle_button(ui) {
         ui.ctx().set_theme(new_theme);
     }
 }
 
-/// Show larger buttons for switching between light and dark mode (globally).
+/// Show a row of buttons for changing the theme of the whole app.
+///
+/// There is one button for each [`crate::ThemePreference`]:
+/// dark mode, light mode, and following the system theme.
+/// The button of the current preference is highlighted.
+///
+/// Each button is a small icon, so this fits in a top bar.
 pub fn global_theme_preference_buttons(ui: &mut Ui) {
     let mut theme_preference = ui.options(|opt| opt.theme_preference);
-    theme_preference.radio_buttons(ui);
+    theme_preference.buttons(ui);
     ui.ctx().set_theme(theme_preference);
 }

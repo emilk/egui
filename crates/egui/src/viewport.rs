@@ -71,9 +71,8 @@
 
 use std::sync::Arc;
 
-use epaint::{Pos2, Vec2};
-
 use crate::{AsId, Context, Id, Ui};
+use epaint::{Pos2, Vec2};
 
 // ----------------------------------------------------------------------------
 
@@ -121,13 +120,13 @@ pub struct ViewportId(pub Id);
 // We implement `PartialOrd` and `Ord` so we can use `ViewportId` in a `BTreeMap`,
 // which allows predicatable iteration order, frame-to-frame.
 impl PartialOrd for ViewportId {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for ViewportId {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.0.value().cmp(&other.0.value())
     }
 }
@@ -139,8 +138,8 @@ impl Default for ViewportId {
     }
 }
 
-impl std::fmt::Debug for ViewportId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for ViewportId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.0.short_debug_format().fmt(f)
     }
 }
@@ -151,7 +150,13 @@ impl ViewportId {
 
     #[inline]
     pub fn from_hash_of(source: impl AsId) -> Self {
-        Self(Id::new(source))
+        Self(Id::unique(source))
+    }
+
+    /// The [`Id`] of the root [`crate::Ui`] of this viewport,
+    /// i.e. the `Ui` passed to the closure of [`crate::Context::run_ui`].
+    pub fn root_ui_id(&self) -> Id {
+        Id::unique((*self, "__top_ui"))
     }
 }
 
@@ -199,8 +204,8 @@ impl IconData {
     }
 }
 
-impl std::fmt::Debug for IconData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for IconData {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("IconData")
             .field("width", &self.width)
             .field("height", &self.height)
@@ -1194,10 +1199,10 @@ pub enum ViewportCommand {
     /// Enable mouse pass-through: mouse clicks pass through the window, used for non-interactable overlays.
     MousePassthrough(bool),
 
-    /// Take a screenshot of the next frame after this.
+    /// Take a screenshot of the next frame after this and pass it to a callback.
     ///
-    /// The results are returned in [`crate::Event::Screenshot`].
-    Screenshot(crate::UserData),
+    /// Use [`crate::Context::request_screenshot`] for a convenient way to send this command.
+    Screenshot(crate::ScreenshotCallback),
 
     /// Request cut of the current selection
     ///
@@ -1276,7 +1281,7 @@ pub struct ViewportOutput {
     /// but if you haven't, you can use this instead.
     ///
     /// If the duration is zero, schedule a repaint immediately.
-    pub repaint_delay: std::time::Duration,
+    pub repaint_delay: core::time::Duration,
 }
 
 impl ViewportOutput {

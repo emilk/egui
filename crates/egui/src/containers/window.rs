@@ -84,6 +84,7 @@ pub struct Window<'a> {
     open: Option<&'a mut bool>,
     area: Area,
     frame: Option<Frame>,
+    title_frame: Option<Frame>,
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
@@ -100,12 +101,13 @@ impl<'a> Window<'a> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl IntoAtoms<'a>) -> Self {
         let title: Atoms<'_> = title.into_atoms();
-        let area = Area::new(Id::new(title.text())).kind(UiKind::Window);
+        let area = Area::new(Id::unique(title.text())).kind(UiKind::Window);
         Self {
             title,
             open: None,
             area,
             frame: None,
+            title_frame: None,
             resize: Resize::default()
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
@@ -135,7 +137,7 @@ impl<'a> Window<'a> {
             .. // A lot of things not implemented yet
         } = viewport;
 
-        let mut window = Self::new(title.or(app_id).unwrap_or_else(String::new)).id(Id::new(id));
+        let mut window = Self::new(title.or(app_id).unwrap_or_else(String::new)).id(Id::unique(id));
 
         if let Some(inner_size) = inner_size {
             window = window.default_size(inner_size);
@@ -262,6 +264,13 @@ impl<'a> Window<'a> {
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
+        self
+    }
+
+    /// Change the background color, margins, etc. of the title
+    #[inline]
+    pub fn title_frame(mut self, frame: Frame) -> Self {
+        self.title_frame = Some(frame);
         self
     }
 
@@ -549,6 +558,7 @@ impl Window<'_> {
             mut open,
             area,
             frame,
+            title_frame,
             resize,
             scroll,
             collapsible,
@@ -616,10 +626,12 @@ impl Window<'_> {
 
         let style = ctx.global_style();
 
+        // We get or create the Frame for the title and content
         let window_frame = frame.unwrap_or_else(|| Frame::window(&style));
+        let window_title_frame = title_frame.unwrap_or(window_frame);
 
         // We apply the window margin by using the `ScrollArea::content_margin`.
-        let window_margin = window_frame.inner_margin;
+        let window_content_margin = window_frame.inner_margin;
         let window_frame = window_frame.inner_margin(0.0);
 
         let is_explicitly_closed = matches!(open, Some(false));
@@ -711,7 +723,7 @@ impl Window<'_> {
                         title_ui(
                             ui,
                             title,
-                            window_frame.inner_margin(window_margin),
+                            window_title_frame,
                             &mut collapsing,
                             collapsible,
                             on_top,
@@ -725,12 +737,12 @@ impl Window<'_> {
                         .show_body_unindented(ui, |ui| {
                             if scroll.is_any_scroll_enabled() {
                                 scroll
-                                    .content_margin(window_margin)
+                                    .content_margin(window_content_margin)
                                     .show(ui, add_contents)
                                     .inner
                             } else {
                                 crate::Frame::NONE
-                                    .inner_margin(window_margin)
+                                    .inner_margin(window_content_margin)
                                     .show(ui, add_contents)
                                     .inner
                             }
@@ -909,7 +921,7 @@ impl SideResponse {
     }
 }
 
-impl std::ops::BitAnd for SideResponse {
+impl core::ops::BitAnd for SideResponse {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -920,7 +932,7 @@ impl std::ops::BitAnd for SideResponse {
     }
 }
 
-impl std::ops::BitOrAssign for SideResponse {
+impl core::ops::BitOrAssign for SideResponse {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = Self {
             hover: self.hover || rhs.hover,
@@ -1078,7 +1090,7 @@ fn do_resize_interaction(
         }
     };
 
-    let id = Id::new(layer_id).with("edge_drag");
+    let id = Id::unique(layer_id).with("edge_drag");
 
     let style = ctx.global_style();
 
@@ -1302,8 +1314,8 @@ fn title_ui(
     let button_allocation_size = Vec2::splat(heading_font_height);
     let button_shrink = (button_allocation_size - button_size) / 2.0;
 
-    let collapse_atom_id = Id::new("__window_collapse_button");
-    let close_atom_id = Id::new("__window_close_button");
+    let collapse_atom_id = IdSalt::new("__window_collapse_button");
+    let close_atom_id = IdSalt::new("__window_close_button");
 
     let expanded = collapsing.openness(ui.ctx()) > 0.0;
 

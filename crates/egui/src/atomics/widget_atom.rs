@@ -1,7 +1,9 @@
-use crate::{ContainerAtom, Id, IntoAtoms, Response, Sense, SizedContainerAtom, Ui, Widget};
+use crate::{
+    ContainerAtom, Id, IdSalt, IntoAtoms, Response, Sense, SizedContainerAtom, Ui, Widget,
+};
+use core::ops::{Deref, DerefMut};
 use emath::{Rect, Vec2};
 use smallvec::SmallVec;
-use std::ops::{Deref, DerefMut};
 
 /// An atom-based widget: a [`ContainerAtom`] plus everything needed to show it inside a [`Ui`].
 ///
@@ -24,6 +26,7 @@ use std::ops::{Deref, DerefMut};
 pub struct WidgetAtom<'a> {
     id: Option<Id>,
     pub(crate) sense: Sense,
+    selectable: bool,
     pub container: ContainerAtom<'a>,
 }
 
@@ -38,6 +41,7 @@ impl<'a> WidgetAtom<'a> {
         Self {
             id: None,
             sense: Sense::hover(),
+            selectable: false,
             container: ContainerAtom::new(atoms),
         }
     }
@@ -53,6 +57,13 @@ impl<'a> WidgetAtom<'a> {
     #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
+        self
+    }
+
+    /// Make the text selectable with the mouse.
+    #[inline]
+    pub fn selectable(mut self, selectable: bool) -> Self {
+        self.selectable = selectable;
         self
     }
 
@@ -79,14 +90,26 @@ impl<'a> WidgetAtom<'a> {
     pub fn measure(self, ui: &Ui, available_size: Vec2) -> SizedWidgetAtom<'a> {
         let Self {
             id,
-            sense,
+            mut sense,
+            selectable,
             container,
         } = self;
+        if selectable {
+            let allow_drag_to_select = ui.input(|i| !i.has_touch_screen());
+            let mut select_sense = if allow_drag_to_select {
+                Sense::click_and_drag()
+            } else {
+                Sense::click()
+            };
+            select_sense -= Sense::FOCUSABLE;
+            sense |= select_sense;
+        }
         let id = id.unwrap_or_else(|| ui.next_auto_id());
         let container = container.measure(ui, available_size);
         SizedWidgetAtom {
             id,
             sense,
+            selectable,
             container,
         }
     }
@@ -113,6 +136,8 @@ pub struct SizedWidgetAtom<'a> {
     /// The [`Sense`] used to [`Ui::interact`] when this widget is allocated / painted.
     sense: Sense,
 
+    selectable: bool,
+
     /// The measured container.
     pub container: SizedContainerAtom<'a>,
 }
@@ -126,6 +151,7 @@ impl<'a> SizedWidgetAtom<'a> {
 
         AllocatedWidgetAtom {
             container: self.container,
+            selectable: self.selectable,
             response,
         }
     }
@@ -137,7 +163,9 @@ impl<'a> SizedWidgetAtom<'a> {
     /// atom-based widget inside another.
     pub fn paint_at(self, ui: &Ui, rect: Rect) -> WidgetAtomResponse {
         let response = ui.interact(rect, self.id, self.sense);
-        let custom_rects = self.container.paint_at(ui, rect);
+        let custom_rects =
+            self.container
+                .paint_at_with_selection(ui, rect, self.selectable.then_some(&response));
         WidgetAtomResponse {
             response,
             custom_rects,
@@ -151,6 +179,8 @@ impl<'a> SizedWidgetAtom<'a> {
 /// producing a [`Response`].
 #[derive(Clone, Debug)]
 pub struct AllocatedWidgetAtom<'a> {
+    selectable: bool,
+
     /// The measured container.
     pub container: SizedContainerAtom<'a>,
 
@@ -161,7 +191,11 @@ impl AllocatedWidgetAtom<'_> {
     /// Paint the [`crate::Frame`] and individual [`crate::Atom`]s at the allocated [`Response`]'s rect.
     pub fn paint(self, ui: &Ui) -> WidgetAtomResponse {
         let rect = self.response.rect;
-        let custom_rects = self.container.paint_at(ui, rect);
+        let custom_rects = self.container.paint_at_with_selection(
+            ui,
+            rect,
+            self.selectable.then_some(&self.response),
+        );
         WidgetAtomResponse {
             response: self.response,
             custom_rects,
@@ -176,7 +210,7 @@ impl AllocatedWidgetAtom<'_> {
 pub struct WidgetAtomResponse {
     pub response: Response,
     // There should rarely be more than one custom rect.
-    pub(crate) custom_rects: SmallVec<[(Id, Rect); 1]>,
+    pub(crate) custom_rects: SmallVec<[(IdSalt, Rect); 1]>,
 }
 
 impl WidgetAtomResponse {
@@ -187,14 +221,14 @@ impl WidgetAtomResponse {
         }
     }
 
-    pub fn custom_rects(&self) -> impl Iterator<Item = (Id, Rect)> + '_ {
+    pub fn custom_rects(&self) -> impl Iterator<Item = (IdSalt, Rect)> + '_ {
         self.custom_rects.iter().copied()
     }
 
     /// Use this together with [`crate::Atom::custom`] to add custom painting / child widgets.
     ///
     /// NOTE: Don't `unwrap` rects, they might be empty when the widget is not visible.
-    pub fn rect(&self, id: Id) -> Option<Rect> {
+    pub fn rect(&self, id: IdSalt) -> Option<Rect> {
         self.custom_rects
             .iter()
             .find_map(|(i, r)| if *i == id { Some(*r) } else { None })

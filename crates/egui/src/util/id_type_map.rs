@@ -3,7 +3,8 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
-use std::{any::Any, sync::Arc};
+use core::any::Any;
+use std::sync::Arc;
 // -----------------------------------------------------------------------------------------------
 
 /// Like [`std::any::TypeId`], but can be serialized and deserialized.
@@ -14,7 +15,7 @@ pub struct TypeId(u64);
 impl TypeId {
     #[inline]
     pub fn of<T: Any + 'static>() -> Self {
-        std::any::TypeId::of::<T>().into()
+        core::any::TypeId::of::<T>().into()
     }
 
     #[inline(always)]
@@ -23,9 +24,9 @@ impl TypeId {
     }
 }
 
-impl From<std::any::TypeId> for TypeId {
+impl From<core::any::TypeId> for TypeId {
     #[inline]
-    fn from(id: std::any::TypeId) -> Self {
+    fn from(id: core::any::TypeId) -> Self {
         Self(epaint::util::hash(id))
     }
 }
@@ -113,8 +114,8 @@ impl Clone for Element {
     }
 }
 
-impl std::fmt::Debug for Element {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Element {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match &self {
             Self::Value { value, .. } => f
                 .debug_struct("Element::Value")
@@ -314,7 +315,7 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
         Err(_err) => {
             log::warn!(
                 "egui: Failed to deserialize {} from memory: {}, ron error: {:?}",
-                std::any::type_name::<T>(),
+                core::any::type_name::<T>(),
                 _err,
                 ron
             );
@@ -377,8 +378,8 @@ impl RawKey {
 ///
 /// ```
 /// # use egui::{Id, util::IdTypeMap};
-/// let a = Id::new("a");
-/// let b = Id::new("b");
+/// let a = Id::unique("a");
+/// let b = Id::unique("b");
 /// let mut map: IdTypeMap = Default::default();
 ///
 /// // `a` associated with an f64 and an i32
@@ -578,7 +579,7 @@ impl IdTypeMap {
     pub fn remove_temp<T: 'static + Default>(&mut self, id: Id) -> Option<T> {
         let key = RawKey::new::<T>(id);
         let mut element = self.map.remove(&key)?;
-        Some(std::mem::take(element.get_mut_temp()?))
+        Some(core::mem::take(element.get_mut_temp()?))
     }
 
     /// Remove a temporary value given a raw key.
@@ -805,8 +806,8 @@ impl<'de> serde::Deserialize<'de> for IdTypeMap {
 
 #[test]
 fn test_two_id_two_type() {
-    let a = Id::new("a");
-    let b = Id::new("b");
+    let a = Id::unique("a");
+    let b = Id::unique("b");
 
     let mut map: IdTypeMap = Default::default();
     map.insert_persisted(a, 13.37);
@@ -821,8 +822,8 @@ fn test_two_id_two_type() {
 fn test_two_id_x_two_types() {
     #![expect(clippy::approx_constant)]
 
-    let a = Id::new("a");
-    let b = Id::new("b");
+    let a = Id::unique("a");
+    let b = Id::unique("b");
     let mut map: IdTypeMap = Default::default();
 
     // `a` associated with an f64 and an i32
@@ -848,7 +849,7 @@ fn test_two_id_x_two_types() {
 
 #[test]
 fn test_one_id_two_types() {
-    let id = Id::new("a");
+    let id = Id::unique("a");
 
     let mut map: IdTypeMap = Default::default();
     map.insert_persisted(id, 13.37);
@@ -884,7 +885,7 @@ fn test_mix() {
     #[derive(Clone, Debug, PartialEq)]
     struct Bar(f32);
 
-    let id = Id::new("a");
+    let id = Id::unique("a");
 
     let mut map: IdTypeMap = Default::default();
     map.insert_persisted(id, Foo(555));
@@ -922,7 +923,7 @@ fn test_mix_serialize() {
     #[derive(Clone, Debug, PartialEq)]
     struct NonSerializable(f32);
 
-    let id = Id::new("a");
+    let id = Id::unique("a");
 
     let mut map: IdTypeMap = Default::default();
     map.insert_persisted(id, Serializable(555));
@@ -988,10 +989,10 @@ fn test_serialize_generations() {
 
     let mut map: IdTypeMap = Default::default();
     for i in 0..3 {
-        map.insert_persisted(Id::new(i), A(i));
+        map.insert_persisted(Id::unique(i), A(i));
     }
     for i in 0..3 {
-        assert_eq!(map.get_generation::<A>(Id::new(i)), Some(0));
+        assert_eq!(map.get_generation::<A>(Id::unique(i)), Some(0));
     }
 
     map = serialize_and_deserialize(&map);
@@ -1001,17 +1002,17 @@ fn test_serialize_generations() {
     // and then we increment with 1 on each deserialize.
     // So we should have generation 2 now:
     for i in 0..3 {
-        assert_eq!(map.get_generation::<A>(Id::new(i)), Some(2));
+        assert_eq!(map.get_generation::<A>(Id::unique(i)), Some(2));
     }
 
     // Reading should reset:
-    assert_eq!(map.get_persisted::<A>(Id::new(0)), Some(A(0)));
-    assert_eq!(map.get_generation::<A>(Id::new(0)), Some(0));
+    assert_eq!(map.get_persisted::<A>(Id::unique(0)), Some(A(0)));
+    assert_eq!(map.get_generation::<A>(Id::unique(0)), Some(0));
 
     // Generations should increment:
     map = serialize_and_deserialize(&map);
-    assert_eq!(map.get_generation::<A>(Id::new(0)), Some(2));
-    assert_eq!(map.get_generation::<A>(Id::new(1)), Some(3));
+    assert_eq!(map.get_generation::<A>(Id::unique(0)), Some(2));
+    assert_eq!(map.get_generation::<A>(Id::unique(1)), Some(3));
 }
 
 #[cfg(feature = "persistence")]
@@ -1037,10 +1038,10 @@ fn test_serialize_gc() {
     let num_b = 10;
 
     for i in 0..num_a {
-        map.insert_persisted(Id::new(i), A(i));
+        map.insert_persisted(Id::unique(i), A(i));
     }
     for i in 0..num_b {
-        map.insert_persisted(Id::new(i), B(i));
+        map.insert_persisted(Id::unique(i), B(i));
     }
 
     map = serialize_and_deserialize(map, 100);
@@ -1050,15 +1051,15 @@ fn test_serialize_gc() {
     assert_eq!(map.count::<B>(), num_b);
 
     // Create a new small generation:
-    map.insert_persisted(Id::new(1_000_000), A(1_000_000));
-    map.insert_persisted(Id::new(1_000_000), B(1_000_000));
+    map.insert_persisted(Id::unique(1_000_000), A(1_000_000));
+    map.insert_persisted(Id::unique(1_000_000), B(1_000_000));
 
     assert_eq!(map.count::<A>(), num_a + 1);
     assert_eq!(map.count::<B>(), num_b + 1);
 
     // And read a value:
-    assert_eq!(map.get_persisted::<A>(Id::new(0)), Some(A(0)));
-    assert_eq!(map.get_persisted::<B>(Id::new(0)), Some(B(0)));
+    assert_eq!(map.get_persisted::<A>(Id::unique(0)), Some(A(0)));
+    assert_eq!(map.get_persisted::<B>(Id::unique(0)), Some(B(0)));
 
     map = serialize_and_deserialize(map, 100);
 
@@ -1074,8 +1075,8 @@ fn test_serialize_gc() {
     );
 
     // Create another small generation:
-    map.insert_persisted(Id::new(2_000_000), A(2_000_000));
-    map.insert_persisted(Id::new(2_000_000), B(2_000_000));
+    map.insert_persisted(Id::unique(2_000_000), A(2_000_000));
+    map.insert_persisted(Id::unique(2_000_000), B(2_000_000));
 
     map = serialize_and_deserialize(map, 100);
 
@@ -1090,11 +1091,11 @@ fn test_serialize_gc() {
     assert_eq!(map.count::<B>(), 1);
 
     assert_eq!(
-        map.get_persisted::<A>(Id::new(2_000_000)),
+        map.get_persisted::<A>(Id::unique(2_000_000)),
         Some(A(2_000_000))
     );
     assert_eq!(
-        map.get_persisted::<B>(Id::new(2_000_000)),
+        map.get_persisted::<B>(Id::unique(2_000_000)),
         Some(B(2_000_000))
     );
 }

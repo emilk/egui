@@ -2,6 +2,8 @@
 //!
 //! This is intended to be consumed through the `epaint` crate.
 
+pub mod special_emojis;
+
 /// A typeface designed for source code.
 ///
 /// Hack is designed to be a workhorse typeface for source code. It has deep
@@ -17,6 +19,8 @@ pub const HACK_REGULAR: &[u8] = include_bytes!("../fonts/Hack-Regular.ttf");
 
 /// A typeface containing emoji characters as designed for the Noto font family.
 ///
+/// Requires the `monochrome_emoji_fonts` feature.
+///
 /// Noto is a collection of high-quality fonts with multiple weights and widths
 /// in sans, serif, mono, and other styles, in more than 1,000 languages and
 /// over 150 writing systems. Noto Emoji contains black-and-white emoji
@@ -24,6 +28,7 @@ pub const HACK_REGULAR: &[u8] = include_bytes!("../fonts/Hack-Regular.ttf");
 ///
 /// See [Google Fonts](https://fonts.google.com/noto/specimen/Noto+Emoji) for
 /// more information.
+#[cfg(feature = "monochrome_emoji_fonts")]
 pub const NOTO_EMOJI_REGULAR: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular.ttf");
 
 /// A typeface designed for use by Ubuntu.
@@ -35,6 +40,8 @@ pub const NOTO_EMOJI_REGULAR: &[u8] = include_bytes!("../fonts/NotoEmoji-Regular
 /// See [Ubuntu design](https://design.ubuntu.com/font) for more information.
 pub const UBUNTU_LIGHT: &[u8] = include_bytes!("../fonts/Ubuntu-Light.ttf");
 
+/// Requires the `monochrome_emoji_fonts` feature.
+///
 /// An experimental typeface that uses standardized
 /// [UNICODE planes](http://en.wikipedia.org/wiki/Plane_(Unicode))
 /// for icon fonts.
@@ -44,4 +51,15 @@ pub const UBUNTU_LIGHT: &[u8] = include_bytes!("../fonts/Ubuntu-Light.ttf");
 ///
 /// See [the `emoji-icon-font` repository](https://github.com/jslegers/emoji-icon-font)
 /// for more information.
+#[cfg(feature = "monochrome_emoji_fonts")]
 pub const EMOJI_ICON: &[u8] = include_bytes!("../fonts/emoji-icon-font.ttf");
+
+/// The few icons that egui exposes as `egui::special_emojis`:
+/// the Android, Apple, GitHub, and Windows logos, and the word `git`.
+///
+/// This is a small (3.5 kB) subset of the
+/// [`emoji-icon-font`](https://github.com/jslegers/emoji-icon-font), bundled
+/// unconditionally because no platform font has these private-use codepoints.
+///
+/// See `fonts/egui-icons.txt` for how to regenerate it.
+pub const EGUI_ICONS: &[u8] = include_bytes!("../fonts/egui-icons.ttf");

@@ -6,7 +6,7 @@
 mod deny;
 pub(crate) mod utils;
 
-type DynError = Box<dyn std::error::Error>;
+type DynError = Box<dyn core::error::Error>;
 
 fn main() {
     if let Err(e) = try_main() {

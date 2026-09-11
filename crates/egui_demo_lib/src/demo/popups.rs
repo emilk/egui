@@ -99,7 +99,7 @@ impl PopupsDemo {
                 let button = Button::new((
                     RichText::new("Background").color(text_color),
                     Atom::grow(),
-                    RichText::new(SubMenuButton::RIGHT_ARROW).color(text_color),
+                    SubMenuButton::arrow_atom(Some(text_color)),
                 ))
                 .fill(self.color);
 
@@ -152,14 +152,14 @@ impl crate::View for PopupsDemo {
             })
             .inner;
 
-        self.apply_options(Popup::menu(&response).id(Id::new("menu")))
+        self.apply_options(Popup::menu(&response).id(Id::unique("menu")))
             .show(|ui| self.nested_menus(ui));
 
-        self.apply_options(Popup::context_menu(&response).id(Id::new("context_menu")))
+        self.apply_options(Popup::context_menu(&response).id(Id::unique("context_menu")))
             .show(|ui| self.nested_menus(ui));
 
         if self.popup_open {
-            self.apply_options(Popup::from_response(&response).id(Id::new("popup")))
+            self.apply_options(Popup::from_response(&response).id(Id::unique("popup")))
                 .show(|ui| {
                     ui.label("Popup contents");
                 });

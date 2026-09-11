@@ -209,6 +209,35 @@ pub use native::file_storage::storage_dir;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod icon_data;
 
+// ----------------------------------------------------------------------------
+
+/// Attach an [`egui_inspection::InspectionPlugin`] to `ctx` when enabled via the environment.
+#[cfg(all(feature = "inspection", not(target_arch = "wasm32")))]
+pub(crate) fn maybe_attach_inspection_plugin(ctx: &egui::Context, label: Option<String>) {
+    match egui_inspection::attach_from_env(ctx, label) {
+        Ok(true) => log::info!("egui_inspection plugin attached"),
+        Ok(false) => {}
+        Err(err) => log::warn!("egui_inspection attach failed: {err}"),
+    }
+}
+
+/// Fallback for native builds without the `inspection` feature. Logs warning if inspection env
+/// var was set.
+#[cfg(all(
+    not(feature = "inspection"),
+    not(target_arch = "wasm32"),
+    any(feature = "glow", feature = "wgpu_no_default_features")
+))]
+pub(crate) fn maybe_attach_inspection_plugin(_ctx: &egui::Context, _label: Option<String>) {
+    if let Ok(value) = std::env::var("EGUI_INSPECTION")
+        && value != "0"
+        && value != "false"
+        && !value.is_empty()
+    {
+        log::warn!("Inspection env var set but app was compiled without eframe/inspection feature");
+    }
+}
+
 /// This is how you start a native (desktop) app.
 ///
 /// The first argument is name of your app, which is an identifier
@@ -474,7 +503,7 @@ pub fn run_ui_native(
 #[derive(Debug)]
 pub enum Error {
     /// Something went wrong in user code when creating the app.
-    AppCreation(Box<dyn std::error::Error + Send + Sync>),
+    AppCreation(Box<dyn core::error::Error + Send + Sync>),
 
     /// An error from [`winit`].
     #[cfg(not(target_arch = "wasm32"))]
@@ -490,7 +519,7 @@ pub enum Error {
 
     /// An error from [`glutin`] when using [`glow`].
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
-    NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn std::error::Error>),
+    NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn core::error::Error>),
 
     /// An error from [`glutin`] when using [`glow`].
     #[cfg(feature = "glow")]
@@ -501,7 +530,7 @@ pub enum Error {
     Wgpu(egui_wgpu::WgpuError),
 }
 
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 #[cfg(not(target_arch = "wasm32"))]
 impl From<winit::error::OsError> for Error {
@@ -543,8 +572,8 @@ impl From<egui_wgpu::WgpuError> for Error {
     }
 }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::AppCreation(err) => write!(f, "app creation error: {err}"),
 
@@ -585,4 +614,4 @@ impl std::fmt::Display for Error {
 }
 
 /// Short for `Result<T, eframe::Error>`.
-pub type Result<T = (), E = Error> = std::result::Result<T, E>;
+pub type Result<T = (), E = Error> = core::result::Result<T, E>;

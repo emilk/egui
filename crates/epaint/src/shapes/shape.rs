@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
+use emath::{Align2, Pos2, Rangef, Rect, Rot2, TSTransform, Vec2, pos2};
 
 use crate::{
     Color32, CornerRadius, Direction, Mesh, Stroke, StrokeKind, TextureId, Vertex,
@@ -73,12 +73,12 @@ pub enum Shape {
 #[test]
 fn shape_size() {
     assert_eq!(
-        std::mem::size_of::<Shape>(),
+        core::mem::size_of::<Shape>(),
         64,
         "Shape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
-        std::mem::size_of::<Shape>() <= 64,
+        core::mem::size_of::<Shape>() <= 64,
         "Shape is getting way too big!"
     );
 }
@@ -254,6 +254,21 @@ impl Shape {
         stroke: impl Into<PathStroke>,
     ) -> Self {
         Self::Path(PathShape::convex_polygon(points, fill, stroke))
+    }
+
+    /// A filled triangle inscribed in `rect`, pointing down.
+    ///
+    /// `rotation` is in radians, and rotates the triangle around the center of `rect`:
+    /// `0.0` points down, `TAU / 4.0` left, `TAU / 2.0` up, and `-TAU / 4.0` right.
+    ///
+    /// Useful to paint small arrow icons in the ui, like the on combo boxes or submenu buttons.
+    pub fn rotated_triangle(rect: Rect, rotation: f32, fill: impl Into<Color32>) -> Self {
+        let rotation = Rot2::from_angle(rotation);
+        let points = [rect.left_top(), rect.right_top(), rect.center_bottom()]
+            .into_iter()
+            .map(|point| rect.center() + rotation * (point - rect.center()))
+            .collect();
+        Self::convex_polygon(points, fill, Stroke::NONE)
     }
 
     #[inline]
@@ -512,8 +527,7 @@ fn points_from_line(
     shapes: &mut Vec<Shape>,
 ) {
     let mut position_on_segment = 0.0;
-    for window in path.windows(2) {
-        let (start, end) = (window[0], window[1]);
+    for &[start, end] in path.array_windows() {
         let vector = end - start;
         let segment_length = vector.length();
         while position_on_segment < segment_length {
@@ -545,8 +559,7 @@ fn dashes_from_line(
     let mut drawing_dash = false;
     let mut step = 0;
     let steps = dash_lengths.len();
-    for window in path.windows(2) {
-        let (start, end) = (window[0], window[1]);
+    for &[start, end] in path.array_windows() {
         let vector = end - start;
         let segment_length = vector.length();
 

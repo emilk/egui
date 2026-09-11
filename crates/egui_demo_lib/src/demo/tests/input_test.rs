@@ -123,7 +123,7 @@ impl crate::View for InputTest {
 }
 
 fn response_summary(response: &egui::Response, show_hovers: bool) -> String {
-    use std::fmt::Write as _;
+    use core::fmt::Write as _;
 
     let mut new_info = String::new();
 

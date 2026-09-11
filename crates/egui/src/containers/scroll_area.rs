@@ -2,7 +2,7 @@
 
 #![expect(clippy::needless_range_loop)]
 
-use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
+use core::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
 use emath::GuiRounding as _;
 use epaint::{Color32, Direction, Margin, Shape};
@@ -753,7 +753,12 @@ impl ScrollArea {
             ctx.animate_bool_responsive(id.with("v"), show_bars[1]),
         );
 
-        let current_bar_use = show_bars_factor.yx() * ui.spacing().scroll.allocated_width();
+        let scroll_style = ui.spacing().scroll;
+        let current_bar_use = if scroll_style.floating {
+            show_bars.to_vec2().yx() * scroll_style.allocated_width()
+        } else {
+            show_bars_factor.yx() * scroll_style.allocated_width()
+        };
 
         let available_outer = ui.available_rect_before_wrap();
 
@@ -805,12 +810,11 @@ impl ScrollArea {
 
         {
             // Clip the content, but only when we really need to:
-            let clip_rect_margin = ui.visuals().clip_rect_margin;
             let mut content_clip_rect = ui.clip_rect();
             for d in 0..2 {
                 if direction_enabled[d] {
-                    content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
-                    content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
+                    content_clip_rect.min[d] = inner_rect.min[d];
+                    content_clip_rect.max[d] = inner_rect.max[d];
                 } else {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
@@ -926,7 +930,7 @@ impl ScrollArea {
 
         let saved_scroll_target = content_ui
             .ctx()
-            .pass_state_mut(|state| std::mem::take(&mut state.scroll_target));
+            .pass_state_mut(|state| core::mem::take(&mut state.scroll_target));
 
         Prepared {
             id,
@@ -981,7 +985,7 @@ impl ScrollArea {
         ui: &mut Ui,
         row_height_sans_spacing: f32,
         total_rows: usize,
-        add_contents: impl FnOnce(&mut Ui, std::ops::Range<usize>) -> R,
+        add_contents: impl FnOnce(&mut Ui, core::ops::Range<usize>) -> R,
     ) -> ScrollAreaOutput<R> {
         let spacing = ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
@@ -1042,17 +1046,13 @@ impl ScrollArea {
             .inner;
 
         let (content_size, state) = prepared.end(ui);
-        let output = ScrollAreaOutput {
+        ScrollAreaOutput {
             inner,
             id,
             state,
             content_size,
             inner_rect,
-        };
-
-        paint_fade_areas(ui, &output);
-
-        output
+        }
     }
 }
 
@@ -1081,17 +1081,9 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
-        let scroll_delta = content_ui
-            .ctx()
-            .pass_state_mut(|state| std::mem::take(&mut state.scroll_delta));
-
         let mut had_explicit_scroll_adjustment = Vec2b::FALSE;
 
         for d in 0..2 {
-            // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-            let mut delta = -scroll_delta.0[d];
-            let mut animation = scroll_delta.1;
-
             // We always take both scroll targets regardless of which scroll axes are enabled. This
             // is to avoid them leaking to other scroll areas.
             let scroll_target = content_ui
@@ -1099,6 +1091,17 @@ impl Prepared {
                 .pass_state_mut(|state| state.scroll_target[d].take());
 
             if direction_enabled[d] {
+                let (scroll_delta, scroll_animation) = content_ui.ctx().pass_state_mut(|state| {
+                    (
+                        core::mem::take(&mut state.scroll_delta.0[d]),
+                        state.scroll_delta.1,
+                    )
+                });
+
+                // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
+                let mut delta = -scroll_delta;
+                let mut animation = scroll_animation;
+
                 if let Some(target) = scroll_target {
                     let pass_state::ScrollTarget {
                         range,
@@ -1132,8 +1135,8 @@ impl Prepared {
                         0.0
                     };
 
-                    delta += delta_update;
                     animation = animation_update;
+                    delta += delta_update;
                 }
 
                 if delta != 0.0 {
@@ -1157,10 +1160,10 @@ impl Prepared {
                     }
                     ui.request_repaint();
                 }
-            }
 
-            if delta != 0.0 {
-                had_explicit_scroll_adjustment[d] = true;
+                if delta != 0.0 {
+                    had_explicit_scroll_adjustment[d] = true;
+                }
             }
         }
 
@@ -1191,9 +1194,15 @@ impl Prepared {
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
+        let limit_rect = if ui.spacing().scroll.floating {
+            outer_rect
+        } else {
+            inner_rect
+        };
+
         let content_is_too_large = Vec2b::new(
-            direction_enabled[0] && inner_rect.width() < content_size.x,
-            direction_enabled[1] && inner_rect.height() < content_size.y,
+            direction_enabled[0] && (limit_rect.width().ceil() < content_size.x),
+            direction_enabled[1] && (limit_rect.height().ceil() < content_size.y),
         );
 
         let max_offset = content_size - inner_rect.size();
@@ -1260,6 +1269,11 @@ impl Prepared {
 
         let scroll_style = ui.spacing().scroll;
 
+        // Reserve the scroll area before painting fades, because fade painting uses ui.min_rect().
+        ui.advance_cursor_after_rect(outer_rect);
+
+        paint_fade_areas_impl(ui, inner_rect, content_size, state.offset);
+
         // Paint the bars:
         let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
         for d in 0..2 {
@@ -1294,8 +1308,6 @@ impl Prepared {
                 // * When one ScrollArea is nested inside another, and the outer
                 //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
                 //   is outside the clip rectangle.
-                // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
-                // clip_rect_margin is quite a hack. It would be nice to get rid of it.
                 max_cross = ui.clip_rect().max[1 - d] - outer_margin;
             }
 
@@ -1508,8 +1520,6 @@ impl Prepared {
             }
         }
 
-        ui.advance_cursor_after_rect(outer_rect);
-
         if show_scroll_this_frame != state.show_scroll {
             ui.request_repaint();
         }
@@ -1551,7 +1561,7 @@ impl Prepared {
 
 /// Paint fade-out gradients at the top and/or bottom of a scroll area to
 /// indicate that more content is available beyond the visible region.
-fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
+fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: Vec2) {
     let crate::style::ScrollFadeStyle {
         strength,
         size: fade_size,
@@ -1563,13 +1573,9 @@ fn paint_fade_areas<R>(ui: &Ui, scroll_output: &ScrollAreaOutput<R>) {
 
     let bg = ui.stack().bg_color();
 
-    let offset = scroll_output.state.offset;
-    let overflow = scroll_output.content_size - scroll_output.inner_rect.size();
+    let overflow = content_size - inner_rect.size();
 
-    let paint_rect = scroll_output
-        .inner_rect
-        .intersect(ui.min_rect())
-        .expand(ui.visuals().clip_rect_margin);
+    let paint_rect = inner_rect.intersect(ui.min_rect());
 
     // Top fade: animate opacity based on how far we've scrolled down.
     if 0.0 < offset.y {

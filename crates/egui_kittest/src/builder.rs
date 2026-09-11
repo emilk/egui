@@ -2,8 +2,8 @@ use crate::app_kind::AppKind;
 #[cfg(feature = "eframe")]
 use crate::app_kind::AppKindEframe;
 use crate::{Harness, LazyRenderer, TestRenderer};
+use core::marker::PhantomData;
 use egui::{Pos2, Rect, Vec2};
-use std::marker::PhantomData;
 
 /// Builder for [`Harness`].
 #[must_use]
@@ -17,6 +17,10 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) state: PhantomData<State>,
     pub(crate) renderer: Box<dyn TestRenderer>,
     pub(crate) wait_for_pending_images: bool,
+    pub(crate) fit_contents: bool,
+
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    pub(crate) render_every_step: bool,
 
     #[cfg(feature = "snapshot")]
     pub(crate) default_snapshot_options: crate::SnapshotOptions,
@@ -36,6 +40,10 @@ impl<State> Default for HarnessBuilder<State> {
             max_steps: 4,
             step_dt: 1.0 / 4.0,
             wait_for_pending_images: true,
+            fit_contents: false,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_every_step: false,
             os: egui::os::OperatingSystem::Nix,
 
             #[cfg(feature = "snapshot")]
@@ -54,6 +62,16 @@ impl<State> HarnessBuilder<State> {
         let size = size.into();
         self.screen_rect.set_width(size.x);
         self.screen_rect.set_height(size.y);
+        self
+    }
+
+    /// Resize the harness to fit its initial contents before returning it.
+    ///
+    /// This happens before automatic recording starts. It only has an effect on harnesses built
+    /// with [`Self::build_ui`] or [`Self::build_ui_state`].
+    #[inline]
+    pub fn with_fit_contents(mut self) -> Self {
+        self.fit_contents = true;
         self
     }
 
@@ -124,6 +142,16 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_wait_for_pending_images(mut self, wait_for_pending_images: bool) -> Self {
         self.wait_for_pending_images = wait_for_pending_images;
+        self
+    }
+
+    /// Should every step be rendered?
+    ///
+    /// Useful when test logic requires some specific gpu logic, e.g. reading data back from the gpu.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[inline]
+    pub fn with_render_every_step(mut self, render_every_step: bool) -> Self {
+        self.render_every_step = render_every_step;
         self
     }
 

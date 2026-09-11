@@ -1,12 +1,12 @@
-use std::mem;
+use core::mem;
 
 use accesskit::{Action, ActionRequest};
 use accesskit_consumer::{FilterResult, Node, NodeId, Tree, TreeChangeHandler};
 
 use eframe::epaint::text::TextWrapMode;
 use egui::{
-    Button, Color32, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label, Modifiers, Panel,
-    RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
+    Button, Color32, Context, Event, Frame, FullOutput, Id, Key, KeyboardShortcut, Label,
+    Modifiers, Panel, RawInput, RichText, ScrollArea, Ui, collapsing_header::CollapsingState,
 };
 
 /// This [`egui::Plugin`] adds an inspector panel.
@@ -46,7 +46,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
         "Accessibility Inspector"
     }
 
-    fn input_hook(&mut self, input: &mut RawInput) {
+    fn input_hook(&mut self, _ctx: &Context, input: &mut RawInput) {
         if let Some(queued_action) = self.queued_action.take() {
             input
                 .events
@@ -54,7 +54,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
         }
     }
 
-    fn output_hook(&mut self, output: &mut FullOutput) {
+    fn output_hook(&mut self, _ctx: &Context, output: &mut FullOutput) {
         if let Some(update) = output.platform_output.accesskit_update.clone() {
             self.tree = match mem::take(&mut self.tree) {
                 None => {
@@ -87,10 +87,10 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
 
         ui.enable_accesskit();
 
-        Panel::right(Self::id()).show(ui, |ui| {
+        Panel::right("accessibility_inspector").show(ui, |ui| {
             ui.heading("🔎 AccessKit Inspector");
             if let Some(selected_node) = self.selected_node {
-                Panel::bottom(Self::id().with("details_panel"))
+                Panel::bottom("details_panel")
                     .frame(Frame::new())
                     .show_separator_line(false)
                     .show(ui, |ui| {
@@ -110,7 +110,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
 
 impl AccessibilityInspectorPlugin {
     fn id() -> Id {
-        Id::new("Accessibility Inspector")
+        Id::unique("Accessibility Inspector")
     }
 
     fn selection_ui(&mut self, ui: &mut Ui, selected_node: NodeId) {
@@ -168,7 +168,7 @@ impl AccessibilityInspectorPlugin {
             ui.horizontal_wrapped(|ui| {
                 // Iterate through all possible actions via the `Action::n` helper.
                 let mut current_action = 0;
-                let all_actions = std::iter::from_fn(|| {
+                let all_actions = core::iter::from_fn(|| {
                     let action = Action::n(current_action);
                     current_action += 1;
                     action

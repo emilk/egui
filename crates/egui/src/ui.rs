@@ -1,11 +1,12 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![expect(clippy::use_self)]
 
-use std::{any::Any, ops::Deref, sync::Arc};
+use core::{any::Any, ops::Deref};
+use std::sync::Arc;
 
 use crate::containers::menu;
-use crate::widget_style::{HasClasses as _, ROOT_CLASS};
 use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
+use crate::{class, class::HasClasses as _};
 use emath::GuiRounding as _;
 
 // ----------------------------------------------------------------------------
@@ -134,7 +135,7 @@ impl Ui {
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
-        let classes = classes.with_class(ROOT_CLASS);
+        let classes = classes.with_class(class::ROOT);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -886,12 +887,12 @@ impl Ui {
 
     /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
     pub fn next_auto_id(&self) -> Id {
-        Id::new(self.next_auto_id_salt)
+        Id::unique(self.next_auto_id_salt)
     }
 
     /// Same as `ui.next_auto_id().with(id_salt)`
     pub fn auto_id_with(&self, id_salt: impl AsIdSalt) -> Id {
-        Id::new(self.next_auto_id_salt).with(id_salt)
+        Id::unique(self.next_auto_id_salt).with(id_salt)
     }
 
     /// Pretend like `count` widgets have been allocated.
@@ -1227,7 +1228,7 @@ impl Ui {
             }
         }
 
-        let id = Id::new(self.next_auto_id_salt);
+        let id = Id::unique(self.next_auto_id_salt);
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
 
         (id, rect)
@@ -1268,7 +1269,7 @@ impl Ui {
         self.placer.advance_after_rects(rect, rect, item_spacing);
         register_rect(self, rect);
 
-        let id = Id::new(self.next_auto_id_salt);
+        let id = Id::unique(self.next_auto_id_salt);
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
         id
     }
@@ -1984,7 +1985,7 @@ impl Ui {
     /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
     /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
     pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
-        use std::f32::consts::TAU;
+        use core::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
         let mut response = self.add(DragValue::new(&mut taus).speed(0.01).suffix("τ"));
@@ -2599,7 +2600,7 @@ impl Ui {
         let column_width = (self.available_width() - total_spacing) / (NUM_COL as f32);
         let top_left = self.cursor().min;
 
-        let mut columns = std::array::from_fn(|col_idx| {
+        let mut columns = core::array::from_fn(|col_idx| {
             let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
             let child_rect = Rect::from_min_max(
                 pos,
@@ -2825,7 +2826,7 @@ impl Ui {
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
             menu::SubMenuButton::from_button(
-                Button::image(image).right_text(menu::SubMenuButton::RIGHT_ARROW),
+                Button::image(image).right_text(menu::SubMenuButton::arrow_atom(None)),
             )
             .ui(self, add_contents)
         } else {
@@ -2863,7 +2864,8 @@ impl Ui {
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
             menu::SubMenuButton::from_button(
-                Button::image_and_text(image, title).right_text(menu::SubMenuButton::RIGHT_ARROW),
+                Button::image_and_text(image, title)
+                    .right_text(menu::SubMenuButton::arrow_atom(None)),
             )
             .ui(self, add_contents)
         } else {
