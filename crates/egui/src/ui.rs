@@ -884,7 +884,7 @@ impl Ui {
     /// Generate an [`Id`] for a widget that has persistent state in [`Memory`].
     ///
     /// This is the same as `ui.scope_id().with(id_salt)`.
-    /// Since it is based on the stable [`Self::scope_id`], it is stable from frame to frame,
+    /// Since it is based on the stable [`Self::scope_id`], it is stable over time,
     /// as long as `id_salt` is unique within the current id scope.
     pub fn make_persistent_id(&self, id_salt: impl AsIdSalt) -> Id {
         self.scope_id.with(id_salt)
@@ -902,7 +902,7 @@ impl Ui {
 
     /// Same as `ui.next_auto_id().with(id_salt)`.
     ///
-    /// Like [`Self::next_auto_id`], this is NOT stable from frame to frame.
+    /// Like [`Self::next_auto_id`], this is NOT stable over time.
     pub fn auto_id_with(&self, id_salt: impl AsIdSalt) -> Id {
         Id::unique(self.next_auto_id_salt).with(id_salt)
     }

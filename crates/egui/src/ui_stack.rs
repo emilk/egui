@@ -209,7 +209,7 @@ pub struct UiStack {
     // stuff that `Ui::child_ui` can deal with directly
     /// The [`crate::Ui::unique_id`] of this [`crate::Ui`].
     ///
-    /// Globally unique, but NOT stable from frame to frame.
+    /// Globally unique, but NOT stable over time.
     /// For the stable id scope, see [`crate::Ui::scope_id`].
     pub unique_id: Id,
     pub info: UiStackInfo,
