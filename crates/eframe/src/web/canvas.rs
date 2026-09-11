@@ -1,6 +1,6 @@
 //! A canvas that eframe can render to.
 //!
-//! Two flavours exist:
+//! Two flavors exist:
 //! * `Html`: the classic DOM canvas, with focus, CSS geometry and text input.
 //! * `Offscreen`: an `OffscreenCanvas` owned by a web worker: it has pixels and
 //!   a rendering context, but no DOM. Every DOM-only operation must go through
@@ -83,7 +83,7 @@ impl WebCanvas {
         }
     }
 
-    /// Get a rendering context (e.g. `"webgl2"`) from either canvas flavour.
+    /// Get a rendering context (e.g. `"webgl2"`) from either canvas flavor.
     #[cfg(feature = "glow")]
     pub fn get_context(&self, context_id: &str) -> Result<Option<JsValue>, JsValue> {
         let context = match self {
