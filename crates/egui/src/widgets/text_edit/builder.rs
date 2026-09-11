@@ -4,10 +4,11 @@ use emath::{Rect, TSTransform};
 use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
-    Align, Align2, AsIdSalt, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context,
-    CursorIcon, Event, EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent,
-    IntoAtoms, IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response,
-    Sense, SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState,
+    Align, Align2, AsIdSalt, AtomExt as _, AtomKind, Atoms, Color32, Context, CursorIcon, Event,
+    EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent, IntoAtoms,
+    IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense,
+    SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom, WidgetInfo,
+    WidgetWithState,
     class::{ClassName, Classes, HasClasses},
     epaint,
     os::OperatingSystem,
@@ -788,7 +789,7 @@ impl<'t> TextEdit<'t> {
             };
 
             let allocated = atom_layout_style
-                .apply(AtomLayout::new(atoms))
+                .apply(WidgetAtom::new(atoms))
                 // The text being edited gets its color from the layouter, so the only atoms
                 // left to color are the prefix and the suffix.
                 .fallback_text_color(prefix_suffix_color)

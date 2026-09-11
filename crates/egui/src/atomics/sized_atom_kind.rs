@@ -1,4 +1,4 @@
-use crate::{AtomPaint, Image, SizedAtomLayout};
+use crate::{AtomPaint, Image, SizedContainerAtom, SizedWidgetAtom};
 use core::fmt::Debug;
 use emath::Vec2;
 use epaint::Galley;
@@ -11,7 +11,8 @@ pub enum SizedAtomKind<'a> {
     Text(Arc<Galley>),
     Image { image: Image<'a>, size: Vec2 },
     Paint { paint: AtomPaint<'a>, size: Vec2 },
-    Layout(Box<SizedAtomLayout<'a>>),
+    Container(Box<SizedContainerAtom<'a>>),
+    Widget(Box<SizedWidgetAtom<'a>>),
 }
 
 impl Debug for SizedAtomKind<'_> {
@@ -25,7 +26,10 @@ impl Debug for SizedAtomKind<'_> {
             SizedAtomKind::Paint { size, .. } => {
                 write!(f, "SizedAtomKind::Paint(<closure>, {size:?})")
             }
-            SizedAtomKind::Layout(layout) => write!(f, "SizedAtomKind::Layout({layout:?})"),
+            SizedAtomKind::Widget(layout) => write!(f, "SizedAtomKind::Widget({layout:?})"),
+            SizedAtomKind::Container(container) => {
+                write!(f, "SizedAtomKind::Container({container:?})")
+            }
         }
     }
 }
@@ -43,7 +47,8 @@ impl SizedAtomKind<'_> {
             SizedAtomKind::Text(galley) => galley.size(),
             SizedAtomKind::Image { size, .. } | SizedAtomKind::Paint { size, .. } => *size,
             SizedAtomKind::Empty { size } => size.unwrap_or_default(),
-            SizedAtomKind::Layout(layout) => layout.outer_size,
+            SizedAtomKind::Widget(layout) => layout.outer_size,
+            SizedAtomKind::Container(container) => container.outer_size,
         }
     }
 }

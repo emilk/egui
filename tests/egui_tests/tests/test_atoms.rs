@@ -1,6 +1,6 @@
 use egui::{
-    Align, Atom, AtomExt as _, AtomLayout, Button, Direction, Frame, Layout, TextWrapMode, Ui,
-    Vec2,
+    Align, Atom, AtomExt as _, Button, Direction, Frame, Layout, TextWrapMode, Ui, Vec2,
+    WidgetAtom,
     widget_style::{ButtonStyle, StyleArgs},
 };
 use egui_kittest::{HarnessBuilder, SnapshotResult, SnapshotResults};
@@ -124,7 +124,7 @@ fn test_button_shortcut_text() {
     harness.snapshot("button_shortcut");
 }
 
-/// Test atom nesting and [`egui::AtomLayout::direction`].
+/// Test atom nesting and [`egui::WidgetAtom::direction`].
 #[test]
 fn test_atom_layout_nesting_and_direction() {
     let mut harness = HarnessBuilder::default().build_ui(|ui| {
@@ -143,16 +143,16 @@ fn test_atom_layout_nesting_and_direction() {
             .frame;
 
         let row = |direction: Direction| {
-            Atom::layout(
-                AtomLayout::new(("one", "two", "three"))
+            Atom::widget(
+                WidgetAtom::new(("one", "two", "three"))
                     .direction(direction)
                     .frame(button_frame),
             )
         };
 
-        AtomLayout::new((
-            Atom::layout(
-                AtomLayout::new((
+        WidgetAtom::new((
+            Atom::widget(
+                WidgetAtom::new((
                     row(Direction::LeftToRight).atom_grow(true),
                     row(Direction::RightToLeft).atom_grow(true),
                 ))
@@ -176,11 +176,11 @@ fn test_atom_layout_nesting_and_direction() {
 /// All of these should look the same.
 #[test]
 fn test_atom_letter_spacing() {
-    use egui::AtomLayout;
+    use egui::WidgetAtom;
 
     let mut harness = HarnessBuilder::default().build_ui(|ui| {
-        ui.add(AtomLayout::new("1.00x").gap(0.0));
-        ui.add(AtomLayout::new(("1.00", "x")).gap(0.0));
+        ui.add(WidgetAtom::new("1.00x").gap(0.0));
+        ui.add(WidgetAtom::new(("1.00", "x")).gap(0.0));
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("1.00");
@@ -193,18 +193,18 @@ fn test_atom_letter_spacing() {
     harness.snapshot("atom_letter_spacing");
 }
 
-/// `AtomLayout::selectable(true)` should opt the layout into click+drag sensing
+/// `WidgetAtom::selectable(true)` should opt the layout into click+drag sensing
 /// so its text can be selected, while the default layout stays inert.
 /// See <https://github.com/emilk/egui/issues/8217>.
 #[test]
 fn test_atom_selectable_senses_click_and_drag() {
-    use egui::{AtomLayout, Sense};
+    use egui::{Sense, WidgetAtom};
 
     let mut captured = (Sense::hover(), Sense::hover());
     {
         let mut harness = HarnessBuilder::default().build_ui(|ui| {
-            let selectable = AtomLayout::new("selectable").selectable(true).show(ui);
-            let default = AtomLayout::new("default").show(ui);
+            let selectable = WidgetAtom::new("selectable").selectable(true).show(ui);
+            let default = WidgetAtom::new("default").show(ui);
             captured = (selectable.response.sense, default.response.sense);
         });
         harness.run();
@@ -213,28 +213,28 @@ fn test_atom_selectable_senses_click_and_drag() {
     let (selectable_sense, default_sense) = captured;
     assert!(
         selectable_sense.senses_click() && selectable_sense.senses_drag(),
-        "a selectable AtomLayout should sense clicks and drags"
+        "a selectable WidgetAtom should sense clicks and drags"
     );
     assert!(
         !default_sense.senses_drag(),
-        "a non-selectable AtomLayout should stay inert"
+        "a non-selectable WidgetAtom should stay inert"
     );
 }
 
-/// Selecting the text of a `selectable` [`egui::AtomLayout`] and copying it should
+/// Selecting the text of a `selectable` [`egui::WidgetAtom`] and copying it should
 /// yield the text, while a non-selectable one yields nothing.
 /// See <https://github.com/emilk/egui/issues/8217>.
 #[test]
 fn test_atom_selectable_text_can_be_copied() {
     use core::cell::Cell;
-    use egui::{AtomLayout, Event, Modifiers, OutputCommand, PointerButton, Pos2, Rect};
+    use egui::{Event, Modifiers, OutputCommand, PointerButton, Pos2, Rect, WidgetAtom};
 
     fn copied_text(selectable: bool) -> Option<String> {
         let rect_cell = Cell::new(Rect::NOTHING);
         let mut harness = HarnessBuilder::default()
             .with_size(Vec2::new(400.0, 100.0))
             .build_ui(|ui| {
-                let response = AtomLayout::new("selectable atoms")
+                let response = WidgetAtom::new("selectable atoms")
                     .selectable(selectable)
                     .show(ui);
                 rect_cell.set(response.response.rect);

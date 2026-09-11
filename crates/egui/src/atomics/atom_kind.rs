@@ -1,4 +1,6 @@
-use crate::{AtomLayout, FontSelection, Image, ImageSource, SizedAtomKind, Ui, WidgetText};
+use crate::{
+    ContainerAtom, FontSelection, Image, ImageSource, SizedAtomKind, Ui, WidgetAtom, WidgetText,
+};
 use core::fmt::Debug;
 use emath::{Rect, Vec2};
 use epaint::Color32;
@@ -48,7 +50,7 @@ pub enum AtomKind<'a> {
 
     /// Text atom.
     ///
-    /// Truncation within [`crate::AtomLayout`] works like this:
+    /// Truncation within [`crate::WidgetAtom`] works like this:
     /// - if `wrap_mode` is not Extend
     ///   - if no atom is `shrink`
     ///     - the first text atom is selected and will be marked as `shrink`
@@ -57,7 +59,7 @@ pub enum AtomKind<'a> {
     /// - if `wrap_mode` is extend, Text will extend as expected.
     ///
     /// Unless [`crate::AtomExt::atom_max_width`] is set, `wrap_mode` should only be set via [`crate::Style`] or
-    /// [`crate::AtomLayout::wrap_mode`], as setting a wrap mode on a [`WidgetText`] atom
+    /// [`crate::ContainerAtom::wrap_mode`], as setting a wrap mode on a [`WidgetText`] atom
     /// that is not `shrink` will have unexpected results.
     ///
     /// The size is determined by converting the [`WidgetText`] into a galley and using the galleys
@@ -93,12 +95,22 @@ pub enum AtomKind<'a> {
     /// [`crate::Checkbox`].
     Paint(AtomPaint<'a>),
 
-    /// A nested [`AtomLayout`], letting you embed an atom-based widget as a single atom
-    /// inside another [`AtomLayout`].
+    /// A nested [`WidgetAtom`], letting you embed an atom-based widget as a single atom
+    /// inside another [`WidgetAtom`].
     ///
-    /// The nested layout is measured (sized) when the parent is sized, and painted (and
+    /// The nested widget is measured (sized) when the parent is sized, and painted (and
     /// interacted with) at the cell rect the parent computes for it.
-    Layout(Box<AtomLayout<'a>>),
+    ///
+    /// Use [`Self::Container`] instead if you don't need the nested layout to interact.
+    Widget(Box<WidgetAtom<'a>>),
+
+    /// A nested [`ContainerAtom`], letting you embed a non-interactive atom-based layout as a
+    /// single atom inside another [`WidgetAtom`].
+    ///
+    /// Like [`Self::Widget`], the nested layout is measured when the parent is sized and painted
+    /// at the cell rect the parent computes for it. Unlike [`Self::Widget`], a [`ContainerAtom`]
+    /// has no [`Id`](crate::Id) or [`Sense`](crate::Sense), so it is never interacted with.
+    Container(Box<ContainerAtom<'a>>),
 }
 
 impl Clone for AtomKind<'_> {
@@ -112,7 +124,8 @@ impl Clone for AtomKind<'_> {
                 AtomKind::Empty
             }
             AtomKind::Paint(paint) => AtomKind::Paint(Arc::clone(paint)),
-            AtomKind::Layout(layout) => AtomKind::Layout(layout.clone()),
+            AtomKind::Widget(layout) => AtomKind::Widget(layout.clone()),
+            AtomKind::Container(container) => AtomKind::Container(container.clone()),
         }
     }
 }
@@ -125,7 +138,8 @@ impl Debug for AtomKind<'_> {
             AtomKind::Image(image) => write!(f, "AtomKind::Image({image:?})"),
             AtomKind::Closure(_) => write!(f, "AtomKind::Closure(<closure>)"),
             AtomKind::Paint(_) => write!(f, "AtomKind::Paint(<closure>)"),
-            AtomKind::Layout(_) => write!(f, "AtomKind::Layout(<layout>)"),
+            AtomKind::Widget(_) => write!(f, "AtomKind::Widget(<widget>)"),
+            AtomKind::Container(_) => write!(f, "AtomKind::Container(<container>)"),
         }
     }
 }
@@ -199,11 +213,18 @@ impl<'a> AtomKind<'a> {
                     size: Vec2::ZERO,
                 },
             },
-            AtomKind::Layout(layout) => {
+            AtomKind::Widget(layout) => {
                 let sized = layout.measure(ui, available_size);
                 IntoSizedResult {
                     intrinsic_size: sized.intrinsic_size,
-                    sized: SizedAtomKind::Layout(Box::new(sized)),
+                    sized: SizedAtomKind::Widget(Box::new(sized)),
+                }
+            }
+            AtomKind::Container(layout) => {
+                let sized = layout.measure(ui, available_size);
+                IntoSizedResult {
+                    intrinsic_size: sized.intrinsic_size,
+                    sized: SizedAtomKind::Container(Box::new(sized)),
                 }
             }
         }
@@ -231,8 +252,14 @@ where
     }
 }
 
-impl<'a> From<AtomLayout<'a>> for AtomKind<'a> {
-    fn from(layout: AtomLayout<'a>) -> Self {
-        AtomKind::Layout(Box::new(layout))
+impl<'a> From<WidgetAtom<'a>> for AtomKind<'a> {
+    fn from(layout: WidgetAtom<'a>) -> Self {
+        AtomKind::Widget(Box::new(layout))
+    }
+}
+
+impl<'a> From<ContainerAtom<'a>> for AtomKind<'a> {
+    fn from(container: ContainerAtom<'a>) -> Self {
+        AtomKind::Container(Box::new(container))
     }
 }

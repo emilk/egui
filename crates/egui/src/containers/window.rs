@@ -1345,7 +1345,7 @@ fn title_ui(
 
     let mut child_ui = ui.new_child(UiBuilder::new());
 
-    let mut layout = AtomLayout::new(atoms)
+    let mut layout = WidgetAtom::new(atoms)
         .gap(spacing)
         .fallback_font(TextStyle::Heading)
         .wrap_mode(TextWrapMode::Truncate)

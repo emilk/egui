@@ -5,7 +5,7 @@ use crate::text::CCursorRange;
 /// The output from a [`TextEdit`](crate::TextEdit).
 pub struct TextEditOutput {
     /// The interaction response.
-    pub response: crate::AtomLayoutResponse,
+    pub response: crate::WidgetAtomResponse,
 
     /// How the text was displayed.
     pub galley: Arc<crate::Galley>,
