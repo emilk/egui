@@ -646,8 +646,8 @@ pub enum WidgetType {
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let output = ctx.run_ui(Default::default(), |ui| {
-        run_ui(ui.ctx());
+    let output = ctx.run_pass(Default::default(), |ctx| {
+        run_ui(ctx);
     });
     output.drop_without_applying_deltas();
 }
