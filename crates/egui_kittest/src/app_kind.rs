@@ -20,7 +20,7 @@ pub(crate) struct UiRunOutput {
     /// The response of the scope wrapping the ui closure.
     pub response: egui::Response,
 
-    /// The [`egui::Ui::id`] of the `Ui` passed to the ui closure.
+    /// The [`egui::Ui::scope_id`] of the `Ui` passed to the ui closure.
     pub ui_id: egui::Id,
 }
 

@@ -207,7 +207,7 @@ impl PanelSide {
 pub struct Panel {
     side: PanelSide,
 
-    /// Combined with the parent [`Ui::id`] to form the [`Id`] of the panel.
+    /// Combined with the parent [`Ui::scope_id`] to form the [`Id`] of the panel.
     id_salt: IdSalt,
     frame: Option<Frame>,
     resizable: bool,
