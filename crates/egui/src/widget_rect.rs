@@ -15,6 +15,9 @@ pub struct WidgetRect {
     /// (see [`crate::Options::warn_on_id_clash`]).
     ///
     /// You can ensure globally unique ids using [`crate::Ui::push_id`].
+    ///
+    /// For the [`WidgetRect`] of a [`crate::Ui`] this is the
+    /// [`crate::Ui::unique_id`] of that [`crate::Ui`].
     pub id: Id,
 
     /// The [`crate::Ui::unique_id`] of the parent [`crate::Ui`] that hosts this widget.
