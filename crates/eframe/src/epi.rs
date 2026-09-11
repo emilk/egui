@@ -857,7 +857,7 @@ pub struct WebInfo {
 ///
 /// Everything has been percent decoded (`%20` -> ` ` etc).
 #[cfg(target_arch = "wasm32")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Location {
     /// The full URL (`location.href`) without the hash, percent-decoded.
     ///
