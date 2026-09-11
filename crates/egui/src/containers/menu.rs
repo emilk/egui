@@ -147,7 +147,7 @@ impl MenuState {
     /// Find the root of the menu and get the state
     pub fn from_ui<R>(ui: &Ui, f: impl FnOnce(&mut Self, &UiStack) -> R) -> R {
         let stack = find_menu_root(ui);
-        Self::from_id(ui.ctx(), stack.id, |state| f(state, stack))
+        Self::from_id(ui.ctx(), stack.unique_id, |state| f(state, stack))
     }
 
     /// Get the state via the menus root [`Ui`] id
@@ -464,7 +464,11 @@ impl SubMenu {
 
         // Get the state from the parent menu
         let (open_item, menu_id, parent_config) = MenuState::from_ui(ui, |state, stack| {
-            (state.open_item, stack.id, MenuConfig::from_stack(stack))
+            (
+                state.open_item,
+                stack.unique_id,
+                MenuConfig::from_stack(stack),
+            )
         });
 
         let mut menu_config = self.config.unwrap_or_else(|| parent_config.clone());

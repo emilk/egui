@@ -444,7 +444,7 @@ impl<'a> TableBuilder<'a> {
 
     /// Reset all column widths.
     pub fn reset(&self) {
-        let state_id = self.ui.id().with(self.id_salt);
+        let state_id = self.ui.scope_id().with(self.id_salt);
         TableState::reset(self.ui, state_id);
     }
 
@@ -464,7 +464,7 @@ impl<'a> TableBuilder<'a> {
         } = self;
 
         for (i, column) in columns.iter_mut().enumerate() {
-            let column_resize_id = ui.id().with("resize_column").with(i);
+            let column_resize_id = ui.scope_id().with("resize_column").with(i);
             if let Some(response) = ui.ctx().read_response(column_resize_id)
                 && response.double_clicked()
             {
@@ -474,7 +474,7 @@ impl<'a> TableBuilder<'a> {
 
         let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
-        let state_id = ui.id().with(id_salt);
+        let state_id = ui.scope_id().with(id_salt);
 
         let (is_sizing_pass, state) =
             TableState::load(ui, state_id, resizable, &columns, available_width);
@@ -543,7 +543,7 @@ impl<'a> TableBuilder<'a> {
 
         let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
-        let state_id = ui.id().with(id_salt);
+        let state_id = ui.scope_id().with(id_salt);
 
         let (is_sizing_pass, state) =
             TableState::load(ui, state_id, resizable, &columns, available_width);

@@ -48,7 +48,7 @@ impl UiBuilder {
     }
 
     /// Seed the child `Ui` with this `id_salt`, which will be mixed
-    /// with the [`Ui::id`] of the parent.
+    /// with the [`Ui::scope_id`] of the parent.
     ///
     /// You should give each [`Ui`] an `id_salt` that is unique
     /// within the parent, or give it none at all.
@@ -58,19 +58,26 @@ impl UiBuilder {
         self
     }
 
-    /// Set an id of the new `Ui` that is independent of the parent `Ui`.
+    /// Set the [`Ui::scope_id`] of the new `Ui` to something independent of the parent `Ui`.
     /// This way child widgets can be moved in the ui tree without losing state.
     /// You have to ensure that in a frame the child widgets do not get rendered in multiple places.
     ///
-    /// You should set the same unique `id` at every place in the ui tree where you want the
+    /// You should set the same unique `scope_id` at every place in the ui tree where you want the
     /// child widgets to share state.
     /// If the child widgets are not moved in the ui tree, use [`UiBuilder::id_salt`] instead.
     ///
-    /// This is a shortcut for `.id_salt(my_id).global_scope(true)`.
+    /// The `scope_id` is also used as the [`Ui::unique_id`] of the new `Ui`, so it must be globally unique.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id_source = Some(IdSource::Explicit(id));
+    pub fn scope_id(mut self, scope_id: Id) -> Self {
+        self.id_source = Some(IdSource::Explicit(scope_id));
         self
+    }
+
+    /// Renamed to [`Self::scope_id`].
+    #[deprecated = "Renamed to `UiBuilder::scope_id`"]
+    #[inline]
+    pub fn id(self, id: Id) -> Self {
+        self.scope_id(id)
     }
 
     /// Provide some information about the new `Ui` being built.

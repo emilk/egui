@@ -207,7 +207,7 @@ impl PanelSide {
 pub struct Panel {
     side: PanelSide,
 
-    /// Combined with the parent [`Ui::id`] to form the [`Id`] of the panel.
+    /// Combined with the parent [`Ui::scope_id`] to form the [`Id`] of the panel.
     id_salt: IdSalt,
     frame: Option<Frame>,
     resizable: bool,
@@ -950,7 +950,7 @@ impl Panel {
     ///
     /// Used as the key for the persisted [`PanelState`].
     fn id(&self, parent_ui: &Ui) -> Id {
-        parent_ui.id().with_salt(self.id_salt)
+        parent_ui.scope_id().with_salt(self.id_salt)
     }
 
     /// The configured [`Frame`], or the default side/top panel frame for this [`Ui`].

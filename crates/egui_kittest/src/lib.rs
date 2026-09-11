@@ -589,7 +589,7 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Access the state.
-    /// The [`egui::Ui::id`] of the [`egui::Ui`] passed to the ui closure.
+    /// The [`egui::Ui::scope_id`] of the [`egui::Ui`] passed to the ui closure.
     ///
     /// Use this to compute the [`egui::Id`] of things shown directly in that ui,
     /// e.g. `harness.ui_id().with("my_panel")`.
