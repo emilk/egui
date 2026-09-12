@@ -48,6 +48,7 @@ pub struct Scene {
     sense: Sense,
     max_inner_size: Vec2,
     drag_pan_buttons: DragPanButtons,
+    scroll_zooms: bool,
 }
 
 /// Specifies which pointer buttons can be used to pan the scene by dragging.
@@ -80,6 +81,7 @@ impl Default for Scene {
             sense: Sense::click_and_drag(),
             max_inner_size: Vec2::splat(1000.0),
             drag_pan_buttons: DragPanButtons::all(),
+            scroll_zooms: false,
         }
     }
 }
@@ -127,6 +129,16 @@ impl Scene {
     #[inline]
     pub fn drag_pan_buttons(mut self, flags: DragPanButtons) -> Self {
         self.drag_pan_buttons = flags;
+        self
+    }
+
+    /// Specify whether scrolling the mousewheel without a modifier pans or
+    /// zooms the Scene. Touch input is not affected by this setting.
+    ///
+    /// By default, this is `false`.
+    #[inline]
+    pub fn scroll_zooms(mut self, scroll_zooms: bool) -> Self {
+        self.scroll_zooms = scroll_zooms;
         self
     }
 
@@ -244,8 +256,21 @@ impl Scene {
             && resp.contains_pointer()
         {
             let pointer_in_scene = to_global.inverse() * mouse_pos;
-            let zoom_delta = ui.input(|i| i.zoom_delta());
-            let pan_delta = ui.input(|i| i.smooth_scroll_delta());
+            let mut zoom_delta = ui.ctx().input(|i| i.zoom_delta());
+            let mut pan_delta = Vec2::ZERO;
+
+            // If scroll_zooms is set to true the scroll input will be consumed and
+            // added to any zoom input. This is required to support both mouse wheel
+            // and touch events.
+            if self.scroll_zooms {
+                let scroll_zoom_speed = ui.ctx().options(|opt| opt.input_options.scroll_zoom_speed);
+                let scroll_delta = ui
+                    .ctx()
+                    .input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y);
+                zoom_delta += scroll_delta * scroll_zoom_speed;
+            } else {
+                pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
+            }
 
             // Most of the time we can return early. This is also important to
             // avoid `ui_from_scene` to change slightly due to floating point errors.
