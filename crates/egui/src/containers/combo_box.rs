@@ -2,8 +2,8 @@ use epaint::Shape;
 
 use crate::{
     Align2, AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Popup,
-    PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui,
-    UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType, epaint,
+    PopupCloseBehavior, Rect, Response, ScrollArea, Sense, TextStyle, TextWrapMode, Ui, UiBuilder,
+    Vec2, WidgetInfo, WidgetText, WidgetType, epaint,
     style::{StyleModifier, WidgetVisuals},
     vec2,
 };
@@ -479,9 +479,5 @@ fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
     // Previously, we would show an up arrow when we expected the popup to open upwards
     // (due to lack of space below the button), but this could look weird in edge cases, so this
     // feature was removed. (See https://github.com/emilk/egui/pull/5713#issuecomment-2654420245)
-    painter.add(Shape::convex_polygon(
-        vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
-        visuals.fg_stroke.color,
-        Stroke::NONE,
-    ));
+    painter.add(Shape::rotated_triangle(rect, 0.0, visuals.fg_stroke.color));
 }

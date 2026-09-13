@@ -2826,7 +2826,7 @@ impl Ui {
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
             menu::SubMenuButton::from_button(
-                Button::image(image).right_text(menu::SubMenuButton::RIGHT_ARROW),
+                Button::image(image).right_text(menu::SubMenuButton::arrow_atom(None)),
             )
             .ui(self, add_contents)
         } else {
@@ -2864,7 +2864,8 @@ impl Ui {
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
             menu::SubMenuButton::from_button(
-                Button::image_and_text(image, title).right_text(menu::SubMenuButton::RIGHT_ARROW),
+                Button::image_and_text(image, title)
+                    .right_text(menu::SubMenuButton::arrow_atom(None)),
             )
             .ui(self, add_contents)
         } else {

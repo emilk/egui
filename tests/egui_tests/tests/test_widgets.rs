@@ -3,10 +3,10 @@
 use egui::accesskit::Role;
 use egui::load::SizedTexture;
 use egui::{
-    Align, AtomExt as _, AtomLayout, Button, Color32, ColorImage, Direction, DragValue, Event,
-    Grid, IntoAtoms as _, Layout, PointerButton, Response, RichText, Slider, Stroke, StrokeKind,
+    Align, AtomExt as _, Button, Color32, ColorImage, Direction, DragValue, Event, Grid,
+    IntoAtoms as _, Layout, PointerButton, Response, RichText, Slider, Stroke, StrokeKind,
     TextEdit, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _,
-    include_image,
+    WidgetAtom, include_image,
 };
 use egui_kittest::kittest::{Queryable as _, by};
 use egui_kittest::{Harness, Node, SnapshotResult, SnapshotResults};
@@ -159,7 +159,7 @@ fn widget_tests() {
 
     for atoms in interesting_atoms {
         results.add(test_widget_layout(&format!("atoms_{}", atoms.0), |ui| {
-            AtomLayout::new(atoms.1.clone()).ui(ui)
+            WidgetAtom::new(atoms.1.clone()).ui(ui)
         }));
     }
 }
