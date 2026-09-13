@@ -824,7 +824,10 @@ impl Panel {
                 .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.expand_to_include_rect(shifted_outer_rect);
-        panel_ui.set_clip_rect(visible_outer_rect); // Hides the off-screen part during a slide; also prevents overflow (#4475).
+        // Hides the off-screen part during a slide; also prevents overflow (#4475).
+        // Intersected with the parent's clip rect so a tighter clip (for instance, from window
+        // collapse) isn't overridden.
+        panel_ui.shrink_clip_rect(visible_outer_rect);
 
         let axis = side.axis();
         let panel_axis_min =
@@ -1248,7 +1251,10 @@ impl CentralPanel {
                 .max_rect(outer_rect)
                 .layout(Layout::top_down(Align::Min)),
         );
-        panel_ui.set_clip_rect(outer_rect); // If we overflow, don't do so visibly (#4475)
+        // If we overflow, don't do so visibly (#4475)
+        // Intersected with the parent's clip rect so a tighter clip (for instance, from window
+        // collapse) isn't overridden.
+        panel_ui.shrink_clip_rect(outer_rect);
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
         let response = frame.show(&mut panel_ui, |ui| {
