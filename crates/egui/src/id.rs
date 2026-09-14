@@ -195,31 +195,111 @@ mod id_source {
     use epaint::mutex::RwLock;
     use std::sync::LazyLock;
 
-    static SOURCE_MAP: LazyLock<RwLock<IdMap<String>>> = LazyLock::new(RwLock::default);
+    /// Max length of one salt, in bytes.
+    const MAX_SALT_LEN: usize = 64;
+
+    /// Max length of a whole chain, in bytes.
+    const MAX_CHAIN_LEN: usize = 512;
+
+    const ELLIPSIS: &str = "\u{2026}";
+
+    /// One [`Id::unique`] or [`Id::with`] call.
+    struct Link {
+        /// The `Debug` of the source or salt.
+        salt: String,
+
+        /// `None` if this came from [`Id::unique`].
+        parent: Option<Id>,
+    }
+
+    /// Only the last link is stored per [`Id`], so memory is linear in the number of ids.
+    static SOURCE_MAP: LazyLock<RwLock<IdMap<Link>>> = LazyLock::new(RwLock::default);
+
+    /// Keep the start of `s`, so the result is at most `max_len` bytes.
+    ///
+    /// A salt can itself be a whole chain, and cutting the middle out of one of those
+    /// would leave unbalanced parentheses, so keep the readable head instead.
+    fn truncate_head(mut s: String, max_len: usize) -> String {
+        if s.len() <= max_len {
+            return s;
+        }
+        s.truncate(s.floor_char_boundary(max_len - ELLIPSIS.len()));
+        s.push_str(ELLIPSIS);
+        s
+    }
 
     pub(super) fn insert_root(id: Id, source: &impl AsId) {
         if SOURCE_MAP.read().contains_key(&id) {
             return;
         }
         // Format outside the lock since `{source:?}` may itself recurse into [`Id`]'s `Debug` impl.
-        let formatted = format!("Id::unique({source:?})");
-        SOURCE_MAP.write().insert(id, formatted);
+        let salt = truncate_head(format!("{source:?}"), MAX_SALT_LEN);
+        SOURCE_MAP.write().insert(id, Link { salt, parent: None });
     }
 
     pub(super) fn insert_child(id: Id, parent: Id, salt: &impl AsIdSalt) {
         if SOURCE_MAP.read().contains_key(&id) {
             return;
         }
-        // Look up parent's repr and drop the read guard before formatting,
-        // since `{parent:?}` and `{salt:?}` may themselves recurse into [`Id`]'s `Debug` impl.
-        let cached_parent_repr = SOURCE_MAP.read().get(&parent).cloned();
-        let parent_repr = cached_parent_repr.unwrap_or_else(|| format!("{parent:?}"));
-        let formatted = format!("{parent_repr}.with({salt:?})");
-        SOURCE_MAP.write().insert(id, formatted);
+        // Format outside the lock since `{salt:?}` may itself recurse into [`Id`]'s `Debug` impl.
+        let salt = truncate_head(format!("{salt:?}"), MAX_SALT_LEN);
+        SOURCE_MAP.write().insert(
+            id,
+            Link {
+                salt,
+                parent: Some(parent),
+            },
+        );
     }
 
     pub(super) fn get(id: Id) -> Option<String> {
-        SOURCE_MAP.read().get(&id).cloned()
+        // Walk towards the root, keeping the salts closest to `id` (the most specific ones)
+        // until we run out of budget. This never builds a string longer than the budget.
+        // Format after dropping the lock, since `{unknown:?}` recurses into `Debug`.
+        let mut salts = Vec::new(); // Closest to `id` first.
+        let mut len = 0;
+        let mut skipped = false;
+        let mut root = None;
+        let mut unknown = None;
+        {
+            let map = SOURCE_MAP.read();
+            let mut current = id;
+            loop {
+                let Some(link) = map.get(&current) else {
+                    unknown = Some(current);
+                    break;
+                };
+                let Some(parent) = link.parent else {
+                    root = Some(link.salt.clone());
+                    break;
+                };
+                if !skipped && len + link.salt.len() <= MAX_CHAIN_LEN {
+                    len += link.salt.len() + ".with()".len();
+                    salts.push(link.salt.clone());
+                } else {
+                    skipped = true; // Keep going to find the root, but keep no more salts.
+                }
+                current = parent;
+            }
+        }
+
+        if root.is_none() && salts.is_empty() {
+            return None; // We know nothing about this `Id`.
+        }
+
+        let mut chain = match root {
+            Some(root_salt) => format!("Id::unique({root_salt})"),
+            None => format!("{:?}", unknown?),
+        };
+        if skipped {
+            chain.push_str(ELLIPSIS);
+        }
+        for salt in salts.iter().rev() {
+            chain.push_str(".with(");
+            chain.push_str(salt);
+            chain.push(')');
+        }
+        Some(chain)
     }
 }
 
