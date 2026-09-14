@@ -322,6 +322,26 @@ impl RichText {
         self
     }
 
+    /// The explicit text color set by [`Self::color`], if any.
+    ///
+    /// This does not resolve colors from [`Self::strong`], [`Self::weak`],
+    /// the style, or the widget that paints the text.
+    ///
+    /// ```
+    /// use egui::{Color32, RichText};
+    ///
+    /// let text = RichText::new("Hello");
+    /// assert_eq!(text.color_override(), None);
+    /// assert_eq!(text.color_override().unwrap_or(Color32::WHITE), Color32::WHITE);
+    ///
+    /// let text = text.color(Color32::RED);
+    /// assert_eq!(text.color_override(), Some(Color32::RED));
+    /// ```
+    #[inline]
+    pub fn color_override(&self) -> Option<Color32> {
+        self.text_color
+    }
+
     /// Read the font height of the selected text style.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
@@ -886,7 +906,45 @@ impl From<Arc<Galley>> for WidgetText {
 
 #[cfg(test)]
 mod tests {
-    use crate::WidgetText;
+    use crate::{Color32, RichText, Visuals, WidgetText};
+
+    #[test]
+    fn rich_text_color_override_is_explicit() {
+        let visuals = Visuals {
+            override_text_color: Some(Color32::GREEN),
+            ..Visuals::default()
+        };
+        for (text, resolved_color) in [
+            (RichText::new("plain"), visuals.override_text_color),
+            (
+                RichText::new("strong").strong(),
+                Some(visuals.strong_text_color()),
+            ),
+            (
+                RichText::new("weak").weak(),
+                Some(visuals.weak_text_color()),
+            ),
+        ] {
+            assert_eq!(text.color_override(), None);
+            assert_eq!(text.get_text_color(&visuals), resolved_color);
+
+            for color in [Color32::RED, Color32::TRANSPARENT, Color32::PLACEHOLDER] {
+                let colored = text.clone().color(color).strong().weak();
+                assert_eq!(colored.color_override(), Some(color));
+                assert_eq!(colored.get_text_color(&visuals), Some(color));
+            }
+        }
+    }
+
+    #[test]
+    fn rich_text_color_override_tracks_latest_color() {
+        let text = RichText::new("Hello").color(Color32::RED);
+        assert_eq!(text.color_override(), Some(Color32::RED));
+
+        let text = text.color(Color32::BLUE);
+        assert_eq!(text.color_override(), Some(Color32::BLUE));
+        assert_eq!(text.text(), "Hello");
+    }
 
     #[test]
     fn ensure_small_widget_text() {
