@@ -7,8 +7,9 @@
 //! The plugin owns a list of in-flight requests. A connection thread (or a host with its own
 //! transport) submits a [`Request`] through egui's own plugin
 //! handle — `ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req, on_reply))` — passing a
-//! closure that is called once with the single [`Response`], then calls `ctx.request_repaint()`
-//! so an idle app wakes up to service it. The reply is produced on the UI thread inside the
+//! closure that is called once with the single [`Response`], then sends
+//! [`egui::ViewportCommand::RequestPaintWhileHidden`] so an idle app wakes up to service it —
+//! even one whose window is minimized or occluded, which would otherwise run no pass at all. The reply is produced on the UI thread inside the
 //! plugin's hooks (so `on_reply` runs there too — keep it cheap, e.g. forward onto a channel),
 //! which receive the [`egui::Context`] to issue repaints and viewport commands — so the plugin
 //! never has to store a `Context` itself.
@@ -41,7 +42,7 @@ use egui::{ColorImage, Context, FullOutput, RawInput, mutex::Mutex};
 use crate::protocol::{EncodedPng, Request, Response};
 
 /// How long [`serve`]'s connection threads wait for the UI thread before giving up. Generous:
-/// a backgrounded window may not paint (and thus not service requests) for a while.
+/// an app that is busy, or slow to paint, may take a while to service a request.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// Per-[`Request`] progress through the frame lifecycle.
@@ -108,8 +109,9 @@ impl InspectionPlugin {
     /// The closure will be called later once the result comes in (for screenshot that could mean
     /// a couple frames delay).
     ///
-    /// You usually call this via [`Context::with_plugin`]. You should [`Context::request_repaint`]
-    /// after calling this.
+    /// You usually call this via [`Context::with_plugin`]. You should then ask for a frame with
+    /// [`egui::ViewportCommand::RequestPaintWhileHidden`], so that an app that is idle, or whose
+    /// window is hidden, wakes up and serves the request.
     pub fn submit(
         &mut self,
         req: Request,
@@ -124,6 +126,9 @@ impl InspectionPlugin {
 
     /// While requests are still in flight, keep the UI loop spinning — reactive apps would
     /// otherwise go idle between hooks before a screenshot round-trips.
+    ///
+    /// Asks for the frame even if the window is hidden: a minimized or occluded app runs no
+    /// pass at all otherwise, and an inspector is usually attached to an app in the background.
     fn maybe_repaint(&self, ctx: &Context) {
         // Don't repaint if there's only a `Request::Settle`.
         if self
@@ -131,9 +136,20 @@ impl InspectionPlugin {
             .iter()
             .any(|item| !matches!(item.req, Request::Settle { .. }))
         {
-            ctx.request_repaint();
+            request_frame(ctx);
         }
     }
+}
+
+/// Ask for one painted frame of the root viewport, whether or not its window is visible.
+///
+/// This both wakes an idle app and overrides the integration's skipping of hidden windows,
+/// so that a minimized or occluded app still serves the request.
+fn request_frame(ctx: &Context) {
+    ctx.send_viewport_cmd_to(
+        egui::ViewportId::ROOT,
+        egui::ViewportCommand::RequestPaintWhileHidden,
+    );
 }
 
 impl egui::Plugin for InspectionPlugin {
@@ -415,21 +431,74 @@ fn serve_connection(stream: std::net::TcpStream, ctx: &Context) -> std::io::Resu
                 },
             );
         }
-        // Wake the (possibly idle) UI loop so it services the request.
-        ctx.request_repaint();
+        // Wake the (possibly idle) UI loop so it services the request, hidden window and all.
+        request_frame(ctx);
         let resp = rx.recv_timeout(REQUEST_TIMEOUT).unwrap_or_else(|_| {
-            // Almost always means the app isn't painting — e.g. the window is occluded or
-            // minimized, which on most platforms stops rendering. Surface it loudly.
+            // The app is running no passes at all — it may be blocked, or its integration may
+            // not paint hidden windows. Surface it loudly.
             log::error!(
                 "egui_inspection: request timed out after {REQUEST_TIMEOUT:?}; the app is not \
-                 painting (is the window occluded or minimized?)"
+                 painting"
             );
             Response::Error {
-                message: "request timed out — the app is not painting; bring its window to the \
-                          foreground"
-                    .to_owned(),
+                message: "request timed out — the app is not painting".to_owned(),
             }
         });
         write_message(&mut writer, &resp)?;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use egui::{ViewportCommand, ViewportId};
+
+    use super::*;
+
+    /// Run one pass, the way an integration does, and return what it asks of the window.
+    fn pass(ctx: &Context) -> Vec<ViewportCommand> {
+        let mut output = ctx.run_ui(RawInput::default(), |_| {});
+        let commands = output.viewport_output[&ViewportId::ROOT].commands.clone();
+        output.textures_delta.clear();
+        commands
+    }
+
+    fn submit(ctx: &Context, req: Request) {
+        ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req, |_| {}))
+            .expect("the plugin is registered");
+    }
+
+    fn wants_paint(commands: &[ViewportCommand]) -> bool {
+        commands.contains(&ViewportCommand::RequestPaintWhileHidden)
+    }
+
+    #[test]
+    fn an_in_flight_request_asks_for_a_frame_even_while_hidden() {
+        let ctx = Context::default();
+        ctx.add_plugin(InspectionPlugin::new(None));
+        assert!(
+            !wants_paint(&pass(&ctx)),
+            "An idle app should let a hidden window sleep"
+        );
+
+        // A screenshot takes more than one pass, so the plugin must keep asking:
+        submit(
+            &ctx,
+            Request::GetScreenshot {
+                pixels_per_point: None,
+            },
+        );
+        assert!(
+            wants_paint(&pass(&ctx)),
+            "A screenshot of a hidden window needs the pass that paints it"
+        );
+    }
+
+    #[test]
+    fn settling_does_not_keep_a_hidden_window_awake() {
+        // `Settle` waits for the app to go idle; asking for frames would defeat it.
+        let ctx = Context::default();
+        ctx.add_plugin(InspectionPlugin::new(None));
+        submit(&ctx, Request::Settle { max_steps: 100 });
+        assert!(!wants_paint(&pass(&ctx)));
     }
 }
