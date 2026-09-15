@@ -152,7 +152,7 @@ bitflags::bitflags! {
 }
 
 impl Response {
-    /// The [`Id`] of the parent [`crate::Ui`] that hosts this widget.
+    /// The [`crate::Ui::unique_id`] of the parent [`crate::Ui`] that hosts this widget.
     ///
     /// Looks up the [`WidgetRect`] from the current (or previous) pass.
     pub fn parent_id(&self) -> Id {
