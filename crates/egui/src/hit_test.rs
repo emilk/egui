@@ -68,7 +68,10 @@ pub fn hit_test(
             // Exclude non-interactive, disabled and invisible widgets.
             // This simplifies the code in `hit_test_on_close` so it doesn't have to check
             // the `enabled` flag everywhere:
-            if w.interact_rect.is_negative() || w.interact_rect.any_nan() || !w.enabled {
+            if w.interact_rect.is_negative()
+            || w.rect.any_nan()
+            || w.interact_rect.any_nan()
+            || !w.enabled {
                 return false;
             }
 
