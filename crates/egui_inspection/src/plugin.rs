@@ -376,9 +376,43 @@ pub fn serve(ctx: &Context, addr: &str) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Bring the window to the front if it reports itself hidden, so that the app paints again.
+///
+/// Minimized and occluded windows stop painting on most platforms, and every request is served
+/// from a frame — so an inspector talking to a backgrounded app would only ever time out.
+/// Raising it is the one thing that can be done from here, and integrations keep ticking app
+/// logic while hidden precisely so that the app can ask to be shown again.
+///
+/// Nothing happens unless the window is *known* to be hidden, so an app in the foreground never
+/// has its focus taken by an inspector that is only reading. Platforms that do not report
+/// occlusion leave it unknown, and are left alone.
+#[cfg(not(target_arch = "wasm32"))]
+fn raise_window_if_hidden(ctx: &Context) {
+    let visible = ctx.input_for(egui::ViewportId::ROOT, |i| i.viewport().visible());
+    if visible == Some(false) {
+        raise_window(ctx);
+    }
+}
+
+/// Ask for the window to be restored and focused, whatever state it reports.
+#[cfg(not(target_arch = "wasm32"))]
+fn raise_window(ctx: &Context) {
+    log::debug!("egui_inspection: raising the window so that the app paints and can be served");
+    // A minimized window ignores a focus request on some platforms, so restore it first.
+    // Restoring one that is merely covered by another window does nothing.
+    ctx.send_viewport_cmd_to(
+        egui::ViewportId::ROOT,
+        egui::ViewportCommand::Minimized(false),
+    );
+    ctx.send_viewport_cmd_to(egui::ViewportId::ROOT, egui::ViewportCommand::Focus);
+}
+
 /// Connection handler: write the handshake, then read framed requests, submit each to the
 /// plugin via the context, and write the framed response back. Returns once the client
 /// disconnects.
+///
+/// A window that reports itself minimized or occluded is raised first: it would otherwise
+/// paint nothing, and every request is served from a frame. See [`raise_window_if_hidden`].
 ///
 /// # Errors
 /// On any socket I/O failure.
@@ -415,6 +449,9 @@ fn serve_connection(stream: std::net::TcpStream, ctx: &Context) -> std::io::Resu
                 },
             );
         }
+        // A hidden window paints nothing, and every request is served from a frame.
+        raise_window_if_hidden(ctx);
+
         // Wake the (possibly idle) UI loop so it services the request.
         ctx.request_repaint();
         let resp = rx.recv_timeout(REQUEST_TIMEOUT).unwrap_or_else(|_| {
@@ -424,12 +461,87 @@ fn serve_connection(stream: std::net::TcpStream, ctx: &Context) -> std::io::Resu
                 "egui_inspection: request timed out after {REQUEST_TIMEOUT:?}; the app is not \
                  painting (is the window occluded or minimized?)"
             );
+            // The window did not report itself hidden when the request went in, or it would
+            // have been raised already. Ask for it now, so the next request finds a painting
+            // app instead of timing out again.
+            raise_window(ctx);
             Response::Error {
-                message: "request timed out — the app is not painting; bring its window to the \
-                          foreground"
+                message: "request timed out — the app was not painting; its window has been \
+                          asked to come to the front, so try again"
                     .to_owned(),
             }
         });
         write_message(&mut writer, &resp)?;
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use egui::{ViewportCommand, ViewportId, ViewportInfo};
+
+    use super::*;
+
+    /// What [`raise_window_if_hidden`] asks the integration to do for a window in this state.
+    fn commands_for(minimized: Option<bool>, occluded: Option<bool>) -> Vec<ViewportCommand> {
+        let mut input = RawInput::default();
+        input.viewports.insert(
+            ViewportId::ROOT,
+            ViewportInfo {
+                minimized,
+                occluded,
+                ..Default::default()
+            },
+        );
+
+        // A pass with no ui, whose texture deltas are dropped the way an integration
+        // applies them.
+        let pass = |ctx: &Context, input: RawInput| {
+            let mut output = ctx.run_ui(input, |_| {});
+            output.textures_delta.clear();
+            output
+        };
+
+        let ctx = Context::default();
+        // One pass first, so the context knows the window state, as it would after any frame.
+        drop(pass(&ctx, input.clone()));
+
+        raise_window_if_hidden(&ctx);
+
+        pass(&ctx, input).viewport_output[&ViewportId::ROOT]
+            .commands
+            .clone()
+    }
+
+    #[test]
+    fn a_hidden_window_is_restored_and_focused() {
+        // Focus alone leaves a minimized window minimized on some platforms, so both go out.
+        for state in [(Some(true), Some(false)), (Some(false), Some(true))] {
+            let commands = commands_for(state.0, state.1);
+            assert!(
+                commands.contains(&ViewportCommand::Minimized(false)),
+                "{state:?} should be restored, got {commands:?}"
+            );
+            assert!(
+                commands.contains(&ViewportCommand::Focus),
+                "{state:?} should be focused, got {commands:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_window_that_is_not_known_to_be_hidden_keeps_its_focus() {
+        // A visible window needs nothing; an unknown one is left alone, since the platforms
+        // that report neither state would otherwise have their focus taken on every request.
+        for state in [
+            (Some(false), Some(false)),
+            (None, None),
+            (Some(false), None),
+            (None, Some(false)),
+        ] {
+            assert!(
+                commands_for(state.0, state.1).is_empty(),
+                "{state:?} should be left alone"
+            );
+        }
     }
 }
