@@ -1222,9 +1222,16 @@ pub enum ViewportCommand {
     /// Request a painted frame, even though this window is hidden.
     ///
     /// Integrations run no pass at all while a window is minimized or occluded
-    /// (see [`ViewportInfo::visible`]), since nothing would be shown. This asks for a full
-    /// pass, painted like any other, so that the pixels can be read back even though the
-    /// screen shows none of them: use it to screenshot or inspect an app in the background.
+    /// (see [`crate::ViewportInfo::visible`]), since nothing would be shown: only
+    /// [`crate::Context::run_logic`] is run. This asks for a full pass, painted like any
+    /// other, so that the frame happens with nothing on screen to show for it.
+    ///
+    /// This is what lets a tool drive an app that sits in the background. `egui_inspection`
+    /// (and the `egui_mcp` server on top of it) sends this with every request it serves, and
+    /// each of them needs the frame: a screenshot needs the painted pixels, the widget tree is
+    /// what the pass produces, and injected clicks and keystrokes are only *applied* by a pass.
+    /// Without it an inspector attached to a backgrounded app can only time out until a human
+    /// brings the window up again.
     ///
     /// A pending [`Self::Screenshot`] asks for the same thing, so it needs no company.
     ///

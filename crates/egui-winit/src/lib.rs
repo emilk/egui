@@ -1736,7 +1736,12 @@ pub enum ActionRequested {
     Copy,
     Paste,
 
-    /// Paint a frame even though the window is hidden.
+    /// Paint a frame even though the window is hidden (minimized or occluded).
+    ///
+    /// Someone wants the frame to happen with nothing on screen to show for it. This is how a
+    /// tool drives an app that sits in the background: `egui_inspection` sends it with every
+    /// request, so that a hidden app still paints a screenshot, rebuilds its widget tree, and
+    /// runs the pass that applies injected input.
     ///
     /// See [`egui::ViewportCommand::RequestPaintWhileHidden`].
     PaintWhileHidden,
