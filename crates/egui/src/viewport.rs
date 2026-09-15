@@ -1218,6 +1218,18 @@ pub enum ViewportCommand {
     ///
     /// This is equivalent to the system keyboard shortcut for paste (e.g. CTRL + V).
     RequestPaste,
+
+    /// Request a painted frame, even though this window is hidden.
+    ///
+    /// Integrations run no pass at all while a window is minimized or occluded
+    /// (see [`ViewportInfo::visible`]), since nothing would be shown. This asks for a full
+    /// pass, painted like any other, so that the pixels can be read back even though the
+    /// screen shows none of them: use it to screenshot or inspect an app in the background.
+    ///
+    /// A pending [`Self::Screenshot`] asks for the same thing, so it needs no company.
+    ///
+    /// Holds for one frame; send it again for another.
+    RequestPaintWhileHidden,
 }
 
 impl ViewportCommand {

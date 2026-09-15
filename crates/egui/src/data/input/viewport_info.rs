@@ -92,6 +92,9 @@ impl ViewportInfo {
     /// A window is not visible if it is minimized or occluded.
     /// When not visible, the UI is not painted and rendering is skipped,
     /// but application logic may still be executed by some integrations.
+    ///
+    /// Send [`crate::ViewportCommand::RequestPaintWhileHidden`] to get a painted frame anyway,
+    /// e.g. to screenshot an app that sits in the background.
     pub fn visible(&self) -> Option<bool> {
         match (self.minimized, self.occluded) {
             (Some(true), _) | (_, Some(true)) => Some(false),

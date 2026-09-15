@@ -1735,6 +1735,21 @@ pub enum ActionRequested {
     Cut,
     Copy,
     Paste,
+
+    /// Paint a frame even though the window is hidden.
+    ///
+    /// See [`egui::ViewportCommand::RequestPaintWhileHidden`].
+    PaintWhileHidden,
+}
+
+impl ActionRequested {
+    /// Does this need a painted frame, even from a window that is hidden?
+    ///
+    /// A screenshot of a hidden window is still a screenshot of something, and painting is
+    /// the only way to produce it.
+    pub fn wants_paint(&self) -> bool {
+        matches!(self, Self::Screenshot(_) | Self::PaintWhileHidden)
+    }
 }
 
 pub fn process_viewport_commands(
@@ -1963,6 +1978,9 @@ fn process_viewport_command(
         }
         ViewportCommand::Screenshot(callback) => {
             actions_requested.push(ActionRequested::Screenshot(callback));
+        }
+        ViewportCommand::RequestPaintWhileHidden => {
+            actions_requested.push(ActionRequested::PaintWhileHidden);
         }
         ViewportCommand::RequestCut => {
             actions_requested.push(ActionRequested::Cut);
