@@ -161,6 +161,9 @@ pub trait App {
     /// [`egui::InputState::viewport`], but the rest of [`egui::Context::input`]
     /// (events, time, …) is that of the last shown frame.
     ///
+    /// Send [`egui::ViewportCommand::RequestPaintWhileHidden`] when you want a full pass,
+    /// painted and all, out of a hidden window — e.g. to screenshot a backgrounded app.
+    ///
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force another call to [`Self::logic`], call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
