@@ -145,6 +145,10 @@ pub struct Harness<'a, State = ()> {
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     render_every_step: bool,
 
+    /// Paint the synthetic mouse cursor. See [`HarnessBuilder::with_render_cursor`].
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    render_cursor: bool,
+
     max_steps: u64,
     step_dt: f32,
     wait_for_pending_images: bool,
@@ -201,6 +205,9 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_cursor,
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
@@ -259,6 +266,9 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_cursor,
 
             max_steps,
             step_dt,
@@ -810,6 +820,19 @@ impl<'a, State> Harness<'a, State> {
         self.render_every_step = render_every_step;
     }
 
+    /// Should a synthetic mouse cursor be painted on top of rendered frames?
+    ///
+    /// See [`HarnessBuilder::with_render_cursor`].
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[inline]
+    pub fn set_render_cursor(&mut self, render_cursor: bool) {
+        if self.render_cursor != render_cursor {
+            // This changes what a render of this pass looks like.
+            self.last_render = None;
+        }
+        self.render_cursor = render_cursor;
+    }
+
     /// Render the last output to an image.
     ///
     /// When calling this multiple times on the same frame, or when [`Self::set_render_every_step`] is
@@ -829,7 +852,9 @@ impl<'a, State> Harness<'a, State> {
         }
 
         let mut output = self.output.clone();
-        push_cursor_shape(&self.ctx, &mut output.shapes);
+        if self.render_cursor {
+            push_cursor_shape(&self.ctx, &mut output.shapes);
+        }
 
         let image = self.renderer.render(&self.ctx, &output)?;
         self.last_render = Some((pass_nr, image.clone()));
@@ -892,9 +917,8 @@ impl<'a, State> Harness<'a, State> {
             return;
         }
 
-        // Render the frame once and reuse it for every request. We render without the synthetic
-        // mouse cursor since a real screenshot wouldn't include the OS cursor either.
-        let image = match self.renderer.render(&self.ctx, &self.output) {
+        // Render the frame once and reuse it for every request.
+        let image = match self.render() {
             Ok(image) => image,
             Err(err) => {
                 log::error!("Failed to render screenshot requested via ViewportCommand: {err}");
