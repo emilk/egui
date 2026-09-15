@@ -4,8 +4,12 @@
 //! column sizing, row heights, stripes, selection, hover, clipping, and virtualization.
 //! When you change `table.rs`, `layout.rs` or `sizing.rs`, these snapshots tell you
 //! exactly what moved.
+//!
+//! Some of them capture known warts, so that fixing one shows up as a diff:
+//! a row background covers only the requested row height and not the grown row,
+//! and columns are never shrunk to fit the available width.
 
-use egui::{Align, Layout, Rect, Theme, Ui, Vec2};
+use egui::{Align, Layout, Pos2, RawInput, Rect, Theme, Ui, Vec2};
 use egui_extras::{Column, TableBuilder};
 use egui_kittest::{Harness, SnapshotResults};
 
@@ -47,6 +51,15 @@ fn snapshot_both_themes(name: &str, size: [f32; 2], add_contents: fn(&mut Ui)) {
 fn snapshot(name: &str, size: [f32; 2], add_contents: impl FnMut(&mut Ui)) {
     let mut harness = harness(size, Theme::Dark, add_contents);
     harness.snapshot(format!("table/{name}"));
+}
+
+/// Cell contents that are taller than any row height we ask for.
+fn tall_cell(ui: &mut Ui) {
+    ui.vertical(|ui| {
+        for _ in 0..3 {
+            ui.label("tall");
+        }
+    });
 }
 
 /// A cell that paints its own background, so that the column widths
@@ -158,24 +171,53 @@ fn clip_truncates() {
     });
 }
 
-/// A non-`clip` column grows the table past the available width.
+/// An `auto` column is measured at its suggested width, so wrapping content
+/// reports its _wrapped_ width and the column never gets wider than the suggestion.
 #[test]
-fn no_clip_overflows() {
-    snapshot("no_clip_overflows", [260.0, 80.0], |ui| {
-        TableBuilder::new(ui)
-            .column(Column::auto())
-            .column(Column::exact(40.0))
-            .body(|mut body| {
-                body.row(18.0, |mut row| {
-                    row.col(|ui| {
-                        ui.label(LONG_TEXT);
-                    });
-                    row.col(|ui| {
-                        ui.label("end");
+fn auto_column_wraps_at_its_suggested_width() {
+    snapshot(
+        "auto_column_wraps_at_its_suggested_width",
+        [260.0, 80.0],
+        |ui| {
+            TableBuilder::new(ui)
+                .column(Column::auto_with_initial_suggestion(100.0))
+                .column(Column::exact(40.0))
+                .body(|mut body| {
+                    body.row(18.0, |mut row| {
+                        row.col(|ui| {
+                            filled_cell(ui, LONG_TEXT);
+                        });
+                        row.col(|ui| {
+                            filled_cell(ui, "end");
+                        });
                     });
                 });
-            });
-    });
+        },
+    );
+}
+
+/// Content that refuses to wrap makes the table wider than the available space:
+/// columns are never shrunk to fit.
+#[test]
+fn auto_columns_overflow_the_available_width() {
+    snapshot(
+        "auto_columns_overflow_the_available_width",
+        [260.0, 80.0],
+        |ui| {
+            TableBuilder::new(ui)
+                .columns(Column::auto(), 2)
+                .body(|mut body| {
+                    body.row(18.0, |mut row| {
+                        for text in [LONG_TEXT, "second column"] {
+                            row.col(|ui| {
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+                                filled_cell(ui, text);
+                            });
+                        }
+                    });
+                });
+        },
+    );
 }
 
 // ----------------------------------------------------------------------------
@@ -200,12 +242,7 @@ fn tall_cell_grows_the_row() {
                         });
                         row.col(|ui| {
                             if row_index == 2 {
-                                // Three labels in a column: taller than the 18 px we asked for.
-                                ui.vertical(|ui| {
-                                    ui.label("tall");
-                                    ui.label("tall");
-                                    ui.label("tall");
-                                });
+                                tall_cell(ui);
                             } else {
                                 ui.label("short");
                             }
@@ -232,11 +269,7 @@ fn tall_cell_in_clipped_column() {
                         });
                         row.col(|ui| {
                             if row_index == 2 {
-                                ui.vertical(|ui| {
-                                    ui.label("tall");
-                                    ui.label("tall");
-                                    ui.label("tall");
-                                });
+                                tall_cell(ui);
                             } else {
                                 ui.label("short");
                             }
@@ -297,9 +330,10 @@ fn striped() {
     });
 }
 
+/// Row 2 is selected _and_ tall: the selection fill should cover the whole grown row.
 #[test]
 fn selected_and_overline() {
-    snapshot_both_themes("selected_and_overline", [300.0, 160.0], |ui| {
+    snapshot_both_themes("selected_and_overline", [300.0, 180.0], |ui| {
         TableBuilder::new(ui)
             .striped(true)
             .column(Column::exact(60.0))
@@ -313,7 +347,11 @@ fn selected_and_overline() {
                             ui.label(format!("row {row_index}"));
                         });
                         row.col(|ui| {
-                            ui.label("cell");
+                            if row_index == 2 {
+                                tall_cell(ui);
+                            } else {
+                                ui.label("cell");
+                            }
                         });
                     });
                 }
@@ -322,11 +360,13 @@ fn selected_and_overline() {
 }
 
 /// Hovering a row of a `sense`:ing table paints the whole row.
+///
+/// The hovered row 2 is tall, so the fill should cover the whole grown row.
 #[test]
 fn hovered_row() {
     let mut results = SnapshotResults::new();
     for theme in THEMES {
-        let mut harness = harness([300.0, 160.0], theme, |ui| {
+        let mut harness = harness([300.0, 180.0], theme, |ui| {
             TableBuilder::new(ui)
                 .sense(egui::Sense::click())
                 .column(Column::exact(60.0))
@@ -338,15 +378,19 @@ fn hovered_row() {
                                 ui.label(format!("row {row_index}"));
                             });
                             row.col(|ui| {
-                                ui.label("cell");
+                                if row_index == 2 {
+                                    tall_cell(ui);
+                                } else {
+                                    ui.label("cell");
+                                }
                             });
                         });
                     }
                 });
         });
 
-        // The third row:
-        harness.hover_at(egui::pos2(150.0, 8.0 + 2.5 * 21.0));
+        // Somewhere inside the tall row 2:
+        harness.hover_at(egui::pos2(150.0, 60.0));
         harness.run();
         results.add(harness.try_snapshot(format!("table/hovered_row_{}", theme_name(theme))));
     }
@@ -604,5 +648,93 @@ fn tall_cell_in_clipped_column_does_not_grow_the_row() {
         next_row.top() - first_row.top() < 30.0,
         "The clipped row should stay 18 px tall, but the next row is {} px below",
         next_row.top() - first_row.top()
+    );
+}
+
+/// Run a table for `passes` passes in a viewport of the given width,
+/// and return the column widths as of each pass.
+///
+/// This is deliberately not a [`Harness`]: a `Harness` runs to convergence,
+/// and here we care about the passes on the way there.
+fn column_widths_per_pass(
+    viewport_width: f32,
+    passes: usize,
+    mut add_table: impl FnMut(&mut Ui, &mut Vec<f32>),
+) -> Vec<Vec<f32>> {
+    let ctx = egui::Context::default();
+    let input = RawInput {
+        screen_rect: Some(Rect::from_min_size(
+            Pos2::ZERO,
+            Vec2::new(viewport_width, 400.0),
+        )),
+        ..Default::default()
+    };
+
+    (0..passes)
+        .map(|_| {
+            let mut widths = Vec::new();
+            let mut output = ctx.run_ui(input.clone(), |ui| add_table(ui, &mut widths));
+            output.textures_delta.clear(); // We have no renderer to hand them to.
+            widths
+        })
+        .collect()
+}
+
+/// Two wide `auto` columns in a narrow viewport: the columns keep their full
+/// width and the table overflows, rather than sharing the space available.
+#[test]
+fn auto_columns_are_never_shrunk_to_fit() {
+    let viewport_width = 100.0;
+    let content_width = 200.0;
+    let widths = column_widths_per_pass(viewport_width, 4, |ui, widths| {
+        TableBuilder::new(ui)
+            .columns(Column::auto(), 2)
+            .body(|mut body| {
+                widths.extend_from_slice(body.widths());
+                body.row(10.0, |mut row| {
+                    for _ in 0..2 {
+                        row.col(|ui| _ = ui.allocate_space(Vec2::new(content_width, 5.0)));
+                    }
+                });
+            });
+    });
+
+    let settled = widths.last().expect("at least one pass");
+    assert_eq!(settled.len(), 2);
+    for width in settled {
+        assert!(
+            content_width <= *width,
+            "Column should have kept its {content_width} px of content, but is {width} px wide"
+        );
+    }
+    assert!(
+        viewport_width < settled.iter().sum::<f32>(),
+        "The table should overflow the {viewport_width} px viewport, but is {settled:?}"
+    );
+}
+
+/// `egui_extras` never calls `request_discard`, so the sizing pass is displayed:
+/// the first pass a user sees uses guessed widths, not measured ones.
+#[test]
+fn the_first_pass_uses_guessed_widths() {
+    let widths = column_widths_per_pass(400.0, 4, |ui, widths| {
+        TableBuilder::new(ui)
+            .column(Column::auto())
+            .column(Column::remainder())
+            .body(|mut body| {
+                widths.extend_from_slice(body.widths());
+                body.row(10.0, |mut row| {
+                    row.col(|ui| _ = ui.allocate_space(Vec2::new(30.0, 5.0)));
+                    row.col(|ui| _ = ui.allocate_space(Vec2::new(30.0, 5.0)));
+                });
+            });
+    });
+
+    let first = &widths[0];
+    let settled = widths.last().expect("at least one pass");
+    assert_ne!(
+        first, settled,
+        "The first pass is displayed with the guessed widths {first:?}, \
+         which only become the measured {settled:?} a pass later"
     );
 }
