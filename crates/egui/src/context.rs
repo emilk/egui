@@ -1081,6 +1081,11 @@ impl Context {
     /// but you still want to let the app tick its logic
     /// (so that it can e.g. ask to be shown again with [`ViewportCommand::Focus`]).
     ///
+    /// An integration should run [`Self::run_ui`] anyway, hidden or not, once something has
+    /// sent [`ViewportCommand::RequestPaintWhileHidden`]: that command asks for the ui of a
+    /// hidden window to run and be painted, which is how an app that sits in the background
+    /// is screenshotted or driven.
+    ///
     /// No pass is run, so `f` must not show any ui.
     /// This means everything egui knows about the ui is left untouched:
     /// no widget state is garbage-collected, no animation advances,

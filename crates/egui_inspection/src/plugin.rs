@@ -8,8 +8,9 @@
 //! transport) submits a [`Request`] through egui's own plugin
 //! handle — `ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req, on_reply))` — passing a
 //! closure that is called once with the single [`Response`], then sends
-//! [`egui::ViewportCommand::RequestPaintWhileHidden`] so an idle app wakes up to service it —
-//! even one whose window is minimized or occluded, which would otherwise run no pass at all. The reply is produced on the UI thread inside the
+//! [`egui::ViewportCommand::RequestPaintWhileHidden`] so an idle app wakes up and runs its ui
+//! to service the request — even an app whose window is minimized or occluded, which an
+//! integration would otherwise let sleep. The reply is produced on the UI thread inside the
 //! plugin's hooks (so `on_reply` runs there too — keep it cheap, e.g. forward onto a channel),
 //! which receive the [`egui::Context`] to issue repaints and viewport commands — so the plugin
 //! never has to store a `Context` itself.
@@ -141,10 +142,11 @@ impl InspectionPlugin {
     }
 }
 
-/// Ask for one painted frame of the root viewport, whether or not its window is visible.
+/// Ask for one run of the ui, painted, whether or not the root window is visible.
 ///
-/// This both wakes an idle app and overrides the integration's skipping of hidden windows,
-/// so that a minimized or occluded app still serves the request.
+/// This both wakes an idle app and overrides the integration's skipping of hidden windows.
+/// Every request needs it: a screenshot needs the painted pixels, the widget tree is what the
+/// pass produces, and injected input is only applied by a pass.
 fn request_frame(ctx: &Context) {
     ctx.send_viewport_cmd_to(
         egui::ViewportId::ROOT,
