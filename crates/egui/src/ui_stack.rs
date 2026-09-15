@@ -210,8 +210,15 @@ pub struct UiStack {
     /// The [`crate::Ui::unique_id`] of this [`crate::Ui`].
     ///
     /// Globally unique, but NOT stable over time.
-    /// For the stable id scope, see [`crate::Ui::scope_id`].
+    /// For the stable id scope, see [`Self::scope_id`].
     pub unique_id: Id,
+
+    /// The [`crate::Ui::scope_id`] of this [`crate::Ui`].
+    ///
+    /// Stable over time, but shared with sibling [`crate::Ui`]s
+    /// that were not given different id salts.
+    /// For a globally unique id, see [`Self::unique_id`].
+    pub scope_id: Id,
     pub info: UiStackInfo,
     pub layout_direction: Direction,
     pub min_rect: Rect,
