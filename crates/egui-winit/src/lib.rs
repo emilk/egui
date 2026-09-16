@@ -1736,14 +1736,14 @@ pub enum ActionRequested {
     Copy,
     Paste,
 
-    /// Run App::ui and paint a frame even while the window is hidden (minimized or occluded).
+    /// Run `App::ui` and paint a frame even while the window is hidden (minimized or occluded).
     ///
     /// This is useful when the UI needs to keep running without anything currently visible on
     /// screen. For example, a tool can use this to drive an app in the background:
-    /// egui_inspection includes it with every request so that a hidden app still runs its UI,
+    /// `egui_inspection` includes it with every request so that a hidden app still runs its UI,
     /// paints the screenshot, rebuilds the widget tree, and applies injected input.
     ///
-    /// See [egui::ViewportCommand::RequestPaintWhileHidden].
+    /// See [`egui::ViewportCommand::RequestPaintWhileHidden`].
     PaintWhileHidden,
 }
 
