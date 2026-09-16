@@ -254,10 +254,16 @@ mod debug_format_tests {
         assert_eq!(format!("{id:?}"), r#"Id::unique(IdSalt::new("foo"))"#);
     }
 
+    // The debug source map memoizes the first spelling it sees for an `Id`, so two tests that
+    // build the same `Id` by different routes race: whichever runs first decides what the other
+    // one's `{:?}` prints. Every test here therefore uses sources no other test uses.
     #[test]
     fn with_salt_matches_with() {
-        let parent = Id::unique("parent");
-        assert_eq!(parent.with_salt(IdSalt::new("child")), parent.with("child"));
+        let parent = Id::unique("salted_parent");
+        assert_eq!(
+            parent.with_salt(IdSalt::new("salted_child")),
+            parent.with("salted_child")
+        );
     }
 
     #[test]
