@@ -1028,16 +1028,16 @@ impl<'t> TextEdit<'t> {
             });
         }
 
-        // `WidgetInfo` only knows about `WidgetType::TextEdit`, which maps to
-        // `Role::TextInput`, so refine the role here:
-        let role = if password {
-            accesskit::Role::PasswordInput
-        } else if multiline {
-            accesskit::Role::MultilineTextInput
-        } else {
-            accesskit::Role::TextInput
-        };
         ui.ctx().accesskit_node_builder(id, |builder| {
+            // `WidgetInfo` only knows about `WidgetType::TextEdit`, which maps to
+            // `Role::TextInput`, so refine the role here:
+            let role = if password {
+                accesskit::Role::PasswordInput
+            } else if multiline {
+                accesskit::Role::MultilineTextInput
+            } else {
+                accesskit::Role::TextInput
+            };
             builder.set_role(role);
         });
 
