@@ -218,7 +218,11 @@ fn submenu_respects_custom_style() {
     harness.run();
     harness.get_by_label_contains("Styled submenu").hover();
     harness.run();
-    assert!(harness.query_by_label("I should have a thick green outline and red fill").is_some());
+    assert!(
+        harness
+            .query_by_label("I should have a thick green outline and red fill")
+            .is_some()
+    );
 
     harness.fit_contents();
 
