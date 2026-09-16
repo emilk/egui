@@ -4722,6 +4722,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_inspection_hidden_window"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_inspection",
+ "env_logger",
+ "log",
+]
+
+[[package]]
 name = "test_size_pass"
 version = "0.1.0"
 dependencies = [

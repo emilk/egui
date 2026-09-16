@@ -1218,6 +1218,25 @@ pub enum ViewportCommand {
     ///
     /// This is equivalent to the system keyboard shortcut for paste (e.g. CTRL + V).
     RequestPaste,
+
+    /// Run `eframe::App::ui` and paint a frame, even though this window is hidden.
+    ///
+    /// Integrations run no pass at all while a window is minimized or occluded
+    /// (see [`crate::ViewportInfo::visible`]), since nothing would be shown: they run only the
+    /// app logic, via [`crate::Context::run_logic`]. This asks for the full thing — ui and
+    /// paint — with nothing on screen to show for it.
+    ///
+    /// This is what lets a tool drive an app that sits in the background. `egui_inspection`
+    /// (and the `egui_mcp` server on top of it) sends this with every request it serves,
+    /// because each of them needs the ui to run: a screenshot needs the painted pixels, the
+    /// widget tree is what the pass produces, and injected clicks and keystrokes are only
+    /// *applied* by a pass. Without it an inspector attached to a backgrounded app can only
+    /// time out until a human brings the window up again.
+    ///
+    /// A pending [`Self::Screenshot`] asks for the same thing, so it needs no company.
+    ///
+    /// Holds for one frame; send it again for another.
+    RequestPaintWhileHidden,
 }
 
 impl ViewportCommand {
