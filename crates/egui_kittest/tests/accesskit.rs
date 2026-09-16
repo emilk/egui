@@ -95,6 +95,55 @@ fn toggle_button_node() {
     assert!(!toggle.is_disabled());
 }
 
+/// Selectable text used to overwrite the role reported by the widget with
+/// [`Role::Label`], so a link was indistinguishable from static text.
+#[test]
+fn selectable_text_keeps_the_role_of_the_widget() {
+    let output = accesskit_output_single_egui_frame(|ui| {
+        assert!(
+            ui.style().interaction.selectable_labels,
+            "This test is about the selectable-label code path"
+        );
+        CentralPanel::default().show(ui, |ui| {
+            ui.label("A label");
+            ui.add(egui::Link::new("A link"));
+            let mut text = "Some text".to_owned();
+            ui.add(egui::TextEdit::multiline(&mut text));
+        });
+    });
+
+    let role_of = |label: &str| {
+        output
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some(label))
+            .map(|(_, node)| node.role())
+    };
+
+    assert_eq!(role_of("A link"), Some(Role::Link));
+
+    // A label has no `label`, only a value, so look it up by role instead:
+    assert_eq!(
+        output
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.role() == Role::Label)
+            .count(),
+        1,
+        "Only the label itself should be a `Label`; found: {output:#?}"
+    );
+
+    assert_eq!(
+        output
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.role() == Role::MultilineTextInput)
+            .count(),
+        1,
+        "The multiline `TextEdit` should keep its refined role; found: {output:#?}"
+    );
+}
+
 #[test]
 fn multiple_disabled_widgets() {
     let output = accesskit_output_single_egui_frame(|ui| {
