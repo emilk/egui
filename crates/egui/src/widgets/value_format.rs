@@ -146,7 +146,7 @@ impl<'a> ValueFormat<'a> {
     /// Panics if `min_width` is 0.
     pub fn binary(self, min_width: usize, twos_complement: bool) -> Self {
         assert!(
-            min_width > 0,
+            0 < min_width,
             "ValueFormat::binary: `min_width` must be greater than 0"
         );
         if twos_complement {
@@ -174,7 +174,7 @@ impl<'a> ValueFormat<'a> {
     /// Panics if `min_width` is 0.
     pub fn octal(self, min_width: usize, twos_complement: bool) -> Self {
         assert!(
-            min_width > 0,
+            0 < min_width,
             "ValueFormat::octal: `min_width` must be greater than 0"
         );
         if twos_complement {
@@ -202,7 +202,7 @@ impl<'a> ValueFormat<'a> {
     /// Panics if `min_width` is 0.
     pub fn hexadecimal(self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
         assert!(
-            min_width > 0,
+            0 < min_width,
             "ValueFormat::hexadecimal: `min_width` must be greater than 0"
         );
         match (twos_complement, upper) {

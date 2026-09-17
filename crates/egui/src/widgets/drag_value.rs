@@ -15,10 +15,12 @@ use super::value_format::{NumParser, ValueFormat};
 /// for the borrow checker.
 pub(crate) type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
 
+/// Reads the value behind a [`GetSetValue`].
 pub(crate) fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
     (get_set_value)(None)
 }
 
+/// Writes `value` through a [`GetSetValue`].
 pub(crate) fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
     (get_set_value)(Some(value));
 }

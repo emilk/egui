@@ -14,6 +14,12 @@ use super::drag_value::clamp_value_to_range;
 use super::slider::{SliderClamping, SliderOrientation};
 use super::value_format::ValueFormat;
 
+const INFINITY: f64 = f64::INFINITY;
+
+/// When the user asks for an infinitely large range (e.g. logarithmic from zero),
+/// give a scale that this many orders of magnitude in size.
+const INF_RANGE_MAGNITUDE: f64 = 10.0;
+
 /// How values are spread along a slider's rail.
 #[derive(Clone, Debug)]
 pub struct SliderSpec {
@@ -560,7 +566,7 @@ pub fn declare_accesskit_slider(
         if value < *editable_range.end() {
             builder.add_action(Action::Increment);
         }
-        if value > *editable_range.start() {
+        if *editable_range.start() < value {
             builder.add_action(Action::Decrement);
         }
     });
@@ -571,12 +577,6 @@ pub fn declare_accesskit_slider(
 // Always clamps.
 // Logarithmic sliders are allowed to include zero and infinity,
 // even though mathematically it doesn't make sense.
-
-const INFINITY: f64 = f64::INFINITY;
-
-/// When the user asks for an infinitely large range (e.g. logarithmic from zero),
-/// give a scale that this many orders of magnitude in size.
-const INF_RANGE_MAGNITUDE: f64 = 10.0;
 
 fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &SliderSpec) -> f64 {
     let (min, max) = (*range.start(), *range.end());

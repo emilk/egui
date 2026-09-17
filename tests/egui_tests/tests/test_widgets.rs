@@ -11,6 +11,9 @@ use egui::{
 use egui_kittest::kittest::{Queryable as _, by};
 use egui_kittest::{Harness, Node, SnapshotResult, SnapshotResults};
 
+/// The space each layout cell gives a widget, unless the widget asks for more.
+const DEFAULT_TEST_SIZE: Vec2 = Vec2::new(110.0, 45.0);
+
 #[test]
 fn widget_tests() {
     let mut results = SnapshotResults::new();
@@ -175,9 +178,6 @@ fn widget_tests() {
         ));
     }
 }
-
-/// The space each layout cell gives a widget, unless the widget asks for more.
-const DEFAULT_TEST_SIZE: Vec2 = Vec2::new(110.0, 45.0);
 
 fn test_widget(name: &str, w: impl FnMut(&mut Ui) -> Response, results: &mut SnapshotResults) {
     test_widget_with_size(name, DEFAULT_TEST_SIZE, w, results);
