@@ -5,7 +5,7 @@ use crate::{
     WidgetInfo, WidgetText, WidgetType, emath, style::HandleShape,
 };
 
-use super::drag_value::{GetSetValue, get, set};
+use super::drag_value::{GetSetValue, clamp_value_to_range, get, set};
 use super::slider::{SliderClamping, SliderOrientation};
 use super::slider_core::{self, DragValueSettings, SliderCore, SliderGeometry, SliderSpec};
 use super::value_format::ValueFormat;
@@ -291,18 +291,42 @@ impl RangeSlider<'_> {
         self.core.existing(get(&mut self.get_set_high))
     }
 
-    /// Rounding can land past the other handle when that one is off the step grid, so the
-    /// order of the handles is enforced after rounding, not before.
-    fn set_low(&mut self, value: f64) {
-        let high = self.get_high();
-        let value = self.core.rounded(value).at_most(high - self.min_separation);
-        set(&mut self.get_set_low, value);
+    /// What `handle` may be set to, given where the other handle stands.
+    ///
+    /// As far as its neighbor, less any separation the widget insists on, and never past
+    /// `within`: the rail for what the widget stores and reports, or all values when it
+    /// never clamps.
+    fn bounds(
+        &self,
+        handle: Handle,
+        low: f64,
+        high: f64,
+        within: RangeInclusive<f64>,
+    ) -> RangeInclusive<f64> {
+        let (min, max) = (*within.start(), *within.end());
+        match handle {
+            Handle::Low => min..=(high - self.min_separation).clamp(min, max),
+            Handle::High => (low + self.min_separation).clamp(min, max)..=max,
+        }
     }
 
-    fn set_high(&mut self, value: f64) {
-        let low = self.get_low();
-        let value = self.core.rounded(value).at_least(low + self.min_separation);
-        set(&mut self.get_set_high, value);
+    /// What `handle` may be set to right now.
+    fn editable_bounds(&mut self, handle: Handle) -> RangeInclusive<f64> {
+        let (low, high) = (self.get_low(), self.get_high());
+        self.bounds(handle, low, high, self.core.editable_range())
+    }
+
+    /// Stores `value` for `handle`, rounded and kept on its side of the other handle.
+    ///
+    /// Rounding can land past the other handle when that one is off the step grid, so the
+    /// order of the handles is enforced after rounding, not before.
+    fn set(&mut self, handle: Handle, value: f64) {
+        let bounds = self.editable_bounds(handle);
+        let value = clamp_value_to_range(self.core.rounded(value), bounds);
+        match handle {
+            Handle::Low => set(&mut self.get_set_low, value),
+            Handle::High => set(&mut self.get_set_high, value),
+        }
     }
 
     /// Just the rail and its handles, no numbers.
@@ -327,11 +351,8 @@ impl RangeSlider<'_> {
             };
 
             // Only the grabbed handle is written, so the other keeps what the caller stored.
-            (low, high) = moved_handle(grabbed, value, low, high, self.min_separation);
-            match grabbed {
-                Handle::Low => self.set_low(low),
-                Handle::High => self.set_high(high),
-            }
+            self.set(grabbed, value);
+            (low, high) = (self.get_low(), self.get_high());
         }
         if response.drag_stopped() {
             ui.data_mut(|data| data.remove::<Handle>(response.id));
@@ -354,46 +375,32 @@ impl RangeSlider<'_> {
         );
 
         if let Some(value) = self.stepped_by_keyboard(ui, &geom, &low_response, low) {
-            (low, high) = moved_handle(Handle::Low, value, low, high, self.min_separation);
-            self.set_low(low);
+            self.set(Handle::Low, value);
         }
         if let Some(value) = self.stepped_by_keyboard(ui, &geom, &high_response, high) {
-            (_, high) = moved_handle(Handle::High, value, low, high, self.min_separation);
-            self.set_high(high);
+            self.set(Handle::High, value);
         }
 
         // Rounding is applied on the way in, so read back what was actually stored.
         let (low, high) = (self.get_low(), self.get_high());
 
-        // A handle may travel as far as its neighbor, not as far as the end of the rail. Without
-        // clamping, the rail's ends do not bound it either, as for `Slider`.
-        let unbounded = self.core.clamping == SliderClamping::Never;
-        let low_bounds = *self.core.range.start()..=(high - self.min_separation);
-        let high_bounds = (low + self.min_separation)..=*self.core.range.end();
-        let low_editable = if unbounded {
-            f64::NEG_INFINITY..=*low_bounds.end()
-        } else {
-            low_bounds.clone()
-        };
-        let high_editable = if unbounded {
-            *high_bounds.start()..=f64::INFINITY
-        } else {
-            high_bounds.clone()
-        };
-
-        for (handle, value, bounds, editable) in [
-            (&low_response, low, low_bounds, low_editable),
-            (&high_response, high, high_bounds, high_editable),
+        for (handle, handle_response, value) in [
+            (Handle::Low, &low_response, low),
+            (Handle::High, &high_response, high),
         ] {
+            // A screen reader is told the rail's extent, as for `Slider`, but may step past it
+            // when the widget never clamps.
+            let reported = self.bounds(handle, low, high, self.core.sorted_range());
+            let editable = self.bounds(handle, low, high, self.core.editable_range());
             slider_core::declare_accesskit_slider(
                 ui,
-                handle.id,
+                handle_response.id,
                 value,
-                &bounds,
+                &reported,
                 &editable,
                 self.core.step,
             );
-            handle
+            handle_response
                 .widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.core.text.text()));
         }
 
@@ -462,21 +469,18 @@ impl RangeSlider<'_> {
 
     /// The editable number for `handle`, bounded so it cannot be typed past the other handle.
     fn number_ui(&mut self, ui: &mut Ui, probe: &SliderGeometry, handle: Handle) -> Response {
-        let (low, high) = (self.get_low(), self.get_high());
-        let (value, bounds) = match handle {
-            Handle::Low => (low, *self.core.range.start()..=(high - self.min_separation)),
-            Handle::High => (high, (low + self.min_separation)..=*self.core.range.end()),
+        let value = match handle {
+            Handle::Low => self.get_low(),
+            Handle::High => self.get_high(),
         };
+        let bounds = self.editable_bounds(handle);
 
         let mut edited = value;
         let speed = self.core.drag_value_speed_at(ui, probe, value);
         let response = self.core.drag_value_ui(ui, &mut edited, bounds, speed);
 
         if edited != value {
-            match handle {
-                Handle::Low => self.set_low(edited),
-                Handle::High => self.set_high(edited),
-            }
+            self.set(handle, edited);
         }
         response
     }
@@ -485,8 +489,8 @@ impl RangeSlider<'_> {
         if self.core.clamping == SliderClamping::Always {
             // As `Slider` does: the caller's values are pulled into range, not just shown so.
             let (low, high) = (self.get_low(), self.get_high());
-            self.set_low(low);
-            self.set_high(high);
+            self.set(Handle::Low, low);
+            self.set(Handle::High, high);
         }
         let before = (self.get_low(), self.get_high());
 
@@ -576,22 +580,6 @@ fn nearer_handle(geom: &SliderGeometry, pointer_position_2d: Pos2, low: f64, hig
     }
 }
 
-/// Where the handles end up when the grabbed one is dragged to `value`.
-///
-/// Neither pushes past its neighbor, less any separation the widget insists on.
-fn moved_handle(
-    grabbed: Handle,
-    value: f64,
-    low: f64,
-    high: f64,
-    min_separation: f64,
-) -> (f64, f64) {
-    match grabbed {
-        Handle::Low => (value.at_most(high - min_separation), high),
-        Handle::High => (low, value.at_least(low + min_separation)),
-    }
-}
-
 impl Widget for RangeSlider<'_> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let inner_response = match self.core.orientation {
@@ -605,41 +593,78 @@ impl Widget for RangeSlider<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Handle, moved_handle};
+    use core::ops::RangeInclusive;
+
+    use super::{Handle, RangeSlider};
+    use crate::SliderClamping;
+
+    fn range_slider(range: RangeInclusive<f64>) -> RangeSlider<'static> {
+        RangeSlider::from_get_set(range, |_| 0.0, |_| 0.0)
+    }
 
     #[test]
     fn handles_meet_but_never_cross() {
+        let slider = range_slider(0.0..=100.0);
+        let rail = slider.core.sorted_range();
         assert_eq!(
-            moved_handle(Handle::Low, 30.0, 10.0, 80.0, 0.0),
-            (30.0, 80.0)
+            slider.bounds(Handle::Low, 10.0, 80.0, rail.clone()),
+            0.0..=80.0
         );
-        assert_eq!(
-            moved_handle(Handle::High, 30.0, 10.0, 80.0, 0.0),
-            (10.0, 30.0)
-        );
-
-        assert_eq!(
-            moved_handle(Handle::Low, 95.0, 10.0, 80.0, 0.0),
-            (80.0, 80.0),
-            "the low handle stops on the high one"
-        );
-        assert_eq!(
-            moved_handle(Handle::High, 5.0, 10.0, 80.0, 0.0),
-            (10.0, 10.0),
-            "and the high handle stops on the low one"
-        );
+        assert_eq!(slider.bounds(Handle::High, 10.0, 80.0, rail), 10.0..=100.0);
     }
 
     #[test]
     fn handles_keep_their_separation() {
+        let slider = range_slider(0.0..=100.0).min_separation(5.0);
+        let rail = slider.core.sorted_range();
         assert_eq!(
-            moved_handle(Handle::Low, 95.0, 10.0, 80.0, 5.0),
-            (75.0, 80.0),
-            "a handle dragged past its neighbor keeps the separation"
+            slider.bounds(Handle::Low, 10.0, 80.0, rail.clone()),
+            0.0..=75.0
+        );
+        assert_eq!(slider.bounds(Handle::High, 10.0, 80.0, rail), 15.0..=100.0);
+    }
+
+    #[test]
+    fn separation_never_pushes_past_the_rail() {
+        let slider = range_slider(0.0..=100.0).min_separation(10.0);
+        let rail = slider.core.sorted_range();
+        assert_eq!(
+            slider.bounds(Handle::Low, 0.0, 0.0, rail),
+            0.0..=0.0,
+            "a collapsed range at the rail start must not send the low handle negative"
+        );
+
+        let slider = range_slider(0.0..=100.0).min_separation(200.0);
+        let rail = slider.core.sorted_range();
+        assert_eq!(
+            slider.bounds(Handle::Low, 0.0, 100.0, rail.clone()),
+            0.0..=0.0
+        );
+        assert_eq!(slider.bounds(Handle::High, 0.0, 100.0, rail), 100.0..=100.0);
+    }
+
+    #[test]
+    fn a_rail_may_run_high_to_low() {
+        let slider = range_slider(100.0..=0.0);
+        let rail = slider.core.sorted_range();
+        assert_eq!(
+            slider.bounds(Handle::Low, 20.0, 80.0, rail.clone()),
+            0.0..=80.0
+        );
+        assert_eq!(slider.bounds(Handle::High, 20.0, 80.0, rail), 20.0..=100.0);
+    }
+
+    #[test]
+    fn without_clamping_only_the_neighbor_bounds_a_handle() {
+        let slider = range_slider(0.0..=100.0).clamping(SliderClamping::Never);
+        let editable = slider.core.editable_range();
+        assert_eq!(
+            slider.bounds(Handle::Low, 20.0, 80.0, editable.clone()),
+            f64::NEG_INFINITY..=80.0
         );
         assert_eq!(
-            moved_handle(Handle::High, 5.0, 10.0, 80.0, 5.0),
-            (10.0, 15.0)
+            slider.bounds(Handle::High, 20.0, 80.0, editable),
+            20.0..=f64::INFINITY
         );
     }
 }

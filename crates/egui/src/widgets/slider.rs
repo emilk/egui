@@ -568,8 +568,8 @@ impl Slider<'_> {
     fn value_ui(&mut self, ui: &mut Ui, geom: &SliderGeometry) -> Response {
         let mut value = self.get_value();
         let speed = self.core.drag_value_speed_at(ui, geom, value);
-        let range = self.core.range.clone();
-        let response = self.core.drag_value_ui(ui, &mut value, range, speed);
+        let bounds = self.core.editable_range();
+        let response = self.core.drag_value_ui(ui, &mut value, bounds, speed);
 
         if value != self.get_value() {
             self.set_value(value);
@@ -593,17 +593,12 @@ impl Slider<'_> {
         }
         response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.core.text.text()));
 
-        let editable_range = if self.core.clamping == SliderClamping::Never {
-            f64::NEG_INFINITY..=f64::INFINITY
-        } else {
-            self.core.range.clone()
-        };
         slider_core::declare_accesskit_slider(
             ui,
             response.id,
             value,
             &self.core.range,
-            &editable_range,
+            &self.core.editable_range(),
             self.core.step,
         );
 

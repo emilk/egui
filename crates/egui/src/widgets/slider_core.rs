@@ -219,6 +219,21 @@ impl SliderCore<'_> {
         }
     }
 
+    /// The ends of the rail as a low-to-high range, whichever way the rail runs.
+    pub fn sorted_range(&self) -> RangeInclusive<f64> {
+        let (start, end) = (*self.range.start(), *self.range.end());
+        start.min(end)..=start.max(end)
+    }
+
+    /// The values a handle may be set to: the rail, or anything at all if the widget never clamps.
+    pub fn editable_range(&self) -> RangeInclusive<f64> {
+        if self.clamping == SliderClamping::Never {
+            f64::NEG_INFINITY..=f64::INFINITY
+        } else {
+            self.sorted_range()
+        }
+    }
+
     /// A value as read back from the widget's storage.
     pub fn existing(&self, value: f64) -> f64 {
         if self.clamping == SliderClamping::Always {
@@ -295,23 +310,23 @@ impl SliderCore<'_> {
         }
     }
 
-    /// The editable number beside the rail, bounded by `range`.
+    /// The editable number beside the rail.
+    ///
+    /// `bounds` is what the number may be typed or dragged to. Whether a value already outside
+    /// them is pulled in follows [`Self::clamping`].
     pub fn drag_value_ui(
         &self,
         ui: &mut Ui,
         value: &mut f64,
-        range: RangeInclusive<f64>,
+        bounds: RangeInclusive<f64>,
         speed: f64,
     ) -> Response {
-        slider_drag_value(
-            ui,
-            value,
-            ValueOptions {
-                speed,
-                range,
-                clamping: self.clamping,
-                format: self.drag_value.format.clone(),
-            },
+        ui.add(
+            DragValue::new(value)
+                .speed(speed)
+                .format(self.drag_value.format.clone())
+                .range(bounds)
+                .clamp_existing_to_range(self.clamping == SliderClamping::Always),
         )
     }
 }
@@ -549,48 +564,6 @@ pub fn declare_accesskit_slider(
             builder.add_action(Action::Decrement);
         }
     });
-}
-
-// ----------------------------------------------------------------------------
-// The number next to the rail.
-
-/// How the [`DragValue`] beside a rail is built.
-pub struct ValueOptions<'a> {
-    /// Value change per point of drag.
-    pub speed: f64,
-
-    /// The values this number may take. A range slider bounds each handle by the other.
-    pub range: RangeInclusive<f64>,
-
-    /// When values outside `range` are pulled in.
-    pub clamping: SliderClamping,
-
-    /// How the number is written and read back.
-    pub format: ValueFormat<'a>,
-}
-
-/// The editable number that sits next to a rail.
-pub fn slider_drag_value(ui: &mut Ui, value: &mut f64, opts: ValueOptions<'_>) -> Response {
-    let ValueOptions {
-        speed,
-        range,
-        clamping,
-        format,
-    } = opts;
-
-    let mut dv = DragValue::new(value).speed(speed).format(format);
-
-    match clamping {
-        SliderClamping::Never => {}
-        SliderClamping::Edits => {
-            dv = dv.range(range).clamp_existing_to_range(false);
-        }
-        SliderClamping::Always => {
-            dv = dv.range(range).clamp_existing_to_range(true);
-        }
-    }
-
-    ui.add(dv)
 }
 
 // ----------------------------------------------------------------------------
