@@ -402,6 +402,12 @@ struct ContextImpl {
     glyph_rasterizers: Vec<GlyphRasterizer>,
     font_providers: Vec<Arc<dyn FontProvider>>,
 
+    /// Set when the rasterizers or providers change, acted on at the start of the next pass.
+    ///
+    /// The [`Fonts`] must outlive the pass that is laying out text with them,
+    /// so they are never dropped in the middle of one.
+    reload_fonts: bool,
+
     memory: Memory,
     animation_manager: AnimationManager,
 
@@ -574,6 +580,11 @@ impl ContextImpl {
         profiling::function_scope!();
         let input = &self.viewport().input;
         let max_texture_side = input.max_texture_side;
+
+        if core::mem::take(&mut self.reload_fonts) {
+            // The rasterizers or providers changed during the last pass.
+            self.fonts = None;
+        }
 
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
             // New font definition loaded, so we need to reload all fonts.
@@ -798,22 +809,28 @@ impl Context {
     ///
     /// Rasterizers are asked in the order they were added.
     /// `eframe` adds the browser rasterizer on web.
+    ///
+    /// The rasterizer becomes active at the start of the next pass.
     pub fn add_glyph_rasterizer(&self, glyph_rasterizer: GlyphRasterizer) {
         self.write(|ctx| {
             ctx.glyph_rasterizers.push(glyph_rasterizer);
-            ctx.fonts = None;
+            ctx.reload_fonts = true;
         });
+        self.request_repaint();
     }
 
     /// Replace all [`GlyphRasterizer`]s. See [`Self::add_glyph_rasterizer`].
     ///
     /// Pass an empty list to only use the installed fonts.
     /// Note that this also removes the browser rasterizer that `eframe` adds on web.
+    ///
+    /// The rasterizers become active at the start of the next pass.
     pub fn set_glyph_rasterizers(&self, glyph_rasterizers: Vec<GlyphRasterizer>) {
         self.write(|ctx| {
             ctx.glyph_rasterizers = glyph_rasterizers;
-            ctx.fonts = None;
+            ctx.reload_fonts = true;
         });
+        self.request_repaint();
     }
 
     /// Add a [`FontProvider`], asked for fonts for characters that no installed font has.
@@ -822,21 +839,27 @@ impl Context {
     /// Providers are asked in the order they were added.
     ///
     /// `eframe` adds a system font provider on native (see its `system_fonts` feature).
+    ///
+    /// The provider becomes active at the start of the next pass.
     pub fn add_font_provider(&self, font_provider: Arc<dyn FontProvider>) {
         self.write(|ctx| {
             ctx.font_providers.push(font_provider);
-            ctx.fonts = None;
+            ctx.reload_fonts = true;
         });
+        self.request_repaint();
     }
 
     /// Replace all [`FontProvider`]s. See [`Self::add_font_provider`].
     ///
     /// Pass an empty list to only use the installed fonts.
+    ///
+    /// The providers become active at the start of the next pass.
     pub fn set_font_providers(&self, font_providers: Vec<Arc<dyn FontProvider>>) {
         self.write(|ctx| {
             ctx.font_providers = font_providers;
-            ctx.fonts = None;
+            ctx.reload_fonts = true;
         });
+        self.request_repaint();
     }
 
     /// Do read-only (shared access) transaction on Context
@@ -4715,6 +4738,21 @@ mod test {
     use crate::{FontDefinitions, Panel};
 
     use super::Context;
+
+    /// Changing the font providers mid-pass must not drop the [`crate::text::Fonts`]
+    /// that the rest of the pass is still laying out text with.
+    #[test]
+    fn test_font_providers_changed_mid_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.label("before");
+            ui.ctx().set_font_providers(vec![]);
+            ui.label("after");
+        });
+        output.drop_without_applying_deltas();
+    }
 
     #[test]
     fn test_root_ui_with_begin_and_end_pass() {
