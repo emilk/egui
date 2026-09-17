@@ -105,6 +105,19 @@ impl SliderGeometry {
         }
     }
 
+    /// The space a handle centered on `center` covers, before any interaction expansion.
+    pub fn handle_rect(&self, center: Pos2) -> Rect {
+        let radius = self.handle_radius();
+        let half_size = match self.handle_shape {
+            HandleShape::Circle => Vec2::splat(radius),
+            HandleShape::Rect { aspect_ratio } => match self.orientation {
+                SliderOrientation::Horizontal => Vec2::new(radius * aspect_ratio, radius),
+                SliderOrientation::Vertical => Vec2::new(radius, radius * aspect_ratio),
+            },
+        };
+        Rect::from_center_size(center, 2.0 * half_size)
+    }
+
     /// The coordinate of `pointer_position_2d` along the rail.
     pub fn pointer_position(&self, pointer_position_2d: Pos2) -> f32 {
         match self.orientation {
@@ -360,13 +373,8 @@ pub fn paint_handle(ui: &Ui, geom: &SliderGeometry, center: Pos2, visuals: &styl
                 stroke: visuals.fg_stroke,
             });
         }
-        HandleShape::Rect { aspect_ratio } => {
-            let v = match geom.orientation {
-                SliderOrientation::Horizontal => Vec2::new(radius * aspect_ratio, radius),
-                SliderOrientation::Vertical => Vec2::new(radius, radius * aspect_ratio),
-            };
-            let v = v + Vec2::splat(visuals.expansion);
-            let rect = Rect::from_center_size(center, 2.0 * v);
+        HandleShape::Rect { .. } => {
+            let rect = geom.handle_rect(center).expand(visuals.expansion);
             ui.painter().rect(
                 rect,
                 visuals.corner_radius,
