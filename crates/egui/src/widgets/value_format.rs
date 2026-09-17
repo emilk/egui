@@ -1,4 +1,6 @@
 //! How a number is written, read back, and applied while being edited.
+//!
+//! Used by [`crate::DragValue`], [`crate::Slider`], and [`crate::RangeSlider`].
 
 use core::ops::RangeInclusive;
 use std::sync::Arc;
