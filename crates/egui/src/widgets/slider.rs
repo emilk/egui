@@ -3,47 +3,16 @@
 use core::ops::RangeInclusive;
 
 use crate::{
-    Color32, DragValue, EventFilter, Key, Label, MINUS_CHAR_STR, NumExt as _, Pos2, Rangef, Rect,
-    Response, Sense, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, emath,
-    epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape, vec2,
+    Color32, Key, Label, MINUS_CHAR_STR, NumExt as _, Rangef, Rect, Response, Sense, TextStyle,
+    TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, emath, style::HandleShape, vec2,
 };
 
 use super::drag_value::clamp_value_to_range;
-
+use super::slider_core::{
+    self, GetSetValue, NumFormatter, NumParser, SliderGeometry, SliderSpec, StepOptions,
+    ValueOptions, get, set,
+};
 // ----------------------------------------------------------------------------
-
-type NumFormatter<'a> = Box<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
-type NumParser<'a> = Box<dyn 'a + Fn(&str) -> Option<f64>>;
-
-// ----------------------------------------------------------------------------
-
-/// Combined into one function (rather than two) to make it easier
-/// for the borrow checker.
-type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
-
-fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
-    (get_set_value)(None)
-}
-
-fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
-    (get_set_value)(Some(value));
-}
-
-// ----------------------------------------------------------------------------
-
-#[derive(Clone)]
-struct SliderSpec {
-    logarithmic: bool,
-
-    /// For logarithmic sliders, the smallest positive value we are interested in.
-    /// 1 for integer sliders, maybe 1e-6 for others.
-    smallest_positive: f64,
-
-    /// For logarithmic sliders, the largest positive value we are interested in
-    /// before the slider switches to `INFINITY`, if that is the higher end.
-    /// Default: INFINITY.
-    largest_finite: f64,
-}
 
 /// Specifies the orientation of a [`Slider`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -623,15 +592,20 @@ impl<'a> Slider<'a> {
         self.range.clone()
     }
 
-    /// For instance, `position` is the mouse position and `position_range` is the physical location of the slider on the screen.
-    fn value_from_position(&self, position: f32, position_range: Rangef) -> f64 {
-        let normalized = remap_clamp(position, position_range, 0.0..=1.0) as f64;
-        value_from_normalized(normalized, self.range(), &self.spec)
+    /// Where this slider's handle may travel this frame, and what a position there means.
+    fn geometry(&self, rect: Rect, ui: &Ui) -> SliderGeometry {
+        SliderGeometry {
+            orientation: self.orientation,
+            handle_shape: self.resolved_handle_shape(ui),
+            range: self.range(),
+            spec: self.spec.clone(),
+            rect,
+        }
     }
 
-    fn position_from_value(&self, value: f64, position_range: Rangef) -> f32 {
-        let normalized = normalized_from_value(value, self.range(), &self.spec);
-        lerp(position_range, normalized as f32)
+    fn resolved_handle_shape(&self, ui: &Ui) -> HandleShape {
+        self.handle_shape
+            .unwrap_or_else(|| ui.style().visuals.handle_shape)
     }
 
     /// Update the value on each key press when text-editing the value.
@@ -657,235 +631,61 @@ impl Slider<'_> {
 
     /// Just the slider, no text
     fn slider_ui(&mut self, ui: &Ui, response: &Response) {
-        let rect = &response.rect;
-        let handle_shape = self
-            .handle_shape
-            .unwrap_or_else(|| ui.style().visuals.handle_shape);
-        let position_range = self.position_range(rect, &handle_shape);
+        let geom = self.geometry(response.rect, ui);
 
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
-            let position = self.pointer_position(pointer_position_2d);
-            let new_value = if self.smart_aim {
-                let aim_radius = ui.input(|i| i.aim_radius());
-                emath::smart_aim::best_in_range_f64(
-                    self.value_from_position(position - aim_radius, position_range),
-                    self.value_from_position(position + aim_radius, position_range),
-                )
-            } else {
-                self.value_from_position(position, position_range)
-            };
+            let new_value =
+                slider_core::value_at_pointer(ui, &geom, pointer_position_2d, self.smart_aim);
             self.set_value(new_value);
         }
 
-        let mut decrement = 0usize;
-        let mut increment = 0usize;
+        let kb_steps = slider_core::keyboard_steps(ui, response, self.orientation);
 
-        if response.has_focus() {
-            ui.memory_mut(|m| {
-                m.set_focus_lock_filter(
-                    response.id,
-                    EventFilter {
-                        // pressing arrows in the orientation of the
-                        // slider should not move focus to next widget
-                        horizontal_arrows: matches!(
-                            self.orientation,
-                            SliderOrientation::Horizontal
-                        ),
-                        vertical_arrows: matches!(self.orientation, SliderOrientation::Vertical),
-                        ..Default::default()
-                    },
-                );
-            });
-
-            let (dec_key, inc_key) = match self.orientation {
-                SliderOrientation::Horizontal => (Key::ArrowLeft, Key::ArrowRight),
-                // Note that this is for moving the slider position,
-                // so up = decrement y coordinate:
-                SliderOrientation::Vertical => (Key::ArrowUp, Key::ArrowDown),
-            };
-
-            ui.input(|input| {
-                decrement += input.num_presses(dec_key);
-                increment += input.num_presses(inc_key);
-            });
-        }
-
-        ui.input(|input| {
-            use accesskit::Action;
-            decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
-            increment += input.num_accesskit_action_requests(response.id, Action::Increment);
-        });
-
-        let kb_step = increment as f32 - decrement as f32;
-
-        if kb_step != 0.0 {
-            let ui_point_per_step = 1.0; // move this many ui points for each kb_step
-            let prev_value = self.get_value();
-            let prev_position = self.position_from_value(prev_value, position_range);
-            let new_position = prev_position + ui_point_per_step * kb_step;
-            let mut new_value = match self.step {
-                Some(step) => prev_value + (kb_step as f64 * step),
-                None if self.smart_aim => {
-                    let aim_radius = 0.49 * ui_point_per_step; // Chosen so we don't include `prev_value` in the search.
-                    emath::smart_aim::best_in_range_f64(
-                        self.value_from_position(new_position - aim_radius, position_range),
-                        self.value_from_position(new_position + aim_radius, position_range),
-                    )
-                }
-                _ => self.value_from_position(new_position, position_range),
-            };
-            if let Some(max_decimals) = self.max_decimals {
-                // self.set_value rounds, so ensure we reach at the least the next breakpoint
-                // note: we give it a little bit of leeway due to floating point errors. (0.1 isn't representable in binary)
-                // 'set_value' will round it to the nearest value.
-                let min_increment = 1.0 / (10.0_f64.powi(max_decimals as i32));
-                new_value = if new_value > prev_value {
-                    f64::max(new_value, prev_value + min_increment * 1.001)
-                } else if new_value < prev_value {
-                    f64::min(new_value, prev_value - min_increment * 1.001)
-                } else {
-                    new_value
-                };
-            }
+        if kb_steps != 0.0 {
+            let new_value = slider_core::stepped_value(
+                &geom,
+                self.get_value(),
+                kb_steps,
+                &StepOptions {
+                    step: self.step,
+                    smart_aim: self.smart_aim,
+                    max_decimals: self.max_decimals,
+                },
+            );
             self.set_value(new_value);
         }
 
-        ui.input(|input| {
-            use accesskit::{Action, ActionData};
-            for request in input.accesskit_action_requests(response.id, Action::SetValue) {
-                if let Some(ActionData::NumericValue(new_value)) = request.data {
-                    self.set_value(new_value);
-                }
-            }
-        });
+        if let Some(new_value) = slider_core::accesskit_set_value_request(ui, response.id) {
+            self.set_value(new_value);
+        }
 
         // Paint it:
         if ui.is_rect_visible(response.rect) {
             let value = self.get_value();
 
-            let visuals = ui.style().interact(response);
-            let widget_visuals = &ui.visuals().widgets;
-            let spacing = &ui.style().spacing;
-
-            let rail_radius = (spacing.slider_rail_height / 2.0).at_least(0.0);
-            let rail_rect = self.rail_rect(rect, rail_radius);
-            let corner_radius = widget_visuals.inactive.corner_radius;
-
-            ui.painter()
-                .rect_filled(rail_rect, corner_radius, widget_visuals.inactive.bg_fill);
-
-            let position_1d = self.position_from_value(value, position_range);
-            let center = self.marker_center(position_1d, &rail_rect);
+            let rail_rect = slider_core::paint_rail(ui, &geom);
+            let center = geom.marker_center(geom.position_from_value(value), &rail_rect);
 
             // Decide if we should add trailing fill.
             let trailing_fill = self
                 .trailing_fill
                 .unwrap_or_else(|| ui.visuals().slider_trailing_fill);
 
-            // Paint trailing fill.
             if trailing_fill {
-                let mut trailing_rail_rect = rail_rect;
-
-                // The trailing rect has to be drawn differently depending on the orientation.
-                match self.orientation {
-                    SliderOrientation::Horizontal => {
-                        trailing_rail_rect.max.x = center.x + corner_radius.nw as f32;
-                    }
-                    SliderOrientation::Vertical => {
-                        trailing_rail_rect.min.y = center.y - corner_radius.se as f32;
-                    }
-                }
-
-                ui.painter().rect_filled(
-                    trailing_rail_rect,
-                    corner_radius,
-                    ui.visuals().selection.bg_fill,
-                );
+                // The fill runs from the start of the rail to the handle. A range slider hands
+                // the same function two handles instead.
+                let span = match self.orientation {
+                    SliderOrientation::Horizontal => Rangef::new(rail_rect.left(), center.x),
+                    SliderOrientation::Vertical => Rangef::new(center.y, rail_rect.bottom()),
+                };
+                slider_core::paint_fill(ui, rail_rect, span, self.orientation);
             }
 
-            let radius = self.handle_radius(rect);
-
-            let handle_shape = self
-                .handle_shape
-                .unwrap_or_else(|| ui.style().visuals.handle_shape);
-            match handle_shape {
-                style::HandleShape::Circle => {
-                    ui.painter().add(epaint::CircleShape {
-                        center,
-                        radius: radius + visuals.expansion,
-                        fill: visuals.bg_fill,
-                        stroke: visuals.fg_stroke,
-                    });
-                }
-                style::HandleShape::Rect { aspect_ratio } => {
-                    let v = match self.orientation {
-                        SliderOrientation::Horizontal => Vec2::new(radius * aspect_ratio, radius),
-                        SliderOrientation::Vertical => Vec2::new(radius, radius * aspect_ratio),
-                    };
-                    let v = v + Vec2::splat(visuals.expansion);
-                    let rect = Rect::from_center_size(center, 2.0 * v);
-                    ui.painter().rect(
-                        rect,
-                        visuals.corner_radius,
-                        visuals.bg_fill,
-                        visuals.fg_stroke,
-                        epaint::StrokeKind::Inside,
-                    );
-                }
-            }
+            slider_core::paint_handle(ui, &geom, center, ui.style().interact(response));
         }
     }
 
-    fn marker_center(&self, position_1d: f32, rail_rect: &Rect) -> Pos2 {
-        match self.orientation {
-            SliderOrientation::Horizontal => pos2(position_1d, rail_rect.center().y),
-            SliderOrientation::Vertical => pos2(rail_rect.center().x, position_1d),
-        }
-    }
-
-    fn pointer_position(&self, pointer_position_2d: Pos2) -> f32 {
-        match self.orientation {
-            SliderOrientation::Horizontal => pointer_position_2d.x,
-            SliderOrientation::Vertical => pointer_position_2d.y,
-        }
-    }
-
-    fn position_range(&self, rect: &Rect, handle_shape: &style::HandleShape) -> Rangef {
-        let handle_radius = self.handle_radius(rect);
-        let handle_radius = match handle_shape {
-            style::HandleShape::Circle => handle_radius,
-            style::HandleShape::Rect { aspect_ratio } => handle_radius * aspect_ratio,
-        };
-        match self.orientation {
-            SliderOrientation::Horizontal => rect.x_range().shrink(handle_radius),
-            // The vertical case has to be flipped because the largest slider value maps to the
-            // lowest y value (which is at the top)
-            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius).flipped(),
-        }
-    }
-
-    fn rail_rect(&self, rect: &Rect, radius: f32) -> Rect {
-        match self.orientation {
-            SliderOrientation::Horizontal => Rect::from_min_max(
-                pos2(rect.left(), rect.center().y - radius),
-                pos2(rect.right(), rect.center().y + radius),
-            ),
-            SliderOrientation::Vertical => Rect::from_min_max(
-                pos2(rect.center().x - radius, rect.top()),
-                pos2(rect.center().x + radius, rect.bottom()),
-            ),
-        }
-    }
-
-    fn handle_radius(&self, rect: &Rect) -> f32 {
-        let limit = match self.orientation {
-            SliderOrientation::Horizontal => rect.height(),
-            SliderOrientation::Vertical => rect.width(),
-        };
-        limit / 2.5
-    }
-
-    fn value_ui(&mut self, ui: &mut Ui, position_range: Rangef) -> Response {
+    fn value_ui(&mut self, ui: &mut Ui, geom: &SliderGeometry) -> Response {
         // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
         let change = ui.input(|input| {
             input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32
@@ -894,57 +694,37 @@ impl Slider<'_> {
         });
 
         let any_change = change != 0;
+        let mut value = self.get_value();
+
         let speed = if let (Some(step), true) = (self.step, any_change) {
             // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
             step
         } else {
             self.drag_value_speed
-                .unwrap_or_else(|| self.current_gradient(position_range))
+                .unwrap_or_else(|| geom.gradient_at(value))
         };
 
-        let mut value = self.get_value();
-        let response = ui.add({
-            let mut dv = DragValue::new(&mut value)
-                .speed(speed)
-                .min_decimals(self.min_decimals)
-                .max_decimals_opt(self.max_decimals)
-                .suffix(self.suffix.clone())
-                .prefix(self.prefix.clone())
-                .update_while_editing(self.update_while_editing);
+        let response = slider_core::slider_drag_value(
+            ui,
+            &mut value,
+            &ValueOptions {
+                speed,
+                range: self.range(),
+                clamping: self.clamping,
+                prefix: &self.prefix,
+                suffix: &self.suffix,
+                min_decimals: self.min_decimals,
+                max_decimals: self.max_decimals,
+                custom_formatter: self.custom_formatter.as_ref(),
+                custom_parser: self.custom_parser.as_ref(),
+                update_while_editing: self.update_while_editing,
+            },
+        );
 
-            match self.clamping {
-                SliderClamping::Never => {}
-                SliderClamping::Edits => {
-                    dv = dv.range(self.range.clone()).clamp_existing_to_range(false);
-                }
-                SliderClamping::Always => {
-                    dv = dv.range(self.range.clone()).clamp_existing_to_range(true);
-                }
-            }
-
-            if let Some(fmt) = &self.custom_formatter {
-                dv = dv.custom_formatter(fmt);
-            }
-            if let Some(parser) = &self.custom_parser {
-                dv = dv.custom_parser(parser);
-            }
-            dv
-        });
         if value != self.get_value() {
             self.set_value(value);
         }
         response
-    }
-
-    /// delta(value) / delta(points)
-    fn current_gradient(&mut self, position_range: Rangef) -> f64 {
-        // TODO(emilk): handle clamping
-        let value = self.get_value();
-        let value_from_pos = |position: f32| self.value_from_position(position, position_range);
-        let pos_from_value = |value: f64| self.position_from_value(value, position_range);
-        let left_value = value_from_pos(pos_from_value(value) - 0.5);
-        let right_value = value_from_pos(pos_from_value(value) + 0.5);
-        right_value - left_value
     }
 
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
@@ -966,36 +746,25 @@ impl Slider<'_> {
         }
         response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
 
-        ui.ctx().accesskit_node_builder(response.id, |builder| {
-            use accesskit::Action;
-            builder.set_min_numeric_value(*self.range.start());
-            builder.set_max_numeric_value(*self.range.end());
-            if let Some(step) = self.step {
-                builder.set_numeric_value_step(step);
-            }
-            builder.add_action(Action::SetValue);
-
-            let clamp_range = if self.clamping == SliderClamping::Never {
-                f64::NEG_INFINITY..=f64::INFINITY
-            } else {
-                self.range()
-            };
-            if value < *clamp_range.end() {
-                builder.add_action(Action::Increment);
-            }
-            if value > *clamp_range.start() {
-                builder.add_action(Action::Decrement);
-            }
-        });
+        let editable_range = if self.clamping == SliderClamping::Never {
+            f64::NEG_INFINITY..=f64::INFINITY
+        } else {
+            self.range()
+        };
+        slider_core::declare_accesskit_slider(
+            ui,
+            response.id,
+            value,
+            &self.range(),
+            &editable_range,
+            self.step,
+        );
 
         let slider_response = response.clone();
 
         let value_response = if self.show_value {
-            let handle_shape = self
-                .handle_shape
-                .unwrap_or_else(|| ui.style().visuals.handle_shape);
-            let position_range = self.position_range(&response.rect, &handle_shape);
-            let value_response = self.value_ui(ui, position_range);
+            let geom = self.geometry(response.rect, ui);
+            let value_response = self.value_ui(ui, &geom);
             if value_response.gained_focus()
                 || value_response.has_focus()
                 || value_response.lost_focus()
@@ -1038,173 +807,4 @@ impl Widget for Slider<'_> {
 
         inner_response.inner | inner_response.response
     }
-}
-
-// ----------------------------------------------------------------------------
-// Helpers for converting slider range to/from normalized [0-1] range.
-// Always clamps.
-// Logarithmic sliders are allowed to include zero and infinity,
-// even though mathematically it doesn't make sense.
-
-const INFINITY: f64 = f64::INFINITY;
-
-/// When the user asks for an infinitely large range (e.g. logarithmic from zero),
-/// give a scale that this many orders of magnitude in size.
-const INF_RANGE_MAGNITUDE: f64 = 10.0;
-
-fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &SliderSpec) -> f64 {
-    let (min, max) = (*range.start(), *range.end());
-
-    if min.is_nan() || max.is_nan() {
-        f64::NAN
-    } else if min == max {
-        min
-    } else if min > max {
-        value_from_normalized(1.0 - normalized, max..=min, spec)
-    } else if normalized <= 0.0 {
-        min
-    } else if normalized >= 1.0 {
-        max
-    } else if spec.logarithmic {
-        if max <= 0.0 {
-            // non-positive range
-            -value_from_normalized(normalized, -min..=-max, spec)
-        } else if 0.0 <= min {
-            let (min_log, max_log) = range_log10(min, max, spec);
-            let log = lerp(min_log..=max_log, normalized);
-            10.0_f64.powf(log)
-        } else {
-            assert!(
-                min < 0.0 && 0.0 < max,
-                "min should be negative and max positive, but got min={min} and max={max}"
-            );
-            let zero_cutoff = logarithmic_zero_cutoff(min, max);
-            if normalized < zero_cutoff {
-                // negative
-                value_from_normalized(
-                    remap(normalized, 0.0..=zero_cutoff, 0.0..=1.0),
-                    min..=0.0,
-                    spec,
-                )
-            } else {
-                // positive
-                value_from_normalized(
-                    remap(normalized, zero_cutoff..=1.0, 0.0..=1.0),
-                    0.0..=max,
-                    spec,
-                )
-            }
-        }
-    } else {
-        debug_assert!(
-            min.is_finite() && max.is_finite(),
-            "You should use a logarithmic range"
-        );
-        lerp(range, normalized.clamp(0.0, 1.0))
-    }
-}
-
-fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSpec) -> f64 {
-    let (min, max) = (*range.start(), *range.end());
-
-    if min.is_nan() || max.is_nan() {
-        f64::NAN
-    } else if min == max {
-        0.5 // empty range, show center of slider
-    } else if min > max {
-        1.0 - normalized_from_value(value, max..=min, spec)
-    } else if value <= min {
-        0.0
-    } else if value >= max {
-        1.0
-    } else if spec.logarithmic {
-        if max <= 0.0 {
-            // non-positive range
-            normalized_from_value(-value, -min..=-max, spec)
-        } else if 0.0 <= min {
-            let (min_log, max_log) = range_log10(min, max, spec);
-            let value_log = value.log10();
-            remap_clamp(value_log, min_log..=max_log, 0.0..=1.0)
-        } else {
-            assert!(
-                min < 0.0 && 0.0 < max,
-                "min should be negative and max positive, but got min={min} and max={max}"
-            );
-            let zero_cutoff = logarithmic_zero_cutoff(min, max);
-            if value < 0.0 {
-                // negative
-                remap(
-                    normalized_from_value(value, min..=0.0, spec),
-                    0.0..=1.0,
-                    0.0..=zero_cutoff,
-                )
-            } else {
-                // positive side
-                remap(
-                    normalized_from_value(value, 0.0..=max, spec),
-                    0.0..=1.0,
-                    zero_cutoff..=1.0,
-                )
-            }
-        }
-    } else {
-        debug_assert!(
-            min.is_finite() && max.is_finite(),
-            "You should use a logarithmic range"
-        );
-        remap_clamp(value, range, 0.0..=1.0)
-    }
-}
-
-fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
-    assert!(spec.logarithmic, "spec must be logarithmic");
-    assert!(
-        min <= max,
-        "min must be less than or equal to max, but was min={min} and max={max}"
-    );
-
-    if min == 0.0 && max == INFINITY {
-        (spec.smallest_positive.log10(), INF_RANGE_MAGNITUDE)
-    } else if min == 0.0 {
-        if spec.smallest_positive < max {
-            (spec.smallest_positive.log10(), max.log10())
-        } else {
-            (max.log10() - INF_RANGE_MAGNITUDE, max.log10())
-        }
-    } else if max == INFINITY {
-        if min < spec.largest_finite {
-            (min.log10(), spec.largest_finite.log10())
-        } else {
-            (min.log10(), min.log10() + INF_RANGE_MAGNITUDE)
-        }
-    } else {
-        (min.log10(), max.log10())
-    }
-}
-
-/// where to put the zero cutoff for logarithmic sliders
-/// that crosses zero ?
-fn logarithmic_zero_cutoff(min: f64, max: f64) -> f64 {
-    assert!(
-        min < 0.0 && 0.0 < max,
-        "min must be negative and max positive, but got min={min} and max={max}"
-    );
-
-    let min_magnitude = if min == -INFINITY {
-        INF_RANGE_MAGNITUDE
-    } else {
-        min.abs().log10().abs()
-    };
-    let max_magnitude = if max == INFINITY {
-        INF_RANGE_MAGNITUDE
-    } else {
-        max.log10().abs()
-    };
-
-    let cutoff = min_magnitude / (min_magnitude + max_magnitude);
-    debug_assert!(
-        0.0 <= cutoff && cutoff <= 1.0,
-        "Bad cutoff {cutoff:?} for min {min:?} and max {max:?}"
-    );
-    cutoff
 }

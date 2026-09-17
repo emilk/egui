@@ -23,6 +23,7 @@ mod progress_bar;
 mod radio_button;
 mod separator;
 mod slider;
+mod slider_core;
 mod spinner;
 pub mod text_edit;
 
