@@ -9,8 +9,7 @@ use crate::{
 
 use super::drag_value::clamp_value_to_range;
 use super::slider_core::{
-    self, GetSetValue, NumFormatter, NumParser, SliderGeometry, SliderSpec, StepOptions,
-    ValueOptions, get, set,
+    self, GetSetValue, SliderGeometry, SliderSpec, StepOptions, ValueFormat, ValueOptions, get, set,
 };
 // ----------------------------------------------------------------------------
 
@@ -72,21 +71,15 @@ pub struct Slider<'a> {
     smart_aim: bool,
     show_value: bool,
     orientation: SliderOrientation,
-    prefix: String,
-    suffix: String,
     text: WidgetText,
 
     /// Sets the minimal step of the widget value
     step: Option<f64>,
 
     drag_value_speed: Option<f64>,
-    min_decimals: usize,
-    max_decimals: Option<usize>,
-    custom_formatter: Option<NumFormatter<'a>>,
-    custom_parser: Option<NumParser<'a>>,
+    format: ValueFormat<'a>,
     trailing_fill: Option<bool>,
     handle_shape: Option<HandleShape>,
-    update_while_editing: bool,
 }
 
 impl<'a> Slider<'a> {
@@ -126,18 +119,12 @@ impl<'a> Slider<'a> {
             smart_aim: true,
             show_value: true,
             orientation: SliderOrientation::Horizontal,
-            prefix: Default::default(),
-            suffix: Default::default(),
             text: Default::default(),
             step: None,
             drag_value_speed: None,
-            min_decimals: 0,
-            max_decimals: None,
-            custom_formatter: None,
-            custom_parser: None,
+            format: ValueFormat::default(),
             trailing_fill: None,
             handle_shape: None,
-            update_while_editing: true,
         }
     }
 
@@ -152,14 +139,14 @@ impl<'a> Slider<'a> {
     /// Show a prefix before the number, e.g. "x: "
     #[inline]
     pub fn prefix(mut self, prefix: impl ToString) -> Self {
-        self.prefix = prefix.to_string();
+        self.format.prefix = prefix.to_string();
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
     #[inline]
     pub fn suffix(mut self, suffix: impl ToString) -> Self {
-        self.suffix = suffix.to_string();
+        self.format.suffix = suffix.to_string();
         self
     }
 
@@ -302,7 +289,7 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
-        self.min_decimals = min_decimals;
+        self.format.min_decimals = min_decimals;
         self
     }
 
@@ -314,13 +301,13 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
-        self.max_decimals = Some(max_decimals);
+        self.format.max_decimals = Some(max_decimals);
         self
     }
 
     #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
-        self.max_decimals = max_decimals;
+        self.format.max_decimals = max_decimals;
         self
     }
 
@@ -331,8 +318,7 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
-        self.min_decimals = num_decimals;
-        self.max_decimals = Some(num_decimals);
+        self.format.set_fixed_decimals(num_decimals);
         self
     }
 
@@ -399,7 +385,7 @@ impl<'a> Slider<'a> {
         mut self,
         formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
     ) -> Self {
-        self.custom_formatter = Some(Box::new(formatter));
+        self.format.custom_formatter = Some(Box::new(formatter));
         self
     }
 
@@ -440,7 +426,7 @@ impl<'a> Slider<'a> {
     /// ```
     #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
-        self.custom_parser = Some(Box::new(parser));
+        self.format.custom_parser = Some(Box::new(parser));
         self
     }
 
@@ -582,9 +568,7 @@ impl<'a> Slider<'a> {
             let start = *self.range.start();
             value = start + ((value - start) / step).round() * step;
         }
-        if let Some(max_decimals) = self.max_decimals {
-            value = emath::round_to_decimals(value, max_decimals);
-        }
+        value = self.format.round(value);
         set(&mut self.get_set_value, value);
     }
 
@@ -614,7 +598,7 @@ impl<'a> Slider<'a> {
     /// If `false`, the value will only be updated when user presses enter or deselects the value.
     #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
-        self.update_while_editing = update;
+        self.format.update_while_editing = update;
         self
     }
 }
@@ -649,7 +633,7 @@ impl Slider<'_> {
                 &StepOptions {
                     step: self.step,
                     smart_aim: self.smart_aim,
-                    max_decimals: self.max_decimals,
+                    max_decimals: self.format.max_decimals,
                 },
             );
             self.set_value(new_value);
@@ -711,13 +695,7 @@ impl Slider<'_> {
                 speed,
                 range: self.range(),
                 clamping: self.clamping,
-                prefix: &self.prefix,
-                suffix: &self.suffix,
-                min_decimals: self.min_decimals,
-                max_decimals: self.max_decimals,
-                custom_formatter: self.custom_formatter.as_ref(),
-                custom_parser: self.custom_parser.as_ref(),
-                update_while_editing: self.update_while_editing,
+                format: &self.format,
             },
         );
 

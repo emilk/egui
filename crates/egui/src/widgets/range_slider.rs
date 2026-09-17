@@ -10,8 +10,7 @@ use crate::{
 use super::drag_value::clamp_value_to_range;
 use super::slider::{SliderClamping, SliderOrientation};
 use super::slider_core::{
-    self, GetSetValue, NumFormatter, NumParser, SliderGeometry, SliderSpec, StepOptions,
-    ValueOptions, get, set,
+    self, GetSetValue, SliderGeometry, SliderSpec, StepOptions, ValueFormat, ValueOptions, get, set,
 };
 
 /// Select a range of numbers with a two-handled slider.
@@ -37,8 +36,6 @@ pub struct RangeSlider<'a> {
     smart_aim: bool,
     show_value: bool,
     orientation: SliderOrientation,
-    prefix: String,
-    suffix: String,
     text: WidgetText,
 
     /// The closest the two handles may come to each other, in values.
@@ -48,12 +45,8 @@ pub struct RangeSlider<'a> {
     step: Option<f64>,
 
     drag_value_speed: Option<f64>,
-    min_decimals: usize,
-    max_decimals: Option<usize>,
-    custom_formatter: Option<NumFormatter<'a>>,
-    custom_parser: Option<NumParser<'a>>,
+    format: ValueFormat<'a>,
     handle_shape: Option<HandleShape>,
-    update_while_editing: bool,
 }
 
 impl<'a> RangeSlider<'a> {
@@ -104,18 +97,12 @@ impl<'a> RangeSlider<'a> {
             smart_aim: true,
             show_value: true,
             orientation: SliderOrientation::Horizontal,
-            prefix: Default::default(),
-            suffix: Default::default(),
             text: Default::default(),
             min_separation: 0.0,
             step: None,
             drag_value_speed: None,
-            min_decimals: 0,
-            max_decimals: None,
-            custom_formatter: None,
-            custom_parser: None,
+            format: ValueFormat::default(),
             handle_shape: None,
-            update_while_editing: true,
         }
     }
 
@@ -131,14 +118,14 @@ impl<'a> RangeSlider<'a> {
     /// Show a prefix before both numbers. Default: no prefix.
     #[inline]
     pub fn prefix(mut self, prefix: impl ToString) -> Self {
-        self.prefix = prefix.to_string();
+        self.format.prefix = prefix.to_string();
         self
     }
 
     /// Add a suffix to both numbers, e.g. a unit. Default: no suffix.
     #[inline]
     pub fn suffix(mut self, suffix: impl ToString) -> Self {
-        self.suffix = suffix.to_string();
+        self.format.suffix = suffix.to_string();
         self
     }
 
@@ -232,22 +219,21 @@ impl<'a> RangeSlider<'a> {
     /// Set the minimum number of decimals to display. Default: `0`.
     #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
-        self.min_decimals = min_decimals;
+        self.format.min_decimals = min_decimals;
         self
     }
 
     /// Set the maximum number of decimals to display.
     #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
-        self.max_decimals = Some(max_decimals);
+        self.format.max_decimals = Some(max_decimals);
         self
     }
 
     /// Show exactly this many decimals.
     #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
-        self.min_decimals = num_decimals;
-        self.max_decimals = Some(num_decimals);
+        self.format.set_fixed_decimals(num_decimals);
         self
     }
 
@@ -256,13 +242,13 @@ impl<'a> RangeSlider<'a> {
         mut self,
         formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
     ) -> Self {
-        self.custom_formatter = Some(Box::new(formatter));
+        self.format.custom_formatter = Some(Box::new(formatter));
         self
     }
 
     /// Set a parser for both numbers, accepting what [`Self::custom_formatter`] writes.
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
-        self.custom_parser = Some(Box::new(parser));
+        self.format.custom_parser = Some(Box::new(parser));
         self
     }
 
@@ -276,7 +262,7 @@ impl<'a> RangeSlider<'a> {
     /// Update the values on each key press while a number is being typed. Default: `true`.
     #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
-        self.update_while_editing = update;
+        self.format.update_while_editing = update;
         self
     }
 
@@ -315,9 +301,7 @@ impl RangeSlider<'_> {
             let start = *self.range.start();
             value = start + ((value - start) / step).round() * step;
         }
-        if let Some(max_decimals) = self.max_decimals {
-            value = emath::round_to_decimals(value, max_decimals);
-        }
+        value = self.format.round(value);
         value
     }
 
@@ -476,7 +460,7 @@ impl RangeSlider<'_> {
                 &StepOptions {
                     step: self.step,
                     smart_aim: self.smart_aim,
-                    max_decimals: self.max_decimals,
+                    max_decimals: self.format.max_decimals,
                 },
             )
         });
@@ -502,13 +486,7 @@ impl RangeSlider<'_> {
                 speed,
                 range: bounds,
                 clamping: self.clamping,
-                prefix: &self.prefix,
-                suffix: &self.suffix,
-                min_decimals: self.min_decimals,
-                max_decimals: self.max_decimals,
-                custom_formatter: self.custom_formatter.as_ref(),
-                custom_parser: self.custom_parser.as_ref(),
-                update_while_editing: self.update_while_editing,
+                format: &self.format,
             },
         )
     }
