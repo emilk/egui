@@ -6,7 +6,8 @@ use crate::{
 };
 
 use super::drag_value::{GetSetValue, get, set};
-use super::slider_core::{self, SliderCore, SliderGeometry};
+use super::slider_core::{self, DragValueSettings, SliderCore, SliderGeometry, SliderSpec};
+use super::value_format::ValueFormat;
 
 // ----------------------------------------------------------------------------
 
@@ -67,6 +68,8 @@ pub struct Slider<'a> {
 }
 
 impl<'a> Slider<'a> {
+    // ---- Constructors
+
     /// Creates a new horizontal slider.
     ///
     /// The `value` given will be clamped to the `range`,
@@ -98,27 +101,14 @@ impl<'a> Slider<'a> {
         }
     }
 
-    /// Control whether or not the slider shows the current value.
-    /// Default: `true`.
-    #[inline]
-    pub fn show_value(mut self, show_value: bool) -> Self {
-        self.core.drag_value.show = show_value;
-        self
+    /// Helper: equivalent to `self.precision(0).smallest_positive(1.0)`.
+    /// If you use one of the integer constructors (e.g. `Slider::i32`) this is called for you,
+    /// but if you want to have a slider for picking integer values in an `Slider::f64`, use this.
+    pub fn integer(self) -> Self {
+        self.fixed_decimals(0).smallest_positive(1.0).step_by(1.0)
     }
 
-    /// Show a prefix before the number, e.g. "x: "
-    #[inline]
-    pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
-        self.core.drag_value.format = self.core.drag_value.format.prefix(prefix);
-        self
-    }
-
-    /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
-    #[inline]
-    pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
-        self.core.drag_value.format = self.core.drag_value.format.suffix(suffix);
-        self
-    }
+    // ---- The rail
 
     /// Show a text next to the slider (e.g. explaining what the slider controls).
     #[inline]
@@ -144,34 +134,6 @@ impl<'a> Slider<'a> {
     #[inline]
     pub fn vertical(mut self) -> Self {
         self.core.orientation = SliderOrientation::Vertical;
-        self
-    }
-
-    /// Make this a logarithmic slider.
-    ///
-    /// This is great for when the slider spans a huge range, e.g. from one to a million.
-    /// The default is OFF.
-    #[inline]
-    pub fn logarithmic(mut self, logarithmic: bool) -> Self {
-        self.core.spec.logarithmic = logarithmic;
-        self
-    }
-
-    /// For logarithmic sliders that includes zero:
-    /// what is the smallest positive value you want to be able to select?
-    /// The default is `1` for integer sliders and `1e-6` for real sliders.
-    #[inline]
-    pub fn smallest_positive(mut self, smallest_positive: f64) -> Self {
-        self.core.spec.smallest_positive = smallest_positive;
-        self
-    }
-
-    /// For logarithmic sliders, the largest positive value we are interested in
-    /// before the slider switches to `INFINITY`, if that is the higher end.
-    /// Default: INFINITY.
-    #[inline]
-    pub fn largest_finite(mut self, largest_finite: f64) -> Self {
-        self.core.spec.largest_finite = largest_finite;
         self
     }
 
@@ -238,10 +200,86 @@ impl<'a> Slider<'a> {
         self
     }
 
+    /// Change the shape of the slider handle
+    ///
+    /// This setting can be enabled globally for all sliders with [`crate::Visuals::handle_shape`].
+    /// Changing it here will override the above setting ONLY for this individual slider.
+    #[inline]
+    pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
+        self.core.handle_shape = Some(handle_shape);
+        self
+    }
+
+    /// Display trailing color behind the slider's circle. Default is OFF.
+    ///
+    /// This setting can be enabled globally for all sliders with [`crate::Visuals::slider_trailing_fill`].
+    /// Toggling it here will override the above setting ONLY for this individual slider.
+    ///
+    /// The fill color will be taken from `selection.bg_fill` in your [`crate::Visuals`], the same as a [`crate::ProgressBar`].
+    #[inline]
+    pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
+        self.trailing_fill = Some(trailing_fill);
+        self
+    }
+
+    // ---- How values are spread along the rail
+
+    /// Replace how values are spread along the rail.
+    #[inline]
+    pub fn spec(mut self, spec: SliderSpec) -> Self {
+        self.core.spec = spec;
+        self
+    }
+
+    /// Make this a logarithmic slider.
+    ///
+    /// This is great for when the slider spans a huge range, e.g. from one to a million.
+    /// The default is OFF.
+    #[inline]
+    pub fn logarithmic(mut self, logarithmic: bool) -> Self {
+        self.core.spec.logarithmic = logarithmic;
+        self
+    }
+
+    /// For logarithmic sliders that includes zero:
+    /// what is the smallest positive value you want to be able to select?
+    /// The default is `1` for integer sliders and `1e-6` for real sliders.
+    #[inline]
+    pub fn smallest_positive(mut self, smallest_positive: f64) -> Self {
+        self.core.spec.smallest_positive = smallest_positive;
+        self
+    }
+
+    /// For logarithmic sliders, the largest positive value we are interested in
+    /// before the slider switches to `INFINITY`, if that is the higher end.
+    /// Default: INFINITY.
+    #[inline]
+    pub fn largest_finite(mut self, largest_finite: f64) -> Self {
+        self.core.spec.largest_finite = largest_finite;
+        self
+    }
+
+    // ---- The number beside the rail
+
+    /// Replace every setting for the number beside the rail.
+    #[inline]
+    pub fn drag_value(mut self, drag_value: DragValueSettings<'a>) -> Self {
+        self.core.drag_value = drag_value;
+        self
+    }
+
+    /// Control whether or not the slider shows the current value.
+    /// Default: `true`.
+    #[inline]
+    pub fn show_value(mut self, show_value: bool) -> Self {
+        self.core.drag_value.show = show_value;
+        self
+    }
+
     /// When dragging the value, how fast does it move?
     ///
     /// Unit: values per point (logical pixel).
-    /// See also [`DragValue::speed`].
+    /// See also [`crate::DragValue::speed`].
     ///
     /// By default this is the same speed as when dragging the slider,
     /// but you can change it here to for instance have a much finer control
@@ -249,6 +287,29 @@ impl<'a> Slider<'a> {
     #[inline]
     pub fn drag_value_speed(mut self, drag_value_speed: f64) -> Self {
         self.core.drag_value.speed = Some(drag_value_speed);
+        self
+    }
+
+    // ---- How that number is written and read back
+
+    /// Replace how the number beside the rail is written and read back.
+    #[inline]
+    pub fn format(mut self, format: ValueFormat<'a>) -> Self {
+        self.core.drag_value.format = format;
+        self
+    }
+
+    /// Show a prefix before the number, e.g. "x: "
+    #[inline]
+    pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
+        self.core.drag_value.format = self.core.drag_value.format.prefix(prefix);
+        self
+    }
+
+    /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
+    #[inline]
+    pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
+        self.core.drag_value.format = self.core.drag_value.format.suffix(suffix);
         self
     }
 
@@ -289,28 +350,6 @@ impl<'a> Slider<'a> {
     #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.core.drag_value.format = self.core.drag_value.format.fixed_decimals(num_decimals);
-        self
-    }
-
-    /// Display trailing color behind the slider's circle. Default is OFF.
-    ///
-    /// This setting can be enabled globally for all sliders with [`crate::Visuals::slider_trailing_fill`].
-    /// Toggling it here will override the above setting ONLY for this individual slider.
-    ///
-    /// The fill color will be taken from `selection.bg_fill` in your [`crate::Visuals`], the same as a [`crate::ProgressBar`].
-    #[inline]
-    pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
-        self.trailing_fill = Some(trailing_fill);
-        self
-    }
-
-    /// Change the shape of the slider handle
-    ///
-    /// This setting can be enabled globally for all sliders with [`crate::Visuals::handle_shape`].
-    /// Changing it here will override the above setting ONLY for this individual slider.
-    #[inline]
-    pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
-        self.core.handle_shape = Some(handle_shape);
         self
     }
 
@@ -454,21 +493,6 @@ impl<'a> Slider<'a> {
         self
     }
 
-    /// Helper: equivalent to `self.precision(0).smallest_positive(1.0)`.
-    /// If you use one of the integer constructors (e.g. `Slider::i32`) this is called for you,
-    /// but if you want to have a slider for picking integer values in an `Slider::f64`, use this.
-    pub fn integer(self) -> Self {
-        self.fixed_decimals(0).smallest_positive(1.0).step_by(1.0)
-    }
-
-    fn get_value(&mut self) -> f64 {
-        self.core.existing(get(&mut self.get_set_value))
-    }
-
-    fn set_value(&mut self, value: f64) {
-        set(&mut self.get_set_value, self.core.rounded(value));
-    }
-
     /// Update the value on each key press when text-editing the value.
     ///
     /// Default: `true`.
@@ -481,6 +505,14 @@ impl<'a> Slider<'a> {
 }
 
 impl Slider<'_> {
+    fn get_value(&mut self) -> f64 {
+        self.core.existing(get(&mut self.get_set_value))
+    }
+
+    fn set_value(&mut self, value: f64) {
+        set(&mut self.get_set_value, self.core.rounded(value));
+    }
+
     /// Just the slider, no text
     fn slider_ui(&mut self, ui: &Ui, response: &Response) {
         let geom = self.core.geometry(response.rect, ui);

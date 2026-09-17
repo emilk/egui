@@ -44,6 +44,7 @@ pub use self::{
     range_slider::RangeSlider,
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
+    slider_core::{DragValueSettings, SliderSpec},
     spinner::Spinner,
     text_edit::{
         CompletionOutput, CompletionPopup, CompletionQuery, Suggestion, TextBuffer, TextEdit,

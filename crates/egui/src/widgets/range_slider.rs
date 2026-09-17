@@ -7,7 +7,8 @@ use crate::{
 
 use super::drag_value::{GetSetValue, get, set};
 use super::slider::{SliderClamping, SliderOrientation};
-use super::slider_core::{self, SliderCore, SliderGeometry};
+use super::slider_core::{self, DragValueSettings, SliderCore, SliderGeometry, SliderSpec};
+use super::value_format::ValueFormat;
 
 /// One of the two handles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,6 +41,8 @@ pub struct RangeSlider<'a> {
 }
 
 impl<'a> RangeSlider<'a> {
+    // ---- Constructors
+
     /// Creates a new horizontal range slider.
     ///
     /// The values are clamped to `range`, and `low` is clamped to `high`.
@@ -83,28 +86,12 @@ impl<'a> RangeSlider<'a> {
         }
     }
 
-    /// Show an editable value beside each end of the rail: low before it, high after it.
-    ///
-    /// Default: `true`.
-    #[inline]
-    pub fn show_value(mut self, show_value: bool) -> Self {
-        self.core.drag_value.show = show_value;
-        self
+    /// Helper: equivalent to `self.fixed_decimals(0).smallest_positive(1.0).step_by(1.0)`.
+    pub fn integer(self) -> Self {
+        self.fixed_decimals(0).smallest_positive(1.0).step_by(1.0)
     }
 
-    /// Show a prefix before both numbers. Default: no prefix.
-    #[inline]
-    pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
-        self.core.drag_value.format = self.core.drag_value.format.prefix(prefix);
-        self
-    }
-
-    /// Add a suffix to both numbers, e.g. a unit. Default: no suffix.
-    #[inline]
-    pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
-        self.core.drag_value.format = self.core.drag_value.format.suffix(suffix);
-        self
-    }
+    // ---- The rail
 
     /// Show a text label next to the widget.
     #[inline]
@@ -136,6 +123,45 @@ impl<'a> RangeSlider<'a> {
         self
     }
 
+    /// Controls when the values are clamped to the range. Default: [`SliderClamping::Always`].
+    #[inline]
+    pub fn clamping(mut self, clamping: SliderClamping) -> Self {
+        self.core.clamping = clamping;
+        self
+    }
+
+    /// Guide the values towards round numbers while dragging. Default: `true`.
+    #[inline]
+    pub fn smart_aim(mut self, smart_aim: bool) -> Self {
+        self.core.smart_aim = smart_aim;
+        self
+    }
+
+    /// Set the minimal change of the values.
+    ///
+    /// Value `0.0` effectively disables the feature. Default: `0.0`.
+    #[inline]
+    pub fn step_by(mut self, step: f64) -> Self {
+        self.core.step = if step == 0.0 { None } else { Some(step) };
+        self
+    }
+
+    /// Change the shape of both handles. Default: [`crate::style::Visuals::handle_shape`].
+    #[inline]
+    pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
+        self.core.handle_shape = Some(handle_shape);
+        self
+    }
+
+    // ---- How values are spread along the rail
+
+    /// Replace how values are spread along the rail.
+    #[inline]
+    pub fn spec(mut self, spec: SliderSpec) -> Self {
+        self.core.spec = spec;
+        self
+    }
+
     /// Give the small values as much of the rail as the large ones. Default: `false`.
     #[inline]
     pub fn logarithmic(mut self, logarithmic: bool) -> Self {
@@ -161,26 +187,21 @@ impl<'a> RangeSlider<'a> {
         self
     }
 
-    /// Controls when the values are clamped to the range. Default: [`SliderClamping::Always`].
+    // ---- The numbers beside the rail
+
+    /// Replace every setting for the numbers beside the rail.
     #[inline]
-    pub fn clamping(mut self, clamping: SliderClamping) -> Self {
-        self.core.clamping = clamping;
+    pub fn drag_value(mut self, drag_value: DragValueSettings<'a>) -> Self {
+        self.core.drag_value = drag_value;
         self
     }
 
-    /// Guide the values towards round numbers while dragging. Default: `true`.
-    #[inline]
-    pub fn smart_aim(mut self, smart_aim: bool) -> Self {
-        self.core.smart_aim = smart_aim;
-        self
-    }
-
-    /// Set the minimal change of the values.
+    /// Show an editable value beside each end of the rail: low before it, high after it.
     ///
-    /// Value `0.0` effectively disables the feature. Default: `0.0`.
+    /// Default: `true`.
     #[inline]
-    pub fn step_by(mut self, step: f64) -> Self {
-        self.core.step = if step == 0.0 { None } else { Some(step) };
+    pub fn show_value(mut self, show_value: bool) -> Self {
+        self.core.drag_value.show = show_value;
         self
     }
 
@@ -190,6 +211,29 @@ impl<'a> RangeSlider<'a> {
     #[inline]
     pub fn drag_value_speed(mut self, drag_value_speed: f64) -> Self {
         self.core.drag_value.speed = Some(drag_value_speed);
+        self
+    }
+
+    // ---- How those numbers are written and read back
+
+    /// Replace how the numbers beside the rail are written and read back.
+    #[inline]
+    pub fn format(mut self, format: ValueFormat<'a>) -> Self {
+        self.core.drag_value.format = format;
+        self
+    }
+
+    /// Show a prefix before both numbers. Default: no prefix.
+    #[inline]
+    pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
+        self.core.drag_value.format = self.core.drag_value.format.prefix(prefix);
+        self
+    }
+
+    /// Add a suffix to both numbers, e.g. a unit. Default: no suffix.
+    #[inline]
+    pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
+        self.core.drag_value.format = self.core.drag_value.format.suffix(suffix);
         self
     }
 
@@ -230,23 +274,11 @@ impl<'a> RangeSlider<'a> {
         self
     }
 
-    /// Change the shape of both handles. Default: [`crate::style::Visuals::handle_shape`].
-    #[inline]
-    pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
-        self.core.handle_shape = Some(handle_shape);
-        self
-    }
-
     /// Update the values on each key press while a number is being typed. Default: `true`.
     #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
         self.core.drag_value.format = self.core.drag_value.format.update_while_editing(update);
         self
-    }
-
-    /// Helper: equivalent to `self.fixed_decimals(0).smallest_positive(1.0).step_by(1.0)`.
-    pub fn integer(self) -> Self {
-        self.fixed_decimals(0).smallest_positive(1.0).step_by(1.0)
     }
 }
 
