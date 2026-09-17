@@ -1,6 +1,6 @@
 use crate::{
-    Atom, AtomExt as _, Button, CursorIcon, Id, IdSalt, IntoAtoms, Key, Modifiers, NumExt as _,
-    Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget, WidgetInfo,
+    Atom, AtomExt as _, Atoms, Button, CursorIcon, Id, IdSalt, IntoAtoms, Key, Modifiers,
+    NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget, WidgetInfo,
     class::{ClassName, Classes, HasClasses},
     emath, text,
 };
@@ -366,10 +366,22 @@ impl<'a> DragValue<'a> {
         self.format = self.format.update_while_editing(update);
         self
     }
+
+    /// The [`Atoms`] of the drag value: its prefix, a placeholder for the number, and its suffix.
+    ///
+    /// This includes any images you have on the [`DragValue`].
+    pub fn atoms(&self) -> Atoms<'a> {
+        let ValueFormat { prefix, suffix, .. } = &self.format;
+        let mut atoms = prefix.clone();
+        atoms.push_right(Atom::custom(IdSalt::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
+        atoms.extend_right(suffix.clone());
+        atoms
+    }
 }
 
 impl Widget for DragValue<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
+        let mut atoms = self.atoms();
         let Self {
             mut get_set_value,
             speed,
@@ -393,9 +405,6 @@ impl Widget for DragValue<'_> {
         let suffix_text = suffix.text().unwrap_or_default().into_owned();
 
         let atom_id = IdSalt::new(Self::ATOM_ID);
-        let mut atoms = prefix;
-        atoms.push_right(Atom::custom(atom_id, Vec2::ZERO).atom_grow(true));
-        suffix.collect(&mut atoms);
 
         let shift = ui.input(|i| i.modifiers.shift_only());
         // The widget has the same ID whether it's in edit or button mode.
