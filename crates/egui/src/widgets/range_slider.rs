@@ -10,6 +10,10 @@ use super::slider::{SliderClamping, SliderOrientation};
 use super::slider_core::{self, SliderGeometry, SliderSpec, StepOptions, ValueOptions};
 use super::value_format::ValueFormat;
 
+/// Which handle a drag gesture grabbed, remembered for the whole gesture.
+#[derive(Clone, Copy, Default)]
+struct GrabbedLow(bool);
+
 /// Select a range of numbers with a two-handled slider.
 ///
 /// The handles may meet but never cross. Looks and behaves like [`crate::Slider`], whose
@@ -344,8 +348,8 @@ impl RangeSlider<'_> {
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             // Remembered for the whole gesture, so dragging one handle into the other does not
             // hand the pointer over to its neighbor half way.
-            let grabbed_low = ui
-                .data(|data| data.get_temp::<bool>(response.id))
+            let GrabbedLow(grabbed_low) = ui
+                .data(|data| data.get_temp::<GrabbedLow>(response.id))
                 .unwrap_or_else(|| {
                     let pointer = geom.pointer_position(pointer_position_2d);
                     let (low_position, high_position) = (
@@ -357,15 +361,15 @@ impl RangeSlider<'_> {
                         (pointer - high_position).abs(),
                     );
 
-                    if to_low == to_high {
+                    GrabbedLow(if to_low == to_high {
                         // The handles coincide, so the side the pointer is on decides. Otherwise
                         // a collapsed range could only ever be opened in one direction.
                         pointer < low_position
                     } else {
                         to_low < to_high
-                    }
+                    })
                 });
-            ui.data_mut(|data| data.insert_temp(response.id, grabbed_low));
+            ui.data_mut(|data| data.insert_temp(response.id, GrabbedLow(grabbed_low)));
 
             let value =
                 slider_core::value_at_pointer(ui, &geom, pointer_position_2d, self.smart_aim);
@@ -374,8 +378,11 @@ impl RangeSlider<'_> {
 
             self.set_low(low);
             self.set_high(high);
-        } else if ui.data(|data| data.get_temp::<bool>(response.id)).is_some() {
-            ui.data_mut(|data| data.remove_temp::<bool>(response.id));
+        } else if ui
+            .data(|data| data.get_temp::<GrabbedLow>(response.id))
+            .is_some()
+        {
+            ui.data_mut(|data| data.remove_temp::<GrabbedLow>(response.id));
         }
 
         // Each handle is its own focus stop, so the keyboard and a screen reader can reach
