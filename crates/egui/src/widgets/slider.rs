@@ -523,15 +523,10 @@ impl Slider<'_> {
             self.set_value(new_value);
         }
 
-        let kb_steps = slider_core::keyboard_steps(ui, response, self.core.orientation);
-
-        if kb_steps != 0.0 {
-            let new_value = slider_core::stepped_value(
-                &geom,
-                self.get_value(),
-                kb_steps,
-                &self.core.step_options(),
-            );
+        let rail_steps = slider_core::keyboard_steps(ui, response, &geom);
+        if rail_steps != 0.0 {
+            let prev_value = self.get_value();
+            let new_value = self.core.stepped_value(&geom, prev_value, rail_steps);
             self.set_value(new_value);
         }
 

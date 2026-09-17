@@ -118,6 +118,14 @@ impl SliderGeometry {
         Rect::from_center_size(center, 2.0 * half_size)
     }
 
+    /// Whether a handle moves towards larger screen coordinates as its value grows.
+    ///
+    /// False on a vertical rail, whose top is its high end, and on a rail that runs high-to-low.
+    pub fn position_grows_with_value(&self) -> bool {
+        let position_range = self.position_range();
+        (self.range.start() < self.range.end()) == (position_range.min < position_range.max)
+    }
+
     /// The coordinate of `pointer_position_2d` along the rail.
     pub fn pointer_position(&self, pointer_position_2d: Pos2) -> f32 {
         match self.orientation {
@@ -280,12 +288,41 @@ impl SliderCore<'_> {
         }
     }
 
-    pub fn step_options(&self) -> StepOptions {
-        StepOptions {
-            step: self.step,
-            smart_aim: self.smart_aim,
-            max_decimals: self.drag_value.format.max_decimals,
+    /// The value `rail_steps` steps along the rail away from `prev_value`.
+    ///
+    /// One step moves the handle one point along the rail, unless the widget sets its own step,
+    /// in which case the value moves by that step in the direction the handle would.
+    pub fn stepped_value(&self, geom: &SliderGeometry, prev_value: f64, rail_steps: f32) -> f64 {
+        let ui_point_per_step = 1.0; // move this many ui points for each step
+        let prev_position = geom.position_from_value(prev_value);
+        let new_position = prev_position + ui_point_per_step * rail_steps;
+
+        let mut new_value = match self.step {
+            Some(step) => prev_value + (rail_steps * value_direction(geom)) as f64 * step,
+            None if self.smart_aim => {
+                let aim_radius = 0.49 * ui_point_per_step; // Chosen so we don't include `prev_value` in the search.
+                emath::smart_aim::best_in_range_f64(
+                    geom.value_from_position(new_position - aim_radius),
+                    geom.value_from_position(new_position + aim_radius),
+                )
+            }
+            _ => geom.value_from_position(new_position),
+        };
+
+        if let Some(max_decimals) = self.drag_value.format.max_decimals {
+            // `rounded` rounds, so ensure we reach at the least the next breakpoint.
+            // Note: we give it a little bit of leeway due to floating point errors. (0.1 isn't representable in binary)
+            let min_increment = 1.0 / (10.0_f64.powi(max_decimals as i32));
+            new_value = if prev_value < new_value {
+                f64::max(new_value, prev_value + min_increment * 1.001)
+            } else if new_value < prev_value {
+                f64::min(new_value, prev_value - min_increment * 1.001)
+            } else {
+                new_value
+            };
         }
+
+        new_value
     }
 
     /// How fast the number beside the rail should move, for a number currently at `value`.
@@ -424,10 +461,15 @@ pub fn value_at_pointer(
     }
 }
 
-/// How many steps the keyboard and screen reader asked for this frame, negative for down.
+/// How many steps along the rail the keyboard and screen reader asked for this frame.
+///
+/// Positive steps move the handle towards larger screen coordinates: right, or down. An arrow key
+/// moves the handle the way it points, while a screen reader's increment always raises the value,
+/// so the latter is turned around on rails where the value grows the other way.
 ///
 /// Also locks the arrow keys along the slider's axis, so stepping does not move focus.
-pub fn keyboard_steps(ui: &Ui, response: &Response, orientation: SliderOrientation) -> f32 {
+pub fn keyboard_steps(ui: &Ui, response: &Response, geom: &SliderGeometry) -> f32 {
+    let orientation = geom.orientation;
     let mut decrement = 0usize;
     let mut increment = 0usize;
 
@@ -458,66 +500,24 @@ pub fn keyboard_steps(ui: &Ui, response: &Response, orientation: SliderOrientati
         });
     }
 
-    ui.input(|input| {
+    let arrow_steps = increment as f32 - decrement as f32;
+
+    let value_steps = ui.input(|input| {
         use accesskit::Action;
-        decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
-        increment += input.num_accesskit_action_requests(response.id, Action::Increment);
+        input.num_accesskit_action_requests(response.id, Action::Increment) as f32
+            - input.num_accesskit_action_requests(response.id, Action::Decrement) as f32
     });
 
-    increment as f32 - decrement as f32
+    arrow_steps + value_steps * value_direction(geom)
 }
 
-/// What [`stepped_value`] needs to know about the widget asking for the step.
-pub struct StepOptions {
-    /// The smallest change the value may take, if the widget sets one.
-    pub step: Option<f64>,
-
-    /// Guide the value towards round numbers.
-    pub smart_aim: bool,
-
-    /// Never show more decimals than this, which also decides the smallest visible step.
-    pub max_decimals: Option<usize>,
-}
-
-/// The value `kb_steps` steps away from `prev_value`.
-///
-/// One step moves the handle one point along the rail, unless the widget sets its own step.
-pub fn stepped_value(
-    geom: &SliderGeometry,
-    prev_value: f64,
-    kb_steps: f32,
-    opts: &StepOptions,
-) -> f64 {
-    let ui_point_per_step = 1.0; // move this many ui points for each kb_step
-    let prev_position = geom.position_from_value(prev_value);
-    let new_position = prev_position + ui_point_per_step * kb_steps;
-
-    let mut new_value = match opts.step {
-        Some(step) => prev_value + (kb_steps as f64 * step),
-        None if opts.smart_aim => {
-            let aim_radius = 0.49 * ui_point_per_step; // Chosen so we don't include `prev_value` in the search.
-            emath::smart_aim::best_in_range_f64(
-                geom.value_from_position(new_position - aim_radius),
-                geom.value_from_position(new_position + aim_radius),
-            )
-        }
-        _ => geom.value_from_position(new_position),
-    };
-
-    if let Some(max_decimals) = opts.max_decimals {
-        // `set_value` rounds, so ensure we reach at the least the next breakpoint.
-        // Note: we give it a little bit of leeway due to floating point errors. (0.1 isn't representable in binary)
-        let min_increment = 1.0 / (10.0_f64.powi(max_decimals as i32));
-        new_value = if new_value > prev_value {
-            f64::max(new_value, prev_value + min_increment * 1.001)
-        } else if new_value < prev_value {
-            f64::min(new_value, prev_value - min_increment * 1.001)
-        } else {
-            new_value
-        };
+/// Which way along the rail the value grows: `1.0` towards larger screen coordinates, else `-1.0`.
+fn value_direction(geom: &SliderGeometry) -> f32 {
+    if geom.position_grows_with_value() {
+        1.0
+    } else {
+        -1.0
     }
-
-    new_value
 }
 
 /// The value a screen reader asked this handle to take.

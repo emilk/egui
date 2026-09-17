@@ -459,9 +459,8 @@ impl RangeSlider<'_> {
         handle: &Response,
         value: f64,
     ) -> Option<f64> {
-        let steps = slider_core::keyboard_steps(ui, handle, self.core.orientation);
-        let stepped = (steps != 0.0)
-            .then(|| slider_core::stepped_value(geom, value, steps, &self.core.step_options()));
+        let rail_steps = slider_core::keyboard_steps(ui, handle, geom);
+        let stepped = (rail_steps != 0.0).then(|| self.core.stepped_value(geom, value, rail_steps));
 
         // A screen reader naming a value outranks a step, as it does for `Slider`.
         slider_core::accesskit_set_value_request(ui, handle.id).or(stepped)
