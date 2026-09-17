@@ -59,7 +59,7 @@ fn arrow_keys_move_the_focused_handle() {
 }
 
 #[test]
-fn a_handle_stops_at_its_neighbour() {
+fn a_handle_stops_at_its_neighbor() {
     let mut harness = harness();
     harness
         .query_all_by_role(Role::Slider)

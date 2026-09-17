@@ -357,7 +357,7 @@ impl RangeSlider<'_> {
 
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             // Remembered for the whole gesture, so dragging one handle into the other does not
-            // hand the pointer over to its neighbour half way.
+            // hand the pointer over to its neighbor half way.
             let grabbed_low = ui
                 .data(|data| data.get_temp::<bool>(response.id))
                 .unwrap_or_else(|| {
@@ -421,7 +421,7 @@ impl RangeSlider<'_> {
         // Rounding is applied on the way in, so read back what was actually stored.
         let (low, high) = (self.get_low(), self.get_high());
 
-        // A handle may travel as far as its neighbour, not as far as the end of the rail.
+        // A handle may travel as far as its neighbor, not as far as the end of the rail.
         let low_bounds = *self.range.start()..=(high - self.min_separation);
         let high_bounds = (low + self.min_separation)..=*self.range.end();
 
@@ -605,7 +605,7 @@ impl RangeSlider<'_> {
 
 /// Where the handles end up when the grabbed one is dragged to `value`.
 ///
-/// Neither pushes past its neighbour, less any separation the widget insists on.
+/// Neither pushes past its neighbor, less any separation the widget insists on.
 fn moved_handle(
     grabbed_low: bool,
     value: f64,
@@ -657,7 +657,7 @@ mod tests {
         assert_eq!(
             moved_handle(true, 95.0, 10.0, 80.0, 5.0),
             (75.0, 80.0),
-            "a handle dragged past its neighbour keeps the separation"
+            "a handle dragged past its neighbor keeps the separation"
         );
         assert_eq!(moved_handle(false, 5.0, 10.0, 80.0, 5.0), (10.0, 15.0));
     }

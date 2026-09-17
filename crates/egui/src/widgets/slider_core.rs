@@ -77,7 +77,7 @@ impl SliderGeometry {
         limit / 2.5
     }
 
-    /// The positions a handle's centre may take, inset so a handle at either end stays inside.
+    /// The positions a handle's center may take, inset so a handle at either end stays inside.
     pub fn position_range(&self) -> Rangef {
         let handle_radius = self.handle_radius();
         let handle_radius = match self.handle_shape {
@@ -92,7 +92,7 @@ impl SliderGeometry {
         }
     }
 
-    /// The rail, `2 * radius` thick, centred across the widget.
+    /// The rail, `2 * radius` thick, centered across the widget.
     pub fn rail_rect(&self, radius: f32) -> Rect {
         match self.orientation {
             SliderOrientation::Horizontal => Rect::from_min_max(
@@ -187,7 +187,7 @@ pub fn paint_fill(ui: &Ui, rail_rect: Rect, span: Rangef, orientation: SliderOri
         .rect_filled(fill_rect, corner_radius, ui.visuals().selection.bg_fill);
 }
 
-/// Paints one handle centred on `center`, in whatever shape the style asks for.
+/// Paints one handle centered on `center`, in whatever shape the style asks for.
 pub fn paint_handle(ui: &Ui, geom: &SliderGeometry, center: Pos2, visuals: &style::WidgetVisuals) {
     let radius = geom.handle_radius();
 
