@@ -234,11 +234,11 @@ impl<'a> DragValue<'a> {
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// # let mut my_i64: i64 = 0;
-    /// ui.add(egui::DragValue::new(&mut my_i64)
-    ///     .clamp_existing_to_range(false)
+    /// # let mut my_i32: i32 = 0;
+    /// ui.add(egui::DragValue::new(&mut my_i32)
+    ///     .range(0..=((60 * 60 * 24) - 1))
     ///     .custom_formatter(|n, _| {
-    ///         let n = n as i64;
+    ///         let n = n as i32;
     ///         let hours = n / (60 * 60);
     ///         let mins = (n / 60) % 60;
     ///         let secs = n % 60;
@@ -247,9 +247,9 @@ impl<'a> DragValue<'a> {
     ///     .custom_parser(|s| {
     ///         let parts: Vec<&str> = s.split(':').collect();
     ///         if parts.len() == 3 {
-    ///             parts[0].parse::<i64>().and_then(|h| {
-    ///                 parts[1].parse::<i64>().and_then(|m| {
-    ///                     parts[2].parse::<i64>().map(|s| {
+    ///             parts[0].parse::<i32>().and_then(|h| {
+    ///                 parts[1].parse::<i32>().and_then(|m| {
+    ///                     parts[2].parse::<i32>().map(|s| {
     ///                         ((h * 60 * 60) + (m * 60) + s) as f64
     ///                     })
     ///                 })
