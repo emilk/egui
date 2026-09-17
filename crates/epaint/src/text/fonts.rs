@@ -7,7 +7,7 @@ use crate::{
         GlyphRasterizer, LayoutJob, TextOptions, VariationCoords,
         face_store::{FaceStore, FontFaceKey},
         family::{Family, FamilyKey},
-        font_face::{FontFace, GlyphInfo, ShapedGlyph},
+        font_face::{FontFace, GlyphInfo, ShapedCluster, ShapedGlyph},
         font_provider::FontProviders,
         galley_cache::GalleyCache,
         glyph_atlas::{GlyphAtlas, OutlineGlyph, RasterGlyphAllocation},
@@ -603,6 +603,20 @@ impl FontsImpl {
         };
         self.glyphs
             .allocate_outline(face_key, face, metrics, shaped)
+    }
+
+    /// Get or render several glyphs of a face as one bitmap, and put it in the atlas.
+    ///
+    /// See [`GlyphAtlas::allocate_cluster`].
+    pub fn allocate_cluster(
+        &mut self,
+        face_key: FontFaceKey,
+        metrics: &StyledMetrics,
+        shaped: &ShapedCluster<'_>,
+    ) -> Option<OutlineGlyph> {
+        let face = self.faces.get_mut(face_key)?;
+        self.glyphs
+            .allocate_cluster(face_key, face, metrics, shaped)
     }
 
     /// Rasterize a grapheme cluster using the [`GlyphRasterizer`]s of the given priority.

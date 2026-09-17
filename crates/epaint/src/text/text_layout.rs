@@ -21,7 +21,7 @@ use super::{
     ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
     VariationCoords,
     family::FamilyKey,
-    font_face::{FontFace, GlyphInfo, ShapedGlyph},
+    font_face::{ClusterGlyph, FontFace, GlyphInfo, ShapedCluster, ShapedGlyph},
     glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
 };
 
@@ -185,7 +185,6 @@ struct ShapingContext {
     section_index: u32,
     font_metrics: StyledMetrics,
     is_first_glyph_in_section: bool,
-    prev_cluster: Option<u32>,
 
     /// Bidi embedding level of the run being emitted.
     bidi_level: u8,
@@ -242,10 +241,13 @@ struct TextRun {
 
 /// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
 ///
-/// When a cluster maps multiple characters to fewer glyphs (e.g. flag emojis,
-/// ligatures), zero-width "continuation" glyphs are emitted for the extra
-/// characters so that `glyphs.len() == char_count` — an invariant that all
-/// cursor and selection code relies on.
+/// Every character gets exactly one [`Glyph`] (`glyphs.len() == char_count`),
+/// an invariant all cursor and selection code relies on, whatever the shaper did:
+///
+/// * a cluster with fewer glyphs than characters (flag emojis, ligatures) gets
+///   zero-width "continuation" glyphs for the extra characters;
+/// * a cluster with more glyphs than characters (a letter the font composes
+///   from a base and marks) is drawn as one bitmap, see [`emit_cluster_bitmap`].
 ///
 /// The glyphs are emitted in _logical_ order with increasing x, whatever the
 /// run's direction; a right-to-left row is put in visual order later, by
@@ -259,20 +261,157 @@ fn layout_shaped_run(
     ctx: &mut ShapingContext,
     paragraph: &mut Paragraph,
 ) {
+    let shaped = ShapedRun {
+        run,
+        text: run_text,
+        face_metrics,
+        infos: glyph_buffer.glyph_infos(),
+        positions: glyph_buffer.glyph_positions(),
+    };
+
+    let mut clusters = logical_clusters(shaped.infos, run.bidi_level % 2 == 1).peekable();
+    while let Some(glyph_range) = clusters.next() {
+        let byte_range = shaped.cluster_bytes(&glyph_range, clusters.peek());
+        let char_count = run_text
+            .get(byte_range.clone())
+            .map_or(0, |cluster_text| cluster_text.chars().count());
+
+        // Apply extra_letter_spacing only at cluster boundaries,
+        // never between glyphs within the same cluster (e.g. base + mark).
+        if !ctx.is_first_glyph_in_section {
+            paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
+        }
+        ctx.is_first_glyph_in_section = false;
+
+        let as_one_bitmap = if char_count < glyph_range.len() {
+            emit_cluster_bitmap(fonts, &shaped, glyph_range.clone(), ctx, paragraph)
+        } else {
+            None
+        };
+        let emitted = as_one_bitmap
+            .unwrap_or_else(|| emit_cluster_glyphs(fonts, &shaped, glyph_range, ctx, paragraph));
+
+        emit_continuation_glyphs(ctx, paragraph, run_text, byte_range, emitted, face_metrics);
+    }
+}
+
+/// A shaped run being emitted: what every glyph in it shares.
+#[derive(Clone, Copy)]
+struct ShapedRun<'a> {
+    run: &'a TextRun,
+
+    /// The run's text; [`harfrust::GlyphInfo::cluster`] is a byte offset into it.
+    text: &'a str,
+
+    face_metrics: &'a StyledMetrics,
+    infos: &'a [harfrust::GlyphInfo],
+    positions: &'a [harfrust::GlyphPosition],
+}
+
+impl ShapedRun<'_> {
+    /// The bytes of the cluster shaped into `glyph_range`,
+    /// given the cluster after it in logical order (if any).
+    fn cluster_bytes(
+        &self,
+        glyph_range: &Range<usize>,
+        next: Option<&Range<usize>>,
+    ) -> Range<usize> {
+        let start = self.infos[glyph_range.start].cluster as usize;
+        let end = next.map_or(self.text.len(), |next| {
+            self.infos[next.start].cluster as usize
+        });
+        start..end
+    }
+
+    /// The first character of the cluster starting at byte `cluster`.
+    fn char_at(&self, cluster: u32) -> char {
+        self.text
+            .get(cluster as usize..)
+            .and_then(|s| s.chars().next())
+            .unwrap_or('\u{FFFD}') // Unicode Replacement Character
+    }
+}
+
+/// Emit a cluster that has more glyphs than characters as one glyph carrying one bitmap.
+///
+/// Some fonts compose a letter from a base glyph and mark glyphs (Hack's `ǻ`,
+/// Noto Naskh Arabic's `ب`), so one character shapes to several glyphs. Emitting
+/// one [`Glyph`] per shaped glyph would break `glyphs.len() == char_count`, so
+/// the cluster is rendered into one atlas entry ([`FontsImpl::allocate_cluster`])
+/// carried by its first character, with the cluster's whole advance.
+///
+/// `None` if the cluster cannot be drawn that way (a `.notdef` or a color glyph
+/// in it); the caller then falls back to one glyph per shaped glyph.
+fn emit_cluster_bitmap(
+    fonts: &mut FontsImpl,
+    shaped: &ShapedRun<'_>,
+    glyph_range: Range<usize>,
+    ctx: &ShapingContext,
+    paragraph: &mut Paragraph,
+) -> Option<usize> {
+    let px_scale = shaped.face_metrics.px_scale_factor;
+    let chr = shaped.char_at(shaped.infos[glyph_range.start].cluster);
+
+    let mut advance_px = 0.0;
+    let mut glyphs = Vec::with_capacity(glyph_range.len());
+    for (info, pos) in shaped.infos[glyph_range.clone()]
+        .iter()
+        .zip(&shaped.positions[glyph_range])
+    {
+        let glyph_id = skrifa::GlyphId::new(info.glyph_id);
+        if glyph_id == skrifa::GlyphId::NOTDEF {
+            return None;
+        }
+        glyphs.push(ClusterGlyph {
+            glyph_id,
+            offset_px: vec2(
+                advance_px + pos.x_offset as f32 * px_scale,
+                -(pos.y_offset as f32 * px_scale), // harfrust Y+ up → screen Y+ down
+            ),
+        });
+        advance_px += pos.x_advance as f32 * px_scale;
+    }
+
+    let OutlineGlyph { allocation, x_px } = fonts.allocate_cluster(
+        shaped.run.font_key,
+        shaped.face_metrics,
+        &ShapedCluster {
+            glyphs: &glyphs,
+            h_pos: paragraph.cursor_x_px,
+            is_cjk: is_cjk(chr),
+        },
+    )?;
+
+    paragraph.cursor_x_px += advance_px;
+    paragraph
+        .glyphs
+        .push(ctx.glyph(chr, x_px, advance_px, shaped.face_metrics, allocation));
+    Some(1)
+}
+
+/// Emit one [`Glyph`] per shaped glyph of a cluster, and return how many that was.
+///
+/// Fewer than the cluster's glyphs when the shaper could not map a character:
+/// its combining marks and repeated `.notdef` glyphs are dropped.
+fn emit_cluster_glyphs(
+    fonts: &mut FontsImpl,
+    shaped: &ShapedRun<'_>,
+    glyph_range: Range<usize>,
+    ctx: &ShapingContext,
+    paragraph: &mut Paragraph,
+) -> usize {
+    let ShapedRun {
+        run,
+        text: run_text,
+        face_metrics,
+        infos,
+        positions,
+    } = *shaped;
     let px_scale = face_metrics.px_scale_factor;
+    let mut emitted = 0;
 
-    // Reset cluster tracking — cluster values are byte offsets within run_text,
-    // so they are not comparable across runs.
-    ctx.prev_cluster = None;
-
-    // Track how many glyphs we emit per cluster so we can add zero-width
-    // continuation glyphs when a cluster has more chars than glyphs.
-    let mut cluster_start_byte: usize = 0;
-    let mut cluster_glyph_count: usize = 0;
-
-    let infos = glyph_buffer.glyph_infos();
-    let positions = glyph_buffer.glyph_positions();
-    for idx in logical_glyph_order(infos, run.bidi_level % 2 == 1) {
+    for idx in glyph_range.clone() {
+        let first_in_cluster = idx == glyph_range.start;
         let (info, pos) = (&infos[idx], &positions[idx]);
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         let cluster = info.cluster;
@@ -280,10 +419,7 @@ fn layout_shaped_run(
         let x_offset_px = pos.x_offset as f32 * px_scale;
         let y_offset_px = -(pos.y_offset as f32 * px_scale); // harfrust Y+ up → screen Y+ down
 
-        let chr = run_text
-            .get(cluster as usize..)
-            .and_then(|s| s.chars().next())
-            .unwrap_or('\u{FFFD}'); // Unicode Replacement Character
+        let chr = shaped.char_at(cluster);
 
         // Tab is a layout concept, not a glyph — the shaper doesn't know about tab stops.
         // Override the advance width using the font's configured tab size.
@@ -305,34 +441,11 @@ fn layout_shaped_run(
             advance_width_px = thin_space_width * space_width_px;
         }
 
-        // Apply extra_letter_spacing only at cluster boundaries,
-        // never between glyphs within the same cluster (e.g. base + mark).
-        let is_new_cluster = ctx.prev_cluster.is_none_or(|pc| pc != cluster);
-        if is_new_cluster {
-            if ctx.prev_cluster.is_some() {
-                emit_continuation_glyphs(
-                    ctx,
-                    paragraph,
-                    run_text,
-                    cluster_start_byte..cluster as usize,
-                    cluster_glyph_count,
-                    face_metrics,
-                );
-            }
-            if !ctx.is_first_glyph_in_section {
-                paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
-            }
-            cluster_start_byte = cluster as usize;
-            cluster_glyph_count = 0;
-            ctx.is_first_glyph_in_section = false;
-        }
-        ctx.prev_cluster = Some(cluster);
-
         let glyph = if glyph_id == skrifa::GlyphId::NOTDEF {
             // The shaper couldn't map this character. Drop combining marks and duplicate
             // NOTDEF glyphs within the same cluster. The first base character is rasterized,
             // or rendered as the `.notdef` glyph ("tofu") if no rasterizer can handle the cluster.
-            if is_combining_mark(chr) || !is_new_cluster {
+            if is_combining_mark(chr) || !first_in_cluster {
                 continue;
             }
 
@@ -403,20 +516,10 @@ fn layout_shaped_run(
             ctx.glyph(chr, x_px, advance_width_px, face_metrics, glyph_alloc)
         };
         paragraph.glyphs.push(glyph);
-        cluster_glyph_count += 1;
+        emitted += 1;
     }
 
-    // Emit continuation glyphs for the last cluster in the run.
-    if ctx.prev_cluster.is_some() {
-        emit_continuation_glyphs(
-            ctx,
-            paragraph,
-            run_text,
-            cluster_start_byte..run_text.len(),
-            cluster_glyph_count,
-            face_metrics,
-        );
-    }
+    emitted
 }
 
 /// Put `glyph_info` in the atlas, or nothing at all if it is invisible.
@@ -573,7 +676,6 @@ fn layout_section(
         section_index,
         font_metrics,
         is_first_glyph_in_section: paragraph.glyphs.is_empty(),
-        prev_cluster: None,
         bidi_level: 0,
     };
     let mut runs = Vec::new();
@@ -1608,43 +1710,54 @@ fn bidi_levels(text: &str) -> Option<Vec<u8>> {
         .then(|| info.levels.iter().map(|level| level.number()).collect())
 }
 
-/// Indices into a shaped buffer in _logical_ order.
+/// The clusters of a shaped buffer, as ranges of glyph indices, in _logical_ order.
 ///
 /// The shaper returns glyphs in visual order, which for a right-to-left run
 /// is cluster-by-cluster reversed. Walking the clusters backwards restores
 /// logical order while keeping the glyphs inside a cluster (a base and its
 /// marks) in shaper order, because the marks' offsets are relative to the base.
-fn logical_glyph_order(infos: &[harfrust::GlyphInfo], rtl: bool) -> GlyphOrder {
-    if !rtl {
-        return GlyphOrder::Forward(0..infos.len());
+fn logical_clusters(infos: &[harfrust::GlyphInfo], rtl: bool) -> LogicalClusters<'_> {
+    LogicalClusters {
+        infos,
+        remaining: 0..infos.len(),
+        rtl,
     }
-    let mut order = Vec::with_capacity(infos.len());
-    let mut end = infos.len();
-    while 0 < end {
-        let cluster = infos[end - 1].cluster;
-        let start = infos[..end]
-            .iter()
-            .rposition(|info| info.cluster != cluster)
-            .map_or(0, |i| i + 1);
-        order.extend(start..end);
-        end = start;
-    }
-    GlyphOrder::Reordered(order.into_iter())
 }
 
-/// See [`logical_glyph_order`]. Left-to-right runs, the common case, allocate nothing.
-enum GlyphOrder {
-    Forward(Range<usize>),
-    Reordered(std::vec::IntoIter<usize>),
+/// See [`logical_clusters`].
+struct LogicalClusters<'a> {
+    infos: &'a [harfrust::GlyphInfo],
+
+    /// The glyphs not yet yielded, consumed from the front (left-to-right)
+    /// or from the back (right-to-left).
+    remaining: Range<usize>,
+
+    rtl: bool,
 }
 
-impl Iterator for GlyphOrder {
-    type Item = usize;
+impl Iterator for LogicalClusters<'_> {
+    type Item = Range<usize>;
 
-    fn next(&mut self) -> Option<usize> {
-        match self {
-            Self::Forward(range) => range.next(),
-            Self::Reordered(iter) => iter.next(),
+    fn next(&mut self) -> Option<Range<usize>> {
+        let infos = self.infos;
+        let unyielded = &infos[self.remaining.clone()];
+        let (first, last) = (unyielded.first()?, unyielded.last()?);
+        let offset = self.remaining.start;
+
+        if self.rtl {
+            let start = unyielded
+                .iter()
+                .rposition(|info| info.cluster != last.cluster)
+                .map_or(0, |i| i + 1);
+            self.remaining.end = offset + start;
+            Some(offset + start..offset + unyielded.len())
+        } else {
+            let end = unyielded
+                .iter()
+                .position(|info| info.cluster != first.cluster)
+                .unwrap_or(unyielded.len());
+            self.remaining.start = offset + end;
+            Some(offset..offset + end)
         }
     }
 }
@@ -1814,6 +1927,41 @@ mod tests {
             .families
             .insert(FontFamily::Proportional, vec!["Hack".to_owned()]);
         definitions
+    }
+
+    /// Hack composes `ǻ` from `å` plus an acute: two glyphs for one character.
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn a_letter_the_font_composes_from_several_glyphs_is_one_glyph() {
+        let mut fonts = FontsImpl::new(TextOptions::default(), hack_only());
+        let composed = layout_simple(&mut fonts, "aǻb");
+        let plain = layout_simple(&mut fonts, "aåb");
+
+        let glyphs = &composed.rows[0].row.glyphs;
+        let chars: Vec<char> = glyphs.iter().map(|glyph| glyph.chr).collect();
+        assert_eq!(chars, ['a', 'ǻ', 'b']);
+
+        let letter = &glyphs[1];
+        assert!(!letter.uv_rect.is_nothing(), "the composed letter is drawn");
+        assert!(
+            plain.rows[0].row.glyphs[1].uv_rect.size.y < letter.uv_rect.size.y,
+            "its bitmap covers the acute above the ring"
+        );
+        assert_eq!(
+            composed.size(),
+            plain.size(),
+            "the cluster keeps the shaper's advance"
+        );
+
+        for i in 0..=3 {
+            let cursor = CCursor {
+                index: CharIndex(i),
+                prefer_next_row: false,
+            };
+            let rect = composed.pos_from_cursor(cursor);
+            let back = composed.cursor_from_pos(rect.center().to_vec2());
+            assert_eq!(back.index.0, i, "cursor round-trip at {i}");
+        }
     }
 
     #[test]
