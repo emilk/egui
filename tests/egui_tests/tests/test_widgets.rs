@@ -144,8 +144,9 @@ fn widget_tests() {
         &mut results,
     );
 
-    test_widget(
+    test_widget_with_size(
         "range_slider",
+        Vec2::new(170.0, DEFAULT_TEST_SIZE.y),
         |ui| {
             ui.spacing_mut().slider_width = 45.0;
             RangeSlider::new(&mut 25.0, &mut 75.0, 0.0..=100.0).ui(ui)
@@ -167,20 +168,37 @@ fn widget_tests() {
     ];
 
     for atoms in interesting_atoms {
-        results.add(test_widget_layout(&format!("atoms_{}", atoms.0), |ui| {
-            WidgetAtom::new(atoms.1.clone()).ui(ui)
-        }));
+        results.add(test_widget_layout(
+            &format!("atoms_{}", atoms.0),
+            DEFAULT_TEST_SIZE,
+            |ui| WidgetAtom::new(atoms.1.clone()).ui(ui),
+        ));
     }
 }
 
-fn test_widget(name: &str, mut w: impl FnMut(&mut Ui) -> Response, results: &mut SnapshotResults) {
-    results.add(test_widget_layout(name, &mut w));
+/// The space each layout cell gives a widget, unless the widget asks for more.
+const DEFAULT_TEST_SIZE: Vec2 = Vec2::new(110.0, 45.0);
+
+fn test_widget(name: &str, w: impl FnMut(&mut Ui) -> Response, results: &mut SnapshotResults) {
+    test_widget_with_size(name, DEFAULT_TEST_SIZE, w, results);
+}
+
+/// For widgets too wide for [`DEFAULT_TEST_SIZE`], which would otherwise overflow their cells.
+fn test_widget_with_size(
+    name: &str,
+    test_size: Vec2,
+    mut w: impl FnMut(&mut Ui) -> Response,
+    results: &mut SnapshotResults,
+) {
+    results.add(test_widget_layout(name, test_size, &mut w));
     results.add(VisualTests::test(name, &mut w));
 }
 
-fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> SnapshotResult {
-    let test_size = Vec2::new(110.0, 45.0);
-
+fn test_widget_layout(
+    name: &str,
+    test_size: Vec2,
+    mut w: impl FnMut(&mut Ui) -> Response,
+) -> SnapshotResult {
     struct Row {
         main_dir: Direction,
         main_align: Align,
