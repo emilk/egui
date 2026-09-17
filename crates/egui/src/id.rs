@@ -4,11 +4,8 @@ use core::num::NonZeroU64;
 
 use crate::{AsIdSalt, IdSalt};
 
-/// Types that can be converted to an [`Id`].
-///
-/// This is all types implementing `Hash` and `Debug`,
-/// which includes things like strings, integers, tuples of those, etc.
-#[deprecated = "Use `impl core::hash::Hash + core::fmt::Debug` instead"]
+/// Deprecated
+#[deprecated = "Use AsIdSalt or Id instead"]
 pub trait AsId: core::hash::Hash + core::fmt::Debug {}
 
 #[expect(deprecated)]
