@@ -1,9 +1,11 @@
 //! Tests the accesskit accessibility output of egui.
 
 use egui::{
-    CentralPanel, Context, RawInput, Ui, Window,
-    accesskit::{NodeId, Role, TreeUpdate},
+    CentralPanel, Context, Panel, RawInput, Ui, Window,
+    accesskit::{Action, NodeId, Orientation, Role, TreeUpdate},
 };
+use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable as _;
 
 /// Baseline test that asserts there are no spurious nodes in the
 /// accesskit output when the ui is empty.
@@ -151,6 +153,156 @@ fn accesskit_output_single_egui_frame(run_ui: impl FnMut(&mut Ui)) -> TreeUpdate
         .platform_output
         .accesskit_update
         .expect("Missing accesskit update")
+}
+
+/// <https://github.com/emilk/egui/issues/8557>
+#[test]
+fn resizable_side_panel_exposes_resize_handle() {
+    let output = accesskit_output_single_egui_frame(|ui| {
+        Panel::left("test_panel").resizable(true).show(ui, |ui| {
+            ui.label("Panel content");
+        });
+    });
+
+    let (_, handle) = output
+        .nodes
+        .iter()
+        .find(|(_, node)| node.role() == Role::Splitter)
+        .expect("Panel resize handle should be exposed as a splitter node");
+
+    assert_eq!(handle.label(), Some("Resize panel"));
+    // The divider of a left/right panel is a vertical splitter:
+    assert_eq!(handle.orientation(), Some(Orientation::Vertical));
+    assert_eq!(handle.min_numeric_value(), Some(0.0));
+    assert_eq!(handle.max_numeric_value(), Some(1.0));
+    assert!(
+        handle.numeric_value().is_some(),
+        "Splitter should announce the current panel size"
+    );
+
+    for action in [Action::Increment, Action::Decrement, Action::SetValue] {
+        assert!(
+            handle.supports_action(action),
+            "Splitter should support {action:?}"
+        );
+    }
+}
+
+/// <https://github.com/emilk/egui/issues/8557>
+#[test]
+fn resizable_top_bottom_panel_exposes_horizontal_resize_handle() {
+    let output = accesskit_output_single_egui_frame(|ui| {
+        Panel::top("test_panel").resizable(true).show(ui, |ui| {
+            ui.label("Panel content");
+        });
+    });
+
+    let (_, handle) = output
+        .nodes
+        .iter()
+        .find(|(_, node)| node.role() == Role::Splitter)
+        .expect("Panel resize handle should be exposed as a splitter node");
+
+    assert_eq!(handle.label(), Some("Resize panel"));
+    // The divider of a top/bottom panel is a horizontal splitter:
+    assert_eq!(handle.orientation(), Some(Orientation::Horizontal));
+}
+
+/// The handle rect is the split position expanded by the grab radius,
+/// so track the center of the strip.
+#[track_caller]
+fn left_panel_split_pos(harness: &Harness<'_>) -> f32 {
+    let rect = harness
+        .get_by_role_and_label(Role::Splitter, "Resize panel")
+        .rect();
+    f32::midpoint(rect.min.x, rect.max.x)
+}
+
+/// <https://github.com/emilk/egui/issues/8557>
+#[test]
+fn resizable_panel_can_be_resized_via_accesskit_actions() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 600.0))
+        .build_ui(|ui| {
+            Panel::left("test_panel").resizable(true).show(ui, |ui| {
+                // Panels only grow if the contents use the available space:
+                ui.take_available_space();
+                ui.label("Panel content");
+            });
+        });
+    harness.run();
+
+    let initial_split = left_panel_split_pos(&harness);
+
+    harness
+        .get_by_role_and_label(Role::Splitter, "Resize panel")
+        .increment_accesskit();
+    harness.run();
+
+    let grown_split = left_panel_split_pos(&harness);
+    assert!(
+        initial_split + f32::EPSILON < grown_split,
+        "Increment should move the split outward, got {initial_split} -> {grown_split}"
+    );
+
+    harness
+        .get_by_role_and_label(Role::Splitter, "Resize panel")
+        .set_value_accesskit(0.5);
+    harness.run();
+
+    let half_split = left_panel_split_pos(&harness);
+    let expected_split = 800.0 * 0.5;
+    assert!(
+        (half_split - expected_split).abs() < 1.0,
+        "SetValue should move the split to half the available space, got {half_split}"
+    );
+
+    harness
+        .get_by_role_and_label(Role::Splitter, "Resize panel")
+        .decrement_accesskit();
+    harness.run();
+
+    let shrunk_split = left_panel_split_pos(&harness);
+    assert!(
+        shrunk_split + f32::EPSILON < half_split,
+        "Decrement should move the split inward, got {half_split} -> {shrunk_split}"
+    );
+}
+
+/// The grab handle of a fully collapsed panel lets assistive technologies
+/// pull the panel open, mirroring the drag-to-expand gesture.
+///
+/// <https://github.com/emilk/egui/issues/8557>
+#[test]
+fn collapsed_panel_can_be_expanded_via_accesskit_action() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 600.0))
+        .build_ui_state(
+            |ui, expanded| {
+                Panel::left("test_panel")
+                    .resizable(true)
+                    .show_collapsible(ui, expanded, |ui| {
+                        ui.take_available_space();
+                        ui.label("Panel content");
+                    });
+            },
+            true,
+        );
+    harness.run();
+
+    *harness.state_mut() = false;
+    harness.run();
+
+    // Fully collapsed: only the grab handle remains.
+    harness
+        .get_by_role_and_label(Role::Splitter, "Resize panel")
+        .increment_accesskit();
+    harness.run();
+
+    assert!(
+        *harness.state(),
+        "Increment on the collapsed panel's resize handle should expand the panel"
+    );
 }
 
 #[track_caller]
