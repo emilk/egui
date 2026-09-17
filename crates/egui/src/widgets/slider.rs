@@ -1,16 +1,15 @@
-#![expect(clippy::needless_pass_by_value)] // False positives with `impl ToString`
-
 use core::ops::RangeInclusive;
 
 use crate::{
-    Color32, Key, Label, MINUS_CHAR_STR, NumExt as _, Rangef, Rect, Response, Sense, TextStyle,
+    Color32, IntoAtoms, Key, Label, NumExt as _, Rangef, Rect, Response, Sense, TextStyle,
     TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, emath, style::HandleShape, vec2,
 };
 
 use super::drag_value::clamp_value_to_range;
 use super::slider_core::{
-    self, GetSetValue, SliderGeometry, SliderSpec, StepOptions, ValueFormat, ValueOptions, get, set,
+    self, GetSetValue, SliderGeometry, SliderSpec, StepOptions, ValueOptions, get, set,
 };
+use super::value_format::ValueFormat;
 // ----------------------------------------------------------------------------
 
 /// Specifies the orientation of a [`Slider`].
@@ -138,15 +137,15 @@ impl<'a> Slider<'a> {
 
     /// Show a prefix before the number, e.g. "x: "
     #[inline]
-    pub fn prefix(mut self, prefix: impl ToString) -> Self {
-        self.format.prefix = prefix.to_string();
+    pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
+        self.format = self.format.prefix(prefix);
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
     #[inline]
-    pub fn suffix(mut self, suffix: impl ToString) -> Self {
-        self.format.suffix = suffix.to_string();
+    pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
+        self.format = self.format.suffix(suffix);
         self
     }
 
@@ -289,7 +288,7 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
-        self.format.min_decimals = min_decimals;
+        self.format = self.format.min_decimals(min_decimals);
         self
     }
 
@@ -301,13 +300,13 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
-        self.format.max_decimals = Some(max_decimals);
+        self.format = self.format.max_decimals(max_decimals);
         self
     }
 
     #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
-        self.format.max_decimals = max_decimals;
+        self.format = self.format.max_decimals_opt(max_decimals);
         self
     }
 
@@ -318,7 +317,7 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
-        self.format.set_fixed_decimals(num_decimals);
+        self.format = self.format.fixed_decimals(num_decimals);
         self
     }
 
@@ -385,7 +384,7 @@ impl<'a> Slider<'a> {
         mut self,
         formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
     ) -> Self {
-        self.format.custom_formatter = Some(Box::new(formatter));
+        self.format = self.format.custom_formatter(formatter);
         self
     }
 
@@ -426,22 +425,11 @@ impl<'a> Slider<'a> {
     /// ```
     #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
-        self.format.custom_parser = Some(Box::new(parser));
+        self.format = self.format.custom_parser(parser);
         self
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary integers. Floating point
-    /// numbers are *not* supported.
-    ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
-    /// prefixed with additional 0s to match `min_width`.
-    ///
-    /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
-    /// they will be prefixed with a '-' sign.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `min_width` is 0.
+    /// Display and parse the number as a binary integer. See [`ValueFormat::binary`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -449,34 +437,12 @@ impl<'a> Slider<'a> {
     /// ui.add(egui::Slider::new(&mut my_i32, -100..=100).binary(64, false));
     /// # });
     /// ```
-    pub fn binary(self, min_width: usize, twos_complement: bool) -> Self {
-        assert!(
-            min_width > 0,
-            "Slider::binary: `min_width` must be greater than 0"
-        );
-        if twos_complement {
-            self.custom_formatter(move |n, _| format!("{:0>min_width$b}", n as i64))
-        } else {
-            self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
-                format!("{sign}{:0>min_width$b}", n.abs() as i64)
-            })
-        }
-        .custom_parser(|s| i64::from_str_radix(s, 2).map(|n| n as f64).ok())
+    pub fn binary(mut self, min_width: usize, twos_complement: bool) -> Self {
+        self.format = self.format.binary(min_width, twos_complement);
+        self
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as octal integers. Floating point
-    /// numbers are *not* supported.
-    ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
-    /// prefixed with additional 0s to match `min_width`.
-    ///
-    /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
-    /// they will be prefixed with a '-' sign.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `min_width` is 0.
+    /// Display and parse the number as an octal integer. See [`ValueFormat::octal`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -484,34 +450,12 @@ impl<'a> Slider<'a> {
     /// ui.add(egui::Slider::new(&mut my_i32, -100..=100).octal(22, false));
     /// # });
     /// ```
-    pub fn octal(self, min_width: usize, twos_complement: bool) -> Self {
-        assert!(
-            min_width > 0,
-            "Slider::octal: `min_width` must be greater than 0"
-        );
-        if twos_complement {
-            self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as i64))
-        } else {
-            self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
-                format!("{sign}{:0>min_width$o}", n.abs() as i64)
-            })
-        }
-        .custom_parser(|s| i64::from_str_radix(s, 8).map(|n| n as f64).ok())
+    pub fn octal(mut self, min_width: usize, twos_complement: bool) -> Self {
+        self.format = self.format.octal(min_width, twos_complement);
+        self
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as hexadecimal integers. Floating point
-    /// numbers are *not* supported.
-    ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
-    /// prefixed with additional 0s to match `min_width`.
-    ///
-    /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
-    /// they will be prefixed with a '-' sign.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `min_width` is 0.
+    /// Display and parse the number as a hexadecimal integer. See [`ValueFormat::hexadecimal`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -519,28 +463,9 @@ impl<'a> Slider<'a> {
     /// ui.add(egui::Slider::new(&mut my_i32, -100..=100).hexadecimal(16, false, true));
     /// # });
     /// ```
-    pub fn hexadecimal(self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
-        assert!(
-            min_width > 0,
-            "Slider::hexadecimal: `min_width` must be greater than 0"
-        );
-        match (twos_complement, upper) {
-            (true, true) => {
-                self.custom_formatter(move |n, _| format!("{:0>min_width$X}", n as i64))
-            }
-            (true, false) => {
-                self.custom_formatter(move |n, _| format!("{:0>min_width$x}", n as i64))
-            }
-            (false, true) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
-                format!("{sign}{:0>min_width$X}", n.abs() as i64)
-            }),
-            (false, false) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
-                format!("{sign}{:0>min_width$x}", n.abs() as i64)
-            }),
-        }
-        .custom_parser(|s| i64::from_str_radix(s, 16).map(|n| n as f64).ok())
+    pub fn hexadecimal(mut self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
+        self.format = self.format.hexadecimal(min_width, twos_complement, upper);
+        self
     }
 
     /// Helper: equivalent to `self.precision(0).smallest_positive(1.0)`.
@@ -598,7 +523,7 @@ impl<'a> Slider<'a> {
     /// If `false`, the value will only be updated when user presses enter or deselects the value.
     #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
-        self.format.update_while_editing = update;
+        self.format = self.format.update_while_editing(update);
         self
     }
 }
@@ -691,11 +616,11 @@ impl Slider<'_> {
         let response = slider_core::slider_drag_value(
             ui,
             &mut value,
-            &ValueOptions {
+            ValueOptions {
                 speed,
                 range: self.range(),
                 clamping: self.clamping,
-                format: &self.format,
+                format: self.format.clone(),
             },
         );
 

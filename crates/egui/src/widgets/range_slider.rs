@@ -1,17 +1,16 @@
-#![expect(clippy::needless_pass_by_value)] // False positives with `impl ToString`
-
 use core::ops::RangeInclusive;
 
 use crate::{
-    Key, Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense, TextStyle, TextWrapMode, Ui,
-    Widget, WidgetInfo, WidgetText, WidgetType, emath, style::HandleShape, vec2,
+    IntoAtoms, Key, Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense, TextStyle,
+    TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, WidgetType, emath, style::HandleShape, vec2,
 };
 
 use super::drag_value::clamp_value_to_range;
 use super::slider::{SliderClamping, SliderOrientation};
 use super::slider_core::{
-    self, GetSetValue, SliderGeometry, SliderSpec, StepOptions, ValueFormat, ValueOptions, get, set,
+    self, GetSetValue, SliderGeometry, SliderSpec, StepOptions, ValueOptions, get, set,
 };
+use super::value_format::ValueFormat;
 
 /// Select a range of numbers with a two-handled slider.
 ///
@@ -117,15 +116,15 @@ impl<'a> RangeSlider<'a> {
 
     /// Show a prefix before both numbers. Default: no prefix.
     #[inline]
-    pub fn prefix(mut self, prefix: impl ToString) -> Self {
-        self.format.prefix = prefix.to_string();
+    pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
+        self.format = self.format.prefix(prefix);
         self
     }
 
     /// Add a suffix to both numbers, e.g. a unit. Default: no suffix.
     #[inline]
-    pub fn suffix(mut self, suffix: impl ToString) -> Self {
-        self.format.suffix = suffix.to_string();
+    pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
+        self.format = self.format.suffix(suffix);
         self
     }
 
@@ -219,21 +218,21 @@ impl<'a> RangeSlider<'a> {
     /// Set the minimum number of decimals to display. Default: `0`.
     #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
-        self.format.min_decimals = min_decimals;
+        self.format = self.format.min_decimals(min_decimals);
         self
     }
 
     /// Set the maximum number of decimals to display.
     #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
-        self.format.max_decimals = Some(max_decimals);
+        self.format = self.format.max_decimals(max_decimals);
         self
     }
 
     /// Show exactly this many decimals.
     #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
-        self.format.set_fixed_decimals(num_decimals);
+        self.format = self.format.fixed_decimals(num_decimals);
         self
     }
 
@@ -242,13 +241,13 @@ impl<'a> RangeSlider<'a> {
         mut self,
         formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
     ) -> Self {
-        self.format.custom_formatter = Some(Box::new(formatter));
+        self.format = self.format.custom_formatter(formatter);
         self
     }
 
     /// Set a parser for both numbers, accepting what [`Self::custom_formatter`] writes.
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
-        self.format.custom_parser = Some(Box::new(parser));
+        self.format = self.format.custom_parser(parser);
         self
     }
 
@@ -262,7 +261,7 @@ impl<'a> RangeSlider<'a> {
     /// Update the values on each key press while a number is being typed. Default: `true`.
     #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
-        self.format.update_while_editing = update;
+        self.format = self.format.update_while_editing(update);
         self
     }
 
@@ -482,11 +481,11 @@ impl RangeSlider<'_> {
         slider_core::slider_drag_value(
             ui,
             value,
-            &ValueOptions {
+            ValueOptions {
                 speed,
                 range: bounds,
                 clamping: self.clamping,
-                format: &self.format,
+                format: self.format.clone(),
             },
         )
     }

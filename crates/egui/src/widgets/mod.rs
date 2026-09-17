@@ -27,6 +27,7 @@ mod slider;
 mod slider_core;
 mod spinner;
 pub mod text_edit;
+mod value_format;
 
 pub use self::{
     button::Button,
@@ -47,6 +48,7 @@ pub use self::{
     text_edit::{
         CompletionOutput, CompletionPopup, CompletionQuery, Suggestion, TextBuffer, TextEdit,
     },
+    value_format::{NumFormatter, NumParser, ValueFormat},
 };
 
 // ----------------------------------------------------------------------------

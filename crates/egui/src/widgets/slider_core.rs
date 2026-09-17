@@ -10,6 +10,7 @@ use crate::{
 };
 
 use super::slider::{SliderClamping, SliderOrientation};
+use super::value_format::ValueFormat;
 
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
@@ -22,14 +23,6 @@ pub fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
 pub fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
     (get_set_value)(Some(value));
 }
-
-// ----------------------------------------------------------------------------
-
-/// Formats a value for display, given the number of decimals to show.
-pub type NumFormatter<'a> = Box<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
-
-/// Parses what the user typed, returning `None` if it is not a number.
-pub type NumParser<'a> = Box<dyn 'a + Fn(&str) -> Option<f64>>;
 
 // ----------------------------------------------------------------------------
 
@@ -386,82 +379,6 @@ pub fn declare_accesskit_slider(
 // ----------------------------------------------------------------------------
 // The number next to the rail.
 
-/// How the numbers beside a rail are written, read back, and applied.
-///
-/// Everything here is handed straight to the [`DragValue`]s a slider shows.
-pub struct ValueFormat<'a> {
-    /// Shown before each number, e.g. `"x: "`.
-    pub prefix: String,
-
-    /// Shown after each number, e.g. a unit.
-    pub suffix: String,
-
-    pub min_decimals: usize,
-    pub max_decimals: Option<usize>,
-    pub custom_formatter: Option<NumFormatter<'a>>,
-    pub custom_parser: Option<NumParser<'a>>,
-
-    /// Apply each keystroke while typing, rather than on enter.
-    pub update_while_editing: bool,
-}
-
-impl Default for ValueFormat<'_> {
-    fn default() -> Self {
-        Self {
-            prefix: String::new(),
-            suffix: String::new(),
-            min_decimals: 0,
-            max_decimals: None,
-            custom_formatter: None,
-            custom_parser: None,
-            update_while_editing: true,
-        }
-    }
-}
-
-impl ValueFormat<'_> {
-    /// Show exactly this many decimals.
-    pub fn set_fixed_decimals(&mut self, num_decimals: usize) {
-        self.min_decimals = num_decimals;
-        self.max_decimals = Some(num_decimals);
-    }
-
-    /// Rounds `value` to `max_decimals`, if set.
-    pub fn round(&self, value: f64) -> f64 {
-        match self.max_decimals {
-            Some(max_decimals) => emath::round_to_decimals(value, max_decimals),
-            None => value,
-        }
-    }
-
-    fn apply<'b>(&'b self, mut dv: DragValue<'b>) -> DragValue<'b> {
-        let Self {
-            prefix,
-            suffix,
-            min_decimals,
-            max_decimals,
-            custom_formatter,
-            custom_parser,
-            update_while_editing,
-        } = self;
-
-        dv = dv
-            .prefix(prefix)
-            .suffix(suffix)
-            .min_decimals(*min_decimals)
-            .max_decimals_opt(*max_decimals)
-            .update_while_editing(*update_while_editing);
-
-        if let Some(fmt) = custom_formatter {
-            dv = dv.custom_formatter(fmt);
-        }
-        if let Some(parser) = custom_parser {
-            dv = dv.custom_parser(parser);
-        }
-        dv
-    }
-}
-
 /// How the [`DragValue`] beside a rail is built.
 pub struct ValueOptions<'a> {
     /// Value change per point of drag.
@@ -474,26 +391,31 @@ pub struct ValueOptions<'a> {
     pub clamping: SliderClamping,
 
     /// How the number is written and read back.
-    pub format: &'a ValueFormat<'a>,
+    pub format: ValueFormat<'a>,
 }
 
 /// The editable number that sits next to a rail.
-pub fn slider_drag_value(ui: &mut Ui, value: &mut f64, opts: &ValueOptions<'_>) -> Response {
-    ui.add({
-        let mut dv = opts.format.apply(DragValue::new(value).speed(opts.speed));
+pub fn slider_drag_value(ui: &mut Ui, value: &mut f64, opts: ValueOptions<'_>) -> Response {
+    let ValueOptions {
+        speed,
+        range,
+        clamping,
+        format,
+    } = opts;
 
-        match opts.clamping {
-            SliderClamping::Never => {}
-            SliderClamping::Edits => {
-                dv = dv.range(opts.range.clone()).clamp_existing_to_range(false);
-            }
-            SliderClamping::Always => {
-                dv = dv.range(opts.range.clone()).clamp_existing_to_range(true);
-            }
+    let mut dv = DragValue::new(value).speed(speed).format(format);
+
+    match clamping {
+        SliderClamping::Never => {}
+        SliderClamping::Edits => {
+            dv = dv.range(range).clamp_existing_to_range(false);
         }
+        SliderClamping::Always => {
+            dv = dv.range(range).clamp_existing_to_range(true);
+        }
+    }
 
-        dv
-    })
+    ui.add(dv)
 }
 
 // ----------------------------------------------------------------------------
