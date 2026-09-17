@@ -90,6 +90,10 @@ impl<'a> Slider<'a> {
         if Num::INTEGRAL { slf.integer() } else { slf }
     }
 
+    /// Creates a slider over a value that cannot be borrowed directly.
+    ///
+    /// The closure is called with `None` to read the value and with `Some(new_value)` to write it,
+    /// and returns the value either way.
     pub fn from_get_set(
         range: RangeInclusive<f64>,
         get_set_value: impl 'a + FnMut(Option<f64>) -> f64,
@@ -117,6 +121,7 @@ impl<'a> Slider<'a> {
         self
     }
 
+    /// Set the color of the text shown next to the slider.
     #[inline]
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.core.text = self.core.text.color(text_color);
@@ -340,6 +345,9 @@ impl<'a> Slider<'a> {
         self
     }
 
+    /// Set the maximum number of decimals to display, or `None` to let the widget pick.
+    ///
+    /// Values will also be rounded to this number of decimals when it is set.
     #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
         self.core.drag_value.format = self.core.drag_value.format.max_decimals_opt(max_decimals);

@@ -91,6 +91,9 @@ impl<'a> ValueFormat<'a> {
         self
     }
 
+    /// Set the maximum number of decimals to display, or `None` to let the widget pick.
+    ///
+    /// Values will also be rounded to this number of decimals when it is set.
     #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
         self.max_decimals = max_decimals;

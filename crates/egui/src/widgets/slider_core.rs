@@ -219,6 +219,7 @@ pub struct SliderCore<'a> {
 }
 
 impl SliderCore<'_> {
+    /// A horizontal, linear, clamping slider over `range`, with a number beside it.
     pub fn new(range: RangeInclusive<f64>) -> Self {
         Self {
             range,

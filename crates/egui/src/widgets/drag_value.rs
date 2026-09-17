@@ -68,6 +68,9 @@ impl<'a> DragValue<'a> {
     /// Present on the [`Button`] and the [`TextEdit`] a drag value is built from.
     pub const CLASS: ClassName = ClassName::from_static("egui::drag_value");
 
+    /// Creates a drag value for `value`.
+    ///
+    /// Integer types get a step of one, a speed of a quarter per point, and their full range.
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
         let slf = Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
@@ -83,6 +86,10 @@ impl<'a> DragValue<'a> {
         }
     }
 
+    /// Creates a drag value over a value that cannot be borrowed directly.
+    ///
+    /// The closure is called with `None` to read the value and with `Some(new_value)` to write it,
+    /// and returns the value either way.
     pub fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
         Self {
             get_set_value: Box::new(get_set_value),
@@ -213,6 +220,9 @@ impl<'a> DragValue<'a> {
         self
     }
 
+    /// Set the maximum number of decimals to display, or `None` to let the widget pick.
+    ///
+    /// Values will also be rounded to this number of decimals when it is set.
     #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
         self.format = self.format.max_decimals_opt(max_decimals);

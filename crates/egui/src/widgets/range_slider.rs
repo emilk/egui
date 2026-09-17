@@ -100,6 +100,7 @@ impl<'a> RangeSlider<'a> {
         self
     }
 
+    /// Set the color of the text shown next to the widget.
     #[inline]
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.core.text = self.core.text.color(text_color);
@@ -261,6 +262,9 @@ impl<'a> RangeSlider<'a> {
         self
     }
 
+    /// Set the maximum number of decimals to display, or `None` to let the widget pick.
+    ///
+    /// Values will also be rounded to this number of decimals when it is set.
     #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
         self.core.drag_value.format = self.core.drag_value.format.max_decimals_opt(max_decimals);
