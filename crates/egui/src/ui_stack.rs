@@ -62,6 +62,24 @@ pub enum UiKind {
 }
 
 impl UiKind {
+    /// The accessibility role of a [`crate::Ui`] of this kind.
+    ///
+    /// Kinds with no role of their own are plain [`accesskit::Role::GenericContainer`]s.
+    pub fn accesskit_role(self) -> accesskit::Role {
+        use accesskit::Role;
+        match self {
+            Self::LeftPanel
+            | Self::RightPanel
+            | Self::TopPanel
+            | Self::BottomPanel
+            | Self::CentralPanel => Role::Pane,
+            Self::Modal | Self::Popup => Role::Dialog,
+            Self::Menu => Role::Menu,
+            Self::Tooltip => Role::Tooltip,
+            _ => Role::GenericContainer,
+        }
+    }
+
     /// Is this any kind of panel?
     #[inline]
     pub fn is_panel(&self) -> bool {
