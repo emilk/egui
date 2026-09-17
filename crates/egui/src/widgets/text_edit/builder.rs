@@ -220,16 +220,20 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Add a prefix to the text edit. This will always be shown before the editable text.
+    ///
+    /// Goes in front of any prefix already set, so `.prefix("b").prefix("a")` shows `ab`.
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'static>) -> Self {
-        self.prefix = prefix.into_atoms();
+        self.prefix.extend_left(prefix.into_atoms());
         self
     }
 
     /// Add a suffix to the text edit. This will always be shown after the editable text.
+    ///
+    /// Goes after any suffix already set, so `.suffix("a").suffix("b")` shows `ab`.
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'static>) -> Self {
-        self.suffix = suffix.into_atoms();
+        self.suffix.extend_right(suffix.into_atoms());
         self
     }
 

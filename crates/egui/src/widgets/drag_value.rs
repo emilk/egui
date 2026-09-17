@@ -174,14 +174,18 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    /// Show a prefix before the number, e.g. "x: "
+    /// Show a prefix before the number, e.g. "x: ".
+    ///
+    /// Goes in front of any prefix already set, so `.prefix("b").prefix("a")` shows `ab`.
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
         self.format = self.format.prefix(prefix);
         self
     }
 
-    /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
+    /// Add a suffix to the number, this can be e.g. a unit ("°" or " m").
+    ///
+    /// Goes after any suffix already set, so `.suffix("a").suffix("b")` shows `ab`.
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
         self.format = self.format.suffix(suffix);

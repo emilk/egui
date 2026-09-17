@@ -223,14 +223,18 @@ impl<'a> RangeSlider<'a> {
         self
     }
 
-    /// Show a prefix before both numbers. Default: no prefix.
+    /// Show a prefix before both numbers, e.g. "x: ".
+    ///
+    /// Goes in front of any prefix already set, so `.prefix("b").prefix("a")` shows `ab`.
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
         self.core.drag_value.format = self.core.drag_value.format.prefix(prefix);
         self
     }
 
-    /// Add a suffix to both numbers, e.g. a unit. Default: no suffix.
+    /// Add a suffix to both numbers, e.g. a unit ("°" or " m").
+    ///
+    /// Goes after any suffix already set, so `.suffix("a").suffix("b")` shows `ab`.
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
         self.core.drag_value.format = self.core.drag_value.format.suffix(suffix);
