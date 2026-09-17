@@ -2,7 +2,7 @@ use core::ops::RangeInclusive;
 
 use crate::{
     IntoAtoms, Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense, TextWrapMode, Ui, Widget,
-    WidgetInfo, WidgetText, WidgetType, emath, style::HandleShape, vec2,
+    WidgetInfo, WidgetText, WidgetType, emath, style::HandleShape,
 };
 
 use super::drag_value::{GetSetValue, get, set};
@@ -278,55 +278,36 @@ impl RangeSlider<'_> {
         let (mut low, mut high) = (self.get_low(), self.get_high());
 
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
-            // Remembered for the whole gesture, so dragging one handle into the other does not
-            // hand the pointer over to its neighbor half way.
-            let grabbed = ui
-                .data(|data| data.get_temp::<Handle>(response.id))
-                .unwrap_or_else(|| {
-                    let pointer = geom.pointer_position(pointer_position_2d);
-                    let (low_position, high_position) = (
-                        geom.position_from_value(low),
-                        geom.position_from_value(high),
-                    );
-                    let (to_low, to_high) = (
-                        (pointer - low_position).abs(),
-                        (pointer - high_position).abs(),
-                    );
-
-                    let nearer_low = if to_low == to_high {
-                        // The handles coincide, so the side the pointer is on decides. Otherwise
-                        // a collapsed range could only ever be opened in one direction.
-                        pointer < low_position
-                    } else {
-                        to_low < to_high
-                    };
-                    if nearer_low {
-                        Handle::Low
-                    } else {
-                        Handle::High
-                    }
-                });
-            ui.data_mut(|data| data.insert_temp(response.id, grabbed));
-
             let value =
                 slider_core::value_at_pointer(ui, &geom, pointer_position_2d, self.core.smart_aim);
 
-            (low, high) = moved_handle(grabbed, value, low, high, self.min_separation);
+            // Decided once per gesture, so dragging one handle into the other does not hand the
+            // pointer over to its neighbor half way.
+            let remembered = ui.data(|data| data.get_temp::<Handle>(response.id));
+            let grabbed = match remembered {
+                Some(grabbed) if !response.drag_started() => grabbed,
+                _ => {
+                    let grabbed = nearer_handle(&geom, pointer_position_2d, low, high);
+                    ui.data_mut(|data| data.insert_temp(response.id, grabbed));
+                    grabbed
+                }
+            };
 
-            self.set_low(low);
-            self.set_high(high);
-        } else if ui
-            .data(|data| data.get_temp::<Handle>(response.id))
-            .is_some()
-        {
+            // Only the grabbed handle is written, so the other keeps what the caller stored.
+            (low, high) = moved_handle(grabbed, value, low, high, self.min_separation);
+            match grabbed {
+                Handle::Low => self.set_low(low),
+                Handle::High => self.set_high(high),
+            }
+        }
+        if response.drag_stopped() {
             ui.data_mut(|data| data.remove::<Handle>(response.id));
         }
 
         // Each handle is its own focus stop, so the keyboard and a screen reader can reach
         // either end of the range.
         let handle_rect = |value: f64| {
-            let center = geom.marker_center(geom.position_from_value(value), &response.rect);
-            Rect::from_center_size(center, vec2(2.0, 2.0) * geom.handle_radius())
+            geom.handle_rect(geom.marker_center(geom.position_from_value(value), &response.rect))
         };
         let low_response = ui.interact(
             handle_rect(low),
@@ -351,20 +332,32 @@ impl RangeSlider<'_> {
         // Rounding is applied on the way in, so read back what was actually stored.
         let (low, high) = (self.get_low(), self.get_high());
 
-        // A handle may travel as far as its neighbor, not as far as the end of the rail.
+        // A handle may travel as far as its neighbor, not as far as the end of the rail. Without
+        // clamping, the rail's ends do not bound it either, as for `Slider`.
+        let unbounded = self.core.clamping == SliderClamping::Never;
         let low_bounds = *self.core.range.start()..=(high - self.min_separation);
         let high_bounds = (low + self.min_separation)..=*self.core.range.end();
+        let low_editable = if unbounded {
+            f64::NEG_INFINITY..=*low_bounds.end()
+        } else {
+            low_bounds.clone()
+        };
+        let high_editable = if unbounded {
+            *high_bounds.start()..=f64::INFINITY
+        } else {
+            high_bounds.clone()
+        };
 
-        for (handle, value, bounds) in [
-            (&low_response, low, low_bounds),
-            (&high_response, high, high_bounds),
+        for (handle, value, bounds, editable) in [
+            (&low_response, low, low_bounds, low_editable),
+            (&high_response, high, high_bounds, high_editable),
         ] {
             slider_core::declare_accesskit_slider(
                 ui,
                 handle.id,
                 value,
                 &bounds,
-                &bounds,
+                &editable,
                 self.core.step,
             );
             handle
@@ -385,13 +378,36 @@ impl RangeSlider<'_> {
             };
             slider_core::paint_fill(ui, rail_rect, span, self.core.orientation);
 
-            // A focused handle looks active, so the keyboard shows where it is.
-            let focused = &ui.visuals().widgets.active;
-            let dragged = ui.style().interact(response);
-            let visuals = |handle: &Response| if handle.has_focus() { focused } else { dragged };
+            // Each handle shows its own state: the grabbed or focused one is active, and hovering
+            // the rail lights up the handle a press there would grab.
+            let dragged = response
+                .is_pointer_button_down_on()
+                .then(|| ui.data(|data| data.get_temp::<Handle>(response.id)))
+                .flatten();
+            let hovered = response
+                .hover_pos()
+                .filter(|_| response.hovered())
+                .map(|pos| nearer_handle(&geom, pos, low, high));
+            let visuals = |handle: Handle, handle_response: &Response| {
+                let widgets = &ui.visuals().widgets;
+                if !ui.is_enabled() {
+                    &widgets.noninteractive
+                } else if handle_response.has_focus() || dragged == Some(handle) {
+                    &widgets.active
+                } else if hovered == Some(handle) {
+                    &widgets.hovered
+                } else {
+                    &widgets.inactive
+                }
+            };
 
-            slider_core::paint_handle(ui, &geom, low_center, visuals(&low_response));
-            slider_core::paint_handle(ui, &geom, high_center, visuals(&high_response));
+            slider_core::paint_handle(ui, &geom, low_center, visuals(Handle::Low, &low_response));
+            slider_core::paint_handle(
+                ui,
+                &geom,
+                high_center,
+                visuals(Handle::High, &high_response),
+            );
         }
     }
 
@@ -411,7 +427,36 @@ impl RangeSlider<'_> {
         slider_core::accesskit_set_value_request(ui, handle.id).or(stepped)
     }
 
+    /// The editable number for `handle`, bounded so it cannot be typed past the other handle.
+    fn number_ui(&mut self, ui: &mut Ui, probe: &SliderGeometry, handle: Handle) -> Response {
+        let (low, high) = (self.get_low(), self.get_high());
+        let (value, bounds) = match handle {
+            Handle::Low => (low, *self.core.range.start()..=(high - self.min_separation)),
+            Handle::High => (high, (low + self.min_separation)..=*self.core.range.end()),
+        };
+
+        let mut edited = value;
+        let speed = self.core.drag_value_speed_at(ui, probe, value);
+        let response = self.core.drag_value_ui(ui, &mut edited, bounds, speed);
+
+        if edited != value {
+            match handle {
+                Handle::Low => self.set_low(edited),
+                Handle::High => self.set_high(edited),
+            }
+        }
+        response
+    }
+
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
+        if self.core.clamping == SliderClamping::Always {
+            // As `Slider` does: the caller's values are pulled into range, not just shown so.
+            let (low, high) = (self.get_low(), self.get_high());
+            self.set_low(low);
+            self.set_high(high);
+        }
+        let before = (self.get_low(), self.get_high());
+
         let desired_size = self.core.desired_size(ui);
 
         // The numbers are laid out before the rail exists, so their speed is read off a
@@ -421,29 +466,21 @@ impl RangeSlider<'_> {
             .core
             .geometry(Rect::from_min_size(Pos2::ZERO, desired_size), ui);
 
-        let (mut low, mut high) = (self.get_low(), self.get_high());
+        // Each number sits at the end of the rail it belongs to: low first along a horizontal
+        // rail, but high first along a vertical one, whose top is its high end.
+        let (first, last) = match self.core.orientation {
+            SliderOrientation::Horizontal => (Handle::Low, Handle::High),
+            SliderOrientation::Vertical => (Handle::High, Handle::Low),
+        };
+
         let mut value_responses = Vec::new();
 
         if self.core.drag_value.show {
-            let mut edited = low;
-            let bounds = *self.core.range.start()..=(high - self.min_separation);
-            let speed = self.core.drag_value_speed_at(ui, &probe, low);
-            let response = self.core.drag_value_ui(ui, &mut edited, bounds, speed);
-            if edited != low {
-                self.set_low(edited);
-                low = self.get_low();
-            }
-            value_responses.push(response);
+            value_responses.push(self.number_ui(ui, &probe, first));
         }
 
         let mut response = ui.allocate_response(desired_size, Sense::DRAG);
         self.range_slider_ui(ui, &response);
-
-        let (new_low, new_high) = (self.get_low(), self.get_high());
-        if (new_low, new_high) != (low, high) {
-            response.mark_changed();
-            (low, high) = (new_low, new_high);
-        }
 
         response.widget_info(|| {
             WidgetInfo::labeled(WidgetType::Other, ui.is_enabled(), self.core.text.text())
@@ -452,15 +489,11 @@ impl RangeSlider<'_> {
         let slider_response = response.clone();
 
         if self.core.drag_value.show {
-            let mut edited = high;
-            let bounds = (low + self.min_separation)..=*self.core.range.end();
-            let speed = self.core.drag_value_speed_at(ui, &probe, high);
-            let value_response = self.core.drag_value_ui(ui, &mut edited, bounds, speed);
-            if edited != high {
-                self.set_high(edited);
-                response.mark_changed();
-            }
-            value_responses.push(value_response);
+            value_responses.push(self.number_ui(ui, &probe, last));
+        }
+
+        if (self.get_low(), self.get_high()) != before {
+            response.mark_changed();
         }
 
         for value_response in &value_responses {
@@ -486,6 +519,27 @@ impl RangeSlider<'_> {
         }
 
         response
+    }
+}
+
+/// The handle a press at `pointer_position_2d` would grab.
+///
+/// When the handles coincide, the side the pointer is on decides, or a collapsed range could
+/// only ever be opened in one direction. That side is compared as values, so it holds for
+/// vertical rails and for ranges that run high-to-low.
+fn nearer_handle(geom: &SliderGeometry, pointer_position_2d: Pos2, low: f64, high: f64) -> Handle {
+    let pointer = geom.pointer_position(pointer_position_2d);
+    let to_low = (pointer - geom.position_from_value(low)).abs();
+    let to_high = (pointer - geom.position_from_value(high)).abs();
+
+    if to_low < to_high {
+        Handle::Low
+    } else if to_high < to_low {
+        Handle::High
+    } else if geom.value_from_position(pointer) < low {
+        Handle::Low
+    } else {
+        Handle::High
     }
 }
 
