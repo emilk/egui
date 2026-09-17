@@ -21,6 +21,7 @@ mod image;
 mod label;
 mod progress_bar;
 mod radio_button;
+mod range_slider;
 mod separator;
 mod slider;
 mod slider_core;
@@ -39,6 +40,7 @@ pub use self::{
     label::Label,
     progress_bar::ProgressBar,
     radio_button::RadioButton,
+    range_slider::RangeSlider,
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
     spinner::Spinner,
