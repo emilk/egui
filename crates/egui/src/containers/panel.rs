@@ -20,7 +20,7 @@ use emath::GuiRounding as _;
 use crate::{
     Align, Context, CursorIcon, Frame, Id, IdSalt, InnerResponse, LayerId, Layout, Margin,
     NumExt as _, Order, Rangef, Rect, Response, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo,
-    Vec2, lerp,
+    Vec2, WidgetInfo, WidgetType, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -795,6 +795,37 @@ impl Panel {
                     }
                 }
             }
+
+            // Let assistive technologies resize the panel: AccessKit
+            // `Increment`/`Decrement`/`SetValue` actions on the resize handle
+            // go through the same size-clamping path as a pointer drag above.
+            // https://github.com/emilk/egui/issues/8557
+            let (ak_steps, ak_set_fraction) = parent_ui.input(|input| {
+                (
+                    input.num_accesskit_action_requests(resize_id, accesskit::Action::Increment)
+                        as f32
+                        - input
+                            .num_accesskit_action_requests(resize_id, accesskit::Action::Decrement)
+                            as f32,
+                    input
+                        .accesskit_action_requests(resize_id, accesskit::Action::SetValue)
+                        .find_map(|request| match request.data {
+                            Some(accesskit::ActionData::NumericValue(value)) => Some(value as f32),
+                            _ => None,
+                        }),
+                )
+            });
+            if ak_steps != 0.0 || ak_set_fraction.is_some() {
+                let available_size = available_rect.size_along(side.axis());
+                let new_size = if let Some(fraction) = ak_set_fraction {
+                    fraction.clamp(0.0, 1.0) * available_size
+                } else {
+                    outer_size
+                } + ak_steps * parent_ui.style().spacing.interact_size[side.axis()];
+                outer_size =
+                    clamp_to_range(new_size, self.outer_size_range).at_most(available_size);
+                side.set_rect_size(&mut outer_rect, outer_size);
+            }
         }
 
         // NOTE(shark98): This must be **after** the resizable preparation, as the size
@@ -871,7 +902,7 @@ impl Panel {
             // Now we do the actual resize interaction, on top of all the contents,
             // otherwise its input could be eaten by the contents, e.g. a
             // `ScrollArea` on either side of the panel boundary.
-            let resize_response = self.resize_panel(shifted_outer_rect, parent_ui);
+            let resize_response = self.resize_panel(shifted_outer_rect, available_rect, parent_ui);
             (resize_response.hovered(), resize_response.dragged())
         } else {
             (false, false)
@@ -1008,6 +1039,22 @@ impl Panel {
         let resize_id = self.resize_id(ui);
         let response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
 
+        response.widget_info(|| {
+            WidgetInfo::labeled(WidgetType::ResizeHandle, ui.is_enabled(), "Resize panel")
+        });
+
+        // Let assistive technologies pull the panel open, mirroring the
+        // drag-to-expand gesture below:
+        // https://github.com/emilk/egui/issues/8557
+        ui.ctx().accesskit_node_builder(resize_id, |node| {
+            node.add_action(accesskit::Action::Increment);
+        });
+        if ui.input(|input| {
+            input.has_accesskit_action_request(resize_id, accesskit::Action::Increment)
+        }) {
+            *is_expanded = true;
+        }
+
         if response.double_clicked() {
             *is_expanded = true;
         }
@@ -1084,7 +1131,7 @@ impl Panel {
         clamp_to_range(raw, self.outer_size_range)
     }
 
-    fn resize_panel(&self, outer_rect: Rect, ui: &Ui) -> Response {
+    fn resize_panel(&self, outer_rect: Rect, available_rect: Rect, ui: &Ui) -> Response {
         let resize_pos = self.side.resize_pos(outer_rect);
         let panel_axis_range = Rangef::point(resize_pos);
         let cross_range = outer_rect.range_along(self.side.cross_axis());
@@ -1099,7 +1146,37 @@ impl Panel {
         // `show_switched` share one resize widget.
         let resize_id = self.resize_id(ui);
         let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
-        ui.interact(resize_rect, resize_id, Sense::click_and_drag())
+        let response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
+
+        // Expose the resize handle to assistive technologies, describing the
+        // panel size as a fraction of the available space so that it can
+        // both be announced and adjusted from there:
+        // https://github.com/emilk/egui/issues/8557
+        let axis = self.side.axis();
+        let available_size = available_rect.size_along(axis).max(1.0);
+        let fraction = f64::from(outer_rect.size_along(axis) / available_size);
+        let step = f64::from(ui.style().spacing.interact_size[axis] / available_size);
+
+        response.widget_info(|| {
+            WidgetInfo::labeled(WidgetType::ResizeHandle, ui.is_enabled(), "Resize panel")
+        });
+        ui.ctx().accesskit_node_builder(resize_id, |node| {
+            // The divider of a left/right panel is a vertical splitter, and vice versa.
+            node.set_orientation(if axis == 0 {
+                accesskit::Orientation::Vertical
+            } else {
+                accesskit::Orientation::Horizontal
+            });
+            node.set_numeric_value(fraction);
+            node.set_min_numeric_value(0.0);
+            node.set_max_numeric_value(1.0);
+            node.set_numeric_value_step(step);
+            node.add_action(accesskit::Action::Increment);
+            node.add_action(accesskit::Action::Decrement);
+            node.add_action(accesskit::Action::SetValue);
+        });
+
+        response
     }
 
     fn cursor_icon(&self, outer_size: f32) -> CursorIcon {
