@@ -16,11 +16,11 @@ use epaint::{
 };
 
 use crate::{
-    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
-    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
-    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
-    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, FontProvider, GlyphRasterizer,
+    Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label,
+    LayerId, Memory, ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response,
+    RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions,
+    Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
     ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
@@ -36,9 +36,10 @@ use crate::{
     output::{FullOutput, LogicOutput},
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
-    resize, response, scroll_area,
+    resize, response, scroll_area, theme,
     util::IdTypeMap,
     viewport::ViewportClass,
+    widget_style::{StyleArgs, WidgetStyle},
 };
 
 use crate::IdMap;
@@ -186,6 +187,25 @@ impl ContextImpl {
 
 // ----------------------------------------------------------------------------
 
+/// The root [`Ui`] of the current pass of a viewport.
+///
+/// See [`Context::root_ui`].
+#[derive(Default)]
+#[expect(clippy::large_enum_variant, reason = "There is only one per viewport")]
+enum RootUi {
+    /// Not yet created this pass.
+    ///
+    /// It is created on demand by [`Context::root_ui`].
+    #[default]
+    Pending,
+
+    /// Created, and ready to be borrowed by [`Context::root_ui`].
+    Available(Ui),
+
+    /// Currently borrowed by a call to [`Context::root_ui`].
+    Borrowed,
+}
+
 /// State stored per viewport.
 ///
 /// Mostly for internal use.
@@ -250,6 +270,11 @@ pub struct ViewportState {
     ///
     /// See [`crate::Options::sync_window_theme`].
     pub(crate) last_sent_window_theme: Option<crate::SystemTheme>,
+
+    /// The root [`Ui`] of the current pass.
+    ///
+    /// Only set between [`Context::begin_pass`] and [`Context::end_pass`].
+    root_ui: RootUi,
 }
 
 /// What called [`Context::request_repaint`] or [`Context::request_discard`]?
@@ -374,11 +399,14 @@ impl ViewportRepaintInfo {
 struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
+    glyph_rasterizers: Vec<GlyphRasterizer>,
+    font_providers: Vec<Arc<dyn FontProvider>>,
 
     memory: Memory,
     animation_manager: AnimationManager,
 
     plugins: plugin::Plugins,
+    called_on_exit: bool,
     safe_area: SafeAreaInsets,
 
     /// All viewports share the same texture manager and texture namespace.
@@ -412,6 +440,8 @@ struct ContextImpl {
     is_accesskit_enabled: bool,
 
     loaders: Arc<Loaders>,
+
+    themes: theme::Themes,
 }
 
 impl ContextImpl {
@@ -588,7 +618,10 @@ impl ContextImpl {
 
             is_new = true;
             profiling::scope!("Fonts::new");
-            Fonts::new(text_options, self.font_definitions.clone())
+            let mut fonts = Fonts::new(text_options, self.font_definitions.clone())
+                .with_font_providers(self.font_providers.clone());
+            fonts.set_glyph_rasterizers(self.glyph_rasterizers.clone());
+            fonts
         });
 
         {
@@ -750,11 +783,62 @@ impl Default for Context {
         ctx.add_plugin(crate::text_selection::LabelSelectionState::default());
         ctx.add_plugin(crate::DragAndDrop::default());
 
+        // Register the default theme for all built-in widgets:
+        theme::DefaultStyle::register(&ctx);
+
         ctx
     }
 }
 
 impl Context {
+    /// Add a [`GlyphRasterizer`], e.g. the browser on web, or for custom glyphs.
+    ///
+    /// Depending on [`FontPriority`] this is either a fallback or an override
+    /// (see [`GlyphRasterizer`] for details).
+    ///
+    /// Rasterizers are asked in the order they were added.
+    /// `eframe` adds the browser rasterizer on web.
+    pub fn add_glyph_rasterizer(&self, glyph_rasterizer: GlyphRasterizer) {
+        self.write(|ctx| {
+            ctx.glyph_rasterizers.push(glyph_rasterizer);
+            ctx.fonts = None;
+        });
+    }
+
+    /// Replace all [`GlyphRasterizer`]s. See [`Self::add_glyph_rasterizer`].
+    ///
+    /// Pass an empty list to only use the installed fonts.
+    /// Note that this also removes the browser rasterizer that `eframe` adds on web.
+    pub fn set_glyph_rasterizers(&self, glyph_rasterizers: Vec<GlyphRasterizer>) {
+        self.write(|ctx| {
+            ctx.glyph_rasterizers = glyph_rasterizers;
+            ctx.fonts = None;
+        });
+    }
+
+    /// Add a [`FontProvider`], asked for fonts for characters that no installed font has.
+    ///
+    /// Fonts it finds are appended to the fallback chain of the requested font family.
+    /// Providers are asked in the order they were added.
+    ///
+    /// `eframe` adds a system font provider on native (see its `system_fonts` feature).
+    pub fn add_font_provider(&self, font_provider: Arc<dyn FontProvider>) {
+        self.write(|ctx| {
+            ctx.font_providers.push(font_provider);
+            ctx.fonts = None;
+        });
+    }
+
+    /// Replace all [`FontProvider`]s. See [`Self::add_font_provider`].
+    ///
+    /// Pass an empty list to only use the installed fonts.
+    pub fn set_font_providers(&self, font_providers: Vec<Arc<dyn FontProvider>>) {
+        self.write(|ctx| {
+            ctx.font_providers = font_providers;
+            ctx.fonts = None;
+        });
+    }
+
     /// Do read-only (shared access) transaction on Context
     fn read<R>(&self, reader: impl FnOnce(&ContextImpl) -> R) -> R {
         reader(&self.0.read())
@@ -776,7 +860,8 @@ impl Context {
     ///
     /// You can organize your GUI using [`crate::Panel`].
     ///
-    /// Instead of calling `run_ui`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
+    /// Instead of calling `run_ui`, you can alternatively use [`Self::run_pass`],
+    /// or [`Self::begin_pass`] and [`Context::end_pass`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -792,32 +877,132 @@ impl Context {
     /// ```
     #[must_use]
     pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
-        self.run_ui_dyn(new_input, &mut run_ui)
+        self.run_pass(new_input, |ctx| ctx.root_ui(|ui| run_ui(ui)))
+    }
+
+    /// Run the ui code for one frame, without being handed the root [`Ui`].
+    ///
+    /// This is the same as [`Self::run_ui`], except the callback is given the [`Context`]
+    /// rather than the root [`Ui`].
+    /// Use [`Self::root_ui`] to access the root [`Ui`] from anywhere during the pass,
+    /// e.g. to add a [`crate::Panel`] to it.
+    ///
+    /// This is useful for integrations where the ui code is split over several places
+    /// that only share a [`Context`] (which is cheap to clone), and not a `&mut Ui`.
+    ///
+    /// Prefer [`Self::run_ui`] when you can.
+    ///
+    /// ```
+    /// // One egui context that you keep reusing:
+    /// let mut ctx = egui::Context::default();
+    ///
+    /// // Each frame:
+    /// let input = egui::RawInput::default();
+    /// let full_output = ctx.run_pass(input, |ctx| {
+    ///     ctx.root_ui(|ui| {
+    ///         egui::Panel::top("top").show(ui, |ui| {
+    ///             ui.label("Hello egui!");
+    ///         });
+    ///     });
+    /// });
+    /// // handle full_output
+    /// # full_output.drop_without_applying_deltas();
+    /// ```
+    #[must_use]
+    pub fn run_pass(&self, new_input: RawInput, mut run_pass: impl FnMut(&Self)) -> FullOutput {
+        self.run_pass_dyn(new_input, &mut run_pass)
     }
 
     #[must_use]
-    fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
+    fn run_pass_dyn(&self, new_input: RawInput, run_pass: &mut dyn FnMut(&Self)) -> FullOutput {
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
         self.run_dyn(new_input, &mut |ctx| {
-            let mut root_ui = Ui::new(
-                ctx.clone(),
-                Id::new((ctx.viewport_id(), "__top_ui")),
+            ctx.root_ui(|ui| plugins.on_begin_pass(ui));
+            run_pass(ctx);
+            ctx.root_ui(|ui| plugins.on_end_pass(ui));
+        })
+    }
+
+    /// Access the root [`Ui`] of the current pass.
+    ///
+    /// The root [`Ui`] covers the entire [`Self::viewport_rect`].
+    /// It is the [`Ui`] given to the callback of [`Self::run_ui`],
+    /// and the one that eframe gives to your app each frame.
+    ///
+    /// This lets you add e.g. a [`crate::Panel`] from code that only has access to a [`Context`],
+    /// such as when the ui code is split over several places that share a [`Context`].
+    /// Panels added this way share the root [`Ui`], so they stack correctly.
+    ///
+    /// The root [`Ui`] is created on demand on the first call during a pass,
+    /// so this also works when using [`Self::begin_pass`] and [`Self::end_pass`] directly.
+    ///
+    /// # Panics
+    /// This panics if the root [`Ui`] is already borrowed, e.g. if called from within
+    /// the callback of [`Self::run_ui`], or from within another call to `root_ui`.
+    /// In those cases, use the `&mut Ui` you already have instead.
+    ///
+    /// ```
+    /// # egui::__run_test_ctx(|ctx| {
+    /// ctx.root_ui(|ui| {
+    ///     egui::Panel::left("left").show(ui, |ui| {
+    ///         ui.label("Hello egui!");
+    ///     });
+    /// });
+    /// # });
+    /// ```
+    pub fn root_ui<R>(&self, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+        let mut root_ui = self.take_root_ui();
+        let result = add_contents(&mut root_ui);
+        self.write(|ctx| ctx.viewport().root_ui = RootUi::Available(root_ui));
+        result
+    }
+
+    /// Take the root [`Ui`] out of the viewport state, creating it if needed.
+    ///
+    /// The [`Ui`] must be put back with [`RootUi::Available`] when done,
+    /// so that the next call to [`Self::root_ui`] can find it.
+    fn take_root_ui(&self) -> Ui {
+        let root_ui =
+            self.write(|ctx| core::mem::replace(&mut ctx.viewport().root_ui, RootUi::Borrowed));
+        match root_ui {
+            RootUi::Available(root_ui) => root_ui,
+            RootUi::Pending => Ui::new(
+                self.clone(),
+                self.viewport_id().root_ui_id(),
                 UiBuilder::new()
                     .layer_id(LayerId::background())
-                    .max_rect(ctx.viewport_rect()),
-            );
-
-            {
-                plugins.on_begin_pass(&mut root_ui);
-                run_ui(&mut root_ui);
-                plugins.on_end_pass(&mut root_ui);
+                    .max_rect(self.viewport_rect()),
+            ),
+            RootUi::Borrowed => {
+                panic!(
+                    "Context::root_ui was called while the root Ui was already borrowed. \
+                     You are probably calling it from within `Context::run_ui` or `Context::root_ui`. \
+                     Use the `&mut Ui` you were given instead."
+                );
             }
+        }
+    }
 
-            ctx.pass_state_mut(|state| {
-                state.root_ui_available_rect = Some(root_ui.available_rect_before_wrap());
-                state.root_ui_min_rect = Some(root_ui.min_rect());
-            });
-        })
+    /// Drop the root [`Ui`] of the current pass, if any,
+    /// remembering how much of it was used.
+    ///
+    /// Called at the end of each pass.
+    fn finish_root_ui(&self) {
+        let root_ui = self.write(|ctx| core::mem::take(&mut ctx.viewport().root_ui));
+        match root_ui {
+            RootUi::Pending => {}
+            RootUi::Available(root_ui) => {
+                self.pass_state_mut(|state| {
+                    state.root_ui_available_rect = Some(root_ui.available_rect_before_wrap());
+                    state.root_ui_min_rect = Some(root_ui.min_rect());
+                });
+                // Drop outside of the lock, since `Ui::drop` locks the `Context`.
+                drop(root_ui);
+            }
+            RootUi::Borrowed => {
+                log::error!("Context::end_pass was called while the root Ui was borrowed");
+            }
+        }
     }
 
     #[must_use]
@@ -896,6 +1081,11 @@ impl Context {
     /// but you still want to let the app tick its logic
     /// (so that it can e.g. ask to be shown again with [`ViewportCommand::Focus`]).
     ///
+    /// An integration should run [`Self::run_ui`] anyway, hidden or not, once something has
+    /// sent [`ViewportCommand::RequestPaintWhileHidden`]: that command asks for the ui of a
+    /// hidden window to run and be painted, which is how an app that sits in the background
+    /// is screenshotted or driven.
+    ///
     /// No pass is run, so `f` must not show any ui.
     /// This means everything egui knows about the ui is left untouched:
     /// no widget state is garbage-collected, no animation advances,
@@ -953,7 +1143,7 @@ impl Context {
     /// let input = egui::RawInput::default();
     /// ctx.begin_pass(input);
     ///
-    /// // … add panels and windows here …
+    /// // … add panels and windows here, e.g. using `ctx.root_ui(…)` …
     ///
     /// let full_output = ctx.end_pass();
     /// // handle full_output
@@ -1251,6 +1441,8 @@ impl Context {
         allow_focus: bool,
         options: crate::InteractOptions,
     ) -> Response {
+        debug_assert!(!w.rect.any_nan(), "widget rect is NaN: {:?}", w.rect);
+
         let interested_in_focus = w.enabled
             && w.sense.is_focusable()
             && self.memory(|mem| mem.allows_interaction(w.layer_id));
@@ -1705,11 +1897,9 @@ impl Context {
 
         let font_id = TextStyle::Body.resolve(&self.global_style());
         self.fonts_mut(|f| {
-            let mut font = f.fonts.font(&font_id.family);
-            font.has_glyphs(alt)
-                && font.has_glyphs(ctrl)
-                && font.has_glyphs(shift)
-                && font.has_glyphs(mac_cmd)
+            [alt, ctrl, shift, mac_cmd]
+                .iter()
+                .all(|symbols| f.has_glyphs(&font_id, symbols))
         })
     }
 
@@ -1761,11 +1951,11 @@ impl Context {
                 .get(&id)
                 .map(|v| v.repaint.cumulative_frame_nr)
                 .unwrap_or_else(|| {
-                    if cfg!(debug_assertions) {
-                        panic!("cumulative_frame_nr_for failed to find the viewport {id:?}");
-                    } else {
-                        0
-                    }
+                    debug_assert!(
+                        false,
+                        "cumulative_frame_nr_for failed to find the viewport {id:?}"
+                    );
+                    0
                 })
         })
     }
@@ -2052,6 +2242,25 @@ impl Context {
         }
     }
 
+    /// Notify all plugins that the integration is shutting down.
+    ///
+    /// Integrations should call this before persisting [`Memory`] and before destroying their
+    /// renderer and other resources. Only the first call invokes the plugins.
+    pub fn on_exit(&self) {
+        let plugins = self.write(|ctx| {
+            if ctx.called_on_exit {
+                None
+            } else {
+                ctx.called_on_exit = true;
+                Some(ctx.plugins.ordered_plugins())
+            }
+        });
+
+        if let Some(plugins) = plugins {
+            plugins.on_exit(self);
+        }
+    }
+
     /// Call the provided closure with the plugin of type `T`, if it was registered.
     ///
     /// Returns `None` if the plugin was not registered.
@@ -2093,6 +2302,54 @@ impl Context {
     }
 }
 
+/// Experimental theming, gated behind the `experimental_theme` feature.
+impl Context {
+    /// Register a [`StyleProvider`](crate::theme::StyleProvider) for the specified widget type.
+    ///
+    /// A theme can only be added once for a specified widget.
+    /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
+    ///
+    /// If you want to add the theme anyway, use [`Self::replace_widget_theme`] instead.
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
+    pub fn add_widget_theme<S: WidgetStyle + 'static>(
+        &self,
+        theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, false));
+    }
+
+    /// Register a [`StyleProvider`](crate::theme::StyleProvider) for the specified widget.
+    ///
+    /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
+    /// This allow to live edit a theme.
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
+    pub fn replace_widget_theme<S: WidgetStyle + 'static>(
+        &self,
+        theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, true));
+    }
+
+    /// Compute the `WidgetStyle` using the registered theme.
+    ///
+    /// The types you need to call this (e.g. `StyleArgs`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
+    pub fn get_widget_style<S: WidgetStyle + Clone + 'static>(
+        &self,
+        modifiers: &StyleArgs<'_>,
+    ) -> S {
+        let theme = self.read(move |ctx| ctx.themes.get::<S>());
+        theme.lock().style(modifiers)
+    }
+}
+
 impl Context {
     /// Tell `egui` which fonts to use.
     ///
@@ -2101,6 +2358,8 @@ impl Context {
     ///
     /// The new fonts will become active at the start of the next pass.
     /// This will overwrite the existing fonts.
+    ///
+    /// These fonts will be used before any system fallback.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         profiling::function_scope!();
 
@@ -2117,13 +2376,15 @@ impl Context {
         }
     }
 
-    /// Tell `egui` which fonts to use.
+    /// Add an additional font to `egui`.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new font will become active at the start of the next pass.
     /// This will keep the existing fonts.
+    ///
+    /// This font will be used before any system fallback.
     pub fn add_font(&self, new_font: FontInsert) {
         profiling::function_scope!();
 
@@ -2407,6 +2668,65 @@ impl Context {
         TextureHandle::new(tex_mngr, tex_id)
     }
 
+    /// Load a texture, or update a previously cached one if the image changed.
+    ///
+    /// This is like [`Self::load_texture`], but caches the texture by `id`,
+    /// and only re-uploads the image when it changes.
+    /// This makes it safe to call every frame,
+    /// which is convenient for small, procedurally generated images.
+    ///
+    /// The `id` must be globally unique for each cached image
+    /// (e.g. derived from a widget [`Id`]),
+    /// or the callers will fight over the same texture, re-uploading it every frame.
+    ///
+    /// If this is not called for a full frame, the cache entry is evicted,
+    /// dropping both the cached [`ImageData`] (the CPU-side pixels)
+    /// and the cached [`TextureHandle`].
+    /// Dropping the handle also frees the texture itself,
+    /// unless you keep a clone of the handle alive.
+    pub fn load_texture_cached(
+        &self,
+        name: impl Into<String>,
+        id: Id,
+        image: impl Into<ImageData>,
+        options: TextureOptions,
+    ) -> TextureHandle {
+        profiling::function_scope!();
+
+        use crate::cache::FramePublisher;
+
+        type TextureCache = FramePublisher<Id, (ImageData, TextureOptions, TextureHandle)>;
+
+        let image = image.into();
+        let cached: Option<(ImageData, TextureOptions, TextureHandle)> =
+            self.memory_mut(|mem| mem.caches.cache::<TextureCache>().get(&id).cloned());
+
+        let (image, handle) = match cached {
+            Some((cached_image, cached_options, handle))
+                if cached_image == image && cached_options == options =>
+            {
+                (cached_image, handle)
+            }
+            Some((_, _, mut handle)) => {
+                handle.set(image.clone(), options);
+                (image, handle)
+            }
+            None => {
+                let handle = self.load_texture(name, image.clone(), options);
+                (image, handle)
+            }
+        };
+
+        // (Re-)publish to keep the entry from being evicted:
+        self.memory_mut(|mem| {
+            mem.caches
+                .cache::<TextureCache>()
+                .set(id, (image, options, handle.clone()));
+        });
+
+        handle
+    }
+
     /// Low-level texture manager.
     ///
     /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].
@@ -2440,6 +2760,8 @@ impl Context {
     #[must_use]
     pub fn end_pass(&self) -> FullOutput {
         profiling::function_scope!();
+
+        self.finish_root_ui();
 
         if self.options(|o| o.zoom_with_keyboard) {
             crate::gui_zoom::zoom_with_keyboard(self);
@@ -3407,13 +3729,13 @@ impl Context {
                 paint_stats.ui(ui);
             });
 
-        CollapsingHeader::new("🖼 Textures")
+        CollapsingHeader::new("🖼️ Textures")
             .default_open(false)
             .show(ui, |ui| {
                 self.texture_ui(ui);
             });
 
-        CollapsingHeader::new("🖼 Image loaders")
+        CollapsingHeader::new("🖼️ Image loaders")
             .default_open(false)
             .show(ui, |ui| {
                 self.loaders_ui(ui);
@@ -4015,6 +4337,19 @@ impl Context {
         self.send_viewport_cmd_to(self.viewport_id(), command);
     }
 
+    /// Request a screenshot of the current viewport.
+    ///
+    /// The callback is invoked once the integration has read the rendered pixels.
+    /// This doesn't request a new frame when the data arrives. Call `ctx.request_repaint` if needed.
+    pub fn request_screenshot(
+        &self,
+        callback: impl FnOnce(std::sync::Arc<crate::ColorImage>) + Send + 'static,
+    ) {
+        self.send_viewport_cmd(ViewportCommand::Screenshot(crate::ScreenshotCallback::new(
+            callback,
+        )));
+    }
+
     /// Send a command to a specific viewport.
     ///
     /// This lets you affect another viewport, e.g. resizing its window.
@@ -4377,7 +4712,61 @@ fn warn_if_rect_changes_id(
 
 #[cfg(test)]
 mod test {
+    use crate::{FontDefinitions, Panel};
+
     use super::Context;
+
+    #[test]
+    fn test_root_ui_with_begin_and_end_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        ctx.begin_pass(Default::default());
+
+        let full_rect = ctx.root_ui(|ui| ui.available_rect_before_wrap());
+        ctx.root_ui(|ui| {
+            Panel::left("left").exact_size(100.0).show(ui, |_| {});
+        });
+        let remaining_rect = ctx.root_ui(|ui| ui.available_rect_before_wrap());
+        assert!(
+            full_rect.left() < remaining_rect.left(),
+            "The panel should consume space in the shared root Ui"
+        );
+        assert_eq!(remaining_rect.right(), full_rect.right());
+
+        let output = ctx.end_pass();
+        output.drop_without_applying_deltas();
+
+        let remembered_rect = ctx
+            .pass_state(|state| state.root_ui_available_rect)
+            .or_else(|| ctx.prev_pass_state(|state| state.root_ui_available_rect));
+        assert_eq!(remembered_rect, Some(remaining_rect));
+    }
+
+    #[test]
+    fn test_root_ui_with_run_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        let mut num_calls = 0;
+        let output = ctx.run_pass(Default::default(), |ctx| {
+            ctx.root_ui(|ui| {
+                Panel::top("top").exact_size(20.0).show(ui, |_| {});
+            });
+            num_calls += 1;
+        });
+        assert_eq!(num_calls, 1);
+        output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    #[should_panic(expected = "already borrowed")]
+    fn test_root_ui_while_borrowed_panics() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.ctx().root_ui(|_| {});
+        });
+        output.drop_without_applying_deltas();
+    }
 
     #[test]
     fn test_single_pass() {

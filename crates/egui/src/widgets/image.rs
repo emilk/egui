@@ -683,7 +683,7 @@ pub fn paint_texture_load_result(
                 ..Default::default()
             };
             job.append(
-                "⚠",
+                "⚠️",
                 0.0,
                 TextFormat::simple(font_id.clone(), ui.visuals().error_fg_color),
             );
@@ -910,7 +910,7 @@ pub fn decode_animated_image_uri(uri: &str) -> Result<(&str, usize), String> {
 fn animated_image_frame_index(ctx: &Context, uri: &str) -> usize {
     let now = ctx.input(|input| Duration::from_secs_f64(input.time));
 
-    let durations: Option<FrameDurations> = ctx.data(|data| data.get_temp(Id::new(uri)));
+    let durations: Option<FrameDurations> = ctx.data(|data| data.get_temp(Id::unique(uri)));
 
     if let Some(durations) = durations {
         let frames: Duration = durations.all().sum();
@@ -934,7 +934,7 @@ fn animated_image_frame_index(ctx: &Context, uri: &str) -> usize {
 
 /// Checks if uri is a gif file
 fn is_gif_uri(uri: &str) -> bool {
-    uri.ends_with(".gif") || uri.contains(".gif#")
+    crate::load::has_extension(uri, "gif")
 }
 
 /// Checks if bytes are gifs
@@ -944,7 +944,7 @@ pub fn has_gif_magic_header(bytes: &[u8]) -> bool {
 
 /// Checks if uri is a webp file
 fn is_webp_uri(uri: &str) -> bool {
-    uri.ends_with(".webp") || uri.contains(".webp#")
+    crate::load::has_extension(uri, "webp")
 }
 
 /// Checks if bytes are webp

@@ -42,7 +42,7 @@ pub enum Request {
     /// Capture the current framebuffer as PNG. Reply: [`Response::Screenshot`].
     ///
     /// The peer issues an [`egui::ViewportCommand::Screenshot`] and replies once the
-    /// resulting [`egui::Event::Screenshot`] arrives (one extra frame).
+    /// callback delivers the pixels (one extra frame).
     ///
     /// `pixels_per_point` is the requested output resolution in pixels per logical point: the
     /// captured framebuffer (native resolution = the app's `pixels_per_point` px per point) is

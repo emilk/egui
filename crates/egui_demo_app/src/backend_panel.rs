@@ -328,7 +328,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             {
                 let mut fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
                 if ui
-                    .checkbox(&mut fullscreen, "🗖 Fullscreen (F11)")
+                    .checkbox(&mut fullscreen, "🔳 Fullscreen (F11)")
                     .on_hover_text("Fullscreen the window")
                     .changed()
                 {
@@ -349,12 +349,12 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1280.0, 720.0)),
-                        "🖥 Desktop 720p",
+                        "🖥️ Desktop 720p",
                     );
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1920.0, 1080.0)),
-                        "🖥 Desktop 1080p",
+                        "🖥️ Desktop 1080p",
                     );
                 });
 

@@ -101,7 +101,7 @@ impl<'a> Window<'a> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl IntoAtoms<'a>) -> Self {
         let title: Atoms<'_> = title.into_atoms();
-        let area = Area::new(Id::new(title.text())).kind(UiKind::Window);
+        let area = Area::new(Id::unique(title.text())).kind(UiKind::Window);
         Self {
             title,
             open: None,
@@ -137,7 +137,7 @@ impl<'a> Window<'a> {
             .. // A lot of things not implemented yet
         } = viewport;
 
-        let mut window = Self::new(title.or(app_id).unwrap_or_else(String::new)).id(Id::new(id));
+        let mut window = Self::new(title.or(app_id).unwrap_or_else(String::new)).id(Id::unique(id));
 
         if let Some(inner_size) = inner_size {
             window = window.default_size(inner_size);
@@ -627,8 +627,8 @@ impl Window<'_> {
         let style = ctx.global_style();
 
         // We get or create the Frame for the title and content
-        let window_title_frame = title_frame.unwrap_or_else(|| Frame::window(&style));
         let window_frame = frame.unwrap_or_else(|| Frame::window(&style));
+        let window_title_frame = title_frame.unwrap_or(window_frame);
 
         // We apply the window margin by using the `ScrollArea::content_margin`.
         let window_content_margin = window_frame.inner_margin;
@@ -1090,7 +1090,7 @@ fn do_resize_interaction(
         }
     };
 
-    let id = Id::new(layer_id).with("edge_drag");
+    let id = Id::unique(layer_id).with("edge_drag");
 
     let style = ctx.global_style();
 
@@ -1314,8 +1314,8 @@ fn title_ui(
     let button_allocation_size = Vec2::splat(heading_font_height);
     let button_shrink = (button_allocation_size - button_size) / 2.0;
 
-    let collapse_atom_id = Id::new("__window_collapse_button");
-    let close_atom_id = Id::new("__window_close_button");
+    let collapse_atom_id = IdSalt::new("__window_collapse_button");
+    let close_atom_id = IdSalt::new("__window_close_button");
 
     let expanded = collapsing.openness(ui.ctx()) > 0.0;
 
@@ -1345,7 +1345,7 @@ fn title_ui(
 
     let mut child_ui = ui.new_child(UiBuilder::new());
 
-    let mut layout = AtomLayout::new(atoms)
+    let mut layout = WidgetAtom::new(atoms)
         .gap(spacing)
         .fallback_font(TextStyle::Heading)
         .wrap_mode(TextWrapMode::Truncate)

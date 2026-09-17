@@ -81,6 +81,7 @@ impl Default for DemoGroups {
                 Box::<super::paint_bezier::PaintBezier>::default(),
                 Box::<super::code_editor::CodeEditor>::default(),
                 Box::<super::code_example::CodeExample>::default(),
+                Box::<super::completion::CompletionDemo>::default(),
                 Box::<super::dancing_strings::DancingStrings>::default(),
                 Box::<super::drag_and_drop::DragAndDropDemo>::default(),
                 Box::<super::extra_viewport::ExtraViewport>::default(),
@@ -331,6 +332,7 @@ impl DemoWindows {
                 if ui.button("Organize windows").clicked() {
                     ui.memory_mut(|mem| mem.reset_areas());
                 }
+                ui.add_space(4.0);
             });
         });
     }
@@ -445,7 +447,7 @@ mod tests {
 
     fn remove_leading_emoji(full_name: &str) -> &str {
         if let Some((start, name)) = full_name.split_once(' ')
-            && start.len() <= 4
+            && start.len() <= 7 // An emoji, plus an optional variation selector
             && start.bytes().next().is_some_and(|byte| byte >= 128)
         {
             return name;

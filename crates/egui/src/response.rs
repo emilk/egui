@@ -2,8 +2,8 @@ use core::any::Any;
 use std::sync::Arc;
 
 use crate::{
-    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
-    WidgetRect, WidgetText,
+    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, SetOpenCommand,
+    Tooltip, Ui, WidgetRect, WidgetText,
     emath::{Align, Pos2, Rect, Vec2},
     pass_state,
 };
@@ -332,6 +332,49 @@ impl Response {
     #[inline(always)]
     pub fn contains_pointer(&self) -> bool {
         self.flags.contains(Flags::CONTAINS_POINTER)
+    }
+
+    /// Does this widget or any widget inside of it contain the pointer?
+    ///
+    /// This is meant for responses of containers, e.g. from [`Ui::response`] or [`Ui::scope`]:
+    /// [`Self::contains_pointer`] is `false` when a child widget is covering the pointer,
+    /// while this returns `true`.
+    ///
+    /// Will return `false` if some other area is covering this layer.
+    ///
+    /// This calls [`Context::rect_contains_pointer`] with [`Self::interact_rect`].
+    pub fn container_contains_pointer(&self) -> bool {
+        self.ctx
+            .rect_contains_pointer(self.layer_id, self.interact_rect)
+    }
+
+    /// Is this widget or any widget inside of it hovered?
+    ///
+    /// Like [`Self::container_contains_pointer`], but also `false` if anything is being dragged.
+    ///
+    /// See also [`Self::hovered`].
+    pub fn container_hovered(&self) -> bool {
+        self.ctx.dragged_id().is_none() && self.container_contains_pointer()
+    }
+
+    /// Was this widget or any widget inside of it clicked with the primary button?
+    ///
+    /// This is meant for responses of containers, e.g. from [`Ui::response`] or [`Ui::scope`].
+    /// Unlike [`Self::clicked`], this is `true` even if the click landed on a child widget.
+    ///
+    /// See also [`Self::container_contains_pointer`].
+    pub fn container_clicked(&self) -> bool {
+        self.container_contains_pointer() && self.ctx.input(|i| i.pointer.primary_clicked())
+    }
+
+    /// Was this widget or any widget inside of it clicked with the secondary button?
+    ///
+    /// This is meant for responses of containers, e.g. from [`Ui::response`] or [`Ui::scope`].
+    /// Unlike [`Self::secondary_clicked`], this is `true` even if the click landed on a child widget.
+    ///
+    /// See also [`Self::container_contains_pointer`].
+    pub fn container_secondary_clicked(&self) -> bool {
+        self.container_contains_pointer() && self.ctx.input(|i| i.pointer.secondary_clicked())
     }
 
     /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
@@ -1034,6 +1077,45 @@ impl Response {
     /// See [`Self::context_menu`].
     pub fn context_menu_opened(&self) -> bool {
         Popup::context_menu(self).is_open()
+    }
+
+    /// Show a context menu on secondary clicks anywhere within this widget,
+    /// even if the click landed on a child widget that senses clicks.
+    ///
+    /// This is meant for responses of containers, e.g. from [`Ui::response`] or [`Ui::scope`].
+    /// Unlike [`Self::context_menu`], the container does not need to sense clicks itself.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let response = ui.horizontal(|ui| {
+    ///     ui.label("Right-click me…");
+    ///     let _ = ui.button("…or me!");
+    /// }).response;
+    /// response.container_context_menu(|ui| {
+    ///     if ui.button("Close the menu").clicked() {
+    ///         ui.close();
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    ///
+    /// See also [`Self::container_secondary_clicked`].
+    pub fn container_context_menu(
+        &self,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Option<InnerResponse<()>> {
+        Popup::menu(self)
+            .open_memory(if self.container_secondary_clicked() {
+                Some(SetOpenCommand::Bool(true))
+            } else if self.container_clicked() {
+                // Explicitly close the menu if the container was clicked,
+                // otherwise the context menu would stay open when clicking elsewhere in the container.
+                Some(SetOpenCommand::Bool(false))
+            } else {
+                None
+            })
+            .at_pointer_fixed()
+            .show(add_contents)
     }
 
     /// Draw a debug rectangle over the response displaying the response's id and whether it is

@@ -75,14 +75,14 @@ impl LayerId {
     pub fn debug() -> Self {
         Self {
             order: Order::Debug,
-            id: Id::new("debug"),
+            id: Id::unique("debug"),
         }
     }
 
     pub fn background() -> Self {
         Self {
             order: Order::Background,
-            id: Id::new("background"),
+            id: Id::unique("background"),
         }
     }
 

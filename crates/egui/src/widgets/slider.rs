@@ -860,7 +860,7 @@ impl Slider<'_> {
             SliderOrientation::Horizontal => rect.x_range().shrink(handle_radius),
             // The vertical case has to be flipped because the largest slider value maps to the
             // lowest y value (which is at the top)
-            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius).flip(),
+            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius).flipped(),
         }
     }
 
