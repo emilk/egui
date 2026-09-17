@@ -14,6 +14,10 @@ fn harness() -> Harness<'static, State> {
 }
 
 fn harness_with_step(step: f64) -> Harness<'static, State> {
+    harness_with(20.0, 80.0, step)
+}
+
+fn harness_with(low: f32, high: f32, step: f64) -> Harness<'static, State> {
     let mut harness = Harness::new_ui_state(
         move |ui, state: &mut State| {
             ui.add(
@@ -22,10 +26,7 @@ fn harness_with_step(step: f64) -> Harness<'static, State> {
                     .text("Range"),
             );
         },
-        State {
-            low: 20.0,
-            high: 80.0,
-        },
+        State { low, high },
     );
     harness.run();
     harness
@@ -79,6 +80,30 @@ fn a_handle_stops_at_its_neighbor() {
         80.0,
         "the low handle stops on the high one rather than passing it"
     );
+}
+
+#[test]
+fn rounding_to_the_step_never_crosses_the_other_handle() {
+    // `high` sits off the step grid, so the step that would land on 12 has to stop at 10.
+    let mut harness = harness_with(0.0, 10.0, 4.0);
+    harness
+        .query_all_by_role(Role::Slider)
+        .next()
+        .unwrap()
+        .focus();
+    harness.run();
+
+    for _ in 0..5 {
+        harness.key_press(Key::ArrowRight);
+        harness.run();
+    }
+
+    assert_eq!(
+        harness.state().high,
+        10.0,
+        "the high handle must not be pushed"
+    );
+    assert_eq!(harness.state().low, 10.0);
 }
 
 #[test]

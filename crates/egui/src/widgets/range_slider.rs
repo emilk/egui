@@ -303,13 +303,17 @@ impl RangeSlider<'_> {
         value
     }
 
+    /// Rounding can land past the other handle when that one is off the step grid, so the
+    /// order of the handles is enforced after rounding, not before.
     fn set_low(&mut self, value: f64) {
-        let value = self.rounded(value);
+        let high = self.get_high();
+        let value = self.rounded(value).at_most(high - self.min_separation);
         set(&mut self.get_set_low, value);
     }
 
     fn set_high(&mut self, value: f64) {
-        let value = self.rounded(value);
+        let low = self.get_low();
+        let value = self.rounded(value).at_least(low + self.min_separation);
         set(&mut self.get_set_high, value);
     }
 
