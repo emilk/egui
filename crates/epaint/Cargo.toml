@@ -91,6 +91,7 @@ profiling.workspace = true
 self_cell.workspace = true
 skrifa.workspace = true
 smallvec.workspace = true
+unicode-bidi.workspace = true
 unicode-general-category.workspace = true
 unicode-properties.workspace = true
 unicode-segmentation.workspace = true
