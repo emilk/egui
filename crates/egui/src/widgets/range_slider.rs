@@ -88,21 +88,21 @@ impl<'a> RangeSlider<'a> {
     /// Default: `true`.
     #[inline]
     pub fn show_value(mut self, show_value: bool) -> Self {
-        self.core.show_value = show_value;
+        self.core.drag_value.show = show_value;
         self
     }
 
     /// Show a prefix before both numbers. Default: no prefix.
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
-        self.core.format = self.core.format.prefix(prefix);
+        self.core.drag_value.format = self.core.drag_value.format.prefix(prefix);
         self
     }
 
     /// Add a suffix to both numbers, e.g. a unit. Default: no suffix.
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
-        self.core.format = self.core.format.suffix(suffix);
+        self.core.drag_value.format = self.core.drag_value.format.suffix(suffix);
         self
     }
 
@@ -189,28 +189,28 @@ impl<'a> RangeSlider<'a> {
     /// Default: the rate the handles move at.
     #[inline]
     pub fn drag_value_speed(mut self, drag_value_speed: f64) -> Self {
-        self.core.drag_value_speed = Some(drag_value_speed);
+        self.core.drag_value.speed = Some(drag_value_speed);
         self
     }
 
     /// Set the minimum number of decimals to display. Default: `0`.
     #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
-        self.core.format = self.core.format.min_decimals(min_decimals);
+        self.core.drag_value.format = self.core.drag_value.format.min_decimals(min_decimals);
         self
     }
 
     /// Set the maximum number of decimals to display.
     #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
-        self.core.format = self.core.format.max_decimals(max_decimals);
+        self.core.drag_value.format = self.core.drag_value.format.max_decimals(max_decimals);
         self
     }
 
     /// Show exactly this many decimals.
     #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
-        self.core.format = self.core.format.fixed_decimals(num_decimals);
+        self.core.drag_value.format = self.core.drag_value.format.fixed_decimals(num_decimals);
         self
     }
 
@@ -219,13 +219,13 @@ impl<'a> RangeSlider<'a> {
         mut self,
         formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
     ) -> Self {
-        self.core.format = self.core.format.custom_formatter(formatter);
+        self.core.drag_value.format = self.core.drag_value.format.custom_formatter(formatter);
         self
     }
 
     /// Set a parser for both numbers, accepting what [`Self::custom_formatter`] writes.
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
-        self.core.format = self.core.format.custom_parser(parser);
+        self.core.drag_value.format = self.core.drag_value.format.custom_parser(parser);
         self
     }
 
@@ -239,7 +239,7 @@ impl<'a> RangeSlider<'a> {
     /// Update the values on each key press while a number is being typed. Default: `true`.
     #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
-        self.core.format = self.core.format.update_while_editing(update);
+        self.core.drag_value.format = self.core.drag_value.format.update_while_editing(update);
         self
     }
 
@@ -424,11 +424,11 @@ impl RangeSlider<'_> {
         let (mut low, mut high) = (self.get_low(), self.get_high());
         let mut value_responses = Vec::new();
 
-        if self.core.show_value {
+        if self.core.drag_value.show {
             let mut edited = low;
             let bounds = *self.core.range.start()..=(high - self.min_separation);
             let speed = self.core.drag_value_speed_at(ui, &probe, low);
-            let response = self.core.drag_value(ui, &mut edited, bounds, speed);
+            let response = self.core.drag_value_ui(ui, &mut edited, bounds, speed);
             if edited != low {
                 self.set_low(edited);
                 low = self.get_low();
@@ -451,11 +451,11 @@ impl RangeSlider<'_> {
 
         let slider_response = response.clone();
 
-        if self.core.show_value {
+        if self.core.drag_value.show {
             let mut edited = high;
             let bounds = (low + self.min_separation)..=*self.core.range.end();
             let speed = self.core.drag_value_speed_at(ui, &probe, high);
-            let value_response = self.core.drag_value(ui, &mut edited, bounds, speed);
+            let value_response = self.core.drag_value_ui(ui, &mut edited, bounds, speed);
             if edited != high {
                 self.set_high(edited);
                 response.mark_changed();

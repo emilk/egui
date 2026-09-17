@@ -136,6 +136,28 @@ impl SliderGeometry {
 
 // ----------------------------------------------------------------------------
 
+/// The editable numbers a slider shows beside its rail, one per handle.
+pub struct DragValueSettings<'a> {
+    /// Show them at all.
+    pub show: bool,
+
+    /// How fast a number moves per point of drag. Default: as fast as its handle.
+    pub speed: Option<f64>,
+
+    /// How the numbers are written and read back.
+    pub format: ValueFormat<'a>,
+}
+
+impl Default for DragValueSettings<'_> {
+    fn default() -> Self {
+        Self {
+            show: true,
+            speed: None,
+            format: ValueFormat::default(),
+        }
+    }
+}
+
 /// The settings a [`crate::Slider`] and a [`crate::RangeSlider`] have in common.
 ///
 /// Everything about the rail and the numbers beside it that does not depend on how many
@@ -153,9 +175,6 @@ pub struct SliderCore<'a> {
     /// Guide dragged values towards round numbers.
     pub smart_aim: bool,
 
-    /// Show an editable number beside the rail.
-    pub show_value: bool,
-
     /// Which way the rail runs.
     pub orientation: SliderOrientation,
 
@@ -165,11 +184,8 @@ pub struct SliderCore<'a> {
     /// The smallest change a value may take, if set.
     pub step: Option<f64>,
 
-    /// How fast the numbers beside the rail move per point of drag. Default: as the handle.
-    pub drag_value_speed: Option<f64>,
-
-    /// How the numbers beside the rail are written and read back.
-    pub format: ValueFormat<'a>,
+    /// The editable numbers beside the rail.
+    pub drag_value: DragValueSettings<'a>,
 
     /// The shape of the handles. Default: [`crate::style::Visuals::handle_shape`].
     pub handle_shape: Option<HandleShape>,
@@ -182,12 +198,10 @@ impl SliderCore<'_> {
             spec: SliderSpec::default(),
             clamping: SliderClamping::default(),
             smart_aim: true,
-            show_value: true,
             orientation: SliderOrientation::Horizontal,
             text: WidgetText::default(),
             step: None,
-            drag_value_speed: None,
-            format: ValueFormat::default(),
+            drag_value: DragValueSettings::default(),
             handle_shape: None,
         }
     }
@@ -211,7 +225,7 @@ impl SliderCore<'_> {
             let start = *self.range.start();
             value = start + ((value - start) / step).round() * step;
         }
-        self.format.round(value)
+        self.drag_value.format.round(value)
     }
 
     /// Where the handles may travel this frame, and what a position there means.
@@ -242,7 +256,7 @@ impl SliderCore<'_> {
         StepOptions {
             step: self.step,
             smart_aim: self.smart_aim,
-            max_decimals: self.format.max_decimals,
+            max_decimals: self.drag_value.format.max_decimals,
         }
     }
 
@@ -262,13 +276,14 @@ impl SliderCore<'_> {
         match self.step {
             Some(step) if 0 < arrow_presses => step,
             _ => self
-                .drag_value_speed
+                .drag_value
+                .speed
                 .unwrap_or_else(|| geom.gradient_at(value)),
         }
     }
 
     /// The editable number beside the rail, bounded by `range`.
-    pub fn drag_value(
+    pub fn drag_value_ui(
         &self,
         ui: &mut Ui,
         value: &mut f64,
@@ -282,7 +297,7 @@ impl SliderCore<'_> {
                 speed,
                 range,
                 clamping: self.clamping,
-                format: self.format.clone(),
+                format: self.drag_value.format.clone(),
             },
         )
     }

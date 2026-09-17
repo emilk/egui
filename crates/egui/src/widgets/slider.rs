@@ -102,21 +102,21 @@ impl<'a> Slider<'a> {
     /// Default: `true`.
     #[inline]
     pub fn show_value(mut self, show_value: bool) -> Self {
-        self.core.show_value = show_value;
+        self.core.drag_value.show = show_value;
         self
     }
 
     /// Show a prefix before the number, e.g. "x: "
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
-        self.core.format = self.core.format.prefix(prefix);
+        self.core.drag_value.format = self.core.drag_value.format.prefix(prefix);
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
-        self.core.format = self.core.format.suffix(suffix);
+        self.core.drag_value.format = self.core.drag_value.format.suffix(suffix);
         self
     }
 
@@ -248,7 +248,7 @@ impl<'a> Slider<'a> {
     /// by dragging the slider value rather than the slider itself.
     #[inline]
     pub fn drag_value_speed(mut self, drag_value_speed: f64) -> Self {
-        self.core.drag_value_speed = Some(drag_value_speed);
+        self.core.drag_value.speed = Some(drag_value_speed);
         self
     }
 
@@ -259,7 +259,7 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
-        self.core.format = self.core.format.min_decimals(min_decimals);
+        self.core.drag_value.format = self.core.drag_value.format.min_decimals(min_decimals);
         self
     }
 
@@ -271,13 +271,13 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
-        self.core.format = self.core.format.max_decimals(max_decimals);
+        self.core.drag_value.format = self.core.drag_value.format.max_decimals(max_decimals);
         self
     }
 
     #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
-        self.core.format = self.core.format.max_decimals_opt(max_decimals);
+        self.core.drag_value.format = self.core.drag_value.format.max_decimals_opt(max_decimals);
         self
     }
 
@@ -288,7 +288,7 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
-        self.core.format = self.core.format.fixed_decimals(num_decimals);
+        self.core.drag_value.format = self.core.drag_value.format.fixed_decimals(num_decimals);
         self
     }
 
@@ -355,7 +355,7 @@ impl<'a> Slider<'a> {
         mut self,
         formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
     ) -> Self {
-        self.core.format = self.core.format.custom_formatter(formatter);
+        self.core.drag_value.format = self.core.drag_value.format.custom_formatter(formatter);
         self
     }
 
@@ -396,7 +396,7 @@ impl<'a> Slider<'a> {
     /// ```
     #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
-        self.core.format = self.core.format.custom_parser(parser);
+        self.core.drag_value.format = self.core.drag_value.format.custom_parser(parser);
         self
     }
 
@@ -409,7 +409,11 @@ impl<'a> Slider<'a> {
     /// # });
     /// ```
     pub fn binary(mut self, min_width: usize, twos_complement: bool) -> Self {
-        self.core.format = self.core.format.binary(min_width, twos_complement);
+        self.core.drag_value.format = self
+            .core
+            .drag_value
+            .format
+            .binary(min_width, twos_complement);
         self
     }
 
@@ -422,7 +426,11 @@ impl<'a> Slider<'a> {
     /// # });
     /// ```
     pub fn octal(mut self, min_width: usize, twos_complement: bool) -> Self {
-        self.core.format = self.core.format.octal(min_width, twos_complement);
+        self.core.drag_value.format = self
+            .core
+            .drag_value
+            .format
+            .octal(min_width, twos_complement);
         self
     }
 
@@ -435,10 +443,11 @@ impl<'a> Slider<'a> {
     /// # });
     /// ```
     pub fn hexadecimal(mut self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
-        self.core.format = self
-            .core
-            .format
-            .hexadecimal(min_width, twos_complement, upper);
+        self.core.drag_value.format =
+            self.core
+                .drag_value
+                .format
+                .hexadecimal(min_width, twos_complement, upper);
         self
     }
 
@@ -463,7 +472,7 @@ impl<'a> Slider<'a> {
     /// If `false`, the value will only be updated when user presses enter or deselects the value.
     #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
-        self.core.format = self.core.format.update_while_editing(update);
+        self.core.drag_value.format = self.core.drag_value.format.update_while_editing(update);
         self
     }
 }
@@ -525,7 +534,7 @@ impl Slider<'_> {
         let mut value = self.get_value();
         let speed = self.core.drag_value_speed_at(ui, geom, value);
         let range = self.core.range.clone();
-        let response = self.core.drag_value(ui, &mut value, range, speed);
+        let response = self.core.drag_value_ui(ui, &mut value, range, speed);
 
         if value != self.get_value() {
             self.set_value(value);
@@ -565,7 +574,7 @@ impl Slider<'_> {
 
         let slider_response = response.clone();
 
-        let value_response = if self.core.show_value {
+        let value_response = if self.core.drag_value.show {
             let geom = self.core.geometry(response.rect, ui);
             let value_response = self.value_ui(ui, &geom);
             if value_response.gained_focus()
