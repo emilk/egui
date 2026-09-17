@@ -513,16 +513,15 @@ impl RangeSlider<'_> {
                 - input.num_presses(Key::ArrowLeft) as i32
         });
 
-        let speed = match (self.step, change != 0) {
+        // The numbers are laid out before the rail exists, so their speed is read off a
+        // geometry of the right size at an arbitrary position: a gradient only depends on the
+        // length. Each number gets the gradient at its own value, which differs on a
+        // logarithmic rail.
+        let probe = self.geometry(Rect::from_min_size(Pos2::ZERO, desired_size), ui);
+        let (step, drag_value_speed) = (self.step, self.drag_value_speed);
+        let speed_at = move |value: f64| match (step, change != 0) {
             (Some(step), true) => step,
-            _ => self.drag_value_speed.unwrap_or_else(|| {
-                // The numbers are laid out before the rail exists, so the speed is read off a
-                // geometry of the right size at an arbitrary position: a gradient only depends
-                // on the length.
-                let probe = self.geometry(Rect::from_min_size(Pos2::ZERO, desired_size), ui);
-                let low = self.get_low();
-                probe.gradient_at(low)
-            }),
+            _ => drag_value_speed.unwrap_or_else(|| probe.gradient_at(value)),
         };
 
         let (mut low, mut high) = (self.get_low(), self.get_high());
@@ -530,10 +529,11 @@ impl RangeSlider<'_> {
 
         if self.show_value {
             let mut edited = low;
-            let response = self.value_ui(ui, &mut edited, *self.range.start()..=high, speed);
+            let bounds = *self.range.start()..=(high - self.min_separation);
+            let response = self.value_ui(ui, &mut edited, bounds, speed_at(low));
             if edited != low {
-                low = edited.at_most(high - self.min_separation);
-                self.set_low(low);
+                self.set_low(edited);
+                low = self.get_low();
             }
             value_responses.push(response);
         }
@@ -555,10 +555,10 @@ impl RangeSlider<'_> {
 
         if self.show_value {
             let mut edited = high;
-            let value_response = self.value_ui(ui, &mut edited, low..=*self.range.end(), speed);
+            let bounds = (low + self.min_separation)..=*self.range.end();
+            let value_response = self.value_ui(ui, &mut edited, bounds, speed_at(high));
             if edited != high {
-                high = edited.at_least(low + self.min_separation);
-                self.set_high(high);
+                self.set_high(edited);
                 response.mark_changed();
             }
             value_responses.push(value_response);
