@@ -10,9 +10,12 @@ use super::slider::{SliderClamping, SliderOrientation};
 use super::slider_core::{self, SliderGeometry, SliderSpec, StepOptions, ValueOptions};
 use super::value_format::ValueFormat;
 
-/// Which handle a drag gesture grabbed, remembered for the whole gesture.
-#[derive(Clone, Copy, Default)]
-struct GrabbedLow(bool);
+/// One of the two handles.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Handle {
+    Low,
+    High,
+}
 
 /// Select a range of numbers with a two-handled slider.
 ///
@@ -348,8 +351,8 @@ impl RangeSlider<'_> {
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             // Remembered for the whole gesture, so dragging one handle into the other does not
             // hand the pointer over to its neighbor half way.
-            let GrabbedLow(grabbed_low) = ui
-                .data(|data| data.get_temp::<GrabbedLow>(response.id))
+            let grabbed = ui
+                .data(|data| data.get_temp::<Handle>(response.id))
                 .unwrap_or_else(|| {
                     let pointer = geom.pointer_position(pointer_position_2d);
                     let (low_position, high_position) = (
@@ -361,28 +364,33 @@ impl RangeSlider<'_> {
                         (pointer - high_position).abs(),
                     );
 
-                    GrabbedLow(if to_low == to_high {
+                    let nearer_low = if to_low == to_high {
                         // The handles coincide, so the side the pointer is on decides. Otherwise
                         // a collapsed range could only ever be opened in one direction.
                         pointer < low_position
                     } else {
                         to_low < to_high
-                    })
+                    };
+                    if nearer_low {
+                        Handle::Low
+                    } else {
+                        Handle::High
+                    }
                 });
-            ui.data_mut(|data| data.insert_temp(response.id, GrabbedLow(grabbed_low)));
+            ui.data_mut(|data| data.insert_temp(response.id, grabbed));
 
             let value =
                 slider_core::value_at_pointer(ui, &geom, pointer_position_2d, self.smart_aim);
 
-            (low, high) = moved_handle(grabbed_low, value, low, high, self.min_separation);
+            (low, high) = moved_handle(grabbed, value, low, high, self.min_separation);
 
             self.set_low(low);
             self.set_high(high);
         } else if ui
-            .data(|data| data.get_temp::<GrabbedLow>(response.id))
+            .data(|data| data.get_temp::<Handle>(response.id))
             .is_some()
         {
-            ui.data_mut(|data| data.remove_temp::<GrabbedLow>(response.id));
+            ui.data_mut(|data| data.remove::<Handle>(response.id));
         }
 
         // Each handle is its own focus stop, so the keyboard and a screen reader can reach
@@ -403,11 +411,11 @@ impl RangeSlider<'_> {
         );
 
         if let Some(value) = self.stepped_by_keyboard(ui, &geom, &low_response, low) {
-            (low, high) = moved_handle(true, value, low, high, self.min_separation);
+            (low, high) = moved_handle(Handle::Low, value, low, high, self.min_separation);
             self.set_low(low);
         }
         if let Some(value) = self.stepped_by_keyboard(ui, &geom, &high_response, high) {
-            (_, high) = moved_handle(false, value, low, high, self.min_separation);
+            (_, high) = moved_handle(Handle::High, value, low, high, self.min_separation);
             self.set_high(high);
         }
 
@@ -594,16 +602,15 @@ impl RangeSlider<'_> {
 ///
 /// Neither pushes past its neighbor, less any separation the widget insists on.
 fn moved_handle(
-    grabbed_low: bool,
+    grabbed: Handle,
     value: f64,
     low: f64,
     high: f64,
     min_separation: f64,
 ) -> (f64, f64) {
-    if grabbed_low {
-        (value.at_most(high - min_separation), high)
-    } else {
-        (low, value.at_least(low + min_separation))
+    match grabbed {
+        Handle::Low => (value.at_most(high - min_separation), high),
+        Handle::High => (low, value.at_least(low + min_separation)),
     }
 }
 
@@ -620,20 +627,26 @@ impl Widget for RangeSlider<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::moved_handle;
+    use super::{Handle, moved_handle};
 
     #[test]
     fn handles_meet_but_never_cross() {
-        assert_eq!(moved_handle(true, 30.0, 10.0, 80.0, 0.0), (30.0, 80.0));
-        assert_eq!(moved_handle(false, 30.0, 10.0, 80.0, 0.0), (10.0, 30.0));
+        assert_eq!(
+            moved_handle(Handle::Low, 30.0, 10.0, 80.0, 0.0),
+            (30.0, 80.0)
+        );
+        assert_eq!(
+            moved_handle(Handle::High, 30.0, 10.0, 80.0, 0.0),
+            (10.0, 30.0)
+        );
 
         assert_eq!(
-            moved_handle(true, 95.0, 10.0, 80.0, 0.0),
+            moved_handle(Handle::Low, 95.0, 10.0, 80.0, 0.0),
             (80.0, 80.0),
             "the low handle stops on the high one"
         );
         assert_eq!(
-            moved_handle(false, 5.0, 10.0, 80.0, 0.0),
+            moved_handle(Handle::High, 5.0, 10.0, 80.0, 0.0),
             (10.0, 10.0),
             "and the high handle stops on the low one"
         );
@@ -642,10 +655,13 @@ mod tests {
     #[test]
     fn handles_keep_their_separation() {
         assert_eq!(
-            moved_handle(true, 95.0, 10.0, 80.0, 5.0),
+            moved_handle(Handle::Low, 95.0, 10.0, 80.0, 5.0),
             (75.0, 80.0),
             "a handle dragged past its neighbor keeps the separation"
         );
-        assert_eq!(moved_handle(false, 5.0, 10.0, 80.0, 5.0), (10.0, 15.0));
+        assert_eq!(
+            moved_handle(Handle::High, 5.0, 10.0, 80.0, 5.0),
+            (10.0, 15.0)
+        );
     }
 }
