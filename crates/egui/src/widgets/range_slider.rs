@@ -16,8 +16,8 @@ struct GrabbedLow(bool);
 
 /// Select a range of numbers with a two-handled slider.
 ///
-/// The handles may meet but never cross. Looks and behaves like [`crate::Slider`], whose
-/// geometry, painting and pointer handling it shares.
+/// The handles may meet but never cross.
+/// Looks and behaves like [`crate::Slider`], but with two handles.
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
