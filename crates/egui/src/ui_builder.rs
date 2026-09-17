@@ -194,6 +194,8 @@ impl UiBuilder {
 
     /// Set the accessibility parent for this [`Ui`].
     ///
+    /// Pass [`Ui::unique_id`] or `Response::id`, not [`Ui::scope_id`].
+    ///
     /// This will override the automatic parent assignment for accessibility purposes.
     /// If not set, the parent [`Ui`]'s ID will be used as the accessibility parent.
     #[inline]
