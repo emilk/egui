@@ -4,14 +4,6 @@ use core::num::NonZeroU64;
 
 use crate::{AsIdSalt, IdSalt};
 
-/// Types that can be converted to an [`Id`].
-///
-/// This is all types implementing `Hash` and `Debug`,
-/// which includes things like string, integers, tuples of those, etc.
-pub trait AsId: core::hash::Hash + core::fmt::Debug {}
-
-impl<T: core::hash::Hash + core::fmt::Debug> AsId for T {}
-
 /// A (hopefully) unique identity within this application.
 ///
 /// egui tracks widgets frame-to-frame using [`Id`]s.
@@ -78,7 +70,7 @@ impl Id {
     /// or else you risk [`Id`] clashes with other widgets.
     ///
     /// If you only need something unique within a parent widget, use [`IdSalt`] instead.
-    pub fn unique(source: impl AsId) -> Self {
+    pub fn unique(source: impl core::hash::Hash + core::fmt::Debug) -> Self {
         let id = Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(&source));
 
         #[cfg(debug_assertions)]
@@ -89,7 +81,7 @@ impl Id {
 
     /// Generate a new, globally unique, root [`Id`] by hashing some source (e.g. a string or integer).
     #[deprecated = "Use `Id::unique` (for a globally unique id) or `IdSalt::new` (for a locally unique salt) instead"]
-    pub fn new(source: impl AsId) -> Self {
+    pub fn new(source: impl core::hash::Hash + core::fmt::Debug) -> Self {
         Self::unique(source)
     }
 
@@ -191,13 +183,13 @@ pub type IdMap<V> = nohash_hasher::IntMap<Id, V>;
 /// and `Id::unique("foo").with("bar")` prints as `Id::unique("foo").with("bar")`, etc.
 #[cfg(debug_assertions)]
 mod id_source {
-    use super::{AsId, AsIdSalt, Id, IdMap};
+    use super::{AsIdSalt, Id, IdMap};
     use epaint::mutex::RwLock;
     use std::sync::LazyLock;
 
     static SOURCE_MAP: LazyLock<RwLock<IdMap<String>>> = LazyLock::new(RwLock::default);
 
-    pub(super) fn insert_root(id: Id, source: &impl AsId) {
+    pub(super) fn insert_root(id: Id, source: &impl core::fmt::Debug) {
         if SOURCE_MAP.read().contains_key(&id) {
             return;
         }
