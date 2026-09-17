@@ -4009,6 +4009,17 @@ impl Context {
         self.write(|ctx| ctx.accesskit_node_builder(id).map(writer))
     }
 
+    /// Does the widget already have an accessibility node this pass?
+    pub(crate) fn has_accesskit_node(&self, id: Id) -> bool {
+        self.write(|ctx| {
+            ctx.viewport()
+                .this_pass
+                .accesskit_state
+                .as_ref()
+                .is_some_and(|state| state.nodes.contains_key(&id))
+        })
+    }
+
     pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
         self.write(|ctx| {
             if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
