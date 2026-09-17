@@ -224,6 +224,7 @@ impl<'a> RangeSlider<'a> {
     }
 
     /// Set a parser for both numbers, accepting what [`Self::custom_formatter`] writes.
+    #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
         self.core.drag_value.format = self.core.drag_value.format.custom_parser(parser);
         self

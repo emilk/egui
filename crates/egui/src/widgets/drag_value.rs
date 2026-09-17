@@ -319,6 +319,7 @@ impl<'a> DragValue<'a> {
     /// ui.add(egui::DragValue::new(&mut my_i32).binary(64, false));
     /// # });
     /// ```
+    #[inline]
     pub fn binary(mut self, min_width: usize, twos_complement: bool) -> Self {
         self.format = self.format.binary(min_width, twos_complement);
         self
@@ -332,6 +333,7 @@ impl<'a> DragValue<'a> {
     /// ui.add(egui::DragValue::new(&mut my_i32).octal(22, false));
     /// # });
     /// ```
+    #[inline]
     pub fn octal(mut self, min_width: usize, twos_complement: bool) -> Self {
         self.format = self.format.octal(min_width, twos_complement);
         self
@@ -345,6 +347,7 @@ impl<'a> DragValue<'a> {
     /// ui.add(egui::DragValue::new(&mut my_i32).hexadecimal(16, false, true));
     /// # });
     /// ```
+    #[inline]
     pub fn hexadecimal(mut self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
         self.format = self.format.hexadecimal(min_width, twos_complement, upper);
         self

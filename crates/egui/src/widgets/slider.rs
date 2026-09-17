@@ -408,6 +408,7 @@ impl<'a> Slider<'a> {
     /// ui.add(egui::Slider::new(&mut my_i32, -100..=100).binary(64, false));
     /// # });
     /// ```
+    #[inline]
     pub fn binary(mut self, min_width: usize, twos_complement: bool) -> Self {
         self.core.drag_value.format = self
             .core
@@ -425,6 +426,7 @@ impl<'a> Slider<'a> {
     /// ui.add(egui::Slider::new(&mut my_i32, -100..=100).octal(22, false));
     /// # });
     /// ```
+    #[inline]
     pub fn octal(mut self, min_width: usize, twos_complement: bool) -> Self {
         self.core.drag_value.format = self
             .core
@@ -442,6 +444,7 @@ impl<'a> Slider<'a> {
     /// ui.add(egui::Slider::new(&mut my_i32, -100..=100).hexadecimal(16, false, true));
     /// # });
     /// ```
+    #[inline]
     pub fn hexadecimal(mut self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
         self.core.drag_value.format =
             self.core
