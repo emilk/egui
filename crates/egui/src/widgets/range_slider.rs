@@ -53,8 +53,9 @@ impl<'a> RangeSlider<'a> {
     pub fn new<Num: emath::Numeric>(
         low: &'a mut Num,
         high: &'a mut Num,
-        range: RangeInclusive<Num>,
+        range: impl Into<RangeInclusive<Num>>,
     ) -> Self {
+        let range = range.into();
         let range_f64 = range.start().to_f64()..=range.end().to_f64();
         let slf = Self::from_get_set(
             range_f64,
