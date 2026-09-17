@@ -72,7 +72,7 @@ impl Id {
     /// If you only need something unique within a parent widget, use [`IdSalt`] instead.
     ///
     /// The source is anything that implements [`Hash`](core::hash::Hash),
-    /// including tuples. Prefer a tuple over formatting a string:
+    /// including strings, integers, and tuples. Prefer a tuple over formatting a string:
     ///
     /// ```
     /// # use egui::Id;
@@ -101,7 +101,8 @@ impl Id {
     /// `id.with(salt)` is the same as `id.with_salt(IdSalt::new(salt))`.
     ///
     /// The salt is anything that implements [`Hash`](core::hash::Hash),
-    /// including tuples. Prefer a single tuple over a chain of [`Self::with`]:
+    /// including strings, integers, and tuples.
+    /// Prefer a single tuple over a chain of [`Self::with`]:
     ///
     /// ```
     /// # use egui::Id;

@@ -31,7 +31,7 @@ impl IdSalt {
     /// Create a new [`IdSalt`] by hashing some source (e.g. a string or integer).
     ///
     /// The source is anything that implements [`Hash`](core::hash::Hash),
-    /// including tuples. Prefer a tuple over formatting a string:
+    /// including strings, integers, and tuples. Prefer a tuple over formatting a string:
     ///
     /// ```
     /// # use egui::IdSalt;
