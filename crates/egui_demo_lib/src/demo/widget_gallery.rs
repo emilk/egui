@@ -15,7 +15,7 @@ pub struct WidgetGallery {
     opacity: f32,
     radio: Enum,
     scalar: f32,
-    range: (f32, f32),
+    range: egui::Rangef,
     string: String,
     color: egui::Color32,
     animate_progress_bar: bool,
@@ -37,7 +37,7 @@ impl Default for WidgetGallery {
             boolean: false,
             radio: Enum::First,
             scalar: 42.0,
-            range: (90.0, 250.0),
+            range: egui::Rangef::new(90.0, 250.0),
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
             animate_progress_bar: false,
@@ -213,7 +213,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("RangeSlider", "RangeSlider"));
-        ui.add(egui::RangeSlider::new(&mut range.0, &mut range.1, 0.0..=360.0).suffix("°"));
+        ui.add(egui::RangeSlider::new(&mut range.min, &mut range.max, 0.0..=360.0).suffix("°"));
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));
