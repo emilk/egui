@@ -4,9 +4,9 @@ use egui::accesskit::Role;
 use egui::load::SizedTexture;
 use egui::{
     Align, AtomExt as _, Button, Color32, ColorImage, Direction, DragValue, Event, Grid,
-    IntoAtoms as _, Layout, PointerButton, Response, RichText, Slider, Stroke, StrokeKind,
-    TextEdit, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _,
-    WidgetAtom, include_image,
+    IntoAtoms as _, Layout, PointerButton, RangeSlider, Response, RichText, Slider, Stroke,
+    StrokeKind, TextEdit, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
+    Widget as _, WidgetAtom, include_image,
 };
 use egui_kittest::kittest::{Queryable as _, by};
 use egui_kittest::{Harness, Node, SnapshotResult, SnapshotResults};
@@ -140,6 +140,15 @@ fn widget_tests() {
         |ui| {
             ui.spacing_mut().slider_width = 45.0;
             Slider::new(&mut 12.0, 0.0..=100.0).ui(ui)
+        },
+        &mut results,
+    );
+
+    test_widget(
+        "range_slider",
+        |ui| {
+            ui.spacing_mut().slider_width = 45.0;
+            RangeSlider::new(&mut 25.0, &mut 75.0, 0.0..=100.0).ui(ui)
         },
         &mut results,
     );

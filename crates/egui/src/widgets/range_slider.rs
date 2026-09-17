@@ -3,14 +3,15 @@
 use core::ops::RangeInclusive;
 
 use crate::{
-    Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense, TextStyle, TextWrapMode, Ui, Widget,
-    WidgetInfo, WidgetText, WidgetType, emath, style::HandleShape, vec2,
+    Key, Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense, TextStyle, TextWrapMode, Ui,
+    Widget, WidgetInfo, WidgetText, WidgetType, emath, style::HandleShape, vec2,
 };
 
 use super::drag_value::clamp_value_to_range;
 use super::slider::{SliderClamping, SliderOrientation};
 use super::slider_core::{
-    self, GetSetValue, NumFormatter, NumParser, SliderGeometry, SliderSpec, ValueOptions, get, set,
+    self, GetSetValue, NumFormatter, NumParser, SliderGeometry, SliderSpec, StepOptions,
+    ValueOptions, get, set,
 };
 
 /// Select a range of numbers with a two-handled slider.
@@ -391,6 +392,49 @@ impl RangeSlider<'_> {
             ui.data_mut(|data| data.remove_temp::<bool>(response.id));
         }
 
+        // Each handle is its own focus stop, so the keyboard and a screen reader can reach
+        // either end of the range.
+        let handle_rect = |value: f64| {
+            let center = geom.marker_center(geom.position_from_value(value), &response.rect);
+            Rect::from_center_size(center, vec2(2.0, 2.0) * geom.handle_radius())
+        };
+        let low_response = ui.interact(
+            handle_rect(low),
+            response.id.with("low"),
+            Sense::focusable_noninteractive(),
+        );
+        let high_response = ui.interact(
+            handle_rect(high),
+            response.id.with("high"),
+            Sense::focusable_noninteractive(),
+        );
+
+        if let Some(value) = self.stepped_by_keyboard(ui, &geom, &low_response, low) {
+            (low, high) = moved_handle(true, value, low, high, self.min_separation);
+            self.set_low(low);
+        }
+        if let Some(value) = self.stepped_by_keyboard(ui, &geom, &high_response, high) {
+            (_, high) = moved_handle(false, value, low, high, self.min_separation);
+            self.set_high(high);
+        }
+
+        // Rounding is applied on the way in, so read back what was actually stored.
+        let (low, high) = (self.get_low(), self.get_high());
+
+        // A handle may travel as far as its neighbour, not as far as the end of the rail.
+        let low_bounds = *self.range.start()..=(high - self.min_separation);
+        let high_bounds = (low + self.min_separation)..=*self.range.end();
+
+        for (handle, value, bounds) in [
+            (&low_response, low, low_bounds),
+            (&high_response, high, high_bounds),
+        ] {
+            slider_core::declare_accesskit_slider(
+                ui, handle.id, value, &bounds, &bounds, self.step,
+            );
+            handle.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
+        }
+
         // Paint it:
         if ui.is_rect_visible(response.rect) {
             let rail_rect = slider_core::paint_rail(ui, &geom);
@@ -405,10 +449,40 @@ impl RangeSlider<'_> {
             };
             slider_core::paint_fill(ui, rail_rect, span, self.orientation);
 
-            let visuals = ui.style().interact(response);
-            slider_core::paint_handle(ui, &geom, low_center, visuals);
-            slider_core::paint_handle(ui, &geom, high_center, visuals);
+            // A focused handle looks active, so the keyboard shows where it is.
+            let focused = &ui.visuals().widgets.active;
+            let dragged = ui.style().interact(response);
+            let visuals = |handle: &Response| if handle.has_focus() { focused } else { dragged };
+
+            slider_core::paint_handle(ui, &geom, low_center, visuals(&low_response));
+            slider_core::paint_handle(ui, &geom, high_center, visuals(&high_response));
         }
+    }
+
+    /// The value the keyboard or a screen reader asked this handle to take, if either did.
+    fn stepped_by_keyboard(
+        &self,
+        ui: &Ui,
+        geom: &SliderGeometry,
+        handle: &Response,
+        value: f64,
+    ) -> Option<f64> {
+        let steps = slider_core::keyboard_steps(ui, handle, self.orientation);
+        let stepped = (steps != 0.0).then(|| {
+            slider_core::stepped_value(
+                geom,
+                value,
+                steps,
+                &StepOptions {
+                    step: self.step,
+                    smart_aim: self.smart_aim,
+                    max_decimals: self.max_decimals,
+                },
+            )
+        });
+
+        // A screen reader naming a value outranks a step, as it does for `Slider`.
+        slider_core::accesskit_set_value_request(ui, handle.id).or(stepped)
     }
 
     /// One of the two numbers beside the rail.
@@ -445,13 +519,24 @@ impl RangeSlider<'_> {
             .at_least(ui.spacing().interact_size.y);
         let desired_size = self.desired_size(ui, thickness);
 
-        // The numbers are laid out before the rail exists, so the speed is read off a geometry
-        // of the right size at an arbitrary position: a gradient only depends on the length.
-        let speed = self.drag_value_speed.unwrap_or_else(|| {
-            let probe = self.geometry(Rect::from_min_size(Pos2::ZERO, desired_size), ui);
-            let low = self.get_low();
-            probe.gradient_at(low)
+        // If a [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
+        let change = ui.input(|input| {
+            input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32
+                - input.num_presses(Key::ArrowDown) as i32
+                - input.num_presses(Key::ArrowLeft) as i32
         });
+
+        let speed = match (self.step, change != 0) {
+            (Some(step), true) => step,
+            _ => self.drag_value_speed.unwrap_or_else(|| {
+                // The numbers are laid out before the rail exists, so the speed is read off a
+                // geometry of the right size at an arbitrary position: a gradient only depends
+                // on the length.
+                let probe = self.geometry(Rect::from_min_size(Pos2::ZERO, desired_size), ui);
+                let low = self.get_low();
+                probe.gradient_at(low)
+            }),
+        };
 
         let (mut low, mut high) = (self.get_low(), self.get_high());
         let mut value_responses = Vec::new();
@@ -466,7 +551,7 @@ impl RangeSlider<'_> {
             value_responses.push(response);
         }
 
-        let mut response = ui.allocate_response(desired_size, Sense::drag());
+        let mut response = ui.allocate_response(desired_size, Sense::DRAG);
         self.range_slider_ui(ui, &response);
 
         let (new_low, new_high) = (self.get_low(), self.get_high());
@@ -476,7 +561,7 @@ impl RangeSlider<'_> {
         }
 
         response.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::Slider, ui.is_enabled(), self.text.text())
+            WidgetInfo::labeled(WidgetType::Other, ui.is_enabled(), self.text.text())
         });
 
         let slider_response = response.clone();
