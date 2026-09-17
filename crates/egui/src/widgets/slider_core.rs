@@ -5,15 +5,17 @@
 use core::ops::RangeInclusive;
 
 use crate::{
-    DragValue, EventFilter, Id, Key, NumExt as _, Pos2, Rangef, Rect, Response, Ui, Vec2, emath,
-    epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape,
+    DragValue, EventFilter, Id, Key, NumExt as _, Pos2, Rangef, Rect, Response, TextStyle, Ui,
+    Vec2, WidgetText, emath, epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape,
+    vec2,
 };
 
+use super::drag_value::clamp_value_to_range;
 use super::slider::{SliderClamping, SliderOrientation};
 use super::value_format::ValueFormat;
 
 /// How values are spread along a slider's rail.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SliderSpec {
     /// Give the small values as much of the rail as the large ones.
     pub logarithmic: bool,
@@ -26,6 +28,16 @@ pub struct SliderSpec {
     /// before the slider switches to `INFINITY`, if that is the higher end.
     /// Default: INFINITY.
     pub largest_finite: f64,
+}
+
+impl Default for SliderSpec {
+    fn default() -> Self {
+        Self {
+            logarithmic: false,
+            smallest_positive: 1e-6,
+            largest_finite: f64::INFINITY,
+        }
+    }
 }
 
 /// Where a slider's handles may travel, and what a position along that travel means.
@@ -119,6 +131,146 @@ impl SliderGeometry {
     pub fn gradient_at(&self, value: f64) -> f64 {
         let position = self.position_from_value(value);
         self.value_from_position(position + 0.5) - self.value_from_position(position - 0.5)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// The settings a [`crate::Slider`] and a [`crate::RangeSlider`] have in common.
+///
+/// Everything about the rail and the numbers beside it that does not depend on how many
+/// handles there are. The widgets add their values on top.
+pub struct SliderCore<'a> {
+    /// What the two ends of the rail stand for. May run high-to-low.
+    pub range: RangeInclusive<f64>,
+
+    pub spec: SliderSpec,
+    pub clamping: SliderClamping,
+    pub smart_aim: bool,
+    pub show_value: bool,
+    pub orientation: SliderOrientation,
+    pub text: WidgetText,
+
+    /// The smallest change a value may take, if set.
+    pub step: Option<f64>,
+
+    /// How fast the numbers beside the rail move per point of drag. Default: as the handle.
+    pub drag_value_speed: Option<f64>,
+
+    pub format: ValueFormat<'a>,
+    pub handle_shape: Option<HandleShape>,
+}
+
+impl SliderCore<'_> {
+    pub fn new(range: RangeInclusive<f64>) -> Self {
+        Self {
+            range,
+            spec: SliderSpec::default(),
+            clamping: SliderClamping::default(),
+            smart_aim: true,
+            show_value: true,
+            orientation: SliderOrientation::Horizontal,
+            text: WidgetText::default(),
+            step: None,
+            drag_value_speed: None,
+            format: ValueFormat::default(),
+            handle_shape: None,
+        }
+    }
+
+    /// A value as read back from the widget's storage.
+    pub fn existing(&self, value: f64) -> f64 {
+        if self.clamping == SliderClamping::Always {
+            clamp_value_to_range(value, self.range.clone())
+        } else {
+            value
+        }
+    }
+
+    /// A value as it is about to be stored: clamped, on the step grid, and rounded.
+    pub fn rounded(&self, mut value: f64) -> f64 {
+        if self.clamping != SliderClamping::Never {
+            value = clamp_value_to_range(value, self.range.clone());
+        }
+
+        if let Some(step) = self.step {
+            let start = *self.range.start();
+            value = start + ((value - start) / step).round() * step;
+        }
+        self.format.round(value)
+    }
+
+    /// Where the handles may travel this frame, and what a position there means.
+    pub fn geometry(&self, rect: Rect, ui: &Ui) -> SliderGeometry {
+        SliderGeometry {
+            orientation: self.orientation,
+            handle_shape: self
+                .handle_shape
+                .unwrap_or_else(|| ui.style().visuals.handle_shape),
+            range: self.range.clone(),
+            spec: self.spec.clone(),
+            rect,
+        }
+    }
+
+    /// The space the rail asks for, handles included.
+    pub fn desired_size(&self, ui: &Ui) -> Vec2 {
+        let thickness = ui
+            .text_style_height(&TextStyle::Body)
+            .at_least(ui.spacing().interact_size.y);
+        match self.orientation {
+            SliderOrientation::Horizontal => vec2(ui.spacing().slider_width, thickness),
+            SliderOrientation::Vertical => vec2(thickness, ui.spacing().slider_width),
+        }
+    }
+
+    pub fn step_options(&self) -> StepOptions {
+        StepOptions {
+            step: self.step,
+            smart_aim: self.smart_aim,
+            max_decimals: self.format.max_decimals,
+        }
+    }
+
+    /// How fast the number beside the rail should move, for a number currently at `value`.
+    ///
+    /// A number stepped from the keyboard moves by `step`, so rounding does not snap it back.
+    /// Otherwise it moves at the rate the handle would, which on a logarithmic rail depends on
+    /// where the handle is.
+    pub fn drag_value_speed_at(&self, ui: &Ui, geom: &SliderGeometry, value: f64) -> f64 {
+        let arrow_presses = ui.input(|input| {
+            input.num_presses(Key::ArrowUp)
+                + input.num_presses(Key::ArrowRight)
+                + input.num_presses(Key::ArrowDown)
+                + input.num_presses(Key::ArrowLeft)
+        });
+
+        match self.step {
+            Some(step) if 0 < arrow_presses => step,
+            _ => self
+                .drag_value_speed
+                .unwrap_or_else(|| geom.gradient_at(value)),
+        }
+    }
+
+    /// The editable number beside the rail, bounded by `range`.
+    pub fn drag_value(
+        &self,
+        ui: &mut Ui,
+        value: &mut f64,
+        range: RangeInclusive<f64>,
+        speed: f64,
+    ) -> Response {
+        slider_drag_value(
+            ui,
+            value,
+            ValueOptions {
+                speed,
+                range,
+                clamping: self.clamping,
+                format: self.format.clone(),
+            },
+        )
     }
 }
 

@@ -1,13 +1,13 @@
 use core::ops::RangeInclusive;
 
 use crate::{
-    Color32, IntoAtoms, Key, Label, NumExt as _, Rangef, Rect, Response, Sense, TextStyle,
-    TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, emath, style::HandleShape, vec2,
+    Color32, IntoAtoms, Label, Rangef, Response, Sense, TextWrapMode, Ui, Widget, WidgetInfo,
+    WidgetText, emath, style::HandleShape,
 };
 
-use super::drag_value::{GetSetValue, clamp_value_to_range, get, set};
-use super::slider_core::{self, SliderGeometry, SliderSpec, StepOptions, ValueOptions};
-use super::value_format::ValueFormat;
+use super::drag_value::{GetSetValue, get, set};
+use super::slider_core::{self, SliderCore, SliderGeometry};
+
 // ----------------------------------------------------------------------------
 
 /// Specifies the orientation of a [`Slider`].
@@ -62,21 +62,8 @@ pub enum SliderClamping {
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,
-    range: RangeInclusive<f64>,
-    spec: SliderSpec,
-    clamping: SliderClamping,
-    smart_aim: bool,
-    show_value: bool,
-    orientation: SliderOrientation,
-    text: WidgetText,
-
-    /// Sets the minimal step of the widget value
-    step: Option<f64>,
-
-    drag_value_speed: Option<f64>,
-    format: ValueFormat<'a>,
+    core: SliderCore<'a>,
     trailing_fill: Option<bool>,
-    handle_shape: Option<HandleShape>,
 }
 
 impl<'a> Slider<'a> {
@@ -106,22 +93,8 @@ impl<'a> Slider<'a> {
     ) -> Self {
         Self {
             get_set_value: Box::new(get_set_value),
-            range,
-            spec: SliderSpec {
-                logarithmic: false,
-                smallest_positive: 1e-6,
-                largest_finite: f64::INFINITY,
-            },
-            clamping: SliderClamping::default(),
-            smart_aim: true,
-            show_value: true,
-            orientation: SliderOrientation::Horizontal,
-            text: Default::default(),
-            step: None,
-            drag_value_speed: None,
-            format: ValueFormat::default(),
+            core: SliderCore::new(range),
             trailing_fill: None,
-            handle_shape: None,
         }
     }
 
@@ -129,58 +102,58 @@ impl<'a> Slider<'a> {
     /// Default: `true`.
     #[inline]
     pub fn show_value(mut self, show_value: bool) -> Self {
-        self.show_value = show_value;
+        self.core.show_value = show_value;
         self
     }
 
     /// Show a prefix before the number, e.g. "x: "
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
-        self.format = self.format.prefix(prefix);
+        self.core.format = self.core.format.prefix(prefix);
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
-        self.format = self.format.suffix(suffix);
+        self.core.format = self.core.format.suffix(suffix);
         self
     }
 
     /// Show a text next to the slider (e.g. explaining what the slider controls).
     #[inline]
     pub fn text(mut self, text: impl Into<WidgetText>) -> Self {
-        self.text = text.into();
+        self.core.text = text.into();
         self
     }
 
     #[inline]
     pub fn text_color(mut self, text_color: Color32) -> Self {
-        self.text = self.text.color(text_color);
+        self.core.text = self.core.text.color(text_color);
         self
     }
 
     /// Vertical or horizontal slider? The default is horizontal.
     #[inline]
     pub fn orientation(mut self, orientation: SliderOrientation) -> Self {
-        self.orientation = orientation;
+        self.core.orientation = orientation;
         self
     }
 
     /// Make this a vertical slider.
     #[inline]
     pub fn vertical(mut self) -> Self {
-        self.orientation = SliderOrientation::Vertical;
+        self.core.orientation = SliderOrientation::Vertical;
         self
     }
 
     /// Make this a logarithmic slider.
-    /// This is great for when the slider spans a huge range,
-    /// e.g. from one to a million.
+    ///
+    /// This is great for when the slider spans a huge range, e.g. from one to a million.
     /// The default is OFF.
     #[inline]
     pub fn logarithmic(mut self, logarithmic: bool) -> Self {
-        self.spec.logarithmic = logarithmic;
+        self.core.spec.logarithmic = logarithmic;
         self
     }
 
@@ -189,7 +162,7 @@ impl<'a> Slider<'a> {
     /// The default is `1` for integer sliders and `1e-6` for real sliders.
     #[inline]
     pub fn smallest_positive(mut self, smallest_positive: f64) -> Self {
-        self.spec.smallest_positive = smallest_positive;
+        self.core.spec.smallest_positive = smallest_positive;
         self
     }
 
@@ -198,7 +171,7 @@ impl<'a> Slider<'a> {
     /// Default: INFINITY.
     #[inline]
     pub fn largest_finite(mut self, largest_finite: f64) -> Self {
-        self.spec.largest_finite = largest_finite;
+        self.core.spec.largest_finite = largest_finite;
         self
     }
 
@@ -241,7 +214,7 @@ impl<'a> Slider<'a> {
     /// ```
     #[inline]
     pub fn clamping(mut self, clamping: SliderClamping) -> Self {
-        self.clamping = clamping;
+        self.core.clamping = clamping;
         self
     }
 
@@ -249,7 +222,7 @@ impl<'a> Slider<'a> {
     /// There is almost no point in turning this off.
     #[inline]
     pub fn smart_aim(mut self, smart_aim: bool) -> Self {
-        self.smart_aim = smart_aim;
+        self.core.smart_aim = smart_aim;
         self
     }
 
@@ -261,7 +234,7 @@ impl<'a> Slider<'a> {
     /// Default: `0.0` (disabled).
     #[inline]
     pub fn step_by(mut self, step: f64) -> Self {
-        self.step = if step == 0.0 { None } else { Some(step) };
+        self.core.step = if step == 0.0 { None } else { Some(step) };
         self
     }
 
@@ -275,7 +248,7 @@ impl<'a> Slider<'a> {
     /// by dragging the slider value rather than the slider itself.
     #[inline]
     pub fn drag_value_speed(mut self, drag_value_speed: f64) -> Self {
-        self.drag_value_speed = Some(drag_value_speed);
+        self.core.drag_value_speed = Some(drag_value_speed);
         self
     }
 
@@ -286,7 +259,7 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
-        self.format = self.format.min_decimals(min_decimals);
+        self.core.format = self.core.format.min_decimals(min_decimals);
         self
     }
 
@@ -298,13 +271,13 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
-        self.format = self.format.max_decimals(max_decimals);
+        self.core.format = self.core.format.max_decimals(max_decimals);
         self
     }
 
     #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
-        self.format = self.format.max_decimals_opt(max_decimals);
+        self.core.format = self.core.format.max_decimals_opt(max_decimals);
         self
     }
 
@@ -315,7 +288,7 @@ impl<'a> Slider<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
-        self.format = self.format.fixed_decimals(num_decimals);
+        self.core.format = self.core.format.fixed_decimals(num_decimals);
         self
     }
 
@@ -337,7 +310,7 @@ impl<'a> Slider<'a> {
     /// Changing it here will override the above setting ONLY for this individual slider.
     #[inline]
     pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
-        self.handle_shape = Some(handle_shape);
+        self.core.handle_shape = Some(handle_shape);
         self
     }
 
@@ -382,7 +355,7 @@ impl<'a> Slider<'a> {
         mut self,
         formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
     ) -> Self {
-        self.format = self.format.custom_formatter(formatter);
+        self.core.format = self.core.format.custom_formatter(formatter);
         self
     }
 
@@ -423,7 +396,7 @@ impl<'a> Slider<'a> {
     /// ```
     #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
-        self.format = self.format.custom_parser(parser);
+        self.core.format = self.core.format.custom_parser(parser);
         self
     }
 
@@ -436,7 +409,7 @@ impl<'a> Slider<'a> {
     /// # });
     /// ```
     pub fn binary(mut self, min_width: usize, twos_complement: bool) -> Self {
-        self.format = self.format.binary(min_width, twos_complement);
+        self.core.format = self.core.format.binary(min_width, twos_complement);
         self
     }
 
@@ -449,7 +422,7 @@ impl<'a> Slider<'a> {
     /// # });
     /// ```
     pub fn octal(mut self, min_width: usize, twos_complement: bool) -> Self {
-        self.format = self.format.octal(min_width, twos_complement);
+        self.core.format = self.core.format.octal(min_width, twos_complement);
         self
     }
 
@@ -462,7 +435,10 @@ impl<'a> Slider<'a> {
     /// # });
     /// ```
     pub fn hexadecimal(mut self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
-        self.format = self.format.hexadecimal(min_width, twos_complement, upper);
+        self.core.format = self
+            .core
+            .format
+            .hexadecimal(min_width, twos_complement, upper);
         self
     }
 
@@ -474,45 +450,11 @@ impl<'a> Slider<'a> {
     }
 
     fn get_value(&mut self) -> f64 {
-        let value = get(&mut self.get_set_value);
-        if self.clamping == SliderClamping::Always {
-            clamp_value_to_range(value, self.range.clone())
-        } else {
-            value
-        }
+        self.core.existing(get(&mut self.get_set_value))
     }
 
-    fn set_value(&mut self, mut value: f64) {
-        if self.clamping != SliderClamping::Never {
-            value = clamp_value_to_range(value, self.range.clone());
-        }
-
-        if let Some(step) = self.step {
-            let start = *self.range.start();
-            value = start + ((value - start) / step).round() * step;
-        }
-        value = self.format.round(value);
-        set(&mut self.get_set_value, value);
-    }
-
-    fn range(&self) -> RangeInclusive<f64> {
-        self.range.clone()
-    }
-
-    /// Where this slider's handle may travel this frame, and what a position there means.
-    fn geometry(&self, rect: Rect, ui: &Ui) -> SliderGeometry {
-        SliderGeometry {
-            orientation: self.orientation,
-            handle_shape: self.resolved_handle_shape(ui),
-            range: self.range(),
-            spec: self.spec.clone(),
-            rect,
-        }
-    }
-
-    fn resolved_handle_shape(&self, ui: &Ui) -> HandleShape {
-        self.handle_shape
-            .unwrap_or_else(|| ui.style().visuals.handle_shape)
+    fn set_value(&mut self, value: f64) {
+        set(&mut self.get_set_value, self.core.rounded(value));
     }
 
     /// Update the value on each key press when text-editing the value.
@@ -521,43 +463,30 @@ impl<'a> Slider<'a> {
     /// If `false`, the value will only be updated when user presses enter or deselects the value.
     #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
-        self.format = self.format.update_while_editing(update);
+        self.core.format = self.core.format.update_while_editing(update);
         self
     }
 }
 
 impl Slider<'_> {
     /// Just the slider, no text
-    fn allocate_slider_space(&self, ui: &mut Ui, thickness: f32) -> Response {
-        let desired_size = match self.orientation {
-            SliderOrientation::Horizontal => vec2(ui.spacing().slider_width, thickness),
-            SliderOrientation::Vertical => vec2(thickness, ui.spacing().slider_width),
-        };
-        ui.allocate_response(desired_size, Sense::drag())
-    }
-
-    /// Just the slider, no text
     fn slider_ui(&mut self, ui: &Ui, response: &Response) {
-        let geom = self.geometry(response.rect, ui);
+        let geom = self.core.geometry(response.rect, ui);
 
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             let new_value =
-                slider_core::value_at_pointer(ui, &geom, pointer_position_2d, self.smart_aim);
+                slider_core::value_at_pointer(ui, &geom, pointer_position_2d, self.core.smart_aim);
             self.set_value(new_value);
         }
 
-        let kb_steps = slider_core::keyboard_steps(ui, response, self.orientation);
+        let kb_steps = slider_core::keyboard_steps(ui, response, self.core.orientation);
 
         if kb_steps != 0.0 {
             let new_value = slider_core::stepped_value(
                 &geom,
                 self.get_value(),
                 kb_steps,
-                &StepOptions {
-                    step: self.step,
-                    smart_aim: self.smart_aim,
-                    max_decimals: self.format.max_decimals,
-                },
+                &self.core.step_options(),
             );
             self.set_value(new_value);
         }
@@ -581,11 +510,11 @@ impl Slider<'_> {
             if trailing_fill {
                 // The fill runs from the start of the rail to the handle. A range slider hands
                 // the same function two handles instead.
-                let span = match self.orientation {
+                let span = match self.core.orientation {
                     SliderOrientation::Horizontal => Rangef::new(rail_rect.left(), center.x),
                     SliderOrientation::Vertical => Rangef::new(center.y, rail_rect.bottom()),
                 };
-                slider_core::paint_fill(ui, rail_rect, span, self.orientation);
+                slider_core::paint_fill(ui, rail_rect, span, self.core.orientation);
             }
 
             slider_core::paint_handle(ui, &geom, center, ui.style().interact(response));
@@ -593,34 +522,10 @@ impl Slider<'_> {
     }
 
     fn value_ui(&mut self, ui: &mut Ui, geom: &SliderGeometry) -> Response {
-        // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
-        let change = ui.input(|input| {
-            input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32
-                - input.num_presses(Key::ArrowDown) as i32
-                - input.num_presses(Key::ArrowLeft) as i32
-        });
-
-        let any_change = change != 0;
         let mut value = self.get_value();
-
-        let speed = if let (Some(step), true) = (self.step, any_change) {
-            // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
-            step
-        } else {
-            self.drag_value_speed
-                .unwrap_or_else(|| geom.gradient_at(value))
-        };
-
-        let response = slider_core::slider_drag_value(
-            ui,
-            &mut value,
-            ValueOptions {
-                speed,
-                range: self.range(),
-                clamping: self.clamping,
-                format: self.format.clone(),
-            },
-        );
+        let speed = self.core.drag_value_speed_at(ui, geom, value);
+        let range = self.core.range.clone();
+        let response = self.core.drag_value(ui, &mut value, range, speed);
 
         if value != self.get_value() {
             self.set_value(value);
@@ -631,40 +536,37 @@ impl Slider<'_> {
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
         let old_value = self.get_value();
 
-        if self.clamping == SliderClamping::Always {
+        if self.core.clamping == SliderClamping::Always {
             self.set_value(old_value);
         }
 
-        let thickness = ui
-            .text_style_height(&TextStyle::Body)
-            .at_least(ui.spacing().interact_size.y);
-        let mut response = self.allocate_slider_space(ui, thickness);
+        let mut response = ui.allocate_response(self.core.desired_size(ui), Sense::drag());
         self.slider_ui(ui, &response);
 
         let value = self.get_value();
         if value != old_value {
             response.mark_changed();
         }
-        response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
+        response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.core.text.text()));
 
-        let editable_range = if self.clamping == SliderClamping::Never {
+        let editable_range = if self.core.clamping == SliderClamping::Never {
             f64::NEG_INFINITY..=f64::INFINITY
         } else {
-            self.range()
+            self.core.range.clone()
         };
         slider_core::declare_accesskit_slider(
             ui,
             response.id,
             value,
-            &self.range(),
+            &self.core.range,
             &editable_range,
-            self.step,
+            self.core.step,
         );
 
         let slider_response = response.clone();
 
-        let value_response = if self.show_value {
-            let geom = self.geometry(response.rect, ui);
+        let value_response = if self.core.show_value {
+            let geom = self.core.geometry(response.rect, ui);
             let value_response = self.value_ui(ui, &geom);
             if value_response.gained_focus()
                 || value_response.has_focus()
@@ -682,9 +584,9 @@ impl Slider<'_> {
             None
         };
 
-        if !self.text.is_empty() {
+        if !self.core.text.is_empty() {
             let label_response =
-                ui.add(Label::new(self.text.clone()).wrap_mode(TextWrapMode::Extend));
+                ui.add(Label::new(self.core.text.clone()).wrap_mode(TextWrapMode::Extend));
             // The slider already has an accessibility label via widget info,
             // but sometimes it's useful for a screen reader to know
             // that a piece of text is a label for another widget,
@@ -701,7 +603,7 @@ impl Slider<'_> {
 
 impl Widget for Slider<'_> {
     fn ui(mut self, ui: &mut Ui) -> Response {
-        let inner_response = match self.orientation {
+        let inner_response = match self.core.orientation {
             SliderOrientation::Horizontal => ui.horizontal(|ui| self.add_contents(ui)),
             SliderOrientation::Vertical => ui.vertical(|ui| self.add_contents(ui)),
         };
