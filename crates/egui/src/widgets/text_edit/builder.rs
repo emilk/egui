@@ -1032,19 +1032,23 @@ impl<'t> TextEdit<'t> {
             });
         }
 
-        let role = if password {
-            accesskit::Role::PasswordInput
-        } else if multiline {
-            accesskit::Role::MultilineTextInput
-        } else {
-            accesskit::Role::TextInput
-        };
+        ui.ctx().accesskit_node_builder(id, |builder| {
+            // `WidgetInfo` only knows about `WidgetType::TextEdit`, which maps to
+            // `Role::TextInput`, so refine the role here:
+            let role = if password {
+                accesskit::Role::PasswordInput
+            } else if multiline {
+                accesskit::Role::MultilineTextInput
+            } else {
+                accesskit::Role::TextInput
+            };
+            builder.set_role(role);
+        });
 
         crate::text_selection::accesskit_text::update_accesskit_for_text_widget(
             ui.ctx(),
             id,
             cursor_range,
-            role,
             TSTransform::from_translation(galley_pos.to_vec2()),
             &galley,
         );
