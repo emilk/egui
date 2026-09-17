@@ -1,6 +1,6 @@
 use crate::{
-    Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IdSalt, IntoAtoms, Key, Modifiers,
-    NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget, WidgetInfo,
+    Atom, AtomExt as _, Button, CursorIcon, Id, IdSalt, IntoAtoms, Key, Modifiers, NumExt as _,
+    Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget, WidgetInfo,
     class::{ClassName, Classes, HasClasses},
     emath, text,
 };
@@ -382,8 +382,8 @@ impl Widget for DragValue<'_> {
             update_while_editing,
         } = format;
 
-        let prefix_text = atoms_text(&prefix);
-        let suffix_text = atoms_text(&suffix);
+        let prefix_text = prefix.text().unwrap_or_default().into_owned();
+        let suffix_text = suffix.text().unwrap_or_default().into_owned();
 
         let atom_id = IdSalt::new(Self::ATOM_ID);
         let mut atoms = prefix;
@@ -676,17 +676,6 @@ impl Widget for DragValue<'_> {
 
         response
     }
-}
-
-/// The text of the atoms, for screen readers.
-fn atoms_text(atoms: &Atoms<'_>) -> String {
-    let mut text = String::new();
-    for atom in atoms.iter() {
-        if let AtomKind::Text(atom_text) = &atom.kind {
-            text.push_str(atom_text.text());
-        }
-    }
-    text
 }
 
 fn parse(custom_parser: Option<&NumParser<'_>>, value_text: &str) -> Option<f64> {
