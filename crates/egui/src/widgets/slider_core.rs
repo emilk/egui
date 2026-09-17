@@ -144,11 +144,22 @@ pub struct SliderCore<'a> {
     /// What the two ends of the rail stand for. May run high-to-low.
     pub range: RangeInclusive<f64>,
 
+    /// How values are spread between the ends of the rail: linearly or logarithmically.
     pub spec: SliderSpec,
+
+    /// When values outside `range` are pulled back in.
     pub clamping: SliderClamping,
+
+    /// Guide dragged values towards round numbers.
     pub smart_aim: bool,
+
+    /// Show an editable number beside the rail.
     pub show_value: bool,
+
+    /// Which way the rail runs.
     pub orientation: SliderOrientation,
+
+    /// A label shown after the widget, which also names it to screen readers.
     pub text: WidgetText,
 
     /// The smallest change a value may take, if set.
@@ -157,7 +168,10 @@ pub struct SliderCore<'a> {
     /// How fast the numbers beside the rail move per point of drag. Default: as the handle.
     pub drag_value_speed: Option<f64>,
 
+    /// How the numbers beside the rail are written and read back.
     pub format: ValueFormat<'a>,
+
+    /// The shape of the handles. Default: [`crate::style::Visuals::handle_shape`].
     pub handle_shape: Option<HandleShape>,
 }
 
