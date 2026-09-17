@@ -4,6 +4,16 @@ use core::num::NonZeroU64;
 
 use crate::{AsIdSalt, IdSalt};
 
+/// Types that can be converted to an [`Id`].
+///
+/// This is all types implementing `Hash` and `Debug`,
+/// which includes things like strings, integers, tuples of those, etc.
+#[deprecated = "Use `impl core::hash::Hash + core::fmt::Debug` instead"]
+pub trait AsId: core::hash::Hash + core::fmt::Debug {}
+
+#[expect(deprecated)]
+impl<T: core::hash::Hash + core::fmt::Debug> AsId for T {}
+
 /// A (hopefully) unique identity within this application.
 ///
 /// egui tracks widgets frame-to-frame using [`Id`]s.

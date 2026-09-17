@@ -505,6 +505,9 @@ pub use self::{
     widgets::*,
 };
 
+#[expect(deprecated)]
+pub use self::id::AsId;
+
 // ----------------------------------------------------------------------------
 
 /// Helper function that adds a label when compiling with debug assertions enabled.
