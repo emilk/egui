@@ -36,20 +36,15 @@ fn harness_with(
 #[test]
 fn each_handle_is_its_own_focus_stop() {
     let harness = harness();
-    assert_eq!(
-        harness.query_all_by_role(Role::Slider).count(),
-        2,
-        "a screen reader should find one slider per handle"
-    );
+    harness.get_by_role_and_label(Role::Slider, "Range low");
+    harness.get_by_role_and_label(Role::Slider, "Range high");
 }
 
 #[test]
 fn arrow_keys_move_the_focused_handle() {
     let mut harness = harness();
     harness
-        .query_all_by_role(Role::Slider)
-        .next()
-        .unwrap()
+        .get_by_role_and_label(Role::Slider, "Range low")
         .focus();
     harness.run();
 
@@ -68,9 +63,7 @@ fn arrow_keys_move_the_focused_handle() {
 fn a_handle_stops_at_its_neighbor() {
     let mut harness = harness();
     harness
-        .query_all_by_role(Role::Slider)
-        .next()
-        .unwrap()
+        .get_by_role_and_label(Role::Slider, "Range low")
         .focus();
     harness.run();
 
@@ -104,9 +97,7 @@ fn rounding_to_the_step_never_crosses_the_other_handle() {
         slider.step_by(4.0).clamping(SliderClamping::Edits)
     });
     harness
-        .query_all_by_role(Role::Slider)
-        .next()
-        .unwrap()
+        .get_by_role_and_label(Role::Slider, "Range low")
         .focus();
     harness.run();
 
@@ -130,9 +121,7 @@ fn on_a_vertical_rail_the_up_arrow_raises_the_value_with_or_without_a_step() {
             slider.vertical().step_by(step)
         });
         harness
-            .query_all_by_role(Role::Slider)
-            .next()
-            .unwrap()
+            .get_by_role_and_label(Role::Slider, "Range low")
             .focus();
         harness.run();
 

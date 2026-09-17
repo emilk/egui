@@ -329,6 +329,20 @@ impl RangeSlider<'_> {
         }
     }
 
+    /// What a screen reader calls `handle`: the widget's text, plus which end it is.
+    fn handle_label(&self, handle: Handle) -> String {
+        let end = match handle {
+            Handle::Low => "low",
+            Handle::High => "high",
+        };
+        let text = self.core.text.text();
+        if text.is_empty() {
+            end.to_owned()
+        } else {
+            format!("{text} {end}")
+        }
+    }
+
     /// Just the rail and its handles, no numbers.
     fn range_slider_ui(&mut self, ui: &Ui, response: &Response) {
         let geom = self.core.geometry(response.rect, ui);
@@ -400,8 +414,9 @@ impl RangeSlider<'_> {
                 &editable,
                 self.core.step,
             );
-            handle_response
-                .widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.core.text.text()));
+            handle_response.widget_info(|| {
+                WidgetInfo::slider(ui.is_enabled(), value, self.handle_label(handle))
+            });
         }
 
         // Paint it:
@@ -419,7 +434,8 @@ impl RangeSlider<'_> {
             slider_core::paint_fill(ui, rail_rect, span, self.core.orientation);
 
             // Each handle shows its own state: the grabbed or focused one is active, and hovering
-            // the rail lights up the handle a press there would grab.
+            // the rail lights up the handle a press there would grab. Highlighting the widget
+            // lights up both, as it does the one handle of a `Slider`.
             let dragged = response
                 .is_pointer_button_down_on()
                 .then(|| ui.data(|data| data.get_temp::<Handle>(response.id)))
@@ -434,7 +450,10 @@ impl RangeSlider<'_> {
                     &widgets.noninteractive
                 } else if handle_response.has_focus() || dragged == Some(handle) {
                     &widgets.active
-                } else if hovered == Some(handle) {
+                } else if hovered == Some(handle)
+                    || handle_response.highlighted()
+                    || response.highlighted()
+                {
                     &widgets.hovered
                 } else {
                     &widgets.inactive
