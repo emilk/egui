@@ -70,6 +70,17 @@ impl Id {
     /// or else you risk [`Id`] clashes with other widgets.
     ///
     /// If you only need something unique within a parent widget, use [`IdSalt`] instead.
+    ///
+    /// The source is anything that implements [`Hash`](core::hash::Hash),
+    /// including tuples. Prefer a tuple over formatting a string:
+    ///
+    /// ```
+    /// # use egui::Id;
+    /// # let (row, column) = (0, 0);
+    /// let good = Id::unique(("my_table_cell", row, column)); // No allocation
+    /// let bad = Id::unique(format!("my_table_cell {row} {column}")); // Allocates
+    /// # let _ = (good, bad);
+    /// ```
     pub fn unique(source: impl core::hash::Hash + core::fmt::Debug) -> Self {
         let id = Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(&source));
 
@@ -88,6 +99,17 @@ impl Id {
     /// Generate a child [`Id`] by salting the parent [`Id`] with the given argument.
     ///
     /// `id.with(salt)` is the same as `id.with_salt(IdSalt::new(salt))`.
+    ///
+    /// The salt is anything that implements [`Hash`](core::hash::Hash),
+    /// including tuples. Prefer a single tuple over a chain of [`Self::with`]:
+    ///
+    /// ```
+    /// # use egui::Id;
+    /// # let (parent, row, column) = (Id::NULL, 0, 0);
+    /// let good = parent.with((row, column)); // Hashes once
+    /// let bad = parent.with(row).with(column); // Hashes twice
+    /// # let _ = (good, bad);
+    /// ```
     pub fn with(self, salt: impl AsIdSalt) -> Self {
         let id = self.hash_with_salt(IdSalt::new(&salt));
 
