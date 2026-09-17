@@ -1,8 +1,8 @@
 use core::ops::RangeInclusive;
 
 use crate::{
-    IntoAtoms, Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense, TextWrapMode, Ui, Widget,
-    WidgetInfo, WidgetText, WidgetType, emath, style::HandleShape,
+    Color32, IntoAtoms, Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense, TextWrapMode, Ui,
+    Widget, WidgetInfo, WidgetText, WidgetType, emath, style::HandleShape,
 };
 
 use super::drag_value::{GetSetValue, clamp_value_to_range, get, set};
@@ -97,6 +97,12 @@ impl<'a> RangeSlider<'a> {
     #[inline]
     pub fn text(mut self, text: impl Into<WidgetText>) -> Self {
         self.core.text = text.into();
+        self
+    }
+
+    #[inline]
+    pub fn text_color(mut self, text_color: Color32) -> Self {
+        self.core.text = self.core.text.color(text_color);
         self
     }
 
@@ -255,6 +261,12 @@ impl<'a> RangeSlider<'a> {
         self
     }
 
+    #[inline]
+    pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
+        self.core.drag_value.format = self.core.drag_value.format.max_decimals_opt(max_decimals);
+        self
+    }
+
     /// Show exactly this many decimals.
     #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
@@ -275,6 +287,60 @@ impl<'a> RangeSlider<'a> {
     #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
         self.core.drag_value.format = self.core.drag_value.format.custom_parser(parser);
+        self
+    }
+
+    /// Display and parse both numbers as binary integers. See [`ValueFormat::binary`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let (mut low, mut high) = (-50_i32, 50_i32);
+    /// ui.add(egui::RangeSlider::new(&mut low, &mut high, -100..=100).binary(64, false));
+    /// # });
+    /// ```
+    #[inline]
+    pub fn binary(mut self, min_width: usize, twos_complement: bool) -> Self {
+        self.core.drag_value.format = self
+            .core
+            .drag_value
+            .format
+            .binary(min_width, twos_complement);
+        self
+    }
+
+    /// Display and parse both numbers as octal integers. See [`ValueFormat::octal`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let (mut low, mut high) = (-50_i32, 50_i32);
+    /// ui.add(egui::RangeSlider::new(&mut low, &mut high, -100..=100).octal(22, false));
+    /// # });
+    /// ```
+    #[inline]
+    pub fn octal(mut self, min_width: usize, twos_complement: bool) -> Self {
+        self.core.drag_value.format = self
+            .core
+            .drag_value
+            .format
+            .octal(min_width, twos_complement);
+        self
+    }
+
+    /// Display and parse both numbers as hexadecimal integers. See [`ValueFormat::hexadecimal`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let (mut low, mut high) = (-50_i32, 50_i32);
+    /// ui.add(egui::RangeSlider::new(&mut low, &mut high, -100..=100).hexadecimal(16, false, true));
+    /// # });
+    /// ```
+    #[inline]
+    pub fn hexadecimal(mut self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
+        self.core.drag_value.format =
+            self.core
+                .drag_value
+                .format
+                .hexadecimal(min_width, twos_complement, upper);
         self
     }
 
