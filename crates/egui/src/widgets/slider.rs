@@ -5,10 +5,8 @@ use crate::{
     TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, emath, style::HandleShape, vec2,
 };
 
-use super::drag_value::clamp_value_to_range;
-use super::slider_core::{
-    self, GetSetValue, SliderGeometry, SliderSpec, StepOptions, ValueOptions, get, set,
-};
+use super::drag_value::{GetSetValue, clamp_value_to_range, get, set};
+use super::slider_core::{self, SliderGeometry, SliderSpec, StepOptions, ValueOptions};
 use super::value_format::ValueFormat;
 // ----------------------------------------------------------------------------
 

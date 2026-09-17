@@ -12,20 +12,6 @@ use crate::{
 use super::slider::{SliderClamping, SliderOrientation};
 use super::value_format::ValueFormat;
 
-/// Combined into one function (rather than two) to make it easier
-/// for the borrow checker.
-pub type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
-
-pub fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
-    (get_set_value)(None)
-}
-
-pub fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
-    (get_set_value)(Some(value));
-}
-
-// ----------------------------------------------------------------------------
-
 /// How values are spread along a slider's rail.
 #[derive(Clone)]
 pub struct SliderSpec {

@@ -13,13 +13,13 @@ use super::value_format::{NumParser, ValueFormat};
 
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
-type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
+pub(crate) type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
 
-fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
+pub(crate) fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
     (get_set_value)(None)
 }
 
-fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
+pub(crate) fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
     (get_set_value)(Some(value));
 }
 
