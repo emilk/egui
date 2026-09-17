@@ -29,6 +29,17 @@ impl nohash_hasher::IsEnabled for IdSalt {}
 
 impl IdSalt {
     /// Create a new [`IdSalt`] by hashing some source (e.g. a string or integer).
+    ///
+    /// The source is anything that implements [`Hash`](core::hash::Hash),
+    /// including strings, integers, and tuples. Prefer a tuple over formatting a string:
+    ///
+    /// ```
+    /// # use egui::IdSalt;
+    /// # let (row, column) = (0, 0);
+    /// let good = IdSalt::new((row, column)); // No allocation
+    /// let bad = IdSalt::new(format!("{row} {column}")); // Allocates
+    /// # let _ = (good, bad);
+    /// ```
     pub fn new(source: impl AsIdSalt) -> Self {
         let id_salt = Self::from_hash(ahash::RandomState::with_seeds(5, 6, 7, 8).hash_one(&source));
 
