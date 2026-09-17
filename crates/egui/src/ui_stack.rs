@@ -76,7 +76,14 @@ impl UiKind {
             Self::Modal | Self::Popup => Role::Dialog,
             Self::Menu => Role::Menu,
             Self::Tooltip => Role::Tooltip,
-            _ => Role::GenericContainer,
+            Self::Window
+            | Self::Frame
+            | Self::ScrollArea
+            | Self::Resize
+            | Self::Picker
+            | Self::TableCell
+            | Self::GenericArea
+            | Self::Collapsible => Role::GenericContainer,
         }
     }
 
