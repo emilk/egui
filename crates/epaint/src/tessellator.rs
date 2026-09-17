@@ -9,11 +9,13 @@ use emath::{
     GuiRounding as _, NumExt as _, Pos2, Rect, Rot2, Vec2, fast_midpoint, pos2, remap, vec2,
 };
 
+use std::sync::Arc;
+
 use crate::{
     CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
     EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, RoundedRect, Shape,
-    Stroke, StrokeKind, TextShape, TextureId, Vertex, color::ColorMode, emath, stroke::PathStroke,
-    texture_atlas::PreparedDisc,
+    Stroke, StrokeKind, TextShape, TextureId, TransformedShape, Vertex, color::ColorMode, emath,
+    stroke::PathStroke, texture_atlas::PreparedDisc,
 };
 
 // ----------------------------------------------------------------------------
@@ -1375,6 +1377,36 @@ impl Tessellator {
             return;
         }
 
+        if let Shape::Transformed(transformed) = shape {
+            let TransformedShape { transform, shape } = Arc::unwrap_or_clone(transformed);
+
+            if !transform.is_valid() {
+                return;
+            }
+
+            // Tessellate in the shape's own coordinate space, so that everything lands on the
+            // pixel grid there, and only then move the finished rendering into place:
+            let mut inner_primitives = Vec::new();
+            self.tessellate_clipped_shape(
+                ClippedShape {
+                    clip_rect: transform.inverse() * clip_rect,
+                    shape,
+                },
+                &mut inner_primitives,
+            );
+
+            for mut clipped_primitive in inner_primitives {
+                clipped_primitive.clip_rect = transform * clipped_primitive.clip_rect;
+                match &mut clipped_primitive.primitive {
+                    Primitive::Mesh(mesh) => mesh.transform(transform),
+                    Primitive::Callback(callback) => callback.rect = transform * callback.rect,
+                }
+                out_primitives.push(clipped_primitive);
+            }
+
+            return;
+        }
+
         let start_new_mesh = match out_primitives.last() {
             None => true,
             Some(output_clipped_primitive) => {
@@ -1468,6 +1500,23 @@ impl Tessellator {
             Shape::CubicBezier(cubic_shape) => self.tessellate_cubic_bezier(&cubic_shape, out),
             Shape::Callback(_) => {
                 panic!("Shape::Callback passed to Tessellator");
+            }
+            Shape::Transformed(transformed) => {
+                let TransformedShape { transform, shape } = Arc::unwrap_or_clone(transformed);
+
+                if !transform.is_valid() {
+                    return;
+                }
+
+                let outer_clip_rect = self.clip_rect;
+                self.clip_rect = transform.inverse() * outer_clip_rect;
+
+                let mut mesh = Mesh::default();
+                self.tessellate_shape(shape, &mut mesh);
+                mesh.transform(transform);
+
+                self.clip_rect = outer_clip_rect;
+                out.append(mesh);
             }
         }
     }
@@ -2307,7 +2356,10 @@ impl Tessellator {
                 | Shape::Mesh(_)
                 | Shape::LineSegment { .. }
                 | Shape::Rect(_)
-                | Shape::Callback(_) => false,
+                | Shape::Callback(_)
+                // The inner shape is in its own coordinate space, so it needs the clip rect
+                // that `tessellate_clipped_shape` maps for it.
+                | Shape::Transformed(_) => false,
             }
         }
 

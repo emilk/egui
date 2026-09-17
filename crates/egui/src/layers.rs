@@ -182,6 +182,31 @@ impl PaintList {
         }
     }
 
+    /// Transform each [`Shape`] and clip rectangle by this much, in-place, but only after the
+    /// shapes have been tessellated and snapped to the pixel grid.
+    ///
+    /// See [`Shape::transform_after_rounding`] for which of the two you want.
+    pub fn transform_after_rounding(&mut self, transform: TSTransform) {
+        let end = self.next_idx();
+        self.transform_after_rounding_range(ShapeIdx(0), end, transform);
+    }
+
+    /// Transform each [`Shape`] and clip rectangle in range by this much, in-place, but only
+    /// after the shapes have been tessellated and snapped to the pixel grid.
+    ///
+    /// See [`Shape::transform_after_rounding`] for which of the two you want.
+    pub fn transform_after_rounding_range(
+        &mut self,
+        start: ShapeIdx,
+        end: ShapeIdx,
+        transform: TSTransform,
+    ) {
+        for ClippedShape { clip_rect, shape } in &mut self.0[start.0..end.0] {
+            *clip_rect = transform.mul_rect(*clip_rect);
+            shape.transform_after_rounding(transform);
+        }
+    }
+
     /// Read-only access to all held shapes.
     pub fn all_entries(&self) -> impl ExactSizeIterator<Item = &ClippedShape> {
         self.0.iter()

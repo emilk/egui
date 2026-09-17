@@ -12,7 +12,7 @@ use crate::{
 
 use super::{
     CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PathShape, QuadraticBezierShape,
-    RectShape, TextShape,
+    RectShape, TextShape, TransformedShape,
 };
 
 /// A paint primitive such as a circle or a piece of text.
@@ -68,6 +68,13 @@ pub enum Shape {
 
     /// Backend-specific painting.
     Callback(PaintCallback),
+
+    /// A shape that is transformed after it has been tessellated.
+    ///
+    /// See [`TransformedShape`] for when to reach for this instead of [`Self::transform`].
+    ///
+    /// Wrapped in an [`Arc`] to minimize the size of [`Shape`].
+    Transformed(Arc<TransformedShape>),
 }
 
 #[test]
@@ -418,6 +425,7 @@ impl Shape {
             Self::QuadraticBezier(bezier) => bezier.visual_bounding_rect(),
             Self::CubicBezier(bezier) => bezier.visual_bounding_rect(),
             Self::Callback(custom) => custom.rect,
+            Self::Transformed(transformed) => transformed.visual_bounding_rect(),
         }
     }
 }
@@ -430,6 +438,8 @@ impl Shape {
             mesh.texture_id
         } else if let Self::Rect(rect_shape) = self {
             rect_shape.fill_texture_id()
+        } else if let Self::Transformed(transformed) = self {
+            transformed.shape.texture_id()
         } else {
             crate::TextureId::default()
         }
@@ -512,6 +522,28 @@ impl Shape {
             Self::Callback(shape) => {
                 shape.rect = transform * shape.rect;
             }
+            Self::Transformed(transformed) => {
+                let transformed = Arc::make_mut(transformed);
+                transformed.transform = transform * transformed.transform;
+            }
+        }
+    }
+
+    /// Transform (move/scale) the shape in-place, but only after it has been tessellated and
+    /// snapped to the pixel grid.
+    ///
+    /// Unlike [`Self::transform`], the snapping happens in the shape's own coordinates, so the
+    /// rendering converges on the untransformed one.
+    /// Use this for a transform that animates towards [`TSTransform::IDENTITY`], such as a popup
+    /// scaling into place: it doesn't end with a jump of up to a pixel.
+    /// See [`TransformedShape`] for the trade-off.
+    pub fn transform_after_rounding(&mut self, transform: TSTransform) {
+        if let Self::Transformed(transformed) = self {
+            let transformed = Arc::make_mut(transformed);
+            transformed.transform = transform * transformed.transform;
+        } else {
+            let shape = core::mem::replace(self, Self::Noop);
+            *self = Self::Transformed(Arc::new(TransformedShape::new(transform, shape)));
         }
     }
 }

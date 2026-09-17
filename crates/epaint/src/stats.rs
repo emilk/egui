@@ -221,6 +221,9 @@ impl PaintStats {
             Shape::Callback(_) => {
                 self.num_callbacks += 1;
             }
+            Shape::Transformed(transformed) => {
+                self.add(&transformed.shape);
+            }
         }
     }
 
