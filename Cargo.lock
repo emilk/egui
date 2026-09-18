@@ -1644,6 +1644,7 @@ dependencies = [
  "similar-asserts",
  "skrifa",
  "smallvec",
+ "unicode-bidi",
  "unicode-general-category",
  "unicode-properties",
  "unicode-segmentation",
