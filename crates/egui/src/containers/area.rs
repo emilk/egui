@@ -122,6 +122,7 @@ pub struct Area {
     fade_in: bool,
     layout: Layout,
     sizing_pass: bool,
+    accessibility_parent: Option<Id>,
 }
 
 impl WidgetWithState for Area {
@@ -149,6 +150,7 @@ impl Area {
             fade_in: true,
             layout: Layout::default(),
             sizing_pass: false,
+            accessibility_parent: None,
         }
     }
 
@@ -176,6 +178,16 @@ impl Area {
     #[inline]
     pub fn info(mut self, info: UiStackInfo) -> Self {
         self.info = info;
+        self
+    }
+
+    /// Nest the area under this widget in the accessibility tree.
+    ///
+    /// Popups, menus and tooltips use this to hang under the widget that opened them,
+    /// instead of floating at the root of the tree.
+    #[inline]
+    pub fn accessibility_parent(mut self, widget_id: Id) -> Self {
+        self.accessibility_parent = Some(widget_id);
         self
     }
 
@@ -434,6 +446,7 @@ impl Area {
             fade_in,
             layout,
             sizing_pass: force_sizing_pass,
+            accessibility_parent,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
@@ -514,6 +527,11 @@ impl Area {
                     Sense::hover()
                 }
             });
+
+            // Must come before the widget is created, since that is when its node is placed.
+            if let Some(parent) = accessibility_parent {
+                ctx.register_accesskit_parent(interact_id, parent);
+            }
 
             let move_response = ctx.create_widget(
                 WidgetRect {

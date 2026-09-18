@@ -3,6 +3,11 @@
 use egui::{
     CentralPanel, Context, RawInput, Ui, Window,
     accesskit::{NodeId, Role, TreeUpdate},
+    containers::menu::MenuButton,
+};
+use egui_kittest::{
+    Harness,
+    kittest::{NodeT as _, Queryable as _},
 };
 
 /// Baseline test that asserts there are no spurious nodes in the
@@ -185,6 +190,84 @@ fn window_children() {
     assert_button_exists(&output, "A button", window_id);
     assert_button_exists(&output, "Close window", window_id);
     assert_button_exists(&output, "Hide", window_id);
+}
+
+#[test]
+fn central_panel_is_a_pane() {
+    let output = accesskit_output_single_egui_frame(|ui| {
+        CentralPanel::default().show(ui, |ui| ui.label("Hello"));
+    });
+
+    assert!(
+        output
+            .nodes
+            .iter()
+            .any(|(_, node)| node.role() == Role::Pane),
+        "The panel should be a Pane, not an anonymous container; found: {output:#?}",
+    );
+}
+
+/// A menu hangs under the button that opened it.
+#[test]
+fn menu_hangs_under_its_button() {
+    let mut harness = Harness::new_ui(|ui| {
+        MenuButton::new("File").ui(ui, |ui| {
+            let _ = ui.button("Open");
+        });
+    });
+
+    harness.get_by_label("File").click();
+    harness.run();
+
+    let button = harness.get_by_role_and_label(Role::Button, "File");
+    button.get_by_role(Role::Menu).get_by_label("Open");
+}
+
+#[test]
+fn combo_box_popup_is_a_list_box() {
+    let mut harness = Harness::new_ui(|ui| {
+        egui::ComboBox::from_label("Fruit")
+            .selected_text("Apple")
+            .show_ui(ui, |ui| {
+                let _ = ui.selectable_label(false, "Apple");
+            });
+    });
+
+    harness.get_by_role(Role::ComboBox).click();
+    harness.run();
+
+    harness.get_by_role(Role::ListBox).get_by_label("Apple");
+}
+
+/// The tooltip text describes the widget, and the tooltip itself hangs under it.
+#[test]
+fn tooltip_hangs_under_its_widget() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.ctx()
+            .global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+        let _ = ui.button("Hover me").on_hover_text("Some help");
+    });
+
+    harness.get_by_label("Hover me").hover();
+    harness.run();
+
+    let button = harness.get_by_role_and_label(Role::Button, "Hover me");
+    assert_eq!(
+        button.accesskit_node().description(),
+        Some("Some help".to_owned())
+    );
+    button.get_by_role(Role::Tooltip).get_by_label("Some help");
+}
+
+/// An icon-only button has no text of its own, so the tooltip text becomes its name.
+#[test]
+fn tooltip_text_names_an_unnamed_widget() {
+    let mut harness = Harness::new_ui(|ui| {
+        let _ = ui.add(egui::Button::new("")).on_hover_text("Play");
+    });
+    harness.run();
+
+    harness.get_by_role_and_label(Role::Button, "Play");
 }
 
 fn accesskit_output_single_egui_frame(run_ui: impl FnMut(&mut Ui)) -> TreeUpdate {

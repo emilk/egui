@@ -180,8 +180,12 @@ impl Ui {
             ui.set_invisible();
         }
 
+        let role = ui
+            .stack
+            .kind()
+            .map_or(accesskit::Role::GenericContainer, UiKind::accesskit_role);
         ui.ctx().accesskit_node_builder(ui.unique_id, |node| {
-            node.set_role(accesskit::Role::GenericContainer);
+            node.set_role(role);
         });
 
         ui
@@ -302,10 +306,14 @@ impl Ui {
             Default::default(),
         );
 
+        let role = child_ui
+            .stack
+            .kind()
+            .map_or(accesskit::Role::GenericContainer, UiKind::accesskit_role);
         child_ui
             .ctx()
             .accesskit_node_builder(child_ui.unique_id, |node| {
-                node.set_role(accesskit::Role::GenericContainer);
+                node.set_role(role);
             });
 
         child_ui
