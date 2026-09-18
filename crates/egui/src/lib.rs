@@ -484,7 +484,7 @@ pub use self::{
     epaint::text::TextWrapMode,
     grid::Grid,
     id::{Id, IdMap, IdSet},
-    id_salt::{AsIdSalt, IdSalt},
+    id_salt::{AsIdSalt, IdSalt, IdSaltMap, IdSaltSet},
     input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
     layers::{LayerId, Order},
     layout::*,
