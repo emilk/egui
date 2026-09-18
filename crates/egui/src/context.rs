@@ -3450,7 +3450,7 @@ impl Context {
     /// coordinates, so the rendering converges on the untransformed one.
     /// Use this for an animation that ends at [`TSTransform::IDENTITY`], such as a popup scaling
     /// into place: it doesn't end with a jump of up to a pixel.
-    /// See [`epaint::TransformedShape`] for the trade-off.
+    /// See [`epaint::ClippedShape::transform_after_tessellation`] for the trade-off.
     ///
     /// This only applies to the existing graphics at the layer, not to graphics added later, so
     /// call it once the layer is complete — [`crate::Plugin::on_end_pass`] is a good place.
@@ -4739,15 +4739,10 @@ fn warn_if_rect_changes_id(
                     .map(|w| w.id.short_debug_format())
                     .collect::<Vec<_>>(),
             );
-            out_shapes.push(ClippedShape {
-                clip_rect: Rect::EVERYTHING,
-                shape: epaint::Shape::rect_stroke(
-                    rect,
-                    0,
-                    (2.0, Color32::RED),
-                    StrokeKind::Outside,
-                ),
-            });
+            out_shapes.push(ClippedShape::new(
+                Rect::EVERYTHING,
+                epaint::Shape::rect_stroke(rect, 0, (2.0, Color32::RED), StrokeKind::Outside),
+            ));
         }
     }
 }

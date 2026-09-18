@@ -126,7 +126,7 @@ impl PaintList {
     #[inline(always)]
     pub fn add(&mut self, clip_rect: Rect, shape: Shape) -> ShapeIdx {
         let idx = self.next_idx();
-        self.0.push(ClippedShape { clip_rect, shape });
+        self.0.push(ClippedShape::new(clip_rect, shape));
         idx
     }
 
@@ -134,7 +134,7 @@ impl PaintList {
         self.0.extend(
             shapes
                 .into_iter()
-                .map(|shape| ClippedShape { clip_rect, shape }),
+                .map(|shape| ClippedShape::new(clip_rect, shape)),
         );
     }
 
@@ -152,7 +152,7 @@ impl PaintList {
             return;
         }
 
-        self.0[idx.0] = ClippedShape { clip_rect, shape };
+        self.0[idx.0] = ClippedShape::new(clip_rect, shape);
     }
 
     /// Set the given shape to be empty (a `Shape::Noop`).
@@ -168,24 +168,21 @@ impl PaintList {
 
     /// Transform each [`Shape`] and clip rectangle by this much, in-place
     pub fn transform(&mut self, transform: TSTransform) {
-        for ClippedShape { clip_rect, shape } in &mut self.0 {
-            *clip_rect = transform.mul_rect(*clip_rect);
-            shape.transform(transform);
-        }
+        let end = self.next_idx();
+        self.transform_range(ShapeIdx(0), end, transform);
     }
 
     /// Transform each [`Shape`] and clip rectangle in range by this much, in-place
     pub fn transform_range(&mut self, start: ShapeIdx, end: ShapeIdx, transform: TSTransform) {
-        for ClippedShape { clip_rect, shape } in &mut self.0[start.0..end.0] {
-            *clip_rect = transform.mul_rect(*clip_rect);
-            shape.transform(transform);
+        for clipped_shape in &mut self.0[start.0..end.0] {
+            clipped_shape.transform(transform);
         }
     }
 
     /// Transform each [`Shape`] and clip rectangle by this much, in-place, but only after the
     /// shapes have been tessellated and snapped to the pixel grid.
     ///
-    /// See [`Shape::transform_after_rounding`] for which of the two you want.
+    /// See [`ClippedShape::transform_after_tessellation`] for which of the two you want.
     pub fn transform_after_rounding(&mut self, transform: TSTransform) {
         let end = self.next_idx();
         self.transform_after_rounding_range(ShapeIdx(0), end, transform);
@@ -194,16 +191,17 @@ impl PaintList {
     /// Transform each [`Shape`] and clip rectangle in range by this much, in-place, but only
     /// after the shapes have been tessellated and snapped to the pixel grid.
     ///
-    /// See [`Shape::transform_after_rounding`] for which of the two you want.
+    /// See [`ClippedShape::transform_after_tessellation`] for which of the two you want.
     pub fn transform_after_rounding_range(
         &mut self,
         start: ShapeIdx,
         end: ShapeIdx,
         transform: TSTransform,
     ) {
-        for ClippedShape { clip_rect, shape } in &mut self.0[start.0..end.0] {
-            *clip_rect = transform.mul_rect(*clip_rect);
-            shape.transform_after_rounding(transform);
+        for clipped_shape in &mut self.0[start.0..end.0] {
+            clipped_shape.clip_rect = transform.mul_rect(clipped_shape.clip_rect);
+            clipped_shape.transform_after_tessellation =
+                transform * clipped_shape.transform_after_tessellation;
         }
     }
 

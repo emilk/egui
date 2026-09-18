@@ -6,7 +6,6 @@ mod path_shape;
 mod rect_shape;
 mod shape;
 mod text_shape;
-mod transformed_shape;
 
 pub use self::{
     bezier_shape::{CubicBezierShape, QuadraticBezierShape},
@@ -17,5 +16,4 @@ pub use self::{
     rect_shape::RectShape,
     shape::Shape,
     text_shape::TextShape,
-    transformed_shape::TransformedShape,
 };

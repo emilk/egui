@@ -115,10 +115,6 @@ pub fn adjust_colors(
         Shape::Callback(_) => {
             // Can't tint user callback code
         }
-
-        Shape::Transformed(transformed) => {
-            adjust_colors(&mut Arc::make_mut(transformed).shape, adjust_color);
-        }
     }
 }
 
