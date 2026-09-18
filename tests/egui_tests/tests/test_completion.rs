@@ -42,13 +42,15 @@ struct State {
 }
 
 fn harness<'a>() -> Harness<'a, State> {
-    harness_with(|text| TextEdit::singleline(text))
+    harness_with(|text| TextEdit::singleline(text).hint_text("Message"))
 }
 
 /// A chat composer: multiline, Shift+Enter for newline, Enter to send.
 fn chat_harness<'a>() -> Harness<'a, State> {
     harness_with(|text| {
-        TextEdit::multiline(text).return_key(KeyboardShortcut::new(Modifiers::SHIFT, Key::Enter))
+        TextEdit::multiline(text)
+            .hint_text("Message")
+            .return_key(KeyboardShortcut::new(Modifiers::SHIFT, Key::Enter))
     })
 }
 
