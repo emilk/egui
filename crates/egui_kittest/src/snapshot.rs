@@ -737,6 +737,9 @@ impl<State> Harness<'_, State> {
     /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
     pub fn try_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
+        if self.check_accessibility {
+            self.check_accessibility();
+        }
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;
