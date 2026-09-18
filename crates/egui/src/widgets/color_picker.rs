@@ -151,7 +151,12 @@ fn show_srgba_unmultiplied_at(painter: &Painter, [r, g, b, a]: [u8; 4], bounds: 
 fn color_button(ui: &mut Ui, srgba: [u8; 4], open: bool) -> Response {
     let size = ui.spacing().interact_size;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
-    response.widget_info(|| WidgetInfo::new(WidgetType::ColorButton));
+    response.widget_info(|| {
+        let mut info = WidgetInfo::labeled(WidgetType::ColorButton, ui.is_enabled(), "Color");
+        info.current_text_value =
+            Some(Color32::from_rgba_unmultiplied(srgba[0], srgba[1], srgba[2], srgba[3]).to_hex());
+        info
+    });
 
     if ui.is_rect_visible(rect) {
         let visuals = if open {
