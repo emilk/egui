@@ -1,6 +1,7 @@
 mod app_icon;
 mod epi_integration;
 mod event_loop_context;
+mod frame_watchdog;
 pub mod run;
 
 #[cfg(target_os = "macos")]
