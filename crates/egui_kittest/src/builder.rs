@@ -130,8 +130,7 @@ impl<State> HarnessBuilder<State> {
         self
     }
 
-    /// Check that every input widget has an accessible name whenever the ui has settled
-    /// (after [`Harness::run`] and friends) and before every snapshot, and panic if one does not.
+    /// Check that every input widget has an accessible name, and panic if one does not.
     /// See [`Harness::check_accessibility`].
     ///
     /// Default is `true`.
