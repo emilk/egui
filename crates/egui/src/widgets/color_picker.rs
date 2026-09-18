@@ -153,8 +153,8 @@ fn color_button(ui: &mut Ui, srgba: [u8; 4], open: bool) -> Response {
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     response.widget_info(|| {
         let mut info = WidgetInfo::labeled(WidgetType::ColorButton, ui.is_enabled(), "Color");
-        info.current_text_value =
-            Some(Color32::from_rgba_unmultiplied(srgba[0], srgba[1], srgba[2], srgba[3]).to_hex());
+        let [r, g, b, a] = srgba;
+        info.current_text_value = Some(format!("#{r:02x}{g:02x}{b:02x}{a:02x}"));
         info
     });
 
