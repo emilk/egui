@@ -159,9 +159,10 @@ impl CollapsingState {
         ui: &mut Ui,
         add_body: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let id = self.id;
+        // The body is salted with the header id's value, since an `Id` must not be used as an id salt.
+        let id_value = self.id.value();
         self.show_body_unindented(ui, |ui| {
-            ui.indent(id, |ui| {
+            ui.indent(id_value, |ui| {
                 // make as wide as the header:
                 ui.expand_to_include_x(header_response.rect.right());
                 add_body(ui)

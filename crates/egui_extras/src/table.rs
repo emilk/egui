@@ -737,7 +737,8 @@ impl Table<'_> {
         let cursor_position = ui.cursor().min;
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
-            .id_salt(state_id.with("__scroll_area"))
+            // Salted with the state id's value, since an `Id` must not be used as an id salt.
+            .id_salt((state_id.value(), "__scroll_area"))
             .scroll_source(ScrollSource {
                 drag: drag_to_scroll,
                 ..Default::default()

@@ -818,7 +818,8 @@ impl Panel {
 
         let mut panel_ui = parent_ui.new_child(
             UiBuilder::new()
-                .id_salt(id)
+                // Salted with the panel id's value, since an `Id` must not be used as an id salt.
+                .id_salt(id.value())
                 .ui_stack_info(UiStackInfo::new(side.ui_kind()))
                 .max_rect(shifted_outer_rect)
                 .layout(Layout::top_down(Align::Min)),
