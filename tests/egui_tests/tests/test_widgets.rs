@@ -3,13 +3,16 @@
 use egui::accesskit::Role;
 use egui::load::SizedTexture;
 use egui::{
-    Align, AtomExt as _, AtomLayout, Button, Color32, ColorImage, Direction, DragValue, Event,
-    Grid, IntoAtoms as _, Layout, PointerButton, Response, RichText, Slider, Stroke, StrokeKind,
-    TextEdit, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _,
-    include_image,
+    Align, AtomExt as _, Button, Color32, ColorImage, Direction, DragValue, Event, Grid,
+    IntoAtoms as _, Layout, PointerButton, RangeSlider, Response, RichText, Slider, Stroke,
+    StrokeKind, TextEdit, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
+    Widget as _, WidgetAtom, include_image,
 };
 use egui_kittest::kittest::{Queryable as _, by};
 use egui_kittest::{Harness, Node, SnapshotResult, SnapshotResults};
+
+/// The space each layout cell gives a widget, unless the widget asks for more.
+const DEFAULT_TEST_SIZE: Vec2 = Vec2::new(110.0, 45.0);
 
 #[test]
 fn widget_tests() {
@@ -144,6 +147,16 @@ fn widget_tests() {
         &mut results,
     );
 
+    test_widget_with_size(
+        "range_slider",
+        Vec2::new(170.0, DEFAULT_TEST_SIZE.y),
+        |ui| {
+            ui.spacing_mut().slider_width = 45.0;
+            RangeSlider::new(&mut 25.0, &mut 75.0, 0.0..=100.0).ui(ui)
+        },
+        &mut results,
+    );
+
     let source = include_image!("../../../crates/eframe/data/icon.png");
     let interesting_atoms = vec![
         ("minimal", ("Hello World!").into_atoms()),
@@ -158,20 +171,34 @@ fn widget_tests() {
     ];
 
     for atoms in interesting_atoms {
-        results.add(test_widget_layout(&format!("atoms_{}", atoms.0), |ui| {
-            AtomLayout::new(atoms.1.clone()).ui(ui)
-        }));
+        results.add(test_widget_layout(
+            &format!("atoms_{}", atoms.0),
+            DEFAULT_TEST_SIZE,
+            |ui| WidgetAtom::new(atoms.1.clone()).ui(ui),
+        ));
     }
 }
 
-fn test_widget(name: &str, mut w: impl FnMut(&mut Ui) -> Response, results: &mut SnapshotResults) {
-    results.add(test_widget_layout(name, &mut w));
+fn test_widget(name: &str, w: impl FnMut(&mut Ui) -> Response, results: &mut SnapshotResults) {
+    test_widget_with_size(name, DEFAULT_TEST_SIZE, w, results);
+}
+
+/// For widgets too wide for [`DEFAULT_TEST_SIZE`], which would otherwise overflow their cells.
+fn test_widget_with_size(
+    name: &str,
+    test_size: Vec2,
+    mut w: impl FnMut(&mut Ui) -> Response,
+    results: &mut SnapshotResults,
+) {
+    results.add(test_widget_layout(name, test_size, &mut w));
     results.add(VisualTests::test(name, &mut w));
 }
 
-fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> SnapshotResult {
-    let test_size = Vec2::new(110.0, 45.0);
-
+fn test_widget_layout(
+    name: &str,
+    test_size: Vec2,
+    mut w: impl FnMut(&mut Ui) -> Response,
+) -> SnapshotResult {
     struct Row {
         main_dir: Direction,
         main_align: Align,

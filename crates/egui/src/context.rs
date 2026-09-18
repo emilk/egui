@@ -187,6 +187,25 @@ impl ContextImpl {
 
 // ----------------------------------------------------------------------------
 
+/// The root [`Ui`] of the current pass of a viewport.
+///
+/// See [`Context::root_ui`].
+#[derive(Default)]
+#[expect(clippy::large_enum_variant, reason = "There is only one per viewport")]
+enum RootUi {
+    /// Not yet created this pass.
+    ///
+    /// It is created on demand by [`Context::root_ui`].
+    #[default]
+    Pending,
+
+    /// Created, and ready to be borrowed by [`Context::root_ui`].
+    Available(Ui),
+
+    /// Currently borrowed by a call to [`Context::root_ui`].
+    Borrowed,
+}
+
 /// State stored per viewport.
 ///
 /// Mostly for internal use.
@@ -251,6 +270,11 @@ pub struct ViewportState {
     ///
     /// See [`crate::Options::sync_window_theme`].
     pub(crate) last_sent_window_theme: Option<crate::SystemTheme>,
+
+    /// The root [`Ui`] of the current pass.
+    ///
+    /// Only set between [`Context::begin_pass`] and [`Context::end_pass`].
+    root_ui: RootUi,
 }
 
 /// What called [`Context::request_repaint`] or [`Context::request_discard`]?
@@ -375,8 +399,14 @@ impl ViewportRepaintInfo {
 struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
-    glyph_rasterizer: Option<GlyphRasterizer>,
+    glyph_rasterizers: Vec<GlyphRasterizer>,
     font_providers: Vec<Arc<dyn FontProvider>>,
+
+    /// Set when the rasterizers or providers change, acted on at the start of the next pass.
+    ///
+    /// The [`Fonts`] must outlive the pass that is laying out text with them,
+    /// so they are never dropped in the middle of one.
+    reload_fonts: bool,
 
     memory: Memory,
     animation_manager: AnimationManager,
@@ -551,6 +581,11 @@ impl ContextImpl {
         let input = &self.viewport().input;
         let max_texture_side = input.max_texture_side;
 
+        if core::mem::take(&mut self.reload_fonts) {
+            // The rasterizers or providers changed during the last pass.
+            self.fonts = None;
+        }
+
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
             // New font definition loaded, so we need to reload all fonts.
             self.fonts = None;
@@ -596,9 +631,7 @@ impl ContextImpl {
             profiling::scope!("Fonts::new");
             let mut fonts = Fonts::new(text_options, self.font_definitions.clone())
                 .with_font_providers(self.font_providers.clone());
-            if let Some(glyph_rasterizer) = &self.glyph_rasterizer {
-                fonts = fonts.with_glyph_rasterizer(glyph_rasterizer.clone());
-            }
+            fonts.set_glyph_rasterizers(self.glyph_rasterizers.clone());
             fonts
         });
 
@@ -769,17 +802,35 @@ impl Default for Context {
 }
 
 impl Context {
-    /// Set the platform glyph rasterizer, e.g. the browser on web.
+    /// Add a [`GlyphRasterizer`], e.g. the browser on web, or for custom glyphs.
     ///
-    /// It is used for grapheme clusters that no installed font can render,
-    /// and that no [`FontProvider`] has a font for.
+    /// Depending on [`FontPriority`] this is either a fallback or an override
+    /// (see [`GlyphRasterizer`] for details).
     ///
-    /// `eframe` sets this on web. Pass `None` to only use the installed fonts.
-    pub fn set_glyph_rasterizer(&self, glyph_rasterizer: Option<GlyphRasterizer>) {
+    /// Rasterizers are asked in the order they were added.
+    /// `eframe` adds the browser rasterizer on web.
+    ///
+    /// The rasterizer becomes active at the start of the next pass.
+    pub fn add_glyph_rasterizer(&self, glyph_rasterizer: GlyphRasterizer) {
         self.write(|ctx| {
-            ctx.glyph_rasterizer = glyph_rasterizer;
-            ctx.fonts = None;
+            ctx.glyph_rasterizers.push(glyph_rasterizer);
+            ctx.reload_fonts = true;
         });
+        self.request_repaint();
+    }
+
+    /// Replace all [`GlyphRasterizer`]s. See [`Self::add_glyph_rasterizer`].
+    ///
+    /// Pass an empty list to only use the installed fonts.
+    /// Note that this also removes the browser rasterizer that `eframe` adds on web.
+    ///
+    /// The rasterizers become active at the start of the next pass.
+    pub fn set_glyph_rasterizers(&self, glyph_rasterizers: Vec<GlyphRasterizer>) {
+        self.write(|ctx| {
+            ctx.glyph_rasterizers = glyph_rasterizers;
+            ctx.reload_fonts = true;
+        });
+        self.request_repaint();
     }
 
     /// Add a [`FontProvider`], asked for fonts for characters that no installed font has.
@@ -788,21 +839,27 @@ impl Context {
     /// Providers are asked in the order they were added.
     ///
     /// `eframe` adds a system font provider on native (see its `system_fonts` feature).
+    ///
+    /// The provider becomes active at the start of the next pass.
     pub fn add_font_provider(&self, font_provider: Arc<dyn FontProvider>) {
         self.write(|ctx| {
             ctx.font_providers.push(font_provider);
-            ctx.fonts = None;
+            ctx.reload_fonts = true;
         });
+        self.request_repaint();
     }
 
     /// Replace all [`FontProvider`]s. See [`Self::add_font_provider`].
     ///
     /// Pass an empty list to only use the installed fonts.
+    ///
+    /// The providers become active at the start of the next pass.
     pub fn set_font_providers(&self, font_providers: Vec<Arc<dyn FontProvider>>) {
         self.write(|ctx| {
             ctx.font_providers = font_providers;
-            ctx.fonts = None;
+            ctx.reload_fonts = true;
         });
+        self.request_repaint();
     }
 
     /// Do read-only (shared access) transaction on Context
@@ -826,7 +883,8 @@ impl Context {
     ///
     /// You can organize your GUI using [`crate::Panel`].
     ///
-    /// Instead of calling `run_ui`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
+    /// Instead of calling `run_ui`, you can alternatively use [`Self::run_pass`],
+    /// or [`Self::begin_pass`] and [`Context::end_pass`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -842,32 +900,132 @@ impl Context {
     /// ```
     #[must_use]
     pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
-        self.run_ui_dyn(new_input, &mut run_ui)
+        self.run_pass(new_input, |ctx| ctx.root_ui(|ui| run_ui(ui)))
+    }
+
+    /// Run the ui code for one frame, without being handed the root [`Ui`].
+    ///
+    /// This is the same as [`Self::run_ui`], except the callback is given the [`Context`]
+    /// rather than the root [`Ui`].
+    /// Use [`Self::root_ui`] to access the root [`Ui`] from anywhere during the pass,
+    /// e.g. to add a [`crate::Panel`] to it.
+    ///
+    /// This is useful for integrations where the ui code is split over several places
+    /// that only share a [`Context`] (which is cheap to clone), and not a `&mut Ui`.
+    ///
+    /// Prefer [`Self::run_ui`] when you can.
+    ///
+    /// ```
+    /// // One egui context that you keep reusing:
+    /// let mut ctx = egui::Context::default();
+    ///
+    /// // Each frame:
+    /// let input = egui::RawInput::default();
+    /// let full_output = ctx.run_pass(input, |ctx| {
+    ///     ctx.root_ui(|ui| {
+    ///         egui::Panel::top("top").show(ui, |ui| {
+    ///             ui.label("Hello egui!");
+    ///         });
+    ///     });
+    /// });
+    /// // handle full_output
+    /// # full_output.drop_without_applying_deltas();
+    /// ```
+    #[must_use]
+    pub fn run_pass(&self, new_input: RawInput, mut run_pass: impl FnMut(&Self)) -> FullOutput {
+        self.run_pass_dyn(new_input, &mut run_pass)
     }
 
     #[must_use]
-    fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
+    fn run_pass_dyn(&self, new_input: RawInput, run_pass: &mut dyn FnMut(&Self)) -> FullOutput {
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
         self.run_dyn(new_input, &mut |ctx| {
-            let mut root_ui = Ui::new(
-                ctx.clone(),
-                ctx.viewport_id().root_ui_id(),
+            ctx.root_ui(|ui| plugins.on_begin_pass(ui));
+            run_pass(ctx);
+            ctx.root_ui(|ui| plugins.on_end_pass(ui));
+        })
+    }
+
+    /// Access the root [`Ui`] of the current pass.
+    ///
+    /// The root [`Ui`] covers the entire [`Self::viewport_rect`].
+    /// It is the [`Ui`] given to the callback of [`Self::run_ui`],
+    /// and the one that eframe gives to your app each frame.
+    ///
+    /// This lets you add e.g. a [`crate::Panel`] from code that only has access to a [`Context`],
+    /// such as when the ui code is split over several places that share a [`Context`].
+    /// Panels added this way share the root [`Ui`], so they stack correctly.
+    ///
+    /// The root [`Ui`] is created on demand on the first call during a pass,
+    /// so this also works when using [`Self::begin_pass`] and [`Self::end_pass`] directly.
+    ///
+    /// # Panics
+    /// This panics if the root [`Ui`] is already borrowed, e.g. if called from within
+    /// the callback of [`Self::run_ui`], or from within another call to `root_ui`.
+    /// In those cases, use the `&mut Ui` you already have instead.
+    ///
+    /// ```
+    /// # egui::__run_test_ctx(|ctx| {
+    /// ctx.root_ui(|ui| {
+    ///     egui::Panel::left("left").show(ui, |ui| {
+    ///         ui.label("Hello egui!");
+    ///     });
+    /// });
+    /// # });
+    /// ```
+    pub fn root_ui<R>(&self, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+        let mut root_ui = self.take_root_ui();
+        let result = add_contents(&mut root_ui);
+        self.write(|ctx| ctx.viewport().root_ui = RootUi::Available(root_ui));
+        result
+    }
+
+    /// Take the root [`Ui`] out of the viewport state, creating it if needed.
+    ///
+    /// The [`Ui`] must be put back with [`RootUi::Available`] when done,
+    /// so that the next call to [`Self::root_ui`] can find it.
+    fn take_root_ui(&self) -> Ui {
+        let root_ui =
+            self.write(|ctx| core::mem::replace(&mut ctx.viewport().root_ui, RootUi::Borrowed));
+        match root_ui {
+            RootUi::Available(root_ui) => root_ui,
+            RootUi::Pending => Ui::new(
+                self.clone(),
+                self.viewport_id().root_ui_id(),
                 UiBuilder::new()
                     .layer_id(LayerId::background())
-                    .max_rect(ctx.viewport_rect()),
-            );
-
-            {
-                plugins.on_begin_pass(&mut root_ui);
-                run_ui(&mut root_ui);
-                plugins.on_end_pass(&mut root_ui);
+                    .max_rect(self.viewport_rect()),
+            ),
+            RootUi::Borrowed => {
+                panic!(
+                    "Context::root_ui was called while the root Ui was already borrowed. \
+                     You are probably calling it from within `Context::run_ui` or `Context::root_ui`. \
+                     Use the `&mut Ui` you were given instead."
+                );
             }
+        }
+    }
 
-            ctx.pass_state_mut(|state| {
-                state.root_ui_available_rect = Some(root_ui.available_rect_before_wrap());
-                state.root_ui_min_rect = Some(root_ui.min_rect());
-            });
-        })
+    /// Drop the root [`Ui`] of the current pass, if any,
+    /// remembering how much of it was used.
+    ///
+    /// Called at the end of each pass.
+    fn finish_root_ui(&self) {
+        let root_ui = self.write(|ctx| core::mem::take(&mut ctx.viewport().root_ui));
+        match root_ui {
+            RootUi::Pending => {}
+            RootUi::Available(root_ui) => {
+                self.pass_state_mut(|state| {
+                    state.root_ui_available_rect = Some(root_ui.available_rect_before_wrap());
+                    state.root_ui_min_rect = Some(root_ui.min_rect());
+                });
+                // Drop outside of the lock, since `Ui::drop` locks the `Context`.
+                drop(root_ui);
+            }
+            RootUi::Borrowed => {
+                log::error!("Context::end_pass was called while the root Ui was borrowed");
+            }
+        }
     }
 
     #[must_use]
@@ -946,6 +1104,11 @@ impl Context {
     /// but you still want to let the app tick its logic
     /// (so that it can e.g. ask to be shown again with [`ViewportCommand::Focus`]).
     ///
+    /// An integration should run [`Self::run_ui`] anyway, hidden or not, once something has
+    /// sent [`ViewportCommand::RequestPaintWhileHidden`]: that command asks for the ui of a
+    /// hidden window to run and be painted, which is how an app that sits in the background
+    /// is screenshotted or driven.
+    ///
     /// No pass is run, so `f` must not show any ui.
     /// This means everything egui knows about the ui is left untouched:
     /// no widget state is garbage-collected, no animation advances,
@@ -1003,7 +1166,7 @@ impl Context {
     /// let input = egui::RawInput::default();
     /// ctx.begin_pass(input);
     ///
-    /// // … add panels and windows here …
+    /// // … add panels and windows here, e.g. using `ctx.root_ui(…)` …
     ///
     /// let full_output = ctx.end_pass();
     /// // handle full_output
@@ -2621,6 +2784,8 @@ impl Context {
     pub fn end_pass(&self) -> FullOutput {
         profiling::function_scope!();
 
+        self.finish_root_ui();
+
         if self.options(|o| o.zoom_with_keyboard) {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
@@ -3867,6 +4032,17 @@ impl Context {
         self.write(|ctx| ctx.accesskit_node_builder(id).map(writer))
     }
 
+    /// Does the widget already have an accessibility node this pass?
+    pub(crate) fn has_accesskit_node(&self, id: Id) -> bool {
+        self.write(|ctx| {
+            ctx.viewport()
+                .this_pass
+                .accesskit_state
+                .as_ref()
+                .is_some_and(|state| state.nodes.contains_key(&id))
+        })
+    }
+
     pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
         self.write(|ctx| {
             if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
@@ -4570,7 +4746,76 @@ fn warn_if_rect_changes_id(
 
 #[cfg(test)]
 mod test {
+    use crate::{FontDefinitions, Panel};
+
     use super::Context;
+
+    /// Changing the font providers mid-pass must not drop the [`crate::text::Fonts`]
+    /// that the rest of the pass is still laying out text with.
+    #[test]
+    fn test_font_providers_changed_mid_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.label("before");
+            ui.ctx().set_font_providers(vec![]);
+            ui.label("after");
+        });
+        output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    fn test_root_ui_with_begin_and_end_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        ctx.begin_pass(Default::default());
+
+        let full_rect = ctx.root_ui(|ui| ui.available_rect_before_wrap());
+        ctx.root_ui(|ui| {
+            Panel::left("left").exact_size(100.0).show(ui, |_| {});
+        });
+        let remaining_rect = ctx.root_ui(|ui| ui.available_rect_before_wrap());
+        assert!(
+            full_rect.left() < remaining_rect.left(),
+            "The panel should consume space in the shared root Ui"
+        );
+        assert_eq!(remaining_rect.right(), full_rect.right());
+
+        let output = ctx.end_pass();
+        output.drop_without_applying_deltas();
+
+        let remembered_rect = ctx
+            .pass_state(|state| state.root_ui_available_rect)
+            .or_else(|| ctx.prev_pass_state(|state| state.root_ui_available_rect));
+        assert_eq!(remembered_rect, Some(remaining_rect));
+    }
+
+    #[test]
+    fn test_root_ui_with_run_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        let mut num_calls = 0;
+        let output = ctx.run_pass(Default::default(), |ctx| {
+            ctx.root_ui(|ui| {
+                Panel::top("top").exact_size(20.0).show(ui, |_| {});
+            });
+            num_calls += 1;
+        });
+        assert_eq!(num_calls, 1);
+        output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    #[should_panic(expected = "already borrowed")]
+    fn test_root_ui_while_borrowed_panics() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.ctx().root_ui(|_| {});
+        });
+        output.drop_without_applying_deltas();
+    }
 
     #[test]
     fn test_single_pass() {

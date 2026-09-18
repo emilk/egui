@@ -234,7 +234,7 @@ mod tests {
     fn fonts_with(provider: Arc<dyn FontProvider>, rasterizer: Option<GlyphRasterizer>) -> Fonts {
         let mut fonts =
             Fonts::new(TextOptions::default(), hack_only()).with_font_providers(vec![provider]);
-        fonts.set_glyph_rasterizer(rasterizer);
+        fonts.set_glyph_rasterizers(rasterizer.into_iter().collect());
         fonts
     }
 

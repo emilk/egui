@@ -1,6 +1,6 @@
 use crate::{
-    AtomKind, AtomPaintArgs, Atoms, Direction, FontSelection, Frame, Id, IdSalt, Image, IntoAtoms,
-    Response, Sense, SizedAtom, SizedAtomKind, Stroke, Ui, Widget,
+    AtomKind, AtomPaintArgs, Atoms, Direction, FontSelection, Frame, IdSalt, Image, IntoAtoms,
+    Response, SizedAtom, SizedAtomKind, Stroke, Ui, WidgetAtom,
     text_selection::LabelSelectionState,
 };
 use core::ops::{Deref, DerefMut};
@@ -38,33 +38,33 @@ fn main_cross_rect(direction: Direction, aligned_rect: Rect, min_main: f32, max_
     }
 }
 
-/// Intra-widget layout utility.
+/// The custom atom rects collected while painting, keyed by atom salt.
 ///
-/// Used to lay out and paint [`crate::Atom`]s.
-/// This is used internally by widgets like [`crate::Button`] and [`crate::Checkbox`].
-/// You can use it to make your own widgets.
+/// There should rarely be more than one.
+pub type CustomRects = SmallVec<[(IdSalt, Rect); 1]>;
+
+/// Describes how a set of [`crate::Atom`]s is laid out and painted.
 ///
-/// Painting the atoms can be split in two phases:
-/// - [`AtomLayout::allocate`]
+/// This is the container part of an atom-based widget: it owns the [`Atoms`], the [`Frame`]
+/// painted around them, the sizing constraints (`min_size` / `max_size`), the gap between
+/// atoms, alignment and text styling. It knows nothing about how the widget is shown inside a
+/// [`Ui`] (that is the job of [`crate::WidgetAtom`], which wraps a `ContainerAtom` and adds an
+/// [`Id`](crate::Id) and a [`Sense`](crate::Sense)).
+///
+/// Painting the atoms is split in two phases:
+/// - [`ContainerAtom::measure`]
 ///   - calculates sizes
 ///   - converts texts to [`Galley`]s
-///   - allocates a [`Response`]
-///   - returns a [`AllocatedAtomLayout`]
-/// - [`AllocatedAtomLayout::paint`]
+///   - returns a [`SizedContainerAtom`]
+/// - [`SizedContainerAtom::paint_at`]
 ///   - paints the [`Frame`]
 ///   - calculates individual [`crate::Atom`] positions
 ///   - paints each single atom
-///
-/// You can use this to first allocate a response and then modify, e.g., the [`Frame`] on the
-/// [`AllocatedAtomLayout`] for interaction styling.
 #[derive(Clone)]
-pub struct AtomLayout<'a> {
-    pub(crate) id: Option<Id>,
+pub struct ContainerAtom<'a> {
     pub atoms: Atoms<'a>,
     gap: Option<f32>,
     pub(crate) frame: Frame,
-    pub(crate) sense: Sense,
-    selectable: bool,
     fallback_text_color: Option<Color32>,
     fallback_font: Option<FontSelection>,
     min_size: Vec2,
@@ -74,21 +74,18 @@ pub struct AtomLayout<'a> {
     direction: Direction,
 }
 
-impl Default for AtomLayout<'_> {
+impl Default for ContainerAtom<'_> {
     fn default() -> Self {
         Self::new(())
     }
 }
 
-impl<'a> AtomLayout<'a> {
+impl<'a> ContainerAtom<'a> {
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
-            id: None,
             atoms: atoms.into_atoms(),
             gap: None,
             frame: Frame::default(),
-            sense: Sense::hover(),
-            selectable: false,
             fallback_text_color: None,
             fallback_font: None,
             min_size: Vec2::ZERO,
@@ -99,170 +96,22 @@ impl<'a> AtomLayout<'a> {
         }
     }
 
-    /// Set the gap between atoms.
-    ///
-    /// Default: `Spacing::icon_spacing`
-    #[inline]
-    pub fn gap(mut self, gap: f32) -> Self {
-        self.gap = Some(gap);
-        self
-    }
-
-    /// Set the gap between atoms, unless one was already set.
-    #[inline]
-    pub(crate) fn fallback_gap(mut self, gap: f32) -> Self {
-        self.gap = self.gap.or(Some(gap));
-        self
-    }
-
-    /// Set the [`Frame`].
-    #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
-        self.frame = frame;
-        self
-    }
-
-    /// Set the [`Sense`] used when allocating the [`Response`].
-    #[inline]
-    pub fn sense(mut self, sense: Sense) -> Self {
-        self.sense = sense;
-        self
-    }
-
-    /// Make the text in this layout selectable with the mouse.
-    ///
-    /// This is opt-in (default `false`): [`AtomLayout`] backs widgets like
-    /// [`crate::Button`] and [`crate::Checkbox`] whose labels should not be
-    /// selectable, so enabling it unconditionally would break them. When enabled,
-    /// the layout also senses clicks and drags so the selection can be made.
-    #[inline]
-    pub fn selectable(mut self, selectable: bool) -> Self {
-        self.selectable = selectable;
-        self
-    }
-
-    /// Set the fallback (default) text color.
-    ///
-    /// Default: [`crate::Visuals::text_color`]
-    #[inline]
-    pub fn fallback_text_color(mut self, color: Color32) -> Self {
-        self.fallback_text_color = Some(color);
-        self
-    }
-
-    /// Set the fallback (default) font.
-    #[inline]
-    pub fn fallback_font(mut self, font: impl Into<FontSelection>) -> Self {
-        self.fallback_font = Some(font.into());
-        self
-    }
-
-    /// Set the minimum size of the Widget.
-    ///
-    /// This will find and expand atoms with `grow: true`.
-    /// If there are no growable atoms then everything will be left-aligned.
-    #[inline]
-    pub fn min_size(mut self, size: Vec2) -> Self {
-        self.min_size = size;
-        self
-    }
-
-    /// Set the maximum size of the Widget.
-    ///
-    /// By default, the size is limited by the available size in the [`Ui`].
-    #[inline]
-    pub fn max_size(mut self, size: Vec2) -> Self {
-        self.max_size = size;
-        self
-    }
-
-    /// Set the maximum width of the Widget.
-    ///
-    /// By default, the width is limited by the available width in the [`Ui`].
-    #[inline]
-    pub fn max_width(mut self, width: f32) -> Self {
-        self.max_size.x = width;
-        self
-    }
-
-    /// Set the maximum height of the Widget.
-    ///
-    /// By default, the height is limited by the available height in the [`Ui`].
-    #[inline]
-    pub fn max_height(mut self, height: f32) -> Self {
-        self.max_size.y = height;
-        self
-    }
-
-    /// Set the [`Id`] used to allocate a [`Response`].
-    #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
-        self
-    }
-
-    /// Set the [`TextWrapMode`] for the [`crate::Atom`] marked as `shrink`.
-    ///
-    /// Only a single [`crate::Atom`] may shrink. If this (or `ui.wrap_mode()`) is not
-    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (left-most)
-    /// [`AtomKind::Text`] will be set to shrink.
-    #[inline]
-    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
-        self.wrap_mode = Some(wrap_mode);
-        self
-    }
-
-    /// Set the [`Align2`].
-    ///
-    /// This will align the [`crate::Atom`]s within the [`Rect`] returned by [`Ui::allocate_space`].
-    ///
-    /// The default is chosen based on the [`Ui`]s [`crate::Layout`]. See
-    /// [this snapshot](https://github.com/emilk/egui/blob/master/tests/egui_tests/tests/snapshots/layout/button.png)
-    /// for info on how the [`crate::Layout`] affects the alignment.
-    #[inline]
-    pub fn align2(mut self, align2: Align2) -> Self {
-        self.align2 = Some(align2);
-        self
-    }
-
-    /// Set the [`Direction`] the [`crate::Atom`]s are laid out along.
-    ///
-    /// The default is [`Direction::LeftToRight`] (a horizontal row). Use
-    /// [`Direction::TopDown`] (or [`Direction::BottomUp`]) to stack atoms vertically.
-    ///
-    /// The main axis (the direction) is where `grow`/`shrink` and the gap apply; the cross axis
-    /// is sized to the largest atom. [`Self::align2`] positions the whole block within the
-    /// allocated [`Rect`].
-    #[inline]
-    pub fn direction(mut self, direction: Direction) -> Self {
-        self.direction = direction;
-        self
-    }
-
-    /// [`AtomLayout::allocate`] and [`AllocatedAtomLayout::paint`] in one go.
-    pub fn show(self, ui: &mut Ui) -> AtomLayoutResponse {
-        self.allocate(ui).paint(ui)
-    }
-
     /// Measure the atoms (sizing only), without allocating space or interacting.
     ///
-    /// This converts texts to [`Galley`]s and calculates sizes, but unlike [`Self::allocate`]
-    /// it does *not* call [`Ui::allocate_space`] (so the parent cursor is left untouched) nor
-    /// [`Ui::interact`]. Use the returned [`SizedAtomLayout`] to paint at an arbitrary [`Rect`]
-    /// via [`SizedAtomLayout::paint_at`]. This is what makes it possible to nest one
-    /// [`AtomLayout`] inside another.
+    /// This converts texts to [`Galley`]s and calculates sizes, but it does *not* call
+    /// [`Ui::allocate_space`] (so the parent cursor is left untouched) nor [`Ui::interact`].
+    /// Use the returned [`SizedContainerAtom`] to paint at an arbitrary [`Rect`] via
+    /// [`SizedContainerAtom::paint_at`]. This is what makes it possible to nest one atom-based
+    /// widget inside another.
     ///
     /// `available_size` is the space available to the whole widget (frame included); it is
-    /// clamped by `max_size`/`min_size`, exactly like [`Self::allocate`] does with
+    /// clamped by `max_size`/`min_size`, exactly like [`crate::WidgetAtom::allocate`] does with
     /// [`Ui::available_size`].
-    pub fn measure(self, ui: &Ui, available_size: Vec2) -> SizedAtomLayout<'a> {
+    pub fn measure(self, ui: &Ui, available_size: Vec2) -> SizedContainerAtom<'a> {
         let Self {
-            id,
             mut atoms,
             gap,
             frame,
-            mut sense,
-            selectable,
             fallback_text_color,
             min_size,
             mut max_size,
@@ -273,19 +122,6 @@ impl<'a> AtomLayout<'a> {
         } = self;
 
         let fallback_font = fallback_font.unwrap_or_default();
-
-        if selectable {
-            // Mirror `Label`: sense clicks and drags so the text can be selected,
-            // but don't take keyboard focus on TAB.
-            let allow_drag_to_select = ui.input(|i| !i.has_touch_screen());
-            let mut select_sense = if allow_drag_to_select {
-                Sense::click_and_drag()
-            } else {
-                Sense::click()
-            };
-            select_sense -= Sense::FOCUSABLE;
-            sense |= select_sense;
-        }
 
         let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
 
@@ -302,8 +138,6 @@ impl<'a> AtomLayout<'a> {
                 }
             }
         }
-
-        let id = id.unwrap_or_else(|| ui.next_auto_id());
 
         let fallback_text_color =
             fallback_text_color.unwrap_or_else(|| ui.style().visuals.text_color());
@@ -417,12 +251,10 @@ impl<'a> AtomLayout<'a> {
             + margin.sum())
         .at_least(min_size);
 
-        SizedAtomLayout {
+        SizedContainerAtom {
             sized_atoms: sized_items,
             frame,
             fallback_text_color,
-            id,
-            sense,
             outer_size,
             intrinsic_size,
             grow_count,
@@ -430,37 +262,141 @@ impl<'a> AtomLayout<'a> {
             align2,
             gap,
             direction,
-            selectable,
         }
-    }
-
-    /// Calculate sizes, create [`Galley`]s and allocate a [`Response`].
-    ///
-    /// Use the returned [`AllocatedAtomLayout`] for painting.
-    pub fn allocate(self, ui: &mut Ui) -> AllocatedAtomLayout<'a> {
-        let sized = self.measure(ui, ui.available_size());
-
-        let (_, rect) = ui.allocate_space(sized.outer_size);
-        let mut response = ui.interact(rect, sized.id, sized.sense);
-        response.set_intrinsic_size(sized.intrinsic_size);
-
-        AllocatedAtomLayout { sized, response }
     }
 }
 
-/// A measured [`AtomLayout`], ready to be painted at a [`Rect`].
+/// Generates the layout-builder methods shared by [`ContainerAtom`] and [`WidgetAtom`] from a
+/// single definition, so the two can never drift apart.
 ///
-/// Produced by [`AtomLayout::measure`]. Unlike [`AllocatedAtomLayout`], it has not yet
-/// allocated space or interacted, so it can be painted at an arbitrary [`Rect`] via
-/// [`Self::paint_at`]. This is what lets one [`AtomLayout`] be nested inside another.
+/// Each entry is written as it appears on [`ContainerAtom`] (mutating its own fields). The
+/// matching method on [`WidgetAtom`] is generated automatically, forwarding to its inner
+/// `container`. [`WidgetAtom`]-only builders (`id`, `sense`) stay inherent on [`WidgetAtom`].
+macro_rules! shared_container_builders {
+    (
+        $(
+            $(#[$meta:meta])*
+
+            fn $name:ident($self:ident, $($arg:ident: $arg_ty:ty),* $(,)?) $body:block
+        )*
+    ) => {
+        impl<'a> ContainerAtom<'a> {
+            $(
+                $(#[$meta])*
+                #[inline]
+                pub fn $name(mut $self, $($arg: $arg_ty),*) -> Self {
+                    $body
+                    $self
+                }
+            )*
+        }
+
+        impl<'a> WidgetAtom<'a> {
+            $(
+                $(#[$meta])*
+                #[inline]
+                pub fn $name(mut self, $($arg: $arg_ty),*) -> Self {
+                    self.container = self.container.$name($($arg),*);
+                    self
+                }
+            )*
+        }
+    };
+}
+
+shared_container_builders! {
+    /// Set the gap between atoms.
+    ///
+    /// Default: `Spacing::icon_spacing`
+    fn gap(self, gap: f32) {
+        self.gap = Some(gap);
+    }
+
+    /// Set the gap between atoms if no gap has been set yet.
+    fn fallback_gap(self, gap: f32) {
+        self.gap = self.gap.or(Some(gap));
+    }
+
+    /// Set the direction the atoms are laid out along.
+    fn direction(self, direction: Direction) {
+        self.direction = direction;
+    }
+
+    /// Set the [`Frame`].
+    fn frame(self, frame: Frame) {
+        self.frame = frame;
+    }
+
+    /// Set the fallback (default) text color.
+    ///
+    /// Default: [`crate::Visuals::text_color`]
+    fn fallback_text_color(self, color: Color32) {
+        self.fallback_text_color = Some(color);
+    }
+
+    /// Set the fallback (default) font.
+    fn fallback_font(self, font: impl Into<FontSelection>) {
+        self.fallback_font = Some(font.into());
+    }
+
+    /// Set the minimum size of the Widget.
+    ///
+    /// This will find and expand atoms with `grow: true`.
+    /// If there are no growable atoms then everything will be left-aligned.
+    fn min_size(self, size: Vec2) {
+        self.min_size = size;
+    }
+
+    /// Set the maximum size of the Widget.
+    ///
+    /// By default, the size is limited by the available size in the [`Ui`].
+    fn max_size(self, size: Vec2) {
+        self.max_size = size;
+    }
+
+    /// Set the maximum width of the Widget.
+    ///
+    /// By default, the width is limited by the available width in the [`Ui`].
+    fn max_width(self, width: f32) {
+        self.max_size.x = width;
+    }
+
+    /// Set the maximum height of the Widget.
+    ///
+    /// By default, the height is limited by the available height in the [`Ui`].
+    fn max_height(self, height: f32) {
+        self.max_size.y = height;
+    }
+
+    /// Set the [`TextWrapMode`] for the [`crate::Atom`] marked as `shrink`.
+    ///
+    /// Only a single [`crate::Atom`] may shrink. If this (or `ui.wrap_mode()`) is not
+    /// [`TextWrapMode::Extend`] and no item is set to shrink, the first (left-most)
+    /// [`AtomKind::Text`] will be set to shrink.
+    fn wrap_mode(self, wrap_mode: TextWrapMode) {
+        self.wrap_mode = Some(wrap_mode);
+    }
+
+    /// Set the [`Align2`].
+    ///
+    /// This will align the [`crate::Atom`]s within the [`Rect`] returned by [`Ui::allocate_space`].
+    ///
+    /// The default is chosen based on the [`Ui`]s [`crate::Layout`]. See
+    /// [this snapshot](https://github.com/emilk/egui/blob/master/tests/egui_tests/tests/snapshots/layout/button.png)
+    /// for info on how the [`crate::Layout`] affects the alignment.
+    fn align2(self, align2: Align2) {
+        self.align2 = Some(align2);
+    }
+}
+
+/// A measured [`ContainerAtom`], ready to be painted at a [`Rect`].
+///
+/// Produced by [`ContainerAtom::measure`]. It has not yet allocated space or interacted, so it
+/// can be painted at an arbitrary [`Rect`] via [`Self::paint_at`]. This is what lets one
+/// atom-based widget be nested inside another. To allocate space and interact, wrap it in a
+/// [`crate::SizedWidgetAtom`] (or measure a [`crate::WidgetAtom`] directly).
 #[derive(Clone, Debug)]
-pub struct SizedAtomLayout<'a> {
-    /// The [`Id`] used to [`Ui::interact`] when this layout is allocated / painted.
-    id: Id,
-
-    /// The [`Sense`] used to [`Ui::interact`] when this layout is allocated / painted.
-    sense: Sense,
-
+pub struct SizedContainerAtom<'a> {
     /// The total widget size we'll request, including the frame margin. Used to allocate space.
     ///
     /// Actual allocated size may be different.
@@ -493,23 +429,9 @@ pub struct SizedAtomLayout<'a> {
 
     /// The axis the atoms are laid out along. The main axis carries `grow`/`shrink`/`gap`.
     direction: Direction,
-
-    selectable: bool,
 }
 
-/// Instructions for painting an [`AtomLayout`].
-///
-/// This is a [`SizedAtomLayout`] that has additionally allocated space and interacted,
-/// producing a [`Response`].
-#[derive(Clone, Debug)]
-pub struct AllocatedAtomLayout<'a> {
-    /// The measured layout.
-    pub sized: SizedAtomLayout<'a>,
-
-    pub response: Response,
-}
-
-impl<'atom> SizedAtomLayout<'atom> {
+impl<'atom> SizedContainerAtom<'atom> {
     pub fn iter_kinds(&self) -> impl Iterator<Item = &SizedAtomKind<'atom>> {
         self.sized_atoms.iter().map(|atom| &atom.kind)
     }
@@ -586,9 +508,20 @@ impl<'atom> SizedAtomLayout<'atom> {
     /// Paint the [`Frame`] and individual [`crate::Atom`]s within `rect`.
     ///
     /// `rect` is the full widget rect (frame included). For a top-level layout this is
-    /// `response.rect`; when nested, the parent passes the cell rect it computed. `response`
-    /// becomes the base of the returned [`AtomLayoutResponse`].
-    pub fn paint_at(self, ui: &Ui, rect: Rect, response: Response) -> AtomLayoutResponse {
+    /// `response.rect`; when nested, the parent passes the cell rect it computed.
+    ///
+    /// Returns the [`CustomRects`] collected from [`crate::Atom::custom`] atoms, so the caller
+    /// can build an [`crate::WidgetAtomResponse`].
+    pub fn paint_at(self, ui: &Ui, rect: Rect) -> CustomRects {
+        self.paint_at_with_selection(ui, rect, None)
+    }
+
+    pub(crate) fn paint_at_with_selection(
+        self,
+        ui: &Ui,
+        rect: Rect,
+        selection_response: Option<&Response>,
+    ) -> CustomRects {
         let Self {
             mut sized_atoms,
             frame,
@@ -598,7 +531,6 @@ impl<'atom> SizedAtomLayout<'atom> {
             align2,
             gap,
             direction,
-            selectable,
             ..
         } = self;
 
@@ -633,7 +565,7 @@ impl<'atom> SizedAtomLayout<'atom> {
         // The cursor walks the main axis from the start (left/top) of the aligned block.
         let mut cursor = aligned_rect.min.to_vec2()[main_axis];
 
-        let mut response = AtomLayoutResponse::empty(response);
+        let mut custom_rects = CustomRects::new();
 
         for sized in sized_atoms {
             let size = sized.size;
@@ -650,21 +582,21 @@ impl<'atom> SizedAtomLayout<'atom> {
 
             if let Some(id) = sized.id {
                 debug_assert!(
-                    !response.custom_rects.iter().any(|(i, _)| *i == id),
+                    !custom_rects.iter().any(|(i, _)| *i == id),
                     "Duplicate custom id"
                 );
-                response.custom_rects.push((id, item_rect));
+                custom_rects.push((id, item_rect));
             }
 
             match sized.kind {
                 SizedAtomKind::Text(galley) => {
-                    if selectable {
+                    if let Some(response) = selection_response {
                         // Route through the label selection machinery, which also
                         // paints the galley. `Stroke::NONE` keeps the rendering
                         // identical to the non-selectable path (no focus underline).
                         LabelSelectionState::label_text_selection(
                             ui,
-                            &response.response,
+                            response,
                             item_rect.min,
                             galley,
                             fallback_text_color,
@@ -688,80 +620,22 @@ impl<'atom> SizedAtomLayout<'atom> {
                         },
                     );
                 }
-                SizedAtomKind::Layout(layout) => {
-                    // TODO(lucasmerlin): Add some kind of justify flag, right now nested atoms are always
-                    // shown fully stretched.
-                    let layout_response = ui.interact(cell, layout.id, layout.sense);
-                    layout.paint_at(ui, cell, layout_response);
+                SizedAtomKind::Widget(widget) => {
+                    // TODO(lucasmerlin): Add some kind of justify flag to the layout
+                    widget.paint_at(ui, cell);
+                }
+                SizedAtomKind::Container(container) => {
+                    // A nested container has no id/sense, so it is painted but not interacted with.
+                    container.paint_at(ui, cell);
                 }
             }
         }
 
-        response
+        custom_rects
     }
 }
 
-impl AllocatedAtomLayout<'_> {
-    /// Paint the [`Frame`] and individual [`crate::Atom`]s at the allocated [`Response`]'s rect.
-    pub fn paint(self, ui: &Ui) -> AtomLayoutResponse {
-        let rect = self.response.rect;
-        self.sized.paint_at(ui, rect, self.response)
-    }
-}
-
-/// Response from a [`AtomLayout::show`] or [`AllocatedAtomLayout::paint`].
-///
-/// Use [`AtomLayoutResponse::rect`] to get the response rects from [`crate::Atom::custom`].
-#[derive(Clone, Debug)]
-pub struct AtomLayoutResponse {
-    pub response: Response,
-    // There should rarely be more than one custom rect.
-    custom_rects: SmallVec<[(IdSalt, Rect); 1]>,
-}
-
-impl AtomLayoutResponse {
-    pub fn empty(response: Response) -> Self {
-        Self {
-            response,
-            custom_rects: Default::default(),
-        }
-    }
-
-    pub fn custom_rects(&self) -> impl Iterator<Item = (IdSalt, Rect)> + '_ {
-        self.custom_rects.iter().copied()
-    }
-
-    /// Use this together with [`crate::Atom::custom`] to add custom painting / child widgets.
-    ///
-    /// NOTE: Don't `unwrap` rects, they might be empty when the widget is not visible.
-    pub fn rect(&self, id: IdSalt) -> Option<Rect> {
-        self.custom_rects
-            .iter()
-            .find_map(|(i, r)| if *i == id { Some(*r) } else { None })
-    }
-}
-
-impl Deref for AtomLayoutResponse {
-    type Target = Response;
-
-    fn deref(&self) -> &Self::Target {
-        &self.response
-    }
-}
-
-impl DerefMut for AtomLayoutResponse {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.response
-    }
-}
-
-impl Widget for AtomLayout<'_> {
-    fn ui(self, ui: &mut Ui) -> Response {
-        self.show(ui).response
-    }
-}
-
-impl<'a> Deref for AtomLayout<'a> {
+impl<'a> Deref for ContainerAtom<'a> {
     type Target = Atoms<'a>;
 
     fn deref(&self) -> &Self::Target {
@@ -769,13 +643,13 @@ impl<'a> Deref for AtomLayout<'a> {
     }
 }
 
-impl DerefMut for AtomLayout<'_> {
+impl DerefMut for ContainerAtom<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.atoms
     }
 }
 
-impl<'a> Deref for SizedAtomLayout<'a> {
+impl<'a> Deref for SizedContainerAtom<'a> {
     type Target = [SizedAtom<'a>];
 
     fn deref(&self) -> &Self::Target {
@@ -783,22 +657,8 @@ impl<'a> Deref for SizedAtomLayout<'a> {
     }
 }
 
-impl DerefMut for SizedAtomLayout<'_> {
+impl DerefMut for SizedContainerAtom<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.sized_atoms
-    }
-}
-
-impl<'a> Deref for AllocatedAtomLayout<'a> {
-    type Target = SizedAtomLayout<'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.sized
-    }
-}
-
-impl DerefMut for AllocatedAtomLayout<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.sized
     }
 }

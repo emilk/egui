@@ -469,12 +469,28 @@ pub mod text {
 }
 
 pub use self::{
-    atomics::*,
-    containers::{menu::MenuBar, *},
+    atomics::{
+        AllocatedWidgetAtom, Atom, AtomClosure, AtomExt, AtomKind, AtomPaint, AtomPaintArgs, Atoms,
+        ContainerAtom, CustomRects, IntoAtoms, IntoSizedArgs, IntoSizedResult, SizedAtom,
+        SizedAtomKind, SizedContainerAtom, SizedWidgetAtom, WidgetAtom, WidgetAtomResponse,
+    },
+    containers::{
+        Area, AreaState, CentralPanel, ClosableTag, CollapsingHeader, CollapsingResponse, ComboBox,
+        DragPanButtons, Frame, IconPainter, Modal, ModalResponse, Panel, PanelState, Popup,
+        PopupAnchor, PopupCloseBehavior, PopupKind, Resize, Scene, ScrollArea, SetOpenCommand,
+        Sides, Tooltip, Window, WindowDrag, collapsing_header, frame,
+        menu::{self, MenuBar},
+        modal, panel, scroll_area,
+    },
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
         Key, ScreenshotCallback,
-        input::*,
+        input::{
+            DroppedFile, DroppedFileHandle, Event, EventFilter, HoveredFile, ImeEvent,
+            KeyboardShortcut, ModifierNames, Modifiers, MouseWheelUnit, NUM_POINTER_BUTTONS,
+            PointerButton, RawInput, SafeAreaInsets, TouchDeviceId, TouchId, TouchPhase,
+            ViewportEvent, ViewportInfo,
+        },
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
             PlatformOutput, UserAttentionType, WidgetInfo,
@@ -483,11 +499,11 @@ pub use self::{
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,
     grid::Grid,
-    id::{AsId, Id, IdMap, IdSet},
-    id_salt::{AsIdSalt, IdSalt},
+    id::{Id, IdMap, IdSet},
+    id_salt::{AsIdSalt, IdSalt, IdSaltMap, IdSaltSet},
     input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
     layers::{LayerId, Order},
-    layout::*,
+    layout::Layout,
     load::SizeHint,
     memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
     painter::Painter,
@@ -498,11 +514,38 @@ pub use self::{
     text::{Galley, TextFormat},
     ui::Ui,
     ui_builder::{IdSource, UiBuilder},
-    ui_stack::*,
-    viewport::*,
+    ui_stack::{UiKind, UiStack, UiStackInfo, UiStackIterator, UiTags},
+    viewport::{
+        CursorGrab, DeferredViewportUiCallback, IMEPurpose, IconData, ImmediateViewport,
+        ImmediateViewportRendererCallback, OrderedViewportIdMap, ResizeDirection, SystemTheme,
+        ViewportBuilder, ViewportClass, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
+        ViewportIdSet, ViewportOutput, WindowLevel, X11WindowType,
+    },
     widget_rect::{InteractOptions, WidgetRect, WidgetRects},
     widget_text::{RichText, WidgetText},
-    widgets::*,
+    widgets::{
+        BoxedWidget, Button, Checkbox, CompletionOutput, CompletionPopup, CompletionQuery,
+        DragValue, DragValueSettings, FrameDurations, Hyperlink, Image, ImageFit, ImageOptions,
+        ImageSize, ImageSource, Label, Link, NumFormatter, NumParser, ProgressBar, RadioButton,
+        RangeSlider, Separator, Slider, SliderClamping, SliderOrientation, SliderSpec, Spinner,
+        Suggestion, TextBuffer, TextEdit, ValueFormat, Widget, WidgetWithState, color_picker,
+        decode_animated_image_uri, global_theme_preference_buttons, has_gif_magic_header,
+        has_webp_header, paint_texture_at, reset_button, reset_button_with, text_edit,
+    },
+};
+
+#[expect(deprecated)]
+pub use self::{
+    atomics::{AllocatedAtomLayout, AtomLayout, AtomLayoutResponse, SizedAtomLayout},
+    id::AsId,
+    widgets::global_theme_preference_switch,
+};
+
+/// Modules and types that are private to the crate,
+/// but which the rest of the crate reaches via `crate::…`.
+pub(crate) use self::{
+    containers::{area, resize},
+    layout::Region,
 };
 
 // ----------------------------------------------------------------------------
@@ -646,8 +689,8 @@ pub enum WidgetType {
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let output = ctx.run_ui(Default::default(), |ui| {
-        run_ui(ui.ctx());
+    let output = ctx.run_pass(Default::default(), |ctx| {
+        run_ui(ctx);
     });
     output.drop_without_applying_deltas();
 }
