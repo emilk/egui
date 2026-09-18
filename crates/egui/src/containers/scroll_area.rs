@@ -1315,11 +1315,8 @@ impl Prepared {
 
             // The bounding rect of a fully visible bar.
             // When we hover this area, we should show the full bar:
-            let max_bar_rect = if d == 0 {
-                outer_rect.with_min_y(max_cross - full_width)
-            } else {
-                outer_rect.with_min_x(max_cross - full_width)
-            };
+            let max_bar_rect =
+                scroll_bar_interaction_rect(d, outer_rect, scroll_bar_rect, max_cross, full_width);
 
             let sense = if scroll_source.scroll_bar && ui.is_enabled() {
                 Sense::CLICK | Sense::DRAG
@@ -1559,6 +1556,22 @@ impl Prepared {
     }
 }
 
+fn scroll_bar_interaction_rect(
+    direction: usize,
+    outer_rect: Rect,
+    scroll_bar_rect: Rect,
+    max_cross: f32,
+    full_width: f32,
+) -> Rect {
+    if direction == 0 {
+        Rect::from_x_y_ranges(scroll_bar_rect.x_range(), outer_rect.y_range())
+            .with_min_y(max_cross - full_width)
+    } else {
+        Rect::from_x_y_ranges(outer_rect.x_range(), scroll_bar_rect.y_range())
+            .with_min_x(max_cross - full_width)
+    }
+}
+
 /// Paint fade-out gradients at the top and/or bottom of a scroll area to
 /// indicate that more content is available beyond the visible region.
 fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: Vec2) {
@@ -1637,5 +1650,29 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
             Direction::RightToLeft,
             [bg_faded, Color32::TRANSPARENT],
         ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::scroll_bar_interaction_rect;
+    use crate::{Rect, pos2};
+
+    #[test]
+    fn scroll_bar_interaction_rect_uses_custom_scroll_axis() {
+        let outer_rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0));
+        let scroll_bar_rect = Rect::from_min_max(pos2(20.0, 20.0), pos2(80.0, 80.0));
+
+        let horizontal = scroll_bar_interaction_rect(0, outer_rect, scroll_bar_rect, 96.0, 10.0);
+        assert_eq!(horizontal.min.x, 20.0);
+        assert_eq!(horizontal.max.x, 80.0);
+        assert_eq!(horizontal.min.y, 86.0);
+        assert_eq!(horizontal.max.y, 100.0);
+
+        let vertical = scroll_bar_interaction_rect(1, outer_rect, scroll_bar_rect, 96.0, 10.0);
+        assert_eq!(vertical.min.x, 86.0);
+        assert_eq!(vertical.max.x, 100.0);
+        assert_eq!(vertical.min.y, 20.0);
+        assert_eq!(vertical.max.y, 80.0);
     }
 }
