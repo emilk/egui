@@ -641,6 +641,10 @@ impl Slider<'_> {
             if let Some(value_response) = value_response {
                 value_response.labelled_by(label_response.id);
             }
+        } else if let Some(value_response) = value_response {
+            // The number field is part of the slider, so it shares whatever names the slider.
+            // Without this it would have no name of its own.
+            value_response.labelled_by(slider_response.id);
         }
 
         response
