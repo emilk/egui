@@ -130,11 +130,8 @@ pub fn slider_should_move_with_fixed_decimals() {
     let mut harness = Harness::new_ui(|ui| {
         // Movement on arrow-key is relative to slider width; make the slider wide so the movement becomes small.
         ui.spacing_mut().slider_width = 2000.0;
-        ui.add(
-            egui::Slider::new(&mut value, 0.1..=10.0)
-                .fixed_decimals(2)
-                .text("Value"),
-        );
+        ui.add(egui::Slider::new(&mut value, 0.1..=10.0).fixed_decimals(2))
+            .on_hover_text("Value");
     });
 
     harness.key_press(egui::Key::Tab);
