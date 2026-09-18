@@ -3443,6 +3443,25 @@ impl Context {
         }
     }
 
+    /// Transform all the graphics at the given layer, but only after they have been tessellated and
+    /// snapped to the pixel grid.
+    ///
+    /// Unlike [`Self::transform_layer_shapes`], the snapping happens in the layer's own
+    /// coordinates, so the rendering converges on the untransformed one.
+    /// Use this for an animation that ends at [`TSTransform::IDENTITY`], such as a popup scaling
+    /// into place: it doesn't end with a jump of up to a pixel.
+    /// See [`epaint::TransformedShape`] for the trade-off.
+    ///
+    /// This only applies to the existing graphics at the layer, not to graphics added later, so
+    /// call it once the layer is complete — [`crate::Plugin::on_end_pass`] is a good place.
+    ///
+    /// Interaction is unaffected: the layer keeps its own input coordinates.
+    pub fn transform_layer_shapes_after_rounding(&self, layer_id: LayerId, transform: TSTransform) {
+        if transform != TSTransform::IDENTITY {
+            self.graphics_mut(|g| g.entry(layer_id).transform_after_rounding(transform));
+        }
+    }
+
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
         self.memory(|mem| mem.layer_id_at(pos))
