@@ -93,6 +93,16 @@ impl core::fmt::Debug for IdSalt {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+/// `IdSaltSet` is a `HashSet<IdSalt>` optimized by knowing that [`IdSalt`] has good entropy, and doesn't need more hashing.
+pub type IdSaltSet = nohash_hasher::IntSet<IdSalt>;
+
+/// `IdSaltMap<V>` is a `HashMap<IdSalt, V>` optimized by knowing that [`IdSalt`] has good entropy, and doesn't need more hashing.
+pub type IdSaltMap<V> = nohash_hasher::IntMap<IdSalt, V>;
+
+// ----------------------------------------------------------------------------
+
 /// In debug builds, remember the `Debug`-formatted source that produced each [`IdSalt`].
 ///
 /// Used by [`IdSalt`]'s `Debug` impl so that `IdSalt::new("foo")` prints as
