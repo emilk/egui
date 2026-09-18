@@ -1015,11 +1015,13 @@ impl<'t> TextEdit<'t> {
             });
         } else if selection_changed && let Some(cursor_range) = cursor_range {
             let char_range = cursor_range.as_sorted_char_range();
-            let info = WidgetInfo::text_selection_changed(
+            let mut info = WidgetInfo::text_selection_changed(
                 ui.is_enabled(),
                 char_range,
                 mask_if_password(password, text.as_str()),
             );
+            // Keep the placeholder, or the field loses its name while the user moves the cursor.
+            info.hint_text = Some(hint_text_str.clone());
             response.output_event(OutputEvent::TextSelectionChanged(info));
         } else {
             response.widget_info(|| {
