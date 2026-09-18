@@ -26,16 +26,12 @@ impl CodeExample {
         show_code(
             ui,
             r#"
-            ui.horizontal(|ui| {
-                let label = ui.label("Name");
-                ui.text_edit_singleline(name).labelled_by(label.id);
-            });"#,
+            ui.add(
+                egui::TextEdit::singleline(name)
+                    .hint_text("Name"),
+            );"#,
         );
-        // Putting things on the same line using ui.horizontal:
-        ui.horizontal(|ui| {
-            let label = ui.label("Name");
-            ui.text_edit_singleline(name).labelled_by(label.id);
-        });
+        ui.add(egui::TextEdit::singleline(name).hint_text("Name"));
         ui.end_row();
 
         show_code(
