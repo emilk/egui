@@ -1023,7 +1023,8 @@ impl Response {
         if !info.enabled {
             builder.set_disabled();
         }
-        if let Some(label) = info.label {
+        // An empty label would take precedence over `labelled_by`, so leave it unset.
+        if let Some(label) = info.label.filter(|label| !label.is_empty()) {
             if matches!(builder.role(), Role::Label) {
                 builder.set_value(label);
             } else {
