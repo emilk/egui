@@ -185,3 +185,46 @@ fn menu_snapshots() {
     harness.run();
     results.add(harness.try_snapshot("menu/subsubmenu"));
 }
+
+#[test]
+fn submenu_respects_custom_style() {
+    const FILL: egui::Color32 = egui::Color32::from_rgb(123, 45, 67);
+    const CORNER_RADIUS: egui::CornerRadius = egui::CornerRadius::same(13);
+    const STROKE: egui::Stroke = egui::Stroke {
+        width: 3.0,
+        color: egui::Color32::GREEN,
+    };
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(500.0, 300.0))
+        .build_ui(|ui| {
+            MenuBar::new().ui(ui, |ui| {
+                ui.menu_button("Menu", |ui| {
+                    SubMenuButton::new("Styled submenu")
+                        .config(MenuConfig::new().style(|style: &mut egui::Style| {
+                            style.visuals.window_fill = FILL;
+                            style.visuals.window_stroke = STROKE;
+                            style.visuals.menu_corner_radius = CORNER_RADIUS;
+                        }))
+                        .ui(ui, |ui| {
+                            assert_eq!(ui.visuals().window_fill(), FILL);
+                            ui.label("I should have a thick green outline and red fill");
+                        });
+                });
+            });
+        });
+
+    harness.get_by_label("Menu").click();
+    harness.run();
+    harness.get_by_label_contains("Styled submenu").hover();
+    harness.run();
+    assert!(
+        harness
+            .query_by_label("I should have a thick green outline and red fill")
+            .is_some()
+    );
+
+    harness.fit_contents();
+
+    harness.snapshot("submenu_style");
+}
