@@ -156,7 +156,7 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
             if !modifiers.ctrl
                 && !modifiers.command
                 // When text agent is focused, it is responsible for handling input events
-                && !runner.text_agent.has_focus()
+                && !runner.text_agent.as_ref().is_some_and(|t| t.has_focus())
                 && let Some(text) = text_from_keyboard_event(&event)
             {
                 let egui_event = egui::Event::Text(text);
@@ -257,7 +257,7 @@ fn should_prevent_default_for_key(
         }
     }
 
-    if egui_key == egui::Key::Space && !runner.text_agent.has_focus() {
+    if egui_key == egui::Key::Space && !runner.text_agent.as_ref().is_some_and(|t| t.has_focus()) {
         // Space scrolls the web page, but we don't want that while canvas has focus
         // However, don't prevent it if text agent has focus, or we can't type space!
         return true;
@@ -799,9 +799,11 @@ fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), 
 
             // Fix virtual keyboard IOS
             // Need call focus at the same time of event
-            if runner.text_agent.has_focus() {
-                runner.text_agent.set_focus(false);
-                runner.text_agent.set_focus(true);
+            if let Some(text_agent) = &runner.text_agent
+                && text_agent.has_focus()
+            {
+                text_agent.set_focus(false);
+                text_agent.set_focus(true);
             }
         }
     })

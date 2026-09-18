@@ -168,6 +168,8 @@ pub use epi::*;
 
 pub(crate) mod stopwatch;
 
+mod web_events;
+
 // ----------------------------------------------------------------------------
 // When compiling for web
 
