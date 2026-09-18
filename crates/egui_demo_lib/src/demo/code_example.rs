@@ -27,14 +27,14 @@ impl CodeExample {
             ui,
             r#"
             ui.horizontal(|ui| {
-                ui.label("Name");
-                ui.text_edit_singleline(name);
+                let label = ui.label("Name");
+                ui.text_edit_singleline(name).labelled_by(label.id);
             });"#,
         );
         // Putting things on the same line using ui.horizontal:
         ui.horizontal(|ui| {
-            ui.label("Name");
-            ui.text_edit_singleline(name);
+            let label = ui.label("Name");
+            ui.text_edit_singleline(name).labelled_by(label.id);
         });
         ui.end_row();
 

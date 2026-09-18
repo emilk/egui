@@ -59,13 +59,13 @@ impl crate::View for ManualLayoutTest {
         });
         egui::Grid::new("pos_size").show(ui, |ui| {
             ui.label("Widget position:");
-            ui.add(egui::Slider::new(&mut widget_offset.x, 0.0..=400.0));
-            ui.add(egui::Slider::new(&mut widget_offset.y, 0.0..=400.0));
+            ui.add(egui::Slider::new(&mut widget_offset.x, 0.0..=400.0).text("x"));
+            ui.add(egui::Slider::new(&mut widget_offset.y, 0.0..=400.0).text("y"));
             ui.end_row();
 
             ui.label("Widget size:");
-            ui.add(egui::Slider::new(&mut widget_size.x, 0.0..=400.0));
-            ui.add(egui::Slider::new(&mut widget_size.y, 0.0..=400.0));
+            ui.add(egui::Slider::new(&mut widget_size.x, 0.0..=400.0).text("w"));
+            ui.add(egui::Slider::new(&mut widget_size.y, 0.0..=400.0).text("h"));
             ui.end_row();
         });
 
