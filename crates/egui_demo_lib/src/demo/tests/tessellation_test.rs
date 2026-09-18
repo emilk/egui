@@ -178,17 +178,19 @@ impl crate::View for TessellationTest {
                 .spacing([12.0, 8.0])
                 .striped(true)
                 .show(ui, |ui| {
-                    ui.label("Magnification");
+                    let label = ui.label("Magnification");
                     ui.add(
                         egui::DragValue::new(magnification_pixel_size)
                             .speed(0.5)
                             .range(1.0..=32.0),
-                    );
+                    )
+                    .labelled_by(label.id);
                     ui.end_row();
 
-                    ui.label("Feathering width");
+                    let label = ui.label("Feathering width");
                     ui.horizontal(|ui| {
-                        ui.checkbox(&mut tessellation_options.feathering, "");
+                        ui.checkbox(&mut tessellation_options.feathering, "")
+                            .labelled_by(label.id);
                         ui.add_enabled(
                             tessellation_options.feathering,
                             egui::DragValue::new(
@@ -197,12 +199,13 @@ impl crate::View for TessellationTest {
                             .speed(0.1)
                             .range(0.0..=4.0)
                             .suffix(" px"),
-                        );
+                        )
+                        .labelled_by(label.id);
                     });
                     ui.end_row();
 
-                    ui.label("Paint edges");
-                    ui.checkbox(&mut self.paint_edges, "");
+                    let label = ui.label("Paint edges");
+                    ui.checkbox(&mut self.paint_edges, "").labelled_by(label.id);
                     ui.end_row();
                 });
 
@@ -284,7 +287,9 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
             for (name, prefab) in TessellationTest::interesting_shapes() {
                 ui.selectable_value(shape, prefab, name);
             }
-        });
+        })
+        .response
+        .on_hover_text("Pick a prefab shape");
 
     ui.add_space(4.0);
 
@@ -314,12 +319,14 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
                     egui::DragValue::new(&mut size.x)
                         .speed(0.2)
                         .range(0.0..=64.0),
-                );
+                )
+                .on_hover_text("Width");
                 ui.add(
                     egui::DragValue::new(&mut size.y)
                         .speed(0.2)
                         .range(0.0..=64.0),
-                );
+                )
+                .on_hover_text("Height");
                 *rect = Rect::from_center_size(Pos2::ZERO, size);
             });
             ui.end_row();
@@ -344,16 +351,17 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
             });
             ui.end_row();
 
-            ui.label("Blur width");
+            let label = ui.label("Blur width");
             ui.add(
                 egui::DragValue::new(blur_width)
                     .speed(0.5)
                     .range(0.0..=20.0),
-            );
+            )
+            .labelled_by(label.id);
             ui.end_row();
 
-            ui.label("Round to pixels");
-            ui.checkbox(round_to_pixels, "");
+            let label = ui.label("Round to pixels");
+            ui.checkbox(round_to_pixels, "").labelled_by(label.id);
             ui.end_row();
         });
 }

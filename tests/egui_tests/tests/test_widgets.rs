@@ -239,32 +239,76 @@ fn test_widget_layout(
         }
     }
 
-    let mut harness = Harness::builder().build_ui(|ui| {
-        egui_extras::install_image_loaders(ui.ctx());
+    let mut harness = Harness::builder()
+        .with_accessibility_check(false)
+        .build_ui(|ui| {
+            egui_extras::install_image_loaders(ui.ctx());
 
-        {
-            let mut wrap_test_size = test_size;
-            wrap_test_size.x /= 3.0;
-            ui.heading("Wrapping");
+            {
+                let mut wrap_test_size = test_size;
+                wrap_test_size.x /= 3.0;
+                ui.heading("Wrapping");
 
-            let modes = [
-                TextWrapMode::Extend,
-                TextWrapMode::Truncate,
-                TextWrapMode::Wrap,
-            ];
-            Grid::new("wrapping")
-                .spacing(Vec2::new(test_size.x / 2.0, 4.0))
-                .show(ui, |ui| {
-                    for mode in &modes {
-                        ui.label(format!("{mode:?}"));
-                    }
-                    ui.end_row();
+                let modes = [
+                    TextWrapMode::Extend,
+                    TextWrapMode::Truncate,
+                    TextWrapMode::Wrap,
+                ];
+                Grid::new("wrapping")
+                    .spacing(Vec2::new(test_size.x / 2.0, 4.0))
+                    .show(ui, |ui| {
+                        for mode in &modes {
+                            ui.label(format!("{mode:?}"));
+                        }
+                        ui.end_row();
 
-                    for mode in &modes {
-                        let (_, rect) = ui.allocate_space(wrap_test_size);
+                        for mode in &modes {
+                            let (_, rect) = ui.allocate_space(wrap_test_size);
 
-                        let mut child_ui = ui.new_child(UiBuilder::new().max_rect(rect));
-                        child_ui.style_mut().wrap_mode = Some(*mode);
+                            let mut child_ui = ui.new_child(UiBuilder::new().max_rect(rect));
+                            child_ui.style_mut().wrap_mode = Some(*mode);
+                            w(&mut child_ui);
+
+                            ui.painter().rect_stroke(
+                                rect,
+                                0.0,
+                                Stroke::new(1.0, Color32::WHITE),
+                                StrokeKind::Outside,
+                            );
+                        }
+                    });
+            }
+
+            ui.heading("Layout");
+            Grid::new("layout").striped(true).show(ui, |ui| {
+                ui.label("");
+                for col in &cols {
+                    ui.label(format!(
+                        "cross_align: {:?}\ncross_justify:{:?}",
+                        col.cross_align, col.cross_justify
+                    ));
+                }
+                ui.end_row();
+
+                for row in &rows {
+                    ui.label(format!(
+                        "main_dir: {:?}\nmain_align: {:?}\nmain_justify: {:?}",
+                        row.main_dir, row.main_align, row.main_justify
+                    ));
+                    for col in &cols {
+                        let layout = Layout {
+                            main_dir: row.main_dir,
+                            main_align: row.main_align,
+                            main_justify: row.main_justify,
+                            cross_align: col.cross_align,
+                            cross_justify: col.cross_justify,
+                            main_wrap: false,
+                        };
+
+                        let (_, rect) = ui.allocate_space(test_size);
+
+                        let mut child_ui =
+                            ui.new_child(UiBuilder::new().layout(layout).max_rect(rect));
                         w(&mut child_ui);
 
                         ui.painter().rect_stroke(
@@ -274,52 +318,11 @@ fn test_widget_layout(
                             StrokeKind::Outside,
                         );
                     }
-                });
-        }
 
-        ui.heading("Layout");
-        Grid::new("layout").striped(true).show(ui, |ui| {
-            ui.label("");
-            for col in &cols {
-                ui.label(format!(
-                    "cross_align: {:?}\ncross_justify:{:?}",
-                    col.cross_align, col.cross_justify
-                ));
-            }
-            ui.end_row();
-
-            for row in &rows {
-                ui.label(format!(
-                    "main_dir: {:?}\nmain_align: {:?}\nmain_justify: {:?}",
-                    row.main_dir, row.main_align, row.main_justify
-                ));
-                for col in &cols {
-                    let layout = Layout {
-                        main_dir: row.main_dir,
-                        main_align: row.main_align,
-                        main_justify: row.main_justify,
-                        cross_align: col.cross_align,
-                        cross_justify: col.cross_justify,
-                        main_wrap: false,
-                    };
-
-                    let (_, rect) = ui.allocate_space(test_size);
-
-                    let mut child_ui = ui.new_child(UiBuilder::new().layout(layout).max_rect(rect));
-                    w(&mut child_ui);
-
-                    ui.painter().rect_stroke(
-                        rect,
-                        0.0,
-                        Stroke::new(1.0, Color32::WHITE),
-                        StrokeKind::Outside,
-                    );
+                    ui.end_row();
                 }
-
-                ui.end_row();
-            }
+            });
         });
-    });
 
     harness.fit_contents();
     harness.try_snapshot(format!("layout/{name}"))
@@ -371,12 +374,15 @@ impl<'a> VisualTests<'a> {
     }
 
     fn single_test(&mut self, f: impl FnOnce(&mut Harness<'_>), enabled: bool) -> ColorImage {
-        let mut harness = Harness::builder().with_step_dt(0.05).build_ui(|ui| {
-            egui_extras::install_image_loaders(ui.ctx());
-            ui.add_enabled_ui(enabled, |ui| {
-                (self.w)(ui);
+        let mut harness = Harness::builder()
+            .with_step_dt(0.05)
+            .with_accessibility_check(false)
+            .build_ui(|ui| {
+                egui_extras::install_image_loaders(ui.ctx());
+                ui.add_enabled_ui(enabled, |ui| {
+                    (self.w)(ui);
+                });
             });
-        });
 
         harness.fit_contents();
 

@@ -416,6 +416,12 @@ impl Widget for DragValue<'_> {
         let prefix_text = prefix.text().unwrap_or_default().into_owned();
         let suffix_text = suffix.text().unwrap_or_default().into_owned();
 
+        // A prefix or suffix is the visible label of the value, so it names the widget.
+        let label = atoms
+            .text()
+            .map(|text| text.trim().to_owned())
+            .filter(|text| !text.is_empty());
+
         let atom_id = IdSalt::new(Self::ATOM_ID);
 
         let shift = ui.input(|i| i.modifiers.shift_only());
@@ -678,6 +684,9 @@ impl Widget for DragValue<'_> {
             // The name field is set to the current value by the button,
             // but we don't want it set that way on this widget type.
             builder.clear_label();
+            if let Some(label) = &label {
+                builder.set_label(label.clone());
+            }
             // Always expose the value as a string. This makes the widget
             // more stable to accessibility users as it switches
             // between edit and button modes. This is particularly important
