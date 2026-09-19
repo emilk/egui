@@ -130,7 +130,7 @@ impl ContextImpl {
 
     fn request_repaint_after(
         &mut self,
-        mut delay: Duration,
+        delay: Duration,
         viewport_id: ViewportId,
         cause: RepaintCause,
     ) {
@@ -145,11 +145,6 @@ impl ContextImpl {
             // otherwise we would just schedule an immediate repaint _now_,
             // which would then clear the delay and repaint again.
             // Hovering a tooltip is a good example of a case where we want to repaint after a delay.
-        }
-
-        if let Ok(predicted_frame_time) = Duration::try_from_secs_f32(viewport.input.predicted_dt) {
-            // Make it less likely we over-shoot the target:
-            delay = delay.saturating_sub(predicted_frame_time);
         }
 
         viewport.repaint.causes.push(cause);
@@ -4749,6 +4744,100 @@ mod test {
     use crate::{FontDefinitions, Panel};
 
     use super::Context;
+
+    #[test]
+    fn test_delayed_repaint_preserves_requested_delay() {
+        use core::time::Duration;
+        use epaint::mutex::Mutex;
+        use std::sync::Arc;
+
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        // Let the initial settling repaints finish before testing timers.
+        for _ in 0..3 {
+            ctx.run_ui(Default::default(), |_| {})
+                .drop_without_applying_deltas();
+        }
+
+        let delays = Arc::new(Mutex::new(Vec::new()));
+        ctx.set_request_repaint_callback({
+            let delays = Arc::clone(&delays);
+            move |info| delays.lock().push(info.delay)
+        });
+
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.request_repaint_after(Duration::from_secs(1));
+            // A deadline shorter than predicted_dt must not become immediate.
+            ui.request_repaint_after(Duration::from_millis(1));
+            ui.request_repaint_after(Duration::from_secs(2));
+        });
+        assert_eq!(
+            *delays.lock(),
+            [Duration::from_secs(1), Duration::from_millis(1)]
+        );
+        assert_eq!(
+            output.viewport_output[&crate::ViewportId::ROOT].repaint_delay,
+            Duration::from_millis(1)
+        );
+        output.drop_without_applying_deltas();
+
+        // Immediate input/animation repaints still take priority over timers.
+        delays.lock().clear();
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.request_repaint_after(Duration::from_secs(1));
+            ui.request_repaint();
+            ui.request_repaint_after(Duration::from_millis(1));
+        });
+        assert_eq!(*delays.lock(), [Duration::from_secs(1), Duration::ZERO]);
+        assert_eq!(
+            output.viewport_output[&crate::ViewportId::ROOT].repaint_delay,
+            Duration::ZERO
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    fn test_idle_text_edit_repaints_only_for_cursor_blinks() {
+        let mut frame_counts = Vec::new();
+        for refresh_rate in [60, 144, 240] {
+            let ctx = Context::default();
+            ctx.set_fonts(FontDefinitions::empty());
+            let id = crate::Id::unique("input");
+            let mut text = String::new();
+            let mut display_frame = 0;
+            let mut idle_frames = 0;
+            while display_frame < 5 * refresh_rate {
+                let time = f64::from(display_frame) / f64::from(refresh_rate);
+                let output = ctx.run_ui(
+                    crate::RawInput {
+                        time: Some(time),
+                        focused: true,
+                        ..Default::default()
+                    },
+                    |ui| {
+                        ui.visuals_mut().text_cursor.on_duration = 0.5;
+                        ui.visuals_mut().text_cursor.off_duration = 0.5;
+                        ui.memory_mut(|memory| memory.request_focus(id));
+                        ui.add(crate::TextEdit::singleline(&mut text).id(id));
+                    },
+                );
+                if time >= 1.0 {
+                    idle_frames += 1;
+                }
+                let delay = output.viewport_output[&crate::ViewportId::ROOT].repaint_delay;
+                output.drop_without_applying_deltas();
+                // Model a reactive integration presenting at display ticks.
+                // Keep predicted_dt at its default 1/60 s, as eframe does.
+                display_frame = (display_frame + 1)
+                    .max(((time + delay.as_secs_f64()) * f64::from(refresh_rate)).ceil() as u32);
+            }
+            frame_counts.push((refresh_rate, idle_frames));
+        }
+        assert!(
+            frame_counts.iter().all(|(_, frames)| *frames == 8),
+            "(refresh rate, frames) for four idle seconds: {frame_counts:?}"
+        );
+    }
 
     /// Changing the font providers mid-pass must not drop the [`crate::text::Fonts`]
     /// that the rest of the pass is still laying out text with.
