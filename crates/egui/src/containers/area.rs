@@ -123,6 +123,7 @@ pub struct Area {
     layout: Layout,
     sizing_pass: bool,
     accessibility_parent: Option<Id>,
+    accessibility_label: Option<String>,
 }
 
 impl WidgetWithState for Area {
@@ -151,6 +152,7 @@ impl Area {
             layout: Layout::default(),
             sizing_pass: false,
             accessibility_parent: None,
+            accessibility_label: None,
         }
     }
 
@@ -188,6 +190,15 @@ impl Area {
     #[inline]
     pub fn accessibility_parent(mut self, widget_id: Id) -> Self {
         self.accessibility_parent = Some(widget_id);
+        self
+    }
+
+    /// Name the area in the accessibility tree.
+    ///
+    /// The role comes from the [`UiKind`]; the name is what a screen reader or a test finds it by.
+    #[inline]
+    pub fn accessible_name(mut self, name: impl Into<String>) -> Self {
+        self.accessibility_label = Some(name.into());
         self
     }
 
@@ -412,6 +423,7 @@ pub(crate) struct Prepared {
 
     fade_in: bool,
     layout: Layout,
+    accessibility_label: Option<String>,
 }
 
 impl Area {
@@ -447,6 +459,7 @@ impl Area {
             layout,
             sizing_pass: force_sizing_pass,
             accessibility_parent,
+            accessibility_label,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
@@ -599,6 +612,7 @@ impl Area {
             sizing_pass,
             fade_in,
             layout,
+            accessibility_label,
         }
     }
 }
@@ -636,6 +650,10 @@ impl Prepared {
             .layout(self.layout)
             .accessibility_parent(self.move_response.id)
             .closable();
+
+        if let Some(label) = self.accessibility_label.take() {
+            ui_builder = ui_builder.accessibility_label(label);
+        }
 
         if !self.enabled {
             ui_builder = ui_builder.disabled();

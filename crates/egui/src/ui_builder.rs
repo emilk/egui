@@ -28,6 +28,7 @@ pub struct UiBuilder {
     pub style: Option<Arc<Style>>,
     pub sense: Option<Sense>,
     pub accessibility_parent: Option<Id>,
+    pub accessibility_label: Option<String>,
     pub classes: Classes,
 }
 
@@ -201,6 +202,16 @@ impl UiBuilder {
     #[inline]
     pub fn accessibility_parent(mut self, parent_id: Id) -> Self {
         self.accessibility_parent = Some(parent_id);
+        self
+    }
+
+    /// Name this [`Ui`] in the accessibility tree.
+    ///
+    /// Every `Ui` is a node there, with a role from its [`UiKind`](crate::UiKind).
+    /// A name lets a screen reader, or a test, tell this panel, popup or region from the others.
+    #[inline]
+    pub fn accessibility_label(mut self, label: impl Into<String>) -> Self {
+        self.accessibility_label = Some(label.into());
         self
     }
 }

@@ -336,3 +336,39 @@ fn has_child_recursively(tree: &TreeUpdate, parent: NodeId, child: NodeId) -> bo
 
     false
 }
+
+/// A `Ui`, an area and a popup can be named, and then found by that name.
+#[test]
+fn named_ui_area_and_popup() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.scope_builder(
+            egui::UiBuilder::new().accessibility_label("Toolbox"),
+            |ui| {
+                let _ = ui.button("Hammer");
+            },
+        );
+
+        egui::Area::new(egui::Id::new("area"))
+            .accessible_name("Floating notes")
+            .show(ui.ctx(), |ui| {
+                ui.label("A note");
+            });
+
+        let response = ui.button("Open");
+        egui::Popup::from_response(&response)
+            .open(true)
+            .accessible_name("Options")
+            .show(|ui| {
+                let _ = ui.button("Option A");
+            });
+    });
+    harness.run();
+
+    harness.get_by_label("Toolbox").get_by_label("Hammer");
+    harness
+        .get_by_label("Floating notes")
+        .get_by_label("A note");
+    harness
+        .get_by_role_and_label(Role::Dialog, "Options")
+        .get_by_label("Option A");
+}
