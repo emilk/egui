@@ -574,7 +574,11 @@ fn layout_section(
                 continue;
             }
             let Some(font_face) = fonts.face(run.font_key) else {
-                continue; // Cannot happen: `segment_into_runs` turns fontless clusters into raster runs.
+                debug_assert!(
+                    false,
+                    "`segment_into_runs` should have turned this fontless cluster into a raster run"
+                );
+                continue;
             };
 
             let face_metrics =
@@ -1626,14 +1630,10 @@ mod tests {
         assert!(0.0 < row.height(), "row should have height: {row:?}");
         assert!(0.0 < row.size.x, "row should have width: {row:?}");
 
-        // Letters get a tofu box, whitespace only an advance:
-        assert!(!row.glyphs[0].uv_rect.is_nothing());
-        assert!(!row.glyphs[1].uv_rect.is_nothing());
-        assert!(row.glyphs[2].uv_rect.is_nothing());
-        assert!(0.0 < row.glyphs[2].advance_width);
-        assert!(!row.glyphs[3].uv_rect.is_nothing());
-
+        // Every character gets a tofu box, whitespace included:
         for (i, glyph) in row.glyphs.iter().enumerate() {
+            assert!(!glyph.uv_rect.is_nothing(), "glyph {i}: {glyph:?}");
+            assert!(0.0 < glyph.advance_width, "glyph {i}: {glyph:?}");
             assert_eq!(galley.clamp_cursor(&CCursor::new(i)).index.0, i);
             assert!(
                 glyph.pos.x.is_finite() && glyph.pos.y.is_finite(),
@@ -1663,9 +1663,15 @@ mod tests {
     }
 
     #[test]
-    fn missing_glyph_policy_panic_exempts_whitespace() {
-        let galley = layout_without_fonts(" \t\n ", MissingGlyphPolicy::Panic);
-        assert_eq!(galley.rows.len(), 2, "the newline should still break rows");
+    #[should_panic(expected = "No glyph for \" \" (U+0020) in Proportional")]
+    fn missing_glyph_policy_panic_without_fonts_includes_whitespace() {
+        let _ = layout_without_fonts(" ", MissingGlyphPolicy::Panic);
+    }
+
+    #[test]
+    fn no_font_newline_still_breaks_rows() {
+        let galley = layout_without_fonts(" \t\n ", MissingGlyphPolicy::Tofu);
+        assert_eq!(galley.rows.len(), 2);
         assert_eq!(galley.rows[0].row.glyphs.len(), 2);
         assert_eq!(galley.rows[1].row.glyphs.len(), 1);
     }
@@ -1688,8 +1694,9 @@ mod tests {
     #[test]
     #[cfg(feature = "default_fonts")] // Needs `hack_only`
     fn missing_glyph_policy_panic_is_satisfied_by_a_fallback_rasterizer() {
-        let rasterizer =
-            GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| Some(white_raster_glyph()));
+        let rasterizer = GlyphRasterizer::new("test", |_: &GlyphRasterizerRequest<'_>| {
+            Some(white_raster_glyph())
+        });
         let mut fonts = Fonts::new(TextOptions::default(), hack_only())
             .with_glyph_rasterizer(rasterizer)
             .with_missing_glyph_policy(MissingGlyphPolicy::Panic);

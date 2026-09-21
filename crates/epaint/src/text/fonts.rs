@@ -39,7 +39,6 @@ pub enum MissingGlyphPolicy {
     /// Panic, naming the character and the font family.
     ///
     /// For tests: a missing glyph is usually a bug, and tofu in a snapshot is easy to miss.
-    /// Whitespace and control characters never panic.
     Panic,
 }
 
@@ -436,9 +435,10 @@ impl FontsImpl {
             glyph_rasterizers: Vec::new(),
             font_providers: Default::default(),
             missing_glyph_policy: Default::default(),
-            synthetic_tofu: GlyphRasterizer::new(|request: &GlyphRasterizerRequest<'_>| {
-                Some(synthetic_tofu(request.font_size_px))
-            }),
+            synthetic_tofu: GlyphRasterizer::new(
+                "epaint::synthetic_tofu",
+                |request: &GlyphRasterizerRequest<'_>| Some(synthetic_tofu(request.font_size_px)),
+            ),
         };
         slf.set_font_providers(Vec::new());
         slf
@@ -697,8 +697,6 @@ impl FontsImpl {
     /// Nothing can draw `cluster`: no font, provider, or rasterizer.
     ///
     /// Call right before drawing tofu for it, so [`MissingGlyphPolicy::Panic`] can act.
-    /// Whitespace and control characters are exempt: fonts often lack glyphs for them,
-    /// and layout gives them widths of their own.
     pub fn on_missing_glyph(&self, family: FamilyKey, cluster: &str) {
         if self.missing_glyph_policy != MissingGlyphPolicy::Panic {
             return;
@@ -706,9 +704,6 @@ impl FontsImpl {
         let Some(chr) = cluster.chars().next() else {
             return;
         };
-        if chr.is_whitespace() || chr.is_control() {
-            return;
-        }
 
         let family = &self.families[family.0];
         let faces = family.face_names(&self.faces);
@@ -728,8 +723,7 @@ impl FontsImpl {
 
     /// The glyph for `cluster` in a family that has no font at all.
     ///
-    /// From a fallback [`GlyphRasterizer`] if one handles it, else a synthetic tofu box,
-    /// or only an advance (no bitmap) for whitespace and control characters.
+    /// From a fallback [`GlyphRasterizer`] if one handles it, else a synthetic tofu box.
     pub fn fontless_cluster(
         &mut self,
         family: FamilyKey,
@@ -749,29 +743,23 @@ impl FontsImpl {
 
         self.on_missing_glyph(family, cluster);
 
-        let chr = cluster.chars().next();
-        let advance_only = |advance_px: f32| RasterGlyphAllocation {
-            allocation: GlyphAllocation::default(),
-            advance_px,
-        };
-
-        if chr.is_some_and(char::is_whitespace) {
-            advance_only((0.3 * font_size * pixels_per_point).round())
-        } else if chr.is_none_or(char::is_control) {
-            advance_only(0.0)
-        } else {
-            let family_name = self.families[family.0].name();
-            self.glyphs
-                .allocate_raster(
-                    core::iter::once(&self.synthetic_tofu),
-                    FontPriority::Lowest,
-                    SYNTHETIC_TOFU_KEY,
-                    family_name,
-                    pixels_per_point,
-                    font_size,
-                )
-                .unwrap_or_else(|| advance_only(0.0)) // Only if the atlas cannot hold a tiny box.
-        }
+        let family_name = self.families[family.0].name();
+        self.glyphs
+            .allocate_raster(
+                core::iter::once(&self.synthetic_tofu),
+                FontPriority::Lowest,
+                SYNTHETIC_TOFU_KEY,
+                family_name,
+                pixels_per_point,
+                font_size,
+            )
+            .unwrap_or_else(|| {
+                // Only if the atlas cannot hold a tiny box: advance, but draw nothing.
+                RasterGlyphAllocation {
+                    allocation: GlyphAllocation::default(),
+                    advance_px: 0.0,
+                }
+            })
     }
 }
 
