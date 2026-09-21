@@ -417,10 +417,14 @@ impl Widget for DragValue<'_> {
         let suffix_text = suffix.text().unwrap_or_default().into_owned();
 
         // A prefix or suffix is the visible label of the value, so it names the widget.
-        let label = atoms
-            .text()
-            .map(|text| text.trim().to_owned())
-            .filter(|text| !text.is_empty());
+        // `Response::labelled_by` replaces this name with an explicit label.
+        let label = {
+            let parts: Vec<&str> = [prefix_text.trim(), suffix_text.trim()]
+                .into_iter()
+                .filter(|part| !part.is_empty())
+                .collect();
+            (!parts.is_empty()).then(|| parts.join(" "))
+        };
 
         let atom_id = IdSalt::new(Self::ATOM_ID);
 
