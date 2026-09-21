@@ -135,7 +135,8 @@ impl UiBuilder {
 
     /// Make the contents invisible.
     ///
-    /// Will also disable the `Ui` (see [`Self::disabled`]).
+    /// Will also disable the `Ui` (see [`Self::disabled`]) and exclude its contents
+    /// from accessibility.
     ///
     /// If the parent `Ui` is invisible, the child will always be invisible.
     #[inline]
@@ -145,8 +146,11 @@ impl UiBuilder {
         self
     }
 
-    /// Set to true in special cases where we do one frame
-    /// where we size up the contents of the Ui, without actually showing it.
+    /// Enable measurement-oriented layout.
+    ///
+    /// This flag alone does not suppress painting, interaction, or accessibility.
+    /// For a hidden measurement pass, combine it with [`Self::invisible`].
+    /// [`crate::Area::sizing_pass`] applies both behaviors automatically.
     ///
     /// If the `sizing_pass` flag is set on the parent,
     /// the child will inherit it automatically.

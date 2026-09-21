@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use ahash::HashMap;
 
 use crate::{Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects, id::IdSet, style};
@@ -71,6 +73,96 @@ impl ScrollTarget {
 pub struct AccessKitPassState {
     pub nodes: IdMap<accesskit::Node>,
     pub parent_map: IdMap<Id>,
+    /// Nodes belonging to explicitly invisible UI (not merely clipped or discarded).
+    pub excluded: IdSet,
+}
+
+impl AccessKitPassState {
+    /// Remove explicitly invisible nodes and repair references to the remaining tree.
+    pub fn prune_excluded_nodes(&mut self) {
+        if self.excluded.is_empty() {
+            return;
+        }
+
+        // Propagate exclusion to descendants registered before an ancestor was excluded.
+        loop {
+            let num_excluded_before = self.excluded.len();
+            #[expect(clippy::iter_over_hash_type)] // iterating over hash map to populate a hashmap
+            for (&id, parent) in &self.parent_map {
+                if self.excluded.contains(parent) {
+                    self.excluded.insert(id);
+                }
+            }
+            // Repeat until no new exclusions are added, so the result covers every descendant regardless of hash-map iteration order.
+            if self.excluded.len() == num_excluded_before {
+                break;
+            }
+        }
+
+        // Remove excluded nodes and all references to them.
+        self.nodes.retain(|id, _| !self.excluded.contains(id));
+        let node_ids = self.nodes.keys().map(|id| id.accesskit_id()).collect();
+        #[expect(clippy::iter_over_hash_type)] // Every node is updated independently/
+        for node in self.nodes.values_mut() {
+            prune_accesskit_references(node, &node_ids);
+        }
+    }
+}
+
+/// Keep all relationships, including those supplied by custom widgets, within the tree.
+fn prune_accesskit_references(
+    node: &mut accesskit::Node,
+    valid_node_ids: &HashSet<accesskit::NodeId>,
+) {
+    fn retain(
+        ids: &[accesskit::NodeId],
+        valid_node_ids: &HashSet<accesskit::NodeId>,
+    ) -> Vec<accesskit::NodeId> {
+        ids.iter()
+            .copied()
+            .filter(|id| valid_node_ids.contains(id))
+            .collect()
+    }
+
+    node.set_children(retain(node.children(), valid_node_ids));
+    node.set_controls(retain(node.controls(), valid_node_ids));
+    node.set_details(retain(node.details(), valid_node_ids));
+    node.set_described_by(retain(node.described_by(), valid_node_ids));
+    node.set_flow_to(retain(node.flow_to(), valid_node_ids));
+    node.set_labelled_by(retain(node.labelled_by(), valid_node_ids));
+    node.set_owns(retain(node.owns(), valid_node_ids));
+    node.set_radio_group(retain(node.radio_group(), valid_node_ids));
+
+    let is_missing = |id: accesskit::NodeId| !valid_node_ids.contains(&id);
+
+    if node.active_descendant().is_some_and(is_missing) {
+        node.clear_active_descendant();
+    }
+    if node.error_message().is_some_and(is_missing) {
+        node.clear_error_message();
+    }
+    if node.in_page_link_target().is_some_and(is_missing) {
+        node.clear_in_page_link_target();
+    }
+    if node.member_of().is_some_and(is_missing) {
+        node.clear_member_of();
+    }
+    if node.next_on_line().is_some_and(is_missing) {
+        node.clear_next_on_line();
+    }
+    if node.previous_on_line().is_some_and(is_missing) {
+        node.clear_previous_on_line();
+    }
+    if node.popup_for().is_some_and(is_missing) {
+        node.clear_popup_for();
+    }
+
+    // A selection is only meaningful if both endpoints survive pruning.
+    if node.text_selection().is_some_and(|selection| {
+        is_missing(selection.anchor.node) || is_missing(selection.focus.node)
+    }) {
+        node.clear_text_selection();
+    }
 }
 
 #[cfg(debug_assertions)]

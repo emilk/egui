@@ -385,8 +385,11 @@ impl Area {
 
     /// While true, a sizing pass will be done. This means the area will be invisible
     /// and the contents will be laid out to estimate the proper containing size of the area.
+    /// Unlike [`UiBuilder::sizing_pass`], this also makes the UI explicitly invisible,
+    /// disabling interaction and excluding its contents from accessibility.
+    ///
     /// If false, there will be no change to the default area behavior. This is useful if the
-    /// area contents area dynamic and you need to need to make sure the area adjusts its size
+    /// area contents are dynamic and you need to make sure the area adjusts its size
     /// accordingly.
     ///
     /// This should only be set to true during the specific frames you want force a sizing pass.

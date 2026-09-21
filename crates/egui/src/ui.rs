@@ -57,6 +57,9 @@ pub struct Ui {
     /// and all widgets will assume a gray style.
     enabled: bool,
 
+    /// Explicit invisibility, independent of clipping and pending discard requests.
+    explicitly_invisible: bool,
+
     /// Set to true in special cases where we do one frame
     /// where we size up the contents of the Ui, without actually showing it.
     sizing_pass: bool,
@@ -147,12 +150,16 @@ impl Ui {
             style,
             placer,
             enabled: true,
+            explicitly_invisible: invisible,
             sizing_pass,
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
         };
 
+        if invisible {
+            ui.ctx().exclude_from_accesskit(ui.unique_id);
+        }
         if let Some(accessibility_parent) = accessibility_parent {
             ui.ctx()
                 .register_accesskit_parent(ui.unique_id, accessibility_parent);
@@ -221,6 +228,7 @@ impl Ui {
             classes,
         } = ui_builder;
 
+        let invisible = self.explicitly_invisible || invisible;
         let mut painter = self.painter.clone();
 
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
@@ -280,6 +288,7 @@ impl Ui {
             style,
             placer,
             enabled,
+            explicitly_invisible: invisible,
             sizing_pass,
             stack: Arc::new(ui_stack),
             sense,
@@ -290,6 +299,9 @@ impl Ui {
             child_ui.disable();
         }
 
+        if invisible {
+            child_ui.ctx().exclude_from_accesskit(child_ui.unique_id);
+        }
         child_ui.ctx().register_accesskit_parent(
             child_ui.unique_id,
             accessibility_parent.unwrap_or(self.unique_id),
@@ -331,6 +343,7 @@ impl Ui {
 
     /// Set to true in special cases where we do one frame
     /// where we size up the contents of the Ui, without actually showing it.
+    /// This does not itself imply invisibility or exclusion from accessibility.
     #[inline]
     pub fn is_sizing_pass(&self) -> bool {
         self.sizing_pass
@@ -527,13 +540,17 @@ impl Ui {
     /// or if [`Context::will_discard`].
     #[inline]
     pub fn is_visible(&self) -> bool {
+        // Unlike `explicitly_invisible`, this also reflects a pending discard request.
+        // A discard suppresses painting, but does not semantically hide the widgets.
+        // Accessibility exclusion therefore uses `explicitly_invisible`, not this result.
         self.painter.is_visible()
     }
 
     /// Calling `set_invisible()` will cause all further widgets to be invisible,
     /// yet still allocate space.
     ///
-    /// The widgets will not be interactive (`set_invisible()` implies `disable()`).
+    /// The widgets will not be interactive (`set_invisible()` implies `disable()`),
+    /// and will not be exposed to accessibility tools.
     ///
     /// Once invisible, there is no way to make the [`Ui`] visible again.
     ///
@@ -555,6 +572,8 @@ impl Ui {
     /// # });
     /// ```
     pub fn set_invisible(&mut self) {
+        // Do not exclude this Ui's existing node: it may contain earlier visible widgets.
+        self.explicitly_invisible = true;
         self.painter.set_invisible();
         self.disable();
     }
@@ -946,6 +965,9 @@ impl Ui {
         sense: Sense,
         options: crate::InteractOptions,
     ) -> Response {
+        if self.explicitly_invisible {
+            self.ctx().exclude_from_accesskit(id);
+        }
         self.ctx().register_accesskit_parent(id, self.unique_id);
 
         self.ctx().create_widget(
@@ -1679,7 +1701,7 @@ impl Ui {
     /// # });
     /// ```
     pub fn add_visible(&mut self, visible: bool, widget: impl Widget) -> Response {
-        if self.is_visible() && !visible {
+        if !self.explicitly_invisible && !visible {
             // temporary make us invisible:
             let old_painter = self.painter.clone();
             let old_enabled = self.enabled;
@@ -1690,6 +1712,7 @@ impl Ui {
 
             self.painter = old_painter;
             self.enabled = old_enabled;
+            self.explicitly_invisible = false;
             response
         } else {
             self.add(widget)

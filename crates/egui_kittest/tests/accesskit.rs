@@ -174,7 +174,8 @@ fn multiple_disabled_widgets() {
 
 #[test]
 fn window_children() {
-    let output = accesskit_output_single_egui_frame(|ui| {
+    // Windows are explicitly invisible during their first frame's sizing work.
+    let output = accesskit_output_after_frames(2, |ui| {
         let mut open = true;
         Window::new("test window")
             .open(&mut open)
@@ -271,11 +272,19 @@ fn tooltip_text_names_an_unnamed_widget() {
 }
 
 fn accesskit_output_single_egui_frame(run_ui: impl FnMut(&mut Ui)) -> TreeUpdate {
+    accesskit_output_after_frames(1, run_ui)
+}
+
+fn accesskit_output_after_frames(frames: usize, mut run_ui: impl FnMut(&mut Ui)) -> TreeUpdate {
     let ctx = Context::default();
     // Disable animations, so we do not need to wait for animations to end to see the result.
     ctx.global_style_mut(|style| style.animation_time = 0.0);
     ctx.enable_accesskit();
 
+    for _ in 1..frames {
+        ctx.run_ui(RawInput::default(), &mut run_ui)
+            .drop_without_applying_deltas();
+    }
     let mut output = ctx.run_ui(RawInput::default(), run_ui);
     output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
 

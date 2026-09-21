@@ -562,6 +562,7 @@ impl ContextImpl {
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
                 nodes,
                 parent_map: IdMap::default(),
+                excluded: Default::default(),
             });
         }
 
@@ -641,6 +642,9 @@ impl ContextImpl {
 
     fn accesskit_node_builder(&mut self, id: Id) -> Option<&mut accesskit::Node> {
         let state = self.viewport().this_pass.accesskit_state.as_mut()?;
+        if state.excluded.contains(&id) {
+            return None;
+        }
         let builders = &mut state.nodes;
 
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
@@ -3093,8 +3097,14 @@ impl ContextImpl {
         {
             profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
-            if let Some(state) = state {
+            if let Some(mut state) = state {
+                state.prune_excluded_nodes();
                 let root_id = crate::accesskit_root_id().accesskit_id();
+                let focus_id = self
+                    .memory
+                    .focused()
+                    .filter(|id| state.nodes.contains_key(id))
+                    .map_or(root_id, |id| id.accesskit_id());
                 // The `(id, node)` pairs of the coming `accesskit::TreeUpdate`:
                 let mut nodes: Vec<(accesskit::NodeId, accesskit::Node)> = state
                     .nodes
@@ -3102,10 +3112,6 @@ impl ContextImpl {
                     .map(|(id, node)| (id.accesskit_id(), node))
                     .collect();
                 flatten_labelled_by(&mut nodes);
-                let focus_id = self
-                    .memory
-                    .focused()
-                    .map_or(root_id, |id| id.accesskit_id());
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
@@ -4078,7 +4084,8 @@ impl Context {
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
-    /// Returns `None` if accesskit is off.
+    /// Returns `None` if accesskit is off or the ID belongs to explicitly invisible UI.
+    /// Custom widgets should register their ID with [`Ui::interact`] before calling this.
     // TODO(emilk): consider making both read-only and read-write versions
     pub fn accesskit_node_builder<R>(
         &self,
@@ -4102,10 +4109,21 @@ impl Context {
         })
     }
 
+    pub(crate) fn exclude_from_accesskit(&self, id: Id) {
+        self.write(|ctx| {
+            if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
+                state.excluded.insert(id);
+            }
+        });
+    }
+
     pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
         self.write(|ctx| {
             if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
                 state.parent_map.insert(id, parent_id);
+                if state.excluded.contains(&parent_id) {
+                    state.excluded.insert(id);
+                }
             }
         });
     }
