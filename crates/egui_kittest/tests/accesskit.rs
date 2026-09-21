@@ -348,7 +348,7 @@ fn named_ui_area_and_popup() {
             },
         );
 
-        egui::Area::new(egui::Id::new("area"))
+        egui::Area::new(egui::Id::unique("area"))
             .accessible_name("Floating notes")
             .show(ui.ctx(), |ui| {
                 ui.label("A note");
