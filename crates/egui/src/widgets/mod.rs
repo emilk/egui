@@ -21,10 +21,13 @@ mod image;
 mod label;
 mod progress_bar;
 mod radio_button;
+mod range_slider;
 mod separator;
 mod slider;
+mod slider_core;
 mod spinner;
 pub mod text_edit;
+mod value_format;
 
 pub use self::{
     button::Button,
@@ -38,12 +41,15 @@ pub use self::{
     label::Label,
     progress_bar::ProgressBar,
     radio_button::RadioButton,
+    range_slider::RangeSlider,
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
+    slider_core::{DragValueSettings, SliderSpec},
     spinner::Spinner,
     text_edit::{
         CompletionOutput, CompletionPopup, CompletionQuery, Suggestion, TextBuffer, TextEdit,
     },
+    value_format::{NumFormatter, NumParser, ValueFormat},
 };
 
 // ----------------------------------------------------------------------------

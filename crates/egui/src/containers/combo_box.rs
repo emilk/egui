@@ -415,6 +415,12 @@ fn combo_box_dyn<'c, R>(
         })
         .map(|r| r.inner);
 
+    if inner.is_some() {
+        ui.ctx().accesskit_node_builder(popup_id, |node| {
+            node.set_role(accesskit::Role::ListBox);
+        });
+    }
+
     InnerResponse {
         inner,
         response: button_response,
