@@ -637,6 +637,15 @@ impl<'a> Popup<'a> {
             frame.show(ui, content).inner
         });
 
+        if let Some(anchor_widget) = anchor_widget {
+            // Name the popup after the widget that opened it, unless the content named it.
+            ctx.accesskit_node_builder(id, |node| {
+                if node.label().is_none() && node.labelled_by().is_empty() {
+                    node.push_labelled_by(anchor_widget.accesskit_id());
+                }
+            });
+        }
+
         // If the popup was just opened with a click, we don't want to immediately close it again.
         let close_click = was_open_last_frame && ctx.input(|i| i.pointer.any_click());
 

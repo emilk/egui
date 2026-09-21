@@ -223,6 +223,52 @@ fn menu_hangs_under_its_button() {
     button.get_by_role(Role::Menu).get_by_label("Open");
 }
 
+/// A popup is named after the widget that opened it, so a menu, a context menu and a combo box
+/// popup can all be found by that widget's name.
+#[test]
+fn menu_is_named_after_its_button() {
+    let mut harness = Harness::new_ui(|ui| {
+        MenuButton::new("File").ui(ui, |ui| {
+            let _ = ui.button("Open");
+        });
+    });
+
+    harness.get_by_label("File").click();
+    harness.run();
+
+    harness.get_by_role_and_label(Role::Menu, "File");
+}
+
+#[test]
+fn context_menu_is_named_after_its_widget() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.label("Item").context_menu(|ui| {
+            let _ = ui.button("Delete");
+        });
+    });
+
+    harness.get_by_label("Item").click_secondary();
+    harness.run();
+
+    harness.get_by_role_and_label(Role::Menu, "Item");
+}
+
+#[test]
+fn combo_box_popup_is_named_after_its_combo_box() {
+    let mut harness = Harness::new_ui(|ui| {
+        egui::ComboBox::from_label("Fruit")
+            .selected_text("Apple")
+            .show_ui(ui, |ui| {
+                let _ = ui.selectable_label(false, "Apple");
+            });
+    });
+
+    harness.get_by_role(Role::ComboBox).click();
+    harness.run();
+
+    harness.get_by_role_and_label(Role::ListBox, "Fruit");
+}
+
 #[test]
 fn combo_box_popup_is_a_list_box() {
     let mut harness = Harness::new_ui(|ui| {
