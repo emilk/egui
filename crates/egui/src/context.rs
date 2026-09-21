@@ -4083,8 +4083,11 @@ impl Context {
         self.write(|ctx| ctx.accesskit_node_builder(id).map(writer))
     }
 
-    /// Does the widget already have an accessibility node this pass?
-    pub(crate) fn has_accesskit_node(&self, id: Id) -> bool {
+    /// Does the widget with this id have a node in the accessibility tree this pass?
+    ///
+    /// Only widgets that report [`WidgetInfo`](crate::WidgetInfo) do; a plain
+    /// [`Ui::allocate_rect`](crate::Ui::allocate_rect) does not.
+    pub fn has_accesskit_node(&self, id: Id) -> bool {
         self.write(|ctx| {
             ctx.viewport()
                 .this_pass

@@ -1083,6 +1083,25 @@ impl Response {
         self
     }
 
+    /// Name the widget in the accessibility tree when nothing visible names it,
+    /// e.g. an icon-only button or a text field without a label next to it.
+    ///
+    /// Prefer [`Self::labelled_by`] when a visible label sits next to the widget.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut text = String::new();
+    /// ui.text_edit_singleline(&mut text).accessible_name("Search");
+    /// # });
+    /// ```
+    pub fn accessible_name(self, name: impl Into<String>) -> Self {
+        let name = name.into();
+        self.ctx.accesskit_node_builder(self.id, |builder| {
+            builder.set_label(name);
+        });
+        self
+    }
+
     /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
     /// Make sure the widget senses clicks (e.g. [`crate::Button`] does, [`crate::Label`] does not).
