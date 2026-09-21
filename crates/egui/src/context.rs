@@ -4060,7 +4060,6 @@ impl Context {
         self.write(|ctx| ctx.accesskit_node_builder(id).map(writer))
     }
 
-    /// Does the widget already have an accessibility node this pass?
     /// Does the widget with this id have a node in the accessibility tree this pass?
     ///
     /// Only widgets that report [`WidgetInfo`](crate::WidgetInfo) do; a plain
