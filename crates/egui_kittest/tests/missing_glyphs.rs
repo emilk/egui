@@ -14,11 +14,9 @@ fn missing_glyph_panics_by_default() {
 
 #[test]
 fn missing_glyph_is_allowed_on_request() {
-    let mut harness = Harness::builder()
-        .allow_missing_glyphs()
-        .build_ui(|ui| {
-            ui.label(NO_FONT_HAS_THIS);
-        });
+    let mut harness = Harness::builder().allow_missing_glyphs().build_ui(|ui| {
+        ui.label(NO_FONT_HAS_THIS);
+    });
     harness.run();
 }
 

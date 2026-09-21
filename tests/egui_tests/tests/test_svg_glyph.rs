@@ -14,6 +14,8 @@ const HEART: char = '♥';
 fn svg_glyph() {
     let mut harness = Harness::builder()
         .with_size(vec2(560.0, 150.0))
+        // The rasterizers are added below, after the first frame has already laid out `FERRIS`:
+        .allow_missing_glyphs()
         .build_ui(|ui| {
             egui::CentralPanel::default().show(ui, |ui| {
                 for size in [12.0, 24.0, 48.0] {
