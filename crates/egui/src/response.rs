@@ -790,8 +790,12 @@ impl Response {
                 if node.description().is_none() {
                     node.set_description(text);
                 }
-                // A `Label` is named by its value, so leave it be.
-                if node.role() != accesskit::Role::Label && node.label().is_none_or(str::is_empty) {
+                // A `Label` is named by its value, and a widget named by
+                // `labelled_by` already has a name, so leave those be.
+                if node.role() != accesskit::Role::Label
+                    && node.labelled_by().is_empty()
+                    && node.label().is_none_or(str::is_empty)
+                {
                     node.set_label(text);
                 }
             });
@@ -1023,7 +1027,8 @@ impl Response {
         if !info.enabled {
             builder.set_disabled();
         }
-        if let Some(label) = info.label {
+        // An empty label would take precedence over `labelled_by`, so leave it unset.
+        if let Some(label) = info.label.filter(|label| !label.is_empty()) {
             if matches!(builder.role(), Role::Label) {
                 builder.set_value(label);
             } else {
@@ -1053,6 +1058,9 @@ impl Response {
 
     /// Associate a label with a control for accessibility.
     ///
+    /// The label becomes the accessible name of the widget, replacing any name the widget
+    /// gave itself (e.g. a [`crate::DragValue`] named after its prefix or suffix).
+    ///
     /// # Example
     ///
     /// ```
@@ -1066,6 +1074,9 @@ impl Response {
     /// ```
     pub fn labelled_by(self, id: Id) -> Self {
         self.ctx.accesskit_node_builder(self.id, |builder| {
+            // A screen reader reads the widget's own label over `labelled_by`,
+            // so clear it to let the label win.
+            builder.clear_label();
             builder.push_labelled_by(id.accesskit_id());
         });
 

@@ -250,8 +250,13 @@ impl ComboBox {
                 info
             });
             if let Some(label) = label {
+                let is_empty = label.is_empty();
                 let label_response = ui.label(label);
-                ir.response = ir.response.labelled_by(label_response.id);
+                // An empty label names nothing, so leave the name to the caller
+                // (e.g. `on_hover_text`).
+                if !is_empty {
+                    ir.response = ir.response.labelled_by(label_response.id);
+                }
                 ir.response |= label_response;
             }
             ir

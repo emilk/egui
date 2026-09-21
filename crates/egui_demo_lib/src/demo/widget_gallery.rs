@@ -109,12 +109,14 @@ impl crate::View for WidgetGallery {
             if self.visible {
                 ui.checkbox(&mut self.enabled, "Interactive")
                     .on_hover_text("Uncheck to inspect how the widgets look when disabled.");
-                (ui.add(
+                let drag_value = ui.add(
                     egui::DragValue::new(&mut self.opacity)
                         .speed(0.01)
                         .range(0.0..=1.0),
-                ) | ui.label("Opacity"))
-                .on_hover_text("Reduce this value to make widgets semi-transparent");
+                );
+                let label = ui.label("Opacity");
+                (drag_value.labelled_by(label.id) | label)
+                    .on_hover_text("Reduce this value to make widgets semi-transparent");
             }
         });
 
@@ -208,16 +210,19 @@ impl WidgetGallery {
             });
         ui.end_row();
 
-        ui.add(doc_link_label("Slider", "Slider"));
-        ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
+        let label = ui.add(doc_link_label("Slider", "Slider"));
+        ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"))
+            .labelled_by(label.id);
         ui.end_row();
 
-        ui.add(doc_link_label("RangeSlider", "RangeSlider"));
-        ui.add(egui::RangeSlider::new(&mut range.min, &mut range.max, 0.0..=360.0).suffix("°"));
+        let label = ui.add(doc_link_label("RangeSlider", "RangeSlider"));
+        ui.add(egui::RangeSlider::new(&mut range.min, &mut range.max, 0.0..=360.0).suffix("°"))
+            .labelled_by(label.id);
         ui.end_row();
 
-        ui.add(doc_link_label("DragValue", "DragValue"));
-        ui.add(egui::DragValue::new(scalar).speed(1.0));
+        let label = ui.add(doc_link_label("DragValue", "DragValue"));
+        ui.add(egui::DragValue::new(scalar).speed(1.0))
+            .labelled_by(label.id);
         ui.end_row();
 
         ui.add(doc_link_label("ProgressBar", "ProgressBar"));

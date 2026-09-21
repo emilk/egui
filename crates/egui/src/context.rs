@@ -3034,13 +3034,13 @@ impl ContextImpl {
             let state = viewport.this_pass.accesskit_state.take();
             if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
-                let nodes = {
-                    state
-                        .nodes
-                        .into_iter()
-                        .map(|(id, node)| (id.accesskit_id(), node))
-                        .collect()
-                };
+                // The `(id, node)` pairs of the coming `accesskit::TreeUpdate`:
+                let mut nodes: Vec<(accesskit::NodeId, accesskit::Node)> = state
+                    .nodes
+                    .into_iter()
+                    .map(|(id, node)| (id.accesskit_id(), node))
+                    .collect();
+                flatten_labelled_by(&mut nodes);
                 let focus_id = self
                     .memory
                     .focused()
@@ -4736,6 +4736,62 @@ fn warn_if_rect_changes_id(
                 ),
             });
         }
+    }
+}
+
+/// Resolve chains of `labelled_by`, so that `a → b → label` becomes `a → label`.
+///
+/// Screen readers follow `labelled_by` a single step. The number field of a text-less
+/// [`crate::Slider`] is labelled by the slider, which in turn may be labelled by
+/// [`crate::Response::labelled_by`]. Without this, the number field would have no name.
+///
+/// `nodes` are the `(id, node)` pairs of an [`accesskit::TreeUpdate`].
+fn flatten_labelled_by(nodes: &mut [(accesskit::NodeId, accesskit::Node)]) {
+    profiling::function_scope!();
+
+    let index: std::collections::HashMap<accesskit::NodeId, usize> = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, (id, _))| (*id, i))
+        .collect();
+    let get = |id: &accesskit::NodeId| index.get(id).map(|i| &nodes[*i].1);
+
+    /// A node that has no name of its own, only a `labelled_by` to follow.
+    fn is_link(node: &accesskit::Node) -> bool {
+        node.label().is_none() && !node.labelled_by().is_empty()
+    }
+
+    let mut flattened: Vec<(usize, Vec<accesskit::NodeId>)> = Vec::new();
+
+    for (i, (id, node)) in nodes.iter().enumerate() {
+        let has_chain = node
+            .labelled_by()
+            .iter()
+            .any(|target| get(target).is_some_and(is_link));
+        if !has_chain {
+            continue;
+        }
+
+        let mut resolved = Vec::new();
+        let mut visited = vec![*id];
+        let mut stack: Vec<accesskit::NodeId> = node.labelled_by().iter().rev().copied().collect();
+        while let Some(target) = stack.pop() {
+            if visited.contains(&target) {
+                continue; // A cycle names nothing.
+            }
+            visited.push(target);
+            match get(&target) {
+                Some(link) if is_link(link) => {
+                    stack.extend(link.labelled_by().iter().rev().copied());
+                }
+                _ => resolved.push(target),
+            }
+        }
+        flattened.push((i, resolved));
+    }
+
+    for (i, labelled_by) in flattened {
+        nodes[i].1.set_labelled_by(labelled_by);
     }
 }
 

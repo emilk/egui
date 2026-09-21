@@ -18,6 +18,7 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) renderer: Box<dyn TestRenderer>,
     pub(crate) wait_for_pending_images: bool,
     pub(crate) fit_contents: bool,
+    pub(crate) check_accessibility: bool,
 
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub(crate) render_every_step: bool,
@@ -44,6 +45,7 @@ impl<State> Default for HarnessBuilder<State> {
             step_dt: 1.0 / 4.0,
             wait_for_pending_images: true,
             fit_contents: false,
+            check_accessibility: true,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step: false,
@@ -125,6 +127,16 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_max_steps(mut self, max_steps: u64) -> Self {
         self.max_steps = max_steps;
+        self
+    }
+
+    /// Check that every input widget has an accessible name, and panic if one does not.
+    /// See [`Harness::check_accessibility`].
+    ///
+    /// Default is `true`.
+    #[inline]
+    pub fn with_accessibility_check(mut self, check_accessibility: bool) -> Self {
+        self.check_accessibility = check_accessibility;
         self
     }
 
