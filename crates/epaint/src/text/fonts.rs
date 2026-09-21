@@ -79,10 +79,18 @@ impl Fonts {
 
     /// Also use this glyph rasterizer, e.g. the browser on web, or for custom glyphs.
     ///
+    /// Adding a rasterizer whose [`GlyphRasterizer::key`] is already installed is a no-op,
+    /// so this is safe to call every frame.
+    ///
+    /// Returns `true` if it was added.
+    ///
     /// See [`GlyphRasterizer`].
-    pub fn add_glyph_rasterizer(&mut self, glyph_rasterizer: GlyphRasterizer) {
-        self.fonts.add_glyph_rasterizer(glyph_rasterizer);
-        self.galley_cache = Default::default();
+    pub fn add_glyph_rasterizer(&mut self, glyph_rasterizer: GlyphRasterizer) -> bool {
+        let changed = self.fonts.add_glyph_rasterizer(glyph_rasterizer);
+        if changed {
+            self.galley_cache = Default::default();
+        }
+        changed
     }
 
     /// Replace all [`GlyphRasterizer`]s.
@@ -470,10 +478,13 @@ impl FontsImpl {
 
     /// Also use this glyph rasterizer, e.g. the browser on web, or for custom glyphs.
     ///
-    /// See [`GlyphRasterizer`].
-    pub fn add_glyph_rasterizer(&mut self, glyph_rasterizer: GlyphRasterizer) {
-        self.glyph_rasterizers.push(glyph_rasterizer);
-        self.glyphs.clear_raster_glyphs();
+    /// See [`Fonts::add_glyph_rasterizer`].
+    pub fn add_glyph_rasterizer(&mut self, glyph_rasterizer: GlyphRasterizer) -> bool {
+        let changed = glyph_rasterizer.insert_into(&mut self.glyph_rasterizers);
+        if changed {
+            self.glyphs.clear_raster_glyphs();
+        }
+        changed
     }
 
     /// Replace all [`GlyphRasterizer`]s.

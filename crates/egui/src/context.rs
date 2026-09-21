@@ -808,13 +808,19 @@ impl Context {
     /// Rasterizers are asked in the order they were added.
     /// `eframe` adds the browser rasterizer on web.
     ///
+    /// Adding a rasterizer whose [`GlyphRasterizer::key`] is already installed is a no-op,
+    /// so this is safe to call every frame.
+    ///
     /// The rasterizer becomes active at the start of the next pass.
     pub fn add_glyph_rasterizer(&self, glyph_rasterizer: GlyphRasterizer) {
-        self.write(|ctx| {
-            ctx.glyph_rasterizers.push(glyph_rasterizer);
-            ctx.reload_fonts = true;
+        let changed = self.write(|ctx| {
+            let changed = glyph_rasterizer.insert_into(&mut ctx.glyph_rasterizers);
+            ctx.reload_fonts |= changed;
+            changed
         });
-        self.request_repaint();
+        if changed {
+            self.request_repaint();
+        }
     }
 
     /// Replace all [`GlyphRasterizer`]s. See [`Self::add_glyph_rasterizer`].

@@ -219,7 +219,7 @@ mod tests {
     }
 
     fn color_rasterizer() -> GlyphRasterizer {
-        GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| {
+        GlyphRasterizer::new("test color_rasterizer", |_: &GlyphRasterizerRequest<'_>| {
             Some(RasterizedGlyph {
                 bitmap: GlyphBitmap {
                     image: ColorImage::new([1, 1], vec![Color32::RED]),

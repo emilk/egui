@@ -1717,7 +1717,7 @@ mod tests {
 
     #[test]
     fn color_raster_glyph_is_not_tinted() {
-        let rasterizer = GlyphRasterizer::new(|request: &GlyphRasterizerRequest<'_>| {
+        let rasterizer = GlyphRasterizer::new("test", |request: &GlyphRasterizerRequest<'_>| {
             (request.cluster == "한").then(color_raster_glyph)
         });
         let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::default())
@@ -1772,8 +1772,9 @@ mod tests {
 
     #[test]
     fn color_raster_glyph_keeps_color_in_atlas() {
-        let rasterizer =
-            GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| Some(color_raster_glyph()));
+        let rasterizer = GlyphRasterizer::new("test", |_: &GlyphRasterizerRequest<'_>| {
+            Some(color_raster_glyph())
+        });
         // The default transfer function discards color for regular (white) glyphs:
         let options = TextOptions {
             color_transfer_function: crate::FontColorTransferFunction::TwoCoverageMinusCoverageSq,
@@ -1797,12 +1798,15 @@ mod tests {
         result: Option<RasterizedGlyph>,
     ) -> GlyphRasterizer {
         let requests = Arc::clone(requests);
-        GlyphRasterizer::new(move |request: &GlyphRasterizerRequest<'_>| {
-            requests
-                .lock()
-                .push((request.cluster.to_owned(), request.family.clone()));
-            result.clone()
-        })
+        GlyphRasterizer::new(
+            unique_test_key(),
+            move |request: &GlyphRasterizerRequest<'_>| {
+                requests
+                    .lock()
+                    .push((request.cluster.to_owned(), request.family.clone()));
+                result.clone()
+            },
+        )
     }
 
     fn white_raster_glyph() -> RasterizedGlyph {
@@ -1817,6 +1821,13 @@ mod tests {
     }
 
     #[cfg(feature = "default_fonts")]
+    /// Each test rasterizer needs its own [`GlyphRasterizer::key`], or they would replace each other.
+    fn unique_test_key() -> String {
+        static COUNTER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+        let n = COUNTER.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        format!("test rasterizer {n}")
+    }
+
     fn color_raster_glyph() -> RasterizedGlyph {
         RasterizedGlyph {
             bitmap: GlyphBitmap {
@@ -1924,12 +1935,15 @@ mod tests {
         requests: &Arc<crate::mutex::Mutex<Vec<(String, FontFamily)>>>,
     ) -> GlyphRasterizer {
         let requests = Arc::clone(requests);
-        GlyphRasterizer::new(move |request: &GlyphRasterizerRequest<'_>| {
-            requests
-                .lock()
-                .push((request.cluster.to_owned(), request.family.clone()));
-            (request.cluster == cluster).then(color_raster_glyph)
-        })
+        GlyphRasterizer::new(
+            unique_test_key(),
+            move |request: &GlyphRasterizerRequest<'_>| {
+                requests
+                    .lock()
+                    .push((request.cluster.to_owned(), request.family.clone()));
+                (request.cluster == cluster).then(color_raster_glyph)
+            },
+        )
         .with_priority(FontPriority::Highest)
     }
 
