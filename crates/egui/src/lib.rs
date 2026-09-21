@@ -495,7 +495,7 @@ pub use self::{
         },
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
-            PlatformOutput, UserAttentionType, WidgetInfo,
+            PlatformOutput, UserAttentionType, WidgetInfo, role_description,
         },
     },
     drag_and_drop::DragAndDrop,
@@ -634,6 +634,25 @@ pub(crate) const MINUS_CHAR_STR: &str = "−";
 /// plus a list of the emojis in the default fonts.
 #[cfg(feature = "default_fonts")]
 pub use epaint::special_emojis;
+
+/// The old name for the type of a widget, now expressed as an [`accesskit::Role`].
+///
+/// Most variants kept their name, so e.g. `WidgetType::Button` still resolves,
+/// but some were renamed to their accessibility counterparts:
+///
+/// | Old `WidgetType`    | New [`Role`]              |
+/// | ------------------- | ------------------------- |
+/// | `TextEdit`          | [`Role::TextInput`]       |
+/// | `DragValue`         | [`Role::SpinButton`]      |
+/// | `ColorButton`       | [`Role::ColorWell`]       |
+/// | `CollapsingHeader`  | [`Role::DisclosureTriangle`] |
+/// | `SelectableLabel`   | [`Role::Button`]          |
+/// | `Panel`             | [`Role::Pane`]            |
+/// | `ResizeHandle`      | [`Role::Splitter`]        |
+/// | `Other`             | [`Role::Unknown`]         |
+#[deprecated = "Renamed to `egui::Role` (a re-export of `accesskit::Role`). \
+Note that some variants were renamed too, e.g. `WidgetType::TextEdit` is now `Role::TextInput`."]
+pub type WidgetType = Role;
 
 // ----------------------------------------------------------------------------
 

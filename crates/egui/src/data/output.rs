@@ -639,6 +639,33 @@ impl core::fmt::Debug for WidgetInfo {
     }
 }
 
+/// A human-readable, lowercase name for a widget role, e.g. for a text-to-speech system.
+///
+/// The [`Role`] is spelled out in `CamelCase`, so we split it into lowercase words.
+/// [`Role::Unknown`] has no useful name, and gives an empty string.
+///
+/// ```
+/// # use egui::{Role, role_description};
+/// assert_eq!(role_description(Role::Button), "button");
+/// assert_eq!(role_description(Role::CheckBox), "check box");
+/// assert_eq!(role_description(Role::SpinButton), "spin button");
+/// assert_eq!(role_description(Role::Unknown), "");
+/// ```
+pub fn role_description(role: Role) -> String {
+    if role == Role::Unknown {
+        return String::new();
+    }
+
+    let mut description = String::new();
+    for ch in format!("{role:?}").chars() {
+        if ch.is_ascii_uppercase() && !description.is_empty() {
+            description.push(' ');
+        }
+        description.push(ch.to_ascii_lowercase());
+    }
+    description
+}
+
 impl WidgetInfo {
     pub fn new(role: Role) -> Self {
         Self {
@@ -745,13 +772,7 @@ impl WidgetInfo {
             hint_text: _,
         } = self;
 
-        let mut description = String::new();
-        for ch in format!("{role:?}").chars() {
-            if ch.is_ascii_uppercase() && !description.is_empty() {
-                description.push(' ');
-            }
-            description.push(ch.to_ascii_lowercase());
-        }
+        let mut description = role_description(*role);
 
         if let Some(selected) = selected {
             if *role == Role::CheckBox {
