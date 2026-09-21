@@ -101,13 +101,44 @@ impl<'tree> Node<'tree> {
     /// This will trigger a [`accesskit::Action::Click`] action.
     /// In contrast to `click()`, this can also click widgets that are not currently visible.
     pub fn click_accesskit(&self) {
+        self.do_accesskit_action(accesskit::Action::Click, None);
+    }
+
+    /// Send an [`accesskit::Action::Increment`] action to the node.
+    ///
+    /// This is how assistive technologies increment widgets
+    /// like sliders or panel resize handles.
+    pub fn increment_accesskit(&self) {
+        self.do_accesskit_action(accesskit::Action::Increment, None);
+    }
+
+    /// Send an [`accesskit::Action::Decrement`] action to the node.
+    ///
+    /// This is how assistive technologies decrement widgets
+    /// like sliders or panel resize handles.
+    pub fn decrement_accesskit(&self) {
+        self.do_accesskit_action(accesskit::Action::Decrement, None);
+    }
+
+    /// Send an [`accesskit::Action::SetValue`] action with a numeric value to the node.
+    ///
+    /// This is how assistive technologies set the value of widgets
+    /// like sliders or panel resize handles.
+    pub fn set_value_accesskit(&self, value: f64) {
+        self.do_accesskit_action(
+            accesskit::Action::SetValue,
+            Some(accesskit::ActionData::NumericValue(value)),
+        );
+    }
+
+    fn do_accesskit_action(&self, action: accesskit::Action, data: Option<accesskit::ActionData>) {
         let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(
             accesskit::ActionRequest {
                 target_node,
                 target_tree,
-                action: accesskit::Action::Click,
-                data: None,
+                action,
+                data,
             },
         ));
     }
