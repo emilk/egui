@@ -2407,7 +2407,8 @@ impl Context {
     /// The default `egui` fonts only support latin and cyrillic alphabets,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
-    /// The new fonts will become active at the start of the next pass.
+    /// The new fonts will become active at the start of the next pass,
+    /// or right away if no font has been loaded yet.
     /// This will overwrite the existing fonts.
     ///
     /// These fonts will be used before any system fallback.
@@ -2424,6 +2425,7 @@ impl Context {
 
         if update_fonts {
             self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
+            self.apply_fonts_now_if_none_loaded();
         }
     }
 
@@ -2432,7 +2434,8 @@ impl Context {
     /// The default `egui` fonts only support latin and cyrillic alphabets,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
-    /// The new font will become active at the start of the next pass.
+    /// The new font will become active at the start of the next pass,
+    /// or right away if no font has been loaded yet.
     /// This will keep the existing fonts.
     ///
     /// This font will be used before any system fallback.
@@ -2454,7 +2457,27 @@ impl Context {
 
         if update_fonts {
             self.memory_mut(|mem| mem.add_fonts.push(new_font));
+            self.apply_fonts_now_if_none_loaded();
         }
+    }
+
+    /// Apply queued font changes right away if no font has been loaded yet.
+    ///
+    /// Nothing laid out so far could have used a font, so there is nothing to keep consistent,
+    /// and text later in this pass already gets the new fonts.
+    /// Without this, an app that installs its fonts during its first pass
+    /// (e.g. from inside an `egui_kittest` harness, which has no earlier hook)
+    /// would lay out that whole pass with no font at all.
+    fn apply_fonts_now_if_none_loaded(&self) {
+        self.write(|ctx| {
+            let none_loaded = ctx
+                .fonts
+                .as_ref()
+                .is_some_and(|fonts| fonts.definitions().font_data.is_empty());
+            if none_loaded {
+                ctx.update_fonts_mut();
+            }
+        });
     }
 
     /// Does the OS use dark or light mode?
