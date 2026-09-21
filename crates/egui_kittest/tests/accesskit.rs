@@ -645,3 +645,32 @@ fn named_ui_area_and_popup() {
         .get_by_role_and_label(Role::Dialog, "Options")
         .get_by_label("Option A");
 }
+
+/// Every resize handle of a window is named, so a screen reader can tell the eight apart
+/// and the harness' accessibility check is satisfied.
+#[test]
+fn window_resize_handles_are_named() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(400.0, 300.0))
+        .build_ui(|ui| {
+            egui::Window::new("My window")
+                .resizable(true)
+                .show(ui.ctx(), |ui| {
+                    ui.label("Contents");
+                });
+        });
+    harness.run();
+
+    for name in [
+        "Resize window left edge",
+        "Resize window right edge",
+        "Resize window top edge",
+        "Resize window bottom edge",
+        "Resize window top-left corner",
+        "Resize window top-right corner",
+        "Resize window bottom-left corner",
+        "Resize window bottom-right corner",
+    ] {
+        harness.get_by_role_and_label(Role::Splitter, name);
+    }
+}

@@ -3,6 +3,8 @@
 # run:      typos
 
 [default.extend-words]
+Epilogue = "Epilogue" # accesskit::Role::DocEpilogue
+Prologue = "Prologue" # accesskit::Role::DocPrologue
 ime = "ime" # Input Method Editor
 abou = "abou" # part of @AmmarAbouZor username
 nknown = "nknown" # part of @55nknown username

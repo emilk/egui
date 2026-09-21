@@ -963,6 +963,89 @@ impl Ui {
         )
     }
 
+    /// Run `add_contents`, then mark every input widget it added that has no accessible name
+    /// as labelled by `label_id`.
+    ///
+    /// An input widget is one whose role passes [`crate::accessibility::is_input`]. For a row
+    /// whose label is painted apart from its value widgets (a property row, a form), this names
+    /// the value widgets without each editor having to know the row label.
+    /// Costs a lookup per widget added, and nothing when accessibility is off.
+    pub fn label_inputs_by<R>(
+        &mut self,
+        label_id: Id,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let first = self.widget_count_in_layer();
+        let result = add_contents(self);
+        for id in self.unnamed_inputs_added_since(first) {
+            self.ctx().accesskit_node_builder(id, |node| {
+                // As in `Response::labelled_by`: an own label, even a blank one, wins.
+                node.clear_label();
+                node.push_labelled_by(label_id.accesskit_id());
+            });
+        }
+        result
+    }
+
+    /// Run `add_contents`, then give every input widget it added that has no accessible name
+    /// the name `name`.
+    ///
+    /// An input widget is one whose role passes [`crate::accessibility::is_input`]. This is for
+    /// widgets that cannot be named where they are built, e.g. the read-only `TextEdit` a
+    /// third-party markdown renderer uses for a code block.
+    /// Costs a lookup per widget added, and nothing when accessibility is off.
+    pub fn name_inputs<R>(
+        &mut self,
+        name: impl Into<String>,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let first = self.widget_count_in_layer();
+        let result = add_contents(self);
+        let name = name.into();
+        for id in self.unnamed_inputs_added_since(first) {
+            self.ctx()
+                .accesskit_node_builder(id, |node| node.set_label(name.clone()));
+        }
+        result
+    }
+
+    /// How many widgets this pass has registered on this `Ui`'s layer so far.
+    fn widget_count_in_layer(&self) -> usize {
+        let layer_id = self.layer_id();
+        self.ctx()
+            .viewport(|viewport| viewport.this_pass.widgets.get_layer(layer_id).count())
+    }
+
+    /// The input widgets registered on this `Ui`'s layer from index `first` on that have
+    /// no name: no label, no `labelled_by`, and no placeholder (which names a text field).
+    ///
+    /// A layer's widget list only grows during a pass. The one exception, a window dragged
+    /// by its title bar (`InteractOptions::move_to_top`), lives on its own layer.
+    fn unnamed_inputs_added_since(&self, first: usize) -> Vec<Id> {
+        let layer_id = self.layer_id();
+        self.ctx().viewport(|viewport| {
+            let Some(state) = &viewport.this_pass.accesskit_state else {
+                return Vec::new();
+            };
+            viewport
+                .this_pass
+                .widgets
+                .get_layer(layer_id)
+                .skip(first)
+                .filter_map(|rect| {
+                    let node = state.nodes.get(&rect.id)?;
+                    let unnamed = crate::accessibility::is_input(node.role())
+                        && node.label().is_none_or(|label| label.trim().is_empty())
+                        && node.labelled_by().is_empty()
+                        && node
+                            .placeholder()
+                            .is_none_or(|placeholder| placeholder.trim().is_empty());
+                    unnamed.then_some(rect.id)
+                })
+                .collect()
+        })
+    }
+
     /// Read the [`Ui`]'s background [`Response`].
     /// Its [`Sense`] will be based on the [`UiBuilder::sense`] used to create this [`Ui`].
     ///
