@@ -2695,11 +2695,28 @@ impl Ui {
 
             InnerResponse::new(inner, response)
         } else {
+            // Reserve the background's place before its children, then update its rectangle below.
+            // Only register the widget here; interaction needs the final rectangle.
+            self.ctx().pass_state_mut(|state| {
+                state.widgets.insert(
+                    self.layer_id(),
+                    WidgetRect {
+                        id,
+                        parent_id: self.scope_id,
+                        layer_id: self.layer_id(),
+                        rect: Rect::NOTHING,
+                        interact_rect: Rect::NOTHING,
+                        sense: Sense::hover(),
+                        enabled: self.enabled,
+                    },
+                    Default::default(),
+                );
+            });
             let InnerResponse { inner, response } = self.scope(add_contents);
 
-            // Check for drags:
+            // Sense clicks too, so pressing a child button doesn't immediately start a drag.
             let dnd_response = self
-                .interact(response.rect, id, Sense::drag())
+                .interact(response.rect, id, Sense::click_and_drag())
                 .on_hover_cursor(CursorIcon::Grab);
 
             InnerResponse::new(inner, dnd_response | response)
