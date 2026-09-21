@@ -325,8 +325,6 @@ fn layout_shaped_run(
             ) {
                 raster_glyph(ctx, paragraph, chr, &raster, face_metrics)
             } else {
-                fonts.on_missing_glyph(ctx.family, cluster_text);
-
                 // Use the fallback font face (not run.font_key which returned NOTDEF).
                 let fallback_key = fonts.resolve_face(ctx.family, chr);
                 let fallback_metrics = fonts
@@ -340,6 +338,13 @@ fn layout_shaped_run(
                     })
                     .unwrap_or_default();
                 let (_, glyph_info) = fonts.glyph_info(ctx.family, chr, &fallback_metrics);
+
+                // The shaper had no glyph, but the face may still resolve the character
+                // (e.g. `\t` and thin spaces become a space with a custom advance).
+                // Only a genuine `.notdef` is a missing glyph.
+                if glyph_info.id == Some(skrifa::GlyphId::NOTDEF) {
+                    fonts.on_missing_glyph(ctx.family, cluster_text);
+                }
                 let advance_width_px =
                     glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
                 let OutlineGlyph { allocation, x_px } = allocate_glyph_info(
@@ -1689,6 +1694,20 @@ mod tests {
             FontId::proportional(14.0),
             Color32::WHITE,
         );
+    }
+
+    /// Fonts have no glyphs for control characters like `\t`; that is not a missing glyph.
+    #[test]
+    #[cfg(feature = "default_fonts")] // Needs `hack_only`
+    fn missing_glyph_policy_panic_ignores_tab_with_fonts() {
+        let mut fonts = Fonts::new(TextOptions::default(), hack_only())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Panic);
+        let galley = fonts.with_pixels_per_point(1.0).layout_no_wrap(
+            "a\tb".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+        );
+        assert_eq!(galley.rows[0].row.glyphs.len(), 3);
     }
 
     #[test]

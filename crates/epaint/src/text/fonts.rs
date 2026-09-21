@@ -39,6 +39,7 @@ pub enum MissingGlyphPolicy {
     /// Panic, naming the character and the font family.
     ///
     /// For tests: a missing glyph is usually a bug, and tofu in a snapshot is easy to miss.
+    /// Control characters (e.g. `\t`, `\n`) never panic: fonts have no glyphs for them.
     Panic,
 }
 
@@ -697,6 +698,8 @@ impl FontsImpl {
     /// Nothing can draw `cluster`: no font, provider, or rasterizer.
     ///
     /// Call right before drawing tofu for it, so [`MissingGlyphPolicy::Panic`] can act.
+    /// Control characters are exempt: fonts have no glyphs for them, and drawing tofu
+    /// for e.g. a `\n` in a single-line layout is intentional.
     pub fn on_missing_glyph(&self, family: FamilyKey, cluster: &str) {
         if self.missing_glyph_policy != MissingGlyphPolicy::Panic {
             return;
@@ -704,6 +707,9 @@ impl FontsImpl {
         let Some(chr) = cluster.chars().next() else {
             return;
         };
+        if chr.is_control() {
+            return;
+        }
 
         let family = &self.families[family.0];
         let faces = family.face_names(&self.faces);
