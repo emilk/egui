@@ -98,6 +98,7 @@ impl Ui {
             layer_id,
             max_rect,
             layout,
+            noninteractive,
             disabled,
             invisible,
             sizing_pass,
@@ -117,6 +118,7 @@ impl Ui {
         let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
+        let enabled = !disabled && !invisible && !noninteractive;
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
@@ -145,7 +147,7 @@ impl Ui {
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer,
-            enabled: true,
+            enabled,
             sizing_pass,
             stack: Arc::new(ui_stack),
             sense,
@@ -207,6 +209,7 @@ impl Ui {
             layer_id,
             max_rect,
             layout,
+            noninteractive,
             disabled,
             invisible,
             sizing_pass,
@@ -220,7 +223,7 @@ impl Ui {
 
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or_else(|| *self.layout());
-        let enabled = self.enabled && !disabled && !invisible;
+        let enabled = self.enabled && !disabled && !invisible && !noninteractive;
         if let Some(layer_id) = layer_id {
             painter.set_layer_id(layer_id);
         }
