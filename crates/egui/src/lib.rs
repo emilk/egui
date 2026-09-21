@@ -388,6 +388,7 @@
 #![expect(clippy::float_cmp)]
 #![expect(clippy::manual_range_contains)]
 
+pub mod accessibility;
 mod animation_manager;
 mod atomics;
 pub mod cache;

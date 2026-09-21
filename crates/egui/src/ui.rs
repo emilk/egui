@@ -963,6 +963,59 @@ impl Ui {
         )
     }
 
+    /// Mark every input widget under this `Ui` that has no accessible name as labelled by
+    /// `label_id`.
+    ///
+    /// For a row whose label is painted apart from its value widgets (a property row, a form),
+    /// this names the value widgets without each editor having to know the row label.
+    /// Call it after adding the widgets. Costs nothing when accessibility is off.
+    pub fn label_unnamed_inputs_by(&self, label_id: Id) {
+        for id in self.unnamed_inputs() {
+            self.ctx().accesskit_node_builder(id, |node| {
+                node.push_labelled_by(label_id.accesskit_id());
+            });
+        }
+    }
+
+    /// Give every input widget under this `Ui` that has no accessible name the name `name`.
+    ///
+    /// For widgets that cannot be named where they are built, e.g. the read-only `TextEdit`
+    /// a third-party markdown renderer uses for a code block.
+    /// Call it after adding the widgets. Costs nothing when accessibility is off.
+    pub fn name_unnamed_inputs(&self, name: impl Into<String>) {
+        let name = name.into();
+        for id in self.unnamed_inputs() {
+            self.ctx()
+                .accesskit_node_builder(id, |node| node.set_label(name.clone()));
+        }
+    }
+
+    /// Every input widget under this `Ui` this pass that has neither a label nor a `labelled_by`.
+    fn unnamed_inputs(&self) -> Vec<Id> {
+        let container = self.unique_id;
+        self.ctx().viewport(|viewport| {
+            let Some(state) = &viewport.this_pass.accesskit_state else {
+                return Vec::new();
+            };
+            let parent_map = &state.parent_map;
+            state
+                .nodes
+                .iter()
+                .filter(|(id, node)| {
+                    crate::accessibility::INPUT_ROLES.contains(&node.role())
+                        && node.label().is_none_or(|label| label.trim().is_empty())
+                        && node.labelled_by().is_empty()
+                        && core::iter::successors(parent_map.get(id), |parent| {
+                            parent_map.get(parent)
+                        })
+                        .take(256)
+                        .any(|ancestor| *ancestor == container)
+                })
+                .map(|(id, _)| *id)
+                .collect()
+        })
+    }
+
     /// Read the [`Ui`]'s background [`Response`].
     /// Its [`Sense`] will be based on the [`UiBuilder::sense`] used to create this [`Ui`].
     ///
