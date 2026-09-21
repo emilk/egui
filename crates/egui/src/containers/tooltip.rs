@@ -26,6 +26,7 @@ impl Tooltip<'_> {
         let width = ctx.global_style().spacing.tooltip_width;
         Self {
             popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
+                .anchor_widget(parent_widget)
                 .kind(PopupKind::Tooltip)
                 .gap(4.0)
                 .width(width)
