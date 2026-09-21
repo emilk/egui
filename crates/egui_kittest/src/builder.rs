@@ -19,6 +19,7 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) wait_for_pending_images: bool,
     pub(crate) fit_contents: bool,
     pub(crate) missing_glyph_policy: egui::MissingGlyphPolicy,
+    pub(crate) check_accessibility: bool,
 
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub(crate) render_every_step: bool,
@@ -46,6 +47,7 @@ impl<State> Default for HarnessBuilder<State> {
             wait_for_pending_images: true,
             fit_contents: false,
             missing_glyph_policy: egui::MissingGlyphPolicy::Panic,
+            check_accessibility: true,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step: false,
@@ -141,6 +143,16 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_max_steps(mut self, max_steps: u64) -> Self {
         self.max_steps = max_steps;
+        self
+    }
+
+    /// Check that every input widget has an accessible name, and panic if one does not.
+    /// See [`Harness::check_accessibility`].
+    ///
+    /// Default is `true`.
+    #[inline]
+    pub fn with_accessibility_check(mut self, check_accessibility: bool) -> Self {
+        self.check_accessibility = check_accessibility;
         self
     }
 

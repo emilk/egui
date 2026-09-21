@@ -4,6 +4,7 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 #![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
+mod accessibility;
 mod builder;
 #[cfg(feature = "snapshot")]
 mod snapshot;
@@ -152,6 +153,7 @@ pub struct Harness<'a, State = ()> {
     max_steps: u64,
     step_dt: f32,
     wait_for_pending_images: bool,
+    check_accessibility: bool,
     queued_events: EventQueue,
 
     #[cfg(feature = "snapshot")]
@@ -203,6 +205,7 @@ impl<'a, State> Harness<'a, State> {
             wait_for_pending_images,
             fit_contents,
             missing_glyph_policy,
+            check_accessibility,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step,
@@ -275,6 +278,7 @@ impl<'a, State> Harness<'a, State> {
             max_steps,
             step_dt,
             wait_for_pending_images,
+            check_accessibility,
             queued_events: Default::default(),
 
             #[cfg(feature = "snapshot")]
@@ -507,6 +511,12 @@ impl<'a, State> Harness<'a, State> {
                 });
             }
         }
+
+        // Only now: the first frame of a `Grid` is a sizing pass, and its tree is not complete.
+        if self.check_accessibility {
+            self.check_accessibility();
+        }
+
         Ok(steps)
     }
 
