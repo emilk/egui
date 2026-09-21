@@ -130,7 +130,7 @@ impl ContextImpl {
 
     fn request_repaint_after(
         &mut self,
-        mut delay: Duration,
+        delay: Duration,
         viewport_id: ViewportId,
         cause: RepaintCause,
     ) {
@@ -145,11 +145,6 @@ impl ContextImpl {
             // otherwise we would just schedule an immediate repaint _now_,
             // which would then clear the delay and repaint again.
             // Hovering a tooltip is a good example of a case where we want to repaint after a delay.
-        }
-
-        if let Ok(predicted_frame_time) = Duration::try_from_secs_f32(viewport.input.predicted_dt) {
-            // Make it less likely we over-shoot the target:
-            delay = delay.saturating_sub(predicted_frame_time);
         }
 
         viewport.repaint.causes.push(cause);
