@@ -61,10 +61,10 @@ impl Fonts {
 
     /// Also use this glyph rasterizer, e.g. the browser on web, or for custom glyphs.
     ///
-    /// A rasterizer replaces the installed one with the same [`GlyphRasterizer::key`],
-    /// and adding the very same rasterizer again is a no-op, so this is safe to call every frame.
+    /// Adding a rasterizer whose [`GlyphRasterizer::key`] is already installed is a no-op,
+    /// so this is safe to call every frame.
     ///
-    /// Returns `true` if the set of rasterizers changed.
+    /// Returns `true` if it was added.
     ///
     /// See [`GlyphRasterizer`].
     pub fn add_glyph_rasterizer(&mut self, glyph_rasterizer: GlyphRasterizer) -> bool {
