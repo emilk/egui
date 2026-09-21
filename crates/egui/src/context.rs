@@ -3,6 +3,8 @@
 use core::{cell::RefCell, panic::Location, time::Duration};
 use std::{borrow::Cow, sync::Arc};
 
+use accesskit::NodeId;
+
 use emath::GuiRounding as _;
 use epaint::{
     ClippedPrimitive, ClippedShape, Color32, ImageData, Pos2, Rect, StrokeKind,
@@ -3039,7 +3041,8 @@ impl ContextImpl {
             let state = viewport.this_pass.accesskit_state.take();
             if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
-                let mut nodes: Vec<(accesskit::NodeId, accesskit::Node)> = state
+                // The `(id, node)` pairs of the coming `accesskit::TreeUpdate`:
+                let mut nodes: Vec<(NodeId, accesskit::Node)> = state
                     .nodes
                     .into_iter()
                     .map(|(id, node)| (id.accesskit_id(), node))
@@ -4748,22 +4751,24 @@ fn warn_if_rect_changes_id(
 /// Screen readers follow `labelled_by` a single step. The number field of a text-less
 /// [`crate::Slider`] is labelled by the slider, which in turn may be labelled by
 /// [`crate::Response::labelled_by`]. Without this, the number field would have no name.
-fn flatten_labelled_by(nodes: &mut [(accesskit::NodeId, accesskit::Node)]) {
+///
+/// `nodes` are the `(id, node)` pairs of an [`accesskit::TreeUpdate`].
+fn flatten_labelled_by(nodes: &mut [(NodeId, accesskit::Node)]) {
     profiling::function_scope!();
 
-    let index: std::collections::HashMap<accesskit::NodeId, usize> = nodes
+    let index: std::collections::HashMap<NodeId, usize> = nodes
         .iter()
         .enumerate()
         .map(|(i, (id, _))| (*id, i))
         .collect();
-    let get = |id: &accesskit::NodeId| index.get(id).map(|i| &nodes[*i].1);
+    let get = |id: &NodeId| index.get(id).map(|i| &nodes[*i].1);
 
     /// A node that has no name of its own, only a `labelled_by` to follow.
     fn is_link(node: &accesskit::Node) -> bool {
         node.label().is_none() && !node.labelled_by().is_empty()
     }
 
-    let mut flattened: Vec<(usize, Vec<accesskit::NodeId>)> = Vec::new();
+    let mut flattened: Vec<(usize, Vec<NodeId>)> = Vec::new();
 
     for (i, (id, node)) in nodes.iter().enumerate() {
         let has_chain = node
@@ -4776,7 +4781,7 @@ fn flatten_labelled_by(nodes: &mut [(accesskit::NodeId, accesskit::Node)]) {
 
         let mut resolved = Vec::new();
         let mut visited = vec![*id];
-        let mut stack: Vec<accesskit::NodeId> = node.labelled_by().iter().rev().copied().collect();
+        let mut stack: Vec<NodeId> = node.labelled_by().iter().rev().copied().collect();
         while let Some(target) = stack.pop() {
             if visited.contains(&target) {
                 continue; // A cycle names nothing.
