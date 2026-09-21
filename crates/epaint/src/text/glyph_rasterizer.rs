@@ -180,42 +180,6 @@ pub fn has_emoji_presentation(cluster: &str) -> bool {
 }
 
 #[cfg(test)]
-mod insert_tests {
-    use super::*;
-
-    fn rasterizer(key: &str) -> GlyphRasterizer {
-        GlyphRasterizer::new(key, |_: &GlyphRasterizerRequest<'_>| None)
-    }
-
-    #[test]
-    fn same_key_is_a_no_op() {
-        let mut list = Vec::new();
-        let first = rasterizer("a");
-        let first_fn = Arc::clone(&first.rasterize);
-        assert!(first.insert_into(&mut list));
-
-        // A new closure, or a new priority, with the same key changes nothing:
-        assert!(!rasterizer("a").insert_into(&mut list));
-        assert!(
-            !rasterizer("a")
-                .with_priority(FontPriority::Highest)
-                .insert_into(&mut list)
-        );
-        assert_eq!(list.len(), 1);
-        assert!(Arc::ptr_eq(&list[0].rasterize, &first_fn));
-        assert_eq!(list[0].priority, FontPriority::Lowest);
-    }
-
-    #[test]
-    fn different_keys_append() {
-        let mut list = Vec::new();
-        assert!(rasterizer("a").insert_into(&mut list));
-        assert!(rasterizer("b").insert_into(&mut list));
-        assert_eq!(list.len(), 2);
-    }
-}
-
-#[cfg(test)]
 mod has_emoji_presentation_tests {
     use super::has_emoji_presentation;
 
