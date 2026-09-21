@@ -338,6 +338,13 @@ fn layout_shaped_run(
                     })
                     .unwrap_or_default();
                 let (_, glyph_info) = fonts.glyph_info(ctx.family, chr, &fallback_metrics);
+
+                // The shaper had no glyph, but the face may still resolve the character
+                // (e.g. `\t` and thin spaces become a space with a custom advance).
+                // Only a genuine `.notdef` is a missing glyph.
+                if glyph_info.id == Some(skrifa::GlyphId::NOTDEF) {
+                    fonts.on_missing_glyph(ctx.family, cluster_text);
+                }
                 let advance_width_px =
                     glyph_info.advance_width_unscaled.0 * fallback_metrics.px_scale_factor;
                 let OutlineGlyph { allocation, x_px } = allocate_glyph_info(
@@ -437,7 +444,8 @@ fn raster_glyph(
     )
 }
 
-/// Emit the glyphs of a run that a priority [`GlyphRasterizer`](crate::text::GlyphRasterizer) rendered.
+/// Emit the glyphs of a run that a [`GlyphRasterizer`](crate::text::GlyphRasterizer) rendered,
+/// or that stands in for a cluster in a family without fonts (see [`FontsImpl::fontless_cluster`]).
 ///
 /// The run is one grapheme cluster: its first char gets the bitmap,
 /// and the rest zero-width continuation glyphs.
@@ -571,6 +579,10 @@ fn layout_section(
                 continue;
             }
             let Some(font_face) = fonts.face(run.font_key) else {
+                debug_assert!(
+                    false,
+                    "`segment_into_runs` should have turned this fontless cluster into a raster run"
+                );
                 continue;
             };
 
@@ -1514,6 +1526,23 @@ fn segment_into_runs(
 
         let font_key = fonts.resolve_cluster_face(ctx.family, grapheme_str);
 
+        if fonts.face(font_key).is_none() {
+            // The family has no font at all, so there is nothing to shape with.
+            // Still emit a glyph per cluster, or cursors and selections break.
+            let raster = fonts.fontless_cluster(
+                ctx.family,
+                grapheme_str,
+                ctx.pixels_per_point,
+                ctx.font_size,
+            );
+            out.push(TextRun {
+                font_key,
+                byte_range: byte_offset..byte_end,
+                raster: Some(raster),
+            });
+            continue;
+        }
+
         if let Some(last_run) = out.last_mut()
             && last_run.raster.is_none()
             && last_run.font_key == font_key
@@ -1582,6 +1611,120 @@ mod tests {
 
     fn test_fonts() -> FontsImpl {
         FontsImpl::new(TextOptions::default(), FontDefinitions::default())
+    }
+
+    fn layout_without_fonts(text: &str, policy: MissingGlyphPolicy) -> Arc<Galley> {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())
+            .with_missing_glyph_policy(policy);
+        fonts.with_pixels_per_point(2.0).layout_no_wrap(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+        )
+    }
+
+    /// With no font at all we still need one glyph per character and rows with height,
+    /// or text cursors get clamped to 0 and text edits lose their contents.
+    #[test]
+    fn no_font_still_gives_one_glyph_per_char() {
+        let galley = layout_without_fonts("ab c", MissingGlyphPolicy::Tofu);
+
+        assert_eq!(galley.rows.len(), 1);
+        let row = &galley.rows[0].row;
+        assert_eq!(row.glyphs.len(), 4);
+        assert!(0.0 < row.height(), "row should have height: {row:?}");
+        assert!(0.0 < row.size.x, "row should have width: {row:?}");
+
+        // Every character gets a tofu box, whitespace included:
+        for (i, glyph) in row.glyphs.iter().enumerate() {
+            assert!(!glyph.uv_rect.is_nothing(), "glyph {i}: {glyph:?}");
+            assert!(0.0 < glyph.advance_width, "glyph {i}: {glyph:?}");
+            assert_eq!(galley.clamp_cursor(&CCursor::new(i)).index.0, i);
+            assert!(
+                glyph.pos.x.is_finite() && glyph.pos.y.is_finite(),
+                "{glyph:?}"
+            );
+        }
+        assert_eq!(galley.clamp_cursor(&CCursor::new(4)).index.0, 4);
+        assert_eq!(galley.end().index.0, 4);
+    }
+
+    #[test]
+    fn no_font_tofu_is_cached_across_layouts() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty());
+        let mut view = fonts.with_pixels_per_point(1.0);
+        let a = view.layout_no_wrap("a".into(), FontId::proportional(14.0), Color32::WHITE);
+        let b = view.layout_no_wrap("b".into(), FontId::proportional(14.0), Color32::WHITE);
+        assert_eq!(
+            a.rows[0].row.glyphs[0].uv_rect.min, b.rows[0].row.glyphs[0].uv_rect.min,
+            "the same synthetic tofu box should be reused"
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "No glyph for \"a\" (U+0061) in Proportional")]
+    fn missing_glyph_policy_panic_without_fonts() {
+        let _ = layout_without_fonts("a", MissingGlyphPolicy::Panic);
+    }
+
+    #[test]
+    #[should_panic(expected = "No glyph for \" \" (U+0020) in Proportional")]
+    fn missing_glyph_policy_panic_without_fonts_includes_whitespace() {
+        let _ = layout_without_fonts(" ", MissingGlyphPolicy::Panic);
+    }
+
+    #[test]
+    fn no_font_newline_still_breaks_rows() {
+        let galley = layout_without_fonts(" \t\n ", MissingGlyphPolicy::Tofu);
+        assert_eq!(galley.rows.len(), 2);
+        assert_eq!(galley.rows[0].row.glyphs.len(), 2);
+        assert_eq!(galley.rows[1].row.glyphs.len(), 1);
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")] // Needs `hack_only`
+    #[should_panic(
+        expected = "No glyph for \"😀\" (U+1F600) in Proportional. Installed fonts: [\"Hack\"]"
+    )]
+    fn missing_glyph_policy_panic_with_fonts() {
+        let mut fonts = Fonts::new(TextOptions::default(), hack_only())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Panic);
+        let _ = fonts.with_pixels_per_point(1.0).layout_no_wrap(
+            "a😀".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+        );
+    }
+
+    /// Fonts have no glyphs for control characters like `\t`; that is not a missing glyph.
+    #[test]
+    #[cfg(feature = "default_fonts")] // Needs `hack_only`
+    fn missing_glyph_policy_panic_ignores_tab_with_fonts() {
+        let mut fonts = Fonts::new(TextOptions::default(), hack_only())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Panic);
+        let galley = fonts.with_pixels_per_point(1.0).layout_no_wrap(
+            "a\tb".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+        );
+        assert_eq!(galley.rows[0].row.glyphs.len(), 3);
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")] // Needs `hack_only`
+    fn missing_glyph_policy_panic_is_satisfied_by_a_fallback_rasterizer() {
+        let rasterizer = GlyphRasterizer::new("test", |_: &GlyphRasterizerRequest<'_>| {
+            Some(white_raster_glyph())
+        });
+        let mut fonts = Fonts::new(TextOptions::default(), hack_only())
+            .with_glyph_rasterizer(rasterizer)
+            .with_missing_glyph_policy(MissingGlyphPolicy::Panic);
+        let galley = fonts.with_pixels_per_point(1.0).layout_no_wrap(
+            "a😀".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+        );
+        assert_eq!(galley.rows[0].row.glyphs.len(), 2);
     }
 
     /// Only `Hack`, which has no emoji.

@@ -204,6 +204,7 @@ impl<'a, State> Harness<'a, State> {
             mut renderer,
             wait_for_pending_images,
             fit_contents,
+            missing_glyph_policy,
             check_accessibility,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
@@ -223,6 +224,7 @@ impl<'a, State> Harness<'a, State> {
         let ctx = ctx.unwrap_or_default();
         ctx.set_theme(theme);
         ctx.set_os(os);
+        ctx.set_missing_glyph_policy(missing_glyph_policy);
         ctx.enable_accesskit();
         ctx.all_styles_mut(|style| {
             // Disable cursor blinking so it doesn't interfere with snapshots
