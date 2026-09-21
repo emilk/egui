@@ -1001,7 +1001,11 @@ impl Ui {
         let mut response = self.ctx().create_widget(
             WidgetRect {
                 id: self.unique_id,
-                parent_id: self.stack.parent.as_ref().map_or(self.unique_id, |p| p.id),
+                parent_id: self
+                    .stack
+                    .parent
+                    .as_ref()
+                    .map_or(self.unique_id, |p| p.unique_id),
                 layer_id: self.layer_id(),
                 rect: self.min_rect(),
                 interact_rect: self.clip_rect().intersect(self.min_rect()),

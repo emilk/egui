@@ -272,6 +272,7 @@ fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
     })
 }
 
+#[cfg(debug_assertions)]
 fn has_red_warning_rect_at(output: &egui::FullOutput, rect: egui::Rect) -> bool {
     output.shapes.iter().any(|clipped| {
         matches!(
