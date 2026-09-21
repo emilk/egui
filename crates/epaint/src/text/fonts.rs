@@ -11,7 +11,7 @@ use crate::{
         font_face::{FontFace, GlyphInfo, ShapedGlyph},
         font_provider::FontProviders,
         galley_cache::GalleyCache,
-        glyph_atlas::{GlyphAtlas, OutlineGlyph, RasterGlyphAllocation},
+        glyph_atlas::{GlyphAllocation, GlyphAtlas, OutlineGlyph, RasterGlyphAllocation},
         styled_metrics::StyledMetrics,
         text_layout::layout,
     },
@@ -715,25 +715,52 @@ impl FontsImpl {
         );
     }
 
-    /// The box we draw for characters no font has, when the family has no font whose
-    /// `.notdef` glyph we could use instead.
+    /// The glyph for `cluster` in a family that has no font at all.
     ///
-    /// Returns `None` only if the atlas cannot hold it, which for a box this small means never.
-    pub fn synthetic_tofu(
+    /// From a fallback [`GlyphRasterizer`] if one handles it, else a synthetic tofu box,
+    /// or only an advance (no bitmap) for whitespace and control characters.
+    pub fn fontless_cluster(
         &mut self,
         family: FamilyKey,
+        cluster: &str,
         pixels_per_point: f32,
         font_size: f32,
-    ) -> Option<RasterGlyphAllocation> {
-        let family_name = self.families[family.0].name();
-        self.glyphs.allocate_raster(
-            core::iter::once(&self.synthetic_tofu),
+    ) -> RasterGlyphAllocation {
+        if let Some(raster) = self.rasterize_cluster(
             FontPriority::Lowest,
-            SYNTHETIC_TOFU_KEY,
-            family_name,
+            family,
+            cluster,
             pixels_per_point,
             font_size,
-        )
+        ) {
+            return raster;
+        }
+
+        self.on_missing_glyph(family, cluster);
+
+        let chr = cluster.chars().next();
+        let advance_only = |advance_px: f32| RasterGlyphAllocation {
+            allocation: GlyphAllocation::default(),
+            advance_px,
+        };
+
+        if chr.is_some_and(char::is_whitespace) {
+            advance_only((0.3 * font_size * pixels_per_point).round())
+        } else if chr.is_none_or(char::is_control) {
+            advance_only(0.0)
+        } else {
+            let family_name = self.families[family.0].name();
+            self.glyphs
+                .allocate_raster(
+                    core::iter::once(&self.synthetic_tofu),
+                    FontPriority::Lowest,
+                    SYNTHETIC_TOFU_KEY,
+                    family_name,
+                    pixels_per_point,
+                    font_size,
+                )
+                .unwrap_or_else(|| advance_only(0.0)) // Only if the atlas cannot hold a tiny box.
+        }
     }
 }
 

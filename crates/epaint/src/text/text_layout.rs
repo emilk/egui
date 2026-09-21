@@ -439,7 +439,8 @@ fn raster_glyph(
     )
 }
 
-/// Emit the glyphs of a run that a priority [`GlyphRasterizer`](crate::text::GlyphRasterizer) rendered.
+/// Emit the glyphs of a run that a [`GlyphRasterizer`](crate::text::GlyphRasterizer) rendered,
+/// or that stands in for a cluster in a family without fonts (see [`FontsImpl::fontless_cluster`]).
 ///
 /// The run is one grapheme cluster: its first char gets the bitmap,
 /// and the rest zero-width continuation glyphs.
@@ -468,79 +469,6 @@ fn layout_raster_run(
         1,
         &face_metrics,
     );
-}
-
-/// Emit the glyphs of a run in a family that has no font at all.
-///
-/// Each grapheme cluster still gets a glyph: from a fallback
-/// [`GlyphRasterizer`](crate::text::GlyphRasterizer) if one handles it,
-/// else a synthetic tofu box (or nothing but an advance, for whitespace).
-/// Cursors and selections need `glyphs.len() == char_count` to hold even here.
-fn layout_fontless_run(
-    fonts: &mut FontsImpl,
-    ctx: &mut ShapingContext,
-    paragraph: &mut Paragraph,
-    run_text: &str,
-) {
-    use unicode_segmentation::UnicodeSegmentation as _;
-
-    let face_metrics = ctx.font_metrics.clone();
-
-    for cluster_text in run_text.graphemes(true) {
-        let Some(chr) = cluster_text.chars().next() else {
-            continue;
-        };
-        if !ctx.is_first_glyph_in_section {
-            paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
-        }
-        ctx.is_first_glyph_in_section = false;
-
-        let raster = fonts
-            .rasterize_cluster(
-                FontPriority::Lowest,
-                ctx.family,
-                cluster_text,
-                ctx.pixels_per_point,
-                ctx.font_size,
-            )
-            .or_else(|| {
-                fonts.on_missing_glyph(ctx.family, cluster_text);
-                if chr.is_whitespace() || chr.is_control() {
-                    None
-                } else {
-                    fonts.synthetic_tofu(ctx.family, ctx.pixels_per_point, ctx.font_size)
-                }
-            });
-
-        let glyph = if let Some(raster) = raster {
-            raster_glyph(ctx, paragraph, chr, &raster, &face_metrics)
-        } else {
-            // Whitespace (or a box the atlas could not hold): advance, but draw nothing.
-            let advance_px = if chr.is_whitespace() {
-                (0.3 * ctx.font_size * ctx.pixels_per_point).round()
-            } else {
-                0.0
-            };
-            let physical_x = paragraph.cursor_x_px.round() as i32;
-            paragraph.cursor_x_px += advance_px;
-            ctx.glyph(
-                chr,
-                physical_x,
-                advance_px,
-                &face_metrics,
-                GlyphAllocation::default(),
-            )
-        };
-        paragraph.glyphs.push(glyph);
-        emit_continuation_glyphs(
-            ctx,
-            paragraph,
-            cluster_text,
-            0..cluster_text.len(),
-            1,
-            &face_metrics,
-        );
-    }
 }
 
 /// Emit zero-width continuation glyphs when a cluster has more characters than
@@ -646,9 +574,7 @@ fn layout_section(
                 continue;
             }
             let Some(font_face) = fonts.face(run.font_key) else {
-                // The family has no font at all.
-                layout_fontless_run(fonts, &mut ctx, paragraph, run_text);
-                continue;
+                continue; // Cannot happen: `segment_into_runs` turns fontless clusters into raster runs.
             };
 
             let face_metrics =
@@ -1590,6 +1516,23 @@ fn segment_into_runs(
         }
 
         let font_key = fonts.resolve_cluster_face(ctx.family, grapheme_str);
+
+        if fonts.face(font_key).is_none() {
+            // The family has no font at all, so there is nothing to shape with.
+            // Still emit a glyph per cluster, or cursors and selections break.
+            let raster = fonts.fontless_cluster(
+                ctx.family,
+                grapheme_str,
+                ctx.pixels_per_point,
+                ctx.font_size,
+            );
+            out.push(TextRun {
+                font_key,
+                byte_range: byte_offset..byte_end,
+                raster: Some(raster),
+            });
+            continue;
+        }
 
         if let Some(last_run) = out.last_mut()
             && last_run.raster.is_none()

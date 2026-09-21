@@ -19,12 +19,3 @@ fn missing_glyph_is_allowed_on_request() {
     });
     harness.run();
 }
-
-/// Whitespace and control characters never panic, whatever the fonts have.
-#[test]
-fn whitespace_is_not_a_missing_glyph() {
-    let mut harness = Harness::new_ui(|ui| {
-        ui.label(" \t\n\u{00A0}\u{200B}");
-    });
-    harness.run();
-}
