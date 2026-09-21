@@ -128,13 +128,14 @@ fn accessible_name_names_a_widget_without_a_label() {
 
 /// A row label can name every unnamed input next to it.
 #[test]
-fn unnamed_inputs_can_be_labelled_by_a_row_label() {
+fn inputs_can_be_labelled_by_a_row_label() {
     let mut value = 0.5;
     let mut harness = Harness::new_ui(|ui| {
         ui.horizontal(|ui| {
             let label = ui.label("Opacity");
-            ui.add(DragValue::new(&mut value));
-            ui.label_unnamed_inputs_by(label.id);
+            ui.label_inputs_by(label.id, |ui| {
+                ui.add(DragValue::new(&mut value));
+            });
         });
     });
     harness.run();
@@ -142,11 +143,12 @@ fn unnamed_inputs_can_be_labelled_by_a_row_label() {
 }
 
 #[test]
-fn unnamed_inputs_can_be_named() {
+fn inputs_can_be_named() {
     let mut text = "let x = 1;".to_owned();
     let mut harness = Harness::new_ui(|ui| {
-        ui.add(TextEdit::multiline(&mut text).interactive(false));
-        ui.name_unnamed_inputs("Code block");
+        ui.name_inputs("Code block", |ui| {
+            ui.add(TextEdit::multiline(&mut text).interactive(false));
+        });
     });
     harness.run();
     harness.get_by_role_and_label(Role::MultilineTextInput, "Code block");
@@ -171,10 +173,11 @@ fn unnamed_collapsing_header_is_an_unnamed_input() {
 #[test]
 fn collapsing_header_can_be_named() {
     let mut harness = Harness::new_ui(|ui| {
-        egui::CollapsingHeader::new("").show(ui, |ui| {
-            let _ = ui.button("Inside");
+        ui.name_inputs("Details", |ui| {
+            egui::CollapsingHeader::new("").show(ui, |ui| {
+                let _ = ui.button("Inside");
+            });
         });
-        ui.name_unnamed_inputs("Details");
     });
     harness.run();
 

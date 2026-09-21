@@ -963,55 +963,77 @@ impl Ui {
         )
     }
 
-    /// Mark every input widget under this `Ui` that has no accessible name as labelled by
-    /// `label_id`.
+    /// Run `add_contents`, then mark every input widget it added that has no accessible name
+    /// as labelled by `label_id`.
     ///
-    /// For a row whose label is painted apart from its value widgets (a property row, a form),
-    /// this names the value widgets without each editor having to know the row label.
-    /// Call it after adding the widgets. Costs nothing when accessibility is off.
-    pub fn label_unnamed_inputs_by(&self, label_id: Id) {
-        for id in self.unnamed_inputs() {
+    /// An input widget is one whose role passes [`crate::accessibility::is_input`]. For a row
+    /// whose label is painted apart from its value widgets (a property row, a form), this names
+    /// the value widgets without each editor having to know the row label.
+    /// Costs a lookup per widget added, and nothing when accessibility is off.
+    pub fn label_inputs_by<R>(
+        &mut self,
+        label_id: Id,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let first = self.widget_count_in_layer();
+        let result = add_contents(self);
+        for id in self.unnamed_inputs_added_since(first) {
             self.ctx().accesskit_node_builder(id, |node| {
                 node.push_labelled_by(label_id.accesskit_id());
             });
         }
+        result
     }
 
-    /// Give every input widget under this `Ui` that has no accessible name the name `name`.
+    /// Run `add_contents`, then give every input widget it added that has no accessible name
+    /// the name `name`.
     ///
-    /// For widgets that cannot be named where they are built, e.g. the read-only `TextEdit`
-    /// a third-party markdown renderer uses for a code block.
-    /// Call it after adding the widgets. Costs nothing when accessibility is off.
-    pub fn name_unnamed_inputs(&self, name: impl Into<String>) {
+    /// An input widget is one whose role passes [`crate::accessibility::is_input`]. This is for
+    /// widgets that cannot be named where they are built, e.g. the read-only `TextEdit` a
+    /// third-party markdown renderer uses for a code block.
+    /// Costs a lookup per widget added, and nothing when accessibility is off.
+    pub fn name_inputs<R>(
+        &mut self,
+        name: impl Into<String>,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let first = self.widget_count_in_layer();
+        let result = add_contents(self);
         let name = name.into();
-        for id in self.unnamed_inputs() {
+        for id in self.unnamed_inputs_added_since(first) {
             self.ctx()
                 .accesskit_node_builder(id, |node| node.set_label(name.clone()));
         }
+        result
     }
 
-    /// Every input widget under this `Ui` this pass that has neither a label nor a `labelled_by`.
-    fn unnamed_inputs(&self) -> Vec<Id> {
-        let container = self.unique_id;
+    /// How many widgets this pass has registered on this `Ui`'s layer so far.
+    fn widget_count_in_layer(&self) -> usize {
+        let layer_id = self.layer_id();
+        self.ctx()
+            .viewport(|viewport| viewport.this_pass.widgets.get_layer(layer_id).count())
+    }
+
+    /// The input widgets registered on this `Ui`'s layer from index `first` on that have
+    /// neither a label nor a `labelled_by`.
+    fn unnamed_inputs_added_since(&self, first: usize) -> Vec<Id> {
+        let layer_id = self.layer_id();
         self.ctx().viewport(|viewport| {
             let Some(state) = &viewport.this_pass.accesskit_state else {
                 return Vec::new();
             };
-            let parent_map = &state.parent_map;
-            state
-                .nodes
-                .iter()
-                .filter(|(id, node)| {
-                    crate::accessibility::INPUT_ROLES.contains(&node.role())
+            viewport
+                .this_pass
+                .widgets
+                .get_layer(layer_id)
+                .skip(first)
+                .filter_map(|rect| {
+                    let node = state.nodes.get(&rect.id)?;
+                    let unnamed = crate::accessibility::is_input(node.role())
                         && node.label().is_none_or(|label| label.trim().is_empty())
-                        && node.labelled_by().is_empty()
-                        && core::iter::successors(parent_map.get(id), |parent| {
-                            parent_map.get(parent)
-                        })
-                        .take(256)
-                        .any(|ancestor| *ancestor == container)
+                        && node.labelled_by().is_empty();
+                    unnamed.then_some(rect.id)
                 })
-                .map(|(id, _)| *id)
                 .collect()
         })
     }

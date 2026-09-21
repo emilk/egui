@@ -2,22 +2,196 @@
 
 use crate::accesskit::Role;
 
-/// Roles a user reaches by name: everything you can click, toggle, pick from, drag, or type into.
+/// Is this a role a user reaches by name: something to click, toggle, pick from, drag, or type into?
 ///
-/// A widget with one of these roles and no accessible name cannot be found by a screen reader,
+/// A widget with such a role and no accessible name cannot be found by a screen reader,
 /// nor by a test that looks it up by label.
-pub const INPUT_ROLES: &[Role] = &[
-    Role::Button,
-    Role::CheckBox,
-    Role::ColorWell,
-    Role::ComboBox,
-    Role::DisclosureTriangle,
-    Role::Link,
-    Role::MultilineTextInput,
-    Role::PasswordInput,
-    Role::RadioButton,
-    Role::Slider,
-    Role::SpinButton,
-    Role::Splitter,
-    Role::TextInput,
-];
+///
+/// The match is exhaustive, so a new [`Role`] has to be sorted in here.
+pub fn is_input(role: Role) -> bool {
+    match role {
+        Role::Button
+        | Role::DefaultButton
+        | Role::CheckBox
+        | Role::Switch
+        | Role::RadioButton
+        | Role::ColorWell
+        | Role::ComboBox
+        | Role::EditableComboBox
+        | Role::DisclosureTriangle
+        | Role::Link
+        | Role::MenuItem
+        | Role::MenuItemCheckBox
+        | Role::MenuItemRadio
+        | Role::ListBoxOption
+        | Role::MenuListOption
+        | Role::TreeItem
+        | Role::Tab
+        | Role::TextInput
+        | Role::MultilineTextInput
+        | Role::SearchInput
+        | Role::PasswordInput
+        | Role::NumberInput
+        | Role::DateInput
+        | Role::DateTimeInput
+        | Role::WeekInput
+        | Role::MonthInput
+        | Role::TimeInput
+        | Role::EmailInput
+        | Role::PhoneNumberInput
+        | Role::UrlInput
+        | Role::Slider
+        | Role::SpinButton
+        | Role::Splitter => true,
+
+        Role::Unknown
+        | Role::TextRun
+        | Role::Cell
+        | Role::Label
+        | Role::Image
+        | Role::Row
+        | Role::ListItem
+        | Role::ListMarker
+        | Role::Paragraph
+        | Role::GenericContainer
+        | Role::Pane
+        | Role::RowHeader
+        | Role::ColumnHeader
+        | Role::RowGroup
+        | Role::List
+        | Role::Table
+        | Role::LayoutTableCell
+        | Role::LayoutTableRow
+        | Role::LayoutTable
+        | Role::Menu
+        | Role::Abbr
+        | Role::Alert
+        | Role::AlertDialog
+        | Role::Application
+        | Role::Article
+        | Role::Audio
+        | Role::Banner
+        | Role::Blockquote
+        | Role::Canvas
+        | Role::Caption
+        | Role::Caret
+        | Role::Code
+        | Role::Complementary
+        | Role::Comment
+        | Role::ContentDeletion
+        | Role::ContentInsertion
+        | Role::ContentInfo
+        | Role::Definition
+        | Role::DescriptionList
+        | Role::Details
+        | Role::Dialog
+        | Role::Document
+        | Role::EmbeddedObject
+        | Role::Emphasis
+        | Role::Feed
+        | Role::FigureCaption
+        | Role::Figure
+        | Role::Footer
+        | Role::Form
+        | Role::Grid
+        | Role::GridCell
+        | Role::Group
+        | Role::Header
+        | Role::Heading
+        | Role::Iframe
+        | Role::IframePresentational
+        | Role::ImeCandidate
+        | Role::Keyboard
+        | Role::Legend
+        | Role::LineBreak
+        | Role::ListBox
+        | Role::Log
+        | Role::Main
+        | Role::Mark
+        | Role::Marquee
+        | Role::Math
+        | Role::MenuBar
+        | Role::MenuListPopup
+        | Role::Meter
+        | Role::Navigation
+        | Role::Note
+        | Role::PluginObject
+        | Role::ProgressIndicator
+        | Role::RadioGroup
+        | Role::Region
+        | Role::RootWebArea
+        | Role::Ruby
+        | Role::RubyAnnotation
+        | Role::ScrollBar
+        | Role::ScrollView
+        | Role::Search
+        | Role::Section
+        | Role::SectionFooter
+        | Role::SectionHeader
+        | Role::Status
+        | Role::Strong
+        | Role::Suggestion
+        | Role::SvgRoot
+        | Role::TabList
+        | Role::TabPanel
+        | Role::Term
+        | Role::Time
+        | Role::Timer
+        | Role::TitleBar
+        | Role::Toolbar
+        | Role::Tooltip
+        | Role::Tree
+        | Role::TreeGrid
+        | Role::Video
+        | Role::WebView
+        | Role::Window
+        | Role::PdfActionableHighlight
+        | Role::PdfRoot
+        | Role::GraphicsDocument
+        | Role::GraphicsObject
+        | Role::GraphicsSymbol
+        | Role::DocAbstract
+        | Role::DocAcknowledgements
+        | Role::DocAfterword
+        | Role::DocAppendix
+        | Role::DocBackLink
+        | Role::DocBiblioEntry
+        | Role::DocBibliography
+        | Role::DocBiblioRef
+        | Role::DocChapter
+        | Role::DocColophon
+        | Role::DocConclusion
+        | Role::DocCover
+        | Role::DocCredit
+        | Role::DocCredits
+        | Role::DocDedication
+        | Role::DocEndnote
+        | Role::DocEndnotes
+        | Role::DocEpigraph
+        | Role::DocEpilogue
+        | Role::DocErrata
+        | Role::DocExample
+        | Role::DocFootnote
+        | Role::DocForeword
+        | Role::DocGlossary
+        | Role::DocGlossRef
+        | Role::DocIndex
+        | Role::DocIntroduction
+        | Role::DocNoteRef
+        | Role::DocNotice
+        | Role::DocPageBreak
+        | Role::DocPageFooter
+        | Role::DocPageHeader
+        | Role::DocPageList
+        | Role::DocPart
+        | Role::DocPreface
+        | Role::DocPrologue
+        | Role::DocPullquote
+        | Role::DocQna
+        | Role::DocSubtitle
+        | Role::DocTip
+        | Role::DocToc
+        | Role::ListGrid
+        | Role::Terminal => false,
+    }
+}

@@ -1,6 +1,6 @@
 //! Checks that every widget a user can act on is reachable by name.
 
-use egui::accessibility::INPUT_ROLES;
+use egui::accessibility::is_input;
 use kittest::{AccessKitNode, NodeT as _};
 
 use crate::Harness;
@@ -14,7 +14,7 @@ impl<State> Harness<'_, State> {
         self.root()
             .children_recursive()
             .map(|node| node.accesskit_node())
-            .filter(|node| INPUT_ROLES.contains(&node.role()) && !node.is_hidden())
+            .filter(|node| is_input(node.role()) && !node.is_hidden())
             .filter(|node| !has_name(node))
             .map(|node| describe(&node))
             .collect()
