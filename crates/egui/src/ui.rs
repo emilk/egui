@@ -104,6 +104,7 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            accessibility_label,
             classes,
         } = ui_builder;
 
@@ -186,6 +187,9 @@ impl Ui {
             .map_or(accesskit::Role::GenericContainer, UiKind::accesskit_role);
         ui.ctx().accesskit_node_builder(ui.unique_id, |node| {
             node.set_role(role);
+            if let Some(label) = accessibility_label {
+                node.set_label(label);
+            }
         });
 
         ui
@@ -213,6 +217,7 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            accessibility_label,
             classes,
         } = ui_builder;
 
@@ -314,6 +319,9 @@ impl Ui {
             .ctx()
             .accesskit_node_builder(child_ui.unique_id, |node| {
                 node.set_role(role);
+                if let Some(label) = accessibility_label {
+                    node.set_label(label);
+                }
             });
 
         child_ui

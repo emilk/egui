@@ -186,6 +186,7 @@ pub struct Popup<'a> {
     frame: Option<Frame>,
     style: StyleModifier,
     anchor_widget: Option<Id>,
+    accessibility_label: Option<String>,
 }
 
 impl<'a> Popup<'a> {
@@ -211,6 +212,7 @@ impl<'a> Popup<'a> {
             frame: None,
             style: StyleModifier::default(),
             anchor_widget: None,
+            accessibility_label: None,
         }
     }
 
@@ -369,6 +371,15 @@ impl<'a> Popup<'a> {
     #[inline]
     pub fn anchor_widget(mut self, widget_id: Id) -> Self {
         self.anchor_widget = Some(widget_id);
+        self
+    }
+
+    /// Name the popup in the accessibility tree.
+    ///
+    /// See [`Area::accessible_name`].
+    #[inline]
+    pub fn accessible_name(mut self, name: impl Into<String>) -> Self {
+        self.accessibility_label = Some(name.into());
         self
     }
 
@@ -591,6 +602,7 @@ impl<'a> Popup<'a> {
             frame,
             style,
             anchor_widget,
+            accessibility_label,
         } = self;
 
         if kind != PopupKind::Tooltip {
@@ -629,6 +641,9 @@ impl<'a> Popup<'a> {
         }
         if let Some(anchor_widget) = anchor_widget {
             area = area.accessibility_parent(anchor_widget);
+        }
+        if let Some(label) = accessibility_label {
+            area = area.accessible_name(label);
         }
 
         let mut response = area.show(&ctx, |ui| {

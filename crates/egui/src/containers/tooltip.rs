@@ -91,6 +91,15 @@ impl Tooltip<'_> {
         self
     }
 
+    /// Name the tooltip in the accessibility tree.
+    ///
+    /// See [`Area::accessible_name`](crate::Area::accessible_name).
+    #[inline]
+    pub fn accessible_name(mut self, name: impl Into<String>) -> Self {
+        self.popup = self.popup.accessible_name(name);
+        self
+    }
+
     /// Set the width of the tooltip
     #[inline]
     pub fn width(mut self, width: f32) -> Self {
