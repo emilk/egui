@@ -500,7 +500,10 @@ fn collapsible_panel_can_be_collapsed_via_accesskit_action() {
 
     let handle = harness.get_by_role_and_label(Role::Splitter, "Resize panel");
     assert!(
-        handle.accesskit_node().data().supports_action(Action::Decrement),
+        handle
+            .accesskit_node()
+            .data()
+            .supports_action(Action::Decrement),
         "An expanded collapsible panel at its min size can still be collapsed"
     );
     handle.decrement_accesskit();
@@ -540,7 +543,10 @@ fn switched_panel_can_be_expanded_via_accesskit_action() {
 
     let handle = harness.get_by_role_and_label(Role::Splitter, "Resize panel");
     assert!(
-        handle.accesskit_node().data().supports_action(Action::Increment),
+        handle
+            .accesskit_node()
+            .data()
+            .supports_action(Action::Increment),
         "The collapsed panel's handle should offer to expand it"
     );
     handle.increment_accesskit();
