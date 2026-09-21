@@ -2783,7 +2783,8 @@ impl Widget for &mut Margin {
                 ui.checkbox(&mut same, "same");
 
                 let mut value = self.left;
-                ui.add(DragValue::new(&mut value).range(0.0..=100.0));
+                ui.add(DragValue::new(&mut value).range(0.0..=100.0))
+                    .on_hover_text("Margin");
                 *self = Margin::same(value);
             })
             .response
@@ -2792,20 +2793,24 @@ impl Widget for &mut Margin {
                 ui.checkbox(&mut same, "same");
 
                 crate::Grid::new("margin").num_columns(2).show(ui, |ui| {
-                    ui.label("Left");
-                    ui.add(DragValue::new(&mut self.left).range(0.0..=100.0));
+                    let label = ui.label("Left");
+                    ui.add(DragValue::new(&mut self.left).range(0.0..=100.0))
+                        .labelled_by(label.id);
                     ui.end_row();
 
-                    ui.label("Right");
-                    ui.add(DragValue::new(&mut self.right).range(0.0..=100.0));
+                    let label = ui.label("Right");
+                    ui.add(DragValue::new(&mut self.right).range(0.0..=100.0))
+                        .labelled_by(label.id);
                     ui.end_row();
 
-                    ui.label("Top");
-                    ui.add(DragValue::new(&mut self.top).range(0.0..=100.0));
+                    let label = ui.label("Top");
+                    ui.add(DragValue::new(&mut self.top).range(0.0..=100.0))
+                        .labelled_by(label.id);
                     ui.end_row();
 
-                    ui.label("Bottom");
-                    ui.add(DragValue::new(&mut self.bottom).range(0.0..=100.0));
+                    let label = ui.label("Bottom");
+                    ui.add(DragValue::new(&mut self.bottom).range(0.0..=100.0))
+                        .labelled_by(label.id);
                     ui.end_row();
                 });
             })
@@ -2840,7 +2845,8 @@ impl Widget for &mut CornerRadius {
                 ui.checkbox(&mut same, "same");
 
                 let mut cr = self.nw;
-                ui.add(DragValue::new(&mut cr).range(0.0..=f32::INFINITY));
+                ui.add(DragValue::new(&mut cr).range(0.0..=f32::INFINITY))
+                    .on_hover_text("Corner radius");
                 *self = CornerRadius::same(cr);
             })
             .response
@@ -2851,20 +2857,24 @@ impl Widget for &mut CornerRadius {
                 crate::Grid::new("Corner radius")
                     .num_columns(2)
                     .show(ui, |ui| {
-                        ui.label("NW");
-                        ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY));
+                        let label = ui.label("NW");
+                        ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY))
+                            .labelled_by(label.id);
                         ui.end_row();
 
-                        ui.label("NE");
-                        ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY));
+                        let label = ui.label("NE");
+                        ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY))
+                            .labelled_by(label.id);
                         ui.end_row();
 
-                        ui.label("SW");
-                        ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY));
+                        let label = ui.label("SW");
+                        ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY))
+                            .labelled_by(label.id);
                         ui.end_row();
 
-                        ui.label("SE");
-                        ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY));
+                        let label = ui.label("SE");
+                        ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY))
+                            .labelled_by(label.id);
                         ui.end_row();
                     });
             })

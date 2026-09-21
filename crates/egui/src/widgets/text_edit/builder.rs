@@ -220,16 +220,20 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Add a prefix to the text edit. This will always be shown before the editable text.
+    ///
+    /// Goes in front of any prefix already set, so `.prefix("b").prefix("a")` shows `ab`.
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'static>) -> Self {
-        self.prefix = prefix.into_atoms();
+        self.prefix.extend_left(prefix.into_atoms());
         self
     }
 
     /// Add a suffix to the text edit. This will always be shown after the editable text.
+    ///
+    /// Goes after any suffix already set, so `.suffix("a").suffix("b")` shows `ab`.
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'static>) -> Self {
-        self.suffix = suffix.into_atoms();
+        self.suffix.extend_right(suffix.into_atoms());
         self
     }
 
@@ -1011,11 +1015,12 @@ impl<'t> TextEdit<'t> {
             });
         } else if selection_changed && let Some(cursor_range) = cursor_range {
             let char_range = cursor_range.as_sorted_char_range();
-            let info = WidgetInfo::text_selection_changed(
+            let mut info = WidgetInfo::text_selection_changed(
                 ui.is_enabled(),
                 char_range,
                 mask_if_password(password, text.as_str()),
             );
+            info.hint_text = Some(hint_text_str.clone());
             response.output_event(OutputEvent::TextSelectionChanged(info));
         } else {
             response.widget_info(|| {
@@ -1028,19 +1033,23 @@ impl<'t> TextEdit<'t> {
             });
         }
 
-        let role = if password {
-            accesskit::Role::PasswordInput
-        } else if multiline {
-            accesskit::Role::MultilineTextInput
-        } else {
-            accesskit::Role::TextInput
-        };
+        ui.ctx().accesskit_node_builder(id, |builder| {
+            // `WidgetInfo` only reports the generic `Role::TextInput`,
+            // so refine the role here:
+            let role = if password {
+                accesskit::Role::PasswordInput
+            } else if multiline {
+                accesskit::Role::MultilineTextInput
+            } else {
+                accesskit::Role::TextInput
+            };
+            builder.set_role(role);
+        });
 
         crate::text_selection::accesskit_text::update_accesskit_for_text_widget(
             ui.ctx(),
             id,
             cursor_range,
-            role,
             TSTransform::from_translation(galley_pos.to_vec2()),
             &galley,
         );

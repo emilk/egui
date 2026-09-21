@@ -18,9 +18,9 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align, Context, CursorIcon, Frame, Id, IdSalt, InnerResponse, LayerId, Layout, Margin,
-    NumExt as _, Order, Rangef, Rect, Response, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo,
-    Vec2, WidgetInfo, WidgetType, lerp,
+    Align, AsIdSalt, Context, CursorIcon, Frame, Id, IdSalt, InnerResponse, LayerId, Layout,
+    Margin, NumExt as _, Order, Rangef, Rect, Response, Role, Sense, Stroke, Ui, UiBuilder, UiKind,
+    UiStackInfo, Vec2, WidgetInfo, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -249,14 +249,14 @@ impl Panel {
     /// Create a left panel.
     ///
     /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_left_panel"`.
-    pub fn left(id_salt: impl Into<IdSalt>) -> Self {
+    pub fn left(id_salt: impl AsIdSalt) -> Self {
         Self::new(PanelSide::Left, id_salt)
     }
 
     /// Create a right panel.
     ///
     /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_right_panel"`.
-    pub fn right(id_salt: impl Into<IdSalt>) -> Self {
+    pub fn right(id_salt: impl AsIdSalt) -> Self {
         Self::new(PanelSide::Right, id_salt)
     }
 
@@ -265,7 +265,7 @@ impl Panel {
     /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_top_panel"`.
     ///
     /// By default this is NOT resizable.
-    pub fn top(id_salt: impl Into<IdSalt>) -> Self {
+    pub fn top(id_salt: impl AsIdSalt) -> Self {
         Self::new(PanelSide::Top, id_salt).resizable(false)
     }
 
@@ -274,14 +274,14 @@ impl Panel {
     /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_bottom_panel"`.
     ///
     /// By default this is NOT resizable.
-    pub fn bottom(id_salt: impl Into<IdSalt>) -> Self {
+    pub fn bottom(id_salt: impl AsIdSalt) -> Self {
         Self::new(PanelSide::Bottom, id_salt).resizable(false)
     }
 
     /// Create a panel.
     ///
     /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_panel"`.
-    fn new(side: PanelSide, id_salt: impl Into<IdSalt>) -> Self {
+    fn new(side: PanelSide, id_salt: impl AsIdSalt) -> Self {
         let default_outer_size: Option<f32> = match side {
             PanelSide::Left | PanelSide::Right => Some(200.0),
             PanelSide::Top | PanelSide::Bottom => None,
@@ -294,7 +294,7 @@ impl Panel {
 
         Self {
             side,
-            id_salt: id_salt.into(),
+            id_salt: IdSalt::new(id_salt),
             frame: None,
             resizable: true,
             drag_to_open: true,
@@ -1039,9 +1039,8 @@ impl Panel {
         let resize_id = self.resize_id(ui);
         let response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
 
-        response.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::ResizeHandle, ui.is_enabled(), "Resize panel")
-        });
+        response
+            .widget_info(|| WidgetInfo::labeled(Role::Splitter, ui.is_enabled(), "Resize panel"));
 
         // Let assistive technologies pull the panel open, mirroring the
         // drag-to-expand gesture below:
@@ -1157,9 +1156,8 @@ impl Panel {
         let fraction = f64::from(outer_rect.size_along(axis) / available_size);
         let step = f64::from(ui.style().spacing.interact_size[axis] / available_size);
 
-        response.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::ResizeHandle, ui.is_enabled(), "Resize panel")
-        });
+        response
+            .widget_info(|| WidgetInfo::labeled(Role::Splitter, ui.is_enabled(), "Resize panel"));
         ui.ctx().accesskit_node_builder(resize_id, |node| {
             // The divider of a left/right panel is a vertical splitter, and vice versa.
             node.set_orientation(if axis == 0 {

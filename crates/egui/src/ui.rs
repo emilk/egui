@@ -104,6 +104,7 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            accessibility_label,
             classes,
         } = ui_builder;
 
@@ -162,7 +163,7 @@ impl Ui {
         ui.ctx().create_widget(
             WidgetRect {
                 id: ui.unique_id,
-                parent_id: ui.scope_id,
+                parent_id: ui.unique_id,
                 layer_id: ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
@@ -180,8 +181,15 @@ impl Ui {
             ui.set_invisible();
         }
 
+        let role = ui
+            .stack
+            .kind()
+            .map_or(accesskit::Role::GenericContainer, UiKind::accesskit_role);
         ui.ctx().accesskit_node_builder(ui.unique_id, |node| {
-            node.set_role(accesskit::Role::GenericContainer);
+            node.set_role(role);
+            if let Some(label) = accessibility_label {
+                node.set_label(label);
+            }
         });
 
         ui
@@ -209,6 +217,7 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            accessibility_label,
             classes,
         } = ui_builder;
 
@@ -291,7 +300,7 @@ impl Ui {
         child_ui.ctx().create_widget(
             WidgetRect {
                 id: child_ui.unique_id,
-                parent_id: self.scope_id,
+                parent_id: self.unique_id,
                 layer_id: child_ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
@@ -302,10 +311,17 @@ impl Ui {
             Default::default(),
         );
 
+        let role = child_ui
+            .stack
+            .kind()
+            .map_or(accesskit::Role::GenericContainer, UiKind::accesskit_role);
         child_ui
             .ctx()
             .accesskit_node_builder(child_ui.unique_id, |node| {
-                node.set_role(accesskit::Role::GenericContainer);
+                node.set_role(role);
+                if let Some(label) = accessibility_label {
+                    node.set_label(label);
+                }
             });
 
         child_ui
@@ -935,7 +951,7 @@ impl Ui {
         self.ctx().create_widget(
             WidgetRect {
                 id,
-                parent_id: self.scope_id,
+                parent_id: self.unique_id,
                 layer_id: self.layer_id(),
                 rect,
                 interact_rect: self.clip_rect().intersect(rect),
@@ -993,7 +1009,11 @@ impl Ui {
         let mut response = self.ctx().create_widget(
             WidgetRect {
                 id: self.unique_id,
-                parent_id: self.scope_id,
+                parent_id: self
+                    .stack
+                    .parent
+                    .as_ref()
+                    .map_or(self.unique_id, |p| p.unique_id),
                 layer_id: self.layer_id(),
                 rect: self.min_rect(),
                 interact_rect: self.clip_rect().intersect(self.min_rect()),

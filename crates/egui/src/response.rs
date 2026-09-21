@@ -152,7 +152,7 @@ bitflags::bitflags! {
 }
 
 impl Response {
-    /// The [`Id`] of the parent [`crate::Ui`] that hosts this widget.
+    /// The [`crate::Ui::unique_id`] of the parent [`crate::Ui`] that hosts this widget.
     ///
     /// Looks up the [`WidgetRect`] from the current (or previous) pass.
     pub fn parent_id(&self) -> Id {
@@ -751,6 +751,8 @@ impl Response {
     /// Like `on_hover_text`, but show the text next to cursor.
     #[doc(alias = "tooltip")]
     pub fn on_hover_text_at_pointer(self, text: impl Into<WidgetText>) -> Self {
+        let text = text.into();
+        self.describe_for_accessibility(text.text());
         self.on_hover_ui_at_pointer(|ui| {
             // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
             // See https://github.com/emilk/egui/issues/5167
@@ -768,6 +770,8 @@ impl Response {
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     #[doc(alias = "tooltip")]
     pub fn on_hover_text(self, text: impl Into<WidgetText>) -> Self {
+        let text = text.into();
+        self.describe_for_accessibility(text.text());
         self.on_hover_ui(|ui| {
             // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
             // See https://github.com/emilk/egui/issues/5167
@@ -775,6 +779,27 @@ impl Response {
 
             ui.add(crate::widgets::Label::new(text));
         })
+    }
+
+    /// Use the tooltip text as the accessible description of the widget,
+    /// and as its name if it has none (e.g. an icon-only button).
+    fn describe_for_accessibility(&self, text: &str) {
+        // Only widgets that already have a node; don't invent nodes for hover-only rects.
+        if self.ctx.has_accesskit_node(self.id) {
+            self.ctx.accesskit_node_builder(self.id, |node| {
+                if node.description().is_none() {
+                    node.set_description(text);
+                }
+                // A `Label` is named by its value, and a widget named by
+                // `labelled_by` already has a name, so leave those be.
+                if node.role() != accesskit::Role::Label
+                    && node.labelled_by().is_empty()
+                    && node.label().is_none_or(str::is_empty)
+                {
+                    node.set_label(text);
+                }
+            });
+        }
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -971,38 +996,15 @@ impl Response {
         builder: &mut accesskit::Node,
         info: crate::WidgetInfo,
     ) {
-        use crate::WidgetType;
         use accesskit::{Role, Toggled};
 
         self.fill_accesskit_node_common(builder);
-        builder.set_role(match info.typ {
-            WidgetType::Label => Role::Label,
-            WidgetType::Link => Role::Link,
-            WidgetType::TextEdit => Role::TextInput,
-            WidgetType::Button | WidgetType::CollapsingHeader | WidgetType::SelectableLabel => {
-                Role::Button
-            }
-            WidgetType::Image => Role::Image,
-            WidgetType::Checkbox => Role::CheckBox,
-            WidgetType::RadioButton => Role::RadioButton,
-            WidgetType::RadioGroup => Role::RadioGroup,
-            WidgetType::ComboBox => Role::ComboBox,
-            WidgetType::Slider => Role::Slider,
-            WidgetType::DragValue => Role::SpinButton,
-            WidgetType::ColorButton => Role::ColorWell,
-            WidgetType::Panel => Role::Pane,
-            WidgetType::ProgressIndicator => Role::ProgressIndicator,
-            WidgetType::Window => Role::Window,
-
-            WidgetType::ResizeHandle => Role::Splitter,
-            WidgetType::ScrollBar => Role::ScrollBar,
-
-            WidgetType::Other => Role::Unknown,
-        });
+        builder.set_role(info.role);
         if !info.enabled {
             builder.set_disabled();
         }
-        if let Some(label) = info.label {
+        // An empty label would take precedence over `labelled_by`, so leave it unset.
+        if let Some(label) = info.label.filter(|label| !label.is_empty()) {
             if matches!(builder.role(), Role::Label) {
                 builder.set_value(label);
             } else {
@@ -1021,7 +1023,7 @@ impl Response {
             } else {
                 Toggled::False
             });
-        } else if matches!(info.typ, WidgetType::Checkbox) {
+        } else if matches!(info.role, Role::CheckBox) {
             // Indeterminate state
             builder.set_toggled(Toggled::Mixed);
         }
@@ -1031,6 +1033,9 @@ impl Response {
     }
 
     /// Associate a label with a control for accessibility.
+    ///
+    /// The label becomes the accessible name of the widget, replacing any name the widget
+    /// gave itself (e.g. a [`crate::DragValue`] named after its prefix or suffix).
     ///
     /// # Example
     ///
@@ -1045,9 +1050,31 @@ impl Response {
     /// ```
     pub fn labelled_by(self, id: Id) -> Self {
         self.ctx.accesskit_node_builder(self.id, |builder| {
+            // A screen reader reads the widget's own label over `labelled_by`,
+            // so clear it to let the label win.
+            builder.clear_label();
             builder.push_labelled_by(id.accesskit_id());
         });
 
+        self
+    }
+
+    /// Name the widget in the accessibility tree when nothing visible names it,
+    /// e.g. an icon-only button or a text field without a label next to it.
+    ///
+    /// Prefer [`Self::labelled_by`] when a visible label sits next to the widget.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut text = String::new();
+    /// ui.text_edit_singleline(&mut text).accessible_name("Search");
+    /// # });
+    /// ```
+    pub fn accessible_name(self, name: impl Into<String>) -> Self {
+        let name = name.into();
+        self.ctx.accesskit_node_builder(self.id, |builder| {
+            builder.set_label(name);
+        });
         self
     }
 

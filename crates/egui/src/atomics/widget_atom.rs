@@ -24,7 +24,7 @@ use smallvec::SmallVec;
 /// [`AllocatedWidgetAtom`] for interaction styling.
 #[derive(Clone)]
 pub struct WidgetAtom<'a> {
-    id: Option<Id>,
+    pub(crate) id: Option<Id>,
     pub(crate) sense: Sense,
     selectable: bool,
     pub container: ContainerAtom<'a>,

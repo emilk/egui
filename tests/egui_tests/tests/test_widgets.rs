@@ -4,12 +4,15 @@ use egui::accesskit::Role;
 use egui::load::SizedTexture;
 use egui::{
     Align, AtomExt as _, Button, Color32, ColorImage, Direction, DragValue, Event, Grid,
-    IntoAtoms as _, Layout, PointerButton, Response, RichText, Slider, Stroke, StrokeKind,
-    TextEdit, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2, Widget as _,
-    WidgetAtom, include_image,
+    IntoAtoms as _, Layout, PointerButton, RangeSlider, Response, RichText, Slider, Stroke,
+    StrokeKind, TextEdit, TextWrapMode, TextureHandle, TextureOptions, Ui, UiBuilder, Vec2,
+    Widget as _, WidgetAtom, include_image,
 };
 use egui_kittest::kittest::{Queryable as _, by};
 use egui_kittest::{Harness, Node, SnapshotResult, SnapshotResults};
+
+/// The space each layout cell gives a widget, unless the widget asks for more.
+const DEFAULT_TEST_SIZE: Vec2 = Vec2::new(110.0, 45.0);
 
 #[test]
 fn widget_tests() {
@@ -144,6 +147,16 @@ fn widget_tests() {
         &mut results,
     );
 
+    test_widget_with_size(
+        "range_slider",
+        Vec2::new(170.0, DEFAULT_TEST_SIZE.y),
+        |ui| {
+            ui.spacing_mut().slider_width = 45.0;
+            RangeSlider::new(&mut 25.0, &mut 75.0, 0.0..=100.0).ui(ui)
+        },
+        &mut results,
+    );
+
     let source = include_image!("../../../crates/eframe/data/icon.png");
     let interesting_atoms = vec![
         ("minimal", ("Hello World!").into_atoms()),
@@ -158,20 +171,34 @@ fn widget_tests() {
     ];
 
     for atoms in interesting_atoms {
-        results.add(test_widget_layout(&format!("atoms_{}", atoms.0), |ui| {
-            WidgetAtom::new(atoms.1.clone()).ui(ui)
-        }));
+        results.add(test_widget_layout(
+            &format!("atoms_{}", atoms.0),
+            DEFAULT_TEST_SIZE,
+            |ui| WidgetAtom::new(atoms.1.clone()).ui(ui),
+        ));
     }
 }
 
-fn test_widget(name: &str, mut w: impl FnMut(&mut Ui) -> Response, results: &mut SnapshotResults) {
-    results.add(test_widget_layout(name, &mut w));
+fn test_widget(name: &str, w: impl FnMut(&mut Ui) -> Response, results: &mut SnapshotResults) {
+    test_widget_with_size(name, DEFAULT_TEST_SIZE, w, results);
+}
+
+/// For widgets too wide for [`DEFAULT_TEST_SIZE`], which would otherwise overflow their cells.
+fn test_widget_with_size(
+    name: &str,
+    test_size: Vec2,
+    mut w: impl FnMut(&mut Ui) -> Response,
+    results: &mut SnapshotResults,
+) {
+    results.add(test_widget_layout(name, test_size, &mut w));
     results.add(VisualTests::test(name, &mut w));
 }
 
-fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> SnapshotResult {
-    let test_size = Vec2::new(110.0, 45.0);
-
+fn test_widget_layout(
+    name: &str,
+    test_size: Vec2,
+    mut w: impl FnMut(&mut Ui) -> Response,
+) -> SnapshotResult {
     struct Row {
         main_dir: Direction,
         main_align: Align,
@@ -212,32 +239,76 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> Sna
         }
     }
 
-    let mut harness = Harness::builder().build_ui(|ui| {
-        egui_extras::install_image_loaders(ui.ctx());
+    let mut harness = Harness::builder()
+        .with_accessibility_check(false)
+        .build_ui(|ui| {
+            egui_extras::install_image_loaders(ui.ctx());
 
-        {
-            let mut wrap_test_size = test_size;
-            wrap_test_size.x /= 3.0;
-            ui.heading("Wrapping");
+            {
+                let mut wrap_test_size = test_size;
+                wrap_test_size.x /= 3.0;
+                ui.heading("Wrapping");
 
-            let modes = [
-                TextWrapMode::Extend,
-                TextWrapMode::Truncate,
-                TextWrapMode::Wrap,
-            ];
-            Grid::new("wrapping")
-                .spacing(Vec2::new(test_size.x / 2.0, 4.0))
-                .show(ui, |ui| {
-                    for mode in &modes {
-                        ui.label(format!("{mode:?}"));
-                    }
-                    ui.end_row();
+                let modes = [
+                    TextWrapMode::Extend,
+                    TextWrapMode::Truncate,
+                    TextWrapMode::Wrap,
+                ];
+                Grid::new("wrapping")
+                    .spacing(Vec2::new(test_size.x / 2.0, 4.0))
+                    .show(ui, |ui| {
+                        for mode in &modes {
+                            ui.label(format!("{mode:?}"));
+                        }
+                        ui.end_row();
 
-                    for mode in &modes {
-                        let (_, rect) = ui.allocate_space(wrap_test_size);
+                        for mode in &modes {
+                            let (_, rect) = ui.allocate_space(wrap_test_size);
 
-                        let mut child_ui = ui.new_child(UiBuilder::new().max_rect(rect));
-                        child_ui.style_mut().wrap_mode = Some(*mode);
+                            let mut child_ui = ui.new_child(UiBuilder::new().max_rect(rect));
+                            child_ui.style_mut().wrap_mode = Some(*mode);
+                            w(&mut child_ui);
+
+                            ui.painter().rect_stroke(
+                                rect,
+                                0.0,
+                                Stroke::new(1.0, Color32::WHITE),
+                                StrokeKind::Outside,
+                            );
+                        }
+                    });
+            }
+
+            ui.heading("Layout");
+            Grid::new("layout").striped(true).show(ui, |ui| {
+                ui.label("");
+                for col in &cols {
+                    ui.label(format!(
+                        "cross_align: {:?}\ncross_justify:{:?}",
+                        col.cross_align, col.cross_justify
+                    ));
+                }
+                ui.end_row();
+
+                for row in &rows {
+                    ui.label(format!(
+                        "main_dir: {:?}\nmain_align: {:?}\nmain_justify: {:?}",
+                        row.main_dir, row.main_align, row.main_justify
+                    ));
+                    for col in &cols {
+                        let layout = Layout {
+                            main_dir: row.main_dir,
+                            main_align: row.main_align,
+                            main_justify: row.main_justify,
+                            cross_align: col.cross_align,
+                            cross_justify: col.cross_justify,
+                            main_wrap: false,
+                        };
+
+                        let (_, rect) = ui.allocate_space(test_size);
+
+                        let mut child_ui =
+                            ui.new_child(UiBuilder::new().layout(layout).max_rect(rect));
                         w(&mut child_ui);
 
                         ui.painter().rect_stroke(
@@ -247,52 +318,11 @@ fn test_widget_layout(name: &str, mut w: impl FnMut(&mut Ui) -> Response) -> Sna
                             StrokeKind::Outside,
                         );
                     }
-                });
-        }
 
-        ui.heading("Layout");
-        Grid::new("layout").striped(true).show(ui, |ui| {
-            ui.label("");
-            for col in &cols {
-                ui.label(format!(
-                    "cross_align: {:?}\ncross_justify:{:?}",
-                    col.cross_align, col.cross_justify
-                ));
-            }
-            ui.end_row();
-
-            for row in &rows {
-                ui.label(format!(
-                    "main_dir: {:?}\nmain_align: {:?}\nmain_justify: {:?}",
-                    row.main_dir, row.main_align, row.main_justify
-                ));
-                for col in &cols {
-                    let layout = Layout {
-                        main_dir: row.main_dir,
-                        main_align: row.main_align,
-                        main_justify: row.main_justify,
-                        cross_align: col.cross_align,
-                        cross_justify: col.cross_justify,
-                        main_wrap: false,
-                    };
-
-                    let (_, rect) = ui.allocate_space(test_size);
-
-                    let mut child_ui = ui.new_child(UiBuilder::new().layout(layout).max_rect(rect));
-                    w(&mut child_ui);
-
-                    ui.painter().rect_stroke(
-                        rect,
-                        0.0,
-                        Stroke::new(1.0, Color32::WHITE),
-                        StrokeKind::Outside,
-                    );
+                    ui.end_row();
                 }
-
-                ui.end_row();
-            }
+            });
         });
-    });
 
     harness.fit_contents();
     harness.try_snapshot(format!("layout/{name}"))
@@ -344,12 +374,15 @@ impl<'a> VisualTests<'a> {
     }
 
     fn single_test(&mut self, f: impl FnOnce(&mut Harness<'_>), enabled: bool) -> ColorImage {
-        let mut harness = Harness::builder().with_step_dt(0.05).build_ui(|ui| {
-            egui_extras::install_image_loaders(ui.ctx());
-            ui.add_enabled_ui(enabled, |ui| {
-                (self.w)(ui);
+        let mut harness = Harness::builder()
+            .with_step_dt(0.05)
+            .with_accessibility_check(false)
+            .build_ui(|ui| {
+                egui_extras::install_image_loaders(ui.ctx());
+                ui.add_enabled_ui(enabled, |ui| {
+                    (self.w)(ui);
+                });
             });
-        });
 
         harness.fit_contents();
 

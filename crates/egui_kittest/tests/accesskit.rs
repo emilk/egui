@@ -3,9 +3,12 @@
 use egui::{
     CentralPanel, Context, Panel, RawInput, Ui, Window,
     accesskit::{Action, NodeId, Orientation, Role, TreeUpdate},
+    containers::menu::MenuButton,
 };
-use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable as _;
+use egui_kittest::{
+    Harness,
+    kittest::{NodeT as _, Queryable as _},
+};
 
 /// Baseline test that asserts there are no spurious nodes in the
 /// accesskit output when the ui is empty.
@@ -97,6 +100,55 @@ fn toggle_button_node() {
     assert!(!toggle.is_disabled());
 }
 
+/// Selectable text used to overwrite the role reported by the widget with
+/// [`Role::Label`], so a link was indistinguishable from static text.
+#[test]
+fn selectable_text_keeps_the_role_of_the_widget() {
+    let output = accesskit_output_single_egui_frame(|ui| {
+        assert!(
+            ui.style().interaction.selectable_labels,
+            "This test is about the selectable-label code path"
+        );
+        CentralPanel::default().show(ui, |ui| {
+            ui.label("A label");
+            ui.add(egui::Link::new("A link"));
+            let mut text = "Some text".to_owned();
+            ui.add(egui::TextEdit::multiline(&mut text));
+        });
+    });
+
+    let role_of = |label: &str| {
+        output
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some(label))
+            .map(|(_, node)| node.role())
+    };
+
+    assert_eq!(role_of("A link"), Some(Role::Link));
+
+    // A label has no `label`, only a value, so look it up by role instead:
+    assert_eq!(
+        output
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.role() == Role::Label)
+            .count(),
+        1,
+        "Only the label itself should be a `Label`; found: {output:#?}"
+    );
+
+    assert_eq!(
+        output
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.role() == Role::MultilineTextInput)
+            .count(),
+        1,
+        "The multiline `TextEdit` should keep its refined role; found: {output:#?}"
+    );
+}
+
 #[test]
 fn multiple_disabled_widgets() {
     let output = accesskit_output_single_egui_frame(|ui| {
@@ -138,6 +190,84 @@ fn window_children() {
     assert_button_exists(&output, "A button", window_id);
     assert_button_exists(&output, "Close window", window_id);
     assert_button_exists(&output, "Hide", window_id);
+}
+
+#[test]
+fn central_panel_is_a_pane() {
+    let output = accesskit_output_single_egui_frame(|ui| {
+        CentralPanel::default().show(ui, |ui| ui.label("Hello"));
+    });
+
+    assert!(
+        output
+            .nodes
+            .iter()
+            .any(|(_, node)| node.role() == Role::Pane),
+        "The panel should be a Pane, not an anonymous container; found: {output:#?}",
+    );
+}
+
+/// A menu hangs under the button that opened it.
+#[test]
+fn menu_hangs_under_its_button() {
+    let mut harness = Harness::new_ui(|ui| {
+        MenuButton::new("File").ui(ui, |ui| {
+            let _ = ui.button("Open");
+        });
+    });
+
+    harness.get_by_label("File").click();
+    harness.run();
+
+    let button = harness.get_by_role_and_label(Role::Button, "File");
+    button.get_by_role(Role::Menu).get_by_label("Open");
+}
+
+#[test]
+fn combo_box_popup_is_a_list_box() {
+    let mut harness = Harness::new_ui(|ui| {
+        egui::ComboBox::from_label("Fruit")
+            .selected_text("Apple")
+            .show_ui(ui, |ui| {
+                let _ = ui.selectable_label(false, "Apple");
+            });
+    });
+
+    harness.get_by_role(Role::ComboBox).click();
+    harness.run();
+
+    harness.get_by_role(Role::ListBox).get_by_label("Apple");
+}
+
+/// The tooltip text describes the widget, and the tooltip itself hangs under it.
+#[test]
+fn tooltip_hangs_under_its_widget() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.ctx()
+            .global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+        let _ = ui.button("Hover me").on_hover_text("Some help");
+    });
+
+    harness.get_by_label("Hover me").hover();
+    harness.run();
+
+    let button = harness.get_by_role_and_label(Role::Button, "Hover me");
+    assert_eq!(
+        button.accesskit_node().description(),
+        Some("Some help".to_owned())
+    );
+    button.get_by_role(Role::Tooltip).get_by_label("Some help");
+}
+
+/// An icon-only button has no text of its own, so the tooltip text becomes its name.
+#[test]
+fn tooltip_text_names_an_unnamed_widget() {
+    let mut harness = Harness::new_ui(|ui| {
+        let _ = ui.add(egui::Button::new("")).on_hover_text("Play");
+    });
+    harness.run();
+
+    harness.get_by_role_and_label(Role::Button, "Play");
 }
 
 fn accesskit_output_single_egui_frame(run_ui: impl FnMut(&mut Ui)) -> TreeUpdate {
@@ -355,4 +485,40 @@ fn has_child_recursively(tree: &TreeUpdate, parent: NodeId, child: NodeId) -> bo
     }
 
     false
+}
+
+/// A `Ui`, an area and a popup can be named, and then found by that name.
+#[test]
+fn named_ui_area_and_popup() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.scope_builder(
+            egui::UiBuilder::new().accessibility_label("Toolbox"),
+            |ui| {
+                let _ = ui.button("Hammer");
+            },
+        );
+
+        egui::Area::new(egui::Id::unique("area"))
+            .accessible_name("Floating notes")
+            .show(ui.ctx(), |ui| {
+                ui.label("A note");
+            });
+
+        let response = ui.button("Open");
+        egui::Popup::from_response(&response)
+            .open(true)
+            .accessible_name("Options")
+            .show(|ui| {
+                let _ = ui.button("Option A");
+            });
+    });
+    harness.run();
+
+    harness.get_by_label("Toolbox").get_by_label("Hammer");
+    harness
+        .get_by_label("Floating notes")
+        .get_by_label("A note");
+    harness
+        .get_by_role_and_label(Role::Dialog, "Options")
+        .get_by_label("Option A");
 }
