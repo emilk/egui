@@ -38,3 +38,35 @@ fn fonts_installed_during_a_pass_apply_to_that_pass_when_none_were_loaded() {
     });
     harness.step();
 }
+
+/// Font changes made before any text is laid out in a pass apply to that same pass,
+/// even when fonts were already loaded (here: the bundled defaults).
+#[test]
+fn font_changes_before_any_text_apply_to_the_same_pass() {
+    let _harness = Harness::new_ui(|ui| {
+        ui.ctx().set_fonts(FontDefinitions::empty());
+        assert!(
+            ui.ctx()
+                .fonts(|fonts| fonts.definitions().font_data.is_empty()),
+            "Nothing was laid out yet, so the new fonts should be in use already"
+        );
+    });
+}
+
+/// Once text has been laid out, font changes wait for the next pass.
+#[test]
+fn font_changes_after_text_wait_for_the_next_pass() {
+    let mut pass = 0;
+    let _harness = Harness::new_ui(move |ui| {
+        pass += 1;
+        if pass == 1 {
+            ui.label("Laid out with the bundled fonts");
+            ui.ctx().set_fonts(FontDefinitions::empty());
+            assert!(
+                !ui.ctx()
+                    .fonts(|fonts| fonts.definitions().font_data.is_empty()),
+                "Text was laid out with the current fonts, so they must stay for this pass"
+            );
+        }
+    });
+}

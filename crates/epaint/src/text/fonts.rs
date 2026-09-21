@@ -55,6 +55,7 @@ pub enum MissingGlyphPolicy {
 pub struct Fonts {
     fonts: FontsImpl,
     galley_cache: GalleyCache,
+    used_since_begin_pass: bool,
 }
 
 impl Fonts {
@@ -65,6 +66,7 @@ impl Fonts {
         Self {
             fonts: FontsImpl::new(options, definitions),
             galley_cache: Default::default(),
+            used_since_begin_pass: false,
         }
     }
 
@@ -155,6 +157,16 @@ impl Fonts {
         }
 
         self.galley_cache.flush_cache();
+        self.used_since_begin_pass = false;
+    }
+
+    /// Has any text been laid out since the last [`Self::begin_pass`]?
+    ///
+    /// While this is `false`, fonts can still be swapped out for this pass without
+    /// leaving anything laid out with the old ones.
+    #[inline]
+    pub fn used_since_begin_pass(&self) -> bool {
+        self.used_since_begin_pass
     }
 
     /// Call at the end of each frame (before painting) to get the change to the font texture since last call.
@@ -222,6 +234,7 @@ impl Fonts {
     /// Prefer [`FontsView::layout_job`], which memoizes.
     /// This is mostly useful for benchmarking the layout code.
     pub fn layout_uncached(&mut self, pixels_per_point: f32, job: Arc<LayoutJob>) -> Galley {
+        self.used_since_begin_pass = true;
         layout(&mut self.fonts, pixels_per_point, job)
     }
 
@@ -231,6 +244,7 @@ impl Fonts {
             fonts: &mut self.fonts,
             galley_cache: &mut self.galley_cache,
             pixels_per_point,
+            used_since_begin_pass: &mut self.used_since_begin_pass,
         }
     }
 }
@@ -242,6 +256,7 @@ pub struct FontsView<'a> {
     fonts: &'a mut FontsImpl,
     galley_cache: &'a mut GalleyCache,
     pixels_per_point: f32,
+    used_since_begin_pass: &'a mut bool,
 }
 
 impl FontsView<'_> {
@@ -334,6 +349,7 @@ impl FontsView<'_> {
     /// The implementation uses memoization so repeated calls are cheap.
     #[inline]
     pub fn layout_job(&mut self, job: LayoutJob) -> Arc<Galley> {
+        *self.used_since_begin_pass = true;
         let allow_split_paragraphs = true; // Optimization for editing text with many paragraphs.
         self.galley_cache.layout(
             self.fonts,
