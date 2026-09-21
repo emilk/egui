@@ -1044,7 +1044,8 @@ impl<'t> TextEdit<'t> {
                 accesskit::Role::TextInput
             };
             builder.set_role(role);
-            if !interactive {
+            // A `&str` buffer is how callers show selectable text; it cannot be typed into either.
+            if !interactive || !text.is_mutable() {
                 builder.set_read_only();
             }
         });
