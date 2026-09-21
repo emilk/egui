@@ -115,3 +115,13 @@ fn labelled_by_wins_over_drag_value_suffix() {
         [Some("Width".to_owned()), Some("x: px".to_owned())]
     );
 }
+
+#[test]
+fn accessible_name_names_a_widget_without_a_label() {
+    let mut text = String::new();
+    let mut harness = Harness::new_ui(|ui| {
+        ui.text_edit_singleline(&mut text).accessible_name("Search");
+    });
+    harness.run();
+    harness.get_by_label("Search");
+}
