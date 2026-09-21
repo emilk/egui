@@ -73,6 +73,7 @@ impl ScrollTarget {
 pub struct AccessKitPassState {
     pub nodes: IdMap<accesskit::Node>,
     pub parent_map: IdMap<Id>,
+
     /// Nodes belonging to explicitly invisible UI (not merely clipped or discarded).
     pub excluded: IdSet,
 }

@@ -74,7 +74,7 @@ fn nested_hidden_widgets_and_direct_node_creation() {
                     assert!(node_result.is_none());
 
                     response.output_event(egui::output::OutputEvent::Clicked(
-                        egui::WidgetInfo::labeled(egui::WidgetType::Button, false, "hidden event"),
+                        egui::WidgetInfo::labeled(Role::Button, false, "hidden event"),
                     ));
                 });
             });
