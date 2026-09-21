@@ -154,11 +154,14 @@ fn inputs_can_be_named() {
 }
 
 /// Selectable text is a read-only `TextEdit`: nothing to type into, so no name needed.
+/// Both ways of asking for it count: `interactive(false)`, or an immutable `&str` buffer.
 #[test]
 fn read_only_text_needs_no_name() {
     let mut text = "let x = 1;".to_owned();
     let mut harness = Harness::new_ui(|ui| {
         ui.add(TextEdit::multiline(&mut text).interactive(false));
+        let mut immutable = "let y = 2;";
+        ui.add(TextEdit::multiline(&mut immutable));
     });
     harness.run();
 }
