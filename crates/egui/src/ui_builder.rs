@@ -29,6 +29,7 @@ pub struct UiBuilder {
     pub sense: Option<Sense>,
     pub accessibility_parent: Option<Id>,
     pub accessibility_label: Option<String>,
+    pub accessibility_role: Option<crate::accesskit::Role>,
     pub classes: Classes,
 }
 
@@ -212,6 +213,14 @@ impl UiBuilder {
     #[inline]
     pub fn accessibility_label(mut self, label: impl Into<String>) -> Self {
         self.accessibility_label = Some(label.into());
+        self
+    }
+
+    /// Give this [`Ui`]'s node a role other than the one its [`UiKind`](crate::UiKind) implies,
+    /// e.g. [`Role::Alert`](crate::accesskit::Role::Alert) for a toast.
+    #[inline]
+    pub fn accessibility_role(mut self, role: crate::accesskit::Role) -> Self {
+        self.accessibility_role = Some(role);
         self
     }
 }

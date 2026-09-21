@@ -124,6 +124,7 @@ pub struct Area {
     sizing_pass: bool,
     accessibility_parent: Option<Id>,
     accessibility_label: Option<String>,
+    accessibility_role: Option<crate::accesskit::Role>,
 }
 
 impl WidgetWithState for Area {
@@ -153,6 +154,7 @@ impl Area {
             sizing_pass: false,
             accessibility_parent: None,
             accessibility_label: None,
+            accessibility_role: None,
         }
     }
 
@@ -199,6 +201,14 @@ impl Area {
     #[inline]
     pub fn accessible_name(mut self, name: impl Into<String>) -> Self {
         self.accessibility_label = Some(name.into());
+        self
+    }
+
+    /// Give the area a role in the accessibility tree other than the one its [`UiKind`] implies,
+    /// e.g. [`Role::Alert`](crate::accesskit::Role::Alert) for a toast.
+    #[inline]
+    pub fn role(mut self, role: crate::accesskit::Role) -> Self {
+        self.accessibility_role = Some(role);
         self
     }
 
@@ -424,6 +434,7 @@ pub(crate) struct Prepared {
     fade_in: bool,
     layout: Layout,
     accessibility_label: Option<String>,
+    accessibility_role: Option<crate::accesskit::Role>,
 }
 
 impl Area {
@@ -460,6 +471,7 @@ impl Area {
             sizing_pass: force_sizing_pass,
             accessibility_parent,
             accessibility_label,
+            accessibility_role,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
@@ -613,6 +625,7 @@ impl Area {
             fade_in,
             layout,
             accessibility_label,
+            accessibility_role,
         }
     }
 }
@@ -653,6 +666,9 @@ impl Prepared {
 
         if let Some(label) = self.accessibility_label.take() {
             ui_builder = ui_builder.accessibility_label(label);
+        }
+        if let Some(role) = self.accessibility_role {
+            ui_builder = ui_builder.accessibility_role(role);
         }
 
         if !self.enabled {
