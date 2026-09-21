@@ -184,7 +184,7 @@ impl SvgGlyph {
     pub fn into_rasterizer(self, cluster: impl Into<String>) -> GlyphRasterizer {
         let cluster: String = cluster.into();
         let key = format!("egui_extras::SvgGlyph {cluster}");
-        GlyphRasterizer::new(move |request: &GlyphRasterizerRequest<'_>| {
+        GlyphRasterizer::new(key, move |request: &GlyphRasterizerRequest<'_>| {
             if request.cluster == cluster {
                 self.rasterize(request.font_size_px)
             } else {
@@ -192,7 +192,6 @@ impl SvgGlyph {
             }
         })
         .with_priority(FontPriority::Highest)
-        .with_key(key)
     }
 }
 

@@ -805,7 +805,7 @@ impl Context {
     /// Rasterizers are asked in the order they were added.
     /// `eframe` adds the browser rasterizer on web.
     ///
-    /// A rasterizer with a [`GlyphRasterizer::key`] replaces the installed one with the same key,
+    /// A rasterizer replaces the installed one with the same [`GlyphRasterizer::key`],
     /// and adding the very same rasterizer again is a no-op, so this is safe to call every frame.
     ///
     /// The rasterizer becomes active at the start of the next pass.

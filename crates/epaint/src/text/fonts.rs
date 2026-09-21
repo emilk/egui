@@ -61,7 +61,7 @@ impl Fonts {
 
     /// Also use this glyph rasterizer, e.g. the browser on web, or for custom glyphs.
     ///
-    /// A rasterizer with a [`GlyphRasterizer::key`] replaces the installed one with the same key,
+    /// A rasterizer replaces the installed one with the same [`GlyphRasterizer::key`],
     /// and adding the very same rasterizer again is a no-op, so this is safe to call every frame.
     ///
     /// Returns `true` if the set of rasterizers changed.

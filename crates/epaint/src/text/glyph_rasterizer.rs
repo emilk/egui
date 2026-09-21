@@ -68,7 +68,7 @@ type RasterizeFn =
 /// Results (and failures) are cached per cluster, family, and size,
 /// so each rasterizer is asked at most once per such combination.
 ///
-/// Give a rasterizer a [`Self::key`] to make installing it idempotent:
+/// Every rasterizer has a [`Self::key`], which makes installing it idempotent:
 /// adding one when a rasterizer with the same key is already installed
 /// replaces that one in place instead of appending another.
 #[derive(Clone)]
@@ -82,19 +82,22 @@ pub struct GlyphRasterizer {
     /// or does it override the installed fonts ([`FontPriority::Highest`])?
     pub priority: FontPriority,
 
-    /// Two rasterizers with the same key are the same rasterizer.
+    /// Identifies this rasterizer: two rasterizers with the same key are the same rasterizer.
     ///
     /// Adding one when a rasterizer with this key is already installed
     /// replaces that one in place, so it is safe to add it every frame.
-    /// Without a key, only adding the very same [`Self::rasterize`] again is a no-op.
-    pub key: Option<Arc<str>>,
+    pub key: Arc<str>,
 }
 
 impl GlyphRasterizer {
     /// A fallback rasterizer ([`FontPriority::Lowest`]).
     ///
+    /// `key` identifies the rasterizer (see [`Self::key`]).
+    /// Pick something unique, e.g. a fully qualified name like `"my_crate::MyGlyphs"`.
+    ///
     /// See [`Self::with_priority`].
     pub fn new(
+        key: impl Into<Arc<str>>,
         rasterize: impl for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph>
         + Send
         + Sync
@@ -103,7 +106,7 @@ impl GlyphRasterizer {
         Self {
             rasterize: Arc::new(rasterize),
             priority: FontPriority::Lowest,
-            key: None,
+            key: key.into(),
         }
     }
 
@@ -112,15 +115,6 @@ impl GlyphRasterizer {
     #[inline]
     pub fn with_priority(mut self, priority: FontPriority) -> Self {
         self.priority = priority;
-        self
-    }
-
-    /// Identify this rasterizer, so that adding it again replaces it instead of appending.
-    ///
-    /// See [`Self::key`].
-    #[inline]
-    pub fn with_key(mut self, key: impl Into<Arc<str>>) -> Self {
-        self.key = Some(key.into());
         self
     }
 
@@ -134,12 +128,7 @@ impl GlyphRasterizer {
     /// Returns `false` if nothing changed: the same rasterizer was already installed.
     #[doc(hidden)]
     pub fn insert_into(self, rasterizers: &mut Vec<Self>) -> bool {
-        let existing = match &self.key {
-            Some(key) => rasterizers
-                .iter()
-                .position(|r| r.key.as_deref() == Some(key.as_ref())),
-            None => rasterizers.iter().position(|r| r.is_same_as(&self)),
-        };
+        let existing = rasterizers.iter().position(|r| r.key == self.key);
         if let Some(index) = existing {
             if rasterizers[index].is_same_as(&self) {
                 false
@@ -204,48 +193,46 @@ pub fn has_emoji_presentation(cluster: &str) -> bool {
 mod insert_tests {
     use super::*;
 
-    fn rasterizer() -> GlyphRasterizer {
-        GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| None)
+    fn rasterizer(key: &str) -> GlyphRasterizer {
+        GlyphRasterizer::new(key, |_: &GlyphRasterizerRequest<'_>| None)
     }
 
     #[test]
     fn same_key_replaces_in_place() {
         let mut list = Vec::new();
-        assert!(rasterizer().with_key("a").insert_into(&mut list));
-        assert!(rasterizer().with_key("b").insert_into(&mut list));
-        let replacement = rasterizer().with_key("a");
+        assert!(rasterizer("a").insert_into(&mut list));
+        assert!(rasterizer("b").insert_into(&mut list));
+        let replacement = rasterizer("a");
         let replacement_fn = Arc::clone(&replacement.rasterize);
         assert!(replacement.insert_into(&mut list));
         assert_eq!(list.len(), 2);
         assert!(Arc::ptr_eq(&list[0].rasterize, &replacement_fn));
-        assert_eq!(list[0].key.as_deref(), Some("a"));
-        assert_eq!(list[1].key.as_deref(), Some("b"));
+        assert_eq!(&*list[0].key, "a");
+        assert_eq!(&*list[1].key, "b");
     }
 
     #[test]
     fn same_rasterizer_is_a_no_op() {
         let mut list = Vec::new();
-        let keyed = rasterizer().with_key("a");
-        assert!(keyed.clone().insert_into(&mut list));
-        assert!(!keyed.insert_into(&mut list));
+        let rasterizer = rasterizer("a");
+        assert!(rasterizer.clone().insert_into(&mut list));
+        assert!(!rasterizer.clone().insert_into(&mut list));
 
-        let unkeyed = rasterizer();
-        assert!(unkeyed.clone().insert_into(&mut list));
-        assert!(!unkeyed.clone().insert_into(&mut list));
-        // A different priority makes it a different rasterizer:
+        // A different priority is a change, and replaces the old one:
         assert!(
-            unkeyed
+            rasterizer
                 .with_priority(FontPriority::Highest)
                 .insert_into(&mut list)
         );
-        assert_eq!(list.len(), 3);
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].priority, FontPriority::Highest);
     }
 
     #[test]
-    fn unkeyed_rasterizers_append() {
+    fn different_keys_append() {
         let mut list = Vec::new();
-        assert!(rasterizer().insert_into(&mut list));
-        assert!(rasterizer().insert_into(&mut list));
+        assert!(rasterizer("a").insert_into(&mut list));
+        assert!(rasterizer("b").insert_into(&mut list));
         assert_eq!(list.len(), 2);
     }
 }
