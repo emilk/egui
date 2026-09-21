@@ -979,6 +979,8 @@ impl Ui {
         let result = add_contents(self);
         for id in self.unnamed_inputs_added_since(first) {
             self.ctx().accesskit_node_builder(id, |node| {
+                // As in `Response::labelled_by`: an own label, even a blank one, wins.
+                node.clear_label();
                 node.push_labelled_by(label_id.accesskit_id());
             });
         }
@@ -1015,7 +1017,10 @@ impl Ui {
     }
 
     /// The input widgets registered on this `Ui`'s layer from index `first` on that have
-    /// neither a label nor a `labelled_by`.
+    /// no name: no label, no `labelled_by`, and no placeholder (which names a text field).
+    ///
+    /// A layer's widget list only grows during a pass. The one exception, a window dragged
+    /// by its title bar (`InteractOptions::move_to_top`), lives on its own layer.
     fn unnamed_inputs_added_since(&self, first: usize) -> Vec<Id> {
         let layer_id = self.layer_id();
         self.ctx().viewport(|viewport| {
@@ -1031,7 +1036,10 @@ impl Ui {
                     let node = state.nodes.get(&rect.id)?;
                     let unnamed = crate::accessibility::is_input(node.role())
                         && node.label().is_none_or(|label| label.trim().is_empty())
-                        && node.labelled_by().is_empty();
+                        && node.labelled_by().is_empty()
+                        && node
+                            .placeholder()
+                            .is_none_or(|placeholder| placeholder.trim().is_empty());
                     unnamed.then_some(rect.id)
                 })
                 .collect()

@@ -183,3 +183,22 @@ fn collapsing_header_can_be_named() {
 
     harness.get_by_role_and_label(Role::DisclosureTriangle, "Details");
 }
+
+/// A text field with a hint already has a name (the placeholder), so it is left alone.
+#[test]
+fn hinted_text_field_keeps_its_placeholder_name() {
+    let mut text = String::new();
+    let mut harness = Harness::new_ui(|ui| {
+        ui.name_inputs("Field", |ui| {
+            ui.add(TextEdit::singleline(&mut text).hint_text("Search"));
+        });
+    });
+    harness.run();
+    let field = harness.get_by_role(Role::TextInput).accesskit_node();
+    assert_eq!(
+        field.label(),
+        None,
+        "The placeholder is the name; nothing to add"
+    );
+    assert_eq!(field.placeholder(), Some("Search"));
+}

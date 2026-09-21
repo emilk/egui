@@ -11,60 +11,40 @@ use crate::accesskit::Role;
 pub fn is_input(role: Role) -> bool {
     match role {
         Role::Button
-        | Role::DefaultButton
         | Role::CheckBox
-        | Role::Switch
-        | Role::RadioButton
         | Role::ColorWell
         | Role::ComboBox
-        | Role::EditableComboBox
+        | Role::DateInput
+        | Role::DateTimeInput
+        | Role::DefaultButton
         | Role::DisclosureTriangle
+        | Role::EditableComboBox
+        | Role::EmailInput
         | Role::Link
+        | Role::ListBoxOption
         | Role::MenuItem
         | Role::MenuItemCheckBox
         | Role::MenuItemRadio
-        | Role::ListBoxOption
         | Role::MenuListOption
-        | Role::TreeItem
-        | Role::Tab
-        | Role::TextInput
-        | Role::MultilineTextInput
-        | Role::SearchInput
-        | Role::PasswordInput
-        | Role::NumberInput
-        | Role::DateInput
-        | Role::DateTimeInput
-        | Role::WeekInput
         | Role::MonthInput
-        | Role::TimeInput
-        | Role::EmailInput
+        | Role::MultilineTextInput
+        | Role::NumberInput
+        | Role::PasswordInput
         | Role::PhoneNumberInput
-        | Role::UrlInput
+        | Role::RadioButton
+        | Role::SearchInput
         | Role::Slider
         | Role::SpinButton
-        | Role::Splitter => true,
+        | Role::Splitter
+        | Role::Switch
+        | Role::Tab
+        | Role::TextInput
+        | Role::TimeInput
+        | Role::TreeItem
+        | Role::UrlInput
+        | Role::WeekInput => true,
 
-        Role::Unknown
-        | Role::TextRun
-        | Role::Cell
-        | Role::Label
-        | Role::Image
-        | Role::Row
-        | Role::ListItem
-        | Role::ListMarker
-        | Role::Paragraph
-        | Role::GenericContainer
-        | Role::Pane
-        | Role::RowHeader
-        | Role::ColumnHeader
-        | Role::RowGroup
-        | Role::List
-        | Role::Table
-        | Role::LayoutTableCell
-        | Role::LayoutTableRow
-        | Role::LayoutTable
-        | Role::Menu
-        | Role::Abbr
+        Role::Abbr
         | Role::Alert
         | Role::AlertDialog
         | Role::Application
@@ -75,89 +55,26 @@ pub fn is_input(role: Role) -> bool {
         | Role::Canvas
         | Role::Caption
         | Role::Caret
+        | Role::Cell
         | Role::Code
-        | Role::Complementary
+        | Role::ColumnHeader
         | Role::Comment
+        | Role::Complementary
         | Role::ContentDeletion
-        | Role::ContentInsertion
         | Role::ContentInfo
+        | Role::ContentInsertion
         | Role::Definition
         | Role::DescriptionList
         | Role::Details
         | Role::Dialog
-        | Role::Document
-        | Role::EmbeddedObject
-        | Role::Emphasis
-        | Role::Feed
-        | Role::FigureCaption
-        | Role::Figure
-        | Role::Footer
-        | Role::Form
-        | Role::Grid
-        | Role::GridCell
-        | Role::Group
-        | Role::Header
-        | Role::Heading
-        | Role::Iframe
-        | Role::IframePresentational
-        | Role::ImeCandidate
-        | Role::Keyboard
-        | Role::Legend
-        | Role::LineBreak
-        | Role::ListBox
-        | Role::Log
-        | Role::Main
-        | Role::Mark
-        | Role::Marquee
-        | Role::Math
-        | Role::MenuBar
-        | Role::MenuListPopup
-        | Role::Meter
-        | Role::Navigation
-        | Role::Note
-        | Role::PluginObject
-        | Role::ProgressIndicator
-        | Role::RadioGroup
-        | Role::Region
-        | Role::RootWebArea
-        | Role::Ruby
-        | Role::RubyAnnotation
-        | Role::ScrollBar
-        | Role::ScrollView
-        | Role::Search
-        | Role::Section
-        | Role::SectionFooter
-        | Role::SectionHeader
-        | Role::Status
-        | Role::Strong
-        | Role::Suggestion
-        | Role::SvgRoot
-        | Role::TabList
-        | Role::TabPanel
-        | Role::Term
-        | Role::Time
-        | Role::Timer
-        | Role::TitleBar
-        | Role::Toolbar
-        | Role::Tooltip
-        | Role::Tree
-        | Role::TreeGrid
-        | Role::Video
-        | Role::WebView
-        | Role::Window
-        | Role::PdfActionableHighlight
-        | Role::PdfRoot
-        | Role::GraphicsDocument
-        | Role::GraphicsObject
-        | Role::GraphicsSymbol
         | Role::DocAbstract
         | Role::DocAcknowledgements
         | Role::DocAfterword
         | Role::DocAppendix
         | Role::DocBackLink
         | Role::DocBiblioEntry
-        | Role::DocBibliography
         | Role::DocBiblioRef
+        | Role::DocBibliography
         | Role::DocChapter
         | Role::DocColophon
         | Role::DocConclusion
@@ -173,8 +90,8 @@ pub fn is_input(role: Role) -> bool {
         | Role::DocExample
         | Role::DocFootnote
         | Role::DocForeword
-        | Role::DocGlossary
         | Role::DocGlossRef
+        | Role::DocGlossary
         | Role::DocIndex
         | Role::DocIntroduction
         | Role::DocNoteRef
@@ -191,7 +108,90 @@ pub fn is_input(role: Role) -> bool {
         | Role::DocSubtitle
         | Role::DocTip
         | Role::DocToc
+        | Role::Document
+        | Role::EmbeddedObject
+        | Role::Emphasis
+        | Role::Feed
+        | Role::Figure
+        | Role::FigureCaption
+        | Role::Footer
+        | Role::Form
+        | Role::GenericContainer
+        | Role::GraphicsDocument
+        | Role::GraphicsObject
+        | Role::GraphicsSymbol
+        | Role::Grid
+        | Role::GridCell
+        | Role::Group
+        | Role::Header
+        | Role::Heading
+        | Role::Iframe
+        | Role::IframePresentational
+        | Role::Image
+        | Role::ImeCandidate
+        | Role::Keyboard
+        | Role::Label
+        | Role::LayoutTable
+        | Role::LayoutTableCell
+        | Role::LayoutTableRow
+        | Role::Legend
+        | Role::LineBreak
+        | Role::List
+        | Role::ListBox
         | Role::ListGrid
-        | Role::Terminal => false,
+        | Role::ListItem
+        | Role::ListMarker
+        | Role::Log
+        | Role::Main
+        | Role::Mark
+        | Role::Marquee
+        | Role::Math
+        | Role::Menu
+        | Role::MenuBar
+        | Role::MenuListPopup
+        | Role::Meter
+        | Role::Navigation
+        | Role::Note
+        | Role::Pane
+        | Role::Paragraph
+        | Role::PdfActionableHighlight
+        | Role::PdfRoot
+        | Role::PluginObject
+        | Role::ProgressIndicator
+        | Role::RadioGroup
+        | Role::Region
+        | Role::RootWebArea
+        | Role::Row
+        | Role::RowGroup
+        | Role::RowHeader
+        | Role::Ruby
+        | Role::RubyAnnotation
+        | Role::ScrollBar
+        | Role::ScrollView
+        | Role::Search
+        | Role::Section
+        | Role::SectionFooter
+        | Role::SectionHeader
+        | Role::Status
+        | Role::Strong
+        | Role::Suggestion
+        | Role::SvgRoot
+        | Role::TabList
+        | Role::TabPanel
+        | Role::Table
+        | Role::Term
+        | Role::Terminal
+        | Role::TextRun
+        | Role::Time
+        | Role::Timer
+        | Role::TitleBar
+        | Role::Toolbar
+        | Role::Tooltip
+        | Role::Tree
+        | Role::TreeGrid
+        | Role::Unknown
+        | Role::Video
+        | Role::WebView
+        | Role::Window => false,
     }
 }
