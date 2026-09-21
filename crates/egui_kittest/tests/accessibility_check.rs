@@ -151,3 +151,32 @@ fn unnamed_inputs_can_be_named() {
     harness.run();
     harness.get_by_role_and_label(Role::MultilineTextInput, "Code block");
 }
+
+/// A [`egui::CollapsingHeader`] is clickable and toggleable, so it counts as an input:
+/// one without a heading cannot be reached by name.
+#[test]
+fn unnamed_collapsing_header_is_an_unnamed_input() {
+    let harness = Harness::builder()
+        .with_accessibility_check(false)
+        .build_ui(|ui| {
+            egui::CollapsingHeader::new("").show(ui, |ui| {
+                let _ = ui.button("Inside");
+            });
+        });
+
+    assert_eq!(harness.unnamed_widgets().len(), 1);
+}
+
+/// …and it can be named like any other input.
+#[test]
+fn collapsing_header_can_be_named() {
+    let mut harness = Harness::new_ui(|ui| {
+        egui::CollapsingHeader::new("").show(ui, |ui| {
+            let _ = ui.button("Inside");
+        });
+        ui.name_unnamed_inputs("Details");
+    });
+    harness.run();
+
+    harness.get_by_role_and_label(Role::DisclosureTriangle, "Details");
+}

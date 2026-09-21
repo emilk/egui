@@ -11,6 +11,7 @@ pub const INPUT_ROLES: &[Role] = &[
     Role::CheckBox,
     Role::ColorWell,
     Role::ComboBox,
+    Role::DisclosureTriangle,
     Role::Link,
     Role::MultilineTextInput,
     Role::PasswordInput,
