@@ -10,7 +10,8 @@ serves it. An external inspector — such as the
 [`egui_mcp`](https://crates.io/crates/egui_mcp) MCP server — connects and can:
 
 - read the app's **AccessKit tree** (`GetTree`),
-- inject **input events** (`HandleEvents` — clicks, typing, scrolling, …),
+- inject **input events** (`ApplyEvents` — clicks, typing, scrolling, …),
+- drop **in-memory files** (`DropFile` — filename and bytes),
 - capture a **screenshot** on request (`Screenshot`),
 - resize the window (`Resize`).
 

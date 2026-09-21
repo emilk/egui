@@ -60,14 +60,26 @@ pub enum Request {
     ApplyEvents { events: Vec<egui::Event> },
 
     /// Resize the peer's viewport to the given logical-point dimensions
-    /// (via [`egui::ViewportCommand::InnerSize`]). Reply: [`Response::Done`]. This is the one
-    /// action that isn't expressible as an [`egui::Event`].
+    /// (via [`egui::ViewportCommand::InnerSize`]). Reply: [`Response::Done`].
     Resize { width: u32, height: u32 },
 
     /// Wait until the app goes idle, then reply [`Response::Settled`].
     ///
     /// Will wait for at most `max_steps`.
     Settle { max_steps: u64 },
+
+    /// Inject an in-memory file into [`egui::RawInput::dropped_files`] and run a frame.
+    /// Reply: [`Response::Done`], returned only after the frame has processed the drop.
+    ///
+    /// Useful for test harnesses on native and browser targets without a file picker.
+    DropFile {
+        /// Passed through as [`egui::DroppedFile::path`]; no file is created on disk.
+        filename: String,
+
+        /// File contents, encoded as a `MessagePack` binary blob.
+        #[serde(with = "serde_bytes")]
+        bytes: Vec<u8>,
+    },
 }
 
 /// Sent peer → inspector, exactly one per [`Request`].
@@ -100,8 +112,9 @@ pub enum Response {
     /// Reply to [`Request::GetScreenshot`].
     Screenshot(EncodedPng),
 
-    /// Reply to [`Request::ApplyEvents`] / [`Request::Resize`] — the action was *executed*
-    /// (not merely received): the events were processed by a frame, or the resize dispatched.
+    /// Reply to [`Request::ApplyEvents`], [`Request::DropFile`], or [`Request::Resize`].
+    /// The action was executed, not merely received: the events or file drop were processed
+    /// by a frame, or the resize was dispatched.
     Done,
 
     /// Reply to [`Request::Settle`].
@@ -264,4 +277,36 @@ where
 {
     writer.write_all(&encode_frame(value)?)?;
     writer.flush()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn drop_file_round_trip() -> io::Result<()> {
+        for bytes in [Vec::new(), vec![0, 127, 128, 255]] {
+            let request = Request::DropFile {
+                filename: "données.bin".to_owned(),
+                bytes: bytes.clone(),
+            };
+            let frame = encode_frame(&request)?;
+            let body = encode_body(&request)?;
+            for decoded in [
+                read_message::<_, Request>(frame.as_slice())?,
+                decode_body::<Request>(&body)?,
+            ] {
+                let Request::DropFile {
+                    filename,
+                    bytes: decoded_bytes,
+                } = decoded
+                else {
+                    panic!("Expected a file-drop request");
+                };
+                assert_eq!(filename, "données.bin");
+                assert_eq!(decoded_bytes, bytes);
+            }
+        }
+        Ok(())
+    }
 }

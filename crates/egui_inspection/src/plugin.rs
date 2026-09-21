@@ -27,16 +27,22 @@
 //!
 //! Requests advance through a small per-request state machine across one or two frames:
 //! `GetInfo` replies immediately; `GetTree` replies with the current frame's tree;
-//! `Resize` / `ApplyEvents` apply their effect and reply [`Response::Done`] *after* the frame
-//! has processed them (so a following `GetTree` reflects them); `GetScreenshot` dispatches a
-//! viewport screenshot and replies once the screenshot callback has delivered the pixels,
-//! matched back to the request by an id.
+//! `Resize` / `ApplyEvents` / `DropFile` apply their effect and reply [`Response::Done`] *after*
+//! the frame has processed them (so a following `GetTree` reflects them); `GetScreenshot`
+//! dispatches a viewport screenshot and replies once the screenshot callback has delivered the
+//! pixels, matched back to the request by an id.
 //!
 //! Note that [`serve`]'s threads hold an [`egui::Context`] clone, so the context stays alive
 //! for as long as the listener runs (the lifetime of the process, for a debug attach).
 
 use core::time::Duration;
-use std::sync::{Arc, mpsc};
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, mpsc},
+};
+
+#[cfg(target_arch = "wasm32")]
+use core::{future::Future, pin::Pin};
 
 use egui::{ColorImage, Context, FullOutput, RawInput, mutex::Mutex};
 
@@ -61,6 +67,28 @@ enum Phase {
 
     /// Watching for the app to go idle.
     Settle { steps_taken: u64, max_steps: u64 },
+}
+
+#[derive(Debug)]
+struct MemoryFile {
+    path: PathBuf,
+    bytes: Vec<u8>,
+}
+
+impl egui::DroppedFile for MemoryFile {
+    fn path(&self) -> &Path {
+        &self.path
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn bytes(&self) -> Result<Vec<u8>, String> {
+        Ok(self.bytes.clone())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn bytes_async(&self) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, String>> + '_>> {
+        Box::pin(async { Ok(self.bytes.clone()) })
+    }
 }
 
 struct InFlight {
@@ -212,7 +240,7 @@ impl egui::Plugin for InspectionPlugin {
             if item.phase != Phase::New {
                 return true;
             }
-            match &item.req {
+            match &mut item.req {
                 Request::GetInfo => {
                     if let Some(reply) = item.reply.take() {
                         reply(Response::Info {
@@ -231,6 +259,14 @@ impl egui::Plugin for InspectionPlugin {
                     // Reply with `Done` at the end of the frame so the agent can be sure the
                     // events were *executed* (e.g. a button click that created a file), not
                     // merely received.
+                    item.phase = Phase::AwaitOutput;
+                    true
+                }
+                Request::DropFile { filename, bytes } => {
+                    input.dropped_files.push(Arc::new(MemoryFile {
+                        path: core::mem::take(filename).into(),
+                        bytes: core::mem::take(bytes),
+                    }));
                     item.phase = Phase::AwaitOutput;
                     true
                 }
@@ -293,7 +329,10 @@ impl egui::Plugin for InspectionPlugin {
                     }
                     false
                 }
-                (Phase::AwaitOutput, Request::ApplyEvents { .. } | Request::Resize { .. }) => {
+                (
+                    Phase::AwaitOutput,
+                    Request::ApplyEvents { .. } | Request::DropFile { .. } | Request::Resize { .. },
+                ) => {
                     if let Some(reply) = item.reply.take() {
                         reply(Response::Done);
                     }
@@ -493,6 +532,78 @@ mod tests {
             wants_paint(&pass(&ctx)),
             "A screenshot of a hidden window needs the pass that paints it"
         );
+    }
+
+    #[test]
+    fn a_file_drop_is_appended_once_and_acknowledged_after_the_frame() {
+        for bytes in [Vec::new(), vec![0, 127, 128, 255]] {
+            let ctx = Context::default();
+            ctx.add_plugin(InspectionPlugin::new(None));
+            let (tx, rx) = mpsc::channel();
+            ctx.with_plugin::<InspectionPlugin, _>(|p| {
+                p.submit(
+                    Request::DropFile {
+                        filename: "données.bin".to_owned(),
+                        bytes: bytes.clone(),
+                    },
+                    move |response| tx.send(response).expect("The receiver is alive"),
+                );
+            })
+            .expect("The plugin is registered");
+
+            let existing: egui::DroppedFileHandle = Arc::new(MemoryFile {
+                path: "existing.txt".into(),
+                bytes: vec![42],
+            });
+            let input = RawInput {
+                dropped_files: vec![Arc::clone(&existing)],
+                ..Default::default()
+            };
+            let mut dropped = None;
+            ctx.run_ui(input, |ui| {
+                assert!(
+                    matches!(rx.try_recv(), Err(mpsc::TryRecvError::Empty)),
+                    "A drop must not be acknowledged before the UI processes it"
+                );
+                ui.input(|input| {
+                    assert_eq!(input.raw.dropped_files.len(), 2);
+                    assert!(
+                        Arc::ptr_eq(&input.raw.dropped_files[0], &existing),
+                        "An existing drop must be preserved"
+                    );
+                    dropped = Some(Arc::clone(&input.raw.dropped_files[1]));
+                });
+            })
+            .drop_without_applying_deltas();
+
+            assert!(matches!(rx.try_recv(), Ok(Response::Done)), "Expected Done");
+            assert!(
+                matches!(rx.try_recv(), Err(mpsc::TryRecvError::Disconnected)),
+                "The request must complete with exactly one reply"
+            );
+            let file = dropped.expect("The UI received the file");
+            assert_eq!(file.path(), Path::new("données.bin"));
+            #[cfg(not(target_arch = "wasm32"))]
+            let contents = file.bytes();
+            #[cfg(target_arch = "wasm32")]
+            let contents = {
+                let mut future = file.bytes_async();
+                let mut cx = core::task::Context::from_waker(core::task::Waker::noop());
+                let core::task::Poll::Ready(contents) = future.as_mut().poll(&mut cx) else {
+                    panic!("An in-memory file should be ready to read");
+                };
+                contents
+            };
+            assert_eq!(contents, Ok(bytes));
+
+            ctx.run_ui(RawInput::default(), |ui| {
+                assert!(
+                    ui.input(|input| input.raw.dropped_files.is_empty()),
+                    "A drop must not be repeated in the next frame"
+                );
+            })
+            .drop_without_applying_deltas();
+        }
     }
 
     #[test]
