@@ -991,8 +991,7 @@ impl Ui {
     /// the name `name`.
     ///
     /// An input widget is one whose role passes [`crate::accessibility::is_input`]. This is for
-    /// widgets that cannot be named where they are built, e.g. the read-only `TextEdit` a
-    /// third-party markdown renderer uses for a code block.
+    /// widgets that cannot be named where they are built, e.g. inside a third-party crate.
     /// Costs a lookup per widget added, and nothing when accessibility is off.
     pub fn name_inputs<R>(
         &mut self,
