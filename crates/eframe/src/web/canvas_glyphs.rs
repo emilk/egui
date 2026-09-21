@@ -267,4 +267,5 @@ pub(super) fn glyph_rasterizer() -> GlyphRasterizer {
             glyphs.as_mut()?.rasterize(request)
         })
     })
+    .with_key("eframe::web::canvas_glyphs")
 }

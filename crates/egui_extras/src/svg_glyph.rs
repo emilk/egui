@@ -178,8 +178,12 @@ impl SvgGlyph {
     ///
     /// It has [`FontPriority::Highest`], so it overrides the installed fonts.
     /// Use [`GlyphRasterizer::with_priority`] to make it a fallback instead.
+    ///
+    /// Its [`GlyphRasterizer::key`] is derived from `cluster`, so installing another
+    /// [`SvgGlyph`] for the same cluster replaces this one.
     pub fn into_rasterizer(self, cluster: impl Into<String>) -> GlyphRasterizer {
         let cluster: String = cluster.into();
+        let key = format!("egui_extras::SvgGlyph {cluster}");
         GlyphRasterizer::new(move |request: &GlyphRasterizerRequest<'_>| {
             if request.cluster == cluster {
                 self.rasterize(request.font_size_px)
@@ -188,6 +192,7 @@ impl SvgGlyph {
             }
         })
         .with_priority(FontPriority::Highest)
+        .with_key(key)
     }
 }
 
