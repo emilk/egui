@@ -185,7 +185,7 @@ impl Scene {
         // Create a new egui paint layer, where we can draw our contents:
         let scene_layer_id = LayerId::new(
             parent_ui.layer_id().order,
-            parent_ui.id().with("scene_area"),
+            parent_ui.scope_id().with("scene_area"),
         );
 
         // Put the layer directly on-top of the main layer of the ui:

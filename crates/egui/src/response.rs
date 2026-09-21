@@ -152,7 +152,7 @@ bitflags::bitflags! {
 }
 
 impl Response {
-    /// The [`Id`] of the parent [`crate::Ui`] that hosts this widget.
+    /// The [`crate::Ui::unique_id`] of the parent [`crate::Ui`] that hosts this widget.
     ///
     /// Looks up the [`WidgetRect`] from the current (or previous) pass.
     pub fn parent_id(&self) -> Id {
@@ -751,6 +751,8 @@ impl Response {
     /// Like `on_hover_text`, but show the text next to cursor.
     #[doc(alias = "tooltip")]
     pub fn on_hover_text_at_pointer(self, text: impl Into<WidgetText>) -> Self {
+        let text = text.into();
+        self.describe_for_accessibility(text.text());
         self.on_hover_ui_at_pointer(|ui| {
             // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
             // See https://github.com/emilk/egui/issues/5167
@@ -768,6 +770,8 @@ impl Response {
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     #[doc(alias = "tooltip")]
     pub fn on_hover_text(self, text: impl Into<WidgetText>) -> Self {
+        let text = text.into();
+        self.describe_for_accessibility(text.text());
         self.on_hover_ui(|ui| {
             // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
             // See https://github.com/emilk/egui/issues/5167
@@ -775,6 +779,23 @@ impl Response {
 
             ui.add(crate::widgets::Label::new(text));
         })
+    }
+
+    /// Use the tooltip text as the accessible description of the widget,
+    /// and as its name if it has none (e.g. an icon-only button).
+    fn describe_for_accessibility(&self, text: &str) {
+        // Only widgets that already have a node; don't invent nodes for hover-only rects.
+        if self.ctx.has_accesskit_node(self.id) {
+            self.ctx.accesskit_node_builder(self.id, |node| {
+                if node.description().is_none() {
+                    node.set_description(text);
+                }
+                // A `Label` is named by its value, so leave it be.
+                if node.role() != accesskit::Role::Label && node.label().is_none_or(str::is_empty) {
+                    node.set_label(text);
+                }
+            });
+        }
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.

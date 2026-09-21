@@ -53,7 +53,16 @@ impl Family {
             }
         }
         if chain.is_empty() {
-            log::error!("No font provider has any font for FontFamily::{name:?}");
+            if cfg!(feature = "default_fonts") {
+                log::error!("No font provider has any font for FontFamily::{name:?}");
+            } else {
+                log::error!(
+                    "No font provider has any font for FontFamily::{name:?}. \
+                     No text will be visible. \
+                     Enable the `default_fonts` feature of `epaint`/`egui` to bundle fonts, \
+                     or install a `FontProvider` of your own."
+                );
+            }
         }
 
         Self {
