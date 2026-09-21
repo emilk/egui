@@ -70,7 +70,7 @@ impl Aligned {
             available_rect
         };
 
-        let mut builder = UiBuilder::new().id(id).max_rect(content_rect);
+        let mut builder = UiBuilder::new().scope_id(id).max_rect(content_rect);
         if last_size.is_none() {
             // We don't know the size yet, so we can't place the contents correctly.
             // Add them invisibly to measure them, and then try again.
