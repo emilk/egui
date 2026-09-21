@@ -1044,6 +1044,9 @@ impl<'t> TextEdit<'t> {
                 accesskit::Role::TextInput
             };
             builder.set_role(role);
+            if !interactive {
+                builder.set_read_only();
+            }
         });
 
         crate::text_selection::accesskit_text::update_accesskit_for_text_widget(

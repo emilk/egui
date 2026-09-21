@@ -144,14 +144,23 @@ fn inputs_can_be_labelled_by_a_row_label() {
 
 #[test]
 fn inputs_can_be_named() {
-    let mut text = "let x = 1;".to_owned();
     let mut harness = Harness::new_ui(|ui| {
-        ui.name_inputs("Code block", |ui| {
-            ui.add(TextEdit::multiline(&mut text).interactive(false));
+        ui.name_inputs("Mystery", |ui| {
+            let _ = ui.add(Button::new(""));
         });
     });
     harness.run();
-    harness.get_by_role_and_label(Role::MultilineTextInput, "Code block");
+    harness.get_by_role_and_label(Role::Button, "Mystery");
+}
+
+/// Selectable text is a read-only `TextEdit`: nothing to type into, so no name needed.
+#[test]
+fn read_only_text_needs_no_name() {
+    let mut text = "let x = 1;".to_owned();
+    let mut harness = Harness::new_ui(|ui| {
+        ui.add(TextEdit::multiline(&mut text).interactive(false));
+    });
+    harness.run();
 }
 
 /// A [`egui::CollapsingHeader`] is clickable and toggleable, so it counts as an input:

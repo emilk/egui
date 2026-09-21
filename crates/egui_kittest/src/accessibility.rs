@@ -8,6 +8,7 @@ use crate::Harness;
 impl<State> Harness<'_, State> {
     /// Every visible input widget that has no accessible name.
     ///
+    /// A read-only text field (e.g. selectable text) is not an input, so it needs none.
     /// Each entry names the role, the rect, and the closest named ancestor,
     /// so you can tell which widget is missing its name.
     pub fn unnamed_widgets(&self) -> Vec<String> {
@@ -15,6 +16,8 @@ impl<State> Harness<'_, State> {
             .children_recursive()
             .map(|node| node.accesskit_node())
             .filter(|node| is_input(node.role()) && !node.is_hidden())
+            // The raw flag: the consumer reports every role that cannot be edited as read-only.
+            .filter(|node| !node.data().is_read_only())
             .filter(|node| !has_name(node))
             .map(|node| describe(&node))
             .collect()
