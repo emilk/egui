@@ -18,10 +18,11 @@ use epaint::{
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, FontProvider, GlyphRasterizer,
     Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label,
-    LayerId, Memory, ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response,
-    RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions,
-    Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
+    LayerId, Memory, MissingGlyphPolicy, ModifierNames, Modifiers, NumExt as _, Order, Painter,
+    RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle,
+    TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId,
+    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect,
+    WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -396,6 +397,7 @@ struct ContextImpl {
     font_definitions: FontDefinitions,
     glyph_rasterizers: Vec<GlyphRasterizer>,
     font_providers: Vec<Arc<dyn FontProvider>>,
+    missing_glyph_policy: MissingGlyphPolicy,
 
     /// Set when the rasterizers or providers change, acted on at the start of the next pass.
     ///
@@ -625,7 +627,8 @@ impl ContextImpl {
             is_new = true;
             profiling::scope!("Fonts::new");
             let mut fonts = Fonts::new(text_options, self.font_definitions.clone())
-                .with_font_providers(self.font_providers.clone());
+                .with_font_providers(self.font_providers.clone())
+                .with_missing_glyph_policy(self.missing_glyph_policy);
             fonts.set_glyph_rasterizers(self.glyph_rasterizers.clone());
             fonts
         });
@@ -855,6 +858,30 @@ impl Context {
             ctx.reload_fonts = true;
         });
         self.request_repaint();
+    }
+
+    /// What to do with a character that nothing can draw: no installed font has it,
+    /// no [`FontProvider`] finds a font for it, and no [`GlyphRasterizer`] handles it.
+    ///
+    /// The default is to draw a box ("tofu"). Tests may prefer [`MissingGlyphPolicy::Panic`]
+    /// (`egui_kittest` sets it by default).
+    ///
+    /// The policy takes effect at the start of the next pass.
+    pub fn set_missing_glyph_policy(&self, policy: MissingGlyphPolicy) {
+        let changed = self.write(|ctx| {
+            let changed = ctx.missing_glyph_policy != policy;
+            ctx.missing_glyph_policy = policy;
+            ctx.reload_fonts |= changed;
+            changed
+        });
+        if changed {
+            self.request_repaint();
+        }
+    }
+
+    /// See [`Self::set_missing_glyph_policy`].
+    pub fn missing_glyph_policy(&self) -> MissingGlyphPolicy {
+        self.read(|ctx| ctx.missing_glyph_policy)
     }
 
     /// Do read-only (shared access) transaction on Context
