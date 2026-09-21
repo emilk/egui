@@ -3,8 +3,8 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{
     Color32, TextureAtlas,
     text::{
-        FontDefinitions, FontFamily, FontId, FontInsert, FontProvider, Galley, GlyphRasterizer,
-        LayoutJob, TextOptions, VariationCoords,
+        FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontProvider, Galley,
+        GlyphRasterizer, LayoutJob, TextOptions, VariationCoords,
         face_store::{FaceStore, FontFaceKey},
         family::{Family, FamilyKey},
         font_face::{FontFace, GlyphInfo, ShapedGlyph},
@@ -50,22 +50,28 @@ impl Fonts {
         }
     }
 
-    /// Use this platform glyph rasterizer, e.g. the browser on web.
+    /// Also use this glyph rasterizer, e.g. the browser on web, or for custom glyphs.
     ///
     /// See [`GlyphRasterizer`].
     #[inline]
     pub fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
-        self.set_glyph_rasterizer(Some(glyph_rasterizer));
+        self.add_glyph_rasterizer(glyph_rasterizer);
         self
     }
 
-    /// Use this platform glyph rasterizer, e.g. the browser on web.
-    ///
-    /// Pass `None` to only use the installed fonts.
+    /// Also use this glyph rasterizer, e.g. the browser on web, or for custom glyphs.
     ///
     /// See [`GlyphRasterizer`].
-    pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
-        self.fonts.set_glyph_rasterizer(glyph_rasterizer);
+    pub fn add_glyph_rasterizer(&mut self, glyph_rasterizer: GlyphRasterizer) {
+        self.fonts.add_glyph_rasterizer(glyph_rasterizer);
+        self.galley_cache = Default::default();
+    }
+
+    /// Replace all [`GlyphRasterizer`]s.
+    ///
+    /// Pass an empty list to only use the installed fonts.
+    pub fn set_glyph_rasterizers(&mut self, glyph_rasterizers: Vec<GlyphRasterizer>) {
+        self.fonts.set_glyph_rasterizers(glyph_rasterizers);
         self.galley_cache = Default::default();
     }
 
@@ -139,15 +145,15 @@ impl Fonts {
 
     /// Do the installed fonts have this glyph?
     ///
-    /// This does not consult the [`GlyphRasterizer`], so it can return `false`
-    /// for a character that would still render via the rasterizer (e.g. the browser on web).
+    /// This does not consult the [`GlyphRasterizer`]s, so it can return `false`
+    /// for a character that would still render via a rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
         self.fonts.has_glyph(&font_id.family, c)
     }
 
     /// Do the installed fonts have all the glyphs in this text?
     ///
-    /// See [`Self::has_glyph`] for the caveat about the [`GlyphRasterizer`].
+    /// See [`Self::has_glyph`] for the caveat about the [`GlyphRasterizer`]s.
     pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
         self.fonts.has_glyphs(&font_id.family, s)
     }
@@ -223,22 +229,22 @@ impl FontsView<'_> {
 
     /// Do the installed fonts have this glyph?
     ///
-    /// This does not consult the [`GlyphRasterizer`], so it can return `false`
-    /// for a character that would still render via the rasterizer (e.g. the browser on web).
+    /// This does not consult the [`GlyphRasterizer`]s, so it can return `false`
+    /// for a character that would still render via a rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, font_id: &FontId, c: char) -> bool {
         self.fonts.has_glyph(&font_id.family, c)
     }
 
     /// Do the installed fonts have all the glyphs in this text?
     ///
-    /// See [`Self::has_glyph`] for the caveat about the [`GlyphRasterizer`].
+    /// See [`Self::has_glyph`] for the caveat about the [`GlyphRasterizer`]s.
     pub fn has_glyphs(&mut self, font_id: &FontId, s: &str) -> bool {
         self.fonts.has_glyphs(&font_id.family, s)
     }
 
     /// All characters the fonts of this family support, and the names of the fonts that have each.
     ///
-    /// This does not consult the [`GlyphRasterizer`].
+    /// This does not consult the [`GlyphRasterizer`]s.
     pub fn characters(&mut self, family: &FontFamily) -> &BTreeMap<char, Vec<String>> {
         self.fonts.characters(family)
     }
@@ -356,7 +362,9 @@ pub(crate) struct FontsImpl {
 
     /// Recycled `harfrust` shaping buffer to avoid per-layout allocations.
     shape_buffer: Option<harfrust::UnicodeBuffer>,
-    glyph_rasterizer: Option<GlyphRasterizer>,
+
+    /// In the order they were added. See [`GlyphRasterizer`].
+    glyph_rasterizers: Vec<GlyphRasterizer>,
     font_providers: FontProviders,
 }
 
@@ -371,7 +379,7 @@ impl FontsImpl {
             families: Default::default(),
             family_keys: Default::default(),
             shape_buffer: Some(harfrust::UnicodeBuffer::new()),
-            glyph_rasterizer: None,
+            glyph_rasterizers: Vec::new(),
             font_providers: Default::default(),
         };
         slf.set_font_providers(Vec::new());
@@ -402,22 +410,36 @@ impl FontsImpl {
         self.glyphs = GlyphAtlas::new(options);
     }
 
-    /// Use this platform glyph rasterizer, e.g. the browser on web.
+    /// Also use this glyph rasterizer.
     #[cfg(test)]
     #[inline]
     pub fn with_glyph_rasterizer(mut self, glyph_rasterizer: GlyphRasterizer) -> Self {
-        self.set_glyph_rasterizer(Some(glyph_rasterizer));
+        self.add_glyph_rasterizer(glyph_rasterizer);
         self
     }
 
-    /// Use this platform glyph rasterizer, e.g. the browser on web.
-    ///
-    /// Pass `None` to only use the installed fonts.
+    /// Also use this glyph rasterizer, e.g. the browser on web, or for custom glyphs.
     ///
     /// See [`GlyphRasterizer`].
-    pub fn set_glyph_rasterizer(&mut self, glyph_rasterizer: Option<GlyphRasterizer>) {
-        self.glyph_rasterizer = glyph_rasterizer;
+    pub fn add_glyph_rasterizer(&mut self, glyph_rasterizer: GlyphRasterizer) {
+        self.glyph_rasterizers.push(glyph_rasterizer);
         self.glyphs.clear_raster_glyphs();
+    }
+
+    /// Replace all [`GlyphRasterizer`]s.
+    ///
+    /// Pass an empty list to only use the installed fonts.
+    pub fn set_glyph_rasterizers(&mut self, glyph_rasterizers: Vec<GlyphRasterizer>) {
+        self.glyph_rasterizers = glyph_rasterizers;
+        self.glyphs.clear_raster_glyphs();
+    }
+
+    /// Is there any [`GlyphRasterizer`] with this priority?
+    #[inline]
+    pub fn has_glyph_rasterizer(&self, priority: FontPriority) -> bool {
+        self.glyph_rasterizers
+            .iter()
+            .any(|rasterizer| rasterizer.priority == priority)
     }
 
     pub fn options(&self) -> &TextOptions {
@@ -536,8 +558,8 @@ impl FontsImpl {
 
     /// Do the installed fonts have this glyph?
     ///
-    /// This does not consult the [`GlyphRasterizer`], so it can return `false`
-    /// for a character that would still render via the rasterizer (e.g. the browser on web).
+    /// This does not consult the [`GlyphRasterizer`]s, so it can return `false`
+    /// for a character that would still render via a rasterizer (e.g. the browser on web).
     pub fn has_glyph(&mut self, family: &FontFamily, c: char) -> bool {
         let family = self.family_key(family);
         let face_key = self.resolve_face(family, c);
@@ -583,20 +605,24 @@ impl FontsImpl {
             .allocate_outline(face_key, face, metrics, shaped)
     }
 
-    /// Rasterize a grapheme cluster using the platform [`GlyphRasterizer`].
+    /// Rasterize a grapheme cluster using the [`GlyphRasterizer`]s of the given priority.
     ///
-    /// Returns `None` if there is no rasterizer, or it could not handle the cluster.
+    /// Returns `None` if there is no such rasterizer, or none of them could handle the cluster.
     pub fn rasterize_cluster(
         &mut self,
+        priority: FontPriority,
         family: FamilyKey,
         cluster: &str,
         pixels_per_point: f32,
         font_size: f32,
     ) -> Option<RasterGlyphAllocation> {
-        let rasterizer = self.glyph_rasterizer.as_ref()?;
+        if !self.has_glyph_rasterizer(priority) {
+            return None;
+        }
         let family_name = self.families[family.0].name();
         self.glyphs.allocate_raster(
-            rasterizer,
+            &self.glyph_rasterizers,
+            priority,
             cluster,
             family_name,
             pixels_per_point,

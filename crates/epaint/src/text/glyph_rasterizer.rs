@@ -1,10 +1,16 @@
 use std::sync::Arc;
 
-use crate::{ColorImage, text::FontFamily};
+use crate::{
+    ColorImage,
+    text::{FontFamily, FontPriority},
+};
 
 /// Input to a [`GlyphRasterizer`].
 pub struct GlyphRasterizerRequest<'a> {
-    /// An unsupported grapheme cluster.
+    /// The grapheme cluster to rasterize.
+    ///
+    /// For a fallback rasterizer ([`FontPriority::Lowest`]) this is a cluster no installed font has.
+    /// A priority rasterizer ([`FontPriority::Highest`]) is asked about every cluster.
     pub cluster: &'a str,
 
     /// The requested font family.
@@ -31,7 +37,7 @@ pub struct GlyphBitmap {
     pub is_color: bool,
 }
 
-/// A glyph rasterized by a platform fallback.
+/// A glyph rasterized by a [`GlyphRasterizer`].
 #[derive(Clone)]
 pub struct RasterizedGlyph {
     pub bitmap: GlyphBitmap,
@@ -45,19 +51,38 @@ type RasterizeFn =
     dyn for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph> + Send + Sync;
 
 /// Rasterizes grapheme clusters using something other than the installed fonts,
-/// e.g. the browser on web.
+/// e.g. the browser on web, or your own custom glyphs.
 ///
-/// Used for clusters that no installed font can render,
+/// By default ([`FontPriority::Lowest`]) a rasterizer is a fallback:
+/// it is only asked about clusters that no installed font can render,
 /// after the [`FontProvider`](crate::text::FontProvider)s have been asked for a font for them.
+///
+/// With [`FontPriority::Highest`] it is instead asked about every cluster,
+/// before any font. Use this to override how specific glyphs look,
+/// e.g. to always render `…` your own way.
+/// Return `None` quickly for everything you do not want to override.
+///
+/// Several rasterizers can be installed. Within a priority tier
+/// they are asked in the order they were added, and the first to return `Some` wins.
+///
+/// Results (and failures) are cached per cluster, family, and size,
+/// so each rasterizer is asked at most once per such combination.
 #[derive(Clone)]
 pub struct GlyphRasterizer {
     /// Rasterize one grapheme cluster.
     ///
-    /// Return `None` if the platform cannot render it either.
+    /// Return `None` if this rasterizer does not handle it.
     pub rasterize: Arc<RasterizeFn>,
+
+    /// Is this a fallback ([`FontPriority::Lowest`], the default),
+    /// or does it override the installed fonts ([`FontPriority::Highest`])?
+    pub priority: FontPriority,
 }
 
 impl GlyphRasterizer {
+    /// A fallback rasterizer ([`FontPriority::Lowest`]).
+    ///
+    /// See [`Self::with_priority`].
     pub fn new(
         rasterize: impl for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph>
         + Send
@@ -66,13 +91,24 @@ impl GlyphRasterizer {
     ) -> Self {
         Self {
             rasterize: Arc::new(rasterize),
+            priority: FontPriority::Lowest,
         }
+    }
+
+    /// Should this rasterizer be asked before ([`FontPriority::Highest`])
+    /// or after ([`FontPriority::Lowest`]) the installed fonts?
+    #[inline]
+    pub fn with_priority(mut self, priority: FontPriority) -> Self {
+        self.priority = priority;
+        self
     }
 }
 
 impl core::fmt::Debug for GlyphRasterizer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str("GlyphRasterizer")
+        f.debug_struct("GlyphRasterizer")
+            .field("priority", &self.priority)
+            .finish_non_exhaustive()
     }
 }
 

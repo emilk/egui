@@ -71,7 +71,7 @@ impl crate::View for Modals {
         );
 
         if *user_modal_open {
-            let modal = Modal::new(Id::new("Modal A")).show(ui.ctx(), |ui| {
+            let modal = Modal::new(Id::unique("Modal A")).show(ui.ctx(), |ui| {
                 ui.set_width(250.0);
 
                 ui.heading("Edit User");
@@ -111,7 +111,7 @@ impl crate::View for Modals {
         }
 
         if *save_modal_open {
-            let modal = Modal::new(Id::new("Modal B")).show(ui.ctx(), |ui| {
+            let modal = Modal::new(Id::unique("Modal B")).show(ui.ctx(), |ui| {
                 ui.set_width(200.0);
                 ui.heading("Save? Are you sure?");
 
@@ -138,7 +138,7 @@ impl crate::View for Modals {
         }
 
         if let Some(progress) = *save_progress {
-            Modal::new(Id::new("Modal C")).show(ui.ctx(), |ui| {
+            Modal::new(Id::unique("Modal C")).show(ui.ctx(), |ui| {
                 ui.set_width(70.0);
                 ui.heading("Saving…");
 

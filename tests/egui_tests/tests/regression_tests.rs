@@ -298,7 +298,7 @@ fn warn_if_rect_changes_id() {
         // and the label changes on hover:
         let is_hovered = ui.rect_contains_pointer(button_rect);
         let label = if is_hovered { "Hovering!" } else { "Click me" };
-        let id = ui.id().with(label);
+        let id = ui.scope_id().with(label);
         let _response = ui.interact(button_rect, id, Sense::click());
     });
 
@@ -336,7 +336,7 @@ fn warn_if_rect_changes_id_false_positive_parent_shift() {
         // push_id with a changing value causes the child Ui's id to shift,
         // which in turn shifts all widget ids inside it.
         ui.push_id(counter.get(), |ui| {
-            let id = ui.id().with("my_widget");
+            let id = ui.scope_id().with("my_widget");
             let _response = ui.interact(button_rect, id, Sense::click());
         });
     });
@@ -622,7 +622,7 @@ fn run_logic_should_not_disturb_ui_state() {
     const FOCUSED_BUTTON: &str = "Click me";
 
     let child_viewport = egui::ViewportId::from_hash_of("My child viewport");
-    let area_id = egui::Id::new("My area");
+    let area_id = egui::Id::unique("My area");
     let area_layer = egui::LayerId::new(egui::Order::Middle, area_id);
 
     let mut harness = Harness::builder()

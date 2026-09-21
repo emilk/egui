@@ -15,7 +15,7 @@ fn interact_radius() -> f32 {
 }
 
 fn widget_id() -> Id {
-    Id::new("click_and_drag")
+    Id::unique("click_and_drag")
 }
 
 /// A harness with one click-and-drag widget of the given size at the top-left.
@@ -36,7 +36,7 @@ fn harness_with_widget(size: Vec2, with_background: bool) -> Harness<'static, ()
                 // Allocated first, so it ends up _behind_ the widget under test.
                 ui.interact(
                     ui.max_rect(),
-                    Id::new("background"),
+                    Id::unique("background"),
                     Sense::click_and_drag(),
                 );
             }
@@ -191,7 +191,7 @@ fn click_inside_a_widget_still_clicks() {
 /// otherwise the row starts dragging the moment the user touches the button.
 #[test]
 fn press_on_a_button_inside_a_draggable_row_stays_undecided() {
-    let button_id = Id::new("button");
+    let button_id = Id::unique("button");
     let button_size = Vec2::new(50.0, 20.0);
 
     let mut harness = Harness::builder()

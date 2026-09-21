@@ -69,7 +69,7 @@ impl crate::Demo for WindowOptions {
 
         use crate::View as _;
         let mut window = egui::Window::new(title)
-            .id(egui::Id::new("demo_window_options")) // required since we change the title
+            .id(egui::Id::unique("demo_window_options")) // required since we change the title
             .resizable(resizable)
             .constrain_to(ui.available_rect_before_wrap())
             .constrain(constrain)

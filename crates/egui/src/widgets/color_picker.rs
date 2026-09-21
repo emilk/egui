@@ -47,7 +47,7 @@ fn background_checkers(painter: &Painter, bounds: RoundedRect) {
     );
     let texture = painter.ctx().load_texture_cached(
         "color_picker_checkers",
-        Id::new("color_picker_checkers"),
+        Id::unique("color_picker_checkers"),
         image,
         TextureOptions::NEAREST_REPEAT,
     );

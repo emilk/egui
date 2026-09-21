@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
+use emath::{Align2, Pos2, Rangef, Rect, Rot2, TSTransform, Vec2, pos2};
 
 use crate::{
     Color32, CornerRadius, Direction, Mesh, Stroke, StrokeKind, TextureId, Vertex,
@@ -254,6 +254,21 @@ impl Shape {
         stroke: impl Into<PathStroke>,
     ) -> Self {
         Self::Path(PathShape::convex_polygon(points, fill, stroke))
+    }
+
+    /// A filled triangle inscribed in `rect`, pointing down.
+    ///
+    /// `rotation` is in radians, and rotates the triangle around the center of `rect`:
+    /// `0.0` points down, `TAU / 4.0` left, `TAU / 2.0` up, and `-TAU / 4.0` right.
+    ///
+    /// Useful to paint small arrow icons in the ui, like the on combo boxes or submenu buttons.
+    pub fn rotated_triangle(rect: Rect, rotation: f32, fill: impl Into<Color32>) -> Self {
+        let rotation = Rot2::from_angle(rotation);
+        let points = [rect.left_top(), rect.right_top(), rect.center_bottom()]
+            .into_iter()
+            .map(|point| rect.center() + rotation * (point - rect.center()))
+            .collect();
+        Self::convex_polygon(points, fill, Stroke::NONE)
     }
 
     #[inline]

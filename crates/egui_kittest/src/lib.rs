@@ -14,11 +14,16 @@ pub use crate::snapshot::*;
 mod app_kind;
 mod config;
 mod node;
+#[cfg(feature = "video")]
+mod recording;
 mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
+
+#[cfg(feature = "video")]
+pub use crate::recording::{RECORD_ENV_VAR, RecordingError, RecordingOptions, RecordingPlugin};
 
 // re-exports:
 pub use {
@@ -38,7 +43,33 @@ use egui::{
 };
 use kittest::Queryable;
 
-use crate::{app_kind::AppKind, config::config};
+use crate::{
+    app_kind::{AppKind, UiRunOutput},
+    config::config,
+};
+
+#[cfg(any(feature = "wgpu", feature = "snapshot"))]
+fn push_cursor_shape(ctx: &egui::Context, shapes: &mut Vec<ClippedShape>) {
+    let Some(mouse_pos) = ctx.input(|input| input.pointer.hover_pos()) else {
+        return;
+    };
+
+    let triangle = vec![
+        mouse_pos,
+        mouse_pos + egui::vec2(16.0, 8.0),
+        mouse_pos + egui::vec2(8.0, 16.0),
+    ];
+
+    shapes.push(ClippedShape {
+        clip_rect: ctx.content_rect(),
+        shape: egui::epaint::PathShape::convex_polygon(
+            triangle,
+            Color32::WHITE,
+            egui::Stroke::new(1.0, Color32::BLACK),
+        )
+        .into(),
+    });
+}
 
 #[derive(Debug, Clone)]
 pub struct ExceededMaxStepsError {
@@ -91,12 +122,14 @@ impl Display for ExceededMaxStepsError {
 /// - The cursor blinking is disabled
 /// - The scroll animation is disabled
 pub struct Harness<'a, State = ()> {
+    /// Notifies plugins before the rest of the harness is dropped.
+    _on_exit: ContextOnExit,
     pub ctx: egui::Context,
     input: egui::RawInput,
     kittest: kittest::State,
     output: egui::FullOutput,
     app: AppKind<'a, State>,
-    response: Option<egui::Response>,
+    ui_output: Option<UiRunOutput>,
     state: State,
     renderer: Box<dyn TestRenderer>,
 
@@ -112,6 +145,10 @@ pub struct Harness<'a, State = ()> {
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     render_every_step: bool,
 
+    /// Paint the synthetic mouse cursor. See [`HarnessBuilder::with_render_cursor`].
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    render_cursor: bool,
+
     max_steps: u64,
     step_dt: f32,
     wait_for_pending_images: bool,
@@ -121,6 +158,23 @@ pub struct Harness<'a, State = ()> {
     default_snapshot_options: SnapshotOptions,
     #[cfg(feature = "snapshot")]
     snapshot_results: SnapshotResults,
+}
+
+struct ContextOnExit(Option<egui::Context>);
+
+impl ContextOnExit {
+    #[cfg(all(feature = "eframe", not(target_arch = "wasm32")))]
+    fn disarm(&mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for ContextOnExit {
+    fn drop(&mut self) {
+        if let Some(ctx) = &self.0 {
+            ctx.on_exit();
+        }
+    }
 }
 
 impl<State> Debug for Harness<'_, State> {
@@ -147,9 +201,13 @@ impl<'a, State> Harness<'a, State> {
             state: _,
             mut renderer,
             wait_for_pending_images,
+            fit_contents,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_cursor,
 
             #[cfg(feature = "snapshot")]
             default_snapshot_options,
@@ -176,17 +234,18 @@ impl<'a, State> Harness<'a, State> {
         let viewport = input.viewports.get_mut(&ViewportId::ROOT).unwrap();
         viewport.native_pixels_per_point = Some(pixels_per_point);
 
-        let mut response = None;
+        let mut ui_output = None;
 
         // We need to run egui for a single frame so that the AccessKit state can be initialized
         // and users can immediately start querying for widgets.
         let mut output = ctx.run_ui(input.clone(), |ui| {
-            response = app.run(ui, &mut state, false);
+            ui_output = app.run(ui, &mut state, false);
         });
 
         renderer.handle_delta(&mut output.textures_delta);
 
         let mut harness = Self {
+            _on_exit: ContextOnExit(Some(ctx.clone())),
             app,
             ctx,
             input,
@@ -198,7 +257,7 @@ impl<'a, State> Harness<'a, State> {
                     .expect("AccessKit was disabled"),
             ),
             output,
-            response,
+            ui_output,
             state,
             renderer,
 
@@ -207,6 +266,9 @@ impl<'a, State> Harness<'a, State> {
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_cursor,
 
             max_steps,
             step_dt,
@@ -225,6 +287,15 @@ impl<'a, State> Harness<'a, State> {
 
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run_ok();
+
+        if fit_contents && harness.ui_output.is_some() {
+            harness.fit_contents();
+        }
+
+        // Start recording only now, so that the setup frames above are not part of the recording.
+        #[cfg(feature = "video")]
+        harness.maybe_start_auto_recording();
+
         harness
     }
 
@@ -304,7 +375,7 @@ impl<'a, State> Harness<'a, State> {
         self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run_ui(self.input.take(), |ui| {
-            self.response = self.app.run(ui, &mut self.state, sizing_pass);
+            self.ui_output = self.app.run(ui, &mut self.state, sizing_pass);
         });
         self.kittest.update(
             output
@@ -328,7 +399,7 @@ impl<'a, State> Harness<'a, State> {
     /// Calculate the rect that includes all popups and tooltips.
     fn compute_total_rect_with_popups(&self) -> Option<Rect> {
         // Start with the standard response rect
-        let mut used = self.response.as_ref()?.rect;
+        let mut used = self.ui_output.as_ref()?.response.rect;
 
         // Add all visible areas from other orders (popups, tooltips, etc.)
         self.ctx.memory(|mem| {
@@ -528,6 +599,22 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Access the state.
+    /// The [`egui::Ui::scope_id`] of the [`egui::Ui`] passed to the ui closure.
+    ///
+    /// Use this to compute the [`egui::Id`] of things shown directly in that ui,
+    /// e.g. `harness.ui_id().with("my_panel")`.
+    ///
+    /// # Panics
+    /// If the harness was built from an eframe app rather than a ui closure.
+    pub fn ui_id(&self) -> egui::Id {
+        match &self.ui_output {
+            Some(ui_output) => ui_output.ui_id,
+            None => {
+                panic!("Harness::ui_id is only available for harnesses built with a ui closure")
+            }
+        }
+    }
+
     pub fn state(&self) -> &State {
         &self.state
     }
@@ -733,6 +820,19 @@ impl<'a, State> Harness<'a, State> {
         self.render_every_step = render_every_step;
     }
 
+    /// Should a synthetic mouse cursor be painted on top of rendered frames?
+    ///
+    /// See [`HarnessBuilder::with_render_cursor`].
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[inline]
+    pub fn set_render_cursor(&mut self, render_cursor: bool) {
+        if self.render_cursor != render_cursor {
+            // This changes what a render of this pass looks like.
+            self.last_render = None;
+        }
+        self.render_cursor = render_cursor;
+    }
+
     /// Render the last output to an image.
     ///
     /// When calling this multiple times on the same frame, or when [`Self::set_render_every_step`] is
@@ -752,24 +852,8 @@ impl<'a, State> Harness<'a, State> {
         }
 
         let mut output = self.output.clone();
-
-        if let Some(mouse_pos) = self.ctx.input(|i| i.pointer.hover_pos()) {
-            // Paint a mouse cursor:
-            let triangle = vec![
-                mouse_pos,
-                mouse_pos + egui::vec2(16.0, 8.0),
-                mouse_pos + egui::vec2(8.0, 16.0),
-            ];
-
-            output.shapes.push(ClippedShape {
-                clip_rect: self.ctx.content_rect(),
-                shape: egui::epaint::PathShape::convex_polygon(
-                    triangle,
-                    Color32::WHITE,
-                    egui::Stroke::new(1.0, Color32::BLACK),
-                )
-                .into(),
-            });
+        if self.render_cursor {
+            push_cursor_shape(&self.ctx, &mut output.shapes);
         }
 
         let image = self.renderer.render(&self.ctx, &output)?;
@@ -833,9 +917,8 @@ impl<'a, State> Harness<'a, State> {
             return;
         }
 
-        // Render the frame once and reuse it for every request. We render without the synthetic
-        // mouse cursor since a real screenshot wouldn't include the OS cursor either.
-        let image = match self.renderer.render(&self.ctx, &self.output) {
+        // Render the frame once and reuse it for every request.
+        let image = match self.render() {
             Ok(image) => image,
             Err(err) => {
                 log::error!("Failed to render screenshot requested via ViewportCommand: {err}");
@@ -952,8 +1035,13 @@ impl<'a, State> Harness<'a, State> {
         use crate::app_kind::AppKindEframe;
 
         let Self {
-            ctx, state, app, ..
+            _on_exit: mut on_exit,
+            ctx,
+            state,
+            app,
+            ..
         } = self;
+        on_exit.disarm();
 
         let eframe_app: Box<dyn eframe::App> = match app {
             AppKind::Ui(f) => Box::new(UiApp { f }),

@@ -285,9 +285,9 @@ impl CodeTheme {
         #![expect(clippy::needless_return)]
 
         let (id, default) = if style.visuals.dark_mode {
-            (egui::Id::new("dark"), Self::dark as fn(f32) -> Self)
+            (egui::Id::unique("dark"), Self::dark as fn(f32) -> Self)
         } else {
-            (egui::Id::new("light"), Self::light as fn(f32) -> Self)
+            (egui::Id::unique("light"), Self::light as fn(f32) -> Self)
         };
 
         #[cfg(feature = "serde")]
@@ -312,9 +312,9 @@ impl CodeTheme {
     /// There is one dark and one light theme stored at any one time.
     pub fn store_in_memory(self, ctx: &egui::Context) {
         let id = if ctx.global_style().visuals.dark_mode {
-            egui::Id::new("dark")
+            egui::Id::unique("dark")
         } else {
-            egui::Id::new("light")
+            egui::Id::unique("light")
         };
 
         #[cfg(feature = "serde")]

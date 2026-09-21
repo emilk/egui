@@ -185,6 +185,7 @@ pub struct Popup<'a> {
     layout: Layout,
     frame: Option<Frame>,
     style: StyleModifier,
+    anchor_widget: Option<Id>,
 }
 
 impl<'a> Popup<'a> {
@@ -209,6 +210,7 @@ impl<'a> Popup<'a> {
             layout: Layout::default(),
             frame: None,
             style: StyleModifier::default(),
+            anchor_widget: None,
         }
     }
 
@@ -223,6 +225,7 @@ impl<'a> Popup<'a> {
             response,
             response.layer_id,
         )
+        .anchor_widget(response.id)
     }
 
     /// Show a popup relative to some widget,
@@ -356,6 +359,16 @@ impl<'a> Popup<'a> {
     #[inline]
     pub fn anchor(mut self, anchor: impl Into<PopupAnchor>) -> Self {
         self.anchor = anchor.into();
+        self
+    }
+
+    /// The widget this popup belongs to.
+    ///
+    /// The popup is nested under it in the accessibility tree.
+    /// Set automatically by [`Self::from_response`] and everything built on it.
+    #[inline]
+    pub fn anchor_widget(mut self, widget_id: Id) -> Self {
+        self.anchor_widget = Some(widget_id);
         self
     }
 
@@ -577,6 +590,7 @@ impl<'a> Popup<'a> {
             layout,
             frame,
             style,
+            anchor_widget,
         } = self;
 
         if kind != PopupKind::Tooltip {
@@ -612,6 +626,9 @@ impl<'a> Popup<'a> {
 
         if let Some(width) = width {
             area = area.default_width(width);
+        }
+        if let Some(anchor_widget) = anchor_widget {
+            area = area.accessibility_parent(anchor_widget);
         }
 
         let mut response = area.show(&ctx, |ui| {

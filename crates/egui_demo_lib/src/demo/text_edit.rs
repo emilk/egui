@@ -69,7 +69,7 @@ impl crate::View for TextEditDemo {
             ui.selectable_value(valign, egui::Align::BOTTOM, "Bottom");
         });
 
-        let clear_id = egui::Id::new("clear_button");
+        let clear_id = egui::IdSalt::new("clear_button");
         let clear_size = egui::Vec2::splat(ui.spacing().interact_size.y);
 
         let output = egui::TextEdit::multiline(text)

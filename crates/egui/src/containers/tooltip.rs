@@ -26,6 +26,7 @@ impl Tooltip<'_> {
         let width = ctx.global_style().spacing.tooltip_width;
         Self {
             popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
+                .anchor_widget(parent_widget)
                 .kind(PopupKind::Tooltip)
                 .gap(4.0)
                 .width(width)
@@ -165,7 +166,7 @@ impl Tooltip<'_> {
     }
 
     fn when_was_a_toolip_last_shown_id() -> Id {
-        Id::new("when_was_a_toolip_last_shown")
+        Id::unique("when_was_a_toolip_last_shown")
     }
 
     pub fn seconds_since_last_tooltip(ctx: &Context) -> f32 {

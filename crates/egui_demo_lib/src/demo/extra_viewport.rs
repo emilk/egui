@@ -15,7 +15,7 @@ impl crate::Demo for ExtraViewport {
             return;
         }
 
-        let id = egui::Id::new(self.name());
+        let id = egui::Id::unique(self.name());
 
         ui.show_viewport_immediate(
             egui::ViewportId(id),

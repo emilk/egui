@@ -677,7 +677,7 @@ fn ui_stack_demo(ui: &mut Ui) {
                     for node in stack.iter() {
                         body.row(18.0, |mut row| {
                             row.col(|ui| {
-                                let response = ui.label(format!("{:?}", node.id));
+                                let response = ui.label(format!("{:?}", node.unique_id));
 
                                 if response.hovered() {
                                     ui.debug_painter().debug_rect(
