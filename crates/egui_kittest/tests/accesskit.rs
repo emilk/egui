@@ -303,11 +303,20 @@ fn resizable_side_panel_exposes_resize_handle() {
     assert_eq!(handle.label(), Some("Resize panel"));
     // The divider of a left/right panel is a vertical splitter:
     assert_eq!(handle.orientation(), Some(Orientation::Vertical));
-    assert_eq!(handle.min_numeric_value(), Some(0.0));
-    assert_eq!(handle.max_numeric_value(), Some(1.0));
+    // The value is the panel size as a fraction of the available space,
+    // and the bounds are the reachable sizes (`min_size`/`max_size`) on the same scale:
+    let min = handle
+        .min_numeric_value()
+        .expect("Splitter should have a min");
+    let max = handle
+        .max_numeric_value()
+        .expect("Splitter should have a max");
+    let value = handle
+        .numeric_value()
+        .expect("Splitter should announce the current panel size");
     assert!(
-        handle.numeric_value().is_some(),
-        "Splitter should announce the current panel size"
+        0.0 <= min && min < value && value < max && max <= 1.0,
+        "Expected 0 <= min < value < max <= 1, got min={min} value={value} max={max}"
     );
 
     for action in [Action::Increment, Action::Decrement, Action::SetValue] {
@@ -316,6 +325,37 @@ fn resizable_side_panel_exposes_resize_handle() {
             "Splitter should support {action:?}"
         );
     }
+}
+
+/// `Increment`/`Decrement` are only offered when the panel can actually move that way.
+///
+/// <https://github.com/emilk/egui/issues/8557>
+#[test]
+fn fixed_size_panel_resize_handle_offers_no_increment_or_decrement() {
+    let output = accesskit_output_single_egui_frame(|ui| {
+        Panel::left("test_panel")
+            .resizable(true)
+            .exact_size(200.0)
+            .show(ui, |ui| {
+                ui.label("Panel content");
+            });
+    });
+
+    let (_, handle) = output
+        .nodes
+        .iter()
+        .find(|(_, node)| node.role() == Role::Splitter)
+        .expect("Panel resize handle should be exposed as a splitter node");
+
+    assert!(handle.supports_action(Action::SetValue));
+    assert!(
+        !handle.supports_action(Action::Increment),
+        "A panel at its max size cannot grow"
+    );
+    assert!(
+        !handle.supports_action(Action::Decrement),
+        "A panel at its min size cannot shrink"
+    );
 }
 
 /// <https://github.com/emilk/egui/issues/8557>
@@ -371,7 +411,7 @@ fn resizable_panel_can_be_resized_via_accesskit_actions() {
 
     let grown_split = left_panel_split_pos(&harness);
     assert!(
-        initial_split + f32::EPSILON < grown_split,
+        initial_split < grown_split,
         "Increment should move the split outward, got {initial_split} -> {grown_split}"
     );
 
@@ -394,7 +434,7 @@ fn resizable_panel_can_be_resized_via_accesskit_actions() {
 
     let shrunk_split = left_panel_split_pos(&harness);
     assert!(
-        shrunk_split + f32::EPSILON < half_split,
+        shrunk_split < half_split,
         "Decrement should move the split inward, got {half_split} -> {shrunk_split}"
     );
 }
@@ -427,6 +467,83 @@ fn collapsed_panel_can_be_expanded_via_accesskit_action() {
     harness
         .get_by_role_and_label(Role::Splitter, "Resize panel")
         .increment_accesskit();
+    harness.run();
+
+    assert!(
+        *harness.state(),
+        "Increment on the collapsed panel's resize handle should expand the panel"
+    );
+}
+
+/// `Decrement` past the minimum size collapses the panel,
+/// mirroring the drag-to-collapse gesture.
+///
+/// <https://github.com/emilk/egui/issues/8557>
+#[test]
+fn collapsible_panel_can_be_collapsed_via_accesskit_action() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 600.0))
+        .build_ui_state(
+            |ui, expanded| {
+                Panel::left("test_panel")
+                    .resizable(true)
+                    .min_size(100.0)
+                    .default_size(100.0)
+                    .show_collapsible(ui, expanded, |ui| {
+                        ui.take_available_space();
+                        ui.label("Panel content");
+                    });
+            },
+            true,
+        );
+    harness.run();
+
+    let handle = harness.get_by_role_and_label(Role::Splitter, "Resize panel");
+    assert!(
+        handle.accesskit_node().data().supports_action(Action::Decrement),
+        "An expanded collapsible panel at its min size can still be collapsed"
+    );
+    handle.decrement_accesskit();
+    harness.run();
+
+    assert!(
+        !*harness.state(),
+        "Decrement past the min size should collapse the panel"
+    );
+}
+
+/// In `show_switched`, the collapsed panel shares the resize handle with the
+/// expanded one. `Increment` on it must open the expanded panel even when the
+/// collapsed panel has a fixed size, just like dragging past its `max_size` does.
+///
+/// <https://github.com/emilk/egui/issues/8557>
+#[test]
+fn switched_panel_can_be_expanded_via_accesskit_action() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 600.0))
+        .build_ui_state(
+            |ui, expanded| {
+                Panel::show_switched(
+                    ui,
+                    expanded,
+                    Panel::left("collapsed").resizable(true).exact_size(24.0),
+                    Panel::left("expanded").resizable(true),
+                    |ui, _| {
+                        ui.take_available_space();
+                        ui.label("Panel content");
+                    },
+                );
+            },
+            false,
+        );
+    harness.run();
+
+    let handle = harness.get_by_role_and_label(Role::Splitter, "Resize panel");
+    assert!(
+        handle.accesskit_node().data().supports_action(Action::Increment),
+        "The collapsed panel's handle should offer to expand it"
+    );
+    handle.increment_accesskit();
     harness.run();
 
     assert!(

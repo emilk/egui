@@ -696,6 +696,8 @@ impl Panel {
         let id = self.id(parent_ui);
         let resizable = self.resizable;
         let show_separator_line = self.show_separator_line;
+        // Copied out before `is_expanded` is handed to the resize logic below.
+        let is_expanded_now = is_expanded.as_deref().copied();
 
         let available_rect = parent_ui.available_rect_before_wrap();
 
@@ -754,21 +756,33 @@ impl Panel {
                 *is_expanded = !*is_expanded;
             }
 
-            if let Some(resize_response) = resize_response
+            let axis = side.axis();
+            let available_size = available_rect.size_along(axis);
+
+            // The size the user asked for, before clamping. Either from a pointer drag…
+            let raw_outer_size = if let Some(resize_response) = resize_response
                 && (resize_response.dragged() || resize_response.drag_stopped())
                 && let Some(pointer) = resize_response.interact_pointer_pos()
             {
                 resize_drag_in_progress = resize_response.dragged();
-                let axis = side.axis();
-                let prev_outer_size = outer_size;
                 // Signed distance from the fixed edge to the pointer along the
                 // panel's axis. Going past the fixed edge yields a negative size,
                 // which `clamp_to_range` then snaps up to `min` — DON'T use
                 // `.abs()` here, that would mirror the drag and spuriously
                 // trigger drag-to-expand once the pointer crosses the edge.
-                let raw_outer_size = -side.sign() * (pointer[axis] - side.fixed_pos(outer_rect));
-                outer_size = clamp_to_range(raw_outer_size, self.outer_size_range)
-                    .at_most(available_rect.size_along(axis));
+                Some(-side.sign() * (pointer[axis] - side.fixed_pos(outer_rect)))
+            } else {
+                // …or from assistive technologies (AccessKit `Increment`/`Decrement`/`SetValue`
+                // on the resize handle). Both go through the same clamping and
+                // collapse/expand logic below.
+                // https://github.com/emilk/egui/issues/8557
+                self.accesskit_resize_request(parent_ui, resize_id, outer_size, available_size)
+            };
+
+            if let Some(raw_outer_size) = raw_outer_size {
+                let prev_outer_size = outer_size;
+                outer_size =
+                    clamp_to_range(raw_outer_size, self.outer_size_range).at_most(available_size);
                 side.set_rect_size(&mut outer_rect, outer_size);
 
                 if let Some(is_expanded) = is_expanded {
@@ -794,37 +808,6 @@ impl Panel {
                         *is_expanded = true;
                     }
                 }
-            }
-
-            // Let assistive technologies resize the panel: AccessKit
-            // `Increment`/`Decrement`/`SetValue` actions on the resize handle
-            // go through the same size-clamping path as a pointer drag above.
-            // https://github.com/emilk/egui/issues/8557
-            let (ak_steps, ak_set_fraction) = parent_ui.input(|input| {
-                (
-                    input.num_accesskit_action_requests(resize_id, accesskit::Action::Increment)
-                        as f32
-                        - input
-                            .num_accesskit_action_requests(resize_id, accesskit::Action::Decrement)
-                            as f32,
-                    input
-                        .accesskit_action_requests(resize_id, accesskit::Action::SetValue)
-                        .find_map(|request| match request.data {
-                            Some(accesskit::ActionData::NumericValue(value)) => Some(value as f32),
-                            _ => None,
-                        }),
-                )
-            });
-            if ak_steps != 0.0 || ak_set_fraction.is_some() {
-                let available_size = available_rect.size_along(side.axis());
-                let new_size = if let Some(fraction) = ak_set_fraction {
-                    fraction.clamp(0.0, 1.0) * available_size
-                } else {
-                    outer_size
-                } + ak_steps * parent_ui.style().spacing.interact_size[side.axis()];
-                outer_size =
-                    clamp_to_range(new_size, self.outer_size_range).at_most(available_size);
-                side.set_rect_size(&mut outer_rect, outer_size);
             }
         }
 
@@ -902,7 +885,12 @@ impl Panel {
             // Now we do the actual resize interaction, on top of all the contents,
             // otherwise its input could be eaten by the contents, e.g. a
             // `ScrollArea` on either side of the panel boundary.
-            let resize_response = self.resize_panel(shifted_outer_rect, available_rect, parent_ui);
+            let resize_response = self.resize_panel(
+                shifted_outer_rect,
+                available_rect,
+                is_expanded_now,
+                parent_ui,
+            );
             (resize_response.hovered(), resize_response.dragged())
         } else {
             (false, false)
@@ -1039,18 +1027,22 @@ impl Panel {
         let resize_id = self.resize_id(ui);
         let response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
 
-        response
-            .widget_info(|| WidgetInfo::labeled(Role::Splitter, ui.is_enabled(), "Resize panel"));
-
         // Let assistive technologies pull the panel open, mirroring the
-        // drag-to-expand gesture below:
+        // drag-to-expand gesture below: the collapsed panel has size zero,
+        // and asking for any positive size opens it.
         // https://github.com/emilk/egui/issues/8557
-        ui.ctx().accesskit_node_builder(resize_id, |node| {
-            node.add_action(accesskit::Action::Increment);
-        });
-        if ui.input(|input| {
-            input.has_accesskit_action_request(resize_id, accesskit::Action::Increment)
-        }) {
+        let available_size = available_rect.size_along(axis);
+        self.declare_accesskit_resize_handle(
+            ui,
+            &response,
+            0.0,
+            Rangef::new(0.0, self.outer_size_range.max),
+            available_size,
+        );
+        if let Some(requested_size) =
+            self.accesskit_resize_request(ui, resize_id, 0.0, available_size)
+            && 0.0 < requested_size
+        {
             *is_expanded = true;
         }
 
@@ -1130,7 +1122,15 @@ impl Panel {
         clamp_to_range(raw, self.outer_size_range)
     }
 
-    fn resize_panel(&self, outer_rect: Rect, available_rect: Rect, ui: &Ui) -> Response {
+    /// `is_expanded` is the current collapse state for the animated entry points
+    /// (`show_collapsible` / `show_switched`), or `None` for a plain panel.
+    fn resize_panel(
+        &self,
+        outer_rect: Rect,
+        available_rect: Rect,
+        is_expanded: Option<bool>,
+        ui: &Ui,
+    ) -> Response {
         let resize_pos = self.side.resize_pos(outer_rect);
         let panel_axis_range = Rangef::point(resize_pos);
         let cross_range = outer_rect.range_along(self.side.cross_axis());
@@ -1147,34 +1147,111 @@ impl Panel {
         let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
         let response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
 
-        // Expose the resize handle to assistive technologies, describing the
-        // panel size as a fraction of the available space so that it can
-        // both be announced and adjusted from there:
+        // Expose the resize handle to assistive technologies:
         // https://github.com/emilk/egui/issues/8557
         let axis = self.side.axis();
-        let available_size = available_rect.size_along(axis).max(1.0);
-        let fraction = f64::from(outer_rect.size_along(axis) / available_size);
-        let step = f64::from(ui.style().spacing.interact_size[axis] / available_size);
+        let available_size = available_rect.size_along(axis);
+        // The sizes the user can actually reach. Beyond `outer_size_range`,
+        // an expanded panel can be collapsed (size zero), and a collapsed panel
+        // can be expanded (drag-to-expand in `show_switched`).
+        let reachable = Rangef::new(
+            if is_expanded == Some(true) {
+                0.0
+            } else {
+                self.outer_size_range.min
+            },
+            if is_expanded == Some(false) {
+                available_size
+            } else {
+                self.outer_size_range.max
+            },
+        );
+        self.declare_accesskit_resize_handle(
+            ui,
+            &response,
+            outer_rect.size_along(axis),
+            reachable,
+            available_size,
+        );
 
         response
-            .widget_info(|| WidgetInfo::labeled(Role::Splitter, ui.is_enabled(), "Resize panel"));
-        ui.ctx().accesskit_node_builder(resize_id, |node| {
+    }
+
+    /// Describe a panel resize handle to assistive technologies as a splitter
+    /// whose value is the panel size as a fraction of the available space.
+    ///
+    /// `reachable` is the range of outer sizes (in points) the user can actually
+    /// reach with this handle; `Increment`/`Decrement` are only offered when
+    /// there is room to move in that direction.
+    fn declare_accesskit_resize_handle(
+        &self,
+        ui: &Ui,
+        response: &Response,
+        outer_size: f32,
+        reachable: Rangef,
+        available_size: f32,
+    ) {
+        let axis = self.side.axis();
+        let available_size = available_size.max(1.0);
+        let as_fraction = |size: f32| f64::from((size / available_size).clamp(0.0, 1.0));
+
+        response.widget_info(|| {
+            let mut info = WidgetInfo::labeled(Role::Splitter, ui.is_enabled(), "Resize panel");
+            info.value = Some(as_fraction(outer_size));
+            info
+        });
+
+        ui.ctx().accesskit_node_builder(response.id, |node| {
             // The divider of a left/right panel is a vertical splitter, and vice versa.
             node.set_orientation(if axis == 0 {
                 accesskit::Orientation::Vertical
             } else {
                 accesskit::Orientation::Horizontal
             });
-            node.set_numeric_value(fraction);
-            node.set_min_numeric_value(0.0);
-            node.set_max_numeric_value(1.0);
-            node.set_numeric_value_step(step);
-            node.add_action(accesskit::Action::Increment);
-            node.add_action(accesskit::Action::Decrement);
+            node.set_min_numeric_value(as_fraction(reachable.min));
+            node.set_max_numeric_value(as_fraction(reachable.max));
+            node.set_numeric_value_step(as_fraction(ui.style().spacing.interact_size[axis]));
             node.add_action(accesskit::Action::SetValue);
+            if outer_size < reachable.max {
+                node.add_action(accesskit::Action::Increment);
+            }
+            if reachable.min < outer_size {
+                node.add_action(accesskit::Action::Decrement);
+            }
         });
+    }
 
-        response
+    /// The outer size (in points) that assistive technologies asked for this frame, if any.
+    ///
+    /// The splitter reports the panel size as a fraction of the available space,
+    /// so `SetValue` arrives as a fraction, while `Increment`/`Decrement` step
+    /// the size by [`crate::style::Spacing::interact_size`].
+    /// The result is unclamped, so the caller can detect collapse/expand overshoot
+    /// just like for a pointer drag.
+    fn accesskit_resize_request(
+        &self,
+        ui: &Ui,
+        resize_id: Id,
+        outer_size: f32,
+        available_size: f32,
+    ) -> Option<f32> {
+        let steps = ui.input(|input| {
+            input.num_accesskit_action_requests(resize_id, accesskit::Action::Increment) as f32
+                - input.num_accesskit_action_requests(resize_id, accesskit::Action::Decrement)
+                    as f32
+        });
+        let set_fraction = crate::widgets::accesskit_set_value_request(ui, resize_id);
+
+        if steps == 0.0 && set_fraction.is_none() {
+            return None;
+        }
+
+        let base_size = match set_fraction {
+            Some(fraction) => fraction.clamp(0.0, 1.0) as f32 * available_size,
+            None => outer_size,
+        };
+        let step_size = ui.style().spacing.interact_size[self.side.axis()];
+        Some(base_size + steps * step_size)
     }
 
     fn cursor_icon(&self, outer_size: f32) -> CursorIcon {
