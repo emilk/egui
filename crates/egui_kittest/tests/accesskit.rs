@@ -674,3 +674,20 @@ fn window_resize_handles_are_named() {
         harness.get_by_role_and_label(Role::Splitter, name);
     }
 }
+
+/// An area can take a role of its own, e.g. a toast is an alert.
+#[test]
+fn area_with_a_role() {
+    let mut harness = Harness::new_ui(|ui| {
+        egui::Area::new(egui::Id::unique("toast"))
+            .role(Role::Alert)
+            .accessible_name("Saved")
+            .show(ui.ctx(), |ui| {
+                ui.label("The file was saved");
+            });
+    });
+    harness.run();
+    harness
+        .get_by_role_and_label(Role::Alert, "Saved")
+        .get_by_label("The file was saved");
+}
