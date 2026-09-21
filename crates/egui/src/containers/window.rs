@@ -1057,7 +1057,7 @@ fn do_resize_interaction(
     // The rect that is in the middle of the stroke:
     let rect = outer_rect.shrink(window_frame.stroke.width / 2.0);
 
-    let side_response = |rect, id| {
+    let side_response = |rect, id, name: &'static str| {
         ctx.register_accesskit_parent(id, accessibility_parent);
         let response = ctx.create_widget(
             WidgetRect {
@@ -1078,7 +1078,9 @@ fn do_resize_interaction(
             },
         );
 
-        response.widget_info(|| WidgetInfo::new(Role::Splitter));
+        // Named so a screen reader can tell the eight handles apart,
+        // and so the harness' accessibility check is satisfied:
+        response.widget_info(|| WidgetInfo::labeled(Role::Splitter, true, name));
 
         SideResponse {
             hover: response.hovered(),
@@ -1112,6 +1114,7 @@ fn do_resize_interaction(
         let response = side_response(
             vertical_rect(rect.right_top(), rect.right_bottom()),
             id.with("right"),
+            "Resize window right edge",
         );
         right |= response;
     }
@@ -1119,6 +1122,7 @@ fn do_resize_interaction(
         let response = side_response(
             vertical_rect(rect.left_top(), rect.left_bottom()),
             id.with("left"),
+            "Resize window left edge",
         );
         left |= response;
     }
@@ -1126,6 +1130,7 @@ fn do_resize_interaction(
         let response = side_response(
             horizontal_rect(rect.left_bottom(), rect.right_bottom()),
             id.with("bottom"),
+            "Resize window bottom edge",
         );
         bottom |= response;
     }
@@ -1133,6 +1138,7 @@ fn do_resize_interaction(
         let response = side_response(
             horizontal_rect(rect.left_top(), rect.right_top()),
             id.with("top"),
+            "Resize window top edge",
         );
         top |= response;
     }
@@ -1146,7 +1152,11 @@ fn do_resize_interaction(
     // the whole corner is grabbable:
 
     if possible.resize_right || possible.resize_bottom {
-        let response = side_response(corner_rect(rect.right_bottom()), id.with("right_bottom"));
+        let response = side_response(
+            corner_rect(rect.right_bottom()),
+            id.with("right_bottom"),
+            "Resize window bottom-right corner",
+        );
         if possible.resize_right {
             right |= response;
         }
@@ -1156,7 +1166,11 @@ fn do_resize_interaction(
     }
 
     if possible.resize_right || possible.resize_top {
-        let response = side_response(corner_rect(rect.right_top()), id.with("right_top"));
+        let response = side_response(
+            corner_rect(rect.right_top()),
+            id.with("right_top"),
+            "Resize window top-right corner",
+        );
         if possible.resize_right {
             right |= response;
         }
@@ -1166,7 +1180,11 @@ fn do_resize_interaction(
     }
 
     if possible.resize_left || possible.resize_bottom {
-        let response = side_response(corner_rect(rect.left_bottom()), id.with("left_bottom"));
+        let response = side_response(
+            corner_rect(rect.left_bottom()),
+            id.with("left_bottom"),
+            "Resize window bottom-left corner",
+        );
         if possible.resize_left {
             left |= response;
         }
@@ -1176,7 +1194,11 @@ fn do_resize_interaction(
     }
 
     if possible.resize_left || possible.resize_top {
-        let response = side_response(corner_rect(rect.left_top()), id.with("left_top"));
+        let response = side_response(
+            corner_rect(rect.left_top()),
+            id.with("left_top"),
+            "Resize window top-left corner",
+        );
         if possible.resize_left {
             left |= response;
         }

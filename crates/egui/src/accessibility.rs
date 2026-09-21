@@ -18,5 +18,6 @@ pub const INPUT_ROLES: &[Role] = &[
     Role::RadioButton,
     Role::Slider,
     Role::SpinButton,
+    Role::Splitter,
     Role::TextInput,
 ];
