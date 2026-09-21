@@ -136,6 +136,25 @@ impl Rangef {
         }
     }
 
+    /// The smallest range that contains both ranges.
+    ///
+    /// If the ranges do not overlap, the gap between them is included too.
+    ///
+    /// ```
+    /// # use emath::Rangef;
+    /// assert_eq!(Rangef::new(0.0, 10.0).union(Rangef::new(5.0, 15.0)), Rangef::new(0.0, 15.0));
+    /// assert_eq!(Rangef::new(0.0, 10.0).union(Rangef::new(20.0, 30.0)), Rangef::new(0.0, 30.0));
+    /// assert_eq!(Rangef::NOTHING.union(Rangef::point(3.0)), Rangef::point(3.0));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn union(self, other: Self) -> Self {
+        Self {
+            min: self.min.min(other.min),
+            max: self.max.max(other.max),
+        }
+    }
+
     /// Do the two ranges intersect?
     ///
     /// ```
