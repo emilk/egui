@@ -819,6 +819,7 @@ impl Context {
             changed
         });
         if changed {
+            self.apply_font_changes_now_if_unused();
             self.request_repaint();
         }
     }
@@ -834,6 +835,7 @@ impl Context {
             ctx.glyph_rasterizers = glyph_rasterizers;
             ctx.reload_fonts = true;
         });
+        self.apply_font_changes_now_if_unused();
         self.request_repaint();
     }
 
@@ -850,6 +852,7 @@ impl Context {
             ctx.font_providers.push(font_provider);
             ctx.reload_fonts = true;
         });
+        self.apply_font_changes_now_if_unused();
         self.request_repaint();
     }
 
@@ -863,6 +866,7 @@ impl Context {
             ctx.font_providers = font_providers;
             ctx.reload_fonts = true;
         });
+        self.apply_font_changes_now_if_unused();
         self.request_repaint();
     }
 
@@ -881,6 +885,7 @@ impl Context {
             changed
         });
         if changed {
+            self.apply_font_changes_now_if_unused();
             self.request_repaint();
         }
     }
@@ -2408,7 +2413,7 @@ impl Context {
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new fonts will become active at the start of the next pass,
-    /// or right away if no font has been loaded yet.
+    /// or right away if no text has been laid out yet this pass.
     /// This will overwrite the existing fonts.
     ///
     /// These fonts will be used before any system fallback.
@@ -2425,7 +2430,7 @@ impl Context {
 
         if update_fonts {
             self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
-            self.apply_fonts_now_if_none_loaded();
+            self.apply_font_changes_now_if_unused();
         }
     }
 
@@ -2435,7 +2440,7 @@ impl Context {
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new font will become active at the start of the next pass,
-    /// or right away if no font has been loaded yet.
+    /// or right away if no text has been laid out yet this pass.
     /// This will keep the existing fonts.
     ///
     /// This font will be used before any system fallback.
@@ -2457,24 +2462,24 @@ impl Context {
 
         if update_fonts {
             self.memory_mut(|mem| mem.add_fonts.push(new_font));
-            self.apply_fonts_now_if_none_loaded();
+            self.apply_font_changes_now_if_unused();
         }
     }
 
-    /// Apply queued font changes right away if no font has been loaded yet.
+    /// Apply queued font changes right away if no text has been laid out yet this pass.
     ///
-    /// Nothing laid out so far could have used a font, so there is nothing to keep consistent,
-    /// and text later in this pass already gets the new fonts.
-    /// Without this, an app that installs its fonts during its first pass
+    /// Nothing is laid out with the old fonts, so there is nothing to keep consistent,
+    /// and text later in this pass already gets the new fonts, providers and rasterizers.
+    /// Without this, an app that sets up its fonts during its first pass
     /// (e.g. from inside an `egui_kittest` harness, which has no earlier hook)
-    /// would lay out that whole pass with no font at all.
-    fn apply_fonts_now_if_none_loaded(&self) {
+    /// would lay out that whole pass with the fonts it started with, or with none.
+    fn apply_font_changes_now_if_unused(&self) {
         self.write(|ctx| {
-            let none_loaded = ctx
+            let unused = ctx
                 .fonts
                 .as_ref()
-                .is_some_and(|fonts| fonts.definitions().font_data.is_empty());
-            if none_loaded {
+                .is_some_and(|fonts| !fonts.used_since_begin_pass());
+            if unused {
                 ctx.update_fonts_mut();
             }
         });
