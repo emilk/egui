@@ -1,6 +1,6 @@
-use emath::{Align2, Rect, Vec2};
+use emath::{Align, Align2, Rect, Vec2};
 
-use crate::{AsIdSalt, IdSalt, InnerResponse, Ui, UiBuilder};
+use crate::{AsIdSalt, Direction, IdSalt, InnerResponse, Ui, UiBuilder};
 
 /// Align some widgets of unknown size within the available space of a [`Ui`].
 ///
@@ -10,6 +10,22 @@ use crate::{AsIdSalt, IdSalt, InnerResponse, Ui, UiBuilder};
 /// This container remembers the size from the previous pass, and uses that to place the contents.
 /// On the first pass (when no size is known yet) the contents are added invisibly,
 /// and a new pass is requested with [`crate::Context::request_discard`], so there is no visible flicker.
+///
+/// Like a [`crate::Panel`], this reserves space in the parent [`Ui`] along its main axis,
+/// so you can e.g. put something at the bottom of a vertical [`Ui`] and keep adding widgets above it:
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// egui::Aligned::new(egui::Align2::RIGHT_BOTTOM).show(ui, |ui| {
+///     let _ = ui.button("Bottom right");
+/// });
+/// ui.label("This goes at the top, in the space left above the button");
+/// # });
+/// ```
+///
+/// More precisely: if the contents are aligned to the _end_ of the parent's main axis
+/// (e.g. [`Align::Max`] in a top-down [`Ui`]), the cursor is moved so that widgets added afterwards
+/// end up _before_ the contents. Otherwise the cursor advances past the contents, as usual.
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -53,16 +69,11 @@ impl Aligned {
         let size_id = id.with("size");
 
         let available_rect = ui.available_rect_before_wrap();
+        let cursor_before = ui.cursor();
         let last_size: Option<Vec2> = ui.data(|d| d.get_temp(size_id));
 
         let content_rect = if let Some(size) = last_size {
-            let left_top = align2
-                .align_size_within_rect(size, available_rect)
-                .left_top();
-
-            // Never place the contents above or to the left of the available space,
-            // even if the contents are larger than the available space:
-            let left_top = left_top.max(available_rect.left_top());
+            let left_top = place(align2, size, available_rect).left_top();
 
             // Keep the full available size, in case the contents grow this pass:
             Rect::from_min_size(left_top, available_rect.size())
@@ -85,8 +96,45 @@ impl Aligned {
         }
         ui.data_mut(|d| d.insert_temp(size_id, size));
 
+        // Reserve space in the parent like a `Panel` would:
+        // if the contents sit at the end of the parent's main axis,
+        // move the cursor so that further widgets are placed _before_ the contents.
+        // (`scope_builder` has already advanced the cursor _past_ the contents, which is
+        // the right thing when they are at the start of the main axis, or centered.)
+        //
+        // We use where the contents _will_ end up (given their now known size),
+        // so that this is correct also on the invisible measuring pass.
+        let placed_rect = place(align2, size, available_rect);
+        let main_dir = ui.layout().main_dir();
+        let axis = usize::from(main_dir.is_vertical()); // 0 = x, 1 = y
+        let spacing = ui.spacing().item_spacing[axis];
+        let mut cursor = cursor_before;
+        match (main_dir, align2.0[axis]) {
+            (Direction::LeftToRight | Direction::TopDown, Align::Max) => {
+                cursor.max[axis] = placed_rect.min[axis] - spacing;
+                ui.set_cursor(cursor);
+            }
+            (Direction::RightToLeft | Direction::BottomUp, Align::Min) => {
+                cursor.min[axis] = placed_rect.max[axis] + spacing;
+                ui.set_cursor(cursor);
+            }
+            _ => {}
+        }
+
         response
     }
+}
+
+/// Where to put contents of the given size, aligned within `available_rect`.
+///
+/// Never places the contents above or to the left of the available space,
+/// even if the contents are larger than the available space.
+fn place(align2: Align2, size: Vec2, available_rect: Rect) -> Rect {
+    let left_top = align2
+        .align_size_within_rect(size, available_rect)
+        .left_top()
+        .max(available_rect.left_top());
+    Rect::from_min_size(left_top, size)
 }
 
 #[cfg(test)]

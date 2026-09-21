@@ -103,8 +103,8 @@ fn aligned_several_in_same_ui_with_id_salt() {
                 StrokeKind::Inside,
             );
 
-            // The parent `Ui` is vertical, so the cursor advances after each container.
-            // Each `Aligned` therefore aligns within what is left _below_ the previous one.
+            // The parent `Ui` is vertical. The first container is aligned to the top,
+            // so the cursor advances past it, and the second one aligns within what is left below.
             Aligned::new(Align2::RIGHT_TOP)
                 .id_salt("wide")
                 .show(ui, |ui| {
@@ -124,6 +124,140 @@ fn aligned_several_in_same_ui_with_id_salt() {
 
     harness.run();
     harness.snapshot("aligned/several_in_same_ui");
+}
+
+/// Like a `Panel`, an [`Aligned`] at the _end_ of the parent's main axis reserves only that strip,
+/// so widgets added afterwards go in the space _before_ it.
+///
+/// Here: something in the bottom-right corner of a vertical `Ui`, and then a label,
+/// which should end up at the top, above the aligned contents.
+#[test]
+fn aligned_at_bottom_leaves_space_above() {
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(240.0, 100.0))
+        .build_ui(|ui| {
+            let available_before = ui.available_rect_before_wrap();
+            ui.painter().rect_stroke(
+                available_before,
+                0,
+                Stroke::new(1.0, CELL_OUTLINE),
+                StrokeKind::Inside,
+            );
+
+            let response = Aligned::new(Align2::RIGHT_BOTTOM).show(ui, |ui| {
+                framed_contents(ui, |ui| {
+                    let _ = ui.button("Bottom right");
+                });
+            });
+
+            let available_after = ui.available_rect_before_wrap();
+            let label_response = ui.label("Added after, but placed above");
+
+            if ui.output(|o| !o.requested_discard()) {
+                let content_rect = response.response.rect;
+                let spacing = ui.spacing().item_spacing.y;
+
+                assert_eq!(
+                    available_after.min, available_before.min,
+                    "The space above the aligned contents should still be available"
+                );
+                assert_eq!(
+                    available_after.right(),
+                    available_before.right(),
+                    "The full width should still be available"
+                );
+                assert!(
+                    (available_after.bottom() - (content_rect.top() - spacing)).abs() <= 1.0,
+                    "Only the strip at the bottom should be reserved: {available_after:?} vs {content_rect:?}"
+                );
+                assert!(
+                    label_response.rect.bottom() <= content_rect.top(),
+                    "The label should be placed above the aligned contents: {:?} vs {content_rect:?}",
+                    label_response.rect
+                );
+            }
+        });
+
+    harness.run();
+    harness.snapshot("aligned/at_bottom_leaves_space_above");
+}
+
+/// Same as [`aligned_at_bottom_leaves_space_above`], but in a horizontal `Ui`:
+/// something on the right, and the next widget goes on the left.
+#[test]
+fn aligned_at_right_of_horizontal_ui_leaves_space_to_the_left() {
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(300.0, 60.0))
+        .build_ui(|ui| {
+            ui.horizontal(|ui| {
+                let available_before = ui.available_rect_before_wrap();
+                ui.painter().rect_stroke(
+                    available_before,
+                    0,
+                    Stroke::new(1.0, CELL_OUTLINE),
+                    StrokeKind::Inside,
+                );
+
+                let response = Aligned::new(Align2::RIGHT_CENTER).show(ui, |ui| {
+                    framed_contents(ui, |ui| {
+                        let _ = ui.button("Right");
+                    });
+                });
+
+                let available_after = ui.available_rect_before_wrap();
+                let label_response = ui.label("Added after, placed left");
+
+                if ui.output(|o| !o.requested_discard()) {
+                    let content_rect = response.response.rect;
+                    let spacing = ui.spacing().item_spacing.x;
+
+                    assert_eq!(
+                        available_after.left(),
+                        available_before.left(),
+                        "The space to the left of the aligned contents should still be available"
+                    );
+                    assert!(
+                        (available_after.right() - (content_rect.left() - spacing)).abs() <= 1.0,
+                        "Only the strip on the right should be reserved: {available_after:?} vs {content_rect:?}"
+                    );
+                    assert!(
+                        label_response.rect.right() <= content_rect.left(),
+                        "The label should be placed to the left of the aligned contents: {:?} vs {content_rect:?}",
+                        label_response.rect
+                    );
+                }
+            });
+        });
+
+    harness.run();
+    harness.snapshot("aligned/at_right_leaves_space_to_the_left");
+}
+
+/// An [`Aligned`] at the _start_ of the main axis behaves like any other widget:
+/// the cursor advances past it.
+#[test]
+fn aligned_at_top_advances_cursor_past_it() {
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(240.0, 100.0))
+        .build_ui(|ui| {
+            let response = Aligned::new(Align2::RIGHT_TOP).show(ui, |ui| {
+                framed_contents(ui, |ui| {
+                    let _ = ui.button("Top right");
+                });
+            });
+            let label_response = ui.label("Added after, placed below");
+
+            if ui.output(|o| !o.requested_discard()) {
+                let content_rect = response.response.rect;
+                assert!(
+                    content_rect.bottom() <= label_response.rect.top(),
+                    "The label should be placed below the aligned contents: {:?} vs {content_rect:?}",
+                    label_response.rect
+                );
+            }
+        });
+
+    harness.run();
 }
 
 /// Contents that don't fit are clamped to the left/top edge of the available space,
