@@ -1034,8 +1034,8 @@ impl<'t> TextEdit<'t> {
         }
 
         ui.ctx().accesskit_node_builder(id, |builder| {
-            // `WidgetInfo` only knows about `WidgetType::TextEdit`, which maps to
-            // `Role::TextInput`, so refine the role here:
+            // `WidgetInfo` only reports the generic `Role::TextInput`,
+            // so refine the role here:
             let role = if password {
                 accesskit::Role::PasswordInput
             } else if multiline {

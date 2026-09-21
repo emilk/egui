@@ -2,8 +2,8 @@ use epaint::Shape;
 
 use crate::{
     Align2, AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Popup,
-    PopupCloseBehavior, Rect, Response, ScrollArea, Sense, TextStyle, TextWrapMode, Ui, UiBuilder,
-    Vec2, WidgetInfo, WidgetText, WidgetType, epaint,
+    PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense, TextStyle, TextWrapMode, Ui,
+    UiBuilder, Vec2, WidgetInfo, WidgetText, epaint,
     style::{StyleModifier, WidgetVisuals},
     vec2,
 };
@@ -244,7 +244,7 @@ impl ComboBox {
                 (width, height),
             );
             ir.response.widget_info(|| {
-                let mut info = WidgetInfo::new(WidgetType::ComboBox);
+                let mut info = WidgetInfo::new(Role::ComboBox);
                 info.enabled = ui.is_enabled();
                 info.current_text_value = Some(selected_text.text().to_owned());
                 info
