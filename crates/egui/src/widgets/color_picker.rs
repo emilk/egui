@@ -2,8 +2,8 @@
 
 use crate::util::fixed_cache::FixedCache;
 use crate::{
-    Context, DragValue, Id, Painter, Popup, PopupCloseBehavior, Response, Sense, Ui, Widget as _,
-    WidgetInfo, WidgetType, epaint, lerp, remap_clamp,
+    Context, DragValue, Id, Painter, Popup, PopupCloseBehavior, Response, Role, Sense, Ui,
+    Widget as _, WidgetInfo, epaint, lerp, remap_clamp,
 };
 use epaint::{
     ColorImage, Rect, RectShape, RoundedRect, Shape, Stroke, StrokeKind, Vec2,
@@ -151,7 +151,12 @@ fn show_srgba_unmultiplied_at(painter: &Painter, [r, g, b, a]: [u8; 4], bounds: 
 fn color_button(ui: &mut Ui, srgba: [u8; 4], open: bool) -> Response {
     let size = ui.spacing().interact_size;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
-    response.widget_info(|| WidgetInfo::new(WidgetType::ColorButton));
+    response.widget_info(|| {
+        let mut info = WidgetInfo::labeled(Role::ColorWell, ui.is_enabled(), "Color");
+        let [r, g, b, a] = srgba;
+        info.current_text_value = Some(format!("#{r:02x}{g:02x}{b:02x}{a:02x}"));
+        info
+    });
 
     if ui.is_rect_visible(rect) {
         let visuals = if open {

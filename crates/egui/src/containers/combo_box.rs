@@ -2,8 +2,8 @@ use epaint::Shape;
 
 use crate::{
     Align2, AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Popup,
-    PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui,
-    UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType, epaint,
+    PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense, TextStyle, TextWrapMode, Ui,
+    UiBuilder, Vec2, WidgetInfo, WidgetText, epaint,
     style::{StyleModifier, WidgetVisuals},
     vec2,
 };
@@ -244,14 +244,19 @@ impl ComboBox {
                 (width, height),
             );
             ir.response.widget_info(|| {
-                let mut info = WidgetInfo::new(WidgetType::ComboBox);
+                let mut info = WidgetInfo::new(Role::ComboBox);
                 info.enabled = ui.is_enabled();
                 info.current_text_value = Some(selected_text.text().to_owned());
                 info
             });
             if let Some(label) = label {
+                let is_empty = label.is_empty();
                 let label_response = ui.label(label);
-                ir.response = ir.response.labelled_by(label_response.id);
+                // An empty label names nothing, so leave the name to the caller
+                // (e.g. `on_hover_text`).
+                if !is_empty {
+                    ir.response = ir.response.labelled_by(label_response.id);
+                }
                 ir.response |= label_response;
             }
             ir
@@ -415,6 +420,12 @@ fn combo_box_dyn<'c, R>(
         })
         .map(|r| r.inner);
 
+    if inner.is_some() {
+        ui.ctx().accesskit_node_builder(popup_id, |node| {
+            node.set_role(accesskit::Role::ListBox);
+        });
+    }
+
     InnerResponse {
         inner,
         response: button_response,
@@ -479,9 +490,5 @@ fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
     // Previously, we would show an up arrow when we expected the popup to open upwards
     // (due to lack of space below the button), but this could look weird in edge cases, so this
     // feature was removed. (See https://github.com/emilk/egui/pull/5713#issuecomment-2654420245)
-    painter.add(Shape::convex_polygon(
-        vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
-        visuals.fg_stroke.color,
-        Stroke::NONE,
-    ));
+    painter.add(Shape::rotated_triangle(rect, 0.0, visuals.fg_stroke.color));
 }

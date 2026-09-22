@@ -16,7 +16,7 @@ egui = { workspace = true, default-features = true, features = [
   "monochrome_emoji_fonts",
 ] }
 egui_kittest = { workspace = true, features = ["snapshot", "wgpu"] }
-egui_extras = { workspace = true, features = ["image"] }
+egui_extras = { workspace = true, features = ["image", "svg"] }
 image = { workspace = true, features = ["png"] }
 
 [lints]

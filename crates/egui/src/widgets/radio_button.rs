@@ -1,6 +1,6 @@
 use crate::{
-    Atom, AtomLayout, Atoms, IdSalt, IntoAtoms, NumExt as _, Response, Sense, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType, epaint,
+    Atom, Atoms, IdSalt, IntoAtoms, NumExt as _, Response, Role, Sense, Ui, Vec2, Widget,
+    WidgetAtom, WidgetInfo, epaint,
 };
 
 /// One out of several alternatives, either selected or not.
@@ -62,14 +62,14 @@ impl Widget for RadioButton<'_> {
 
         let text = atoms.text().map(String::from);
 
-        let mut prepared = AtomLayout::new(atoms)
+        let mut prepared = WidgetAtom::new(atoms)
             .sense(Sense::click())
             .min_size(min_size)
             .allocate(ui);
 
         prepared.response.widget_info(|| {
             WidgetInfo::selected(
-                WidgetType::RadioButton,
+                Role::RadioButton,
                 ui.is_enabled(),
                 checked,
                 text.as_deref().unwrap_or(""),

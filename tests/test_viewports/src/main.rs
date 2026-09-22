@@ -202,7 +202,7 @@ fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState, close_butto
 }
 
 fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_button: bool) {
-    let container_id = ui.id();
+    let container_id = ui.scope_id();
 
     let ctx = ui.ctx().clone();
     ui.label(format!(
@@ -302,7 +302,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
     use std::collections::HashMap;
     use std::sync::OnceLock;
 
-    let container_id = ui.id();
+    let container_id = ui.scope_id();
 
     const COLS: usize = 2;
     static DATA: OnceLock<RwLock<DragAndDrop>> = OnceLock::new();
