@@ -1,6 +1,6 @@
 use epaint::{Color32, Pos2, Rect, Shape, Stroke, emath::lerp, vec2};
 
-use crate::{Response, Sense, Ui, Widget, WidgetInfo, WidgetType};
+use crate::{Response, Role, Sense, Ui, Widget, WidgetInfo};
 
 /// A spinner widget used to indicate loading.
 ///
@@ -66,7 +66,7 @@ impl Widget for Spinner {
             .size
             .unwrap_or_else(|| ui.style().spacing.interact_size.y);
         let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-        response.widget_info(|| WidgetInfo::new(WidgetType::ProgressIndicator));
+        response.widget_info(|| WidgetInfo::new(Role::ProgressIndicator));
         self.paint_at(ui, rect);
 
         response

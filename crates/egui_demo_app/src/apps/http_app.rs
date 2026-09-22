@@ -120,9 +120,10 @@ fn ui_url(ui: &mut egui::Ui, frame: &eframe::Frame, url: &mut String) -> bool {
     let mut trigger_fetch = false;
 
     ui.horizontal(|ui| {
-        ui.label("URL:");
+        let label = ui.label("URL:");
         trigger_fetch |= ui
             .add(egui::TextEdit::singleline(url).desired_width(f32::INFINITY))
+            .labelled_by(label.id)
             .lost_focus();
     });
 
