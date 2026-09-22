@@ -88,7 +88,7 @@ impl Painter {
         surface_state: &SurfaceState,
         render_state: &RenderState,
         config: &SurfaceConfig,
-        reconfig_lock: Option<&epaint::mutex::RwLock<()>>,
+        reconfigure_lock: Option<&epaint::mutex::RwLock<()>>,
     ) {
         profiling::function_scope!();
 
