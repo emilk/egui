@@ -16,7 +16,7 @@ mod touch;
 mod viewport_info;
 
 pub use self::{
-    dropped_file::DroppedFile,
+    dropped_file::{DroppedFile, DroppedFileHandle},
     event::Event,
     event_filter::EventFilter,
     hovered_file::HoveredFile,

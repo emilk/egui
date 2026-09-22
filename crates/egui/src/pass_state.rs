@@ -201,12 +201,12 @@ pub struct PassState {
 
     /// What the root UI had available at the end of the previous pass.
     ///
-    /// Only set if [`crate::Context::run_ui`] has been called.
+    /// Only set if [`crate::Context::run_ui`] or [`crate::Context::root_ui`] has been called.
     pub root_ui_available_rect: Option<Rect>,
 
     /// What the root UI had used at the end of the previous pass.
     ///
-    /// Only set if [`crate::Context::run_ui`] has been called.
+    /// Only set if [`crate::Context::run_ui`] or [`crate::Context::root_ui`] has been called.
     pub root_ui_min_rect: Option<Rect>,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).

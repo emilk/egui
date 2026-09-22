@@ -1,10 +1,13 @@
-use egui::{Image, UserData, ViewportCommand, Widget as _};
+use egui::{Image, Widget as _, mutex::Mutex};
 use std::sync::Arc;
 
-/// Showcase [`ViewportCommand::Screenshot`].
-#[derive(PartialEq, Eq, Default)]
+/// Showcase [`egui::Context::request_screenshot`].
+#[derive(Default)]
 pub struct Screenshot {
-    image: Option<(Arc<egui::ColorImage>, egui::TextureHandle)>,
+    /// Where the screenshot callback puts the captured image.
+    received: Arc<Mutex<Option<Arc<egui::ColorImage>>>>,
+
+    texture: Option<egui::TextureHandle>,
     continuous: bool,
 }
 
@@ -36,7 +39,7 @@ impl crate::View for Screenshot {
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("This demo showcases how to take screenshots via ");
-            ui.code("ViewportCommand::Screenshot");
+            ui.code("Context::request_screenshot");
             ui.label(".");
         });
 
@@ -44,32 +47,25 @@ impl crate::View for Screenshot {
             let capture = ui.button("📷 Take Screenshot").clicked();
             ui.checkbox(&mut self.continuous, "Capture continuously");
             if capture || self.continuous {
-                ui.send_viewport_cmd(ViewportCommand::Screenshot(UserData::default()));
+                let received = Arc::clone(&self.received);
+                let ctx = ui.ctx().clone();
+                ui.ctx().request_screenshot(move |image| {
+                    *received.lock() = Some(image);
+                    // The callback doesn't repaint on its own, so ask for a frame to show it in.
+                    ctx.request_repaint();
+                });
             }
         });
 
-        let image = ui.input(|i| {
-            i.events
-                .iter()
-                .filter_map(|e| {
-                    if let egui::Event::Screenshot { image, .. } = e {
-                        Some(Arc::clone(image))
-                    } else {
-                        None
-                    }
-                })
-                .next_back()
-        });
-
-        if let Some(image) = image {
-            self.image = Some((
-                Arc::clone(&image),
-                ui.ctx()
-                    .load_texture("screenshot_demo", image, Default::default()),
+        if let Some(image) = self.received.lock().take() {
+            self.texture = Some(ui.ctx().load_texture(
+                "screenshot_demo",
+                image,
+                Default::default(),
             ));
         }
 
-        if let Some((_, texture)) = &self.image {
+        if let Some(texture) = &self.texture {
             Image::new(texture).shrink_to_fit().ui(ui);
         } else {
             ui.group(|ui| {

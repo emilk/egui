@@ -1,6 +1,6 @@
 use epaint::{Color32, Pos2, Rect, Shape, Stroke, emath::lerp, vec2};
 
-use crate::{Response, Sense, Ui, Widget, WidgetInfo, WidgetType};
+use crate::{Response, Role, Sense, Ui, Widget, WidgetInfo};
 
 /// A spinner widget used to indicate loading.
 ///
@@ -45,7 +45,7 @@ impl Spinner {
             let radius = (rect.height().min(rect.width()) / 2.0) - 2.0;
             let n_points = (radius.round() as u32).clamp(8, 128);
             let time = ui.input(|i| i.time);
-            let start_angle = time * std::f64::consts::TAU;
+            let start_angle = time * core::f64::consts::TAU;
             let end_angle = start_angle + 240f64.to_radians() * time.sin();
             let points: Vec<Pos2> = (0..n_points)
                 .map(|i| {
@@ -66,7 +66,7 @@ impl Widget for Spinner {
             .size
             .unwrap_or_else(|| ui.style().spacing.interact_size.y);
         let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-        response.widget_info(|| WidgetInfo::new(WidgetType::ProgressIndicator));
+        response.widget_info(|| WidgetInfo::new(Role::ProgressIndicator));
         self.paint_at(ui, rect);
 
         response

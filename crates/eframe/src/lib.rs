@@ -503,7 +503,7 @@ pub fn run_ui_native(
 #[derive(Debug)]
 pub enum Error {
     /// Something went wrong in user code when creating the app.
-    AppCreation(Box<dyn std::error::Error + Send + Sync>),
+    AppCreation(Box<dyn core::error::Error + Send + Sync>),
 
     /// An error from [`winit`].
     #[cfg(not(target_arch = "wasm32"))]
@@ -519,7 +519,7 @@ pub enum Error {
 
     /// An error from [`glutin`] when using [`glow`].
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
-    NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn std::error::Error>),
+    NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn core::error::Error>),
 
     /// An error from [`glutin`] when using [`glow`].
     #[cfg(feature = "glow")]
@@ -530,7 +530,7 @@ pub enum Error {
     Wgpu(egui_wgpu::WgpuError),
 }
 
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 #[cfg(not(target_arch = "wasm32"))]
 impl From<winit::error::OsError> for Error {
@@ -572,8 +572,8 @@ impl From<egui_wgpu::WgpuError> for Error {
     }
 }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::AppCreation(err) => write!(f, "app creation error: {err}"),
 
@@ -614,4 +614,4 @@ impl std::fmt::Display for Error {
 }
 
 /// Short for `Result<T, eframe::Error>`.
-pub type Result<T = (), E = Error> = std::result::Result<T, E>;
+pub type Result<T = (), E = Error> = core::result::Result<T, E>;

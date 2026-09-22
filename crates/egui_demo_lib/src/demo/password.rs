@@ -15,7 +15,7 @@ pub fn password_ui(ui: &mut egui::Ui, password: &mut String) -> egui::Response {
     // If you use the `persistence` feature, it also must implement `serde::{Deserialize, Serialize}`.
 
     // Generate an id for the state
-    let state_id = ui.id().with("show_plaintext");
+    let state_id = ui.scope_id().with("show_plaintext");
 
     // Get state for this widget.
     // You should get state by value, not by reference to avoid borrowing of [`Memory`].
@@ -27,7 +27,7 @@ pub fn password_ui(ui: &mut egui::Ui, password: &mut String) -> egui::Response {
     let result = ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         // Toggle the `show_plaintext` bool with a button:
         let response = ui
-            .selectable_label(show_plaintext, "👁")
+            .selectable_label(show_plaintext, "👁️")
             .on_hover_text("Show/hide password");
 
         if response.clicked() {

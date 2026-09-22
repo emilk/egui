@@ -5,7 +5,7 @@
 #![expect(clippy::undocumented_unsafe_blocks)]
 #![expect(unsafe_code)]
 
-use std::num::NonZeroU32;
+use core::num::NonZeroU32;
 use std::sync::Arc;
 
 use egui_winit::winit;
@@ -146,7 +146,7 @@ impl GlutinWindowContext {
         self.gl_surface.swap_buffers(&self.gl_context)
     }
 
-    fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
+    fn get_proc_address(&self, addr: &core::ffi::CStr) -> *const core::ffi::c_void {
         use glutin::display::GlDisplay as _;
         self.gl_display.get_proc_address(addr)
     }
@@ -154,7 +154,7 @@ impl GlutinWindowContext {
 
 #[derive(Debug)]
 pub enum UserEvent {
-    Redraw(std::time::Duration),
+    Redraw(core::time::Duration),
 }
 
 struct GlowApp {
@@ -162,7 +162,7 @@ struct GlowApp {
     gl_window: Option<GlutinWindowContext>,
     gl: Option<Arc<glow::Context>>,
     egui_glow: Option<egui_glow::EguiGlow>,
-    repaint_delay: std::time::Duration,
+    repaint_delay: core::time::Duration,
     clear_color: [f32; 3],
 }
 
@@ -173,7 +173,7 @@ impl GlowApp {
             gl_window: None,
             gl: None,
             egui_glow: None,
-            repaint_delay: std::time::Duration::MAX,
+            repaint_delay: core::time::Duration::MAX,
             clear_color: [0.1, 0.1, 0.1],
         }
     }

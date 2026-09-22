@@ -1,28 +1,46 @@
 use crate::{
-    Atom, AtomExt as _, AtomKind, Atoms, Button, CursorIcon, Id, IntoAtoms, Key, MINUS_CHAR_STR,
-    Modifiers, NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget,
-    WidgetInfo, emath, text,
+    Atom, AtomExt as _, Atoms, Button, CursorIcon, Id, IdSalt, IntoAtoms, Key, Modifiers,
+    NumExt as _, Response, RichText, Sense, TextEdit, TextWrapMode, Ui, Widget, WidgetInfo,
+    class::{ClassName, Classes, HasClasses},
+    emath, text,
 };
+use core::{cmp::Ordering, ops::RangeInclusive};
 use emath::Vec2;
-use std::{cmp::Ordering, ops::RangeInclusive};
 
-// ----------------------------------------------------------------------------
-
-type NumFormatter<'a> = Box<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
-type NumParser<'a> = Box<dyn 'a + Fn(&str) -> Option<f64>>;
+use super::value_format::{NumParser, ValueFormat};
 
 // ----------------------------------------------------------------------------
 
 /// Combined into one function (rather than two) to make it easier
 /// for the borrow checker.
-type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
+pub(crate) type GetSetValue<'a> = Box<dyn 'a + FnMut(Option<f64>) -> f64>;
 
-fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
+/// Reads the value behind a [`GetSetValue`].
+pub(crate) fn get(get_set_value: &mut GetSetValue<'_>) -> f64 {
     (get_set_value)(None)
 }
 
-fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
+/// Writes `value` through a [`GetSetValue`].
+pub(crate) fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
     (get_set_value)(Some(value));
+}
+
+// ----------------------------------------------------------------------------
+
+/// What the user has typed into a [`DragValue`] that is being edited as text.
+///
+/// Stored in [`crate::Memory::data`] between frames, because the text can be
+/// something that doesn't (yet) parse to a number, e.g. `"1."` or `"-"`.
+#[derive(Clone, Default)]
+struct EditState {
+    /// The text the user is editing.
+    text: String,
+
+    /// The value of the [`DragValue`] the last time we stored `text`.
+    ///
+    /// If the value has changed since then it was changed by something other than
+    /// this widget, and `text` is stale and must not be written back to the value.
+    value: f64,
 }
 
 /// A numeric value that you can change by dragging the number. More compact than a [`crate::Slider`].
@@ -37,19 +55,23 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 pub struct DragValue<'a> {
     get_set_value: GetSetValue<'a>,
     speed: f64,
-    atoms: Atoms<'a>,
     range: RangeInclusive<f64>,
     clamp_existing_to_range: bool,
-    min_decimals: usize,
-    max_decimals: Option<usize>,
-    custom_formatter: Option<NumFormatter<'a>>,
-    custom_parser: Option<NumParser<'a>>,
-    update_while_editing: bool,
+    format: ValueFormat<'a>,
+    classes: Classes,
+    min_size: Option<Vec2>,
+    clip_text: bool,
 }
 
 impl<'a> DragValue<'a> {
     const ATOM_ID: &'static str = "drag_item";
 
+    /// Present on the [`Button`] and the [`TextEdit`] a drag value is built from.
+    pub const CLASS: ClassName = ClassName::from_static("egui::drag_value");
+
+    /// Creates a drag value for `value`.
+    ///
+    /// Integer types get a step of one, a speed of a quarter per point, and their full range.
     pub fn new<Num: emath::Numeric>(value: &'a mut Num) -> Self {
         let slf = Self::from_get_set(move |v: Option<f64>| {
             if let Some(v) = v {
@@ -65,21 +87,30 @@ impl<'a> DragValue<'a> {
         }
     }
 
+    /// Creates a drag value over a value that cannot be borrowed directly.
+    ///
+    /// The closure is called with `None` to read the value and with `Some(new_value)` to write it,
+    /// and returns the value either way.
     pub fn from_get_set(get_set_value: impl 'a + FnMut(Option<f64>) -> f64) -> Self {
-        let atoms = Atoms::new(Atom::custom(Id::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
-
         Self {
             get_set_value: Box::new(get_set_value),
             speed: 1.0,
-            atoms,
             range: f64::NEG_INFINITY..=f64::INFINITY,
             clamp_existing_to_range: true,
-            min_decimals: 0,
-            max_decimals: None,
-            custom_formatter: None,
-            custom_parser: None,
-            update_while_editing: true,
+            format: ValueFormat::default(),
+            classes: Classes::default().with_class(Self::CLASS),
+            min_size: None,
+            clip_text: false,
         }
+    }
+
+    /// The minimum size of the drag value, in both its dragged and its text-edited state.
+    ///
+    /// Defaults to [`crate::style::Spacing::interact_size`].
+    #[inline]
+    pub fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = Some(min_size);
+        self
     }
 
     /// How much the value changes when dragged one point (logical pixel).
@@ -147,44 +178,56 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    /// Show a prefix before the number, e.g. "x: "
+    /// Replace how the number is written and read back.
+    #[inline]
+    pub fn format(mut self, format: ValueFormat<'a>) -> Self {
+        self.format = format;
+        self
+    }
+
+    /// Show a prefix before the number, e.g. "x: ".
+    ///
+    /// Goes in front of any prefix already set, so `.prefix("b").prefix("a")` shows `ab`.
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'a>) -> Self {
-        self.atoms.extend_left(prefix.into_atoms());
+        self.format = self.format.prefix(prefix);
         self
     }
 
-    /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
+    /// Add a suffix to the number, this can be e.g. a unit ("°" or " m").
+    ///
+    /// Goes after any suffix already set, so `.suffix("a").suffix("b")` shows `ab`.
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'a>) -> Self {
-        self.atoms.extend_right(suffix.into_atoms());
+        self.format = self.format.suffix(suffix);
         self
     }
 
-    // TODO(emilk): we should also have a "min precision".
     /// Set a minimum number of decimals to display.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
-        self.min_decimals = min_decimals;
+        self.format = self.format.min_decimals(min_decimals);
         self
     }
 
-    // TODO(emilk): we should also have a "max precision".
     /// Set a maximum number of decimals to display.
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
-        self.max_decimals = Some(max_decimals);
+        self.format = self.format.max_decimals(max_decimals);
         self
     }
 
+    /// Set the maximum number of decimals to display, or `None` to let the widget pick.
+    ///
+    /// Values will also be rounded to this number of decimals when it is set.
     #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
-        self.max_decimals = max_decimals;
+        self.format = self.format.max_decimals_opt(max_decimals);
         self
     }
 
@@ -194,8 +237,7 @@ impl<'a> DragValue<'a> {
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
-        self.min_decimals = num_decimals;
-        self.max_decimals = Some(num_decimals);
+        self.format = self.format.fixed_decimals(num_decimals);
         self
     }
 
@@ -241,7 +283,7 @@ impl<'a> DragValue<'a> {
         mut self,
         formatter: impl 'a + Fn(f64, RangeInclusive<usize>) -> String,
     ) -> Self {
-        self.custom_formatter = Some(Box::new(formatter));
+        self.format = self.format.custom_formatter(formatter);
         self
     }
 
@@ -283,22 +325,11 @@ impl<'a> DragValue<'a> {
     /// ```
     #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
-        self.custom_parser = Some(Box::new(parser));
+        self.format = self.format.custom_parser(parser);
         self
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as binary integers. Floating point
-    /// numbers are *not* supported.
-    ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
-    /// prefixed with additional 0s to match `min_width`.
-    ///
-    /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
-    /// they will be prefixed with a '-' sign.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `min_width` is 0.
+    /// Display and parse the number as a binary integer. See [`ValueFormat::binary`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -306,34 +337,13 @@ impl<'a> DragValue<'a> {
     /// ui.add(egui::DragValue::new(&mut my_i32).binary(64, false));
     /// # });
     /// ```
-    pub fn binary(self, min_width: usize, twos_complement: bool) -> Self {
-        assert!(
-            min_width > 0,
-            "DragValue::binary: `min_width` must be greater than 0"
-        );
-        if twos_complement {
-            self.custom_formatter(move |n, _| format!("{:0>min_width$b}", n as i64))
-        } else {
-            self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
-                format!("{sign}{:0>min_width$b}", n.abs() as i64)
-            })
-        }
-        .custom_parser(|s| i64::from_str_radix(s, 2).map(|n| n as f64).ok())
+    #[inline]
+    pub fn binary(mut self, min_width: usize, twos_complement: bool) -> Self {
+        self.format = self.format.binary(min_width, twos_complement);
+        self
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as octal integers. Floating point
-    /// numbers are *not* supported.
-    ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
-    /// prefixed with additional 0s to match `min_width`.
-    ///
-    /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
-    /// they will be prefixed with a '-' sign.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `min_width` is 0.
+    /// Display and parse the number as an octal integer. See [`ValueFormat::octal`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -341,34 +351,13 @@ impl<'a> DragValue<'a> {
     /// ui.add(egui::DragValue::new(&mut my_i32).octal(22, false));
     /// # });
     /// ```
-    pub fn octal(self, min_width: usize, twos_complement: bool) -> Self {
-        assert!(
-            min_width > 0,
-            "DragValue::octal: `min_width` must be greater than 0"
-        );
-        if twos_complement {
-            self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as i64))
-        } else {
-            self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
-                format!("{sign}{:0>min_width$o}", n.abs() as i64)
-            })
-        }
-        .custom_parser(|s| i64::from_str_radix(s, 8).map(|n| n as f64).ok())
+    #[inline]
+    pub fn octal(mut self, min_width: usize, twos_complement: bool) -> Self {
+        self.format = self.format.octal(min_width, twos_complement);
+        self
     }
 
-    /// Set `custom_formatter` and `custom_parser` to display and parse numbers as hexadecimal integers. Floating point
-    /// numbers are *not* supported.
-    ///
-    /// `min_width` specifies the minimum number of displayed digits; if the number is shorter than this, it will be
-    /// prefixed with additional 0s to match `min_width`.
-    ///
-    /// If `twos_complement` is true, negative values will be displayed as the 2's complement representation. Otherwise
-    /// they will be prefixed with a '-' sign.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `min_width` is 0.
+    /// Display and parse the number as a hexadecimal integer. See [`ValueFormat::hexadecimal`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -376,28 +365,10 @@ impl<'a> DragValue<'a> {
     /// ui.add(egui::DragValue::new(&mut my_i32).hexadecimal(16, false, true));
     /// # });
     /// ```
-    pub fn hexadecimal(self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
-        assert!(
-            min_width > 0,
-            "DragValue::hexadecimal: `min_width` must be greater than 0"
-        );
-        match (twos_complement, upper) {
-            (true, true) => {
-                self.custom_formatter(move |n, _| format!("{:0>min_width$X}", n as i64))
-            }
-            (true, false) => {
-                self.custom_formatter(move |n, _| format!("{:0>min_width$x}", n as i64))
-            }
-            (false, true) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
-                format!("{sign}{:0>min_width$X}", n.abs() as i64)
-            }),
-            (false, false) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
-                format!("{sign}{:0>min_width$x}", n.abs() as i64)
-            }),
-        }
-        .custom_parser(|s| i64::from_str_radix(s, 16).map(|n| n as f64).ok())
+    #[inline]
+    pub fn hexadecimal(mut self, min_width: usize, twos_complement: bool, upper: bool) -> Self {
+        self.format = self.format.hexadecimal(min_width, twos_complement, upper);
+        self
     }
 
     /// Update the value on each key press when text-editing the value.
@@ -406,49 +377,70 @@ impl<'a> DragValue<'a> {
     /// If `false`, the value will only be updated when user presses enter or deselects the value.
     #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
-        self.update_while_editing = update;
+        self.format = self.format.update_while_editing(update);
         self
     }
 
-    /// Output the [`DragValue`]'s [`Atoms`].
+    /// Keep the value inside the widget's width when text-editing it.
+    ///
+    /// Default: `false`, which lets the widget widen to fit whatever has been typed, carrying the
+    /// surrounding layout with it. When `true` the widget holds its width and the text scrolls
+    /// inside it, following the cursor.
+    #[inline]
+    pub fn clip_text(mut self, clip_text: bool) -> Self {
+        self.clip_text = clip_text;
+        self
+    }
+
+    /// The [`Atoms`] of the drag value: its prefix, a placeholder for the number, and its suffix.
     ///
     /// This includes any images you have on the [`DragValue`].
-    pub fn atoms(&self) -> &Atoms<'a> {
-        &self.atoms
+    pub fn atoms(&self) -> Atoms<'a> {
+        let ValueFormat { prefix, suffix, .. } = &self.format;
+        let mut atoms = prefix.clone();
+        atoms.push_right(Atom::custom(IdSalt::new(Self::ATOM_ID), Vec2::ZERO).atom_grow(true));
+        atoms.extend_right(suffix.clone());
+        atoms
     }
 }
 
 impl Widget for DragValue<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
+        let mut atoms = self.atoms();
         let Self {
             mut get_set_value,
             speed,
             range,
             clamp_existing_to_range,
-            mut atoms,
+            format,
+            classes,
+            min_size,
+            clip_text,
+        } = self;
+        let ValueFormat {
+            prefix,
+            suffix,
             min_decimals,
             max_decimals,
             custom_formatter,
             custom_parser,
             update_while_editing,
-        } = self;
+        } = format;
 
-        let mut prefix_text = String::new();
-        let mut suffix_text = String::new();
-        let mut past_value = false;
-        let atom_id = Id::new(Self::ATOM_ID);
-        for atom in atoms.iter() {
-            if atom.id == Some(atom_id) {
-                past_value = true;
-            }
-            if let AtomKind::Text(text) = &atom.kind {
-                if past_value {
-                    suffix_text.push_str(text.text());
-                } else {
-                    prefix_text.push_str(text.text());
-                }
-            }
-        }
+        let prefix_text = prefix.text().unwrap_or_default().into_owned();
+        let suffix_text = suffix.text().unwrap_or_default().into_owned();
+
+        // A prefix or suffix is the visible label of the value, so it names the widget.
+        // `Response::labelled_by` replaces this name with an explicit label.
+        let label = {
+            let parts: Vec<&str> = [prefix_text.trim(), suffix_text.trim()]
+                .into_iter()
+                .filter(|part| !part.is_empty())
+                .collect();
+            (!parts.is_empty()).then(|| parts.join(" "))
+        };
+
+        let atom_id = IdSalt::new(Self::ATOM_ID);
 
         let shift = ui.input(|i| i.modifiers.shift_only());
         // The widget has the same ID whether it's in edit or button mode.
@@ -466,7 +458,7 @@ impl Widget for DragValue<'_> {
             });
 
         if ui.memory_mut(|mem| mem.gained_focus(id)) {
-            ui.data_mut(|data| data.remove::<String>(id));
+            ui.data_mut(|data| data.remove::<EditState>(id));
         }
 
         let old_value = get(&mut get_set_value);
@@ -524,7 +516,7 @@ impl Widget for DragValue<'_> {
 
         if old_value != value {
             set(&mut get_set_value, value);
-            ui.data_mut(|data| data.remove::<String>(id));
+            ui.data_mut(|data| data.remove::<EditState>(id));
         }
 
         let value_text = match custom_formatter {
@@ -538,8 +530,13 @@ impl Widget for DragValue<'_> {
         let text_style = ui.style().drag_value_text_style.clone();
 
         if ui.memory(|mem| mem.lost_focus(id)) && !ui.input(|i| i.key_pressed(Key::Escape)) {
-            let value_text = ui.data_mut(|data| data.remove_temp::<String>(id));
-            if let Some(value_text) = value_text {
+            let edit_state = ui.data_mut(|data| data.remove_temp::<EditState>(id));
+            // Ignore the text if the value was changed by something else while we were editing it,
+            // or we would revert that change.
+            if let Some(value_text) = edit_state
+                .filter(|edit_state| edit_state.value == old_value)
+                .map(|edit_state| edit_state.text)
+            {
                 // We were editing the value as text last frame, but lost focus.
                 // Make sure we applied the last text value:
                 let parsed_value = parse(custom_parser.as_ref(), &value_text);
@@ -552,16 +549,18 @@ impl Widget for DragValue<'_> {
         }
 
         let mut response = if is_kb_editing {
+            // Keep editing the text from last frame, unless the value was changed by
+            // something else in the meantime, in which case the text is stale.
             let mut value_text = ui
-                .data_mut(|data| data.remove_temp::<String>(id))
-                .unwrap_or_else(|| value_text.clone());
+                .data_mut(|data| data.remove_temp::<EditState>(id))
+                .filter(|edit_state| edit_state.value == old_value)
+                .map_or_else(|| value_text.clone(), |edit_state| edit_state.text);
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
-                    .clip_text(false)
-                    .horizontal_align(ui.layout().horizontal_align())
-                    .vertical_align(ui.layout().vertical_align())
-                    .margin(ui.spacing().button_padding)
-                    .min_size(ui.spacing().interact_size)
+                    .with_classes(classes)
+                    .clip_text(clip_text)
+                    .align(ui.layout().align2())
+                    .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size))
                     .id(id)
                     .desired_width(
                         ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
@@ -589,7 +588,13 @@ impl Widget for DragValue<'_> {
                     set(&mut get_set_value, parsed_value);
                 }
             }
-            ui.data_mut(|data| data.insert_temp(id, value_text));
+            // Remember the value the text belongs to, so that next frame we can tell
+            // whether the value was changed by us or by something else.
+            let edit_state = EditState {
+                text: value_text,
+                value: get(&mut get_set_value),
+            };
+            ui.data_mut(|data| data.insert_temp(id, edit_state));
             response
         } else {
             atoms.map_atoms(|atom| {
@@ -602,10 +607,11 @@ impl Widget for DragValue<'_> {
                 }
             });
             let button = Button::new(atoms)
+                .with_classes(classes)
                 .wrap_mode(TextWrapMode::Extend)
                 .sense(Sense::click_and_drag())
                 .gap(0.0)
-                .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
+                .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size)); // TODO(emilk): find some more generic solution to `min_size`
 
             let cursor_icon = if value <= *range.start() {
                 CursorIcon::ResizeEast
@@ -631,7 +637,7 @@ impl Widget for DragValue<'_> {
             }
 
             if response.clicked() {
-                ui.data_mut(|data| data.remove::<String>(id));
+                ui.data_mut(|data| data.remove::<EditState>(id));
                 ui.memory_mut(|mem| mem.request_focus(id));
                 select_all_text(ui, id, response.id, &value_text);
             } else if response.dragged() {
@@ -696,6 +702,9 @@ impl Widget for DragValue<'_> {
             // The name field is set to the current value by the button,
             // but we don't want it set that way on this widget type.
             builder.clear_label();
+            if let Some(label) = &label {
+                builder.set_label(label.clone());
+            }
             // Always expose the value as a string. This makes the widget
             // more stable to accessibility users as it switches
             // between edit and button modes. This is particularly important
@@ -773,6 +782,16 @@ fn select_all_text(ui: &Ui, widget_id: Id, response_id: Id, value_text: &str) {
     state.store(ui.ctx(), response_id);
 }
 
+impl HasClasses for DragValue<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::clamp_value_to_range;
@@ -780,7 +799,7 @@ mod tests {
     macro_rules! total_assert_eq {
         ($a:expr, $b:expr) => {
             assert!(
-                matches!($a.total_cmp(&$b), std::cmp::Ordering::Equal),
+                matches!($a.total_cmp(&$b), core::cmp::Ordering::Equal),
                 "{} != {}",
                 $a,
                 $b

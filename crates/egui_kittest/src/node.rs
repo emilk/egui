@@ -1,24 +1,20 @@
+use core::fmt::{Debug, Formatter};
 use egui::accesskit::ActionRequest;
 use egui::mutex::Mutex;
 use egui::{Modifiers, PointerButton, Pos2, accesskit};
 use kittest::{AccessKitNode, NodeT, debug_fmt_node};
-use std::fmt::{Debug, Formatter};
 
-pub(crate) enum EventType {
-    Event(egui::Event),
-    Modifiers(Modifiers),
-}
-
-pub(crate) type EventQueue = Mutex<Vec<EventType>>;
+pub type EventQueue = Mutex<Vec<egui::Event>>;
 
 #[derive(Clone, Copy)]
 pub struct Node<'tree> {
     pub(crate) accesskit_node: AccessKitNode<'tree>,
     pub(crate) queue: &'tree EventQueue,
+    pub(crate) pixels_per_point: f32,
 }
 
 impl Debug for Node<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         debug_fmt_node(self, f)
     }
 }
@@ -29,20 +25,32 @@ impl<'tree> NodeT<'tree> for Node<'tree> {
     }
 
     fn new_related(&self, child_node: AccessKitNode<'tree>) -> Self {
-        Self {
-            queue: self.queue,
-            accesskit_node: child_node,
-        }
+        Self::new(child_node, self.queue, self.pixels_per_point)
     }
 }
 
-impl Node<'_> {
+impl<'tree> Node<'tree> {
+    /// Construct a new accesskit node
+    pub fn new(
+        accesskit_node: AccessKitNode<'tree>,
+        queue: &'tree EventQueue,
+        pixels_per_point: f32,
+    ) -> Self {
+        Self {
+            accesskit_node,
+            queue,
+            pixels_per_point,
+        }
+    }
+
     fn event(&self, event: egui::Event) {
-        self.queue.lock().push(EventType::Event(event));
+        self.queue.lock().push(event);
     }
 
     fn modifiers(&self, modifiers: Modifiers) {
-        self.queue.lock().push(EventType::Modifiers(modifiers));
+        self.queue
+            .lock()
+            .push(egui::Event::ModifiersChanged(modifiers));
     }
 
     pub fn hover(&self) {
@@ -93,25 +101,59 @@ impl Node<'_> {
     /// This will trigger a [`accesskit::Action::Click`] action.
     /// In contrast to `click()`, this can also click widgets that are not currently visible.
     pub fn click_accesskit(&self) {
+        self.do_accesskit_action(accesskit::Action::Click, None);
+    }
+
+    /// Send an [`accesskit::Action::Increment`] action to the node.
+    ///
+    /// This is how assistive technologies increment widgets
+    /// like sliders or panel resize handles.
+    pub fn increment_accesskit(&self) {
+        self.do_accesskit_action(accesskit::Action::Increment, None);
+    }
+
+    /// Send an [`accesskit::Action::Decrement`] action to the node.
+    ///
+    /// This is how assistive technologies decrement widgets
+    /// like sliders or panel resize handles.
+    pub fn decrement_accesskit(&self) {
+        self.do_accesskit_action(accesskit::Action::Decrement, None);
+    }
+
+    /// Send an [`accesskit::Action::SetValue`] action with a numeric value to the node.
+    ///
+    /// This is how assistive technologies set the value of widgets
+    /// like sliders or panel resize handles.
+    pub fn set_value_accesskit(&self, value: f64) {
+        self.do_accesskit_action(
+            accesskit::Action::SetValue,
+            Some(accesskit::ActionData::NumericValue(value)),
+        );
+    }
+
+    fn do_accesskit_action(&self, action: accesskit::Action, data: Option<accesskit::ActionData>) {
         let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(
             accesskit::ActionRequest {
                 target_node,
                 target_tree,
-                action: accesskit::Action::Click,
-                data: None,
+                action,
+                data,
             },
         ));
     }
 
+    /// This returns the rect in logical ui coordinates while the underlying [`accesskit::Node`] has it
+    /// in physical screen coordinates.
     pub fn rect(&self) -> egui::Rect {
         let rect = self
             .accesskit_node
             .bounding_box()
             .expect("Every egui node should have a rect");
+        let ppp = self.pixels_per_point;
         egui::Rect {
-            min: Pos2::new(rect.x0 as f32, rect.y0 as f32),
-            max: Pos2::new(rect.x1 as f32, rect.y1 as f32),
+            min: Pos2::new(rect.x0 as f32 / ppp, rect.y0 as f32 / ppp),
+            max: Pos2::new(rect.x1 as f32 / ppp, rect.y1 as f32 / ppp),
         }
     }
 

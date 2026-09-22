@@ -84,6 +84,7 @@ pub struct Window<'a> {
     open: Option<&'a mut bool>,
     area: Area,
     frame: Option<Frame>,
+    title_frame: Option<Frame>,
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
@@ -100,12 +101,13 @@ impl<'a> Window<'a> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl IntoAtoms<'a>) -> Self {
         let title: Atoms<'_> = title.into_atoms();
-        let area = Area::new(Id::new(title.text())).kind(UiKind::Window);
+        let area = Area::new(Id::unique(title.text())).kind(UiKind::Window);
         Self {
             title,
             open: None,
             area,
             frame: None,
+            title_frame: None,
             resize: Resize::default()
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
@@ -135,7 +137,7 @@ impl<'a> Window<'a> {
             .. // A lot of things not implemented yet
         } = viewport;
 
-        let mut window = Self::new(title.or(app_id).unwrap_or_else(String::new)).id(Id::new(id));
+        let mut window = Self::new(title.or(app_id).unwrap_or_else(String::new)).id(Id::unique(id));
 
         if let Some(inner_size) = inner_size {
             window = window.default_size(inner_size);
@@ -262,6 +264,13 @@ impl<'a> Window<'a> {
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
+        self
+    }
+
+    /// Change the background color, margins, etc. of the title
+    #[inline]
+    pub fn title_frame(mut self, frame: Frame) -> Self {
+        self.title_frame = Some(frame);
         self
     }
 
@@ -549,6 +558,7 @@ impl Window<'_> {
             mut open,
             area,
             frame,
+            title_frame,
             resize,
             scroll,
             collapsible,
@@ -616,10 +626,12 @@ impl Window<'_> {
 
         let style = ctx.global_style();
 
+        // We get or create the Frame for the title and content
         let window_frame = frame.unwrap_or_else(|| Frame::window(&style));
+        let window_title_frame = title_frame.unwrap_or(window_frame);
 
         // We apply the window margin by using the `ScrollArea::content_margin`.
-        let window_margin = window_frame.inner_margin;
+        let window_content_margin = window_frame.inner_margin;
         let window_frame = window_frame.inner_margin(0.0);
 
         let is_explicitly_closed = matches!(open, Some(false));
@@ -667,11 +679,7 @@ impl Window<'_> {
         }
 
         area.with_widget_info(|| {
-            WidgetInfo::labeled(
-                WidgetType::Window,
-                true,
-                title.text().as_deref().unwrap_or(""),
-            )
+            WidgetInfo::labeled(Role::Window, true, title.text().as_deref().unwrap_or(""))
         });
 
         {
@@ -711,7 +719,7 @@ impl Window<'_> {
                         title_ui(
                             ui,
                             title,
-                            window_frame.inner_margin(window_margin),
+                            window_title_frame,
                             &mut collapsing,
                             collapsible,
                             on_top,
@@ -725,12 +733,12 @@ impl Window<'_> {
                         .show_body_unindented(ui, |ui| {
                             if scroll.is_any_scroll_enabled() {
                                 scroll
-                                    .content_margin(window_margin)
+                                    .content_margin(window_content_margin)
                                     .show(ui, add_contents)
                                     .inner
                             } else {
                                 crate::Frame::NONE
-                                    .inner_margin(window_margin)
+                                    .inner_margin(window_content_margin)
                                     .show(ui, add_contents)
                                     .inner
                             }
@@ -909,7 +917,7 @@ impl SideResponse {
     }
 }
 
-impl std::ops::BitAnd for SideResponse {
+impl core::ops::BitAnd for SideResponse {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -920,7 +928,7 @@ impl std::ops::BitAnd for SideResponse {
     }
 }
 
-impl std::ops::BitOrAssign for SideResponse {
+impl core::ops::BitOrAssign for SideResponse {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = Self {
             hover: self.hover || rhs.hover,
@@ -1049,7 +1057,7 @@ fn do_resize_interaction(
     // The rect that is in the middle of the stroke:
     let rect = outer_rect.shrink(window_frame.stroke.width / 2.0);
 
-    let side_response = |rect, id| {
+    let side_response = |rect, id, name: &'static str| {
         ctx.register_accesskit_parent(id, accessibility_parent);
         let response = ctx.create_widget(
             WidgetRect {
@@ -1070,7 +1078,9 @@ fn do_resize_interaction(
             },
         );
 
-        response.widget_info(|| WidgetInfo::new(crate::WidgetType::ResizeHandle));
+        // Named so a screen reader can tell the eight handles apart,
+        // and so the harness' accessibility check is satisfied:
+        response.widget_info(|| WidgetInfo::labeled(Role::Splitter, true, name));
 
         SideResponse {
             hover: response.hovered(),
@@ -1078,7 +1088,7 @@ fn do_resize_interaction(
         }
     };
 
-    let id = Id::new(layer_id).with("edge_drag");
+    let id = Id::unique(layer_id).with("edge_drag");
 
     let style = ctx.global_style();
 
@@ -1104,6 +1114,7 @@ fn do_resize_interaction(
         let response = side_response(
             vertical_rect(rect.right_top(), rect.right_bottom()),
             id.with("right"),
+            "Resize window right edge",
         );
         right |= response;
     }
@@ -1111,6 +1122,7 @@ fn do_resize_interaction(
         let response = side_response(
             vertical_rect(rect.left_top(), rect.left_bottom()),
             id.with("left"),
+            "Resize window left edge",
         );
         left |= response;
     }
@@ -1118,6 +1130,7 @@ fn do_resize_interaction(
         let response = side_response(
             horizontal_rect(rect.left_bottom(), rect.right_bottom()),
             id.with("bottom"),
+            "Resize window bottom edge",
         );
         bottom |= response;
     }
@@ -1125,6 +1138,7 @@ fn do_resize_interaction(
         let response = side_response(
             horizontal_rect(rect.left_top(), rect.right_top()),
             id.with("top"),
+            "Resize window top edge",
         );
         top |= response;
     }
@@ -1138,7 +1152,11 @@ fn do_resize_interaction(
     // the whole corner is grabbable:
 
     if possible.resize_right || possible.resize_bottom {
-        let response = side_response(corner_rect(rect.right_bottom()), id.with("right_bottom"));
+        let response = side_response(
+            corner_rect(rect.right_bottom()),
+            id.with("right_bottom"),
+            "Resize window bottom-right corner",
+        );
         if possible.resize_right {
             right |= response;
         }
@@ -1148,7 +1166,11 @@ fn do_resize_interaction(
     }
 
     if possible.resize_right || possible.resize_top {
-        let response = side_response(corner_rect(rect.right_top()), id.with("right_top"));
+        let response = side_response(
+            corner_rect(rect.right_top()),
+            id.with("right_top"),
+            "Resize window top-right corner",
+        );
         if possible.resize_right {
             right |= response;
         }
@@ -1158,7 +1180,11 @@ fn do_resize_interaction(
     }
 
     if possible.resize_left || possible.resize_bottom {
-        let response = side_response(corner_rect(rect.left_bottom()), id.with("left_bottom"));
+        let response = side_response(
+            corner_rect(rect.left_bottom()),
+            id.with("left_bottom"),
+            "Resize window bottom-left corner",
+        );
         if possible.resize_left {
             left |= response;
         }
@@ -1168,7 +1194,11 @@ fn do_resize_interaction(
     }
 
     if possible.resize_left || possible.resize_top {
-        let response = side_response(corner_rect(rect.left_top()), id.with("left_top"));
+        let response = side_response(
+            corner_rect(rect.left_top()),
+            id.with("left_top"),
+            "Resize window top-left corner",
+        );
         if possible.resize_left {
             left |= response;
         }
@@ -1302,8 +1332,8 @@ fn title_ui(
     let button_allocation_size = Vec2::splat(heading_font_height);
     let button_shrink = (button_allocation_size - button_size) / 2.0;
 
-    let collapse_atom_id = Id::new("__window_collapse_button");
-    let close_atom_id = Id::new("__window_close_button");
+    let collapse_atom_id = IdSalt::new("__window_collapse_button");
+    let close_atom_id = IdSalt::new("__window_close_button");
 
     let expanded = collapsing.openness(ui.ctx()) > 0.0;
 
@@ -1333,7 +1363,7 @@ fn title_ui(
 
     let mut child_ui = ui.new_child(UiBuilder::new());
 
-    let mut layout = AtomLayout::new(atoms)
+    let mut layout = WidgetAtom::new(atoms)
         .gap(spacing)
         .fallback_font(TextStyle::Heading)
         .wrap_mode(TextWrapMode::Truncate)
@@ -1369,7 +1399,7 @@ fn title_ui(
         );
         icon_response.widget_info(|| {
             WidgetInfo::labeled(
-                WidgetType::Button,
+                Role::Button,
                 child_ui.is_enabled(),
                 if collapsing.is_open() { "Hide" } else { "Show" },
             )
@@ -1454,8 +1484,7 @@ fn title_ui(
 fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     let close_id = ui.auto_id_with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
-    response
-        .widget_info(|| WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), "Close window"));
+    response.widget_info(|| WidgetInfo::labeled(Role::Button, ui.is_enabled(), "Close window"));
 
     ui.expand_to_include_rect(response.rect);
 

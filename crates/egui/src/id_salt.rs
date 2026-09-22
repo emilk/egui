@@ -1,14 +1,14 @@
-use std::num::NonZeroU64;
+use core::num::NonZeroU64;
 
 /// Types that can be converted to an [`IdSalt`].
 ///
 /// This is all types implementing `Hash` and `Debug`,
 /// which includes things like string, integers, tuples of those, etc.
-pub trait AsIdSalt: std::hash::Hash + std::fmt::Debug {}
+pub trait AsIdSalt: core::hash::Hash + core::fmt::Debug {}
 
-impl<T: std::hash::Hash + std::fmt::Debug> AsIdSalt for T {}
+impl<T: core::hash::Hash + core::fmt::Debug> AsIdSalt for T {}
 
-/// Uniquely identifies a child widget within a parent widget.
+/// A "locally unique" identifier, e.g. to identify a child widget within a parent widget.
 ///
 /// An [`IdSalt`] is only unique within a parent [`crate::Id`].
 /// An [`IdSalt`] is NOT globally unique.
@@ -29,6 +29,17 @@ impl nohash_hasher::IsEnabled for IdSalt {}
 
 impl IdSalt {
     /// Create a new [`IdSalt`] by hashing some source (e.g. a string or integer).
+    ///
+    /// The source is anything that implements [`Hash`](core::hash::Hash),
+    /// including strings, integers, and tuples. Prefer a tuple over formatting a string:
+    ///
+    /// ```
+    /// # use egui::IdSalt;
+    /// # let (row, column) = (0, 0);
+    /// let good = IdSalt::new((row, column)); // No allocation
+    /// let bad = IdSalt::new(format!("{row} {column}")); // Allocates
+    /// # let _ = (good, bad);
+    /// ```
     pub fn new(source: impl AsIdSalt) -> Self {
         let id_salt = Self::from_hash(ahash::RandomState::with_seeds(5, 6, 7, 8).hash_one(&source));
 
@@ -57,8 +68,8 @@ impl IdSalt {
     }
 }
 
-impl std::fmt::Debug for IdSalt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for IdSalt {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         #[cfg(debug_assertions)]
         if let Some(source) = id_salt_source::get(*self) {
             return write!(f, "IdSalt::new({source})");
@@ -66,6 +77,16 @@ impl std::fmt::Debug for IdSalt {
         write!(f, "salt_{:04X}", self.value() as u16)
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// `IdSaltSet` is a `HashSet<IdSalt>` optimized by knowing that [`IdSalt`] has good entropy, and doesn't need more hashing.
+pub type IdSaltSet = nohash_hasher::IntSet<IdSalt>;
+
+/// `IdSaltMap<V>` is a `HashMap<IdSalt, V>` optimized by knowing that [`IdSalt`] has good entropy, and doesn't need more hashing.
+pub type IdSaltMap<V> = nohash_hasher::IntMap<IdSalt, V>;
+
+// ----------------------------------------------------------------------------
 
 /// In debug builds, remember the `Debug`-formatted source that produced each [`IdSalt`].
 ///

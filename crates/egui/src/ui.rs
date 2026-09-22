@@ -1,11 +1,12 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![expect(clippy::use_self)]
 
-use std::{any::Any, ops::Deref, sync::Arc};
+use core::{any::Any, ops::Deref};
+use std::sync::Arc;
 
 use crate::containers::menu;
-use crate::widget_style::{HasClasses as _, ROOT_CLASS};
 use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
+use crate::{class, class::HasClasses as _};
 use emath::GuiRounding as _;
 
 // ----------------------------------------------------------------------------
@@ -27,25 +28,10 @@ use emath::GuiRounding as _;
 /// # });
 /// ```
 pub struct Ui {
-    /// Generated based on id of parent ui together with an optional id salt.
-    ///
-    /// This should be stable from one frame to next
-    /// so it can be used as a source for storing state
-    /// (e.g. window position, or if a collapsing header is open).
-    ///
-    /// However, it is not necessarily globally unique.
-    /// For instance, sibling `Ui`s share the same [`Self::id`]
-    /// unless they where explicitly given different id salts using
-    /// [`UiBuilder::id_salt`].
-    id: Id,
+    /// The [`Id`] scope of this `Ui`. See [`Self::scope_id`].
+    scope_id: Id,
 
-    /// This is a globally unique ID of this `Ui`,
-    /// based on where in the hierarchy of widgets this Ui is in.
-    ///
-    /// This means it is not _stable_, as it can change if new widgets
-    /// are added or removed prior to this one.
-    /// It should therefore only be used for transient interactions (clicks etc),
-    /// not for storing state over time.
+    /// A globally unique, but unstable, [`Id`] of this `Ui`. See [`Self::unique_id`].
     unique_id: Id,
 
     /// This is used to create a unique interact ID for some widgets.
@@ -105,7 +91,7 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
-    pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
+    pub fn new(ctx: Context, scope_id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_source,
             ui_stack_info,
@@ -118,6 +104,8 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            accessibility_label,
+            accessibility_role,
             classes,
         } = ui_builder;
 
@@ -134,11 +122,16 @@ impl Ui {
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
-        let classes = classes.with_class(ROOT_CLASS);
+        let classes = classes.with_class(class::ROOT);
+
+        // A root `Ui` has no parent to derive a unique id from,
+        // so the caller must provide a globally unique id, which serves as both:
+        let unique_id = scope_id;
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
-            id,
+            unique_id,
+            scope_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
             parent: None,
@@ -148,9 +141,9 @@ impl Ui {
         };
 
         let mut ui = Ui {
-            id,
-            unique_id: id,
-            next_auto_id_salt: id.with("auto").value(),
+            scope_id,
+            unique_id,
+            next_auto_id_salt: unique_id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer,
@@ -171,7 +164,7 @@ impl Ui {
         ui.ctx().create_widget(
             WidgetRect {
                 id: ui.unique_id,
-                parent_id: ui.id,
+                parent_id: ui.unique_id,
                 layer_id: ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
@@ -189,8 +182,16 @@ impl Ui {
             ui.set_invisible();
         }
 
+        let role = accessibility_role.unwrap_or_else(|| {
+            ui.stack
+                .kind()
+                .map_or(accesskit::Role::GenericContainer, UiKind::accesskit_role)
+        });
         ui.ctx().accesskit_node_builder(ui.unique_id, |node| {
-            node.set_role(accesskit::Role::GenericContainer);
+            node.set_role(role);
+            if let Some(label) = accessibility_label {
+                node.set_label(label);
+            }
         });
 
         ui
@@ -218,6 +219,8 @@ impl Ui {
             style,
             sense,
             accessibility_parent,
+            accessibility_label,
+            accessibility_role,
             classes,
         } = ui_builder;
 
@@ -248,12 +251,12 @@ impl Ui {
         debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
 
         let id_source = id_source.unwrap_or_else(|| IdSource::Child(IdSalt::new("child")));
-        let (stable_id, unique_id) = match id_source {
+        let (scope_id, unique_id) = match id_source {
             IdSource::Explicit(id) => (id, id),
             IdSource::Child(id_salt) => {
-                let stable_id = self.id.with(id_salt);
-                let unique_id = stable_id.with(self.next_auto_id_salt);
-                (stable_id, unique_id)
+                let scope_id = self.scope_id.with(id_salt);
+                let unique_id = scope_id.with(self.next_auto_id_salt);
+                (scope_id, unique_id)
             }
         };
         let next_auto_id_salt = unique_id.value().wrapping_add(1);
@@ -262,7 +265,8 @@ impl Ui {
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
-            id: unique_id,
+            unique_id,
+            scope_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
             parent: Some(Arc::clone(&self.stack)),
@@ -272,7 +276,7 @@ impl Ui {
         };
 
         let mut child_ui = Ui {
-            id: stable_id,
+            scope_id,
             unique_id,
             next_auto_id_salt,
             painter,
@@ -299,7 +303,7 @@ impl Ui {
         child_ui.ctx().create_widget(
             WidgetRect {
                 id: child_ui.unique_id,
-                parent_id: self.id,
+                parent_id: self.unique_id,
                 layer_id: child_ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
@@ -310,10 +314,19 @@ impl Ui {
             Default::default(),
         );
 
+        let role = accessibility_role.unwrap_or_else(|| {
+            child_ui
+                .stack
+                .kind()
+                .map_or(accesskit::Role::GenericContainer, UiKind::accesskit_role)
+        });
         child_ui
             .ctx()
             .accesskit_node_builder(child_ui.unique_id, |node| {
-                node.set_role(accesskit::Role::GenericContainer);
+                node.set_role(role);
+                if let Some(label) = accessibility_label {
+                    node.set_label(label);
+                }
             });
 
         child_ui
@@ -330,28 +343,40 @@ impl Ui {
 
     // -------------------------------------------------
 
-    /// Generated based on id of parent ui together with an optional id salt.
+    /// The stable [`Id`] scope of this `Ui`.
     ///
-    /// This should be stable from one frame to next
-    /// so it can be used as a source for storing state
-    /// (e.g. window position, or if a collapsing header is open).
+    /// This is _stable_ from one frame to the next,
+    /// so it should be used as the base for the [`Id`]s of widgets that store state
+    /// (e.g. window position, or if a collapsing header is open):
+    /// `ui.scope_id().with("my_widget")`.
+    /// See also [`Self::make_persistent_id`].
     ///
-    /// However, it is not necessarily globally unique.
-    /// For instance, sibling `Ui`s share the same [`Self::id`]
-    /// unless they were explicitly given different id salts using
-    /// [`UiBuilder::id_salt`].
+    /// This is NOT the [`Id`] of this particular `Ui`, but of its _scope_.
+    /// A child `Ui` inherits the scope of its parent (mixed with an optional [`UiBuilder::id_salt`]),
+    /// so sibling `Ui`s share the same scope unless given different salts.
+    /// Use [`Self::push_id`] to create a new scope.
+    ///
+    /// For a globally unique (but unstable) [`Id`] of this `Ui`, see [`Self::unique_id`].
     #[inline]
-    pub fn id(&self) -> Id {
-        self.id
+    pub fn scope_id(&self) -> Id {
+        self.scope_id
     }
 
-    /// This is a globally unique ID of this `Ui`,
-    /// based on where in the hierarchy of widgets this Ui is in.
+    /// Renamed to [`Self::scope_id`].
+    #[deprecated = "Renamed to `Ui::scope_id`"]
+    #[inline]
+    pub fn id(&self) -> Id {
+        self.scope_id
+    }
+
+    /// A globally unique, but unstable, [`Id`] of this `Ui`.
     ///
-    /// This means it is not _stable_, as it can change if new widgets
-    /// are added or removed prior to this one.
+    /// This is NOT _stable_: it is based on where in the widget hierarchy this `Ui` is,
+    /// so it changes if widgets are added or removed before it.
     /// It should therefore only be used for transient interactions (clicks etc),
-    /// not for storing state over time.
+    /// never for storing state over time.
+    ///
+    /// For a stable [`Id`] to base widget state on, see [`Self::scope_id`].
     #[inline]
     pub fn unique_id(&self) -> Id {
         self.unique_id
@@ -879,22 +904,33 @@ impl Ui {
 
 /// # [`Id`] creation
 impl Ui {
-    /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
+    /// Generate an [`Id`] for a widget that has persistent state in [`Memory`].
+    ///
+    /// This is the same as `ui.scope_id().with(id_salt)`.
+    /// Since it is based on the stable [`Self::scope_id`], it is stable over time,
+    /// as long as `id_salt` is unique within the current id scope.
     pub fn make_persistent_id(&self, id_salt: impl AsIdSalt) -> Id {
-        self.id.with(id_salt)
+        self.scope_id.with(id_salt)
     }
 
-    /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
+    /// The `Id` that will be assigned to the next widget added to this `Ui`,
+    /// unless it has an explicit `Id`.
+    ///
+    /// This is based on the [`Self::unique_id`] of this `Ui` and the number of widgets added so far.
+    /// It is therefore NOT stable: it changes if widgets are added or removed before it.
+    /// Do not use it for widgets that store state; use [`Self::make_persistent_id`] for that.
     pub fn next_auto_id(&self) -> Id {
-        Id::new(self.next_auto_id_salt)
+        Id::unique(self.next_auto_id_salt)
     }
 
-    /// Same as `ui.next_auto_id().with(id_salt)`
+    /// Same as `ui.next_auto_id().with(id_salt)`.
+    ///
+    /// Like [`Self::next_auto_id`], this is NOT stable over time.
     pub fn auto_id_with(&self, id_salt: impl AsIdSalt) -> Id {
-        Id::new(self.next_auto_id_salt).with(id_salt)
+        Id::unique(self.next_auto_id_salt).with(id_salt)
     }
 
-    /// Pretend like `count` widgets have been allocated.
+    /// Pretend like `count` widgets have been allocated, advancing [`Self::next_auto_id`].
     pub fn skip_ahead_auto_ids(&mut self, count: usize) {
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(count as u64);
     }
@@ -920,7 +956,7 @@ impl Ui {
         self.ctx().create_widget(
             WidgetRect {
                 id,
-                parent_id: self.id,
+                parent_id: self.unique_id,
                 layer_id: self.layer_id(),
                 rect,
                 interact_rect: self.clip_rect().intersect(rect),
@@ -930,6 +966,88 @@ impl Ui {
             true,
             options,
         )
+    }
+
+    /// Run `add_contents`, then mark every input widget it added that has no accessible name
+    /// as labelled by `label_id`.
+    ///
+    /// An input widget is one whose role passes [`crate::accessibility::is_input`]. For a row
+    /// whose label is painted apart from its value widgets (a property row, a form), this names
+    /// the value widgets without each editor having to know the row label.
+    /// Costs a lookup per widget added, and nothing when accessibility is off.
+    pub fn label_inputs_by<R>(
+        &mut self,
+        label_id: Id,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let first = self.widget_count_in_layer();
+        let result = add_contents(self);
+        for id in self.unnamed_inputs_added_since(first) {
+            self.ctx().accesskit_node_builder(id, |node| {
+                // As in `Response::labelled_by`: an own label, even a blank one, wins.
+                node.clear_label();
+                node.push_labelled_by(label_id.accesskit_id());
+            });
+        }
+        result
+    }
+
+    /// Run `add_contents`, then give every input widget it added that has no accessible name
+    /// the name `name`.
+    ///
+    /// An input widget is one whose role passes [`crate::accessibility::is_input`]. This is for
+    /// widgets that cannot be named where they are built, e.g. inside a third-party crate.
+    /// Costs a lookup per widget added, and nothing when accessibility is off.
+    pub fn name_inputs<R>(
+        &mut self,
+        name: impl Into<String>,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let first = self.widget_count_in_layer();
+        let result = add_contents(self);
+        let name = name.into();
+        for id in self.unnamed_inputs_added_since(first) {
+            self.ctx()
+                .accesskit_node_builder(id, |node| node.set_label(name.clone()));
+        }
+        result
+    }
+
+    /// How many widgets this pass has registered on this `Ui`'s layer so far.
+    fn widget_count_in_layer(&self) -> usize {
+        let layer_id = self.layer_id();
+        self.ctx()
+            .viewport(|viewport| viewport.this_pass.widgets.get_layer(layer_id).count())
+    }
+
+    /// The input widgets registered on this `Ui`'s layer from index `first` on that have
+    /// no name: no label, no `labelled_by`, and no placeholder (which names a text field).
+    ///
+    /// A layer's widget list only grows during a pass. The one exception, a window dragged
+    /// by its title bar (`InteractOptions::move_to_top`), lives on its own layer.
+    fn unnamed_inputs_added_since(&self, first: usize) -> Vec<Id> {
+        let layer_id = self.layer_id();
+        self.ctx().viewport(|viewport| {
+            let Some(state) = &viewport.this_pass.accesskit_state else {
+                return Vec::new();
+            };
+            viewport
+                .this_pass
+                .widgets
+                .get_layer(layer_id)
+                .skip(first)
+                .filter_map(|rect| {
+                    let node = state.nodes.get(&rect.id)?;
+                    let unnamed = crate::accessibility::is_input(node.role())
+                        && node.label().is_none_or(|label| label.trim().is_empty())
+                        && node.labelled_by().is_empty()
+                        && node
+                            .placeholder()
+                            .is_none_or(|placeholder| placeholder.trim().is_empty());
+                    unnamed.then_some(rect.id)
+                })
+                .collect()
+        })
     }
 
     /// Read the [`Ui`]'s background [`Response`].
@@ -978,7 +1096,11 @@ impl Ui {
         let mut response = self.ctx().create_widget(
             WidgetRect {
                 id: self.unique_id,
-                parent_id: self.id,
+                parent_id: self
+                    .stack
+                    .parent
+                    .as_ref()
+                    .map_or(self.unique_id, |p| p.unique_id),
                 layer_id: self.layer_id(),
                 rect: self.min_rect(),
                 interact_rect: self.clip_rect().intersect(self.min_rect()),
@@ -1227,7 +1349,7 @@ impl Ui {
             }
         }
 
-        let id = Id::new(self.next_auto_id_salt);
+        let id = Id::unique(self.next_auto_id_salt);
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
 
         (id, rect)
@@ -1268,7 +1390,7 @@ impl Ui {
         self.placer.advance_after_rects(rect, rect, item_spacing);
         register_rect(self, rect);
 
-        let id = Id::new(self.next_auto_id_salt);
+        let id = Id::unique(self.next_auto_id_salt);
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
         id
     }
@@ -1984,7 +2106,7 @@ impl Ui {
     /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
     /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
     pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
-        use std::f32::consts::TAU;
+        use core::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
         let mut response = self.add(DragValue::new(&mut taus).speed(0.01).suffix("τ"));
@@ -2599,7 +2721,7 @@ impl Ui {
         let column_width = (self.available_width() - total_spacing) / (NUM_COL as f32);
         let top_left = self.cursor().min;
 
-        let mut columns = std::array::from_fn(|col_idx| {
+        let mut columns = core::array::from_fn(|col_idx| {
             let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
             let child_rect = Rect::from_min_max(
                 pos,
@@ -2825,7 +2947,7 @@ impl Ui {
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
             menu::SubMenuButton::from_button(
-                Button::image(image).right_text(menu::SubMenuButton::RIGHT_ARROW),
+                Button::image(image).right_text(menu::SubMenuButton::arrow_atom(None)),
             )
             .ui(self, add_contents)
         } else {
@@ -2863,7 +2985,8 @@ impl Ui {
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
             menu::SubMenuButton::from_button(
-                Button::image_and_text(image, title).right_text(menu::SubMenuButton::RIGHT_ARROW),
+                Button::image_and_text(image, title)
+                    .right_text(menu::SubMenuButton::arrow_atom(None)),
             )
             .ui(self, add_contents)
         } else {

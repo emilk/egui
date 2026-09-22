@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
-use egui::ScrollArea;
 use egui::accesskit::Role;
+#[cfg(debug_assertions)]
 use egui::epaint::Shape;
 use egui::style::ScrollAnimation;
 use egui::text::{LayoutJob, TextWrapping};
 use egui::{
-    Align, Button, Color32, FontFamily, FontId, Image, Label, Layout, RichText, Sense, TextBuffer,
-    TextFormat, TextWrapMode, Ui, include_image, vec2,
+    Align, Align2, Button, Color32, FontFamily, FontId, Image, Label, Layout, Rect, RichText,
+    Sense, TextBuffer, TextFormat, TextWrapMode, Ui, Vec2, include_image, vec2,
 };
+use egui::{Pos2, ScrollArea};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT as _, Queryable as _};
 
@@ -72,17 +73,20 @@ fn hovering_should_preserve_text_format() {
 #[test]
 fn text_edit_rtl() {
     let mut text = "hello ".to_owned();
-    let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
-        ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-            _ = ui.button("right");
-            ui.add(
-                egui::TextEdit::singleline(&mut text)
-                    .desired_width(10.0)
-                    .clip_text(false),
-            );
-            _ = ui.button("left");
+    let mut harness = Harness::builder()
+        .with_size((200.0, 50.0))
+        .with_accessibility_check(false)
+        .build_ui(|ui| {
+            ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+                _ = ui.button("right");
+                ui.add(
+                    egui::TextEdit::singleline(&mut text)
+                        .desired_width(10.0)
+                        .clip_text(false),
+                );
+                _ = ui.button("left");
+            });
         });
-    });
 
     harness.get_by_role(Role::TextInput).focus();
     harness.step();
@@ -98,45 +102,52 @@ fn text_edit_rtl() {
 
 #[test]
 fn text_edit_halign() {
-    let mut harness = Harness::builder().with_size((212.0, 212.0)).build_ui(|ui| {
-        ui.spacing_mut().item_spacing = vec2(2.0, 2.0);
+    let mut harness = Harness::builder()
+        .with_size((212.0, 212.0))
+        .with_accessibility_check(false)
+        .build_ui(|ui| {
+            ui.spacing_mut().item_spacing = vec2(2.0, 2.0);
 
-        fn layouter(halign: Align) -> impl FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<egui::Galley> {
-            move |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
-                let mut job = LayoutJob {
-                    wrap: TextWrapping {
-                        max_rows: 4,
-                        max_width: wrap_width,
+            fn layouter(
+                halign: Align,
+            ) -> impl FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<egui::Galley> {
+                move |ui: &egui::Ui, buf: &dyn egui::TextBuffer, wrap_width: f32| {
+                    let mut job = LayoutJob {
+                        wrap: TextWrapping {
+                            max_rows: 4,
+                            max_width: wrap_width,
+                            ..Default::default()
+                        },
+                        halign,
                         ..Default::default()
-                    },
-                    halign,
-                    ..Default::default()
-                };
-                job.append(
-                    buf.as_str(),
-                    0.0,
-                    TextFormat::simple(FontId::new(13.0, FontFamily::Proportional), Color32::GRAY),
-                );
-                ui.fonts_mut(|f| f.layout_job(job))
-            }
-        }
-
-        for widget_alignment in [Align::Min, Align::Center, Align::Max] {
-            ui.horizontal(|ui| {
-                for text_alignment in [Align::LEFT, Align::Center, Align::RIGHT] {
-                    ui.add_sized(
-                        vec2(64.0, 64.0),
-                        egui::TextEdit::multiline(&mut format!(
-                            "{widget_alignment:?}\n+\n{text_alignment:?}",
-                        ))
-                        .layouter(&mut layouter(text_alignment))
-                        .vertical_align(widget_alignment)
-                        .horizontal_align(widget_alignment),
+                    };
+                    job.append(
+                        buf.as_str(),
+                        0.0,
+                        TextFormat::simple(
+                            FontId::new(13.0, FontFamily::Proportional),
+                            Color32::GRAY,
+                        ),
                     );
+                    ui.fonts_mut(|f| f.layout_job(job))
                 }
-            });
-        }
-    });
+            }
+
+            for widget_alignment in [Align::Min, Align::Center, Align::Max] {
+                ui.horizontal(|ui| {
+                    for text_alignment in [Align::LEFT, Align::Center, Align::RIGHT] {
+                        ui.add_sized(
+                            vec2(64.0, 64.0),
+                            egui::TextEdit::multiline(&mut format!(
+                                "{widget_alignment:?}\n+\n{text_alignment:?}",
+                            ))
+                            .layouter(&mut layouter(text_alignment))
+                            .align(Align2::new(widget_alignment, widget_alignment)),
+                        );
+                    }
+                });
+            }
+        });
 
     harness.get_by_value("Center\n+\nCenter").focus();
     harness.step();
@@ -261,6 +272,7 @@ fn interact_on_ui_response_should_be_stable() {
     assert_eq!(click_count, 10, "We missed some clicks!");
 }
 
+#[cfg(debug_assertions)]
 fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
     output.shapes.iter().any(|clipped| {
         matches!(
@@ -271,20 +283,34 @@ fn has_red_warning_rect(output: &egui::FullOutput) -> bool {
     })
 }
 
+#[cfg(debug_assertions)]
+fn has_red_warning_rect_at(output: &egui::FullOutput, rect: egui::Rect) -> bool {
+    output.shapes.iter().any(|clipped| {
+        matches!(
+            &clipped.shape,
+            Shape::Rect(rect_shape)
+                if rect_shape.stroke.color == Color32::RED && rect_shape.rect == rect
+        )
+    })
+}
+
 /// A button that changes its text on hover, with the Id derived from the text.
 /// This is a plausible bug: the widget keeps the same rect, but its Id changes
 /// between frames because the label (and thus the Id salt) changes on hover.
 /// The `warn_if_rect_changes_id` debug check should catch this.
 #[test]
+#[cfg(debug_assertions)]
 fn warn_if_rect_changes_id() {
     let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
 
     let mut harness = Harness::builder().with_size((200.0, 50.0)).build_ui(|ui| {
+        ui.global_style_mut(|style| style.debug.warn_if_rect_changes_id = true);
+
         // Simulate a buggy widget whose Id depends on its label text,
         // and the label changes on hover:
         let is_hovered = ui.rect_contains_pointer(button_rect);
         let label = if is_hovered { "Hovering!" } else { "Click me" };
-        let id = ui.id().with(label);
+        let id = ui.scope_id().with(label);
         let _response = ui.interact(button_rect, id, Sense::click());
     });
 
@@ -309,17 +335,20 @@ fn warn_if_rect_changes_id() {
 /// all child widget ids shift too. This should NOT trigger `warn_if_rect_changes_id` because the
 /// `parent_id` also changed — it's a cascading id shift, not a widget bug.
 #[test]
+#[cfg(debug_assertions)]
 fn warn_if_rect_changes_id_false_positive_parent_shift() {
-    use std::cell::Cell;
+    use core::cell::Cell;
 
     let counter = Cell::new(0);
     let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
 
     let mut harness = Harness::builder().with_size((200.0, 100.0)).build_ui(|ui| {
+        ui.global_style_mut(|style| style.debug.warn_if_rect_changes_id = true);
+
         // push_id with a changing value causes the child Ui's id to shift,
         // which in turn shifts all widget ids inside it.
         ui.push_id(counter.get(), |ui| {
-            let id = ui.id().with("my_widget");
+            let id = ui.scope_id().with("my_widget");
             let _response = ui.interact(button_rect, id, Sense::click());
         });
     });
@@ -348,87 +377,133 @@ fn warn_if_rect_changes_id_false_positive_parent_shift() {
     );
 }
 
+/// When the auto-id of a parent Ui shifts (e.g. a widget is added before a child Ui),
+/// the child Ui's `unique_id` changes, and so do all auto-ids inside it.
+/// This should NOT trigger `warn_if_rect_changes_id`, since the `parent_id` also changed.
 #[test]
-fn horizontal_wrapped_multiline_row_height() {
-    let mut harness = Harness::builder().with_size((350.0, 300.0)).build_ui(|ui| {
-        ui.style_mut().interaction.tooltip_delay = 0.0;
-        ui.style_mut().interaction.show_tooltips_only_when_still = false;
+#[cfg(debug_assertions)]
+fn warn_if_rect_changes_id_false_positive_auto_id_shift() {
+    use core::cell::Cell;
 
-        let mut string = String::new();
+    let skip = Cell::new(false);
+    let button_rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(100.0, 30.0));
 
-        ui.horizontal_wrapped(|ui| {
-            ui.monospace("| ");
-            let _ = ui.button("A");
-            let _ = ui.button("B");
-            ui.end_row();
+    let mut harness = Harness::builder().with_size((200.0, 100.0)).build_ui(|ui| {
+        ui.global_style_mut(|style| style.debug.warn_if_rect_changes_id = true);
 
-            ui.monospace("| ");
-            let _ = ui.button("C");
-            let _ = ui.button("D");
-            let _ = ui.button("E");
-            ui.end_row();
+        // Shifts the auto-id of the child Ui without changing any layout:
+        if skip.get() {
+            ui.skip_ahead_auto_ids(1);
+        }
 
-            ui.monospace("| ");
-            ui.text_edit_multiline(&mut string);
-            ui.end_row();
-
-            ui.monospace("| ");
-            let _ = ui.button("F");
-            let _ = ui.button("G");
-            ui.end_row();
-
-            ui.monospace("| ");
-            let _ = ui.button("H");
-            let _ = ui.button("I");
-            let _ = ui.button("K");
-            ui.end_row();
+        ui.horizontal(|ui| {
+            let id = ui.auto_id_with("my_widget");
+            let _response = ui.interact(button_rect, id, Sense::click());
         });
     });
+
+    harness.step();
+    harness.step();
+    assert!(
+        !has_red_warning_rect_at(harness.output(), button_rect),
+        "Should not warn when nothing changed"
+    );
+
+    skip.set(true);
+    harness.step();
+    assert!(
+        !has_red_warning_rect_at(harness.output(), button_rect),
+        "Should NOT warn when parent Ui's auto-id shifted (cascading id change)"
+    );
+}
+
+#[test]
+fn horizontal_wrapped_multiline_row_height() {
+    let mut harness = Harness::builder()
+        .with_size((350.0, 300.0))
+        .with_accessibility_check(false)
+        .build_ui(|ui| {
+            ui.style_mut().interaction.tooltip_delay = 0.0;
+            ui.style_mut().interaction.show_tooltips_only_when_still = false;
+
+            let mut string = String::new();
+
+            ui.horizontal_wrapped(|ui| {
+                ui.monospace("| ");
+                let _ = ui.button("A");
+                let _ = ui.button("B");
+                ui.end_row();
+
+                ui.monospace("| ");
+                let _ = ui.button("C");
+                let _ = ui.button("D");
+                let _ = ui.button("E");
+                ui.end_row();
+
+                ui.monospace("| ");
+                ui.text_edit_multiline(&mut string);
+                ui.end_row();
+
+                ui.monospace("| ");
+                let _ = ui.button("F");
+                let _ = ui.button("G");
+                ui.end_row();
+
+                ui.monospace("| ");
+                let _ = ui.button("H");
+                let _ = ui.button("I");
+                let _ = ui.button("K");
+                ui.end_row();
+            });
+        });
 
     harness.snapshot("horizontal_wrapped_multiline_row_height");
 }
 
 #[test]
 fn horizontal_wrapped_multiline_row_height_reference() {
-    let mut harness = Harness::builder().with_size((350.0, 300.0)).build_ui(|ui| {
-        ui.style_mut().interaction.tooltip_delay = 0.0;
-        ui.style_mut().interaction.show_tooltips_only_when_still = false;
+    let mut harness = Harness::builder()
+        .with_size((350.0, 300.0))
+        .with_accessibility_check(false)
+        .build_ui(|ui| {
+            ui.style_mut().interaction.tooltip_delay = 0.0;
+            ui.style_mut().interaction.show_tooltips_only_when_still = false;
 
-        let mut string = String::new();
+            let mut string = String::new();
 
-        ui.vertical(|ui| {
-            ui.horizontal(|ui| {
-                ui.monospace("| ");
-                let _ = ui.button("A");
-                let _ = ui.button("B");
-            });
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.monospace("| ");
+                    let _ = ui.button("A");
+                    let _ = ui.button("B");
+                });
 
-            ui.horizontal(|ui| {
-                ui.monospace("| ");
-                let _ = ui.button("C");
-                let _ = ui.button("D");
-                let _ = ui.button("E");
-            });
+                ui.horizontal(|ui| {
+                    ui.monospace("| ");
+                    let _ = ui.button("C");
+                    let _ = ui.button("D");
+                    let _ = ui.button("E");
+                });
 
-            ui.horizontal(|ui| {
-                ui.monospace("| ");
-                ui.text_edit_multiline(&mut string);
-            });
+                ui.horizontal(|ui| {
+                    ui.monospace("| ");
+                    ui.text_edit_multiline(&mut string);
+                });
 
-            ui.horizontal(|ui| {
-                ui.monospace("| ");
-                let _ = ui.button("F");
-                let _ = ui.button("G");
-            });
+                ui.horizontal(|ui| {
+                    ui.monospace("| ");
+                    let _ = ui.button("F");
+                    let _ = ui.button("G");
+                });
 
-            ui.horizontal(|ui| {
-                ui.monospace("| ");
-                let _ = ui.button("H");
-                let _ = ui.button("I");
-                let _ = ui.button("K");
+                ui.horizontal(|ui| {
+                    ui.monospace("| ");
+                    let _ = ui.button("H");
+                    let _ = ui.button("I");
+                    let _ = ui.button("K");
+                });
             });
         });
-    });
 
     harness.snapshot("horizontal_wrapped_multiline_row_height_reference");
 }
@@ -472,4 +547,198 @@ fn animated_scroll_beats_sticky_bottom() {
         harness.state().1 + 1.0 < harness.state().2,
         "animated explicit scroll should leave the sticky bottom"
     );
+}
+
+/// Tests that tooltips are shown correctly for buttons that are only shown on hover.
+///
+/// Basically, this tests that a tooltip overlapping the mouse cursor does not interfere with a
+/// buttons hover state.
+#[test]
+fn tooltip_should_work_for_hover_button() {
+    let button_rect = Rect::from_min_size(Pos2::new(4.0, 4.0), Vec2::new(80.0, 20.0));
+    let mut harness = Harness::builder().with_size((320.0, 80.0)).build_ui(|ui| {
+        if ui.rect_contains_pointer(button_rect) {
+            ui.button("A tooltip should be shown")
+                .on_hover_text("My tooltip");
+        }
+    });
+
+    harness.hover_at(button_rect.center());
+
+    harness.run();
+
+    harness.snapshot("test_tooltip_hover_regression");
+}
+
+/// Ensure that hovering close to a widget doesn't cause a tooltip feedback loop (due to a
+/// difference between `hovered` and `contains_pointer` caused by the interact radius).
+#[test]
+fn tooltip_covering_button_should_not_cause_feedback_loop() {
+    let mut harness = Harness::builder().with_size((200.0, 30.0)).build_ui(|ui| {
+        ui.button("A tooltip should be shown")
+            .on_hover_text("This tooltip is larger than the button");
+    });
+
+    harness.hover_at(
+        harness
+            .get_by_label("A tooltip should be shown")
+            .rect()
+            .left_center()
+            - Vec2::X,
+    );
+
+    harness.run();
+
+    harness.snapshot("tooltip_covering_button_should_not_cause_feedback_loop");
+}
+
+/// Tests that a tooltip closes when the pointer moves onto a neighboring widget,
+/// so that the neighbor can show its own tooltip.
+///
+/// The two buttons are only `item_spacing.y` (3 pt) apart, which is less than the
+/// hit-test `interact_radius` (5 pt), so the first button is still close enough to
+/// interact with when the pointer is on the second one.
+#[test]
+fn tooltip_should_hand_over_to_neighboring_widget() {
+    let mut harness = Harness::builder().with_size((300.0, 200.0)).build_ui(|ui| {
+        ui.button("Button A").on_hover_text("Tooltip A");
+        ui.button("Button B").on_hover_text("Tooltip B");
+    });
+
+    let a_rect = harness.get_by_label("Button A").rect();
+    let b_rect = harness.get_by_label("Button B").rect();
+
+    harness.hover_at(a_rect.center_bottom() - Vec2::Y);
+    harness.run();
+    assert!(
+        harness.query_by_label("Tooltip A").is_some(),
+        "Tooltip A should be shown when hovering Button A"
+    );
+
+    harness.hover_at(b_rect.center_top() + Vec2::Y);
+    harness.run();
+    assert!(
+        harness.query_by_label("Tooltip B").is_some(),
+        "Tooltip B should be shown when hovering Button B"
+    );
+    assert!(
+        harness.query_by_label("Tooltip A").is_none(),
+        "Tooltip A should be hidden when hovering Button B"
+    );
+}
+
+/// When a window is minimized or occluded, the integration runs no pass at all,
+/// and instead ticks the app logic with [`egui::Context::run_logic`].
+///
+/// Such a tick must leave all ui state alone. Otherwise areas think they were hidden and
+/// replay their fade-in, popups close, focus is lost, and child viewports pop back up.
+/// See <https://github.com/emilk/egui/issues/8266>.
+#[test]
+fn run_logic_should_not_disturb_ui_state() {
+    const MENU: &str = "My menu";
+    const MENU_ITEM: &str = "Button in my menu";
+    const FOCUSED_BUTTON: &str = "Click me";
+
+    let child_viewport = egui::ViewportId::from_hash_of("My child viewport");
+    let area_id = egui::Id::unique("My area");
+    let area_layer = egui::LayerId::new(egui::Order::Middle, area_id);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(400.0, 300.0))
+        .build_ui(move |ui| {
+            // A backend that can open real windows, like eframe:
+            ui.ctx().set_embed_viewports(false);
+
+            ui.ctx()
+                .show_viewport_deferred(child_viewport, Default::default(), |_ui, _class| {});
+
+            ui.menu_button(MENU, |ui| {
+                _ = ui.button(MENU_ITEM);
+            });
+
+            egui::Area::new(area_id)
+                .fixed_pos((150.0, 120.0))
+                .show(ui.ctx(), |ui| {
+                    _ = ui.button(FOCUSED_BUTTON);
+                });
+        });
+
+    harness.get_by_label(MENU).click();
+    harness.run();
+    // Nothing asks for focus again, so the test fails if egui ever loses it:
+    harness.get_by_label(FOCUSED_BUTTON).focus();
+    harness.run();
+
+    let assert_state = |harness: &Harness<'_>| {
+        assert!(
+            harness
+                .get_by_label(FOCUSED_BUTTON)
+                .accesskit_node()
+                .is_focused(),
+            "The button lost focus"
+        );
+        harness.get_by_label(MENU_ITEM); // Panics if the menu closed
+        assert!(
+            harness
+                .ctx
+                .memory(|m| m.areas().visible_last_frame(&area_layer)),
+            "Area state was reset"
+        );
+        assert!(
+            harness
+                .ctx
+                .viewport_for(child_viewport, |viewport| viewport.class)
+                == egui::ViewportClass::Deferred,
+            "The child viewport was closed"
+        );
+    };
+
+    assert_state(&harness);
+
+    // The window is now occluded, so the integration runs no pass,
+    // and only ticks the app logic:
+    for i in 0..2 {
+        let time = 100.0 + f64::from(i);
+        let mut raw_input = egui::RawInput {
+            time: Some(time),
+            ..Default::default()
+        };
+        raw_input
+            .viewports
+            .entry(egui::ViewportId::ROOT)
+            .or_default()
+            .occluded = Some(true);
+
+        let output = harness.ctx.run_logic(&raw_input, |ctx| {
+            assert_eq!(
+                ctx.input(|i| i.viewport().occluded),
+                Some(true),
+                "App logic should be able to tell that the window is occluded"
+            );
+            assert!(
+                ctx.input(|i| i.time) != time,
+                "The ui input should not be interpreted: it is for the next pass"
+            );
+
+            // The app asks to be shown again:
+            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+        });
+
+        assert_eq!(
+            output
+                .viewport_commands
+                .into_values()
+                .flatten()
+                .collect::<Vec<_>>(),
+            vec![egui::ViewportCommand::Focus],
+            "The integration should receive the command, even though there was no pass"
+        );
+
+        assert_state(&harness);
+    }
+
+    // The window is visible again, and everything should be where we left it:
+    harness.run();
+
+    assert_state(&harness);
 }

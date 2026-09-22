@@ -41,9 +41,12 @@ pub fn focus_should_skip_over_disabled_drag_values() {
     let mut value_3: u16 = 3;
 
     let mut harness = Harness::new_ui(|ui| {
-        ui.add(egui::DragValue::new(&mut value_1));
-        ui.add_enabled(false, egui::DragValue::new(&mut value_2));
-        ui.add(egui::DragValue::new(&mut value_3));
+        ui.add(egui::DragValue::new(&mut value_1))
+            .on_hover_text("Value 1");
+        ui.add_enabled(false, egui::DragValue::new(&mut value_2))
+            .on_hover_text("Value 2");
+        ui.add(egui::DragValue::new(&mut value_3))
+            .on_hover_text("Value 3");
     });
 
     harness.key_press(egui::Key::Tab);
@@ -127,7 +130,8 @@ pub fn slider_should_move_with_fixed_decimals() {
     let mut harness = Harness::new_ui(|ui| {
         // Movement on arrow-key is relative to slider width; make the slider wide so the movement becomes small.
         ui.spacing_mut().slider_width = 2000.0;
-        ui.add(egui::Slider::new(&mut value, 0.1..=10.0).fixed_decimals(2));
+        ui.add(egui::Slider::new(&mut value, 0.1..=10.0).fixed_decimals(2))
+            .on_hover_text("Value");
     });
 
     harness.key_press(egui::Key::Tab);
@@ -513,6 +517,61 @@ fn window_resize_wraps_to_content_min_width() {
     );
 }
 
+/// A `Grid` gives its last column all the available width, so a width-filling widget in it
+/// (here a `Separator`) makes the grid remember a column width that is really just
+/// "however wide the window happened to be".
+///
+/// When `Resize` then measures the minimum content width in a sizing pass, that remembered
+/// width must not be reported as the minimum — otherwise the window can be widened but
+/// never shrunk again.
+#[test]
+fn window_with_grid_can_shrink_after_being_widened() {
+    let window_title = "grid_shrink_regression";
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(move |ui| {
+            Window::new(window_title)
+                .default_pos([20.0, 20.0])
+                .default_width(280.0)
+                .show(ui.ctx(), |ui| {
+                    egui::Grid::new("grid").num_columns(2).show(ui, |ui| {
+                        ui.label("Separator");
+                        ui.separator(); // Fills the available width
+                        ui.end_row();
+                    });
+                });
+        });
+    harness.run();
+
+    let drag_right_edge = |harness: &mut Harness<'_>, dx: f32| {
+        let rect = harness
+            .get_by_role_and_label(Role::Window, window_title)
+            .rect();
+        let grab = Pos2::new(rect.right(), rect.center().y);
+        harness.hover_at(grab);
+        harness.run();
+        harness.drag_at(grab);
+        harness.run();
+        harness.hover_at(grab + Vec2::new(dx, 0.0));
+        harness.run();
+        harness.drop_at(grab + Vec2::new(dx, 0.0));
+        harness.run();
+        harness
+            .get_by_role_and_label(Role::Window, window_title)
+            .rect()
+            .width()
+    };
+
+    let widened = drag_right_edge(&mut harness, 300.0);
+    let shrunk = drag_right_edge(&mut harness, -300.0);
+
+    assert!(
+        shrunk < widened - 200.0,
+        "window could not be shrunk again after being widened: \
+         widened to {widened}, then only shrunk to {shrunk}"
+    );
+}
+
 /// Ensure that the size passed to window is actually treated as outer size (including
 /// margins and borders).
 #[test]
@@ -607,7 +666,7 @@ fn window_fixed_size_is_outer_size() {
 /// allowed size — they used to inherit the overflowing content rect.
 #[test]
 fn panel_rect_clamped_when_content_overflows() {
-    use std::cell::RefCell;
+    use core::cell::RefCell;
 
     let side_panel_width = 100.0_f32;
     let top_panel_height = 80.0_f32;
@@ -668,7 +727,7 @@ fn panel_rect_clamped_when_content_overflows() {
 /// portion of the panel.
 #[test]
 fn collapsing_panel_must_not_grow_enclosing_window() {
-    use std::cell::RefCell;
+    use core::cell::RefCell;
 
     let window_rect: RefCell<Option<Rect>> = RefCell::new(None);
     let is_expanded: RefCell<bool> = RefCell::new(true);
@@ -712,4 +771,147 @@ fn collapsing_panel_must_not_grow_enclosing_window() {
             r.height(),
         );
     }
+}
+
+/// The hint text of a `TextEdit` should follow the same alignment as the input
+/// text, instead of always being left-top aligned.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/8309>.
+#[test]
+pub fn textedit_hint_text_should_follow_text_alignment() {
+    let mut input = String::new();
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(200.0, 40.0))
+        .build_ui(|ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut input)
+                    .hint_text("Hint")
+                    .desired_width(200.0)
+                    .align(egui::Align2::CENTER_TOP),
+            );
+        });
+    harness.run();
+
+    let text_edit = harness.get_by_role(accesskit::Role::TextInput);
+    let edit_rect = text_edit.rect();
+
+    // Find the hint text shape (the only text shape while the input is empty).
+    let hint_shape = harness
+        .output()
+        .shapes
+        .iter()
+        .find_map(|clipped| {
+            let egui::epaint::Shape::Text(text_shape) = &clipped.shape else {
+                return None;
+            };
+            (text_shape.galley.text() == "Hint").then_some(text_shape)
+        })
+        .expect("hint text shape should be painted");
+
+    let hint_center_x = hint_shape.pos.x + hint_shape.galley.size().x / 2.0;
+    let edit_center_x = edit_rect.center().x;
+
+    assert!(
+        (hint_center_x - edit_center_x).abs() < 1.0,
+        "hint text should be centered in the TextEdit: hint_center_x={hint_center_x}, \
+         edit_center_x={edit_center_x}, edit_rect={edit_rect:?}",
+    );
+}
+
+/// A focused `DragValue` keeps the text the user is editing in memory.
+///
+/// If something else changes the value while the `DragValue` has focus,
+/// that memorized text is stale, and must not be written back to the value.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/8339>.
+#[test]
+pub fn drag_value_should_not_revert_external_changes_while_focused() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut i32| {
+            ui.add(egui::DragValue::new(value)).on_hover_text("Value");
+        },
+        0,
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    // Something else changes the value while the `DragValue` is focused.
+    *harness.state_mut() = 42;
+    harness.run();
+
+    assert_eq!(harness.state(), &42);
+    let drag_value = harness.get_by_role(accesskit::Role::SpinButton);
+    assert_eq!(drag_value.value(), Some("42".to_owned()));
+
+    // Losing focus must not restore the value the `DragValue` had when it gained focus.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    assert_eq!(harness.state(), &42);
+}
+
+/// While the user is typing into a `DragValue`, the half-finished text must be kept
+/// between frames, even though it doesn't always parse back to the same text.
+#[test]
+pub fn drag_value_should_keep_text_while_typing() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut f64| {
+            ui.add(egui::DragValue::new(value)).on_hover_text("Value");
+        },
+        0.0,
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    // Type one character per frame. `"1."` parses to `1`, which is formatted as `"1"`,
+    // so re-reading the text from the value would eat the decimal point.
+    for character in "1.25".chars() {
+        harness
+            .get_by_role(accesskit::Role::SpinButton)
+            .type_text(&character.to_string());
+        harness.run();
+    }
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert_eq!(harness.state(), &1.25);
+}
+
+/// An integer `DragValue` cannot represent everything the user types into it,
+/// but the text must still survive until the user is done typing.
+#[test]
+pub fn drag_value_should_keep_text_the_value_cannot_represent() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut i32| {
+            ui.add(egui::DragValue::new(value)).on_hover_text("Value");
+        },
+        0,
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    // `"12.5"` is stored as `12`, which is formatted as `"12"`.
+    harness
+        .get_by_role(accesskit::Role::SpinButton)
+        .type_text("12.5");
+    harness.run();
+
+    // If the text was re-read from the value now, this would append to `"12"`.
+    harness
+        .get_by_role(accesskit::Role::SpinButton)
+        .type_text("9");
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert_eq!(harness.state(), &12, "The text should have been \"12.59\"");
 }

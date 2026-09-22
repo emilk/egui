@@ -197,7 +197,24 @@ pub(crate) fn interact(
                 // This widget is sensitive to both clicks and drags.
                 // When the mouse first is pressed, it could be either,
                 // so we postpone the decision until we know.
-                input.pointer.is_decidedly_dragging()
+                //
+                // …unless the pointer has left the widget: a click has to be
+                // released on the widget, so once the pointer is outside there is
+                // nothing left to wait for.
+                //
+                // Deciding here means a thin drag handle (narrower than
+                // `max_click_dist`) doesn't spend the decision window as neither
+                // hovered nor dragged, which would make its highlight blink out.
+                // The hit-test picks up widgets within `interact_radius`, so
+                // `hits.click` can name such a handle even when the pointer is a
+                // few points outside it.
+                //
+                // A widget on top might "steal" the click hit, but then the pointer is still inside
+                // us, and pressing that button must not start a drag. So we check both.
+                let pointer_is_inside = hits.contains_pointer.iter().any(|w| w.id == widget.id);
+                let could_still_be_clicked =
+                    pointer_is_inside || hits.click.is_some_and(|hit| hit.id == widget.id);
+                input.pointer.is_decidedly_dragging() || !could_still_be_clicked
             } else {
                 // This widget is just sensitive to drags, so we can mark it as dragged right away:
                 widget.sense.senses_drag()
@@ -262,7 +279,7 @@ pub(crate) fn interact(
         let drag_order = hits.drag.and_then(|w| order(w.id)).unwrap_or(0);
         let top_interactive_order = click_order.max(drag_order);
 
-        let mut hovered: IdSet = std::iter::chain(&hits.click, &hits.drag)
+        let mut hovered: IdSet = core::iter::chain(&hits.click, &hits.drag)
             .map(|w| w.id)
             .collect();
 

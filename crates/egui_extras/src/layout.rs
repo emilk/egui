@@ -1,4 +1,4 @@
-use egui::{Id, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
+use egui::{IdSalt, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -117,7 +117,7 @@ impl<'l> StripLayout<'l> {
         flags: StripLayoutFlags,
         width: CellSize,
         height: CellSize,
-        child_ui_id_salt: Id,
+        child_ui_id_salt: IdSalt,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
@@ -201,7 +201,7 @@ impl<'l> StripLayout<'l> {
         &mut self,
         flags: StripLayoutFlags,
         max_rect: Rect,
-        child_ui_id_salt: egui::Id,
+        child_ui_id_salt: IdSalt,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
         let mut ui_builder = UiBuilder::new()
@@ -217,10 +217,7 @@ impl<'l> StripLayout<'l> {
         let mut child_ui = self.ui.new_child(ui_builder);
 
         if flags.clip {
-            let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
-            let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
-            let clip_rect = max_rect.expand2(margin);
-            child_ui.shrink_clip_rect(clip_rect);
+            child_ui.shrink_clip_rect(max_rect);
 
             if !child_ui.is_sizing_pass() {
                 // Better to truncate (if we can), rather than hard clipping:

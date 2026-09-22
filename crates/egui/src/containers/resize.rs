@@ -289,16 +289,16 @@ impl Resize {
             Rect::from_min_size(position, state.desired_size)
         };
 
-        let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
+        let mut content_clip_rect = inner_rect;
 
         // If we pull the resize handle to shrink, we want to TRY to shrink it.
         // After laying out the contents, we might be much bigger.
         // In those cases we don't want the clip_rect to be smaller, because
         // then we will clip the contents of the region even thought the result gets larger. This is simply ugly!
         // So we use the memory of last_content_size to make the clip rect large enough.
-        content_clip_rect.max = content_clip_rect.max.max(
-            inner_rect.min + state.last_content_size + Vec2::splat(ui.visuals().clip_rect_margin),
-        );
+        content_clip_rect.max = content_clip_rect
+            .max
+            .max(inner_rect.min + state.last_content_size);
 
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
 

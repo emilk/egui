@@ -7,8 +7,10 @@
 //! The plugin owns a list of in-flight requests. A connection thread (or a host with its own
 //! transport) submits a [`Request`] through egui's own plugin
 //! handle — `ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req, on_reply))` — passing a
-//! closure that is called once with the single [`Response`], then calls `ctx.request_repaint()`
-//! so an idle app wakes up to service it. The reply is produced on the UI thread inside the
+//! closure that is called once with the single [`Response`], then sends
+//! [`egui::ViewportCommand::RequestPaintWhileHidden`] so an idle app wakes up and runs its ui
+//! to service the request — even an app whose window is minimized or occluded, which an
+//! integration would otherwise let sleep. The reply is produced on the UI thread inside the
 //! plugin's hooks (so `on_reply` runs there too — keep it cheap, e.g. forward onto a channel),
 //! which receive the [`egui::Context`] to issue repaints and viewport commands — so the plugin
 //! never has to store a `Context` itself.
@@ -27,21 +29,21 @@
 //! `GetInfo` replies immediately; `GetTree` replies with the current frame's tree;
 //! `Resize` / `ApplyEvents` apply their effect and reply [`Response::Done`] *after* the frame
 //! has processed them (so a following `GetTree` reflects them); `GetScreenshot` dispatches a
-//! viewport screenshot and replies once the resulting [`egui::Event::Screenshot`] arrives,
-//! matched back to the request by a `user_data` id.
+//! viewport screenshot and replies once the screenshot callback has delivered the pixels,
+//! matched back to the request by an id.
 //!
 //! Note that [`serve`]'s threads hold an [`egui::Context`] clone, so the context stays alive
 //! for as long as the listener runs (the lifetime of the process, for a debug attach).
 
-use std::sync::mpsc;
-use std::time::Duration;
+use core::time::Duration;
+use std::sync::{Arc, mpsc};
 
-use egui::{Context, FullOutput, RawInput};
+use egui::{ColorImage, Context, FullOutput, RawInput, mutex::Mutex};
 
 use crate::protocol::{EncodedPng, Request, Response};
 
 /// How long [`serve`]'s connection threads wait for the UI thread before giving up. Generous:
-/// a backgrounded window may not paint (and thus not service requests) for a while.
+/// an app that is busy, or slow to paint, may take a while to service a request.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// Per-[`Request`] progress through the frame lifecycle.
@@ -53,9 +55,12 @@ enum Phase {
     /// Effect applied (or nothing to apply); reply at the end of this frame.
     AwaitOutput,
 
-    /// A screenshot was dispatched with this `user_data` id; reply when the matching
-    /// [`egui::Event::Screenshot`] arrives.
+    /// A screenshot was dispatched with this id; reply when the matching callback has
+    /// delivered the pixels.
     AwaitScreenshot { id: u64 },
+
+    /// Watching for the app to go idle.
+    Settle { steps_taken: u64, max_steps: u64 },
 }
 
 struct InFlight {
@@ -74,9 +79,14 @@ pub struct InspectionPlugin {
 
     step: u64,
 
-    /// Counter for screenshot `user_data` ids, so each [`egui::Event::Screenshot`] maps back
-    /// to the request that asked for it.
+    /// Counter for screenshot ids, so each delivered screenshot maps back to the request that
+    /// asked for it.
     next_screenshot_id: u64,
+
+    /// Screenshots delivered by [`egui::Context::request_screenshot`] callbacks, tagged with the
+    /// id of the request that asked for them. Written from whichever thread the renderer
+    /// completes the capture on, drained by `input_hook`.
+    received_screenshots: Arc<Mutex<Vec<(u64, Arc<ColorImage>)>>>,
 
     /// App label reported in [`Response::Info`].
     label: Option<String>,
@@ -90,6 +100,7 @@ impl InspectionPlugin {
             in_flight: Vec::new(),
             step: 0,
             next_screenshot_id: 0,
+            received_screenshots: Default::default(),
             label,
         }
     }
@@ -99,8 +110,9 @@ impl InspectionPlugin {
     /// The closure will be called later once the result comes in (for screenshot that could mean
     /// a couple frames delay).
     ///
-    /// You usually call this via [`Context::with_plugin`]. You should [`Context::request_repaint`]
-    /// after calling this.
+    /// You usually call this via [`Context::with_plugin`]. You should then ask for a frame with
+    /// [`egui::ViewportCommand::RequestPaintWhileHidden`], so that an app that is idle, or whose
+    /// window is hidden, wakes up and serves the request.
     pub fn submit(
         &mut self,
         req: Request,
@@ -115,11 +127,31 @@ impl InspectionPlugin {
 
     /// While requests are still in flight, keep the UI loop spinning — reactive apps would
     /// otherwise go idle between hooks before a screenshot round-trips.
+    ///
+    /// Asks for the frame even if the window is hidden: a minimized or occluded app runs no
+    /// pass at all otherwise, and an inspector is usually attached to an app in the background.
     fn maybe_repaint(&self, ctx: &Context) {
-        if !self.in_flight.is_empty() {
-            ctx.request_repaint();
+        // Don't repaint if there's only a `Request::Settle`.
+        if self
+            .in_flight
+            .iter()
+            .any(|item| !matches!(item.req, Request::Settle { .. }))
+        {
+            request_frame(ctx);
         }
     }
+}
+
+/// Ask for one run of the ui, painted, whether or not the root window is visible.
+///
+/// This both wakes an idle app and overrides the integration's skipping of hidden windows.
+/// Every request needs it: a screenshot needs the painted pixels, the widget tree is what the
+/// pass produces, and injected input is only applied by a pass.
+fn request_frame(ctx: &Context) {
+    ctx.send_viewport_cmd_to(
+        egui::ViewportId::ROOT,
+        egui::ViewportCommand::RequestPaintWhileHidden,
+    );
 }
 
 impl egui::Plugin for InspectionPlugin {
@@ -138,24 +170,9 @@ impl egui::Plugin for InspectionPlugin {
             return;
         }
 
-        // Match screenshot replies to the requests that asked for them, by `user_data` id. We
-        // observe (don't consume) the event so the host app still receives it.
+        // Match delivered screenshots to the requests that asked for them, by id.
         let pixels_per_point = ctx.pixels_per_point();
-        for ev in &input.events {
-            let egui::Event::Screenshot {
-                user_data, image, ..
-            } = ev
-            else {
-                continue;
-            };
-            let Some(id) = user_data
-                .data
-                .as_ref()
-                .and_then(|d| d.downcast_ref::<u64>())
-                .copied()
-            else {
-                continue; // not one of ours
-            };
+        for (id, image) in core::mem::take(&mut *self.received_screenshots.lock()) {
             self.in_flight.retain_mut(|item| {
                 if item.phase != (Phase::AwaitScreenshot { id }) {
                     return true;
@@ -189,6 +206,7 @@ impl egui::Plugin for InspectionPlugin {
         // `label`/`next_id` are pulled out so the closure doesn't borrow `self` alongside the
         // `retain_mut` borrow of `in_flight`.
         let label = self.label.clone();
+        let received_screenshots = Arc::clone(&self.received_screenshots);
         let mut next_id = self.next_screenshot_id;
         self.in_flight.retain_mut(|item| {
             if item.phase != Phase::New {
@@ -227,13 +245,21 @@ impl egui::Plugin for InspectionPlugin {
                 Request::GetScreenshot { .. } => {
                     // Dispatch now so the command lands in this frame's output and the capture
                     // is one frame sooner; the pixels arrive in a later `input_hook`. The id
-                    // ties that `Event::Screenshot` back to this request.
+                    // ties the delivered screenshot back to this request.
                     let id = next_id;
                     next_id += 1;
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::new(
-                        id,
-                    )));
+                    let received = Arc::clone(&received_screenshots);
+                    ctx.request_screenshot(move |image| {
+                        received.lock().push((id, image));
+                    });
                     item.phase = Phase::AwaitScreenshot { id };
+                    true
+                }
+                Request::Settle { max_steps } => {
+                    item.phase = Phase::Settle {
+                        steps_taken: 0,
+                        max_steps: *max_steps,
+                    };
                     true
                 }
             }
@@ -249,9 +275,14 @@ impl egui::Plugin for InspectionPlugin {
             return;
         }
 
+        let immediate_repaint = output
+            .viewport_output
+            .values()
+            .any(|viewport| viewport.repaint_delay == Duration::ZERO);
+
         let step = self.step;
         self.in_flight
-            .retain_mut(|item| match (&item.phase, &item.req) {
+            .retain_mut(|item| match (&mut item.phase, &item.req) {
                 (Phase::AwaitOutput, Request::GetTree) => {
                     if let Some(reply) = item.reply.take() {
                         reply(Response::Tree {
@@ -267,6 +298,27 @@ impl egui::Plugin for InspectionPlugin {
                         reply(Response::Done);
                     }
                     false
+                }
+                (
+                    Phase::Settle {
+                        steps_taken,
+                        max_steps,
+                    },
+                    Request::Settle { .. },
+                ) => {
+                    *steps_taken += 1;
+                    let steps_exceeded = *steps_taken >= *max_steps;
+                    if !immediate_repaint || steps_exceeded {
+                        if let Some(reply) = item.reply.take() {
+                            reply(Response::Settled {
+                                settled: !immediate_repaint,
+                                steps: *steps_taken,
+                            });
+                        }
+                        false
+                    } else {
+                        true
+                    }
                 }
                 _ => true,
             });
@@ -381,21 +433,74 @@ fn serve_connection(stream: std::net::TcpStream, ctx: &Context) -> std::io::Resu
                 },
             );
         }
-        // Wake the (possibly idle) UI loop so it services the request.
-        ctx.request_repaint();
+        // Wake the (possibly idle) UI loop so it services the request, hidden window and all.
+        request_frame(ctx);
         let resp = rx.recv_timeout(REQUEST_TIMEOUT).unwrap_or_else(|_| {
-            // Almost always means the app isn't painting — e.g. the window is occluded or
-            // minimized, which on most platforms stops rendering. Surface it loudly.
+            // The app is running no passes at all — it may be blocked, or its integration may
+            // not paint hidden windows. Surface it loudly.
             log::error!(
                 "egui_inspection: request timed out after {REQUEST_TIMEOUT:?}; the app is not \
-                 painting (is the window occluded or minimized?)"
+                 painting"
             );
             Response::Error {
-                message: "request timed out — the app is not painting; bring its window to the \
-                          foreground"
-                    .to_owned(),
+                message: "request timed out — the app is not painting".to_owned(),
             }
         });
         write_message(&mut writer, &resp)?;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use egui::{ViewportCommand, ViewportId};
+
+    use super::*;
+
+    /// Run one pass, the way an integration does, and return what it asks of the window.
+    fn pass(ctx: &Context) -> Vec<ViewportCommand> {
+        let mut output = ctx.run_ui(RawInput::default(), |_| {});
+        let commands = output.viewport_output[&ViewportId::ROOT].commands.clone();
+        output.textures_delta.clear();
+        commands
+    }
+
+    fn submit(ctx: &Context, req: Request) {
+        ctx.with_plugin::<InspectionPlugin, _>(|p| p.submit(req, |_| {}))
+            .expect("the plugin is registered");
+    }
+
+    fn wants_paint(commands: &[ViewportCommand]) -> bool {
+        commands.contains(&ViewportCommand::RequestPaintWhileHidden)
+    }
+
+    #[test]
+    fn an_in_flight_request_asks_for_a_frame_even_while_hidden() {
+        let ctx = Context::default();
+        ctx.add_plugin(InspectionPlugin::new(None));
+        assert!(
+            !wants_paint(&pass(&ctx)),
+            "An idle app should let a hidden window sleep"
+        );
+
+        // A screenshot takes more than one pass, so the plugin must keep asking:
+        submit(
+            &ctx,
+            Request::GetScreenshot {
+                pixels_per_point: None,
+            },
+        );
+        assert!(
+            wants_paint(&pass(&ctx)),
+            "A screenshot of a hidden window needs the pass that paints it"
+        );
+    }
+
+    #[test]
+    fn settling_does_not_keep_a_hidden_window_awake() {
+        // `Settle` waits for the app to go idle; asking for frames would defeat it.
+        let ctx = Context::default();
+        ctx.add_plugin(InspectionPlugin::new(None));
+        submit(&ctx, Request::Settle { max_steps: 100 });
+        assert!(!wants_paint(&pass(&ctx)));
     }
 }

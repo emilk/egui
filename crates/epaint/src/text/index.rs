@@ -4,7 +4,7 @@
 //! (Unicode scalar) offset. Mixing the two is a common source of bugs,
 //! so we use distinct types to keep them apart.
 
-use std::ops::Range;
+use core::ops::Range;
 
 /// A byte offset into a UTF-8 string.
 ///
@@ -63,7 +63,7 @@ macro_rules! impl_text_index {
             }
         }
 
-        impl std::ops::Add<usize> for $Type {
+        impl core::ops::Add<usize> for $Type {
             type Output = Self;
 
             #[inline]
@@ -73,7 +73,7 @@ macro_rules! impl_text_index {
         }
 
         /// Compose offsets, e.g. a base position plus a relative one.
-        impl std::ops::Add<$Type> for $Type {
+        impl core::ops::Add<$Type> for $Type {
             type Output = Self;
 
             #[inline]
@@ -82,7 +82,7 @@ macro_rules! impl_text_index {
             }
         }
 
-        impl std::ops::Sub<usize> for $Type {
+        impl core::ops::Sub<usize> for $Type {
             type Output = Self;
 
             #[inline]
@@ -91,7 +91,7 @@ macro_rules! impl_text_index {
             }
         }
 
-        impl std::ops::Sub<$Type> for $Type {
+        impl core::ops::Sub<$Type> for $Type {
             type Output = Self;
 
             #[inline]
@@ -100,30 +100,30 @@ macro_rules! impl_text_index {
             }
         }
 
-        impl std::ops::AddAssign<usize> for $Type {
+        impl core::ops::AddAssign<usize> for $Type {
             #[inline]
             fn add_assign(&mut self, rhs: usize) {
                 self.0 += rhs;
             }
         }
 
-        impl std::ops::AddAssign<$Type> for $Type {
+        impl core::ops::AddAssign<$Type> for $Type {
             #[inline]
             fn add_assign(&mut self, rhs: Self) {
                 self.0 += rhs.0;
             }
         }
 
-        impl std::ops::SubAssign<usize> for $Type {
+        impl core::ops::SubAssign<usize> for $Type {
             #[inline]
             fn sub_assign(&mut self, rhs: usize) {
                 self.0 -= rhs;
             }
         }
 
-        impl std::fmt::Display for $Type {
+        impl core::fmt::Display for $Type {
             #[inline]
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 self.0.fmt(f)
             }
         }

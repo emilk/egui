@@ -20,7 +20,7 @@ impl Default for Panels {
 
 impl crate::Demo for Panels {
     fn name(&self) -> &'static str {
-        "🗖 Panels"
+        "📰 Panels"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -94,10 +94,10 @@ impl crate::View for Panels {
             bottom,
             egui::Panel::bottom("bottom_panel_collapsed")
                 .resizable(true)
-                .default_size(20.0),
+                .exact_size(20.0),
             egui::Panel::bottom("bottom_panel_expanded")
                 .resizable(true)
-                .max_size(128.0),
+                .size_range(64.0..=128.0),
             |ui, expanded| {
                 if expanded {
                     ui.vertical_centered(|ui| {
@@ -122,10 +122,10 @@ impl crate::View for Panels {
 
             ui.horizontal(|ui| {
                 ui.label("Panel toggles:");
-                ui.toggle_value(left, "⬅");
-                ui.toggle_value(top, "⬆");
-                ui.toggle_value(bottom, "⬇");
-                ui.toggle_value(right, "➡");
+                ui.toggle_value(left, "⬅️");
+                ui.toggle_value(top, "⬆️");
+                ui.toggle_value(bottom, "⬇️");
+                ui.toggle_value(right, "➡️");
             });
 
             ui.separator();

@@ -11,7 +11,7 @@
 use eframe::egui;
 use eframe::glow;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn core::error::Error>> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Glow,

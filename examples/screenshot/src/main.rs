@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use eframe::egui::{self, ColorImage};
+use eframe::egui::{self, ColorImage, mutex::Mutex};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -22,14 +22,39 @@ fn main() -> eframe::Result {
 struct MyApp {
     continuously_take_screenshots: bool,
     texture: Option<egui::TextureHandle>,
-    screenshot: Option<Arc<ColorImage>>,
-    save_to_file: bool,
+
+    /// Where the screenshot callback puts the captured image.
+    screenshot: Arc<Mutex<Option<Arc<ColorImage>>>>,
+}
+
+impl MyApp {
+    fn take_screenshot(&self, ctx: &egui::Context, save_to_file: bool) {
+        let screenshot = Arc::clone(&self.screenshot);
+        let pixels_per_point = ctx.pixels_per_point();
+        ctx.request_screenshot(move |image: Arc<ColorImage>| {
+            // Note: this callback may be called from another thread.
+            if save_to_file {
+                let region =
+                    egui::Rect::from_two_pos(egui::Pos2::ZERO, egui::Pos2 { x: 100., y: 100. });
+                let top_left_corner = image.region(&region, Some(pixels_per_point));
+                image::save_buffer(
+                    "top_left.png",
+                    top_left_corner.as_raw(),
+                    top_left_corner.width() as u32,
+                    top_left_corner.height() as u32,
+                    image::ColorType::Rgba8,
+                )
+                .unwrap();
+            }
+            *screenshot.lock() = Some(image);
+        });
+    }
 }
 
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ui, |ui| {
-            if let Some(screenshot) = self.screenshot.take() {
+            if let Some(screenshot) = self.screenshot.lock().take() {
                 self.texture = Some(ui.ctx().load_texture(
                     "screenshot",
                     screenshot,
@@ -44,8 +69,7 @@ impl eframe::App for MyApp {
                 );
 
                 if ui.button("save to 'top_left.png'").clicked() {
-                    self.save_to_file = true;
-                    ui.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
+                    self.take_screenshot(ui.ctx(), true);
                 }
 
                 ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
@@ -58,9 +82,9 @@ impl eframe::App for MyApp {
                         } else {
                             ui.ctx().set_theme(egui::Theme::Light);
                         }
-                        ui.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
+                        self.take_screenshot(ui.ctx(), false);
                     } else if ui.button("take screenshot!").clicked() {
-                        ui.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
+                        self.take_screenshot(ui.ctx(), false);
                     }
                 });
             });
@@ -70,32 +94,6 @@ impl eframe::App for MyApp {
             } else {
                 ui.spinner();
             }
-
-            // Check for returned screenshot:
-            ui.input(|i| {
-                for event in &i.raw.events {
-                    if let egui::Event::Screenshot { image, .. } = event {
-                        if self.save_to_file {
-                            let pixels_per_point = i.pixels_per_point();
-                            let region = egui::Rect::from_two_pos(
-                                egui::Pos2::ZERO,
-                                egui::Pos2 { x: 100., y: 100. },
-                            );
-                            let top_left_corner = image.region(&region, Some(pixels_per_point));
-                            image::save_buffer(
-                                "top_left.png",
-                                top_left_corner.as_raw(),
-                                top_left_corner.width() as u32,
-                                top_left_corner.height() as u32,
-                                image::ColorType::Rgba8,
-                            )
-                            .unwrap();
-                            self.save_to_file = false;
-                        }
-                        self.screenshot = Some(Arc::clone(image));
-                    }
-                }
-            });
 
             ui.request_repaint();
         });

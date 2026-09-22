@@ -75,14 +75,14 @@ impl LayerId {
     pub fn debug() -> Self {
         Self {
             order: Order::Debug,
-            id: Id::new("debug"),
+            id: Id::unique("debug"),
         }
     }
 
     pub fn background() -> Self {
         Self {
             order: Order::Background,
-            id: Id::new("background"),
+            id: Id::unique("background"),
         }
     }
 
@@ -96,8 +96,8 @@ impl LayerId {
     }
 }
 
-impl std::fmt::Debug for LayerId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for LayerId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self { order, id } = self;
         write!(f, "LayerId {{ {order:?} {id:?} }}")
     }
