@@ -1015,11 +1015,12 @@ impl<'t> TextEdit<'t> {
             });
         } else if selection_changed && let Some(cursor_range) = cursor_range {
             let char_range = cursor_range.as_sorted_char_range();
-            let info = WidgetInfo::text_selection_changed(
+            let mut info = WidgetInfo::text_selection_changed(
                 ui.is_enabled(),
                 char_range,
                 mask_if_password(password, text.as_str()),
             );
+            info.hint_text = Some(hint_text_str.clone());
             response.output_event(OutputEvent::TextSelectionChanged(info));
         } else {
             response.widget_info(|| {
@@ -1033,8 +1034,8 @@ impl<'t> TextEdit<'t> {
         }
 
         ui.ctx().accesskit_node_builder(id, |builder| {
-            // `WidgetInfo` only knows about `WidgetType::TextEdit`, which maps to
-            // `Role::TextInput`, so refine the role here:
+            // `WidgetInfo` only reports the generic `Role::TextInput`,
+            // so refine the role here:
             let role = if password {
                 accesskit::Role::PasswordInput
             } else if multiline {
@@ -1043,6 +1044,10 @@ impl<'t> TextEdit<'t> {
                 accesskit::Role::TextInput
             };
             builder.set_role(role);
+            // A `&str` buffer is how callers show selectable text; it cannot be typed into either.
+            if !interactive || !text.is_mutable() {
+                builder.set_read_only();
+            }
         });
 
         crate::text_selection::accesskit_text::update_accesskit_for_text_widget(

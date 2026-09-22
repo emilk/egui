@@ -107,8 +107,8 @@ impl crate::View for WindowOptions {
             drag_area,
         } = self;
         ui.horizontal(|ui| {
-            ui.label("title:");
-            ui.text_edit_singleline(title);
+            let label = ui.label("title:");
+            ui.text_edit_singleline(title).labelled_by(label.id);
         });
 
         ui.horizontal(|ui| {
@@ -146,8 +146,10 @@ impl crate::View for WindowOptions {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Offset:");
-                        ui.add(egui::DragValue::new(&mut anchor_offset.x));
-                        ui.add(egui::DragValue::new(&mut anchor_offset.y));
+                        ui.add(egui::DragValue::new(&mut anchor_offset.x))
+                            .on_hover_text("Offset x");
+                        ui.add(egui::DragValue::new(&mut anchor_offset.y))
+                            .on_hover_text("Offset y");
                     });
                 });
             });

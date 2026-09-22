@@ -2,8 +2,8 @@ use epaint::Shape;
 
 use crate::{
     Align2, AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Popup,
-    PopupCloseBehavior, Rect, Response, ScrollArea, Sense, TextStyle, TextWrapMode, Ui, UiBuilder,
-    Vec2, WidgetInfo, WidgetText, WidgetType, epaint,
+    PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense, TextStyle, TextWrapMode, Ui,
+    UiBuilder, Vec2, WidgetInfo, WidgetText, epaint,
     style::{StyleModifier, WidgetVisuals},
     vec2,
 };
@@ -244,14 +244,19 @@ impl ComboBox {
                 (width, height),
             );
             ir.response.widget_info(|| {
-                let mut info = WidgetInfo::new(WidgetType::ComboBox);
+                let mut info = WidgetInfo::new(Role::ComboBox);
                 info.enabled = ui.is_enabled();
                 info.current_text_value = Some(selected_text.text().to_owned());
                 info
             });
             if let Some(label) = label {
+                let is_empty = label.is_empty();
                 let label_response = ui.label(label);
-                ir.response = ir.response.labelled_by(label_response.id);
+                // An empty label names nothing, so leave the name to the caller
+                // (e.g. `on_hover_text`).
+                if !is_empty {
+                    ir.response = ir.response.labelled_by(label_response.id);
+                }
                 ir.response |= label_response;
             }
             ir

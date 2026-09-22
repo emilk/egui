@@ -388,6 +388,7 @@
 #![expect(clippy::float_cmp)]
 #![expect(clippy::manual_range_contains)]
 
+pub mod accessibility;
 mod animation_manager;
 mod atomics;
 pub mod cache;
@@ -437,6 +438,7 @@ mod callstack;
 pub mod class;
 
 pub use accesskit;
+pub use accesskit::Role;
 
 pub use epaint;
 pub use epaint::ecolor;
@@ -455,7 +457,8 @@ pub use epaint::{
     text::{
         FallbackRequest, FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority,
         FontProvider, FontTweak, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest,
-        InsertFontFamily, MAX_GLYPH_SIZE, RasterizedGlyph, has_emoji_presentation,
+        InsertFontFamily, MAX_GLYPH_SIZE, MissingGlyphPolicy, RasterizedGlyph,
+        has_emoji_presentation,
     },
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
 };
@@ -493,7 +496,7 @@ pub use self::{
         },
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
-            PlatformOutput, UserAttentionType, WidgetInfo,
+            PlatformOutput, UserAttentionType, WidgetInfo, role_description,
         },
     },
     drag_and_drop::DragAndDrop,
@@ -633,55 +636,24 @@ pub(crate) const MINUS_CHAR_STR: &str = "−";
 #[cfg(feature = "default_fonts")]
 pub use epaint::special_emojis;
 
-/// The different types of built-in widgets in egui
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum WidgetType {
-    Label, // TODO(emilk): emit Label events
-
-    /// e.g. a hyperlink
-    Link,
-
-    TextEdit,
-
-    Button,
-
-    Checkbox,
-
-    RadioButton,
-
-    /// A group of radio buttons.
-    RadioGroup,
-
-    SelectableLabel,
-
-    ComboBox,
-
-    Slider,
-
-    DragValue,
-
-    ColorButton,
-
-    Image,
-
-    CollapsingHeader,
-
-    Panel,
-
-    ProgressIndicator,
-
-    Window,
-
-    ResizeHandle,
-
-    ScrollBar,
-
-    /// If you cannot fit any of the above slots.
-    ///
-    /// If this is something you think should be added, file an issue.
-    Other,
-}
+/// The old name for the type of a widget, now expressed as an [`accesskit::Role`].
+///
+/// Most variants kept their name, so e.g. `WidgetType::Button` still resolves,
+/// but some were renamed to their accessibility counterparts:
+///
+/// | Old `WidgetType`    | New [`Role`]              |
+/// | ------------------- | ------------------------- |
+/// | `TextEdit`          | [`Role::TextInput`]       |
+/// | `DragValue`         | [`Role::SpinButton`]      |
+/// | `ColorButton`       | [`Role::ColorWell`]       |
+/// | `CollapsingHeader`  | [`Role::DisclosureTriangle`] |
+/// | `SelectableLabel`   | [`Role::Button`]          |
+/// | `Panel`             | [`Role::Pane`]            |
+/// | `ResizeHandle`      | [`Role::Splitter`]        |
+/// | `Other`             | [`Role::Unknown`]         |
+#[deprecated = "Renamed to `egui::Role` (a re-export of `accesskit::Role`). \
+Note that some variants were renamed too, e.g. `WidgetType::TextEdit` is now `Role::TextInput`."]
+pub type WidgetType = Role;
 
 // ----------------------------------------------------------------------------
 

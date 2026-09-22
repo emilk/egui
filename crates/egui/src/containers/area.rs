@@ -123,6 +123,8 @@ pub struct Area {
     layout: Layout,
     sizing_pass: bool,
     accessibility_parent: Option<Id>,
+    accessibility_label: Option<String>,
+    accessibility_role: Option<crate::accesskit::Role>,
 }
 
 impl WidgetWithState for Area {
@@ -151,6 +153,8 @@ impl Area {
             layout: Layout::default(),
             sizing_pass: false,
             accessibility_parent: None,
+            accessibility_label: None,
+            accessibility_role: None,
         }
     }
 
@@ -188,6 +192,23 @@ impl Area {
     #[inline]
     pub fn accessibility_parent(mut self, widget_id: Id) -> Self {
         self.accessibility_parent = Some(widget_id);
+        self
+    }
+
+    /// Name the area in the accessibility tree.
+    ///
+    /// The role comes from the [`UiKind`]; the name is what a screen reader or a test finds it by.
+    #[inline]
+    pub fn accessible_name(mut self, name: impl Into<String>) -> Self {
+        self.accessibility_label = Some(name.into());
+        self
+    }
+
+    /// Give the area a role in the accessibility tree other than the one its [`UiKind`] implies,
+    /// e.g. [`Role::Alert`](crate::accesskit::Role::Alert) for a toast.
+    #[inline]
+    pub fn role(mut self, role: crate::accesskit::Role) -> Self {
+        self.accessibility_role = Some(role);
         self
     }
 
@@ -412,6 +433,8 @@ pub(crate) struct Prepared {
 
     fade_in: bool,
     layout: Layout,
+    accessibility_label: Option<String>,
+    accessibility_role: Option<crate::accesskit::Role>,
 }
 
 impl Area {
@@ -447,6 +470,8 @@ impl Area {
             layout,
             sizing_pass: force_sizing_pass,
             accessibility_parent,
+            accessibility_label,
+            accessibility_role,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
@@ -599,6 +624,8 @@ impl Area {
             sizing_pass,
             fade_in,
             layout,
+            accessibility_label,
+            accessibility_role,
         }
     }
 }
@@ -636,6 +663,13 @@ impl Prepared {
             .layout(self.layout)
             .accessibility_parent(self.move_response.id)
             .closable();
+
+        if let Some(label) = self.accessibility_label.take() {
+            ui_builder = ui_builder.accessibility_label(label);
+        }
+        if let Some(role) = self.accessibility_role {
+            ui_builder = ui_builder.accessibility_role(role);
+        }
 
         if !self.enabled {
             ui_builder = ui_builder.disabled();

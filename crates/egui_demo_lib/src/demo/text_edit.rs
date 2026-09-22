@@ -164,7 +164,8 @@ mod tests {
         let mut harness = Harness::new_ui_state(
             move |ui, text| {
                 CentralPanel::default().show(ui, |ui| {
-                    ui.text_edit_singleline(text);
+                    let label = ui.label("Text:");
+                    ui.text_edit_singleline(text).labelled_by(label.id);
                 });
             },
             text,
