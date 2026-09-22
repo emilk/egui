@@ -11,7 +11,7 @@ use epaint::{
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, FontPriority, Fonts, FontsView},
+    text::{FontInsert, FontPriority, Fonts, FontsView, ViewportKey},
     vec2,
 };
 
@@ -620,6 +620,7 @@ impl ContextImpl {
         text_options.max_texture_side = max_texture_side;
 
         let mut is_new = false;
+        let viewport_id = self.viewport_id();
 
         let fonts = self.fonts.get_or_insert_with(|| {
             log::trace!("Creating new Fonts");
@@ -635,7 +636,7 @@ impl ContextImpl {
 
         {
             profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(text_options);
+            fonts.begin_pass(text_options, ViewportKey::new(viewport_id.0.value()));
         }
     }
 
@@ -1343,11 +1344,15 @@ impl Context {
     pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
+            let viewport_id = ctx.viewport_id();
             reader(
                 &ctx.fonts
                     .as_mut()
                     .expect("No fonts available until first call to Context::run()")
-                    .with_pixels_per_point(pixels_per_point),
+                    .with_pixels_per_point_for_viewport(
+                        pixels_per_point,
+                        ViewportKey::new(viewport_id.0.value()),
+                    ),
             )
         })
     }
@@ -1360,12 +1365,16 @@ impl Context {
     pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
+            let viewport_id = ctx.viewport_id();
             reader(
                 &mut ctx
                     .fonts
                     .as_mut()
                     .expect("No fonts available until first call to Context::run()")
-                    .with_pixels_per_point(pixels_per_point),
+                    .with_pixels_per_point_for_viewport(
+                        pixels_per_point,
+                        ViewportKey::new(viewport_id.0.value()),
+                    ),
             )
         })
     }
@@ -2475,10 +2484,11 @@ impl Context {
     /// would lay out that whole pass with the fonts it started with, or with none.
     fn apply_font_changes_now_if_unused(&self) {
         self.write(|ctx| {
+            let viewport_key = ViewportKey::new(ctx.viewport_id().0.value());
             let unused = ctx
                 .fonts
                 .as_ref()
-                .is_some_and(|fonts| !fonts.used_since_begin_pass());
+                .is_some_and(|fonts| !fonts.used_since_begin_pass(viewport_key));
             if unused {
                 ctx.update_fonts_mut();
             }
@@ -3232,6 +3242,17 @@ impl ContextImpl {
             );
             self.viewport_parents
                 .retain(|id, _| all_viewport_ids.contains(id));
+
+            let live_viewport_keys: Vec<_> = self
+                .viewports
+                .keys()
+                .map(|viewport_id| ViewportKey::new(viewport_id.0.value()))
+                .collect();
+            if let Some(fonts) = self.fonts.as_mut() {
+                fonts.retain_galley_caches(|viewport_key| {
+                    live_viewport_keys.contains(&viewport_key)
+                });
+            }
         } else {
             let viewport_id = self.viewport_id();
             self.memory.set_viewport_id(viewport_id);
