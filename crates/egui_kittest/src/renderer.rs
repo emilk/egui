@@ -1,5 +1,5 @@
+use core::mem;
 use egui::TexturesDelta;
-use std::mem;
 
 pub trait TestRenderer {
     /// We use this to pass the glow / wgpu render state to [`eframe::Frame`].

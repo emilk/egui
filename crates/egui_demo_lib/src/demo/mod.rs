@@ -5,8 +5,10 @@
 // ----------------------------------------------------------------------------
 
 pub mod about;
+pub mod band;
 pub mod code_editor;
 pub mod code_example;
+pub mod completion;
 pub mod dancing_strings;
 pub mod demo_app_windows;
 pub mod drag_and_drop;

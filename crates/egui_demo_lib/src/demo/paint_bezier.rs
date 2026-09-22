@@ -162,7 +162,7 @@ impl PaintBezier {
 
 impl crate::Demo for PaintBezier {
     fn name(&self) -> &'static str {
-        "） Bézier Curve"
+        "〰️ Bézier Curve"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {

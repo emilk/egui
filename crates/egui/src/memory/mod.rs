@@ -1,6 +1,6 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
-use std::num::NonZeroUsize;
+use core::num::NonZeroUsize;
 
 use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
@@ -410,7 +410,7 @@ impl Options {
         use crate::Widget as _;
         use crate::containers::CollapsingHeader;
 
-        CollapsingHeader::new("⚙ Options")
+        CollapsingHeader::new("⚙️ Options")
             .default_open(false)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -441,7 +441,7 @@ impl Options {
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
-                theme_preference.radio_buttons(ui);
+                theme_preference.buttons(ui);
 
                 ui.checkbox(sync_window_theme, "Sync window theme with egui theme");
 
@@ -452,7 +452,7 @@ impl Options {
                 style.ui(ui);
             });
 
-        CollapsingHeader::new("✒ Painting")
+        CollapsingHeader::new("✒️ Painting")
             .default_open(false)
             .show(ui, |ui| {
                 tessellation_options.ui(ui);
@@ -461,7 +461,7 @@ impl Options {
                 });
             });
 
-        CollapsingHeader::new("🖱 Input")
+        CollapsingHeader::new("🖱️ Input")
             .default_open(false)
             .show(ui, |ui| {
                 input_options.ui(ui);
@@ -515,8 +515,6 @@ pub(crate) struct Focus {
 
     /// The ID of a widget to give the focus to in the next frame.
     id_next_frame: Option<Id>,
-
-    id_requested_by_accesskit: Option<accesskit::NodeId>,
 
     /// If set, the next widget that is interested in focus will automatically get it.
     /// Probably because the user pressed Tab.
@@ -575,9 +573,9 @@ impl Focus {
         }
         let event_filter = self.focused_widget.map(|w| w.filter).unwrap_or_default();
 
-        self.id_requested_by_accesskit = None;
-
         self.focus_direction = FocusDirection::None;
+
+        let mut focus_requested_by_accesskit = None;
 
         for event in &new_input.events {
             if !event_filter.matches(event)
@@ -615,8 +613,21 @@ impl Focus {
             }) = event
                 && *target_tree == accesskit::TreeId::ROOT
             {
-                self.id_requested_by_accesskit = Some(*target_node);
+                focus_requested_by_accesskit = Some(*target_node);
             }
+        }
+
+        // Handle accesskit focus requests
+        let newly_focused = focus_requested_by_accesskit.and_then(|node_id| {
+            self.focus_widgets_cache
+                .keys()
+                .find(|id| id.accesskit_id() == node_id)
+                .copied()
+        });
+        if let Some(id) = newly_focused {
+            self.focused_widget = Some(FocusWidget::new(id));
+            self.give_to_next = false;
+            self.reset_focus();
         }
     }
 
@@ -645,13 +656,6 @@ impl Focus {
     }
 
     fn interested_in_focus(&mut self, id: Id) {
-        if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
-            self.focused_widget = Some(FocusWidget::new(id));
-            self.id_requested_by_accesskit = None;
-            self.give_to_next = false;
-            self.reset_focus();
-        }
-
         // The rect is updated at the end of the frame.
         self.focus_widgets_cache
             .entry(id)
@@ -942,7 +946,7 @@ impl Memory {
         if let Some(modal_layer) = self.focus().and_then(|f| f.top_modal_layer) {
             matches!(
                 self.areas().compare_order(layer_id, modal_layer),
-                std::cmp::Ordering::Equal | std::cmp::Ordering::Greater
+                core::cmp::Ordering::Equal | core::cmp::Ordering::Greater
             )
         } else {
             true
@@ -982,7 +986,7 @@ impl Memory {
         if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame)
             && matches!(
                 self.areas().compare_order(layer_id, current),
-                std::cmp::Ordering::Less
+                core::cmp::Ordering::Less
             )
         {
             return;
@@ -1012,8 +1016,8 @@ impl Memory {
     }
 
     /// Obtain the previous rectangle of an area.
-    pub fn area_rect(&self, id: impl Into<Id>) -> Option<Rect> {
-        self.areas().get(id.into()).map(|state| state.rect())
+    pub fn area_rect(&self, id: Id) -> Option<Rect> {
+        self.areas().get(id).map(|state| state.rect())
     }
 
     pub(crate) fn interaction(&self) -> &InteractionState {
@@ -1223,12 +1227,12 @@ impl Areas {
     /// Compare the order of two layers, based on the order list from last frame.
     ///
     /// May return [`std::cmp::Ordering::Equal`] if the layers are not in the order list.
-    pub(crate) fn compare_order(&self, a: LayerId, b: LayerId) -> std::cmp::Ordering {
+    pub(crate) fn compare_order(&self, a: LayerId, b: LayerId) -> core::cmp::Ordering {
         // Sort by layer `order` first and use `order_map` to resolve disputes.
         // If `order_map` only contains one layer ID, then the other one will be
         // lower because `None < Some(x)`.
         match a.order.cmp(&b.order) {
-            std::cmp::Ordering::Equal => self.order_map.get(&a).cmp(&self.order_map.get(&b)),
+            core::cmp::Ordering::Equal => self.order_map.get(&a).cmp(&self.order_map.get(&b)),
             cmp => cmp,
         }
     }
@@ -1276,7 +1280,7 @@ impl Areas {
     }
 
     pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
-        std::iter::chain(
+        core::iter::chain(
             &self.visible_areas_last_frame,
             &self.visible_areas_current_frame,
         )
@@ -1365,7 +1369,7 @@ impl Areas {
             ..
         } = self;
 
-        std::mem::swap(visible_areas_last_frame, visible_areas_current_frame);
+        core::mem::swap(visible_areas_last_frame, visible_areas_current_frame);
         visible_areas_current_frame.clear();
 
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
@@ -1374,7 +1378,7 @@ impl Areas {
         // For all layers with sublayers, put the sublayers directly after the parent layer:
         // (it doesn't matter in which order we replace parents with their children)
         #[expect(clippy::iter_over_hash_type)]
-        for (parent, children) in std::mem::take(sublayers) {
+        for (parent, children) in core::mem::take(sublayers) {
             let mut moved_layers = vec![parent]; // parent first…
 
             order.retain(|l| {
@@ -1412,8 +1416,8 @@ fn memory_impl_send_sync() {
 #[test]
 fn lost_focus_fires_after_mid_frame_focus_transfer() {
     use crate::data::input::RawInput;
-    let a = Id::new("A");
-    let b = Id::new("B");
+    let a = Id::unique("A");
+    let b = Id::unique("B");
     let mut focus = Focus::default();
     let raw = RawInput::default();
 
@@ -1459,13 +1463,13 @@ fn lost_focus_fires_after_mid_frame_focus_transfer() {
 #[test]
 fn order_map_total_ordering() {
     let mut layers = [
-        LayerId::new(Order::Tooltip, Id::new("a")),
-        LayerId::new(Order::Background, Id::new("b")),
-        LayerId::new(Order::Background, Id::new("c")),
-        LayerId::new(Order::Tooltip, Id::new("d")),
-        LayerId::new(Order::Background, Id::new("e")),
-        LayerId::new(Order::Background, Id::new("f")),
-        LayerId::new(Order::Tooltip, Id::new("g")),
+        LayerId::new(Order::Tooltip, Id::unique("a")),
+        LayerId::new(Order::Background, Id::unique("b")),
+        LayerId::new(Order::Background, Id::unique("c")),
+        LayerId::new(Order::Tooltip, Id::unique("d")),
+        LayerId::new(Order::Background, Id::unique("e")),
+        LayerId::new(Order::Background, Id::unique("f")),
+        LayerId::new(Order::Tooltip, Id::unique("g")),
     ];
     let mut areas = Areas::default();
 
@@ -1483,14 +1487,14 @@ fn order_map_total_ordering() {
     let mut i = 0;
     for &[a, b] in layers.array_windows() {
         assert!(a.order <= b.order, "does not follow LayerId.order");
-        if areas.compare_order(a, b) != std::cmp::Ordering::Equal {
+        if areas.compare_order(a, b) != core::cmp::Ordering::Equal {
             i += 1;
         }
         equivalence_classes.push(i);
     }
     assert_eq!(layers.len(), equivalence_classes.len());
-    for (&l1, c1) in std::iter::zip(&layers, &equivalence_classes) {
-        for (&l2, c2) in std::iter::zip(&layers, &equivalence_classes) {
+    for (&l1, c1) in core::iter::zip(&layers, &equivalence_classes) {
+        for (&l2, c2) in core::iter::zip(&layers, &equivalence_classes) {
             assert_eq!(
                 c1.cmp(c2),
                 areas.compare_order(l1, l2),

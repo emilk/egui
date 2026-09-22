@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use core::cell::Cell;
 use winit::event_loop::ActiveEventLoop;
 
 thread_local! {
@@ -14,7 +14,7 @@ impl EventLoopGuard {
                 cell.get().is_none(),
                 "Attempted to set a new event loop while one is already set"
             );
-            cell.set(Some(std::ptr::from_ref::<ActiveEventLoop>(event_loop)));
+            cell.set(Some(core::ptr::from_ref::<ActiveEventLoop>(event_loop)));
         });
         Self
     }

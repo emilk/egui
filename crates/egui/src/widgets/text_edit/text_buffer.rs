@@ -1,4 +1,5 @@
-use std::{borrow::Cow, ops::Range};
+use core::ops::Range;
+use std::borrow::Cow;
 
 use epaint::{
     Galley,
@@ -237,7 +238,7 @@ pub trait TextBuffer {
     ///     }
     /// }
     /// ```
-    fn type_id(&self) -> std::any::TypeId;
+    fn type_id(&self) -> core::any::TypeId;
 }
 
 impl TextBuffer for String {
@@ -282,11 +283,11 @@ impl TextBuffer for String {
     }
 
     fn take(&mut self) -> String {
-        std::mem::take(self)
+        core::mem::take(self)
     }
 
-    fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<Self>()
+    fn type_id(&self) -> core::any::TypeId {
+        core::any::TypeId::of::<Self>()
     }
 }
 
@@ -316,11 +317,11 @@ impl TextBuffer for Cow<'_, str> {
     }
 
     fn take(&mut self) -> String {
-        std::mem::take(self).into_owned()
+        core::mem::take(self).into_owned()
     }
 
-    fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<Cow<'_, str>>()
+    fn type_id(&self) -> core::any::TypeId {
+        core::any::TypeId::of::<Cow<'_, str>>()
     }
 }
 
@@ -340,8 +341,8 @@ impl TextBuffer for &str {
 
     fn delete_char_range(&mut self, _ch_range: Range<CharIndex>) {}
 
-    fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<&str>()
+    fn type_id(&self) -> core::any::TypeId {
+        core::any::TypeId::of::<&str>()
     }
 }
 

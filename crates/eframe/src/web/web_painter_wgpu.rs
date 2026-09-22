@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-use egui::{Event, UserData, ViewportId};
-use egui_wgpu::{
-    RenderState, SurfaceErrorAction,
-    capture::{CaptureReceiver, CaptureSender, CaptureState, capture_channel},
-};
+use egui::ScreenshotCallback;
+use egui_wgpu::{RenderState, SurfaceErrorAction, capture::CaptureState};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
@@ -20,8 +17,6 @@ pub(crate) struct WebPainterWgpu {
     depth_stencil_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
-    capture_tx: CaptureSender,
-    capture_rx: CaptureReceiver,
     ctx: egui::Context,
     needs_reconfigure: bool,
     needs_recreate: bool,
@@ -127,8 +122,6 @@ impl WebPainterWgpu {
 
         log::debug!("wgpu painter initialized.");
 
-        let (capture_tx, capture_rx) = capture_channel();
-
         Ok(Self {
             canvas,
             instance,
@@ -139,8 +132,6 @@ impl WebPainterWgpu {
             depth_texture_view: None,
             on_surface_status: Arc::clone(&wgpu_options.on_surface_status) as _,
             screen_capture_state: None,
-            capture_tx,
-            capture_rx,
             ctx,
             needs_reconfigure: false,
             needs_recreate: false,
@@ -165,7 +156,7 @@ impl WebPainter for WebPainterWgpu {
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &mut egui::TexturesDelta,
-        capture_data: Vec<UserData>,
+        capture_data: Vec<ScreenshotCallback>,
     ) -> Result<(), JsValue> {
         let capture = !capture_data.is_empty();
 
@@ -286,10 +277,12 @@ impl WebPainter for WebPainterWgpu {
                 let renderer = render_state.renderer.read();
 
                 let target_texture = if capture {
+                    let size = output_frame.texture.size();
+                    let format = output_frame.texture.format();
                     let capture_state = self.screen_capture_state.get_or_insert_with(|| {
-                        CaptureState::new(&render_state.device, &output_frame.texture)
+                        CaptureState::new(&render_state.device, size, format)
                     });
-                    capture_state.update(&render_state.device, &output_frame.texture);
+                    capture_state.update(&render_state.device, size);
 
                     &capture_state.texture
                 } else {
@@ -354,13 +347,16 @@ impl WebPainter for WebPainterWgpu {
                 );
             }
 
-            let capture_buffer = if capture
-                && let Some(capture_state) = &mut self.screen_capture_state
-            {
-                Some(capture_state.copy_textures(&render_state.device, &output_frame, &mut encoder))
-            } else {
-                None
-            };
+            let capture_buffer =
+                if capture && let Some(capture_state) = &mut self.screen_capture_state {
+                    Some(capture_state.copy_textures(
+                        &render_state.device,
+                        Some(&output_frame),
+                        &mut encoder,
+                    ))
+                } else {
+                    None
+                };
 
             Some((output_frame, capture_buffer))
         };
@@ -368,19 +364,13 @@ impl WebPainter for WebPainterWgpu {
         // Submit the commands: both the main buffer and user-defined ones.
         render_state
             .queue
-            .submit(std::iter::chain(user_cmd_bufs, [encoder.finish()]));
+            .submit(core::iter::chain(user_cmd_bufs, [encoder.finish()]));
 
         if let Some((frame, capture_buffer)) = frame_and_capture_buffer {
             if let Some(capture_buffer) = capture_buffer
                 && let Some(capture_state) = &self.screen_capture_state
             {
-                capture_state.read_screen_rgba(
-                    self.ctx.clone(),
-                    capture_buffer,
-                    capture_data,
-                    self.capture_tx.clone(),
-                    ViewportId::ROOT,
-                );
+                capture_state.read_screen_rgba(capture_buffer, capture_data);
             }
 
             render_state.queue.present(frame);
@@ -398,19 +388,6 @@ impl WebPainter for WebPainterWgpu {
         }
 
         Ok(())
-    }
-
-    fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
-        for (viewport_id, user_data, screenshot) in self.capture_rx.try_iter() {
-            let screenshot = Arc::new(screenshot);
-            for data in user_data {
-                events.push(Event::Screenshot {
-                    viewport_id,
-                    user_data: data,
-                    image: Arc::clone(&screenshot),
-                });
-            }
-        }
     }
 
     fn destroy(&mut self) {

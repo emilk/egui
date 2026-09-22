@@ -52,7 +52,7 @@ where
     /// history.add(now(), 44.0_f32);
     /// assert_eq!(history.average(), Some(42.0));
     /// ```
-    pub fn new(length_range: std::ops::Range<usize>, max_age: f32) -> Self {
+    pub fn new(length_range: core::ops::Range<usize>, max_age: f32) -> Self {
         Self {
             min_len: length_range.start,
             max_len: length_range.end,
@@ -175,8 +175,8 @@ where
 impl<T> History<T>
 where
     T: Copy,
-    T: std::iter::Sum,
-    T: std::ops::Div<f32, Output = T>,
+    T: core::iter::Sum,
+    T: core::ops::Div<f32, Output = T>,
 {
     #[inline]
     pub fn sum(&self) -> T {
@@ -196,9 +196,9 @@ where
 impl<T> History<T>
 where
     T: Copy,
-    T: std::iter::Sum,
-    T: std::ops::Div<f32, Output = T>,
-    T: std::ops::Mul<f32, Output = T>,
+    T: core::iter::Sum,
+    T: core::ops::Div<f32, Output = T>,
+    T: core::ops::Mul<f32, Output = T>,
 {
     /// Average times rate.
     /// If you are keeping track of individual sizes of things (e.g. bytes),
@@ -211,8 +211,8 @@ where
 impl<T, Vel> History<T>
 where
     T: Copy,
-    T: std::ops::Sub<Output = Vel>,
-    Vel: std::ops::Div<f32, Output = Vel>,
+    T: core::ops::Sub<Output = Vel>,
+    Vel: core::ops::Div<f32, Output = Vel>,
 {
     /// Calculate a smooth velocity (per second) over the entire time span.
     /// Calculated as the last value minus the first value over the elapsed time between them.

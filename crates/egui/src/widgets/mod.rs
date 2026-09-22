@@ -21,10 +21,14 @@ mod image;
 mod label;
 mod progress_bar;
 mod radio_button;
+mod range_slider;
 mod separator;
 mod slider;
+mod slider_core;
+pub(crate) use slider_core::accesskit_set_value_request;
 mod spinner;
 pub mod text_edit;
+mod value_format;
 
 pub use self::{
     button::Button,
@@ -38,10 +42,15 @@ pub use self::{
     label::Label,
     progress_bar::ProgressBar,
     radio_button::RadioButton,
+    range_slider::RangeSlider,
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
+    slider_core::{DragValueSettings, SliderSpec},
     spinner::Spinner,
-    text_edit::{TextBuffer, TextEdit},
+    text_edit::{
+        CompletionOutput, CompletionPopup, CompletionQuery, Suggestion, TextBuffer, TextEdit,
+    },
+    value_format::{NumFormatter, NumParser, ValueFormat},
 };
 
 // ----------------------------------------------------------------------------
@@ -141,15 +150,25 @@ pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, text: &str, r
 // ----------------------------------------------------------------------------
 
 /// Show a small button to switch to/from dark/light mode (globally).
+///
+/// This does not allow switching back to following the system theme,
+/// which is why [`global_theme_preference_buttons`] is preferred.
+#[deprecated = "Use `global_theme_preference_buttons` instead: it also covers following the system theme"]
 pub fn global_theme_preference_switch(ui: &mut Ui) {
     if let Some(new_theme) = ui.ctx().theme().small_toggle_button(ui) {
         ui.ctx().set_theme(new_theme);
     }
 }
 
-/// Show larger buttons for switching between light and dark mode (globally).
+/// Show a row of buttons for changing the theme of the whole app.
+///
+/// There is one button for each [`crate::ThemePreference`]:
+/// dark mode, light mode, and following the system theme.
+/// The button of the current preference is highlighted.
+///
+/// Each button is a small icon, so this fits in a top bar.
 pub fn global_theme_preference_buttons(ui: &mut Ui) {
     let mut theme_preference = ui.options(|opt| opt.theme_preference);
-    theme_preference.radio_buttons(ui);
+    theme_preference.buttons(ui);
     ui.ctx().set_theme(theme_preference);
 }

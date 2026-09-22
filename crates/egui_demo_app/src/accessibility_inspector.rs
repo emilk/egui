@@ -1,4 +1,4 @@
-use std::mem;
+use core::mem;
 
 use accesskit::{Action, ActionRequest};
 use accesskit_consumer::{FilterResult, Node, NodeId, Tree, TreeChangeHandler};
@@ -87,10 +87,10 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
 
         ui.enable_accesskit();
 
-        Panel::right(Self::id()).show(ui, |ui| {
+        Panel::right("accessibility_inspector").show(ui, |ui| {
             ui.heading("🔎 AccessKit Inspector");
             if let Some(selected_node) = self.selected_node {
-                Panel::bottom(Self::id().with("details_panel"))
+                Panel::bottom("details_panel")
                     .frame(Frame::new())
                     .show_separator_line(false)
                     .show(ui, |ui| {
@@ -110,7 +110,7 @@ impl egui::Plugin for AccessibilityInspectorPlugin {
 
 impl AccessibilityInspectorPlugin {
     fn id() -> Id {
-        Id::new("Accessibility Inspector")
+        Id::unique("Accessibility Inspector")
     }
 
     fn selection_ui(&mut self, ui: &mut Ui, selected_node: NodeId) {
@@ -168,7 +168,7 @@ impl AccessibilityInspectorPlugin {
             ui.horizontal_wrapped(|ui| {
                 // Iterate through all possible actions via the `Action::n` helper.
                 let mut current_action = 0;
-                let all_actions = std::iter::from_fn(|| {
+                let all_actions = core::iter::from_fn(|| {
                     let action = Action::n(current_action);
                     current_action += 1;
                     action

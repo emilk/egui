@@ -1,4 +1,4 @@
-use egui::{Event, UserData, ViewportId};
+use egui::ScreenshotCallback;
 use egui_glow::glow;
 use std::sync::Arc;
 use wasm_bindgen::JsCast as _;
@@ -12,7 +12,6 @@ use super::web_painter::WebPainter;
 pub(crate) struct WebPainterGlow {
     canvas: HtmlCanvasElement,
     painter: egui_glow::Painter,
-    screenshots: Vec<(egui::ColorImage, Vec<UserData>)>,
 }
 
 impl WebPainterGlow {
@@ -39,11 +38,7 @@ impl WebPainterGlow {
         )
         .map_err(|err| format!("Error starting glow painter: {err}"))?;
 
-        Ok(Self {
-            canvas,
-            painter,
-            screenshots: Vec::new(),
-        })
+        Ok(Self { canvas, painter })
     }
 }
 
@@ -62,7 +57,7 @@ impl WebPainter for WebPainterGlow {
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &mut egui::TexturesDelta,
-        capture: Vec<UserData>,
+        capture: Vec<ScreenshotCallback>,
     ) -> Result<(), JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
 
@@ -78,8 +73,10 @@ impl WebPainter for WebPainterGlow {
             .paint_primitives(canvas_dimension, pixels_per_point, clipped_primitives);
 
         if !capture.is_empty() {
-            let image = self.painter.read_screen_rgba(canvas_dimension);
-            self.screenshots.push((image, capture));
+            let image = Arc::new(self.painter.read_screen_rgba(canvas_dimension));
+            for callback in capture {
+                callback.complete(Arc::clone(&image));
+            }
         }
 
         #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
@@ -92,19 +89,6 @@ impl WebPainter for WebPainterGlow {
 
     fn destroy(&mut self) {
         self.painter.destroy();
-    }
-
-    fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
-        for (image, data) in self.screenshots.drain(..) {
-            let image = Arc::new(image);
-            for data in data {
-                events.push(Event::Screenshot {
-                    viewport_id: ViewportId::default(),
-                    image: Arc::clone(&image),
-                    user_data: data,
-                });
-            }
-        }
     }
 }
 

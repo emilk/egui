@@ -71,7 +71,7 @@
 
 use std::sync::Arc;
 
-use crate::{AsId, Context, Id, Ui};
+use crate::{Context, Id, Ui};
 use epaint::{Pos2, Vec2};
 
 // ----------------------------------------------------------------------------
@@ -120,13 +120,13 @@ pub struct ViewportId(pub Id);
 // We implement `PartialOrd` and `Ord` so we can use `ViewportId` in a `BTreeMap`,
 // which allows predicatable iteration order, frame-to-frame.
 impl PartialOrd for ViewportId {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for ViewportId {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.0.value().cmp(&other.0.value())
     }
 }
@@ -138,8 +138,8 @@ impl Default for ViewportId {
     }
 }
 
-impl std::fmt::Debug for ViewportId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for ViewportId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.0.short_debug_format().fmt(f)
     }
 }
@@ -149,8 +149,14 @@ impl ViewportId {
     pub const ROOT: Self = Self(Id::NULL);
 
     #[inline]
-    pub fn from_hash_of(source: impl AsId) -> Self {
-        Self(Id::new(source))
+    pub fn from_hash_of(source: impl core::hash::Hash + core::fmt::Debug) -> Self {
+        Self(Id::unique(source))
+    }
+
+    /// The [`Id`] of the root [`crate::Ui`] of this viewport,
+    /// i.e. the `Ui` passed to the closure of [`crate::Context::run_ui`].
+    pub fn root_ui_id(&self) -> Id {
+        Id::unique((*self, "__top_ui"))
     }
 }
 
@@ -198,8 +204,8 @@ impl IconData {
     }
 }
 
-impl std::fmt::Debug for IconData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for IconData {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("IconData")
             .field("width", &self.width)
             .field("height", &self.height)
@@ -1193,10 +1199,10 @@ pub enum ViewportCommand {
     /// Enable mouse pass-through: mouse clicks pass through the window, used for non-interactable overlays.
     MousePassthrough(bool),
 
-    /// Take a screenshot of the next frame after this.
+    /// Take a screenshot of the next frame after this and pass it to a callback.
     ///
-    /// The results are returned in [`crate::Event::Screenshot`].
-    Screenshot(crate::UserData),
+    /// Use [`crate::Context::request_screenshot`] for a convenient way to send this command.
+    Screenshot(crate::ScreenshotCallback),
 
     /// Request cut of the current selection
     ///
@@ -1212,6 +1218,25 @@ pub enum ViewportCommand {
     ///
     /// This is equivalent to the system keyboard shortcut for paste (e.g. CTRL + V).
     RequestPaste,
+
+    /// Run `eframe::App::ui` and paint a frame, even though this window is hidden.
+    ///
+    /// Integrations run no pass at all while a window is minimized or occluded
+    /// (see [`crate::ViewportInfo::visible`]), since nothing would be shown: they run only the
+    /// app logic, via [`crate::Context::run_logic`]. This asks for the full thing — ui and
+    /// paint — with nothing on screen to show for it.
+    ///
+    /// This is what lets a tool drive an app that sits in the background. `egui_inspection`
+    /// (and the `egui_mcp` server on top of it) sends this with every request it serves,
+    /// because each of them needs the ui to run: a screenshot needs the painted pixels, the
+    /// widget tree is what the pass produces, and injected clicks and keystrokes are only
+    /// *applied* by a pass. Without it an inspector attached to a backgrounded app can only
+    /// time out until a human brings the window up again.
+    ///
+    /// A pending [`Self::Screenshot`] asks for the same thing, so it needs no company.
+    ///
+    /// Holds for one frame; send it again for another.
+    RequestPaintWhileHidden,
 }
 
 impl ViewportCommand {
@@ -1275,7 +1300,7 @@ pub struct ViewportOutput {
     /// but if you haven't, you can use this instead.
     ///
     /// If the duration is zero, schedule a repaint immediately.
-    pub repaint_delay: std::time::Duration,
+    pub repaint_delay: core::time::Duration,
 }
 
 impl ViewportOutput {

@@ -40,7 +40,7 @@ impl Default for Sliders {
 
 impl crate::Demo for Sliders {
     fn name(&self) -> &'static str {
-        "⬌ Sliders"
+        "↔️ Sliders"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -125,7 +125,7 @@ impl crate::View for Sliders {
             );
 
             if ui.button("Assign PI").clicked() {
-                self.value = std::f64::consts::PI;
+                self.value = core::f64::consts::PI;
             }
         }
 

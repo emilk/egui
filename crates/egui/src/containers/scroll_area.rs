@@ -2,15 +2,15 @@
 
 #![expect(clippy::needless_range_loop)]
 
-use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
+use core::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
 use emath::GuiRounding as _;
 use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
-    AsIdSalt, Context, CursorIcon, Id, IdSalt, NumExt as _, Pos2, Rangef, Rect, Response, Sense,
-    Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp, pass_state,
-    pos2, remap, remap_clamp,
+    AsIdSalt, Context, CursorIcon, Id, IdSalt, NumExt as _, Pos2, Rangef, Rect, Response, Role,
+    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp,
+    pass_state, pos2, remap, remap_clamp,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -930,7 +930,7 @@ impl ScrollArea {
 
         let saved_scroll_target = content_ui
             .ctx()
-            .pass_state_mut(|state| std::mem::take(&mut state.scroll_target));
+            .pass_state_mut(|state| core::mem::take(&mut state.scroll_target));
 
         Prepared {
             id,
@@ -985,7 +985,7 @@ impl ScrollArea {
         ui: &mut Ui,
         row_height_sans_spacing: f32,
         total_rows: usize,
-        add_contents: impl FnOnce(&mut Ui, std::ops::Range<usize>) -> R,
+        add_contents: impl FnOnce(&mut Ui, core::ops::Range<usize>) -> R,
     ) -> ScrollAreaOutput<R> {
         let spacing = ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
@@ -1093,7 +1093,7 @@ impl Prepared {
             if direction_enabled[d] {
                 let (scroll_delta, scroll_animation) = content_ui.ctx().pass_state_mut(|state| {
                     (
-                        std::mem::take(&mut state.scroll_delta.0[d]),
+                        core::mem::take(&mut state.scroll_delta.0[d]),
                         state.scroll_delta.1,
                     )
                 });
@@ -1333,7 +1333,7 @@ impl Prepared {
             // Also: it make sense to detect any hover where the scroll bar _will_ be.
             let response = ui.interact(max_bar_rect, interact_id, sense);
 
-            response.widget_info(|| WidgetInfo::new(crate::WidgetType::ScrollBar));
+            response.widget_info(|| WidgetInfo::new(Role::ScrollBar));
 
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).

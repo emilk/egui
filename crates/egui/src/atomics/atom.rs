@@ -1,5 +1,6 @@
 use crate::{
-    AtomKind, AtomLayout, FontSelection, Id, IntoSizedArgs, IntoSizedResult, SizedAtom, Ui,
+    AtomKind, AtomPaintArgs, ContainerAtom, FontSelection, IdSalt, IntoSizedArgs, IntoSizedResult,
+    SizedAtom, Ui, WidgetAtom,
 };
 use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
@@ -31,7 +32,7 @@ use epaint::text::TextWrapMode;
 #[derive(Clone, Debug)]
 pub struct Atom<'a> {
     /// See [`crate::AtomExt::atom_id`]
-    pub id: Option<Id>,
+    pub id: Option<IdSalt>,
 
     /// See [`crate::AtomExt::atom_size`]
     pub size: Option<Vec2>,
@@ -82,10 +83,10 @@ impl<'a> Atom<'a> {
     ///
     /// Example:
     /// ```
-    /// # use egui::{AtomExt, AtomKind, Atom, Button, Id, __run_test_ui};
+    /// # use egui::{AtomExt, AtomKind, Atom, Button, IdSalt, __run_test_ui};
     /// # use emath::Vec2;
     /// # __run_test_ui(|ui| {
-    /// let id = Id::new("my_button");
+    /// let id = IdSalt::new("my_button");
     /// let response = Button::new(("Hi!", Atom::custom(id, Vec2::splat(18.0)))).atom_ui(ui);
     ///
     /// let rect = response.rect(id);
@@ -94,7 +95,7 @@ impl<'a> Atom<'a> {
     /// }
     /// # });
     /// ```
-    pub fn custom(id: Id, size: impl Into<Vec2>) -> Self {
+    pub fn custom(id: IdSalt, size: impl Into<Vec2>) -> Self {
         Atom {
             size: Some(size.into()),
             kind: AtomKind::Empty,
@@ -103,13 +104,51 @@ impl<'a> Atom<'a> {
         }
     }
 
-    /// Nest an [`AtomLayout`] (e.g. an atom-based widget) as a single atom.
+    /// Create an [`AtomKind::Paint`] with a specific size.
     ///
-    /// The nested layout is sized when the parent is sized and painted (and interacted with)
-    /// at the cell the parent computes for it. See [`AtomKind::Layout`].
-    pub fn layout(layout: AtomLayout<'a>) -> Self {
+    /// The closure paints the atom at the [`AtomPaintArgs::rect`] the layout gives it.
+    ///
+    /// Example:
+    /// ```
+    /// # use egui::{Atom, Button, Color32, CornerRadius, __run_test_ui};
+    /// # use emath::Vec2;
+    /// # __run_test_ui(|ui| {
+    /// let dot = Atom::paint(Vec2::splat(8.0), |ui, args| {
+    ///     ui.painter()
+    ///         .rect_filled(args.rect, CornerRadius::same(4), Color32::RED);
+    /// });
+    /// ui.add(Button::new((dot, "Recording")));
+    /// # });
+    /// ```
+    pub fn paint(size: impl Into<Vec2>, func: impl Fn(&Ui, AtomPaintArgs) + 'a) -> Self {
         Atom {
-            kind: AtomKind::Layout(Box::new(layout)),
+            size: Some(size.into()),
+            kind: AtomKind::paint(func),
+            ..Default::default()
+        }
+    }
+
+    /// Nest a [`WidgetAtom`] (interactive and requests a response) as a single atom.
+    ///
+    /// The nested widget is sized when the parent is sized and painted (and interacted with)
+    /// at the cell the parent computes for it. See [`AtomKind::Widget`].
+    ///
+    /// You can get the response by setting an explicit [`crate::Id`] and using [`crate::Context::read_response`]
+    pub fn widget(widget: WidgetAtom<'a>) -> Self {
+        Atom {
+            kind: AtomKind::Widget(Box::new(widget)),
+            ..Default::default()
+        }
+    }
+
+    /// Nest a [`ContainerAtom`] (a non-interactive atom-based layout) as a single atom.
+    ///
+    /// Like [`Self::widget`], the nested layout is sized when the parent is sized and painted at
+    /// the cell the parent computes for it. Unlike [`Self::widget`], a [`ContainerAtom`] has no
+    /// id or sense, so it is painted but not interacted with. See [`AtomKind::Container`].
+    pub fn container(container: ContainerAtom<'a>) -> Self {
+        Atom {
+            kind: AtomKind::Container(Box::new(container)),
             ..Default::default()
         }
     }

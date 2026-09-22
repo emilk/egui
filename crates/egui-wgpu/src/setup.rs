@@ -9,7 +9,7 @@ use std::sync::Arc;
 /// Automatically implemented for all types that satisfy the bounds
 /// (including [`winit::event_loop::OwnedDisplayHandle`]).
 pub trait EguiDisplayHandle:
-    wgpu::rwh::HasDisplayHandle + std::fmt::Debug + Send + Sync + 'static
+    wgpu::rwh::HasDisplayHandle + core::fmt::Debug + Send + Sync + 'static
 {
     /// Clone into a `Box<dyn WgpuHasDisplayHandle>` for [`wgpu::InstanceDescriptor::display`].
     fn clone_for_wgpu(&self) -> Box<dyn wgpu::wgt::WgpuHasDisplayHandle>;
@@ -27,7 +27,7 @@ impl Clone for Box<dyn EguiDisplayHandle> {
 
 impl<T> EguiDisplayHandle for T
 where
-    T: wgpu::rwh::HasDisplayHandle + Clone + std::fmt::Debug + Send + Sync + 'static,
+    T: wgpu::rwh::HasDisplayHandle + Clone + core::fmt::Debug + Send + Sync + 'static,
 {
     fn clone_for_wgpu(&self) -> Box<dyn wgpu::wgt::WgpuHasDisplayHandle> {
         Box::new(self.clone())
@@ -77,8 +77,8 @@ impl WgpuSetup {
     }
 }
 
-impl std::fmt::Debug for WgpuSetup {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for WgpuSetup {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::CreateNew(create_new) => f
                 .debug_tuple("WgpuSetup::CreateNew")
@@ -101,7 +101,10 @@ impl WgpuSetup {
                 let mut backends = create_new.instance_descriptor.backends;
 
                 // Don't try WebGPU if we're not in a secure context.
-                #[cfg(target_arch = "wasm32")]
+                // Emscripten is excluded: wgpu gates both its `webgpu` backend and
+                // its `web_sys` re-export on `not(Emscripten)` (see the cfg aliases
+                // in `wgpu/build.rs`).
+                #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
                 if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
                     let is_secure_context =
                         wgpu::web_sys::window().is_some_and(|w| w.is_secure_context());
@@ -295,8 +298,8 @@ impl Clone for WgpuSetupCreateNew {
     }
 }
 
-impl std::fmt::Debug for WgpuSetupCreateNew {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for WgpuSetupCreateNew {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self {
             instance_descriptor,
             display_handle,

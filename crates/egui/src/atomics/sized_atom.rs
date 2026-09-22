@@ -4,13 +4,13 @@ use emath::Vec2;
 /// A [`crate::Atom`] which has been sized.
 #[derive(Clone, Debug)]
 pub struct SizedAtom<'a> {
-    pub id: Option<crate::Id>,
+    pub id: Option<crate::IdSalt>,
 
     pub(crate) grow: bool,
 
     /// The size of the atom.
     ///
-    /// Used for placing this atom in [`crate::AtomLayout`], the cursor will advance by
+    /// Used for placing this atom in a [`crate::ContainerAtom`], the cursor will advance by
     /// size.x + gap.
     pub size: Vec2,
 

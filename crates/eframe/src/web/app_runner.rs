@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use egui::{TexturesDelta, UserData, ViewportCommand};
+use egui::{ScreenshotCallback, TexturesDelta, ViewportCommand};
 
 use crate::{App, epi, web::web_painter::WebPainter};
 
@@ -20,7 +20,7 @@ pub struct AppRunner {
 
     // If not empty, the painter should capture n frames from now.
     // zero means capture the exact next frame.
-    screenshot_commands_with_frame_delay: Vec<(UserData, usize)>,
+    screenshot_commands_with_frame_delay: Vec<(ScreenshotCallback, usize)>,
 
     // Output for the last run:
     textures_delta: TexturesDelta,
@@ -47,6 +47,7 @@ impl AppRunner {
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
+        egui_ctx.add_glyph_rasterizer(super::canvas_glyphs::glyph_rasterizer());
 
         #[allow(clippy::allow_attributes, unused_assignments)]
         #[cfg(feature = "glow")]
@@ -214,6 +215,7 @@ impl AppRunner {
 
     pub fn destroy(mut self) {
         log::debug!("Destroying AppRunner");
+        self.egui_ctx.on_exit();
         self.painter.destroy();
     }
 
@@ -254,8 +256,6 @@ impl AppRunner {
     pub fn logic(&mut self) {
         // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
         self.update_focus();
-        // We might have received a screenshot
-        self.painter.handle_screenshots(&mut self.input.raw.events);
 
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
@@ -280,58 +280,78 @@ impl AppRunner {
             .and_then(|v| v.visible())
             .unwrap_or(true);
 
-        let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
-            self.app.logic(ui.ctx(), &mut self.frame);
-
-            if is_visible {
+        if is_visible {
+            let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
+                self.app.logic(ui.ctx(), &mut self.frame);
                 self.app.ui(ui, &mut self.frame);
-            }
-        });
-        let egui::FullOutput {
-            platform_output,
-            textures_delta,
-            shapes,
-            pixels_per_point,
-            viewport_output,
-        } = full_output;
+            });
+            let egui::FullOutput {
+                platform_output,
+                textures_delta,
+                shapes,
+                pixels_per_point,
+                viewport_output,
+            } = full_output;
 
-        if viewport_output.len() > 1 {
-            log::warn!("Multiple viewports not yet supported on the web");
-        }
-        for (_viewport_id, viewport_output) in viewport_output {
-            for command in viewport_output.commands {
-                match command {
-                    ViewportCommand::Screenshot(user_data) => {
-                        self.screenshot_commands_with_frame_delay
-                            .push((user_data, 1));
-                    }
-                    _ => {
-                        // TODO(emilk): handle some of the commands
-                        log::warn!(
-                            "Unhandled egui viewport command: {command:?} - not implemented in web backend"
-                        );
-                    }
-                }
+            if viewport_output.len() > 1 {
+                log::warn!("Multiple viewports not yet supported on the web");
             }
-        }
+            self.handle_viewport_commands(
+                viewport_output
+                    .into_values()
+                    .flat_map(|viewport_output| viewport_output.commands),
+            );
 
-        self.handle_platform_output(platform_output);
-        if is_visible || !textures_delta.is_empty() {
+            self.handle_platform_output(platform_output);
             self.textures_delta.append(textures_delta);
             self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+        } else {
+            // The tab is hidden, so we run no egui pass at all.
+            // That way all ui state is left untouched, and is still there
+            // when the tab is shown again.
+
+            let egui::LogicOutput {
+                platform_output,
+                viewport_commands,
+            } = self.egui_ctx.run_logic(&raw_input, |ctx| {
+                self.app.logic(ctx, &mut self.frame);
+            });
+
+            // No pass consumed the input, so save it for the next one:
+            self.input.raw.append(raw_input);
+
+            self.handle_viewport_commands(viewport_commands.into_values().flatten());
+            self.handle_platform_output(platform_output);
+        }
+    }
+
+    fn handle_viewport_commands(&mut self, commands: impl Iterator<Item = ViewportCommand>) {
+        for command in commands {
+            match command {
+                ViewportCommand::Screenshot(callback) => {
+                    self.screenshot_commands_with_frame_delay
+                        .push((callback, 1));
+                }
+                _ => {
+                    // TODO(emilk): handle some of the commands
+                    log::warn!(
+                        "Unhandled egui viewport command: {command:?} - not implemented in web backend"
+                    );
+                }
+            }
         }
     }
 
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self) {
-        let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
+        let clipped_primitives = core::mem::take(&mut self.clipped_primitives);
 
         if let Some(clipped_primitives) = clipped_primitives {
             let mut screenshot_commands = vec![];
             self.screenshot_commands_with_frame_delay
-                .retain_mut(|(user_data, frame_delay)| {
+                .retain_mut(|(callback, frame_delay)| {
                     if *frame_delay == 0 {
-                        screenshot_commands.push(user_data.clone());
+                        screenshot_commands.push(callback.clone());
                         false
                     } else {
                         *frame_delay -= 1;

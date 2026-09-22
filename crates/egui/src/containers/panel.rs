@@ -18,8 +18,9 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, Margin, NumExt as _,
-    Order, Rangef, Rect, Response, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, lerp,
+    Align, AsIdSalt, Context, CursorIcon, Frame, Id, IdSalt, InnerResponse, LayerId, Layout,
+    Margin, NumExt as _, Order, Rangef, Rect, Response, Role, Sense, Stroke, Ui, UiBuilder, UiKind,
+    UiStackInfo, Vec2, WidgetInfo, lerp,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -205,7 +206,9 @@ impl PanelSide {
 #[must_use = "You should call .show()"]
 pub struct Panel {
     side: PanelSide,
-    id: Id,
+
+    /// Combined with the parent [`Ui::scope_id`] to form the [`Id`] of the panel.
+    id_salt: IdSalt,
     frame: Option<Frame>,
     resizable: bool,
     drag_to_open: bool,
@@ -245,40 +248,40 @@ pub struct Panel {
 impl Panel {
     /// Create a left panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_left_panel")`.
-    pub fn left(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Left, id)
+    /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_left_panel"`.
+    pub fn left(id_salt: impl AsIdSalt) -> Self {
+        Self::new(PanelSide::Left, id_salt)
     }
 
     /// Create a right panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_right_panel")`.
-    pub fn right(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Right, id)
+    /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_right_panel"`.
+    pub fn right(id_salt: impl AsIdSalt) -> Self {
+        Self::new(PanelSide::Right, id_salt)
     }
 
     /// Create a top panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_top_panel")`.
+    /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_top_panel"`.
     ///
     /// By default this is NOT resizable.
-    pub fn top(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Top, id).resizable(false)
+    pub fn top(id_salt: impl AsIdSalt) -> Self {
+        Self::new(PanelSide::Top, id_salt).resizable(false)
     }
 
     /// Create a bottom panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_bottom_panel")`.
+    /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_bottom_panel"`.
     ///
     /// By default this is NOT resizable.
-    pub fn bottom(id: impl Into<Id>) -> Self {
-        Self::new(PanelSide::Bottom, id).resizable(false)
+    pub fn bottom(id_salt: impl AsIdSalt) -> Self {
+        Self::new(PanelSide::Bottom, id_salt).resizable(false)
     }
 
     /// Create a panel.
     ///
-    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    fn new(side: PanelSide, id: impl Into<Id>) -> Self {
+    /// The `id_salt` only needs to be unique among the panels of the same parent [`Ui`], e.g. `"my_panel"`.
+    fn new(side: PanelSide, id_salt: impl AsIdSalt) -> Self {
         let default_outer_size: Option<f32> = match side {
             PanelSide::Left | PanelSide::Right => Some(200.0),
             PanelSide::Top | PanelSide::Bottom => None,
@@ -291,7 +294,7 @@ impl Panel {
 
         Self {
             side,
-            id: id.into(),
+            id_salt: IdSalt::new(id_salt),
             frame: None,
             resizable: true,
             drag_to_open: true,
@@ -454,7 +457,7 @@ impl Panel {
         is_expanded: &mut bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ui, self.id.with("animation"), *is_expanded);
+        let how_expanded = animate_expansion(ui, self.id(ui).with("animation"), *is_expanded);
 
         if how_expanded == 0.0 {
             // Panel is fully closed, but we still leave a grab handle at its fixed
@@ -470,7 +473,7 @@ impl Panel {
 
         // Don't lose the drag during the slide-back-open animation:
         let drag_in_progress = ui
-            .read_response(self.resize_id())
+            .read_response(self.resize_id(ui))
             .is_some_and(|r| r.dragged());
 
         let panel = if how_expanded < 1.0 {
@@ -568,7 +571,7 @@ impl Panel {
         add_contents: impl FnOnce(&mut Ui, bool) -> R,
     ) -> InnerResponse<R> {
         debug_assert!(
-            collapsed_panel.id != expanded_panel.id,
+            collapsed_panel.id_salt != expanded_panel.id_salt,
             "show_switched: the collapsed and expanded panels must have distinct ids \
              (their persisted sizes are stored per-id, and sharing one id would let the collapsed \
              size overwrite the expanded size)."
@@ -576,7 +579,7 @@ impl Panel {
         // Share one resize-handle widget across the collapsed and expanded panels
         // by routing both through the expanded panel's id. A drag that starts on
         // either panel survives the swap to the other view.
-        let resize_id_source = expanded_panel.id;
+        let resize_id_source = expanded_panel.id(ui);
         // Drag-to-collapse fires when the drag crosses the collapsed panel's
         // size, so the swap lines up with the visual size at that moment.
         let collapse_threshold = collapsed_panel.outer_size(ui);
@@ -586,7 +589,7 @@ impl Panel {
             .read_response(resize_widget_id(resize_id_source))
             .is_some_and(|r| r.dragged());
 
-        let animation_id = expanded_panel.id.with("animation");
+        let animation_id = expanded_panel.id(ui).with("animation");
         let how_expanded = animate_expansion(ui, animation_id, *is_expanded);
 
         // When expanding, the user sees the expanded content the moment animation starts.
@@ -690,9 +693,11 @@ impl Panel {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let side = self.side;
-        let id = self.id;
+        let id = self.id(parent_ui);
         let resizable = self.resizable;
         let show_separator_line = self.show_separator_line;
+        // Copied out before `is_expanded` is handed to the resize logic below.
+        let is_expanded_now = is_expanded.as_deref().copied();
 
         let available_rect = parent_ui.available_rect_before_wrap();
 
@@ -739,7 +744,7 @@ impl Panel {
             // released size gets persisted into [`PanelState`] — without this the
             // store-skipped-during-drag rule would leave the stored size at the
             // pre-drag value.
-            let resize_id = self.resize_id();
+            let resize_id = self.resize_id(parent_ui);
             let resize_response = parent_ui.read_response(resize_id);
 
             // Double-click on the resize edge toggles `*is_expanded` for the
@@ -751,21 +756,33 @@ impl Panel {
                 *is_expanded = !*is_expanded;
             }
 
-            if let Some(resize_response) = resize_response
+            let axis = side.axis();
+            let available_size = available_rect.size_along(axis);
+
+            // The size the user asked for, before clamping. Either from a pointer drag…
+            let raw_outer_size = if let Some(resize_response) = resize_response
                 && (resize_response.dragged() || resize_response.drag_stopped())
                 && let Some(pointer) = resize_response.interact_pointer_pos()
             {
                 resize_drag_in_progress = resize_response.dragged();
-                let axis = side.axis();
-                let prev_outer_size = outer_size;
                 // Signed distance from the fixed edge to the pointer along the
                 // panel's axis. Going past the fixed edge yields a negative size,
                 // which `clamp_to_range` then snaps up to `min` — DON'T use
                 // `.abs()` here, that would mirror the drag and spuriously
                 // trigger drag-to-expand once the pointer crosses the edge.
-                let raw_outer_size = -side.sign() * (pointer[axis] - side.fixed_pos(outer_rect));
-                outer_size = clamp_to_range(raw_outer_size, self.outer_size_range)
-                    .at_most(available_rect.size_along(axis));
+                Some(-side.sign() * (pointer[axis] - side.fixed_pos(outer_rect)))
+            } else {
+                // …or from assistive technologies (AccessKit `Increment`/`Decrement`/`SetValue`
+                // on the resize handle). Both go through the same clamping and
+                // collapse/expand logic below.
+                // https://github.com/emilk/egui/issues/8557
+                self.accesskit_resize_request(parent_ui, resize_id, outer_size, available_size)
+            };
+
+            if let Some(raw_outer_size) = raw_outer_size {
+                let prev_outer_size = outer_size;
+                outer_size =
+                    clamp_to_range(raw_outer_size, self.outer_size_range).at_most(available_size);
                 side.set_rect_size(&mut outer_rect, outer_size);
 
                 if let Some(is_expanded) = is_expanded {
@@ -868,7 +885,12 @@ impl Panel {
             // Now we do the actual resize interaction, on top of all the contents,
             // otherwise its input could be eaten by the contents, e.g. a
             // `ScrollArea` on either side of the panel boundary.
-            let resize_response = self.resize_panel(shifted_outer_rect, parent_ui);
+            let resize_response = self.resize_panel(
+                shifted_outer_rect,
+                available_rect,
+                is_expanded_now,
+                parent_ui,
+            );
             (resize_response.hovered(), resize_response.dragged())
         } else {
             (false, false)
@@ -939,8 +961,15 @@ impl Panel {
     /// [`Id`] of this panel's resize-handle widget.
     ///
     /// See [`resize_widget_id`] for why open and collapsed panels must share it.
-    fn resize_id(&self) -> Id {
-        resize_widget_id(self.resize_id_source.unwrap_or(self.id))
+    fn resize_id(&self, parent_ui: &Ui) -> Id {
+        resize_widget_id(self.resize_id_source.unwrap_or_else(|| self.id(parent_ui)))
+    }
+
+    /// The [`Id`] of this panel, given the [`Ui`] it is shown in.
+    ///
+    /// Used as the key for the persisted [`PanelState`].
+    fn id(&self, parent_ui: &Ui) -> Id {
+        parent_ui.scope_id().with_salt(self.id_salt)
     }
 
     /// The configured [`Frame`], or the default side/top panel frame for this [`Ui`].
@@ -995,8 +1024,27 @@ impl Panel {
             ui.style().interaction.resize_grab_radius_side,
         );
 
-        let resize_id = self.resize_id();
+        let resize_id = self.resize_id(ui);
         let response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
+
+        // Let assistive technologies pull the panel open, mirroring the
+        // drag-to-expand gesture below: the collapsed panel has size zero,
+        // and asking for any positive size opens it.
+        // https://github.com/emilk/egui/issues/8557
+        let available_size = available_rect.size_along(axis);
+        self.declare_accesskit_resize_handle(
+            ui,
+            &response,
+            0.0,
+            Rangef::new(0.0, self.outer_size_range.max),
+            available_size,
+        );
+        if let Some(requested_size) =
+            self.accesskit_resize_request(ui, resize_id, 0.0, available_size)
+            && 0.0 < requested_size
+        {
+            *is_expanded = true;
+        }
 
         if response.double_clicked() {
             *is_expanded = true;
@@ -1063,7 +1111,7 @@ impl Panel {
     /// previous build with a different range.
     fn outer_size(&self, ui: &Ui) -> f32 {
         let axis = self.side.axis();
-        let raw = if let Some(state) = PanelState::load(ui, self.id) {
+        let raw = if let Some(state) = PanelState::load(ui, self.id(ui)) {
             state.outer_rect.size_along(axis)
         } else if let Some(default_outer_size) = self.default_outer_size {
             default_outer_size
@@ -1074,7 +1122,15 @@ impl Panel {
         clamp_to_range(raw, self.outer_size_range)
     }
 
-    fn resize_panel(&self, outer_rect: Rect, ui: &Ui) -> Response {
+    /// `is_expanded` is the current collapse state for the animated entry points
+    /// (`show_collapsible` / `show_switched`), or `None` for a plain panel.
+    fn resize_panel(
+        &self,
+        outer_rect: Rect,
+        available_rect: Rect,
+        is_expanded: Option<bool>,
+        ui: &Ui,
+    ) -> Response {
         let resize_pos = self.side.resize_pos(outer_rect);
         let panel_axis_range = Rangef::point(resize_pos);
         let cross_range = outer_rect.range_along(self.side.cross_axis());
@@ -1087,9 +1143,115 @@ impl Panel {
 
         // Use `resize_id_source` so collapsed/expanded panels in
         // `show_switched` share one resize widget.
-        let resize_id = self.resize_id();
+        let resize_id = self.resize_id(ui);
         let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
-        ui.interact(resize_rect, resize_id, Sense::click_and_drag())
+        let response = ui.interact(resize_rect, resize_id, Sense::click_and_drag());
+
+        // Expose the resize handle to assistive technologies:
+        // https://github.com/emilk/egui/issues/8557
+        let axis = self.side.axis();
+        let available_size = available_rect.size_along(axis);
+        // The sizes the user can actually reach. Beyond `outer_size_range`,
+        // an expanded panel can be collapsed (size zero), and a collapsed panel
+        // can be expanded (drag-to-expand in `show_switched`).
+        let reachable = Rangef::new(
+            if is_expanded == Some(true) {
+                0.0
+            } else {
+                self.outer_size_range.min
+            },
+            if is_expanded == Some(false) {
+                available_size
+            } else {
+                self.outer_size_range.max
+            },
+        );
+        self.declare_accesskit_resize_handle(
+            ui,
+            &response,
+            outer_rect.size_along(axis),
+            reachable,
+            available_size,
+        );
+
+        response
+    }
+
+    /// Describe a panel resize handle to assistive technologies as a splitter
+    /// whose value is the panel size as a fraction of the available space.
+    ///
+    /// `reachable` is the range of outer sizes (in points) the user can actually
+    /// reach with this handle; `Increment`/`Decrement` are only offered when
+    /// there is room to move in that direction.
+    fn declare_accesskit_resize_handle(
+        &self,
+        ui: &Ui,
+        response: &Response,
+        outer_size: f32,
+        reachable: Rangef,
+        available_size: f32,
+    ) {
+        let axis = self.side.axis();
+        let available_size = available_size.max(1.0);
+        let as_fraction = |size: f32| f64::from((size / available_size).clamp(0.0, 1.0));
+
+        response.widget_info(|| {
+            let mut info = WidgetInfo::labeled(Role::Splitter, ui.is_enabled(), "Resize panel");
+            info.value = Some(as_fraction(outer_size));
+            info
+        });
+
+        ui.ctx().accesskit_node_builder(response.id, |node| {
+            // The divider of a left/right panel is a vertical splitter, and vice versa.
+            node.set_orientation(if axis == 0 {
+                accesskit::Orientation::Vertical
+            } else {
+                accesskit::Orientation::Horizontal
+            });
+            node.set_min_numeric_value(as_fraction(reachable.min));
+            node.set_max_numeric_value(as_fraction(reachable.max));
+            node.set_numeric_value_step(as_fraction(ui.style().spacing.interact_size[axis]));
+            node.add_action(accesskit::Action::SetValue);
+            if outer_size < reachable.max {
+                node.add_action(accesskit::Action::Increment);
+            }
+            if reachable.min < outer_size {
+                node.add_action(accesskit::Action::Decrement);
+            }
+        });
+    }
+
+    /// The outer size (in points) that assistive technologies asked for this frame, if any.
+    ///
+    /// The splitter reports the panel size as a fraction of the available space,
+    /// so `SetValue` arrives as a fraction, while `Increment`/`Decrement` step
+    /// the size by [`crate::style::Spacing::interact_size`].
+    /// The result is unclamped, so the caller can detect collapse/expand overshoot
+    /// just like for a pointer drag.
+    fn accesskit_resize_request(
+        &self,
+        ui: &Ui,
+        resize_id: Id,
+        outer_size: f32,
+        available_size: f32,
+    ) -> Option<f32> {
+        let steps = ui.input(|input| {
+            input.num_accesskit_action_requests(resize_id, accesskit::Action::Increment) as f32
+                - input.num_accesskit_action_requests(resize_id, accesskit::Action::Decrement)
+                    as f32
+        });
+        let set_fraction = crate::widgets::accesskit_set_value_request(ui, resize_id);
+
+        if steps == 0.0 && set_fraction.is_none() {
+            return None;
+        }
+
+        let base_size = match set_fraction {
+            Some(fraction) => fraction.clamp(0.0, 1.0) as f32 * available_size,
+            None => outer_size,
+        };
+        let step_size = ui.style().spacing.interact_size[self.side.axis()];
+        Some(base_size + steps * step_size)
     }
 
     fn cursor_icon(&self, outer_size: f32) -> CursorIcon {
@@ -1137,7 +1299,7 @@ impl Panel {
         self
     }
 
-    /// Register the resize-handle widget under this `Id` instead of `self.id`.
+    /// Register the resize-handle widget under this `Id` instead of [`Self::id`].
     ///
     /// Used by [`Self::show_switched`] to share one widget across
     /// the collapsed and expanded panels.

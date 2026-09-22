@@ -1,5 +1,5 @@
+use core::fmt::Formatter;
 use epaint::text::{IntoTag, TextFormat, VariationCoords};
-use std::fmt::Formatter;
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
@@ -539,8 +539,8 @@ pub enum WidgetText {
     Galley(Arc<Galley>),
 }
 
-impl std::fmt::Debug for WidgetText {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for WidgetText {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         let text = self.text();
         match self {
             Self::Text(_) => write!(f, "Text({text:?})"),
@@ -558,6 +558,50 @@ impl Default for WidgetText {
 }
 
 impl WidgetText {
+    /// Concatenate several differently styled pieces of text into a single [`WidgetText`].
+    ///
+    /// The pieces are laid out as one paragraph, without any spacing between them.
+    ///
+    /// The style and vertical text alignment of `ui` is used for the pieces,
+    /// so the result should be used in that same `ui`.
+    ///
+    /// ```
+    /// # use egui::{RichText, WidgetText};
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.label(WidgetText::concat(
+    ///     ui,
+    ///     [
+    ///         RichText::new("Normal, "),
+    ///         RichText::new("strong, ").strong(),
+    ///         RichText::new("and small").small(),
+    ///     ],
+    /// ));
+    /// # });
+    /// ```
+    ///
+    /// See also [`Self::concat_with_valign`] and [`RichText::append_to`]
+    /// for more control over the resulting [`LayoutJob`].
+    pub fn concat(ui: &Ui, parts: impl IntoIterator<Item = impl Into<RichText>>) -> Self {
+        Self::concat_with_valign(ui.style(), ui.text_valign(), parts)
+    }
+
+    /// Same as [`Self::concat`], but with an explicit [`Style`] and vertical text alignment.
+    ///
+    /// `valign` is how each piece is aligned against the others,
+    /// and is usually [`Ui::text_valign`].
+    pub fn concat_with_valign(
+        style: &Style,
+        valign: Align,
+        parts: impl IntoIterator<Item = impl Into<RichText>>,
+    ) -> Self {
+        let mut job = LayoutJob::default();
+        for part in parts {
+            part.into()
+                .append_to(&mut job, style, FontSelection::Default, valign);
+        }
+        job.into()
+    }
+
     /// Override the font size.
     ///
     /// For [`Self::Galley`], this does nothing because it has already been laid out.

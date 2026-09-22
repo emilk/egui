@@ -1,8 +1,5 @@
-use std::{
-    future::Future,
-    path::{Path, PathBuf},
-    pin::Pin,
-};
+use core::{future::Future, pin::Pin};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub(crate) struct WebFile {

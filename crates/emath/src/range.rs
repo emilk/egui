@@ -1,4 +1,4 @@
-use std::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
+use core::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 
 use crate::fast_midpoint;
 
@@ -102,11 +102,19 @@ impl Rangef {
     /// Flip the min and the max
     #[inline]
     #[must_use]
-    pub fn flip(self) -> Self {
+    pub fn flipped(self) -> Self {
         Self {
             min: self.max,
             max: self.min,
         }
+    }
+
+    /// Flip the min and the max
+    #[inline]
+    #[must_use]
+    #[deprecated = "Renamed to `flipped`"]
+    pub fn flip(self) -> Self {
+        self.flipped()
     }
 
     /// The overlap of two ranges, i.e. the range that is contained by both.
@@ -125,6 +133,25 @@ impl Rangef {
         Self {
             min: self.min.max(other.min),
             max: self.max.min(other.max),
+        }
+    }
+
+    /// The smallest range that contains both ranges.
+    ///
+    /// If the ranges do not overlap, the gap between them is included too.
+    ///
+    /// ```
+    /// # use emath::Rangef;
+    /// assert_eq!(Rangef::new(0.0, 10.0).union(Rangef::new(5.0, 15.0)), Rangef::new(0.0, 15.0));
+    /// assert_eq!(Rangef::new(0.0, 10.0).union(Rangef::new(20.0, 30.0)), Rangef::new(0.0, 30.0));
+    /// assert_eq!(Rangef::NOTHING.union(Rangef::point(3.0)), Rangef::point(3.0));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn union(self, other: Self) -> Self {
+        Self {
+            min: self.min.min(other.min),
+            max: self.max.max(other.max),
         }
     }
 
