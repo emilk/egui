@@ -88,6 +88,7 @@ impl Painter {
         surface_state: &SurfaceState,
         render_state: &RenderState,
         config: &SurfaceConfig,
+        reconfig_lock: Option<&epaint::mutex::RwLock<()>>,
     ) {
         profiling::function_scope!();
 
@@ -124,6 +125,7 @@ impl Painter {
             surf_config.desired_maximum_frame_latency = desired_maximum_frame_latency;
         }
 
+        let _guard = reconfigure_lock.map(|l| l.write());
         surface_state
             .surface
             .configure(&render_state.device, &surf_config);
@@ -330,7 +332,7 @@ impl Painter {
         surface_state.width = width;
         surface_state.height = height;
 
-        Self::configure_surface(surface_state, render_state, &self.config.surface);
+        Self::configure_surface(surface_state, render_state, &self.config.surface, self.config.reconfigure_lock.as_deref());
 
         if let Some(depth_format) = self.options.depth_stencil_format {
             self.depth_texture_view.insert(
@@ -430,7 +432,7 @@ impl Painter {
                         .lock()
                         .setPresentsWithTransaction(resizing);
 
-                    Self::configure_surface(state, render_state, &self.config.surface);
+                    Self::configure_surface(state, render_state, &self.config.surface, self.config.reconfigure_lock.as_deref());
                 }
             }
         }
@@ -578,7 +580,7 @@ impl Painter {
         };
 
         if surface_state.needs_reconfigure {
-            Self::configure_surface(surface_state, render_state, &self.config.surface);
+            Self::configure_surface(surface_state, render_state, &self.config.surface, self.config.reconfigure_lock.as_deref());
             surface_state.needs_reconfigure = false;
         }
 
@@ -603,7 +605,7 @@ impl Painter {
             other => {
                 match (*self.config.on_surface_status)(&other) {
                     SurfaceErrorAction::Reconfigure => {
-                        Self::configure_surface(surface_state, render_state, &self.config.surface);
+                        Self::configure_surface(surface_state, render_state, &self.config.surface, self.config.reconfigure_lock.as_deref());
                         self.context.request_repaint_of(viewport_id);
                     }
                     SurfaceErrorAction::RecreateSurface => {
