@@ -365,6 +365,7 @@ impl core::fmt::Debug for WgpuConfiguration {
             surface,
             wgpu_setup,
             on_surface_status: _,
+            reconfigure_lock: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
             .field("surface", &surface)
@@ -412,6 +413,7 @@ impl Default for WgpuConfiguration {
                     SurfaceErrorAction::SkipFrame
                 }
             }),
+            reconfigure_lock: None,
         }
     }
 }
