@@ -350,6 +350,7 @@ pub struct WgpuConfiguration {
     /// in that case either.
     pub on_surface_status:
         Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
+    pub reconfigure_lock: Option<std::sync::Arc<epaint::mutex::RwLock<()>>>,
 }
 
 #[test]
