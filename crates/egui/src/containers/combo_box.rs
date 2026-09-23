@@ -3,9 +3,9 @@ use core::cell::RefCell;
 use epaint::Shape;
 
 use crate::{
-    AsIdSalt, Atom, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Popup,
-    PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense, TextStyle, TextWrapMode, Ui, Vec2,
-    WidgetAtom, WidgetInfo, WidgetText,
+    AsIdSalt, Atom, Atoms, Context, Id, IdSalt, InnerResponse, IntoAtoms, NumExt as _, Painter,
+    Popup, PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense, TextStyle, TextWrapMode,
+    Ui, Vec2, WidgetAtom, WidgetInfo,
     class::Classes,
     epaint,
     style::{StyleModifier, WidgetVisuals},
@@ -42,10 +42,10 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
 /// # });
 /// ```
 #[must_use = "You should call .show*"]
-pub struct ComboBox {
+pub struct ComboBox<'a> {
     id_salt: IdSalt,
-    label: Option<WidgetText>,
-    selected_text: WidgetText,
+    label: Option<Atoms<'a>>,
+    selected_text: Atoms<'a>,
     width: Option<f32>,
     height: Option<f32>,
     icon: Option<IconPainter>,
@@ -54,12 +54,12 @@ pub struct ComboBox {
     popup_style: StyleModifier,
 }
 
-impl ComboBox {
+impl<'a> ComboBox<'a> {
     /// Create new [`ComboBox`] with id and label
-    pub fn new(id_salt: impl AsIdSalt, label: impl Into<WidgetText>) -> Self {
+    pub fn new(id_salt: impl AsIdSalt, label: impl IntoAtoms<'a>) -> Self {
         Self {
             id_salt: IdSalt::new(id_salt),
-            label: Some(label.into()),
+            label: Some(label.into_atoms()),
             selected_text: Default::default(),
             width: None,
             height: None,
@@ -70,11 +70,13 @@ impl ComboBox {
         }
     }
 
-    /// Label shown next to the combo box
-    pub fn from_label(label: impl Into<WidgetText>) -> Self {
-        let label = label.into();
+    /// Label shown next to the combo box.
+    ///
+    /// The text of the label is used as the id salt.
+    pub fn from_label(label: impl IntoAtoms<'a>) -> Self {
+        let label = label.into_atoms();
         Self {
-            id_salt: IdSalt::new(label.text()),
+            id_salt: IdSalt::new(label.text().as_deref().unwrap_or_default()),
             label: Some(label),
             selected_text: Default::default(),
             width: None,
@@ -119,10 +121,23 @@ impl ComboBox {
         self
     }
 
-    /// What we show as the currently selected value
+    /// What we show as the currently selected value.
+    ///
+    /// This can be any [`IntoAtoms`], e.g. an image next to some text:
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let ferris = egui::include_image!("../../assets/ferris.png");
+    /// egui::ComboBox::from_label("Crab")
+    ///     .selected_text((egui::Image::new(ferris.clone()).max_height(16.0), "Ferris"))
+    ///     .show_ui(ui, |ui| {
+    ///         let _ = ui.selectable_label(true, (egui::Image::new(ferris).max_height(16.0), "Ferris"));
+    ///     });
+    /// # });
+    /// ```
     #[inline]
-    pub fn selected_text(mut self, selected_text: impl Into<WidgetText>) -> Self {
-        self.selected_text = selected_text.into();
+    pub fn selected_text(mut self, selected_text: impl IntoAtoms<'a>) -> Self {
+        self.selected_text = selected_text.into_atoms();
         self
     }
 
@@ -268,7 +283,7 @@ impl ComboBox {
     /// );
     /// # });
     /// ```
-    pub fn show_index<Text: Into<WidgetText>>(
+    pub fn show_index<Text: IntoAtoms<'a>>(
         self,
         ui: &mut Ui,
         selected: &mut usize,
@@ -311,8 +326,8 @@ impl ComboBox {
 fn combo_box_dyn<'c, R>(
     ui: &mut Ui,
     button_id: Id,
-    label: Option<WidgetText>,
-    selected_text: WidgetText,
+    label: Option<Atoms<'_>>,
+    selected_text: Atoms<'_>,
     menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     icon: Option<IconPainter>,
     wrap_mode: Option<TextWrapMode>,
@@ -362,7 +377,7 @@ fn combo_box_dyn<'c, R>(
         }
     });
 
-    let accessible_text = selected_text.text().to_owned();
+    let accessible_text = selected_text.text().map(String::from).unwrap_or_default();
     let button = atom_layout_style
         .apply(
             WidgetAtom::new((selected_text, Atom::grow(), icon_atom))
@@ -376,7 +391,7 @@ fn combo_box_dyn<'c, R>(
     let (button_response, label_response) = match label {
         Some(label) => {
             // The label is just another atom, next to the button.
-            let label_text = label.text().to_owned();
+            let label_text = label.text().map(String::from).unwrap_or_default();
             let outer_response = WidgetAtom::new((Atom::widget(button), label))
                 .gap(ui.spacing().item_spacing.x)
                 .show(ui)
