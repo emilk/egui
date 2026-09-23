@@ -3,9 +3,9 @@ use core::cell::RefCell;
 use epaint::Shape;
 
 use crate::{
-    AsIdSalt, Atom, Atoms, Context, Id, IdSalt, InnerResponse, IntoAtoms, Margin, NumExt as _,
-    Painter, Popup, PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense, TextStyle,
-    TextWrapMode, Ui, Vec2, WidgetAtom, WidgetInfo,
+    Align2, AsIdSalt, Atom, AtomExt as _, Atoms, Context, Id, IdSalt, InnerResponse, IntoAtoms,
+    Margin, NumExt as _, Painter, Popup, PopupCloseBehavior, Rect, Response, Role, ScrollArea,
+    Sense, TextStyle, TextWrapMode, Ui, Vec2, WidgetAtom, WidgetInfo,
     class::Classes,
     epaint,
     style::{StyleModifier, WidgetVisuals},
@@ -378,12 +378,16 @@ fn combo_box_dyn<'c, R>(
         } else {
             paint_default_icon(ui.painter(), rect, &visuals);
         }
-    });
+    })
+    // Grow (instead of a separate `Atom::grow()`, which would add an extra gap),
+    // and stick to the right edge:
+    .atom_grow(true)
+    .atom_align(Align2::RIGHT_CENTER);
 
     let accessible_text = selected_text.text().map(String::from).unwrap_or_default();
     let button = atom_layout_style
         .apply(
-            WidgetAtom::new((selected_text, Atom::grow(), icon_atom))
+            WidgetAtom::new((selected_text, icon_atom))
                 .id(button_id)
                 .sense(Sense::click())
                 .fallback_font(TextStyle::Button)
