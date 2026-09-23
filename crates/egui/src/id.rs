@@ -229,10 +229,7 @@ pub(crate) mod id_source {
     /// Keep the end, since that is the most specific part.
     pub(crate) fn truncate(mut source: String) -> String {
         if MAX_SOURCE_LEN < source.len() {
-            let mut start = source.len() - MAX_SOURCE_LEN;
-            while !source.is_char_boundary(start) {
-                start += 1;
-            }
+            let start = source.ceil_char_boundary(source.len() - MAX_SOURCE_LEN);
             source.replace_range(..start, "…");
         }
         source
