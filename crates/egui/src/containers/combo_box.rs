@@ -1,11 +1,16 @@
+use core::cell::RefCell;
+
 use epaint::Shape;
 
 use crate::{
-    Align2, AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Popup,
-    PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense, TextStyle, TextWrapMode, Ui,
-    UiBuilder, Vec2, WidgetInfo, WidgetText, epaint,
+    AsIdSalt, Atom, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Popup,
+    PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense, TextStyle, TextWrapMode, Ui, Vec2,
+    WidgetAtom, WidgetInfo, WidgetText,
+    class::Classes,
+    epaint,
     style::{StyleModifier, WidgetVisuals},
     vec2,
+    widget_style::ButtonStyle,
 };
 
 #[expect(unused_imports)] // Documentation
@@ -231,37 +236,18 @@ impl ComboBox {
 
         let button_id = ui.make_persistent_id(id_salt);
 
-        ui.horizontal(|ui| {
-            let mut ir = combo_box_dyn(
-                ui,
-                button_id,
-                selected_text.clone(),
-                menu_contents,
-                icon,
-                wrap_mode,
-                close_behavior,
-                popup_style,
-                (width, height),
-            );
-            ir.response.widget_info(|| {
-                let mut info = WidgetInfo::new(Role::ComboBox);
-                info.enabled = ui.is_enabled();
-                info.current_text_value = Some(selected_text.text().to_owned());
-                info
-            });
-            if let Some(label) = label {
-                let is_empty = label.is_empty();
-                let label_response = ui.label(label);
-                // An empty label names nothing, so leave the name to the caller
-                // (e.g. `on_hover_text`).
-                if !is_empty {
-                    ir.response = ir.response.labelled_by(label_response.id);
-                }
-                ir.response |= label_response;
-            }
-            ir
-        })
-        .inner
+        combo_box_dyn(
+            ui,
+            button_id,
+            label,
+            selected_text,
+            menu_contents,
+            icon,
+            wrap_mode,
+            close_behavior,
+            popup_style,
+            (width, height),
+        )
     }
 
     /// Show a list of items with the given selected index.
@@ -325,6 +311,7 @@ impl ComboBox {
 fn combo_box_dyn<'c, R>(
     ui: &mut Ui,
     button_id: Id,
+    label: Option<WidgetText>,
     selected_text: WidgetText,
     menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     icon: Option<IconPainter>,
@@ -341,58 +328,78 @@ fn combo_box_dyn<'c, R>(
 
     let close_behavior = close_behavior.unwrap_or(PopupCloseBehavior::CloseOnClick);
 
-    let margin = ui.spacing().button_padding;
-    let button_response = button_frame(ui, button_id, is_popup_open, Sense::click(), |ui| {
-        let icon_spacing = ui.spacing().icon_spacing;
-        let icon_size = Vec2::splat(ui.spacing().icon_width);
+    // Built from the same atoms and style as a `Button`, so the two line up when put side by side.
+    let ButtonStyle {
+        atom_layout: mut atom_layout_style,
+    } = ui.widget_style(button_id, &Classes::default());
 
-        // The combo box selected text will always have this minimum width.
-        // Note: the `ComboBox::width()` if set or `Spacing::combo_width` are considered as the
-        // minimum overall width, regardless of the wrap mode.
-        let minimum_width = width.unwrap_or_else(|| ui.spacing().combo_width) - 2.0 * margin.x;
+    // Like `ui.widget_style`, use the interaction state from the start of this pass:
+    let visuals = if is_popup_open {
+        ui.visuals().widgets.open
+    } else if let Some(response) = ui.ctx().read_response(button_id) {
+        *ui.style().interact(&response)
+    } else {
+        ui.visuals().widgets.inactive
+    };
+    if is_popup_open {
+        atom_layout_style.frame = atom_layout_style
+            .frame
+            .fill(visuals.weak_bg_fill)
+            .stroke(visuals.bg_stroke);
+    }
 
-        // width against which to lay out the selected text
-        let wrap_width = if wrap_mode == TextWrapMode::Extend {
-            // Use all the width necessary to display the currently selected value's text.
-            f32::INFINITY
+    // The combo box will always have at least this width.
+    let min_width = width.unwrap_or_else(|| ui.spacing().combo_width);
+    let min_size = Vec2::new(min_width, 0.0).at_least(atom_layout_style.min_size);
+
+    let icon = RefCell::new(icon);
+    let icon_atom = Atom::paint(Vec2::splat(ui.spacing().icon_width), move |ui, args| {
+        let rect = args.rect.expand(visuals.expansion);
+        if let Some(icon) = icon.borrow_mut().take() {
+            icon(ui, rect, &visuals, is_popup_open);
         } else {
-            // Use the available width, currently selected value's text will be wrapped if exceeds this value.
-            ui.available_width() - icon_spacing - icon_size.x
-        };
-
-        let galley = selected_text.into_galley(ui, Some(wrap_mode), wrap_width, TextStyle::Button);
-
-        let actual_width = (galley.size().x + icon_spacing + icon_size.x).at_least(minimum_width);
-        let actual_height = galley.size().y.max(icon_size.y);
-
-        let (_, rect) = ui.allocate_space(Vec2::new(actual_width, actual_height));
-        let button_rect = ui.min_rect().expand2(ui.spacing().button_padding);
-        let response = ui.interact(button_rect, button_id, Sense::click());
-        // response.active |= is_popup_open;
-
-        if ui.is_rect_visible(rect) {
-            let icon_rect = Align2::RIGHT_CENTER.align_size_within_rect(icon_size, rect);
-            let visuals = if is_popup_open {
-                &ui.visuals().widgets.open
-            } else {
-                ui.style().interact(&response)
-            };
-
-            if let Some(icon) = icon {
-                icon(
-                    ui,
-                    icon_rect.expand(visuals.expansion),
-                    visuals,
-                    is_popup_open,
-                );
-            } else {
-                paint_default_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
-            }
-
-            let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-            ui.painter()
-                .galley(text_rect.min, galley, visuals.text_color());
+            paint_default_icon(ui.painter(), rect, &visuals);
         }
+    });
+
+    let accessible_text = selected_text.text().to_owned();
+    let button = atom_layout_style
+        .apply(
+            WidgetAtom::new((selected_text, Atom::grow(), icon_atom))
+                .id(button_id)
+                .sense(Sense::click())
+                .fallback_font(TextStyle::Button)
+                .wrap_mode(wrap_mode),
+        )
+        .min_size(min_size);
+
+    let (button_response, label_response) = match label {
+        Some(label) => {
+            // The label is just another atom, next to the button.
+            let label_text = label.text().to_owned();
+            let outer_response = WidgetAtom::new((Atom::widget(button), label))
+                .gap(ui.spacing().item_spacing.x)
+                .show(ui)
+                .response;
+            outer_response
+                .widget_info(|| WidgetInfo::labeled(Role::Label, ui.is_enabled(), &label_text));
+            let button_response = ui
+                .ctx()
+                .read_response(button_id)
+                .unwrap_or_else(|| outer_response.clone());
+            (
+                button_response,
+                Some((outer_response, !label_text.is_empty())),
+            )
+        }
+        None => (button.show(ui).response, None),
+    };
+
+    button_response.widget_info(|| {
+        let mut info = WidgetInfo::new(Role::ComboBox);
+        info.enabled = ui.is_enabled();
+        info.current_text_value = Some(accessible_text.clone());
+        info
     });
 
     let height = height.unwrap_or_else(|| ui.spacing().combo_height);
@@ -428,56 +435,16 @@ fn combo_box_dyn<'c, R>(
 
     InnerResponse {
         inner,
-        response: button_response,
+        response: match label_response {
+            // An empty label names nothing, so leave the name to the caller
+            // (e.g. `on_hover_text`).
+            Some((label_response, true)) => {
+                button_response.labelled_by(label_response.id) | label_response
+            }
+            Some((label_response, false)) => button_response | label_response,
+            None => button_response,
+        },
     }
-}
-
-fn button_frame(
-    ui: &mut Ui,
-    id: Id,
-    is_popup_open: bool,
-    sense: Sense,
-    add_contents: impl FnOnce(&mut Ui),
-) -> Response {
-    let where_to_put_background = ui.painter().add(Shape::Noop);
-
-    let margin = ui.spacing().button_padding;
-    let interact_size = ui.spacing().interact_size;
-
-    let mut outer_rect = ui.available_rect_before_wrap();
-    outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
-
-    let inner_rect = outer_rect.shrink2(margin);
-    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(inner_rect));
-    add_contents(&mut content_ui);
-
-    let mut outer_rect = content_ui.min_rect().expand2(margin);
-    outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
-
-    let response = ui.interact(outer_rect, id, sense);
-
-    if ui.is_rect_visible(outer_rect) {
-        let visuals = if is_popup_open {
-            &ui.visuals().widgets.open
-        } else {
-            ui.style().interact(&response)
-        };
-
-        ui.painter().set(
-            where_to_put_background,
-            epaint::RectShape::new(
-                outer_rect.expand(visuals.expansion),
-                visuals.corner_radius,
-                visuals.weak_bg_fill,
-                visuals.bg_stroke,
-                epaint::StrokeKind::Inside,
-            ),
-        );
-    }
-
-    ui.advance_cursor_after_rect(outer_rect);
-
-    response
 }
 
 fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
