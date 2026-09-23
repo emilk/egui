@@ -1,4 +1,4 @@
-use crate::{Atom, AtomKind, Image, WidgetText};
+use crate::{Atom, AtomKind, IdSalt, Image, WidgetText};
 use core::ops::{Deref, DerefMut};
 use std::borrow::Cow;
 
@@ -71,6 +71,14 @@ impl<'a> Atoms<'a> {
         }
 
         string
+    }
+
+    /// An [`IdSalt`] based on the [`Self::text`] contents.
+    ///
+    /// Useful for widgets that derive their id from their label, like [`crate::ComboBox::from_label`].
+    /// Atoms without any text (or image alt text) all get the same salt.
+    pub fn salt(&self) -> IdSalt {
+        IdSalt::new(self.text().as_deref().unwrap_or_default())
     }
 
     /// Do any of the atoms have shrink set to `true`?

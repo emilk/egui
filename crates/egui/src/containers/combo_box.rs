@@ -76,7 +76,7 @@ impl<'a> ComboBox<'a> {
     pub fn from_label(label: impl IntoAtoms<'a>) -> Self {
         let label = label.into_atoms();
         Self {
-            id_salt: IdSalt::new(label.text().as_deref().unwrap_or_default()),
+            id_salt: label.salt(),
             label: Some(label),
             selected_text: Default::default(),
             width: None,
