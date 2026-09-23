@@ -364,6 +364,7 @@ fn combo_box_dyn<'c, R>(
         *frame = frame
             .fill(visuals.weak_bg_fill)
             .apply_stroke_and_expansion_without_layout_shift(visuals.bg_stroke, 0.0);
+        atom_layout_style.text_style.color = visuals.text_color();
     }
 
     // The combo box will always have at least this width.
