@@ -3,9 +3,9 @@ use core::cell::RefCell;
 use epaint::Shape;
 
 use crate::{
-    AsIdSalt, Atom, Atoms, Context, Id, IdSalt, InnerResponse, IntoAtoms, NumExt as _, Painter,
-    Popup, PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense, TextStyle, TextWrapMode,
-    Ui, Vec2, WidgetAtom, WidgetInfo,
+    AsIdSalt, Atom, Atoms, Context, Id, IdSalt, InnerResponse, IntoAtoms, Margin, NumExt as _,
+    Painter, Popup, PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense, TextStyle,
+    TextWrapMode, Ui, Vec2, WidgetAtom, WidgetInfo,
     class::Classes,
     epaint,
     style::{StyleModifier, WidgetVisuals},
@@ -357,10 +357,13 @@ fn combo_box_dyn<'c, R>(
         ui.visuals().widgets.inactive
     };
     if is_popup_open {
-        atom_layout_style.frame = atom_layout_style
-            .frame
+        let frame = &mut atom_layout_style.frame;
+        // The style already shrank the inner margin to make room for its stroke.
+        // Undo that before applying our stroke, so the size doesn't depend on hover state:
+        frame.inner_margin = frame.inner_margin + Margin::from(frame.stroke.width);
+        *frame = frame
             .fill(visuals.weak_bg_fill)
-            .stroke(visuals.bg_stroke);
+            .apply_stroke_and_expansion_without_layout_shift(visuals.bg_stroke, 0.0);
     }
 
     // The combo box will always have at least this width.

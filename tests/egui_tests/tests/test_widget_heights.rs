@@ -145,3 +145,42 @@ fn combo_box_and_drag_value_should_line_up_for_any_interact_size() {
         );
     }
 }
+
+/// Hovering an open [`ComboBox`] must not change its size.
+#[test]
+fn open_combo_box_should_not_change_size_when_hovered() {
+    use egui::accesskit::Role;
+    use egui_kittest::kittest::Queryable as _;
+
+    let mut harness = Harness::builder()
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, rect: &mut egui::Rect| {
+                *rect = ComboBox::from_id_salt("combo")
+                    .selected_text("Combo")
+                    .show_ui(ui, |ui| {
+                        ui.label("Item");
+                    })
+                    .response
+                    .rect;
+            },
+            egui::Rect::NOTHING,
+        );
+    harness.run();
+    let closed = *harness.state();
+
+    harness.get_by_role(Role::ComboBox).click();
+    harness.run();
+    let open_hovered = *harness.state();
+
+    // Move the pointer away, but keep the popup open:
+    harness.event(egui::Event::PointerMoved(egui::pos2(400.0, 400.0)));
+    harness.run();
+    let open_not_hovered = *harness.state();
+
+    assert_eq!(closed, open_hovered, "size changed when opened");
+    assert_eq!(
+        open_hovered, open_not_hovered,
+        "size of the open combo box changed with hover"
+    );
+}
