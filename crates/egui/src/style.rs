@@ -1455,9 +1455,9 @@ impl Default for Spacing {
             item_spacing: vec2(8.0, 3.0),
             window_margin: Margin::same(6),
             menu_margin: Margin::same(6),
-            button_padding: vec2(8.0, 3.0),
+            button_padding: vec2(8.0, 2.0),
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
-            interact_size: vec2(40.0, 18.0),
+            interact_size: vec2(40.0, 20.0),
             slider_width: 100.0,
             slider_rail_height: 8.0,
             combo_width: 100.0,
