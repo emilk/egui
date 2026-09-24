@@ -29,10 +29,10 @@ fn fit_to_rect_in_scene(
     // A degenerate `rect_in_scene` (e.g. `Rect::ZERO`) gives an infinite scale,
     // which the zoom range may not catch (e.g. `0.0..=f32::INFINITY`).
     // Fall back to 1:1 so we never produce NaN.
-    if !(scale.is_finite() && 0.0 < scale) {
+    if !scale.is_finite() || scale <= 0.0 {
         scale = zoom_range.clamp(1.0);
     }
-    if !(scale.is_finite() && 0.0 < scale) {
+    if !scale.is_finite() || scale <= 0.0 {
         scale = 1.0;
     }
 
