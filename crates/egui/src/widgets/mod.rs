@@ -25,6 +25,7 @@ mod range_slider;
 mod separator;
 mod slider;
 mod slider_core;
+pub(crate) use slider_core::accesskit_set_value_request;
 mod spinner;
 pub mod text_edit;
 mod value_format;

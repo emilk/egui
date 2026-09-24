@@ -75,6 +75,17 @@ real change, such as a moved separator, a shifted one-pixel border, or a small i
 incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever you
 update the snapshot.
 
+## Accessibility check
+
+Whenever the ui has settled (after `Harness::run` and friends) and before every snapshot, the
+harness checks that every input widget (button, checkbox, slider, text field, …) has an
+accessible name, and panics if one does not. A widget without a name cannot be
+found by `get_by_label`, nor by a screen reader. Give icon-only buttons an alt text, tie text
+fields to their label with `Response::labelled_by`, or add an `on_hover_text`.
+
+Turn the check off with `Harness::builder().with_accessibility_check(false)`, or run it by hand
+with `Harness::check_accessibility`.
+
 ## Recording
 When enabling the `recording` feature, you can record tests to mp4s via these env vars:
 * `KITTEST_RECORD=1 cargo test` writes numbered MP4s to `tests/snapshots/recordings`

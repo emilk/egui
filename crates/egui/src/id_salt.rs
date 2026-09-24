@@ -68,21 +68,6 @@ impl IdSalt {
     }
 }
 
-/// Convenience
-impl From<&'static str> for IdSalt {
-    #[inline]
-    fn from(string: &'static str) -> Self {
-        Self::new(string)
-    }
-}
-
-impl From<String> for IdSalt {
-    #[inline]
-    fn from(string: String) -> Self {
-        Self::new(string)
-    }
-}
-
 impl core::fmt::Debug for IdSalt {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         #[cfg(debug_assertions)]
@@ -92,6 +77,16 @@ impl core::fmt::Debug for IdSalt {
         write!(f, "salt_{:04X}", self.value() as u16)
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// `IdSaltSet` is a `HashSet<IdSalt>` optimized by knowing that [`IdSalt`] has good entropy, and doesn't need more hashing.
+pub type IdSaltSet = nohash_hasher::IntSet<IdSalt>;
+
+/// `IdSaltMap<V>` is a `HashMap<IdSalt, V>` optimized by knowing that [`IdSalt`] has good entropy, and doesn't need more hashing.
+pub type IdSaltMap<V> = nohash_hasher::IntMap<IdSalt, V>;
+
+// ----------------------------------------------------------------------------
 
 /// In debug builds, remember the `Debug`-formatted source that produced each [`IdSalt`].
 ///

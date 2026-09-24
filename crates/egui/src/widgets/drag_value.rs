@@ -60,6 +60,7 @@ pub struct DragValue<'a> {
     format: ValueFormat<'a>,
     classes: Classes,
     min_size: Option<Vec2>,
+    clip_text: bool,
 }
 
 impl<'a> DragValue<'a> {
@@ -99,6 +100,7 @@ impl<'a> DragValue<'a> {
             format: ValueFormat::default(),
             classes: Classes::default().with_class(Self::CLASS),
             min_size: None,
+            clip_text: false,
         }
     }
 
@@ -379,6 +381,17 @@ impl<'a> DragValue<'a> {
         self
     }
 
+    /// Keep the value inside the widget's width when text-editing it.
+    ///
+    /// Default: `false`, which lets the widget widen to fit whatever has been typed, carrying the
+    /// surrounding layout with it. When `true` the widget holds its width and the text scrolls
+    /// inside it, following the cursor.
+    #[inline]
+    pub fn clip_text(mut self, clip_text: bool) -> Self {
+        self.clip_text = clip_text;
+        self
+    }
+
     /// The [`Atoms`] of the drag value: its prefix, a placeholder for the number, and its suffix.
     ///
     /// This includes any images you have on the [`DragValue`].
@@ -402,6 +415,7 @@ impl Widget for DragValue<'_> {
             format,
             classes,
             min_size,
+            clip_text,
         } = self;
         let ValueFormat {
             prefix,
@@ -415,6 +429,16 @@ impl Widget for DragValue<'_> {
 
         let prefix_text = prefix.text().unwrap_or_default().into_owned();
         let suffix_text = suffix.text().unwrap_or_default().into_owned();
+
+        // A prefix or suffix is the visible label of the value, so it names the widget.
+        // `Response::labelled_by` replaces this name with an explicit label.
+        let label = {
+            let parts: Vec<&str> = [prefix_text.trim(), suffix_text.trim()]
+                .into_iter()
+                .filter(|part| !part.is_empty())
+                .collect();
+            (!parts.is_empty()).then(|| parts.join(" "))
+        };
 
         let atom_id = IdSalt::new(Self::ATOM_ID);
 
@@ -534,7 +558,7 @@ impl Widget for DragValue<'_> {
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
                     .with_classes(classes)
-                    .clip_text(false)
+                    .clip_text(clip_text)
                     .align(ui.layout().align2())
                     .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size))
                     .id(id)
@@ -678,6 +702,9 @@ impl Widget for DragValue<'_> {
             // The name field is set to the current value by the button,
             // but we don't want it set that way on this widget type.
             builder.clear_label();
+            if let Some(label) = &label {
+                builder.set_label(label.clone());
+            }
             // Always expose the value as a string. This makes the widget
             // more stable to accessibility users as it switches
             // between edit and button modes. This is particularly important

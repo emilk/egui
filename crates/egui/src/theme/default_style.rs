@@ -2,7 +2,7 @@ use emath::{Align2, Vec2};
 use epaint::{Color32, Margin};
 
 use crate::{
-    Button, Context, Frame, TextEdit, TextStyle,
+    Button, ComboBox, Context, Frame, TextEdit, TextStyle,
     class::HasClasses as _,
     theme::StyleProvider,
     widget_style::{
@@ -38,7 +38,11 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
             ..
         } = modifiers;
         let spacing = &style.spacing;
-        let mut widget_visuals = *style.visuals.widgets.state(*state);
+        let mut widget_visuals = if classes.has_class(&ComboBox::CLASS_OPEN) {
+            style.visuals.widgets.open
+        } else {
+            *style.visuals.widgets.state(*state)
+        };
 
         if classes.has_class(&Button::CLASS_SELECTED) {
             let visuals = &style.visuals;
