@@ -1,4 +1,4 @@
-use crate::easy_mark::easy_mark_parser;
+use crate::easy_mark::easy_mark_parser::{self, Heading};
 
 /// Highlight easymark, memoizing previous output to save CPU.
 ///
@@ -63,8 +63,14 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
         } else if start_of_line && text.starts_with(' ') {
             // we don't preview indentation, because it is confusing
             skip = 1;
+        } else if start_of_line && text.starts_with("### ") {
+            style.heading = Heading::H3;
+            skip = 4;
+        } else if start_of_line && text.starts_with("## ") {
+            style.heading = Heading::H2;
+            skip = 3;
         } else if start_of_line && text.starts_with("# ") {
-            style.heading = true;
+            style.heading = Heading::H1;
             skip = 2;
         } else if start_of_line && text.starts_with("> ") {
             style.quoted = true;
@@ -138,7 +144,7 @@ fn format_from_style(
 ) -> egui::text::TextFormat {
     use egui::{Align, Color32, Stroke, TextStyle};
 
-    let color = if emark_style.strong || emark_style.heading {
+    let color = if emark_style.strong || emark_style.heading != Heading::None {
         egui_style.visuals.strong_text_color()
     } else if emark_style.quoted {
         egui_style.visuals.weak_text_color()
@@ -146,14 +152,19 @@ fn format_from_style(
         egui_style.visuals.text_color()
     };
 
-    let text_style = if emark_style.heading {
-        TextStyle::Heading
-    } else if emark_style.code {
-        TextStyle::Monospace
-    } else if emark_style.small | emark_style.raised {
-        TextStyle::Small
-    } else {
-        TextStyle::Body
+    let text_style = match emark_style.heading {
+        Heading::H1 => TextStyle::Heading,
+        Heading::H2 => TextStyle::Heading2,
+        Heading::H3 => TextStyle::Heading3,
+        Heading::None => {
+            if emark_style.code {
+                TextStyle::Monospace
+            } else if emark_style.small | emark_style.raised {
+                TextStyle::Small
+            } else {
+                TextStyle::Body
+            }
+        }
     };
 
     let background = if emark_style.code {
