@@ -72,7 +72,7 @@ impl<'a> ComboBox<'a> {
 
     /// Label shown next to the combo box.
     ///
-    /// The text of the label is used as the id salt.
+    /// The contents of the label is used as the id salt (see [`Atoms::salt`]).
     pub fn from_label(label: impl IntoAtoms<'a>) -> Self {
         let label = label.into_atoms();
         Self {

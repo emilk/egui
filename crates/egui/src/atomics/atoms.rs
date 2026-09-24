@@ -1,4 +1,4 @@
-use crate::{Atom, AtomKind, IdSalt, Image, WidgetText};
+use crate::{Atom, AtomKind, IdSalt, Image, TextureId, WidgetText};
 use core::ops::{Deref, DerefMut};
 use std::borrow::Cow;
 
@@ -73,12 +73,62 @@ impl<'a> Atoms<'a> {
         string
     }
 
-    /// An [`IdSalt`] based on the [`Self::text`] contents.
+    /// An [`IdSalt`] based on the contents of the atoms.
     ///
     /// Useful for widgets that derive their id from their label, like [`crate::ComboBox::from_label`].
-    /// Atoms without any text (or image alt text) all get the same salt.
+    ///
+    /// This hashes the text of text atoms, the source of image atoms,
+    /// and the [`Atom::id`] of any atom that has one.
+    /// Other atom contents (e.g. closures) are ignored.
     pub fn salt(&self) -> IdSalt {
-        IdSalt::new(self.text().as_deref().unwrap_or_default())
+        #[derive(Debug, Hash)]
+        enum SaltPart<'s> {
+            Text(&'s str),
+            ImageUri(Option<&'s str>),
+            ImageTexture(TextureId),
+            Other,
+        }
+
+        fn salt_part<'s>(atom: &'s Atom<'_>) -> (SaltPart<'s>, Option<IdSalt>) {
+            let part = match &atom.kind {
+                AtomKind::Text(text) => SaltPart::Text(text.text()),
+                AtomKind::Image(image) => {
+                    if let Some(texture_id) = image.texture_id() {
+                        SaltPart::ImageTexture(texture_id)
+                    } else {
+                        SaltPart::ImageUri(image.uri())
+                    }
+                }
+                AtomKind::Empty
+                | AtomKind::Closure(_)
+                | AtomKind::Paint(_)
+                | AtomKind::Widget(_)
+                | AtomKind::Container(_) => SaltPart::Other,
+            };
+            (part, atom.id)
+        }
+
+        /// Hashes the atoms without collecting them into a temporary `Vec`.
+        struct AtomsSalt<'s, 'a>(&'s [Atom<'a>]);
+
+        impl core::hash::Hash for AtomsSalt<'_, '_> {
+            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+                state.write_usize(self.0.len());
+                for atom in self.0 {
+                    salt_part(atom).hash(state);
+                }
+            }
+        }
+
+        impl core::fmt::Debug for AtomsSalt<'_, '_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                f.debug_list()
+                    .entries(self.0.iter().map(salt_part))
+                    .finish()
+            }
+        }
+
+        IdSalt::new(AtomsSalt(&self.0))
     }
 
     /// Do any of the atoms have shrink set to `true`?
