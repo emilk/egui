@@ -401,6 +401,10 @@ impl AppRunner {
                 egui::OutputCommand::CopyText(text) => {
                     super::set_clipboard_text(&text);
                 }
+                egui::OutputCommand::TextSelectionSettled(_) => {
+                    // The web has no PRIMARY selection, and nothing else to do
+                    // with a finished selection.
+                }
                 egui::OutputCommand::CopyImage(image) => {
                     super::set_clipboard_image(&image);
                 }
