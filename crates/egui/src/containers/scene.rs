@@ -32,9 +32,6 @@ fn fit_to_rect_in_scene(
     if !scale.is_finite() || scale <= 0.0 {
         scale = zoom_range.clamp(1.0);
     }
-    if !scale.is_finite() || scale <= 0.0 {
-        scale = 1.0;
-    }
 
     // Compute the translation to center the bounding rect in the screen:
     let center_in_global = rect_in_global.center().to_vec2();
