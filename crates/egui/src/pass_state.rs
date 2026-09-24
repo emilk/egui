@@ -71,6 +71,11 @@ impl ScrollTarget {
 pub struct AccessKitPassState {
     pub nodes: IdMap<accesskit::Node>,
     pub parent_map: IdMap<Id>,
+
+    /// Widgets and [`crate::Ui`]s that are invisible, and so should not be exposed to accessibility.
+    ///
+    /// Anything whose parent is invisible is also invisible.
+    pub invisible: IdSet,
 }
 
 #[cfg(debug_assertions)]

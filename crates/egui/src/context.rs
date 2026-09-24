@@ -562,6 +562,7 @@ impl ContextImpl {
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
                 nodes,
                 parent_map: IdMap::default(),
+                invisible: Default::default(),
             });
         }
 
@@ -642,6 +643,9 @@ impl ContextImpl {
 
     fn accesskit_node_builder(&mut self, id: Id) -> Option<&mut accesskit::Node> {
         let state = self.viewport().this_pass.accesskit_state.as_mut()?;
+        if state.invisible.contains(&id) {
+            return None;
+        }
         let builders = &mut state.nodes;
 
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
@@ -1523,6 +1527,12 @@ impl Context {
 
             if allow_focus && interested_in_focus {
                 ctx.memory.interested_in_focus(w.id, w.layer_id);
+            }
+
+            if !w.visible
+                && let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut()
+            {
+                state.invisible.insert(w.id);
             }
         });
 
@@ -4101,7 +4111,8 @@ impl Context {
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
-    /// Returns `None` if accesskit is off.
+    /// Returns `None` if accesskit is off,
+    /// or if the widget is invisible (see [`Ui::is_visible`]).
     // TODO(emilk): consider making both read-only and read-write versions
     pub fn accesskit_node_builder<R>(
         &self,
@@ -4125,10 +4136,14 @@ impl Context {
         })
     }
 
+    /// Children of invisible parents are also invisible.
     pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
         self.write(|ctx| {
             if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
                 state.parent_map.insert(id, parent_id);
+                if state.invisible.contains(&parent_id) {
+                    state.invisible.insert(id);
+                }
             }
         });
     }
