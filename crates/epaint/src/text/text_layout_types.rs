@@ -918,6 +918,13 @@ pub struct Glyph {
     /// Whether this glyph carries its own color, e.g. a color emoji.
     pub is_color: bool,
 
+    /// Resolved bidi embedding level of the character (UAX #9).
+    ///
+    /// `0` for plain left-to-right text; odd levels are right-to-left.
+    /// Glyphs stay in logical order in [`Row::glyphs`]; this decides where
+    /// they are placed on the row and which side of them a cursor sits.
+    pub bidi_level: u8,
+
     /// Index into [`LayoutJob::sections`]. Decides color etc.
     ///
     /// Only used during layout, then set to an invalid value in order to
@@ -945,6 +952,12 @@ impl Glyph {
     pub fn logical_rect(&self) -> Rect {
         Rect::from_min_size(self.pos - vec2(0.0, self.font_ascent), self.size())
     }
+
+    /// Is this glyph part of a right-to-left run?
+    #[inline]
+    pub fn is_rtl(&self) -> bool {
+        self.bidi_level % 2 == 1
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -963,20 +976,47 @@ impl Row {
 
     /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
+    ///
+    /// Glyphs are in logical order but positioned in visual order (see
+    /// [`Glyph::bidi_level`]), so this finds the glyph nearest to `desired_x`
+    /// and then decides which side of it the cursor belongs on: for a
+    /// left-to-right glyph the cursor _before_ it is on its left, for a
+    /// right-to-left glyph it is on its right.
     pub fn char_at(&self, desired_x: f32) -> CharIndex {
+        let mut nearest: Option<(f32, usize)> = None;
         for (i, glyph) in self.glyphs.iter().enumerate() {
-            if desired_x < glyph.logical_rect().center().x {
-                return CharIndex(i);
+            let rect = glyph.logical_rect();
+            let distance = (rect.min.x - desired_x)
+                .max(desired_x - rect.max.x)
+                .max(0.0);
+            if nearest.is_none_or(|(best, _)| distance < best) {
+                nearest = Some((distance, i));
             }
         }
-        self.char_count_excluding_newline()
+        let Some((_, i)) = nearest else {
+            return CharIndex(0);
+        };
+        let glyph = &self.glyphs[i];
+        let past_center = glyph.logical_rect().center().x <= desired_x;
+        if past_center == glyph.is_rtl() {
+            CharIndex(i)
+        } else {
+            CharIndex(i + 1)
+        }
     }
 
+    /// The x coordinate of a cursor placed before the char at `column`
+    /// (or after the last char if `column` is the char count), in row-relative coordinates.
+    ///
+    /// For a right-to-left glyph "before" is its right edge.
     pub fn x_offset(&self, column: CharIndex) -> f32 {
-        if let Some(glyph) = self.glyphs.get(column.0) {
-            glyph.pos.x
-        } else {
-            self.size.x
+        match self.glyphs.get(column.0) {
+            Some(glyph) if glyph.is_rtl() => glyph.max_x(),
+            Some(glyph) => glyph.pos.x,
+            None => match self.glyphs.last() {
+                Some(last) if last.is_rtl() => last.pos.x,
+                _ => self.size.x,
+            },
         }
     }
 

@@ -150,6 +150,7 @@ tokio = "1.53"
 toml = { version = "1.1", default-features = false }
 type-map = "0.5.1"
 unicode_names2 = { version = "3.1", default-features = false }
+unicode-bidi = { version = "0.3.18", default-features = false, features = ["hardcoded-data", "std"] }
 unicode-general-category = "1.1"
 unicode-properties = { version = "0.1.4", default-features = false, features = ["emoji"] }
 unicode-script = "0.5.8"
