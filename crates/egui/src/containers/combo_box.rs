@@ -4,9 +4,9 @@ use epaint::Shape;
 
 use crate::{
     Align2, AsIdSalt, Atom, AtomExt as _, Atoms, Context, Id, IdSalt, InnerResponse, IntoAtoms,
-    Margin, NumExt as _, Painter, Popup, PopupCloseBehavior, Rect, Response, Role, ScrollArea,
-    Sense, TextStyle, TextWrapMode, Ui, Vec2, WidgetAtom, WidgetInfo,
-    class::Classes,
+    NumExt as _, Painter, Popup, PopupCloseBehavior, Rect, Response, Role, ScrollArea, Sense,
+    TextStyle, TextWrapMode, Ui, Vec2, WidgetAtom, WidgetInfo,
+    class::{ClassName, Classes, HasClasses},
     epaint,
     style::{StyleModifier, WidgetVisuals},
     vec2,
@@ -52,9 +52,16 @@ pub struct ComboBox<'a> {
     wrap_mode: Option<TextWrapMode>,
     close_behavior: Option<PopupCloseBehavior>,
     popup_style: StyleModifier,
+    classes: Classes,
 }
 
 impl<'a> ComboBox<'a> {
+    /// Present on the button of every [`ComboBox`].
+    pub const CLASS: ClassName = ClassName::from_static("egui::combo_box");
+
+    /// Present on the button of a [`ComboBox`] while its popup is open.
+    pub const CLASS_OPEN: ClassName = ClassName::from_static("egui::combo_box::open");
+
     /// Create new [`ComboBox`] with id and label
     pub fn new(id_salt: impl AsIdSalt, label: impl IntoAtoms<'a>) -> Self {
         Self {
@@ -67,6 +74,7 @@ impl<'a> ComboBox<'a> {
             wrap_mode: None,
             close_behavior: None,
             popup_style: StyleModifier::default(),
+            classes: Classes::default().with_class(Self::CLASS),
         }
     }
 
@@ -85,6 +93,7 @@ impl<'a> ComboBox<'a> {
             wrap_mode: None,
             close_behavior: None,
             popup_style: StyleModifier::default(),
+            classes: Classes::default().with_class(Self::CLASS),
         }
     }
 
@@ -100,6 +109,7 @@ impl<'a> ComboBox<'a> {
             wrap_mode: None,
             close_behavior: None,
             popup_style: StyleModifier::default(),
+            classes: Classes::default().with_class(Self::CLASS),
         }
     }
 
@@ -247,6 +257,7 @@ impl<'a> ComboBox<'a> {
             wrap_mode,
             close_behavior,
             popup_style,
+            classes,
         } = self;
 
         let button_id = ui.make_persistent_id(id_salt);
@@ -261,6 +272,7 @@ impl<'a> ComboBox<'a> {
             wrap_mode,
             close_behavior,
             popup_style,
+            classes,
             (width, height),
         )
     }
@@ -322,6 +334,16 @@ impl<'a> ComboBox<'a> {
     }
 }
 
+impl HasClasses for ComboBox<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
+    }
+}
+
 #[expect(clippy::too_many_arguments)]
 fn combo_box_dyn<'c, R>(
     ui: &mut Ui,
@@ -333,6 +355,7 @@ fn combo_box_dyn<'c, R>(
     wrap_mode: Option<TextWrapMode>,
     close_behavior: Option<PopupCloseBehavior>,
     popup_style: StyleModifier,
+    mut classes: Classes,
     (width, height): (Option<f32>, Option<f32>),
 ) -> InnerResponse<Option<R>> {
     let popup_id = ComboBox::widget_to_popup_id(button_id);
@@ -343,11 +366,14 @@ fn combo_box_dyn<'c, R>(
 
     let close_behavior = close_behavior.unwrap_or(PopupCloseBehavior::CloseOnClick);
 
+    classes.add_class_if(ComboBox::CLASS_OPEN, is_popup_open);
+
     // Built from the same atoms and style as a `Button`, so the two line up when put side by side.
     let ButtonStyle {
-        atom_layout: mut atom_layout_style,
-    } = ui.widget_style(button_id, &Classes::default());
+        atom_layout: atom_layout_style,
+    } = ui.widget_style(button_id, &classes);
 
+    // The visuals passed to the icon painter.
     // Like `ui.widget_style`, use the interaction state from the start of this pass:
     let visuals = if is_popup_open {
         ui.visuals().widgets.open
@@ -356,16 +382,6 @@ fn combo_box_dyn<'c, R>(
     } else {
         ui.visuals().widgets.inactive
     };
-    if is_popup_open {
-        let frame = &mut atom_layout_style.frame;
-        // The style already shrank the inner margin to make room for its stroke.
-        // Undo that before applying our stroke, so the size doesn't depend on hover state:
-        frame.inner_margin = frame.inner_margin + Margin::from(frame.stroke.width);
-        *frame = frame
-            .fill(visuals.weak_bg_fill)
-            .apply_stroke_and_expansion_without_layout_shift(visuals.bg_stroke, 0.0);
-        atom_layout_style.text_style.color = visuals.text_color();
-    }
 
     // The combo box will always have at least this width.
     let min_width = width.unwrap_or_else(|| ui.spacing().combo_width);
