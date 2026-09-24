@@ -25,6 +25,9 @@ bitflags::bitflags! {
 impl core::fmt::Debug for Sense {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Sense {{")?;
+        if self.senses_hover() {
+            write!(f, " hover")?;
+        }
         if self.senses_click() {
             write!(f, " click")?;
         }
@@ -86,6 +89,11 @@ impl Sense {
     #[inline]
     pub fn interactive(&self) -> bool {
         self.intersects(Self::CLICK | Self::DRAG)
+    }
+
+    #[inline]
+    pub fn senses_hover(&self) -> bool {
+        self.contains(Self::HOVER)
     }
 
     #[inline]
