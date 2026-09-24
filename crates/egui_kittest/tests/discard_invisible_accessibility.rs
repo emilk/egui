@@ -109,6 +109,27 @@ fn hide_invisible_nodes() {
     check_node_counts(output, &[("always visible", 1)]);
 }
 
+/// A popup is visible even if the widget it is anchored to is invisible.
+#[test]
+fn popup_of_invisible_widget_is_visible() {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+
+    let run_ui = |ui: &mut egui::Ui| {
+        let response = ui.add_visible(false, egui::Button::new("invisible anchor"));
+        egui::Popup::from_response(&response)
+            .open(true)
+            .show(|ui| ui.label("popup content"));
+    };
+
+    // The first time the popup shows up it does an invisible sizing pass:
+    check_node_counts(ctx.run_ui(Default::default(), run_ui), &[]);
+    check_node_counts(
+        ctx.run_ui(Default::default(), run_ui),
+        &[("popup content", 1)],
+    );
+}
+
 /// Forget nodes from previous frames
 #[test]
 fn forget_nodes_from_previous_frames() {
