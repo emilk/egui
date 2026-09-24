@@ -277,3 +277,35 @@ fn request_focus_during_sizing_pass() {
         "The focus request should apply once the widget is visible"
     );
 }
+
+/// Widgets are invisible in a pass that will be discarded (see `Context::will_discard`),
+/// but that must not make them lose keyboard focus.
+#[test]
+fn keep_focus_in_discarded_pass() {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    ctx.options_mut(|options| options.max_passes = 2.try_into().unwrap());
+
+    let mut button_id = None;
+    let mut output = ctx.run_ui(Default::default(), |ui| {
+        let response = ui.button("button");
+        response.request_focus();
+        button_id = Some(response.id);
+    });
+    output.textures_delta.clear();
+    let button_id = button_id.unwrap();
+
+    let mut num_passes = 0;
+    let output = ctx.run_ui(Default::default(), |ui| {
+        num_passes += 1;
+        if ui.current_pass_index() == 0 {
+            ui.request_discard("test");
+        }
+        let _ = ui.button("button");
+    });
+    assert_eq!(num_passes, 2);
+
+    assert!(ctx.memory(|mem| mem.has_focus(button_id)));
+    let tree = validated_tree(output);
+    assert_eq!(tree.focus, button_id.accesskit_id());
+}
