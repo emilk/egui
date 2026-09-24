@@ -458,6 +458,8 @@ impl SubMenu {
         button_response: &Response,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
+        // This frame is only used to measure the offset we should set for the popup, so that
+        // contents align
         let measurement_frame = Frame::menu(ui.style());
 
         let id = Self::id_from_widget_id(button_response.id);

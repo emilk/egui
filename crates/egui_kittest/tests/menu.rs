@@ -209,6 +209,10 @@ fn submenu_respects_custom_style() {
                         .ui(ui, |ui| {
                             assert_eq!(ui.visuals().window_fill(), FILL);
                             ui.label("I should have a thick green outline and red fill");
+                            ui.menu_button("Sub-submenu", |ui| {
+                                assert_eq!(ui.visuals().window_fill(), FILL);
+                                ui.label("I should inherit the style");
+                            });
                         });
                 });
             });
@@ -223,6 +227,9 @@ fn submenu_respects_custom_style() {
             .query_by_label("I should have a thick green outline and red fill")
             .is_some()
     );
+    harness.get_by_label_contains("Sub-submenu").hover();
+    harness.run();
+    assert!(harness.query_by_label("I should inherit the style").is_some());
 
     harness.fit_contents();
 
