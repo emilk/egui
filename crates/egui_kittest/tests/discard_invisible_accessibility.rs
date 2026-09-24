@@ -205,41 +205,54 @@ fn forget_nodes_from_sizing_passes() {
     );
 }
 
-/// Requesting focus for an invisible widget must not point the accessibility focus at a node that
-/// isn't in the tree, but the focus should still be applied once the widget becomes visible.
+/// Calling `request_focus` on a widget that is invisible (here: during the sizing pass of a new `Area`)
+/// must not report that widget as focused to accessibility, since it has no node in the tree.
+/// The focus should still take effect once the widget is visible.
 #[test]
 fn request_focus_during_sizing_pass() {
     let ctx = egui::Context::default();
     ctx.enable_accesskit();
     ctx.options_mut(|options| options.max_passes = 1.try_into().unwrap());
 
-    let mut text = String::new();
+    let mut text = String::from("my text");
     let mut run_ui = |ui: &mut egui::Ui, request_focus: bool| {
-        egui::Area::new(ui.make_persistent_id("area")).show(ui, |ui| {
-            let response = ui.text_edit_singleline(&mut text);
-            if request_focus {
-                response.request_focus();
-            }
-        });
+        egui::Area::new(ui.make_persistent_id("area"))
+            .accessible_name("My area")
+            .show(ui, |ui| {
+                let response = ui.text_edit_singleline(&mut text);
+                if request_focus {
+                    response.request_focus();
+                }
+            });
     };
 
-    // The first time an Area shows up it does an invisible sizing pass:
+    // AccessKit requires a focused node. When no visible widget has focus, egui reports the root.
+    let root_is_focused =
+        |tree: &TreeUpdate| Some(tree.focus) == tree.tree.as_ref().map(|t| t.root);
+
+    // First frame: the new Area does an invisible sizing pass, so nothing is in the tree,
+    // and the text edit that requested focus must not be reported as focused:
     let tree = validated_tree(ctx.run_ui(Default::default(), |ui| run_ui(ui, true)));
-    assert_eq!(
-        Some(tree.focus),
-        tree.tree.as_ref().map(|tree| tree.root),
+    assert_eq!(count_labels(&tree), BTreeMap::new());
+    assert!(
+        root_is_focused(&tree),
         "An invisible widget should not have accessibility focus"
     );
 
+    // Second frame: the Area and text edit are visible, and the focus request from the first frame applies:
     let tree = validated_tree(ctx.run_ui(Default::default(), |ui| run_ui(ui, false)));
-    let focused = tree
+    assert_eq!(
+        count_labels(&tree),
+        BTreeMap::from([("My area".to_owned(), 1), ("my text".to_owned(), 1)])
+    );
+    let focused_node = tree
         .nodes
         .iter()
         .find(|(id, _)| *id == tree.focus)
-        .map(|(_, node)| node.role());
+        .map(|(_, node)| (node.role(), node.value()));
     assert_eq!(
-        focused,
-        Some(Role::TextInput),
+        focused_node,
+        Some((Role::TextInput, Some("my text"))),
         "The focus request should apply once the widget is visible"
     );
 }
