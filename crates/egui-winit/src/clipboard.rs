@@ -70,7 +70,8 @@ impl Clipboard {
                 // Smithay uses NotFound when no supported text MIME type is offered.
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
                 Err(err) => {
-                    log::error!("smithay paste error: {err}");
+                    // Not fatal: we fall back to arboard below.
+                    log::debug!("smithay paste error: {err}");
                 }
             }
         }
