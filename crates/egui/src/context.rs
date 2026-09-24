@@ -641,7 +641,13 @@ impl ContextImpl {
     }
 
     fn accesskit_node_builder(&mut self, id: Id) -> Option<&mut accesskit::Node> {
-        let state = self.viewport().this_pass.accesskit_state.as_mut()?;
+        let this_pass = &mut self.viewport().this_pass;
+        let state = this_pass.accesskit_state.as_mut()?;
+
+        if !is_accesskit_visible(&this_pass.widgets, &state.parent_map, id) {
+            return None;
+        }
+
         let builders = &mut state.nodes;
 
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
@@ -1509,6 +1515,7 @@ impl Context {
         debug_assert!(!w.rect.any_nan(), "widget rect is NaN: {:?}", w.rect);
 
         let interested_in_focus = w.enabled
+            && w.visible
             && w.sense.is_focusable()
             && self.memory(|mem| mem.allows_interaction(w.layer_id));
 
@@ -1688,6 +1695,7 @@ impl Context {
             interact_rect,
             sense,
             enabled,
+            visible,
         } = widget_rect;
 
         // previous pass + "highlight next pass" == "highlight this pass"
@@ -1706,6 +1714,7 @@ impl Context {
         };
 
         res.flags.set(Flags::ENABLED, enabled);
+        res.flags.set(Flags::VISIBLE, visible);
         res.flags.set(Flags::HIGHLIGHTED, highlighted);
 
         self.write(|ctx| {
@@ -3105,6 +3114,12 @@ impl ContextImpl {
             let state = viewport.this_pass.accesskit_state.take();
             if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
+                // A widget can have focus without a node, e.g. if it requested focus while invisible.
+                let focus_id = self
+                    .memory
+                    .focused()
+                    .filter(|id| state.nodes.contains_key(id))
+                    .map_or(root_id, |id| id.accesskit_id());
                 // The `(id, node)` pairs of the coming `accesskit::TreeUpdate`:
                 let mut nodes: Vec<(accesskit::NodeId, accesskit::Node)> = state
                     .nodes
@@ -3112,10 +3127,6 @@ impl ContextImpl {
                     .map(|(id, node)| (id.accesskit_id(), node))
                     .collect();
                 flatten_labelled_by(&mut nodes);
-                let focus_id = self
-                    .memory
-                    .focused()
-                    .map_or(root_id, |id| id.accesskit_id());
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
@@ -4099,7 +4110,8 @@ impl Context {
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
-    /// Returns `None` if accesskit is off.
+    /// Returns `None` if accesskit is off,
+    /// or if the widget is invisible (see [`Ui::is_visible`]).
     // TODO(emilk): consider making both read-only and read-write versions
     pub fn accesskit_node_builder<R>(
         &self,
@@ -4831,6 +4843,22 @@ fn warn_if_rect_changes_id(
 /// [`crate::Response::labelled_by`]. Without this, the number field would have no name.
 ///
 /// `nodes` are the `(id, node)` pairs of an [`accesskit::TreeUpdate`].
+/// Invisible widgets (see [`Ui::is_visible`]) are not exposed to accessibility.
+///
+/// Nodes that aren't widgets themselves (e.g. text runs) inherit the visibility
+/// of their closest ancestor that is.
+fn is_accesskit_visible(widgets: &crate::WidgetRects, parent_map: &IdMap<Id>, mut id: Id) -> bool {
+    loop {
+        if let Some(widget) = widgets.get(id) {
+            return widget.visible;
+        }
+        match parent_map.get(&id) {
+            Some(parent_id) => id = *parent_id,
+            None => return true,
+        }
+    }
+}
+
 fn flatten_labelled_by(nodes: &mut [(accesskit::NodeId, accesskit::Node)]) {
     profiling::function_scope!();
 
