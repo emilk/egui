@@ -1513,6 +1513,7 @@ impl Context {
         debug_assert!(!w.rect.any_nan(), "widget rect is NaN: {:?}", w.rect);
 
         let interested_in_focus = w.enabled
+            && w.visible
             && w.sense.is_focusable()
             && self.memory(|mem| mem.allows_interaction(w.layer_id));
 
