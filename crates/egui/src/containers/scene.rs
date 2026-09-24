@@ -24,7 +24,17 @@ fn fit_to_rect_in_scene(
     let scale = scale.min_elem();
 
     // Clamp scale to what is allowed
-    let scale = zoom_range.clamp(scale);
+    let mut scale = zoom_range.clamp(scale);
+
+    // A degenerate `rect_in_scene` (e.g. `Rect::ZERO`) gives an infinite scale,
+    // which the zoom range may not catch (e.g. `0.0..=f32::INFINITY`).
+    // Fall back to 1:1 so we never produce NaN.
+    if !(scale.is_finite() && 0.0 < scale) {
+        scale = zoom_range.clamp(1.0);
+    }
+    if !(scale.is_finite() && 0.0 < scale) {
+        scale = 1.0;
+    }
 
     // Compute the translation to center the bounding rect in the screen:
     let center_in_global = rect_in_global.center().to_vec2();
