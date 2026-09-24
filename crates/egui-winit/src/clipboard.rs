@@ -67,6 +67,8 @@ impl Clipboard {
         if let Some(clipboard) = &mut self.smithay {
             match clipboard.load() {
                 Ok(text) => return Some(text),
+                // Smithay uses NotFound when no supported text MIME type is offered.
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
                 Err(err) => {
                     log::error!("smithay paste error: {err}");
                 }
