@@ -2424,6 +2424,46 @@ fn test_tessellator() {
 }
 
 #[test]
+fn transform_before_and_after_rounding() {
+    use crate::*;
+
+    fn tessellated_bounds(clipped_shape: ClippedShape) -> Rect {
+        let options = TessellationOptions {
+            feathering: false,
+            ..Default::default()
+        };
+        let primitives = Tessellator::new(1.0, options, [1024, 1024], vec![])
+            .tessellate_shapes(vec![clipped_shape]);
+        assert_eq!(primitives.len(), 1);
+        let Primitive::Mesh(mesh) = &primitives[0].primitive else {
+            panic!("expected a mesh");
+        };
+        mesh.calc_bounds()
+    }
+
+    // Off the pixel grid, so the tessellator has to round it:
+    let rect = Rect::from_min_max(pos2(0.5, 0.5), pos2(10.5, 10.5));
+    let shape = Shape::rect_filled(rect, 0, Color32::WHITE);
+    let transform = TSTransform::from_scaling(3.0);
+
+    // Transform first, then round: [1.5, 31.5] rounds to [2, 32].
+    let mut immediate = ClippedShape::new(Rect::EVERYTHING, shape.clone());
+    immediate.transform(transform);
+    assert_eq!(
+        tessellated_bounds(immediate),
+        Rect::from_min_max(pos2(2.0, 2.0), pos2(32.0, 32.0))
+    );
+
+    // Round first, then transform: [0.5, 10.5] rounds to [1, 11], which scales to [3, 33].
+    let mut after_rounding = ClippedShape::new(Rect::EVERYTHING, shape);
+    after_rounding.transform_after_tessellation = transform;
+    assert_eq!(
+        tessellated_bounds(after_rounding),
+        Rect::from_min_max(pos2(3.0, 3.0), pos2(33.0, 33.0))
+    );
+}
+
+#[test]
 fn path_bounding_box() {
     use crate::*;
 
