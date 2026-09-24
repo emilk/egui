@@ -229,7 +229,11 @@ fn submenu_respects_custom_style() {
     );
     harness.get_by_label_contains("Sub-submenu").hover();
     harness.run();
-    assert!(harness.query_by_label("I should inherit the style").is_some());
+    assert!(
+        harness
+            .query_by_label("I should inherit the style")
+            .is_some()
+    );
 
     harness.fit_contents();
 
