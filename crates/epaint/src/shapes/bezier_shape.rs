@@ -203,7 +203,7 @@ impl CubicBezierShape {
     /// B.x * (P3.y - P0.y) - B.y * (P3.x - P0.x) + P0.x * (P0.y - P3.y) + P0.y * (P3.x - P0.x) = 0
     /// B.x = (P3.x - 3 * P2.x + 3 * P1.x - P0.x) * t^3 + (3 * P2.x - 6 * P1.x + 3 * P0.x) * t^2 + (3 * P1.x - 3 * P0.x) * t + P0.x
     /// B.y = (P3.y - 3 * P2.y + 3 * P1.y - P0.y) * t^3 + (3 * P2.y - 6 * P1.y + 3 * P0.y) * t^2 + (3 * P1.y - 3 * P0.y) * t + P0.y
-    /// Combine the above three equations and iliminate B.x and B.y, we get:
+    /// Combine the above three equations and eliminate B.x and B.y, we get:
     /// ```text
     /// t^3 * ( (P3.x - 3*P2.x + 3*P1.x - P0.x) * (P3.y - P0.y) - (P3.y - 3*P2.y + 3*P1.y - P0.y) * (P3.x - P0.x))
     /// + t^2 * ( (3 * P2.x - 6 * P1.x + 3 * P0.x) * (P3.y - P0.y) - (3 * P2.y - 6 * P1.y + 3 * P0.y) * (P3.x - P0.x))
@@ -211,13 +211,13 @@ impl CubicBezierShape {
     /// + (P0.x * (P3.y - P0.y) - P0.y * (P3.x - P0.x)) + P0.x * (P0.y - P3.y) + P0.y * (P3.x - P0.x)
     /// = 0
     /// ```
-    /// or `a * t^3 + b * t^2 + c * t + d = 0`
+    /// or `a * t^3 + b * t^2 + c * t + d = 0` where `d = 0`
     ///
     /// let x = t - b / (3 * a), then we have:
     /// ```text
     /// x^3 + p * x + q = 0, where:
     /// p = (3.0 * a * c - b^2) / (3.0 * a^2)
-    /// q = (2.0 * b^3 - 9.0 * a * b * c + 27.0 * a^2 * d) / (27.0 * a^3)
+    /// q = (2.0 * b^3 - 9.0 * a * b * c) / (27.0 * a^3)
     /// ```
     ///
     /// when p > 0, there will be one real root, two complex roots
@@ -235,27 +235,24 @@ impl CubicBezierShape {
 
         let a = (p3.x - 3.0 * p2.x + 3.0 * p1.x - p0.x) * (p3.y - p0.y)
             - (p3.y - 3.0 * p2.y + 3.0 * p1.y - p0.y) * (p3.x - p0.x);
-        let b = (3.0 * p2.x - 6.0 * p1.x + 3.0 * p0.x) * (p3.y - p0.y)
-            - (3.0 * p2.y - 6.0 * p1.y + 3.0 * p0.y) * (p3.x - p0.x);
-        let c =
-            (3.0 * p1.x - 3.0 * p0.x) * (p3.y - p0.y) - (3.0 * p1.y - 3.0 * p0.y) * (p3.x - p0.x);
-        let d = p0.x * (p3.y - p0.y) - p0.y * (p3.x - p0.x)
-            + p0.x * (p0.y - p3.y)
-            + p0.y * (p3.x - p0.x);
+        let b =
+            (p2.x - 2.0 * p1.x + p0.x) * (p3.y - p0.y) - (p2.y - 2.0 * p1.y + p0.y) * (p3.x - p0.x); // Common factor of 3 removed from b
+        let c = (p1.x - p0.x) * (p3.y - p0.y) - (p1.y - p0.y) * (p3.x - p0.x); // Common factor of 3 removed from c
 
-        let h = -b / (3.0 * a);
-        let p = (3.0 * a * c - b * b) / (3.0 * a * a);
-        let q = (2.0 * b * b * b - 9.0 * a * b * c + 27.0 * a * a * d) / (27.0 * a * a * a);
+        let h = -b / a; // Factor of 3 reintroduced for b
+        let p = (a * c - b * b) / (a * a); // Factor of 3 reintroduced for b and c and common factor 3 removed from p
+        let q = (2.0 * b * b * b - 3.0 * a * b * c) / (a * a * a); // Factor of 3 reintroduced for b and c
 
         if p > 0.0 {
             return None;
         }
-        let r = (-(p / 3.0).powi(3)).sqrt();
+        let p = -p;
+        let r = (p.powi(3)).sqrt(); // Factor of 3 introduced for p
         let theta = (-q / (2.0 * r)).acos() / 3.0;
 
-        let t1 = 2.0 * r.cbrt() * theta.cos() + h;
-        let t2 = 2.0 * r.cbrt() * (theta + 120.0 * core::f32::consts::PI / 180.0).cos() + h;
-        let t3 = 2.0 * r.cbrt() * (theta + 240.0 * core::f32::consts::PI / 180.0).cos() + h;
+        let t1 = 2.0 * p.sqrt() * theta.cos() + h;
+        let t2 = 2.0 * p.sqrt() * (theta + 120.0 * core::f32::consts::PI / 180.0).cos() + h;
+        let t3 = 2.0 * p.sqrt() * (theta + 240.0 * core::f32::consts::PI / 180.0).cos() + h;
 
         if t1 > epsilon && t1 < 1.0 - epsilon {
             return Some(t1);
