@@ -3128,6 +3128,7 @@ impl ContextImpl {
                 let focus_id = self
                     .memory
                     .focused()
+                    .filter(|id| !state.invisible.contains(id))
                     .map_or(root_id, |id| id.accesskit_id());
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,

@@ -204,3 +204,42 @@ fn forget_nodes_from_sizing_passes() {
         ],
     );
 }
+
+/// Requesting focus for an invisible widget must not point the accessibility focus at a node that
+/// isn't in the tree, but the focus should still be applied once the widget becomes visible.
+#[test]
+fn request_focus_during_sizing_pass() {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    ctx.options_mut(|options| options.max_passes = 1.try_into().unwrap());
+
+    let mut text = String::new();
+    let mut run_ui = |ui: &mut egui::Ui, request_focus: bool| {
+        egui::Area::new(ui.make_persistent_id("area")).show(ui, |ui| {
+            let response = ui.text_edit_singleline(&mut text);
+            if request_focus {
+                response.request_focus();
+            }
+        });
+    };
+
+    // The first time an Area shows up it does an invisible sizing pass:
+    let tree = validated_tree(ctx.run_ui(Default::default(), |ui| run_ui(ui, true)));
+    assert_eq!(
+        Some(tree.focus),
+        tree.tree.as_ref().map(|tree| tree.root),
+        "An invisible widget should not have accessibility focus"
+    );
+
+    let tree = validated_tree(ctx.run_ui(Default::default(), |ui| run_ui(ui, false)));
+    let focused = tree
+        .nodes
+        .iter()
+        .find(|(id, _)| *id == tree.focus)
+        .map(|(_, node)| node.role());
+    assert_eq!(
+        focused,
+        Some(Role::TextInput),
+        "The focus request should apply once the widget is visible"
+    );
+}
