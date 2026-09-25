@@ -562,9 +562,7 @@ impl Widget for DragValue<'_> {
                     .align(ui.layout().align2())
                     .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size))
                     .id(id)
-                    .desired_width(
-                        ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
-                    )
+                    .desired_width(0.0) // as small as possible, like the button
                     .font(text_style),
             );
 
