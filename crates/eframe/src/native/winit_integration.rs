@@ -86,10 +86,19 @@ impl From<accesskit_winit::Event> for UserEvent {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ViewportWindowKind {
+    Root,
+    Deferred,
+    Immediate,
+}
+
 pub trait WinitApp {
     fn egui_ctx(&self) -> Option<&egui::Context>;
 
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>>;
+
+    fn viewport_window_kind(&self, window_id: WindowId) -> Option<ViewportWindowKind>;
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId>;
 

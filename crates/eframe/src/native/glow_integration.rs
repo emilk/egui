@@ -36,7 +36,9 @@ use log::warn;
 
 use super::{
     epi_integration, event_loop_context,
-    winit_integration::{EventResult, UserEvent, WinitApp, create_egui_context},
+    winit_integration::{
+        EventResult, UserEvent, ViewportWindowKind, WinitApp, create_egui_context,
+    },
 };
 use crate::epaint::textures::TexturesDelta;
 use crate::{
@@ -415,6 +417,21 @@ impl WinitApp for GlowWinitApp<'_> {
         } else {
             None
         }
+    }
+
+    fn viewport_window_kind(&self, window_id: WindowId) -> Option<ViewportWindowKind> {
+        let running = self.running.as_ref()?;
+        let glutin = running.glutin.borrow();
+        let viewport_id = *glutin.viewport_from_window.get(&window_id)?;
+        let viewport = glutin.viewports.get(&viewport_id)?;
+
+        Some(if viewport_id == ViewportId::ROOT {
+            ViewportWindowKind::Root
+        } else if viewport.viewport_ui_cb.is_some() {
+            ViewportWindowKind::Deferred
+        } else {
+            ViewportWindowKind::Immediate
+        })
     }
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
