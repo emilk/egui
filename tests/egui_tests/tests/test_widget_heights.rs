@@ -9,8 +9,12 @@ struct Heights {
     outer: f32,
 }
 
-fn measure_height(ui: &mut egui::Ui, f: impl FnOnce(&mut egui::Ui) -> f32) -> Heights {
-    ui.style_mut().spacing.interact_size.y = 0.0;
+fn measure_height(
+    ui: &mut egui::Ui,
+    interact_height: f32,
+    f: impl FnOnce(&mut egui::Ui) -> f32,
+) -> Heights {
+    ui.style_mut().spacing.interact_size.y = interact_height;
     let mut inner = 0.0;
     let outer = ui
         .horizontal(|ui| {
@@ -22,75 +26,86 @@ fn measure_height(ui: &mut egui::Ui, f: impl FnOnce(&mut egui::Ui) -> f32) -> He
     Heights { inner, outer }
 }
 
-/// With the default style, widgets that commonly sit next to each other in a row
-/// should all be the same height, so they line up nicely.
+/// Widgets that commonly sit next to each other in a row should all be the same height,
+/// so they line up nicely, regardless of [`egui::style::Spacing::interact_size`].
 #[test]
-fn default_widget_heights_should_match() {
-    let mut harness = Harness::builder()
-        .with_accessibility_check(false)
-        .build_ui_state(
-            |ui, heights: &mut BTreeMap<&'static str, Heights>| {
-                ui.vertical(|ui| {
-                    ui.style_mut().spacing.interact_size.y = 0.0;
+fn widget_heights_should_match() {
+    let default_interact_height = egui::Style::default().spacing.interact_size.y;
 
-                    heights.insert(
-                        "drag_value",
-                        measure_height(ui, |ui| {
-                            let mut value = 42.0;
-                            ui.add(DragValue::new(&mut value)).rect.height()
-                        }),
-                    );
+    for interact_height in [0.0, default_interact_height, 30.0] {
+        let mut harness = Harness::builder()
+            .with_accessibility_check(false)
+            .build_ui_state(
+                |ui, heights: &mut BTreeMap<&'static str, Heights>| {
+                    ui.vertical(|ui| {
+                        heights.insert(
+                            "drag_value",
+                            measure_height(ui, interact_height, |ui| {
+                                let mut value = 42.0;
+                                ui.add(DragValue::new(&mut value)).rect.height()
+                            }),
+                        );
 
-                    heights.insert(
-                        "button",
-                        measure_height(ui, |ui| ui.add(Button::new("Button")).rect.height()),
-                    );
+                        heights.insert(
+                            "button",
+                            measure_height(ui, interact_height, |ui| {
+                                ui.add(Button::new("Button")).rect.height()
+                            }),
+                        );
 
-                    heights.insert(
-                        "text_edit",
-                        measure_height(ui, |ui| {
-                            let mut text = String::from("Text");
-                            ui.add(TextEdit::singleline(&mut text)).rect.height()
-                        }),
-                    );
+                        heights.insert(
+                            "text_edit",
+                            measure_height(ui, interact_height, |ui| {
+                                let mut text = String::from("Text");
+                                ui.add(TextEdit::singleline(&mut text)).rect.height()
+                            }),
+                        );
 
-                    heights.insert(
-                        "combo_box",
-                        measure_height(ui, |ui| {
-                            ComboBox::from_id_salt("combo")
-                                .selected_text("Combo")
-                                .show_ui(ui, |_ui| {})
-                                .response
-                                .rect
-                                .height()
-                        }),
-                    );
-                });
-            },
-            BTreeMap::new(),
-        );
-    harness.run();
+                        heights.insert(
+                            "combo_box",
+                            measure_height(ui, interact_height, |ui| {
+                                ComboBox::from_id_salt("combo")
+                                    .selected_text("Combo")
+                                    .show_ui(ui, |_ui| {})
+                                    .response
+                                    .rect
+                                    .height()
+                            }),
+                        );
+                    });
+                },
+                BTreeMap::new(),
+            );
+        harness.run();
 
-    let heights = harness.state();
-    assert_eq!(heights.len(), 4);
-    let interact_height = egui::Style::default().spacing.interact_size.y;
+        let heights = harness.state();
+        assert_eq!(heights.len(), 4);
 
-    let (first_name, first) = heights.first_key_value().unwrap();
-    for (name, h) in heights {
-        assert_eq!(
-            h.inner, first.inner,
-            "{name} and {first_name} have different heights: {heights:#?}"
-        );
-        assert_eq!(
-            h.inner, h.outer,
-            "{name} does not fill the row it is in: {h:?}"
-        );
-        assert!(
-            h.inner <= interact_height,
-            "{name} is taller ({}) than the default interact_size.y ({interact_height}), \
-             so it will overflow its row and look misaligned",
-            h.inner
-        );
+        let (first_name, first) = heights.first_key_value().unwrap();
+        for (name, h) in heights {
+            assert_eq!(
+                h.inner, first.inner,
+                "{name} and {first_name} have different heights \
+                 (interact_size.y: {interact_height}): {heights:#?}"
+            );
+            assert_eq!(
+                h.inner, h.outer,
+                "{name} does not fill the row it is in (interact_size.y: {interact_height}): {h:?}"
+            );
+            if interact_height == 0.0 {
+                assert!(
+                    h.inner <= default_interact_height,
+                    "{name} is taller ({}) than the default interact_size.y \
+                     ({default_interact_height}), so it will overflow its row and look misaligned",
+                    h.inner
+                );
+            } else {
+                assert_eq!(
+                    h.inner, interact_height,
+                    "{name} does not respect interact_size.y"
+                );
+            }
+        }
     }
 }
 

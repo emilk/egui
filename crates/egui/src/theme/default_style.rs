@@ -156,6 +156,8 @@ impl StyleProvider<TextEditStyle> for DefaultStyle {
                     ..Default::default()
                 }
                 .apply_stroke_and_expansion_without_layout_shift(stroke, widget_visuals.expansion),
+                // Same as a button, so they line up when next to each other:
+                min_size: Vec2::new(0.0, style.spacing.interact_size.y),
                 gap: style.spacing.icon_spacing,
                 text_style: text,
                 align2: Some(Align2::LEFT_TOP),
