@@ -191,7 +191,10 @@ impl StyleProvider<CheckboxStyle> for DefaultStyle {
             check_size: spacing.icon_width_inner,
             checkbox_frame: Frame {
                 fill: widget_visuals.bg_fill,
-                corner_radius: widget_visuals.corner_radius,
+                // The box is small, so cap the rounding to keep it from looking like a radio button:
+                corner_radius: widget_visuals
+                    .corner_radius
+                    .at_most((0.3 * spacing.icon_width).round() as u8),
                 stroke: widget_visuals.bg_stroke,
                 ..Default::default()
             },
