@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use egui::{Button, ComboBox, DragValue};
-use egui_kittest::Harness;
+use egui::{Button, ComboBox, DragValue, TextEdit, accesskit::Role};
+use egui_kittest::{Harness, kittest::Queryable as _};
 
 #[derive(Debug)]
 struct Heights {
@@ -47,6 +47,14 @@ fn default_widget_heights_should_match() {
                     );
 
                     heights.insert(
+                        "text_edit",
+                        measure_height(ui, |ui| {
+                            let mut text = String::from("Text");
+                            ui.add(TextEdit::singleline(&mut text)).rect.height()
+                        }),
+                    );
+
+                    heights.insert(
                         "combo_box",
                         measure_height(ui, |ui| {
                             ComboBox::from_id_salt("combo")
@@ -64,7 +72,7 @@ fn default_widget_heights_should_match() {
     harness.run();
 
     let heights = harness.state();
-    assert_eq!(heights.len(), 3);
+    assert_eq!(heights.len(), 4);
     let interact_height = egui::Style::default().spacing.interact_size.y;
 
     let (first_name, first) = heights.first_key_value().unwrap();
@@ -149,9 +157,6 @@ fn combo_box_and_drag_value_should_line_up_for_any_interact_size() {
 /// Hovering an open [`ComboBox`] must not change its size.
 #[test]
 fn open_combo_box_should_not_change_size_when_hovered() {
-    use egui::accesskit::Role;
-    use egui_kittest::kittest::Queryable as _;
-
     let mut harness = Harness::builder()
         .with_accessibility_check(false)
         .build_ui_state(
@@ -182,5 +187,67 @@ fn open_combo_box_should_not_change_size_when_hovered() {
     assert_eq!(
         open_hovered, open_not_hovered,
         "size of the open combo box changed with hover"
+    );
+}
+
+/// The stroke of a [`egui::TextEdit`] changes on hover and focus,
+/// but that must not change its size.
+#[test]
+fn text_edit_size_is_stable_on_hover_and_focus() {
+    for margin in [None, Some(egui::Margin::symmetric(8, 2))] {
+        let mut text = String::from("Hello");
+        let mut harness = Harness::builder()
+            .with_accessibility_check(false)
+            .build_ui(|ui| {
+                let mut text_edit = egui::TextEdit::singleline(&mut text);
+                if let Some(margin) = margin {
+                    text_edit = text_edit.margin(margin);
+                }
+                ui.add(text_edit);
+            });
+        harness.run();
+        let idle_rect = harness.get_by_role(Role::TextInput).rect();
+
+        harness.get_by_role(Role::TextInput).hover();
+        harness.run();
+        let hovered_rect = harness.get_by_role(Role::TextInput).rect();
+        assert_eq!(
+            idle_rect, hovered_rect,
+            "Hovering changed size (margin: {margin:?})"
+        );
+
+        harness.get_by_role(Role::TextInput).click();
+        harness.run();
+        assert!(harness.get_by_role(Role::TextInput).is_focused());
+        let focused_rect = harness.get_by_role(Role::TextInput).rect();
+        assert_eq!(
+            idle_rect, focused_rect,
+            "Focusing changed size (margin: {margin:?})"
+        );
+    }
+}
+
+/// A singleline [`TextEdit`] with `clip_text(false)` should expand to make all text visible.
+#[test]
+fn unclipped_text_edit_should_grow_to_fit_text() {
+    let mut harness = Harness::builder()
+        .with_accessibility_check(false)
+        .build_ui_state(
+            |ui, (text_edit_width, text_width): &mut (f32, f32)| {
+                let mut text = String::from("This text is much wider than the TextEdit");
+                let output = TextEdit::singleline(&mut text)
+                    .clip_text(false)
+                    .desired_width(0.0)
+                    .show(ui);
+                *text_edit_width = output.response.rect.width();
+                *text_width = output.galley.size().x;
+            },
+            (0.0, 0.0),
+        );
+    harness.run();
+    let (text_edit_width, text_width) = *harness.state();
+    assert!(
+        text_width < text_edit_width,
+        "TextEdit ({text_edit_width}) is narrower than its text ({text_width})"
     );
 }

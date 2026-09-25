@@ -152,7 +152,7 @@ impl StyleProvider<TextEditStyle> for DefaultStyle {
                 frame: Frame {
                     fill,
                     corner_radius: widget_visuals.corner_radius,
-                    inner_margin: Margin::symmetric(4, 2),
+                    inner_margin: style.spacing.button_padding.into(),
                     ..Default::default()
                 }
                 .apply_stroke_and_expansion_without_layout_shift(stroke, widget_visuals.expansion),
