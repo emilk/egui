@@ -38,6 +38,10 @@ pub(crate) struct StripLayoutFlags {
 
     /// Used when we want to accurately measure the size of this cell.
     pub(crate) sizing_pass: bool,
+
+    /// Measure the cell as if it had all the width in the world,
+    /// so that we learn how wide its contents would like to be.
+    pub(crate) measure_natural_width: bool,
 }
 
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
@@ -242,6 +246,11 @@ impl<'l> StripLayout<'l> {
                 // Better to truncate (if we can), rather than hard clipping:
                 child_ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
             }
+        }
+
+        if flags.measure_natural_width {
+            // Don't wrap: we want to know how wide the contents would like to be.
+            child_ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
         }
 
         if flags.selected {

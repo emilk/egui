@@ -652,10 +652,12 @@ fn tall_cell_in_clipped_column_does_not_grow_the_row() {
 }
 
 /// Run a table for `passes` passes in a viewport of the given width,
-/// and return the column widths as of each pass.
+/// and return the column widths that each pass ended up displaying.
 ///
 /// This is deliberately not a [`Harness`]: a `Harness` runs to convergence,
-/// and here we care about the passes on the way there.
+/// and here we care about the passes on the way there. A pass that asks to be
+/// discarded is not counted: `egui` immediately runs another one in its place,
+/// and it is that one the user sees.
 fn column_widths_per_pass(
     viewport_width: f32,
     passes: usize,
@@ -690,7 +692,7 @@ fn auto_columns_are_never_shrunk_to_fit() {
         TableBuilder::new(ui)
             .columns(Column::auto(), 2)
             .body(|mut body| {
-                widths.extend_from_slice(body.widths());
+                *widths = body.widths().to_vec();
                 body.row(10.0, |mut row| {
                     for _ in 0..2 {
                         row.col(|ui| _ = ui.allocate_space(Vec2::new(content_width, 5.0)));
@@ -722,7 +724,7 @@ fn the_first_pass_uses_guessed_widths() {
             .column(Column::auto())
             .column(Column::remainder())
             .body(|mut body| {
-                widths.extend_from_slice(body.widths());
+                *widths = body.widths().to_vec();
                 body.row(10.0, |mut row| {
                     row.col(|ui| _ = ui.allocate_space(Vec2::new(30.0, 5.0)));
                     row.col(|ui| _ = ui.allocate_space(Vec2::new(30.0, 5.0)));
@@ -736,5 +738,164 @@ fn the_first_pass_uses_guessed_widths() {
         first, settled,
         "The first pass is displayed with the guessed widths {first:?}, \
          which only become the measured {settled:?} a pass later"
+    );
+}
+
+// ----------------------------------------------------------------------------
+// shrink_to_fit
+
+/// With `shrink_to_fit`, wide columns share the available width and wrap,
+/// instead of overflowing it.
+#[test]
+fn shrink_to_fit_wraps_instead_of_overflowing() {
+    snapshot_both_themes(
+        "shrink_to_fit_wraps_instead_of_overflowing",
+        [300.0, 180.0],
+        |ui| {
+            TableBuilder::new(ui)
+                .shrink_to_fit(true)
+                .striped(true)
+                .columns(Column::auto(), 3)
+                .body(|mut body| {
+                    for row_index in 0..2 {
+                        body.row(0.0, |mut row| {
+                            row.col(|ui| {
+                                ui.label(format!("{row_index}"));
+                            });
+                            row.col(|ui| {
+                                ui.label("short");
+                            });
+                            row.col(|ui| {
+                                ui.label(LONG_TEXT);
+                            });
+                        });
+                    }
+                });
+        },
+    );
+}
+
+/// The narrow columns keep their natural width; only the wide one shrinks.
+#[test]
+fn shrink_to_fit_keeps_narrow_columns() {
+    snapshot("shrink_to_fit_keeps_narrow_columns", [200.0, 100.0], |ui| {
+        TableBuilder::new(ui)
+            .shrink_to_fit(true)
+            .columns(Column::auto(), 3)
+            .body(|mut body| {
+                body.row(0.0, |mut row| {
+                    for text in ["a", "b", LONG_TEXT] {
+                        row.col(|ui| {
+                            filled_cell(ui, text);
+                        });
+                    }
+                });
+            });
+    });
+}
+
+/// `at_least` is the floor the shrinking may not go below,
+/// so a table can still overflow if the minimums do not fit.
+#[test]
+fn shrink_to_fit_respects_at_least() {
+    let viewport_width = 100.0;
+    let minimum = 120.0;
+    let widths = column_widths_per_pass(viewport_width, 4, |ui, widths| {
+        TableBuilder::new(ui)
+            .shrink_to_fit(true)
+            .columns(Column::auto().at_least(minimum), 2)
+            .body(|mut body| {
+                *widths = body.widths().to_vec();
+                body.row(10.0, |mut row| {
+                    for _ in 0..2 {
+                        row.col(|ui| _ = ui.allocate_space(Vec2::new(200.0, 5.0)));
+                    }
+                });
+            });
+    });
+
+    let settled = widths.last().expect("at least one pass");
+    assert_eq!(settled, &vec![minimum, minimum]);
+}
+
+/// The columns add up to the available width once the table has settled.
+#[test]
+fn shrink_to_fit_columns_add_up_to_the_available_width() {
+    let viewport_width = 100.0;
+    let widths = column_widths_per_pass(viewport_width, 4, |ui, widths| {
+        TableBuilder::new(ui)
+            .shrink_to_fit(true)
+            .columns(Column::auto(), 2)
+            .body(|mut body| {
+                *widths = body.widths().to_vec();
+                body.row(10.0, |mut row| {
+                    for _ in 0..2 {
+                        row.col(|ui| _ = ui.allocate_space(Vec2::new(200.0, 5.0)));
+                    }
+                });
+            });
+    });
+
+    let settled = widths.last().expect("at least one pass");
+    assert_eq!(settled.len(), 2);
+    let total: f32 = settled.iter().sum();
+    assert!(
+        total <= viewport_width,
+        "The columns {settled:?} should fit in the {viewport_width} px viewport, \
+         but add up to {total}"
+    );
+    assert!(
+        (settled[0] - settled[1]).abs() < 1.0,
+        "Two equally wide columns should shrink equally, but got {settled:?}"
+    );
+}
+
+/// `Column::remainder` is not shrunk: it still absorbs what is left over.
+#[test]
+fn shrink_to_fit_leaves_remainder_alone() {
+    snapshot(
+        "shrink_to_fit_leaves_remainder_alone",
+        [300.0, 100.0],
+        |ui| {
+            TableBuilder::new(ui)
+                .shrink_to_fit(true)
+                .column(Column::auto())
+                .column(Column::remainder())
+                .body(|mut body| {
+                    body.row(0.0, |mut row| {
+                        row.col(|ui| {
+                            filled_cell(ui, LONG_TEXT);
+                        });
+                        row.col(|ui| {
+                            filled_cell(ui, "remainder");
+                        });
+                    });
+                });
+        },
+    );
+}
+
+/// `shrink_to_fit` discards its sizing pass, so unlike a plain table
+/// (see `the_first_pass_uses_guessed_widths`) the first pass a user sees
+/// already has the measured widths.
+#[test]
+fn shrink_to_fit_gets_the_first_pass_right() {
+    let widths = column_widths_per_pass(100.0, 2, |ui, widths| {
+        TableBuilder::new(ui)
+            .shrink_to_fit(true)
+            .columns(Column::auto(), 2)
+            .body(|mut body| {
+                *widths = body.widths().to_vec();
+                body.row(10.0, |mut row| {
+                    for _ in 0..2 {
+                        row.col(|ui| _ = ui.allocate_space(Vec2::new(200.0, 5.0)));
+                    }
+                });
+            });
+    });
+
+    assert_eq!(
+        widths[0], widths[1],
+        "The first displayed pass should already be settled"
     );
 }
