@@ -461,7 +461,19 @@ impl WinitApp for GlowWinitApp<'_> {
         window_id: WindowId,
     ) -> Result<EventResult> {
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(event_loop, window_id)
+            running.run_ui_and_paint(event_loop, window_id, false)
+        } else {
+            Ok(EventResult::Wait)
+        }
+    }
+
+    fn run_logic(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+    ) -> Result<EventResult> {
+        if let Some(running) = &mut self.running {
+            running.run_ui_and_paint(event_loop, window_id, true)
         } else {
             Ok(EventResult::Wait)
         }
@@ -564,10 +576,12 @@ impl WinitApp for GlowWinitApp<'_> {
 }
 
 impl GlowWinitRunning<'_> {
+    /// With `logic_only`, only [`crate::App::logic`] runs, as for a hidden window.
     fn run_ui_and_paint(
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        logic_only: bool,
     ) -> Result<EventResult> {
         profiling::function_scope!();
 
@@ -627,8 +641,9 @@ impl GlowWinitRunning<'_> {
             let mut raw_input = egui_winit.take_egui_input(window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
-            let show_ui =
-                is_visible || is_viewport_or_descendant_visible(&glutin.viewports, viewport_id);
+            let show_ui = !logic_only
+                && (is_visible
+                    || is_viewport_or_descendant_visible(&glutin.viewports, viewport_id));
 
             self.integration.pre_update();
 
@@ -864,6 +879,9 @@ impl GlowWinitRunning<'_> {
                     )
                 })?;
 
+                // On Wayland this makes winit wait for the compositor's frame callback before
+                // the next `RedrawRequested`, so we don't block in a vsync swap while hidden:
+                window.pre_present_notify();
                 gl_surface.swap_buffers(context)?;
                 frame_timer.resume();
             }
@@ -1072,7 +1090,16 @@ impl GlutinWindowContext {
             egui_glow::HardwareAcceleration::Preferred => None,
             egui_glow::HardwareAcceleration::Off => Some(false),
         };
-        let swap_interval = if native_options.glow_options.vsync {
+        // On Wayland, winit paces `RedrawRequested` by the compositor's frame callbacks
+        // (see `pre_present_notify`), which is what vsync means there. A blocking swap would add
+        // nothing but a way to hang: a compositor may never present a hidden window's buffer.
+        let is_wayland = {
+            use raw_window_handle::{HasDisplayHandle as _, RawDisplayHandle};
+            event_loop
+                .display_handle()
+                .is_ok_and(|handle| matches!(handle.as_raw(), RawDisplayHandle::Wayland(_)))
+        };
+        let swap_interval = if native_options.glow_options.vsync && !is_wayland {
             glutin::surface::SwapInterval::Wait(NonZeroU32::MIN)
         } else {
             glutin::surface::SwapInterval::DontWait
