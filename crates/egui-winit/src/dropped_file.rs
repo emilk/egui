@@ -25,5 +25,7 @@ impl egui::DroppedFile for NativeFile {
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn bytes_async(&self) -> Pin<Box<dyn Future<Output = Result<std::vec::Vec<u8>, String>>>> { todo!() }
+    fn bytes_async(&self) -> Pin<Box<dyn Future<Output = Result<std::vec::Vec<u8>, String>>>> {
+        todo!()
+    }
 }
