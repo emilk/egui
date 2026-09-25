@@ -137,8 +137,16 @@ impl core::fmt::Debug for Id {
             return write!(f, "Id::NULL");
         }
         #[cfg(debug_assertions)]
-        if let Some(source) = id_source::get(*self) {
-            return f.write_str(&source);
+        {
+            // If we're already formatting an Id source string (i.e. we're in the middle of
+            // building a cached debug representation), use short format for recursive Id
+            // references to avoid exponential string growth in nested UIs (#8596).
+            if id_source::is_formatting() {
+                return write!(f, "id_{:04X}", self.value() as u16);
+            }
+            if let Some(source) = id_source::get(*self) {
+                return f.write_str(&source);
+            }
         }
         write!(f, "id_{:04X}", self.value() as u16)
     }
@@ -183,6 +191,10 @@ mod id_source {
 
     static SOURCE_MAP: LazyLock<RwLock<IdMap<String>>> = LazyLock::new(RwLock::default);
 
+    thread_local! {
+        static IS_FORMATTING: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
+    }
+
     pub(super) fn insert_root(id: Id, source: &impl AsId) {
         if SOURCE_MAP.read().contains_key(&id) {
             return;
@@ -199,13 +211,34 @@ mod id_source {
         // Look up parent's repr and drop the read guard before formatting,
         // since `{parent:?}` and `{salt:?}` may themselves recurse into [`Id`]'s `Debug` impl.
         let cached_parent_repr = SOURCE_MAP.read().get(&parent).cloned();
-        let parent_repr = cached_parent_repr.unwrap_or_else(|| format!("{parent:?}"));
-        let formatted = format!("{parent_repr}.with({salt:?})");
+        // For parent, prefer cached repr; if not cached and it's Id::NULL, use "Id::NULL";
+        // otherwise fall back to short format to avoid embedding long debug chains.
+        let parent_repr = cached_parent_repr.unwrap_or_else(|| {
+            if parent == Id::NULL {
+                "Id::NULL".to_owned()
+            } else {
+                parent.short_debug_format()
+            }
+        });
+        // For salt, mark us as formatting so that any Id passed as a salt uses short format,
+        // preventing exponential debug string growth in nested UIs (#8596).
+        let already = IS_FORMATTING.with(|c| c.replace(true));
+        let salt_repr = format_salt(salt);
+        IS_FORMATTING.with(|c| c.set(already));
+        let formatted = format!("{parent_repr}.with({salt_repr})");
         SOURCE_MAP.write().insert(id, formatted);
+    }
+
+    fn format_salt(salt: &impl AsIdSalt) -> String {
+        format!("{salt:?}")
     }
 
     pub(super) fn get(id: Id) -> Option<String> {
         SOURCE_MAP.read().get(&id).cloned()
+    }
+
+    pub(super) fn is_formatting() -> bool {
+        IS_FORMATTING.with(|c| c.get())
     }
 }
 
@@ -252,6 +285,27 @@ mod debug_format_tests {
         assert_eq!(
             format!("{id:?}"),
             r#"Id::new("a").with("b").with("c").with(7)"#
+        );
+    }
+
+    #[test]
+    fn nested_id_as_salt_does_not_grow_exponentially() {
+        // Simulates the bug in #8596: nested CollapsingState::show_body_indented calls
+        // `ui.indent(id, ...)` which calls `id.with(id)` using the header's Id as a salt.
+        // Without the fix, debug string length grows exponentially (~2x per level).
+        let root = Id::new("root");
+        let mut current = root;
+        for _ in 0..20 {
+            current = current.with(current); // pass Id as salt to itself, as in indent()
+        }
+        let debug = format!("{current:?}");
+        // Linear growth: each level adds a fixed-length suffix like ".with(id_XXXX)"
+        // (about 15 chars per level). For 20 levels that's under 400 chars.
+        // Exponential growth would produce millions of chars at 20 levels.
+        assert!(
+            debug.len() < 500,
+            "Id debug string grew to {} chars (expected linear growth): {debug}",
+            debug.len()
         );
     }
 
