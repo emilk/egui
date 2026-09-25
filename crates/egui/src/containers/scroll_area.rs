@@ -1314,11 +1314,21 @@ impl Prepared {
             let full_width = scroll_style.bar_width;
 
             // The bounding rect of a fully visible bar.
-            // When we hover this area, we should show the full bar:
+            // When we hover this area, we should show the full bar.
+            // The interaction rect must match where the scroll bar is drawn (outer_scroll_bar_rect),
+            // i.e. use `scroll_bar_rect` along the scrolling axis. Otherwise a press in a region
+            // where no scrollbar is drawn is sensed as a scrollbar press, creating a dead zone
+            // and snapping the offset to the minimum (see issue #8495).
             let max_bar_rect = if d == 0 {
-                outer_rect.with_min_y(max_cross - full_width)
+                Rect::from_x_y_ranges(
+                    scroll_bar_rect.x_range(),
+                    Rangef::new(max_cross - full_width, max_cross),
+                )
             } else {
-                outer_rect.with_min_x(max_cross - full_width)
+                Rect::from_x_y_ranges(
+                    Rangef::new(max_cross - full_width, max_cross),
+                    scroll_bar_rect.y_range(),
+                )
             };
 
             let sense = if scroll_source.scroll_bar && ui.is_enabled() {
