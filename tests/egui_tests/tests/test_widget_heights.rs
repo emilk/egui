@@ -227,6 +227,38 @@ fn text_edit_size_is_stable_on_hover_and_focus() {
     }
 }
 
+/// Clicking a [`egui::DragValue`] turns it into a [`egui::TextEdit`],
+/// which must have the same size as the button it replaces.
+#[test]
+fn drag_value_size_is_stable_when_editing() {
+    for initial_value in [1.0_f64, 123_456.789] {
+        for min_width in [None, Some(0.0)] {
+            let mut value = initial_value;
+            let mut harness = Harness::builder()
+                .with_accessibility_check(false)
+                .build_ui(|ui| {
+                    let mut drag_value = egui::DragValue::new(&mut value);
+                    if let Some(min_width) = min_width {
+                        let min_size = egui::vec2(min_width, ui.spacing().interact_size.y);
+                        drag_value = drag_value.min_size(min_size);
+                    }
+                    ui.add(drag_value);
+                });
+            harness.run();
+            let button_rect = harness.get_by_role(Role::SpinButton).rect();
+
+            harness.get_by_role(Role::SpinButton).click();
+            harness.run();
+            assert!(harness.get_by_role(Role::SpinButton).is_focused());
+            let editing_rect = harness.get_by_role(Role::SpinButton).rect();
+            assert_eq!(
+                button_rect, editing_rect,
+                "Editing changed size (value: {initial_value}, min_width: {min_width:?})"
+            );
+        }
+    }
+}
+
 /// A singleline [`TextEdit`] with `clip_text(false)` should expand to make all text visible.
 #[test]
 fn unclipped_text_edit_should_grow_to_fit_text() {
