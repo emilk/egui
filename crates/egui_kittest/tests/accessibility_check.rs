@@ -14,7 +14,7 @@ fn names_of(harness: &Harness<'_>, role: Role) -> Vec<Option<String>> {
 }
 
 #[test]
-#[should_panic(expected = "1 widget(s) have no accessible name")]
+#[should_panic(expected = "1 widget(s) lack accessible name")]
 fn unnamed_button_fails_the_harness() {
     let _harness = Harness::new_ui(|ui| {
         let _ = ui.add(Button::new(""));
