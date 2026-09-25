@@ -25,7 +25,7 @@ pub use {
     font_id::{FontFamily, FontId},
     font_provider::{FallbackRequest, FontProvider},
     font_tweak::{FontTweak, HintingTarget, SmoothHinting},
-    fonts::{Fonts, FontsView, MAX_GLYPH_SIZE, MissingGlyphPolicy},
+    fonts::{Fonts, FontsView, MAX_GLYPH_SIZE, MissingGlyphPolicy, ViewportKey},
     glyph_rasterizer::{
         GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, RasterizedGlyph,
         has_emoji_presentation,

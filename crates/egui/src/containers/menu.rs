@@ -11,8 +11,8 @@
 use crate::style::StyleModifier;
 use crate::{
     Atom, AtomKind, AtomPaintArgs, Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms,
-    IntoSizedResult, Layout, PointerButton, Popup, PopupCloseBehavior, Response, SizedAtomKind,
-    Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
+    IntoSizedResult, Layout, PointerButton, Popup, PopupCloseBehavior, PopupKind, Response,
+    SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
 };
 use emath::{Align, Rect, RectAlign, Vec2, vec2};
 use epaint::{Shape, Stroke};
@@ -458,7 +458,9 @@ impl SubMenu {
         button_response: &Response,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let frame = Frame::menu(ui.style());
+        // This frame is only used to measure the offset we should set for the popup, so that
+        // contents align
+        let measurement_frame = Frame::menu(ui.style());
 
         let id = Self::id_from_widget_id(button_response.id);
 
@@ -480,7 +482,7 @@ impl SubMenu {
         let hover_pos = ui.ctx().pointer_hover_pos();
 
         // We don't care if the user is hovering over the border
-        let menu_rect = menu_root_response.rect - frame.total_margin();
+        let menu_rect = menu_root_response.rect - measurement_frame.total_margin();
         let is_hovering_menu = hover_pos.is_some_and(|pos| {
             ui.ctx().layer_id_at(pos) == Some(menu_root_response.layer_id)
                 && menu_rect.contains(pos)
@@ -525,21 +527,21 @@ impl SubMenu {
             });
         }
 
-        let gap = frame.total_margin().sum().x / 2.0 + 2.0;
+        let gap = measurement_frame.total_margin().sum().x / 2.0 + 2.0;
 
         let mut response = button_response.clone();
         // Expand the button rect so that the button and the first item in the submenu are aligned
-        let expand = Vec2::new(0.0, frame.total_margin().sum().y / 2.0);
+        let expand = Vec2::new(0.0, measurement_frame.total_margin().sum().y / 2.0);
         response.interact_rect = response.interact_rect.expand2(expand);
 
         let popup_response = Popup::from_response(&response)
             .id(id)
+            .kind(PopupKind::Menu)
             .open(is_open)
             .align(RectAlign::RIGHT_START)
             .layout(Layout::top_down_justified(Align::Min))
             .gap(gap)
             .style(menu_config.style.clone())
-            .frame(frame)
             // The close behavior is handled by the menu (see below)
             .close_behavior(PopupCloseBehavior::IgnoreClicks)
             .info(

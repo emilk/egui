@@ -303,6 +303,10 @@ impl Frame {
     /// This handles `expansion` by subtracting it from the outer margin and adding it to the
     /// inner margin. It also corrects for `stroke`, by subtracting the stroke width from `inner_margin`.
     ///
+    /// Any stroke already on the frame is replaced, and its width is given back to the `inner_margin`,
+    /// so calling this again to change the stroke is fine.
+    /// The `expansion` is not tracked though, so it is applied on top of any earlier expansion.
+    ///
     /// Use this when stroke or expansion might change on hover, and you don't want it to cause
     /// layout shifts.
     #[inline]
@@ -312,7 +316,8 @@ impl Frame {
         expansion: f32,
     ) -> Self {
         self.outer_margin = self.outer_margin - Margin::from(expansion);
-        self.inner_margin = self.inner_margin + Margin::from(expansion - stroke.width);
+        self.inner_margin =
+            self.inner_margin + Margin::from(expansion + self.stroke.width - stroke.width);
         self.stroke = stroke;
         self
     }

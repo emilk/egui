@@ -555,16 +555,14 @@ impl Widget for DragValue<'_> {
                 .data_mut(|data| data.remove_temp::<EditState>(id))
                 .filter(|edit_state| edit_state.value == old_value)
                 .map_or_else(|| value_text.clone(), |edit_state| edit_state.text);
-            let response = ui.add(
+            let mut response = ui.add(
                 TextEdit::singleline(&mut value_text)
                     .with_classes(classes)
                     .clip_text(clip_text)
                     .align(ui.layout().align2())
                     .min_size(min_size.unwrap_or_else(|| ui.spacing().interact_size))
                     .id(id)
-                    .desired_width(
-                        ui.spacing().interact_size.x - 2.0 * ui.spacing().button_padding.x,
-                    )
+                    .desired_width(0.0) // as small as possible, like the button
                     .font(text_style),
             );
 
@@ -588,6 +586,10 @@ impl Widget for DragValue<'_> {
                     set(&mut get_set_value, parsed_value);
                 }
             }
+            // The `TextEdit` reports every keystroke as a change, but the `DragValue`
+            // has only changed if its value did, which is checked further down.
+            // Otherwise `changed()` fires while typing even with `update_while_editing(false)`.
+            response.flags.remove(crate::response::Flags::CHANGED);
             // Remember the value the text belongs to, so that next frame we can tell
             // whether the value was changed by us or by something else.
             let edit_state = EditState {

@@ -104,7 +104,7 @@ mod id_salt_source {
 
     pub(super) fn maybe_insert(id_salt: IdSalt, source: &impl AsIdSalt) {
         if !SOURCE_MAP.read().contains_key(&id_salt) {
-            let formatted = format!("{source:?}");
+            let formatted = crate::id::id_source::truncate(format!("{source:?}"));
             SOURCE_MAP.write().insert(id_salt, formatted);
         }
     }

@@ -212,19 +212,35 @@ pub type IdMap<V> = nohash_hasher::IntMap<Id, V>;
 /// Used by [`Id`]'s `Debug` impl so that `Id::unique("foo")` prints as `Id::unique("foo")`,
 /// and `Id::unique("foo").with("bar")` prints as `Id::unique("foo").with("bar")`, etc.
 #[cfg(debug_assertions)]
-mod id_source {
+pub(crate) mod id_source {
     use super::{AsIdSalt, Id, IdMap};
     use epaint::mutex::RwLock;
     use std::sync::LazyLock;
 
     static SOURCE_MAP: LazyLock<RwLock<IdMap<String>>> = LazyLock::new(RwLock::default);
 
+    /// Stored sources are truncated to at most this many bytes.
+    ///
+    /// Without a limit, an [`Id`] salted with (something containing) its own ancestor,
+    /// e.g. `ui.indent(header_id, …)` in a nested `CollapsingHeader`,
+    /// doubles the length of the stored source at every level of nesting.
+    const MAX_SOURCE_LEN: usize = 1024;
+
+    /// Keep the end, since that is the most specific part.
+    pub(crate) fn truncate(mut source: String) -> String {
+        if MAX_SOURCE_LEN < source.len() {
+            let start = source.ceil_char_boundary(source.len() - MAX_SOURCE_LEN);
+            source.replace_range(..start, "…");
+        }
+        source
+    }
+
     pub(super) fn insert_root(id: Id, source: &impl core::fmt::Debug) {
         if SOURCE_MAP.read().contains_key(&id) {
             return;
         }
         // Format outside the lock since `{source:?}` may itself recurse into [`Id`]'s `Debug` impl.
-        let formatted = format!("Id::unique({source:?})");
+        let formatted = truncate(format!("Id::unique({source:?})"));
         SOURCE_MAP.write().insert(id, formatted);
     }
 
@@ -236,7 +252,7 @@ mod id_source {
         // since `{parent:?}` and `{salt:?}` may themselves recurse into [`Id`]'s `Debug` impl.
         let cached_parent_repr = SOURCE_MAP.read().get(&parent).cloned();
         let parent_repr = cached_parent_repr.unwrap_or_else(|| format!("{parent:?}"));
-        let formatted = format!("{parent_repr}.with({salt:?})");
+        let formatted = truncate(format!("{parent_repr}.with({salt:?})"));
         SOURCE_MAP.write().insert(id, formatted);
     }
 
@@ -308,6 +324,18 @@ mod debug_format_tests {
         let inner = Id::unique("foo");
         let outer = Id::unique(inner);
         assert_eq!(format!("{outer:?}"), r#"Id::unique(Id::unique("foo"))"#);
+    }
+
+    /// Salting an [`Id`] with itself used to double the stored source at every step.
+    #[test]
+    fn salting_with_self_is_truncated() {
+        let mut id = Id::unique("self_salted");
+        for _ in 0..64 {
+            id = id.with(id);
+        }
+        let formatted = format!("{id:?}");
+        assert!(formatted.starts_with('…'), "{formatted}");
+        assert!(formatted.len() < 2000, "{} bytes", formatted.len());
     }
 
     #[test]

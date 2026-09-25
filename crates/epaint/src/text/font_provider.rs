@@ -167,7 +167,7 @@ mod tests {
         mutex::Mutex,
         text::{
             FontData, FontDefinitions, FontId, Fonts, GlyphBitmap, GlyphRasterizer,
-            GlyphRasterizerRequest, RasterizedGlyph, TextOptions,
+            GlyphRasterizerRequest, RasterizedGlyph, TextOptions, ViewportKey,
         },
     };
 
@@ -322,7 +322,7 @@ mod tests {
             font_hinting: !TextOptions::default().font_hinting,
             ..Default::default()
         };
-        fonts.begin_pass(options);
+        fonts.begin_pass(options, ViewportKey::default());
 
         assert!(fonts.has_glyph(&font_id, SCHWA));
         assert!(!fonts.has_glyph(&font_id, HANGUL));

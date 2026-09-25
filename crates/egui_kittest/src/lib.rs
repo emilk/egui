@@ -38,7 +38,7 @@ use core::{
 };
 
 use egui::{
-    Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId,
+    Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Vec2, ViewportId,
     epaint::{ClippedShape, RectShape},
     style::ScrollAnimation,
 };
@@ -61,15 +61,14 @@ fn push_cursor_shape(ctx: &egui::Context, shapes: &mut Vec<ClippedShape>) {
         mouse_pos + egui::vec2(8.0, 16.0),
     ];
 
-    shapes.push(ClippedShape {
-        clip_rect: ctx.content_rect(),
-        shape: egui::epaint::PathShape::convex_polygon(
+    shapes.push(ClippedShape::new(
+        ctx.content_rect(),
+        egui::epaint::PathShape::convex_polygon(
             triangle,
             Color32::WHITE,
             egui::Stroke::new(1.0, Color32::BLACK),
-        )
-        .into(),
-    });
+        ),
+    ));
 }
 
 #[derive(Debug, Clone)]
@@ -817,10 +816,10 @@ impl<'a, State> Harness<'a, State> {
             self.last_render = None;
         }
 
-        self.output.shapes.push(ClippedShape {
-            clip_rect: Rect::EVERYTHING,
-            shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::MAGENTA)),
-        });
+        self.output.shapes.push(ClippedShape::new(
+            Rect::EVERYTHING,
+            RectShape::filled(rect, 0.0, Color32::MAGENTA),
+        ));
     }
 
     /// Should every step be rendered?
