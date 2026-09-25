@@ -103,6 +103,16 @@ pub trait WinitApp {
         window_id: WindowId,
     ) -> crate::Result<EventResult>;
 
+    /// Run the app logic ([`crate::App::logic`]) for this window, but no egui pass and no painting.
+    ///
+    /// Used when the window was asked to redraw, but the windowing system hasn't let it
+    /// (e.g. a Wayland compositor withholding frame callbacks from a hidden window).
+    fn run_logic(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+    ) -> crate::Result<EventResult>;
+
     fn suspended(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
