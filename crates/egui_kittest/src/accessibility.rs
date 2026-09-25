@@ -36,7 +36,7 @@ impl<State> Harness<'_, State> {
         let unnamed = self.unnamed_widgets();
         assert!(
             unnamed.is_empty(),
-            "{} widget(s) have no accessible name:\n{}",
+            "{} widget(s) lack accessible name. You can disable this check with HarnessBuilder::with_accessibility_check(false). The widgets:\n{}",
             unnamed.len(),
             unnamed.join("\n")
         );
