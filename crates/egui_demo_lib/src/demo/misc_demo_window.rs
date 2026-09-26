@@ -563,16 +563,18 @@ impl CustomCollapsingHeader {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label("Example of a collapsing header with custom header:");
 
-        let id = ui.make_persistent_id("my_collapsing_header");
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
-            .show_header(ui, |ui| {
+        egui::CollapsingHeader::custom(
+            ui,
+            "my_collapsing_header",
+            |ui| {
                 ui.toggle_value(&mut self.selected, "Click to select/unselect");
                 ui.radio_value(&mut self.radio_value, false, "");
                 ui.radio_value(&mut self.radio_value, true, "");
-            })
-            .body(|ui| {
+            },
+            |ui| {
                 ui.label("The body is always custom");
-            });
+            },
+        );
 
         CollapsingHeader::new("Normal collapsing header for comparison").show(ui, |ui| {
             ui.label("Nothing exciting here");
