@@ -123,18 +123,20 @@ impl Tooltip<'_> {
 
         let is_inspecting = Self::is_inspecting_widgets(popup.ctx());
 
-        if popup.get_anchor() == PopupAnchor::Pointer {
+        let anchor_id = parent_widget.with("tooltip_anchor");
+        if is_inspecting {
             // Tooltips that follow the pointer would run away from the pointer while inspecting,
             // so we freeze their position instead.
             let ctx = popup.ctx();
-            let anchor_id = parent_widget.with("tooltip_anchor");
-            if is_inspecting
-                && Self::was_tooltip_open_last_frame(ctx, parent_widget)
+            if Self::was_tooltip_open_last_frame(ctx, parent_widget)
                 && let Some(prev_rect) = ctx.data(|d| d.get_temp::<Rect>(anchor_id))
             {
                 rect = prev_rect;
             }
             ctx.data_mut(|d| d.insert_temp(anchor_id, rect));
+        } else {
+            // Forget the frozen position, so we don't use a stale one next time we inspect.
+            popup.ctx().data_mut(|d| d.remove::<Rect>(anchor_id));
         }
 
         let mut state = popup.ctx().pass_state_mut(|fs| {
