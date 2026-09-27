@@ -123,7 +123,7 @@ impl Tooltip<'_> {
 
         let is_inspecting = Self::is_inspecting_widgets(popup.ctx());
 
-        {
+        if popup.get_anchor() == PopupAnchor::Pointer {
             // Tooltips that follow the pointer would run away from the pointer while inspecting,
             // so we freeze their position instead.
             let ctx = popup.ctx();
@@ -229,8 +229,6 @@ impl Tooltip<'_> {
         widget_id.with(tooltip_count)
     }
 
-    /// Did this tooltip contain anything the user can interact with, last pass?
-    ///
     /// Is the user holding down all modifier keys to inspect widgets on hover?
     ///
     /// See [`crate::style::DebugOptions::debug_on_hover_with_all_modifiers`].
@@ -248,6 +246,8 @@ impl Tooltip<'_> {
         }
     }
 
+    /// Did this tooltip contain anything the user can interact with, last pass?
+    ///
     /// Most tooltips are just text. Those should not react to the pointer at all,
     /// or they would steal the hover from the widget they belong to.
     fn had_interactive_widgets(ctx: &Context, tooltip_id: Id) -> bool {

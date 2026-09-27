@@ -748,9 +748,15 @@ fn run_logic_should_not_disturb_ui_state() {
 #[cfg(debug_assertions)]
 #[test]
 fn tooltip_stays_open_while_inspecting() {
-    fn run(inspect: bool) -> bool {
+    /// Returns the tooltip rect before and after moving the pointer onto it.
+    fn run(inspect: bool, at_pointer: bool) -> (egui::Rect, Option<egui::Rect>) {
         let mut harness = Harness::builder().with_size((300.0, 300.0)).build_ui(|ui| {
-            ui.label("Hover me").on_hover_text("My tooltip");
+            let response = ui.label("Hover me");
+            if at_pointer {
+                response.on_hover_text_at_pointer("My tooltip");
+            } else {
+                response.on_hover_text("My tooltip");
+            }
         });
         harness.ctx.all_styles_mut(|style| {
             style.interaction.tooltip_delay = 0.0;
@@ -760,7 +766,6 @@ fn tooltip_stays_open_while_inspecting() {
 
         harness.get_by_label("Hover me").hover();
         harness.run();
-        assert!(harness.query_by_label("My tooltip").is_some());
 
         if inspect {
             harness.event(egui::Event::ModifiersChanged(
@@ -772,16 +777,26 @@ fn tooltip_stays_open_while_inspecting() {
             harness.run();
         }
 
-        let tooltip_pos = harness.get_by_label("My tooltip").rect().center();
-        harness.hover_at(tooltip_pos);
+        let before = harness.get_by_label("My tooltip").rect();
+        harness.hover_at(before.center());
         harness.run();
 
-        harness.query_by_label("My tooltip").is_some()
+        let after = harness.query_by_label("My tooltip").map(|node| node.rect());
+        (before, after)
     }
 
-    assert!(
-        !run(false),
-        "Tooltip should close when the pointer leaves the widget"
-    );
-    assert!(run(true), "Tooltip should stay open while inspecting");
+    for at_pointer in [false, true] {
+        let (_, after) = run(false, at_pointer);
+        assert!(
+            after.is_none(),
+            "Tooltip should close when the pointer leaves the widget (at_pointer: {at_pointer})"
+        );
+
+        let (before, after) = run(true, at_pointer);
+        assert_eq!(
+            after,
+            Some(before),
+            "Tooltip should stay open and in place while inspecting (at_pointer: {at_pointer})"
+        );
+    }
 }
