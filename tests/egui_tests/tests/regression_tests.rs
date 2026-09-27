@@ -742,3 +742,46 @@ fn run_logic_should_not_disturb_ui_state() {
 
     assert_state(&harness);
 }
+
+/// Holding down all modifiers (to inspect widgets) should keep tooltips open,
+/// so that the user can move the pointer over the tooltip to inspect it too.
+#[cfg(debug_assertions)]
+#[test]
+fn tooltip_stays_open_while_inspecting() {
+    fn run(inspect: bool) -> bool {
+        let mut harness = Harness::builder().with_size((300.0, 300.0)).build_ui(|ui| {
+            ui.label("Hover me").on_hover_text("My tooltip");
+        });
+        harness.ctx.all_styles_mut(|style| {
+            style.interaction.tooltip_delay = 0.0;
+            style.interaction.show_tooltips_only_when_still = false;
+            style.debug.debug_on_hover_with_all_modifiers = true;
+        });
+
+        harness.get_by_label("Hover me").hover();
+        harness.run();
+        assert!(harness.query_by_label("My tooltip").is_some());
+
+        if inspect {
+            harness.event(egui::Event::ModifiersChanged(
+                egui::Modifiers::CTRL
+                    | egui::Modifiers::SHIFT
+                    | egui::Modifiers::ALT
+                    | egui::Modifiers::COMMAND,
+            ));
+            harness.run();
+        }
+
+        let tooltip_pos = harness.get_by_label("My tooltip").rect().center();
+        harness.hover_at(tooltip_pos);
+        harness.run();
+
+        harness.query_by_label("My tooltip").is_some()
+    }
+
+    assert!(
+        !run(false),
+        "Tooltip should close when the pointer leaves the widget"
+    );
+    assert!(run(true), "Tooltip should stay open while inspecting");
+}

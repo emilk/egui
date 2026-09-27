@@ -3,7 +3,7 @@ use crate::{
     AreaState, Context, Id, InnerResponse, LayerId, Layout, Order, Popup, PopupAnchor, PopupKind,
     Response, Sense,
 };
-use emath::Vec2;
+use emath::{Rect, Vec2};
 
 pub struct Tooltip<'a> {
     pub popup: Popup<'a>,
@@ -119,7 +119,23 @@ impl Tooltip<'_> {
             return None;
         }
 
-        let rect = popup.get_anchor_rect()?;
+        let mut rect = popup.get_anchor_rect()?;
+
+        let is_inspecting = Self::is_inspecting_widgets(popup.ctx());
+
+        {
+            // Tooltips that follow the pointer would run away from the pointer while inspecting,
+            // so we freeze their position instead.
+            let ctx = popup.ctx();
+            let anchor_id = parent_widget.with("tooltip_anchor");
+            if is_inspecting
+                && Self::was_tooltip_open_last_frame(ctx, parent_widget)
+                && let Some(prev_rect) = ctx.data(|d| d.get_temp::<Rect>(anchor_id))
+            {
+                rect = prev_rect;
+            }
+            ctx.data_mut(|d| d.insert_temp(anchor_id, rect));
+        }
 
         let mut state = popup.ctx().pass_state_mut(|fs| {
             // Remember that this is the widget showing the tooltip:
@@ -142,7 +158,10 @@ impl Tooltip<'_> {
 
         // Tooltips without interactive contents should not be interactable (hover should pass
         // through to the widget below).
-        let interactable = Self::had_interactive_widgets(popup.ctx(), tooltip_area_id);
+        // When inspecting widgets (all modifiers down), we make the tooltip interactable
+        // so that the user can hover the widgets inside it.
+        let interactable =
+            Self::had_interactive_widgets(popup.ctx(), tooltip_area_id) || is_inspecting;
 
         popup = popup
             .anchor(state.bounding_rect)
@@ -212,6 +231,23 @@ impl Tooltip<'_> {
 
     /// Did this tooltip contain anything the user can interact with, last pass?
     ///
+    /// Is the user holding down all modifier keys to inspect widgets on hover?
+    ///
+    /// See [`crate::style::DebugOptions::debug_on_hover_with_all_modifiers`].
+    /// While this is true, open tooltips stay open, so that the user can inspect them too.
+    fn is_inspecting_widgets(ctx: &Context) -> bool {
+        #[cfg(debug_assertions)]
+        {
+            ctx.global_style().debug.debug_on_hover_with_all_modifiers
+                && ctx.input(|i| i.modifiers.all())
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            _ = ctx;
+            false
+        }
+    }
+
     /// Most tooltips are just text. Those should not react to the pointer at all,
     /// or they would steal the hover from the widget they belong to.
     fn had_interactive_widgets(ctx: &Context, tooltip_id: Id) -> bool {
@@ -230,6 +266,11 @@ impl Tooltip<'_> {
     /// contains interactive widgets
     pub fn should_show_tooltip(response: &Response, allow_interactive_tooltip: bool) -> bool {
         if response.ctx.memory(|mem| mem.everything_is_visible()) {
+            return true;
+        }
+
+        if Self::is_inspecting_widgets(&response.ctx) && response.is_tooltip_open() {
+            // Keep the tooltip open so the user can move the pointer over it to inspect it.
             return true;
         }
 
