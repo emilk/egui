@@ -654,6 +654,15 @@ impl Window<'_> {
         let is_collapsed = with_title_bar && !collapsing.is_open();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
 
+        // `Area` doesn't persist its size, so after a restart it would constrain the window
+        // to the screen using its default size, and a window the user shrank would move.
+        let area = if !is_collapsed && let Some(resize_state) = resize::State::load(ctx, resize_id)
+        {
+            area.default_size(resize_state.desired_size + window_frame.total_margin().sum())
+        } else {
+            area
+        };
+
         let resize = resize.resizable(false); // We resize it manually
         let mut resize = resize.id(resize_id);
 
@@ -1500,4 +1509,76 @@ fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     ui.painter() // paints /
         .line_segment([rect.right_top(), rect.left_bottom()], stroke);
     response
+}
+
+#[cfg(all(test, feature = "persistence"))]
+mod tests {
+    use crate::{
+        Context, Event, Id, Modifiers, PointerButton, Pos2, RawInput, Rect, Window, pos2, vec2,
+    };
+
+    fn window_id() -> Id {
+        Id::unique("window")
+    }
+
+    /// Run one frame showing a resizable window, and return the window rect.
+    fn run_frame(ctx: &Context, events: Vec<Event>) -> Rect {
+        let input = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+            events,
+            ..Default::default()
+        };
+        let mut rect = None;
+        let output = ctx.run_ui(input, |ui| {
+            let response = Window::new("Window")
+                .id(window_id())
+                .default_size([340.0, 420.0])
+                .show(ui.ctx(), |ui| {
+                    ui.label("Hello");
+                });
+            rect = response.map(|response| response.response.rect);
+        });
+        output.drop_without_applying_deltas();
+        rect.expect("The window was not shown")
+    }
+
+    fn drag(ctx: &Context, from: Pos2, to: Pos2) {
+        let button = |pos, pressed| Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        };
+        run_frame(ctx, vec![Event::PointerMoved(from)]);
+        run_frame(ctx, vec![button(from, true)]);
+        run_frame(ctx, vec![Event::PointerMoved(from.lerp(to, 0.5))]);
+        run_frame(ctx, vec![Event::PointerMoved(to)]);
+        run_frame(ctx, vec![button(to, false)]);
+        run_frame(ctx, vec![]);
+    }
+
+    /// The position of a window that was resized below its default size survives a restart (#8522).
+    #[test]
+    fn shrunk_window_keeps_its_position_after_restart() {
+        let ctx = Context::default();
+        run_frame(&ctx, vec![]);
+        let rect = run_frame(&ctx, vec![]);
+
+        // Shrink the window by dragging its right edge, then move it against the right edge of the screen:
+        let right_edge = pos2(rect.right() - 1.0, rect.center().y);
+        drag(&ctx, right_edge, right_edge - vec2(190.0, 0.0));
+        let rect = run_frame(&ctx, vec![]);
+        assert!(rect.width() < 200.0, "The window didn't shrink: {rect:?}");
+        let title_bar = pos2(rect.center().x, rect.top() + 10.0);
+        drag(&ctx, title_bar, title_bar + vec2(800.0 - rect.right(), 0.0));
+        let before_restart = run_frame(&ctx, vec![]);
+        assert_eq!(before_restart.right(), 800.0);
+
+        // Restore the memory into a new context, like `eframe` does when restarting:
+        let memory = ron::to_string(&ctx.memory(|mem| mem.clone())).unwrap();
+        let ctx = Context::default();
+        ctx.memory_mut(|mem| *mem = ron::from_str(&memory).unwrap());
+        run_frame(&ctx, vec![]);
+        assert_eq!(run_frame(&ctx, vec![]), before_restart);
+    }
 }
