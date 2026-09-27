@@ -236,15 +236,15 @@ impl Tooltip<'_> {
     /// See [`crate::style::DebugOptions::debug_on_hover_with_all_modifiers`].
     /// While this is true, open tooltips stay open, so that the user can inspect them too.
     fn is_inspecting_widgets(ctx: &Context) -> bool {
-        #[cfg(debug_assertions)]
-        {
-            ctx.global_style().debug.debug_on_hover_with_all_modifiers
-                && ctx.input(|i| i.modifiers.all())
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            _ = ctx;
-            false
+        cfg_select! {
+            debug_assertions => {
+                ctx.global_style().debug.debug_on_hover_with_all_modifiers
+                    && ctx.input(|i| i.modifiers.all())
+            }
+            _ => {
+                _ = ctx;
+                false
+            }
         }
     }
 
