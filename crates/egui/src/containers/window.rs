@@ -1366,7 +1366,7 @@ fn title_ui(
 
     atoms.push_right(Atom::grow());
 
-    if show_close_button.unwrap_or(open.is_some()) {
+    if show_close_button.unwrap_or_else(|| open.is_some()) {
         atoms.push_right(Atom::custom(close_atom_id, button_allocation_size));
     }
 
