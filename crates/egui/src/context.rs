@@ -47,7 +47,8 @@ use crate::IdMap;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
-/// This is given in the callback set by [`Context::set_request_repaint_callback`].
+/// This is given in the callback set by [`Context::set_request_repaint_callback`],
+/// and to the observer set by [`Context::set_repaint_observer`].
 #[derive(Clone, Copy, Debug)]
 pub struct RequestRepaintInfo {
     /// This is used to specify what viewport that should repaint.
@@ -150,6 +151,16 @@ impl ContextImpl {
 
         viewport.repaint.causes.push(cause);
 
+        let info = RequestRepaintInfo {
+            viewport_id,
+            delay,
+            current_cumulative_pass_nr: viewport.repaint.cumulative_pass_nr,
+        };
+
+        if let Some(observer) = &self.repaint_observer {
+            (observer)(info);
+        }
+
         // We save some CPU time by only calling the callback if we need to.
         // If the new delay is greater or equal to the previous lowest,
         // it means we have already called the callback, and don't need to do it again.
@@ -157,11 +168,7 @@ impl ContextImpl {
             viewport.repaint.repaint_delay = delay;
 
             if let Some(callback) = &self.request_repaint_callback {
-                (callback)(RequestRepaintInfo {
-                    viewport_id,
-                    delay,
-                    current_cumulative_pass_nr: viewport.repaint.cumulative_pass_nr,
-                });
+                (callback)(info);
             }
         }
     }
@@ -434,6 +441,7 @@ struct ContextImpl {
     paint_stats: PaintStats,
 
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
+    repaint_observer: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
     viewport_parents: ViewportIdMap<ViewportId>,
     viewports: ViewportIdMap<ViewportState>,
@@ -2225,6 +2233,28 @@ impl Context {
     ) {
         let callback = Box::new(callback);
         self.write(|ctx| ctx.request_repaint_callback = Some(callback));
+    }
+
+    /// For integrations: this observer will be called for every repaint request,
+    /// i.e. every call to [`Self::request_repaint`], [`Self::request_repaint_after`] and their variants,
+    /// including the ones egui makes itself.
+    ///
+    /// The callback set with [`Self::set_request_repaint_callback`] is only called when a request
+    /// makes the next repaint of a viewport come sooner. The observer also sees the requests
+    /// that don't, e.g. a request for a later delay than one already scheduled.
+    /// An integration can use this to see everything that was requested during a pass,
+    /// for instance to make its own scheduling decisions, or to count repaint requests.
+    ///
+    /// The observer is called on the thread that made the request, while the [`Context`] is locked,
+    /// so it must not call back into the [`Context`].
+    ///
+    /// Note that only one observer can be set. Any new call overrides the previous observer.
+    pub fn set_repaint_observer(
+        &self,
+        observer: impl Fn(RequestRepaintInfo) + Send + Sync + 'static,
+    ) {
+        let observer = Box::new(observer);
+        self.write(|ctx| ctx.repaint_observer = Some(observer));
     }
 
     /// Request to discard the visual output of this pass,
@@ -4992,6 +5022,41 @@ mod test {
             ui.ctx().root_ui(|_| {});
         });
         output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    fn test_repaint_observer_sees_every_request() {
+        use core::time::Duration;
+        use std::sync::Arc;
+
+        use crate::mutex::Mutex;
+
+        let ctx = Context::default();
+
+        let callback_delays = Arc::new(Mutex::new(Vec::new()));
+        let observer_delays = Arc::new(Mutex::new(Vec::new()));
+        ctx.set_request_repaint_callback({
+            let callback_delays = Arc::clone(&callback_delays);
+            move |info| callback_delays.lock().push(info.delay)
+        });
+        ctx.set_repaint_observer({
+            let observer_delays = Arc::clone(&observer_delays);
+            move |info| observer_delays.lock().push(info.delay)
+        });
+
+        ctx.request_repaint_after(Duration::from_secs(1));
+        ctx.request_repaint_after(Duration::from_secs(2));
+
+        assert_eq!(
+            *callback_delays.lock(),
+            [Duration::from_secs(1)],
+            "The callback is only called when the repaint comes sooner"
+        );
+        assert_eq!(
+            *observer_delays.lock(),
+            [Duration::from_secs(1), Duration::from_secs(2)],
+            "The observer sees every request"
+        );
     }
 
     #[test]
