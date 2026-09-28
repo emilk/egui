@@ -470,6 +470,7 @@ impl Painter {
         pixels_per_point: f32,
         clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
+        paint_planes: &[crate::PaintPlanePrimitives],
         textures_delta: &mut epaint::textures::TexturesDelta,
         capture_data: Vec<egui::ScreenshotCallback>,
         window: &Arc<winit::window::Window>,
@@ -757,6 +758,22 @@ impl Painter {
         // Ensure that the queue guard does not do unnecessary work when dropped
         render_queue_guard.commands_submitted = true;
 
+        // After egui's own frame, so the planes can reuse the renderer's buffers,
+        // and before freeing textures, since the planes still use them.
+        let plane_frames = if paint_planes.is_empty() {
+            Vec::new()
+        } else if self.options.msaa_samples > 1 || self.options.depth_stencil_format.is_some() {
+            log::warn!("Paint planes don't support MSAA or a depth buffer yet");
+            Vec::new()
+        } else {
+            render_state.plane_surfaces.paint(
+                render_state,
+                pixels_per_point,
+                paint_planes,
+                &self.config.surface,
+            )
+        };
+
         // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.
         // Calling `wgpu::Texture::destroy` on a texture that is still in use would invalidate the command buffer(s) it is used in.
         // However, once we called `wgpu::Queue::submit`, it is up for wgpu to determine how long the underlying gpu resource has to live.
@@ -782,6 +799,10 @@ impl Painter {
             let start = web_time::Instant::now();
             render_state.queue.present(output_frame);
             vsync_sec += start.elapsed().as_secs_f32();
+        }
+
+        for plane_frame in plane_frames {
+            render_state.queue.present(plane_frame);
         }
 
         vsync_sec

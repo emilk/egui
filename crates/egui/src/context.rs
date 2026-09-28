@@ -1852,6 +1852,25 @@ impl Context {
         Painter::new(self.clone(), layer_id, content_rect)
     }
 
+    /// Say that a native view sits at `rect`, between `layer_id` and the layers above it.
+    ///
+    /// A native view (a webview, a video, a map) is an OS view over egui's surface,
+    /// so the popups and windows egui paints over it end up behind it. With this, egui
+    /// also outputs what the layers above `layer_id` paint inside `rect` as a
+    /// [`crate::PaintPlane`] in [`crate::FullOutput::paint_planes`]. An integration can
+    /// paint that into a transparent surface over the native view.
+    ///
+    /// Call it every pass the native view is shown. `rect` is in global points;
+    /// round it to pixels, so the plane lines up with the rest of the frame.
+    pub fn add_paint_plane(&self, id: Id, layer_id: LayerId, rect: Rect) {
+        self.write(|ctx| {
+            ctx.viewport()
+                .this_pass
+                .paint_planes
+                .push((id, layer_id, rect));
+        });
+    }
+
     /// Paint on top of _everything_ else (even on top of tooltips and popups).
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
@@ -3135,6 +3154,22 @@ impl ContextImpl {
             }
         }
 
+        let paint_planes = viewport
+            .this_pass
+            .paint_planes
+            .iter()
+            .map(|&(id, layer_id, rect)| crate::PaintPlane {
+                id,
+                rect,
+                shapes: viewport.graphics.shapes_above(
+                    layer_id,
+                    rect,
+                    self.memory.areas().order(),
+                    &self.memory.to_global,
+                ),
+            })
+            .collect();
+
         let shapes = viewport
             .graphics
             .drain(self.memory.areas().order(), &self.memory.to_global);
@@ -3276,6 +3311,7 @@ impl ContextImpl {
             shapes,
             pixels_per_point,
             viewport_output,
+            paint_planes,
         }
     }
 }
@@ -4939,6 +4975,52 @@ mod test {
             ui.ctx().set_font_providers(vec![]);
             ui.label("after");
         });
+        output.drop_without_applying_deltas();
+    }
+
+    /// A paint plane holds only what layers above its own paint, cut to its rect.
+    #[test]
+    fn test_paint_plane_takes_layers_above() {
+        use crate::{Color32, Id, LayerId, Order, Rect, pos2};
+
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+
+        let native = LayerId::new(Order::Middle, Id::unique("native"));
+        let plane_rect = Rect::from_min_max(pos2(100.0, 100.0), pos2(200.0, 200.0));
+        let fill = |layer, rect| {
+            ctx.layer_painter(layer)
+                .rect_filled(rect, 0.0, Color32::RED)
+        };
+
+        let output = ctx.run_ui(Default::default(), |_| {
+            ctx.add_paint_plane(Id::unique("plane"), native, plane_rect);
+            // Below the native view: not in the plane.
+            fill(LayerId::background(), plane_rect);
+            // Its own layer: not in the plane either.
+            fill(native, plane_rect);
+            // Above it, half inside the rect: in the plane, clipped to it.
+            fill(
+                LayerId::new(Order::Foreground, Id::unique("popup")),
+                Rect::from_min_max(pos2(150.0, 150.0), pos2(250.0, 250.0)),
+            );
+            // Above it, but outside the rect: not in the plane.
+            fill(
+                LayerId::new(Order::Tooltip, Id::unique("far")),
+                Rect::from_min_max(pos2(300.0, 300.0), pos2(350.0, 350.0)),
+            );
+        });
+
+        let [plane] = output.paint_planes.as_slice() else {
+            panic!("expected one plane, got {}", output.paint_planes.len());
+        };
+        assert_eq!(plane.id, Id::unique("plane"));
+        assert_eq!(plane.rect, plane_rect);
+        let [shape] = plane.shapes.as_slice() else {
+            panic!("expected the popup's shape only, got {:?}", plane.shapes);
+        };
+        // The painter's clip rect is the whole screen, so the plane's rect is left.
+        assert_eq!(shape.clip_rect, plane_rect);
         output.drop_without_applying_deltas();
     }
 

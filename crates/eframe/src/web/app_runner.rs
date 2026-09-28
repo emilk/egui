@@ -291,6 +291,7 @@ impl AppRunner {
                 shapes,
                 pixels_per_point,
                 viewport_output,
+                paint_planes: _, // Only the wgpu painter paints planes.
             } = full_output;
 
             if viewport_output.len() > 1 {

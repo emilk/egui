@@ -228,6 +228,9 @@ pub struct PassState {
     /// Highlight these widgets the next pass.
     pub highlight_next_pass: IdSet,
 
+    /// Requested with [`crate::Context::add_paint_plane`]: id, layer and rect.
+    pub paint_planes: Vec<(Id, LayerId, Rect)>,
+
     #[cfg(debug_assertions)]
     pub debug_rect: Option<DebugRect>,
 }
@@ -245,6 +248,7 @@ impl Default for PassState {
             scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
             accesskit_state: None,
             highlight_next_pass: Default::default(),
+            paint_planes: Vec::new(),
 
             #[cfg(debug_assertions)]
             debug_rect: None,
@@ -266,6 +270,7 @@ impl PassState {
             scroll_delta,
             accesskit_state,
             highlight_next_pass,
+            paint_planes,
 
             #[cfg(debug_assertions)]
             debug_rect,
@@ -288,5 +293,6 @@ impl PassState {
         *accesskit_state = None;
 
         highlight_next_pass.clear();
+        paint_planes.clear();
     }
 }

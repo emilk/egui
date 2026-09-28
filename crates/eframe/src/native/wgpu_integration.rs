@@ -778,6 +778,7 @@ impl WgpuWinitRunning<'_> {
             shapes,
             pixels_per_point,
             viewport_output,
+            paint_planes,
         } = full_output;
 
         pending_deltas.append(textures_delta);
@@ -803,6 +804,12 @@ impl WgpuWinitRunning<'_> {
 
         let vsync_secs = if is_visible {
             let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+            let paint_planes: Vec<_> = paint_planes
+                .into_iter()
+                .map(|plane| {
+                    egui_wgpu::PaintPlanePrimitives::tessellate(egui_ctx, plane, pixels_per_point)
+                })
+                .collect();
 
             let mut screenshot_commands = vec![];
             viewport.actions_requested.retain(|cmd| {
@@ -818,6 +825,7 @@ impl WgpuWinitRunning<'_> {
                 pixels_per_point,
                 app.clear_color(&egui_ctx.global_style().visuals),
                 &clipped_primitives,
+                &paint_planes,
                 pending_deltas,
                 screenshot_commands,
                 window,
@@ -1209,6 +1217,7 @@ fn render_immediate_viewport(
         shapes,
         pixels_per_point,
         viewport_output,
+        paint_planes,
     } = egui_ctx.run_ui(input, |ui| {
         viewport_ui_cb(ui);
     });
@@ -1246,11 +1255,18 @@ fn render_immediate_viewport(
     }
 
     let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+    let paint_planes: Vec<_> = paint_planes
+        .into_iter()
+        .map(|plane| {
+            egui_wgpu::PaintPlanePrimitives::tessellate(&egui_ctx, plane, pixels_per_point)
+        })
+        .collect();
     painter.paint_and_update_textures(
         ids.this,
         pixels_per_point,
         [0.0, 0.0, 0.0, 0.0],
         &clipped_primitives,
+        &paint_planes,
         &mut viewport.pending_delta,
         vec![],
         window,

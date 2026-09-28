@@ -233,6 +233,60 @@ impl GraphicLayers {
         self.0[layer_id.order as usize].get_mut(&layer_id.id)
     }
 
+    /// The shapes that layers above `layer_id` paint inside `rect`, in paint order.
+    ///
+    /// Layers are ordered as [`Self::drain`] paints them. Transforms from `to_global`
+    /// are applied, and every clip rect is cut down to `rect`.
+    pub fn shapes_above(
+        &self,
+        layer_id: LayerId,
+        rect: Rect,
+        area_order: &[LayerId],
+        to_global: &ahash::HashMap<LayerId, TSTransform>,
+    ) -> Vec<ClippedShape> {
+        profiling::function_scope!();
+
+        let mut paint_order = Vec::new();
+        for &order in &Order::ALL {
+            let order_map = &self.0[order as usize];
+            paint_order.extend(area_order.iter().filter(|layer| layer.order == order));
+            #[expect(clippy::iter_over_hash_type)] // Same as in `drain`.
+            for id in order_map.keys() {
+                let layer = LayerId::new(order, *id);
+                if !area_order.contains(&layer) {
+                    paint_order.push(layer);
+                }
+            }
+        }
+
+        let Some(ours) = paint_order.iter().position(|layer| *layer == layer_id) else {
+            return Vec::new();
+        };
+
+        let mut shapes = Vec::new();
+        for layer in &paint_order[ours + 1..] {
+            let Some(list) = self.get(*layer) else {
+                continue;
+            };
+            for clipped_shape in &list.0 {
+                let mut clipped_shape = clipped_shape.clone();
+                if let Some(to_global) = to_global.get(layer) {
+                    clipped_shape.transform(*to_global);
+                }
+                clipped_shape.clip_rect = clipped_shape.clip_rect.intersect(rect);
+                if clipped_shape.clip_rect.is_positive()
+                    && clipped_shape
+                        .shape
+                        .visual_bounding_rect()
+                        .intersects(clipped_shape.clip_rect)
+                {
+                    shapes.push(clipped_shape);
+                }
+            }
+        }
+        shapes
+    }
+
     pub fn drain(
         &mut self,
         area_order: &[LayerId],

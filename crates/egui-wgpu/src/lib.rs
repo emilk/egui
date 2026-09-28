@@ -37,6 +37,11 @@ pub mod capture;
 #[cfg(feature = "winit")]
 pub mod winit;
 
+#[cfg(feature = "winit")]
+mod paint_plane;
+#[cfg(feature = "winit")]
+pub use paint_plane::{PaintPlanePrimitives, PlaneSurfaces};
+
 use std::sync::Arc;
 
 use epaint::mutex::RwLock;
@@ -134,6 +139,12 @@ pub struct RenderState {
     ///
     /// Update this to have the surface reconfigured on the next paint.
     pub surface_config: SurfaceConfig,
+
+    /// Where to paint each [`egui::PaintPlane`].
+    ///
+    /// Only the native `winit` painter paints planes.
+    #[cfg(feature = "winit")]
+    pub plane_surfaces: PlaneSurfaces,
 }
 
 async fn request_adapter(
@@ -292,6 +303,8 @@ impl RenderState {
             target_format,
             renderer: Arc::new(RwLock::new(renderer)),
             surface_config: config.surface,
+            #[cfg(feature = "winit")]
+            plane_surfaces: Default::default(),
         })
     }
 }

@@ -75,6 +75,7 @@ impl EguiGlow {
             shapes,
             pixels_per_point,
             viewport_output,
+            paint_planes: _, // Only the wgpu painter paints planes.
         } = self.egui_ctx.run_ui(raw_input, run_ui);
 
         if viewport_output.len() > 1 {

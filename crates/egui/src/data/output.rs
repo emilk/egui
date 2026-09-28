@@ -4,7 +4,7 @@ use core::ops::Range;
 
 use epaint::text::CharIndex;
 
-use crate::{OrderedViewportIdMap, RepaintCause, Role, ViewportOutput};
+use crate::{Id, OrderedViewportIdMap, Rect, RepaintCause, Role, ViewportOutput};
 
 /// What egui emits each frame from [`crate::Context::run_ui`].
 ///
@@ -37,6 +37,34 @@ pub struct FullOutput {
     /// It is up to the integration to spawn a native window for each viewport,
     /// and to close any window that no longer has a viewport in this map.
     pub viewport_output: OrderedViewportIdMap<ViewportOutput>,
+
+    /// Shapes to paint a second time, above native views.
+    ///
+    /// One for each call to [`crate::Context::add_paint_plane`] this pass.
+    /// Everything in here is also part of [`Self::shapes`].
+    pub paint_planes: Vec<PaintPlane>,
+}
+
+/// What egui paints over a native view, so it can be painted again on top of it.
+///
+/// A native view (a webview, a video, a map) is an OS view over egui's surface,
+/// so nothing egui paints can cover it. An integration can put a transparent surface
+/// over the native view, and paint [`Self::shapes`] into it.
+///
+/// Create one with [`crate::Context::add_paint_plane`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct PaintPlane {
+    /// The id given to [`crate::Context::add_paint_plane`].
+    pub id: Id,
+
+    /// The rect given to [`crate::Context::add_paint_plane`], in global points.
+    pub rect: Rect,
+
+    /// What the layers above the native view's layer paint inside [`Self::rect`], in paint order.
+    ///
+    /// Coordinates are global points, the same as for [`FullOutput::shapes`].
+    /// Every clip rect is inside [`Self::rect`].
+    pub shapes: Vec<epaint::ClippedShape>,
 }
 
 impl FullOutput {
@@ -50,12 +78,14 @@ impl FullOutput {
             shapes,
             pixels_per_point,
             viewport_output,
+            paint_planes,
         } = newer;
 
         self.platform_output.append(platform_output);
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
         self.pixels_per_point = pixels_per_point; // Use latest
+        self.paint_planes = paint_planes; // Only paint the latest
 
         for (id, new_viewport) in viewport_output {
             match self.viewport_output.entry(id) {

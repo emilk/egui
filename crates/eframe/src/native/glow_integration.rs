@@ -763,6 +763,7 @@ impl GlowWinitRunning<'_> {
             shapes,
             pixels_per_point,
             viewport_output,
+            paint_planes: _, // Only the wgpu painter paints planes.
         } = full_output;
         pending_deltas.append(textures_delta);
 
@@ -1686,6 +1687,7 @@ fn render_immediate_viewport(
         shapes,
         pixels_per_point,
         viewport_output,
+        paint_planes: _, // Only the wgpu painter paints planes.
     } = egui_ctx.run_ui(input, |ui| {
         viewport_ui_cb(ui);
     });

@@ -496,7 +496,7 @@ pub use self::{
         },
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
-            PlatformOutput, UserAttentionType, WidgetInfo, role_description,
+            PaintPlane, PlatformOutput, UserAttentionType, WidgetInfo, role_description,
         },
     },
     drag_and_drop::DragAndDrop,
