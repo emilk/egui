@@ -437,6 +437,7 @@ struct ContextImpl {
 
     viewport_parents: ViewportIdMap<ViewportId>,
     viewports: ViewportIdMap<ViewportState>,
+    embedded_viewport_close_requests: ViewportIdSet,
 
     embed_viewports: bool,
 
@@ -4407,6 +4408,16 @@ impl Context {
         self.write(|ctx| reader(ctx.viewport_for(viewport_id)))
     }
 
+    /// Check whether a viewport has requested to close.
+    ///
+    /// Embedded viewport requests are consumed; native viewport events are not.
+    pub fn viewport_close_requested(&self, viewport_id: ViewportId) -> bool {
+        let embedded_close_requested =
+            self.write(|ctx| ctx.embedded_viewport_close_requests.remove(&viewport_id));
+        embedded_close_requested
+            || self.input_for(viewport_id, |input| input.viewport().close_requested())
+    }
+
     /// For integrations: Set this to render a sync viewport.
     ///
     /// This will only set the callback for the current thread,
@@ -4515,7 +4526,7 @@ impl Context {
         profiling::function_scope!();
 
         if self.embed_viewports() {
-            crate::Window::from_viewport(new_viewport_id, viewport_builder).show(self, |ui| {
+            let _ = self.show_embedded_viewport(new_viewport_id, viewport_builder, |ui| {
                 viewport_ui_cb(ui, ViewportClass::EmbeddedWindow);
             });
         } else {
@@ -4560,12 +4571,14 @@ impl Context {
     /// You can know by checking for [`ViewportClass::EmbeddedWindow`].
     ///
     /// See [`crate::viewport`] for more information about viewports.
+    ///
+    /// Returns `None` when an embedded viewport is collapsed and its callback is not run.
     pub fn show_viewport_immediate<T>(
         &self,
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
         mut viewport_ui_cb: impl FnMut(&mut Ui, ViewportClass) -> T,
-    ) -> T {
+    ) -> Option<T> {
         profiling::function_scope!();
 
         if self.embed_viewports() {
@@ -4612,9 +4625,9 @@ impl Context {
                 immediate_viewport_renderer(self, viewport);
             }
 
-            out.expect(
+            Some(out.expect(
                 "egui backend is implemented incorrectly - the user callback was never called",
-            )
+            ))
         })
     }
 
@@ -4623,13 +4636,21 @@ impl Context {
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
         viewport_ui_cb: impl FnOnce(&mut Ui) -> T,
-    ) -> T {
-        crate::Window::from_viewport(new_viewport_id, builder)
-            .collapsible(false)
+    ) -> Option<T> {
+        let mut open = true;
+        let inner = crate::Window::from_viewport(new_viewport_id, builder)
+            .open(&mut open)
             .show(self, |ui| viewport_ui_cb(ui))
             .unwrap_or_else(|| panic!("Window did not show"))
-            .inner
-            .unwrap_or_else(|| panic!("Window was collapsed"))
+            .inner;
+
+        if !open {
+            self.write(|ctx| {
+                ctx.embedded_viewport_close_requests.insert(new_viewport_id);
+            });
+        }
+
+        inner
     }
 }
 
