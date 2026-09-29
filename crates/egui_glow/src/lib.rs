@@ -117,6 +117,9 @@ pub enum HardwareAcceleration {
 pub struct GlowConfiguration {
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
+    /// On Wayland, eframe always paces frames by the compositor's frame callbacks instead,
+    /// so this has no effect there.
+    ///
     /// The default is `true`.
     #[cfg(not(target_arch = "wasm32"))]
     pub vsync: bool,
