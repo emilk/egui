@@ -4742,11 +4742,12 @@ impl Context {
     }
 }
 
-#[test]
-fn context_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Context` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
-}
+};
 
 /// Check if any [`Rect`] appears with different [`Id`]s between two passes.
 ///
