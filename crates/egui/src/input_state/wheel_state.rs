@@ -2,6 +2,12 @@ use emath::{Rect, Vec2, vec2};
 
 use crate::{InputOptions, Modifiers, MouseWheelUnit, TouchPhase};
 
+/// If there has been no scroll event for this many seconds, the scroll action is over.
+///
+/// Tested on a mac touchpad 2025, where the largest observed gap between scroll events
+/// was 68 ms. But we add some margin to be safe.
+const SCROLL_ACTION_TIMEOUT: f64 = 0.150;
+
 /// The current state of scrolling.
 ///
 /// There are two important types of scroll input deviced:
@@ -30,7 +36,11 @@ pub enum Status {
     /// We're smoothing out previous scroll events
     Smoothing,
 
-    // We're in-between [`TouchPhase::Start`] and [`TouchPhase::End`] of a trackpad scroll.
+    /// We're in-between [`TouchPhase::Start`] and [`TouchPhase::End`] of a trackpad scroll.
+    ///
+    /// The [`TouchPhase::End`] is not guaranteed to arrive (e.g. winit on Wayland sends
+    /// [`TouchPhase::Start`] for some mouse wheels, but never [`TouchPhase::End`]),
+    /// so this also ends if there are no scroll events for a while.
     InTouch,
 }
 
@@ -91,6 +101,14 @@ impl WheelState {
         phase: TouchPhase,
         latest_modifiers: Modifiers,
     ) {
+        if self.is_scroll_action_over(time) {
+            // `after_events` only sees the timeout if a pass runs after it,
+            // which is not the case if the app has been idle since the last scroll event.
+            // Without this, an `InTouch` that never got its `TouchPhase::End`
+            // would latch the modifiers of that old scroll action onto this new one.
+            self.end_scroll_action();
+        }
+
         self.last_wheel_event = time;
         match phase {
             crate::TouchPhase::Start => {
@@ -174,20 +192,23 @@ impl WheelState {
             }
         }
 
-        let time_since_last_scroll = time - self.last_wheel_event;
-
-        if self.status == Status::Smoothing
-            && self.smooth_wheel_delta == Vec2::ZERO
-            && 0.150 < time_since_last_scroll
-        {
-            // On certain platforms, like web, we don't get the start & stop scrolling events, so
-            // we rely on a timer there.
-            //
-            // Tested on a mac touchpad 2025, where the largest observed gap between scroll events
-            // was 68 ms. But we add some margin to be safe
-            self.status = Status::Static;
-            self.modifiers = Default::default();
+        if self.smooth_wheel_delta == Vec2::ZERO && self.is_scroll_action_over(time) {
+            self.end_scroll_action();
         }
+    }
+
+    /// Has it been so long since the last scroll event that the scroll action must be over?
+    ///
+    /// On certain platforms, like web, we don't get the start & stop scrolling events,
+    /// and on others (e.g. some mouse wheels on Wayland) we get a start but no stop event,
+    /// so we rely on a timer.
+    fn is_scroll_action_over(&self, time: f64) -> bool {
+        self.status != Status::Static && SCROLL_ACTION_TIMEOUT < time - self.last_wheel_event
+    }
+
+    fn end_scroll_action(&mut self) {
+        self.status = Status::Static;
+        self.modifiers = Default::default();
     }
 
     /// True if there is an active scroll action that might scroll more when using [`Self::smooth_wheel_delta`].
@@ -229,5 +250,138 @@ impl WheelState {
                 ui.monospace(smooth_wheel_delta.to_string());
                 ui.end_row();
             });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use emath::{Vec2, vec2};
+
+    use crate::{Context, Event, Modifiers, MouseWheelUnit, RawInput, TouchPhase};
+
+    fn wheel(phase: TouchPhase, modifiers: Modifiers) -> Event {
+        Event::MouseWheel {
+            unit: MouseWheelUnit::Point,
+            delta: vec2(0.0, -5.0),
+            phase,
+            modifiers,
+        }
+    }
+
+    /// Runs one frame, and returns `(smooth_scroll_delta, zoom_delta, is_scrolling)`.
+    fn run_frame(ctx: &Context, time: f64, events: Vec<Event>) -> (Vec2, f32, bool) {
+        let input = RawInput {
+            time: Some(time),
+            events,
+            ..Default::default()
+        };
+        let mut result = None;
+        let output = ctx.run_ui(input, |ui| {
+            // Only the first pass sees the events:
+            if result.is_none() {
+                result =
+                    Some(ui.input(|i| (i.smooth_scroll_delta(), i.zoom_delta(), i.is_scrolling())));
+            }
+        });
+        output.drop_without_applying_deltas();
+        result.unwrap_or_default()
+    }
+
+    /// winit on Wayland sends `TouchPhase::Start` for some mouse wheels, but never `TouchPhase::End`.
+    ///
+    /// See <https://github.com/emilk/egui/issues/8325>.
+    #[test]
+    fn modifiers_should_not_stick_when_touch_phase_end_never_arrives() {
+        let ctx = Context::default();
+
+        let (scroll, zoom, _) = run_frame(
+            &ctx,
+            0.0,
+            vec![
+                wheel(TouchPhase::Start, Modifiers::COMMAND),
+                wheel(TouchPhase::Move, Modifiers::COMMAND),
+            ],
+        );
+        assert_eq!(scroll, Vec2::ZERO, "ctrl+scroll should not scroll");
+        assert!(zoom != 1.0, "ctrl+scroll should zoom");
+
+        // Let go of ctrl, and scroll again a while later.
+        // No frame runs in-between, like in a reactive app that has been idle:
+        let (scroll, zoom, _) =
+            run_frame(&ctx, 1.0, vec![wheel(TouchPhase::Move, Modifiers::NONE)]);
+        assert_eq!(zoom, 1.0, "scrolling without ctrl should not zoom");
+        assert_eq!(
+            scroll,
+            vec2(0.0, -5.0),
+            "scrolling without ctrl should scroll"
+        );
+    }
+
+    #[test]
+    fn scroll_action_should_end_when_touch_phase_end_never_arrives() {
+        let ctx = Context::default();
+
+        let (_, _, is_scrolling) = run_frame(
+            &ctx,
+            0.0,
+            vec![
+                wheel(TouchPhase::Start, Modifiers::NONE),
+                wheel(TouchPhase::Move, Modifiers::NONE),
+            ],
+        );
+        assert!(is_scrolling, "we just scrolled");
+
+        // `is_scrolling` hides tooltips, so it must not stay `true` forever:
+        let (_, _, is_scrolling) = run_frame(&ctx, 1.0, vec![]);
+        assert!(
+            !is_scrolling,
+            "no scroll events for a second: the scroll action is over"
+        );
+    }
+
+    /// Letting go of a modifier during a (momentum) scroll should not change what the scroll does.
+    ///
+    /// See <https://github.com/emilk/egui/pull/7678>.
+    #[test]
+    fn modifiers_should_stick_until_touch_phase_end() {
+        let ctx = Context::default();
+
+        let (scroll, _, _) = run_frame(
+            &ctx,
+            0.0,
+            vec![
+                wheel(TouchPhase::Start, Modifiers::SHIFT),
+                wheel(TouchPhase::Move, Modifiers::SHIFT),
+            ],
+        );
+        assert_eq!(
+            scroll,
+            vec2(-5.0, 0.0),
+            "shift+scroll should scroll horizontally"
+        );
+
+        // Let go of shift while the scroll events keep coming:
+        let (scroll, _, is_scrolling) =
+            run_frame(&ctx, 0.05, vec![wheel(TouchPhase::Move, Modifiers::NONE)]);
+        assert_eq!(scroll, vec2(-5.0, 0.0), "should still scroll horizontally");
+        assert!(is_scrolling, "the scroll action is still going");
+
+        let (_, _, is_scrolling) =
+            run_frame(&ctx, 0.1, vec![wheel(TouchPhase::End, Modifiers::NONE)]);
+        assert!(!is_scrolling, "the scroll action ended");
+
+        let (scroll, _, _) = run_frame(
+            &ctx,
+            0.2,
+            vec![
+                wheel(TouchPhase::Start, Modifiers::NONE),
+                wheel(TouchPhase::Move, Modifiers::NONE),
+            ],
+        );
+        assert_eq!(
+            scroll,
+            vec2(0.0, -5.0),
+            "a new scroll action without shift is vertical"
+        );
     }
 }
