@@ -100,12 +100,11 @@ impl FontCell {
         bin: SubpixelBin,
         hinting_target: skrifa::outline::Target,
     ) -> Option<GlyphBitmap> {
-        let location: skrifa::instance::LocationRef<'_> = (&metrics.location).into();
-
         // Color emoji fonts often have empty outlines next to their bitmap or `COLR` glyphs,
         // so try those first:
         core::cfg_select! {
             feature = "color_fonts" => {
+                let location: skrifa::instance::LocationRef<'_> = (&metrics.location).into();
                 if let Some(bitmap) = self.rasterize_color_glyph(metrics, glyph_id, location) {
                     return Some(bitmap);
                 }
@@ -113,33 +112,60 @@ impl FontCell {
             _ => {}
         }
 
-        let mut path = kurbo::BezPath::new();
-        let mut pen = VelloPen {
-            path: &mut path,
-            x_offset: bin.as_float() as f64,
+        let outline = ClusterGlyph {
+            glyph_id,
+            offset_px: vec2(bin.as_float(), 0.0),
         };
+        self.rasterize_outlines(metrics, hinting_target, core::iter::once(outline))
+    }
+
+    /// Render glyph outlines into one coverage bitmap, each at its own offset from the origin.
+    ///
+    /// Glyphs the font has no outline for are skipped.
+    /// Returns `None` if nothing is left to draw (e.g. a space).
+    fn rasterize_outlines(
+        &mut self,
+        metrics: &StyledMetrics,
+        hinting_target: skrifa::outline::Target,
+        outlines: impl IntoIterator<Item = ClusterGlyph>,
+    ) -> Option<GlyphBitmap> {
+        let location: skrifa::instance::LocationRef<'_> = (&metrics.location).into();
+        let mut path = kurbo::BezPath::new();
 
         self.with_dependent_mut(|_, font_data| {
-            let outline = font_data.outline_glyphs.get(glyph_id)?;
+            for ClusterGlyph {
+                glyph_id,
+                offset_px,
+            } in outlines
+            {
+                let Some(outline) = font_data.outline_glyphs.get(glyph_id) else {
+                    continue;
+                };
+                let mut pen = VelloPen {
+                    path: &mut path,
+                    offset: kurbo::Vec2::new(offset_px.x as f64, offset_px.y as f64),
+                };
 
-            if let Some(hinting_instance) = &mut font_data.hinting_instance {
-                let size = skrifa::instance::Size::new(metrics.scale);
-                if hinting_instance.size() != size
-                    || hinting_instance.location().coords() != location.coords()
-                    || hinting_instance.target() != hinting_target
-                {
-                    hinting_instance
-                        .reconfigure(&font_data.outline_glyphs, size, location, hinting_target)
-                        .ok()?;
+                if let Some(hinting_instance) = &mut font_data.hinting_instance {
+                    let size = skrifa::instance::Size::new(metrics.scale);
+                    if hinting_instance.size() != size
+                        || hinting_instance.location().coords() != location.coords()
+                        || hinting_instance.target() != hinting_target
+                    {
+                        hinting_instance
+                            .reconfigure(&font_data.outline_glyphs, size, location, hinting_target)
+                            .ok()?;
+                    }
+                    let draw_settings =
+                        skrifa::outline::DrawSettings::hinted(hinting_instance, false);
+                    outline.draw(draw_settings, &mut pen).ok()?;
+                } else {
+                    let draw_settings = skrifa::outline::DrawSettings::unhinted(
+                        skrifa::instance::Size::new(metrics.scale),
+                        location,
+                    );
+                    outline.draw(draw_settings, &mut pen).ok()?;
                 }
-                let draw_settings = skrifa::outline::DrawSettings::hinted(hinting_instance, false);
-                outline.draw(draw_settings, &mut pen).ok()?;
-            } else {
-                let draw_settings = skrifa::outline::DrawSettings::unhinted(
-                    skrifa::instance::Size::new(metrics.scale),
-                    location,
-                );
-                outline.draw(draw_settings, &mut pen).ok()?;
             }
 
             Some(())
@@ -289,31 +315,37 @@ impl FontCell {
 /// Collects a `skrifa` glyph outline into a `kurbo` path, flipping Y to point down.
 struct VelloPen<'a> {
     path: &'a mut kurbo::BezPath,
-    x_offset: f64,
+
+    /// Where the glyph origin lands in the bitmap, in pixels.
+    offset: kurbo::Vec2,
+}
+
+impl VelloPen<'_> {
+    fn point(&self, x: f32, y: f32) -> kurbo::Point {
+        kurbo::Point::new(x as f64 + self.offset.x, self.offset.y - y as f64)
+    }
 }
 
 impl skrifa::outline::OutlinePen for VelloPen<'_> {
     fn move_to(&mut self, x: f32, y: f32) {
-        self.path.move_to((x as f64 + self.x_offset, -y as f64));
+        let point = self.point(x, y);
+        self.path.move_to(point);
     }
 
     fn line_to(&mut self, x: f32, y: f32) {
-        self.path.line_to((x as f64 + self.x_offset, -y as f64));
+        let point = self.point(x, y);
+        self.path.line_to(point);
     }
 
     fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
-        self.path.quad_to(
-            (cx0 as f64 + self.x_offset, -cy0 as f64),
-            (x as f64 + self.x_offset, -y as f64),
-        );
+        let (control, point) = (self.point(cx0, cy0), self.point(x, y));
+        self.path.quad_to(control, point);
     }
 
     fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
-        self.path.curve_to(
-            (cx0 as f64 + self.x_offset, -cy0 as f64),
-            (cx1 as f64 + self.x_offset, -cy1 as f64),
-            (x as f64 + self.x_offset, -y as f64),
-        );
+        let (control0, control1, point) =
+            (self.point(cx0, cy0), self.point(cx1, cy1), self.point(x, y));
+        self.path.curve_to(control0, control1, point);
     }
 
     fn close(&mut self) {
@@ -672,6 +704,24 @@ impl FontFace {
         self.font
             .rasterize_glyph(metrics, glyph_id, bin, hinting_target)
     }
+
+    /// Render several glyphs into one bitmap, each at its offset from the shared origin.
+    ///
+    /// Outlines only, as coverage: see [`crate::text::glyph_atlas::GlyphAtlas::allocate_cluster`].
+    pub(crate) fn rasterize_cluster(
+        &mut self,
+        metrics: &StyledMetrics,
+        glyphs: &[ClusterGlyph],
+        bin: SubpixelBin,
+    ) -> Option<GlyphBitmap> {
+        let hinting_target = self.tweak.hinting_target.into();
+        let binned = glyphs.iter().map(|glyph| ClusterGlyph {
+            offset_px: glyph.offset_px + vec2(bin.as_float(), 0.0),
+            ..*glyph
+        });
+        self.font
+            .rasterize_outlines(metrics, hinting_target, binned)
+    }
 }
 
 /// Positioning info for a single glyph, ready for atlas allocation.
@@ -683,5 +733,37 @@ pub(crate) struct ShapedGlyph {
     pub h_pos: f32,
 
     /// CJK glyphs skip subpixel positioning to save atlas space.
+    pub is_cjk: bool,
+}
+
+/// One glyph of a cluster drawn as a single bitmap, e.g. a base letter or one of its marks.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ClusterGlyph {
+    pub glyph_id: GlyphId,
+
+    /// Where this glyph's origin sits relative to the cluster's, in physical pixels (y down).
+    pub offset_px: emath::Vec2,
+}
+
+impl core::hash::Hash for ClusterGlyph {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.glyph_id.hash(state);
+        self.offset_px.x.to_bits().hash(state);
+        self.offset_px.y.to_bits().hash(state);
+    }
+}
+
+/// A cluster with more glyphs than characters, ready to be allocated as one bitmap.
+///
+/// The counterpart of [`ShapedGlyph`] for [`crate::text::glyph_atlas::GlyphAtlas::allocate_cluster`].
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ShapedCluster<'a> {
+    /// In the shaper's order, with offsets relative to [`Self::h_pos`].
+    pub glyphs: &'a [ClusterGlyph],
+
+    /// Horizontal position of the cluster origin, in physical pixels.
+    pub h_pos: f32,
+
+    /// See [`ShapedGlyph::is_cjk`].
     pub is_cjk: bool,
 }

@@ -8,7 +8,7 @@ use crate::{
         FontFamily, FontPriority, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest,
         MAX_GLYPH_SIZE, RasterizedGlyph,
         face_store::FontFaceKey,
-        font_face::{FontFace, ShapedGlyph},
+        font_face::{ClusterGlyph, FontFace, ShapedCluster, ShapedGlyph},
         styled_metrics::StyledMetrics,
     },
 };
@@ -171,6 +171,32 @@ impl OutlineGlyphKey {
             location_hash,
         )))
     }
+
+    /// The key of a cluster drawn as one bitmap: every glyph in it, and where each sits.
+    ///
+    /// Shares the map with single glyphs; the hash input differs in shape (a slice, not one id).
+    #[inline]
+    fn cluster(
+        face_key: FontFaceKey,
+        glyphs: &[ClusterGlyph],
+        metrics: &StyledMetrics,
+        bin: SubpixelBin,
+    ) -> Self {
+        let StyledMetrics {
+            pixels_per_point,
+            px_scale_factor,
+            location_hash,
+            ..
+        } = *metrics;
+        Self(crate::util::hash((
+            face_key,
+            glyphs,
+            pixels_per_point.to_bits(),
+            px_scale_factor.to_bits(),
+            bin,
+            location_hash,
+        )))
+    }
 }
 
 /// Hash of `(priority, cluster, family, pixels_per_point, font_size)`,
@@ -302,21 +328,78 @@ impl GlyphAtlas {
             ..
         } = self;
         let allocation = *outline_glyphs.entry(key).or_insert_with(|| {
-            face.rasterize_glyph(metrics, glyph_id, bin)
-                .and_then(|bitmap| {
-                    let transfer = Self::transfer_function(atlas, bitmap.is_color);
-                    let mut uv_rect =
-                        Self::allocate_bitmap(atlas, &bitmap, metrics.pixels_per_point, transfer)?;
-                    uv_rect.offset.y += metrics.y_offset_in_points;
-                    Some(GlyphAllocation {
-                        uv_rect,
-                        is_color: bitmap.is_color,
-                    })
-                })
-                .unwrap_or_default()
+            Self::insert_bitmap(atlas, metrics, face.rasterize_glyph(metrics, glyph_id, bin))
         });
 
         OutlineGlyph { allocation, x_px }
+    }
+
+    /// Get or render several glyphs of `face` as one bitmap: a letter and the marks
+    /// the font composes it from, for a cluster with more glyphs than characters.
+    ///
+    /// The cluster is sub-pixel binned and cached like a single glyph;
+    /// the key covers every glyph in it and its offset.
+    ///
+    /// `None` if a glyph in the cluster is a color glyph: those are bitmaps, not
+    /// outlines, and go through [`Self::allocate_outline`] one at a time.
+    pub fn allocate_cluster(
+        &mut self,
+        face_key: FontFaceKey,
+        face: &mut FontFace,
+        metrics: &StyledMetrics,
+        shaped: &ShapedCluster<'_>,
+    ) -> Option<OutlineGlyph> {
+        let ShapedCluster {
+            glyphs,
+            h_pos,
+            is_cjk,
+        } = *shaped;
+
+        if glyphs
+            .iter()
+            .any(|glyph| face.is_color_glyph(metrics, glyph.glyph_id))
+        {
+            return None;
+        }
+
+        let (x_px, bin) = if face.subpixel_binning() && !is_cjk {
+            SubpixelBin::new(h_pos)
+        } else {
+            (h_pos.round() as i32, SubpixelBin::Zero)
+        };
+
+        let key = OutlineGlyphKey::cluster(face_key, glyphs, metrics, bin);
+
+        let Self {
+            atlas,
+            outline_glyphs,
+            ..
+        } = self;
+        let allocation = *outline_glyphs.entry(key).or_insert_with(|| {
+            Self::insert_bitmap(atlas, metrics, face.rasterize_cluster(metrics, glyphs, bin))
+        });
+
+        Some(OutlineGlyph { allocation, x_px })
+    }
+
+    /// Put a rendered glyph in the atlas; the invisible glyph if there was nothing to render.
+    fn insert_bitmap(
+        atlas: &mut TextureAtlas,
+        metrics: &StyledMetrics,
+        bitmap: Option<GlyphBitmap>,
+    ) -> GlyphAllocation {
+        bitmap
+            .and_then(|bitmap| {
+                let transfer = Self::transfer_function(atlas, bitmap.is_color);
+                let mut uv_rect =
+                    Self::allocate_bitmap(atlas, &bitmap, metrics.pixels_per_point, transfer)?;
+                uv_rect.offset.y += metrics.y_offset_in_points;
+                Some(GlyphAllocation {
+                    uv_rect,
+                    is_color: bitmap.is_color,
+                })
+            })
+            .unwrap_or_default()
     }
 
     /// Get or rasterize `cluster` using the [`GlyphRasterizer`]s of the given `priority`.
