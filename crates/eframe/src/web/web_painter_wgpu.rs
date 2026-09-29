@@ -14,6 +14,7 @@ pub(crate) struct WebPainterWgpu {
     surface_configuration: wgpu::SurfaceConfiguration,
     render_state: Option<RenderState>,
     on_surface_status: Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction>,
+    surface_config: egui_wgpu::SurfaceConfig,
     depth_stencil_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
@@ -131,6 +132,7 @@ impl WebPainterWgpu {
             depth_stencil_format,
             depth_texture_view: None,
             on_surface_status: Arc::clone(&wgpu_options.on_surface_status) as _,
+            surface_config: wgpu_options.surface,
             screen_capture_state: None,
             ctx,
             needs_reconfigure: false,
@@ -154,6 +156,7 @@ impl WebPainter for WebPainterWgpu {
         &mut self,
         clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
+        paint_planes: Vec<egui::PaintPlane>,
         pixels_per_point: f32,
         textures_delta: &mut egui::TexturesDelta,
         capture_data: Vec<ScreenshotCallback>,
@@ -366,6 +369,28 @@ impl WebPainter for WebPainterWgpu {
             .queue
             .submit(core::iter::chain(user_cmd_bufs, [encoder.finish()]));
 
+        // After egui's own frame, so the planes can reuse the renderer's buffers,
+        // and before freeing textures, since the planes still use them.
+        let plane_frames = if paint_planes.is_empty() {
+            Vec::new()
+        } else if self.depth_stencil_format.is_some() {
+            log::warn!("Paint planes don't support a depth buffer yet");
+            Vec::new()
+        } else {
+            let paint_planes: Vec<_> = paint_planes
+                .into_iter()
+                .map(|plane| {
+                    egui_wgpu::PaintPlanePrimitives::tessellate(&self.ctx, plane, pixels_per_point)
+                })
+                .collect();
+            render_state.plane_surfaces.paint(
+                render_state,
+                pixels_per_point,
+                &paint_planes,
+                &self.surface_config,
+            )
+        };
+
         if let Some((frame, capture_buffer)) = frame_and_capture_buffer {
             if let Some(capture_buffer) = capture_buffer
                 && let Some(capture_state) = &self.screen_capture_state
@@ -374,6 +399,9 @@ impl WebPainter for WebPainterWgpu {
             }
 
             render_state.queue.present(frame);
+        }
+        for plane_frame in plane_frames {
+            render_state.queue.present(plane_frame);
         }
 
         // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.

@@ -19,10 +19,13 @@ pub(crate) trait WebPainter {
     /// Update all internal textures and paint gui.
     /// When `capture` isn't empty, the rendered screen should be captured
     /// and passed to the callbacks once it is ready.
+    ///
+    /// A painter that can't paint `paint_planes` ignores them.
     fn paint_and_update_textures(
         &mut self,
         clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
+        paint_planes: Vec<egui::PaintPlane>,
         pixels_per_point: f32,
         textures_delta: &mut egui::TexturesDelta,
         capture: Vec<ScreenshotCallback>,

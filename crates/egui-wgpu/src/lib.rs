@@ -37,9 +37,9 @@ pub mod capture;
 #[cfg(feature = "winit")]
 pub mod winit;
 
-#[cfg(feature = "winit")]
+#[cfg(feature = "paint-planes")]
 mod paint_plane;
-#[cfg(feature = "winit")]
+#[cfg(feature = "paint-planes")]
 pub use paint_plane::{PaintPlanePrimitives, PlaneSurfaces};
 
 use std::sync::Arc;
@@ -142,8 +142,8 @@ pub struct RenderState {
 
     /// Where to paint each [`egui::PaintPlane`].
     ///
-    /// Only the native `winit` painter paints planes.
-    #[cfg(feature = "winit")]
+    /// Only the native `winit` painter and eframe's web painter paint planes.
+    #[cfg(feature = "paint-planes")]
     pub plane_surfaces: PlaneSurfaces,
 }
 
@@ -303,7 +303,7 @@ impl RenderState {
             target_format,
             renderer: Arc::new(RwLock::new(renderer)),
             surface_config: config.surface,
-            #[cfg(feature = "winit")]
+            #[cfg(feature = "paint-planes")]
             plane_surfaces: Default::default(),
         })
     }

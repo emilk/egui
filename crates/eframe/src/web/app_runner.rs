@@ -25,6 +25,7 @@ pub struct AppRunner {
     // Output for the last run:
     textures_delta: TexturesDelta,
     clipped_primitives: Option<Vec<egui::ClippedPrimitive>>,
+    paint_planes: Vec<egui::PaintPlane>,
 }
 
 impl Drop for AppRunner {
@@ -162,6 +163,7 @@ impl AppRunner {
             screenshot_commands_with_frame_delay: vec![],
             textures_delta: Default::default(),
             clipped_primitives: None,
+            paint_planes: Vec::new(),
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
@@ -291,7 +293,7 @@ impl AppRunner {
                 shapes,
                 pixels_per_point,
                 viewport_output,
-                paint_planes: _, // Only the wgpu painter paints planes.
+                paint_planes,
             } = full_output;
 
             if viewport_output.len() > 1 {
@@ -306,6 +308,7 @@ impl AppRunner {
             self.handle_platform_output(platform_output);
             self.textures_delta.append(textures_delta);
             self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+            self.paint_planes = paint_planes;
         } else {
             // The tab is hidden, so we run no egui pass at all.
             // That way all ui state is left untouched, and is still there
@@ -346,6 +349,7 @@ impl AppRunner {
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self) {
         let clipped_primitives = core::mem::take(&mut self.clipped_primitives);
+        let paint_planes = core::mem::take(&mut self.paint_planes);
 
         if let Some(clipped_primitives) = clipped_primitives {
             let mut screenshot_commands = vec![];
@@ -366,6 +370,7 @@ impl AppRunner {
             if let Err(err) = self.painter.paint_and_update_textures(
                 self.app.clear_color(&self.egui_ctx.global_style().visuals),
                 &clipped_primitives,
+                paint_planes,
                 self.egui_ctx.pixels_per_point(),
                 &mut self.textures_delta,
                 screenshot_commands,

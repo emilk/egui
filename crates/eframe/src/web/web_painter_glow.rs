@@ -55,6 +55,7 @@ impl WebPainter for WebPainterGlow {
         &mut self,
         clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
+        _paint_planes: Vec<egui::PaintPlane>,
         pixels_per_point: f32,
         textures_delta: &mut egui::TexturesDelta,
         capture: Vec<ScreenshotCallback>,

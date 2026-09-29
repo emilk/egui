@@ -80,7 +80,10 @@ impl PlaneSurfaces {
     }
 
     /// Paint each plane that has a surface, and return the frames to present.
-    pub(crate) fn paint(
+    ///
+    /// Call it after egui's own frame is submitted, since the planes reuse the renderer's
+    /// buffers, and before freeing this frame's textures, since the planes still use them.
+    pub fn paint(
         &self,
         render_state: &RenderState,
         pixels_per_point: f32,

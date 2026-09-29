@@ -35,8 +35,11 @@ default = [
 ## Enables the `capture` module for capturing screenshots.
 capture = ["dep:egui"]
 
+## Enables painting [`egui::PaintPlane`]s into extra surfaces over native views.
+paint-planes = ["dep:egui"]
+
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
-winit = ["dep:winit", "winit/rwh_06", "dep:egui", "capture"]
+winit = ["dep:winit", "winit/rwh_06", "dep:egui", "capture", "paint-planes"]
 
 ## Enables Wayland support for winit.
 wayland = ["winit?/wayland"]
