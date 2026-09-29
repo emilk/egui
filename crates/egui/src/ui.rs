@@ -2814,7 +2814,8 @@ impl Ui {
     ///
     /// Returns the dropped item, if it was released this frame.
     ///
-    /// The given frame is used for its margins, but the color is ignored.
+    /// The given frame is used as-is when nothing is being dragged.
+    /// During a drag, its fill and stroke are replaced with the drop target visuals.
     #[doc(alias = "drag and drop")]
     pub fn dnd_drop_zone<Payload, R>(
         &mut self,
@@ -2832,28 +2833,27 @@ impl Ui {
         let inner = add_contents(&mut frame.content_ui);
         let response = frame.allocate_space(self);
 
-        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
-        // `hovered` is always false when another widget is being dragged.
-        let style = if is_anything_being_dragged
-            && can_accept_what_is_being_dragged
-            && response.contains_pointer()
-        {
-            self.visuals().widgets.active
-        } else {
-            self.visuals().widgets.inactive
-        };
+        if is_anything_being_dragged {
+            // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+            // `hovered` is always false when another widget is being dragged.
+            let style = if can_accept_what_is_being_dragged && response.contains_pointer() {
+                self.visuals().widgets.active
+            } else {
+                self.visuals().widgets.inactive
+            };
 
-        let mut fill = style.bg_fill;
-        let mut stroke = style.bg_stroke;
+            let mut fill = style.bg_fill;
+            let mut stroke = style.bg_stroke;
 
-        if is_anything_being_dragged && !can_accept_what_is_being_dragged {
-            // When dragging something else, show that it can't be dropped here:
-            fill = self.visuals().disable(fill);
-            stroke.color = self.visuals().disable(stroke.color);
+            if !can_accept_what_is_being_dragged {
+                // When dragging something else, show that it can't be dropped here:
+                fill = self.visuals().disable(fill);
+                stroke.color = self.visuals().disable(stroke.color);
+            }
+
+            frame.frame.fill = fill;
+            frame.frame.stroke = stroke;
         }
-
-        frame.frame.fill = fill;
-        frame.frame.stroke = stroke;
 
         frame.paint(self);
 
