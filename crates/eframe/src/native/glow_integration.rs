@@ -902,6 +902,20 @@ impl GlowWinitRunning<'_> {
                     .map(|state| state.egui_input().modifiers)
                     .unwrap_or_default();
 
+                // Keys the app asked for explicitly (typically ones egui has no name
+                // for, e.g. Pause) are swallowed entirely and reported to the app.
+                if let Some(captured) = crate::epi::intercept_captured_key(
+                    key_event.physical_key,
+                    key_event.state == winit::event::ElementState::Pressed,
+                    key_event.repeat,
+                    *is_synthetic,
+                    modifiers,
+                    self.integration.frame.key_capture(),
+                ) {
+                    self.integration.frame.captured_keys.push(captured);
+                    return EventResult::RepaintNow(window_id);
+                }
+
                 if let Some(numpad_event) = crate::epi::intercept_numpad_key(
                     key_event.physical_key,
                     &key_event.logical_key,

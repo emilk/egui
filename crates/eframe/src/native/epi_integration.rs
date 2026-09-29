@@ -198,6 +198,8 @@ impl EpiIntegration {
             numpad_keys: Vec::new(),
             numpad_capture_mode: Default::default(),
             numpad_capture_keys: None,
+            captured_keys: Vec::new(),
+            key_capture: Default::default(),
         };
 
         let icon = native_options
@@ -317,6 +319,8 @@ impl EpiIntegration {
         // Clear numpad keys after each frame - they've been processed by the app
         #[cfg(not(target_arch = "wasm32"))]
         self.frame.clear_numpad_keys();
+        #[cfg(not(target_arch = "wasm32"))]
+        self.frame.clear_captured_keys();
 
         self.pending_full_output.append(full_output);
         std::mem::take(&mut self.pending_full_output)

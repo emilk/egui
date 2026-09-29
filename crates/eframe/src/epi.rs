@@ -887,6 +887,67 @@ pub(crate) fn intercept_numpad_key(
     })
 }
 
+/// A key event captured because its [`winit::keyboard::KeyCode`] is in the set given to
+/// [`Frame::set_key_capture`].
+///
+/// Use this for keys egui has no [`egui::Key`] for (Pause, Scroll Lock, Print Screen,
+/// Caps Lock, the context-menu key, …), which egui-winit would otherwise drop.
+/// Captured events never reach egui.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone)]
+pub struct CapturedKeyEvent {
+    /// The physical key that was pressed (e.g. `Pause`, `ScrollLock`).
+    pub physical_key: winit::keyboard::PhysicalKey,
+
+    /// Whether the key was pressed or released.
+    pub pressed: bool,
+
+    /// True if this event is an OS auto-repeat of a held key.
+    /// Check this if a keybind should fire once per physical keystroke.
+    pub repeat: bool,
+
+    /// Active modifier keys (Ctrl, Shift, Alt, etc.)
+    pub modifiers: egui::Modifiers,
+}
+
+/// Decides whether a winit keyboard event is in the app's key-capture set,
+/// and builds the [`CapturedKeyEvent`] for it.
+///
+/// Returns `None` if the event should be handled by the normal path. If `Some`,
+/// the event must be pushed to [`Frame::captured_keys`] and must NOT be forwarded
+/// to egui-winit.
+#[cfg(not(target_arch = "wasm32"))]
+#[expect(clippy::fn_params_excessive_bools)]
+pub(crate) fn intercept_captured_key(
+    physical_key: winit::keyboard::PhysicalKey,
+    pressed: bool,
+    repeat: bool,
+    is_synthetic: bool,
+    modifiers: egui::Modifiers,
+    capture: &std::collections::HashSet<winit::keyboard::KeyCode>,
+) -> Option<CapturedKeyEvent> {
+    let winit::keyboard::PhysicalKey::Code(code) = physical_key else {
+        return None;
+    };
+
+    if !capture.contains(&code) {
+        return None;
+    }
+
+    // Mirror egui-winit: ignore synthetic key presses (e.g. sent by Windows for keys
+    // already held when the window gains focus), so they can't fire spurious keybinds.
+    if is_synthetic && pressed {
+        return None;
+    }
+
+    Some(CapturedKeyEvent {
+        physical_key,
+        pressed,
+        repeat,
+        modifiers,
+    })
+}
+
 // ----------------------------------------------------------------------------
 
 /// Represents the surroundings of your app.
@@ -939,6 +1000,14 @@ pub struct Frame {
     /// the rest keep their native behavior. See [`Frame::set_numpad_capture_keys`].
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) numpad_capture_keys: Option<std::collections::HashSet<String>>,
+
+    /// Key events captured this frame because their key code is in `key_capture`.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) captured_keys: Vec<CapturedKeyEvent>,
+
+    /// Key codes intercepted before egui-winit. See [`Frame::set_key_capture`].
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) key_capture: std::collections::HashSet<winit::keyboard::KeyCode>,
 }
 
 // Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
@@ -988,6 +1057,10 @@ impl Frame {
             numpad_capture_mode: NumpadCaptureMode::default(),
             #[cfg(not(target_arch = "wasm32"))]
             numpad_capture_keys: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            captured_keys: Vec::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            key_capture: Default::default(),
         }
     }
 
@@ -1063,6 +1136,51 @@ impl Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn clear_numpad_keys(&mut self) {
         self.numpad_keys.clear();
+    }
+
+    /// Returns key events captured this frame because their key code is in the
+    /// set given to [`Self::set_key_capture`]. egui never saw these events.
+    ///
+    /// # Example
+    /// ```ignore
+    /// for key in frame.captured_keys() {
+    ///     if key.pressed && !key.repeat
+    ///         && key.physical_key == PhysicalKey::Code(KeyCode::Pause)
+    ///     {
+    ///         self.execute_pause_bind();
+    ///     }
+    /// }
+    /// ```
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn captured_keys(&self) -> &[CapturedKeyEvent] {
+        &self.captured_keys
+    }
+
+    /// The key codes currently intercepted; see [`Self::set_key_capture`].
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn key_capture(&self) -> &std::collections::HashSet<winit::keyboard::KeyCode> {
+        &self.key_capture
+    }
+
+    /// Intercepts every key whose [`winit::keyboard::KeyCode`] is in `keys` before
+    /// egui-winit sees it, and reports it through [`Self::captured_keys`].
+    ///
+    /// Meant for keys egui has no [`egui::Key`] for (e.g. `Pause`, `ScrollLock`,
+    /// `PrintScreen`, `CapsLock`, `ContextMenu`, or macOS's Clear key, which winit
+    /// reports as `NumLock`). Captured keys never reach egui, so avoid putting keys
+    /// here that egui should still handle. Keys in this set take precedence over
+    /// numpad interception (see [`Self::set_numpad_capture_mode`]).
+    ///
+    /// Update this whenever the user adds or removes a binding. Empty by default.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_key_capture(&mut self, keys: std::collections::HashSet<winit::keyboard::KeyCode>) {
+        self.key_capture = keys;
+    }
+
+    /// Clears the captured key events. Called internally after each frame.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn clear_captured_keys(&mut self) {
+        self.captured_keys.clear();
     }
 
     /// True if you are in a web environment.
@@ -1518,5 +1636,100 @@ mod numpad_tests {
         )
         .unwrap();
         assert!(event.repeat);
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod key_capture_tests {
+    use super::intercept_captured_key;
+    use std::collections::HashSet;
+    use winit::keyboard::{KeyCode, NativeKeyCode, PhysicalKey};
+
+    fn capture() -> HashSet<KeyCode> {
+        [KeyCode::Pause, KeyCode::ScrollLock, KeyCode::NumLock].into()
+    }
+
+    #[test]
+    fn keys_in_set_are_captured() {
+        let modifiers = egui::Modifiers::CTRL;
+        let event = intercept_captured_key(
+            PhysicalKey::Code(KeyCode::Pause),
+            true,
+            true,
+            false,
+            modifiers,
+            &capture(),
+        )
+        .unwrap();
+        assert_eq!(event.physical_key, PhysicalKey::Code(KeyCode::Pause));
+        assert!(event.pressed);
+        assert!(event.repeat);
+        assert_eq!(event.modifiers, modifiers);
+    }
+
+    #[test]
+    fn releases_are_captured() {
+        let event = intercept_captured_key(
+            PhysicalKey::Code(KeyCode::ScrollLock),
+            false,
+            false,
+            false,
+            egui::Modifiers::default(),
+            &capture(),
+        )
+        .unwrap();
+        assert!(!event.pressed);
+    }
+
+    #[test]
+    fn keys_not_in_set_are_ignored() {
+        let event = intercept_captured_key(
+            PhysicalKey::Code(KeyCode::KeyA),
+            true,
+            false,
+            false,
+            egui::Modifiers::default(),
+            &capture(),
+        );
+        assert!(event.is_none());
+    }
+
+    #[test]
+    fn empty_set_captures_nothing() {
+        let event = intercept_captured_key(
+            PhysicalKey::Code(KeyCode::Pause),
+            true,
+            false,
+            false,
+            egui::Modifiers::default(),
+            &HashSet::new(),
+        );
+        assert!(event.is_none());
+    }
+
+    #[test]
+    fn synthetic_presses_are_ignored() {
+        let event = intercept_captured_key(
+            PhysicalKey::Code(KeyCode::Pause),
+            true,
+            false,
+            true, // is_synthetic
+            egui::Modifiers::default(),
+            &capture(),
+        );
+        assert!(event.is_none());
+    }
+
+    #[test]
+    fn unidentified_keys_are_ignored() {
+        let event = intercept_captured_key(
+            PhysicalKey::Unidentified(NativeKeyCode::Unidentified),
+            true,
+            false,
+            false,
+            egui::Modifiers::default(),
+            &capture(),
+        );
+        assert!(event.is_none());
     }
 }
