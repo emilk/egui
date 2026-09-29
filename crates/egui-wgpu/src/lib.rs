@@ -350,6 +350,7 @@ pub struct WgpuConfiguration {
     /// in that case either.
     pub on_surface_status:
         Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
+    pub reconfigure_lock: Option<std::sync::Arc<epaint::mutex::RwLock<()>>>,
 }
 
 #[test]
@@ -364,6 +365,7 @@ impl core::fmt::Debug for WgpuConfiguration {
             surface,
             wgpu_setup,
             on_surface_status: _,
+            reconfigure_lock: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
             .field("surface", &surface)
@@ -411,6 +413,7 @@ impl Default for WgpuConfiguration {
                     SurfaceErrorAction::SkipFrame
                 }
             }),
+            reconfigure_lock: None,
         }
     }
 }
