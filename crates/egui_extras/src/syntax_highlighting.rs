@@ -842,7 +842,7 @@ impl Language {
 
     fn json() -> Self {
         Self {
-            double_slash_comments: false,
+            double_slash_comments: true, // for json5 etc. Common extension.
             hash_comments: false,
             keywords: ["false", "null", "true"].into_iter().collect(),
         }
