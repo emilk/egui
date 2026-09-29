@@ -1,4 +1,7 @@
-use egui::{IdSalt, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
+use egui::{
+    Color32, IdSalt, Pos2, Rect, Response, Sense, Shape, Ui, UiBuilder, emath::GuiRounding as _,
+    layers::ShapeIdx,
+};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -30,8 +33,6 @@ pub(crate) enum CellDirection {
 #[derive(Clone, Copy, Default)]
 pub(crate) struct StripLayoutFlags {
     pub(crate) clip: bool,
-    pub(crate) striped: bool,
-    pub(crate) hovered: bool,
     pub(crate) selected: bool,
     pub(crate) overline: bool,
 
@@ -51,7 +52,14 @@ pub struct StripLayout<'l> {
     max: Pos2,
 
     cell_layout: egui::Layout,
-    sense: Sense,
+    pub(crate) sense: Sense,
+
+    /// The shape reserved for the background of the line being built,
+    /// and the top of that line.
+    ///
+    /// Reserved when the first cell of a line is added, so that the background
+    /// is painted _behind_ the cells. Filled in by [`Self::paint_line_background`].
+    line_background: Option<(ShapeIdx, f32)>,
 }
 
 impl<'l> StripLayout<'l> {
@@ -72,6 +80,7 @@ impl<'l> StripLayout<'l> {
             max: pos,
             cell_layout,
             sense,
+            line_background: None,
         }
     }
 
@@ -122,32 +131,11 @@ impl<'l> StripLayout<'l> {
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
 
-        // Make sure we don't have a gap in the stripe/frame/selection background:
-        let item_spacing = self.ui.spacing().item_spacing;
-        let gapless_rect = max_rect.expand2(0.5 * item_spacing).round_ui();
-
-        if flags.striped {
-            self.ui.painter().rect_filled(
-                gapless_rect,
-                egui::CornerRadius::ZERO,
-                self.ui.visuals().faint_bg_color,
-            );
-        }
-
-        if flags.selected {
-            self.ui.painter().rect_filled(
-                gapless_rect,
-                egui::CornerRadius::ZERO,
-                self.ui.visuals().selection.bg_fill,
-            );
-        }
-
-        if flags.hovered && !flags.selected && self.sense.interactive() {
-            self.ui.painter().rect_filled(
-                gapless_rect,
-                egui::CornerRadius::ZERO,
-                self.ui.visuals().widgets.hovered.bg_fill,
-            );
+        if self.line_background.is_none() {
+            // Reserve room for the line background before adding any cell contents,
+            // so that it ends up behind them:
+            let shape_idx = self.ui.painter().add(Shape::Noop);
+            self.line_background = Some((shape_idx, self.cursor.y));
         }
 
         let mut child_ui = self.cell(flags, max_rect, child_ui_id_salt, add_cell_contents);
@@ -174,8 +162,39 @@ impl<'l> StripLayout<'l> {
         (used_rect, response)
     }
 
+    /// Paint a background behind the cells of the line currently being built.
+    ///
+    /// Call this before [`Self::end_line`]. It covers the line from its top down to
+    /// the bottom of its tallest cell, so a line that grew past its requested height
+    /// is covered in full.
+    ///
+    /// Does nothing if no cell has been added to the line yet.
+    /// Only makes sense for [`CellDirection::Horizontal`].
+    pub(crate) fn paint_line_background(&self, fill: Color32) {
+        let Some((shape_idx, top)) = self.line_background else {
+            return;
+        };
+
+        // Expanded by half the item spacing, so that the backgrounds of
+        // neighboring lines and cells meet without a gap:
+        let item_spacing = self.ui.spacing().item_spacing;
+        let rect = Rect::from_min_max(
+            Pos2::new(self.rect.left(), top),
+            Pos2::new(self.cursor.x - item_spacing.x, self.max.y),
+        )
+        .expand2(0.5 * item_spacing)
+        .round_ui();
+
+        self.ui.painter().set(
+            shape_idx,
+            Shape::rect_filled(rect, egui::CornerRadius::ZERO, fill),
+        );
+    }
+
     /// only needed for layouts with multiple lines, like [`Table`](crate::Table).
     pub fn end_line(&mut self) {
+        self.line_background = None;
+
         match self.direction {
             CellDirection::Horizontal => {
                 self.cursor.y = self.max.y + self.ui.spacing().item_spacing.y;
