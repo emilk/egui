@@ -170,6 +170,48 @@ impl Drop for Viewport {
 
 // ----------------------------------------------------------------------------
 
+fn create_window_for_viewport(
+    egui_ctx: &egui::Context,
+    gl_config: &glutin::config::Config,
+    builder: &ViewportBuilder,
+    event_loop: &ActiveEventLoop,
+) -> Result<(Arc<Window>, ViewportInfo)> {
+    let window_attributes = egui_winit::apply_monitor_to_window_attributes(
+        egui_winit::create_winit_window_attributes(egui_ctx, builder.clone()),
+        builder,
+        event_loop,
+    );
+    if window_attributes.transparent()
+        && gl_config.supports_transparency() == Some(false)
+        && !cfg!(target_os = "windows")
+    {
+        log::error!("Cannot create transparent window: the GL config does not support it");
+    }
+
+    let window = cfg_select! {
+        target_os = "windows" => {
+            if window_attributes.transparent() {
+                // Preserve explicitly requested transparency for both root and child windows.
+                // Some GL paths report no transparency support although composition works.
+                event_loop.create_window(window_attributes)?
+            } else {
+                glutin_winit::finalize_window(event_loop, window_attributes, gl_config)?
+            }
+        }
+        _ => {
+            // Keep the normal platform-specific finalization path elsewhere.
+            glutin_winit::finalize_window(event_loop, window_attributes, gl_config)?
+        }
+    };
+    egui_winit::apply_viewport_builder_to_window(egui_ctx, &window, builder);
+
+    let mut viewport_info = ViewportInfo::default();
+    egui_winit::update_viewport_info(&mut viewport_info, egui_ctx, &window, true);
+    Ok((Arc::new(window), viewport_info))
+}
+
+// ----------------------------------------------------------------------------
+
 impl<'app> GlowWinitApp<'app> {
     pub fn new(
         event_loop: &EventLoop<UserEvent>,
@@ -1278,48 +1320,14 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
-            let window_attributes = egui_winit::apply_monitor_to_window_attributes(
-                egui_winit::create_winit_window_attributes(
-                    &self.egui_ctx,
-                    viewport.builder.clone(),
-                ),
+            let (window, viewport_info) = create_window_for_viewport(
+                &self.egui_ctx,
+                &self.gl_config,
                 &viewport.builder,
                 event_loop,
-            );
-            if window_attributes.transparent()
-                && self.gl_config.supports_transparency() == Some(false)
-                && !cfg!(target_os = "windows")
-            {
-                log::error!("Cannot create transparent window: the GL config does not support it");
-            }
-
-            let window = cfg_select! {
-                target_os = "windows" => {
-                    if viewport_id != ViewportId::ROOT && window_attributes.transparent() {
-                        // Preserve explicitly requested transparent child viewports on Windows.
-                        // Some GL paths report no transparency support although composition works.
-                        event_loop.create_window(window_attributes)?
-                    } else {
-                        glutin_winit::finalize_window(
-                            event_loop,
-                            window_attributes,
-                            &self.gl_config,
-                        )?
-                    }
-                }
-                _ => {
-                    // Keep the normal platform-specific finalization path elsewhere.
-                    glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?
-                }
-            };
-            egui_winit::apply_viewport_builder_to_window(
-                &self.egui_ctx,
-                &window,
-                &viewport.builder,
-            );
-
-            egui_winit::update_viewport_info(&mut viewport.info, &self.egui_ctx, &window, true);
-            viewport.window.insert(Arc::new(window))
+            )?;
+            viewport.info = viewport_info;
+            viewport.window.insert(window)
         };
 
         viewport.egui_winit.get_or_insert_with(|| {
