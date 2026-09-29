@@ -26,7 +26,7 @@ impl<T> From<&[T]> for AllocInfo {
     }
 }
 
-impl std::ops::Add for AllocInfo {
+impl core::ops::Add for AllocInfo {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
@@ -47,13 +47,13 @@ impl std::ops::Add for AllocInfo {
     }
 }
 
-impl std::ops::AddAssign for AllocInfo {
+impl core::ops::AddAssign for AllocInfo {
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs;
     }
 }
 
-impl std::iter::Sum for AllocInfo {
+impl core::iter::Sum for AllocInfo {
     fn sum<I>(iter: I) -> Self
     where
         I: Iterator<Item = Self>,
@@ -95,13 +95,13 @@ impl AllocInfo {
     }
 
     pub fn from_slice<T>(slice: &[T]) -> Self {
-        use std::mem::size_of;
+        use core::mem::size_of;
         let element_size = size_of::<T>();
         Self {
             element_size: ElementSize::Homogeneous(element_size),
             num_allocs: 1,
             num_elements: slice.len(),
-            num_bytes: std::mem::size_of_val(slice),
+            num_bytes: core::mem::size_of_val(slice),
         }
     }
 
@@ -161,6 +161,7 @@ pub struct PaintStats {
     pub shapes: AllocInfo,
     pub shape_text: AllocInfo,
     pub shape_path: AllocInfo,
+    pub shape_band: AllocInfo,
     pub shape_mesh: AllocInfo,
     pub shape_vec: AllocInfo,
     pub num_callbacks: usize,
@@ -178,6 +179,7 @@ impl PaintStats {
     pub fn from_shapes(shapes: &[ClippedShape]) -> Self {
         let mut stats = Self::default();
         stats.shape_path.element_size = ElementSize::Heterogenous; // nicer display later
+        stats.shape_band.element_size = ElementSize::Heterogenous; // nicer display later
         stats.shape_vec.element_size = ElementSize::Heterogenous; // nicer display later
 
         stats.shapes = AllocInfo::from_slice(shapes);
@@ -206,6 +208,9 @@ impl PaintStats {
             | Shape::QuadraticBezier(_) => {}
             Shape::Path(path_shape) => {
                 self.shape_path += AllocInfo::from_slice(&path_shape.points);
+            }
+            Shape::Band(band_shape) => {
+                self.shape_band += AllocInfo::from_slice(&band_shape.points);
             }
             Shape::Text(text_shape) => {
                 self.shape_text += AllocInfo::from_galley(&text_shape.galley);

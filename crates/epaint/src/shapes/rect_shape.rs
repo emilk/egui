@@ -62,12 +62,12 @@ pub struct RectShape {
 #[test]
 fn rect_shape_size() {
     assert_eq!(
-        std::mem::size_of::<RectShape>(),
+        core::mem::size_of::<RectShape>(),
         56,
         "RectShape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
-        std::mem::size_of::<RectShape>() <= 64,
+        core::mem::size_of::<RectShape>() <= 64,
         "RectShape is getting way too big!"
     );
 }

@@ -1,6 +1,6 @@
 use crate::{
-    Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Sense, Shape, Stroke,
-    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType, lerp, vec2,
+    Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Role, Sense, Shape, Stroke,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, lerp, vec2,
 };
 
 enum ProgressBarText {
@@ -118,9 +118,9 @@ impl Widget for ProgressBar {
 
         response.widget_info(|| {
             let mut info = if let Some(ProgressBarText::Custom(text)) = &text {
-                WidgetInfo::labeled(WidgetType::ProgressIndicator, ui.is_enabled(), text.text())
+                WidgetInfo::labeled(Role::ProgressIndicator, ui.is_enabled(), text.text())
             } else {
-                WidgetInfo::new(WidgetType::ProgressIndicator)
+                WidgetInfo::new(Role::ProgressIndicator)
             };
             info.value = Some((progress as f64 * 100.0).floor());
 
@@ -163,7 +163,7 @@ impl Widget for ProgressBar {
             if animate && !has_custom_cr {
                 let n_points = 20;
                 let time = ui.input(|i| i.time);
-                let start_angle = time * std::f64::consts::TAU;
+                let start_angle = time * core::f64::consts::TAU;
                 let end_angle = start_angle + 240f64.to_radians() * time.sin();
                 let circle_radius = half_height - 2.0;
                 let points: Vec<Pos2> = (0..n_points)

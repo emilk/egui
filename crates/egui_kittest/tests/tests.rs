@@ -224,6 +224,7 @@ fn test_ime_composition_visuals() {
     let mut harness = Harness::new_ui_state(
         |ui, state| {
             egui::TextEdit::multiline(state)
+                .hint_text("Type here")
                 .desired_width(120.0)
                 .desired_rows(5)
                 .show(ui);
@@ -261,4 +262,35 @@ fn test_ime_composition_visuals() {
     }));
     harness.run();
     harness.snapshot("test_ime_composition_visuals_cursor");
+}
+
+#[test]
+fn inner_size_viewport_command() {
+    let new_size = Vec2::new(300.0, 200.0);
+
+    #[derive(Default)]
+    struct State {
+        requested: bool,
+        observed_size: Option<Vec2>,
+    }
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(100.0, 80.0))
+        .build_ui_state(
+            |ui, state: &mut State| {
+                // Request the resize once.
+                if !state.requested {
+                    state.requested = true;
+                    ui.ctx()
+                        .send_viewport_cmd(egui::ViewportCommand::InnerSize(new_size));
+                }
+
+                state.observed_size = Some(ui.ctx().viewport_rect().size());
+            },
+            State::default(),
+        );
+
+    harness.run();
+
+    assert_eq!(harness.state().observed_size, Some(new_size));
 }
