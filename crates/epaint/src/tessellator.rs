@@ -6,7 +6,8 @@
 #![expect(clippy::identity_op)]
 
 use emath::{
-    GuiRounding as _, NumExt as _, Pos2, Rangef, Rect, Rot2, Vec2, fast_midpoint, pos2, remap, vec2,
+    GuiRounding as _, NumExt as _, Pos2, Rangef, Rect, Rot2, TSTransform, Vec2, fast_midpoint,
+    pos2, remap, vec2,
 };
 
 use crate::{
@@ -1477,20 +1478,36 @@ impl Tessellator {
         clipped_shape: ClippedShape,
         out_primitives: &mut Vec<ClippedPrimitive>,
     ) {
-        let ClippedShape { clip_rect, shape } = clipped_shape;
+        let ClippedShape {
+            clip_rect,
+            shape,
+            transform_after_tessellation: transform,
+        } = clipped_shape;
 
         if !clip_rect.is_positive() {
             return; // skip empty clip rectangles
         }
 
+        if !transform.is_valid() {
+            return;
+        }
+
         if let Shape::Vec(shapes) = shape {
             for shape in shapes {
-                self.tessellate_clipped_shape(ClippedShape { clip_rect, shape }, out_primitives);
+                self.tessellate_clipped_shape(
+                    ClippedShape {
+                        clip_rect,
+                        shape,
+                        transform_after_tessellation: transform,
+                    },
+                    out_primitives,
+                );
             }
             return;
         }
 
-        if let Shape::Callback(callback) = shape {
+        if let Shape::Callback(mut callback) = shape {
+            callback.rect = transform * callback.rect;
             out_primitives.push(ClippedPrimitive {
                 clip_rect,
                 primitive: Primitive::Callback(callback),
@@ -1522,8 +1539,21 @@ impl Tessellator {
         let out = out_primitives.last_mut().unwrap();
 
         if let Primitive::Mesh(out_mesh) = &mut out.primitive {
-            self.clip_rect = clip_rect;
-            self.tessellate_shape(shape, out_mesh);
+            if transform == TSTransform::IDENTITY {
+                self.clip_rect = clip_rect;
+                self.tessellate_shape(shape, out_mesh);
+            } else {
+                // Tessellate in the shape's own coordinate space, so that everything lands on the
+                // pixel grid there, and only then move the finished vertices into place.
+                // Culling has to happen in that same space, so map the clip rect back into it:
+                self.clip_rect = transform.inverse() * clip_rect;
+
+                let vertex_start = out_mesh.vertices.len();
+                self.tessellate_shape(shape, out_mesh);
+                for vertex in &mut out_mesh.vertices[vertex_start..] {
+                    vertex.pos = transform * vertex.pos;
+                }
+            }
         } else {
             unreachable!();
         }
@@ -2593,10 +2623,7 @@ fn test_tessellator() {
     shapes.push(Shape::mesh(mesh));
 
     let shape = Shape::Vec(shapes);
-    let clipped_shapes = vec![ClippedShape {
-        clip_rect: rect,
-        shape,
-    }];
+    let clipped_shapes = vec![ClippedShape::new(rect, shape)];
 
     let font_tex_size = [1024, 1024]; // unused
     let prepared_discs = vec![]; // unused
@@ -2605,6 +2632,46 @@ fn test_tessellator() {
         .tessellate_shapes(clipped_shapes);
 
     assert_eq!(primitives.len(), 2);
+}
+
+#[test]
+fn transform_before_and_after_rounding() {
+    use crate::*;
+
+    fn tessellated_bounds(clipped_shape: ClippedShape) -> Rect {
+        let options = TessellationOptions {
+            feathering: false,
+            ..Default::default()
+        };
+        let primitives = Tessellator::new(1.0, options, [1024, 1024], vec![])
+            .tessellate_shapes(vec![clipped_shape]);
+        assert_eq!(primitives.len(), 1);
+        let Primitive::Mesh(mesh) = &primitives[0].primitive else {
+            panic!("expected a mesh");
+        };
+        mesh.calc_bounds()
+    }
+
+    // Off the pixel grid, so the tessellator has to round it:
+    let rect = Rect::from_min_max(pos2(0.5, 0.5), pos2(10.5, 10.5));
+    let shape = Shape::rect_filled(rect, 0, Color32::WHITE);
+    let transform = TSTransform::from_scaling(3.0);
+
+    // Transform first, then round: [1.5, 31.5] rounds to [2, 32].
+    let mut immediate = ClippedShape::new(Rect::EVERYTHING, shape.clone());
+    immediate.transform(transform);
+    assert_eq!(
+        tessellated_bounds(immediate),
+        Rect::from_min_max(pos2(2.0, 2.0), pos2(32.0, 32.0))
+    );
+
+    // Round first, then transform: [0.5, 10.5] rounds to [1, 11], which scales to [3, 33].
+    let mut after_rounding = ClippedShape::new(Rect::EVERYTHING, shape);
+    after_rounding.transform_after_tessellation = transform;
+    assert_eq!(
+        tessellated_bounds(after_rounding),
+        Rect::from_min_max(pos2(3.0, 3.0), pos2(33.0, 33.0))
+    );
 }
 
 #[test]

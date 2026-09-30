@@ -90,11 +90,12 @@ fn shape_size() {
     );
 }
 
-#[test]
-fn shape_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Shape` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Shape>();
-}
+};
 
 impl From<Vec<Self>> for Shape {
     #[inline(always)]
