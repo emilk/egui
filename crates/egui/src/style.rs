@@ -341,11 +341,12 @@ pub struct Style {
     pub compact_menu_style: bool,
 }
 
-#[test]
-fn style_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Style` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Style>();
-}
+};
 
 impl Style {
     // TODO(emilk): rename style.interact() to maybe… `style.interactive` ?
