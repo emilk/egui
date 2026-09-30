@@ -915,3 +915,99 @@ pub fn drag_value_should_keep_text_the_value_cannot_represent() {
 
     assert_eq!(harness.state(), &12, "The text should have been \"12.59\"");
 }
+
+/// With `update_while_editing(false)` the value is only updated when the edit is done,
+/// so `changed()` must not report the keystrokes before that.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/7837>.
+#[test]
+pub fn drag_value_should_not_report_changes_while_typing_without_update_while_editing() {
+    let mut harness = Harness::new_ui_state(
+        |ui, (value, changes): &mut (f64, usize)| {
+            let response = ui
+                .add(egui::DragValue::new(value).update_while_editing(false))
+                .on_hover_text("Value");
+            if response.changed() {
+                *changes += 1;
+            }
+        },
+        (0.0, 0),
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    for character in "42".chars() {
+        harness
+            .get_by_role(accesskit::Role::SpinButton)
+            .type_text(&character.to_string());
+        harness.run();
+    }
+
+    assert_eq!(
+        harness.state(),
+        &(0.0, 0),
+        "Nothing should change while typing"
+    );
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert_eq!(
+        harness.state(),
+        &(42.0, 1),
+        "The value should change once, when done"
+    );
+}
+
+/// With the default `update_while_editing(true)` the value, and thus `changed()`,
+/// follows each keystroke.
+#[test]
+pub fn drag_value_should_report_changes_while_typing_with_update_while_editing() {
+    let mut harness = Harness::new_ui_state(
+        |ui, (value, changes): &mut (f64, usize)| {
+            let response = ui.add(egui::DragValue::new(value)).on_hover_text("Value");
+            if response.changed() {
+                *changes += 1;
+            }
+        },
+        (0.0, 0),
+    );
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    for character in "42".chars() {
+        harness
+            .get_by_role(accesskit::Role::SpinButton)
+            .type_text(&character.to_string());
+        harness.run();
+    }
+
+    assert_eq!(
+        harness.state(),
+        &(42.0, 2),
+        "Each keystroke changes the value"
+    );
+}
+
+/// <https://github.com/emilk/egui/issues/8620>
+#[test]
+pub fn scene_with_zero_rect_and_unbounded_zoom_should_not_produce_nan() {
+    let mut scene_rect = Rect::ZERO;
+    let mut harness = Harness::new_ui(|ui| {
+        egui::Scene::new()
+            .zoom_range(0.0..=f32::INFINITY)
+            .show(ui, &mut scene_rect, |ui| {
+                ui.label("Hello world");
+            });
+    });
+    harness.run();
+    drop(harness);
+    assert!(scene_rect.is_finite(), "scene_rect: {scene_rect:?}");
+    assert!(
+        scene_rect.size() != Vec2::ZERO,
+        "scene_rect: {scene_rect:?}"
+    );
+}

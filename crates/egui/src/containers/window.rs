@@ -751,7 +751,7 @@ impl Window<'_> {
 
             // Do resize interaction _again_, to move their widget rectangles on TOP of the rest of the window.
             let resize_interaction = do_resize_interaction(
-                ctx,
+                &area_content_ui,
                 possible,
                 area.id(),
                 area_layer_id,
@@ -1036,7 +1036,7 @@ fn move_and_resize_window(ctx: &Context, id: Id, interaction: &ResizeInteraction
 }
 
 fn do_resize_interaction(
-    ctx: &Context,
+    ui: &Ui,
     possible: PossibleInteractions,
     accessibility_parent: Id,
     layer_id: LayerId,
@@ -1057,6 +1057,9 @@ fn do_resize_interaction(
     // The rect that is in the middle of the stroke:
     let rect = outer_rect.shrink(window_frame.stroke.width / 2.0);
 
+    let ctx = ui.ctx();
+    let visible = ui.is_visible();
+
     let side_response = |rect, id, name: &'static str| {
         ctx.register_accesskit_parent(id, accessibility_parent);
         let response = ctx.create_widget(
@@ -1068,6 +1071,7 @@ fn do_resize_interaction(
                 interact_rect: rect,
                 sense: Sense::DRAG, // Don't use Sense::drag() since we don't want these to be focusable
                 enabled: true,
+                visible,
             },
             true,
             InteractOptions {

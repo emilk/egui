@@ -174,7 +174,10 @@ fn multiple_disabled_widgets() {
 
 #[test]
 fn window_children() {
-    let output = accesskit_output_single_egui_frame(|ui| {
+    let ctx = Context::default();
+    ctx.enable_accesskit();
+
+    let mut run_ui = |ui: &mut Ui| {
         let mut open = true;
         Window::new("test window")
             .open(&mut open)
@@ -182,7 +185,29 @@ fn window_children() {
             .show(ui.ctx(), |ui| {
                 let _ = ui.button("A button");
             });
-    });
+    };
+
+    // The first frame is an invisible sizing pass, which is not exposed to accessibility:
+    let mut output = ctx.run_ui(RawInput::default(), &mut run_ui);
+    output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
+    let output = output
+        .platform_output
+        .accesskit_update
+        .expect("Missing accesskit update");
+    assert!(
+        !output
+            .nodes
+            .iter()
+            .any(|(_, node)| node.label() == Some("A button")),
+        "Invisible sizing pass should not be exposed to accessibility"
+    );
+
+    let mut output = ctx.run_ui(RawInput::default(), &mut run_ui);
+    output.textures_delta.clear();
+    let output = output
+        .platform_output
+        .accesskit_update
+        .expect("Missing accesskit update");
 
     let root = output.tree.as_ref().map(|tree| tree.root).unwrap();
 
