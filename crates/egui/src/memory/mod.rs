@@ -1406,11 +1406,12 @@ impl Areas {
 
 // ----------------------------------------------------------------------------
 
-#[test]
-fn memory_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Memory` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Memory>();
-}
+};
 
 // Regression test for https://github.com/emilk/egui/issues/2142.
 #[test]

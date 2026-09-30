@@ -341,11 +341,12 @@ pub struct Style {
     pub compact_menu_style: bool,
 }
 
-#[test]
-fn style_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Style` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Style>();
-}
+};
 
 impl Style {
     // TODO(emilk): rename style.interact() to maybe… `style.interactive` ?
@@ -1455,9 +1456,9 @@ impl Default for Spacing {
             item_spacing: vec2(8.0, 3.0),
             window_margin: Margin::same(6),
             menu_margin: Margin::same(6),
-            button_padding: vec2(4.0, 1.0),
+            button_padding: vec2(8.0, 2.0),
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
-            interact_size: vec2(40.0, 18.0),
+            interact_size: vec2(40.0, 20.0),
             slider_width: 100.0,
             slider_rail_height: 8.0,
             combo_width: 100.0,
@@ -1689,27 +1690,27 @@ impl Widgets {
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(60), // button background
+                weak_bg_fill: Color32::from_gray(50), // button background
                 bg_fill: Color32::from_gray(60),      // checkbox background
                 bg_stroke: Default::default(),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
-                corner_radius: CornerRadius::same(4),
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(215)), // button text
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(70),
+                weak_bg_fill: Color32::from_gray(64),
                 bg_fill: Color32::from_gray(70),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
-                fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
-                corner_radius: CornerRadius::same(4),
+                fg_stroke: Stroke::new(1.5, Color32::from_gray(245)),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             active: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(55),
+                weak_bg_fill: Color32::from_gray(40),
                 bg_fill: Color32::from_gray(55),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             open: WidgetVisuals {
@@ -1717,7 +1718,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
         }
@@ -1738,7 +1739,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(230),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
@@ -1746,7 +1747,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             active: WidgetVisuals {
@@ -1754,7 +1755,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(165),
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             open: WidgetVisuals {
@@ -1762,7 +1763,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
         }
