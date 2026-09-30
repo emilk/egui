@@ -26,6 +26,27 @@ use crate::{
 /// See <https://github.com/emilk/egui/issues/7776>.
 const INVISIBLE_WINDOW_REPAINT_INTERVAL: Duration = Duration::from_millis(100);
 
+/// Soft limit for painting older Windows redraw requests during one redraw event.
+/// A paint already started may exceed this budget.
+#[cfg(target_os = "windows")]
+const REDRAW_DIRECT_PAINT_BUDGET: Duration = Duration::from_millis(5);
+
+#[cfg(target_os = "windows")]
+struct RedrawLedger<Id> {
+    next: u64,
+    asked: HashMap<Id, u64>,
+}
+
+#[cfg(target_os = "windows")]
+impl<Id> Default for RedrawLedger<Id> {
+    fn default() -> Self {
+        Self {
+            next: 0,
+            asked: HashMap::default(),
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
     #[cfg(target_os = "android")]
@@ -78,6 +99,8 @@ fn with_event_loop<R>(
 /// Wraps a [`WinitApp`] to implement [`ApplicationHandler`]. This handles redrawing, exit states, and
 /// some events, but otherwise forwards events to the [`WinitApp`].
 struct WinitAppWrapper<T: WinitApp> {
+    #[cfg(target_os = "windows")]
+    redraw_ledger: RedrawLedger<WindowId>,
     windows_next_repaint_times: HashMap<WindowId, Instant>,
     winit_app: T,
     return_result: Result<(), crate::Error>,
@@ -87,6 +110,8 @@ struct WinitAppWrapper<T: WinitApp> {
 impl<T: WinitApp> WinitAppWrapper<T> {
     fn new(winit_app: T, run_and_return: bool) -> Self {
         Self {
+            #[cfg(target_os = "windows")]
+            redraw_ledger: RedrawLedger::default(),
             windows_next_repaint_times: HashMap::default(),
             winit_app,
             return_result: Ok(()),
@@ -214,6 +239,8 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                         // busy-loops a whole CPU core.
                         // See https://github.com/emilk/egui/issues/8326.
                         window.request_redraw();
+                        #[cfg(target_os = "windows")]
+                        self.redraw_ledger.asked(*window_id);
                     }
                 } else {
                     log::trace!("No window found for {window_id:?}");
@@ -372,7 +399,28 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         event_loop_context::with_event_loop_context(event_loop, move || {
             let event_result = match event {
                 winit::event::WindowEvent::RedrawRequested => {
-                    self.winit_app.run_ui_and_paint(event_loop, window_id)
+                    #[cfg(target_os = "windows")]
+                    let painted_order = self.redraw_ledger.painted(window_id);
+                    let event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
+                    self.handle_event_result(event_loop, event_result);
+
+                    #[cfg(target_os = "windows")]
+                    if let Some(painted_order) = painted_order {
+                        let budget_start = Instant::now();
+                        while budget_start.elapsed() < REDRAW_DIRECT_PAINT_BUDGET
+                            && !event_loop.exiting()
+                        {
+                            let Some(passed_window) =
+                                self.redraw_ledger.next_older_than(painted_order)
+                            else {
+                                break;
+                            };
+                            let event_result =
+                                self.winit_app.run_ui_and_paint(event_loop, passed_window);
+                            self.handle_event_result(event_loop, event_result);
+                        }
+                    }
+                    return;
                 }
                 _ => self.winit_app.window_event(event_loop, window_id, event),
             };
@@ -585,4 +633,66 @@ pub enum EframePumpStatus {
 
     /// The exit code for the application
     Exit(i32),
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg(target_os = "windows")]
+impl<Id: Copy + Eq + std::hash::Hash> RedrawLedger<Id> {
+    /// Keep the earliest unanswered redraw request for each window.
+    fn asked(&mut self, window: Id) {
+        let order = self.next;
+        self.next += 1;
+        self.asked.entry(window).or_insert(order);
+    }
+
+    /// Forget this paint and return its request order, if it was tracked.
+    fn painted(&mut self, window: Id) -> Option<u64> {
+        self.asked.remove(&window)
+    }
+
+    /// Remove and return the oldest request made before the given paint.
+    fn next_older_than(&mut self, order: u64) -> Option<Id> {
+        let (_, window) = self
+            .asked
+            .iter()
+            .filter_map(|(&window, &asked)| (asked < order).then_some((asked, window)))
+            .min_by_key(|(asked, _)| *asked)?;
+        self.asked.remove(&window);
+        Some(window)
+    }
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod redraw_ledger_tests {
+    use super::RedrawLedger;
+
+    #[test]
+    fn removes_older_requests_one_at_a_time_in_order() {
+        let mut ledger = RedrawLedger::default();
+        ledger.asked(1_u8);
+        ledger.asked(2_u8);
+        ledger.asked(1_u8);
+        ledger.asked(3_u8);
+
+        let painted_order = ledger.painted(3).unwrap();
+        assert_eq!(ledger.next_older_than(painted_order), Some(1));
+        assert_eq!(ledger.next_older_than(painted_order), Some(2));
+        assert_eq!(ledger.next_older_than(painted_order), None);
+        assert_eq!(ledger.painted(1), None);
+    }
+
+    #[test]
+    fn does_not_remove_requests_newer_than_the_paint() {
+        let mut ledger = RedrawLedger::default();
+        ledger.asked(1_u8);
+        ledger.asked(2_u8);
+        ledger.asked(3_u8);
+
+        let painted_order = ledger.painted(1).unwrap();
+        assert_eq!(ledger.next_older_than(painted_order), None);
+
+        let painted_order = ledger.painted(3).unwrap();
+        assert_eq!(ledger.next_older_than(painted_order), Some(2));
+    }
 }
