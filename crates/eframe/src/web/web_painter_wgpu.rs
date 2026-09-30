@@ -3,12 +3,11 @@ use std::sync::Arc;
 use egui::ScreenshotCallback;
 use egui_wgpu::{RenderState, SurfaceErrorAction, capture::CaptureState};
 use wasm_bindgen::JsValue;
-use web_sys::HtmlCanvasElement;
 
-use super::web_painter::WebPainter;
+use super::{WebCanvas, web_painter::WebPainter};
 
 pub(crate) struct WebPainterWgpu {
-    canvas: HtmlCanvasElement,
+    canvas: WebCanvas,
     instance: wgpu::Instance,
     surface: wgpu::Surface<'static>,
     surface_configuration: wgpu::SurfaceConfiguration,
@@ -72,9 +71,24 @@ impl WebPainterWgpu {
         })
     }
 
+    /// The wgpu surface target for a canvas.
+    ///
+    /// `wgpu` supports `SurfaceTarget::OffscreenCanvas`, but eframe does not use
+    /// it: rendering to an `OffscreenCanvas` requires the `glow` renderer.
+    fn surface_target(canvas: &WebCanvas) -> Result<wgpu::SurfaceTarget<'static>, String> {
+        match canvas {
+            WebCanvas::Html(canvas) => Ok(wgpu::SurfaceTarget::Canvas(canvas.clone())),
+            WebCanvas::Offscreen(_) => {
+                Err("WebGPU rendering on an OffscreenCanvas is not supported; \
+                 use the WebGL (`glow`) backend"
+                    .to_owned())
+            }
+        }
+    }
+
     pub async fn new(
         ctx: egui::Context,
-        canvas: web_sys::HtmlCanvasElement,
+        canvas: WebCanvas,
         options: &crate::WebOptions,
     ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
@@ -91,7 +105,7 @@ impl WebPainterWgpu {
 
         let instance = wgpu_options.wgpu_setup.new_instance().await;
         let surface = instance
-            .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
+            .create_surface(Self::surface_target(&canvas)?)
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
         let depth_stencil_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
@@ -140,10 +154,6 @@ impl WebPainterWgpu {
 }
 
 impl WebPainter for WebPainterWgpu {
-    fn canvas(&self) -> &HtmlCanvasElement {
-        &self.canvas
-    }
-
     fn max_texture_side(&self) -> usize {
         self.render_state.as_ref().map_or(0, |state| {
             state.device.limits().max_texture_dimension_2d as _
@@ -172,10 +182,11 @@ impl WebPainter for WebPainterWgpu {
         // surface from the canvas before re-borrowing `self.render_state` for the rest of paint.
         if self.needs_recreate {
             self.needs_recreate = false;
-            match self
-                .instance
-                .create_surface(wgpu::SurfaceTarget::Canvas(self.canvas.clone()))
-            {
+            match Self::surface_target(&self.canvas).and_then(|surface_target| {
+                self.instance
+                    .create_surface(surface_target)
+                    .map_err(|err| err.to_string())
+            }) {
                 Ok(new_surface) => {
                     new_surface.configure(&render_state.device, &self.surface_configuration);
                     self.surface = new_surface;
