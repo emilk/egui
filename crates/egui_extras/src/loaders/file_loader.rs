@@ -29,12 +29,16 @@ const PROTOCOL: &str = "file://";
 /// Converts a hopefully uri encoded string into a `PathBuf`
 ///
 /// Note that there is only minimal translation of the uri string into a path to support windows
-/// file and unc paths. Other translations like percent un-encoding are not handled.
+/// file and unc paths, plus percent-decoding so escapes like `%20` become real characters.
 fn convert_uri_to_path(s: &str) -> Result<PathBuf, egui::load::LoadError> {
     // File loader only supports the `file` protocol.
     let s = s
         .strip_prefix(PROTOCOL)
         .ok_or(egui::load::LoadError::NotSupported)?;
+
+    // Decode percent-escapes (e.g. `%20` -> space) so the path resolves on disk.
+    let s = percent_decode(s);
+    let s = s.as_str();
 
     if cfg!(target_os = "windows") {
         // Standard windows file uris should have the form
@@ -59,6 +63,35 @@ fn convert_uri_to_path(s: &str) -> Result<PathBuf, egui::load::LoadError> {
     }
 
     Ok(PathBuf::from(s))
+}
+
+/// Percent-decodes `%XX` escapes in a URI path, leaving any invalid escape as-is.
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%'
+            && i + 2 < bytes.len()
+            && let (Some(hi), Some(lo)) = (hex_digit(bytes[i + 1]), hex_digit(bytes[i + 2]))
+        {
+            out.push((hi << 4) | lo);
+            i += 3;
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+fn hex_digit(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
 }
 
 impl BytesLoader for FileLoader {
@@ -206,14 +239,26 @@ mod tests {
                     Ok(PathBuf::from("\\\\host\\share\\path\\to\\image.jpg")),
                     "file uris with a host are turned into UNC paths with leading backslashes on windows.",
                 ),
+                (
+                    "file:///c:/path/to/the%20image.jpg",
+                    Ok(PathBuf::from("c:\\path\\to\\the image.jpg")),
+                    "percent-escaped spaces in the path are decoded on windows.",
+                ),
             ];
             checks.append(&mut windows_checks);
         } else {
-            let mut more_checks = vec![(
-                "file://path/to/image.jpg",
-                Ok(PathBuf::from("path/to/image.jpg")),
-                "file uris are turned into bare paths.",
-            )];
+            let mut more_checks = vec![
+                (
+                    "file://path/to/image.jpg",
+                    Ok(PathBuf::from("path/to/image.jpg")),
+                    "file uris are turned into bare paths.",
+                ),
+                (
+                    "file://path/to/the%20image.jpg",
+                    Ok(PathBuf::from("path/to/the image.jpg")),
+                    "percent-escaped spaces in the path are decoded.",
+                ),
+            ];
             checks.append(&mut more_checks);
         }
         for (uri_s, path, reason) in checks {
