@@ -170,7 +170,38 @@ impl RawInput {
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
         self.system_theme = system_theme;
-        self.safe_area_insets = safe_area;
+        self.safe_area_insets = safe_area.or(self.safe_area_insets);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::epaint::MarginF32;
+
+    #[test]
+    fn append_preserves_latest_specified_safe_area_insets() {
+        let original = SafeAreaInsets(MarginF32::same(1.0));
+        let replacement = SafeAreaInsets(MarginF32::same(2.0));
+        let mut input = RawInput {
+            safe_area_insets: Some(original),
+            ..Default::default()
+        };
+
+        input.append(RawInput::default());
+        assert_eq!(input.safe_area_insets, Some(original));
+
+        input.append(RawInput {
+            safe_area_insets: Some(replacement),
+            ..Default::default()
+        });
+        assert_eq!(input.safe_area_insets, Some(replacement));
+
+        input.append(RawInput {
+            safe_area_insets: Some(SafeAreaInsets::default()),
+            ..Default::default()
+        });
+        assert_eq!(input.safe_area_insets, Some(SafeAreaInsets::default()));
     }
 }
 
