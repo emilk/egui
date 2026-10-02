@@ -1151,36 +1151,18 @@ impl GlutinWindowContext {
         });
         log::debug!("creating gl context using raw window handle: {glutin_raw_window_handle:?}");
 
-        // create gl context. if core context cannot be created, try gl es context as fallback.
-        let context_attributes =
-            glutin::context::ContextAttributesBuilder::new().build(glutin_raw_window_handle);
-        let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
-            .with_context_api(glutin::context::ContextApi::Gles(None))
-            .build(glutin_raw_window_handle);
-
-        let gl_context_result = unsafe {
-            profiling::scope!("create_context");
-            gl_config
-                .display()
-                .create_context(&gl_config, &context_attributes)
-        };
-
-        let gl_context = match gl_context_result {
-            Ok(it) => it,
-            Err(err) => {
-                log::warn!(
-                    "Failed to create context using default context attributes {context_attributes:?} due to error: {err}"
-                );
-                log::debug!(
-                    "Retrying with fallback context attributes: {fallback_context_attributes:?}"
-                );
-                unsafe {
-                    gl_config
-                        .display()
-                        .create_context(&gl_config, &fallback_context_attributes)?
-                }
-            }
-        };
+        let [default_attributes, fallback_attributes @ ..] =
+            context_attributes_to_try(glutin_raw_window_handle);
+        let gl_context = create_first_context(
+            default_attributes,
+            fallback_attributes,
+            |context_attributes| unsafe {
+                profiling::scope!("create_context");
+                gl_config
+                    .display()
+                    .create_context(&gl_config, context_attributes)
+            },
+        )?;
         let not_current_gl_context = Some(gl_context);
 
         let mut viewport_from_window = HashMap::default();
@@ -1760,6 +1742,54 @@ fn render_immediate_viewport(
     });
 }
 
+/// The OpenGL contexts to ask for, in order of preference.
+///
+/// 1. glutin's default, which is OpenGL 3.3 core.
+/// 2. OpenGL ES 2.0, for drivers that have no desktop OpenGL 3.3.
+/// 3. A compatibility profile without a minimum version. Drivers answer it with the newest
+///    version they support (e.g. OpenGL 3.1 on Intel HD Graphics 3000 under Windows), which
+///    `egui_glow` can use. This saves drivers that reject 3.3 core and cannot make ES contexts
+///    through WGL either.
+fn context_attributes_to_try(
+    raw_window_handle: Option<raw_window_handle::RawWindowHandle>,
+) -> [glutin::context::ContextAttributes; 3] {
+    use glutin::context::{ContextApi, ContextAttributesBuilder, GlProfile};
+
+    [
+        ContextAttributesBuilder::new().build(raw_window_handle),
+        ContextAttributesBuilder::new()
+            .with_context_api(ContextApi::Gles(None))
+            .build(raw_window_handle),
+        ContextAttributesBuilder::new()
+            .with_profile(GlProfile::Compatibility)
+            .build(raw_window_handle),
+    ]
+}
+
+/// Call `create` with `first`, then with each of `fallbacks` until one succeeds.
+///
+/// Logs every failure, and returns the last error if none succeeds.
+fn create_first_context<A: core::fmt::Debug, T, E: core::fmt::Display>(
+    first: A,
+    fallbacks: impl IntoIterator<Item = A>,
+    mut create: impl FnMut(&A) -> core::result::Result<T, E>,
+) -> core::result::Result<T, E> {
+    let mut result = create(&first);
+    let mut attributes = first;
+    for fallback in fallbacks {
+        let Err(err) = &result else {
+            break;
+        };
+        log::warn!(
+            "Failed to create context using context attributes {attributes:?} due to error: {err}"
+        );
+        log::debug!("Retrying with fallback context attributes: {fallback:?}");
+        result = create(&fallback);
+        attributes = fallback;
+    }
+    result
+}
+
 #[cfg(feature = "__screenshot")]
 fn save_screenshot_and_exit(
     path: &str,
@@ -1785,4 +1815,60 @@ fn save_screenshot_and_exit(
 
     #[expect(clippy::exit)]
     std::process::exit(0);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{context_attributes_to_try, create_first_context};
+
+    #[test]
+    fn context_attributes_end_with_compatibility_profile() {
+        let attempts = context_attributes_to_try(None).map(|attributes| format!("{attributes:?}"));
+        assert!(attempts[0].contains("profile: None") && attempts[0].contains("api: None"));
+        assert!(attempts[1].contains("api: Some(Gles(None))"));
+        assert!(
+            attempts[2].contains("profile: Some(Compatibility)")
+                && attempts[2].contains("api: None"),
+            "the last resort asks for a compatibility profile of any version: {}",
+            attempts[2]
+        );
+    }
+
+    #[test]
+    fn create_first_context_stops_at_first_success() {
+        let mut tried = vec![];
+        let result: Result<&str, String> = create_first_context("core", ["es", "compat"], |&a| {
+            tried.push(a);
+            if a == "es" {
+                Ok(a)
+            } else {
+                Err(format!("{a} failed"))
+            }
+        });
+        assert_eq!(result, Ok("es"));
+        assert_eq!(tried, ["core", "es"]);
+    }
+
+    #[test]
+    fn create_first_context_tries_every_fallback_and_returns_last_error() {
+        let mut tried = vec![];
+        let result: Result<(), String> = create_first_context("core", ["es", "compat"], |&a| {
+            tried.push(a);
+            Err(format!("{a} failed"))
+        });
+        assert_eq!(result, Err("compat failed".to_owned()));
+        assert_eq!(tried, ["core", "es", "compat"]);
+
+        let mut tried = vec![];
+        let result: Result<&str, String> = create_first_context("core", ["es", "compat"], |&a| {
+            tried.push(a);
+            if a == "compat" {
+                Ok(a)
+            } else {
+                Err(format!("{a} failed"))
+            }
+        });
+        assert_eq!(result, Ok("compat"));
+        assert_eq!(tried, ["core", "es", "compat"]);
+    }
 }
