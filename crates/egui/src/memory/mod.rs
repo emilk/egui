@@ -934,6 +934,16 @@ impl Memory {
         }
     }
 
+    /// Stop offering keyboard focus for a specific widget.
+    #[inline(always)]
+    pub fn ignore_focus(&mut self, id: Id) {
+        let focus = self.focus_mut();
+        focus.focus_widgets_cache.remove(&id);
+        if focus.focused() == Some(id) {
+            focus.focused_widget = None;
+        }
+    }
+
     /// Move keyboard focus in a specific direction.
     pub fn move_focus(&mut self, direction: FocusDirection) {
         self.focus_mut().focus_direction = direction;
