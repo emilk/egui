@@ -15,15 +15,19 @@ pub struct WindowSettings {
 
     maximized: bool,
 
-    /// Inner size of window in logical pixels
+    /// Inner size of window in egui points at [`Self::zoom_factor`].
     inner_size_points: Option<egui::Vec2>,
+
+    /// The egui zoom factor [`Self::inner_size_points`] was measured at.
+    ///
+    /// `None` in settings saved before this was recorded.
+    zoom_factor: Option<f32>,
 }
 
 impl WindowSettings {
     pub fn from_window(egui_zoom_factor: f32, window: &winit::window::Window) -> Self {
-        let inner_size_points = window
-            .inner_size()
-            .to_logical::<f32>(egui_zoom_factor as f64 * window.scale_factor());
+        let inner_size_points =
+            size_in_points(window.inner_size(), window.scale_factor(), egui_zoom_factor);
 
         let inner_position_pixels = window
             .inner_position()
@@ -42,15 +46,30 @@ impl WindowSettings {
             fullscreen: window.fullscreen().is_some(),
             maximized: window.is_maximized(),
 
-            inner_size_points: Some(egui::vec2(
-                inner_size_points.width,
-                inner_size_points.height,
-            )),
+            inner_size_points: Some(inner_size_points),
+            zoom_factor: Some(egui_zoom_factor),
         }
     }
 
     pub fn inner_size_points(&self) -> Option<egui::Vec2> {
         self.inner_size_points
+    }
+
+    /// Express the saved size in points at `egui_zoom_factor`.
+    ///
+    /// Call this before restoring a window into a context whose zoom factor may differ from the
+    /// one the settings were saved at, e.g. when the app sets its zoom factor only after the
+    /// window exists. Otherwise a window saved at a zoom factor of 1.25 comes back 20% smaller.
+    /// Settings saved before the zoom factor was recorded are left as they are.
+    pub fn convert_to_zoom_factor(&mut self, egui_zoom_factor: f32) {
+        if let (Some(size), Some(saved_zoom_factor)) =
+            (&mut self.inner_size_points, self.zoom_factor)
+            && 0.0 < saved_zoom_factor
+            && 0.0 < egui_zoom_factor
+        {
+            *size *= saved_zoom_factor / egui_zoom_factor;
+            self.zoom_factor = Some(egui_zoom_factor);
+        }
     }
 
     pub fn initialize_viewport_builder(
@@ -141,6 +160,16 @@ impl WindowSettings {
     }
 }
 
+/// A size in physical pixels, in egui points at the given zoom factor.
+fn size_in_points(
+    size_px: winit::dpi::PhysicalSize<u32>,
+    scale_factor: f64,
+    egui_zoom_factor: f32,
+) -> egui::Vec2 {
+    let size = size_px.to_logical::<f32>(egui_zoom_factor as f64 * scale_factor);
+    egui::vec2(size.width, size.height)
+}
+
 fn find_active_monitor(
     egui_zoom_factor: f32,
     event_loop: &winit::event_loop::ActiveEventLoop,
@@ -213,4 +242,47 @@ fn clamp_pos_to_monitors(
     // subtract the size of the window to get the bottom right most value window.position
     // can have.
     *position_px = position_px.clamp(monitor_rect.min, monitor_rect.min + window_size);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{WindowSettings, size_in_points};
+
+    #[test]
+    fn size_survives_a_zoom_factor_set_after_the_window_exists() {
+        let size_px = winit::dpi::PhysicalSize::new(1500, 1200);
+        let scale_factor = 1.5;
+        for zoom_factor in [1.0, 1.25, 2.0] {
+            let mut settings = WindowSettings {
+                inner_size_points: Some(size_in_points(size_px, scale_factor, zoom_factor)),
+                zoom_factor: Some(zoom_factor),
+                ..Default::default()
+            };
+
+            // The next window is built by a fresh context, whose zoom factor is still 1:
+            settings.convert_to_zoom_factor(1.0);
+            let size = settings.inner_size_points().expect("a size") * scale_factor as f32;
+            assert!(
+                (size - egui::vec2(1500.0, 1200.0)).length() < 0.01,
+                "saved at zoom {zoom_factor}, restored as {size:?} pixels"
+            );
+
+            // A context that restored its zoom factor gets the size it saved:
+            settings.convert_to_zoom_factor(zoom_factor);
+            assert_eq!(
+                settings.inner_size_points(),
+                Some(size_in_points(size_px, scale_factor, zoom_factor))
+            );
+        }
+    }
+
+    #[test]
+    fn settings_without_zoom_factor_keep_their_size() {
+        let mut settings = WindowSettings {
+            inner_size_points: Some(egui::vec2(800.0, 600.0)),
+            ..Default::default()
+        };
+        settings.convert_to_zoom_factor(2.0);
+        assert_eq!(settings.inner_size_points(), Some(egui::vec2(800.0, 600.0)));
+    }
 }
