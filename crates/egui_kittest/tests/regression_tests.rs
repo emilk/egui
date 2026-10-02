@@ -35,6 +35,64 @@ pub fn focus_should_skip_over_disabled_buttons() {
 }
 
 #[test]
+pub fn arrow_navigation_should_skip_over_previously_disabled_buttons() {
+    let mut harness = Harness::new_ui_state(|ui, enabled| {
+        ui.checkbox(enabled, "Enable Button");
+        ui.add_enabled(*enabled, Button::new("Button"));
+        let _ = ui.button("Other Button");
+    }, false);
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    harness.key_press(egui::Key::Space);
+    harness.run();
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    let button = harness.get_by_label("Button");
+    assert!(button.is_focused());
+
+    harness.key_press_modifiers(Modifiers::SHIFT, egui::Key::Tab);
+    harness.run();
+
+    harness.key_press(egui::Key::Space);
+    harness.run();
+
+    assert!(!*harness.state());
+
+    let checkbox = harness.get_by_label("Enable Button");
+    assert!(checkbox.is_focused());
+
+    // Down should skip over the disabled button.
+    harness.key_press(egui::Key::ArrowDown);
+    harness.run();
+
+    let other_button = harness.get_by_label("Other Button");
+    assert!(other_button.is_focused());
+
+    // Up should also skip over the disabled button.
+    harness.key_press(egui::Key::ArrowUp);
+    harness.run();
+
+    let checkbox = harness.get_by_label("Enable Button");
+    assert!(checkbox.is_focused());
+
+    // Re-enabling the button should make it focusable again.
+    harness.key_press(egui::Key::Space);
+    harness.run();
+
+    assert!(*harness.state());
+
+    harness.key_press(egui::Key::ArrowDown);
+    harness.run();
+
+    let button = harness.get_by_label("Button");
+    assert!(button.is_focused());
+}
+
+#[test]
 pub fn focus_should_skip_over_disabled_drag_values() {
     let mut value_1: u16 = 1;
     let mut value_2: u16 = 2;
