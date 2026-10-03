@@ -805,6 +805,7 @@ fn line_break(
                 });
 
                 // Start a new row:
+                first_row_indentation = 0.0;
                 row_start_idx = last_kept_index + 1;
                 row_start_x = paragraph.glyphs[row_start_idx].pos.x;
                 row_break_candidates.forget_before_idx(row_start_idx);
@@ -2583,6 +2584,28 @@ mod tests {
                 rect2.min.x,
                 cursor2.index,
             );
+        }
+    }
+
+    #[test]
+    fn first_row_indentation_is_not_reapplied_after_wrapping() {
+        let mut fonts = test_fonts();
+        let text = format!("a {} tail", "x".repeat(80));
+        let mut job = LayoutJob::simple(text.clone(), FontId::default(), Color32::WHITE, 200.0);
+        job.sections[0].leading_space = 100.0;
+        let galley = layout(&mut fonts, 1.0, job.into());
+        assert!(galley.rows.len() > 2);
+        assert_eq!(
+            galley.rows.iter().map(|row| row.text()).collect::<String>(),
+            text
+        );
+        for row in &galley.rows {
+            for glyph in &row.row.glyphs {
+                assert!(
+                    glyph.pos.x >= 0.0,
+                    "wrapped glyph moved left of the layout: {glyph:?}"
+                );
+            }
         }
     }
 
