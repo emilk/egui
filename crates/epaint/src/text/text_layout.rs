@@ -1623,6 +1623,33 @@ mod tests {
         )
     }
 
+    /// Chinese closes a clause with full-width marks (，：；？！）), and those must never start a row:
+    /// <https://en.wikipedia.org/wiki/Line_breaking_rules_in_East_Asian_languages>
+    #[test]
+    fn cjk_row_never_starts_with_full_width_closing_punctuation() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Tofu);
+        let mut fonts = fonts.with_pixels_per_point(2.0);
+        let font_id = FontId::proportional(14.0);
+        let text = "一二三，四五六：七八九？十一二！三四五）六七八";
+        let one = fonts
+            .layout_no_wrap("一".to_owned(), font_id.clone(), Color32::WHITE)
+            .size()
+            .x;
+        // Every width that fits a few glyphs, so some row would end just before each mark.
+        for glyphs in 2..12 {
+            let width = one * glyphs as f32 + 0.5 * one;
+            let galley = fonts.layout(text.to_owned(), font_id.clone(), Color32::WHITE, width);
+            for placed in galley.rows.iter().skip(1) {
+                let first = placed.row.glyphs.first().map(|g| g.chr);
+                assert!(
+                    !matches!(first, Some('，' | '：' | '？' | '！' | '）')),
+                    "a row starts with {first:?} at {glyphs} glyphs wide"
+                );
+            }
+        }
+    }
+
     /// With no font at all we still need one glyph per character and rows with height,
     /// or text cursors get clamped to 0 and text edits lose their contents.
     #[test]
