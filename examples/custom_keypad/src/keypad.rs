@@ -32,6 +32,7 @@ impl State {
 
     fn queue_char(&mut self, c: char) {
         let events = self.events.get_or_insert(vec![]);
+        let text = Some(c.to_string());
         if let Some(key) = egui::Key::from_name(&c.to_string()) {
             events.push(egui::Event::Key {
                 key,
@@ -39,9 +40,9 @@ impl State {
                 pressed: true,
                 repeat: false,
                 modifiers: Default::default(),
+                text,
             });
         }
-        events.push(egui::Event::Text(c.to_string()));
     }
 
     fn queue_key(&mut self, key: egui::Key) {
@@ -52,6 +53,7 @@ impl State {
             pressed: true,
             repeat: false,
             modifiers: Default::default(),
+            text: None,
         });
     }
 }
