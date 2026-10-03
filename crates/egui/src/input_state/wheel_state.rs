@@ -124,7 +124,7 @@ impl WheelState {
 
                 if is_horizontal && !is_vertical {
                     // Treat all scrolling as horizontal scrolling.
-                    // Note: one Mac we already get horizontal scroll events when shift is down.
+                    // Note: on Mac we already get horizontal scroll events when shift is down.
                     delta = vec2(delta.x + delta.y, 0.0);
                 }
                 if !is_horizontal && is_vertical {
