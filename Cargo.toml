@@ -315,3 +315,9 @@ let_underscore_must_use = "allow"
 let_underscore_untyped = "allow"
 self_named_module_files = "allow" # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
+
+
+# TEMPORARY, remove before merging: winit::platform::wayland::Clipboard from
+# rust-windowing/winit#4729, until a winit 0.30 release includes it.
+[patch.crates-io]
+winit = { git = "https://github.com/crmne/winit", rev = "17aa519fb3ea4957c6681fb5dc4efedc638125f5" }
