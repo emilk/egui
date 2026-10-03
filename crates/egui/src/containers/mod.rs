@@ -18,7 +18,9 @@ pub mod scroll_area;
 mod sides;
 mod tooltip;
 pub(crate) mod window;
+mod group;
 
+pub use group::Group;
 pub use {
     aligned::Aligned,
     area::{Area, AreaState},
