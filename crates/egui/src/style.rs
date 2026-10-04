@@ -842,6 +842,8 @@ impl ScrollFadeStyle {
 ///
 /// which means the total coast distance is `v₀ · decay_time`,
 /// i.e. proportional to the release velocity.
+///
+/// All distances are in ui points, and all velocities in ui points per second.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -849,7 +851,8 @@ pub struct KineticScrollStyle {
     /// Time constant of the exponential velocity decay, in seconds.
     ///
     /// The velocity is reduced by a factor `e` every `decay_time` seconds,
-    /// and the total coast distance is `release_velocity * decay_time`.
+    /// and the total coast distance (in ui points) is `release_velocity * decay_time`,
+    /// where `release_velocity` is in ui points per second.
     ///
     /// `UIScrollView.DecelerationRate.normal` (0.998 per millisecond) corresponds to ≈ 0.5 s,
     /// and `.fast` (0.99 per millisecond) corresponds to ≈ 0.1 s.
@@ -857,7 +860,7 @@ pub struct KineticScrollStyle {
     /// Set to `0.0` to disable kinetic scrolling.
     pub decay_time: f32,
 
-    /// Stop the kinetic scrolling when the remaining coast distance is shorter than this many points.
+    /// Stop the kinetic scrolling when the remaining coast distance is shorter than this many ui points.
     ///
     /// The exponential decay never reaches zero velocity on its own, so we need a cutoff.
     pub stop_distance: f32,
