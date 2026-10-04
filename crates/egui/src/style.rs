@@ -830,9 +830,10 @@ impl ScrollFadeStyle {
 
 // ----------------------------------------------------------------------------
 
-/// Controls kinetic (momentum) scrolling of a [`crate::ScrollArea`],
-/// i.e. how the content keeps coasting after the user lets go of a drag
-/// (usually on a touch screen).
+/// The physics of drag-scrolling a [`crate::ScrollArea`], usually on a touch screen.
+///
+/// Controls how the content keeps coasting after the user lets go (kinetic scrolling),
+/// and how it rubber-bands when dragged past the edge.
 ///
 /// The velocity decays exponentially, like it does in `UIScrollView` on iOS/macOS:
 ///
@@ -864,6 +865,13 @@ pub struct KineticScrollStyle {
     ///
     /// The exponential decay never reaches zero velocity on its own, so we need a cutoff.
     pub stop_distance: f32,
+
+    /// Let the user drag (or coast) past the edge of the content, with increasing resistance,
+    /// and spring back when released. Like iOS and macOS.
+    ///
+    /// Affects drag-to-scroll (touch) and trackpad scrolling,
+    /// not mouse wheels or scroll bars.
+    pub rubber_band: bool,
 }
 
 impl Default for KineticScrollStyle {
@@ -871,6 +879,7 @@ impl Default for KineticScrollStyle {
         Self {
             decay_time: 0.5,
             stop_distance: 0.5,
+            rubber_band: true,
         }
     }
 }
@@ -888,6 +897,7 @@ impl KineticScrollStyle {
         let Self {
             decay_time,
             stop_distance,
+            rubber_band,
         } = self;
 
         ui.horizontal(|ui| {
@@ -913,6 +923,9 @@ impl KineticScrollStyle {
                     .on_hover_text("Stop when the remaining coast distance is shorter than this.");
             });
         }
+
+        ui.checkbox(rubber_band, "Rubber-band past the edge")
+            .on_hover_text("Let the user drag past the edge of the content, then spring back.");
     }
 }
 

@@ -15,6 +15,7 @@ mod popup;
 pub(crate) mod resize;
 mod scene;
 pub mod scroll_area;
+mod scroll_physics;
 mod sides;
 mod tooltip;
 pub(crate) mod window;
