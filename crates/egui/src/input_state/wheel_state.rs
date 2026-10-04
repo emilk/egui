@@ -1,12 +1,17 @@
 use emath::{Rect, Vec2, vec2};
 
-use crate::{InputOptions, Modifiers, MouseWheelUnit, TouchPhase};
+use crate::{InputOptions, Modifiers, MouseWheelSource, MouseWheelUnit, TouchPhase};
 
 /// If there has been no scroll event for this many seconds, the scroll action is over.
 ///
 /// Tested on a mac touchpad 2025, where the largest observed gap between scroll events
 /// was 68 ms. But we add some margin to be safe.
 const SCROLL_ACTION_TIMEOUT: f64 = 0.150;
+
+/// Like [`SCROLL_ACTION_TIMEOUT`], but for fingers resting on a trackpad mid-gesture,
+/// which produce no events at all. Where we know the source is a finger (macOS),
+/// the [`TouchPhase::End`] is reliable, so this is just a safety net.
+const RESTING_FINGER_TIMEOUT: f64 = 1.0;
 
 /// The current state of scrolling.
 ///
@@ -53,6 +58,9 @@ pub struct WheelState {
     /// but we are in a kinetic scroll or in a smoothed scroll.
     pub status: Status,
 
+    /// What drove the latest scroll event: a wheel, fingers on a trackpad, OS momentum…
+    pub source: MouseWheelSource,
+
     /// The modifiers at the start of the scroll.
     pub modifiers: Modifiers,
 
@@ -81,6 +89,7 @@ impl Default for WheelState {
     fn default() -> Self {
         Self {
             status: Status::Static,
+            source: MouseWheelSource::Unknown,
             modifiers: Default::default(),
             last_wheel_event: f64::NEG_INFINITY,
             unprocessed_wheel_delta: Vec2::ZERO,
@@ -99,6 +108,7 @@ impl WheelState {
         unit: MouseWheelUnit,
         delta: Vec2,
         phase: TouchPhase,
+        source: MouseWheelSource,
         latest_modifiers: Modifiers,
     ) {
         if self.is_scroll_action_over(time) {
@@ -110,6 +120,7 @@ impl WheelState {
         }
 
         self.last_wheel_event = time;
+        self.source = source;
         match phase {
             crate::TouchPhase::Start => {
                 self.status = Status::InTouch;
@@ -203,7 +214,13 @@ impl WheelState {
     /// and on others (e.g. some mouse wheels on Wayland) we get a start but no stop event,
     /// so we rely on a timer.
     fn is_scroll_action_over(&self, time: f64) -> bool {
-        self.status != Status::Static && SCROLL_ACTION_TIMEOUT < time - self.last_wheel_event
+        let timeout = if self.status == Status::InTouch && self.source == MouseWheelSource::Trackpad
+        {
+            RESTING_FINGER_TIMEOUT
+        } else {
+            SCROLL_ACTION_TIMEOUT
+        };
+        self.status != Status::Static && timeout < time - self.last_wheel_event
     }
 
     fn end_scroll_action(&mut self) {
@@ -219,6 +236,7 @@ impl WheelState {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             status,
+            source,
             modifiers,
             last_wheel_event,
             unprocessed_wheel_delta,
@@ -232,6 +250,10 @@ impl WheelState {
             .show(ui, |ui| {
                 ui.label("status");
                 ui.monospace(format!("{status:?}"));
+                ui.end_row();
+
+                ui.label("source");
+                ui.monospace(format!("{source:?}"));
                 ui.end_row();
 
                 ui.label("modifiers");
@@ -257,13 +279,20 @@ impl WheelState {
 mod tests {
     use emath::{Vec2, vec2};
 
-    use crate::{Context, Event, Modifiers, MouseWheelUnit, RawInput, TouchPhase};
+    use crate::{
+        Context, Event, Modifiers, MouseWheelSource, MouseWheelUnit, RawInput, TouchPhase,
+    };
 
     fn wheel(phase: TouchPhase, modifiers: Modifiers) -> Event {
+        wheel_from(phase, MouseWheelSource::Unknown, modifiers)
+    }
+
+    fn wheel_from(phase: TouchPhase, source: MouseWheelSource, modifiers: Modifiers) -> Event {
         Event::MouseWheel {
             unit: MouseWheelUnit::Point,
             delta: vec2(0.0, -5.0),
             phase,
+            source,
             modifiers,
         }
     }
@@ -383,5 +412,35 @@ mod tests {
             vec2(0.0, -5.0),
             "a new scroll action without shift is vertical"
         );
+    }
+
+    /// Fingers resting on a trackpad produce no events, but the scroll action is still going.
+    #[test]
+    fn resting_fingers_keep_the_scroll_action_alive() {
+        let ctx = Context::default();
+        let finger = MouseWheelSource::Trackpad;
+
+        run_frame(
+            &ctx,
+            0.0,
+            vec![
+                wheel_from(TouchPhase::Start, finger, Modifiers::NONE),
+                wheel_from(TouchPhase::Move, finger, Modifiers::NONE),
+            ],
+        );
+
+        let (_, _, is_scrolling) = run_frame(&ctx, 0.5, vec![]);
+        assert!(is_scrolling, "fingers are resting on the trackpad");
+
+        let (_, _, is_scrolling) = run_frame(&ctx, 1.5, vec![]);
+        assert!(
+            !is_scrolling,
+            "but we give up eventually, in case the end got lost"
+        );
+
+        // Without a known finger source, the short timeout applies:
+        run_frame(&ctx, 2.0, vec![wheel(TouchPhase::Start, Modifiers::NONE)]);
+        let (_, _, is_scrolling) = run_frame(&ctx, 2.5, vec![]);
+        assert!(!is_scrolling);
     }
 }
