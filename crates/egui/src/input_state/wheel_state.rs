@@ -214,7 +214,8 @@ impl WheelState {
     /// and on others (e.g. some mouse wheels on Wayland) we get a start but no stop event,
     /// so we rely on a timer.
     fn is_scroll_action_over(&self, time: f64) -> bool {
-        let timeout = if self.status == Status::InTouch && self.source == MouseWheelSource::Finger {
+        let timeout = if self.status == Status::InTouch && self.source == MouseWheelSource::Trackpad
+        {
             RESTING_FINGER_TIMEOUT
         } else {
             SCROLL_ACTION_TIMEOUT
@@ -417,7 +418,7 @@ mod tests {
     #[test]
     fn resting_fingers_keep_the_scroll_action_alive() {
         let ctx = Context::default();
-        let finger = MouseWheelSource::Finger;
+        let finger = MouseWheelSource::Trackpad;
 
         run_frame(
             &ctx,

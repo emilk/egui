@@ -652,9 +652,9 @@ impl InputState {
     /// so this is `None` for them.
     ///
     /// ## Platform-specific
-    /// * **macOS**: `Wheel`, `Finger` or `Momentum`, all reliable.
+    /// * **macOS**: `Wheel`, `Trackpad` or `Momentum`, all reliable.
     /// * **Everywhere else**: `Unknown`, until winit reports the source
-    ///   (`Finger` for winit's `PanGesture`).
+    ///   (`Trackpad` for winit's `PanGesture`).
     pub fn scroll_source(&self) -> Option<MouseWheelSource> {
         self.wheel.is_scrolling().then_some(self.wheel.source)
     }

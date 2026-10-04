@@ -587,7 +587,7 @@ impl State {
                     unit: egui::MouseWheelUnit::Point,
                     delta: Vec2::new(delta.x, delta.y) / pixels_per_point,
                     phase: to_egui_touch_phase(*phase),
-                    source: egui::MouseWheelSource::Finger,
+                    source: egui::MouseWheelSource::Trackpad,
                     modifiers: self.modifiers,
                 });
                 EventResponse {
@@ -1001,7 +1001,7 @@ impl State {
                     } else {
                         // On macOS, only trackpads (and the Magic Mouse) report precise deltas:
                         match unit {
-                            egui::MouseWheelUnit::Point => egui::MouseWheelSource::Finger,
+                            egui::MouseWheelUnit::Point => egui::MouseWheelSource::Trackpad,
                             egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => {
                                 egui::MouseWheelSource::Wheel
                             }
