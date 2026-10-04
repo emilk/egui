@@ -861,19 +861,27 @@ impl ScrollArea {
                     state.vel =
                         direction_enabled.to_vec2() * ui.input(|input| input.pointer.velocity());
                 }
-                for d in 0..2 {
-                    // Kinetic scrolling
-                    let stop_speed = 20.0; // Pixels per second.
-                    let friction_coeff = 1000.0; // Pixels per second squared.
+                // Kinetic scrolling, modeled after `UIScrollView` on iOS/macOS:
+                // the velocity decays exponentially, `v(t) = v₀ · exp(-t / decay_time)`,
+                // so the total coast distance is `v₀ · decay_time`.
+                let crate::style::KineticScrollStyle {
+                    decay_time,
+                    stop_distance,
+                } = ui.spacing().scroll.kinetic;
 
-                    let friction = friction_coeff * dt;
-                    if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
+                for d in 0..2 {
+                    let remaining_distance = state.vel[d].abs() * decay_time;
+                    if remaining_distance < stop_distance || !remaining_distance.is_finite() {
                         state.vel[d] = 0.0;
                     } else {
-                        state.vel[d] -= friction * state.vel[d].signum();
+                        let new_vel = state.vel[d] * (-dt / decay_time).exp();
+                        // The exact integral of the velocity over this frame is
+                        // `decay_time * (old_vel - new_vel)`, which makes the
+                        // coast distance independent of frame rate.
                         // Offset has an inverted coordinate system compared to
-                        // the velocity, so we subtract it instead of adding it
-                        state.offset[d] -= state.vel[d] * dt;
+                        // the velocity, so we subtract it instead of adding it.
+                        state.offset[d] -= decay_time * (state.vel[d] - new_vel);
+                        state.vel[d] = new_vel;
                         ctx.request_repaint();
                     }
                 }
