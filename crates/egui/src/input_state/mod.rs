@@ -2,7 +2,7 @@ mod touch_state;
 mod wheel_state;
 
 use crate::{
-    SafeAreaInsets,
+    MouseWheelSource, SafeAreaInsets,
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
 };
@@ -416,6 +416,7 @@ impl InputState {
                     unit,
                     delta,
                     phase,
+                    source,
                     modifiers,
                 } => {
                     self.wheel.on_wheel_event(
@@ -425,6 +426,7 @@ impl InputState {
                         *unit,
                         *delta,
                         *phase,
+                        *source,
                         *modifiers,
                     );
                 }
@@ -637,6 +639,24 @@ impl InputState {
     /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
     pub fn is_scrolling(&self) -> bool {
         self.wheel.is_scrolling()
+    }
+
+    /// What is driving the current scrolling, if any: a mouse wheel, fingers on a trackpad,
+    /// or the OS continuing a trackpad scroll with momentum.
+    ///
+    /// `Some` while [`Self::is_scrolling`]. For trackpads, that is between the
+    /// [`crate::TouchPhase::Start`] and [`crate::TouchPhase::End`] of the gesture;
+    /// for mouse wheels, until the smoothing of the last notch is done.
+    ///
+    /// Touch screens don't scroll with wheel events but by dragging with the pointer,
+    /// so this is `None` for them.
+    ///
+    /// ## Platform-specific
+    /// * **macOS**: `Wheel`, `Finger` or `Momentum`, all reliable.
+    /// * **Everywhere else**: `Unknown`, until winit reports the source
+    ///   (`Finger` for winit's `PanGesture`).
+    pub fn scroll_source(&self) -> Option<MouseWheelSource> {
+        self.wheel.is_scrolling().then_some(self.wheel.source)
     }
 
     /// How long has it been (in seconds) since the last scroll event?

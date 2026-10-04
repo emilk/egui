@@ -1,6 +1,6 @@
 use emath::{Rect, Vec2, vec2};
 
-use crate::{InputOptions, Modifiers, MouseWheelUnit, TouchPhase};
+use crate::{InputOptions, Modifiers, MouseWheelSource, MouseWheelUnit, TouchPhase};
 
 /// If there has been no scroll event for this many seconds, the scroll action is over.
 ///
@@ -53,6 +53,9 @@ pub struct WheelState {
     /// but we are in a kinetic scroll or in a smoothed scroll.
     pub status: Status,
 
+    /// What drove the latest scroll event: a wheel, fingers on a trackpad, OS momentum…
+    pub source: MouseWheelSource,
+
     /// The modifiers at the start of the scroll.
     pub modifiers: Modifiers,
 
@@ -81,6 +84,7 @@ impl Default for WheelState {
     fn default() -> Self {
         Self {
             status: Status::Static,
+            source: MouseWheelSource::Unknown,
             modifiers: Default::default(),
             last_wheel_event: f64::NEG_INFINITY,
             unprocessed_wheel_delta: Vec2::ZERO,
@@ -99,6 +103,7 @@ impl WheelState {
         unit: MouseWheelUnit,
         delta: Vec2,
         phase: TouchPhase,
+        source: MouseWheelSource,
         latest_modifiers: Modifiers,
     ) {
         if self.is_scroll_action_over(time) {
@@ -110,6 +115,7 @@ impl WheelState {
         }
 
         self.last_wheel_event = time;
+        self.source = source;
         match phase {
             crate::TouchPhase::Start => {
                 self.status = Status::InTouch;
@@ -219,6 +225,7 @@ impl WheelState {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             status,
+            source,
             modifiers,
             last_wheel_event,
             unprocessed_wheel_delta,
@@ -232,6 +239,10 @@ impl WheelState {
             .show(ui, |ui| {
                 ui.label("status");
                 ui.monospace(format!("{status:?}"));
+                ui.end_row();
+
+                ui.label("source");
+                ui.monospace(format!("{source:?}"));
                 ui.end_row();
 
                 ui.label("modifiers");
@@ -257,13 +268,16 @@ impl WheelState {
 mod tests {
     use emath::{Vec2, vec2};
 
-    use crate::{Context, Event, Modifiers, MouseWheelUnit, RawInput, TouchPhase};
+    use crate::{
+        Context, Event, Modifiers, MouseWheelSource, MouseWheelUnit, RawInput, TouchPhase,
+    };
 
     fn wheel(phase: TouchPhase, modifiers: Modifiers) -> Event {
         Event::MouseWheel {
             unit: MouseWheelUnit::Point,
             delta: vec2(0.0, -5.0),
             phase,
+            source: MouseWheelSource::Unknown,
             modifiers,
         }
     }
