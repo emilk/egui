@@ -881,7 +881,10 @@ impl GlowWinitRunning<'_> {
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
 
-        integration.maybe_autosave(app.as_mut(), Some(&window));
+        integration.maybe_autosave(
+            app.as_mut(),
+            (viewport_id == ViewportId::ROOT).then_some(&window),
+        );
 
         sleep_if_invisible_or_minimized(Some(&window));
 

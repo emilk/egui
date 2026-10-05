@@ -66,7 +66,7 @@ fn rotated_ellipse() {
 
         let rect_size = Vec2::new(100.0, 60.0);
         let cell_center = Pos2::new(90.0, 90.0);
-        let radius = rect_size / 2.0;
+        let radius = rect_size * 0.5;
 
         Grid::new("rotated_ellipse_grid")
             .spacing(Vec2::new(30.0, 30.0))

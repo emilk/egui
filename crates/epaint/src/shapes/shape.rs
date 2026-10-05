@@ -90,11 +90,12 @@ fn shape_size() {
     );
 }
 
-#[test]
-fn shape_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Shape` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Shape>();
-}
+};
 
 impl From<Vec<Self>> for Shape {
     #[inline(always)]
@@ -415,7 +416,7 @@ impl Shape {
                 if stroke.is_empty() {
                     Rect::NOTHING
                 } else {
-                    Rect::from_two_pos(points[0], points[1]).expand(stroke.width / 2.0)
+                    Rect::from_two_pos(points[0], points[1]).expand(stroke.width * 0.5)
                 }
             }
             Self::Path(path_shape) => path_shape.visual_bounding_rect(),

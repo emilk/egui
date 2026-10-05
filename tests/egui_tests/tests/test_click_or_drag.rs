@@ -79,7 +79,7 @@ fn press_at(harness: &mut Harness<'_, ()>, pos: Pos2) {
 /// which shows up as a flickering highlight.
 #[test]
 fn press_that_leaves_a_thin_widget_becomes_a_drag_immediately() {
-    let width = max_click_dist() / 2.0; // thinner than `max_click_dist`
+    let width = max_click_dist() * 0.5; // thinner than `max_click_dist`
     let mut harness = harness_with_widget(Vec2::new(width, 100.0), true);
     harness.step();
 
@@ -124,7 +124,7 @@ fn press_inside_a_wide_widget_stays_undecided() {
     press_at(&mut harness, grab);
 
     // A small twitch: inside the widget, and inside `max_click_dist`.
-    harness.hover_at(Pos2::new(grab.x + max_click_dist() / 2.0, grab.y));
+    harness.hover_at(Pos2::new(grab.x + max_click_dist() * 0.5, grab.y));
     harness.step();
 
     let (hovered, dragged) = widget_state(&harness);

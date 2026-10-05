@@ -72,9 +72,9 @@ egui_kittest = { version = "0.36.2", path = "crates/egui_kittest", default-featu
 egui_system_fonts = { version = "0.36.2", path = "crates/egui_system_fonts", default-features = false }
 eframe = { version = "0.36.2", path = "crates/eframe", default-features = false }
 
-accesskit = "0.24.1" # Can't update to 0.25: kittest 0.4 needs accesskit 0.24, so bumping splits it into two versions
-accesskit_consumer = "0.35.0" # Can't update to 0.36+: kittest 0.4 pins accesskit_consumer 0.35, so bumping splits it into two versions
-accesskit_winit = "0.32.0" # Can't update to 0.33: it needs accesskit_macos 0.26.2, which pulls accesskit_consumer 0.37, duplicating the 0.35 that kittest 0.4 needs. For the same reason, `accesskit_macos` is held at 0.26.0 and `accesskit_atspi_common` at 0.18.0 in `Cargo.lock`.
+accesskit = "0.25.0"
+accesskit_consumer = "0.39.0"
+accesskit_winit = "0.34.0"
 ahash = { version = "0.8.12", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
   "std",
@@ -106,12 +106,13 @@ image = { version = "0.25.10", default-features = false } # `flate2` is held at 
 itertools = "0.15.0"
 jiff = { version = "0.2.35", default-features = false }
 js-sys = "0.3.103"
-kittest = { version = "0.4.0" }
+kittest = { version = "0.5.0" }
 log = { version = "0.4.34", features = ["std"] }
 mimalloc = "0.1.52"
 mime_guess2 = { version = "2.3", default-features = false }
 mint = "0.5.9"
 nohash-hasher = "0.2.0"
+block2 = "0.6.2"
 objc2 = "0.6.4"
 objc2-app-kit = { version = "0.3.2", default-features = false }
 objc2-foundation = { version = "0.3.2", default-features = false }
@@ -132,6 +133,7 @@ rfd = "0.17.2"
 rmp-serde = "1.3"
 ron = "0.12.2"
 self_cell = "1.3"
+send_wrapper = "0.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11.19"
 similar-asserts = "2.0"
