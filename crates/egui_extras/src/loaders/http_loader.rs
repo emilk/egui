@@ -1,9 +1,10 @@
 use ahash::HashMap;
+use core::task::Poll;
 use egui::{
     load::{Bytes, BytesLoadResult, BytesLoader, BytesPoll, LoadError},
     mutex::Mutex,
 };
-use std::{sync::Arc, task::Poll};
+use std::sync::Arc;
 
 #[derive(Clone)]
 struct File {

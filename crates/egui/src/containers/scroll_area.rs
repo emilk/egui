@@ -2,16 +2,18 @@
 
 #![expect(clippy::needless_range_loop)]
 
-use std::ops::{Add, AddAssign, BitOr, BitOrAssign};
+use core::ops::{Add, AddAssign, BitOr, BitOrAssign};
 
 use emath::GuiRounding as _;
 use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
-    AsIdSalt, Context, CursorIcon, Id, IdSalt, NumExt as _, Pos2, Rangef, Rect, Response, Sense,
-    Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath, epaint, lerp, pass_state,
-    pos2, remap, remap_clamp,
+    AsIdSalt, Context, CursorIcon, Id, IdSalt, MouseWheelSource, NumExt as _, Pos2, Rangef, Rect,
+    Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath,
+    epaint, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
 };
+
+use super::scroll_physics::{AxisPhysics, WheelScroll, scroll_bounds};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -24,8 +26,17 @@ struct ScrollingToTarget {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct State {
-    /// Positive offset means scrolling down/right
-    pub offset: Vec2,
+    /// Positive offset means scrolling down/right.
+    ///
+    /// This can be outside of the valid range while the user is
+    /// rubber-banding past the edge of the content (see [`crate::style::KineticScrollStyle::rubber_band`]).
+    /// See [`Self::clamped_offset`] and [`Self::unclamped_offset`].
+    offset: Vec2,
+
+    /// The largest valid offset, as of last frame: `content_size - viewport_size`.
+    ///
+    /// Can be negative if the content is smaller than the viewport.
+    max_offset: Vec2,
 
     /// If set, quickly but smoothly scroll to this target offset.
     offset_target: [Option<ScrollingToTarget>; 2],
@@ -39,7 +50,9 @@ pub struct State {
     /// Did the user interact (hover or drag) the scroll bars last frame?
     scroll_bar_interaction: Vec2b,
 
-    /// Momentum, used for kinetic scrolling
+    /// Velocity of the offset, used for kinetic scrolling and rubber-banding.
+    ///
+    /// Positive means the offset is increasing, i.e. the content is scrolling down/right.
     #[cfg_attr(feature = "serde", serde(skip))]
     vel: Vec2,
 
@@ -53,12 +66,23 @@ pub struct State {
 
     /// Area that can be dragged. This is the size of the content from the last frame.
     interact_rect: Option<Rect>,
+
+    /// Did we already bounce off the edge during the current momentum scroll?
+    ///
+    /// On macOS, after a quick trackpad swipe the OS keeps sending scroll events
+    /// long after the fingers have left the trackpad, with decaying speed.
+    /// That is how kinetic scrolling works there (see [`crate::MouseWheelSource::Momentum`]).
+    /// When those reach the edge we bounce once, and then ignore the rest of them,
+    /// so they don't keep pushing the content out.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    bounced_this_momentum: Vec2b,
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
             offset: Vec2::ZERO,
+            max_offset: Vec2::ZERO,
             offset_target: Default::default(),
             show_scroll: Vec2b::FALSE,
             content_is_too_large: Vec2b::FALSE,
@@ -67,6 +91,7 @@ impl Default for State {
             scroll_start_offset_from_top_left: [None; 2],
             scroll_stuck_to_end: Vec2b::TRUE,
             interact_rect: None,
+            bounced_this_momentum: Vec2b::FALSE,
         }
     }
 }
@@ -80,10 +105,55 @@ impl State {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 
-    /// Get the current kinetic scrolling velocity.
+    /// The current kinetic scrolling velocity of the offset, in ui points per second.
+    ///
+    /// Positive means the offset is increasing, i.e. the content is scrolling down/right.
     pub fn velocity(&self) -> Vec2 {
         self.vel
     }
+
+    /// The scroll offset, clamped to the valid range `0..=max_offset`.
+    ///
+    /// Positive means scrolled down/right.
+    ///
+    /// This differs from [`Self::unclamped_offset`] only while the user is rubber-banding
+    /// past the edge of the content.
+    pub fn clamped_offset(&self) -> Vec2 {
+        Vec2::new(
+            scroll_bounds(self.max_offset.x).clamp(self.offset.x),
+            scroll_bounds(self.max_offset.y).clamp(self.offset.y),
+        )
+    }
+
+    /// The scroll offset, which can be outside of the valid range while the user is
+    /// rubber-banding past the edge of the content
+    /// (see [`crate::style::KineticScrollStyle::rubber_band`]).
+    ///
+    /// Positive means scrolled down/right.
+    /// This is where the content is actually drawn.
+    pub fn unclamped_offset(&self) -> Vec2 {
+        self.offset
+    }
+
+    /// How far past the edge of the content we are, in ui points.
+    ///
+    /// Negative means past the start (top/left), positive means past the end (bottom/right).
+    /// Zero when not rubber-banding.
+    pub fn overscroll(&self) -> Vec2 {
+        self.offset - self.clamped_offset()
+    }
+
+    #[deprecated = "Use `clamped_offset()` or `unclamped_offset()`"]
+    pub fn offset(&self) -> Vec2 {
+        self.clamped_offset()
+    }
+}
+
+/// Is `ui` inside another [`ScrollArea`]?
+fn has_scrolling_ancestor(ui: &Ui) -> bool {
+    ui.stack()
+        .iter()
+        .any(|stack| stack.kind() == Some(UiKind::ScrollArea))
 }
 
 pub struct ScrollAreaOutput<R> {
@@ -705,6 +775,16 @@ struct Prepared {
     background_drag_response: Option<Response>,
 
     animated: bool,
+
+    /// Along which axes the offset is deliberately outside the valid range this frame
+    /// (rubber-banding), and so should not be clamped.
+    rubber_banding: Vec2b,
+
+    /// Is there an enclosing [`ScrollArea`]?
+    has_scrolling_ancestor: bool,
+
+    /// Per axis. Bounds are from last frame.
+    axis_physics: [AxisPhysics; 2],
 }
 
 impl ScrollArea {
@@ -802,6 +882,10 @@ impl ScrollArea {
             .round_to_pixels(ui.pixels_per_point())
             .round_ui();
 
+        // Is there an enclosing scroll area? If so, we let the scroll wheel chain to it
+        // when we're at the edge.
+        let has_scrolling_ancestor = has_scrolling_ancestor(ui);
+
         let mut content_ui = ui.new_child(
             UiBuilder::new()
                 .ui_stack_info(UiStackInfo::new(UiKind::ScrollArea))
@@ -810,12 +894,11 @@ impl ScrollArea {
 
         {
             // Clip the content, but only when we really need to:
-            let clip_rect_margin = ui.visuals().clip_rect_margin;
             let mut content_clip_rect = ui.clip_rect();
             for d in 0..2 {
                 if direction_enabled[d] {
-                    content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
-                    content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
+                    content_clip_rect.min[d] = inner_rect.min[d];
+                    content_clip_rect.max[d] = inner_rect.max[d];
                 } else {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
@@ -829,6 +912,21 @@ impl ScrollArea {
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
         let dt = ui.input(|i| i.stable_dt).at_most(0.1);
 
+        let kinetic_style = ui.spacing().scroll.kinetic;
+        let mut rubber_banding = Vec2b::FALSE;
+
+        let axis_physics: [AxisPhysics; 2] = core::array::from_fn(|d| AxisPhysics {
+            bounds: scroll_bounds(state.max_offset[d]),
+            viewport_extent: inner_size[d],
+            style: KineticScrollStyle {
+                // Only rubber-band along axes that actually have something to scroll:
+                rubber_band: kinetic_style.rubber_band
+                    && direction_enabled[d]
+                    && state.content_is_too_large[d],
+                ..kinetic_style
+            },
+        });
+
         let background_drag_response = if scroll_source.drag.enabled(ui.ctx())
             && ui.is_enabled()
             && state.content_is_too_large.any()
@@ -839,46 +937,6 @@ impl ScrollArea {
             let content_response_option = state
                 .interact_rect
                 .map(|rect| ui.interact(rect, id.with("area"), Sense::DRAG));
-
-            if content_response_option
-                .as_ref()
-                .is_some_and(|response| response.dragged())
-            {
-                for d in 0..2 {
-                    if direction_enabled[d] {
-                        ui.input(|input| {
-                            state.offset[d] -= input.pointer.delta()[d];
-                        });
-                        state.scroll_stuck_to_end[d] = false;
-                        state.offset_target[d] = None;
-                    }
-                }
-            } else {
-                // Apply the cursor velocity to the scroll area when the user releases the drag.
-                if content_response_option
-                    .as_ref()
-                    .is_some_and(|response| response.drag_stopped())
-                {
-                    state.vel =
-                        direction_enabled.to_vec2() * ui.input(|input| input.pointer.velocity());
-                }
-                for d in 0..2 {
-                    // Kinetic scrolling
-                    let stop_speed = 20.0; // Pixels per second.
-                    let friction_coeff = 1000.0; // Pixels per second squared.
-
-                    let friction = friction_coeff * dt;
-                    if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
-                        state.vel[d] = 0.0;
-                    } else {
-                        state.vel[d] -= friction * state.vel[d].signum();
-                        // Offset has an inverted coordinate system compared to
-                        // the velocity, so we subtract it instead of adding it
-                        state.offset[d] -= state.vel[d] * dt;
-                        ctx.request_repaint();
-                    }
-                }
-            }
 
             // Set the desired mouse cursors.
             if let Some(response) = &content_response_option {
@@ -897,6 +955,48 @@ impl ScrollArea {
         } else {
             None
         };
+
+        if background_drag_response
+            .as_ref()
+            .is_some_and(|response| response.dragged())
+        {
+            let pointer_delta = ui.input(|input| input.pointer.delta());
+            for d in 0..2 {
+                if direction_enabled[d] {
+                    let physics = &axis_physics[d];
+                    // Offset has an inverted coordinate system compared to the pointer:
+                    state.offset[d] = physics.drag(state.offset[d], -pointer_delta[d]);
+                    rubber_banding[d] = physics.is_rubber_banding(state.offset[d]);
+                    state.scroll_stuck_to_end[d] = false;
+                    state.offset_target[d] = None;
+                }
+            }
+        } else {
+            // Apply the cursor velocity to the scroll area when the user releases the drag.
+            if background_drag_response
+                .as_ref()
+                .is_some_and(|response| response.drag_stopped())
+            {
+                // Offset has an inverted coordinate system compared to the pointer:
+                state.vel =
+                    -(direction_enabled.to_vec2() * ui.input(|input| input.pointer.velocity()));
+            }
+
+            // While the fingers are still on the trackpad,
+            // hold the overscroll instead of springing back, like macOS does.
+            // The wheel events are applied in `end`.
+            let fingers_on_trackpad =
+                ui.input(|i| i.scroll_source()) == Some(MouseWheelSource::Trackpad);
+            let hold_overscroll = fingers_on_trackpad && ui.rect_contains_pointer(inner_rect);
+
+            for d in 0..2 {
+                let physics = &axis_physics[d];
+                if physics.step(&mut state.offset[d], &mut state.vel[d], dt, hold_overscroll) {
+                    ctx.request_repaint();
+                }
+                rubber_banding[d] = physics.is_rubber_banding(state.offset[d]);
+            }
+        }
 
         // Scroll with an animation if we have a target offset (that hasn't been cleared by the code
         // above).
@@ -931,7 +1031,7 @@ impl ScrollArea {
 
         let saved_scroll_target = content_ui
             .ctx()
-            .pass_state_mut(|state| std::mem::take(&mut state.scroll_target));
+            .pass_state_mut(|state| core::mem::take(&mut state.scroll_target));
 
         Prepared {
             id,
@@ -951,6 +1051,9 @@ impl ScrollArea {
             saved_scroll_target,
             background_drag_response,
             animated,
+            rubber_banding,
+            has_scrolling_ancestor,
+            axis_physics,
         }
     }
 
@@ -986,7 +1089,7 @@ impl ScrollArea {
         ui: &mut Ui,
         row_height_sans_spacing: f32,
         total_rows: usize,
-        add_contents: impl FnOnce(&mut Ui, std::ops::Range<usize>) -> R,
+        add_contents: impl FnOnce(&mut Ui, core::ops::Range<usize>) -> R,
     ) -> ScrollAreaOutput<R> {
         let spacing = ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
@@ -1078,21 +1181,16 @@ impl Prepared {
             saved_scroll_target,
             background_drag_response,
             animated,
+            mut rubber_banding,
+            has_scrolling_ancestor,
+            axis_physics,
         } = self;
 
         let content_size = content_ui.min_size();
 
-        let scroll_delta = content_ui
-            .ctx()
-            .pass_state_mut(|state| std::mem::take(&mut state.scroll_delta));
-
         let mut had_explicit_scroll_adjustment = Vec2b::FALSE;
 
         for d in 0..2 {
-            // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-            let mut delta = -scroll_delta.0[d];
-            let mut animation = scroll_delta.1;
-
             // We always take both scroll targets regardless of which scroll axes are enabled. This
             // is to avoid them leaking to other scroll areas.
             let scroll_target = content_ui
@@ -1100,6 +1198,17 @@ impl Prepared {
                 .pass_state_mut(|state| state.scroll_target[d].take());
 
             if direction_enabled[d] {
+                let (scroll_delta, scroll_animation) = content_ui.ctx().pass_state_mut(|state| {
+                    (
+                        core::mem::take(&mut state.scroll_delta.0[d]),
+                        state.scroll_delta.1,
+                    )
+                });
+
+                // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
+                let mut delta = -scroll_delta;
+                let mut animation = scroll_animation;
+
                 if let Some(target) = scroll_target {
                     let pass_state::ScrollTarget {
                         range,
@@ -1133,8 +1242,8 @@ impl Prepared {
                         0.0
                     };
 
-                    delta += delta_update;
                     animation = animation_update;
+                    delta += delta_update;
                 }
 
                 if delta != 0.0 {
@@ -1158,10 +1267,10 @@ impl Prepared {
                     }
                     ui.request_repaint();
                 }
-            }
 
-            if delta != 0.0 {
-                had_explicit_scroll_adjustment[d] = true;
+                if delta != 0.0 {
+                    had_explicit_scroll_adjustment[d] = true;
+                }
             }
         }
 
@@ -1217,6 +1326,8 @@ impl Prepared {
         if scroll_source.mouse_wheel && ui.is_enabled() && is_hovering_outer_rect {
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && direction_enabled[0] != direction_enabled[1];
+            let scroll_source = ui.input(|i| i.scroll_source());
+
             for d in 0..2 {
                 if direction_enabled[d] {
                     let scroll_delta = ui.input(|input| {
@@ -1229,11 +1340,25 @@ impl Prepared {
                     });
                     let scroll_delta = scroll_delta * wheel_scroll_multiplier[d];
 
-                    let scrolling_up = state.offset[d] > 0.0 && scroll_delta > 0.0;
-                    let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta < 0.0;
+                    let physics = AxisPhysics {
+                        bounds: scroll_bounds(max_offset[d]), // We know this frame's bounds now
+                        ..axis_physics[d]
+                    };
 
-                    if scrolling_up || scrolling_down {
-                        state.offset[d] -= scroll_delta;
+                    let consumed = physics.wheel(
+                        &mut state.offset[d],
+                        &mut state.vel[d],
+                        WheelScroll {
+                            // Offset has an inverted coordinate system compared to the scroll delta:
+                            delta: -scroll_delta,
+                            source: scroll_source,
+                            can_chain_to_parent: has_scrolling_ancestor,
+                        },
+                        &mut state.bounced_this_momentum[d],
+                    );
+
+                    if consumed {
+                        rubber_banding[d] = physics.is_rubber_banding(state.offset[d]);
 
                         // Clear scroll delta so no parent scroll will use it:
                         ui.input_mut(|input| {
@@ -1306,8 +1431,6 @@ impl Prepared {
                 // * When one ScrollArea is nested inside another, and the outer
                 //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
                 //   is outside the clip rectangle.
-                // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
-                // clip_rect_margin is quite a hack. It would be nice to get rid of it.
                 max_cross = ui.clip_rect().max[1 - d] - outer_margin;
             }
 
@@ -1333,7 +1456,7 @@ impl Prepared {
             // Also: it make sense to detect any hover where the scroll bar _will_ be.
             let response = ui.interact(max_bar_rect, interact_id, sense);
 
-            response.widget_info(|| WidgetInfo::new(crate::WidgetType::ScrollBar));
+            response.widget_info(|| WidgetInfo::new(Role::ScrollBar));
 
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).
@@ -1433,12 +1556,13 @@ impl Prepared {
                 state.scroll_start_offset_from_top_left[d] = None;
             }
 
-            let unbounded_offset = state.offset[d];
-            state.offset[d] = state.offset[d].max(0.0);
-            state.offset[d] = state.offset[d].min(max_offset[d]);
+            if !rubber_banding[d] {
+                let unbounded_offset = state.offset[d];
+                state.offset[d] = scroll_bounds(max_offset[d]).clamp(state.offset[d]);
 
-            if state.offset[d] != unbounded_offset {
-                state.vel[d] = 0.0;
+                if state.offset[d] != unbounded_offset {
+                    state.vel[d] = 0.0;
+                }
             }
 
             if ui.is_rect_visible(outer_scroll_bar_rect) {
@@ -1525,8 +1649,12 @@ impl Prepared {
         }
 
         let available_offset = content_size - inner_rect.size();
-        state.offset = state.offset.min(available_offset);
-        state.offset = state.offset.max(Vec2::ZERO);
+        for d in 0..2 {
+            if !rubber_banding[d] {
+                state.offset[d] = scroll_bounds(available_offset[d]).clamp(state.offset[d]);
+            }
+        }
+        state.max_offset = available_offset;
 
         let suppress_stuck_recompute = Vec2b::new(
             had_explicit_scroll_adjustment[0] && state.offset_target[0].is_some(),
@@ -1575,9 +1703,7 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
 
     let overflow = content_size - inner_rect.size();
 
-    let paint_rect = inner_rect
-        .intersect(ui.min_rect())
-        .expand(ui.visuals().clip_rect_margin);
+    let paint_rect = inner_rect.intersect(ui.min_rect());
 
     // Top fade: animate opacity based on how far we've scrolled down.
     if 0.0 < offset.y {
@@ -1639,5 +1765,21 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
             Direction::RightToLeft,
             [bg_faded, Color32::TRANSPARENT],
         ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clamped_offset() {
+        let state = State {
+            offset: Vec2::new(-10.0, 150.0),
+            max_offset: Vec2::new(-20.0, 100.0),
+            ..Default::default()
+        };
+        assert_eq!(state.clamped_offset(), Vec2::new(0.0, 100.0));
+        assert_eq!(state.overscroll(), Vec2::new(-10.0, 50.0));
     }
 }

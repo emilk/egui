@@ -92,6 +92,9 @@ impl ViewportInfo {
     /// A window is not visible if it is minimized or occluded.
     /// When not visible, the UI is not painted and rendering is skipped,
     /// but application logic may still be executed by some integrations.
+    ///
+    /// Send [`crate::ViewportCommand::RequestPaintWhileHidden`] to have the ui run and the
+    /// frame painted anyway, e.g. to screenshot or drive an app that sits in the background.
     pub fn visible(&self) -> Option<bool> {
         match (self.minimized, self.occluded) {
             (Some(true), _) | (_, Some(true)) => Some(false),
@@ -117,7 +120,7 @@ impl ViewportInfo {
         Self {
             parent: self.parent,
             title: self.title.clone(),
-            events: std::mem::take(&mut self.events),
+            events: core::mem::take(&mut self.events),
             native_pixels_per_point: self.native_pixels_per_point,
             monitor_size: self.monitor_size,
             inner_rect: self.inner_rect,
@@ -209,7 +212,7 @@ impl ViewportInfo {
             }
 
             #[expect(clippy::ref_option)]
-            fn opt_as_str<T: std::fmt::Debug>(v: &Option<T>) -> String {
+            fn opt_as_str<T: core::fmt::Debug>(v: &Option<T>) -> String {
                 v.as_ref().map_or(String::new(), |v| format!("{v:?}"))
             }
         });

@@ -37,7 +37,7 @@ impl PartialEq for CCursor {
     }
 }
 
-impl std::ops::Add<usize> for CCursor {
+impl core::ops::Add<usize> for CCursor {
     type Output = Self;
 
     fn add(self, rhs: usize) -> Self::Output {
@@ -48,7 +48,18 @@ impl std::ops::Add<usize> for CCursor {
     }
 }
 
-impl std::ops::Sub<usize> for CCursor {
+impl core::ops::Add<CharIndex> for CCursor {
+    type Output = Self;
+
+    fn add(self, rhs: CharIndex) -> Self::Output {
+        Self {
+            index: self.index + rhs,
+            prefer_next_row: self.prefer_next_row,
+        }
+    }
+}
+
+impl core::ops::Sub<usize> for CCursor {
     type Output = Self;
 
     fn sub(self, rhs: usize) -> Self::Output {
@@ -59,13 +70,24 @@ impl std::ops::Sub<usize> for CCursor {
     }
 }
 
-impl std::ops::AddAssign<usize> for CCursor {
+impl core::ops::Sub<CharIndex> for CCursor {
+    type Output = Self;
+
+    fn sub(self, rhs: CharIndex) -> Self::Output {
+        Self {
+            index: self.index - rhs,
+            prefer_next_row: self.prefer_next_row,
+        }
+    }
+}
+
+impl core::ops::AddAssign<usize> for CCursor {
     fn add_assign(&mut self, rhs: usize) {
         self.index = self.index.saturating_add(rhs);
     }
 }
 
-impl std::ops::SubAssign<usize> for CCursor {
+impl core::ops::SubAssign<usize> for CCursor {
     fn sub_assign(&mut self, rhs: usize) {
         self.index = self.index.saturating_sub(rhs);
     }

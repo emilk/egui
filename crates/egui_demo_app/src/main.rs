@@ -38,7 +38,7 @@ fn main() {
         });
         for loud_crate in ["naga", "wgpu_core", "wgpu_hal"] {
             if !rust_log.contains(&format!("{loud_crate}=")) {
-                use std::fmt::Write as _;
+                use core::fmt::Write as _;
                 write!(rust_log, ",{loud_crate}=warn").ok();
             }
         }
@@ -103,7 +103,7 @@ fn start_puffin_server() {
             // We can store the server if we want, but in this case we just want
             // it to keep running. Dropping it closes the server, so let's not drop it!
             #[expect(clippy::mem_forget)]
-            std::mem::forget(puffin_server);
+            core::mem::forget(puffin_server);
         }
         Err(err) => {
             log::error!("Failed to start puffin server: {err}");

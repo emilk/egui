@@ -1,7 +1,7 @@
+use core::{any::Any, iter::FusedIterator};
 use std::sync::Arc;
-use std::{any::Any, iter::FusedIterator};
 
-use crate::widget_style::Classes;
+use crate::class::{Classes, HasClasses as _};
 use epaint::Color32;
 
 use crate::{Direction, Frame, Id, Rect};
@@ -62,6 +62,31 @@ pub enum UiKind {
 }
 
 impl UiKind {
+    /// The accessibility role of a [`crate::Ui`] of this kind.
+    ///
+    /// Kinds with no role of their own are plain [`accesskit::Role::GenericContainer`]s.
+    pub fn accesskit_role(self) -> accesskit::Role {
+        use accesskit::Role;
+        match self {
+            Self::LeftPanel
+            | Self::RightPanel
+            | Self::TopPanel
+            | Self::BottomPanel
+            | Self::CentralPanel => Role::Pane,
+            Self::Modal | Self::Popup => Role::Dialog,
+            Self::Menu => Role::Menu,
+            Self::Tooltip => Role::Tooltip,
+            Self::Window
+            | Self::Frame
+            | Self::ScrollArea
+            | Self::Resize
+            | Self::Picker
+            | Self::TableCell
+            | Self::GenericArea
+            | Self::Collapsible => Role::GenericContainer,
+        }
+    }
+
     /// Is this any kind of panel?
     #[inline]
     pub fn is_panel(&self) -> bool {
@@ -207,7 +232,18 @@ impl UiTags {
 #[derive(Debug)]
 pub struct UiStack {
     // stuff that `Ui::child_ui` can deal with directly
-    pub id: Id,
+    /// The [`crate::Ui::unique_id`] of this [`crate::Ui`].
+    ///
+    /// Globally unique, but NOT stable over time.
+    /// For the stable id scope, see [`Self::scope_id`].
+    pub unique_id: Id,
+
+    /// The [`crate::Ui::scope_id`] of this [`crate::Ui`].
+    ///
+    /// Stable over time, but shared with sibling [`crate::Ui`]s
+    /// that were not given different id salts.
+    /// For a globally unique id, see [`Self::unique_id`].
+    pub scope_id: Id,
     pub info: UiStackInfo,
     pub layout_direction: Direction,
     pub min_rect: Rect,
@@ -289,6 +325,11 @@ impl UiStack {
     /// Check if this node is or is contained in a [`crate::Ui`] of a specific kind.
     pub fn contained_in(&self, kind: UiKind) -> bool {
         self.iter().any(|frame| frame.kind() == Some(kind))
+    }
+
+    /// Does this node, or any [`crate::Ui`] up the stack, carry this class?
+    pub fn has_class(&self, class: &str) -> bool {
+        self.iter().any(|node| node.classes.has_class(class))
     }
 }
 

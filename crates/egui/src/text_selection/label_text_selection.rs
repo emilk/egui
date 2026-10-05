@@ -47,8 +47,8 @@ fn pos_in_galley(galley: &Galley, ccursor: CCursor) -> Pos2 {
     galley.pos_from_cursor(ccursor).center()
 }
 
-impl std::fmt::Debug for WidgetTextCursor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for WidgetTextCursor {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self {
             widget_id,
             ccursor,
@@ -271,7 +271,7 @@ impl ViewportLabelSelectionState {
             self.is_dragging = false;
         }
 
-        let text_to_copy = std::mem::take(&mut self.text_to_copy);
+        let text_to_copy = core::mem::take(&mut self.text_to_copy);
         if !text_to_copy.is_empty() {
             ui.copy_text(text_to_copy);
         }
@@ -667,7 +667,6 @@ impl ViewportLabelSelectionState {
             ui.ctx(),
             response.id,
             cursor_range,
-            accesskit::Role::Label,
             global_from_galley,
             galley,
         );
@@ -750,7 +749,7 @@ mod tests {
 
     fn test_selection() -> CurrentSelection {
         let cursor = WidgetTextCursor {
-            widget_id: Id::new("selected_label"),
+            widget_id: Id::unique("selected_label"),
             ccursor: CCursor::default(),
             pos: Pos2::ZERO,
         };
@@ -773,7 +772,7 @@ mod tests {
             .or_default()
             .selection = Some(test_selection());
 
-        let _ = ctx.run_ui(RawInput::default(), |_| {});
+        let output = ctx.run_ui(RawInput::default(), |_| {});
         assert!(
             plugin
                 .lock()
@@ -782,11 +781,13 @@ mod tests {
                 .is_some_and(ViewportLabelSelectionState::has_selection),
             "a pass in another viewport must not clear the child viewport selection"
         );
+        output.drop_without_applying_deltas();
 
-        let _ = ctx.run_ui(child_viewport_input(child_viewport_id), |_| {});
+        let output = ctx.run_ui(child_viewport_input(child_viewport_id), |_| {});
         assert!(
             !plugin.lock().has_selection(),
             "the selection must be cleared when its labels disappear from the same viewport"
         );
+        output.drop_without_applying_deltas();
     }
 }

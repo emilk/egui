@@ -6,6 +6,27 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.2 - 2026-09-08
+* Add new `render_every_step` flag to egui_kittest [#8487](https://github.com/emilk/egui/pull/8487) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
+## 0.36.0 - 2026-08-05
+* Handle `ViewportCommand::InnerSize` in `egui_kittest` [#8350](https://github.com/emilk/egui/pull/8350) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Report failing pixels by threshold when a kittest snapshot fails [#8360](https://github.com/emilk/egui/pull/8360) by [@emilk](https://github.com/emilk)
+* Rename `failed_pixel_count_threshold` to `max_failed_pixels` [#8383](https://github.com/emilk/egui/pull/8383) by [@emilk](https://github.com/emilk)
+
+
+## 0.35.0 - 2026-06-25
+* Add `HarnessBuilder::with_render_options()` (closes #7630) [#8060](https://github.com/emilk/egui/pull/8060) by [@MichaelGrupp](https://github.com/MichaelGrupp)
+* Add `Harness::spawn_eframe_app` [#8120](https://github.com/emilk/egui/pull/8120) by [@emilk](https://github.com/emilk)
+* Exclude `take_app` from `wasm32` in `egui_kittest` [#8178](https://github.com/emilk/egui/pull/8178) by [@grtlr](https://github.com/grtlr)
+* Handle `ViewportCommand::Screenshot` in kittest [#8256](https://github.com/emilk/egui/pull/8256) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
 ## 0.34.3 - 2026-05-27
 Nothing new
 

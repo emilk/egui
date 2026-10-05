@@ -2,7 +2,7 @@ mod touch_state;
 mod wheel_state;
 
 use crate::{
-    SafeAreaInsets,
+    MouseWheelSource, SafeAreaInsets,
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
 };
@@ -13,10 +13,8 @@ use crate::{
     },
     input_state::wheel_state::WheelState,
 };
-use std::{
-    collections::{BTreeMap, HashSet},
-    time::Duration,
-};
+use core::time::Duration;
+use std::collections::{BTreeMap, HashSet};
 
 pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
@@ -393,6 +391,7 @@ impl InputState {
         let pointer = self.pointer.begin_pass(time, &new, options);
 
         let mut keys_down = self.keys_down;
+        let mut modifiers = self.modifiers;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
         let mut rotation_radians = 0.0;
 
@@ -417,6 +416,7 @@ impl InputState {
                     unit,
                     delta,
                     phase,
+                    source,
                     modifiers,
                 } => {
                     self.wheel.on_wheel_event(
@@ -426,8 +426,12 @@ impl InputState {
                         *unit,
                         *delta,
                         *phase,
+                        *source,
                         *modifiers,
                     );
+                }
+                Event::ModifiersChanged(new_modifiers) => {
+                    modifiers = *new_modifiers;
                 }
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
@@ -442,6 +446,7 @@ impl InputState {
                     // So we take the safe route and just clear all the keys and modifiers when
                     // the app loses focus.
                     keys_down.clear();
+                    modifiers = Modifiers::default();
                 }
                 _ => {}
             }
@@ -482,7 +487,7 @@ impl InputState {
             predicted_dt: new.predicted_dt,
             stable_dt,
             focused: new.focused,
-            modifiers: new.modifiers,
+            modifiers,
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
@@ -634,6 +639,24 @@ impl InputState {
     /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
     pub fn is_scrolling(&self) -> bool {
         self.wheel.is_scrolling()
+    }
+
+    /// What is driving the current scrolling, if any: a mouse wheel, fingers on a trackpad,
+    /// or the OS continuing a trackpad scroll with momentum.
+    ///
+    /// `Some` while [`Self::is_scrolling`]. For trackpads, that is between the
+    /// [`crate::TouchPhase::Start`] and [`crate::TouchPhase::End`] of the gesture;
+    /// for mouse wheels, until the smoothing of the last notch is done.
+    ///
+    /// Touch screens don't scroll with wheel events but by dragging with the pointer,
+    /// so this is `None` for them.
+    ///
+    /// ## Platform-specific
+    /// * **macOS**: `Wheel`, `Trackpad` or `Momentum`, all reliable.
+    /// * **Everywhere else**: `Unknown`, until winit reports the source
+    ///   (`Trackpad` for winit's `PanGesture`).
+    pub fn scroll_source(&self) -> Option<MouseWheelSource> {
+        self.wheel.is_scrolling().then_some(self.wheel.source)
     }
 
     /// How long has it been (in seconds) since the last scroll event?
@@ -1419,6 +1442,9 @@ impl PointerState {
 
     /// Was the given pointer button given clicked this frame?
     ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
+    ///
     /// Returns true on double- and triple- clicks too.
     pub fn button_clicked(&self, button: PointerButton) -> bool {
         self.pointer_events
@@ -1453,11 +1479,17 @@ impl PointerState {
     }
 
     /// Was the primary button clicked this frame?
+    ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
     pub fn primary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Primary)
     }
 
     /// Was the secondary button clicked this frame?
+    ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
     pub fn secondary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Secondary)
     }
@@ -1591,7 +1623,7 @@ impl InputState {
 
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
-        crate::containers::CollapsingHeader::new("🖱 Pointer")
+        crate::containers::CollapsingHeader::new("🖱️ Pointer")
             .default_open(false)
             .show(ui, |ui| {
                 pointer.ui(ui);
@@ -1603,7 +1635,7 @@ impl InputState {
             });
         }
 
-        crate::containers::CollapsingHeader::new("⬍ Scroll")
+        crate::containers::CollapsingHeader::new("↕️ Scroll")
             .default_open(false)
             .show(ui, |ui| {
                 wheel.ui(ui);

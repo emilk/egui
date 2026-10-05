@@ -280,7 +280,7 @@ impl Painter {
         );
     }
 
-    pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
+    pub fn error(&self, pos: Pos2, text: impl core::fmt::Display) -> Rect {
         let color = self.ctx.global_style().visuals.error_fg_color;
         self.debug_text(pos, Align2::LEFT_TOP, color, format!("🔥 {text}"))
     }
@@ -416,7 +416,7 @@ impl Painter {
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.
     pub fn arrow(&self, origin: Pos2, vec: Vec2, stroke: impl Into<Stroke>) {
         use crate::emath::Rot2;
-        let rot = Rot2::from_angle(std::f32::consts::TAU / 10.0);
+        let rot = Rot2::from_angle(core::f32::consts::TAU / 10.0);
         let tip_length = vec.length() / 4.0;
         let tip = origin + vec;
         let dir = vec.normalized();
