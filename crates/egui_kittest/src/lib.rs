@@ -4,6 +4,7 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 #![expect(clippy::unwrap_used)] // TODO(emilk): avoid unwraps
 
+mod accessibility;
 mod builder;
 #[cfg(feature = "snapshot")]
 mod snapshot;
@@ -37,7 +38,7 @@ use core::{
 };
 
 use egui::{
-    Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Shape, Vec2, ViewportId,
+    Color32, Key, Modifiers, PointerButton, Pos2, Rect, RepaintCause, Vec2, ViewportId,
     epaint::{ClippedShape, RectShape},
     style::ScrollAnimation,
 };
@@ -60,15 +61,14 @@ fn push_cursor_shape(ctx: &egui::Context, shapes: &mut Vec<ClippedShape>) {
         mouse_pos + egui::vec2(8.0, 16.0),
     ];
 
-    shapes.push(ClippedShape {
-        clip_rect: ctx.content_rect(),
-        shape: egui::epaint::PathShape::convex_polygon(
+    shapes.push(ClippedShape::new(
+        ctx.content_rect(),
+        egui::epaint::PathShape::convex_polygon(
             triangle,
             Color32::WHITE,
             egui::Stroke::new(1.0, Color32::BLACK),
-        )
-        .into(),
-    });
+        ),
+    ));
 }
 
 #[derive(Debug, Clone)]
@@ -152,6 +152,7 @@ pub struct Harness<'a, State = ()> {
     max_steps: u64,
     step_dt: f32,
     wait_for_pending_images: bool,
+    check_accessibility: bool,
     queued_events: EventQueue,
 
     #[cfg(feature = "snapshot")]
@@ -202,6 +203,8 @@ impl<'a, State> Harness<'a, State> {
             mut renderer,
             wait_for_pending_images,
             fit_contents,
+            missing_glyph_policy,
+            check_accessibility,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step,
@@ -220,6 +223,7 @@ impl<'a, State> Harness<'a, State> {
         let ctx = ctx.unwrap_or_default();
         ctx.set_theme(theme);
         ctx.set_os(os);
+        ctx.set_missing_glyph_policy(missing_glyph_policy);
         ctx.enable_accesskit();
         ctx.all_styles_mut(|style| {
             // Disable cursor blinking so it doesn't interfere with snapshots
@@ -273,6 +277,7 @@ impl<'a, State> Harness<'a, State> {
             max_steps,
             step_dt,
             wait_for_pending_images,
+            check_accessibility,
             queued_events: Default::default(),
 
             #[cfg(feature = "snapshot")]
@@ -505,6 +510,12 @@ impl<'a, State> Harness<'a, State> {
                 });
             }
         }
+
+        // Only now: the first frame of a `Grid` is a sizing pass, and its tree is not complete.
+        if self.check_accessibility {
+            self.check_accessibility();
+        }
+
         Ok(steps)
     }
 
@@ -805,10 +816,10 @@ impl<'a, State> Harness<'a, State> {
             self.last_render = None;
         }
 
-        self.output.shapes.push(ClippedShape {
-            clip_rect: Rect::EVERYTHING,
-            shape: Shape::Rect(RectShape::filled(rect, 0.0, Color32::MAGENTA)),
-        });
+        self.output.shapes.push(ClippedShape::new(
+            Rect::EVERYTHING,
+            RectShape::filled(rect, 0.0, Color32::MAGENTA),
+        ));
     }
 
     /// Should every step be rendered?

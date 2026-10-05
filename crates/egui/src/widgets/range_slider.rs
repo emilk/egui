@@ -1,8 +1,8 @@
 use core::ops::RangeInclusive;
 
 use crate::{
-    Color32, IntoAtoms, Label, NumExt as _, Pos2, Rangef, Rect, Response, Sense, TextWrapMode, Ui,
-    Widget, WidgetInfo, WidgetText, WidgetType, emath, style::HandleShape,
+    Color32, IntoAtoms, Label, NumExt as _, Pos2, Rangef, Rect, Response, Role, Sense,
+    TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, emath, style::HandleShape,
 };
 
 use super::drag_value::{GetSetValue, clamp_value_to_range, get, set};
@@ -612,7 +612,7 @@ impl RangeSlider<'_> {
         self.range_slider_ui(ui, &response);
 
         response.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::Other, ui.is_enabled(), self.core.text.text())
+            WidgetInfo::labeled(Role::Slider, ui.is_enabled(), self.core.text.text())
         });
 
         let slider_response = response.clone();

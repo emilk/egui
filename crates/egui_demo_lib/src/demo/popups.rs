@@ -207,7 +207,9 @@ impl crate::View for PopupsDemo {
                         for (align2, name) in &aligns {
                             ui.selectable_value(align, *align2, *name);
                         }
-                    });
+                    })
+                    .response
+                    .on_hover_text(label);
             };
 
             rust_view_ui(ui, "let align = RectAlign {");
@@ -252,13 +254,16 @@ impl crate::View for PopupsDemo {
                         for (align4, name) in &presets {
                             ui.selectable_value(&mut self.align4, *align4, *name);
                         }
-                    });
+                    })
+                    .response
+                    .on_hover_text("Preset");
                 rust_view_ui(ui, ";");
             });
 
             ui.horizontal(|ui| {
                 rust_view_ui(ui, "let gap = ");
-                ui.add(egui::DragValue::new(&mut self.gap));
+                ui.add(egui::DragValue::new(&mut self.gap))
+                    .on_hover_text("gap");
                 rust_view_ui(ui, ";");
             });
 
@@ -296,13 +301,16 @@ impl crate::View for PopupsDemo {
                             ui.selectable_value(&mut self.close_behavior, *close_behavior, *name)
                                 .on_hover_text(*tooltip);
                         }
-                    });
+                    })
+                    .response
+                    .on_hover_text("Close behavior");
                 rust_view_ui(ui, ";");
             });
 
             ui.horizontal(|ui| {
                 rust_view_ui(ui, "let popup_open = ");
-                ui.checkbox(&mut self.popup_open, "");
+                ui.checkbox(&mut self.popup_open, "")
+                    .on_hover_text("popup_open");
                 rust_view_ui(ui, ";");
             });
             ui.monospace("");

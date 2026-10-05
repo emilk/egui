@@ -258,7 +258,7 @@ thread_local! {
 }
 
 pub(super) fn glyph_rasterizer() -> GlyphRasterizer {
-    GlyphRasterizer::new(|request| {
+    GlyphRasterizer::new("eframe::web::canvas_glyphs", |request| {
         CANVAS_GLYPHS.with(|glyphs| {
             let mut glyphs = glyphs.borrow_mut();
             if glyphs.is_none() {

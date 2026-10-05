@@ -1,6 +1,6 @@
 use crate::{
-    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Sense, TextStyle,
-    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, WidgetType, emath,
+    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Role, Sense,
+    TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, emath,
     epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
@@ -342,7 +342,7 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
     let rect = rect.expand(visuals.expansion);
     use core::f32::consts::TAU;
-    let rotation = remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0);
+    let rotation = remap(openness, 0.0..=1.0, -TAU * 0.25..=0.0);
 
     ui.painter().add(epaint::Shape::rotated_triangle(
         rect,
@@ -546,7 +546,11 @@ impl CollapsingHeader {
         }
 
         header_response.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::CollapsingHeader, ui.is_enabled(), galley.text())
+            WidgetInfo::labeled(Role::DisclosureTriangle, ui.is_enabled(), galley.text())
+        });
+
+        ui.ctx().accesskit_node_builder(header_response.id, |node| {
+            node.set_expanded(state.is_open());
         });
 
         let openness = state.openness(ui.ctx());

@@ -18,6 +18,8 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) renderer: Box<dyn TestRenderer>,
     pub(crate) wait_for_pending_images: bool,
     pub(crate) fit_contents: bool,
+    pub(crate) missing_glyph_policy: egui::MissingGlyphPolicy,
+    pub(crate) check_accessibility: bool,
 
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub(crate) render_every_step: bool,
@@ -44,6 +46,8 @@ impl<State> Default for HarnessBuilder<State> {
             step_dt: 1.0 / 4.0,
             wait_for_pending_images: true,
             fit_contents: false,
+            missing_glyph_policy: egui::MissingGlyphPolicy::Panic,
+            check_accessibility: true,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step: false,
@@ -78,6 +82,20 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_fit_contents(mut self) -> Self {
         self.fit_contents = true;
+        self
+    }
+
+    /// Draw a box ("tofu") for characters no font can draw, instead of panicking.
+    ///
+    /// By default the harness panics as soon as it lays out a character that no installed
+    /// font, [`egui::FontProvider`] or [`egui::GlyphRasterizer`] can draw, because that is
+    /// usually a bug, and tofu in a snapshot is easy to miss.
+    /// Opt out here if your test renders such characters on purpose.
+    ///
+    /// See [`egui::Context::set_missing_glyph_policy`].
+    #[inline]
+    pub fn allow_missing_glyphs(mut self) -> Self {
+        self.missing_glyph_policy = egui::MissingGlyphPolicy::Tofu;
         self
     }
 
@@ -125,6 +143,16 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_max_steps(mut self, max_steps: u64) -> Self {
         self.max_steps = max_steps;
+        self
+    }
+
+    /// Check that every input widget has an accessible name, and panic if one does not.
+    /// See [`Harness::check_accessibility`].
+    ///
+    /// Default is `true`.
+    #[inline]
+    pub fn with_accessibility_check(mut self, check_accessibility: bool) -> Self {
+        self.check_accessibility = check_accessibility;
         self
     }
 

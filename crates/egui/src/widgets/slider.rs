@@ -641,6 +641,15 @@ impl Slider<'_> {
             if let Some(value_response) = value_response {
                 value_response.labelled_by(label_response.id);
             }
+        } else if let Some(value_response) = value_response {
+            // The caller names `response` (with `labelled_by` or `on_hover_text`),
+            // and the other half of the slider shares that name.
+            // `response` is the number field while it has focus, and the slider otherwise.
+            if response.id == value_response.id {
+                slider_response.labelled_by(value_response.id);
+            } else {
+                value_response.labelled_by(slider_response.id);
+            }
         }
 
         response

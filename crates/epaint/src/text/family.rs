@@ -188,6 +188,15 @@ impl Family {
         })
     }
 
+    /// The names of the faces in the fallback chain, in priority order.
+    pub fn face_names(&self, faces: &FaceStore) -> Vec<String> {
+        self.chain
+            .iter()
+            .filter_map(|key| faces.get(*key))
+            .map(|face| face.name().to_owned())
+            .collect()
+    }
+
     /// All supported characters, and in which faces they are available.
     pub fn characters(&mut self, faces: &FaceStore) -> &BTreeMap<char, Vec<String>> {
         self.characters.get_or_insert_with(|| {

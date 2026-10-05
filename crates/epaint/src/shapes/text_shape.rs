@@ -201,7 +201,7 @@ mod tests {
 
         // 90 degree rotation
         if let Shape::Text(ts) = &mut t {
-            ts.angle = core::f32::consts::PI / 2.0;
+            ts.angle = core::f32::consts::PI * 0.5;
         }
 
         let size_rot = t.visual_bounding_rect().size();

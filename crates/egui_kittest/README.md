@@ -75,6 +75,17 @@ real change, such as a moved separator, a shifted one-pixel border, or a small i
 incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever you
 update the snapshot.
 
+## Accessibility check
+
+Whenever the ui has settled (after `Harness::run` and friends) and before every snapshot, the
+harness checks that every input widget (button, checkbox, slider, text field, …) has an
+accessible name, and panics if one does not. A widget without a name cannot be
+found by `get_by_label`, nor by a screen reader. Give icon-only buttons an alt text, tie text
+fields to their label with `Response::labelled_by`, or add an `on_hover_text`.
+
+Turn the check off with `Harness::builder().with_accessibility_check(false)`, or run it by hand
+with `Harness::check_accessibility`.
+
 ## Recording
 When enabling the `recording` feature, you can record tests to mp4s via these env vars:
 * `KITTEST_RECORD=1 cargo test` writes numbered MP4s to `tests/snapshots/recordings`
@@ -123,10 +134,10 @@ You should add the following to your `.gitignore`:
 ### What to do when CI / another computer produces a different image?
 
 The default tolerance settings should be fine for almost all gui comparison tests.
-However, especially when you're using custom rendering, you may observe images difference with different setups leading to unexpected test failures.
+However, especially when you're using custom rendering, you may observe image differences with different setups leading to unexpected test failures.
 
-First check whether the difference is due to a change in enabled rendering features, potentially due to difference in hardware (/software renderer) capabilities.
-Generally you should carefully enforcing the same set of features for all test runs, but this may happen nonetheless.
+First check whether the difference is due to a change in enabled rendering features, potentially due to differences in hardware (/software renderer) capabilities.
+Generally you should carefully enforce the same set of features for all test runs, but this may happen nonetheless.
 
 Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparison tolerances (`SnapshotOptions::threshold` and, as a last resort, `SnapshotOptions::max_failed_pixels`) for the specific test. See also TODO([#5683](https://github.com/emilk/egui/issues/5683)).
 
@@ -143,7 +154,7 @@ Discrepancies can be caused by a variety of implementation details that depend o
 Common issues include:
 * multi-sample anti-aliasing
   * sample placement and sample resolve steps are implementation defined
-  * alpha-to-coverage algorithm/pattern can wary wildly between implementations
+  * alpha-to-coverage algorithm/pattern can vary wildly between implementations
 * texture filtering
   * different implementations may apply different optimizations *even* for simple linear texture filtering
 * out of bounds texture access (via `textureLoad`)
@@ -155,8 +166,8 @@ Common issues include:
   * floating point denormal flush
     * even on modern implementations, denormal float values may be flushed to zero
   * `NaN`/`Inf` handling
-    * whenever the result of a function should yield `NaN`/`Inf`, implementations may free to yield an indeterminate value instead
-  * builtin-function function precision & error handling (trigonometric functions and others)
+    * whenever the result of a function should yield `NaN`/`Inf`, implementations are free to yield an indeterminate value instead
+  * builtin-function precision & error handling (trigonometric functions and others)
 * [partial derivatives (dpdx/dpdx)](https://www.w3.org/TR/WGSL/#dpdx-builtin)
   * implementations are free to use either `dpdxFine` or `dpdxCoarse`
 * [...]
