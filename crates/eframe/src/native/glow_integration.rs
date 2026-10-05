@@ -141,6 +141,15 @@ struct Viewport {
 }
 
 impl Viewport {
+    /// Forward raw mouse motion to egui.
+    ///
+    /// Returns the window to repaint if the event was used.
+    fn on_mouse_motion(&mut self, delta: (f64, f64)) -> Option<winit::window::WindowId> {
+        let window = self.window.as_ref()?;
+        let egui_winit = self.egui_winit.as_mut()?;
+        egui_winit.on_mouse_motion(delta).then(|| window.id())
+    }
+
     /// Apply the commands, or defer them until we have a window.
     fn process_commands(
         &mut self,
@@ -501,16 +510,23 @@ impl WinitApp for GlowWinitApp<'_> {
         if let winit::event::DeviceEvent::MouseMotion { delta } = event
             && let Some(running) = &mut self.running
         {
-            // Route MouseMotion deltas to the ROOT viewport rather than to
-            // `focused_viewport` (see matching change + rationale in
-            // wgpu_integration.rs).
+            // `MouseMotion` is not associated with any window, so we deliver it to
+            // the viewport that has the pointer (or an ongoing drag), preferring the focused one.
+            // We don't require that viewport to have focus, since another viewport may have stolen it
+            // (e.g. on Wayland, where focus-stealing prevention can refuse `ViewportCommand::Focus`).
             let mut glutin = running.glutin.borrow_mut();
-            if let Some(viewport) = glutin.viewports.get_mut(&egui::ViewportId::ROOT)
-                && let Some(window) = viewport.window.as_ref()
-                && let Some(egui_winit) = viewport.egui_winit.as_mut()
-                && egui_winit.on_mouse_motion(delta)
+            let focused_viewport = glutin.focused_viewport;
+            let viewports = &mut glutin.viewports;
+            if let Some(window_id) = focused_viewport
+                .and_then(|id| viewports.get_mut(&id))
+                .and_then(|viewport| viewport.on_mouse_motion(delta))
+                .or_else(|| {
+                    viewports
+                        .values_mut()
+                        .find_map(|viewport| viewport.on_mouse_motion(delta))
+                })
             {
-                return Ok(EventResult::RepaintNext(window.id()));
+                return Ok(EventResult::RepaintNext(window_id));
             }
         }
 
