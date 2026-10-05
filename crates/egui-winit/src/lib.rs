@@ -1485,19 +1485,19 @@ fn is_printable_char(chr: char) -> bool {
 
 fn is_cut_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
     keycode == egui::Key::Cut
-        || (modifiers.command && keycode == egui::Key::X)
+        || (modifiers.command_only() && keycode == egui::Key::X)
         || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Delete)
 }
 
 fn is_copy_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
     keycode == egui::Key::Copy
-        || (modifiers.command && keycode == egui::Key::C)
+        || (modifiers.command_only() && keycode == egui::Key::C)
         || (cfg!(target_os = "windows") && modifiers.ctrl && keycode == egui::Key::Insert)
 }
 
 fn is_paste_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
     keycode == egui::Key::Paste
-        || (modifiers.command && keycode == egui::Key::V)
+        || (modifiers.command_only() && keycode == egui::Key::V)
         || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Insert)
 }
 
