@@ -12,7 +12,7 @@ use crate::style::StyleModifier;
 use crate::{
     Atom, AtomKind, AtomPaintArgs, Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms,
     IntoSizedResult, Layout, PointerButton, Popup, PopupCloseBehavior, PopupKind, Response,
-    SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
+    SetOpenCommand, SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
 };
 use emath::{Align, Rect, RectAlign, Vec2, vec2};
 use epaint::{Shape, Stroke};
@@ -40,6 +40,18 @@ pub fn find_menu_root(ui: &Ui) -> &UiStack {
                 || stack.info.tags.contains(MenuConfig::MENU_CONFIG_TAG)
         })
         .expect("We should always find the root")
+}
+
+/// Find the [`UiStack`] of the [`MenuBar`] this [`Ui`] is directly part of, if any.
+///
+/// Returns `None` if the closest menu root is not a menu bar (e.g. if we are in a popup menu).
+fn find_menu_bar_root(ui: &Ui) -> Option<&UiStack> {
+    let root = find_menu_root(ui);
+    root.info
+        .tags
+        .get_downcast::<MenuConfig>(MenuConfig::MENU_CONFIG_TAG)
+        .is_some_and(|config| config.bar)
+        .then_some(root)
 }
 
 /// Is this Ui part of a menu?
@@ -295,6 +307,10 @@ pub struct MenuButton<'a> {
 }
 
 impl<'a> MenuButton<'a> {
+    /// Salt for the id (relative to the [`MenuBar`]) where we store the popup id of
+    /// the currently open menu in that bar.
+    const OPEN_MENU_ID_SALT: &'static str = "egui_menu_bar_open_menu";
+
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self::from_button(Button::new(atoms.into_atoms()))
     }
@@ -324,13 +340,42 @@ impl<'a> MenuButton<'a> {
         let response = self.button.ui(ui);
         let mut config = self.config.unwrap_or_else(|| MenuConfig::find(ui));
         config.bar = false;
-        let inner = Popup::menu(&response)
+
+        let mut menu = Popup::menu(&response);
+        let popup_id = menu.get_id();
+
+        // If we are part of a menu bar, we remember which of its menus is open, so that
+        // hovering another menu button in the same bar can switch to that menu without
+        // requiring a click. This is the typical behavior of menu bars at the top of a window.
+        let bar_open_menu_id =
+            find_menu_bar_root(ui).map(|bar| bar.unique_id.with(Self::OPEN_MENU_ID_SALT));
+        if let Some(bar_open_menu_id) = bar_open_menu_id
+            && response.hovered()
+            && !response.clicked()
+        {
+            let open_menu_in_bar = ui.data(|d| d.get_temp::<Id>(bar_open_menu_id));
+            if let Some(open_menu_in_bar) = open_menu_in_bar
+                && open_menu_in_bar != popup_id
+                && Popup::is_id_open(ui.ctx(), open_menu_in_bar)
+            {
+                menu = menu.open_memory(Some(SetOpenCommand::Bool(true)));
+            }
+        }
+
+        let inner = menu
             .close_behavior(config.close_behavior)
             .style(config.style.clone())
             .info(
                 UiStackInfo::new(UiKind::Menu).with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
             )
             .show(content);
+
+        if let Some(bar_open_menu_id) = bar_open_menu_id
+            && inner.is_some()
+        {
+            ui.data_mut(|d| d.insert_temp(bar_open_menu_id, popup_id));
+        }
+
         (response, inner)
     }
 }
