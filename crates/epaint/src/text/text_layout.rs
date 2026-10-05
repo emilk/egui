@@ -1097,14 +1097,16 @@ fn galley_from_rows(
         for glyph in &mut row.glyphs {
             let format = &job.sections[glyph.section_index as usize].format;
 
-            // Vertically aligns glyph's font_face_height within max_row_height using format.valign.
-            let valign_offset_y =
-                format.valign.to_factor() * (max_row_height - glyph.font_face_height);
-
-            // When mixing different `FontImpl` (e.g. latin and emojis),
-            // we always center the difference:
             glyph.pos.y = glyph.font_face_ascent
-                + valign_offset_y
+
+                // Apply valign to the difference in height of the entire row, and the height of this `Font`.
+                // Note: we use `font_height` and not `line_height` here,
+                // so that `valign` also has an effect when `line_height` is set explicitly
+                // (and is what determines the row height).
+                + format.valign.to_factor() * (max_row_height - glyph.font_height)
+
+                // When mixing different `FontImpl` (e.g. latin and emojis),
+                // we always center the difference:
                 + 0.5 * (glyph.font_height - glyph.font_face_height);
 
             glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
@@ -2322,6 +2324,59 @@ mod tests {
             galley.intrinsic_size().round(),
             Vec2::new(17.0, font_height.round() * 2.0),
             "Unexpected intrinsic size"
+        );
+    }
+
+    #[test]
+    fn test_valign_with_custom_line_height() {
+        let pixels_per_point = 1.0;
+        let mut fonts = test_fonts();
+
+        let font_id = FontId::default();
+        let family = fonts.family_key(&font_id.family);
+        let font_height = fonts
+            .family_metrics(
+                family,
+                pixels_per_point,
+                font_id.size,
+                &VariationCoords::default(),
+            )
+            .row_height;
+        let extra_height = 20.0;
+        let line_height = (font_height + extra_height).round();
+
+        let mut glyph_y = |valign: Align| {
+            let job = LayoutJob::single_section(
+                "Hello".to_owned(),
+                TextFormat {
+                    font_id: font_id.clone(),
+                    line_height: Some(line_height),
+                    valign,
+                    ..Default::default()
+                },
+            );
+            let galley = layout(&mut fonts, pixels_per_point, job.into());
+            assert_eq!(galley.rows.len(), 1);
+            assert_eq!(
+                galley.size().y,
+                line_height,
+                "Row should have the custom line height"
+            );
+            galley.rows[0].row.glyphs[0].pos.y
+        };
+
+        let top = glyph_y(Align::TOP);
+        let center = glyph_y(Align::Center);
+        let bottom = glyph_y(Align::BOTTOM);
+
+        let free_space = line_height - font_height;
+        assert!(
+            (center - top - 0.5 * free_space).abs() <= 1.0,
+            "Center should be half-way down: top={top}, center={center}, free_space={free_space}"
+        );
+        assert!(
+            (bottom - top - free_space).abs() <= 1.0,
+            "Bottom should be all the way down: top={top}, bottom={bottom}, free_space={free_space}"
         );
     }
 
