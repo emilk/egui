@@ -1,5 +1,5 @@
+use core::{iter::once, time::Duration};
 use std::sync::Arc;
-use std::{iter::once, time::Duration};
 
 use egui::TexturesDelta;
 use egui_wgpu::{RenderState, ScreenDescriptor, WgpuSetup, wgpu};
@@ -17,7 +17,8 @@ pub(crate) const WAIT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Default wgpu setup used for the wgpu renderer.
 pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
-    let mut setup = egui_wgpu::WgpuSetupCreateNew::default();
+    // No display handle needed for headless testing — we don't present to a window.
+    let mut setup = egui_wgpu::WgpuSetupCreateNew::without_display_handle();
 
     // WebGPU not supported yet since we rely on blocking screenshots.
     setup
@@ -51,13 +52,17 @@ pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
         adapters
             .first()
             .map(|a| (*a).clone())
-            .ok_or("No adapter found".to_owned())
+            .ok_or_else(|| "No adapter found".to_owned())
     }));
 
     egui_wgpu::WgpuSetup::CreateNew(setup)
 }
 
-pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
+pub fn create_render_state(
+    setup: WgpuSetup,
+    options: egui_wgpu::RendererOptions,
+) -> egui_wgpu::RenderState {
+    // No display handle needed for headless testing — we don't present to a window.
     let instance = pollster::block_on(setup.new_instance());
 
     pollster::block_on(egui_wgpu::RenderState::create(
@@ -67,7 +72,7 @@ pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
         },
         &instance,
         None,
-        egui_wgpu::RendererOptions::PREDICTABLE,
+        options,
     ))
     .expect("Failed to create render state")
 }
@@ -87,14 +92,17 @@ impl WgpuTestRenderer {
     /// Create a new [`WgpuTestRenderer`] with the default setup.
     pub fn new() -> Self {
         Self {
-            render_state: create_render_state(default_wgpu_setup()),
+            render_state: create_render_state(
+                default_wgpu_setup(),
+                egui_wgpu::RendererOptions::PREDICTABLE,
+            ),
         }
     }
 
     /// Create a new [`WgpuTestRenderer`] with the given setup.
     pub fn from_setup(setup: WgpuSetup) -> Self {
         Self {
-            render_state: create_render_state(setup),
+            render_state: create_render_state(setup, egui_wgpu::RendererOptions::PREDICTABLE),
         }
     }
 
@@ -113,6 +121,13 @@ impl WgpuTestRenderer {
         );
         Self { render_state }
     }
+
+    /// Create a new [`WgpuTestRenderer`] with custom render options.
+    pub fn with_render_options(options: egui_wgpu::RendererOptions) -> Self {
+        Self {
+            render_state: create_render_state(default_wgpu_setup(), options),
+        }
+    }
 }
 
 impl crate::TestRenderer for WgpuTestRenderer {
@@ -122,15 +137,23 @@ impl crate::TestRenderer for WgpuTestRenderer {
         frame.wgpu_render_state = Some(self.render_state.clone());
     }
 
-    fn handle_delta(&mut self, delta: &TexturesDelta) {
+    fn handle_delta(&mut self, delta: &mut TexturesDelta) {
         let mut renderer = self.render_state.renderer.write();
-        for (id, image) in &delta.set {
-            renderer.update_texture(
-                &self.render_state.device,
-                &self.render_state.queue,
-                *id,
-                image,
-            );
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for (id, images) in delta.set.drain() {
+            for image in images {
+                renderer.update_texture(
+                    &self.render_state.device,
+                    &self.render_state.queue,
+                    id,
+                    &image,
+                );
+            }
+        }
+
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for id in delta.free.drain() {
+            renderer.free_texture(&id);
         }
     }
 
@@ -207,7 +230,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
 
         self.render_state
             .queue
-            .submit(user_buffers.into_iter().chain(once(encoder.finish())));
+            .submit(core::iter::chain(user_buffers, once(encoder.finish())));
 
         self.render_state
             .device

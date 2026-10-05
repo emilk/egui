@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    Align, Direction, FontSelection, Galley, Pos2, Response, Sense, Stroke, TextWrapMode, Ui,
-    Widget, WidgetInfo, WidgetText, WidgetType, epaint, pos2, text_selection::LabelSelectionState,
+    Align, Direction, FontSelection, Galley, Pos2, Response, Role, Sense, Stroke, TextWrapMode, Ui,
+    Widget, WidgetInfo, WidgetText, epaint, pos2, text_selection::LabelSelectionState,
 };
 
 /// Static text.
@@ -220,7 +220,7 @@ impl Label {
                 .rect_without_leading_space()
                 .translate(pos.to_vec2());
             let mut response = ui.allocate_rect(rect, sense);
-            response.intrinsic_size = Some(galley.intrinsic_size());
+            response.set_intrinsic_size(galley.intrinsic_size());
             for placed_row in galley.rows.iter().skip(1) {
                 let rect = placed_row.rect().translate(pos.to_vec2());
                 response |= ui.allocate_rect(rect, sense);
@@ -248,13 +248,15 @@ impl Label {
                 layout_job.halign = Align::LEFT;
                 layout_job.justify = false;
             } else {
-                layout_job.halign = self.halign.unwrap_or(ui.layout().horizontal_placement());
+                layout_job.halign = self
+                    .halign
+                    .unwrap_or_else(|| ui.layout().horizontal_placement());
                 layout_job.justify = ui.layout().horizontal_justify();
             }
 
             let galley = ui.fonts_mut(|fonts| fonts.layout_job(layout_job));
             let (rect, mut response) = ui.allocate_exact_size(galley.size(), sense);
-            response.intrinsic_size = Some(galley.intrinsic_size());
+            response.set_intrinsic_size(galley.intrinsic_size());
             let galley_pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),
@@ -276,8 +278,7 @@ impl Widget for Label {
         let show_tooltip_when_elided = self.show_tooltip_when_elided;
 
         let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
-        response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::Label, ui.is_enabled(), galley.text()));
+        response.widget_info(|| WidgetInfo::labeled(Role::Label, ui.is_enabled(), galley.text()));
 
         if ui.is_rect_visible(response.rect) {
             if show_tooltip_when_elided && galley.elided {

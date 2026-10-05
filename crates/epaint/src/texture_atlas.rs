@@ -1,7 +1,7 @@
 use ecolor::Color32;
 use emath::{Rect, remap_clamp};
 
-use crate::{AlphaFromCoverage, ColorImage, ImageDelta};
+use crate::{ColorImage, ImageDelta, TextOptions};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Rectu {
@@ -75,11 +75,11 @@ pub struct TextureAtlas {
     discs: Vec<PrerasterizedDisc>,
 
     /// Controls how to convert glyph coverage to alpha.
-    pub(crate) text_alpha_from_coverage: AlphaFromCoverage,
+    options: TextOptions,
 }
 
 impl TextureAtlas {
-    pub fn new(size: [usize; 2], text_alpha_from_coverage: AlphaFromCoverage) -> Self {
+    pub fn new(size: [usize; 2], options: TextOptions) -> Self {
         assert!(size[0] >= 1024, "Tiny texture atlas");
         let mut atlas = Self {
             image: ColorImage::filled(size, Color32::TRANSPARENT),
@@ -88,7 +88,7 @@ impl TextureAtlas {
             row_height: 0,
             overflowed: false,
             discs: vec![], // will be filled in below
-            text_alpha_from_coverage,
+            options,
         };
 
         // Make the top left pixel fully white for `WHITE_UV`, i.e. painting something with solid color:
@@ -120,8 +120,9 @@ impl TextureAtlas {
                     let distance_to_center = ((dx * dx + dy * dy) as f32).sqrt();
                     let coverage =
                         remap_clamp(distance_to_center, (r - 0.5)..=(r + 0.5), 1.0..=0.0);
-                    image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] =
-                        text_alpha_from_coverage.color_from_coverage(coverage);
+                    image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] = options
+                        .color_transfer_function
+                        .color_from_coverage(coverage);
                 }
             }
             atlas.discs.push(PrerasterizedDisc {
@@ -136,6 +137,10 @@ impl TextureAtlas {
         }
 
         atlas
+    }
+
+    pub fn options(&self) -> &TextOptions {
+        &self.options
     }
 
     pub fn size(&self) -> [usize; 2] {
@@ -197,7 +202,7 @@ impl TextureAtlas {
     pub fn take_delta(&mut self) -> Option<ImageDelta> {
         let texture_options = Self::texture_options();
 
-        let dirty = std::mem::replace(&mut self.dirty, Rectu::NOTHING);
+        let dirty = core::mem::replace(&mut self.dirty, Rectu::NOTHING);
         if dirty == Rectu::NOTHING {
             None
         } else if dirty == Rectu::EVERYTHING {

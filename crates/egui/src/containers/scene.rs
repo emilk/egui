@@ -24,7 +24,14 @@ fn fit_to_rect_in_scene(
     let scale = scale.min_elem();
 
     // Clamp scale to what is allowed
-    let scale = zoom_range.clamp(scale);
+    let mut scale = zoom_range.clamp(scale);
+
+    // A degenerate `rect_in_scene` (e.g. `Rect::ZERO`) gives an infinite scale,
+    // which the zoom range may not catch (e.g. `0.0..=f32::INFINITY`).
+    // Fall back to 1:1 so we never produce NaN.
+    if !scale.is_finite() || scale <= 0.0 {
+        scale = zoom_range.clamp(1.0);
+    }
 
     // Compute the translation to center the bounding rect in the screen:
     let center_in_global = rect_in_global.center().to_vec2();
@@ -185,7 +192,7 @@ impl Scene {
         // Create a new egui paint layer, where we can draw our contents:
         let scene_layer_id = LayerId::new(
             parent_ui.layer_id().order,
-            parent_ui.id().with("scene_area"),
+            parent_ui.scope_id().with("scene_area"),
         );
 
         // Put the layer directly on-top of the main layer of the ui:
@@ -244,8 +251,8 @@ impl Scene {
             && resp.contains_pointer()
         {
             let pointer_in_scene = to_global.inverse() * mouse_pos;
-            let zoom_delta = ui.ctx().input(|i| i.zoom_delta());
-            let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
+            let zoom_delta = ui.input(|i| i.zoom_delta());
+            let pan_delta = ui.input(|i| i.smooth_scroll_delta());
 
             // Most of the time we can return early. This is also important to
             // avoid `ui_from_scene` to change slightly due to floating point errors.

@@ -1,9 +1,12 @@
 //! [`egui`] bindings for web apps (compiling to WASM).
 
-#![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
+#![expect(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
+#![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
 mod app_runner;
 mod backend;
+mod canvas_glyphs;
+mod dropped_file;
 mod events;
 mod input;
 mod panic_handler;
@@ -23,24 +26,21 @@ pub use panic_handler::{PanicHandler, PanicSummary};
 pub use web_logger::WebLogger;
 pub use web_runner::WebRunner;
 
-#[cfg(not(any(feature = "glow", feature = "wgpu")))]
+#[cfg(not(any(feature = "glow", feature = "wgpu_no_default_features")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");
 
 mod web_painter;
 
 #[cfg(feature = "glow")]
 mod web_painter_glow;
-#[cfg(feature = "glow")]
-pub(crate) type ActiveWebPainter = web_painter_glow::WebPainterGlow;
 
-#[cfg(feature = "wgpu")]
+#[cfg(feature = "wgpu_no_default_features")]
 mod web_painter_wgpu;
-#[cfg(all(feature = "wgpu", not(feature = "glow")))]
-pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
 
 use egui::Theme;
+use js_sys::Object;
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, MediaQueryList, Node};
 
@@ -84,6 +84,17 @@ pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
         Some(element == &focused_element)
     }
     try_has_focus(element).unwrap_or(false)
+}
+
+/// Focus the given element without scrolling it into view.
+///
+/// Scrolling the element into view would scroll the whole page when
+/// the app is embedded in a larger scrollable page,
+/// see <https://github.com/emilk/egui/issues/8295>.
+pub(crate) fn focus_without_scroll(element: &web_sys::HtmlElement) -> Result<(), JsValue> {
+    let options = web_sys::FocusOptions::new();
+    options.set_prevent_scroll(true);
+    element.focus_with_options(&options)
 }
 
 /// Current time in seconds (since undefined point in time).
@@ -149,18 +160,18 @@ fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
     );
 
     // We need to subtract padding and border:
-    if let Some(window) = web_sys::window() {
-        if let Ok(Some(style)) = window.get_computed_style(canvas) {
-            let get_property = |name: &str| -> Option<f32> {
-                let property = style.get_property_value(name).ok()?;
-                property.trim_end_matches("px").parse::<f32>().ok()
-            };
+    if let Some(window) = web_sys::window()
+        && let Ok(Some(style)) = window.get_computed_style(canvas)
+    {
+        let get_property = |name: &str| -> Option<f32> {
+            let property = style.get_property_value(name).ok()?;
+            property.trim_end_matches("px").parse::<f32>().ok()
+        };
 
-            rect.min.x += get_property("padding-left").unwrap_or_default();
-            rect.min.y += get_property("padding-top").unwrap_or_default();
-            rect.max.x -= get_property("padding-right").unwrap_or_default();
-            rect.max.y -= get_property("padding-bottom").unwrap_or_default();
-        }
+        rect.min.x += get_property("padding-left").unwrap_or_default();
+        rect.min.y += get_property("padding-top").unwrap_or_default();
+        rect.max.x -= get_property("padding-right").unwrap_or_default();
+        rect.max.y -= get_property("padding-bottom").unwrap_or_default();
     }
 
     rect
@@ -180,10 +191,8 @@ fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Contex
 // ----------------------------------------------------------------------------
 
 /// Set the cursor icon.
-fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
-    let document = web_sys::window()?.document()?;
-    document
-        .body()?
+fn set_cursor_icon(canvas: &web_sys::HtmlCanvasElement, cursor: egui::CursorIcon) -> Option<()> {
+    canvas
         .style()
         .set_property("cursor", cursor_web_name(cursor))
         .ok()
@@ -200,13 +209,12 @@ fn set_clipboard_text(s: &str) {
             return;
         }
         let promise = window.navigator().clipboard().write_text(s);
-        let future = wasm_bindgen_futures::JsFuture::from(promise);
         let future = async move {
-            if let Err(err) = future.await {
+            if let Err(err) = promise.await {
                 log::error!("Copy/cut action failed: {}", string_from_js_value(&err));
             }
         };
-        wasm_bindgen_futures::spawn_local(future);
+        js_sys::futures::spawn_local(future);
     }
 }
 
@@ -241,16 +249,15 @@ fn set_clipboard_image(image: &egui::ColorImage) {
         };
         let items = js_sys::Array::of1(&item);
         let promise = window.navigator().clipboard().write(&items);
-        let future = wasm_bindgen_futures::JsFuture::from(promise);
         let future = async move {
-            if let Err(err) = future.await {
+            if let Err(err) = promise.await {
                 log::error!(
                     "Copy/cut image action failed: {}",
                     string_from_js_value(&err)
                 );
             }
         };
-        wasm_bindgen_futures::spawn_local(future);
+        js_sys::futures::spawn_local(future);
     }
 }
 
@@ -288,8 +295,8 @@ fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardI
 
     let items = js_sys::Object::new();
 
-    // SAFETY: I hope so
     #[expect(unsafe_code, unused_unsafe)] // Weird false positive
+    // SAFETY: I hope so
     unsafe {
         js_sys::Reflect::set(&items, &JsValue::from_str(mime), &blob)?
     };
@@ -373,5 +380,5 @@ pub fn percent_decode(s: &str) -> String {
 
 /// Are we running inside the Safari browser?
 pub fn is_safari_browser() -> bool {
-    web_sys::window().is_some_and(|window| window.has_own_property(&JsValue::from("safari")))
+    web_sys::window().is_some_and(|window| Object::has_own(&window, &JsValue::from("safari")))
 }

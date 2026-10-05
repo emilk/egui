@@ -32,7 +32,7 @@ impl Clone for TextureHandle {
     fn clone(&self) -> Self {
         self.tex_mngr.write().retain(self.id);
         Self {
-            tex_mngr: self.tex_mngr.clone(),
+            tex_mngr: Arc::clone(&self.tex_mngr),
             id: self.id,
         }
     }
@@ -47,9 +47,9 @@ impl PartialEq for TextureHandle {
 
 impl Eq for TextureHandle {}
 
-impl std::hash::Hash for TextureHandle {
+impl core::hash::Hash for TextureHandle {
     #[inline]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
 }

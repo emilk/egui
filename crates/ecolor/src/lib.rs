@@ -19,7 +19,7 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::wrong_self_convention)]
+#![expect(clippy::wrong_self_convention)]
 
 #[cfg(feature = "cint")]
 mod cint_impl;
@@ -132,6 +132,17 @@ pub fn linear_u8_from_linear_f32(a: f32) -> u8 {
 
 const fn fast_round(r: f32) -> u8 {
     (r + 0.5) as _ // rust does a saturating cast since 1.45
+}
+
+/// Compute val * (frac/255) with no floating point or divisions.
+#[inline]
+const fn mul_frac_round(val: u8, frac: u8) -> u8 {
+    // Treat this as a simple fixed point calculation
+    let p = (val as u16) * (frac as u16) + 128;
+    ((p + (p >> 8)) >> 8) as u8
+    // Logic split out a bit more.
+    //let p = (val as u16) * (frac as u16) + 127; // + 127 to round or remove to truncate.
+    //return ((p + 1 + (p >> 8)) >> 8) as u8;
 }
 
 #[test]

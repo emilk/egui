@@ -1,4 +1,4 @@
-use std::{
+use core::{
     fmt,
     ops::{Add, AddAssign, MulAssign, Sub, SubAssign},
 };
@@ -12,7 +12,7 @@ use crate::{Div, Mul, Vec2, lerp};
 /// Mathematically this is known as a "point", but the term position was chosen so not to
 /// conflict with the unit (one point = X physical pixels).
 #[repr(C)]
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Pos2 {
@@ -119,6 +119,11 @@ impl Pos2 {
     /// Same as `Pos2::default()`.
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
 
+    pub const NAN: Self = Self {
+        x: f32::NAN,
+        y: f32::NAN,
+    };
+
     #[inline(always)]
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
@@ -201,7 +206,7 @@ impl Pos2 {
     }
 }
 
-impl std::ops::Index<usize> for Pos2 {
+impl core::ops::Index<usize> for Pos2 {
     type Output = f32;
 
     #[inline(always)]
@@ -214,7 +219,7 @@ impl std::ops::Index<usize> for Pos2 {
     }
 }
 
-impl std::ops::IndexMut<usize> for Pos2 {
+impl core::ops::IndexMut<usize> for Pos2 {
     #[inline(always)]
     fn index_mut(&mut self, index: usize) -> &mut f32 {
         match index {
@@ -225,6 +230,21 @@ impl std::ops::IndexMut<usize> for Pos2 {
     }
 }
 
+impl PartialEq for Pos2 {
+    #[track_caller]
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        debug_assert!(
+            !self.any_nan() && !other.any_nan(),
+            "Comparing NaN positions ({self:?} and {other:?}). \
+             A NaN is not even equal to itself, which leads to very confusing bugs."
+        );
+        self.x == other.x && self.y == other.y
+    }
+}
+
+/// This is a lie for NaN positions, which are not equal to themselves.
+/// [`PartialEq`] catches those in debug builds.
 impl Eq for Pos2 {}
 
 impl AddAssign<Vec2> for Pos2 {

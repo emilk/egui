@@ -137,7 +137,12 @@ impl TextShape {
         *mesh_bounds = transform.scaling * *mesh_bounds;
         *intrinsic_size = transform.scaling * *intrinsic_size;
 
-        for text::PlacedRow { pos, row } in rows {
+        for text::PlacedRow {
+            pos,
+            row,
+            ends_with_newline: _,
+        } in rows
+        {
             *pos *= transform.scaling;
 
             let text::Row {
@@ -145,7 +150,6 @@ impl TextShape {
                 glyphs: _, // TODO(emilk): would it make sense to transform these?
                 size,
                 visuals,
-                ends_with_newline: _,
             } = Arc::make_mut(row);
 
             *size *= transform.scaling;
@@ -181,11 +185,7 @@ mod tests {
 
     #[test]
     fn text_bounding_box_under_rotation() {
-        let mut fonts = Fonts::new(
-            1024,
-            AlphaFromCoverage::default(),
-            FontDefinitions::default(),
-        );
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
         let font = FontId::monospace(12.0);
 
         let mut t = crate::Shape::text(
@@ -201,7 +201,7 @@ mod tests {
 
         // 90 degree rotation
         if let Shape::Text(ts) = &mut t {
-            ts.angle = std::f32::consts::PI / 2.0;
+            ts.angle = core::f32::consts::PI / 2.0;
         }
 
         let size_rot = t.visual_bounding_rect().size();

@@ -1,4 +1,4 @@
-use crate::{Context, FullOutput, RawInput};
+use crate::{Context, FullOutput, RawInput, Ui};
 use ahash::HashMap;
 use epaint::mutex::{Mutex, MutexGuard};
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use std::sync::Arc;
 /// Plugins should not hold a reference to the [`Context`], since this would create a cycle
 /// (which would prevent the [`Context`] from being dropped).
 #[expect(unused_variables)]
-pub trait Plugin: Send + Sync + std::any::Any + 'static {
+pub trait Plugin: Send + Sync + core::any::Any + 'static {
     /// Plugin name.
     ///
     /// Used when profiling.
@@ -21,62 +21,82 @@ pub trait Plugin: Send + Sync + std::any::Any + 'static {
     /// Useful to e.g. register image loaders.
     fn setup(&mut self, ctx: &Context) {}
 
+    /// Called once when the integration is shutting down.
+    ///
+    /// This is called before [`Context::memory`] is persisted and while integration resources are
+    /// still available. Plugins may use this to store state in persistent egui [`crate::Memory`].
+    fn on_exit(&mut self, ctx: &Context) {}
+
     /// Called at the start of each pass.
     ///
-    /// Can be used to show ui, e.g. a [`crate::Window`] or [`crate::SidePanel`].
-    fn on_begin_pass(&mut self, ctx: &Context) {}
+    /// Can be used to show ui, e.g. a [`crate::Window`] or [`crate::Panel`].
+    fn on_begin_pass(&mut self, ui: &mut Ui) {}
 
     /// Called at the end of each pass.
     ///
     /// Can be used to show ui, e.g. a [`crate::Window`].
-    fn on_end_pass(&mut self, ctx: &Context) {}
+    fn on_end_pass(&mut self, ui: &mut Ui) {}
 
     /// Called just before the input is processed.
     ///
     /// Useful to inspect or modify the input.
-    /// Since this is called outside a pass, don't show ui here.
-    fn input_hook(&mut self, input: &mut RawInput) {}
+    /// Since this is called outside a pass, don't show ui here. Using `Context::debug_painter` is fine though.
+    fn input_hook(&mut self, ctx: &Context, input: &mut RawInput) {}
 
     /// Called just before the output is passed to the backend.
     ///
     /// Useful to inspect or modify the output.
-    /// Since this is called outside a pass, don't show ui here.
-    fn output_hook(&mut self, output: &mut FullOutput) {}
+    /// Since this is called outside a pass, don't show ui here. Using `Context::debug_painter` is fine though.
+    fn output_hook(&mut self, ctx: &Context, output: &mut FullOutput) {}
+
+    /// Called when a widget is created and is under the pointer.
+    ///
+    /// Useful for capturing a stack trace so that widgets can be mapped back to their source code.
+    /// Since this is called outside a pass, don't show ui here. Using `Context::debug_painter` is fine though.
+    #[cfg(debug_assertions)]
+    fn on_widget_under_pointer(&mut self, ctx: &Context, widget: &crate::WidgetRect) {}
 }
 
 pub(crate) struct PluginHandle {
     plugin: Box<dyn Plugin>,
 }
 
+/// A typed handle to a registered [`Plugin`].
+///
+/// Use [`Self::lock`] to access the plugin.
 pub struct TypedPluginHandle<P: Plugin> {
     handle: Arc<Mutex<PluginHandle>>,
-    _type: std::marker::PhantomData<P>,
+    _type: core::marker::PhantomData<P>,
 }
 
 impl<P: Plugin> TypedPluginHandle<P> {
     pub(crate) fn new(handle: Arc<Mutex<PluginHandle>>) -> Self {
         Self {
             handle,
-            _type: std::marker::PhantomData,
+            _type: core::marker::PhantomData,
         }
     }
 
+    /// Lock the plugin for access.
+    ///
+    /// Returns a guard that dereferences to the plugin.
     pub fn lock(&self) -> TypedPluginGuard<'_, P> {
         TypedPluginGuard {
             guard: self.handle.lock(),
-            _type: std::marker::PhantomData,
+            _type: core::marker::PhantomData,
         }
     }
 }
 
+/// A guard that provides access to a [`Plugin`].
 pub struct TypedPluginGuard<'a, P: Plugin> {
     guard: MutexGuard<'a, PluginHandle>,
-    _type: std::marker::PhantomData<P>,
+    _type: core::marker::PhantomData<P>,
 }
 
 impl<P: Plugin> TypedPluginGuard<'_, P> {}
 
-impl<P: Plugin> std::ops::Deref for TypedPluginGuard<'_, P> {
+impl<P: Plugin> core::ops::Deref for TypedPluginGuard<'_, P> {
     type Target = P;
 
     fn deref(&self) -> &Self::Target {
@@ -84,7 +104,7 @@ impl<P: Plugin> std::ops::Deref for TypedPluginGuard<'_, P> {
     }
 }
 
-impl<P: Plugin> std::ops::DerefMut for TypedPluginGuard<'_, P> {
+impl<P: Plugin> core::ops::DerefMut for TypedPluginGuard<'_, P> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.guard.typed_plugin_mut()
     }
@@ -97,7 +117,7 @@ impl PluginHandle {
         }))
     }
 
-    fn plugin_type_id(&self) -> std::any::TypeId {
+    fn plugin_type_id(&self) -> core::any::TypeId {
         (*self.plugin).type_id()
     }
 
@@ -106,13 +126,13 @@ impl PluginHandle {
     }
 
     fn typed_plugin<P: Plugin + 'static>(&self) -> &P {
-        (&*self.plugin as &dyn std::any::Any)
+        (self.plugin.as_ref() as &dyn core::any::Any)
             .downcast_ref::<P>()
             .expect("PluginHandle: plugin is not of the expected type")
     }
 
     pub fn typed_plugin_mut<P: Plugin + 'static>(&mut self) -> &mut P {
-        (&mut *self.plugin as &mut dyn std::any::Any)
+        (self.plugin.as_mut() as &mut dyn core::any::Any)
             .downcast_mut::<P>()
             .expect("PluginHandle: plugin is not of the expected type")
     }
@@ -121,7 +141,7 @@ impl PluginHandle {
 /// User-registered plugins.
 #[derive(Clone, Default)]
 pub(crate) struct Plugins {
-    plugins: HashMap<std::any::TypeId, Arc<Mutex<PluginHandle>>>,
+    plugins: HashMap<core::any::TypeId, Arc<Mutex<PluginHandle>>>,
     plugins_ordered: PluginsOrdered,
 }
 
@@ -140,31 +160,46 @@ impl PluginsOrdered {
         }
     }
 
-    pub fn on_begin_pass(&self, ctx: &Context) {
+    pub fn on_begin_pass(&self, ui: &mut Ui) {
         profiling::scope!("plugins", "on_begin_pass");
         self.for_each_dyn(|p| {
-            p.on_begin_pass(ctx);
+            p.on_begin_pass(ui);
         });
     }
 
-    pub fn on_end_pass(&self, ctx: &Context) {
+    pub fn on_end_pass(&self, ui: &mut Ui) {
         profiling::scope!("plugins", "on_end_pass");
         self.for_each_dyn(|p| {
-            p.on_end_pass(ctx);
+            p.on_end_pass(ui);
         });
     }
 
-    pub fn on_input(&self, input: &mut RawInput) {
+    pub fn on_input(&self, ctx: &Context, input: &mut RawInput) {
         profiling::scope!("plugins", "on_input");
         self.for_each_dyn(|plugin| {
-            plugin.input_hook(input);
+            plugin.input_hook(ctx, input);
         });
     }
 
-    pub fn on_output(&self, output: &mut FullOutput) {
+    pub fn on_output(&self, ctx: &Context, output: &mut FullOutput) {
         profiling::scope!("plugins", "on_output");
         self.for_each_dyn(|plugin| {
-            plugin.output_hook(output);
+            plugin.output_hook(ctx, output);
+        });
+    }
+
+    pub fn on_exit(&self, ctx: &Context) {
+        profiling::scope!("plugins", "on_exit");
+        self.for_each_dyn(|plugin| {
+            plugin.on_exit(ctx);
+        });
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn on_widget_under_pointer(&self, ctx: &Context, widget: &crate::WidgetRect) {
+        profiling::scope!("plugins", "on_widget_under_pointer");
+        self.for_each_dyn(|plugin| {
+            plugin.on_widget_under_pointer(ctx, widget);
         });
     }
 }
@@ -187,19 +222,19 @@ impl Plugins {
             return false;
         }
 
-        self.plugins.insert(type_id, handle.clone());
+        self.plugins.insert(type_id, Arc::clone(&handle));
         self.plugins_ordered.0.push(handle);
 
         true
     }
 
-    pub fn get(&self, type_id: std::any::TypeId) -> Option<Arc<Mutex<PluginHandle>>> {
+    pub fn get(&self, type_id: core::any::TypeId) -> Option<Arc<Mutex<PluginHandle>>> {
         self.plugins.get(&type_id).cloned()
     }
 }
 
 /// Generic event callback.
-pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
+pub type ContextCallback = Arc<dyn Fn(&mut Ui) + Send + Sync>;
 
 #[derive(Default)]
 pub(crate) struct CallbackPlugin {
@@ -212,21 +247,21 @@ impl Plugin for CallbackPlugin {
         "CallbackPlugins"
     }
 
-    fn on_begin_pass(&mut self, ctx: &Context) {
+    fn on_begin_pass(&mut self, ui: &mut Ui) {
         profiling::function_scope!();
 
         for (_debug_name, cb) in &self.on_begin_plugins {
-            profiling::scope!(*_debug_name);
-            (cb)(ctx);
+            profiling::scope!("on_begin_pass", *_debug_name);
+            (cb)(ui);
         }
     }
 
-    fn on_end_pass(&mut self, ctx: &Context) {
+    fn on_end_pass(&mut self, ui: &mut Ui) {
         profiling::function_scope!();
 
         for (_debug_name, cb) in &self.on_end_plugins {
-            profiling::scope!(*_debug_name);
-            (cb)(ctx);
+            profiling::scope!("on_end_pass", *_debug_name);
+            (cb)(ui);
         }
     }
 }

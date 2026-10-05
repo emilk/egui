@@ -12,31 +12,90 @@ Ui testing library for egui, based on [kittest](https://github.com/rerun-io/kitt
 use egui::accesskit::Toggled;
 use egui_kittest::{Harness, kittest::{Queryable, NodeT}};
 
-fn main() {
-    let mut checked = false;
-    let app = |ui: &mut egui::Ui| {
-        ui.checkbox(&mut checked, "Check me!");
-    };
+let mut checked = false;
+let app = |ui: &mut egui::Ui| {
+    ui.checkbox(&mut checked, "Check me!");
+};
 
-    let mut harness = Harness::new_ui(app);
+let mut harness = Harness::new_ui(app);
 
-    let checkbox = harness.get_by_label("Check me!");
-    assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::False));
-    checkbox.click();
+let checkbox = harness.get_by_label("Check me!");
+assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::False));
+checkbox.click();
 
-    harness.run();
+harness.run();
 
-    let checkbox = harness.get_by_label("Check me!");
-    assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::True));
+let checkbox = harness.get_by_label("Check me!");
+assert_eq!(checkbox.accesskit_node().toggled(), Some(Toggled::True));
 
-    // Shrink the window size to the smallest size possible
-    harness.fit_contents();
+// Shrink the window size to the smallest size possible
+harness.fit_contents();
 
-    // You can even render the ui and do image snapshot tests
-    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
-    harness.snapshot("readme_example");
-}
+// You can even render the ui and do image snapshot tests
+#[cfg(all(feature = "wgpu", feature = "snapshot"))]
+harness.snapshot("readme_example");
 ```
+
+## Configuration
+
+You can configure test settings via a `kittest.toml` file in your workspace root.
+All possible settings and their defaults:
+```toml
+# path to the snapshot directory
+output_path = "tests/snapshots"
+
+# maximum weighted squared YIQ color distance between two corresponding pixels
+# (a per-pixel color tolerance, applied to each pixel pair on its own)
+threshold = 0.6
+
+# how many pixels may exceed the `threshold` before the test fails
+# (an absolute pixel count, not a fraction of the image)
+max_failed_pixels = 0
+
+# how many steps past `max_steps` `Harness::run` keeps stepping to report how many steps the ui
+# would have needed to settle
+diagnostic_max_steps = 100
+
+[windows]
+threshold = 0.6
+max_failed_pixels = 0
+
+[macos]
+threshold = 0.6
+max_failed_pixels = 0
+
+[linux]
+threshold = 0.6
+max_failed_pixels = 0
+
+```
+
+Raise `max_failed_pixels` only very carefully: a high value (more than ~10) is enough to hide a
+real change, such as a moved separator, a shifted one-pixel border, or a small icon rendering
+incorrectly. Prefer the smallest value that makes the test pass, and re-check it whenever you
+update the snapshot.
+
+## Accessibility check
+
+Whenever the ui has settled (after `Harness::run` and friends) and before every snapshot, the
+harness checks that every input widget (button, checkbox, slider, text field, …) has an
+accessible name, and panics if one does not. A widget without a name cannot be
+found by `get_by_label`, nor by a screen reader. Give icon-only buttons an alt text, tie text
+fields to their label with `Response::labelled_by`, or add an `on_hover_text`.
+
+Turn the check off with `Harness::builder().with_accessibility_check(false)`, or run it by hand
+with `Harness::check_accessibility`.
+
+## Recording
+When enabling the `recording` feature, you can record tests to mp4s via these env vars:
+* `KITTEST_RECORD=1 cargo test` writes numbered MP4s to `tests/snapshots/recordings`
+* `KITTEST_RECORD=open cargo test` writes each recording to a temporary file and opens it
+
+Recording needs [`ffmpeg`](https://ffmpeg.org/) on the `PATH`. MP4 has no alpha channel, so
+transparent pixels turn black.
+
+The recorder is an `egui::Plugin` (`RecordingPlugin`), so you can also register it on any
+`egui::Context` yourself to record any egui app.
 
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.
@@ -72,15 +131,15 @@ You should add the following to your `.gitignore`:
   * …have a low resolution to avoid growth in repo size
   * …have a low comparison threshold to avoid the test passing despite unwanted differences (the default threshold should be fine for most usecases!)
 
-### What do do when CI / another computer produces a different image?
+### What to do when CI / another computer produces a different image?
 
 The default tolerance settings should be fine for almost all gui comparison tests.
 However, especially when you're using custom rendering, you may observe image differences with different setups leading to unexpected test failures.
 
-First check whether the difference is due to a change in enabled rendering features, potentially due to differences in hardware (/software renderer) capabilitites.
+First check whether the difference is due to a change in enabled rendering features, potentially due to differences in hardware (/software renderer) capabilities.
 Generally you should carefully enforce the same set of features for all test runs, but this may happen nonetheless.
 
-Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparison tolerance setting (`SnapshotOptions::threshold`, TODO([#5683](https://github.com/emilk/egui/issues/5683)): as well as number of pixels allowed to differ) for the specific test.
+Once you validated that the differences are miniscule and hard to avoid, you can try to _carefully_ adjust the comparison tolerances (`SnapshotOptions::threshold` and, as a last resort, `SnapshotOptions::max_failed_pixels`) for the specific test. See also TODO([#5683](https://github.com/emilk/egui/issues/5683)).
 
 ⚠️ **WARNING** ⚠️
 Picking too high tolerances may mean that you are missing actual test failures.
