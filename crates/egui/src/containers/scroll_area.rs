@@ -1216,9 +1216,10 @@ impl Prepared {
             && ui.ctx().dragged_id().is_none()
             || is_dragging_background;
 
-        let pointer_over_outer = ui.rect_contains_pointer(outer_rect) || is_dragging_background;
-
-        if scroll_source.mouse_wheel && ui.is_enabled() && pointer_over_outer {
+        if scroll_source.mouse_wheel
+            && ui.is_enabled()
+            && (ui.rect_contains_pointer(outer_rect) || is_dragging_background)
+        {
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && direction_enabled[0] != direction_enabled[1];
             for d in 0..2 {
