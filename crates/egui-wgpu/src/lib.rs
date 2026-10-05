@@ -353,11 +353,21 @@ pub struct WgpuConfiguration {
     pub reconfigure_lock: Option<std::sync::Arc<epaint::mutex::RwLock<()>>>,
 }
 
-#[test]
-fn wgpu_config_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `WgpuConfiguration` is `Send + Sync`.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+// On wasm this only holds with `fragile-send-sync-non-atomic-wasm` and without threads;
+// look at the feature flag for an explanation.
+#[cfg(any(
+    not(target_arch = "wasm32"),
+    all(
+        feature = "fragile-send-sync-non-atomic-wasm",
+        not(target_feature = "atomics")
+    ),
+))]
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<WgpuConfiguration>();
-}
+};
 
 impl core::fmt::Debug for WgpuConfiguration {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

@@ -170,6 +170,7 @@ impl Ui {
                 interact_rect: start_rect,
                 sense,
                 enabled: ui.enabled,
+                visible: !invisible && ui.is_visible(),
             },
             true,
             Default::default(),
@@ -309,6 +310,7 @@ impl Ui {
                 interact_rect: start_rect,
                 sense,
                 enabled: child_ui.enabled,
+                visible: child_ui.is_visible(),
             },
             true,
             Default::default(),
@@ -962,6 +964,7 @@ impl Ui {
                 interact_rect: self.clip_rect().intersect(rect),
                 sense,
                 enabled: self.enabled,
+                visible: self.is_visible(),
             },
             true,
             options,
@@ -1106,6 +1109,7 @@ impl Ui {
                 interact_rect: self.clip_rect().intersect(self.min_rect()),
                 sense: self.sense,
                 enabled: self.enabled,
+                visible: self.is_visible(),
             },
             false,
             Default::default(),
@@ -1480,7 +1484,7 @@ impl Ui {
     /// let (response, painter) = ui.allocate_painter(size, Sense::hover());
     /// let rect = response.rect;
     /// let c = rect.center();
-    /// let r = rect.width() / 2.0 - 1.0;
+    /// let r = rect.width() * 0.5 - 1.0;
     /// let color = Color32::from_gray(128);
     /// let stroke = Stroke::new(1.0, color);
     /// painter.circle_stroke(c, r, stroke);
@@ -3106,8 +3110,9 @@ fn register_rect(ui: &Ui, rect: Rect) {
 #[cfg(not(debug_assertions))]
 fn register_rect(_ui: &Ui, _rect: Rect) {}
 
-#[test]
-fn ui_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Ui` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Ui>();
-}
+};

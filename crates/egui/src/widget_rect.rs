@@ -49,6 +49,11 @@ pub struct WidgetRect {
 
     /// Is the widget enabled?
     pub enabled: bool,
+
+    /// Is the widget visible?
+    ///
+    /// Invisible widgets (see [`crate::Ui::is_visible`]) are not exposed to accessibility.
+    pub visible: bool,
 }
 
 impl WidgetRect {
@@ -61,6 +66,7 @@ impl WidgetRect {
             interact_rect,
             sense,
             enabled,
+            visible,
         } = self;
         Self {
             id,
@@ -70,6 +76,7 @@ impl WidgetRect {
             interact_rect: transform * interact_rect,
             sense,
             enabled,
+            visible,
         }
     }
 }
@@ -196,6 +203,7 @@ impl WidgetRects {
                 existing.interact_rect = widget_rect.interact_rect; // last wins
                 existing.sense |= widget_rect.sense;
                 existing.enabled |= widget_rect.enabled;
+                existing.visible |= widget_rect.visible;
 
                 if existing.layer_id == widget_rect.layer_id {
                     if move_to_top {

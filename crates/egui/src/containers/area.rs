@@ -567,6 +567,7 @@ impl Area {
                     interact_rect: state.rect().intersect(constrain_rect),
                     sense,
                     enabled,
+                    visible: !sizing_pass,
                 },
                 true,
                 Default::default(),
@@ -685,7 +686,7 @@ impl Prepared {
             && let Some(last_became_visible_at) = self.state.last_became_visible_at
         {
             let age =
-                ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
+                ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt * 0.5);
             let opacity =
                 crate::remap_clamp(age, 0.0..=ctx.global_style().animation_time, 0.0..=1.0);
             let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in

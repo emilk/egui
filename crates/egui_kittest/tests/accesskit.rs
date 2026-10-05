@@ -174,7 +174,10 @@ fn multiple_disabled_widgets() {
 
 #[test]
 fn window_children() {
-    let output = accesskit_output_single_egui_frame(|ui| {
+    let ctx = Context::default();
+    ctx.enable_accesskit();
+
+    let mut run_ui = |ui: &mut Ui| {
         let mut open = true;
         Window::new("test window")
             .open(&mut open)
@@ -182,7 +185,29 @@ fn window_children() {
             .show(ui.ctx(), |ui| {
                 let _ = ui.button("A button");
             });
-    });
+    };
+
+    // The first frame is an invisible sizing pass, which is not exposed to accessibility:
+    let mut output = ctx.run_ui(RawInput::default(), &mut run_ui);
+    output.textures_delta.clear(); // Don't panic on drop with unapplied deltas
+    let output = output
+        .platform_output
+        .accesskit_update
+        .expect("Missing accesskit update");
+    assert!(
+        !output
+            .nodes
+            .iter()
+            .any(|(_, node)| node.label() == Some("A button")),
+        "Invisible sizing pass should not be exposed to accessibility"
+    );
+
+    let mut output = ctx.run_ui(RawInput::default(), &mut run_ui);
+    output.textures_delta.clear();
+    let output = output
+        .platform_output
+        .accesskit_update
+        .expect("Missing accesskit update");
 
     let root = output.tree.as_ref().map(|tree| tree.root).unwrap();
 
@@ -690,4 +715,37 @@ fn area_with_a_role() {
     harness
         .get_by_role_and_label(Role::Alert, "Saved")
         .get_by_label("The file was saved");
+}
+
+/// `ScrollIntoView` on a sensed `Ui` uses its final rect, not the `Rect::NOTHING` it first registers with.
+#[test]
+fn sensed_ui_can_be_scrolled_into_view() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(400.0, 300.0))
+        .build_ui_state(
+            |ui, rect: &mut egui::Rect| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.allocate_space(egui::vec2(ui.available_width(), 1500.0));
+                    let response = ui
+                        .scope_builder(egui::UiBuilder::new().sense(egui::Sense::click()), |ui| {
+                            ui.label("Section");
+                        })
+                        .response;
+                    response
+                        .widget_info(|| egui::WidgetInfo::labeled(Role::Button, true, "Header"));
+                    *rect = response.rect;
+                });
+            },
+            egui::Rect::NOTHING,
+        );
+    harness.run();
+
+    harness.get_by_label("Header").scroll_to_me();
+    harness.run();
+
+    let rect = *harness.state();
+    assert!(
+        0.0 <= rect.min.y && rect.max.y <= 300.0,
+        "not scrolled into view: {rect:?}"
+    );
 }

@@ -674,13 +674,21 @@ impl<'t> TextEdit<'t> {
             atom_layout_style.frame = frame;
         } else {
             if let Some(margin) = margin {
-                atom_layout_style.frame.inner_margin = margin;
+                // Make room for the stroke inside the margin, like the theme does,
+                // so that the stroke width changing on focus doesn't cause a layout shift:
+                let stroke_width = atom_layout_style.frame.stroke.width;
+                atom_layout_style.frame.inner_margin = margin - Margin::from(stroke_width);
             }
             if let Some(background_color) = background_color {
                 atom_layout_style.frame.fill = background_color;
             }
         }
         let frame = atom_layout_style.frame;
+
+        // We need to shrink when clip_text, so that we don't exceed the available size
+        // and thus clip. We also need to shrink in multi line text edits, so text can
+        // wrap appropriately.
+        let should_shrink = clip_text || multiline;
 
         let mut get_galley = None;
         let inner_rect_id = IdSalt::new("text_edit_rect");
@@ -739,11 +747,6 @@ impl<'t> TextEdit<'t> {
 
                 get_galley = Some(galley);
             } else {
-                // We need to shrink when clip_text, so that we don't exceed the available size
-                // and thus clip. We also need to shrink in multi line text edits, so text can
-                // wrap appropriately.
-                let should_shrink = clip_text || multiline;
-
                 // We need a closure here, so we can calculate the galley based on the available
                 // width (after adding suffix and prefix), for correct wrapping in multi line text
                 // edits
@@ -799,7 +802,12 @@ impl<'t> TextEdit<'t> {
                 .fallback_text_color(prefix_suffix_color)
                 .id(id)
                 .min_size(Vec2::new(allocate_width, min_height.at_least(min_size.y)))
-                .max_width(allocate_width)
+                .max_width(if should_shrink {
+                    allocate_width
+                } else {
+                    // Expand to make all text visible:
+                    f32::INFINITY
+                })
                 .sense(sense)
                 .align2(align)
                 .wrap_mode(wrap_mode)

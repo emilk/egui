@@ -303,6 +303,15 @@ impl<'a> Image<'a> {
         }
     }
 
+    /// The id of the texture, if this image is from [`ImageSource::Texture`].
+    #[inline]
+    pub(crate) fn texture_id(&self) -> Option<epaint::TextureId> {
+        match &self.source {
+            ImageSource::Texture(texture) => Some(texture.id),
+            ImageSource::Uri(_) | ImageSource::Bytes { .. } => None,
+        }
+    }
+
     /// Returns the URI of the image.
     ///
     /// For animated images, returns the URI without the frame number.

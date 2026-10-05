@@ -148,6 +148,10 @@ bitflags::bitflags! {
 
         /// Should this container be closed?
         const CLOSE = 1<<12;
+
+        /// Was the widget visible?
+        /// If `false`, it is not exposed to accessibility.
+        const VISIBLE = 1<<13;
     }
 }
 
@@ -304,6 +308,15 @@ impl Response {
     #[inline(always)]
     pub fn enabled(&self) -> bool {
         self.flags.contains(Flags::ENABLED)
+    }
+
+    /// Was the widget visible?
+    /// If `false`, it is not exposed to accessibility.
+    ///
+    /// See also [`Ui::is_visible`].
+    #[inline(always)]
+    pub fn visible(&self) -> bool {
+        self.flags.contains(Flags::VISIBLE)
     }
 
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
@@ -882,6 +895,7 @@ impl Response {
                 interact_rect: self.interact_rect,
                 sense: self.sense | sense,
                 enabled: self.enabled(),
+                visible: self.flags.contains(Flags::VISIBLE),
             },
             true,
             Default::default(),

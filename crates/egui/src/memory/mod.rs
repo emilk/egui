@@ -934,6 +934,16 @@ impl Memory {
         }
     }
 
+    /// Stop offering keyboard focus for a specific widget.
+    #[inline(always)]
+    pub fn ignore_focus(&mut self, id: Id) {
+        let focus = self.focus_mut();
+        focus.focus_widgets_cache.remove(&id);
+        if focus.focused() == Some(id) {
+            focus.focused_widget = None;
+        }
+    }
+
     /// Move keyboard focus in a specific direction.
     pub fn move_focus(&mut self, direction: FocusDirection) {
         self.focus_mut().focus_direction = direction;
@@ -1406,11 +1416,12 @@ impl Areas {
 
 // ----------------------------------------------------------------------------
 
-#[test]
-fn memory_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Memory` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Memory>();
-}
+};
 
 // Regression test for https://github.com/emilk/egui/issues/2142.
 #[test]

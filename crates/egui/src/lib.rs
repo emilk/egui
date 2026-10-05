@@ -478,10 +478,10 @@ pub use self::{
         SizedAtomKind, SizedContainerAtom, SizedWidgetAtom, WidgetAtom, WidgetAtomResponse,
     },
     containers::{
-        Area, AreaState, CentralPanel, ClosableTag, CollapsingHeader, CollapsingResponse, ComboBox,
-        DragPanButtons, Frame, IconPainter, Modal, ModalResponse, Panel, PanelState, Popup,
-        PopupAnchor, PopupCloseBehavior, PopupKind, Resize, Scene, ScrollArea, SetOpenCommand,
-        Sides, Tooltip, Window, WindowDrag, collapsing_header, frame,
+        Aligned, Area, AreaState, CentralPanel, ClosableTag, CollapsingHeader, CollapsingResponse,
+        ComboBox, DragPanButtons, Frame, IconPainter, Modal, ModalResponse, Panel, PanelState,
+        Popup, PopupAnchor, PopupCloseBehavior, PopupKind, Resize, Scene, ScrollArea,
+        SetOpenCommand, Sides, Tooltip, Window, WindowDrag, collapsing_header, frame,
         menu::{self, MenuBar},
         modal, panel, scroll_area,
     },
@@ -490,9 +490,9 @@ pub use self::{
         Key, ScreenshotCallback,
         input::{
             DroppedFile, DroppedFileHandle, Event, EventFilter, HoveredFile, ImeEvent,
-            KeyboardShortcut, ModifierNames, Modifiers, MouseWheelUnit, NUM_POINTER_BUTTONS,
-            PointerButton, RawInput, SafeAreaInsets, TouchDeviceId, TouchId, TouchPhase,
-            ViewportEvent, ViewportInfo,
+            KeyboardShortcut, ModifierNames, Modifiers, MouseWheelSource, MouseWheelUnit,
+            NUM_POINTER_BUTTONS, PointerButton, RawInput, SafeAreaInsets, TouchDeviceId, TouchId,
+            TouchPhase, ViewportEvent, ViewportInfo,
         },
         output::{
             self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,

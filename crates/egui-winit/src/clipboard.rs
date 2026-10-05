@@ -28,8 +28,14 @@ pub struct Clipboard {
 }
 
 impl Clipboard {
-    /// Construct a new instance
-    pub fn new(_raw_display_handle: Option<RawDisplayHandle>) -> Self {
+    /// Construct a new instance.
+    ///
+    /// # Safety
+    ///
+    /// If `raw_display_handle` is `Some`, the display handle must remain valid for the
+    /// entire lifetime of the returned `Clipboard` instance.
+    #[expect(unsafe_code)]
+    pub unsafe fn new(_raw_display_handle: Option<RawDisplayHandle>) -> Self {
         Self {
             #[cfg(all(
                 not(any(target_os = "android", target_os = "ios")),
@@ -47,7 +53,8 @@ impl Clipboard {
                 ),
                 feature = "smithay-clipboard"
             ))]
-            smithay: init_smithay_clipboard(_raw_display_handle),
+            // SAFETY: The caller guarantees that the display handle remains valid.
+            smithay: unsafe { init_smithay_clipboard(_raw_display_handle) },
 
             clipboard: Default::default(),
         }
@@ -67,8 +74,11 @@ impl Clipboard {
         if let Some(clipboard) = &mut self.smithay {
             match clipboard.load() {
                 Ok(text) => return Some(text),
+                // Smithay uses NotFound when no supported text MIME type is offered.
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
                 Err(err) => {
-                    log::error!("smithay paste error: {err}");
+                    // Not fatal: we fall back to arboard below.
+                    log::debug!("smithay paste error: {err}");
                 }
             }
         }
@@ -218,6 +228,10 @@ fn init_arboard() -> Option<arboard::Clipboard> {
     }
 }
 
+/// # Safety
+///
+/// The display handle in `raw_display_handle` must remain valid for the
+/// lifetime of the returned `Clipboard`.
 #[cfg(all(
     any(
         target_os = "linux",
@@ -228,16 +242,15 @@ fn init_arboard() -> Option<arboard::Clipboard> {
     ),
     feature = "smithay-clipboard"
 ))]
-fn init_smithay_clipboard(
+#[expect(unsafe_code)]
+unsafe fn init_smithay_clipboard(
     raw_display_handle: Option<RawDisplayHandle>,
 ) -> Option<smithay_clipboard::Clipboard> {
-    #![expect(clippy::undocumented_unsafe_blocks)]
-
     profiling::function_scope!();
 
     if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
         log::trace!("Initializing smithay clipboard…");
-        #[expect(unsafe_code)]
+        // SAFETY: The caller guarantees that the display handle remains valid.
         Some(unsafe { smithay_clipboard::Clipboard::new(display.display.as_ptr()) })
     } else {
         #[cfg(feature = "wayland")]
