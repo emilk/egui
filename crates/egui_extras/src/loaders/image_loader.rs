@@ -1,11 +1,12 @@
 use ahash::HashMap;
+use core::{mem::size_of, task::Poll};
 use egui::{
     ColorImage, decode_animated_image_uri,
     load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
 };
 use image::ImageFormat;
-use std::{mem::size_of, path::Path, sync::Arc, task::Poll};
+use std::{path::Path, sync::Arc};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::thread;
@@ -146,7 +147,7 @@ impl ImageLoader for ImageCrateLoader {
                 .map(Arc::new)
                 .map_err(|err| err.to_string());
             log::trace!("finished loading {uri:?}");
-            cache_lock.insert(uri.into(), std::task::Poll::Ready(result.clone()));
+            cache_lock.insert(uri.into(), core::task::Poll::Ready(result.clone()));
             match result {
                 Ok(image) => Ok(ImagePoll::Ready { image }),
                 Err(err) => Err(LoadError::Loading(err)),

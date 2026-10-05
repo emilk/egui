@@ -52,7 +52,7 @@ links = ["webbrowser"]
 serde = ["egui/serde", "dep:serde"]
 
 ## Enables Wayland support.
-wayland = ["winit/wayland", "bytemuck"]
+wayland = ["winit/wayland", "bytemuck", "arboard?/wayland-data-control"]
 
 ## Enables compiling for x11.
 x11 = ["winit/x11", "bytemuck"]
@@ -78,6 +78,17 @@ document-features = { workspace = true, optional = true }
 
 serde = { workspace = true, optional = true }
 webbrowser = { workspace = true, optional = true }
+
+# TODO(emilk): remove these once we are on a winit with https://github.com/rust-windowing/winit/pull/4732
+[target.'cfg(target_os = "macos")'.dependencies]
+block2.workspace = true
+objc2.workspace = true
+objc2-app-kit = { workspace = true, default-features = false, features = [
+  "std",
+  "block2",
+  "NSEvent",
+  "NSResponder",
+] }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2.workspace = true
