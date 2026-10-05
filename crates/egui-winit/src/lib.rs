@@ -20,6 +20,10 @@ use egui::accesskit;
 use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
 pub use winit;
 
+// TODO(emilk): remove once we are on a winit with https://github.com/rust-windowing/winit/pull/4732
+#[cfg(target_os = "macos")]
+mod macos_scroll_momentum;
+
 pub mod clipboard;
 #[cfg(not(target_arch = "wasm32"))]
 mod dropped_file;
@@ -128,6 +132,10 @@ pub struct State {
     ime_rect_px: Option<egui::Rect>,
     old_ime_purpose: egui::IMEPurpose,
 
+    // TODO(emilk): remove once we are on a winit with https://github.com/rust-windowing/winit/pull/4732
+    #[cfg(target_os = "macos")]
+    scroll_momentum_monitor: Option<macos_scroll_momentum::ScrollMomentumMonitor>,
+
     /// Used by [`State::try_on_ime_processed_keyboard_input`] to track key
     /// release events that should be filtered out. See comments in that method
     /// for details.
@@ -178,6 +186,8 @@ impl State {
             allow_ime: false,
             ime_rect_px: None,
             old_ime_purpose: egui::IMEPurpose::Normal,
+            #[cfg(target_os = "macos")]
+            scroll_momentum_monitor: macos_scroll_momentum::ScrollMomentumMonitor::install(),
             #[cfg(target_os = "windows")]
             pressed_processed_physical_keys: HashSet::new(),
         };
@@ -577,6 +587,7 @@ impl State {
                     unit: egui::MouseWheelUnit::Point,
                     delta: Vec2::new(delta.x, delta.y) / pixels_per_point,
                     phase: to_egui_touch_phase(*phase),
+                    source: egui::MouseWheelSource::Trackpad,
                     modifiers: self.modifiers,
                 });
                 EventResponse {
@@ -974,10 +985,37 @@ impl State {
             };
             let phase = to_egui_touch_phase(phase);
             let modifiers = self.modifiers;
+
+            // winit doesn't tell us what is driving the scroll, and collapses the macOS
+            // momentum phase into the regular `TouchPhase`, so we detect that ourselves.
+            // TODO(emilk): use `WindowEvent::MouseWheel::source` once we are on a winit
+            // with https://github.com/rust-windowing/winit/pull/4732
+            let source = cfg_select! {
+                target_os = "macos" => {
+                    if self
+                        .scroll_momentum_monitor
+                        .as_ref()
+                        .is_some_and(|monitor| monitor.latest_scroll_event_is_momentum())
+                    {
+                        egui::MouseWheelSource::Momentum
+                    } else {
+                        // On macOS, only trackpads (and the Magic Mouse) report precise deltas:
+                        match unit {
+                            egui::MouseWheelUnit::Point => egui::MouseWheelSource::Trackpad,
+                            egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => {
+                                egui::MouseWheelSource::Wheel
+                            }
+                        }
+                    }
+                }
+                _ => egui::MouseWheelSource::Unknown,
+            };
+
             self.egui_input.events.push(egui::Event::MouseWheel {
                 unit,
                 delta,
                 phase,
+                source,
                 modifiers,
             });
         }
@@ -2207,6 +2245,37 @@ pub fn create_winit_window_attributes(
     if let Some(app_id) = _app_id {
         use winit::platform::wayland::WindowAttributesExtWayland as _;
         window_attributes = window_attributes.with_name(app_id, "");
+    }
+
+    // Consume the activation token our launcher handed us, so the first
+    // window actually gets the focus.
+    //
+    // A desktop entry with `StartupNotify=true` passes a token through
+    // `XDG_ACTIVATION_TOKEN` (Wayland) or `DESKTOP_STARTUP_ID` (X11), and
+    // winit can only apply it at window creation. eframe never read it, so
+    // under a compositor that enforces focus-stealing prevention the window
+    // opened unfocused and stayed that way: `ViewportCommand::Focus` is
+    // exactly the request such a compositor refuses, so nothing could
+    // recover it and the user had to click the window themselves.
+    //
+    // The variables are cleared once read, per the startup-notification
+    // spec: a token is single-use, and leaving it in the environment would
+    // have every later window — and every child process — replay it.
+    #[cfg(all(target_os = "linux", any(feature = "wayland", feature = "x11")))]
+    {
+        use winit::platform::startup_notify::{
+            WindowAttributesExtStartupNotify as _, reset_activation_token_env,
+        };
+        let token = std::env::var("XDG_ACTIVATION_TOKEN")
+            .or_else(|_| std::env::var("DESKTOP_STARTUP_ID"))
+            .ok()
+            .filter(|t| !t.is_empty());
+        if let Some(token) = token {
+            log::debug!("using the activation token from the environment to focus the window");
+            reset_activation_token_env();
+            window_attributes = window_attributes
+                .with_activation_token(winit::window::ActivationToken::from_raw(token));
+        }
     }
 
     #[cfg(all(feature = "x11", target_os = "linux"))]
