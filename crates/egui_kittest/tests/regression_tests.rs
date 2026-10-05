@@ -36,11 +36,14 @@ pub fn focus_should_skip_over_disabled_buttons() {
 
 #[test]
 pub fn arrow_navigation_should_skip_over_previously_disabled_buttons() {
-    let mut harness = Harness::new_ui_state(|ui, enabled| {
-        ui.checkbox(enabled, "Enable Button");
-        ui.add_enabled(*enabled, Button::new("Button"));
-        let _ = ui.button("Other Button");
-    }, false);
+    let mut harness = Harness::new_ui_state(
+        |ui, enabled| {
+            ui.checkbox(enabled, "Enable Button");
+            ui.add_enabled(*enabled, Button::new("Button"));
+            let _ = ui.button("Other Button");
+        },
+        false,
+    );
 
     harness.key_press(egui::Key::Tab);
     harness.run();
