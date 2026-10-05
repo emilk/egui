@@ -2814,8 +2814,14 @@ impl Ui {
     ///
     /// Returns the dropped item, if it was released this frame.
     ///
-    /// The given frame is used as-is when nothing is being dragged.
-    /// During a drag, its fill and stroke are replaced with the drop target visuals.
+    /// The margins, corner radius and shadow of the given frame are always used.
+    ///
+    /// When nothing is being dragged, the frame's own fill and stroke are kept,
+    /// unless the frame has no styling of its own (transparent fill and no visible stroke,
+    /// e.g. [`Frame::default`]), in which case the inactive widget style is used,
+    /// so the drop zone is still visible.
+    ///
+    /// During a drag, the fill and stroke are always replaced with the drop target visuals.
     #[doc(alias = "drag and drop")]
     pub fn dnd_drop_zone<Payload, R>(
         &mut self,
@@ -2833,7 +2839,10 @@ impl Ui {
         let inner = add_contents(&mut frame.content_ui);
         let response = frame.allocate_space(self);
 
-        if is_anything_being_dragged {
+        let has_own_styling =
+            frame.frame.fill != Color32::TRANSPARENT || !frame.frame.stroke.is_empty();
+
+        if is_anything_being_dragged || !has_own_styling {
             // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
             // `hovered` is always false when another widget is being dragged.
             let style = if can_accept_what_is_being_dragged && response.contains_pointer() {
@@ -2845,7 +2854,7 @@ impl Ui {
             let mut fill = style.bg_fill;
             let mut stroke = style.bg_stroke;
 
-            if !can_accept_what_is_being_dragged {
+            if is_anything_being_dragged && !can_accept_what_is_being_dragged {
                 // When dragging something else, show that it can't be dropped here:
                 fill = self.visuals().disable(fill);
                 stroke.color = self.visuals().disable(stroke.color);

@@ -65,13 +65,30 @@ fn custom_frame() -> Frame {
 
 #[test]
 fn idle_drop_zone_preserves_frame_and_contents() {
-    for frame in [Frame::NONE, custom_frame()] {
-        let plain = Context::default();
-        let drop_zone = Context::default();
+    let frame = custom_frame();
+    let plain = Context::default();
+    let drop_zone = Context::default();
+    for _ in 0..3 {
+        assert_eq!(
+            show(&plain, frame, false, vec![]),
+            show(&drop_zone, frame, true, vec![]),
+        );
+    }
+}
+
+#[test]
+fn idle_drop_zone_without_styling_uses_inactive_style() {
+    for frame in [Frame::NONE, Frame::default().inner_margin(4.0)] {
+        let ctx = Context::default();
         for _ in 0..3 {
-            assert_eq!(
-                show(&plain, frame, false, vec![]),
-                show(&drop_zone, frame, true, vec![]),
+            let output = show(&ctx, frame, true, vec![]);
+            let inactive = ctx.style_of(ctx.theme()).visuals.widgets.inactive;
+            let expected = frame.fill(inactive.bg_fill).stroke(inactive.bg_stroke);
+            assert!(
+                output
+                    .shapes
+                    .iter()
+                    .any(|s| s.shape == expected.paint(output.content))
             );
         }
     }
