@@ -899,7 +899,12 @@ impl WgpuWinitRunning<'_> {
 
         integration.report_frame_time(frame_timer.total_time_sec() - vsync_secs); // don't count auto-save time as part of regular frame time
 
-        integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
+        let window_for_autosave = if viewport_id == ViewportId::ROOT {
+            window.map(|window| window.as_ref())
+        } else {
+            None
+        };
+        integration.maybe_autosave(app.as_mut(), window_for_autosave);
 
         sleep_if_invisible_or_minimized(window.map(|window| window.as_ref()));
 

@@ -716,3 +716,36 @@ fn area_with_a_role() {
         .get_by_role_and_label(Role::Alert, "Saved")
         .get_by_label("The file was saved");
 }
+
+/// `ScrollIntoView` on a sensed `Ui` uses its final rect, not the `Rect::NOTHING` it first registers with.
+#[test]
+fn sensed_ui_can_be_scrolled_into_view() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(400.0, 300.0))
+        .build_ui_state(
+            |ui, rect: &mut egui::Rect| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.allocate_space(egui::vec2(ui.available_width(), 1500.0));
+                    let response = ui
+                        .scope_builder(egui::UiBuilder::new().sense(egui::Sense::click()), |ui| {
+                            ui.label("Section");
+                        })
+                        .response;
+                    response
+                        .widget_info(|| egui::WidgetInfo::labeled(Role::Button, true, "Header"));
+                    *rect = response.rect;
+                });
+            },
+            egui::Rect::NOTHING,
+        );
+    harness.run();
+
+    harness.get_by_label("Header").scroll_to_me();
+    harness.run();
+
+    let rect = *harness.state();
+    assert!(
+        0.0 <= rect.min.y && rect.max.y <= 300.0,
+        "not scrolled into view: {rect:?}"
+    );
+}
