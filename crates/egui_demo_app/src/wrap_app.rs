@@ -127,8 +127,8 @@ impl Anchor {
     }
 }
 
-impl std::fmt::Display for Anchor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Anchor {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mut name = format!("{self:?}");
         name.make_ascii_lowercase();
         f.write_str(&name)
@@ -226,13 +226,13 @@ impl WrapApp {
             ),
             #[cfg(feature = "easymark")]
             (
-                "🖹 EasyMark editor",
+                "📝 EasyMark editor",
                 Anchor::EasyMarkEditor,
                 &mut self.state.easy_mark_editor as &mut dyn DemoApp,
             ),
             #[cfg(feature = "http")]
             (
-                "⬇ HTTP",
+                "⬇️ HTTP",
                 Anchor::Http,
                 &mut self.state.http as &mut dyn DemoApp,
             ),
@@ -243,7 +243,7 @@ impl WrapApp {
             ),
             #[cfg(feature = "image_viewer")]
             (
-                "🖼 Image Viewer",
+                "🖼️ Image Viewer",
                 Anchor::ImageViewer,
                 &mut self.state.image_viewer as &mut dyn DemoApp,
             ),
@@ -428,7 +428,7 @@ impl WrapApp {
     fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame, cmd: &mut Command) {
         ui.add_space(8.0);
 
-        egui::widgets::global_theme_preference_switch(ui);
+        egui::widgets::global_theme_preference_buttons(ui);
 
         ui.separator();
 
@@ -473,8 +473,8 @@ impl WrapApp {
     }
 
     fn ui_file_drag_and_drop(&mut self, ctx: &egui::Context) {
+        use core::fmt::Write as _;
         use egui::{Align2, Color32, Id, LayerId, Order, TextStyle};
-        use std::fmt::Write as _;
 
         // Preview hovering files:
         if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
@@ -492,8 +492,10 @@ impl WrapApp {
                 text
             });
 
-            let painter =
-                ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
+            let painter = ctx.layer_painter(LayerId::new(
+                Order::Foreground,
+                Id::unique("file_drop_target"),
+            ));
 
             let content_rect = ctx.content_rect();
             painter.rect_filled(content_rect, 0.0, Color32::from_black_alpha(192));

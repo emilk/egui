@@ -25,7 +25,7 @@ pub fn is_invisible_or_minimized(window: &Window) -> bool {
 pub fn sleep_if_invisible_or_minimized(window: Option<&Window>) {
     if window.is_some_and(is_invisible_or_minimized) {
         profiling::scope!("minimized_sleep");
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        std::thread::sleep(core::time::Duration::from_millis(10));
     }
 }
 

@@ -104,8 +104,8 @@ impl EguiGlow {
 
     /// Paint the results of the last call to [`Self::run`].
     pub fn paint(&mut self, window: &winit::window::Window) {
-        let shapes = std::mem::take(&mut self.shapes);
-        let mut textures_delta = std::mem::take(&mut self.textures_delta);
+        let shapes = core::mem::take(&mut self.shapes);
+        let mut textures_delta = core::mem::take(&mut self.textures_delta);
 
         #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
         for (id, image_deltas) in textures_delta.set.drain() {

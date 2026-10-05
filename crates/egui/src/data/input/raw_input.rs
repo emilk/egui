@@ -95,7 +95,7 @@ impl Default for RawInput {
     fn default() -> Self {
         Self {
             viewport_id: ViewportId::ROOT,
-            viewports: std::iter::once((ViewportId::ROOT, Default::default())).collect(),
+            viewports: core::iter::once((ViewportId::ROOT, Default::default())).collect(),
             screen_rect: None,
             max_texture_side: None,
             time: None,
@@ -134,9 +134,9 @@ impl RawInput {
             max_texture_side: self.max_texture_side.take(),
             time: self.time,
             predicted_dt: self.predicted_dt,
-            events: std::mem::take(&mut self.events),
+            events: core::mem::take(&mut self.events),
             hovered_files: self.hovered_files.clone(),
-            dropped_files: std::mem::take(&mut self.dropped_files),
+            dropped_files: core::mem::take(&mut self.dropped_files),
             focused: self.focused,
             system_theme: self.system_theme,
         }

@@ -8,7 +8,8 @@
 #![expect(clippy::undocumented_unsafe_blocks)]
 #![expect(clippy::unwrap_used)]
 
-use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
+use core::{cell::RefCell, num::NonZeroU32};
+use std::{rc::Rc, sync::Arc, time::Instant};
 
 use egui_winit::ActionRequested;
 use glutin::{
@@ -152,7 +153,7 @@ impl Viewport {
             egui_winit::process_viewport_commands(
                 egui_ctx,
                 &mut self.info,
-                std::mem::take(&mut self.deferred_commands),
+                core::mem::take(&mut self.deferred_commands),
                 window,
                 &mut self.actions_requested,
             );
@@ -338,7 +339,7 @@ impl<'app> GlowWinitApp<'app> {
             log::warn!("set_cursor_hittest(false) failed: {err}");
         }
 
-        let app_creator = std::mem::take(&mut self.app_creator)
+        let app_creator = core::mem::take(&mut self.app_creator)
             .expect("Single-use AppCreator has unexpectedly already been taken");
 
         crate::maybe_attach_inspection_plugin(&integration.egui_ctx, Some(self.app_name.clone()));
@@ -444,6 +445,7 @@ impl WinitApp for GlowWinitApp<'_> {
         if let Some(mut running) = self.running.take() {
             profiling::function_scope!();
 
+            running.integration.egui_ctx.on_exit();
             running.integration.save(
                 running.app.as_mut(),
                 Some(&running.glutin.borrow().window(ViewportId::ROOT)),
@@ -611,7 +613,13 @@ impl GlowWinitRunning<'_> {
             };
             egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window, false);
 
-            let is_visible = viewport.info.visible().unwrap_or(true);
+            // A hidden window is not painted, since nothing would be shown — unless someone
+            // wants the pixels anyway, e.g. to screenshot an app that is in the background:
+            let is_visible = viewport.info.visible().unwrap_or(true)
+                || viewport
+                    .actions_requested
+                    .iter()
+                    .any(egui_winit::ActionRequested::wants_paint);
 
             let Some(egui_winit) = viewport.egui_winit.as_mut() else {
                 return Ok(EventResult::Wait);
@@ -802,18 +810,14 @@ impl GlowWinitRunning<'_> {
             );
 
             {
+                let mut screenshot_callbacks = Vec::new();
                 for action in viewport.actions_requested.drain(..) {
                     match action {
-                        ActionRequested::Screenshot(user_data) => {
-                            let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-                            egui_winit
-                                .egui_input_mut()
-                                .events
-                                .push(egui::Event::Screenshot {
-                                    viewport_id,
-                                    user_data,
-                                    image: screenshot.into(),
-                                });
+                        ActionRequested::Screenshot(callback) => {
+                            screenshot_callbacks.push(callback);
+                        }
+                        ActionRequested::PaintWhileHidden => {
+                            // Painting this frame is all it asked for.
                         }
                         ActionRequested::Cut => {
                             egui_winit.egui_input_mut().events.push(egui::Event::Cut);
@@ -830,8 +834,20 @@ impl GlowWinitRunning<'_> {
                                         .events
                                         .push(egui::Event::Paste(contents));
                                 }
+                            } else if let Some(image) = egui_winit.clipboard_image() {
+                                egui_winit
+                                    .egui_input_mut()
+                                    .events
+                                    .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
                             }
                         }
+                    }
+                }
+
+                if !screenshot_callbacks.is_empty() {
+                    let screenshot = Arc::new(painter.read_screen_rgba(screen_size_in_pixels));
+                    for callback in screenshot_callbacks {
+                        callback.complete(Arc::clone(&screenshot));
                     }
                 }
 
@@ -865,7 +881,10 @@ impl GlowWinitRunning<'_> {
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
 
-        integration.maybe_autosave(app.as_mut(), Some(&window));
+        integration.maybe_autosave(
+            app.as_mut(),
+            (viewport_id == ViewportId::ROOT).then_some(&window),
+        );
 
         sleep_if_invisible_or_minimized(Some(&window));
 
@@ -1093,9 +1112,10 @@ impl GlutinWindowContext {
             //
             // The justification for FallbackEgl over PreferEgl is at https://github.com/emilk/egui/pull/2526#issuecomment-1400229576 .
             .with_preference(glutin_winit::ApiPreference::FallbackEgl)
-            .with_window_attributes(Some(egui_winit::create_winit_window_attributes(
-                egui_ctx,
-                viewport_builder.clone(),
+            .with_window_attributes(Some(egui_winit::apply_monitor_to_window_attributes(
+                egui_winit::create_winit_window_attributes(egui_ctx, viewport_builder.clone()),
+                &viewport_builder,
+                event_loop,
             )));
 
         let (window, gl_config) = {
@@ -1261,17 +1281,40 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
-            let window_attributes = egui_winit::create_winit_window_attributes(
-                &self.egui_ctx,
-                viewport.builder.clone(),
+            let window_attributes = egui_winit::apply_monitor_to_window_attributes(
+                egui_winit::create_winit_window_attributes(
+                    &self.egui_ctx,
+                    viewport.builder.clone(),
+                ),
+                &viewport.builder,
+                event_loop,
             );
             if window_attributes.transparent()
                 && self.gl_config.supports_transparency() == Some(false)
+                && !cfg!(target_os = "windows")
             {
                 log::error!("Cannot create transparent window: the GL config does not support it");
             }
-            let window =
-                glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?;
+
+            let window = cfg_select! {
+                target_os = "windows" => {
+                    if viewport_id != ViewportId::ROOT && window_attributes.transparent() {
+                        // Preserve explicitly requested transparent child viewports on Windows.
+                        // Some GL paths report no transparency support although composition works.
+                        event_loop.create_window(window_attributes)?
+                    } else {
+                        glutin_winit::finalize_window(
+                            event_loop,
+                            window_attributes,
+                            &self.gl_config,
+                        )?
+                    }
+                }
+                _ => {
+                    // Keep the normal platform-specific finalization path elsewhere.
+                    glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?
+                }
+            };
             egui_winit::apply_viewport_builder_to_window(
                 &self.egui_ctx,
                 &window,
@@ -1408,7 +1451,7 @@ impl GlutinWindowContext {
         }
     }
 
-    fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
+    fn get_proc_address(&self, addr: &core::ffi::CStr) -> *const core::ffi::c_void {
         self.gl_config.display().get_proc_address(addr)
     }
 
@@ -1496,9 +1539,17 @@ fn initialize_or_update_viewport(
             .and_then(|vp| vp.builder.icon.clone());
     }
 
+    let root_transparent = viewports
+        .get(&ViewportId::ROOT)
+        .and_then(|viewport| viewport.builder.transparent);
+
     match viewports.entry(ids.this) {
         Entry::Vacant(entry) => {
             // New viewport:
+            if ids.this != ViewportId::ROOT && builder.transparent.is_none() {
+                // Child viewports inherit the root setting unless they explicitly override it.
+                builder.transparent = root_transparent;
+            }
             log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
             entry.insert(Viewport {
                 ids,
@@ -1719,7 +1770,7 @@ fn save_screenshot_and_exit(
     screen_size_in_pixels: [u32; 2],
 ) {
     assert!(
-        path.ends_with(".png"),
+        egui::load::has_extension(path, "png"),
         "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
     );
     let screenshot = painter.read_screen_rgba(screen_size_in_pixels);

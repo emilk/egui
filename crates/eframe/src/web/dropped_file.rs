@@ -1,12 +1,11 @@
-use std::{
-    future::Future,
-    path::{Path, PathBuf},
-    pin::Pin,
-};
+use core::{future::Future, pin::Pin};
+use std::path::{Path, PathBuf};
+
+use send_wrapper::SendWrapper;
 
 #[derive(Debug)]
 pub(crate) struct WebFile {
-    file: web_sys::File,
+    file: SendWrapper<web_sys::File>,
     // We store a `PathBuf` here so that we can hand out `Path`s
     // without allocating each time.
     path: PathBuf,
@@ -15,7 +14,10 @@ pub(crate) struct WebFile {
 impl From<web_sys::File> for WebFile {
     fn from(file: web_sys::File) -> Self {
         let path = file.name().into();
-        Self { file, path }
+        Self {
+            file: SendWrapper::new(file),
+            path,
+        }
     }
 }
 
@@ -25,7 +27,7 @@ impl egui::DroppedFile for WebFile {
     }
 
     fn bytes_async(&self) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, String>> + '_>> {
-        let file = self.file.clone();
+        let file = web_sys::File::clone(&self.file);
         Box::pin(async move {
             if file.size() > f64::from(u32::MAX) {
                 return Err(format!(
@@ -43,6 +45,6 @@ impl egui::DroppedFile for WebFile {
     }
 
     fn web_file(&self) -> Option<&web_sys::File> {
-        Some(&self.file)
+        Some(&*self.file)
     }
 }

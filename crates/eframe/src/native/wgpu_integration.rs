@@ -5,7 +5,8 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
+use core::{cell::RefCell, num::NonZeroU32};
+use std::{rc::Rc, sync::Arc, time::Instant};
 
 use egui_winit::ActionRequested;
 use parking_lot::Mutex;
@@ -309,7 +310,7 @@ impl<'app> WgpuWinitApp<'app> {
             egui_winit.init_accesskit(event_loop, &window, event_loop_proxy);
         }
 
-        let app_creator = std::mem::take(&mut self.app_creator)
+        let app_creator = core::mem::take(&mut self.app_creator)
             .expect("Single-use AppCreator has unexpectedly already been taken");
 
         crate::maybe_attach_inspection_plugin(&egui_ctx, Some(self.app_name.clone()));
@@ -582,6 +583,7 @@ impl WgpuWinitRunning<'_> {
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
+        self.integration.egui_ctx.on_exit();
         self.save();
 
         #[cfg(feature = "glow")]
@@ -668,7 +670,13 @@ impl WgpuWinitRunning<'_> {
             };
             egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);
 
-            let is_visible = viewport.info.visible().unwrap_or(true);
+            // A hidden window is not painted, since nothing would be shown — unless someone
+            // wants the pixels anyway, e.g. to screenshot an app that is in the background:
+            let is_visible = viewport.info.visible().unwrap_or(true)
+                || viewport
+                    .actions_requested
+                    .iter()
+                    .any(egui_winit::ActionRequested::wants_paint);
 
             {
                 profiling::scope!("set_window");
@@ -689,8 +697,6 @@ impl WgpuWinitRunning<'_> {
                 .iter()
                 .map(|(id, viewport)| (*id, viewport.info.clone()))
                 .collect();
-
-            painter.handle_screenshots(&mut raw_input.events);
 
             (viewport_ui_cb, raw_input, is_visible, show_ui)
         };
@@ -800,8 +806,8 @@ impl WgpuWinitRunning<'_> {
 
             let mut screenshot_commands = vec![];
             viewport.actions_requested.retain(|cmd| {
-                if let ActionRequested::Screenshot(info) = cmd {
-                    screenshot_commands.push(info.clone());
+                if let ActionRequested::Screenshot(callback) = cmd {
+                    screenshot_commands.push(callback.clone());
                     false
                 } else {
                     true
@@ -819,8 +825,9 @@ impl WgpuWinitRunning<'_> {
 
             for action in viewport.actions_requested.drain(..) {
                 match action {
-                    ActionRequested::Screenshot { .. } => {
-                        // already handled above
+                    ActionRequested::Screenshot { .. } | ActionRequested::PaintWhileHidden => {
+                        // Screenshots were handled above, and painting this frame is all that
+                        // `PaintWhileHidden` asked for.
                     }
                     ActionRequested::Cut => {
                         egui_winit.egui_input_mut().events.push(egui::Event::Cut);
@@ -837,6 +844,11 @@ impl WgpuWinitRunning<'_> {
                                     .events
                                     .push(egui::Event::Paste(contents));
                             }
+                        } else if let Some(image) = egui_winit.clipboard_image() {
+                            egui_winit
+                                .egui_input_mut()
+                                .events
+                                .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
                         }
                     }
                 }
@@ -871,7 +883,12 @@ impl WgpuWinitRunning<'_> {
 
         integration.report_frame_time(frame_timer.total_time_sec() - vsync_secs); // don't count auto-save time as part of regular frame time
 
-        integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
+        let window_for_autosave = if viewport_id == ViewportId::ROOT {
+            window.map(|window| window.as_ref())
+        } else {
+            None
+        };
+        integration.maybe_autosave(app.as_mut(), window_for_autosave);
 
         sleep_if_invisible_or_minimized(window.map(|window| window.as_ref()));
 
@@ -1040,7 +1057,7 @@ impl Viewport {
             egui_winit::process_viewport_commands(
                 egui_ctx,
                 &mut self.info,
-                std::mem::take(&mut self.deferred_commands),
+                core::mem::take(&mut self.deferred_commands),
                 window,
                 &mut self.actions_requested,
             );

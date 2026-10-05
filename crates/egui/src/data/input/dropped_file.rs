@@ -1,13 +1,13 @@
 use std::{path::Path, sync::Arc};
 
 #[cfg(target_arch = "wasm32")]
-use std::{future::Future, pin::Pin};
+use core::{future::Future, pin::Pin};
 
 /// A file dropped into egui.
 ///
 /// The integration owns the concrete file handle, letting egui remain independent of windowing
 /// backends and file APIs.
-pub trait DroppedFile: std::fmt::Debug {
+pub trait DroppedFile: core::fmt::Debug {
     /// The path of the dropped file.
     ///
     /// This is an absolute path on native platforms. On the web, it is a relative path containing
@@ -40,12 +40,7 @@ pub trait DroppedFile: std::fmt::Debug {
 }
 
 /// A shared reference to a dropped file.
-#[cfg(not(all(target_arch = "wasm32", target_feature = "atomics")))]
-pub type DroppedFileHandle = Arc<dyn DroppedFile + Send + Sync>;
-
-/// A shared reference to a dropped file.
 ///
-/// This is not necessarily `Send + Sync` when wasm threads are enabled, because
-/// [`web_sys::File`] is not thread-safe in that configuration.
-#[cfg(all(target_arch = "wasm32", target_feature = "atomics"))]
-pub type DroppedFileHandle = Arc<dyn DroppedFile>;
+/// With wasm threads, a `web_sys::File` isn't `Send + Sync`,
+/// so an integration has to wrap it, for instance with `send_wrapper::SendWrapper`.
+pub type DroppedFileHandle = Arc<dyn DroppedFile + Send + Sync>;

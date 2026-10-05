@@ -76,14 +76,14 @@ pub fn viewport_builder(
                 .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
             if 0.0 < monitor_size.width && 0.0 < monitor_size.height {
-                let x = (monitor_size.width - inner_size.x) / 2.0;
-                let y = (monitor_size.height - inner_size.y) / 2.0;
+                let x = (monitor_size.width - inner_size.x) * 0.5;
+                let y = (monitor_size.height - inner_size.y) * 0.5;
                 viewport_builder = viewport_builder.with_position([x, y]);
             }
         }
     }
 
-    match std::mem::take(&mut native_options.window_builder) {
+    match core::mem::take(&mut native_options.window_builder) {
         Some(hook) => hook(viewport_builder),
         None => viewport_builder,
     }
@@ -143,6 +143,35 @@ pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi
     ));
     #[cfg(not(feature = "persistence"))]
     None
+}
+
+// ----------------------------------------------------------------------------
+
+/// Stands in for the system font provider when the `system_fonts` feature is off.
+///
+/// It never finds a font, but tells you once why nothing was even looked for,
+/// so missing CJK/Arabic/emoji glyphs don't look like an egui bug.
+#[cfg(not(feature = "system_fonts"))]
+#[derive(Default)]
+struct MissingSystemFontsWarning {
+    warned: core::sync::atomic::AtomicBool,
+}
+
+#[cfg(not(feature = "system_fonts"))]
+impl egui::FontProvider for MissingSystemFontsWarning {
+    fn font_for(&self, request: &egui::FallbackRequest<'_>) -> Option<egui::FontInsert> {
+        use core::sync::atomic::Ordering::Relaxed;
+        if !self.warned.swap(true, Relaxed) {
+            log::info!(
+                "No font has {:?}. \
+                 Enable the `system_fonts` feature in `eframe`, \
+                 add a font with `egui::Context::add_font`, \
+                 or set `NativeOptions::system_font_fallback` to `false` to silence this.",
+                request.cluster
+            );
+        }
+        None
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -216,6 +245,13 @@ impl EpiIntegration {
                 .unwrap_or_else(|| app_name.to_owned()),
             Some(icon),
         );
+
+        if native_options.system_font_fallback {
+            egui_ctx.add_font_provider(cfg_select! {
+                feature = "system_fonts" => Arc::new(egui_system_fonts::SystemFontProvider::new()),
+                _ => Arc::new(MissingSystemFontsWarning::default()),
+            });
+        }
 
         Self {
             frame,
@@ -310,7 +346,7 @@ impl EpiIntegration {
         }
 
         self.pending_full_output.append(full_output);
-        std::mem::take(&mut self.pending_full_output)
+        core::mem::take(&mut self.pending_full_output)
     }
 
     /// Let the app tick its logic without showing any ui,
@@ -354,7 +390,7 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         new_input: egui::RawInput,
     ) -> egui::RawInput {
-        let mut raw_input = std::mem::take(&mut self.pending_raw_input);
+        let mut raw_input = core::mem::take(&mut self.pending_raw_input);
         raw_input.append(new_input); // The new input wins where they overlap
 
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
@@ -379,7 +415,7 @@ impl EpiIntegration {
 
     pub fn post_rendering(&mut self, window: &winit::window::Window) {
         profiling::function_scope!();
-        if std::mem::take(&mut self.is_first_frame) {
+        if core::mem::take(&mut self.is_first_frame) {
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
         }
