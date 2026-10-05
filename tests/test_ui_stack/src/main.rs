@@ -299,7 +299,7 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                     for node in stack.iter() {
                         body.row(20.0, |mut row| {
                             row.col(|ui| {
-                                if ui.label(format!("{:?}", node.id)).hovered() {
+                                if ui.label(format!("{:?}", node.unique_id)).hovered() {
                                     ui.debug_painter().debug_rect(
                                         node.max_rect,
                                         egui::Color32::GREEN,

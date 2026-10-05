@@ -41,9 +41,12 @@ pub fn focus_should_skip_over_disabled_drag_values() {
     let mut value_3: u16 = 3;
 
     let mut harness = Harness::new_ui(|ui| {
-        ui.add(egui::DragValue::new(&mut value_1));
-        ui.add_enabled(false, egui::DragValue::new(&mut value_2));
-        ui.add(egui::DragValue::new(&mut value_3));
+        ui.add(egui::DragValue::new(&mut value_1))
+            .on_hover_text("Value 1");
+        ui.add_enabled(false, egui::DragValue::new(&mut value_2))
+            .on_hover_text("Value 2");
+        ui.add(egui::DragValue::new(&mut value_3))
+            .on_hover_text("Value 3");
     });
 
     harness.key_press(egui::Key::Tab);
@@ -127,7 +130,8 @@ pub fn slider_should_move_with_fixed_decimals() {
     let mut harness = Harness::new_ui(|ui| {
         // Movement on arrow-key is relative to slider width; make the slider wide so the movement becomes small.
         ui.spacing_mut().slider_width = 2000.0;
-        ui.add(egui::Slider::new(&mut value, 0.1..=10.0).fixed_decimals(2));
+        ui.add(egui::Slider::new(&mut value, 0.1..=10.0).fixed_decimals(2))
+            .on_hover_text("Value");
     });
 
     harness.key_press(egui::Key::Tab);
@@ -784,7 +788,7 @@ pub fn textedit_hint_text_should_follow_text_alignment() {
                 egui::TextEdit::singleline(&mut input)
                     .hint_text("Hint")
                     .desired_width(200.0)
-                    .horizontal_align(egui::Align::Center),
+                    .align(egui::Align2::CENTER_TOP),
             );
         });
     harness.run();
@@ -825,7 +829,7 @@ pub fn textedit_hint_text_should_follow_text_alignment() {
 pub fn drag_value_should_not_revert_external_changes_while_focused() {
     let mut harness = Harness::new_ui_state(
         |ui, value: &mut i32| {
-            ui.add(egui::DragValue::new(value));
+            ui.add(egui::DragValue::new(value)).on_hover_text("Value");
         },
         0,
     );
@@ -855,7 +859,7 @@ pub fn drag_value_should_not_revert_external_changes_while_focused() {
 pub fn drag_value_should_keep_text_while_typing() {
     let mut harness = Harness::new_ui_state(
         |ui, value: &mut f64| {
-            ui.add(egui::DragValue::new(value));
+            ui.add(egui::DragValue::new(value)).on_hover_text("Value");
         },
         0.0,
     );
@@ -885,7 +889,7 @@ pub fn drag_value_should_keep_text_while_typing() {
 pub fn drag_value_should_keep_text_the_value_cannot_represent() {
     let mut harness = Harness::new_ui_state(
         |ui, value: &mut i32| {
-            ui.add(egui::DragValue::new(value));
+            ui.add(egui::DragValue::new(value)).on_hover_text("Value");
         },
         0,
     );
@@ -910,4 +914,100 @@ pub fn drag_value_should_keep_text_the_value_cannot_represent() {
     harness.run();
 
     assert_eq!(harness.state(), &12, "The text should have been \"12.59\"");
+}
+
+/// With `update_while_editing(false)` the value is only updated when the edit is done,
+/// so `changed()` must not report the keystrokes before that.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/7837>.
+#[test]
+pub fn drag_value_should_not_report_changes_while_typing_without_update_while_editing() {
+    let mut harness = Harness::new_ui_state(
+        |ui, (value, changes): &mut (f64, usize)| {
+            let response = ui
+                .add(egui::DragValue::new(value).update_while_editing(false))
+                .on_hover_text("Value");
+            if response.changed() {
+                *changes += 1;
+            }
+        },
+        (0.0, 0),
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    for character in "42".chars() {
+        harness
+            .get_by_role(accesskit::Role::SpinButton)
+            .type_text(&character.to_string());
+        harness.run();
+    }
+
+    assert_eq!(
+        harness.state(),
+        &(0.0, 0),
+        "Nothing should change while typing"
+    );
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert_eq!(
+        harness.state(),
+        &(42.0, 1),
+        "The value should change once, when done"
+    );
+}
+
+/// With the default `update_while_editing(true)` the value, and thus `changed()`,
+/// follows each keystroke.
+#[test]
+pub fn drag_value_should_report_changes_while_typing_with_update_while_editing() {
+    let mut harness = Harness::new_ui_state(
+        |ui, (value, changes): &mut (f64, usize)| {
+            let response = ui.add(egui::DragValue::new(value)).on_hover_text("Value");
+            if response.changed() {
+                *changes += 1;
+            }
+        },
+        (0.0, 0),
+    );
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    for character in "42".chars() {
+        harness
+            .get_by_role(accesskit::Role::SpinButton)
+            .type_text(&character.to_string());
+        harness.run();
+    }
+
+    assert_eq!(
+        harness.state(),
+        &(42.0, 2),
+        "Each keystroke changes the value"
+    );
+}
+
+/// <https://github.com/emilk/egui/issues/8620>
+#[test]
+pub fn scene_with_zero_rect_and_unbounded_zoom_should_not_produce_nan() {
+    let mut scene_rect = Rect::ZERO;
+    let mut harness = Harness::new_ui(|ui| {
+        egui::Scene::new()
+            .zoom_range(0.0..=f32::INFINITY)
+            .show(ui, &mut scene_rect, |ui| {
+                ui.label("Hello world");
+            });
+    });
+    harness.run();
+    drop(harness);
+    assert!(scene_rect.is_finite(), "scene_rect: {scene_rect:?}");
+    assert!(
+        scene_rect.size() != Vec2::ZERO,
+        "scene_rect: {scene_rect:?}"
+    );
 }

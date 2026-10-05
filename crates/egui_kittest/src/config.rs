@@ -1,5 +1,3 @@
-#![cfg(feature = "snapshot")]
-
 use std::io;
 use std::path::PathBuf;
 
@@ -30,6 +28,14 @@ pub struct Config {
     #[serde(alias = "failed_pixel_count_threshold")]
     max_failed_pixels: usize,
 
+    /// How far past `max_steps` [`crate::Harness::try_run`] keeps stepping to find out how many
+    /// steps the ui would have needed.
+    ///
+    /// This tells a budget which is slightly too tight apart from a ui that never stops repainting.
+    ///
+    /// Default is 100.
+    diagnostic_max_steps: u64,
+
     windows: OsConfig,
     mac: OsConfig,
     linux: OsConfig,
@@ -41,6 +47,7 @@ impl Default for Config {
             output_path: PathBuf::from("tests/snapshots"),
             threshold: 0.6,
             max_failed_pixels: 0,
+            diagnostic_max_steps: 100,
             windows: Default::default(),
             mac: Default::default(),
             linux: Default::default(),
@@ -144,16 +151,24 @@ impl Config {
         &INSTANCE
     }
 
+    /// How far past `max_steps` [`crate::Harness::try_run`] keeps stepping to find out how many
+    /// steps the ui would have needed.
+    ///
+    /// Default is 100.
+    pub fn diagnostic_max_steps(&self) -> u64 {
+        self.diagnostic_max_steps
+    }
+}
+
+#[cfg(feature = "snapshot")]
+impl Config {
     /// The output path for image snapshots.
     ///
     /// Default is "tests/snapshots".
     pub fn output_path(&self) -> PathBuf {
         self.output_path.clone()
     }
-}
 
-#[cfg(feature = "snapshot")]
-impl Config {
     pub fn os_threshold(&self) -> crate::OsThreshold<f32> {
         let fallback = self.threshold;
         crate::OsThreshold {
