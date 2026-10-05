@@ -1857,6 +1857,24 @@ impl Context {
         Self::layer_painter(self, LayerId::debug())
     }
 
+    /// Is the user holding down all modifier keys to inspect widgets on hover?
+    ///
+    /// See [`crate::style::DebugOptions::debug_on_hover_with_all_modifiers`].
+    ///
+    /// Always returns `false` unless compiled with `debug_assertions`.
+    pub fn is_inspecting_widgets(&self) -> bool {
+        cfg_select! {
+            debug_assertions => {
+                self.global_style().debug.debug_on_hover_with_all_modifiers
+                    && self.input(|i| i.modifiers.all())
+            }
+            _ => {
+                _ = self;
+                false
+            }
+        }
+    }
+
     /// Print this text next to the cursor at the end of the pass.
     ///
     /// If you call this multiple times, the text will be appended.
