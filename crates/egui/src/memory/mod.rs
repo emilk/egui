@@ -934,6 +934,16 @@ impl Memory {
         }
     }
 
+    /// Stop offering keyboard focus for a specific widget.
+    #[inline(always)]
+    pub fn ignore_focus(&mut self, id: Id) {
+        let focus = self.focus_mut();
+        focus.focus_widgets_cache.remove(&id);
+        if focus.focused() == Some(id) {
+            focus.focused_widget = None;
+        }
+    }
+
     /// Move keyboard focus in a specific direction.
     pub fn move_focus(&mut self, direction: FocusDirection) {
         self.focus_mut().focus_direction = direction;
@@ -1237,7 +1247,20 @@ impl Areas {
         }
     }
 
-    pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::AreaState) {
+    /// Set the state of the area of the given layer for this pass.
+    ///
+    /// [`crate::Area`] does this for you. Call it yourself for a layer you show without an
+    /// [`crate::Area`] (e.g. with [`crate::UiBuilder::layer_id`]) that should still be found by
+    /// [`Self::layer_id_at`], so that it gets the hover and the scroll wheel over its rectangle
+    /// instead of the layers behind it.
+    ///
+    /// The rectangle is [`crate::AreaState::rect`], in the coordinates of the layer
+    /// (before any [`crate::Context::set_transform_layer`]).
+    /// If [`crate::AreaState::interactable`] is `false`, the pointer goes through the layer.
+    ///
+    /// Call this every pass the layer is shown.
+    /// Once you stop, the layer is still found for one more pass, like an [`crate::Area`] that is no longer shown.
+    pub fn set_state(&mut self, layer_id: LayerId, state: area::AreaState) {
         self.visible_areas_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
         if !self.order.contains(&layer_id) {
@@ -1406,11 +1429,12 @@ impl Areas {
 
 // ----------------------------------------------------------------------------
 
-#[test]
-fn memory_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Memory` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Memory>();
-}
+};
 
 // Regression test for https://github.com/emilk/egui/issues/2142.
 #[test]
@@ -1502,4 +1526,46 @@ fn order_map_total_ordering() {
             );
         }
     }
+}
+
+#[test]
+fn set_state_makes_layer_hit_testable() {
+    let ctx = crate::Context::default();
+    let layer_id = LayerId::new(Order::Foreground, Id::unique("layer"));
+    let rect = Rect::from_min_size(crate::pos2(10.0, 20.0), vec2(100.0, 50.0));
+    let outside = crate::pos2(200.0, 200.0);
+
+    let run_pass = |register: bool| {
+        let mut found = (None, None);
+        let output = ctx.run_ui(Default::default(), |ui| {
+            if register {
+                ui.memory_mut(|mem| {
+                    mem.areas_mut().set_state(
+                        layer_id,
+                        area::AreaState {
+                            pivot_pos: Some(rect.min),
+                            size: Some(rect.size()),
+                            ..Default::default()
+                        },
+                    );
+                });
+            }
+            found = (
+                ui.ctx().layer_id_at(rect.center()),
+                ui.ctx().layer_id_at(outside),
+            );
+        });
+        output.drop_without_applying_deltas();
+        found
+    };
+
+    let (inside, outside) = run_pass(true);
+    assert_eq!(inside, Some(layer_id), "found over its rect");
+    assert_ne!(outside, Some(layer_id), "not found outside of its rect");
+
+    let (inside, _) = run_pass(false);
+    assert_eq!(inside, Some(layer_id), "still found the pass after");
+
+    let (inside, _) = run_pass(false);
+    assert_ne!(inside, Some(layer_id), "gone once no longer registered");
 }

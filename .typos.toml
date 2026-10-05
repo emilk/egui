@@ -2,6 +2,12 @@
 # install:  cargo install typos-cli
 # run:      typos
 
+# Case-sensitive, and checked before the word list below,
+# which would otherwise "correct" these to the American spellings:
+[default.extend-identifiers]
+DocEpilogue = "DocEpilogue" # accesskit::Role::DocEpilogue
+DocPrologue = "DocPrologue" # accesskit::Role::DocPrologue
+
 [default.extend-words]
 ime = "ime" # Input Method Editor
 abou = "abou" # part of @AmmarAbouZor username

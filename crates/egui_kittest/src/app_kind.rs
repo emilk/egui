@@ -20,7 +20,7 @@ pub(crate) struct UiRunOutput {
     /// The response of the scope wrapping the ui closure.
     pub response: egui::Response,
 
-    /// The [`egui::Ui::id`] of the `Ui` passed to the ui closure.
+    /// The [`egui::Ui::scope_id`] of the `Ui` passed to the ui closure.
     pub ui_id: egui::Id,
 }
 
@@ -76,7 +76,7 @@ impl<State> AppKind<'_, State> {
                             "run_ui should only be called with AppKind::Ui or AppKind::UiState"
                         ),
                     }
-                    ui.id()
+                    ui.scope_id()
                 })
                 .inner
         });
