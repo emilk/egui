@@ -1367,6 +1367,7 @@ dependencies = [
  "wayland-cursor",
  "web-time",
  "webbrowser",
+ "windows-sys 0.61.2",
  "winit",
 ]
 
