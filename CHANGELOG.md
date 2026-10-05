@@ -27,9 +27,28 @@ To enable this, the integration has to use one of two APIs:
 * `Context::add_font_provider(Arc<dyn FontProvider>)`: lets egui find and load whole fonts at runtime. Native `eframe` uses this to list system fonts with [`fontique`](https://crates.io/crates/fontique) [#8512](https://github.com/emilk/egui/pull/8512).
 
 #### Experimental theme customizations
-This release adds a theme plugin system [#8153](https://github.com/emilk/egui/pull/8153).
+This release adds a theme plugin system [#8153](https://github.com/emilk/egui/pull/8153). Enable the new `experimental` feature flag, and there will be a
+new `StyleProvider` trait, which can be used to customize visuals for a widget based on the provided classes. 
+```rust
+/// Implement the trait for each Widget you'd like to customize
+impl StyleProvider<ButtonStyle> for MyTheme {
+  fn style(&mut self, args: &StyleArgs<'_>) -> ButtonStyle {
+    // You could construct ButtonStyle from scratch, or extend eguis built in style:
+    let mut style: ButtonStyle = DefaultStyle.style(args);
+    if args.has_class("primary") {
+      style.atom_layout.frame.fill = hex_color!("#FF0000");
+    }
+    style
+  }
+}
 
-TODO: add more details here
+/// Register all your custom style providers
+fn init(ctx: &Context) {
+  ctx.add_widget_theme::<ButtonStyle>(MyTheme);
+  ctx.add_widget_theme::<CheckboxStyle>(MyTheme);
+  // ...
+}
+```
 
 #### Improved accessibility
 * Better popup, menu, modal and panel trees [#8581](https://github.com/emilk/egui/pull/8581).
