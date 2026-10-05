@@ -268,6 +268,8 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             .map(|(window_id, _)| *window_id)
             .collect();
         for window_id in overdue_window_ids {
+            // `handle_event_result` re-enters `check_redraw_requests`, which may already
+            // have handled this window, so only run it if the deadline is still there:
             if self.windows_redraw_deadlines.remove(&window_id).is_some() {
                 log::trace!("RedrawRequested is overdue for {window_id:?}: running logic only");
                 let event_result = self.winit_app.run_logic(event_loop, window_id);

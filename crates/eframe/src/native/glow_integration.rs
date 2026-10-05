@@ -879,8 +879,10 @@ impl GlowWinitRunning<'_> {
                     )
                 })?;
 
-                // On Wayland this makes winit wait for the compositor's frame callback before
-                // the next `RedrawRequested`, so we don't block in a vsync swap while hidden:
+                // On Wayland this makes winit hold back the next `RedrawRequested` until the
+                // compositor sends a frame callback. That is our frame pacing there, since we
+                // swap with interval 0 on Wayland (see `GlutinWindowContext::new`).
+                // egui-wgpu does the same. A no-op on other platforms.
                 window.pre_present_notify();
                 gl_surface.swap_buffers(context)?;
                 frame_timer.resume();
@@ -1096,6 +1098,7 @@ impl GlutinWindowContext {
         // On Wayland, winit paces `RedrawRequested` by the compositor's frame callbacks
         // (see `pre_present_notify`), which is what vsync means there. A blocking swap would add
         // nothing but a way to hang: a compositor may never present a hidden window's buffer.
+        // See <https://github.com/emilk/egui/issues/5136>.
         let is_wayland = {
             use raw_window_handle::{HasDisplayHandle as _, RawDisplayHandle};
             event_loop
