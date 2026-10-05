@@ -45,7 +45,7 @@ impl crate::View for SceneDemo {
         });
         ui.separator();
 
-        ui.label(format!("Scene rect: {:#?}", &mut self.scene_rect));
+        ui.label(format!("Scene rect: {:#?}", self.scene_rect));
 
         ui.separator();
 

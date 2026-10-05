@@ -1,10 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
+use core::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use eframe::egui;
 
@@ -36,7 +34,7 @@ struct MyApp {
 
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.label("Hello from the root viewport");
 
             ui.checkbox(
@@ -72,7 +70,7 @@ impl eframe::App for MyApp {
                             "This viewport is embedded in the parent window, and cannot be moved outside of it.",
                         );
                     } else {
-                        egui::CentralPanel::default().show_inside(ui, |ui| {
+                        egui::CentralPanel::default().show(ui, |ui| {
                             ui.label("Hello from immediate viewport");
 
                             if ui.input(|i| i.viewport().close_requested()) {
@@ -98,7 +96,7 @@ impl eframe::App for MyApp {
                             "This viewport is embedded in the parent window, and cannot be moved outside of it.",
                         );
                     } else {
-                        egui::CentralPanel::default().show_inside(ui, |ui| {
+                        egui::CentralPanel::default().show(ui, |ui| {
                             ui.label("Hello from deferred viewport");
 
                             if ui.input(|i| i.viewport().close_requested()) {

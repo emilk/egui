@@ -2,7 +2,7 @@
 
 // ----------------------------------------------------------------------------
 
-const DEADLOCK_DURATION: std::time::Duration = std::time::Duration::from_secs(10);
+const DEADLOCK_DURATION: core::time::Duration = core::time::Duration::from_secs(10);
 
 /// Provides interior mutability.
 ///
@@ -128,7 +128,7 @@ mod tests {
     #![expect(clippy::disallowed_methods)] // Ok for tests
 
     use crate::mutex::Mutex;
-    use std::time::Duration;
+    use core::time::Duration;
 
     #[test]
     fn lock_two_different_mutexes_single_thread() {
@@ -161,7 +161,7 @@ mod tests_rwlock {
     #![expect(clippy::disallowed_methods)] // Ok for tests
 
     use crate::mutex::RwLock;
-    use std::time::Duration;
+    use core::time::Duration;
 
     #[test]
     fn lock_two_different_rwlocks_single_thread() {

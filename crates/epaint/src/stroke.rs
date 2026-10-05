@@ -1,4 +1,5 @@
-use std::{fmt::Debug, sync::Arc};
+use core::fmt::Debug;
+use std::sync::Arc;
 
 use emath::GuiRounding as _;
 
@@ -22,9 +23,9 @@ impl Stroke {
     };
 
     #[inline]
-    pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {
+    pub fn new(width: f32, color: impl Into<Color32>) -> Self {
         Self {
-            width: width.into(),
+            width,
             color: color.into(),
         }
     }
@@ -86,9 +87,9 @@ where
     }
 }
 
-impl std::hash::Hash for Stroke {
+impl core::hash::Hash for Stroke {
     #[inline(always)]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         let Self { width, color } = *self;
         emath::OrderedFloat(width).hash(state);
         color.hash(state);
@@ -136,9 +137,9 @@ impl PathStroke {
     };
 
     #[inline]
-    pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {
+    pub fn new(width: f32, color: impl Into<Color32>) -> Self {
         Self {
-            width: width.into(),
+            width,
             color: ColorMode::Solid(color.into()),
             kind: StrokeKind::Middle,
         }
@@ -149,11 +150,11 @@ impl PathStroke {
     /// The bounding box passed to the callback will have a margin of [`TessellationOptions::feathering_size_in_pixels`](`crate::tessellator::TessellationOptions::feathering_size_in_pixels`)
     #[inline]
     pub fn new_uv(
-        width: impl Into<f32>,
+        width: f32,
         callback: impl Fn(Rect, Pos2) -> Color32 + Send + Sync + 'static,
     ) -> Self {
         Self {
-            width: width.into(),
+            width,
             color: ColorMode::UV(Arc::new(callback)),
             kind: StrokeKind::Middle,
         }

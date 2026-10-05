@@ -66,7 +66,7 @@ impl MyApp {
 
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, content);
+        egui::CentralPanel::default().show(ui, content);
     }
 }
 

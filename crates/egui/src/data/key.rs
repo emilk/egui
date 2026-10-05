@@ -188,6 +188,44 @@ pub enum Key {
     /// Android sends this key on Back button press.
     /// Does not work on Web.
     BrowserBack,
+
+    // ----------------------------------------------
+    // Modifier keys (exposed as distinct left/right variants so that
+    // games and input-capture UIs can bind them independently). egui's
+    // `Modifiers` struct still collapses both sides for the common case
+    // (e.g. "Ctrl+C"); these variants are emitted only as physical
+    // `Event::Key` presses.
+    /// Left Shift key.
+    ShiftLeft,
+
+    /// Right Shift key.
+    ShiftRight,
+
+    /// Left Control key.
+    ControlLeft,
+
+    /// Right Control key.
+    ControlRight,
+
+    /// Left Alt / Option key.
+    AltLeft,
+
+    /// Right Alt / `AltGr` / Option key.
+    AltRight,
+
+    /// Left Super / Meta / Command / Windows key.
+    SuperLeft,
+
+    /// Right Super / Meta / Command / Windows key.
+    SuperRight,
+
+    // ----------------------------------------------
+    // International keys — physical positions that only exist on
+    // non-US keyboards.
+    /// ISO 102nd key: physically located between the left Shift and Z
+    /// on ISO layouts. On French AZERTY it produces `<>|`; on UK
+    /// QWERTY a secondary `\` / `|`. Missing from US ANSI keyboards.
+    IntlBackslash,
     // When adding keys, remember to also update:
     // * crates/egui-winit/src/lib.rs
     // * Key::ALL
@@ -314,6 +352,17 @@ impl Key {
         Self::F35,
         // Navigation keys:
         Self::BrowserBack,
+        // Modifier keys (physical L/R):
+        Self::ShiftLeft,
+        Self::ShiftRight,
+        Self::ControlLeft,
+        Self::ControlRight,
+        Self::AltLeft,
+        Self::AltRight,
+        Self::SuperLeft,
+        Self::SuperRight,
+        // International keys:
+        Self::IntlBackslash,
     ];
 
     /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
@@ -335,7 +384,7 @@ impl Key {
             "Escape" | "Esc" => Self::Escape,
             "Tab" => Self::Tab,
             "Backspace" => Self::Backspace,
-            "Enter" | "Return" => Self::Enter,
+            "Enter" | "Return" | "NumpadEnter" => Self::Enter,
 
             "Help" | "Insert" => Self::Insert,
             "Delete" => Self::Delete,
@@ -350,19 +399,19 @@ impl Key {
 
             " " | "Space" => Self::Space,
             ":" | "Colon" => Self::Colon,
-            "," | "Comma" => Self::Comma,
-            "-" | "−" | "Minus" => Self::Minus,
-            "." | "Period" => Self::Period,
-            "+" | "Plus" => Self::Plus,
+            "," | "Comma" | "NumpadComma" => Self::Comma,
+            "-" | "−" | "Minus" | "NumpadSubtract" => Self::Minus,
+            "." | "Period" | "NumpadDecimal" => Self::Period,
+            "+" | "Plus" | "NumpadAdd" => Self::Plus,
             "=" | "Equal" | "Equals" | "NumpadEqual" => Self::Equals,
             ";" | "Semicolon" => Self::Semicolon,
             "\\" | "Backslash" => Self::Backslash,
-            "/" | "Slash" => Self::Slash,
+            "/" | "Slash" | "NumpadDivide" => Self::Slash,
             "|" | "Pipe" => Self::Pipe,
             "?" | "Questionmark" => Self::Questionmark,
             "!" | "Exclamationmark" => Self::Exclamationmark,
-            "[" | "OpenBracket" => Self::OpenBracket,
-            "]" | "CloseBracket" => Self::CloseBracket,
+            "[" | "OpenBracket" | "BracketLeft" => Self::OpenBracket,
+            "]" | "CloseBracket" | "BracketRight" => Self::CloseBracket,
             "{" | "OpenCurlyBracket" => Self::OpenCurlyBracket,
             "}" | "CloseCurlyBracket" => Self::CloseCurlyBracket,
             "`" | "Backtick" | "Backquote" | "Grave" => Self::Backtick,
@@ -379,32 +428,32 @@ impl Key {
             "8" | "Digit8" | "Numpad8" => Self::Num8,
             "9" | "Digit9" | "Numpad9" => Self::Num9,
 
-            "a" | "A" => Self::A,
-            "b" | "B" => Self::B,
-            "c" | "C" => Self::C,
-            "d" | "D" => Self::D,
-            "e" | "E" => Self::E,
-            "f" | "F" => Self::F,
-            "g" | "G" => Self::G,
-            "h" | "H" => Self::H,
-            "i" | "I" => Self::I,
-            "j" | "J" => Self::J,
-            "k" | "K" => Self::K,
-            "l" | "L" => Self::L,
-            "m" | "M" => Self::M,
-            "n" | "N" => Self::N,
-            "o" | "O" => Self::O,
-            "p" | "P" => Self::P,
-            "q" | "Q" => Self::Q,
-            "r" | "R" => Self::R,
-            "s" | "S" => Self::S,
-            "t" | "T" => Self::T,
-            "u" | "U" => Self::U,
-            "v" | "V" => Self::V,
-            "w" | "W" => Self::W,
-            "x" | "X" => Self::X,
-            "y" | "Y" => Self::Y,
-            "z" | "Z" => Self::Z,
+            "a" | "A" | "KeyA" => Self::A,
+            "b" | "B" | "KeyB" => Self::B,
+            "c" | "C" | "KeyC" => Self::C,
+            "d" | "D" | "KeyD" => Self::D,
+            "e" | "E" | "KeyE" => Self::E,
+            "f" | "F" | "KeyF" => Self::F,
+            "g" | "G" | "KeyG" => Self::G,
+            "h" | "H" | "KeyH" => Self::H,
+            "i" | "I" | "KeyI" => Self::I,
+            "j" | "J" | "KeyJ" => Self::J,
+            "k" | "K" | "KeyK" => Self::K,
+            "l" | "L" | "KeyL" => Self::L,
+            "m" | "M" | "KeyM" => Self::M,
+            "n" | "N" | "KeyN" => Self::N,
+            "o" | "O" | "KeyO" => Self::O,
+            "p" | "P" | "KeyP" => Self::P,
+            "q" | "Q" | "KeyQ" => Self::Q,
+            "r" | "R" | "KeyR" => Self::R,
+            "s" | "S" | "KeyS" => Self::S,
+            "t" | "T" | "KeyT" => Self::T,
+            "u" | "U" | "KeyU" => Self::U,
+            "v" | "V" | "KeyV" => Self::V,
+            "w" | "W" | "KeyW" => Self::W,
+            "x" | "X" | "KeyX" => Self::X,
+            "y" | "Y" | "KeyY" => Self::Y,
+            "z" | "Z" | "KeyZ" => Self::Z,
 
             "F1" => Self::F1,
             "F2" => Self::F2,
@@ -443,6 +492,18 @@ impl Key {
             "F35" => Self::F35,
 
             "BrowserBack" => Self::BrowserBack,
+
+            "ShiftLeft" => Self::ShiftLeft,
+            "ShiftRight" => Self::ShiftRight,
+            "ControlLeft" => Self::ControlLeft,
+            "ControlRight" => Self::ControlRight,
+            "AltLeft" => Self::AltLeft,
+            "AltRight" => Self::AltRight,
+
+            "SuperLeft" | "MetaLeft" | "OSLeft" => Self::SuperLeft,
+            "SuperRight" | "MetaRight" | "OSRight" => Self::SuperRight,
+
+            "IntlBackslash" => Self::IntlBackslash,
 
             _ => return None,
         })
@@ -599,6 +660,17 @@ impl Key {
             Self::F35 => "F35",
 
             Self::BrowserBack => "BrowserBack",
+
+            Self::ShiftLeft => "ShiftLeft",
+            Self::ShiftRight => "ShiftRight",
+            Self::ControlLeft => "ControlLeft",
+            Self::ControlRight => "ControlRight",
+            Self::AltLeft => "AltLeft",
+            Self::AltRight => "AltRight",
+            Self::SuperLeft => "SuperLeft",
+            Self::SuperRight => "SuperRight",
+
+            Self::IntlBackslash => "IntlBackslash",
         }
     }
 }
@@ -607,7 +679,7 @@ impl Key {
 fn test_key_from_name() {
     assert_eq!(
         Key::ALL.len(),
-        Key::BrowserBack as usize + 1,
+        Key::IntlBackslash as usize + 1,
         "Some keys are missing in Key::ALL"
     );
 
