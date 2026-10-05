@@ -1,6 +1,6 @@
 use egui::containers::menu::{MenuBar, MenuConfig, SubMenuButton};
 use egui::{PopupCloseBehavior, Ui, include_image};
-use egui_kittest::{Harness, SnapshotResults};
+use egui_kittest::Harness;
 use kittest::Queryable as _;
 
 struct TestMenu {
@@ -160,11 +160,12 @@ fn clicking_submenu_button_should_never_close_menu() {
     assert!(harness.query_by_label("Button in Submenu B").is_none());
 }
 
+#[cfg(feature = "snapshot")]
 #[test]
 fn menu_snapshots() {
     let mut harness = TestMenu::new(MenuConfig::new()).into_harness();
 
-    let mut results = SnapshotResults::new();
+    let mut results = egui_kittest::SnapshotResults::new();
 
     harness.get_by_label("Menu A").hover();
     harness.run();
@@ -183,4 +184,58 @@ fn menu_snapshots() {
     harness.get_by_label_contains("Submenu D").hover();
     harness.run();
     results.add(harness.try_snapshot("menu/subsubmenu"));
+}
+
+#[test]
+fn submenu_respects_custom_style() {
+    const FILL: egui::Color32 = egui::Color32::from_rgb(123, 45, 67);
+    const CORNER_RADIUS: egui::CornerRadius = egui::CornerRadius::same(13);
+    const STROKE: egui::Stroke = egui::Stroke {
+        width: 3.0,
+        color: egui::Color32::GREEN,
+    };
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(500.0, 300.0))
+        .build_ui(|ui| {
+            MenuBar::new().ui(ui, |ui| {
+                ui.menu_button("Menu", |ui| {
+                    SubMenuButton::new("Styled submenu")
+                        .config(MenuConfig::new().style(|style: &mut egui::Style| {
+                            style.visuals.window_fill = FILL;
+                            style.visuals.window_stroke = STROKE;
+                            style.visuals.menu_corner_radius = CORNER_RADIUS;
+                        }))
+                        .ui(ui, |ui| {
+                            assert_eq!(ui.visuals().window_fill(), FILL);
+                            ui.label("I should have a thick green outline and red fill");
+                            ui.menu_button("Sub-submenu", |ui| {
+                                assert_eq!(ui.visuals().window_fill(), FILL);
+                                ui.label("I should inherit the style");
+                            });
+                        });
+                });
+            });
+        });
+
+    harness.get_by_label("Menu").click();
+    harness.run();
+    harness.get_by_label_contains("Styled submenu").hover();
+    harness.run();
+    assert!(
+        harness
+            .query_by_label("I should have a thick green outline and red fill")
+            .is_some()
+    );
+    harness.get_by_label_contains("Sub-submenu").hover();
+    harness.run();
+    assert!(
+        harness
+            .query_by_label("I should inherit the style")
+            .is_some()
+    );
+
+    harness.fit_contents();
+
+    harness.snapshot("submenu_style");
 }

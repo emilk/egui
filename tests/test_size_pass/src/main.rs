@@ -9,7 +9,7 @@ fn main() -> eframe::Result {
     let options = eframe::NativeOptions::default();
     eframe::run_ui_native("My egui App", options, move |ui, _frame| {
         // A bottom panel to force the tooltips to consider if the fit below or under the widget:
-        egui::Panel::bottom("bottom").show_inside(ui, |ui| {
+        egui::Panel::bottom("bottom").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     ui.label("Single tooltips:");
@@ -33,7 +33,7 @@ fn main() -> eframe::Result {
             });
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("Reset egui memory").clicked() {
                     ui.memory_mut(|mem| *mem = Default::default());

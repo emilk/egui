@@ -5,6 +5,8 @@
 
 mod app_runner;
 mod backend;
+mod canvas_glyphs;
+mod dropped_file;
 mod events;
 mod input;
 mod panic_handler;
@@ -38,6 +40,7 @@ mod web_painter_wgpu;
 pub use backend::*;
 
 use egui::Theme;
+use js_sys::Object;
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, MediaQueryList, Node};
 
@@ -81,6 +84,17 @@ pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
         Some(element == &focused_element)
     }
     try_has_focus(element).unwrap_or(false)
+}
+
+/// Focus the given element without scrolling it into view.
+///
+/// Scrolling the element into view would scroll the whole page when
+/// the app is embedded in a larger scrollable page,
+/// see <https://github.com/emilk/egui/issues/8295>.
+pub(crate) fn focus_without_scroll(element: &web_sys::HtmlElement) -> Result<(), JsValue> {
+    let options = web_sys::FocusOptions::new();
+    options.set_prevent_scroll(true);
+    element.focus_with_options(&options)
 }
 
 /// Current time in seconds (since undefined point in time).
@@ -177,10 +191,8 @@ fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Contex
 // ----------------------------------------------------------------------------
 
 /// Set the cursor icon.
-fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
-    let document = web_sys::window()?.document()?;
-    document
-        .body()?
+fn set_cursor_icon(canvas: &web_sys::HtmlCanvasElement, cursor: egui::CursorIcon) -> Option<()> {
+    canvas
         .style()
         .set_property("cursor", cursor_web_name(cursor))
         .ok()
@@ -197,13 +209,12 @@ fn set_clipboard_text(s: &str) {
             return;
         }
         let promise = window.navigator().clipboard().write_text(s);
-        let future = wasm_bindgen_futures::JsFuture::from(promise);
         let future = async move {
-            if let Err(err) = future.await {
+            if let Err(err) = promise.await {
                 log::error!("Copy/cut action failed: {}", string_from_js_value(&err));
             }
         };
-        wasm_bindgen_futures::spawn_local(future);
+        js_sys::futures::spawn_local(future);
     }
 }
 
@@ -238,16 +249,15 @@ fn set_clipboard_image(image: &egui::ColorImage) {
         };
         let items = js_sys::Array::of1(&item);
         let promise = window.navigator().clipboard().write(&items);
-        let future = wasm_bindgen_futures::JsFuture::from(promise);
         let future = async move {
-            if let Err(err) = future.await {
+            if let Err(err) = promise.await {
                 log::error!(
                     "Copy/cut image action failed: {}",
                     string_from_js_value(&err)
                 );
             }
         };
-        wasm_bindgen_futures::spawn_local(future);
+        js_sys::futures::spawn_local(future);
     }
 }
 
@@ -370,5 +380,5 @@ pub fn percent_decode(s: &str) -> String {
 
 /// Are we running inside the Safari browser?
 pub fn is_safari_browser() -> bool {
-    web_sys::window().is_some_and(|window| window.has_own_property(&JsValue::from("safari")))
+    web_sys::window().is_some_and(|window| Object::has_own(&window, &JsValue::from("safari")))
 }

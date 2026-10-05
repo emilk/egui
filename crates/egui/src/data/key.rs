@@ -184,10 +184,142 @@ pub enum Key {
     F34,
     F35,
 
+    // ----------------------------------------------
+    // Browser / multimedia navigation keys:
     /// Back navigation key from multimedia keyboard.
     /// Android sends this key on Back button press.
     /// Does not work on Web.
     BrowserBack,
+
+    /// Forward navigation key.
+    BrowserForward,
+
+    /// Refresh / reload page key.
+    BrowserRefresh,
+
+    /// Search key.
+    BrowserSearch,
+
+    /// Go to home page key.
+    BrowserHome,
+
+    /// Open favorites / bookmarks key.
+    BrowserFavorites,
+
+    /// Stop loading key.
+    BrowserStop,
+
+    // ----------------------------------------------
+    // Media control keys:
+    /// Play / Pause toggle key.
+    MediaPlayPause,
+
+    /// Next track key.
+    MediaTrackNext,
+
+    /// Previous track key.
+    MediaTrackPrevious,
+
+    /// Stop playback key.
+    MediaStop,
+
+    /// Mute audio toggle key.
+    AudioVolumeMute,
+
+    /// Decrease audio volume key.
+    AudioVolumeDown,
+
+    /// Increase audio volume key.
+    AudioVolumeUp,
+
+    // ----------------------------------------------
+    // Launch keys:
+    /// Launch mail application key.
+    LaunchMail,
+
+    /// Launch application 1 (typically "My Computer") key.
+    LaunchApp1,
+
+    /// Launch application 2 (typically "Calculator") key.
+    LaunchApp2,
+
+    // ----------------------------------------------
+    // Modifier keys (exposed as distinct left/right variants so that
+    // games and input-capture UIs can bind them independently). egui's
+    // `Modifiers` struct still collapses both sides for the common case
+    // (e.g. "Ctrl+C"); these variants are emitted only as physical
+    // `Event::Key` presses.
+    /// Left Shift key.
+    ShiftLeft,
+
+    /// Right Shift key.
+    ShiftRight,
+
+    /// Left Control key.
+    ControlLeft,
+
+    /// Right Control key.
+    ControlRight,
+
+    /// Left Alt / Option key.
+    AltLeft,
+
+    /// Right Alt / `AltGr` / Option key.
+    AltRight,
+
+    /// Left Super / Meta / Command / Windows key.
+    SuperLeft,
+
+    /// Right Super / Meta / Command / Windows key.
+    SuperRight,
+
+    // ----------------------------------------------
+    // International keys — physical positions that only exist on
+    // non-US keyboards.
+    /// ISO 102nd key: physically located between the left Shift and Z
+    /// on ISO layouts. On French AZERTY it produces `<>|`; on UK
+    /// QWERTY a secondary `\` / `|`. Missing from US ANSI keyboards.
+    IntlBackslash,
+
+    // ----------------------------------------------
+    // Lock / System keys:
+    /// Caps Lock key.
+    CapsLock,
+
+    /// Num Lock key.
+    NumLock,
+
+    /// Scroll Lock key.
+    ScrollLock,
+
+    /// Print Screen / `SysRq` key.
+    PrintScreen,
+
+    /// Pause / Break key.
+    Pause,
+
+    /// Menu / Apps key (opens context menu).
+    Menu,
+
+    // ----------------------------------------------
+    // Mac / other system keys:
+    /// Fn / Globe key (Mac keyboard function key).
+    Fn,
+
+    /// Eject key (⏏) on Mac keyboards.
+    Eject,
+
+    /// Help key (found on older PC and Mac keyboards).
+    Help,
+
+    /// Power key (toggles power state).
+    Power,
+
+    /// Sleep / Standby key.
+    Sleep,
+
+    /// Clear key (on some keyboards/numpads).
+    Clear,
     // When adding keys, remember to also update:
     // * crates/egui-winit/src/lib.rs
     // * Key::ALL
@@ -314,6 +446,49 @@ impl Key {
         Self::F35,
         // Navigation keys:
         Self::BrowserBack,
+        Self::BrowserForward,
+        Self::BrowserRefresh,
+        Self::BrowserSearch,
+        Self::BrowserHome,
+        Self::BrowserFavorites,
+        Self::BrowserStop,
+        // Media control keys:
+        Self::MediaPlayPause,
+        Self::MediaTrackNext,
+        Self::MediaTrackPrevious,
+        Self::MediaStop,
+        Self::AudioVolumeMute,
+        Self::AudioVolumeDown,
+        Self::AudioVolumeUp,
+        // Launch keys:
+        Self::LaunchMail,
+        Self::LaunchApp1,
+        Self::LaunchApp2,
+        // Modifier keys (physical L/R):
+        Self::ShiftLeft,
+        Self::ShiftRight,
+        Self::ControlLeft,
+        Self::ControlRight,
+        Self::AltLeft,
+        Self::AltRight,
+        Self::SuperLeft,
+        Self::SuperRight,
+        // International keys:
+        Self::IntlBackslash,
+        // Lock / System keys:
+        Self::CapsLock,
+        Self::NumLock,
+        Self::ScrollLock,
+        Self::PrintScreen,
+        Self::Pause,
+        Self::Menu,
+        // Mac / other system keys:
+        Self::Fn,
+        Self::Eject,
+        Self::Help,
+        Self::Power,
+        Self::Sleep,
+        Self::Clear,
     ];
 
     /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
@@ -335,9 +510,9 @@ impl Key {
             "Escape" | "Esc" => Self::Escape,
             "Tab" => Self::Tab,
             "Backspace" => Self::Backspace,
-            "Enter" | "Return" => Self::Enter,
+            "Enter" | "Return" | "NumpadEnter" => Self::Enter,
 
-            "Help" | "Insert" => Self::Insert,
+            "Insert" => Self::Insert,
             "Delete" => Self::Delete,
             "Home" => Self::Home,
             "End" => Self::End,
@@ -350,19 +525,19 @@ impl Key {
 
             " " | "Space" => Self::Space,
             ":" | "Colon" => Self::Colon,
-            "," | "Comma" => Self::Comma,
-            "-" | "−" | "Minus" => Self::Minus,
-            "." | "Period" => Self::Period,
-            "+" | "Plus" => Self::Plus,
+            "," | "Comma" | "NumpadComma" => Self::Comma,
+            "-" | "−" | "Minus" | "NumpadSubtract" => Self::Minus,
+            "." | "Period" | "NumpadDecimal" => Self::Period,
+            "+" | "Plus" | "NumpadAdd" => Self::Plus,
             "=" | "Equal" | "Equals" | "NumpadEqual" => Self::Equals,
             ";" | "Semicolon" => Self::Semicolon,
             "\\" | "Backslash" => Self::Backslash,
-            "/" | "Slash" => Self::Slash,
+            "/" | "Slash" | "NumpadDivide" => Self::Slash,
             "|" | "Pipe" => Self::Pipe,
             "?" | "Questionmark" => Self::Questionmark,
             "!" | "Exclamationmark" => Self::Exclamationmark,
-            "[" | "OpenBracket" => Self::OpenBracket,
-            "]" | "CloseBracket" => Self::CloseBracket,
+            "[" | "OpenBracket" | "BracketLeft" => Self::OpenBracket,
+            "]" | "CloseBracket" | "BracketRight" => Self::CloseBracket,
             "{" | "OpenCurlyBracket" => Self::OpenCurlyBracket,
             "}" | "CloseCurlyBracket" => Self::CloseCurlyBracket,
             "`" | "Backtick" | "Backquote" | "Grave" => Self::Backtick,
@@ -379,32 +554,32 @@ impl Key {
             "8" | "Digit8" | "Numpad8" => Self::Num8,
             "9" | "Digit9" | "Numpad9" => Self::Num9,
 
-            "a" | "A" => Self::A,
-            "b" | "B" => Self::B,
-            "c" | "C" => Self::C,
-            "d" | "D" => Self::D,
-            "e" | "E" => Self::E,
-            "f" | "F" => Self::F,
-            "g" | "G" => Self::G,
-            "h" | "H" => Self::H,
-            "i" | "I" => Self::I,
-            "j" | "J" => Self::J,
-            "k" | "K" => Self::K,
-            "l" | "L" => Self::L,
-            "m" | "M" => Self::M,
-            "n" | "N" => Self::N,
-            "o" | "O" => Self::O,
-            "p" | "P" => Self::P,
-            "q" | "Q" => Self::Q,
-            "r" | "R" => Self::R,
-            "s" | "S" => Self::S,
-            "t" | "T" => Self::T,
-            "u" | "U" => Self::U,
-            "v" | "V" => Self::V,
-            "w" | "W" => Self::W,
-            "x" | "X" => Self::X,
-            "y" | "Y" => Self::Y,
-            "z" | "Z" => Self::Z,
+            "a" | "A" | "KeyA" => Self::A,
+            "b" | "B" | "KeyB" => Self::B,
+            "c" | "C" | "KeyC" => Self::C,
+            "d" | "D" | "KeyD" => Self::D,
+            "e" | "E" | "KeyE" => Self::E,
+            "f" | "F" | "KeyF" => Self::F,
+            "g" | "G" | "KeyG" => Self::G,
+            "h" | "H" | "KeyH" => Self::H,
+            "i" | "I" | "KeyI" => Self::I,
+            "j" | "J" | "KeyJ" => Self::J,
+            "k" | "K" | "KeyK" => Self::K,
+            "l" | "L" | "KeyL" => Self::L,
+            "m" | "M" | "KeyM" => Self::M,
+            "n" | "N" | "KeyN" => Self::N,
+            "o" | "O" | "KeyO" => Self::O,
+            "p" | "P" | "KeyP" => Self::P,
+            "q" | "Q" | "KeyQ" => Self::Q,
+            "r" | "R" | "KeyR" => Self::R,
+            "s" | "S" | "KeyS" => Self::S,
+            "t" | "T" | "KeyT" => Self::T,
+            "u" | "U" | "KeyU" => Self::U,
+            "v" | "V" | "KeyV" => Self::V,
+            "w" | "W" | "KeyW" => Self::W,
+            "x" | "X" | "KeyX" => Self::X,
+            "y" | "Y" | "KeyY" => Self::Y,
+            "z" | "Z" | "KeyZ" => Self::Z,
 
             "F1" => Self::F1,
             "F2" => Self::F2,
@@ -443,6 +618,50 @@ impl Key {
             "F35" => Self::F35,
 
             "BrowserBack" => Self::BrowserBack,
+            "BrowserForward" => Self::BrowserForward,
+            "BrowserRefresh" => Self::BrowserRefresh,
+            "BrowserSearch" => Self::BrowserSearch,
+            "BrowserHome" => Self::BrowserHome,
+            "BrowserFavorites" => Self::BrowserFavorites,
+            "BrowserStop" => Self::BrowserStop,
+
+            "MediaPlayPause" => Self::MediaPlayPause,
+            "MediaTrackNext" => Self::MediaTrackNext,
+            "MediaTrackPrevious" => Self::MediaTrackPrevious,
+            "MediaStop" => Self::MediaStop,
+            "AudioVolumeMute" => Self::AudioVolumeMute,
+            "AudioVolumeDown" => Self::AudioVolumeDown,
+            "AudioVolumeUp" => Self::AudioVolumeUp,
+
+            "LaunchMail" => Self::LaunchMail,
+            "LaunchApp1" => Self::LaunchApp1,
+            "LaunchApp2" => Self::LaunchApp2,
+
+            "ShiftLeft" => Self::ShiftLeft,
+            "ShiftRight" => Self::ShiftRight,
+            "ControlLeft" => Self::ControlLeft,
+            "ControlRight" => Self::ControlRight,
+            "AltLeft" => Self::AltLeft,
+            "AltRight" => Self::AltRight,
+
+            "SuperLeft" | "MetaLeft" | "OSLeft" => Self::SuperLeft,
+            "SuperRight" | "MetaRight" | "OSRight" => Self::SuperRight,
+
+            "IntlBackslash" => Self::IntlBackslash,
+
+            "CapsLock" => Self::CapsLock,
+            "NumLock" => Self::NumLock,
+            "ScrollLock" => Self::ScrollLock,
+            "PrintScreen" => Self::PrintScreen,
+            "Pause" => Self::Pause,
+            "ContextMenu" | "Menu" | "Apps" => Self::Menu,
+
+            "Fn" | "FnLock" | "Globe" => Self::Fn,
+            "Eject" => Self::Eject,
+            "Help" => Self::Help,
+            "Power" => Self::Power,
+            "Sleep" | "Standby" => Self::Sleep,
+            "Clear" => Self::Clear,
 
             _ => return None,
         })
@@ -599,6 +818,49 @@ impl Key {
             Self::F35 => "F35",
 
             Self::BrowserBack => "BrowserBack",
+            Self::BrowserForward => "BrowserForward",
+            Self::BrowserRefresh => "BrowserRefresh",
+            Self::BrowserSearch => "BrowserSearch",
+            Self::BrowserHome => "BrowserHome",
+            Self::BrowserFavorites => "BrowserFavorites",
+            Self::BrowserStop => "BrowserStop",
+
+            Self::MediaPlayPause => "MediaPlayPause",
+            Self::MediaTrackNext => "MediaTrackNext",
+            Self::MediaTrackPrevious => "MediaTrackPrevious",
+            Self::MediaStop => "MediaStop",
+            Self::AudioVolumeMute => "AudioVolumeMute",
+            Self::AudioVolumeDown => "AudioVolumeDown",
+            Self::AudioVolumeUp => "AudioVolumeUp",
+
+            Self::LaunchMail => "LaunchMail",
+            Self::LaunchApp1 => "LaunchApp1",
+            Self::LaunchApp2 => "LaunchApp2",
+
+            Self::ShiftLeft => "ShiftLeft",
+            Self::ShiftRight => "ShiftRight",
+            Self::ControlLeft => "ControlLeft",
+            Self::ControlRight => "ControlRight",
+            Self::AltLeft => "AltLeft",
+            Self::AltRight => "AltRight",
+            Self::SuperLeft => "SuperLeft",
+            Self::SuperRight => "SuperRight",
+
+            Self::IntlBackslash => "IntlBackslash",
+
+            Self::CapsLock => "CapsLock",
+            Self::NumLock => "NumLock",
+            Self::ScrollLock => "ScrollLock",
+            Self::PrintScreen => "PrintScreen",
+            Self::Pause => "Pause",
+            Self::Menu => "Menu",
+
+            Self::Fn => "Fn",
+            Self::Eject => "Eject",
+            Self::Help => "Help",
+            Self::Power => "Power",
+            Self::Sleep => "Sleep",
+            Self::Clear => "Clear",
         }
     }
 }
@@ -607,7 +869,7 @@ impl Key {
 fn test_key_from_name() {
     assert_eq!(
         Key::ALL.len(),
-        Key::BrowserBack as usize + 1,
+        Key::Clear as usize + 1,
         "Some keys are missing in Key::ALL"
     );
 

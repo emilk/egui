@@ -2,7 +2,7 @@ mod touch_state;
 mod wheel_state;
 
 use crate::{
-    SafeAreaInsets,
+    MouseWheelSource, SafeAreaInsets,
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
 };
@@ -13,10 +13,8 @@ use crate::{
     },
     input_state::wheel_state::WheelState,
 };
-use std::{
-    collections::{BTreeMap, HashSet},
-    time::Duration,
-};
+use core::time::Duration;
+use std::collections::{BTreeMap, HashSet};
 
 pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
@@ -209,7 +207,7 @@ impl InputOptions {
 /// You can access this with [`crate::Context::input`].
 ///
 /// You can check if `egui` is using the inputs using
-/// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
+/// [`crate::Context::egui_wants_pointer_input`] and [`crate::Context::egui_wants_keyboard_input`].
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InputState {
@@ -319,7 +317,9 @@ pub struct InputState {
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
 
-    // The keys that are currently being held down.
+    /// The keys that are currently being held down.
+    ///
+    /// Keys released this frame are NOT considered down.
     pub keys_down: HashSet<Key>,
 
     /// In-order events received this frame
@@ -391,6 +391,7 @@ impl InputState {
         let pointer = self.pointer.begin_pass(time, &new, options);
 
         let mut keys_down = self.keys_down;
+        let mut modifiers = self.modifiers;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
         let mut rotation_radians = 0.0;
 
@@ -415,6 +416,7 @@ impl InputState {
                     unit,
                     delta,
                     phase,
+                    source,
                     modifiers,
                 } => {
                     self.wheel.on_wheel_event(
@@ -424,8 +426,12 @@ impl InputState {
                         *unit,
                         *delta,
                         *phase,
+                        *source,
                         *modifiers,
                     );
+                }
+                Event::ModifiersChanged(new_modifiers) => {
+                    modifiers = *new_modifiers;
                 }
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
@@ -440,6 +446,7 @@ impl InputState {
                     // So we take the safe route and just clear all the keys and modifiers when
                     // the app loses focus.
                     keys_down.clear();
+                    modifiers = Modifiers::default();
                 }
                 _ => {}
             }
@@ -480,7 +487,7 @@ impl InputState {
             predicted_dt: new.predicted_dt,
             stable_dt,
             focused: new.focused,
-            modifiers: new.modifiers,
+            modifiers,
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
@@ -518,14 +525,6 @@ impl InputState {
     /// See also [`RawInput::safe_area_insets`].
     pub fn viewport_rect(&self) -> Rect {
         self.viewport_rect
-    }
-
-    /// Position and size of the egui area.
-    #[deprecated(
-        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
-    )]
-    pub fn screen_rect(&self) -> Rect {
-        self.content_rect()
     }
 
     /// Get the safe area insets.
@@ -642,6 +641,24 @@ impl InputState {
         self.wheel.is_scrolling()
     }
 
+    /// What is driving the current scrolling, if any: a mouse wheel, fingers on a trackpad,
+    /// or the OS continuing a trackpad scroll with momentum.
+    ///
+    /// `Some` while [`Self::is_scrolling`]. For trackpads, that is between the
+    /// [`crate::TouchPhase::Start`] and [`crate::TouchPhase::End`] of the gesture;
+    /// for mouse wheels, until the smoothing of the last notch is done.
+    ///
+    /// Touch screens don't scroll with wheel events but by dragging with the pointer,
+    /// so this is `None` for them.
+    ///
+    /// ## Platform-specific
+    /// * **macOS**: `Wheel`, `Trackpad` or `Momentum`, all reliable.
+    /// * **Everywhere else**: `Unknown`, until winit reports the source
+    ///   (`Trackpad` for winit's `PanGesture`).
+    pub fn scroll_source(&self) -> Option<MouseWheelSource> {
+        self.wheel.is_scrolling().then_some(self.wheel.source)
+    }
+
     /// How long has it been (in seconds) since the last scroll event?
     #[inline(always)]
     pub fn time_since_last_scroll(&self) -> f32 {
@@ -659,6 +676,8 @@ impl InputState {
         if self.pointer.wants_repaint()
             || self.wheel.unprocessed_wheel_delta.abs().max_elem() > 0.2
             || !self.events.is_empty()
+            || !self.raw.hovered_files.is_empty()
+            || !self.raw.dropped_files.is_empty()
         {
             // Immediate repaint
             return Some(Duration::ZERO);
@@ -765,6 +784,8 @@ impl InputState {
     }
 
     /// Is the given key currently held down?
+    ///
+    /// Keys released this frame are NOT considered down.
     pub fn key_down(&self, desired_key: Key) -> bool {
         self.keys_down.contains(&desired_key)
     }
@@ -865,7 +886,8 @@ impl InputState {
         let accesskit_id = id.accesskit_id();
         self.events.iter().filter_map(move |event| {
             if let Event::AccessKitActionRequest(request) = event
-                && request.target == accesskit_id
+                && request.target_node == accesskit_id
+                && request.target_tree == accesskit::TreeId::ROOT
                 && request.action == action
             {
                 return Some(request);
@@ -882,7 +904,8 @@ impl InputState {
         let accesskit_id = id.accesskit_id();
         self.events.retain(|event| {
             if let Event::AccessKitActionRequest(request) = event
-                && request.target == accesskit_id
+                && request.target_node == accesskit_id
+                && request.target_tree == accesskit::TreeId::ROOT
             {
                 return !consume(request);
             }
@@ -970,6 +993,15 @@ impl PointerEvent {
 }
 
 /// Mouse or touch state.
+///
+/// To access the methods of [`PointerState`] you can use the [`crate::Context::input`] function
+///
+/// ```rust
+/// # let ctx = egui::Context::default();
+/// let latest_pos = ctx.input(|i| i.pointer.latest_pos());
+/// let is_pointer_down = ctx.input(|i| i.pointer.any_down());
+/// ```
+///
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PointerState {
@@ -1009,6 +1041,7 @@ pub struct PointerState {
     /// Used for calculating velocity of pointer.
     pos_history: History<Pos2>,
 
+    /// Buttons currently down, excluding those released this frame.
     down: [bool; NUM_POINTER_BUTTONS],
 
     /// Where did the current click/drag originate?
@@ -1027,6 +1060,10 @@ pub struct PointerState {
     ///
     /// This could also be the trigger point for a long-touch.
     pub(crate) started_decidedly_dragging: bool,
+
+    /// Where did the last click originate?
+    /// `None` if no mouse click occurred.
+    last_click_pos: Option<Pos2>,
 
     /// When did the pointer get click last?
     /// Used to check for double-clicks.
@@ -1065,6 +1102,7 @@ impl Default for PointerState {
             press_start_time: None,
             has_moved_too_much_for_a_click: false,
             started_decidedly_dragging: false,
+            last_click_pos: None,
             last_click_time: f64::NEG_INFINITY,
             last_last_click_time: f64::NEG_INFINITY,
             last_move_time: f64::NEG_INFINITY,
@@ -1140,10 +1178,18 @@ impl PointerState {
                         let clicked = self.could_any_button_be_click();
 
                         let click = if clicked {
-                            let double_click =
-                                (time - self.last_click_time) < self.options.max_double_click_delay;
+                            let click_dist_sq = self
+                                .last_click_pos
+                                .map_or(0.0, |last_pos| last_pos.distance_sq(pos));
+
+                            let double_click = (time - self.last_click_time)
+                                < self.options.max_double_click_delay
+                                && click_dist_sq
+                                    < self.options.max_click_dist * self.options.max_click_dist;
                             let triple_click = (time - self.last_last_click_time)
-                                < (self.options.max_double_click_delay * 2.0);
+                                < (self.options.max_double_click_delay * 2.0)
+                                && click_dist_sq
+                                    < self.options.max_click_dist * self.options.max_click_dist;
                             let count = if triple_click {
                                 3
                             } else if double_click {
@@ -1154,6 +1200,7 @@ impl PointerState {
 
                             self.last_last_click_time = self.last_click_time;
                             self.last_click_time = time;
+                            self.last_click_pos = Some(pos);
 
                             Some(Click {
                                 pos,
@@ -1382,6 +1429,8 @@ impl PointerState {
     }
 
     /// Is any pointer button currently down?
+    ///
+    /// Buttons released this frame are NOT considered down.
     pub fn any_down(&self) -> bool {
         self.down.iter().any(|&down| down)
     }
@@ -1392,6 +1441,9 @@ impl PointerState {
     }
 
     /// Was the given pointer button given clicked this frame?
+    ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
     ///
     /// Returns true on double- and triple- clicks too.
     pub fn button_clicked(&self, button: PointerButton) -> bool {
@@ -1427,16 +1479,24 @@ impl PointerState {
     }
 
     /// Was the primary button clicked this frame?
+    ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
     pub fn primary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Primary)
     }
 
     /// Was the secondary button clicked this frame?
+    ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
     pub fn secondary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Secondary)
     }
 
     /// Is this button currently down?
+    ///
+    /// Buttons released this frame are NOT considered down.
     #[inline(always)]
     pub fn button_down(&self, button: PointerButton) -> bool {
         self.down[button as usize]
@@ -1493,18 +1553,24 @@ impl PointerState {
     }
 
     /// Is the primary button currently down?
+    ///
+    /// Buttons released this frame are NOT considered down.
     #[inline(always)]
     pub fn primary_down(&self) -> bool {
         self.button_down(PointerButton::Primary)
     }
 
     /// Is the secondary button currently down?
+    ///
+    /// Buttons released this frame are NOT considered down.
     #[inline(always)]
     pub fn secondary_down(&self) -> bool {
         self.button_down(PointerButton::Secondary)
     }
 
     /// Is the middle button currently down?
+    ///
+    /// Buttons released this frame are NOT considered down.
     #[inline(always)]
     pub fn middle_down(&self) -> bool {
         self.button_down(PointerButton::Middle)
@@ -1557,7 +1623,7 @@ impl InputState {
 
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
-        crate::containers::CollapsingHeader::new("🖱 Pointer")
+        crate::containers::CollapsingHeader::new("🖱️ Pointer")
             .default_open(false)
             .show(ui, |ui| {
                 pointer.ui(ui);
@@ -1569,7 +1635,7 @@ impl InputState {
             });
         }
 
-        crate::containers::CollapsingHeader::new("⬍ Scroll")
+        crate::containers::CollapsingHeader::new("↕️ Scroll")
             .default_open(false)
             .show(ui, |ui| {
                 wheel.ui(ui);
@@ -1621,6 +1687,7 @@ impl PointerState {
             press_start_time,
             has_moved_too_much_for_a_click,
             started_decidedly_dragging,
+            last_click_pos,
             last_click_time,
             last_last_click_time,
             pointer_events,
@@ -1646,6 +1713,7 @@ impl PointerState {
         ui.label(format!(
             "started_decidedly_dragging: {started_decidedly_dragging}"
         ));
+        ui.label(format!("last_click_pos: {last_click_pos:#?}"));
         ui.label(format!("last_click_time: {last_click_time:#?}"));
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
         ui.label(format!("last_move_time: {last_move_time:#?}"));

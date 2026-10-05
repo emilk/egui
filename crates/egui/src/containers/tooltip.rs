@@ -3,7 +3,7 @@ use crate::{
     AreaState, Context, Id, InnerResponse, LayerId, Layout, Order, Popup, PopupAnchor, PopupKind,
     Response, Sense,
 };
-use emath::Vec2;
+use emath::{Rect, Vec2};
 
 pub struct Tooltip<'a> {
     pub popup: Popup<'a>,
@@ -17,24 +17,6 @@ pub struct Tooltip<'a> {
 
 impl Tooltip<'_> {
     /// Show a tooltip that is always open.
-    #[deprecated = "Use `Tooltip::always_open` instead."]
-    pub fn new(
-        parent_widget: Id,
-        ctx: Context,
-        anchor: impl Into<PopupAnchor>,
-        parent_layer: LayerId,
-    ) -> Self {
-        Self {
-            popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
-                .kind(PopupKind::Tooltip)
-                .gap(4.0)
-                .sense(Sense::hover()),
-            parent_layer,
-            parent_widget,
-        }
-    }
-
-    /// Show a tooltip that is always open.
     pub fn always_open(
         ctx: Context,
         parent_layer: LayerId,
@@ -44,6 +26,7 @@ impl Tooltip<'_> {
         let width = ctx.global_style().spacing.tooltip_width;
         Self {
             popup: Popup::new(parent_widget, ctx, anchor.into(), parent_layer)
+                .anchor_widget(parent_widget)
                 .kind(PopupKind::Tooltip)
                 .gap(4.0)
                 .width(width)
@@ -108,6 +91,15 @@ impl Tooltip<'_> {
         self
     }
 
+    /// Name the tooltip in the accessibility tree.
+    ///
+    /// See [`Area::accessible_name`](crate::Area::accessible_name).
+    #[inline]
+    pub fn accessible_name(mut self, name: impl Into<String>) -> Self {
+        self.popup = self.popup.accessible_name(name);
+        self
+    }
+
     /// Set the width of the tooltip
     #[inline]
     pub fn width(mut self, width: f32) -> Self {
@@ -127,7 +119,22 @@ impl Tooltip<'_> {
             return None;
         }
 
-        let rect = popup.get_anchor_rect()?;
+        let mut rect = popup.get_anchor_rect()?;
+
+        let is_inspecting = popup.ctx().is_inspecting_widgets();
+
+        if is_inspecting {
+            // Tooltips that follow the pointer would run away from the pointer while inspecting,
+            // so we freeze their position instead.
+            let ctx = popup.ctx();
+            let anchor_id = parent_widget.with("tooltip_anchor");
+            if Self::was_tooltip_open_last_frame(ctx, parent_widget)
+                && let Some(prev_rect) = ctx.data(|d| d.get_temp::<Rect>(anchor_id))
+            {
+                rect = prev_rect;
+            }
+            ctx.data_mut(|d| d.insert_temp(anchor_id, rect));
+        }
 
         let mut state = popup.ctx().pass_state_mut(|fs| {
             // Remember that this is the widget showing the tooltip:
@@ -147,7 +154,18 @@ impl Tooltip<'_> {
         });
 
         let tooltip_area_id = Self::tooltip_id(parent_widget, state.tooltip_count);
-        popup = popup.anchor(state.bounding_rect).id(tooltip_area_id);
+
+        // Tooltips without interactive contents should not be interactable (hover should pass
+        // through to the widget below).
+        // When inspecting widgets (all modifiers down), we make the tooltip interactable
+        // so that the user can hover the widgets inside it.
+        let interactable =
+            Self::had_interactive_widgets(popup.ctx(), tooltip_area_id) || is_inspecting;
+
+        popup = popup
+            .anchor(state.bounding_rect)
+            .id(tooltip_area_id)
+            .interactable(interactable);
 
         let response = popup.show(|ui| {
             // By default, the text in tooltips aren't selectable.
@@ -175,7 +193,7 @@ impl Tooltip<'_> {
     }
 
     fn when_was_a_toolip_last_shown_id() -> Id {
-        Id::new("when_was_a_toolip_last_shown")
+        Id::unique("when_was_a_toolip_last_shown")
     }
 
     pub fn seconds_since_last_tooltip(ctx: &Context) -> f32 {
@@ -210,12 +228,31 @@ impl Tooltip<'_> {
         widget_id.with(tooltip_count)
     }
 
+    /// Did this tooltip contain anything the user can interact with, last pass?
+    ///
+    /// Most tooltips are just text. Those should not react to the pointer at all,
+    /// or they would steal the hover from the widget they belong to.
+    fn had_interactive_widgets(ctx: &Context, tooltip_id: Id) -> bool {
+        let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
+        ctx.viewport(|vp| {
+            vp.prev_pass
+                .widgets
+                .get_layer(tooltip_layer_id)
+                .any(|w| w.enabled && w.sense.interactive())
+        })
+    }
+
     /// Should we show a tooltip for this response?
     ///
     /// Argument `allow_interactive_tooltip` controls whether mouse can interact with tooltip that
     /// contains interactive widgets
     pub fn should_show_tooltip(response: &Response, allow_interactive_tooltip: bool) -> bool {
         if response.ctx.memory(|mem| mem.everything_is_visible()) {
+            return true;
+        }
+
+        if response.ctx.is_inspecting_widgets() && response.is_tooltip_open() {
+            // Keep the tooltip open so the user can move the pointer over it to inspect it.
             return true;
         }
 
@@ -265,15 +302,9 @@ impl Tooltip<'_> {
             // Check if we should automatically stay open:
 
             let tooltip_id = Self::next_tooltip_id(&response.ctx, response.id);
-            let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
             let tooltip_has_interactive_widget = allow_interactive_tooltip
-                && response.ctx.viewport(|vp| {
-                    vp.prev_pass
-                        .widgets
-                        .get_layer(tooltip_layer_id)
-                        .any(|w| w.enabled && w.sense.interactive())
-                });
+                && Self::had_interactive_widgets(&response.ctx, tooltip_id);
 
             if tooltip_has_interactive_widget {
                 // We keep the tooltip open if hovered,

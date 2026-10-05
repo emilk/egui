@@ -7,17 +7,21 @@ pub struct TextLayoutDemo {
     overflow_character: Option<char>,
     extra_letter_spacing: f32,
     line_height_pixels: u32,
+    halign: egui::Align,
+    justify: bool,
     lorem_ipsum: bool,
 }
 
 impl Default for TextLayoutDemo {
     fn default() -> Self {
         Self {
-            max_rows: 6,
-            break_anywhere: true,
+            max_rows: 1000,
+            break_anywhere: false,
             overflow_character: Some('…'),
             extra_letter_spacing: 0.0,
             line_height_pixels: 0,
+            halign: egui::Align::LEFT,
+            justify: false,
             lorem_ipsum: true,
         }
     }
@@ -25,7 +29,7 @@ impl Default for TextLayoutDemo {
 
 impl crate::Demo for TextLayoutDemo {
     fn name(&self) -> &'static str {
-        "🖹 Text Layout"
+        "📄 Text Layout"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -48,6 +52,8 @@ impl crate::View for TextLayoutDemo {
             overflow_character,
             extra_letter_spacing,
             line_height_pixels,
+            halign,
+            justify,
             lorem_ipsum,
         } = self;
 
@@ -65,8 +71,8 @@ impl crate::View for TextLayoutDemo {
         egui::Grid::new("TextLayoutDemo")
             .num_columns(2)
             .show(ui, |ui| {
-                ui.label("Max rows:");
-                ui.add(egui::DragValue::new(max_rows));
+                let label = ui.label("Max rows:");
+                ui.add(egui::DragValue::new(max_rows)).labelled_by(label.id);
                 ui.end_row();
 
                 ui.label("Line-break:");
@@ -85,8 +91,9 @@ impl crate::View for TextLayoutDemo {
                 });
                 ui.end_row();
 
-                ui.label("Extra letter spacing:");
-                ui.add(egui::DragValue::new(extra_letter_spacing).speed(0.1));
+                let label = ui.label("Extra letter spacing:");
+                ui.add(egui::DragValue::new(extra_letter_spacing).speed(0.1))
+                    .labelled_by(label.id);
                 ui.end_row();
 
                 ui.label("Line height:");
@@ -107,6 +114,18 @@ impl crate::View for TextLayoutDemo {
                         ui.add(egui::DragValue::new(line_height_pixels).suffix(" pixels"));
                     }
                 });
+                ui.end_row();
+
+                ui.label("Horizontal align:");
+                ui.horizontal(|ui| {
+                    ui.selectable_value(halign, egui::Align::LEFT, "Left");
+                    ui.selectable_value(halign, egui::Align::Center, "Center");
+                    ui.selectable_value(halign, egui::Align::RIGHT, "Right");
+                });
+                ui.end_row();
+
+                ui.label("Justify:");
+                ui.checkbox(justify, "Fill row width");
                 ui.end_row();
 
                 ui.label("Text:");
@@ -145,8 +164,14 @@ impl crate::View for TextLayoutDemo {
                     ..Default::default()
                 };
 
-                // NOTE: `Label` overrides some of the wrapping settings, e.g. wrap width
-                ui.label(job);
+                // NOTE: `Label` overrides some of the wrapping settings,
+                // e.g. wrap width, halign, and justify.
+                ui.with_layout(
+                    egui::Layout::top_down(*halign).with_cross_justify(*justify),
+                    |ui| {
+                        ui.label(job);
+                    },
+                );
             });
     }
 }

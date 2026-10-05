@@ -1,5 +1,8 @@
 use egui::accesskit::{self, Role};
-use egui::{Button, ComboBox, Image, Modifiers, Popup, Vec2, Widget as _};
+use egui::{
+    Align2, Button, ComboBox, FontId, Image, Label, Modifiers, Popup, Pos2, Rect, Stroke,
+    StrokeKind, Vec2, Widget as _, Window,
+};
 #[cfg(all(feature = "wgpu", feature = "snapshot"))]
 use egui_kittest::SnapshotResults;
 use egui_kittest::{Harness, kittest::Queryable as _};
@@ -32,15 +35,79 @@ pub fn focus_should_skip_over_disabled_buttons() {
 }
 
 #[test]
+pub fn arrow_navigation_should_skip_over_previously_disabled_buttons() {
+    let mut harness = Harness::new_ui_state(
+        |ui, enabled| {
+            ui.checkbox(enabled, "Enable Button");
+            ui.add_enabled(*enabled, Button::new("Button"));
+            let _ = ui.button("Other Button");
+        },
+        false,
+    );
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    harness.key_press(egui::Key::Space);
+    harness.run();
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    let button = harness.get_by_label("Button");
+    assert!(button.is_focused());
+
+    harness.key_press_modifiers(Modifiers::SHIFT, egui::Key::Tab);
+    harness.run();
+
+    harness.key_press(egui::Key::Space);
+    harness.run();
+
+    assert!(!*harness.state());
+
+    let checkbox = harness.get_by_label("Enable Button");
+    assert!(checkbox.is_focused());
+
+    // Down should skip over the disabled button.
+    harness.key_press(egui::Key::ArrowDown);
+    harness.run();
+
+    let other_button = harness.get_by_label("Other Button");
+    assert!(other_button.is_focused());
+
+    // Up should also skip over the disabled button.
+    harness.key_press(egui::Key::ArrowUp);
+    harness.run();
+
+    let checkbox = harness.get_by_label("Enable Button");
+    assert!(checkbox.is_focused());
+
+    // Re-enabling the button should make it focusable again.
+    harness.key_press(egui::Key::Space);
+    harness.run();
+
+    assert!(*harness.state());
+
+    harness.key_press(egui::Key::ArrowDown);
+    harness.run();
+
+    let button = harness.get_by_label("Button");
+    assert!(button.is_focused());
+}
+
+#[test]
 pub fn focus_should_skip_over_disabled_drag_values() {
     let mut value_1: u16 = 1;
     let mut value_2: u16 = 2;
     let mut value_3: u16 = 3;
 
     let mut harness = Harness::new_ui(|ui| {
-        ui.add(egui::DragValue::new(&mut value_1));
-        ui.add_enabled(false, egui::DragValue::new(&mut value_2));
-        ui.add(egui::DragValue::new(&mut value_3));
+        ui.add(egui::DragValue::new(&mut value_1))
+            .on_hover_text("Value 1");
+        ui.add_enabled(false, egui::DragValue::new(&mut value_2))
+            .on_hover_text("Value 2");
+        ui.add(egui::DragValue::new(&mut value_3))
+            .on_hover_text("Value 3");
     });
 
     harness.key_press(egui::Key::Tab);
@@ -124,7 +191,8 @@ pub fn slider_should_move_with_fixed_decimals() {
     let mut harness = Harness::new_ui(|ui| {
         // Movement on arrow-key is relative to slider width; make the slider wide so the movement becomes small.
         ui.spacing_mut().slider_width = 2000.0;
-        ui.add(egui::Slider::new(&mut value, 0.1..=10.0).fixed_decimals(2));
+        ui.add(egui::Slider::new(&mut value, 0.1..=10.0).fixed_decimals(2))
+            .on_hover_text("Value");
     });
 
     harness.key_press(egui::Key::Tab);
@@ -261,4 +329,746 @@ pub fn menus_should_close_even_if_submenu_disappears() {
             "Menu failed to close. frame_delay = {frame_delay}"
         );
     }
+}
+
+fn keyboard_submenu_harness() -> Harness<'static, bool> {
+    Harness::builder()
+        .with_size(Vec2::new(400.0, 240.0))
+        .build_ui_state(
+            |ui, checked| {
+                egui::Panel::top("menu_bar").show(ui, |ui| {
+                    egui::MenuBar::new().ui(ui, |ui| {
+                        ui.menu_button("X", |ui| {
+                            ui.menu_button("Y", |ui| {
+                                ui.checkbox(checked, "Goal");
+                            });
+                        });
+                    });
+                });
+            },
+            false,
+        )
+}
+
+#[test]
+pub fn keyboard_should_open_nested_submenu() {
+    let mut harness = keyboard_submenu_harness();
+
+    harness.get_by_label("X").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    harness.get_by_label_contains("Y").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected nested submenu to open via keyboard"
+    );
+}
+
+#[test]
+pub fn keyboard_should_close_nested_submenu_with_second_enter() {
+    let mut harness = keyboard_submenu_harness();
+
+    harness.get_by_label("X").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    harness.get_by_label_contains("Y").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected nested submenu to open before close attempt"
+    );
+
+    harness.get_by_label_contains("Y").focus();
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_none(),
+        "Expected nested submenu to close when pressing Enter again"
+    );
+}
+
+/// Regression test for a bug in `horizontal_wrapped` layouts where text wraps but does not
+/// move to the next line, causing overlapping text.
+///
+/// Sweeps the available width from 200 down to 50 (one frame per width) and asserts that no
+/// two `TextRun` accesskit nodes (one per laid-out row) have overlapping bounds, and that
+/// all accesskit text runs and painted text shapes stay within the `horizontal_wrapped` rect.
+#[test]
+pub fn horizontal_wrapped_text_should_not_overlap() {
+    struct State {
+        width: f32,
+        rect: egui::Rect,
+    }
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(300.0, 400.0))
+        .build_ui_state(
+            |ui, state: &mut State| {
+                ui.set_width(state.width);
+                state.rect = egui::Frame::popup(ui.style())
+                    .show(ui, |ui| {
+                        ui.horizontal_wrapped(|ui| {
+                            ui.set_width(ui.available_width());
+                            for i in 0..20 {
+                                ui.label(format!("Hello{i}"));
+                            }
+                        })
+                        .response
+                        .rect
+                    })
+                    .inner;
+            },
+            State {
+                width: 200.0,
+                rect: Rect::NAN,
+            },
+        );
+
+    let min_width = 50.0;
+
+    loop {
+        let width = harness.state().width - 1.0;
+        if width < min_width {
+            break;
+        }
+        harness.state_mut().width = width;
+        harness.step();
+
+        let container_rect = harness.state().rect.expand(1.0);
+
+        let runs: Vec<_> = harness
+            .query_all_by_role(accesskit::Role::TextRun)
+            .map(|node| (node.rect(), node.value().unwrap_or_default()))
+            .collect();
+
+        for (rect, text) in &runs {
+            assert!(
+                container_rect.contains_rect(*rect),
+                "TextRun rect at available width = {width} is outside horizontal_wrapped rect: \
+                 {text:?} {rect:?} outside {container_rect:?}"
+            );
+        }
+
+        for clipped in &harness.output().shapes {
+            if let egui::epaint::Shape::Text(text_shape) = &clipped.shape {
+                let shape_rect = text_shape.visual_bounding_rect();
+                assert!(
+                    container_rect.contains_rect(shape_rect),
+                    "TextShape rect at available width = {width} is outside horizontal_wrapped rect: \
+                     {:?} {shape_rect:?} outside {container_rect:?}",
+                    text_shape.galley.text()
+                );
+            }
+        }
+
+        for i in 0..runs.len() {
+            for j in (i + 1)..runs.len() {
+                let (a, ta) = &runs[i];
+                let (b, tb) = &runs[j];
+                let inter = a.intersect(*b);
+                // Allow tiny floating-point slop for rects that just touch.
+                let overlaps = inter.width() > 0.5 && inter.height() > 0.5;
+                assert!(
+                    !overlaps,
+                    "TextRun rects overlap at available width = {width}: \
+                     {ta:?} {a:?} vs {tb:?} {b:?} \
+                     (overlap = {}x{})",
+                    inter.width(),
+                    inter.height()
+                );
+            }
+        }
+    }
+}
+
+#[test]
+pub fn pointer_click_on_open_submenu_button_should_not_close_it() {
+    let mut harness = keyboard_submenu_harness();
+
+    harness.get_by_label("X").click();
+    harness.run();
+
+    harness.get_by_label_contains("Y").click();
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected submenu to remain open after pointer click on its button"
+    );
+
+    harness.get_by_label_contains("Y").click();
+    harness.run();
+
+    assert!(
+        harness.query_by_label("Goal").is_some(),
+        "Expected submenu to remain open on repeated pointer click"
+    );
+}
+
+/// This test checks if we correctly handle wrapping content proceeding non-wrapping content
+/// during window resize. When the window is resized past non-wrapping content, the wrapping content
+/// above should stay at that non wrapping width and not wrap any further.
+#[test]
+fn window_resize_wraps_to_content_min_width() {
+    let wrap_text = "This label should wrap as the window is narrowed. \
+    It should not shrink smaller than the bottom labels width though.";
+    let non_wrap_text = "This is the bottom non-wrapping label which is wider.";
+
+    let window_title = "resize_wrap_regression";
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(move |ui| {
+            Window::new(window_title)
+                .default_pos([20.0, 20.0])
+                .default_size([400.0, 200.0])
+                .show(ui.ctx(), |ui| {
+                    ui.add(Label::new(wrap_text).wrap());
+                    ui.add(Label::new(non_wrap_text).extend());
+                });
+        });
+
+    harness.run();
+
+    let window_rect = harness
+        .get_by_role_and_label(Role::Window, window_title)
+        .rect();
+
+    // Drag the right edge inward, well past the non-wrapping label's natural
+    // width, so the non-wrapping label pins the window's minimum width while
+    // the wrapping label would (without the fix) keep shrinking.
+    let grab = Pos2::new(window_rect.right(), window_rect.center().y);
+    let target = Pos2::new(window_rect.left() + 80.0, window_rect.center().y);
+
+    harness.drag_at(grab);
+    harness.run();
+    harness.hover_at(target);
+
+    harness.run();
+
+    let wrap_width = harness.get_by_label(wrap_text).rect().width();
+    let non_wrap_width = harness.get_by_label(non_wrap_text).rect().width();
+
+    // Wrapped text won't perfectly fill the available width — each line ends
+    // wherever the next word stops fitting. The tolerance absorbs that
+    // word-break slack while still catching the bug, where the wrap label
+    // would be substantially narrower than the non-wrapping label.
+    assert!(
+        non_wrap_width - wrap_width < 40.0,
+        "wrapping label width ({wrap_width}) is much narrower than the \
+         non-wrapping label width ({non_wrap_width}) after shrinking the \
+         window past the non-wrapping label's natural width"
+    );
+}
+
+/// A `Grid` gives its last column all the available width, so a width-filling widget in it
+/// (here a `Separator`) makes the grid remember a column width that is really just
+/// "however wide the window happened to be".
+///
+/// When `Resize` then measures the minimum content width in a sizing pass, that remembered
+/// width must not be reported as the minimum — otherwise the window can be widened but
+/// never shrunk again.
+#[test]
+fn window_with_grid_can_shrink_after_being_widened() {
+    let window_title = "grid_shrink_regression";
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(move |ui| {
+            Window::new(window_title)
+                .default_pos([20.0, 20.0])
+                .default_width(280.0)
+                .show(ui.ctx(), |ui| {
+                    egui::Grid::new("grid").num_columns(2).show(ui, |ui| {
+                        ui.label("Separator");
+                        ui.separator(); // Fills the available width
+                        ui.end_row();
+                    });
+                });
+        });
+    harness.run();
+
+    let drag_right_edge = |harness: &mut Harness<'_>, dx: f32| {
+        let rect = harness
+            .get_by_role_and_label(Role::Window, window_title)
+            .rect();
+        let grab = Pos2::new(rect.right(), rect.center().y);
+        harness.hover_at(grab);
+        harness.run();
+        harness.drag_at(grab);
+        harness.run();
+        harness.hover_at(grab + Vec2::new(dx, 0.0));
+        harness.run();
+        harness.drop_at(grab + Vec2::new(dx, 0.0));
+        harness.run();
+        harness
+            .get_by_role_and_label(Role::Window, window_title)
+            .rect()
+            .width()
+    };
+
+    let widened = drag_right_edge(&mut harness, 300.0);
+    let shrunk = drag_right_edge(&mut harness, -300.0);
+
+    assert!(
+        shrunk < widened - 200.0,
+        "window could not be shrunk again after being widened: \
+         widened to {widened}, then only shrunk to {shrunk}"
+    );
+}
+
+/// Ensure that the size passed to window is actually treated as outer size (including
+/// margins and borders).
+#[test]
+fn window_fixed_size_is_outer_size() {
+    use egui::{Color32, Frame, Margin, Pos2, Shape};
+
+    let outer_pos = Pos2::new(50.0, 50.0);
+    let outer_size = Vec2::new(300.0, 200.0);
+    let outer_margin = Margin::same(10);
+    let expected_rect = Rect::from_min_size(outer_pos, outer_size);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(move |ui| {
+            let frame = Frame::window(ui.style()).outer_margin(outer_margin);
+            Window::new("size_test")
+                .frame(frame)
+                .fixed_pos(outer_pos)
+                .fixed_size(outer_size)
+                .show(ui.ctx(), |ui| {
+                    // Fill the available space so `Resize` doesn't auto-shrink the window
+                    // below the requested fixed size.
+                    ui.allocate_space(ui.available_size());
+                });
+
+            // Paint a debug rect on top of everything that marks the expected outer
+            // window rect. In the snapshot this should line up exactly with the
+            // painted window frame.
+            let painter = ui.ctx().debug_painter();
+            painter.rect_stroke(
+                expected_rect,
+                0.0,
+                Stroke::new(2.0, Color32::RED),
+                StrokeKind::Outside,
+            );
+            painter.text(
+                expected_rect.left_top() + Vec2::new(0.0, -4.0),
+                Align2::LEFT_BOTTOM,
+                "should perfectly match the outer window size/position",
+                FontId::default(),
+                Color32::RED,
+            );
+
+            // Also paint the expected *visible frame* rect (outer rect shrunk by the
+            // frame's outer_margin). In the snapshot this should line up exactly with
+            // the painted window frame.
+            let expected_frame_rect = expected_rect - outer_margin;
+            painter.debug_rect(
+                expected_frame_rect,
+                Color32::GREEN,
+                "should perfectly match the painted window frame",
+            );
+        });
+
+    harness.run();
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    harness.snapshot("window_outer_size");
+
+    fn collect_filled_rect_sizes(shape: &Shape, out: &mut Vec<Vec2>) {
+        match shape {
+            // Skip stroke-only rects (fill == TRANSPARENT), so the debug overlay
+            // doesn't trivially satisfy the size check.
+            Shape::Rect(r) if r.fill != Color32::TRANSPARENT => out.push(r.rect.size()),
+            Shape::Vec(v) => v.iter().for_each(|s| collect_filled_rect_sizes(s, out)),
+            _ => {}
+        }
+    }
+
+    let mut sizes = Vec::new();
+    for clipped in &harness.output().shapes {
+        collect_filled_rect_sizes(&clipped.shape, &mut sizes);
+    }
+
+    // The shape will have the inner size
+    let painted_size = outer_size - outer_margin.sum();
+    let found = sizes
+        .iter()
+        .any(|s| (s.x - painted_size.x).abs() < 0.5 && (s.y - painted_size.y).abs() < 0.5);
+
+    assert!(
+        found,
+        "expected a filled RectShape with size {painted_size:?} (outer size {outer_size:?} \
+         minus outer margin {outer_margin:?}) in the paint output, but no painted rect matched. \
+         Found filled-rect sizes: {sizes:?}"
+    );
+}
+
+/// Regression test for <https://github.com/emilk/egui/issues/8055>:
+/// when content overflows a `Panel`, the returned response (and the panel's
+/// stored size, resize handle, and separator) must stay clamped to the panel's
+/// allowed size — they used to inherit the overflowing content rect.
+#[test]
+fn panel_rect_clamped_when_content_overflows() {
+    use core::cell::RefCell;
+
+    let side_panel_width = 100.0_f32;
+    let top_panel_height = 80.0_f32;
+
+    let side_response: RefCell<Option<egui::Response>> = RefCell::new(None);
+    let top_response: RefCell<Option<egui::Response>> = RefCell::new(None);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(400.0, 300.0))
+        .build_ui(|ui| {
+            let r = egui::Panel::left("left_panel")
+                .exact_size(side_panel_width)
+                .show(ui, |ui| {
+                    // Allocate way more than the panel — would overflow without the clamp.
+                    ui.allocate_space(Vec2::new(1000.0, 10.0));
+                });
+            *side_response.borrow_mut() = Some(r.response);
+
+            let r = egui::Panel::top("top_panel")
+                .exact_size(top_panel_height)
+                .show(ui, |ui| {
+                    ui.allocate_space(Vec2::new(10.0, 1000.0));
+                });
+            *top_response.borrow_mut() = Some(r.response);
+        });
+
+    harness.run();
+
+    let sr = side_response.borrow();
+    let sr = sr.as_ref().expect("left panel response was captured");
+    assert!(
+        sr.rect.width() <= side_panel_width + 1.0,
+        "left panel rect.width()={} exceeded the configured panel width {side_panel_width}",
+        sr.rect.width()
+    );
+    assert!(
+        sr.interact_rect.width() <= side_panel_width + 1.0,
+        "left panel interact_rect.width()={} exceeded the configured panel width {side_panel_width}",
+        sr.interact_rect.width()
+    );
+
+    let tr = top_response.borrow();
+    let tr = tr.as_ref().expect("top panel response was captured");
+    assert!(
+        tr.rect.height() <= top_panel_height + 1.0,
+        "top panel rect.height()={} exceeded the configured panel height {top_panel_height}",
+        tr.rect.height()
+    );
+    assert!(
+        tr.interact_rect.height() <= top_panel_height + 1.0,
+        "top panel interact_rect.height()={} exceeded the configured panel height {top_panel_height}",
+        tr.interact_rect.height()
+    );
+}
+
+/// Regression test: when an animated panel slides off-screen (collapsing), the
+/// enclosing parent (e.g. a `Window`) must not be grown to include the slid-off
+/// portion of the panel.
+#[test]
+fn collapsing_panel_must_not_grow_enclosing_window() {
+    use core::cell::RefCell;
+
+    let window_rect: RefCell<Option<Rect>> = RefCell::new(None);
+    let is_expanded: RefCell<bool> = RefCell::new(true);
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(800.0, 600.0))
+        .build_ui(|ui| {
+            let resp = egui::Window::new("panels_window")
+                .vscroll(false)
+                .show(ui.ctx(), |ui| {
+                    egui::Panel::bottom("bottom_panel")
+                        .resizable(false)
+                        .min_size(60.0)
+                        .show_collapsible(ui, &mut is_expanded.borrow_mut(), |ui| {
+                            ui.label("bottom content");
+                        });
+                    egui::CentralPanel::default().show(ui, |ui| {
+                        ui.label("central");
+                    });
+                });
+            if let Some(resp) = resp {
+                *window_rect.borrow_mut() = Some(resp.response.rect);
+            }
+        });
+
+    harness.run();
+    let initial = window_rect.borrow().expect("window rect captured");
+
+    // Trigger the collapse animation.
+    *is_expanded.borrow_mut() = false;
+
+    // Step through the animation frames; the window must never grow taller than
+    // its initial height (slid-off panel portion must not push the window out).
+    for i in 0..30 {
+        harness.step();
+        let r = window_rect.borrow().expect("window rect captured");
+        assert!(
+            r.height() <= initial.height() + 0.5,
+            "frame {i}: window grew during panel collapse: initial h={}, now h={}",
+            initial.height(),
+            r.height(),
+        );
+    }
+}
+
+/// The hint text of a `TextEdit` should follow the same alignment as the input
+/// text, instead of always being left-top aligned.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/8309>.
+#[test]
+pub fn textedit_hint_text_should_follow_text_alignment() {
+    let mut input = String::new();
+
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(200.0, 40.0))
+        .build_ui(|ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut input)
+                    .hint_text("Hint")
+                    .desired_width(200.0)
+                    .align(egui::Align2::CENTER_TOP),
+            );
+        });
+    harness.run();
+
+    let text_edit = harness.get_by_role(accesskit::Role::TextInput);
+    let edit_rect = text_edit.rect();
+
+    // Find the hint text shape (the only text shape while the input is empty).
+    let hint_shape = harness
+        .output()
+        .shapes
+        .iter()
+        .find_map(|clipped| {
+            let egui::epaint::Shape::Text(text_shape) = &clipped.shape else {
+                return None;
+            };
+            (text_shape.galley.text() == "Hint").then_some(text_shape)
+        })
+        .expect("hint text shape should be painted");
+
+    let hint_center_x = hint_shape.pos.x + hint_shape.galley.size().x * 0.5;
+    let edit_center_x = edit_rect.center().x;
+
+    assert!(
+        (hint_center_x - edit_center_x).abs() < 1.0,
+        "hint text should be centered in the TextEdit: hint_center_x={hint_center_x}, \
+         edit_center_x={edit_center_x}, edit_rect={edit_rect:?}",
+    );
+}
+
+/// A focused `DragValue` keeps the text the user is editing in memory.
+///
+/// If something else changes the value while the `DragValue` has focus,
+/// that memorized text is stale, and must not be written back to the value.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/8339>.
+#[test]
+pub fn drag_value_should_not_revert_external_changes_while_focused() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut i32| {
+            ui.add(egui::DragValue::new(value)).on_hover_text("Value");
+        },
+        0,
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    // Something else changes the value while the `DragValue` is focused.
+    *harness.state_mut() = 42;
+    harness.run();
+
+    assert_eq!(harness.state(), &42);
+    let drag_value = harness.get_by_role(accesskit::Role::SpinButton);
+    assert_eq!(drag_value.value(), Some("42".to_owned()));
+
+    // Losing focus must not restore the value the `DragValue` had when it gained focus.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    assert_eq!(harness.state(), &42);
+}
+
+/// While the user is typing into a `DragValue`, the half-finished text must be kept
+/// between frames, even though it doesn't always parse back to the same text.
+#[test]
+pub fn drag_value_should_keep_text_while_typing() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut f64| {
+            ui.add(egui::DragValue::new(value)).on_hover_text("Value");
+        },
+        0.0,
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    // Type one character per frame. `"1."` parses to `1`, which is formatted as `"1"`,
+    // so re-reading the text from the value would eat the decimal point.
+    for character in "1.25".chars() {
+        harness
+            .get_by_role(accesskit::Role::SpinButton)
+            .type_text(&character.to_string());
+        harness.run();
+    }
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert_eq!(harness.state(), &1.25);
+}
+
+/// An integer `DragValue` cannot represent everything the user types into it,
+/// but the text must still survive until the user is done typing.
+#[test]
+pub fn drag_value_should_keep_text_the_value_cannot_represent() {
+    let mut harness = Harness::new_ui_state(
+        |ui, value: &mut i32| {
+            ui.add(egui::DragValue::new(value)).on_hover_text("Value");
+        },
+        0,
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    // `"12.5"` is stored as `12`, which is formatted as `"12"`.
+    harness
+        .get_by_role(accesskit::Role::SpinButton)
+        .type_text("12.5");
+    harness.run();
+
+    // If the text was re-read from the value now, this would append to `"12"`.
+    harness
+        .get_by_role(accesskit::Role::SpinButton)
+        .type_text("9");
+    harness.run();
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert_eq!(harness.state(), &12, "The text should have been \"12.59\"");
+}
+
+/// With `update_while_editing(false)` the value is only updated when the edit is done,
+/// so `changed()` must not report the keystrokes before that.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/7837>.
+#[test]
+pub fn drag_value_should_not_report_changes_while_typing_without_update_while_editing() {
+    let mut harness = Harness::new_ui_state(
+        |ui, (value, changes): &mut (f64, usize)| {
+            let response = ui
+                .add(egui::DragValue::new(value).update_while_editing(false))
+                .on_hover_text("Value");
+            if response.changed() {
+                *changes += 1;
+            }
+        },
+        (0.0, 0),
+    );
+
+    // Focus the `DragValue`, putting it in text-edit mode with the old text selected.
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    for character in "42".chars() {
+        harness
+            .get_by_role(accesskit::Role::SpinButton)
+            .type_text(&character.to_string());
+        harness.run();
+    }
+
+    assert_eq!(
+        harness.state(),
+        &(0.0, 0),
+        "Nothing should change while typing"
+    );
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+
+    assert_eq!(
+        harness.state(),
+        &(42.0, 1),
+        "The value should change once, when done"
+    );
+}
+
+/// With the default `update_while_editing(true)` the value, and thus `changed()`,
+/// follows each keystroke.
+#[test]
+pub fn drag_value_should_report_changes_while_typing_with_update_while_editing() {
+    let mut harness = Harness::new_ui_state(
+        |ui, (value, changes): &mut (f64, usize)| {
+            let response = ui.add(egui::DragValue::new(value)).on_hover_text("Value");
+            if response.changed() {
+                *changes += 1;
+            }
+        },
+        (0.0, 0),
+    );
+
+    harness.key_press(egui::Key::Tab);
+    harness.run();
+
+    for character in "42".chars() {
+        harness
+            .get_by_role(accesskit::Role::SpinButton)
+            .type_text(&character.to_string());
+        harness.run();
+    }
+
+    assert_eq!(
+        harness.state(),
+        &(42.0, 2),
+        "Each keystroke changes the value"
+    );
+}
+
+/// <https://github.com/emilk/egui/issues/8620>
+#[test]
+pub fn scene_with_zero_rect_and_unbounded_zoom_should_not_produce_nan() {
+    let mut scene_rect = Rect::ZERO;
+    let mut harness = Harness::new_ui(|ui| {
+        egui::Scene::new()
+            .zoom_range(0.0..=f32::INFINITY)
+            .show(ui, &mut scene_rect, |ui| {
+                ui.label("Hello world");
+            });
+    });
+    harness.run();
+    drop(harness);
+    assert!(scene_rect.is_finite(), "scene_rect: {scene_rect:?}");
+    assert!(
+        scene_rect.size() != Vec2::ZERO,
+        "scene_rect: {scene_rect:?}"
+    );
 }
