@@ -115,9 +115,11 @@ impl<'a> Image<'a> {
         })
     }
 
-    /// Texture options used when creating the texture. If the texture is already loaded. This
-    /// function will not work. You will need to use this options while loading the texture, for
-    /// example in [`Context::load_texture`].
+    /// Texture options used when loading the texture from a uri or bytes.
+    ///
+    /// This is ignored for [`ImageSource::Texture`], since that texture is already created.
+    /// In that case, set the options when creating the texture instead,
+    /// e.g. with [`Context::load_texture`](crate::Context::load_texture).
     #[inline]
     pub fn texture_options(mut self, texture_options: TextureOptions) -> Self {
         self.texture_options = texture_options;
