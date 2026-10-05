@@ -1,6 +1,6 @@
-use egui::{UserData, ViewportId};
+use egui::ScreenshotCallback;
 use epaint::ColorImage;
-use std::sync::{Arc, mpsc};
+use std::sync::Arc;
 use wgpu::{BindGroupLayout, MultisampleState, StoreOp};
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
@@ -11,6 +11,10 @@ use wgpu::{BindGroupLayout, MultisampleState, StoreOp};
 /// both the surface texture (via a render pass) and the buffer (via a texture to buffer copy),
 /// from where we can pull it back
 /// to the cpu.
+///
+/// Since the frame is rendered to this texture and not to the surface, a capture needs no
+/// surface texture at all: an occluded or minimized window, which has none to give, can still
+/// be captured.
 pub struct CaptureState {
     padding: BufferPadding,
     pub texture: wgpu::Texture,
@@ -18,12 +22,9 @@ pub struct CaptureState {
     bind_group: wgpu::BindGroup,
 }
 
-pub type CaptureReceiver = mpsc::Receiver<(ViewportId, Vec<UserData>, ColorImage)>;
-pub type CaptureSender = mpsc::Sender<(ViewportId, Vec<UserData>, ColorImage)>;
-pub use mpsc::channel as capture_channel;
-
 impl CaptureState {
-    pub fn new(device: &wgpu::Device, surface_texture: &wgpu::Texture) -> Self {
+    /// `size` and `format` are those of the surface we would otherwise render to.
+    pub fn new(device: &wgpu::Device, size: wgpu::Extent3d, format: wgpu::TextureFormat) -> Self {
         let shader = device.create_shader_module(wgpu::include_wgsl!("texture_copy.wgsl"));
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -39,7 +40,7 @@ impl CaptureState {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 compilation_options: Default::default(),
-                targets: &[Some(surface_texture.format().into())],
+                targets: &[Some(format.into())],
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -54,7 +55,7 @@ impl CaptureState {
         let bind_group_layout = pipeline.get_bind_group_layout(0);
 
         let (texture, padding, bind_group) =
-            Self::create_texture(device, surface_texture, &bind_group_layout);
+            Self::create_texture(device, size, format, &bind_group_layout);
 
         Self {
             padding,
@@ -66,23 +67,24 @@ impl CaptureState {
 
     fn create_texture(
         device: &wgpu::Device,
-        surface_texture: &wgpu::Texture,
+        size: wgpu::Extent3d,
+        format: wgpu::TextureFormat,
         layout: &BindGroupLayout,
     ) -> (wgpu::Texture, BufferPadding, wgpu::BindGroup) {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("egui_screen_capture_texture"),
-            size: surface_texture.size(),
-            mip_level_count: surface_texture.mip_level_count(),
-            sample_count: surface_texture.sample_count(),
-            dimension: surface_texture.dimension(),
-            format: surface_texture.format(),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
 
-        let padding = BufferPadding::new(surface_texture.width());
+        let padding = BufferPadding::new(size.width);
 
         let view = texture.create_view(&Default::default());
 
@@ -98,28 +100,33 @@ impl CaptureState {
         (texture, padding, bind_group)
     }
 
-    /// Updates the [`CaptureState`] if the size of the surface texture has changed
-    pub fn update(&mut self, device: &wgpu::Device, texture: &wgpu::Texture) {
-        if self.texture.size() != texture.size() {
-            let (new_texture, padding, bind_group) =
-                Self::create_texture(device, texture, &self.pipeline.get_bind_group_layout(0));
+    /// Updates the [`CaptureState`] if the size of the surface has changed
+    pub fn update(&mut self, device: &wgpu::Device, size: wgpu::Extent3d) {
+        if self.texture.size() != size {
+            let format = self.texture.format();
+            let (new_texture, padding, bind_group) = Self::create_texture(
+                device,
+                size,
+                format,
+                &self.pipeline.get_bind_group_layout(0),
+            );
             self.texture = new_texture;
             self.padding = padding;
             self.bind_group = bind_group;
         }
     }
 
-    /// Handles copying from the [`CaptureState`] texture to the surface texture and the buffer.
+    /// Handles copying from the [`CaptureState`] texture to the buffer, and to the surface
+    /// texture when there is one to present to.
     /// Pass the returned buffer to [`CaptureState::read_screen_rgba`] to read the data back to the cpu.
     pub fn copy_textures(
         &mut self,
         device: &wgpu::Device,
-        output_frame: &wgpu::SurfaceTexture,
+        output_frame: Option<&wgpu::SurfaceTexture>,
         encoder: &mut wgpu::CommandEncoder,
     ) -> wgpu::Buffer {
-        debug_assert_eq!(
-            self.texture.size(),
-            output_frame.texture.size(),
+        debug_assert!(
+            output_frame.is_none_or(|frame| frame.texture.size() == self.texture.size()),
             "Texture sizes must match, `CaptureState::update` was probably not called"
         );
 
@@ -151,26 +158,30 @@ impl CaptureState {
             tex_extent,
         );
 
-        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("texture_copy"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &output_frame.texture.create_view(&Default::default()),
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                    store: StoreOp::Store,
-                },
-                depth_slice: None,
-            })],
-            depth_stencil_attachment: None,
-            occlusion_query_set: None,
-            timestamp_writes: None,
-            multiview_mask: None,
-        });
+        // Blit to the surface, for the frame that is actually shown. A hidden window has no
+        // surface texture to blit to, and nothing to show: the capture above is all we want.
+        if let Some(output_frame) = output_frame {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("texture_copy"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &output_frame.texture.create_view(&Default::default()),
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+                multiview_mask: None,
+            });
 
-        pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &self.bind_group, &[]);
-        pass.draw(0..3, 0..1);
+            pass.set_pipeline(&self.pipeline);
+            pass.set_bind_group(0, &self.bind_group, &[]);
+            pass.draw(0..3, 0..1);
+        }
 
         buffer
     }
@@ -179,14 +190,7 @@ impl CaptureState {
     /// This function is non-blocking and will send the data to the given sender when it's ready.
     /// Pass in the buffer returned from [`CaptureState::copy_textures`].
     /// Make sure to call this after the encoder has been submitted.
-    pub fn read_screen_rgba(
-        &self,
-        ctx: egui::Context,
-        buffer: wgpu::Buffer,
-        data: Vec<UserData>,
-        tx: CaptureSender,
-        viewport_id: ViewportId,
-    ) {
+    pub fn read_screen_rgba(&self, buffer: wgpu::Buffer, callbacks: Vec<ScreenshotCallback>) {
         #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         let buffer = Arc::new(buffer);
         let buffer_clone = Arc::clone(&buffer);
@@ -233,16 +237,13 @@ impl CaptureState {
             drop(mapped_range);
             buffer.unmap();
 
-            tx.send((
-                viewport_id,
-                data,
-                ColorImage::new(
-                    [tex_extent.width as usize, tex_extent.height as usize],
-                    pixels,
-                ),
-            ))
-            .ok();
-            ctx.request_repaint();
+            let image = Arc::new(ColorImage::new(
+                [tex_extent.width as usize, tex_extent.height as usize],
+                pixels,
+            ));
+            for callback in callbacks {
+                callback.complete(Arc::clone(&image));
+            }
         });
     }
 }

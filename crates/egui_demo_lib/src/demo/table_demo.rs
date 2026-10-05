@@ -186,7 +186,7 @@ impl TableDemo {
                         },
                         |ui| {
                             self.reversed ^=
-                                ui.button(if self.reversed { "⬆" } else { "⬇" }).clicked();
+                                ui.button(if self.reversed { "⬆️" } else { "⬇️" }).clicked();
                         },
                     );
                 });

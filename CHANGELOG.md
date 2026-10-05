@@ -14,6 +14,22 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.2 - 2026-09-08
+### ⭐ Added
+* Add `TextEdit::event_filter` [#8530](https://github.com/emilk/egui/pull/8530) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Fallback `window_title_frame` to `window_frame` when unspecified [#8400](https://github.com/emilk/egui/pull/8400) by [@rustbasic](https://github.com/rustbasic)
+* Don't revert external changes to a focused `DragValue` [#8403](https://github.com/emilk/egui/pull/8403) by [@teddytennant](https://github.com/teddytennant)
+
+### 🐛 Fixed
+* Match image file extensions case-insensitively [#8430](https://github.com/emilk/egui/pull/8430) by [@emilk](https://github.com/emilk)
+* Fix rendering of thin, angled rectangles [#8482](https://github.com/emilk/egui/pull/8482) by [@emilk](https://github.com/emilk)
+* Fix zero-duration value animations returning the previous value [#8469](https://github.com/emilk/egui/pull/8469) by [@cuishuang](https://github.com/cuishuang)
+* Fix panic in hit-test when a widget rect contains a NaN [#8479](https://github.com/emilk/egui/pull/8479) by [@emilk](https://github.com/emilk)
+* Properly respect `min_size` in `TextEdit` [#8420](https://github.com/emilk/egui/pull/8420) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
 ## 0.36.1 - 2026-08-07
 * Fix `Sense::drag` detecting drags when clicking widget above it [#8396](https://github.com/emilk/egui/pull/8396) by [@lucasmerlin](https://github.com/lucasmerlin)
 

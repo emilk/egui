@@ -445,6 +445,7 @@ impl WinitApp for GlowWinitApp<'_> {
         if let Some(mut running) = self.running.take() {
             profiling::function_scope!();
 
+            running.integration.egui_ctx.on_exit();
             running.integration.save(
                 running.app.as_mut(),
                 Some(&running.glutin.borrow().window(ViewportId::ROOT)),
@@ -612,7 +613,13 @@ impl GlowWinitRunning<'_> {
             };
             egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window, false);
 
-            let is_visible = viewport.info.visible().unwrap_or(true);
+            // A hidden window is not painted, since nothing would be shown — unless someone
+            // wants the pixels anyway, e.g. to screenshot an app that is in the background:
+            let is_visible = viewport.info.visible().unwrap_or(true)
+                || viewport
+                    .actions_requested
+                    .iter()
+                    .any(egui_winit::ActionRequested::wants_paint);
 
             let Some(egui_winit) = viewport.egui_winit.as_mut() else {
                 return Ok(EventResult::Wait);
@@ -815,18 +822,14 @@ impl GlowWinitRunning<'_> {
             );
 
             {
+                let mut screenshot_callbacks = Vec::new();
                 for action in viewport.actions_requested.drain(..) {
                     match action {
-                        ActionRequested::Screenshot(user_data) => {
-                            let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-                            egui_winit
-                                .egui_input_mut()
-                                .events
-                                .push(egui::Event::Screenshot {
-                                    viewport_id,
-                                    user_data,
-                                    image: screenshot.into(),
-                                });
+                        ActionRequested::Screenshot(callback) => {
+                            screenshot_callbacks.push(callback);
+                        }
+                        ActionRequested::PaintWhileHidden => {
+                            // Painting this frame is all it asked for.
                         }
                         ActionRequested::Cut => {
                             egui_winit.egui_input_mut().events.push(egui::Event::Cut);
@@ -843,8 +846,20 @@ impl GlowWinitRunning<'_> {
                                         .events
                                         .push(egui::Event::Paste(contents));
                                 }
+                            } else if let Some(image) = egui_winit.clipboard_image() {
+                                egui_winit
+                                    .egui_input_mut()
+                                    .events
+                                    .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
                             }
                         }
+                    }
+                }
+
+                if !screenshot_callbacks.is_empty() {
+                    let screenshot = Arc::new(painter.read_screen_rgba(screen_size_in_pixels));
+                    for callback in screenshot_callbacks {
+                        callback.complete(Arc::clone(&screenshot));
                     }
                 }
 
@@ -878,7 +893,10 @@ impl GlowWinitRunning<'_> {
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
 
-        integration.maybe_autosave(app.as_mut(), Some(&window));
+        integration.maybe_autosave(
+            app.as_mut(),
+            (viewport_id == ViewportId::ROOT).then_some(&window),
+        );
 
         sleep_if_invisible_or_minimized(Some(&window));
 

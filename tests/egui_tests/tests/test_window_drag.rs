@@ -20,7 +20,7 @@ fn build(state: State) -> Harness<'static, State> {
         .build_ui_state(
             move |ui, state: &mut State| {
                 Window::new("test_win")
-                    .id(Id::new("test_win"))
+                    .id(Id::unique("test_win"))
                     .drag_area(state.drag_area)
                     .movable(state.movable)
                     .default_pos([100.0, 80.0])
@@ -40,7 +40,7 @@ fn build(state: State) -> Harness<'static, State> {
 }
 
 fn window_rect(harness: &Harness<'_, State>) -> egui::Rect {
-    egui::AreaState::load(&harness.ctx, Id::new("test_win"))
+    egui::AreaState::load(&harness.ctx, Id::unique("test_win"))
         .expect("window area should be persisted after the first frame")
         .rect()
 }
