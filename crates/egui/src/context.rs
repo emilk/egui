@@ -1557,6 +1557,11 @@ impl Context {
             self.accesskit_node_builder(w.id, |builder| res.fill_accesskit_node_common(builder));
         }
 
+        // A `Ui` registers with `Rect::NOTHING` before its real rect is known; scrolling needs the real one.
+        if w.rect == Rect::NOTHING {
+            return res;
+        }
+
         self.write(|ctx| {
             use crate::{Align, pass_state::ScrollTarget, style::ScrollAnimation};
             let viewport = ctx.viewport_for(ctx.viewport_id());
