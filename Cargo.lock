@@ -2667,8 +2667,9 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "kittest"
-version = "0.4.0"
-source = "git+https://github.com/rerun-io/kittest.git?rev=46eb59019fa8b45871a7b83b8219b4c627c3db2f#46eb59019fa8b45871a7b83b8219b4c627c3db2f"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bb81a721ba76aa095b7f45deb180504f786904e56ca4b8e141f66eb89a78b75"
 dependencies = [
  "accesskit",
  "accesskit_consumer",

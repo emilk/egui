@@ -106,7 +106,7 @@ image = { version = "0.25.10", default-features = false } # `flate2` is held at 
 itertools = "0.15.0"
 jiff = { version = "0.2.35", default-features = false }
 js-sys = "0.3.103"
-kittest = { version = "0.4.0" }
+kittest = { version = "0.5.0" }
 log = { version = "0.4.34", features = ["std"] }
 mimalloc = "0.1.52"
 mime_guess2 = { version = "2.3", default-features = false }
@@ -314,7 +314,3 @@ let_underscore_must_use = "allow"
 let_underscore_untyped = "allow"
 self_named_module_files = "allow" # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
-
-[patch.crates-io]
-# TODO: remove whenever kittest releases their next version
-kittest = { git = "https://github.com/rerun-io/kittest.git", rev = "46eb59019fa8b45871a7b83b8219b4c627c3db2f" }
