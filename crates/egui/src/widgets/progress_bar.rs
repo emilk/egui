@@ -1,6 +1,6 @@
 use crate::{
-    Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Sense, Shape, Stroke,
-    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType, lerp, vec2,
+    Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Role, Sense, Shape, Stroke,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, lerp, vec2,
 };
 
 enum ProgressBarText {
@@ -118,9 +118,9 @@ impl Widget for ProgressBar {
 
         response.widget_info(|| {
             let mut info = if let Some(ProgressBarText::Custom(text)) = &text {
-                WidgetInfo::labeled(WidgetType::ProgressIndicator, ui.is_enabled(), text.text())
+                WidgetInfo::labeled(Role::ProgressIndicator, ui.is_enabled(), text.text())
             } else {
-                WidgetInfo::new(WidgetType::ProgressIndicator)
+                WidgetInfo::new(Role::ProgressIndicator)
             };
             info.value = Some((progress as f64 * 100.0).floor());
 
@@ -134,7 +134,7 @@ impl Widget for ProgressBar {
 
             let visuals = ui.style().visuals.clone();
             let has_custom_cr = corner_radius.is_some();
-            let half_height = outer_rect.height() / 2.0;
+            let half_height = outer_rect.height() * 0.5;
             let corner_radius = corner_radius.unwrap_or_else(|| half_height.into());
             ui.painter()
                 .rect_filled(outer_rect, corner_radius, visuals.extreme_bg_color);
@@ -192,7 +192,7 @@ impl Widget for ProgressBar {
                     f32::INFINITY,
                     TextStyle::Button,
                 );
-                let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y / 2.0)
+                let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y * 0.5)
                     + vec2(ui.spacing().item_spacing.x, 0.0);
                 let text_color = visuals
                     .override_text_color

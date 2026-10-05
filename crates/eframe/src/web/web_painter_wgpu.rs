@@ -277,10 +277,12 @@ impl WebPainter for WebPainterWgpu {
                 let renderer = render_state.renderer.read();
 
                 let target_texture = if capture {
+                    let size = output_frame.texture.size();
+                    let format = output_frame.texture.format();
                     let capture_state = self.screen_capture_state.get_or_insert_with(|| {
-                        CaptureState::new(&render_state.device, &output_frame.texture)
+                        CaptureState::new(&render_state.device, size, format)
                     });
-                    capture_state.update(&render_state.device, &output_frame.texture);
+                    capture_state.update(&render_state.device, size);
 
                     &capture_state.texture
                 } else {
@@ -345,13 +347,16 @@ impl WebPainter for WebPainterWgpu {
                 );
             }
 
-            let capture_buffer = if capture
-                && let Some(capture_state) = &mut self.screen_capture_state
-            {
-                Some(capture_state.copy_textures(&render_state.device, &output_frame, &mut encoder))
-            } else {
-                None
-            };
+            let capture_buffer =
+                if capture && let Some(capture_state) = &mut self.screen_capture_state {
+                    Some(capture_state.copy_textures(
+                        &render_state.device,
+                        Some(&output_frame),
+                        &mut encoder,
+                    ))
+                } else {
+                    None
+                };
 
             Some((output_frame, capture_buffer))
         };

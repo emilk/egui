@@ -9,7 +9,7 @@ pub trait AtomExt<'a> {
     ///
     /// The salt only needs to be unique among the atoms of the same widget.
     ///
-    /// You can get the [`crate::Rect`] with the [`IdSalt`] from [`crate::AtomLayoutResponse`] and use a
+    /// You can get the [`crate::Rect`] with the [`IdSalt`] from [`crate::WidgetAtomResponse`] and use a
     /// [`crate::Painter`] or [`Ui::place`] to add/draw some custom content.
     fn atom_id(self, id: IdSalt) -> Atom<'a>;
 
@@ -27,7 +27,7 @@ pub trait AtomExt<'a> {
     /// Grow this atom to the available space.
     ///
     /// This will affect the size of the [`Atom`] in the main direction. Since
-    /// [`crate::AtomLayout`] today only supports horizontal layout, it will affect the width.
+    /// [`crate::ContainerAtom`] today only supports horizontal layout, it will affect the width.
     ///
     /// You can also combine this with [`Self::atom_shrink`] to make it always take exactly the
     /// remaining space.
@@ -36,7 +36,7 @@ pub trait AtomExt<'a> {
     /// Shrink this atom if there isn't enough space.
     ///
     /// This will affect the size of the [`Atom`] in the main direction. Since
-    /// [`crate::AtomLayout`] today only supports horizontal layout, it will affect the width.
+    /// [`crate::ContainerAtom`] today only supports horizontal layout, it will affect the width.
     ///
     /// NOTE: Only a single [`Atom`] may shrink for each widget.
     ///

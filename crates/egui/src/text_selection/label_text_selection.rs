@@ -667,7 +667,6 @@ impl ViewportLabelSelectionState {
             ui.ctx(),
             response.id,
             cursor_range,
-            accesskit::Role::Label,
             global_from_galley,
             galley,
         );

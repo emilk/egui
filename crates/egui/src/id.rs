@@ -4,12 +4,11 @@ use core::num::NonZeroU64;
 
 use crate::{AsIdSalt, IdSalt};
 
-/// Types that can be converted to an [`Id`].
-///
-/// This is all types implementing `Hash` and `Debug`,
-/// which includes things like string, integers, tuples of those, etc.
+/// Deprecated
+#[deprecated = "Use AsIdSalt or Id instead"]
 pub trait AsId: core::hash::Hash + core::fmt::Debug {}
 
+#[expect(deprecated)]
 impl<T: core::hash::Hash + core::fmt::Debug> AsId for T {}
 
 /// A (hopefully) unique identity within this application.
@@ -78,7 +77,18 @@ impl Id {
     /// or else you risk [`Id`] clashes with other widgets.
     ///
     /// If you only need something unique within a parent widget, use [`IdSalt`] instead.
-    pub fn unique(source: impl AsId) -> Self {
+    ///
+    /// The source is anything that implements [`Hash`](core::hash::Hash),
+    /// including strings, integers, and tuples. Prefer a tuple over formatting a string:
+    ///
+    /// ```
+    /// # use egui::Id;
+    /// # let (row, column) = (0, 0);
+    /// let good = Id::unique(("my_table_cell", row, column)); // No allocation
+    /// let bad = Id::unique(format!("my_table_cell {row} {column}")); // Allocates
+    /// # let _ = (good, bad);
+    /// ```
+    pub fn unique(source: impl core::hash::Hash + core::fmt::Debug) -> Self {
         let id = Self::from_hash(ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(&source));
 
         #[cfg(debug_assertions)]
@@ -89,13 +99,25 @@ impl Id {
 
     /// Generate a new, globally unique, root [`Id`] by hashing some source (e.g. a string or integer).
     #[deprecated = "Use `Id::unique` (for a globally unique id) or `IdSalt::new` (for a locally unique salt) instead"]
-    pub fn new(source: impl AsId) -> Self {
+    pub fn new(source: impl core::hash::Hash + core::fmt::Debug) -> Self {
         Self::unique(source)
     }
 
     /// Generate a child [`Id`] by salting the parent [`Id`] with the given argument.
     ///
     /// `id.with(salt)` is the same as `id.with_salt(IdSalt::new(salt))`.
+    ///
+    /// The salt is anything that implements [`Hash`](core::hash::Hash),
+    /// including strings, integers, and tuples.
+    /// Prefer a single tuple over a chain of [`Self::with`]:
+    ///
+    /// ```
+    /// # use egui::Id;
+    /// # let (parent, row, column) = (Id::NULL, 0, 0);
+    /// let good = parent.with((row, column)); // Hashes once
+    /// let bad = parent.with(row).with(column); // Hashes twice
+    /// # let _ = (good, bad);
+    /// ```
     pub fn with(self, salt: impl AsIdSalt) -> Self {
         let id = self.hash_with_salt(IdSalt::new(&salt));
 
@@ -190,19 +212,35 @@ pub type IdMap<V> = nohash_hasher::IntMap<Id, V>;
 /// Used by [`Id`]'s `Debug` impl so that `Id::unique("foo")` prints as `Id::unique("foo")`,
 /// and `Id::unique("foo").with("bar")` prints as `Id::unique("foo").with("bar")`, etc.
 #[cfg(debug_assertions)]
-mod id_source {
-    use super::{AsId, AsIdSalt, Id, IdMap};
+pub(crate) mod id_source {
+    use super::{AsIdSalt, Id, IdMap};
     use epaint::mutex::RwLock;
     use std::sync::LazyLock;
 
     static SOURCE_MAP: LazyLock<RwLock<IdMap<String>>> = LazyLock::new(RwLock::default);
 
-    pub(super) fn insert_root(id: Id, source: &impl AsId) {
+    /// Stored sources are truncated to at most this many bytes.
+    ///
+    /// Without a limit, an [`Id`] salted with (something containing) its own ancestor,
+    /// e.g. `ui.indent(header_id, …)` in a nested `CollapsingHeader`,
+    /// doubles the length of the stored source at every level of nesting.
+    const MAX_SOURCE_LEN: usize = 1024;
+
+    /// Keep the end, since that is the most specific part.
+    pub(crate) fn truncate(mut source: String) -> String {
+        if MAX_SOURCE_LEN < source.len() {
+            let start = source.ceil_char_boundary(source.len() - MAX_SOURCE_LEN);
+            source.replace_range(..start, "…");
+        }
+        source
+    }
+
+    pub(super) fn insert_root(id: Id, source: &impl core::fmt::Debug) {
         if SOURCE_MAP.read().contains_key(&id) {
             return;
         }
         // Format outside the lock since `{source:?}` may itself recurse into [`Id`]'s `Debug` impl.
-        let formatted = format!("Id::unique({source:?})");
+        let formatted = truncate(format!("Id::unique({source:?})"));
         SOURCE_MAP.write().insert(id, formatted);
     }
 
@@ -214,7 +252,7 @@ mod id_source {
         // since `{parent:?}` and `{salt:?}` may themselves recurse into [`Id`]'s `Debug` impl.
         let cached_parent_repr = SOURCE_MAP.read().get(&parent).cloned();
         let parent_repr = cached_parent_repr.unwrap_or_else(|| format!("{parent:?}"));
-        let formatted = format!("{parent_repr}.with({salt:?})");
+        let formatted = truncate(format!("{parent_repr}.with({salt:?})"));
         SOURCE_MAP.write().insert(id, formatted);
     }
 
@@ -254,10 +292,16 @@ mod debug_format_tests {
         assert_eq!(format!("{id:?}"), r#"Id::unique(IdSalt::new("foo"))"#);
     }
 
+    // The debug source map memoizes the first spelling it sees for an `Id`, so two tests that
+    // build the same `Id` by different routes race: whichever runs first decides what the other
+    // one's `{:?}` prints. Every test here therefore uses sources no other test uses.
     #[test]
     fn with_salt_matches_with() {
-        let parent = Id::unique("parent");
-        assert_eq!(parent.with_salt(IdSalt::new("child")), parent.with("child"));
+        let parent = Id::unique("salted_parent");
+        assert_eq!(
+            parent.with_salt(IdSalt::new("salted_child")),
+            parent.with("salted_child")
+        );
     }
 
     #[test]
@@ -280,6 +324,18 @@ mod debug_format_tests {
         let inner = Id::unique("foo");
         let outer = Id::unique(inner);
         assert_eq!(format!("{outer:?}"), r#"Id::unique(Id::unique("foo"))"#);
+    }
+
+    /// Salting an [`Id`] with itself used to double the stored source at every step.
+    #[test]
+    fn salting_with_self_is_truncated() {
+        let mut id = Id::unique("self_salted");
+        for _ in 0..64 {
+            id = id.with(id);
+        }
+        let formatted = format!("{id:?}");
+        assert!(formatted.starts_with('…'), "{formatted}");
+        assert!(formatted.len() < 2000, "{} bytes", formatted.len());
     }
 
     #[test]
