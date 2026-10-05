@@ -27,7 +27,7 @@ To enable this, the integration has to use one of two APIs:
 * `Context::add_font_provider(Arc<dyn FontProvider>)`: lets egui find and load whole fonts at runtime. Native `eframe` uses this to list system fonts with [`fontique`](https://crates.io/crates/fontique) [#8512](https://github.com/emilk/egui/pull/8512).
 
 #### Experimental theme customizations
-This releases adds a theme plugin system ([#8153](https://github.com/emilk/egui/pull/8153)).
+This release adds a theme plugin system [#8153](https://github.com/emilk/egui/pull/8153).
 
 TODO: add more details here
 
