@@ -535,31 +535,31 @@ fn try_image_snapshot_options_impl(
         Ok(image) => image.to_rgba8(),
         Err(err) => {
             // No previous snapshot - probably a new test.
-            if mode.is_update() {
-                return update_snapshot();
+            return if mode.is_update() {
+                update_snapshot()
             } else {
                 write_new_png()?;
 
-                return Err(SnapshotError::OpenSnapshot {
+                Err(SnapshotError::OpenSnapshot {
                     path: snapshot_path.clone(),
                     err,
-                });
-            }
+                })
+            };
         }
     };
 
     if previous.dimensions() != new.dimensions() {
-        if mode.is_update() {
-            return update_snapshot();
+        return if mode.is_update() {
+            update_snapshot()
         } else {
             write_new_png()?;
 
-            return Err(SnapshotError::SizeMismatch {
+            Err(SnapshotError::SizeMismatch {
                 name,
                 expected: previous.dimensions(),
                 actual: new.dimensions(),
-            });
-        }
+            })
+        };
     }
 
     // Compare existing image to the new one:
@@ -737,6 +737,9 @@ impl<State> Harness<'_, State> {
     /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
     pub fn try_snapshot(&mut self, name: impl Into<String>) -> SnapshotResult {
+        if self.check_accessibility {
+            self.check_accessibility();
+        }
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;

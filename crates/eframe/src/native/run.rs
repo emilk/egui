@@ -207,7 +207,12 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                         invisible_window_ids.push(*window_id);
                     } else {
                         log::trace!("request_redraw for {window_id:?}");
-                        event_loop.set_control_flow(ControlFlow::Poll);
+                        // Don't switch to `ControlFlow::Poll` here. `request_redraw`
+                        // is enough to wake the event loop, and on Wayland the
+                        // `RedrawRequested` event is only delivered once the
+                        // compositor sends a frame callback. Polling in the meantime
+                        // busy-loops a whole CPU core.
+                        // See https://github.com/emilk/egui/issues/8326.
                         window.request_redraw();
                     }
                 } else {
@@ -237,10 +242,16 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             }
         }
 
+        // Always set an explicit, sleeping control flow. Previously we only set
+        // `WaitUntil` when a repaint was already scheduled, which meant that a
+        // `ControlFlow::Poll` set earlier was never undone once the last timed
+        // repaint had been consumed, leaving the loop spinning.
+        // See https://github.com/emilk/egui/issues/8326.
         let next_repaint_time = self.windows_next_repaint_times.values().min().copied();
-        if let Some(next_repaint_time) = next_repaint_time {
-            event_loop.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
-        }
+        event_loop.set_control_flow(match next_repaint_time {
+            Some(next_repaint_time) => ControlFlow::WaitUntil(next_repaint_time),
+            None => ControlFlow::Wait,
+        });
     }
 }
 

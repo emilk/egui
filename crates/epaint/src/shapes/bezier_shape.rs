@@ -1,5 +1,3 @@
-#![expect(clippy::many_single_char_names)]
-
 use core::ops::Range;
 
 use crate::{Color32, PathShape, PathStroke, Shape};

@@ -583,6 +583,7 @@ impl WgpuWinitRunning<'_> {
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
+        self.integration.egui_ctx.on_exit();
         self.save();
 
         #[cfg(feature = "glow")]
@@ -669,7 +670,13 @@ impl WgpuWinitRunning<'_> {
             };
             egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);
 
-            let is_visible = viewport.info.visible().unwrap_or(true);
+            // A hidden window is not painted, since nothing would be shown — unless someone
+            // wants the pixels anyway, e.g. to screenshot an app that is in the background:
+            let is_visible = viewport.info.visible().unwrap_or(true)
+                || viewport
+                    .actions_requested
+                    .iter()
+                    .any(egui_winit::ActionRequested::wants_paint);
 
             {
                 profiling::scope!("set_window");
@@ -690,8 +697,6 @@ impl WgpuWinitRunning<'_> {
                 .iter()
                 .map(|(id, viewport)| (*id, viewport.info.clone()))
                 .collect();
-
-            painter.handle_screenshots(&mut raw_input.events);
 
             (viewport_ui_cb, raw_input, is_visible, show_ui)
         };
@@ -801,8 +806,8 @@ impl WgpuWinitRunning<'_> {
 
             let mut screenshot_commands = vec![];
             viewport.actions_requested.retain(|cmd| {
-                if let ActionRequested::Screenshot(info) = cmd {
-                    screenshot_commands.push(info.clone());
+                if let ActionRequested::Screenshot(callback) = cmd {
+                    screenshot_commands.push(callback.clone());
                     false
                 } else {
                     true
@@ -820,8 +825,9 @@ impl WgpuWinitRunning<'_> {
 
             for action in viewport.actions_requested.drain(..) {
                 match action {
-                    ActionRequested::Screenshot { .. } => {
-                        // already handled above
+                    ActionRequested::Screenshot { .. } | ActionRequested::PaintWhileHidden => {
+                        // Screenshots were handled above, and painting this frame is all that
+                        // `PaintWhileHidden` asked for.
                     }
                     ActionRequested::Cut => {
                         egui_winit.egui_input_mut().events.push(egui::Event::Cut);
@@ -838,6 +844,11 @@ impl WgpuWinitRunning<'_> {
                                     .events
                                     .push(egui::Event::Paste(contents));
                             }
+                        } else if let Some(image) = egui_winit.clipboard_image() {
+                            egui_winit
+                                .egui_input_mut()
+                                .events
+                                .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
                         }
                     }
                 }

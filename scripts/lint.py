@@ -66,11 +66,8 @@ def lint_lines(filepath, lines_in):
                 )
                 lines_out.append("#[inline]")
 
-
         if re.search(r"TODO[^(]", line):
-            errors.append(
-                f"{filepath}:{line_nr}: write 'TODO(username):' instead"
-            )
+            errors.append(f"{filepath}:{line_nr}: write 'TODO(username):' instead")
 
         if re.search(r"\.zip\(", line):
             errors.append(
@@ -177,7 +174,11 @@ def main():
         root_dirpath = os.path.abspath(f"{script_dirpath}/..")
         os.chdir(root_dirpath)
 
-        exclude = set(["target", "target_ra", "target_wasm"])
+        exclude = {
+            "target",
+            "target_ra",  # legacy Rust Analyzer target dir
+            "target_wasm",
+        }
         for root, dirs, files in os.walk(".", topdown=True):
             dirs[:] = [d for d in dirs if d not in exclude]
             for filename in files:
