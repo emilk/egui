@@ -10,9 +10,10 @@
 
 use crate::style::StyleModifier;
 use crate::{
-    Atom, AtomKind, AtomPaintArgs, Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms,
-    IntoSizedResult, Layout, PointerButton, Popup, PopupCloseBehavior, PopupKind, Response,
-    SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
+    Atom, AtomKind, AtomPaintArgs, Button, Color32, Context, FocusDirection, Frame, Id,
+    InnerResponse, IntoAtoms, IntoSizedResult, Layout, PointerButton, Popup, PopupCloseBehavior,
+    PopupKind, Response, SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo,
+    Widget as _,
 };
 use emath::{Align, Rect, RectAlign, Vec2, vec2};
 use epaint::{Shape, Stroke};
@@ -139,6 +140,11 @@ pub struct MenuState {
     /// The currently open sub menu in this menu.
     pub open_item: Option<Id>,
     last_visible_pass: u64,
+    is_submenu: bool,
+    focus_first: bool,
+
+    /// A stationary pointer should not close a submenu opened with the keyboard.
+    ignore_hover: bool,
 }
 
 impl MenuState {
@@ -158,10 +164,15 @@ impl MenuState {
             let mut state = data.get_temp(state_id).unwrap_or(Self {
                 open_item: None,
                 last_visible_pass: pass_nr,
+                is_submenu: false,
+                focus_first: false,
+                ignore_hover: false,
             });
             // If the menu was closed for at least a frame, reset the open item
             if state.last_visible_pass + 1 < pass_nr {
                 state.open_item = None;
+                state.focus_first = false;
+                state.ignore_hover = false;
             }
             if let Some(item) = state.open_item
                 && data
@@ -182,6 +193,63 @@ impl MenuState {
         Self::from_id(ctx, id, |state| {
             state.last_visible_pass = pass_nr;
         });
+    }
+
+    /// Navigate within this menu after all of its entries have registered focus interest.
+    pub(crate) fn handle_keyboard(ui: &Ui, anchor_widget: Option<Id>) {
+        if ui.is_sizing_pass() || !ui.memory(|mem| mem.allows_interaction(ui.layer_id())) {
+            return;
+        }
+        let (focus_first, is_submenu) = Self::from_id(ui.ctx(), ui.layer_id().id, |state| {
+            (core::mem::take(&mut state.focus_first), state.is_submenu)
+        });
+        let direction = ui.memory(|mem| mem.focus_direction());
+        if !focus_first
+            && !matches!(
+                direction,
+                FocusDirection::Up
+                    | FocusDirection::Down
+                    | FocusDirection::Left
+                    | FocusDirection::Right
+            )
+        {
+            return;
+        }
+        let (focused, entries) =
+            ui.memory(|mem| (mem.focused(), mem.focusable_widgets_in_layer(ui.layer_id())));
+        let focus_first = focus_first && focused == anchor_widget;
+        let index = entries.iter().position(|id| Some(*id) == focused);
+        let entering = focused == anchor_widget && !is_submenu;
+        let from_empty =
+            focused.is_none() && Self::is_deepest_open_sub_menu(ui.ctx(), ui.layer_id().id);
+        if index.is_none() && !entering && !from_empty && !focus_first {
+            return;
+        }
+        let next = if focus_first {
+            entries.first().copied()
+        } else {
+            match direction {
+                FocusDirection::Down => index
+                    .and_then(|index| entries.get(index + 1))
+                    .or_else(|| entries.first())
+                    .copied(),
+                FocusDirection::Up => index
+                    .and_then(|index| index.checked_sub(1))
+                    .and_then(|index| entries.get(index))
+                    .or_else(|| entries.last())
+                    .copied(),
+                FocusDirection::Left => anchor_widget,
+                // SubMenu handles Right on its own button before we get here.
+                _ => None,
+            }
+        };
+        ui.memory_mut(|mem| {
+            mem.move_focus(FocusDirection::None);
+            if let Some(next) = next {
+                mem.request_focus_next_frame(next);
+            }
+        });
+        ui.request_repaint();
     }
 
     /// Is the menu with this id the deepest sub menu? (-> no child sub menu is open)
@@ -465,7 +533,9 @@ impl SubMenu {
         let id = Self::id_from_widget_id(button_response.id);
 
         // Get the state from the parent menu
+        let pass_nr = ui.ctx().cumulative_pass_nr();
         let (open_item, menu_id, parent_config) = MenuState::from_ui(ui, |state, stack| {
+            state.last_visible_pass = pass_nr;
             (
                 state.open_item,
                 stack.unique_id,
@@ -478,9 +548,6 @@ impl SubMenu {
 
         #[expect(clippy::unwrap_used)] // Since we are a child of that ui, this should always exist
         let menu_root_response = ui.ctx().read_response(menu_id).unwrap();
-        let menu_root = find_menu_root(ui);
-        let parent_is_popup = menu_root.is_root_ui()
-            && matches!(menu_root.kind(), Some(UiKind::Popup | UiKind::Menu));
 
         let hover_pos = ui.ctx().pointer_hover_pos();
 
@@ -512,6 +579,33 @@ impl SubMenu {
         let clicked = button_response.clicked();
         let clicked_by_pointer = button_response.clicked_by(PointerButton::Primary);
         let clicked_by_keyboard_or_access = clicked && !clicked_by_pointer;
+        let arrow_right = button_response.enabled()
+            && button_response.has_focus()
+            && ui.memory(|mem| mem.focus_direction() == FocusDirection::Right);
+        if arrow_right {
+            ui.memory_mut(|mem| mem.move_focus(FocusDirection::None));
+        }
+        let keyboard_open = arrow_right || (!was_open && clicked_by_keyboard_or_access);
+        if keyboard_open {
+            // Keep the entry request through the popup's initial sizing pass.
+            MenuState::mark_shown(ui.ctx(), id);
+        }
+        let pointer_changed = ui.input(|i| {
+            i.events
+                .iter()
+                .any(|event| matches!(event, crate::Event::PointerMoved(_)))
+                || i.pointer.any_click()
+        });
+        let ignore_hover = MenuState::from_id(ui.ctx(), id, |state| {
+            state.is_submenu = true;
+            state.focus_first |= arrow_right;
+            if keyboard_open {
+                state.ignore_hover = true;
+            } else if !was_open || pointer_changed {
+                state.ignore_hover = false;
+            }
+            state.ignore_hover
+        });
 
         if ui.is_enabled() && is_open && clicked_by_keyboard_or_access {
             set_open = Some(false);
@@ -519,8 +613,8 @@ impl SubMenu {
         }
 
         // The clicked handler is there for accessibility (keyboard navigation)
-        let should_open =
-            ui.is_enabled() && ((!was_open && clicked) || (is_hovered && !is_any_open));
+        let should_open = button_response.enabled()
+            && (arrow_right || (!was_open && clicked) || (is_hovered && !is_any_open));
         if should_open {
             set_open = Some(true);
             is_open = true;
@@ -552,12 +646,6 @@ impl SubMenu {
                     .with_tag_value(MenuConfig::MENU_CONFIG_TAG, menu_config.clone()),
             )
             .show(|ui| {
-                ui.memory_mut(|mem| {
-                    mem.set_menu_layer(ui.layer_id());
-                    if parent_is_popup {
-                        mem.set_menu_layer(menu_root_response.layer_id);
-                    }
-                });
                 // Ensure our layer stays on top when the button is clicked
                 if button_response.clicked() || button_response.is_pointer_button_down_on() {
                     ui.ctx().move_to_top(ui.layer_id());
@@ -610,6 +698,7 @@ impl SubMenu {
                 ui.request_repaint();
             }
             let hovering_other_menu_entry = is_open
+                && !ignore_hover
                 && !is_hovered
                 && !popup_response.response.contains_pointer()
                 && !is_moving_towards_rect

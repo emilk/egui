@@ -623,7 +623,12 @@ impl<'a> Popup<'a> {
             .order(kind.order())
             .pivot(pivot)
             .fixed_pos(anchor)
-            .sense(sense)
+            .sense(if kind == PopupKind::Menu {
+                // Only menu entries should receive keyboard focus.
+                sense - Sense::FOCUSABLE
+            } else {
+                sense
+            })
             .interactable(interactable)
             .layout(layout)
             .sizing_pass(sizing_pass || !was_open_last_frame)
@@ -647,12 +652,13 @@ impl<'a> Popup<'a> {
         }
 
         let mut response = area.show(&ctx, |ui| {
-            if kind == PopupKind::Menu {
-                ui.memory_mut(|mem| mem.set_menu_layer(ui.layer_id()));
-            }
             style.apply(ui.style_mut());
             let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
-            frame.show(ui, content).inner
+            let inner = frame.show(ui, content).inner;
+            if kind == PopupKind::Menu {
+                MenuState::handle_keyboard(ui, anchor_widget);
+            }
+            inner
         });
 
         // If the popup was just opened with a click, we don't want to immediately close it again.

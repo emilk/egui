@@ -3,6 +3,270 @@ use egui::{Key, Modifiers, Ui};
 use egui_kittest::Harness;
 use kittest::Queryable as _;
 
+#[test]
+fn menu_arrows_follow_tab_order() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.menu_button("Menu", |ui| {
+            ui.horizontal(|ui| {
+                let first = ui.button("First");
+                let _ = ui.add_enabled(false, egui::Button::new("Disabled"));
+                let _ = ui.button("Second");
+                // Painting order need not match focus registration order.
+                ui.interact_opt(
+                    first.rect,
+                    first.id,
+                    first.sense,
+                    egui::InteractOptions { move_to_top: true },
+                );
+            });
+            let _ = ui.button("Third");
+        });
+        let _ = ui.button("Background");
+    });
+    open_navigation_menu(&mut harness);
+    harness.get_by_label("First").focus();
+    harness.run();
+    harness.key_press(Key::ArrowDown);
+    harness.run();
+    assert!(harness.get_by_label("Second").is_focused());
+    harness.key_press(Key::ArrowUp);
+    harness.run();
+    assert!(harness.get_by_label("First").is_focused());
+}
+
+#[test]
+fn menu_navigation_reports_gained_focus() {
+    let mut harness = Harness::new_ui_state(
+        |ui, gained: &mut Vec<&str>| {
+            ui.menu_button("Menu", |ui| {
+                for label in ["First", "Second"] {
+                    if ui.button(label).gained_focus() {
+                        gained.push(label);
+                    }
+                }
+            });
+        },
+        Vec::new(),
+    );
+    harness.get_by_label("Menu").focus();
+    harness.run();
+    harness.key_press(Key::Enter);
+    harness.run();
+    harness.get_by_label("First").focus();
+    harness.run();
+    harness.state_mut().clear();
+    harness.key_press(Key::ArrowDown);
+    harness.run();
+    assert_eq!(harness.state(), &["Second"]);
+    harness.state_mut().clear();
+    harness.key_press(Key::ArrowUp);
+    harness.run();
+    assert_eq!(harness.state(), &["First"]);
+}
+
+#[test]
+fn right_opens_submenu_and_left_returns_to_its_button() {
+    let mut harness = navigation_menu(false);
+    open_navigation_menu(&mut harness);
+    harness.get_by_label_contains("Submenu").focus();
+    harness.run();
+    harness.key_press(Key::ArrowRight);
+    harness.run();
+    assert!(
+        harness
+            .query_by_label("First child")
+            .is_some_and(|node| node.is_focused())
+    );
+    harness.key_press(Key::ArrowLeft);
+    harness.run();
+    assert!(harness.get_by_label_contains("Submenu").is_focused());
+    harness.key_press(Key::ArrowDown);
+    harness.run();
+    assert!(harness.get_by_label("Last item").is_focused());
+}
+
+#[test]
+fn stationary_pointer_does_not_close_keyboard_submenu() {
+    let mut harness = navigation_menu(false);
+    open_navigation_menu(&mut harness);
+    for key in [Key::ArrowRight, Key::Enter, Key::ArrowRight] {
+        harness.get_by_label("First item").hover();
+        harness.run();
+        harness.get_by_label_contains("Submenu").focus();
+        harness.run();
+        harness.key_press(key);
+        harness.run();
+        assert!(harness.query_by_label("First child").is_some());
+        if key == Key::ArrowRight {
+            assert!(harness.get_by_label("First child").is_focused());
+        }
+        harness.get_by_label("Second item").hover();
+        harness.run();
+        assert!(harness.query_by_label("First child").is_none());
+    }
+    harness.remove_cursor();
+    harness.run();
+    harness.get_by_label_contains("Submenu").focus();
+    harness.run();
+    harness.key_press(Key::ArrowRight);
+    harness.run();
+    assert!(harness.get_by_label("First child").is_focused());
+    harness.get_by_label("Second item").hover();
+    harness.run();
+    assert!(harness.query_by_label("First child").is_none());
+}
+
+#[test]
+fn submenu_arrows_ignore_popup_placement() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(400.0, 300.0))
+        .build_ui(|ui| {
+            ui.scope_builder(
+                egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(
+                    egui::pos2(340.0, 20.0),
+                    egui::vec2(60.0, 20.0),
+                )),
+                |ui| {
+                    ui.menu_button("Menu", |ui| {
+                        ui.menu_button("Submenu", |ui| {
+                            ui.set_min_width(200.0);
+                            let _ = ui.add_enabled(false, egui::Button::new("Disabled child"));
+                            let _ = ui.button("First child");
+                        });
+                    });
+                },
+            );
+        });
+    open_navigation_menu(&mut harness);
+    harness.get_by_label_contains("Submenu").focus();
+    harness.run();
+    harness.key_press(Key::ArrowRight);
+    harness.run();
+    assert!(harness.get_by_label("First child").is_focused());
+    assert!(
+        harness.get_by_label("First child").rect().left()
+            < harness.get_by_label_contains("Submenu").rect().left()
+    );
+    harness.key_press(Key::ArrowLeft);
+    harness.run();
+    assert!(harness.get_by_label_contains("Submenu").is_focused());
+}
+
+#[test]
+fn submenu_entry_survives_reopening_and_empty_contents() {
+    let mut harness = Harness::new_ui_state(
+        |ui, enabled| {
+            ui.menu_button("Menu", |ui| {
+                ui.menu_button("Submenu", |ui| {
+                    let _ = ui.add_enabled(*enabled, egui::Button::new("Child"));
+                });
+            });
+        },
+        false,
+    );
+    for enabled in [false, true, true] {
+        *harness.state_mut() = enabled;
+        harness.get_by_label("Menu").focus();
+        harness.run();
+        harness.key_press(Key::Enter);
+        harness.run();
+        harness.get_by_label_contains("Submenu").focus();
+        harness.run();
+        harness.key_press(Key::ArrowRight);
+        harness.run();
+        if enabled {
+            assert!(harness.get_by_label("Child").is_focused());
+        } else {
+            assert!(harness.get_by_label_contains("Submenu").is_focused());
+            *harness.state_mut() = true;
+            harness.run();
+            assert!(harness.get_by_label_contains("Submenu").is_focused());
+        }
+        harness.key_press(Key::Escape);
+        harness.run();
+        assert!(harness.query_by_label("Child").is_none());
+        harness.step();
+    }
+}
+
+#[test]
+fn scroll_menu_skips_containers_and_hidden_entries() {
+    let mut harness = Harness::new_ui(|ui| {
+        ui.menu_button("Menu", |ui| {
+            egui::ScrollArea::vertical()
+                .max_height(40.0)
+                .show(ui, |ui| {
+                    let _ = ui.button("First");
+                    ui.scope_builder(egui::UiBuilder::new().invisible(), |ui| {
+                        let _ = ui.button("Hidden");
+                    });
+                    for i in 0..8 {
+                        let _ = ui.button(format!("Item {i}"));
+                    }
+                });
+        });
+    });
+    open_navigation_menu(&mut harness);
+    harness.key_press(Key::ArrowDown);
+    harness.run();
+    assert!(harness.get_by_label("First").is_focused());
+    for i in 0..8 {
+        harness.key_press(Key::ArrowDown);
+        harness.run();
+        assert!(harness.get_by_label(&format!("Item {i}")).is_focused());
+    }
+    harness.key_press(Key::ArrowDown);
+    harness.run();
+    assert!(harness.get_by_label("First").is_focused());
+}
+
+#[test]
+fn menu_controls_keep_their_arrow_keys() {
+    let mut harness = Harness::new_ui_state(
+        |ui, (text, value)| {
+            ui.menu_button("Menu", |ui| {
+                let label = ui.label("Text");
+                ui.text_edit_multiline(text).labelled_by(label.id);
+                ui.add(egui::Slider::new(value, 0.0..=10.0).text("Value"));
+                let _ = ui.button("Last item");
+            });
+        },
+        (String::from("first\nsecond"), 5.0),
+    );
+    harness.get_by_label("Menu").focus();
+    harness.run();
+    harness.key_press(Key::Enter);
+    harness.run();
+    harness
+        .get_by_role(egui::accesskit::Role::MultilineTextInput)
+        .focus();
+    harness.run();
+    for key in [
+        Key::ArrowLeft,
+        Key::ArrowRight,
+        Key::ArrowUp,
+        Key::ArrowDown,
+    ] {
+        harness.key_press(key);
+        harness.run();
+        assert!(
+            harness
+                .get_by_role(egui::accesskit::Role::MultilineTextInput)
+                .is_focused()
+        );
+    }
+    harness.get_by_role(egui::accesskit::Role::Slider).focus();
+    harness.run();
+    harness.key_press(Key::ArrowRight);
+    harness.run();
+    assert!(
+        harness
+            .get_by_role(egui::accesskit::Role::Slider)
+            .is_focused()
+    );
+    assert!(harness.state().1 > 5.0);
+}
+
 fn navigation_menu(context_menu: bool) -> Harness<'static> {
     Harness::builder()
         .with_size(egui::vec2(500.0, 400.0))
@@ -77,12 +341,14 @@ fn arrow_navigation_stays_in_menu() {
             assert!(harness.get_by_label("First item").is_focused());
         }
         for (from, key, to) in [
+            ("Menu", Key::ArrowDown, "First item"),
+            ("Menu", Key::ArrowUp, "Last item"),
             ("First item", Key::ArrowDown, "Second item"),
             ("Second item", Key::ArrowUp, "First item"),
-            ("First item", Key::ArrowUp, "First item"),
-            ("First item", Key::ArrowLeft, "First item"),
+            ("First item", Key::ArrowUp, "Last item"),
+            ("First item", Key::ArrowLeft, "Menu"),
             ("First item", Key::ArrowRight, "First item"),
-            ("Last item", Key::ArrowDown, "Last item"),
+            ("Last item", Key::ArrowDown, "First item"),
         ] {
             harness.get_by_label(from).focus();
             harness.run();
@@ -102,23 +368,20 @@ fn arrow_navigation_between_submenus() {
     open_navigation_menu(&mut harness);
     harness.get_by_label_contains("Submenu").focus();
     harness.run();
-    let parent_layer = focused_layer(&harness);
     harness.key_press(Key::Enter);
     harness.run();
     harness.get_by_label("First child").focus();
     harness.run();
-    let child_layer = focused_layer(&harness);
     harness.get_by_label_contains("Submenu").focus();
     harness.run();
     harness.key_press(Key::ArrowRight);
     harness.run();
-    // The popup container itself can receive focus, so check the destination layer.
-    assert_eq!(focused_layer(&harness), child_layer);
+    assert!(harness.get_by_label("First child").is_focused());
     harness.get_by_label("First child").focus();
     harness.run();
     harness.key_press(Key::ArrowLeft);
     harness.run();
-    assert_eq!(focused_layer(&harness), parent_layer);
+    assert!(harness.get_by_label_contains("Submenu").is_focused());
 
     harness.get_by_label_contains("Nested submenu").focus();
     harness.run();
@@ -126,17 +389,19 @@ fn arrow_navigation_between_submenus() {
     harness.run();
     harness.get_by_label("Nested item").focus();
     harness.run();
-    let nested_layer = focused_layer(&harness);
     harness.get_by_label_contains("Nested submenu").focus();
     harness.run();
     harness.key_press(Key::ArrowRight);
     harness.run();
-    assert_eq!(focused_layer(&harness), nested_layer);
+    assert!(harness.get_by_label("Nested item").is_focused());
     harness.get_by_label("Nested item").focus();
     harness.run();
     harness.key_press(Key::ArrowLeft);
     harness.run();
-    assert_eq!(focused_layer(&harness), child_layer);
+    assert!(harness.get_by_label_contains("Nested submenu").is_focused());
+    harness.key_press(Key::ArrowLeft);
+    harness.run();
+    assert!(harness.get_by_label_contains("Submenu").is_focused());
 }
 
 #[test]
@@ -152,6 +417,11 @@ fn menu_tab_escape_and_reopen() {
         harness.key_press_modifiers(Modifiers::SHIFT, Key::Tab);
         harness.run();
         assert!(harness.get_by_label("First item").is_focused());
+        harness.get_by_label("Behind 10 0").focus();
+        harness.run();
+        harness.key_press(Key::ArrowRight);
+        harness.run();
+        assert!(harness.get_by_label("Behind 10 1").is_focused());
         harness.key_press(Key::Escape);
         harness.run();
         assert!(harness.query_by_label("First item").is_none());
@@ -164,7 +434,7 @@ fn menu_tab_escape_and_reopen() {
 }
 
 #[test]
-fn generic_popup_with_submenu_keeps_earlier_popup_reachable() {
+fn submenu_returns_to_generic_popup() {
     let mut harness = Harness::builder()
         .with_size(egui::vec2(800.0, 400.0))
         .build_ui(|ui| {
@@ -175,7 +445,7 @@ fn generic_popup_with_submenu_keeps_earlier_popup_reachable() {
             let response = ui.button("Host popup");
             egui::Popup::from_response(&response).show(|ui| {
                 let response = ui.button("Host first");
-                // This popup is built before the submenu makes its parent a menu scope.
+                // A sibling popup must not change which parent Left returns to.
                 egui::Popup::from_response(&response)
                     .id(response.id.with("earlier popup"))
                     .align(egui::RectAlign::RIGHT_START)
@@ -202,9 +472,6 @@ fn generic_popup_with_submenu_keeps_earlier_popup_reachable() {
     let earlier_layer = focused_layer(&harness);
     harness.get_by_label("Host first").focus();
     harness.run();
-    harness.key_press(Key::ArrowRight);
-    harness.run();
-    assert_eq!(focused_layer(&harness), earlier_layer);
     harness.key_press(Key::ArrowRight);
     harness.run();
     assert_eq!(focused_layer(&harness), earlier_layer);
@@ -250,7 +517,7 @@ fn menu_in_modal_keeps_arrow_navigation() {
     assert!(harness.get_by_label("Last item").is_focused());
     harness.key_press(Key::ArrowDown);
     harness.run();
-    assert!(harness.get_by_label("Last item").is_focused());
+    assert!(harness.get_by_label("First item").is_focused());
     harness.key_press(Key::Escape);
     harness.run();
     harness.get_by_label("Menu").focus();
@@ -273,14 +540,24 @@ fn standalone_submenu_in_menu_bar_excludes_background() {
             egui::Button::new("Background"),
         );
     });
-    harness.get_by_label_contains("Standalone submenu").hover();
+    harness.get_by_label_contains("Standalone submenu").focus();
     harness.run();
-    harness.get_by_label("Standalone item").focus();
-    harness.run();
-    let submenu_layer = focused_layer(&harness);
     harness.key_press(Key::ArrowRight);
     harness.run();
-    assert_eq!(focused_layer(&harness), submenu_layer);
+    for _ in 0..3 {
+        harness.step();
+    }
+    assert!(harness.get_by_label("Standalone item").is_focused());
+    harness.key_press(Key::ArrowRight);
+    harness.run();
+    assert!(harness.get_by_label("Standalone item").is_focused());
+    harness.key_press(Key::ArrowLeft);
+    harness.run();
+    assert!(
+        harness
+            .get_by_label_contains("Standalone submenu")
+            .is_focused()
+    );
 }
 
 #[test]
