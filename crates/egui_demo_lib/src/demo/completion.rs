@@ -122,13 +122,16 @@ mod tests {
 
     #[test]
     fn popup_reopens_right_after_an_emoji() {
-        let mut harness = Harness::new_ui_state(
-            |ui, demo: &mut CompletionDemo| {
-                use crate::View as _;
-                demo.ui(ui);
-            },
-            CompletionDemo::default(),
-        );
+        let mut harness = Harness::builder()
+            // The suggestions list emoji that the bundled fonts lack:
+            .allow_missing_glyphs()
+            .build_ui_state(
+                |ui, demo: &mut CompletionDemo| {
+                    use crate::View as _;
+                    demo.ui(ui);
+                },
+                CompletionDemo::default(),
+            );
         harness.run();
         harness.get_by_role(Role::MultilineTextInput).focus();
         harness.run();

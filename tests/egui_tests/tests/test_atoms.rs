@@ -5,6 +5,31 @@ use egui::{
 };
 use egui_kittest::{HarnessBuilder, SnapshotResult, SnapshotResults};
 
+/// Two nested [`WidgetAtom`]s without explicit ids must not share an id,
+/// or the parent button is only clickable where the last of them is.
+#[test]
+fn test_button_with_nested_widget_atoms_is_clickable() {
+    use egui_kittest::kittest::Queryable as _;
+
+    let mut harness = HarnessBuilder::default().build_ui_state(
+        |ui, clicks| {
+            // The text lives in the nested atoms, so name the button itself:
+            if ui
+                .button((WidgetAtom::new("abcdef"), WidgetAtom::new("123")))
+                .accessible_name("abcdef 123")
+                .clicked()
+            {
+                *clicks += 1;
+            }
+        },
+        0,
+    );
+
+    harness.get_by_role(egui::accesskit::Role::Button).click();
+    harness.run();
+    assert_eq!(*harness.state(), 1);
+}
+
 #[test]
 fn test_atoms() {
     let mut results = SnapshotResults::new();

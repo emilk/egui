@@ -11,17 +11,18 @@ use epaint::{
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, FontPriority, Fonts, FontsView},
+    text::{FontInsert, FontPriority, Fonts, FontsView, ViewportKey},
     vec2,
 };
 
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, FontProvider, GlyphRasterizer,
     Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label,
-    LayerId, Memory, ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response,
-    RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions,
-    Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
+    LayerId, Memory, MissingGlyphPolicy, ModifierNames, Modifiers, NumExt as _, Order, Painter,
+    RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle,
+    TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId,
+    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect,
+    WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -130,7 +131,7 @@ impl ContextImpl {
 
     fn request_repaint_after(
         &mut self,
-        mut delay: Duration,
+        delay: Duration,
         viewport_id: ViewportId,
         cause: RepaintCause,
     ) {
@@ -145,11 +146,6 @@ impl ContextImpl {
             // otherwise we would just schedule an immediate repaint _now_,
             // which would then clear the delay and repaint again.
             // Hovering a tooltip is a good example of a case where we want to repaint after a delay.
-        }
-
-        if let Ok(predicted_frame_time) = Duration::try_from_secs_f32(viewport.input.predicted_dt) {
-            // Make it less likely we over-shoot the target:
-            delay = delay.saturating_sub(predicted_frame_time);
         }
 
         viewport.repaint.causes.push(cause);
@@ -401,6 +397,13 @@ struct ContextImpl {
     font_definitions: FontDefinitions,
     glyph_rasterizers: Vec<GlyphRasterizer>,
     font_providers: Vec<Arc<dyn FontProvider>>,
+    missing_glyph_policy: MissingGlyphPolicy,
+
+    /// Set when the rasterizers or providers change, acted on at the start of the next pass.
+    ///
+    /// The [`Fonts`] must outlive the pass that is laying out text with them,
+    /// so they are never dropped in the middle of one.
+    reload_fonts: bool,
 
     memory: Memory,
     animation_manager: AnimationManager,
@@ -575,6 +578,11 @@ impl ContextImpl {
         let input = &self.viewport().input;
         let max_texture_side = input.max_texture_side;
 
+        if core::mem::take(&mut self.reload_fonts) {
+            // The rasterizers or providers changed during the last pass.
+            self.fonts = None;
+        }
+
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
             // New font definition loaded, so we need to reload all fonts.
             self.fonts = None;
@@ -612,6 +620,7 @@ impl ContextImpl {
         text_options.max_texture_side = max_texture_side;
 
         let mut is_new = false;
+        let viewport_id = self.viewport_id();
 
         let fonts = self.fonts.get_or_insert_with(|| {
             log::trace!("Creating new Fonts");
@@ -619,19 +628,26 @@ impl ContextImpl {
             is_new = true;
             profiling::scope!("Fonts::new");
             let mut fonts = Fonts::new(text_options, self.font_definitions.clone())
-                .with_font_providers(self.font_providers.clone());
+                .with_font_providers(self.font_providers.clone())
+                .with_missing_glyph_policy(self.missing_glyph_policy);
             fonts.set_glyph_rasterizers(self.glyph_rasterizers.clone());
             fonts
         });
 
         {
             profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(text_options);
+            fonts.begin_pass(text_options, ViewportKey::new(viewport_id.0.value()));
         }
     }
 
     fn accesskit_node_builder(&mut self, id: Id) -> Option<&mut accesskit::Node> {
-        let state = self.viewport().this_pass.accesskit_state.as_mut()?;
+        let this_pass = &mut self.viewport().this_pass;
+        let state = this_pass.accesskit_state.as_mut()?;
+
+        if !is_accesskit_visible(&this_pass.widgets, &state.parent_map, id) {
+            return None;
+        }
+
         let builders = &mut state.nodes;
 
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
@@ -798,22 +814,36 @@ impl Context {
     ///
     /// Rasterizers are asked in the order they were added.
     /// `eframe` adds the browser rasterizer on web.
+    ///
+    /// Adding a rasterizer whose [`GlyphRasterizer::key`] is already installed is a no-op,
+    /// so this is safe to call every frame.
+    ///
+    /// The rasterizer becomes active at the start of the next pass.
     pub fn add_glyph_rasterizer(&self, glyph_rasterizer: GlyphRasterizer) {
-        self.write(|ctx| {
-            ctx.glyph_rasterizers.push(glyph_rasterizer);
-            ctx.fonts = None;
+        let changed = self.write(|ctx| {
+            let changed = glyph_rasterizer.insert_into(&mut ctx.glyph_rasterizers);
+            ctx.reload_fonts |= changed;
+            changed
         });
+        if changed {
+            self.apply_font_changes_now_if_unused();
+            self.request_repaint();
+        }
     }
 
     /// Replace all [`GlyphRasterizer`]s. See [`Self::add_glyph_rasterizer`].
     ///
     /// Pass an empty list to only use the installed fonts.
     /// Note that this also removes the browser rasterizer that `eframe` adds on web.
+    ///
+    /// The rasterizers become active at the start of the next pass.
     pub fn set_glyph_rasterizers(&self, glyph_rasterizers: Vec<GlyphRasterizer>) {
         self.write(|ctx| {
             ctx.glyph_rasterizers = glyph_rasterizers;
-            ctx.fonts = None;
+            ctx.reload_fonts = true;
         });
+        self.apply_font_changes_now_if_unused();
+        self.request_repaint();
     }
 
     /// Add a [`FontProvider`], asked for fonts for characters that no installed font has.
@@ -822,21 +852,54 @@ impl Context {
     /// Providers are asked in the order they were added.
     ///
     /// `eframe` adds a system font provider on native (see its `system_fonts` feature).
+    ///
+    /// The provider becomes active at the start of the next pass.
     pub fn add_font_provider(&self, font_provider: Arc<dyn FontProvider>) {
         self.write(|ctx| {
             ctx.font_providers.push(font_provider);
-            ctx.fonts = None;
+            ctx.reload_fonts = true;
         });
+        self.apply_font_changes_now_if_unused();
+        self.request_repaint();
     }
 
     /// Replace all [`FontProvider`]s. See [`Self::add_font_provider`].
     ///
     /// Pass an empty list to only use the installed fonts.
+    ///
+    /// The providers become active at the start of the next pass.
     pub fn set_font_providers(&self, font_providers: Vec<Arc<dyn FontProvider>>) {
         self.write(|ctx| {
             ctx.font_providers = font_providers;
-            ctx.fonts = None;
+            ctx.reload_fonts = true;
         });
+        self.apply_font_changes_now_if_unused();
+        self.request_repaint();
+    }
+
+    /// What to do with a character that nothing can draw: no installed font has it,
+    /// no [`FontProvider`] finds a font for it, and no [`GlyphRasterizer`] handles it.
+    ///
+    /// The default is to draw a box ("tofu"). Tests may prefer [`MissingGlyphPolicy::Panic`]
+    /// (`egui_kittest` sets it by default).
+    ///
+    /// The policy takes effect at the start of the next pass.
+    pub fn set_missing_glyph_policy(&self, policy: MissingGlyphPolicy) {
+        let changed = self.write(|ctx| {
+            let changed = ctx.missing_glyph_policy != policy;
+            ctx.missing_glyph_policy = policy;
+            ctx.reload_fonts |= changed;
+            changed
+        });
+        if changed {
+            self.apply_font_changes_now_if_unused();
+            self.request_repaint();
+        }
+    }
+
+    /// See [`Self::set_missing_glyph_policy`].
+    pub fn missing_glyph_policy(&self) -> MissingGlyphPolicy {
+        self.read(|ctx| ctx.missing_glyph_policy)
     }
 
     /// Do read-only (shared access) transaction on Context
@@ -1287,11 +1350,15 @@ impl Context {
     pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
+            let viewport_id = ctx.viewport_id();
             reader(
                 &ctx.fonts
                     .as_mut()
                     .expect("No fonts available until first call to Context::run()")
-                    .with_pixels_per_point(pixels_per_point),
+                    .with_pixels_per_point_for_viewport(
+                        pixels_per_point,
+                        ViewportKey::new(viewport_id.0.value()),
+                    ),
             )
         })
     }
@@ -1304,12 +1371,16 @@ impl Context {
     pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
+            let viewport_id = ctx.viewport_id();
             reader(
                 &mut ctx
                     .fonts
                     .as_mut()
                     .expect("No fonts available until first call to Context::run()")
-                    .with_pixels_per_point(pixels_per_point),
+                    .with_pixels_per_point_for_viewport(
+                        pixels_per_point,
+                        ViewportKey::new(viewport_id.0.value()),
+                    ),
             )
         })
     }
@@ -1638,6 +1709,7 @@ impl Context {
             interact_rect,
             sense,
             enabled,
+            visible,
         } = widget_rect;
 
         // previous pass + "highlight next pass" == "highlight this pass"
@@ -1656,6 +1728,7 @@ impl Context {
         };
 
         res.flags.set(Flags::ENABLED, enabled);
+        res.flags.set(Flags::VISIBLE, visible);
         res.flags.set(Flags::HIGHLIGHTED, highlighted);
 
         self.write(|ctx| {
@@ -2371,7 +2444,8 @@ impl Context {
     /// The default `egui` fonts only support latin and cyrillic alphabets,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
-    /// The new fonts will become active at the start of the next pass.
+    /// The new fonts will become active at the start of the next pass,
+    /// or right away if no text has been laid out yet this pass.
     /// This will overwrite the existing fonts.
     ///
     /// These fonts will be used before any system fallback.
@@ -2388,6 +2462,7 @@ impl Context {
 
         if update_fonts {
             self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
+            self.apply_font_changes_now_if_unused();
         }
     }
 
@@ -2396,7 +2471,8 @@ impl Context {
     /// The default `egui` fonts only support latin and cyrillic alphabets,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
-    /// The new font will become active at the start of the next pass.
+    /// The new font will become active at the start of the next pass,
+    /// or right away if no text has been laid out yet this pass.
     /// This will keep the existing fonts.
     ///
     /// This font will be used before any system fallback.
@@ -2418,7 +2494,28 @@ impl Context {
 
         if update_fonts {
             self.memory_mut(|mem| mem.add_fonts.push(new_font));
+            self.apply_font_changes_now_if_unused();
         }
+    }
+
+    /// Apply queued font changes right away if no text has been laid out yet this pass.
+    ///
+    /// Nothing is laid out with the old fonts, so there is nothing to keep consistent,
+    /// and text later in this pass already gets the new fonts, providers and rasterizers.
+    /// Without this, an app that sets up its fonts during its first pass
+    /// (e.g. from inside an `egui_kittest` harness, which has no earlier hook)
+    /// would lay out that whole pass with the fonts it started with, or with none.
+    fn apply_font_changes_now_if_unused(&self) {
+        self.write(|ctx| {
+            let viewport_key = ViewportKey::new(ctx.viewport_id().0.value());
+            let unused = ctx
+                .fonts
+                .as_ref()
+                .is_some_and(|fonts| !fonts.used_since_begin_pass(viewport_key));
+            if unused {
+                ctx.update_fonts_mut();
+            }
+        });
     }
 
     /// Does the OS use dark or light mode?
@@ -3031,17 +3128,19 @@ impl ContextImpl {
             let state = viewport.this_pass.accesskit_state.take();
             if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
-                let nodes = {
-                    state
-                        .nodes
-                        .into_iter()
-                        .map(|(id, node)| (id.accesskit_id(), node))
-                        .collect()
-                };
+                // A widget can have focus without a node, e.g. if it requested focus while invisible.
                 let focus_id = self
                     .memory
                     .focused()
+                    .filter(|id| state.nodes.contains_key(id))
                     .map_or(root_id, |id| id.accesskit_id());
+                // The `(id, node)` pairs of the coming `accesskit::TreeUpdate`:
+                let mut nodes: Vec<(accesskit::NodeId, accesskit::Node)> = state
+                    .nodes
+                    .into_iter()
+                    .map(|(id, node)| (id.accesskit_id(), node))
+                    .collect();
+                flatten_labelled_by(&mut nodes);
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
@@ -3169,6 +3268,17 @@ impl ContextImpl {
             );
             self.viewport_parents
                 .retain(|id, _| all_viewport_ids.contains(id));
+
+            let live_viewport_keys: Vec<_> = self
+                .viewports
+                .keys()
+                .map(|viewport_id| ViewportKey::new(viewport_id.0.value()))
+                .collect();
+            if let Some(fonts) = self.fonts.as_mut() {
+                fonts.retain_galley_caches(|viewport_key| {
+                    live_viewport_keys.contains(&viewport_key)
+                });
+            }
         } else {
             let viewport_id = self.viewport_id();
             self.memory.set_viewport_id(viewport_id);
@@ -3433,6 +3543,25 @@ impl Context {
     pub fn transform_layer_shapes(&self, layer_id: LayerId, transform: TSTransform) {
         if transform != TSTransform::IDENTITY {
             self.graphics_mut(|g| g.entry(layer_id).transform(transform));
+        }
+    }
+
+    /// Transform all the graphics at the given layer, but only after they have been tessellated and
+    /// snapped to the pixel grid.
+    ///
+    /// Unlike [`Self::transform_layer_shapes`], the snapping happens in the layer's own
+    /// coordinates, so the rendering converges on the untransformed one.
+    /// Use this for an animation that ends at [`TSTransform::IDENTITY`], such as a popup scaling
+    /// into place: it doesn't end with a jump of up to a pixel.
+    /// See [`epaint::ClippedShape::transform_after_tessellation`] for the trade-off.
+    ///
+    /// This only applies to the existing graphics at the layer, not to graphics added later, so
+    /// call it once the layer is complete — [`crate::Plugin::on_end_pass`] is a good place.
+    ///
+    /// Interaction is unaffected: the layer keeps its own input coordinates.
+    pub fn transform_layer_shapes_after_rounding(&self, layer_id: LayerId, transform: TSTransform) {
+        if transform != TSTransform::IDENTITY {
+            self.graphics_mut(|g| g.entry(layer_id).transform_after_rounding(transform));
         }
     }
 
@@ -4015,7 +4144,8 @@ impl Context {
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
-    /// Returns `None` if accesskit is off.
+    /// Returns `None` if accesskit is off,
+    /// or if the widget is invisible (see [`Ui::is_visible`]).
     // TODO(emilk): consider making both read-only and read-write versions
     pub fn accesskit_node_builder<R>(
         &self,
@@ -4023,6 +4153,20 @@ impl Context {
         writer: impl FnOnce(&mut accesskit::Node) -> R,
     ) -> Option<R> {
         self.write(|ctx| ctx.accesskit_node_builder(id).map(writer))
+    }
+
+    /// Does the widget with this id have a node in the accessibility tree this pass?
+    ///
+    /// Only widgets that report [`WidgetInfo`](crate::WidgetInfo) do; a plain
+    /// [`Ui::allocate_rect`](crate::Ui::allocate_rect) does not.
+    pub fn has_accesskit_node(&self, id: Id) -> bool {
+        self.write(|ctx| {
+            ctx.viewport()
+                .this_pass
+                .accesskit_state
+                .as_ref()
+                .is_some_and(|state| state.nodes.contains_key(&id))
+        })
     }
 
     pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
@@ -4614,11 +4758,12 @@ impl Context {
     }
 }
 
-#[test]
-fn context_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Context` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
-}
+};
 
 /// Check if any [`Rect`] appears with different [`Id`]s between two passes.
 ///
@@ -4726,16 +4871,83 @@ fn warn_if_rect_changes_id(
                     .map(|w| w.id.short_debug_format())
                     .collect::<Vec<_>>(),
             );
-            out_shapes.push(ClippedShape {
-                clip_rect: Rect::EVERYTHING,
-                shape: epaint::Shape::rect_stroke(
-                    rect,
-                    0,
-                    (2.0, Color32::RED),
-                    StrokeKind::Outside,
-                ),
-            });
+            out_shapes.push(ClippedShape::new(
+                Rect::EVERYTHING,
+                epaint::Shape::rect_stroke(rect, 0, (2.0, Color32::RED), StrokeKind::Outside),
+            ));
         }
+    }
+}
+
+/// Resolve chains of `labelled_by`, so that `a → b → label` becomes `a → label`.
+///
+/// Screen readers follow `labelled_by` a single step. The number field of a text-less
+/// [`crate::Slider`] is labelled by the slider, which in turn may be labelled by
+/// [`crate::Response::labelled_by`]. Without this, the number field would have no name.
+///
+/// `nodes` are the `(id, node)` pairs of an [`accesskit::TreeUpdate`].
+/// Invisible widgets (see [`Ui::is_visible`]) are not exposed to accessibility.
+///
+/// Nodes that aren't widgets themselves (e.g. text runs) inherit the visibility
+/// of their closest ancestor that is.
+fn is_accesskit_visible(widgets: &crate::WidgetRects, parent_map: &IdMap<Id>, mut id: Id) -> bool {
+    loop {
+        if let Some(widget) = widgets.get(id) {
+            return widget.visible;
+        }
+        match parent_map.get(&id) {
+            Some(parent_id) => id = *parent_id,
+            None => return true,
+        }
+    }
+}
+
+fn flatten_labelled_by(nodes: &mut [(accesskit::NodeId, accesskit::Node)]) {
+    profiling::function_scope!();
+
+    let index: std::collections::HashMap<accesskit::NodeId, usize> = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, (id, _))| (*id, i))
+        .collect();
+    let get = |id: &accesskit::NodeId| index.get(id).map(|i| &nodes[*i].1);
+
+    /// A node that has no name of its own, only a `labelled_by` to follow.
+    fn is_link(node: &accesskit::Node) -> bool {
+        node.label().is_none() && !node.labelled_by().is_empty()
+    }
+
+    let mut flattened: Vec<(usize, Vec<accesskit::NodeId>)> = Vec::new();
+
+    for (i, (id, node)) in nodes.iter().enumerate() {
+        let has_chain = node
+            .labelled_by()
+            .iter()
+            .any(|target| get(target).is_some_and(is_link));
+        if !has_chain {
+            continue;
+        }
+
+        let mut resolved = Vec::new();
+        let mut visited = vec![*id];
+        let mut stack: Vec<accesskit::NodeId> = node.labelled_by().iter().rev().copied().collect();
+        while let Some(target) = stack.pop() {
+            if visited.contains(&target) {
+                continue; // A cycle names nothing.
+            }
+            visited.push(target);
+            match get(&target) {
+                Some(link) if is_link(link) => {
+                    stack.extend(link.labelled_by().iter().rev().copied());
+                }
+                _ => resolved.push(target),
+            }
+        }
+        flattened.push((i, resolved));
+    }
+
+    for (i, labelled_by) in flattened {
+        nodes[i].1.set_labelled_by(labelled_by);
     }
 }
 
@@ -4751,11 +4963,11 @@ mod test {
         use crate::{Id, InteractOptions, LayerId, Rect, Sense, WidgetRect, WidgetRects, pos2};
 
         let layer_id = LayerId::background();
-        let parent_id = Id::new("parent");
+        let parent_id = Id::unique("parent");
         let vacated_rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(10.0, 10.0));
         let previous_rect = vacated_rect.translate((0.0, -10.0).into());
-        let old_id = Id::new("removed");
-        let moved_id = Id::new("moved");
+        let old_id = Id::unique("removed");
+        let moved_id = Id::unique("moved");
 
         let widget = |id, rect| WidgetRect {
             id,
@@ -4765,6 +4977,7 @@ mod test {
             interact_rect: rect,
             sense: Sense::hover(),
             enabled: true,
+            visible: true,
         };
 
         let mut previous = WidgetRects::default();
@@ -4798,7 +5011,7 @@ mod test {
         use crate::{Id, InteractOptions, LayerId, Rect, Sense, WidgetRect, WidgetRects, pos2};
 
         let layer_id = LayerId::background();
-        let parent_id = Id::new("parent");
+        let parent_id = Id::unique("parent");
         let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(10.0, 10.0));
         let widget = |id| WidgetRect {
             id,
@@ -4808,13 +5021,22 @@ mod test {
             interact_rect: rect,
             sense: Sense::hover(),
             enabled: true,
+            visible: true,
         };
 
         let mut previous = WidgetRects::default();
-        previous.insert(layer_id, widget(Id::new("old")), InteractOptions::default());
+        previous.insert(
+            layer_id,
+            widget(Id::unique("old")),
+            InteractOptions::default(),
+        );
 
         let mut current = WidgetRects::default();
-        current.insert(layer_id, widget(Id::new("new")), InteractOptions::default());
+        current.insert(
+            layer_id,
+            widget(Id::unique("new")),
+            InteractOptions::default(),
+        );
 
         let mut shapes = Vec::new();
         super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
@@ -4825,6 +5047,21 @@ mod test {
         super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[rect]);
 
         assert!(shapes.is_empty());
+    }
+
+    /// Changing the font providers mid-pass must not drop the [`crate::text::Fonts`]
+    /// that the rest of the pass is still laying out text with.
+    #[test]
+    fn test_font_providers_changed_mid_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.label("before");
+            ui.ctx().set_font_providers(vec![]);
+            ui.label("after");
+        });
+        output.drop_without_applying_deltas();
     }
 
     #[test]

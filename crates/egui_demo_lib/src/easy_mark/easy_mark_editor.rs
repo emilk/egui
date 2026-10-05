@@ -88,12 +88,17 @@ impl EasyMarkEditor {
 
             ui.add(
                 egui::TextEdit::multiline(code)
+                    .hint_text("EasyMark source")
                     .desired_width(f32::INFINITY)
                     .font(egui::TextStyle::Monospace) // for cursor height
                     .layouter(&mut layouter),
             )
         } else {
-            ui.add(egui::TextEdit::multiline(code).desired_width(f32::INFINITY))
+            ui.add(
+                egui::TextEdit::multiline(code)
+                    .hint_text("EasyMark source")
+                    .desired_width(f32::INFINITY),
+            )
         };
 
         if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id)

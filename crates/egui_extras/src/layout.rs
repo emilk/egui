@@ -204,9 +204,9 @@ impl<'l> StripLayout<'l> {
         child_ui_id_salt: IdSalt,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
-        let child_ui_id = self.ui.id().with(child_ui_id_salt);
+        let child_ui_id = self.ui.scope_id().with(child_ui_id_salt);
         let mut ui_builder = UiBuilder::new()
-            .id(child_ui_id)
+            .scope_id(child_ui_id)
             .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::TableCell))
             .max_rect(max_rect)
             .layout(self.cell_layout)

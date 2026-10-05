@@ -341,11 +341,12 @@ pub struct Style {
     pub compact_menu_style: bool,
 }
 
-#[test]
-fn style_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Style` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Style>();
-}
+};
 
 impl Style {
     // TODO(emilk): rename style.interact() to maybe… `style.interactive` ?
@@ -580,6 +581,9 @@ pub struct ScrollStyle {
     pub interact_handle_opacity: f32,
 
     pub fade: ScrollFadeStyle,
+
+    /// How the scroll area keeps moving after the user lets go of a drag.
+    pub kinetic: KineticScrollStyle,
 }
 
 impl Default for ScrollStyle {
@@ -612,6 +616,7 @@ impl ScrollStyle {
             interact_handle_opacity: 1.0,
 
             fade: Default::default(),
+            kinetic: Default::default(),
         }
     }
 
@@ -697,6 +702,7 @@ impl ScrollStyle {
             interact_handle_opacity,
 
             fade,
+            kinetic,
         } = self;
 
         ui.horizontal(|ui| {
@@ -773,6 +779,9 @@ impl ScrollStyle {
 
         ui.separator();
         fade.ui(ui);
+
+        ui.separator();
+        kinetic.ui(ui);
     }
 }
 
@@ -814,6 +823,94 @@ impl ScrollFadeStyle {
             ui.horizontal(|ui| {
                 ui.add(DragValue::new(size).range(0.0..=64.0));
                 ui.label("Fade size");
+            });
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Controls kinetic (momentum) scrolling of a [`crate::ScrollArea`],
+/// i.e. how the content keeps coasting after the user lets go of a drag
+/// (usually on a touch screen).
+///
+/// The velocity decays exponentially, like it does in `UIScrollView` on iOS/macOS:
+///
+/// ```text
+/// v(t) = v₀ · exp(-t / decay_time)
+/// ```
+///
+/// which means the total coast distance is `v₀ · decay_time`,
+/// i.e. proportional to the release velocity.
+///
+/// All distances are in ui points, and all velocities in ui points per second.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct KineticScrollStyle {
+    /// Time constant of the exponential velocity decay, in seconds.
+    ///
+    /// The velocity is reduced by a factor `e` every `decay_time` seconds,
+    /// and the total coast distance (in ui points) is `release_velocity * decay_time`,
+    /// where `release_velocity` is in ui points per second.
+    ///
+    /// `UIScrollView.DecelerationRate.normal` (0.998 per millisecond) corresponds to ≈ 0.5 s,
+    /// and `.fast` (0.99 per millisecond) corresponds to ≈ 0.1 s.
+    ///
+    /// Set to `0.0` to disable kinetic scrolling.
+    pub decay_time: f32,
+
+    /// Stop the kinetic scrolling when the remaining coast distance is shorter than this many ui points.
+    ///
+    /// The exponential decay never reaches zero velocity on its own, so we need a cutoff.
+    pub stop_distance: f32,
+}
+
+impl Default for KineticScrollStyle {
+    fn default() -> Self {
+        Self {
+            decay_time: 0.5,
+            stop_distance: 0.5,
+        }
+    }
+}
+
+impl KineticScrollStyle {
+    /// Convert from a per-millisecond deceleration rate (as used by `UIScrollView.DecelerationRate`)
+    /// to a [`Self::decay_time`] in seconds.
+    ///
+    /// `0.998` (iOS normal) ≈ 0.5 s, `0.99` (iOS fast) ≈ 0.1 s.
+    pub fn decay_time_from_deceleration_rate_per_ms(rate: f32) -> f32 {
+        -1.0 / (1000.0 * rate.ln())
+    }
+
+    pub fn ui(&mut self, ui: &mut Ui) {
+        let Self {
+            decay_time,
+            stop_distance,
+        } = self;
+
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(decay_time)
+                    .speed(0.01)
+                    .range(0.0..=5.0)
+                    .suffix(" s"),
+            );
+            ui.label("Kinetic scroll decay time")
+                .on_hover_text("Velocity decays by a factor e every this many seconds.\nCoast distance = release velocity × decay time.");
+        });
+
+        if 0.0 < *decay_time {
+            ui.horizontal(|ui| {
+                ui.add(
+                    DragValue::new(stop_distance)
+                        .speed(0.1)
+                        .range(0.0..=16.0)
+                        .suffix(" pt"),
+                );
+                ui.label("Kinetic scroll stop distance")
+                    .on_hover_text("Stop when the remaining coast distance is shorter than this.");
             });
         }
     }
@@ -1455,9 +1552,9 @@ impl Default for Spacing {
             item_spacing: vec2(8.0, 3.0),
             window_margin: Margin::same(6),
             menu_margin: Margin::same(6),
-            button_padding: vec2(4.0, 1.0),
+            button_padding: vec2(8.0, 2.0),
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
-            interact_size: vec2(40.0, 18.0),
+            interact_size: vec2(40.0, 20.0),
             slider_width: 100.0,
             slider_rail_height: 8.0,
             combo_width: 100.0,
@@ -1689,27 +1786,27 @@ impl Widgets {
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(60), // button background
+                weak_bg_fill: Color32::from_gray(50), // button background
                 bg_fill: Color32::from_gray(60),      // checkbox background
                 bg_stroke: Default::default(),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
-                corner_radius: CornerRadius::same(4),
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(215)), // button text
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(70),
+                weak_bg_fill: Color32::from_gray(64),
                 bg_fill: Color32::from_gray(70),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
-                fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
-                corner_radius: CornerRadius::same(4),
+                fg_stroke: Stroke::new(1.5, Color32::from_gray(245)),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             active: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(55),
+                weak_bg_fill: Color32::from_gray(40),
                 bg_fill: Color32::from_gray(55),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             open: WidgetVisuals {
@@ -1717,7 +1814,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
         }
@@ -1738,7 +1835,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(230),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
@@ -1746,7 +1843,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             active: WidgetVisuals {
@@ -1754,7 +1851,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(165),
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
             open: WidgetVisuals {
@@ -1762,7 +1859,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 expansion: 0.0,
             },
         }
@@ -2783,7 +2880,8 @@ impl Widget for &mut Margin {
                 ui.checkbox(&mut same, "same");
 
                 let mut value = self.left;
-                ui.add(DragValue::new(&mut value).range(0.0..=100.0));
+                ui.add(DragValue::new(&mut value).range(0.0..=100.0))
+                    .on_hover_text("Margin");
                 *self = Margin::same(value);
             })
             .response
@@ -2792,20 +2890,24 @@ impl Widget for &mut Margin {
                 ui.checkbox(&mut same, "same");
 
                 crate::Grid::new("margin").num_columns(2).show(ui, |ui| {
-                    ui.label("Left");
-                    ui.add(DragValue::new(&mut self.left).range(0.0..=100.0));
+                    let label = ui.label("Left");
+                    ui.add(DragValue::new(&mut self.left).range(0.0..=100.0))
+                        .labelled_by(label.id);
                     ui.end_row();
 
-                    ui.label("Right");
-                    ui.add(DragValue::new(&mut self.right).range(0.0..=100.0));
+                    let label = ui.label("Right");
+                    ui.add(DragValue::new(&mut self.right).range(0.0..=100.0))
+                        .labelled_by(label.id);
                     ui.end_row();
 
-                    ui.label("Top");
-                    ui.add(DragValue::new(&mut self.top).range(0.0..=100.0));
+                    let label = ui.label("Top");
+                    ui.add(DragValue::new(&mut self.top).range(0.0..=100.0))
+                        .labelled_by(label.id);
                     ui.end_row();
 
-                    ui.label("Bottom");
-                    ui.add(DragValue::new(&mut self.bottom).range(0.0..=100.0));
+                    let label = ui.label("Bottom");
+                    ui.add(DragValue::new(&mut self.bottom).range(0.0..=100.0))
+                        .labelled_by(label.id);
                     ui.end_row();
                 });
             })
@@ -2840,7 +2942,8 @@ impl Widget for &mut CornerRadius {
                 ui.checkbox(&mut same, "same");
 
                 let mut cr = self.nw;
-                ui.add(DragValue::new(&mut cr).range(0.0..=f32::INFINITY));
+                ui.add(DragValue::new(&mut cr).range(0.0..=f32::INFINITY))
+                    .on_hover_text("Corner radius");
                 *self = CornerRadius::same(cr);
             })
             .response
@@ -2851,20 +2954,24 @@ impl Widget for &mut CornerRadius {
                 crate::Grid::new("Corner radius")
                     .num_columns(2)
                     .show(ui, |ui| {
-                        ui.label("NW");
-                        ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY));
+                        let label = ui.label("NW");
+                        ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY))
+                            .labelled_by(label.id);
                         ui.end_row();
 
-                        ui.label("NE");
-                        ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY));
+                        let label = ui.label("NE");
+                        ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY))
+                            .labelled_by(label.id);
                         ui.end_row();
 
-                        ui.label("SW");
-                        ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY));
+                        let label = ui.label("SW");
+                        ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY))
+                            .labelled_by(label.id);
                         ui.end_row();
 
-                        ui.label("SE");
-                        ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY));
+                        let label = ui.label("SE");
+                        ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY))
+                            .labelled_by(label.id);
                         ui.end_row();
                     });
             })

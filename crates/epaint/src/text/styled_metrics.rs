@@ -58,3 +58,25 @@ pub struct StyledMetrics {
     /// re-hash the full coordinate list.
     pub(crate) location_hash: LocationHash,
 }
+
+impl StyledMetrics {
+    /// Metrics to lay out text with when the family has no font at all.
+    ///
+    /// Modeled on a typical Latin font: the ascent is 80% of the font size,
+    /// and a row is 120% of it. Text laid out with these still gets one glyph
+    /// per character and rows of a sensible height, so cursors and selections work.
+    pub fn without_font(pixels_per_point: f32, font_size: f32) -> Self {
+        use emath::GuiRounding as _;
+        let ascent = (0.8 * font_size).round_ui();
+        Self {
+            pixels_per_point,
+            px_scale_factor: 0.0,
+            scale: font_size * pixels_per_point,
+            y_offset_in_points: 0.0,
+            ascent,
+            row_height: (1.2 * font_size).round_ui().max(ascent),
+            location: Default::default(),
+            location_hash: Default::default(),
+        }
+    }
+}

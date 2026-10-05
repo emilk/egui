@@ -1,6 +1,6 @@
 use crate::{
-    Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Sense, Shape, Stroke,
-    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType, lerp, vec2,
+    Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Role, Sense, Shape, Stroke,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, lerp, vec2,
 };
 
 enum ProgressBarText {
@@ -118,9 +118,9 @@ impl Widget for ProgressBar {
 
         response.widget_info(|| {
             let mut info = if let Some(ProgressBarText::Custom(text)) = &text {
-                WidgetInfo::labeled(WidgetType::ProgressIndicator, ui.is_enabled(), text.text())
+                WidgetInfo::labeled(Role::ProgressIndicator, ui.is_enabled(), text.text())
             } else {
-                WidgetInfo::new(WidgetType::ProgressIndicator)
+                WidgetInfo::new(Role::ProgressIndicator)
             };
             info.value = Some((progress as f64 * 100.0).floor());
 

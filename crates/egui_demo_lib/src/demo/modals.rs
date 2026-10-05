@@ -76,8 +76,8 @@ impl crate::View for Modals {
 
                 ui.heading("Edit User");
 
-                ui.label("Name:");
-                ui.text_edit_singleline(name);
+                let label = ui.label("Name:");
+                ui.text_edit_singleline(name).labelled_by(label.id);
 
                 ComboBox::new("role", "Role")
                     .selected_text(*role)

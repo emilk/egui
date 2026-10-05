@@ -112,6 +112,7 @@ mimalloc = "0.1.52"
 mime_guess2 = { version = "2.3", default-features = false }
 mint = "0.5.9"
 nohash-hasher = "0.2.0"
+block2 = "0.6.2"
 objc2 = "0.6.4"
 objc2-app-kit = { version = "0.3.2", default-features = false }
 objc2-foundation = { version = "0.3.2", default-features = false }
@@ -132,6 +133,7 @@ rfd = "0.17.2"
 rmp-serde = "1.3"
 ron = "0.12.2"
 self_cell = "1.3"
+send_wrapper = "0.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11.19"
 similar-asserts = "2.0"

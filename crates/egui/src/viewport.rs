@@ -71,7 +71,7 @@
 
 use std::sync::Arc;
 
-use crate::{AsId, Context, Id, Ui};
+use crate::{Context, Id, Ui};
 use epaint::{Pos2, Vec2};
 
 // ----------------------------------------------------------------------------
@@ -149,7 +149,7 @@ impl ViewportId {
     pub const ROOT: Self = Self(Id::NULL);
 
     #[inline]
-    pub fn from_hash_of(source: impl AsId) -> Self {
+    pub fn from_hash_of(source: impl core::hash::Hash + core::fmt::Debug) -> Self {
         Self(Id::unique(source))
     }
 

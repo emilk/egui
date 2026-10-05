@@ -188,7 +188,15 @@ impl<'a> ContainerAtom<'a> {
             intrinsic_main += gap_space;
         }
 
-        for (idx, item) in atoms.into_iter().enumerate() {
+        // A nested `WidgetAtom` with no explicit id falls back to `Ui::next_auto_id`, which does
+        // not advance, so several of them in the same container would all get the same id, and
+        // only the last would be interactable. Give each one an id of its own:
+        let auto_id = ui.next_auto_id();
+
+        for (idx, mut item) in atoms.into_iter().enumerate() {
+            if let AtomKind::Widget(widget) = &mut item.kind {
+                widget.id.get_or_insert_with(|| auto_id.with(idx));
+            }
             if item.grow {
                 grow_count += 1;
             }

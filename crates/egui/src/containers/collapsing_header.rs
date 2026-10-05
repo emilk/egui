@@ -1,6 +1,6 @@
 use crate::{
-    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Sense, TextStyle,
-    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, WidgetType, emath,
+    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Role, Sense,
+    TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, emath,
     epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
@@ -546,7 +546,11 @@ impl CollapsingHeader {
         }
 
         header_response.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::CollapsingHeader, ui.is_enabled(), galley.text())
+            WidgetInfo::labeled(Role::DisclosureTriangle, ui.is_enabled(), galley.text())
+        });
+
+        ui.ctx().accesskit_node_builder(header_response.id, |node| {
+            node.set_expanded(state.is_open());
         });
 
         let openness = state.openness(ui.ctx());

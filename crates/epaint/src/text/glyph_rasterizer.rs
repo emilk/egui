@@ -67,8 +67,19 @@ type RasterizeFn =
 ///
 /// Results (and failures) are cached per cluster, family, and size,
 /// so each rasterizer is asked at most once per such combination.
+///
+/// Every rasterizer has a [`Self::key`], which makes installing it idempotent:
+/// adding one when a rasterizer with the same key is already installed is a no-op.
 #[derive(Clone)]
 pub struct GlyphRasterizer {
+    /// Identifies this rasterizer: two rasterizers with the same key are the same rasterizer.
+    ///
+    /// Adding one when a rasterizer with this key is already installed is a no-op,
+    /// so it is safe to add it every frame.
+    /// To swap out an installed rasterizer, replace them all with
+    /// e.g. `Context::set_glyph_rasterizers`.
+    pub key: Arc<str>,
+
     /// Rasterize one grapheme cluster.
     ///
     /// Return `None` if this rasterizer does not handle it.
@@ -82,14 +93,19 @@ pub struct GlyphRasterizer {
 impl GlyphRasterizer {
     /// A fallback rasterizer ([`FontPriority::Lowest`]).
     ///
+    /// `key` identifies the rasterizer (see [`Self::key`]).
+    /// Pick something unique, e.g. a fully qualified name like `"my_crate::MyGlyphs"`.
+    ///
     /// See [`Self::with_priority`].
     pub fn new(
+        key: impl Into<Arc<str>>,
         rasterize: impl for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph>
         + Send
         + Sync
         + 'static,
     ) -> Self {
         Self {
+            key: key.into(),
             rasterize: Arc::new(rasterize),
             priority: FontPriority::Lowest,
         }
@@ -102,12 +118,26 @@ impl GlyphRasterizer {
         self.priority = priority;
         self
     }
+
+    /// Add `self` to `rasterizers`, unless one with the same [`Self::key`] is already there.
+    ///
+    /// Returns `true` if it was added.
+    #[doc(hidden)]
+    pub fn insert_into(self, rasterizers: &mut Vec<Self>) -> bool {
+        if rasterizers.iter().any(|r| r.key == self.key) {
+            false
+        } else {
+            rasterizers.push(self);
+            true
+        }
+    }
 }
 
 impl core::fmt::Debug for GlyphRasterizer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("GlyphRasterizer")
             .field("priority", &self.priority)
+            .field("key", &self.key)
             .finish_non_exhaustive()
     }
 }
