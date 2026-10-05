@@ -3,7 +3,7 @@
 use crate::protocol::EncodedPng;
 
 impl EncodedPng {
-    /// Encode an [`egui::ColorImage`] (e.g. from [`egui::Event::Screenshot`]) as PNG.
+    /// Encode an [`egui::ColorImage`] (e.g. from [`egui::Context::request_screenshot`]) as PNG.
     ///
     /// # Errors
     /// When the encoder fails.

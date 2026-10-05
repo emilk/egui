@@ -2,55 +2,37 @@
 
 use std::sync::Arc;
 
-use egui::{Color32, ColorImage, Vec2};
+use egui::{Color32, Vec2, mutex::Mutex};
 use egui_kittest::Harness;
 
-/// Requesting a screenshot via [`egui::ViewportCommand::Screenshot`] from within the app should
-/// be fulfilled by the harness (when rendering is enabled) and delivered back via
-/// [`egui::Event::Screenshot`].
+/// Requesting a screenshot from within the app should be fulfilled by the harness (when
+/// rendering is enabled) and delivered to the callback.
 #[test]
-#[cfg(any(feature = "wgpu", feature = "snapshot"))]
-fn screenshot_viewport_command() {
-    #[derive(Default)]
-    struct State {
-        requested: bool,
-        screenshot: Option<Arc<ColorImage>>,
-    }
+fn screenshot_callback() {
+    let screenshot = Arc::new(Mutex::new(None));
+    let screenshot_from_callback = Arc::clone(&screenshot);
+    let mut requested = false;
 
     let mut harness = Harness::builder()
         .with_size(Vec2::new(100.0, 80.0))
-        .build_ui_state(
-            |ui, state: &mut State| {
-                // Paint the whole content area with a known color so we can verify the capture.
-                ui.painter()
-                    .rect_filled(ui.ctx().content_rect(), 0.0, Color32::RED);
+        .build_ui(move |ui| {
+            // Paint the whole content area with a known color so we can verify the capture.
+            ui.painter()
+                .rect_filled(ui.ctx().content_rect(), 0.0, Color32::RED);
 
-                // Request a screenshot once.
-                if !state.requested {
-                    state.requested = true;
-                    ui.ctx()
-                        .send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
-                }
-
-                // Capture the screenshot once it's delivered.
-                ui.input(|i| {
-                    for event in &i.raw.events {
-                        if let egui::Event::Screenshot { image, .. } = event {
-                            state.screenshot = Some(Arc::clone(image));
-                        }
-                    }
+            if !requested {
+                requested = true;
+                let screenshot = Arc::clone(&screenshot_from_callback);
+                ui.ctx().request_screenshot(move |image| {
+                    *screenshot.lock() = Some(image);
                 });
-            },
-            State::default(),
-        );
+            }
+        });
 
-    harness.run();
-
-    let screenshot = harness
-        .state()
-        .screenshot
+    let screenshot = screenshot
+        .lock()
         .clone()
-        .expect("Expected a screenshot to be delivered via Event::Screenshot");
+        .expect("Expected the screenshot callback to be invoked");
 
     // The frame was filled with red, so the center pixel should be red.
     let center = screenshot.pixels[screenshot.pixels.len() / 2];

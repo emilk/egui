@@ -161,7 +161,7 @@ impl RectAlign {
     pub fn outside(align: Align2) -> Self {
         Self {
             parent: align,
-            child: align.flip(),
+            child: align.flipped(),
         }
     }
 
@@ -206,33 +206,58 @@ impl RectAlign {
     }
 
     /// Flip the alignment on the x-axis.
-    pub fn flip_x(self) -> Self {
+    #[must_use]
+    pub fn flipped_x(self) -> Self {
         Self {
-            parent: self.parent.flip_x(),
-            child: self.child.flip_x(),
+            parent: self.parent.flipped_x(),
+            child: self.child.flipped_x(),
+        }
+    }
+
+    /// Flip the alignment on the x-axis.
+    #[must_use]
+    #[deprecated = "Renamed to `flipped_x`"]
+    pub fn flip_x(self) -> Self {
+        self.flipped_x()
+    }
+
+    /// Flip the alignment on the y-axis.
+    #[must_use]
+    pub fn flipped_y(self) -> Self {
+        Self {
+            parent: self.parent.flipped_y(),
+            child: self.child.flipped_y(),
         }
     }
 
     /// Flip the alignment on the y-axis.
+    #[must_use]
+    #[deprecated = "Renamed to `flipped_y`"]
     pub fn flip_y(self) -> Self {
+        self.flipped_y()
+    }
+
+    /// Flip the alignment on both axes.
+    #[must_use]
+    pub fn flipped(self) -> Self {
         Self {
-            parent: self.parent.flip_y(),
-            child: self.child.flip_y(),
+            parent: self.parent.flipped(),
+            child: self.child.flipped(),
         }
     }
 
     /// Flip the alignment on both axes.
+    #[must_use]
+    #[deprecated = "Renamed to `flipped`"]
     pub fn flip(self) -> Self {
-        Self {
-            parent: self.parent.flip(),
-            child: self.child.flip(),
-        }
+        self.flipped()
     }
 
     /// Returns the 3 alternative [`RectAlign`]s that are flipped in various ways, for use
     /// with [`RectAlign::find_best_align`].
+    #[must_use]
     pub fn symmetries(self) -> [Self; 3] {
-        [self.flip_x(), self.flip_y(), self.flip()]
+        [self.flipped_x(), self.flipped_y(), self.flipped()]
     }
 
     /// Look for the first alternative [`RectAlign`] that allows the child rect to fit

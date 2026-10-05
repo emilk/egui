@@ -1,6 +1,8 @@
 use crate::{
-    Response, Sense, Ui, Vec2, Widget, vec2,
-    widget_style::{Classes, HasClasses, SeparatorStyle},
+    Response, Sense, Ui, Vec2, Widget,
+    class::{Classes, HasClasses},
+    vec2,
+    widget_style::SeparatorStyle,
 };
 
 /// A visual separator. A horizontal or vertical line (depending on [`crate::Layout`]).

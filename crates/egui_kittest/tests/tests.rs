@@ -224,6 +224,7 @@ fn test_ime_composition_visuals() {
     let mut harness = Harness::new_ui_state(
         |ui, state| {
             egui::TextEdit::multiline(state)
+                .hint_text("Type here")
                 .desired_width(120.0)
                 .desired_rows(5)
                 .show(ui);
