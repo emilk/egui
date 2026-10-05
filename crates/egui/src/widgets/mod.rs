@@ -4,7 +4,13 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { … }`
 
-use crate::{Response, Ui, epaint};
+use crate::{Response, Ui};
+
+/// A dynamically dispatched [`Widget`].
+///
+/// [`Widget`] is not dyn compatible because [`Widget::ui`] takes `self` by value.
+/// This alias uses a closure, which implements [`Widget`].
+pub type BoxedWidget<'a> = Box<dyn FnOnce(&mut Ui) -> Response + 'a>;
 
 mod button;
 mod checkbox;
@@ -12,19 +18,18 @@ pub mod color_picker;
 pub(crate) mod drag_value;
 mod hyperlink;
 mod image;
-mod image_button;
 mod label;
 mod progress_bar;
 mod radio_button;
-mod selected_label;
+mod range_slider;
 mod separator;
 mod slider;
+mod slider_core;
+pub(crate) use slider_core::accesskit_set_value_request;
 mod spinner;
 pub mod text_edit;
+mod value_format;
 
-#[expect(deprecated)]
-pub use self::selected_label::SelectableLabel;
-#[expect(deprecated, reason = "Deprecated in egui 0.33.0")]
 pub use self::{
     button::Button,
     checkbox::Checkbox,
@@ -34,14 +39,18 @@ pub use self::{
         FrameDurations, Image, ImageFit, ImageOptions, ImageSize, ImageSource,
         decode_animated_image_uri, has_gif_magic_header, has_webp_header, paint_texture_at,
     },
-    image_button::ImageButton,
     label::Label,
     progress_bar::ProgressBar,
     radio_button::RadioButton,
+    range_slider::RangeSlider,
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
+    slider_core::{DragValueSettings, SliderSpec},
     spinner::Spinner,
-    text_edit::{TextBuffer, TextEdit},
+    text_edit::{
+        CompletionOutput, CompletionPopup, CompletionQuery, Suggestion, TextBuffer, TextEdit,
+    },
+    value_format::{NumFormatter, NumParser, ValueFormat},
 };
 
 // ----------------------------------------------------------------------------
@@ -69,6 +78,20 @@ pub trait Widget {
     ///
     /// Tip: you can `impl Widget for &mut YourObject { }`.
     fn ui(self, ui: &mut Ui) -> Response;
+
+    /// Box this widget for dynamic dispatch.
+    #[inline]
+    fn boxed<'a>(self) -> BoxedWidget<'a>
+    where
+        Self: Sized + 'a,
+    {
+        Box::new(move |ui: &mut Ui| ui.add(self))
+    }
+}
+
+#[test]
+fn widgets_can_be_boxed() {
+    let _: BoxedWidget<'static> = Button::new("boxed").boxed();
 }
 
 /// This enables functions that return `impl Widget`, so that you can
@@ -126,36 +149,26 @@ pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, text: &str, r
 
 // ----------------------------------------------------------------------------
 
-#[deprecated = "Use `ui.add(&mut stroke)` instead"]
-pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
-    ui.horizontal(|ui| {
-        ui.label(text);
-        ui.add(stroke);
-    });
-}
-
 /// Show a small button to switch to/from dark/light mode (globally).
+///
+/// This does not allow switching back to following the system theme,
+/// which is why [`global_theme_preference_buttons`] is preferred.
+#[deprecated = "Use `global_theme_preference_buttons` instead: it also covers following the system theme"]
 pub fn global_theme_preference_switch(ui: &mut Ui) {
     if let Some(new_theme) = ui.ctx().theme().small_toggle_button(ui) {
         ui.ctx().set_theme(new_theme);
     }
 }
 
-/// Show larger buttons for switching between light and dark mode (globally).
+/// Show a row of buttons for changing the theme of the whole app.
+///
+/// There is one button for each [`crate::ThemePreference`]:
+/// dark mode, light mode, and following the system theme.
+/// The button of the current preference is highlighted.
+///
+/// Each button is a small icon, so this fits in a top bar.
 pub fn global_theme_preference_buttons(ui: &mut Ui) {
-    let mut theme_preference = ui.ctx().options(|opt| opt.theme_preference);
-    theme_preference.radio_buttons(ui);
+    let mut theme_preference = ui.options(|opt| opt.theme_preference);
+    theme_preference.buttons(ui);
     ui.ctx().set_theme(theme_preference);
-}
-
-/// Show a small button to switch to/from dark/light mode (globally).
-#[deprecated = "Use global_theme_preference_switch instead"]
-pub fn global_dark_light_mode_switch(ui: &mut Ui) {
-    global_theme_preference_switch(ui);
-}
-
-/// Show larger buttons for switching between light and dark mode (globally).
-#[deprecated = "Use global_theme_preference_buttons instead"]
-pub fn global_dark_light_mode_buttons(ui: &mut Ui) {
-    global_theme_preference_buttons(ui);
 }

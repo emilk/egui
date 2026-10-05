@@ -15,11 +15,14 @@ impl crate::Demo for SvgTest {
         "SVG Test"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use crate::View as _;
-            self.ui(ui);
-        });
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
+                use crate::View as _;
+                self.ui(ui);
+            });
     }
 }
 
@@ -27,7 +30,7 @@ impl crate::View for SvgTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self { color } = self;
         ui.color_edit_button_srgba(color);
-        let img_src = egui::include_image!("../../../data/peace.svg");
+        let img_src = egui::include_image!("../../../data/icon.svg");
 
         // First paint a small version, sized the same as the source…
         ui.add(

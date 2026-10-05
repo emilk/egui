@@ -14,6 +14,7 @@ jobs:
   update-snapshots:
     name: Update snapshots from artifact
     runs-on: ubuntu-latest
+    if: github.ref_name != 'main' # We never want to update snapshots directly on main
     permissions:
       contents: write
 

@@ -26,16 +26,12 @@ impl CodeExample {
         show_code(
             ui,
             r#"
-            ui.horizontal(|ui| {
-                ui.label("Name");
-                ui.text_edit_singleline(name);
-            });"#,
+            ui.add(
+                egui::TextEdit::singleline(name)
+                    .hint_text("Name"),
+            );"#,
         );
-        // Putting things on the same line using ui.horizontal:
-        ui.horizontal(|ui| {
-            ui.label("Name");
-            ui.text_edit_singleline(name);
-        });
+        ui.add(egui::TextEdit::singleline(name).hint_text("Name"));
         ui.end_row();
 
         show_code(
@@ -102,10 +98,10 @@ impl CodeExample {
 
 impl crate::Demo for CodeExample {
     fn name(&self) -> &'static str {
-        "🖮 Code Example"
+        "⌨️ Code Example"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
         egui::Window::new(self.name())
             .open(open)
@@ -113,7 +109,8 @@ impl crate::Demo for CodeExample {
             .default_size([390.0, 500.0])
             .scroll(false)
             .resizable([true, false]) // resizable so we can shrink if the text edit grows
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 

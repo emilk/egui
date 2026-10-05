@@ -1,4 +1,4 @@
-#![allow(unsafe_code)]
+#![expect(unsafe_code)]
 
 use glow::HasContext as _;
 

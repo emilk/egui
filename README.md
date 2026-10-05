@@ -10,16 +10,14 @@
 [![Discord](https://img.shields.io/discord/900275882684477440?label=egui%20discord)](https://discord.gg/JFcEma9bJq)
 
 
+<br/>
 <div align="center">
-<a href="https://www.rerun.io/"><img src="https://github.com/user-attachments/assets/78e79463-4357-461b-bbd1-31aa5ef5e1a2" width="250"></a>
+<a href="https://www.egui.rs/"><img src="https://github.com/user-attachments/assets/cfaf1d43-9338-490f-ae82-99b420baa1b0" width="400"></a>
 
-egui development is sponsored by [Rerun](https://www.rerun.io/), a startup building<br>
-an SDK for visualizing streams of multimodal data.
-</div>
-
----
+<br/>
 
 👉 [Click to run the web demo](https://www.egui.rs/#demo) 👈
+</div>
 
 egui (pronounced "e-gooey") is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations).
 
@@ -68,7 +66,7 @@ ui.image(egui::include_image!("ferris.png"));
 
 ## Quick start
 
-There are simple examples in [the `examples/` folder](https://github.com/emilk/egui/blob/main/examples/). If you want to write a web app, then go to <https://github.com/emilk/eframe_template/> and follow the instructions. The official docs are at <https://docs.rs/egui>. For inspiration and more examples, check out the [the egui web demo](https://www.egui.rs/#demo) and follow the links in it to its source code.
+There are simple examples in [the `examples/` folder](https://github.com/emilk/egui/blob/main/examples/). If you want to write a web app, then go to <https://github.com/emilk/eframe_template/> and follow the instructions. The official docs are at <https://docs.rs/egui>. For inspiration and more examples, check out [the egui web demo](https://www.egui.rs/#demo) and follow the links in it to its source code.
 
 If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
 
@@ -80,7 +78,7 @@ If you have questions, use [GitHub Discussions](https://github.com/emilk/egui/di
 
 To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
-The native backend is [`egui_glow`](https://github.com/emilk/egui/tree/main/crates/egui_glow) (using [`glow`](https://crates.io/crates/glow)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
+The native backend is [`egui-wgpu`](https://github.com/emilk/egui/tree/main/crates/egui-wgpu) (using [`wgpu`](https://crates.io/crates/wgpu)) and should work out-of-the-box on Mac and Windows, but on Linux you need to first run:
 
 `sudo apt-get install -y libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev`
 
@@ -276,6 +274,8 @@ The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native
 
 ### What about accessibility, such as screen readers?
 egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
+
+See [the accessibility guide](./docs/accessibility.md) for how labels, custom widgets, AccessKit, and `egui_kittest` fit together.
 
 The original discussion of accessibility in egui is at <https://github.com/emilk/egui/issues/167>. Now that AccessKit support is merged, providing a strong foundation for future accessibility work, please open new issues on specific accessibility problems.
 

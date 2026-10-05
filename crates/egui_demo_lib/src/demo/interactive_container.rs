@@ -1,4 +1,4 @@
-use egui::{Frame, Label, RichText, Sense, UiBuilder, Widget as _};
+use egui::{Frame, Label, RichText, Sense, Stroke, UiBuilder, Widget as _};
 
 /// Showcase [`egui::Ui::response`].
 #[derive(PartialEq, Eq, Default)]
@@ -13,12 +13,13 @@ impl crate::Demo for InteractiveContainerDemo {
         "\u{20E3} Interactive Container"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
             .default_width(250.0)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -50,7 +51,7 @@ impl crate::View for InteractiveContainerDemo {
 
                     Frame::canvas(ui.style())
                         .fill(visuals.bg_fill.gamma_multiply(0.3))
-                        .stroke(visuals.bg_stroke)
+                        .stroke(Stroke::new(1.0, visuals.bg_stroke.color))
                         .inner_margin(ui.spacing().menu_margin)
                         .show(ui, |ui| {
                             ui.set_width(ui.available_width());

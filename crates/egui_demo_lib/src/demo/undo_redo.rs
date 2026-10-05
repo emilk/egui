@@ -31,11 +31,12 @@ impl crate::Demo for UndoRedoDemo {
         "⟲ Undo Redo"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -49,7 +50,7 @@ impl crate::View for UndoRedoDemo {
         });
 
         ui.checkbox(&mut self.state.toggle_value, "Checkbox with undo/redo");
-        ui.text_edit_singleline(&mut self.state.text);
+        ui.add(egui::TextEdit::singleline(&mut self.state.text).hint_text("Text with undo/redo"));
 
         ui.separator();
 
@@ -69,6 +70,6 @@ impl crate::View for UndoRedoDemo {
         });
 
         self.undoer
-            .feed_state(ui.ctx().input(|input| input.time), &self.state);
+            .feed_state(ui.input(|input| input.time), &self.state);
     }
 }

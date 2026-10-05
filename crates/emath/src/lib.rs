@@ -19,9 +19,9 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
+#![expect(clippy::float_cmp)]
 
-use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
+use core::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
 // ----------------------------------------------------------------------------
 
@@ -233,7 +233,9 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
         for decimals in min_decimals..max_decimals {
             let text = format!("{value:.decimals$}");
             let epsilon = 16.0 * f32::EPSILON; // margin large enough to handle most peoples round-tripping needs
-            if almost_equal(text.parse::<f32>().unwrap(), value as f32, epsilon) {
+            if let Ok(parsed_value) = text.parse::<f32>()
+                && almost_equal(parsed_value, value as f32, epsilon)
+            {
                 // Enough precision to show the value accurately - good!
                 return text;
             }
@@ -267,7 +269,7 @@ fn test_format() {
     assert_eq!(format_with_minimum_decimals(3.14, 2), "3.14");
     assert_eq!(format_with_minimum_decimals(3.14, 3), "3.140");
     assert_eq!(
-        format_with_minimum_decimals(std::f64::consts::PI, 2),
+        format_with_minimum_decimals(core::f64::consts::PI, 2),
         "3.14159"
     );
 }
@@ -363,7 +365,7 @@ impl_num_ext!(Pos2);
 
 /// Wrap angle to `[-PI, PI]` range.
 pub fn normalized_angle(mut angle: f32) -> f32 {
-    use std::f32::consts::{PI, TAU};
+    use core::f32::consts::{PI, TAU};
     angle %= TAU;
     if angle > PI {
         angle -= TAU;
@@ -383,7 +385,7 @@ fn test_normalized_angle() {
         };
     }
 
-    use std::f32::consts::TAU;
+    use core::f32::consts::TAU;
     almost_eq!(normalized_angle(-3.0 * TAU), 0.0);
     almost_eq!(normalized_angle(-2.3 * TAU), -0.3 * TAU);
     almost_eq!(normalized_angle(-TAU), 0.0);

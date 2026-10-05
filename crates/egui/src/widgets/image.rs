@@ -1,4 +1,5 @@
-use std::{borrow::Cow, slice::Iter, sync::Arc, time::Duration};
+use core::{slice::Iter, time::Duration};
+use std::{borrow::Cow, sync::Arc};
 
 use emath::{Align, Float as _, GuiRounding as _, NumExt as _, Rot2};
 use epaint::{
@@ -7,8 +8,8 @@ use epaint::{
 };
 
 use crate::{
-    Color32, Context, CornerRadius, Id, Mesh, Painter, Rect, Response, Sense, Shape, Spinner,
-    TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    Color32, Context, CornerRadius, Id, Mesh, Painter, Rect, Response, Role, Sense, Shape, Spinner,
+    TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo,
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
     pos2,
 };
@@ -256,18 +257,6 @@ impl<'a> Image<'a> {
         self
     }
 
-    /// Round the corners of the image.
-    ///
-    /// The default is no rounding ([`CornerRadius::ZERO`]).
-    ///
-    /// Due to limitations in the current implementation,
-    /// this will turn off any rotation of the image.
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
-    }
-
     /// Show a spinner when the image is loading.
     ///
     /// By default this uses the value of [`crate::Visuals::image_loading_spinners`].
@@ -310,6 +299,15 @@ impl<'a> Image<'a> {
     pub fn size(&self) -> Option<Vec2> {
         match &self.source {
             ImageSource::Texture(texture) => Some(texture.size),
+            ImageSource::Uri(_) | ImageSource::Bytes { .. } => None,
+        }
+    }
+
+    /// The id of the texture, if this image is from [`ImageSource::Texture`].
+    #[inline]
+    pub(crate) fn texture_id(&self) -> Option<epaint::TextureId> {
+        match &self.source {
+            ImageSource::Texture(texture) => Some(texture.id),
             ImageSource::Uri(_) | ImageSource::Bytes { .. } => None,
         }
     }
@@ -415,7 +413,7 @@ impl Widget for Image<'_> {
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
         response.widget_info(|| {
-            let mut info = WidgetInfo::new(WidgetType::Image);
+            let mut info = WidgetInfo::new(Role::Image);
             info.label = self.alt_text.clone();
             info
         });
@@ -619,8 +617,8 @@ pub enum ImageSource<'a> {
     },
 }
 
-impl std::fmt::Debug for ImageSource<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for ImageSource<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ImageSource::Bytes { uri, .. } | ImageSource::Uri(uri) => uri.as_ref().fmt(f),
             ImageSource::Texture(st) => st.id.fmt(f),
@@ -681,7 +679,7 @@ pub fn paint_texture_load_result(
         }
         Ok(TexturePoll::Pending { .. }) => {
             let show_loading_spinner =
-                show_loading_spinner.unwrap_or(ui.visuals().image_loading_spinners);
+                show_loading_spinner.unwrap_or_else(|| ui.visuals().image_loading_spinners);
             if show_loading_spinner {
                 Spinner::new().paint_at(ui, rect);
             }
@@ -694,7 +692,7 @@ pub fn paint_texture_load_result(
                 ..Default::default()
             };
             job.append(
-                "⚠",
+                "⚠️",
                 0.0,
                 TextFormat::simple(font_id.clone(), ui.visuals().error_fg_color),
             );
@@ -921,7 +919,7 @@ pub fn decode_animated_image_uri(uri: &str) -> Result<(&str, usize), String> {
 fn animated_image_frame_index(ctx: &Context, uri: &str) -> usize {
     let now = ctx.input(|input| Duration::from_secs_f64(input.time));
 
-    let durations: Option<FrameDurations> = ctx.data(|data| data.get_temp(Id::new(uri)));
+    let durations: Option<FrameDurations> = ctx.data(|data| data.get_temp(Id::unique(uri)));
 
     if let Some(durations) = durations {
         let frames: Duration = durations.all().sum();
@@ -945,7 +943,7 @@ fn animated_image_frame_index(ctx: &Context, uri: &str) -> usize {
 
 /// Checks if uri is a gif file
 fn is_gif_uri(uri: &str) -> bool {
-    uri.ends_with(".gif") || uri.contains(".gif#")
+    crate::load::has_extension(uri, "gif")
 }
 
 /// Checks if bytes are gifs
@@ -955,7 +953,7 @@ pub fn has_gif_magic_header(bytes: &[u8]) -> bool {
 
 /// Checks if uri is a webp file
 fn is_webp_uri(uri: &str) -> bool {
-    uri.ends_with(".webp") || uri.contains(".webp#")
+    crate::load::has_extension(uri, "webp")
 }
 
 /// Checks if bytes are webp

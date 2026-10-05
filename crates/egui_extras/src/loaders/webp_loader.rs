@@ -1,11 +1,12 @@
 use ahash::HashMap;
+use core::{mem::size_of, time::Duration};
 use egui::{
     ColorImage, FrameDurations, Id, decode_animated_image_uri, has_webp_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
 };
 use image::{AnimationDecoder as _, ColorType, ImageDecoder as _, Rgba, codecs::webp::WebPDecoder};
-use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
+use std::{io::Cursor, sync::Arc};
 
 #[derive(Clone)]
 enum WebP {
@@ -75,7 +76,7 @@ impl WebP {
 
     fn get_image(&self, frame_index: usize) -> Arc<ColorImage> {
         match self {
-            Self::Static(image) => image.clone(),
+            Self::Static(image) => Arc::clone(image),
             Self::Animated(animation) => animation.get_image_by_index(frame_index),
         }
     }
@@ -108,7 +109,7 @@ impl AnimatedImage {
     }
 
     pub fn get_image_by_index(&self, index: usize) -> Arc<ColorImage> {
-        self.frames[index % self.frames.len()].clone()
+        Arc::clone(&self.frames[index % self.frames.len()])
     }
 }
 
@@ -153,7 +154,7 @@ impl ImageLoader for WebPLoader {
 
                     if let Ok(WebP::Animated(animated_image)) = &result {
                         ctx.data_mut(|data| {
-                            *data.get_temp_mut_or_default(Id::new(image_uri)) =
+                            *data.get_temp_mut_or_default(Id::unique(image_uri)) =
                                 animated_image.frame_durations.clone();
                         });
                     }

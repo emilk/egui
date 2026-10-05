@@ -6,6 +6,7 @@ use super::widget_gallery;
 pub struct SceneDemo {
     widget_gallery: widget_gallery::WidgetGallery,
     scene_rect: Rect,
+    scroll_zooms: bool,
 }
 
 impl Default for SceneDemo {
@@ -13,6 +14,7 @@ impl Default for SceneDemo {
         Self {
             widget_gallery: widget_gallery::WidgetGallery::default().with_date_button(false), // disable date button so that we don't fail the snapshot test
             scene_rect: Rect::ZERO, // `egui::Scene` will initialize this to something valid
+            scroll_zooms: false,
         }
     }
 }
@@ -22,14 +24,15 @@ impl crate::Demo for SceneDemo {
         "🔍 Scene"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
-        let window = egui::Window::new("Scene")
+        egui::Window::new("Scene")
             .default_width(300.0)
             .default_height(300.0)
             .scroll(false)
-            .open(open);
-        window.show(ctx, |ui| self.ui(ui));
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 
@@ -39,12 +42,16 @@ impl crate::View for SceneDemo {
             "You can pan by scrolling, and zoom using cmd-scroll. \
             Double click on the background to reset view.",
         );
+        ui.checkbox(
+            &mut self.scroll_zooms,
+            "Change mousewheel behavior to zoom instead of scroll",
+        );
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
         ui.separator();
 
-        ui.label(format!("Scene rect: {:#?}", &mut self.scene_rect));
+        ui.label(format!("Scene rect: {:#?}", self.scene_rect));
 
         ui.separator();
 
@@ -53,6 +60,7 @@ impl crate::View for SceneDemo {
             .show(ui, |ui| {
                 let scene = Scene::new()
                     .max_inner_size([350.0, 1000.0])
+                    .scroll_zooms(self.scroll_zooms)
                     .zoom_range(0.1..=2.0);
 
                 let mut reset_view = false;

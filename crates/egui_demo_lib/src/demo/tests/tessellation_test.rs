@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use egui::{
     Color32, Pos2, Rect, Sense, StrokeKind, Vec2,
     emath::{GuiRounding as _, TSTransform},
@@ -122,11 +124,12 @@ impl crate::Demo for TessellationTest {
         "Tessellation Test"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .resizable(false)
             .open(open)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -175,17 +178,19 @@ impl crate::View for TessellationTest {
                 .spacing([12.0, 8.0])
                 .striped(true)
                 .show(ui, |ui| {
-                    ui.label("Magnification");
+                    let label = ui.label("Magnification");
                     ui.add(
                         egui::DragValue::new(magnification_pixel_size)
                             .speed(0.5)
                             .range(1.0..=32.0),
-                    );
+                    )
+                    .labelled_by(label.id);
                     ui.end_row();
 
-                    ui.label("Feathering width");
+                    let label = ui.label("Feathering width");
                     ui.horizontal(|ui| {
-                        ui.checkbox(&mut tessellation_options.feathering, "");
+                        ui.checkbox(&mut tessellation_options.feathering, "")
+                            .labelled_by(label.id);
                         ui.add_enabled(
                             tessellation_options.feathering,
                             egui::DragValue::new(
@@ -194,12 +199,13 @@ impl crate::View for TessellationTest {
                             .speed(0.1)
                             .range(0.0..=4.0)
                             .suffix(" px"),
-                        );
+                        )
+                        .labelled_by(label.id);
                     });
                     ui.end_row();
 
-                    ui.label("Paint edges");
-                    ui.checkbox(&mut self.paint_edges, "");
+                    let label = ui.label("Paint edges");
+                    ui.checkbox(&mut self.paint_edges, "").labelled_by(label.id);
                     ui.end_row();
                 });
 
@@ -229,8 +235,8 @@ impl crate::View for TessellationTest {
                     TSTransform::from_translation(canvas.center().to_vec2())
                         * TSTransform::from_scaling(magnification_pixel_size),
                 );
-                let mesh = std::sync::Arc::new(mesh);
-                painter.add(epaint::Shape::mesh(mesh.clone()));
+                let mesh = Arc::new(mesh);
+                painter.add(epaint::Shape::mesh(Arc::clone(&mesh)));
 
                 if self.paint_edges {
                     let stroke = epaint::Stroke::new(0.5, Color32::MAGENTA);
@@ -251,12 +257,12 @@ impl crate::View for TessellationTest {
                     let pixel_color = Color32::GRAY;
                     for yi in 0.. {
                         let y = (yi as f32 + 0.5) * magnification_pixel_size;
-                        if y > canvas.height() / 2.0 {
+                        if y > canvas.height() * 0.5 {
                             break;
                         }
                         for xi in 0.. {
                             let x = (xi as f32 + 0.5) * magnification_pixel_size;
-                            if x > canvas.width() / 2.0 {
+                            if x > canvas.width() * 0.5 {
                                 break;
                             }
                             for offset in [vec2(x, y), vec2(x, -y), vec2(-x, y), vec2(-x, -y)] {
@@ -281,7 +287,9 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
             for (name, prefab) in TessellationTest::interesting_shapes() {
                 ui.selectable_value(shape, prefab, name);
             }
-        });
+        })
+        .response
+        .on_hover_text("Pick a prefab shape");
 
     ui.add_space(4.0);
 
@@ -294,6 +302,7 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
         blur_width,
         round_to_pixels,
         brush: _,
+        angle: _,
     } = shape;
 
     let round_to_pixels = round_to_pixels.get_or_insert(true);
@@ -310,12 +319,14 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
                     egui::DragValue::new(&mut size.x)
                         .speed(0.2)
                         .range(0.0..=64.0),
-                );
+                )
+                .on_hover_text("Width");
                 ui.add(
                     egui::DragValue::new(&mut size.y)
                         .speed(0.2)
                         .range(0.0..=64.0),
-                );
+                )
+                .on_hover_text("Height");
                 *rect = Rect::from_center_size(Pos2::ZERO, size);
             });
             ui.end_row();
@@ -340,16 +351,17 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
             });
             ui.end_row();
 
-            ui.label("Blur width");
+            let label = ui.label("Blur width");
             ui.add(
                 egui::DragValue::new(blur_width)
                     .speed(0.5)
                     .range(0.0..=20.0),
-            );
+            )
+            .labelled_by(label.id);
             ui.end_row();
 
-            ui.label("Round to pixels");
-            ui.checkbox(round_to_pixels, "");
+            let label = ui.label("Round to pixels");
+            ui.checkbox(round_to_pixels, "").labelled_by(label.id);
             ui.end_row();
         });
 }
@@ -357,11 +369,13 @@ fn rect_shape_ui(ui: &mut egui::Ui, shape: &mut RectShape) {
 #[cfg(test)]
 mod tests {
     use crate::View as _;
+    use egui_kittest::SnapshotResults;
 
     use super::*;
 
     #[test]
     fn snapshot_tessellation_test() {
+        let mut results = SnapshotResults::new();
         for (name, shape) in TessellationTest::interesting_shapes() {
             let mut test = TessellationTest {
                 shape,
@@ -375,6 +389,7 @@ mod tests {
             harness.run();
 
             harness.snapshot(format!("tessellation_test/{name}"));
+            results.extend_harness(&mut harness);
         }
     }
 }
