@@ -292,7 +292,7 @@ pub enum Key {
     /// Scroll Lock key.
     ScrollLock,
 
-    /// Print Screen / SysRq key.
+    /// Print Screen / `SysRq` key.
     PrintScreen,
 
     /// Pause / Break key.
