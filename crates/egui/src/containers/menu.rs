@@ -527,11 +527,11 @@ impl SubMenu {
             });
         }
 
-        let gap = measurement_frame.total_margin().sum().x / 2.0 + 2.0;
+        let gap = measurement_frame.total_margin().sum().x * 0.5 + 2.0;
 
         let mut response = button_response.clone();
         // Expand the button rect so that the button and the first item in the submenu are aligned
-        let expand = Vec2::new(0.0, measurement_frame.total_margin().sum().y / 2.0);
+        let expand = Vec2::new(0.0, measurement_frame.total_margin().sum().y * 0.5);
         response.interact_rect = response.interact_rect.expand2(expand);
 
         let popup_response = Popup::from_response(&response)
