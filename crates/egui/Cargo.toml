@@ -80,6 +80,13 @@ serde = ["dep:serde", "epaint/serde", "accesskit/serde"]
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
 
+## Expose [`DroppedFile::web_file`], the browser `File` handle of a dropped file (wasm32 only).
+##
+## This pulls in `web-sys`, and with it `js-sys` and `wasm-bindgen`, which add `wasm-bindgen`
+## symbols to the final binary. Integrations that are not `wasm-bindgen`-based can leave it off.
+## `eframe` enables it on the web.
+web_file = ["dep:web-sys"]
+
 ## Override and disable the unity feature
 ## This exists, so that when testing with --all-features, snapshots render correctly.
 _override_unity = ["epaint/_override_unity"]
@@ -112,5 +119,5 @@ serde = { workspace = true, optional = true, features = ["derive", "rc"] }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-# For `DroppedFile`, which hands web apps a file handle instead of its contents.
-web-sys = { workspace = true, features = ["File"] }
+# For `DroppedFile::web_file`, which hands web apps a file handle instead of its contents.
+web-sys = { workspace = true, optional = true, features = ["File"] }
