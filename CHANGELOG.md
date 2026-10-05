@@ -14,6 +14,52 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.37.0 - UNRELEASED - Colored emojis! 🚀
+
+### Highlights ✨
+
+#### Emoji and glyph support
+egui can now render any glyph that is supported on your system, including colored emojis and non-Latin scripts [#8490](https://github.com/emilk/egui/pull/8490), [#8512](https://github.com/emilk/egui/pull/8512).
+
+To enable this, the integration has to use one of two APIs:
+
+* `Context::add_glyph_rasterizer(GlyphRasterizer)`: a `GlyphRasterizer` renders a single glyph. `eframe` uses this on web to render individual glyphs to an off-screen canvas [#8490](https://github.com/emilk/egui/pull/8490), [#8545](https://github.com/emilk/egui/pull/8545).
+* `Context::add_font_provider(Arc<dyn FontProvider>)`: lets egui find and load whole fonts at runtime. Native `eframe` uses this to list system fonts with [`fontique`](https://crates.io/crates/fontique) [#8512](https://github.com/emilk/egui/pull/8512).
+
+#### Experimental theme customizations
+This releases adds a theme plugin system ([#8153](https://github.com/emilk/egui/pull/8153)).
+
+TODO: add more details here
+
+#### Improved accessibility
+* Better popup, menu, modal and panel trees [#8581](https://github.com/emilk/egui/pull/8581).
+* AccessKit support on panel resize handles [#8578](https://github.com/emilk/egui/pull/8578).
+* `WidgetType` is replaced with `accesskit::Role` (re-exported as `egui::Role`) [#8555](https://github.com/emilk/egui/pull/8555).
+* New `Response::accessible_name`, `Ui::label_inputs_by` / `Ui::name_inputs`, and `Area::role` [#8604](https://github.com/emilk/egui/pull/8604), [#8608](https://github.com/emilk/egui/pull/8608), [#8612](https://github.com/emilk/egui/pull/8612).
+* Invisible widgets are now hidden from the accessibility tree [#8621](https://github.com/emilk/egui/pull/8621).
+* `kittest` fails any input widget that has no accessible name [#8589](https://github.com/emilk/egui/pull/8589).
+
+#### Other
+* Paste images from the clipboard: `Event::PasteImage` [#8472](https://github.com/emilk/egui/pull/8472).
+* New widgets and containers:
+  * `RangeSlider` [#8580](https://github.com/emilk/egui/pull/8580)
+  * `CompletionPopup` for code completion over a `TextEdit` [#8529](https://github.com/emilk/egui/pull/8529)
+  * `Aligned` container [#8540](https://github.com/emilk/egui/pull/8540)
+  * `ComboBox` built from atoms [#8618](https://github.com/emilk/egui/pull/8618)
+  * `BandShape` and `epaint::RoundedRect` [#8476](https://github.com/emilk/egui/pull/8476), [#8440](https://github.com/emilk/egui/pull/8440)
+* Atoms: `AtomLayout` is split into `WidgetAtom` and `ContainerAtom` [#8222](https://github.com/emilk/egui/pull/8222).
+* Some style tweaks: roomier buttons and a larger corner radius [#8617](https://github.com/emilk/egui/pull/8617), [#8445](https://github.com/emilk/egui/pull/8445).
+
+### ⚠️ Breaking or deprecated
+* `default_fonts` is no longer a default feature [#8583](https://github.com/emilk/egui/pull/8583).
+* `Id::new`, `AsId` and `From<&str> for Id` are all deprecated [#8534](https://github.com/emilk/egui/pull/8534), [#8586](https://github.com/emilk/egui/pull/8586).
+* New: `Id::unique`, `IdSaltSet`, `IdSaltMap` [#8534](https://github.com/emilk/egui/pull/8534), [#8590](https://github.com/emilk/egui/pull/8590).
+* `Panel` constructors take `impl AsIdSalt` [#8592](https://github.com/emilk/egui/pull/8592).
+* `ViewportCommand::Screenshot` now uses a callback [#8489](https://github.com/emilk/egui/pull/8489).
+* `global_theme_preference_switch` is deprecated in favor of `global_theme_preference_buttons` [#8505](https://github.com/emilk/egui/pull/8505).
+
+TODO: all the added/changed/removed/fixed
+
 ## 0.36.2 - 2026-09-08
 ### ⭐ Added
 * Add `TextEdit::event_filter` [#8530](https://github.com/emilk/egui/pull/8530) by [@emilk](https://github.com/emilk)
@@ -38,8 +84,8 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 ### Highlights ✨
 
-This release drastically improves the mobile keyboard experience (when using eframe web). It also adds drag-to-open 
-panels, window chrome theme sync and a lot of small bug fixes and improvements! 
+This release drastically improves the mobile keyboard experience (when using eframe web). It also adds drag-to-open
+panels, window chrome theme sync and a lot of small bug fixes and improvements!
 
 #### Improved mobile keyboard support
 
@@ -92,25 +138,25 @@ https://github.com/user-attachments/assets/6b393057-fdfc-431b-b997-744bc183a8ac
 
 ## 0.35.0 - 2026-06-25 - Inspection, egui_mcp, classes and improved IME
 
-### Highlights 
+### Highlights
 - New egui_mcp crate based on eguis new inspection protocol
 - Set classes on your `Ui`s to modify widget behavior based on surrounding context
 - Improved IME
 
 ### Egui inspection and egui_mcp
 This release includes a new inspection protocol for egui. It allows reading the accesskit tree of a running app, as well
-as sending events to control it. It's implemented via a new `InspectionPlugin` in the `egui_inspection` crate. 
-Eframe includes a new `inspection` feature. When enabled, you can enable inspection by launching the app with 
-`EGUI_INSPECTION=1`. This will cause the app to listen on port 5719. 
+as sending events to control it. It's implemented via a new `InspectionPlugin` in the `egui_inspection` crate.
+Eframe includes a new `inspection` feature. When enabled, you can enable inspection by launching the app with
+`EGUI_INSPECTION=1`. This will cause the app to listen on port 5719.
 
-The first inspection protocol consumer is [egui_mcp](https://github.com/rerun-io/kittest_inspector/tree/main/crates/egui_mcp). 
+The first inspection protocol consumer is [egui_mcp](https://github.com/rerun-io/kittest_inspector/tree/main/crates/egui_mcp).
 It's a [mcp](https://modelcontextprotocol.io/docs/getting-started/intro) server that allows your agent to see and use
-egui apps. It can be used to have the agent use the app, reproduce bugs and verify its changes. 
+egui apps. It can be used to have the agent use the app, reproduce bugs and verify its changes.
 Install it via `cargo install --git https://github.com/rerun-io/kittest_inspector egui_mcp` and then add it to your
 agent via `claude mcp add egui egui-mcp`.
 
-There is also a plan of adding a general inspection gui using the same protocol, that can e.g. be used to step through 
-kittest tests frame by frame. 
+There is also a plan of adding a general inspection gui using the same protocol, that can e.g. be used to step through
+kittest tests frame by frame.
 
 Here is claude using the mcp to try some of the egui demos (sped up by a lot, claude is slow):
 
@@ -121,27 +167,27 @@ https://github.com/user-attachments/assets/c3dd0456-acfc-428c-8efe-f4a244c9e3ba
 ### Classes
 
 As part of [css like styling](https://github.com/emilk/egui/issues/3284), we've added classes to egui. You can already
-use them to e.g. modify widget behavior or styling based on surrounding context. 
+use them to e.g. modify widget behavior or styling based on surrounding context.
 Add classes to the container:
-```rs 
+```rs
 ui.scope_builder(UiBuilder::new().with_class("my_container"), |ui| {
     ...
-});       
+});
 ```
 
 In your widget, check if we're in `my_container`, to e.g. change sizes or colors:
 ```rs
-  let in_container = ui.stack().iter().any(|s| s.classes.has("my_container")); 
+  let in_container = ui.stack().iter().any(|s| s.classes.has("my_container"));
 ```
 
 Today this only works for custom widgets and ui code, but the next step will be a styling system that allows you to modify built
-in widget styling based on these classes. 
+in widget styling based on these classes.
 
 * Add `Classes` to `UiBuilder` and some Widgets [#7843](https://github.com/emilk/egui/pull/7843) by [@AdrienZianne](https://github.com/AdrienZianne)
 
 ### Better IME composition
 
-IME visuals received an overhaul, they are now indicated by an underline and properly show the cursor during composition: 
+IME visuals received an overhaul, they are now indicated by an underline and properly show the cursor during composition:
 
 https://github.com/user-attachments/assets/487c7e7c-ef6d-4a86-8dbc-8c71871b4470
 
