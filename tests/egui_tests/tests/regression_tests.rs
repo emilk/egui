@@ -531,7 +531,7 @@ fn animated_scroll_beats_sticky_bottom() {
                         }
                     });
 
-                state.1 = output.state.offset.y;
+                state.1 = output.state.clamped_offset().y;
                 state.2 = (output.content_size.y - output.inner_rect.height()).max(0.0);
             },
             (false, 0.0, 0.0),
