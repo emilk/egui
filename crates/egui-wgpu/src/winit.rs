@@ -87,15 +87,14 @@ impl Painter {
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
-        config: &SurfaceConfig,
-        reconfigure_lock: Option<&epaint::mutex::RwLock<()>>,
+        config: &WgpuConfiguration,
     ) {
         profiling::function_scope!();
 
         let SurfaceConfig {
             present_mode,
             desired_maximum_frame_latency,
-        } = *config;
+        } = config.surface;
 
         // Transaction presentation can hold a drawable during AppKit live resize. Keep the
         // configured low-latency path normally, but use three Metal drawables while resizing.
@@ -125,7 +124,12 @@ impl Painter {
             surf_config.desired_maximum_frame_latency = desired_maximum_frame_latency;
         }
 
-        let _guard = reconfigure_lock.map(|l| l.write());
+        // Prevent other threads from submitting work while `configure` waits for the GPU to idle.
+        // See `WgpuConfiguration::surface_configure_lock`.
+        let _guard = config
+            .surface_configure_lock
+            .as_ref()
+            .map(|lock| lock.write());
         surface_state
             .surface
             .configure(&render_state.device, &surf_config);
@@ -332,7 +336,7 @@ impl Painter {
         surface_state.width = width;
         surface_state.height = height;
 
-        Self::configure_surface(surface_state, render_state, &self.config.surface, self.config.reconfigure_lock.as_deref());
+        Self::configure_surface(surface_state, render_state, &self.config);
 
         if let Some(depth_format) = self.options.depth_stencil_format {
             self.depth_texture_view.insert(
@@ -432,7 +436,7 @@ impl Painter {
                         .lock()
                         .setPresentsWithTransaction(resizing);
 
-                    Self::configure_surface(state, render_state, &self.config.surface, self.config.reconfigure_lock.as_deref());
+                    Self::configure_surface(state, render_state, &self.config);
                 }
             }
         }
@@ -580,7 +584,7 @@ impl Painter {
         };
 
         if surface_state.needs_reconfigure {
-            Self::configure_surface(surface_state, render_state, &self.config.surface, self.config.reconfigure_lock.as_deref());
+            Self::configure_surface(surface_state, render_state, &self.config);
             surface_state.needs_reconfigure = false;
         }
 
@@ -605,7 +609,7 @@ impl Painter {
             other => {
                 match (*self.config.on_surface_status)(&other) {
                     SurfaceErrorAction::Reconfigure => {
-                        Self::configure_surface(surface_state, render_state, &self.config.surface, self.config.reconfigure_lock.as_deref());
+                        Self::configure_surface(surface_state, render_state, &self.config);
                         self.context.request_repaint_of(viewport_id);
                     }
                     SurfaceErrorAction::RecreateSurface => {
