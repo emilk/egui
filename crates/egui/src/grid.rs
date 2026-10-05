@@ -75,6 +75,11 @@ pub(crate) struct GridLayout {
     curr_state: State,
     initial_available: Rect,
 
+    /// Are we inside an enclosing sizing pass (e.g. [`crate::Resize`] measuring
+    /// the minimum content width)? If so we must not remember the (narrow) sizes
+    /// we measure during it.
+    sizing_pass: bool,
+
     // Options:
     num_columns: Option<usize>,
     spacing: Vec2,
@@ -90,6 +95,10 @@ pub(crate) struct GridLayout {
 impl GridLayout {
     pub(crate) fn new(ui: &Ui, id: Id, prev_state: Option<State>) -> Self {
         let is_first_frame = prev_state.is_none();
+
+        // An outer sizing pass, we should render as small as possible.
+        let sizing_pass = ui.is_sizing_pass();
+
         let prev_state = prev_state.unwrap_or_default();
 
         // TODO(emilk): respect current layout
@@ -110,6 +119,7 @@ impl GridLayout {
             prev_state,
             curr_state: State::default(),
             initial_available,
+            sizing_pass,
 
             num_columns: None,
             spacing: ui.spacing().item_spacing,
@@ -180,7 +190,11 @@ impl GridLayout {
     }
 
     pub(crate) fn next_cell(&self, cursor: Rect, child_size: Vec2) -> Rect {
-        let width = self.prev_state.col_width(self.col).unwrap_or(0.0);
+        let width = if self.sizing_pass {
+            0.0
+        } else {
+            self.prev_state.col_width(self.col).unwrap_or(0.0)
+        };
         let height = self.prev_row_height(self.row);
         let size = child_size.max(vec2(width, height));
         Rect::from_min_size(cursor.min, size).round_ui()

@@ -37,8 +37,8 @@ pub struct Modifiers {
     pub command: bool,
 }
 
-impl std::fmt::Debug for Modifiers {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Modifiers {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if self.is_none() {
             return write!(f, "Modifiers::NONE");
         }
@@ -387,7 +387,7 @@ impl Modifiers {
     }
 }
 
-impl std::ops::BitOr for Modifiers {
+impl core::ops::BitOr for Modifiers {
     type Output = Self;
 
     #[inline]
@@ -396,7 +396,7 @@ impl std::ops::BitOr for Modifiers {
     }
 }
 
-impl std::ops::BitOrAssign for Modifiers {
+impl core::ops::BitOrAssign for Modifiers {
     #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
         *self = *self | rhs;

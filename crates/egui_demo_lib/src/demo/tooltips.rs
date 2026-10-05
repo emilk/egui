@@ -12,7 +12,7 @@ impl Default for Tooltips {
 
 impl crate::Demo for Tooltips {
     fn name(&self) -> &'static str {
-        "🗖 Tooltips"
+        "💬 Tooltips"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {

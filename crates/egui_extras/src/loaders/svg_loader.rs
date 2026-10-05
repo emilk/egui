@@ -1,4 +1,5 @@
-use std::{mem::size_of, sync::Arc};
+use core::mem::size_of;
+use std::sync::Arc;
 
 use ahash::HashMap;
 
@@ -28,7 +29,7 @@ impl SvgLoader {
 }
 
 fn is_supported(uri: &str) -> bool {
-    uri.ends_with(".svg")
+    egui::load::has_extension(uri, "svg")
 }
 
 impl Default for SvgLoader {

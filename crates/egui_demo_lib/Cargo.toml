@@ -54,7 +54,8 @@ serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion.workspace = true
-egui = { workspace = true, features = ["default_fonts"] }
+# `monochrome_emoji_fonts` so that the snapshots of the demos keep their emoji:
+egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
 egui_extras = { workspace = true, features = ["image", "svg"] }
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 image = { workspace = true, features = ["png"] }

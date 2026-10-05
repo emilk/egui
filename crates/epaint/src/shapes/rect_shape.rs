@@ -62,12 +62,12 @@ pub struct RectShape {
 #[test]
 fn rect_shape_size() {
     assert_eq!(
-        std::mem::size_of::<RectShape>(),
+        core::mem::size_of::<RectShape>(),
         56,
         "RectShape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
-        std::mem::size_of::<RectShape>() <= 64,
+        core::mem::size_of::<RectShape>() <= 64,
         "RectShape is getting way too big!"
     );
 }
@@ -188,10 +188,10 @@ impl RectShape {
         } else {
             let expand = match self.stroke_kind {
                 StrokeKind::Inside => 0.0,
-                StrokeKind::Middle => self.stroke.width / 2.0,
+                StrokeKind::Middle => self.stroke.width * 0.5,
                 StrokeKind::Outside => self.stroke.width,
             };
-            let expanded = self.rect.expand(expand + self.blur_width / 2.0);
+            let expanded = self.rect.expand(expand + self.blur_width * 0.5);
             if self.angle == 0.0 {
                 expanded
             } else {

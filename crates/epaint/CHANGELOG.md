@@ -5,6 +5,20 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.2 - 2026-09-08
+* Fix rendering of thin, angled rectangles [#8482](https://github.com/emilk/egui/pull/8482) by [@emilk](https://github.com/emilk)
+* Simplify and optimize `Color32::from_rgba_unmultiplied` [#8427](https://github.com/emilk/egui/pull/8427) by [@Keith-Cancel](https://github.com/Keith-Cancel)
+
+
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
+## 0.36.0 - 2026-08-05
+* Add `LayoutJob::clear` [#8376](https://github.com/emilk/egui/pull/8376) by [@emilk](https://github.com/emilk)
+* Add `extra_text_line_spacing` to control vertical spacing between text lines [#8040](https://github.com/emilk/egui/pull/8040) by [@rustbasic](https://github.com/rustbasic)
+
+
 ## 0.35.0 - 2026-06-25
 ### ⭐ Added
 * Make the size of tabs and thin space configurable [#8070](https://github.com/emilk/egui/pull/8070) by [@emilk](https://github.com/emilk)

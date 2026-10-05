@@ -15,6 +15,7 @@ pub struct WidgetGallery {
     opacity: f32,
     radio: Enum,
     scalar: f32,
+    range: egui::Rangef,
     string: String,
     color: egui::Color32,
     animate_progress_bar: bool,
@@ -36,6 +37,7 @@ impl Default for WidgetGallery {
             boolean: false,
             radio: Enum::First,
             scalar: 42.0,
+            range: egui::Rangef::new(90.0, 250.0),
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
             animate_progress_bar: false,
@@ -61,7 +63,7 @@ impl WidgetGallery {
 
 impl crate::Demo for WidgetGallery {
     fn name(&self) -> &'static str {
-        "🗄 Widget Gallery"
+        "🗄️ Widget Gallery"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -107,12 +109,14 @@ impl crate::View for WidgetGallery {
             if self.visible {
                 ui.checkbox(&mut self.enabled, "Interactive")
                     .on_hover_text("Uncheck to inspect how the widgets look when disabled.");
-                (ui.add(
+                let drag_value = ui.add(
                     egui::DragValue::new(&mut self.opacity)
                         .speed(0.01)
                         .range(0.0..=1.0),
-                ) | ui.label("Opacity"))
-                .on_hover_text("Reduce this value to make widgets semi-transparent");
+                );
+                let label = ui.label("Opacity");
+                (drag_value.labelled_by(label.id) | label)
+                    .on_hover_text("Reduce this value to make widgets semi-transparent");
             }
         });
 
@@ -137,6 +141,7 @@ impl WidgetGallery {
             boolean,
             radio,
             scalar,
+            range,
             string,
             color,
             animate_progress_bar,
@@ -205,12 +210,19 @@ impl WidgetGallery {
             });
         ui.end_row();
 
-        ui.add(doc_link_label("Slider", "Slider"));
-        ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
+        let label = ui.add(doc_link_label("Slider", "Slider"));
+        ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"))
+            .labelled_by(label.id);
         ui.end_row();
 
-        ui.add(doc_link_label("DragValue", "DragValue"));
-        ui.add(egui::DragValue::new(scalar).speed(1.0));
+        let label = ui.add(doc_link_label("RangeSlider", "RangeSlider"));
+        ui.add(egui::RangeSlider::new(&mut range.min, &mut range.max, 0.0..=360.0).suffix("°"))
+            .labelled_by(label.id);
+        ui.end_row();
+
+        let label = ui.add(doc_link_label("DragValue", "DragValue"));
+        ui.add(egui::DragValue::new(scalar).speed(1.0))
+            .labelled_by(label.id);
         ui.end_row();
 
         ui.add(doc_link_label("ProgressBar", "ProgressBar"));
