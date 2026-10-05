@@ -911,3 +911,55 @@ pub fn drag_value_should_keep_text_the_value_cannot_represent() {
 
     assert_eq!(harness.state(), &12, "The text should have been \"12.59\"");
 }
+
+/// A disabled window still blocks the pointer: it is grayed out, not click-through.
+///
+/// Contrast with [`Window::interactable`]`(false)`, which lets clicks go straight through,
+/// even through interactive widgets inside it.
+#[test]
+pub fn disabled_window_should_block_clicks_to_what_is_behind_it() {
+    fn clicks_behind_window(window: impl Fn() -> Window<'static> + 'static) -> u32 {
+        let mut harness = Harness::new_ui_state(
+            move |ui, clicks: &mut u32| {
+                if ui
+                    .add_sized(ui.available_size(), Button::new("Background"))
+                    .clicked()
+                {
+                    *clicks += 1;
+                }
+                window().show(ui.ctx(), |ui| {
+                    let _ = ui.button("Window content");
+                });
+            },
+            0,
+        );
+        harness.run();
+
+        let pos = harness.get_by_label("Window content").rect().center();
+        harness.hover_at(pos);
+        harness.run();
+        harness.drag_at(pos);
+        harness.run();
+        harness.drop_at(pos);
+        harness.run();
+
+        *harness.state()
+    }
+
+    let window = || {
+        Window::new("Window")
+            .fixed_pos([50.0, 50.0])
+            .fixed_size([200.0, 100.0])
+    };
+
+    assert_eq!(
+        clicks_behind_window(move || window().enabled(false)),
+        0,
+        "A disabled window should block clicks to what is behind it"
+    );
+    assert_eq!(
+        clicks_behind_window(move || window().interactable(false)),
+        1,
+        "A non-interactable window should let clicks through"
+    );
+}
