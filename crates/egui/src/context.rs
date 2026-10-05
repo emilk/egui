@@ -1534,7 +1534,7 @@ impl Context {
 
         if allow_focus && !interested_in_focus {
             // Not interested or allowed input:
-            self.memory_mut(|mem| mem.surrender_focus(w.id));
+            self.memory_mut(|mem| mem.ignore_focus(w.id));
         }
 
         if w.sense.interactive() || w.sense.is_focusable() {
@@ -1555,6 +1555,11 @@ impl Context {
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
             self.accesskit_node_builder(w.id, |builder| res.fill_accesskit_node_common(builder));
+        }
+
+        // A `Ui` registers with `Rect::NOTHING` before its real rect is known; scrolling needs the real one.
+        if w.rect == Rect::NOTHING {
+            return res;
         }
 
         self.write(|ctx| {
@@ -1604,6 +1609,21 @@ impl Context {
         });
 
         res
+    }
+
+    /// Allow widgets inside `rect` to intentionally change ids during the current pass.
+    ///
+    /// This suppresses [`crate::style::DebugOptions::warn_if_rect_changes_id`] for widgets
+    /// fully contained by `rect`. Use this for regions that intentionally replace their widget
+    /// set, such as a data-driven table after its backing collection changes.
+    ///
+    /// This has no effect on duplicate-id checks or widget interaction.
+    pub fn allow_widget_id_changes_in(&self, rect: Rect) {
+        #[cfg(debug_assertions)]
+        self.pass_state_mut(|state| state.widget_id_change_warning_exclusions.push(rect));
+
+        #[cfg(not(debug_assertions))]
+        let _ = (self, rect);
     }
 
     /// Read the response of some widget, which may be called _before_ creating the widget (!).
@@ -1855,6 +1875,24 @@ impl Context {
     /// Paint on top of _everything_ else (even on top of tooltips and popups).
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
+    }
+
+    /// Is the user holding down all modifier keys to inspect widgets on hover?
+    ///
+    /// See [`crate::style::DebugOptions::debug_on_hover_with_all_modifiers`].
+    ///
+    /// Always returns `false` unless compiled with `debug_assertions`.
+    pub fn is_inspecting_widgets(&self) -> bool {
+        cfg_select! {
+            debug_assertions => {
+                self.global_style().debug.debug_on_hover_with_all_modifiers
+                    && self.input(|i| i.modifiers.all())
+            }
+            _ => {
+                _ = self;
+                false
+            }
+        }
     }
 
     /// Print this text next to the cursor at the end of the pass.
@@ -3128,7 +3166,7 @@ impl ContextImpl {
                 flatten_labelled_by(&mut nodes);
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
-                    tree: Some(accesskit::Tree::new(root_id)),
+                    tree: Some(accesskit::TreeInfo::new(root_id)),
                     tree_id: accesskit::TreeId::ROOT,
                     focus: focus_id,
                 });
@@ -3156,6 +3194,7 @@ impl ContextImpl {
                 &mut shapes,
                 &viewport.prev_pass.widgets,
                 &viewport.this_pass.widgets,
+                &viewport.this_pass.widget_id_change_warning_exclusions,
             );
             shapes
         } else {
@@ -4758,6 +4797,7 @@ fn warn_if_rect_changes_id(
     out_shapes: &mut Vec<ClippedShape>,
     prev_widgets: &crate::WidgetRects,
     new_widgets: &crate::WidgetRects,
+    exclusions: &[Rect],
 ) {
     profiling::function_scope!();
 
@@ -4802,6 +4842,14 @@ fn warn_if_rect_changes_id(
         let new = create_lookup(new_layer_widgets.iter());
 
         for (hashable_rect, new_at_rect) in new {
+            let rect = new_at_rect[0].rect;
+            if exclusions
+                .iter()
+                .any(|exclusion| exclusion.contains_rect(rect))
+            {
+                continue;
+            }
+
             let Some(prev_at_rect) = prev.get(&hashable_rect) else {
                 continue; // this rect did not exist in the previous pass
             };
@@ -4820,6 +4868,12 @@ fn warn_if_rect_changes_id(
                 continue;
             }
 
+            // If a new id at this rect existed elsewhere in the previous pass, a widget moved
+            // into a vacated position (e.g. after inserting a row into a virtualized list).
+            if new_at_rect.iter().any(|w| prev_widgets.contains(w.id)) {
+                continue;
+            }
+
             // Only warn if at least one widget has the same parent_id in both frames.
             // If all parent_ids changed too, this is a cascading id shift, not a widget bug.
             if !prev_at_rect
@@ -4828,8 +4882,6 @@ fn warn_if_rect_changes_id(
             {
                 continue;
             }
-
-            let rect = new_at_rect[0].rect;
 
             log::warn!(
                 "Widget rect {rect:?} changed id between passes: prev ids: {:?}, new ids: {:?}",
@@ -4927,6 +4979,98 @@ mod test {
     use crate::{FontDefinitions, Panel};
 
     use super::Context;
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn rect_id_change_ignores_widget_moving_into_vacated_rect() {
+        use crate::{Id, InteractOptions, LayerId, Rect, Sense, WidgetRect, WidgetRects, pos2};
+
+        let layer_id = LayerId::background();
+        let parent_id = Id::unique("parent");
+        let vacated_rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(10.0, 10.0));
+        let previous_rect = vacated_rect.translate((0.0, -10.0).into());
+        let old_id = Id::unique("removed");
+        let moved_id = Id::unique("moved");
+
+        let widget = |id, rect| WidgetRect {
+            id,
+            parent_id,
+            layer_id,
+            rect,
+            interact_rect: rect,
+            sense: Sense::hover(),
+            enabled: true,
+            visible: true,
+        };
+
+        let mut previous = WidgetRects::default();
+        previous.insert(
+            layer_id,
+            widget(old_id, vacated_rect),
+            InteractOptions::default(),
+        );
+        previous.insert(
+            layer_id,
+            widget(moved_id, previous_rect),
+            InteractOptions::default(),
+        );
+
+        let mut current = WidgetRects::default();
+        current.insert(
+            layer_id,
+            widget(moved_id, vacated_rect),
+            InteractOptions::default(),
+        );
+
+        let mut shapes = Vec::new();
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
+
+        assert!(shapes.is_empty());
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn rect_id_change_warns_for_new_widget_replacing_existing_widget() {
+        use crate::{Id, InteractOptions, LayerId, Rect, Sense, WidgetRect, WidgetRects, pos2};
+
+        let layer_id = LayerId::background();
+        let parent_id = Id::unique("parent");
+        let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(10.0, 10.0));
+        let widget = |id| WidgetRect {
+            id,
+            parent_id,
+            layer_id,
+            rect,
+            interact_rect: rect,
+            sense: Sense::hover(),
+            enabled: true,
+            visible: true,
+        };
+
+        let mut previous = WidgetRects::default();
+        previous.insert(
+            layer_id,
+            widget(Id::unique("old")),
+            InteractOptions::default(),
+        );
+
+        let mut current = WidgetRects::default();
+        current.insert(
+            layer_id,
+            widget(Id::unique("new")),
+            InteractOptions::default(),
+        );
+
+        let mut shapes = Vec::new();
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
+
+        assert_eq!(shapes.len(), 1);
+
+        shapes.clear();
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[rect]);
+
+        assert!(shapes.is_empty());
+    }
 
     /// Changing the font providers mid-pass must not drop the [`crate::text::Fonts`]
     /// that the rest of the pass is still laying out text with.
