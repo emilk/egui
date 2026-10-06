@@ -1,7 +1,7 @@
 use crate::pass_state::PerWidgetTooltipState;
 use crate::{
     AreaState, Context, Id, InnerResponse, LayerId, Layout, Order, Popup, PopupAnchor, PopupKind,
-    Response, Sense,
+    Response, Sense, WidgetRects,
 };
 use emath::{Rect, Vec2};
 
@@ -242,6 +242,16 @@ impl Tooltip<'_> {
         })
     }
 
+    /// Is any widget inside of the [`crate::Ui`] with the id `container` hovered?
+    fn is_child_hovered(ctx: &Context, container: Id) -> bool {
+        ctx.viewport(|vp| {
+            vp.interact_widgets
+                .hovered
+                .iter()
+                .any(|&id| is_descendant_of(&vp.this_pass.widgets, id, container))
+        })
+    }
+
     /// Should we show a tooltip for this response?
     ///
     /// Argument `allow_interactive_tooltip` controls whether mouse can interact with tooltip that
@@ -254,6 +264,18 @@ impl Tooltip<'_> {
         if response.ctx.is_inspecting_widgets() && response.is_tooltip_open() {
             // Keep the tooltip open so the user can move the pointer over it to inspect it.
             return true;
+        }
+
+        let is_other_tooltip_shown_this_pass = response.ctx.pass_state(|fs| {
+            fs.layers
+                .get(&response.layer_id)
+                .and_then(|layer| layer.widget_with_tooltip)
+                .is_some_and(|id| id != response.id)
+        });
+        if is_other_tooltip_shown_this_pass {
+            // Only one tooltip per layer. Children are shown before their parent container,
+            // so this makes sure the innermost widget wins.
+            return false;
         }
 
         let any_open_popups = response.ctx.prev_pass_state(|fs| {
@@ -348,16 +370,15 @@ impl Tooltip<'_> {
             }
         }
 
-        let is_other_tooltip_open = response.ctx.prev_pass_state(|fs| {
-            if let Some(already_open_tooltip) = fs
-                .layers
-                .get(&response.layer_id)
-                .and_then(|layer| layer.widget_with_tooltip)
-            {
-                already_open_tooltip != response.id
-            } else {
-                false
-            }
+        let already_open_tooltip = response
+            .ctx
+            .prev_pass_state(|fs| fs.layers.get(&response.layer_id)?.widget_with_tooltip);
+        let is_other_tooltip_open = already_open_tooltip.is_some_and(|already_open_tooltip| {
+            already_open_tooltip != response.id
+                // A widget may take over the tooltip from a container it is inside of:
+                && !response.ctx.viewport(|vp| {
+                    is_descendant_of(&vp.this_pass.widgets, response.id, already_open_tooltip)
+                })
         });
         if is_other_tooltip_open {
             // We only allow one tooltip per layer. First one wins. It is up to that tooltip to close itself.
@@ -366,17 +387,15 @@ impl Tooltip<'_> {
 
         // Fast early-outs:
         if response.enabled() {
-            // Hover-only container responses (e.g. `ui.horizontal(...).response`) live below
-            // child widgets. In that case `response.hovered()` can stay false while the pointer
-            // is still inside the container rect. Allow tooltips for these hover-only responses
-            // when the pointer is in the interaction rect and on the same layer.
-            let hovered_or_container_pointer = response.hovered()
-                || (response.sense == Sense::hover()
-                    && response
-                        .ctx
-                        .rect_contains_pointer(response.layer_id, response.interact_rect));
+            // A container (e.g. `ui.horizontal(…).response`) is not hovered when the pointer
+            // is over one of its children, but we still want to show its tooltip then.
+            // If the child has a tooltip of its own, that tooltip was already shown
+            // (children are added before the container response is available), and wins.
+            let hovered = response.hovered()
+                || (response.container_contains_pointer()
+                    && Self::is_child_hovered(&response.ctx, response.id));
 
-            if !hovered_or_container_pointer || !response.ctx.input(|i| i.pointer.has_pointer()) {
+            if !hovered || !response.ctx.input(|i| i.pointer.has_pointer()) {
                 return false;
             }
         } else if !response
@@ -441,4 +460,23 @@ impl Tooltip<'_> {
                 .visible_last_frame(&LayerId::new(Order::Tooltip, primary_tooltip_area_id))
         })
     }
+}
+
+/// Is `widget` (transitively) inside of the [`crate::Ui`] with the id `ancestor`?
+fn is_descendant_of(widgets: &WidgetRects, widget: Id, ancestor: Id) -> bool {
+    let mut id = widget;
+    // Bounded, in case of id clashes creating a cycle:
+    for _ in 0..1000 {
+        let Some(w) = widgets.get(id) else {
+            return false;
+        };
+        if w.parent_id == ancestor {
+            return true;
+        }
+        if w.parent_id == id {
+            return false; // Reached the root
+        }
+        id = w.parent_id;
+    }
+    false
 }
