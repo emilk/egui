@@ -1,4 +1,6 @@
 //! Show a custom window frame instead of the default OS window chrome decorations.
+//!
+//! On macOS we keep the native "traffic light" buttons and center them in our custom title bar.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
@@ -7,13 +9,26 @@ use eframe::egui::{self, ViewportCommand};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_decorations(false) // Hide the OS-specific "chrome" around the window
-            .with_inner_size([400.0, 100.0])
-            .with_min_inner_size([400.0, 100.0])
-            .with_transparent(true), // To have rounded corners we need transparency
+    let viewport = egui::ViewportBuilder::default()
+        .with_inner_size([400.0, 100.0])
+        .with_min_inner_size([400.0, 100.0])
+        .with_transparent(true); // To have rounded corners we need transparency
 
+    let viewport = cfg_select! {
+        target_os = "macos" => {
+            // Keep the native traffic lights, but let our content fill the whole window:
+            viewport
+                .with_fullsize_content_view(true)
+                .with_titlebar_shown(false)
+                .with_title_shown(false)
+        }
+        _ => {
+            viewport.with_decorations(false) // Hide the OS-specific "chrome" around the window
+        }
+    };
+
+    let options = eframe::NativeOptions {
+        viewport,
         ..Default::default()
     };
     eframe::run_native(
@@ -31,8 +46,8 @@ impl eframe::App for MyApp {
         egui::Rgba::TRANSPARENT.to_array() // Make sure we don't paint anything behind the rounded corners
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        custom_window_frame(ui, "egui with custom frame", |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        custom_window_frame(frame, ui, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window.");
             ui.horizontal(|ui| {
                 ui.label("egui theme:");
@@ -42,7 +57,12 @@ impl eframe::App for MyApp {
     }
 }
 
-fn custom_window_frame(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
+fn custom_window_frame(
+    frame: &eframe::Frame,
+    ui: &mut egui::Ui,
+    title: &str,
+    add_contents: impl FnOnce(&mut egui::Ui),
+) {
     use egui::UiBuilder;
 
     let panel_frame = egui::Frame::new()
@@ -62,7 +82,7 @@ fn custom_window_frame(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce
             rect.max.y = rect.min.y + title_bar_height;
             rect
         };
-        title_bar_ui(ui, title_bar_rect, title);
+        title_bar_ui(frame, ui, title_bar_rect, title);
 
         // Add the contents:
         let content_rect = {
@@ -76,7 +96,12 @@ fn custom_window_frame(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce
     });
 }
 
-fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
+fn title_bar_ui(
+    frame: &eframe::Frame,
+    ui: &mut egui::Ui,
+    title_bar_rect: eframe::epaint::Rect,
+    title: &str,
+) {
     use egui::{Align2, FontId, Id, PointerButton, Sense, UiBuilder, vec2};
 
     let painter = ui.painter();
@@ -113,6 +138,16 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
 
     if title_bar_response.drag_started_by(PointerButton::Primary) {
         ui.send_viewport_cmd(ViewportCommand::StartDrag);
+    }
+
+    if cfg!(target_os = "macos") {
+        // Use the native traffic lights instead of our own buttons:
+        frame.set_traffic_lights_position(
+            ui.ctx(),
+            title_bar_rect.y_range(),
+            title_bar_rect.left() + 12.0,
+        );
+        return;
     }
 
     ui.scope_builder(

@@ -31,7 +31,7 @@ use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
     native::{
         epi_integration::EpiIntegration,
-        winit_integration::{EventResult, sleep_if_invisible_or_minimized},
+        winit_integration::{EventResult, PassMode, sleep_if_invisible_or_minimized},
     },
 };
 
@@ -90,6 +90,9 @@ pub struct SharedState {
     viewport_from_window: HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
     resized_viewport: Option<ViewportId>,
+
+    /// Passed on to each [`egui_winit::State`]. See [`NativeOptions::clipboard_shortcuts`].
+    clipboard_shortcuts: bool,
 }
 
 pub type Viewports = egui::OrderedViewportIdMap<Viewport>;
@@ -161,6 +164,7 @@ impl<'app> WgpuWinitApp<'app> {
             viewports,
             painter,
             viewport_from_window,
+            clipboard_shortcuts,
             ..
         } = &mut *shared;
 
@@ -170,6 +174,7 @@ impl<'app> WgpuWinitApp<'app> {
                 &running.integration.egui_ctx,
                 viewport_from_window,
                 painter,
+                *clipboard_shortcuts,
             );
         }
     }
@@ -181,6 +186,7 @@ impl<'app> WgpuWinitApp<'app> {
             viewports,
             viewport_from_window,
             painter,
+            clipboard_shortcuts,
             ..
         } = &mut *running.shared.borrow_mut();
 
@@ -192,7 +198,13 @@ impl<'app> WgpuWinitApp<'app> {
             None,
             painter,
         )
-        .initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+        .initialize_window(
+            event_loop,
+            egui_ctx,
+            viewport_from_window,
+            painter,
+            *clipboard_shortcuts,
+        );
     }
 
     #[cfg(target_os = "android")]
@@ -294,7 +306,6 @@ impl<'app> WgpuWinitApp<'app> {
             });
         }
 
-        #[allow(clippy::allow_attributes, unused_mut)] // used for accesskit
         let mut egui_winit = egui_winit::State::new(
             egui_ctx.clone(),
             ViewportId::ROOT,
@@ -303,6 +314,7 @@ impl<'app> WgpuWinitApp<'app> {
             event_loop.system_theme(),
             painter.max_texture_side(),
         );
+        egui_winit.set_clipboard_shortcuts(self.native_options.clipboard_shortcuts);
 
         #[cfg(feature = "accesskit")]
         {
@@ -360,6 +372,7 @@ impl<'app> WgpuWinitApp<'app> {
             painter,
             focused_viewport: Some(ViewportId::ROOT),
             resized_viewport: None,
+            clipboard_shortcuts: self.native_options.clipboard_shortcuts,
         }));
 
         {
@@ -432,11 +445,12 @@ impl WinitApp for WgpuWinitApp<'_> {
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        mode: PassMode,
     ) -> Result<EventResult> {
         self.initialized_all_windows(event_loop);
 
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id, event_loop)
+            running.run_ui_and_paint(window_id, event_loop, mode)
         } else {
             Ok(EventResult::Wait)
         }
@@ -497,27 +511,23 @@ impl WinitApp for WgpuWinitApp<'_> {
         if let winit::event::DeviceEvent::MouseMotion { delta } = event
             && let Some(running) = &mut self.running
         {
+            // `MouseMotion` is not associated with any window, so we deliver it to
+            // the viewport that has the pointer (or an ongoing drag), preferring the focused one.
+            // We don't require that viewport to have focus, since another viewport may have stolen it
+            // (e.g. on Wayland, where focus-stealing prevention can refuse `ViewportCommand::Focus`).
             let mut shared = running.shared.borrow_mut();
-            if let Some(viewport) = shared
-                .focused_viewport
-                .and_then(|viewport| shared.viewports.get_mut(&viewport))
-                && let Some(window) = viewport.window.as_ref()
+            let focused_viewport = shared.focused_viewport;
+            let viewports = &mut shared.viewports;
+            if let Some(window_id) = focused_viewport
+                .and_then(|id| viewports.get_mut(&id))
+                .and_then(|viewport| viewport.on_mouse_motion(delta))
+                .or_else(|| {
+                    viewports
+                        .values_mut()
+                        .find_map(|viewport| viewport.on_mouse_motion(delta))
+                })
             {
-                if !window.has_focus()
-                    && !viewport
-                        .egui_winit
-                        .as_ref()
-                        .map(|state| state.is_any_pointer_button_down())
-                        .unwrap_or(false)
-                {
-                    return Ok(EventResult::Wait);
-                }
-
-                if let Some(egui_winit) = viewport.egui_winit.as_mut()
-                    && egui_winit.on_mouse_motion(delta)
-                {
-                    return Ok(EventResult::RepaintNext(window.id()));
-                }
+                return Ok(EventResult::RepaintNext(window_id));
             }
         }
 
@@ -596,11 +606,12 @@ impl WgpuWinitRunning<'_> {
         shared.painter.destroy();
     }
 
-    /// This is called both for the root viewport, and all deferred viewports
+    /// This is called both for the root viewport, and all deferred viewports.
     fn run_ui_and_paint(
         &mut self,
         window_id: WindowId,
         event_loop: &ActiveEventLoop,
+        mode: PassMode,
     ) -> Result<EventResult> {
         profiling::function_scope!();
 
@@ -688,7 +699,8 @@ impl WgpuWinitRunning<'_> {
             };
             let mut raw_input = egui_winit.take_egui_input(window);
 
-            let show_ui = is_visible || is_viewport_or_descendant_visible(viewports, viewport_id);
+            let show_ui = mode == PassMode::Full
+                && (is_visible || is_viewport_or_descendant_visible(viewports, viewport_id));
 
             integration.pre_update();
 
@@ -783,6 +795,11 @@ impl WgpuWinitRunning<'_> {
         pending_deltas.append(textures_delta);
 
         remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
+
+        // Synchronization between the integration layer and the painter layer
+        if let Some(surface_config) = integration.frame.wgpu_surface_config {
+            painter.set_surface_config(surface_config);
+        }
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return Ok(EventResult::Wait);
@@ -883,7 +900,12 @@ impl WgpuWinitRunning<'_> {
 
         integration.report_frame_time(frame_timer.total_time_sec() - vsync_secs); // don't count auto-save time as part of regular frame time
 
-        integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
+        let window_for_autosave = if viewport_id == ViewportId::ROOT {
+            window.map(|window| window.as_ref())
+        } else {
+            None
+        };
+        integration.maybe_autosave(app.as_mut(), window_for_autosave);
 
         sleep_if_invisible_or_minimized(window.map(|window| window.as_ref()));
 
@@ -958,6 +980,18 @@ impl WgpuWinitRunning<'_> {
                 };
 
                 shared.focused_viewport = focused.then_some(viewport_id).flatten();
+            }
+
+            // The reply to `Frame::request_activation_token`. Hold it for the app
+            // to take, and repaint: a token is short-lived and single-use, so an
+            // idle app must not have to wait for an unrelated event to notice it.
+            winit::event::WindowEvent::ActivationTokenDone { token, .. } => {
+                integration.frame.activation_token = Some(token.clone().into_raw());
+                if let Some(viewport_id) = viewport_id {
+                    integration.egui_ctx.request_repaint_of(viewport_id);
+                } else {
+                    integration.egui_ctx.request_repaint();
+                }
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
@@ -1040,6 +1074,15 @@ impl WgpuWinitRunning<'_> {
 }
 
 impl Viewport {
+    /// Forward raw mouse motion to egui.
+    ///
+    /// Returns the window to repaint if the event was used.
+    fn on_mouse_motion(&mut self, delta: (f64, f64)) -> Option<winit::window::WindowId> {
+        let window = self.window.as_ref()?;
+        let egui_winit = self.egui_winit.as_mut()?;
+        egui_winit.on_mouse_motion(delta).then(|| window.id())
+    }
+
     /// Apply the commands, or defer them until we have a window.
     fn process_commands(
         &mut self,
@@ -1066,6 +1109,7 @@ impl Viewport {
         egui_ctx: &egui::Context,
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
+        clipboard_shortcuts: bool,
     ) {
         if self.window.is_some() {
             return; // we already have one
@@ -1087,14 +1131,16 @@ impl Viewport {
                     log::error!("on set_window: viewport_id {viewport_id:?} {err}");
                 }
 
-                self.egui_winit = Some(egui_winit::State::new(
+                let mut egui_winit = egui_winit::State::new(
                     egui_ctx.clone(),
                     viewport_id,
                     event_loop,
                     Some(window.scale_factor() as f32),
                     event_loop.system_theme(),
                     painter.max_texture_side(),
-                ));
+                );
+                egui_winit.set_clipboard_shortcuts(clipboard_shortcuts);
+                self.egui_winit = Some(egui_winit);
 
                 egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window, true);
                 self.window = Some(window);
@@ -1166,6 +1212,7 @@ fn render_immediate_viewport(
             viewports,
             painter,
             viewport_from_window,
+            clipboard_shortcuts,
             ..
         } = &mut *shared.borrow_mut();
 
@@ -1179,7 +1226,13 @@ fn render_immediate_viewport(
         );
         if viewport.window.is_none() {
             event_loop_context::with_current_event_loop(|event_loop| {
-                viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+                viewport.initialize_window(
+                    event_loop,
+                    egui_ctx,
+                    viewport_from_window,
+                    painter,
+                    *clipboard_shortcuts,
+                );
             });
         }
 

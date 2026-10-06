@@ -76,8 +76,8 @@ pub fn viewport_builder(
                 .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
             if 0.0 < monitor_size.width && 0.0 < monitor_size.height {
-                let x = (monitor_size.width - inner_size.x) / 2.0;
-                let y = (monitor_size.height - inner_size.y) / 2.0;
+                let x = (monitor_size.width - inner_size.x) * 0.5;
+                let y = (monitor_size.height - inner_size.y) * 0.5;
                 viewport_builder = viewport_builder.with_position([x, y]);
             }
         }
@@ -225,10 +225,16 @@ impl EpiIntegration {
             #[cfg(feature = "glow")]
             glow_register_native_texture,
             #[cfg(feature = "wgpu_no_default_features")]
+            // We only care about the surface config if we are using wgpu
+            wgpu_surface_config: wgpu_render_state
+                .is_some()
+                .then_some(native_options.wgpu_options.surface),
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
             window: Some(Arc::clone(window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
+            activation_token: None,
         };
 
         let icon = native_options

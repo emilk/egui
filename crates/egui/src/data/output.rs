@@ -124,6 +124,15 @@ pub enum OutputCommand {
     /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
     CopyText(String),
 
+    /// The user has finished changing the text selection, and this is what is now selected.
+    ///
+    /// Sent once the selection settles (e.g. when the mouse button is released after a drag),
+    /// and only if it changed, so not on every frame of a drag.
+    ///
+    /// On X11 and Wayland, `egui-winit` puts this in the PRIMARY selection,
+    /// so that it can be pasted with the middle mouse button.
+    TextSelectionSettled(String),
+
     /// Put this image to the system clipboard.
     CopyImage(crate::ColorImage),
 

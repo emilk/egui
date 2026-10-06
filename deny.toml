@@ -54,6 +54,7 @@ skip = [
   { name = "env_filter" }, # android_logger depends on 0.1, env_logger 0.11.11 on 2.0
   { name = "foldhash" }, # pulled by the duplicated hashbrown versions
   { name = "getrandom" }, # ring / rustls (and thus ehttp) still depend on getrandom 0.2
+  { name = "gif" }, # resvg 0.45's raster-images feature depends on 0.13, image 0.25 on 0.14
   { name = "hashbrown" }, # wgpu's naga depends on 0.16, accesskit depends on 0.15
   { name = "itertools" }, # puffin 0.20 depends on 0.14, criterion 0.8 on 0.13
   { name = "jni-sys" }, # 0.3.1 depends on 0.4
@@ -69,6 +70,8 @@ skip = [
   { name = "syn" }, # ecosystem is in the process of migrating from 2.x to 3.x; build-time only
   { name = "thiserror" }, # ecosystem is in the process of migrating from 1.x to 2.x
   { name = "thiserror-impl" }, # same as above
+  { name = "zune-core" }, # resvg 0.45's zune-jpeg 0.4 depends on 0.4, image 0.25 on 0.5
+  { name = "zune-jpeg" }, # resvg 0.45 depends on 0.4, image 0.25 on 0.5
 ]
 skip-tree = [
   # PREFER `skip` (above): `skip-tree` exempts the crate AND its whole transitive subtree from the

@@ -189,7 +189,7 @@ impl View for MiscDemoWindow {
                     let (response, painter) = ui.allocate_painter(size, Sense::hover());
                     let rect = response.rect;
                     let c = rect.center();
-                    let r = rect.width() / 2.0 - 1.0;
+                    let r = rect.width() * 0.5 - 1.0;
                     let color = Color32::from_gray(128);
                     let stroke = Stroke::new(1.0, color);
                     painter.circle_stroke(c, r, stroke);
@@ -563,16 +563,18 @@ impl CustomCollapsingHeader {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label("Example of a collapsing header with custom header:");
 
-        let id = ui.make_persistent_id("my_collapsing_header");
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
-            .show_header(ui, |ui| {
+        egui::CollapsingHeader::custom(
+            ui,
+            "my_collapsing_header",
+            |ui| {
                 ui.toggle_value(&mut self.selected, "Click to select/unselect");
                 ui.radio_value(&mut self.radio_value, false, "");
                 ui.radio_value(&mut self.radio_value, true, "");
-            })
-            .body(|ui| {
+            },
+            |ui| {
                 ui.label("The body is always custom");
-            });
+            },
+        );
 
         CollapsingHeader::new("Normal collapsing header for comparison").show(ui, |ui| {
             ui.label("Nothing exciting here");
@@ -929,7 +931,7 @@ impl TextRotation {
             let (response, painter) = ui.allocate_painter(self.size, Sense::empty());
             let rect = response.rect;
 
-            let start_pos = self.size / 2.0;
+            let start_pos = self.size * 0.5;
 
             let s = ui.ctx().fonts_mut(|f| {
                 let mut t = egui::Shape::text(

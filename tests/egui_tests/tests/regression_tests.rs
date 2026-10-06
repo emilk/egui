@@ -229,6 +229,147 @@ fn combobox_should_have_value() {
     );
 }
 
+const CONTAINER_TOOLTIPS: [&str; 2] = ["Container tooltip", "B tooltip"];
+
+/// A `ui.horizontal` with a tooltip, containing a button `A` without a tooltip,
+/// and a button `B` with a tooltip, followed by some empty space.
+fn container_tooltip_harness() -> Harness<'static> {
+    Harness::builder().with_size((140.0, 64.0)).build_ui(|ui| {
+        ui.style_mut().interaction.tooltip_delay = 0.0;
+        ui.style_mut().interaction.show_tooltips_only_when_still = false;
+
+        ui.horizontal(|ui| {
+            _ = ui.button("A");
+            _ = ui.button("B").on_hover_text("B tooltip");
+            ui.add_space(32.0);
+        })
+        .response
+        .on_hover_text("Container tooltip");
+    })
+}
+
+/// Assert that exactly `expected` (if any) of `all_tooltips` is shown.
+#[track_caller]
+fn assert_shown_tooltip(harness: &Harness<'_>, all_tooltips: &[&str], expected: Option<&str>) {
+    for &tooltip in all_tooltips {
+        // The container itself is also labelled by its tooltip (for accessibility),
+        // so we look for the label inside the tooltip:
+        let is_shown = harness
+            .query_by_role_and_label(Role::Label, tooltip)
+            .is_some();
+        let should_be_shown = Some(tooltip) == expected;
+        assert_eq!(
+            is_shown, should_be_shown,
+            "Tooltip {tooltip:?} shown: {is_shown}, expected: {should_be_shown}"
+        );
+    }
+}
+
+/// The response of `ui.horizontal` should show its tooltip when hovering empty space in it.
+#[test]
+fn container_tooltip_should_show_when_hovering_empty_space() {
+    let mut harness = container_tooltip_harness();
+    let b_rect = harness.get_by_label("B").rect();
+    harness.hover_at(b_rect.right_center() + egui::vec2(16.0, 0.0));
+    harness.run();
+    assert_shown_tooltip(&harness, &CONTAINER_TOOLTIPS, Some("Container tooltip"));
+}
+
+/// The response of `ui.horizontal` should show its tooltip when hovering a child without a tooltip.
+#[test]
+fn container_tooltip_should_show_when_hovering_child() {
+    let mut harness = container_tooltip_harness();
+    harness.get_by_label("A").hover();
+    harness.run();
+    assert_shown_tooltip(&harness, &CONTAINER_TOOLTIPS, Some("Container tooltip"));
+    harness.snapshot("container_tooltip_should_show_when_hovering_child");
+}
+
+/// A child with its own tooltip should win over the tooltip of its container.
+#[test]
+fn child_tooltip_should_win_over_container_tooltip() {
+    let mut harness = container_tooltip_harness();
+    harness.get_by_label("B").hover();
+    harness.run();
+    assert_shown_tooltip(&harness, &CONTAINER_TOOLTIPS, Some("B tooltip"));
+    harness.snapshot("child_tooltip_should_win_over_container_tooltip");
+}
+
+/// Moving from a child without a tooltip to a child with a tooltip
+/// should replace the container tooltip with the tooltip of the child.
+#[test]
+fn child_tooltip_should_take_over_from_container_tooltip() {
+    let mut harness = container_tooltip_harness();
+
+    harness.get_by_label("A").hover();
+    harness.run();
+    assert_shown_tooltip(&harness, &CONTAINER_TOOLTIPS, Some("Container tooltip"));
+
+    harness.get_by_label("B").hover();
+    harness.run();
+    assert_shown_tooltip(&harness, &CONTAINER_TOOLTIPS, Some("B tooltip"));
+
+    harness.get_by_label("A").hover();
+    harness.run();
+    assert_shown_tooltip(&harness, &CONTAINER_TOOLTIPS, Some("Container tooltip"));
+}
+
+/// With nested containers, the innermost tooltip should win.
+#[test]
+fn nested_container_tooltips() {
+    const TOOLTIPS: [&str; 3] = ["Outer tooltip", "Inner tooltip", "Inner button tooltip"];
+
+    let build_harness = || {
+        Harness::builder().with_size((300.0, 120.0)).build_ui(|ui| {
+            ui.style_mut().interaction.tooltip_delay = 0.0;
+            ui.style_mut().interaction.show_tooltips_only_when_still = false;
+
+            ui.vertical(|ui| {
+                _ = ui.button("Outer button");
+
+                // A container without a tooltip:
+                ui.horizontal(|ui| {
+                    _ = ui.button("Middle button");
+
+                    ui.horizontal(|ui| {
+                        _ = ui.button("Inner button");
+                        _ = ui
+                            .button("Inner button with tooltip")
+                            .on_hover_text("Inner button tooltip");
+                    })
+                    .response
+                    .on_hover_text("Inner tooltip");
+                });
+            })
+            .response
+            .on_hover_text("Outer tooltip");
+        })
+    };
+
+    let cases = [
+        ("Outer button", "Outer tooltip"),
+        ("Middle button", "Outer tooltip"),
+        ("Inner button", "Inner tooltip"),
+        ("Inner button with tooltip", "Inner button tooltip"),
+    ];
+
+    // Hovering each widget directly:
+    for (button, expected) in cases {
+        let mut harness = build_harness();
+        harness.get_by_label(button).hover();
+        harness.run();
+        assert_shown_tooltip(&harness, &TOOLTIPS, Some(expected));
+    }
+
+    // Moving between the widgets, inwards and then outwards again:
+    let mut harness = build_harness();
+    for (button, expected) in core::iter::chain(cases.iter(), cases.iter().rev()) {
+        harness.get_by_label(button).hover();
+        harness.run();
+        assert_shown_tooltip(&harness, &TOOLTIPS, Some(expected));
+    }
+}
+
 /// This test ensures that `ui.response().interact(...)` works correctly.
 ///
 /// This was broken, because there was an optimization in [`egui::Response::interact`]
@@ -531,7 +672,7 @@ fn animated_scroll_beats_sticky_bottom() {
                         }
                     });
 
-                state.1 = output.state.offset.y;
+                state.1 = output.state.clamped_offset().y;
                 state.2 = (output.content_size.y - output.inner_rect.height()).max(0.0);
             },
             (false, 0.0, 0.0),
@@ -741,4 +882,62 @@ fn run_logic_should_not_disturb_ui_state() {
     harness.run();
 
     assert_state(&harness);
+}
+
+/// Holding down all modifiers (to inspect widgets) should keep tooltips open,
+/// so that the user can move the pointer over the tooltip to inspect it too.
+#[cfg(debug_assertions)]
+#[test]
+fn tooltip_stays_open_while_inspecting() {
+    /// Returns the tooltip rect before and after moving the pointer onto it.
+    fn run(inspect: bool, at_pointer: bool) -> (egui::Rect, Option<egui::Rect>) {
+        let mut harness = Harness::builder().with_size((300.0, 300.0)).build_ui(|ui| {
+            let response = ui.label("Hover me");
+            if at_pointer {
+                response.on_hover_text_at_pointer("My tooltip");
+            } else {
+                response.on_hover_text("My tooltip");
+            }
+        });
+        harness.ctx.all_styles_mut(|style| {
+            style.interaction.tooltip_delay = 0.0;
+            style.interaction.show_tooltips_only_when_still = false;
+            style.debug.debug_on_hover_with_all_modifiers = true;
+        });
+
+        harness.get_by_label("Hover me").hover();
+        harness.run();
+
+        if inspect {
+            harness.event(egui::Event::ModifiersChanged(
+                egui::Modifiers::CTRL
+                    | egui::Modifiers::SHIFT
+                    | egui::Modifiers::ALT
+                    | egui::Modifiers::COMMAND,
+            ));
+            harness.run();
+        }
+
+        let before = harness.get_by_label("My tooltip").rect();
+        harness.hover_at(before.center());
+        harness.run();
+
+        let after = harness.query_by_label("My tooltip").map(|node| node.rect());
+        (before, after)
+    }
+
+    for at_pointer in [false, true] {
+        let (_, after) = run(false, at_pointer);
+        assert!(
+            after.is_none(),
+            "Tooltip should close when the pointer leaves the widget (at_pointer: {at_pointer})"
+        );
+
+        let (before, after) = run(true, at_pointer);
+        assert_eq!(
+            after,
+            Some(before),
+            "Tooltip should stay open and in place while inspecting (at_pointer: {at_pointer})"
+        );
+    }
 }

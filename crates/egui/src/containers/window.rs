@@ -1021,7 +1021,7 @@ fn move_and_resize_window(ctx: &Context, id: Id, interaction: &ResizeInteraction
     let mut rect = rect_at_start_of_drag; // prevent drift
 
     // Put the rect in the center of the stroke:
-    rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
+    rect = rect.shrink(interaction.window_frame.stroke.width * 0.5);
 
     if interaction.left.drag {
         rect.min.x += total_drag_delta.x;
@@ -1036,7 +1036,7 @@ fn move_and_resize_window(ctx: &Context, id: Id, interaction: &ResizeInteraction
     }
 
     // Return to having the rect outside the stroke:
-    rect = rect.expand(interaction.window_frame.stroke.width / 2.0);
+    rect = rect.expand(interaction.window_frame.stroke.width * 0.5);
 
     Some(rect.round_ui())
 }
@@ -1061,7 +1061,7 @@ fn do_resize_interaction(
     }
 
     // The rect that is in the middle of the stroke:
-    let rect = outer_rect.shrink(window_frame.stroke.width / 2.0);
+    let rect = outer_rect.shrink(window_frame.stroke.width * 0.5);
 
     let ctx = ui.ctx();
     let visible = ui.is_visible();
@@ -1258,11 +1258,11 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
     let cr = CornerRadiusF32::from(ui.visuals().window_corner_radius);
 
     // Put the rect in the center of the fixed window stroke:
-    let rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
+    let rect = rect.shrink(interaction.window_frame.stroke.width * 0.5);
 
     // Make sure the inner part of the stroke is at a pixel boundary:
     let stroke = visuals.bg_stroke;
-    let half_stroke = stroke.width / 2.0;
+    let half_stroke = stroke.width * 0.5;
     let rect = rect
         .shrink(half_stroke)
         .round_to_pixels(ui.pixels_per_point())
@@ -1341,7 +1341,7 @@ fn title_ui(
     let heading_font_height =
         ui.fonts_mut(|f| f.row_height(&TextStyle::Heading.resolve(ui.style())));
     let button_allocation_size = Vec2::splat(heading_font_height);
-    let button_shrink = (button_allocation_size - button_size) / 2.0;
+    let button_shrink = (button_allocation_size - button_size) * 0.5;
 
     let collapse_atom_id = IdSalt::new("__window_collapse_button");
     let close_atom_id = IdSalt::new("__window_close_button");
@@ -1507,4 +1507,132 @@ fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     ui.painter() // paints /
         .line_segment([rect.right_top(), rect.left_bottom()], stroke);
     response
+}
+
+#[cfg(all(test, feature = "persistence"))]
+mod tests {
+    use crate::{
+        Context, Event, Id, Modifiers, PointerButton, Pos2, RawInput, Rect, Window, pos2, vec2,
+    };
+
+    fn window_id() -> Id {
+        Id::unique("window")
+    }
+
+    /// Run one frame showing a window, and return the window rect.
+    fn run_frame_with(
+        ctx: &Context,
+        events: Vec<Event>,
+        window: impl Fn(Window<'static>) -> Window<'static>,
+        num_lines: usize,
+    ) -> Rect {
+        let input = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+            events,
+            ..Default::default()
+        };
+        let mut rect = None;
+        let output = ctx.run_ui(input, |ui| {
+            let response = window(Window::new("Window").id(window_id())).show(ui.ctx(), |ui| {
+                for _ in 0..num_lines {
+                    ui.label("Hello");
+                }
+            });
+            rect = response.map(|response| response.response.rect);
+        });
+        output.drop_without_applying_deltas();
+        rect.expect("The window was not shown")
+    }
+
+    /// Run one frame showing a resizable window, and return the window rect.
+    fn run_frame(ctx: &Context, events: Vec<Event>) -> Rect {
+        run_frame_with(ctx, events, |window| window.default_size([340.0, 420.0]), 1)
+    }
+
+    /// Restore the memory into a new context, like `eframe` does when restarting.
+    fn restart(ctx: &Context) -> Context {
+        let memory =
+            ron::to_string(&ctx.memory(|mem| mem.clone())).expect("Failed to serialize memory");
+        let ctx = Context::default();
+        ctx.memory_mut(|mem| *mem = ron::from_str(&memory).expect("Failed to deserialize memory"));
+        ctx
+    }
+
+    fn drag(ctx: &Context, from: Pos2, to: Pos2) {
+        let button = |pos, pressed| Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        };
+        run_frame(ctx, vec![Event::PointerMoved(from)]);
+        run_frame(ctx, vec![button(from, true)]);
+        run_frame(ctx, vec![Event::PointerMoved(from.lerp(to, 0.5))]);
+        run_frame(ctx, vec![Event::PointerMoved(to)]);
+        run_frame(ctx, vec![button(to, false)]);
+        run_frame(ctx, vec![]);
+    }
+
+    /// The position of a window that was resized below its default size survives a restart (#8522).
+    #[test]
+    fn shrunk_window_keeps_its_position_after_restart() {
+        let ctx = Context::default();
+        run_frame(&ctx, vec![]);
+        let rect = run_frame(&ctx, vec![]);
+
+        // Shrink the window by dragging its right edge, then move it against the right edge of the screen:
+        let right_edge = pos2(rect.right() - 1.0, rect.center().y);
+        drag(&ctx, right_edge, right_edge - vec2(190.0, 0.0));
+        let rect = run_frame(&ctx, vec![]);
+        assert!(rect.width() < 200.0, "The window didn't shrink: {rect:?}");
+        let title_bar = pos2(rect.center().x, rect.top() + 10.0);
+        drag(&ctx, title_bar, title_bar + vec2(800.0 - rect.right(), 0.0));
+        let before_restart = run_frame(&ctx, vec![]);
+        assert_eq!(before_restart.right(), 800.0);
+
+        let ctx = restart(&ctx);
+        run_frame(&ctx, vec![]);
+        assert_eq!(run_frame(&ctx, vec![]), before_restart);
+    }
+
+    /// Windows of all kinds placed near the bottom right corner of the screen keep their position after a restart.
+    #[test]
+    fn windows_keep_their_position_after_restart() {
+        type Config = fn(Window<'static>) -> Window<'static>;
+        let configs: [(&str, Config); 5] = [
+            ("default", |window| window),
+            ("auto_sized", |window| window.auto_sized()),
+            ("not resizable", |window| window.resizable(false)),
+            ("collapsed", |window| window.default_open(false)),
+            ("large default size", |window| {
+                window.default_size([700.0, 500.0])
+            }),
+        ];
+
+        for (name, config) in configs {
+            let config = &move |window: Window<'static>| config(window.default_pos([600.0, 450.0]));
+
+            // Show lots of content at first, then less, so the window shrinks
+            // below the size stored in its `Resize` state (for non-resizable windows):
+            let ctx = Context::default();
+            for _ in 0..3 {
+                run_frame_with(&ctx, vec![], config, 20);
+            }
+            for _ in 0..3 {
+                run_frame_with(&ctx, vec![], config, 1);
+            }
+            let before_restart = run_frame_with(&ctx, vec![], config, 1);
+
+            let ctx = restart(&ctx);
+            for _ in 0..3 {
+                run_frame_with(&ctx, vec![], config, 1);
+            }
+            let after_restart = run_frame_with(&ctx, vec![], config, 1);
+
+            assert_eq!(
+                after_restart, before_restart,
+                "The {name:?} window moved after a restart"
+            );
+        }
+    }
 }

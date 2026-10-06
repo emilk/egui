@@ -1484,7 +1484,7 @@ impl Ui {
     /// let (response, painter) = ui.allocate_painter(size, Sense::hover());
     /// let rect = response.rect;
     /// let c = rect.center();
-    /// let r = rect.width() / 2.0 - 1.0;
+    /// let r = rect.width() * 0.5 - 1.0;
     /// let color = Color32::from_gray(128);
     /// let stroke = Stroke::new(1.0, color);
     /// painter.circle_stroke(c, r, stroke);
@@ -2814,7 +2814,14 @@ impl Ui {
     ///
     /// Returns the dropped item, if it was released this frame.
     ///
-    /// The given frame is used for its margins, but the color is ignored.
+    /// The margins, corner radius and shadow of the given frame are always used.
+    ///
+    /// When nothing is being dragged, the frame's own fill and stroke are kept,
+    /// unless the frame has no styling of its own (transparent fill and no visible stroke,
+    /// e.g. [`Frame::default`]), in which case the inactive widget style is used,
+    /// so the drop zone is still visible.
+    ///
+    /// During a drag, the fill and stroke are always replaced with the drop target visuals.
     #[doc(alias = "drag and drop")]
     pub fn dnd_drop_zone<Payload, R>(
         &mut self,
@@ -2832,28 +2839,30 @@ impl Ui {
         let inner = add_contents(&mut frame.content_ui);
         let response = frame.allocate_space(self);
 
-        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
-        // `hovered` is always false when another widget is being dragged.
-        let style = if is_anything_being_dragged
-            && can_accept_what_is_being_dragged
-            && response.contains_pointer()
-        {
-            self.visuals().widgets.active
-        } else {
-            self.visuals().widgets.inactive
-        };
+        let has_own_styling =
+            frame.frame.fill != Color32::TRANSPARENT || !frame.frame.stroke.is_empty();
 
-        let mut fill = style.bg_fill;
-        let mut stroke = style.bg_stroke;
+        if is_anything_being_dragged || !has_own_styling {
+            // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+            // `hovered` is always false when another widget is being dragged.
+            let style = if can_accept_what_is_being_dragged && response.contains_pointer() {
+                self.visuals().widgets.active
+            } else {
+                self.visuals().widgets.inactive
+            };
 
-        if is_anything_being_dragged && !can_accept_what_is_being_dragged {
-            // When dragging something else, show that it can't be dropped here:
-            fill = self.visuals().disable(fill);
-            stroke.color = self.visuals().disable(stroke.color);
+            let mut fill = style.bg_fill;
+            let mut stroke = style.bg_stroke;
+
+            if is_anything_being_dragged && !can_accept_what_is_being_dragged {
+                // When dragging something else, show that it can't be dropped here:
+                fill = self.visuals().disable(fill);
+                stroke.color = self.visuals().disable(stroke.color);
+            }
+
+            frame.frame.fill = fill;
+            frame.frame.stroke = stroke;
         }
-
-        frame.frame.fill = fill;
-        frame.frame.stroke = stroke;
 
         frame.paint(self);
 
@@ -3110,8 +3119,9 @@ fn register_rect(ui: &Ui, rect: Rect) {
 #[cfg(not(debug_assertions))]
 fn register_rect(_ui: &Ui, _rect: Rect) {}
 
-#[test]
-fn ui_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Ui` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Ui>();
-}
+};
