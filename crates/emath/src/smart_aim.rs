@@ -2,7 +2,7 @@
 
 use crate::fast_midpoint;
 
-const NUM_DECIMALS: usize = 15;
+const NUM_DECIMALS: usize = 16;
 
 /// Find the "simplest" number in a closed range [min, max], i.e. the one with the fewest decimal digits.
 ///
@@ -143,6 +143,10 @@ fn from_decimal_string(s: [u8; NUM_DECIMALS]) -> u64 {
 #[expect(clippy::approx_constant)]
 #[test]
 fn test_aim() {
+    assert_eq!(
+        best_in_range_f64(0.0799999999999996, 0.09999999999999995),
+        0.08,
+    );
     assert_eq!(best_in_range_f64(-0.2, 0.0), 0.0, "Prefer zero");
     assert_eq!(best_in_range_f64(-10_004.23, 3.14), 0.0, "Prefer zero");
     assert_eq!(best_in_range_f64(-0.2, 100.0), 0.0, "Prefer zero");

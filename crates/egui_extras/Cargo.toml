@@ -15,7 +15,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
 keywords = ["gui", "imgui", "immediate", "portable", "gamedev"]
-include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [lints]
 workspace = true
@@ -34,7 +34,7 @@ default = ["dep:mime_guess2"]
 all_loaders = ["file", "http", "image", "svg", "gif", "webp"]
 
 ## Enable [`DatePickerButton`] widget.
-datepicker = ["chrono"]
+datepicker = ["jiff"]
 
 ## Add support for loading images from `file://` URIs.
 file = ["dep:mime_guess2"]
@@ -65,6 +65,9 @@ svg = ["resvg"]
 ## Support rendering text in svg images.
 svg_text = ["svg", "resvg/text", "resvg/system-fonts"]
 
+## Support rendering inline raster images in svg images.
+svg_images = ["svg", "resvg/raster-images"]
+
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
 
@@ -74,6 +77,7 @@ egui = { workspace = true, default-features = false }
 
 ahash.workspace = true
 enum-map.workspace = true
+itertools.workspace = true
 log.workspace = true
 profiling.workspace = true
 
@@ -83,7 +87,7 @@ profiling.workspace = true
 serde = { workspace = true, optional = true }
 
 # Date operations needed for datepicker widget
-chrono = { workspace = true, optional = true, features = ["clock", "js-sys", "std", "wasmbind"] }
+jiff = { workspace = true, optional = true, features = ["std", "tz-system", "js"] }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
@@ -101,3 +105,7 @@ resvg = { workspace = true, optional = true }
 
 # http feature
 ehttp = { workspace = true, optional = true }
+
+[dev-dependencies]
+egui = { workspace = true, features = ["default_fonts"] }
+tempfile.workspace = true

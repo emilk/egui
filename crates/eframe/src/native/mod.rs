@@ -3,6 +3,9 @@ mod epi_integration;
 mod event_loop_context;
 pub mod run;
 
+#[cfg(target_os = "macos")]
+pub(crate) mod macos;
+
 /// File storage which can be used by native backends.
 #[cfg(feature = "persistence")]
 pub mod file_storage;

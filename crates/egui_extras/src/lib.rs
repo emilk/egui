@@ -8,7 +8,7 @@
 
 #![expect(clippy::manual_range_contains)]
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "datepicker")]
 mod datepicker;
 
 pub mod syntax_highlighting;
@@ -19,14 +19,18 @@ mod layout;
 pub mod loaders;
 mod sizing;
 mod strip;
+#[cfg(feature = "svg")]
+mod svg_glyph;
 mod table;
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "datepicker")]
 pub use crate::datepicker::DatePickerButton;
 
 pub(crate) use crate::layout::StripLayout;
 pub use crate::sizing::Size;
 pub use crate::strip::*;
+#[cfg(feature = "svg")]
+pub use crate::svg_glyph::SvgGlyph;
 pub use crate::table::*;
 
 pub use loaders::install_image_loaders;

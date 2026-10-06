@@ -1,15 +1,19 @@
-use crate::{Atom, AtomKind, Image, WidgetText};
-use smallvec::SmallVec;
+use crate::{Atom, AtomKind, IdSalt, Image, TextureId, WidgetText};
+use core::ops::{Deref, DerefMut};
 use std::borrow::Cow;
-use std::ops::{Deref, DerefMut};
-
-// Rarely there should be more than 2 atoms in one Widget.
-// I guess it could happen in a menu button with Image and right text...
-pub(crate) const ATOMS_SMALL_VEC_SIZE: usize = 2;
 
 /// A list of [`Atom`]s.
+///
+/// Many widgets take an `impl` [`IntoAtoms`] parameter,
+/// which allows you to easily create atoms from tuples of text, images, and other atoms:
+/// ```
+/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, Vec2};
+/// # egui::__run_test_ui(|ui| {
+/// let image = egui::include_image!("../../../eframe/data/icon.png");
+/// ui.button((image, "Click me!"));
+/// # });
 #[derive(Clone, Debug, Default)]
-pub struct Atoms<'a>(SmallVec<[Atom<'a>; ATOMS_SMALL_VEC_SIZE]>);
+pub struct Atoms<'a>(Vec<Atom<'a>>);
 
 impl<'a> Atoms<'a> {
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
@@ -21,9 +25,24 @@ impl<'a> Atoms<'a> {
         self.0.push(atom.into());
     }
 
+    /// Extend the list of atoms by appending more atoms to the right side.
+    ///
+    /// If you have weird lifetime issues with this, use [`Self::push_right`] in a loop instead.
+    pub fn extend_right(&mut self, atoms: Self) {
+        self.0.extend(atoms.0);
+    }
+
     /// Insert a new [`Atom`] at the beginning of the list (left side).
     pub fn push_left(&mut self, atom: impl Into<Atom<'a>>) {
         self.0.insert(0, atom.into());
+    }
+
+    /// Extend the list of atoms by prepending more atoms to the left side.
+    ///
+    /// If you have weird lifetime issues with this, use [`Self::push_left`] in a loop instead.
+    pub fn extend_left(&mut self, mut atoms: Self) {
+        core::mem::swap(&mut atoms.0, &mut self.0);
+        self.0.extend(atoms.0);
     }
 
     /// Concatenate and return the text contents.
@@ -52,6 +71,69 @@ impl<'a> Atoms<'a> {
         }
 
         string
+    }
+
+    /// An [`IdSalt`] based on the contents of the atoms.
+    ///
+    /// Useful for widgets that derive their id from their label, like [`crate::ComboBox::from_label`].
+    ///
+    /// This hashes the text of text atoms, the source of image atoms,
+    /// and the [`Atom::id`] of any atom that has one.
+    /// Other atom contents (e.g. closures) are ignored.
+    pub fn salt(&self) -> IdSalt {
+        #[derive(Debug, Hash)]
+        enum SaltPart<'s> {
+            Text(&'s str),
+            ImageUri(Option<&'s str>),
+            ImageTexture(TextureId),
+            Other,
+        }
+
+        fn salt_part<'s>(atom: &'s Atom<'_>) -> (SaltPart<'s>, Option<IdSalt>) {
+            let part = match &atom.kind {
+                AtomKind::Text(text) => SaltPart::Text(text.text()),
+                AtomKind::Image(image) => {
+                    if let Some(texture_id) = image.texture_id() {
+                        SaltPart::ImageTexture(texture_id)
+                    } else {
+                        SaltPart::ImageUri(image.uri())
+                    }
+                }
+                AtomKind::Empty
+                | AtomKind::Closure(_)
+                | AtomKind::Paint(_)
+                | AtomKind::Widget(_)
+                | AtomKind::Container(_) => SaltPart::Other,
+            };
+            (part, atom.id)
+        }
+
+        /// Hashes the atoms without collecting them into a temporary `Vec`.
+        struct AtomsSalt<'s, 'a>(&'s [Atom<'a>]);
+
+        impl core::hash::Hash for AtomsSalt<'_, '_> {
+            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+                state.write_usize(self.0.len());
+                for atom in self.0 {
+                    salt_part(atom).hash(state);
+                }
+            }
+        }
+
+        impl core::fmt::Debug for AtomsSalt<'_, '_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                f.debug_list()
+                    .entries(self.0.iter().map(salt_part))
+                    .finish()
+            }
+        }
+
+        IdSalt::new(AtomsSalt(&self.0))
+    }
+
+    /// Do any of the atoms have shrink set to `true`?
+    pub fn any_shrink(&self) -> bool {
+        self.iter().any(|a| a.shrink)
     }
 
     pub fn iter_kinds(&self) -> impl Iterator<Item = &AtomKind<'a>> {
@@ -104,7 +186,7 @@ impl<'a> Atoms<'a> {
 
     pub fn map_atoms(&mut self, mut f: impl FnMut(Atom<'a>) -> Atom<'a>) {
         self.iter_mut()
-            .for_each(|atom| *atom = f(std::mem::take(atom)));
+            .for_each(|atom| *atom = f(core::mem::take(atom)));
     }
 
     pub fn map_kind<F>(&mut self, mut f: F)
@@ -112,7 +194,7 @@ impl<'a> Atoms<'a> {
         F: FnMut(AtomKind<'a>) -> AtomKind<'a>,
     {
         for kind in self.iter_kinds_mut() {
-            *kind = f(std::mem::take(kind));
+            *kind = f(core::mem::take(kind));
         }
     }
 
@@ -145,7 +227,7 @@ impl<'a> Atoms<'a> {
 
 impl<'a> IntoIterator for Atoms<'a> {
     type Item = Atom<'a>;
-    type IntoIter = smallvec::IntoIter<[Atom<'a>; ATOMS_SMALL_VEC_SIZE]>;
+    type IntoIter = std::vec::IntoIter<Atom<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -172,6 +254,16 @@ where
 }
 
 /// Trait for turning a tuple of [`Atom`]s into [`Atoms`].
+///
+/// Many widgets take an `impl` [`IntoAtoms`] parameter,
+/// which allows you to easily create atoms from tuples of text, images, and other atoms:
+/// ```
+/// # use egui::{AtomExt, AtomKind, Atom, Image, Id, Vec2};
+/// # egui::__run_test_ui(|ui| {
+/// let image = egui::include_image!("../../../eframe/data/icon.png");
+/// ui.button((image, "Click me!"));
+/// # });
+/// ```
 pub trait IntoAtoms<'a> {
     fn collect(self, atoms: &mut Atoms<'a>);
 

@@ -2,17 +2,17 @@
 
 use std::sync::Arc;
 
-use emath::{Align2, Pos2, Rangef, Rect, TSTransform, Vec2, pos2};
+use emath::{Align2, Pos2, Rangef, Rect, Rot2, TSTransform, Vec2, pos2};
 
 use crate::{
-    Color32, CornerRadius, Mesh, Stroke, StrokeKind, TextureId,
+    Color32, CornerRadius, Direction, Mesh, Stroke, StrokeKind, TextureId, Vertex,
     stroke::PathStroke,
     text::{FontId, FontsView, Galley},
 };
 
 use super::{
-    CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PathShape, QuadraticBezierShape,
-    RectShape, TextShape,
+    BandShape, CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PathShape,
+    QuadraticBezierShape, RectShape, TextShape,
 };
 
 /// A paint primitive such as a circle or a piece of text.
@@ -43,7 +43,14 @@ pub enum Shape {
 
     /// A series of lines between points.
     /// The path can have a stroke and/or fill (if closed).
+    ///
+    /// If you want a path of varying width, use [`Self::Band`] instead.
     Path(PathShape),
+
+    /// A varying-width band along a direction.
+    ///
+    /// If you want a path of fixed width, use [`Self::Path`] instead.
+    Band(BandShape),
 
     /// Rectangle with optional outline and fill.
     Rect(RectShape),
@@ -73,21 +80,22 @@ pub enum Shape {
 #[test]
 fn shape_size() {
     assert_eq!(
-        std::mem::size_of::<Shape>(),
+        core::mem::size_of::<Shape>(),
         64,
         "Shape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
-        std::mem::size_of::<Shape>() <= 64,
+        core::mem::size_of::<Shape>() <= 64,
         "Shape is getting way too big!"
     );
 }
 
-#[test]
-fn shape_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Shape` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Shape>();
-}
+};
 
 impl From<Vec<Self>> for Shape {
     #[inline(always)]
@@ -256,6 +264,21 @@ impl Shape {
         Self::Path(PathShape::convex_polygon(points, fill, stroke))
     }
 
+    /// A filled triangle inscribed in `rect`, pointing down.
+    ///
+    /// `rotation` is in radians, and rotates the triangle around the center of `rect`:
+    /// `0.0` points down, `TAU / 4.0` left, `TAU / 2.0` up, and `-TAU / 4.0` right.
+    ///
+    /// Useful to paint small arrow icons in the ui, like the on combo boxes or submenu buttons.
+    pub fn rotated_triangle(rect: Rect, rotation: f32, fill: impl Into<Color32>) -> Self {
+        let rotation = Rot2::from_angle(rotation);
+        let points = [rect.left_top(), rect.right_top(), rect.center_bottom()]
+            .into_iter()
+            .map(|point| rect.center() + rotation * (point - rect.center()))
+            .collect();
+        Self::convex_polygon(points, fill, Stroke::NONE)
+    }
+
     #[inline]
     pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
         Self::Circle(CircleShape::filled(center, radius, fill_color))
@@ -297,6 +320,32 @@ impl Shape {
         Self::Rect(RectShape::stroke(rect, corner_radius, stroke, stroke_kind))
     }
 
+    /// Paints a gradient rectangle that transitions from `color_from` to `color_to`
+    /// along the given `direction`.
+    ///
+    /// For example, [`Direction::TopDown`] paints `color_from` at the top edge fading
+    /// to `color_to` at the bottom edge.
+    #[inline]
+    pub fn gradient_rect(rect: Rect, direction: Direction, [from, to]: [Color32; 2]) -> Self {
+        let (left_top, right_top, left_bottom, right_bottom) = match direction {
+            Direction::TopDown => (from, from, to, to),
+            Direction::BottomUp => (to, to, from, from),
+            Direction::LeftToRight => (from, to, from, to),
+            Direction::RightToLeft => (to, from, to, from),
+        };
+
+        Self::from(Mesh {
+            indices: vec![0, 1, 2, 2, 1, 3],
+            vertices: vec![
+                Vertex::untextured(rect.left_top(), left_top),
+                Vertex::untextured(rect.right_top(), right_top),
+                Vertex::untextured(rect.left_bottom(), left_bottom),
+                Vertex::untextured(rect.right_bottom(), right_bottom),
+            ],
+            texture_id: Default::default(),
+        })
+    }
+
     #[expect(clippy::needless_pass_by_value)]
     pub fn text(
         fonts: &mut FontsView<'_>,
@@ -329,12 +378,6 @@ impl Shape {
         TextShape::new(pos, galley, text_color)
             .with_override_text_color(text_color)
             .into()
-    }
-
-    #[inline]
-    #[deprecated = "Use `Shape::galley` or `Shape::galley_with_override_text_color` instead"]
-    pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {
-        Self::galley_with_override_text_color(pos, galley, text_color)
     }
 
     #[inline]
@@ -373,10 +416,11 @@ impl Shape {
                 if stroke.is_empty() {
                     Rect::NOTHING
                 } else {
-                    Rect::from_two_pos(points[0], points[1]).expand(stroke.width / 2.0)
+                    Rect::from_two_pos(points[0], points[1]).expand(stroke.width * 0.5)
                 }
             }
             Self::Path(path_shape) => path_shape.visual_bounding_rect(),
+            Self::Band(band_shape) => band_shape.visual_bounding_rect(),
             Self::Rect(rect_shape) => rect_shape.visual_bounding_rect(),
             Self::Text(text_shape) => text_shape.visual_bounding_rect(),
             Self::Mesh(mesh) => mesh.calc_bounds(),
@@ -450,6 +494,7 @@ impl Shape {
                 }
                 path_shape.stroke.width *= transform.scaling;
             }
+            Self::Band(band_shape) => band_shape.transform(transform),
             Self::Rect(rect_shape) => {
                 rect_shape.rect = transform * rect_shape.rect;
                 rect_shape.corner_radius *= transform.scaling;
@@ -492,8 +537,7 @@ fn points_from_line(
     shapes: &mut Vec<Shape>,
 ) {
     let mut position_on_segment = 0.0;
-    for window in path.windows(2) {
-        let (start, end) = (window[0], window[1]);
+    for &[start, end] in path.array_windows() {
         let vector = end - start;
         let segment_length = vector.length();
         while position_on_segment < segment_length {
@@ -525,8 +569,7 @@ fn dashes_from_line(
     let mut drawing_dash = false;
     let mut step = 0;
     let steps = dash_lengths.len();
-    for window in path.windows(2) {
-        let (start, end) = (window[0], window[1]);
+    for &[start, end] in path.array_windows() {
         let vector = end - start;
         let segment_length = vector.length();
 

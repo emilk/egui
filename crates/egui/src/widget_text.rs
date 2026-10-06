@@ -1,6 +1,5 @@
-use emath::GuiRounding as _;
-use epaint::text::TextFormat;
-use std::fmt::Formatter;
+use core::fmt::Formatter;
+use epaint::text::{IntoTag, TextFormat, VariationCoords};
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
@@ -34,6 +33,7 @@ pub struct RichText {
     background_color: Color32,
     expand_bg: f32,
     text_color: Option<Color32>,
+    coords: VariationCoords,
     code: bool,
     strong: bool,
     weak: bool,
@@ -55,6 +55,7 @@ impl Default for RichText {
             background_color: Default::default(),
             expand_bg: 1.0,
             text_color: Default::default(),
+            coords: Default::default(),
             code: Default::default(),
             strong: Default::default(),
             weak: Default::default(),
@@ -154,7 +155,7 @@ impl RichText {
     /// Default: 0.0.
     ///
     /// For even text it is recommended you round this to an even number of _pixels_,
-    /// e.g. using [`crate::Painter::round_to_pixel`].
+    /// e.g. using [`emath::GuiRounding`].
     #[inline]
     pub fn extra_letter_spacing(mut self, extra_letter_spacing: f32) -> Self {
         self.extra_letter_spacing = extra_letter_spacing;
@@ -168,7 +169,7 @@ impl RichText {
     /// If `None` (the default), the line height is determined by the font.
     ///
     /// For even text it is recommended you round this to an even number of _pixels_,
-    /// e.g. using [`crate::Painter::round_to_pixel`].
+    /// e.g. using [`emath::GuiRounding`].
     #[inline]
     pub fn line_height(mut self, line_height: Option<f32>) -> Self {
         self.line_height = line_height;
@@ -193,6 +194,23 @@ impl RichText {
         let crate::FontId { size, family } = font_id;
         self.size = Some(size);
         self.family = Some(family);
+        self
+    }
+
+    /// Add a variation coordinate.
+    #[inline]
+    pub fn variation(mut self, tag: impl IntoTag, coord: f32) -> Self {
+        self.coords.push(tag, coord);
+        self
+    }
+
+    /// Override the variation coordinates completely.
+    #[inline]
+    pub fn variations<T: IntoTag>(
+        mut self,
+        variations: impl IntoIterator<Item = (T, f32)>,
+    ) -> Self {
+        self.coords = VariationCoords::new(variations);
         self
     }
 
@@ -304,6 +322,26 @@ impl RichText {
         self
     }
 
+    /// The explicit text color set by [`Self::color`], if any.
+    ///
+    /// This does not resolve colors from [`Self::strong`], [`Self::weak`],
+    /// the style, or the widget that paints the text.
+    ///
+    /// ```
+    /// use egui::{Color32, RichText};
+    ///
+    /// let text = RichText::new("Hello");
+    /// assert_eq!(text.color_override(), None);
+    /// assert_eq!(text.color_override().unwrap_or(Color32::WHITE), Color32::WHITE);
+    ///
+    /// let text = text.color(Color32::RED);
+    /// assert_eq!(text.color_override(), Some(Color32::RED));
+    /// ```
+    #[inline]
+    pub fn color_override(&self) -> Option<Color32> {
+        self.text_color
+    }
+
     /// Read the font height of the selected text style.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
@@ -391,6 +429,7 @@ impl RichText {
             background_color,
             expand_bg,
             text_color: _, // already used by `get_text_color`
+            coords,
             code,
             strong: _, // already used by `get_text_color`
             weak: _,   // already used by `get_text_color`
@@ -449,6 +488,7 @@ impl RichText {
                 line_height,
                 color: text_color,
                 background: background_color,
+                coords,
                 italics,
                 underline,
                 strikethrough,
@@ -519,8 +559,8 @@ pub enum WidgetText {
     Galley(Arc<Galley>),
 }
 
-impl std::fmt::Debug for WidgetText {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for WidgetText {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         let text = self.text();
         match self {
             Self::Text(_) => write!(f, "Text({text:?})"),
@@ -538,6 +578,69 @@ impl Default for WidgetText {
 }
 
 impl WidgetText {
+    /// Concatenate several differently styled pieces of text into a single [`WidgetText`].
+    ///
+    /// The pieces are laid out as one paragraph, without any spacing between them.
+    ///
+    /// The style and vertical text alignment of `ui` is used for the pieces,
+    /// so the result should be used in that same `ui`.
+    ///
+    /// ```
+    /// # use egui::{RichText, WidgetText};
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.label(WidgetText::concat(
+    ///     ui,
+    ///     [
+    ///         RichText::new("Normal, "),
+    ///         RichText::new("strong, ").strong(),
+    ///         RichText::new("and small").small(),
+    ///     ],
+    /// ));
+    /// # });
+    /// ```
+    ///
+    /// See also [`Self::concat_with_valign`] and [`RichText::append_to`]
+    /// for more control over the resulting [`LayoutJob`].
+    pub fn concat(ui: &Ui, parts: impl IntoIterator<Item = impl Into<RichText>>) -> Self {
+        Self::concat_with_valign(ui.style(), ui.text_valign(), parts)
+    }
+
+    /// Same as [`Self::concat`], but with an explicit [`Style`] and vertical text alignment.
+    ///
+    /// `valign` is how each piece is aligned against the others,
+    /// and is usually [`Ui::text_valign`].
+    pub fn concat_with_valign(
+        style: &Style,
+        valign: Align,
+        parts: impl IntoIterator<Item = impl Into<RichText>>,
+    ) -> Self {
+        let mut job = LayoutJob::default();
+        for part in parts {
+            part.into()
+                .append_to(&mut job, style, FontSelection::Default, valign);
+        }
+        job.into()
+    }
+
+    /// Override the font size.
+    ///
+    /// For [`Self::Galley`], this does nothing because it has already been laid out.
+    #[must_use]
+    pub fn size(self, size: f32) -> Self {
+        match self {
+            Self::Text(text) => RichText::new(text).size(size).into(),
+            Self::RichText(text) => Self::RichText(Arc::new(Arc::unwrap_or_clone(text).size(size))),
+            Self::LayoutJob(job) => {
+                let mut job = Arc::unwrap_or_clone(job);
+                for section in &mut job.sections {
+                    section.format.font_id.size = size;
+                }
+                Self::LayoutJob(Arc::new(job))
+            }
+            Self::Galley(galley) => Self::Galley(galley),
+        }
+    }
+
     #[inline]
     pub fn is_empty(&self) -> bool {
         match self {
@@ -671,22 +774,6 @@ impl WidgetText {
         self.map_rich_text(|text| text.background_color(background_color))
     }
 
-    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
-    pub(crate) fn font_height(&self, fonts: &mut epaint::FontsView<'_>, style: &Style) -> f32 {
-        match self {
-            Self::Text(_) => fonts.row_height(&FontSelection::Default.resolve(style)),
-            Self::RichText(text) => text.font_height(fonts, style),
-            Self::LayoutJob(job) => job.font_height(fonts),
-            Self::Galley(galley) => {
-                if let Some(placed_row) = galley.rows.first() {
-                    placed_row.height().round_ui()
-                } else {
-                    galley.size().y.round_ui()
-                }
-            }
-        }
-    }
-
     pub fn into_layout_job(
         self,
         style: &Style,
@@ -746,14 +833,19 @@ impl WidgetText {
                     .visuals
                     .override_text_color
                     .unwrap_or(crate::Color32::PLACEHOLDER);
+
+                // We want the style overrides to take precedence over the fallback font
+                let font_id = FontSelection::default().resolve_with_fallback(style, fallback_font);
+                let line_height = ctx
+                    .fonts_mut(|f| f.row_height(&font_id) + style.spacing.extra_text_line_spacing);
+
                 let mut layout_job = LayoutJob::simple_format(
                     text,
                     TextFormat {
-                        // We want the style overrides to take precedence over the fallback font
-                        font_id: FontSelection::default()
-                            .resolve_with_fallback(style, fallback_font),
+                        font_id,
                         color,
                         valign: default_valign,
+                        line_height: Some(line_height),
                         ..Default::default()
                     },
                 );
@@ -858,7 +950,45 @@ impl From<Arc<Galley>> for WidgetText {
 
 #[cfg(test)]
 mod tests {
-    use crate::WidgetText;
+    use crate::{Color32, RichText, Visuals, WidgetText};
+
+    #[test]
+    fn rich_text_color_override_is_explicit() {
+        let visuals = Visuals {
+            override_text_color: Some(Color32::GREEN),
+            ..Visuals::default()
+        };
+        for (text, resolved_color) in [
+            (RichText::new("plain"), visuals.override_text_color),
+            (
+                RichText::new("strong").strong(),
+                Some(visuals.strong_text_color()),
+            ),
+            (
+                RichText::new("weak").weak(),
+                Some(visuals.weak_text_color()),
+            ),
+        ] {
+            assert_eq!(text.color_override(), None);
+            assert_eq!(text.get_text_color(&visuals), resolved_color);
+
+            for color in [Color32::RED, Color32::TRANSPARENT, Color32::PLACEHOLDER] {
+                let colored = text.clone().color(color).strong().weak();
+                assert_eq!(colored.color_override(), Some(color));
+                assert_eq!(colored.get_text_color(&visuals), Some(color));
+            }
+        }
+    }
+
+    #[test]
+    fn rich_text_color_override_tracks_latest_color() {
+        let text = RichText::new("Hello").color(Color32::RED);
+        assert_eq!(text.color_override(), Some(Color32::RED));
+
+        let text = text.color(Color32::BLUE);
+        assert_eq!(text.color_override(), Some(Color32::BLUE));
+        assert_eq!(text.text(), "Hello");
+    }
 
     #[test]
     fn ensure_small_widget_text() {

@@ -83,7 +83,7 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
 
     let title_bar_response = ui.interact(
         title_bar_rect,
-        Id::new("title_bar"),
+        Id::unique("title_bar"),
         Sense::click_and_drag(),
     );
 

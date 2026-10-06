@@ -1,22 +1,28 @@
+use egui::{Align, Align2, AtomExt as _};
+
 /// Showcase [`egui::TextEdit`].
 #[derive(PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextEditDemo {
     pub text: String,
+    halign: egui::Align,
+    valign: egui::Align,
 }
 
 impl Default for TextEditDemo {
     fn default() -> Self {
         Self {
             text: "Edit this text".to_owned(),
+            halign: egui::Align::LEFT,
+            valign: egui::Align::TOP,
         }
     }
 }
 
 impl crate::Demo for TextEditDemo {
     fn name(&self) -> &'static str {
-        "🖹 TextEdit"
+        "✏️ TextEdit"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -37,7 +43,11 @@ impl crate::View for TextEditDemo {
             ui.add(crate::egui_github_link_file!());
         });
 
-        let Self { text } = self;
+        let Self {
+            text,
+            halign,
+            valign,
+        } = self;
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
@@ -46,9 +56,38 @@ impl crate::View for TextEditDemo {
             ui.label(".");
         });
 
+        ui.horizontal(|ui| {
+            ui.label("Horizontal align:");
+            ui.selectable_value(halign, egui::Align::LEFT, "Left");
+            ui.selectable_value(halign, egui::Align::Center, "Center");
+            ui.selectable_value(halign, egui::Align::RIGHT, "Right");
+        });
+        ui.horizontal(|ui| {
+            ui.label("Vertical align:");
+            ui.selectable_value(valign, egui::Align::TOP, "Top");
+            ui.selectable_value(valign, egui::Align::Center, "Center");
+            ui.selectable_value(valign, egui::Align::BOTTOM, "Bottom");
+        });
+
+        let clear_id = egui::IdSalt::new("clear_button");
+        let clear_size = egui::Vec2::splat(ui.spacing().interact_size.y);
+
         let output = egui::TextEdit::multiline(text)
             .hint_text("Type something!")
+            // Atoms are centered by default, so we need to pass the right align here:
+            .prefix("🔎".atom_align(Align2::new(Align::LEFT, *valign)))
+            .suffix(
+                egui::Atom::custom(clear_id, clear_size)
+                    .atom_align(Align2::new(Align::RIGHT, *valign)),
+            )
+            .align(Align2::new(*halign, *valign))
             .show(ui);
+
+        if let Some(rect) = output.response.rect(clear_id)
+            && ui.place(rect, egui::Button::new("❌")).clicked()
+        {
+            text.clear();
+        }
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
@@ -66,7 +105,8 @@ impl crate::View for TextEditDemo {
             egui::Label::new("Press ctrl+Y to toggle the case of selected text (cmd+Y on Mac)"),
         );
 
-        if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y))
+        if output.response.has_focus()
+            && ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y))
             && let Some(text_cursor_range) = output.cursor_range
         {
             use egui::TextBuffer as _;
@@ -123,8 +163,9 @@ mod tests {
         let text = "Hello, world!".to_owned();
         let mut harness = Harness::new_ui_state(
             move |ui, text| {
-                CentralPanel::default().show_inside(ui, |ui| {
-                    ui.text_edit_singleline(text);
+                CentralPanel::default().show(ui, |ui| {
+                    let label = ui.label("Text:");
+                    ui.text_edit_singleline(text).labelled_by(label.id);
                 });
             },
             text,

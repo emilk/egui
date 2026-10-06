@@ -1,7 +1,7 @@
 //! Handles paint layers, i.e. how things
 //! are sometimes painted behind or in front of other things.
 
-use crate::{Id, IdMap, Rect, ahash, epaint};
+use crate::{Id, IdMap, Rect, epaint};
 use epaint::{ClippedShape, Shape, emath::TSTransform};
 
 /// Different layer categories
@@ -75,21 +75,15 @@ impl LayerId {
     pub fn debug() -> Self {
         Self {
             order: Order::Debug,
-            id: Id::new("debug"),
+            id: Id::unique("debug"),
         }
     }
 
     pub fn background() -> Self {
         Self {
             order: Order::Background,
-            id: Id::new("background"),
+            id: Id::unique("background"),
         }
-    }
-
-    #[inline(always)]
-    #[deprecated = "Use `Memory::allows_interaction` instead"]
-    pub fn allow_interaction(&self) -> bool {
-        self.order.allow_interaction()
     }
 
     /// Short and readable summary
@@ -102,8 +96,8 @@ impl LayerId {
     }
 }
 
-impl std::fmt::Debug for LayerId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for LayerId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self { order, id } = self;
         write!(f, "LayerId {{ {order:?} {id:?} }}")
     }
@@ -132,7 +126,7 @@ impl PaintList {
     #[inline(always)]
     pub fn add(&mut self, clip_rect: Rect, shape: Shape) -> ShapeIdx {
         let idx = self.next_idx();
-        self.0.push(ClippedShape { clip_rect, shape });
+        self.0.push(ClippedShape::new(clip_rect, shape));
         idx
     }
 
@@ -140,7 +134,7 @@ impl PaintList {
         self.0.extend(
             shapes
                 .into_iter()
-                .map(|shape| ClippedShape { clip_rect, shape }),
+                .map(|shape| ClippedShape::new(clip_rect, shape)),
         );
     }
 
@@ -158,7 +152,7 @@ impl PaintList {
             return;
         }
 
-        self.0[idx.0] = ClippedShape { clip_rect, shape };
+        self.0[idx.0] = ClippedShape::new(clip_rect, shape);
     }
 
     /// Set the given shape to be empty (a `Shape::Noop`).
@@ -174,17 +168,40 @@ impl PaintList {
 
     /// Transform each [`Shape`] and clip rectangle by this much, in-place
     pub fn transform(&mut self, transform: TSTransform) {
-        for ClippedShape { clip_rect, shape } in &mut self.0 {
-            *clip_rect = transform.mul_rect(*clip_rect);
-            shape.transform(transform);
-        }
+        let end = self.next_idx();
+        self.transform_range(ShapeIdx(0), end, transform);
     }
 
     /// Transform each [`Shape`] and clip rectangle in range by this much, in-place
     pub fn transform_range(&mut self, start: ShapeIdx, end: ShapeIdx, transform: TSTransform) {
-        for ClippedShape { clip_rect, shape } in &mut self.0[start.0..end.0] {
-            *clip_rect = transform.mul_rect(*clip_rect);
-            shape.transform(transform);
+        for clipped_shape in &mut self.0[start.0..end.0] {
+            clipped_shape.transform(transform);
+        }
+    }
+
+    /// Transform each [`Shape`] and clip rectangle by this much, in-place, but only after the
+    /// shapes have been tessellated and snapped to the pixel grid.
+    ///
+    /// See [`ClippedShape::transform_after_tessellation`] for which of the two you want.
+    pub fn transform_after_rounding(&mut self, transform: TSTransform) {
+        let end = self.next_idx();
+        self.transform_after_rounding_range(ShapeIdx(0), end, transform);
+    }
+
+    /// Transform each [`Shape`] and clip rectangle in range by this much, in-place, but only
+    /// after the shapes have been tessellated and snapped to the pixel grid.
+    ///
+    /// See [`ClippedShape::transform_after_tessellation`] for which of the two you want.
+    pub fn transform_after_rounding_range(
+        &mut self,
+        start: ShapeIdx,
+        end: ShapeIdx,
+        transform: TSTransform,
+    ) {
+        for clipped_shape in &mut self.0[start.0..end.0] {
+            clipped_shape.clip_rect = transform.mul_rect(clipped_shape.clip_rect);
+            clipped_shape.transform_after_tessellation =
+                transform * clipped_shape.transform_after_tessellation;
         }
     }
 

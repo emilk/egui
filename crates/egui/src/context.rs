@@ -1,6 +1,7 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
+use core::{cell::RefCell, panic::Location, time::Duration};
+use std::{borrow::Cow, sync::Arc};
 
 use emath::GuiRounding as _;
 use epaint::{
@@ -10,17 +11,18 @@ use epaint::{
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, FontPriority, Fonts, FontsView},
+    text::{FontInsert, FontPriority, Fonts, FontsView, ViewportKey},
     vec2,
 };
 
 use crate::{
-    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
-    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, Modifiers, NumExt as _, Order, Painter, RawInput, Response, RichText,
-    SafeAreaInsets, ScrollArea, Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui,
-    UiBuilder, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect, WidgetText,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, FontProvider, GlyphRasterizer,
+    Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label,
+    LayerId, Memory, MissingGlyphPolicy, ModifierNames, Modifiers, NumExt as _, Order, Painter,
+    RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle,
+    TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId,
+    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect,
+    WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -32,19 +34,21 @@ use crate::{
     load::{self, Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
     os::OperatingSystem,
-    output::FullOutput,
+    output::{FullOutput, LogicOutput},
     pass_state::PassState,
     plugin::{self, TypedPluginHandle},
-    resize, response, scroll_area,
+    resize, response, scroll_area, theme,
     util::IdTypeMap,
     viewport::ViewportClass,
+    widget_style::{StyleArgs, WidgetStyle},
 };
 
 use crate::IdMap;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
-/// This is given in the callback set by [`Context::set_request_repaint_callback`].
+/// This is given in the callback set by [`Context::set_request_repaint_callback`],
+/// and to the observer set by [`Context::set_repaint_observer`].
 #[derive(Clone, Copy, Debug)]
 pub struct RequestRepaintInfo {
     /// This is used to specify what viewport that should repaint.
@@ -98,7 +102,7 @@ impl ContextImpl {
     fn begin_pass_repaint_logic(&mut self, viewport_id: ViewportId) {
         let viewport = self.viewports.entry(viewport_id).or_default();
 
-        std::mem::swap(
+        core::mem::swap(
             &mut viewport.repaint.prev_causes,
             &mut viewport.repaint.causes,
         );
@@ -128,7 +132,7 @@ impl ContextImpl {
 
     fn request_repaint_after(
         &mut self,
-        mut delay: Duration,
+        delay: Duration,
         viewport_id: ViewportId,
         cause: RepaintCause,
     ) {
@@ -145,12 +149,17 @@ impl ContextImpl {
             // Hovering a tooltip is a good example of a case where we want to repaint after a delay.
         }
 
-        if let Ok(predicted_frame_time) = Duration::try_from_secs_f32(viewport.input.predicted_dt) {
-            // Make it less likely we over-shoot the target:
-            delay = delay.saturating_sub(predicted_frame_time);
-        }
-
         viewport.repaint.causes.push(cause);
+
+        let info = RequestRepaintInfo {
+            viewport_id,
+            delay,
+            current_cumulative_pass_nr: viewport.repaint.cumulative_pass_nr,
+        };
+
+        if let Some(observer) = &self.repaint_observer {
+            (observer)(info);
+        }
 
         // We save some CPU time by only calling the callback if we need to.
         // If the new delay is greater or equal to the previous lowest,
@@ -159,11 +168,7 @@ impl ContextImpl {
             viewport.repaint.repaint_delay = delay;
 
             if let Some(callback) = &self.request_repaint_callback {
-                (callback)(RequestRepaintInfo {
-                    viewport_id,
-                    delay,
-                    current_cumulative_pass_nr: viewport.repaint.cumulative_pass_nr,
-                });
+                (callback)(info);
             }
         }
     }
@@ -184,6 +189,25 @@ impl ContextImpl {
 }
 
 // ----------------------------------------------------------------------------
+
+/// The root [`Ui`] of the current pass of a viewport.
+///
+/// See [`Context::root_ui`].
+#[derive(Default)]
+#[expect(clippy::large_enum_variant, reason = "There is only one per viewport")]
+enum RootUi {
+    /// Not yet created this pass.
+    ///
+    /// It is created on demand by [`Context::root_ui`].
+    #[default]
+    Pending,
+
+    /// Created, and ready to be borrowed by [`Context::root_ui`].
+    Available(Ui),
+
+    /// Currently borrowed by a call to [`Context::root_ui`].
+    Borrowed,
+}
 
 /// State stored per viewport.
 ///
@@ -243,6 +267,17 @@ pub struct ViewportState {
     // ----------------------
     // Cross-frame statistics:
     pub num_multipass_in_row: usize,
+
+    /// The last theme we sent to the native window via [`ViewportCommand::SetTheme`],
+    /// used to avoid sending redundant commands.
+    ///
+    /// See [`crate::Options::sync_window_theme`].
+    pub(crate) last_sent_window_theme: Option<crate::SystemTheme>,
+
+    /// The root [`Ui`] of the current pass.
+    ///
+    /// Only set between [`Context::begin_pass`] and [`Context::end_pass`].
+    root_ui: RootUi,
 }
 
 /// What called [`Context::request_repaint`] or [`Context::request_discard`]?
@@ -258,14 +293,14 @@ pub struct RepaintCause {
     pub reason: Cow<'static, str>,
 }
 
-impl std::fmt::Debug for RepaintCause {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RepaintCause {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}:{} {}", self.file, self.line, self.reason)
     }
 }
 
-impl std::fmt::Display for RepaintCause {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for RepaintCause {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}:{} {}", self.file, self.line, self.reason)
     }
 }
@@ -300,7 +335,7 @@ impl RepaintCause {
 struct ViewportRepaintInfo {
     /// Monotonically increasing counter.
     ///
-    /// Incremented at the end of [`Context::run`].
+    /// Incremented at the end of [`Context::run_ui`].
     /// This can be smaller than [`Self::cumulative_pass_nr`],
     /// but never larger.
     cumulative_frame_nr: u64,
@@ -367,11 +402,21 @@ impl ViewportRepaintInfo {
 struct ContextImpl {
     fonts: Option<Fonts>,
     font_definitions: FontDefinitions,
+    glyph_rasterizers: Vec<GlyphRasterizer>,
+    font_providers: Vec<Arc<dyn FontProvider>>,
+    missing_glyph_policy: MissingGlyphPolicy,
+
+    /// Set when the rasterizers or providers change, acted on at the start of the next pass.
+    ///
+    /// The [`Fonts`] must outlive the pass that is laying out text with them,
+    /// so they are never dropped in the middle of one.
+    reload_fonts: bool,
 
     memory: Memory,
     animation_manager: AnimationManager,
 
     plugins: plugin::Plugins,
+    called_on_exit: bool,
     safe_area: SafeAreaInsets,
 
     /// All viewports share the same texture manager and texture namespace.
@@ -396,6 +441,7 @@ struct ContextImpl {
     paint_stats: PaintStats,
 
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
+    repaint_observer: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
     viewport_parents: ViewportIdMap<ViewportId>,
     viewports: ViewportIdMap<ViewportState>,
@@ -405,6 +451,8 @@ struct ContextImpl {
     is_accesskit_enabled: bool,
 
     loaders: Arc<Loaders>,
+
+    themes: theme::Themes,
 }
 
 impl ContextImpl {
@@ -453,7 +501,7 @@ impl ContextImpl {
 
         self.memory.begin_pass(&new_raw_input, &all_viewport_ids);
 
-        viewport.input = std::mem::take(&mut viewport.input).begin_pass(
+        viewport.input = core::mem::take(&mut viewport.input).begin_pass(
             new_raw_input,
             viewport.repaint.requested_immediate_repaint_prev_pass(),
             pixels_per_point,
@@ -463,10 +511,16 @@ impl ContextImpl {
 
         let content_rect = viewport.input.content_rect();
 
-        viewport.this_pass.begin_pass(content_rect);
+        viewport.this_pass.begin_pass();
 
         {
-            let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
+            // Areas that are not interactable are click-through: skip them in the hit-test.
+            let mut layers: Vec<LayerId> = viewport
+                .prev_pass
+                .widgets
+                .layer_ids()
+                .filter(|layer_id| self.memory.areas().is_interactable(*layer_id))
+                .collect();
             layers.sort_by(|&a, &b| self.memory.areas().compare_order(a, b));
 
             viewport.hits = if let Some(pos) = viewport.input.pointer.interact_pos() {
@@ -532,6 +586,11 @@ impl ContextImpl {
         let input = &self.viewport().input;
         let max_texture_side = input.max_texture_side;
 
+        if core::mem::take(&mut self.reload_fonts) {
+            // The rasterizers or providers changed during the last pass.
+            self.fonts = None;
+        }
+
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
             // New font definition loaded, so we need to reload all fonts.
             self.fonts = None;
@@ -569,23 +628,34 @@ impl ContextImpl {
         text_options.max_texture_side = max_texture_side;
 
         let mut is_new = false;
+        let viewport_id = self.viewport_id();
 
         let fonts = self.fonts.get_or_insert_with(|| {
             log::trace!("Creating new Fonts");
 
             is_new = true;
             profiling::scope!("Fonts::new");
-            Fonts::new(text_options, self.font_definitions.clone())
+            let mut fonts = Fonts::new(text_options, self.font_definitions.clone())
+                .with_font_providers(self.font_providers.clone())
+                .with_missing_glyph_policy(self.missing_glyph_policy);
+            fonts.set_glyph_rasterizers(self.glyph_rasterizers.clone());
+            fonts
         });
 
         {
             profiling::scope!("Fonts::begin_pass");
-            fonts.begin_pass(text_options);
+            fonts.begin_pass(text_options, ViewportKey::new(viewport_id.0.value()));
         }
     }
 
     fn accesskit_node_builder(&mut self, id: Id) -> Option<&mut accesskit::Node> {
-        let state = self.viewport().this_pass.accesskit_state.as_mut()?;
+        let this_pass = &mut self.viewport().this_pass;
+        let state = this_pass.accesskit_state.as_mut()?;
+
+        if !is_accesskit_visible(&this_pass.widgets, &state.parent_map, id) {
+            return None;
+        }
+
         let builders = &mut state.nodes;
 
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
@@ -641,11 +711,7 @@ impl ContextImpl {
     }
 
     fn all_viewport_ids(&self) -> ViewportIdSet {
-        self.viewports
-            .keys()
-            .copied()
-            .chain([ViewportId::ROOT])
-            .collect()
+        core::iter::chain(self.viewports.keys().copied(), [ViewportId::ROOT]).collect()
     }
 
     /// The current active viewport
@@ -697,8 +763,8 @@ impl ContextImpl {
 /// // Game loop:
 /// loop {
 ///     let raw_input = egui::RawInput::default();
-///     let full_output = ctx.run(raw_input, |ctx| {
-///         egui::CentralPanel::default().show(&ctx, |ui| {
+///     let full_output = ctx.run_ui(raw_input, |ui| {
+///         egui::CentralPanel::default().show(ui, |ui| {
 ///             ui.label("Hello world!");
 ///             if ui.button("Click me").clicked() {
 ///                 // take some action here
@@ -713,13 +779,13 @@ impl ContextImpl {
 #[derive(Clone)]
 pub struct Context(Arc<RwLock<ContextImpl>>);
 
-impl std::fmt::Debug for Context {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Context {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Context").finish_non_exhaustive()
     }
 }
 
-impl std::cmp::PartialEq for Context {
+impl core::cmp::PartialEq for Context {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
@@ -729,7 +795,7 @@ impl Default for Context {
     fn default() -> Self {
         let ctx_impl = ContextImpl {
             embed_viewports: true,
-            viewports: std::iter::once((ViewportId::ROOT, ViewportState::default())).collect(),
+            viewports: core::iter::once((ViewportId::ROOT, ViewportState::default())).collect(),
             ..Default::default()
         };
         let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
@@ -741,11 +807,109 @@ impl Default for Context {
         ctx.add_plugin(crate::text_selection::LabelSelectionState::default());
         ctx.add_plugin(crate::DragAndDrop::default());
 
+        // Register the default theme for all built-in widgets:
+        theme::DefaultStyle::register(&ctx);
+
         ctx
     }
 }
 
 impl Context {
+    /// Add a [`GlyphRasterizer`], e.g. the browser on web, or for custom glyphs.
+    ///
+    /// Depending on [`FontPriority`] this is either a fallback or an override
+    /// (see [`GlyphRasterizer`] for details).
+    ///
+    /// Rasterizers are asked in the order they were added.
+    /// `eframe` adds the browser rasterizer on web.
+    ///
+    /// Adding a rasterizer whose [`GlyphRasterizer::key`] is already installed is a no-op,
+    /// so this is safe to call every frame.
+    ///
+    /// The rasterizer becomes active at the start of the next pass.
+    pub fn add_glyph_rasterizer(&self, glyph_rasterizer: GlyphRasterizer) {
+        let changed = self.write(|ctx| {
+            let changed = glyph_rasterizer.insert_into(&mut ctx.glyph_rasterizers);
+            ctx.reload_fonts |= changed;
+            changed
+        });
+        if changed {
+            self.apply_font_changes_now_if_unused();
+            self.request_repaint();
+        }
+    }
+
+    /// Replace all [`GlyphRasterizer`]s. See [`Self::add_glyph_rasterizer`].
+    ///
+    /// Pass an empty list to only use the installed fonts.
+    /// Note that this also removes the browser rasterizer that `eframe` adds on web.
+    ///
+    /// The rasterizers become active at the start of the next pass.
+    pub fn set_glyph_rasterizers(&self, glyph_rasterizers: Vec<GlyphRasterizer>) {
+        self.write(|ctx| {
+            ctx.glyph_rasterizers = glyph_rasterizers;
+            ctx.reload_fonts = true;
+        });
+        self.apply_font_changes_now_if_unused();
+        self.request_repaint();
+    }
+
+    /// Add a [`FontProvider`], asked for fonts for characters that no installed font has.
+    ///
+    /// Fonts it finds are appended to the fallback chain of the requested font family.
+    /// Providers are asked in the order they were added.
+    ///
+    /// `eframe` adds a system font provider on native (see its `system_fonts` feature).
+    ///
+    /// The provider becomes active at the start of the next pass.
+    pub fn add_font_provider(&self, font_provider: Arc<dyn FontProvider>) {
+        self.write(|ctx| {
+            ctx.font_providers.push(font_provider);
+            ctx.reload_fonts = true;
+        });
+        self.apply_font_changes_now_if_unused();
+        self.request_repaint();
+    }
+
+    /// Replace all [`FontProvider`]s. See [`Self::add_font_provider`].
+    ///
+    /// Pass an empty list to only use the installed fonts.
+    ///
+    /// The providers become active at the start of the next pass.
+    pub fn set_font_providers(&self, font_providers: Vec<Arc<dyn FontProvider>>) {
+        self.write(|ctx| {
+            ctx.font_providers = font_providers;
+            ctx.reload_fonts = true;
+        });
+        self.apply_font_changes_now_if_unused();
+        self.request_repaint();
+    }
+
+    /// What to do with a character that nothing can draw: no installed font has it,
+    /// no [`FontProvider`] finds a font for it, and no [`GlyphRasterizer`] handles it.
+    ///
+    /// The default is to draw a box ("tofu"). Tests may prefer [`MissingGlyphPolicy::Panic`]
+    /// (`egui_kittest` sets it by default).
+    ///
+    /// The policy takes effect at the start of the next pass.
+    pub fn set_missing_glyph_policy(&self, policy: MissingGlyphPolicy) {
+        let changed = self.write(|ctx| {
+            let changed = ctx.missing_glyph_policy != policy;
+            ctx.missing_glyph_policy = policy;
+            ctx.reload_fonts |= changed;
+            changed
+        });
+        if changed {
+            self.apply_font_changes_now_if_unused();
+            self.request_repaint();
+        }
+    }
+
+    /// See [`Self::set_missing_glyph_policy`].
+    pub fn missing_glyph_policy(&self) -> MissingGlyphPolicy {
+        self.read(|ctx| ctx.missing_glyph_policy)
+    }
+
     /// Do read-only (shared access) transaction on Context
     fn read<R>(&self, reader: impl FnOnce(&ContextImpl) -> R) -> R {
         reader(&self.0.read())
@@ -767,7 +931,8 @@ impl Context {
     ///
     /// You can organize your GUI using [`crate::Panel`].
     ///
-    /// Instead of calling `run_ui`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
+    /// Instead of calling `run_ui`, you can alternatively use [`Self::run_pass`],
+    /// or [`Self::begin_pass`] and [`Context::end_pass`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -779,49 +944,24 @@ impl Context {
     ///     ui.label("Hello egui!");
     /// });
     /// // handle full_output
+    /// # full_output.drop_without_applying_deltas();
     /// ```
-    ///
-    /// ## See also
-    /// * [`Self::run`]
     #[must_use]
     pub fn run_ui(&self, new_input: RawInput, mut run_ui: impl FnMut(&mut Ui)) -> FullOutput {
-        self.run_ui_dyn(new_input, &mut run_ui)
+        self.run_pass(new_input, |ctx| ctx.root_ui(|ui| run_ui(ui)))
     }
 
-    #[must_use]
-    fn run_ui_dyn(&self, new_input: RawInput, run_ui: &mut dyn FnMut(&mut Ui)) -> FullOutput {
-        let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
-        #[expect(deprecated)]
-        self.run(new_input, |ctx| {
-            let mut top_ui = Ui::new(
-                ctx.clone(),
-                Id::new((ctx.viewport_id(), "__top_ui")),
-                UiBuilder::new()
-                    .layer_id(LayerId::background())
-                    .max_rect(ctx.available_rect().round_ui()),
-            );
-
-            {
-                plugins.on_begin_pass(&mut top_ui);
-                run_ui(&mut top_ui);
-                plugins.on_end_pass(&mut top_ui);
-            }
-
-            // Inform ctx about what we actually used, so we can shrink the native window to fit.
-            // TODO(emilk): make better use of this somehow
-            ctx.pass_state_mut(|state| state.allocate_central_panel(top_ui.min_rect()));
-        })
-    }
-
-    /// Run the ui code for one frame.
+    /// Run the ui code for one frame, without being handed the root [`Ui`].
     ///
-    /// At most [`Options::max_passes`] calls will be issued to `run_ui`,
-    /// and only on the rare occasion that [`Context::request_discard`] is called.
-    /// Usually, it `run_ui` will only be called once.
+    /// This is the same as [`Self::run_ui`], except the callback is given the [`Context`]
+    /// rather than the root [`Ui`].
+    /// Use [`Self::root_ui`] to access the root [`Ui`] from anywhere during the pass,
+    /// e.g. to add a [`crate::Panel`] to it.
     ///
-    /// Put your widgets into a [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
+    /// This is useful for integrations where the ui code is split over several places
+    /// that only share a [`Context`] (which is cheap to clone), and not a `&mut Ui`.
     ///
-    /// Instead of calling `run`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
+    /// Prefer [`Self::run_ui`] when you can.
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -829,20 +969,111 @@ impl Context {
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
-    /// let full_output = ctx.run(input, |ctx| {
-    ///     egui::CentralPanel::default().show(&ctx, |ui| {
-    ///         ui.label("Hello egui!");
+    /// let full_output = ctx.run_pass(input, |ctx| {
+    ///     ctx.root_ui(|ui| {
+    ///         egui::Panel::top("top").show(ui, |ui| {
+    ///             ui.label("Hello egui!");
+    ///         });
     ///     });
     /// });
     /// // handle full_output
+    /// # full_output.drop_without_applying_deltas();
     /// ```
-    ///
-    /// ## See also
-    /// * [`Self::run_ui`]
     #[must_use]
-    #[deprecated = "Call run_ui instead"]
-    pub fn run(&self, new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
-        self.run_dyn(new_input, &mut run_ui)
+    pub fn run_pass(&self, new_input: RawInput, mut run_pass: impl FnMut(&Self)) -> FullOutput {
+        self.run_pass_dyn(new_input, &mut run_pass)
+    }
+
+    #[must_use]
+    fn run_pass_dyn(&self, new_input: RawInput, run_pass: &mut dyn FnMut(&Self)) -> FullOutput {
+        let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
+        self.run_dyn(new_input, &mut |ctx| {
+            ctx.root_ui(|ui| plugins.on_begin_pass(ui));
+            run_pass(ctx);
+            ctx.root_ui(|ui| plugins.on_end_pass(ui));
+        })
+    }
+
+    /// Access the root [`Ui`] of the current pass.
+    ///
+    /// The root [`Ui`] covers the entire [`Self::viewport_rect`].
+    /// It is the [`Ui`] given to the callback of [`Self::run_ui`],
+    /// and the one that eframe gives to your app each frame.
+    ///
+    /// This lets you add e.g. a [`crate::Panel`] from code that only has access to a [`Context`],
+    /// such as when the ui code is split over several places that share a [`Context`].
+    /// Panels added this way share the root [`Ui`], so they stack correctly.
+    ///
+    /// The root [`Ui`] is created on demand on the first call during a pass,
+    /// so this also works when using [`Self::begin_pass`] and [`Self::end_pass`] directly.
+    ///
+    /// # Panics
+    /// This panics if the root [`Ui`] is already borrowed, e.g. if called from within
+    /// the callback of [`Self::run_ui`], or from within another call to `root_ui`.
+    /// In those cases, use the `&mut Ui` you already have instead.
+    ///
+    /// ```
+    /// # egui::__run_test_ctx(|ctx| {
+    /// ctx.root_ui(|ui| {
+    ///     egui::Panel::left("left").show(ui, |ui| {
+    ///         ui.label("Hello egui!");
+    ///     });
+    /// });
+    /// # });
+    /// ```
+    pub fn root_ui<R>(&self, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+        let mut root_ui = self.take_root_ui();
+        let result = add_contents(&mut root_ui);
+        self.write(|ctx| ctx.viewport().root_ui = RootUi::Available(root_ui));
+        result
+    }
+
+    /// Take the root [`Ui`] out of the viewport state, creating it if needed.
+    ///
+    /// The [`Ui`] must be put back with [`RootUi::Available`] when done,
+    /// so that the next call to [`Self::root_ui`] can find it.
+    fn take_root_ui(&self) -> Ui {
+        let root_ui =
+            self.write(|ctx| core::mem::replace(&mut ctx.viewport().root_ui, RootUi::Borrowed));
+        match root_ui {
+            RootUi::Available(root_ui) => root_ui,
+            RootUi::Pending => Ui::new(
+                self.clone(),
+                self.viewport_id().root_ui_id(),
+                UiBuilder::new()
+                    .layer_id(LayerId::background())
+                    .max_rect(self.viewport_rect()),
+            ),
+            RootUi::Borrowed => {
+                panic!(
+                    "Context::root_ui was called while the root Ui was already borrowed. \
+                     You are probably calling it from within `Context::run_ui` or `Context::root_ui`. \
+                     Use the `&mut Ui` you were given instead."
+                );
+            }
+        }
+    }
+
+    /// Drop the root [`Ui`] of the current pass, if any,
+    /// remembering how much of it was used.
+    ///
+    /// Called at the end of each pass.
+    fn finish_root_ui(&self) {
+        let root_ui = self.write(|ctx| core::mem::take(&mut ctx.viewport().root_ui));
+        match root_ui {
+            RootUi::Pending => {}
+            RootUi::Available(root_ui) => {
+                self.pass_state_mut(|state| {
+                    state.root_ui_available_rect = Some(root_ui.available_rect_before_wrap());
+                    state.root_ui_min_rect = Some(root_ui.min_rect());
+                });
+                // Drop outside of the lock, since `Ui::drop` locks the `Context`.
+                drop(root_ui);
+            }
+            RootUi::Borrowed => {
+                log::error!("Context::end_pass was called while the root Ui was borrowed");
+            }
+        }
     }
 
     #[must_use]
@@ -873,7 +1104,7 @@ impl Context {
             self.write(|ctx| {
                 let viewport = ctx.viewport_for(viewport_id);
                 viewport.output.num_completed_passes =
-                    std::mem::take(&mut output.platform_output.num_completed_passes);
+                    core::mem::take(&mut output.platform_output.num_completed_passes);
                 output.platform_output.request_discard_reasons.clear();
             });
 
@@ -914,10 +1145,66 @@ impl Context {
         output
     }
 
-    /// An alternative to calling [`Self::run`].
+    /// Run app logic without showing any ui.
     ///
-    /// It is usually better to use [`Self::run`], because
-    /// `run` supports multi-pass layout using [`Self::request_discard`].
+    /// Use this instead of [`Self::run_ui`] when nothing will be shown,
+    /// e.g. because the window is minimized or occluded,
+    /// but you still want to let the app tick its logic
+    /// (so that it can e.g. ask to be shown again with [`ViewportCommand::Focus`]).
+    ///
+    /// An integration should run [`Self::run_ui`] anyway, hidden or not, once something has
+    /// sent [`ViewportCommand::RequestPaintWhileHidden`]: that command asks for the ui of a
+    /// hidden window to run and be painted, which is how an app that sits in the background
+    /// is screenshotted or driven.
+    ///
+    /// No pass is run, so `f` must not show any ui.
+    /// This means everything egui knows about the ui is left untouched:
+    /// no widget state is garbage-collected, no animation advances,
+    /// and nothing loses focus.
+    ///
+    /// Of `new_input`, only the window state ([`RawInput::viewports`] and
+    /// [`RawInput::focused`]) is used, so that `f` can tell that the window is hidden.
+    /// The ui input (events, time, …) is _not_ interpreted, and is left for the next
+    /// call to [`Self::run_ui`]: [`Self::input`] is otherwise still that of the last pass.
+    ///
+    /// The returned [`LogicOutput`] is what [`FullOutput`] would have carried:
+    /// anything `f` asked the integration to do.
+    /// There is nothing to paint.
+    #[must_use]
+    pub fn run_logic(&self, new_input: &RawInput, logic: impl FnOnce(&Self)) -> LogicOutput {
+        profiling::function_scope!();
+
+        let viewport_id = new_input.viewport_id;
+
+        self.write(|ctx| {
+            // Consume any outstanding repaint request, so that a new request from `logic`
+            // reaches the integration instead of being considered already served:
+            ctx.begin_pass_repaint_logic(viewport_id);
+
+            // Tell `logic` about the windows, but leave the ui input alone:
+            let raw = &mut ctx.viewport_for(viewport_id).input.raw;
+            raw.viewport_id = viewport_id;
+            raw.viewports = new_input.viewports.clone();
+            raw.focused = new_input.focused;
+        });
+
+        logic(self);
+
+        self.write(|ctx| LogicOutput {
+            platform_output: core::mem::take(&mut ctx.viewport_for(viewport_id).output),
+            viewport_commands: ctx
+                .viewports
+                .iter_mut()
+                .filter(|(_, viewport)| !viewport.commands.is_empty())
+                .map(|(&id, viewport)| (id, core::mem::take(&mut viewport.commands)))
+                .collect(),
+        })
+    }
+
+    /// An alternative to calling [`Self::run_ui`].
+    ///
+    /// It is usually better to use [`Self::run_ui`], because
+    /// `run_ui` supports multi-pass layout using [`Self::request_discard`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -927,26 +1214,19 @@ impl Context {
     /// let input = egui::RawInput::default();
     /// ctx.begin_pass(input);
     ///
-    /// egui::CentralPanel::default().show(&ctx, |ui| {
-    ///     ui.label("Hello egui!");
-    /// });
+    /// // … add panels and windows here, e.g. using `ctx.root_ui(…)` …
     ///
     /// let full_output = ctx.end_pass();
     /// // handle full_output
+    /// # full_output.drop_without_applying_deltas();
     /// ```
     pub fn begin_pass(&self, mut new_input: RawInput) {
         profiling::function_scope!();
 
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
-        plugins.on_input(&mut new_input);
+        plugins.on_input(self, &mut new_input);
 
         self.write(|ctx| ctx.begin_pass(new_input));
-    }
-
-    /// See [`Self::begin_pass`].
-    #[deprecated = "Renamed begin_pass"]
-    pub fn begin_frame(&self, new_input: RawInput) {
-        self.begin_pass(new_input);
     }
 }
 
@@ -1048,7 +1328,7 @@ impl Context {
 
     /// Read-only access to [`PassState`].
     ///
-    /// This is only valid during the call to [`Self::run`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
+    /// This is only valid during the call to [`Self::run_ui`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
     #[inline]
     pub(crate) fn pass_state<R>(&self, reader: impl FnOnce(&PassState) -> R) -> R {
         self.write(move |ctx| reader(&ctx.viewport().this_pass))
@@ -1056,7 +1336,7 @@ impl Context {
 
     /// Read-write access to [`PassState`].
     ///
-    /// This is only valid during the call to [`Self::run`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
+    /// This is only valid during the call to [`Self::run_ui`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
     #[inline]
     pub(crate) fn pass_state_mut<R>(&self, writer: impl FnOnce(&mut PassState) -> R) -> R {
         self.write(move |ctx| writer(&mut ctx.viewport().this_pass))
@@ -1072,35 +1352,43 @@ impl Context {
 
     /// Read-only access to [`Fonts`].
     ///
-    /// Not valid until first call to [`Context::run()`].
+    /// Not valid until first call to [`Context::run_ui()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
     pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
+            let viewport_id = ctx.viewport_id();
             reader(
                 &ctx.fonts
                     .as_mut()
                     .expect("No fonts available until first call to Context::run()")
-                    .with_pixels_per_point(pixels_per_point),
+                    .with_pixels_per_point_for_viewport(
+                        pixels_per_point,
+                        ViewportKey::new(viewport_id.0.value()),
+                    ),
             )
         })
     }
 
     /// Read-write access to [`Fonts`].
     ///
-    /// Not valid until first call to [`Context::run()`].
+    /// Not valid until first call to [`Context::run_ui()`].
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
     pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
         self.write(move |ctx| {
             let pixels_per_point = ctx.pixels_per_point();
+            let viewport_id = ctx.viewport_id();
             reader(
                 &mut ctx
                     .fonts
                     .as_mut()
                     .expect("No fonts available until first call to Context::run()")
-                    .with_pixels_per_point(pixels_per_point),
+                    .with_pixels_per_point_for_viewport(
+                        pixels_per_point,
+                        ViewportKey::new(viewport_id.0.value()),
+                    ),
             )
         })
     }
@@ -1232,6 +1520,8 @@ impl Context {
         allow_focus: bool,
         options: crate::InteractOptions,
     ) -> Response {
+        debug_assert!(!w.rect.any_nan(), "widget rect is NaN: {:?}", w.rect);
+
         let interested_in_focus = w.enabled
             && w.sense.is_focusable()
             && self.memory(|mem| mem.allows_interaction(w.layer_id));
@@ -1252,7 +1542,7 @@ impl Context {
 
         if allow_focus && !interested_in_focus {
             // Not interested or allowed input:
-            self.memory_mut(|mem| mem.surrender_focus(w.id));
+            self.memory_mut(|mem| mem.ignore_focus(w.id));
         }
 
         if w.sense.interactive() || w.sense.is_focusable() {
@@ -1273,6 +1563,11 @@ impl Context {
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
             self.accesskit_node_builder(w.id, |builder| res.fill_accesskit_node_common(builder));
+        }
+
+        // A `Ui` registers with `Rect::NOTHING` before its real rect is known; scrolling needs the real one.
+        if w.rect == Rect::NOTHING {
+            return res;
         }
 
         self.write(|ctx| {
@@ -1324,6 +1619,21 @@ impl Context {
         res
     }
 
+    /// Allow widgets inside `rect` to intentionally change ids during the current pass.
+    ///
+    /// This suppresses [`crate::style::DebugOptions::warn_if_rect_changes_id`] for widgets
+    /// fully contained by `rect`. Use this for regions that intentionally replace their widget
+    /// set, such as a data-driven table after its backing collection changes.
+    ///
+    /// This has no effect on duplicate-id checks or widget interaction.
+    pub fn allow_widget_id_changes_in(&self, rect: Rect) {
+        #[cfg(debug_assertions)]
+        self.pass_state_mut(|state| state.widget_id_change_warning_exclusions.push(rect));
+
+        #[cfg(not(debug_assertions))]
+        let _ = (self, rect);
+    }
+
     /// Read the response of some widget, which may be called _before_ creating the widget (!).
     ///
     /// This is because widget interaction happens at the start of the pass, using the widget rects from the previous pass.
@@ -1354,17 +1664,65 @@ impl Context {
         .map(|widget_rect| self.get_response(widget_rect))
     }
 
+    /// Rectangles that could receive pointer input in the last completed pass.
+    ///
+    /// This exposes the same widget rectangles egui uses for hit-testing, after
+    /// filtering out disabled widgets, non-interactive widgets, and layers that
+    /// are currently blocked from interaction. The returned rectangles are in
+    /// global viewport coordinates, with layer transforms applied.
+    ///
+    /// This is meant for integrations that must declare platform input regions
+    /// before pointer events can be delivered to egui, such as transparent or
+    /// click-through overlays.
+    #[must_use]
+    pub fn interactive_rects_last_pass(&self) -> Vec<Rect> {
+        self.read(|ctx| {
+            let Some(viewport) = ctx.viewports.get(&ctx.viewport_id()) else {
+                return Vec::new();
+            };
+
+            let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
+            layers.sort_by(|&a, &b| ctx.memory.areas().compare_order(a, b));
+
+            let mut rects = Vec::new();
+            for layer_id in layers {
+                if !ctx.memory.allows_interaction(layer_id) {
+                    continue;
+                }
+
+                let to_global = ctx.memory.to_global.get(&layer_id).copied();
+                for widget in viewport.prev_pass.widgets.get_layer(layer_id) {
+                    if !widget.enabled || !widget.sense.interactive() {
+                        continue;
+                    }
+
+                    let rect = if let Some(to_global) = to_global {
+                        to_global * widget.interact_rect
+                    } else {
+                        widget.interact_rect
+                    };
+                    if rect.is_positive() && rect.is_finite() {
+                        rects.push(rect);
+                    }
+                }
+            }
+            rects
+        })
+    }
+
     /// Do all interaction for an existing widget, without (re-)registering it.
     pub(crate) fn get_response(&self, widget_rect: WidgetRect) -> Response {
         use response::Flags;
 
         let WidgetRect {
             id,
+            parent_id: _,
             layer_id,
             rect,
             interact_rect,
             sense,
             enabled,
+            visible,
         } = widget_rect;
 
         // previous pass + "highlight next pass" == "highlight this pass"
@@ -1378,11 +1736,12 @@ impl Context {
             interact_rect,
             sense,
             flags: Flags::empty(),
-            interact_pointer_pos: None,
-            intrinsic_size: None,
+            interact_pointer_pos_or_nan: Pos2::NAN,
+            intrinsic_size_or_nan: Vec2::NAN,
         };
 
         res.flags.set(Flags::ENABLED, enabled);
+        res.flags.set(Flags::VISIBLE, visible);
         res.flags.set(Flags::HIGHLIGHTED, highlighted);
 
         self.write(|ctx| {
@@ -1470,14 +1829,11 @@ impl Context {
                 || res.long_touched()
                 || clicked
                 || res.drag_stopped();
-            if is_interacted_with {
-                res.interact_pointer_pos = input.pointer.interact_pos();
-                if let (Some(to_global), Some(pos)) = (
-                    memory.to_global.get(&res.layer_id),
-                    &mut res.interact_pointer_pos,
-                ) {
-                    *pos = to_global.inverse() * *pos;
+            if is_interacted_with && let Some(mut pos) = input.pointer.interact_pos() {
+                if let Some(to_global) = memory.to_global.get(&res.layer_id) {
+                    pos = to_global.inverse() * pos;
                 }
+                res.interact_pointer_pos_or_nan = pos;
             }
 
             if input.pointer.any_down() && !is_interacted_with {
@@ -1529,6 +1885,24 @@ impl Context {
         Self::layer_painter(self, LayerId::debug())
     }
 
+    /// Is the user holding down all modifier keys to inspect widgets on hover?
+    ///
+    /// See [`crate::style::DebugOptions::debug_on_hover_with_all_modifiers`].
+    ///
+    /// Always returns `false` unless compiled with `debug_assertions`.
+    pub fn is_inspecting_widgets(&self) -> bool {
+        cfg_select! {
+            debug_assertions => {
+                self.global_style().debug.debug_on_hover_with_all_modifiers
+                    && self.input(|i| i.modifiers.all())
+            }
+            _ => {
+                _ = self;
+                false
+            }
+        }
+    }
+
     /// Print this text next to the cursor at the end of the pass.
     ///
     /// If you call this multiple times, the text will be appended.
@@ -1545,6 +1919,11 @@ impl Context {
     #[track_caller]
     pub fn debug_text(&self, text: impl Into<WidgetText>) {
         crate::debug_text::print(self, text);
+    }
+
+    /// Current time in seconds, relative to some unknown epoch.
+    pub fn time(&self) -> f64 {
+        self.input(|i| i.time)
     }
 
     /// What operating system are we running on?
@@ -1575,6 +1954,19 @@ impl Context {
     /// ```
     pub fn set_cursor_icon(&self, cursor_icon: CursorIcon) {
         self.output_mut(|o| o.cursor_icon = cursor_icon);
+    }
+
+    /// Request that the integration display this RGBA bitmap as the OS
+    /// cursor for the next frame, instead of the standard `cursor_icon`.
+    /// Backends that don't support custom cursors (web, eframe with
+    /// non-winit integrations) silently fall back to the icon.
+    ///
+    /// Pass `None` to clear and revert to `cursor_icon` selection.
+    ///
+    /// The integration is expected to dedupe by `Arc` pointer identity,
+    /// so reusing the same `Arc<[u8]>` across frames is cheap.
+    pub fn set_cursor_image(&self, image: Option<crate::CustomCursorImage>) {
+        self.output_mut(|o| o.cursor_image = image);
     }
 
     /// Add a command to [`PlatformOutput::commands`],
@@ -1624,11 +2016,9 @@ impl Context {
 
         let font_id = TextStyle::Body.resolve(&self.global_style());
         self.fonts_mut(|f| {
-            let mut font = f.fonts.font(&font_id.family);
-            font.has_glyphs(alt)
-                && font.has_glyphs(ctrl)
-                && font.has_glyphs(shift)
-                && font.has_glyphs(mac_cmd)
+            [alt, ctrl, shift, mac_cmd]
+                .iter()
+                .all(|symbols| f.has_glyphs(&font_id, symbols))
         })
     }
 
@@ -1662,7 +2052,7 @@ impl Context {
 
     /// The total number of completed frames.
     ///
-    /// Starts at zero, and is incremented once at the end of each call to [`Self::run`].
+    /// Starts at zero, and is incremented once at the end of each call to [`Self::run_ui`].
     ///
     /// This is always smaller or equal to [`Self::cumulative_pass_nr`].
     pub fn cumulative_frame_nr(&self) -> u64 {
@@ -1671,7 +2061,7 @@ impl Context {
 
     /// The total number of completed frames.
     ///
-    /// Starts at zero, and is incremented once at the end of each call to [`Self::run`].
+    /// Starts at zero, and is incremented once at the end of each call to [`Self::run_ui`].
     ///
     /// This is always smaller or equal to [`Self::cumulative_pass_nr_for`].
     pub fn cumulative_frame_nr_for(&self, id: ViewportId) -> u64 {
@@ -1680,18 +2070,18 @@ impl Context {
                 .get(&id)
                 .map(|v| v.repaint.cumulative_frame_nr)
                 .unwrap_or_else(|| {
-                    if cfg!(debug_assertions) {
-                        panic!("cumulative_frame_nr_for failed to find the viewport {id:?}");
-                    } else {
-                        0
-                    }
+                    debug_assert!(
+                        false,
+                        "cumulative_frame_nr_for failed to find the viewport {id:?}"
+                    );
+                    0
                 })
         })
     }
 
     /// The total number of completed passes (usually there is one pass per rendered frame).
     ///
-    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run`] (usually once).
+    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run_ui`] (usually once).
     ///
     /// If you instead want to know which pass index this is within the current frame,
     /// use [`Self::current_pass_index`].
@@ -1701,7 +2091,7 @@ impl Context {
 
     /// The total number of completed passes (usually there is one pass per rendered frame).
     ///
-    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run`] (usually once).
+    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run_ui`] (usually once).
     pub fn cumulative_pass_nr_for(&self, id: ViewportId) -> u64 {
         self.read(|ctx| {
             ctx.viewports
@@ -1795,7 +2185,7 @@ impl Context {
     /// See [`Self::request_repaint_after`] for details.
     #[track_caller]
     pub fn request_repaint_after_secs(&self, seconds: f32) {
-        if let Ok(duration) = std::time::Duration::try_from_secs_f32(seconds) {
+        if let Ok(duration) = core::time::Duration::try_from_secs_f32(seconds) {
             self.request_repaint_after(duration);
         }
     }
@@ -1883,6 +2273,28 @@ impl Context {
         self.write(|ctx| ctx.request_repaint_callback = Some(callback));
     }
 
+    /// For integrations: this observer will be called for every repaint request,
+    /// i.e. every call to [`Self::request_repaint`], [`Self::request_repaint_after`] and their variants,
+    /// including the ones egui makes itself.
+    ///
+    /// The callback set with [`Self::set_request_repaint_callback`] is only called when a request
+    /// makes the next repaint of a viewport come sooner. The observer also sees the requests
+    /// that don't, e.g. a request for a later delay than one already scheduled.
+    /// An integration can use this to see everything that was requested during a pass,
+    /// for instance to make its own scheduling decisions, or to count repaint requests.
+    ///
+    /// The observer is called on the thread that made the request, while the [`Context`] is locked,
+    /// so it must not call back into the [`Context`].
+    ///
+    /// Note that only one observer can be set. Any new call overrides the previous observer.
+    pub fn set_repaint_observer(
+        &self,
+        observer: impl Fn(RequestRepaintInfo) + Send + Sync + 'static,
+    ) {
+        let observer = Box::new(observer);
+        self.write(|ctx| ctx.repaint_observer = Some(observer));
+    }
+
     /// Request to discard the visual output of this pass,
     /// and to immediately do another one.
     ///
@@ -1935,7 +2347,7 @@ impl Context {
     }
 }
 
-/// Callbacks
+/// Plugins
 impl Context {
     /// Call the given callback at the start of each pass of each viewport.
     ///
@@ -1971,6 +2383,25 @@ impl Context {
         }
     }
 
+    /// Notify all plugins that the integration is shutting down.
+    ///
+    /// Integrations should call this before persisting [`Memory`] and before destroying their
+    /// renderer and other resources. Only the first call invokes the plugins.
+    pub fn on_exit(&self) {
+        let plugins = self.write(|ctx| {
+            if ctx.called_on_exit {
+                None
+            } else {
+                ctx.called_on_exit = true;
+                Some(ctx.plugins.ordered_plugins())
+            }
+        });
+
+        if let Some(plugins) = plugins {
+            plugins.on_exit(self);
+        }
+    }
+
     /// Call the provided closure with the plugin of type `T`, if it was registered.
     ///
     /// Returns `None` if the plugin was not registered.
@@ -1978,7 +2409,7 @@ impl Context {
         &self,
         f: impl FnOnce(&mut T) -> R,
     ) -> Option<R> {
-        let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
+        let plugin = self.read(|ctx| ctx.plugins.get(core::any::TypeId::of::<T>()));
         plugin.map(|plugin| f(plugin.lock().typed_plugin_mut()))
     }
 
@@ -1990,13 +2421,13 @@ impl Context {
         if let Some(plugin) = self.plugin_opt() {
             plugin
         } else {
-            panic!("Plugin of type {:?} not found", std::any::type_name::<T>());
+            panic!("Plugin of type {:?} not found", core::any::type_name::<T>());
         }
     }
 
     /// Get a handle to the plugin of type `T`, if it was registered.
     pub fn plugin_opt<T: plugin::Plugin>(&self) -> Option<TypedPluginHandle<T>> {
-        let plugin = self.read(|ctx| ctx.plugins.get(std::any::TypeId::of::<T>()));
+        let plugin = self.read(|ctx| ctx.plugins.get(core::any::TypeId::of::<T>()));
         plugin.map(TypedPluginHandle::new)
     }
 
@@ -2012,14 +2443,65 @@ impl Context {
     }
 }
 
+/// Experimental theming, gated behind the `experimental_theme` feature.
+impl Context {
+    /// Register a [`StyleProvider`](crate::theme::StyleProvider) for the specified widget type.
+    ///
+    /// A theme can only be added once for a specified widget.
+    /// If a theme is already registered for this widget, this is a no-op (useful for `eframe::run_simple_native`).
+    ///
+    /// If you want to add the theme anyway, use [`Self::replace_widget_theme`] instead.
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
+    pub fn add_widget_theme<S: WidgetStyle + 'static>(
+        &self,
+        theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, false));
+    }
+
+    /// Register a [`StyleProvider`](crate::theme::StyleProvider) for the specified widget.
+    ///
+    /// Overwrite any theme already registered for the specified widget [`WidgetStyle`].
+    /// This allow to live edit a theme.
+    ///
+    /// The types you need to call this (e.g. `StyleProvider`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
+    pub fn replace_widget_theme<S: WidgetStyle + 'static>(
+        &self,
+        theme: impl theme::StyleProvider<S> + Send + Sync + 'static,
+    ) {
+        self.write(|ctx| ctx.themes.register::<S>(theme, true));
+    }
+
+    /// Compute the `WidgetStyle` using the registered theme.
+    ///
+    /// The types you need to call this (e.g. `StyleArgs`) are only public
+    /// with the `experimental_theme` feature.
+    #[cfg_attr(not(feature = "experimental"), doc(hidden))]
+    pub fn get_widget_style<S: WidgetStyle + Clone + 'static>(
+        &self,
+        modifiers: &StyleArgs<'_>,
+    ) -> S {
+        let theme = self.read(move |ctx| ctx.themes.get::<S>());
+        theme.lock().style(modifiers)
+    }
+}
+
 impl Context {
     /// Tell `egui` which fonts to use.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
-    /// The new fonts will become active at the start of the next pass.
+    /// The new fonts will become active at the start of the next pass,
+    /// or right away if no text has been laid out yet this pass.
     /// This will overwrite the existing fonts.
+    ///
+    /// These fonts will be used before any system fallback.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         profiling::function_scope!();
 
@@ -2033,16 +2515,20 @@ impl Context {
 
         if update_fonts {
             self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
+            self.apply_font_changes_now_if_unused();
         }
     }
 
-    /// Tell `egui` which fonts to use.
+    /// Add an additional font to `egui`.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
-    /// The new font will become active at the start of the next pass.
+    /// The new font will become active at the start of the next pass,
+    /// or right away if no text has been laid out yet this pass.
     /// This will keep the existing fonts.
+    ///
+    /// This font will be used before any system fallback.
     pub fn add_font(&self, new_font: FontInsert) {
         profiling::function_scope!();
 
@@ -2061,7 +2547,28 @@ impl Context {
 
         if update_fonts {
             self.memory_mut(|mem| mem.add_fonts.push(new_font));
+            self.apply_font_changes_now_if_unused();
         }
+    }
+
+    /// Apply queued font changes right away if no text has been laid out yet this pass.
+    ///
+    /// Nothing is laid out with the old fonts, so there is nothing to keep consistent,
+    /// and text later in this pass already gets the new fonts, providers and rasterizers.
+    /// Without this, an app that sets up its fonts during its first pass
+    /// (e.g. from inside an `egui_kittest` harness, which has no earlier hook)
+    /// would lay out that whole pass with the fonts it started with, or with none.
+    fn apply_font_changes_now_if_unused(&self) {
+        self.write(|ctx| {
+            let viewport_key = ViewportKey::new(ctx.viewport_id().0.value());
+            let unused = ctx
+                .fonts
+                .as_ref()
+                .is_some_and(|fonts| !fonts.used_since_begin_pass(viewport_key));
+            if unused {
+                ctx.update_fonts_mut();
+            }
+        });
     }
 
     /// Does the OS use dark or light mode?
@@ -2076,7 +2583,7 @@ impl Context {
         self.options(|opt| opt.theme())
     }
 
-    /// The [`Theme`] used to select between dark and light [`Self::style`]
+    /// The [`Theme`] used to select between dark and light [`Self::global_style`]
     /// as the active style used by all subsequent popups, menus, etc.
     ///
     /// Example:
@@ -2090,12 +2597,6 @@ impl Context {
 
     /// The currently active [`Style`] used by all subsequent popups, menus, etc.
     pub fn global_style(&self) -> Arc<Style> {
-        self.options(|opt| Arc::clone(opt.style()))
-    }
-
-    /// The currently active [`Style`] used by all subsequent popups, menus, etc.
-    #[deprecated = "Renamed to `global_style` to avoid confusion with `ui.style()`"]
-    pub fn style(&self) -> Arc<Style> {
         self.options(|opt| Arc::clone(opt.style()))
     }
 
@@ -2113,21 +2614,6 @@ impl Context {
         self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
     }
 
-    /// Mutate the currently active [`Style`] used by all subsequent popups, menus, etc.
-    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
-    ///
-    /// Example:
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.global_style_mut(|style| {
-    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
-    /// });
-    /// ```
-    #[deprecated = "Renamed to `global_style_mut` to avoid confusion with `ui.style_mut()`"]
-    pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
-        self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
-    }
-
     /// The currently active [`Style`] used by all new popups, menus, etc.
     ///
     /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
@@ -2136,18 +2622,6 @@ impl Context {
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_global_style(&self, style: impl Into<Arc<Style>>) {
-        self.options_mut(|opt| *opt.style_mut() = style.into());
-    }
-
-    /// The currently active [`Style`] used by all new popups, menus, etc.
-    ///
-    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
-    ///
-    /// You can also change this using [`Self::style_mut`].
-    ///
-    /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
-    #[deprecated = "Renamed to `set_global_style` to avoid confusion with `ui.set_style()`"]
-    pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.options_mut(|opt| *opt.style_mut() = style.into());
     }
 
@@ -2359,6 +2833,65 @@ impl Context {
         TextureHandle::new(tex_mngr, tex_id)
     }
 
+    /// Load a texture, or update a previously cached one if the image changed.
+    ///
+    /// This is like [`Self::load_texture`], but caches the texture by `id`,
+    /// and only re-uploads the image when it changes.
+    /// This makes it safe to call every frame,
+    /// which is convenient for small, procedurally generated images.
+    ///
+    /// The `id` must be globally unique for each cached image
+    /// (e.g. derived from a widget [`Id`]),
+    /// or the callers will fight over the same texture, re-uploading it every frame.
+    ///
+    /// If this is not called for a full frame, the cache entry is evicted,
+    /// dropping both the cached [`ImageData`] (the CPU-side pixels)
+    /// and the cached [`TextureHandle`].
+    /// Dropping the handle also frees the texture itself,
+    /// unless you keep a clone of the handle alive.
+    pub fn load_texture_cached(
+        &self,
+        name: impl Into<String>,
+        id: Id,
+        image: impl Into<ImageData>,
+        options: TextureOptions,
+    ) -> TextureHandle {
+        profiling::function_scope!();
+
+        use crate::cache::FramePublisher;
+
+        type TextureCache = FramePublisher<Id, (ImageData, TextureOptions, TextureHandle)>;
+
+        let image = image.into();
+        let cached: Option<(ImageData, TextureOptions, TextureHandle)> =
+            self.memory_mut(|mem| mem.caches.cache::<TextureCache>().get(&id).cloned());
+
+        let (image, handle) = match cached {
+            Some((cached_image, cached_options, handle))
+                if cached_image == image && cached_options == options =>
+            {
+                (cached_image, handle)
+            }
+            Some((_, _, mut handle)) => {
+                handle.set(image.clone(), options);
+                (image, handle)
+            }
+            None => {
+                let handle = self.load_texture(name, image.clone(), options);
+                (image, handle)
+            }
+        };
+
+        // (Re-)publish to keep the entry from being evicted:
+        self.memory_mut(|mem| {
+            mem.caches
+                .cache::<TextureCache>()
+                .set(id, (image, options, handle.clone()));
+        });
+
+        handle
+    }
+
     /// Low-level texture manager.
     ///
     /// In general it is easier to use [`Self::load_texture`] and [`TextureHandle`].
@@ -2393,9 +2926,19 @@ impl Context {
     pub fn end_pass(&self) -> FullOutput {
         profiling::function_scope!();
 
+        self.finish_root_ui();
+
         if self.options(|o| o.zoom_with_keyboard) {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
+
+        for shortcut in self.options(|o| o.quit_shortcuts.clone()) {
+            if self.input_mut(|i| i.consume_shortcut(&shortcut)) {
+                self.send_viewport_cmd(ViewportCommand::Close);
+            }
+        }
+
+        self.sync_window_theme();
 
         #[cfg(debug_assertions)]
         self.debug_painting();
@@ -2403,22 +2946,48 @@ impl Context {
         let mut output = self.write(|ctx| ctx.end_pass());
 
         let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
-        plugins.on_output(&mut output);
+        plugins.on_output(self, &mut output);
 
         output
     }
 
-    /// Call at the end of each frame if you called [`Context::begin_pass`].
-    #[must_use]
-    #[deprecated = "Renamed end_pass"]
-    pub fn end_frame(&self) -> FullOutput {
-        self.end_pass()
+    /// Keep the native window theme in sync with the egui [`crate::ThemePreference`],
+    /// if [`crate::Options::sync_window_theme`] is enabled.
+    ///
+    /// Sends a [`ViewportCommand::SetTheme`] to the current viewport whenever the
+    /// derived theme changes, so the native window decorations match the egui theme.
+    fn sync_window_theme(&self) {
+        if !self.options(|o| o.sync_window_theme) {
+            return;
+        }
+
+        use crate::{SystemTheme, ThemePreference};
+        let window_theme = match self.options(|o| o.theme_preference) {
+            ThemePreference::System => SystemTheme::SystemDefault,
+            ThemePreference::Dark => SystemTheme::Dark,
+            ThemePreference::Light => SystemTheme::Light,
+        };
+
+        let changed = self.write(|ctx| {
+            let viewport = ctx.viewport();
+            if viewport.last_sent_window_theme == Some(window_theme) {
+                false
+            } else {
+                viewport.last_sent_window_theme = Some(window_theme);
+                true
+            }
+        });
+
+        if changed {
+            self.send_viewport_cmd(ViewportCommand::SetTheme(window_theme));
+        }
     }
 
     /// Called at the end of the pass.
     #[cfg(debug_assertions)]
     fn debug_painting(&self) {
         #![expect(clippy::iter_over_hash_type)] // ok to be sloppy in debug painting
+        use core::fmt::Write as _;
 
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
             let rect = widget.interact_rect;
@@ -2491,13 +3060,17 @@ impl Context {
                     for id in contains_pointer {
                         let mut widget_text = format!("{id:?}");
                         if let Some(rect) = widget_rects.get(id) {
-                            widget_text +=
-                                &format!(" {:?} {:?} {:?}", rect.layer_id, rect.rect, rect.sense);
+                            write!(
+                                widget_text,
+                                " {:?} {:?} {:?}",
+                                rect.layer_id, rect.rect, rect.sense
+                            )
+                            .ok();
                         }
                         if let Some(info) = widget_rects.info(id) {
-                            widget_text += &format!(" {info:?}");
+                            write!(widget_text, " {info:?}").ok();
                         }
-                        debug_text += &format!("{widget_text}\n");
+                        writeln!(debug_text, "{widget_text}").ok();
                     }
                     self.debug_text(debug_text);
                 }
@@ -2562,7 +3135,7 @@ impl Context {
             );
             self.viewport(|vp| {
                 for reason in &vp.output.request_discard_reasons {
-                    warning += &format!("\n  {reason}");
+                    write!(warning, "\n  {reason}").ok();
                 }
             });
 
@@ -2595,27 +3168,36 @@ impl ContextImpl {
         // Inform the backend of all textures that have been updated (including font atlas).
         let textures_delta = self.tex_manager.0.write().take_delta();
 
-        let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
+        let mut platform_output: PlatformOutput = core::mem::take(&mut viewport.output);
+
+        if self.memory.should_interrupt_ime()
+            && let Some(ime) = &mut platform_output.ime
+        {
+            ime.should_interrupt_composition = true;
+        }
 
         {
             profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
             if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
-                let nodes = {
-                    state
-                        .nodes
-                        .into_iter()
-                        .map(|(id, node)| (id.accesskit_id(), node))
-                        .collect()
-                };
+                // A widget can have focus without a node, e.g. if it requested focus while invisible.
                 let focus_id = self
                     .memory
                     .focused()
+                    .filter(|id| state.nodes.contains_key(id))
                     .map_or(root_id, |id| id.accesskit_id());
+                // The `(id, node)` pairs of the coming `accesskit::TreeUpdate`:
+                let mut nodes: Vec<(accesskit::NodeId, accesskit::Node)> = state
+                    .nodes
+                    .into_iter()
+                    .map(|(id, node)| (id.accesskit_id(), node))
+                    .collect();
+                flatten_labelled_by(&mut nodes);
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
-                    tree: Some(accesskit::Tree::new(root_id)),
+                    tree: Some(accesskit::TreeInfo::new(root_id)),
+                    tree_id: accesskit::TreeId::ROOT,
                     focus: focus_id,
                 });
             }
@@ -2635,7 +3217,21 @@ impl ContextImpl {
             }
         }
 
-        std::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
+        #[cfg(debug_assertions)]
+        let shapes = if self.memory.options.style().debug.warn_if_rect_changes_id {
+            let mut shapes = shapes;
+            warn_if_rect_changes_id(
+                &mut shapes,
+                &viewport.prev_pass.widgets,
+                &viewport.this_pass.widgets,
+                &viewport.this_pass.widget_id_change_warning_exclusions,
+            );
+            shapes
+        } else {
+            shapes
+        };
+
+        core::mem::swap(&mut viewport.prev_pass, &mut viewport.this_pass);
 
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
@@ -2697,7 +3293,7 @@ impl ContextImpl {
                     // Let the primary immediate viewport handle the commands of its children too.
                     // This can make things easier for the backend, as otherwise we may get commands
                     // that affect a viewport while its egui logic is running.
-                    std::mem::take(&mut viewport.commands)
+                    core::mem::take(&mut viewport.commands)
                 } else {
                     vec![]
                 };
@@ -2725,6 +3321,17 @@ impl ContextImpl {
             );
             self.viewport_parents
                 .retain(|id, _| all_viewport_ids.contains(id));
+
+            let live_viewport_keys: Vec<_> = self
+                .viewports
+                .keys()
+                .map(|viewport_id| ViewportKey::new(viewport_id.0.value()))
+                .collect();
+            if let Some(fonts) = self.fonts.as_mut() {
+                fonts.retain_galley_caches(|viewport_key| {
+                    live_viewport_keys.contains(&viewport_key)
+                });
+            }
         } else {
             let viewport_id = self.viewport_id();
             self.memory.set_viewport_id(viewport_id);
@@ -2814,24 +3421,14 @@ impl Context {
         self.input(|i| i.viewport_rect()).round_ui()
     }
 
-    /// Position and size of the egui area.
-    #[deprecated(
-        note = "screen_rect has been split into viewport_rect() and content_rect(). You likely should use content_rect()"
-    )]
-    pub fn screen_rect(&self) -> Rect {
-        self.input(|i| i.content_rect()).round_ui()
-    }
-
-    /// How much space is still available after panels have been added.
-    #[deprecated = "Use content_rect (or viewport_rect) instead"]
-    pub fn available_rect(&self) -> Rect {
-        self.pass_state(|s| s.available_rect()).round_ui()
-    }
-
     /// How much space is used by windows and the top-level [`Ui`].
     pub fn globally_used_rect(&self) -> Rect {
         self.write(|ctx| {
-            let mut used = ctx.viewport().this_pass.used_by_panels;
+            let viewport = ctx.viewport();
+            let root_ui_min_rect =
+                (viewport.this_pass.root_ui_min_rect).or(viewport.prev_pass.root_ui_min_rect);
+
+            let mut used = root_ui_min_rect.unwrap_or(Rect::NOTHING);
             for (_id, window) in ctx.memory.areas().visible_windows() {
                 used |= window.rect();
             }
@@ -2839,44 +3436,31 @@ impl Context {
         })
     }
 
-    /// How much space is used by windows and the top-level [`Ui`].
-    #[deprecated = "Renamed to globally_used_rect"]
-    pub fn used_rect(&self) -> Rect {
-        self.globally_used_rect()
-    }
-
-    /// How much space is used by windows and the top-level [`Ui`].
-    ///
-    /// You can shrink your egui area to this size and still fit all egui components.
-    #[deprecated = "Use globally_used_rect instead"]
-    pub fn used_size(&self) -> Vec2 {
-        (self.globally_used_rect().max - Pos2::ZERO).round_ui()
-    }
-
     // ---------------------------------------------------------------------
 
     /// Is the pointer (mouse/touch) over any egui area?
     pub fn is_pointer_over_egui(&self) -> bool {
         let pointer_pos = self.input(|i| i.pointer.interact_pos());
-        if let Some(pointer_pos) = pointer_pos {
-            if let Some(layer) = self.layer_id_at(pointer_pos) {
-                if layer.order == Order::Background {
-                    !self.pass_state(|state| state.unused_rect.contains(pointer_pos))
-                } else {
-                    true
-                }
+        let Some(pointer_pos) = pointer_pos else {
+            return false;
+        };
+        let Some(layer) = self.layer_id_at(pointer_pos) else {
+            return false;
+        };
+        if layer.order == Order::Background {
+            let root_ui_available_rect = self
+                .pass_state(|state| state.root_ui_available_rect)
+                .or_else(|| self.prev_pass_state(|state| state.root_ui_available_rect));
+
+            if let Some(root_ui_available_rect) = root_ui_available_rect {
+                // Modern `run_ui` code
+                !root_ui_available_rect.contains(pointer_pos)
             } else {
-                false
+                true // We shouldn't get here, but who knows
             }
         } else {
-            false
+            true
         }
-    }
-
-    /// Is the pointer (mouse/touch) over any egui area?
-    #[deprecated = "Renamed to is_pointer_over_egui"]
-    pub fn is_pointer_over_area(&self) -> bool {
-        self.is_pointer_over_egui()
     }
 
     /// True if egui is currently interested in the pointer (mouse or touch).
@@ -2890,17 +3474,6 @@ impl Context {
             || (self.is_pointer_over_egui() && !self.input(|i| i.pointer.any_down()))
     }
 
-    /// True if egui is currently interested in the pointer (mouse or touch).
-    ///
-    /// Could be the pointer is hovering over a [`crate::Window`] or the user is dragging a widget.
-    /// If `false`, the pointer is outside of any egui area and so
-    /// you may be interested in what it is doing (e.g. controlling your game).
-    /// Returns `false` if a drag started outside of egui and then moved over an egui area.
-    #[deprecated = "Renamed to egui_wants_pointer_input"]
-    pub fn wants_pointer_input(&self) -> bool {
-        self.egui_wants_pointer_input()
-    }
-
     /// Is egui currently using the pointer position (e.g. dragging a slider)?
     ///
     /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
@@ -2908,23 +3481,18 @@ impl Context {
         self.memory(|m| m.interaction().is_using_pointer())
     }
 
-    /// Is egui currently using the pointer position (e.g. dragging a slider)?
-    ///
-    /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
-    #[deprecated = "Renamed to egui_is_using_pointer"]
-    pub fn is_using_pointer(&self) -> bool {
-        self.egui_is_using_pointer()
-    }
-
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
     pub fn egui_wants_keyboard_input(&self) -> bool {
         self.memory(|m| m.focused().is_some())
     }
 
-    /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
-    #[deprecated = "Renamed to egui_wants_keyboard_input"]
-    pub fn wants_keyboard_input(&self) -> bool {
-        self.egui_wants_keyboard_input()
+    /// Is the currently focused widget a text edit?
+    pub fn text_edit_focused(&self) -> bool {
+        if let Some(id) = self.memory(|mem| mem.focused()) {
+            crate::text_edit::TextEditState::load(self, id).is_some()
+        } else {
+            false
+        }
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -2937,34 +3505,10 @@ impl Context {
         self.pass_state_mut(|fs| fs.highlight_next_pass.insert(id));
     }
 
-    /// Is an egui context menu open?
-    ///
-    /// This only works with the old, deprecated [`crate::menu`] API.
-    #[expect(deprecated)]
-    #[deprecated = "Use `any_popup_open` instead"]
-    pub fn is_context_menu_open(&self) -> bool {
-        self.data(|d| {
-            d.get_temp::<crate::menu::BarState>(crate::menu::CONTEXT_MENU_ID_STR.into())
-                .is_some_and(|state| state.has_root())
-        })
-    }
-
     /// Is a popup or (context) menu open?
     ///
     /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
     pub fn any_popup_open(&self) -> bool {
-        self.pass_state_mut(|fs| {
-            fs.layers
-                .values()
-                .any(|layer| !layer.open_popups.is_empty())
-        })
-    }
-
-    /// Is a popup or (context) menu open?
-    ///
-    /// Will return false for [`crate::Tooltip`]s (which are technically popups as well).
-    #[deprecated = "Renamed to any_popup_open"]
-    pub fn is_popup_open(&self) -> bool {
         self.pass_state_mut(|fs| {
             fs.layers
                 .values()
@@ -3052,6 +3596,25 @@ impl Context {
     pub fn transform_layer_shapes(&self, layer_id: LayerId, transform: TSTransform) {
         if transform != TSTransform::IDENTITY {
             self.graphics_mut(|g| g.entry(layer_id).transform(transform));
+        }
+    }
+
+    /// Transform all the graphics at the given layer, but only after they have been tessellated and
+    /// snapped to the pixel grid.
+    ///
+    /// Unlike [`Self::transform_layer_shapes`], the snapping happens in the layer's own
+    /// coordinates, so the rendering converges on the untransformed one.
+    /// Use this for an animation that ends at [`TSTransform::IDENTITY`], such as a popup scaling
+    /// into place: it doesn't end with a jump of up to a pixel.
+    /// See [`epaint::ClippedShape::transform_after_tessellation`] for the trade-off.
+    ///
+    /// This only applies to the existing graphics at the layer, not to graphics added later, so
+    /// call it once the layer is complete — [`crate::Plugin::on_end_pass`] is a good place.
+    ///
+    /// Interaction is unaffected: the layer keeps its own input coordinates.
+    pub fn transform_layer_shapes_after_rounding(&self, layer_id: LayerId, transform: TSTransform) {
+        if transform != TSTransform::IDENTITY {
+            self.graphics_mut(|g| g.entry(layer_id).transform_after_rounding(transform));
         }
     }
 
@@ -3262,8 +3825,9 @@ impl Context {
 
         for (name, data) in &mut font_definitions.font_data {
             ui.collapsing(name, |ui| {
-                let mut tweak = data.tweak;
-                if tweak.ui(ui).changed() {
+                let mut tweak = data.tweak.clone();
+                let axes = data.variation_axes();
+                if crate::style::font_tweak_ui(ui, &mut tweak, &axes).changed() {
                     Arc::make_mut(data).tweak = tweak;
                     changed = true;
                 }
@@ -3363,13 +3927,13 @@ impl Context {
                 paint_stats.ui(ui);
             });
 
-        CollapsingHeader::new("🖼 Textures")
+        CollapsingHeader::new("🖼️ Textures")
             .default_open(false)
             .show(ui, |ui| {
                 self.texture_ui(ui);
             });
 
-        CollapsingHeader::new("🖼 Image loaders")
+        CollapsingHeader::new("🖼️ Image loaders")
             .default_open(false)
             .show(ui, |ui| {
                 self.loaders_ui(ui);
@@ -3562,7 +4126,7 @@ impl Context {
                     if !is_visible {
                         continue;
                     }
-                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
+                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect());
                     // TODO(emilk): `Sense::hover_highlight()`
                     let response =
                         ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));
@@ -3582,17 +4146,6 @@ impl Context {
             ));
             if ui.button("Reset").clicked() {
                 self.data_mut(|d| d.remove_by_type::<containers::collapsing_header::InnerState>());
-            }
-        });
-
-        #[expect(deprecated)]
-        ui.horizontal(|ui| {
-            ui.label(format!(
-                "{} menu bars",
-                self.data(|d| d.count::<crate::menu::BarState>())
-            ));
-            if ui.button("Reset").clicked() {
-                self.data_mut(|d| d.remove_by_type::<crate::menu::BarState>());
             }
         });
 
@@ -3644,7 +4197,8 @@ impl Context {
     ///
     /// The `Context` lock is held while the given closure is called!
     ///
-    /// Returns `None` if accesskit is off.
+    /// Returns `None` if accesskit is off,
+    /// or if the widget is invisible (see [`Ui::is_visible`]).
     // TODO(emilk): consider making both read-only and read-write versions
     pub fn accesskit_node_builder<R>(
         &self,
@@ -3652,6 +4206,20 @@ impl Context {
         writer: impl FnOnce(&mut accesskit::Node) -> R,
     ) -> Option<R> {
         self.write(|ctx| ctx.accesskit_node_builder(id).map(writer))
+    }
+
+    /// Does the widget with this id have a node in the accessibility tree this pass?
+    ///
+    /// Only widgets that report [`WidgetInfo`](crate::WidgetInfo) do; a plain
+    /// [`Ui::allocate_rect`](crate::Ui::allocate_rect) does not.
+    pub fn has_accesskit_node(&self, id: Id) -> bool {
+        self.write(|ctx| {
+            ctx.viewport()
+                .this_pass
+                .accesskit_state
+                .as_ref()
+                .is_some_and(|state| state.nodes.contains_key(&id))
+        })
     }
 
     pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
@@ -3948,8 +4516,8 @@ impl Context {
     /// When called, the integration needs to:
     /// * Check if there already is a window for this viewport id, and if not open one
     /// * Set the window attributes (position, size, …) based on [`ImmediateViewport::builder`].
-    /// * Call [`Context::run`] with [`ImmediateViewport::viewport_ui_cb`].
-    /// * Handle the output from [`Context::run`], including rendering
+    /// * Call [`Context::run_ui`] with [`ImmediateViewport::viewport_ui_cb`].
+    /// * Handle the output from [`Context::run_ui`], including rendering
     pub fn set_immediate_viewport_renderer(
         callback: impl for<'a> Fn(&Self, ImmediateViewport<'a>) + 'static,
     ) {
@@ -3980,6 +4548,19 @@ impl Context {
     /// This lets you affect the current viewport, e.g. resizing the window.
     pub fn send_viewport_cmd(&self, command: ViewportCommand) {
         self.send_viewport_cmd_to(self.viewport_id(), command);
+    }
+
+    /// Request a screenshot of the current viewport.
+    ///
+    /// The callback is invoked once the integration has read the rendered pixels.
+    /// This doesn't request a new frame when the data arrives. Call `ctx.request_repaint` if needed.
+    pub fn request_screenshot(
+        &self,
+        callback: impl FnOnce(std::sync::Arc<crate::ColorImage>) + Send + 'static,
+    ) {
+        self.send_viewport_cmd(ViewportCommand::Screenshot(crate::ScreenshotCallback::new(
+            callback,
+        )));
     }
 
     /// Send a command to a specific viewport.
@@ -4153,7 +4734,7 @@ impl Context {
 
 /// ## Interaction
 impl Context {
-    /// Read you what widgets are currently being interacted with.
+    /// Read which widgets are currently being interacted with.
     pub fn interaction_snapshot<R>(&self, reader: impl FnOnce(&InteractionSnapshot) -> R) -> R {
         self.write(|w| reader(&w.viewport().interact_widgets))
     }
@@ -4230,15 +4811,455 @@ impl Context {
     }
 }
 
-#[test]
-fn context_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Context` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
+};
+
+/// Check if any [`Rect`] appears with different [`Id`]s between two passes.
+///
+/// This helps detect cases where the same screen area is claimed by different widget ids
+/// across passes, which is often a sign of id instability.
+#[cfg(debug_assertions)]
+fn warn_if_rect_changes_id(
+    out_shapes: &mut Vec<ClippedShape>,
+    prev_widgets: &crate::WidgetRects,
+    new_widgets: &crate::WidgetRects,
+    exclusions: &[Rect],
+) {
+    profiling::function_scope!();
+
+    use std::collections::BTreeMap;
+
+    /// A wrapper around [`Rect`] that implements [`Ord`] using the bit representation of its floats.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    struct OrderedRect(Rect);
+
+    impl PartialOrd for OrderedRect {
+        fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl Ord for OrderedRect {
+        fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+            let lhs = self.0;
+            let rhs = other.0;
+            lhs.min
+                .x
+                .to_bits()
+                .cmp(&rhs.min.x.to_bits())
+                .then(lhs.min.y.to_bits().cmp(&rhs.min.y.to_bits()))
+                .then(lhs.max.x.to_bits().cmp(&rhs.max.x.to_bits()))
+                .then(lhs.max.y.to_bits().cmp(&rhs.max.y.to_bits()))
+        }
+    }
+
+    fn create_lookup<'a>(
+        widgets: impl Iterator<Item = &'a WidgetRect>,
+    ) -> BTreeMap<OrderedRect, Vec<&'a WidgetRect>> {
+        let mut lookup: BTreeMap<OrderedRect, Vec<&'a WidgetRect>> = BTreeMap::default();
+        for w in widgets {
+            lookup.entry(OrderedRect(w.rect)).or_default().push(w);
+        }
+        lookup
+    }
+
+    for (layer_id, new_layer_widgets) in new_widgets.layers() {
+        let prev = create_lookup(prev_widgets.get_layer(*layer_id));
+        let new = create_lookup(new_layer_widgets.iter());
+
+        for (hashable_rect, new_at_rect) in &new {
+            let rect = new_at_rect[0].rect;
+            if exclusions
+                .iter()
+                .any(|exclusion| exclusion.contains_rect(rect))
+            {
+                continue;
+            }
+
+            let Some(prev_at_rect) = prev.get(hashable_rect) else {
+                continue; // this rect did not exist in the previous pass
+            };
+
+            if prev_at_rect
+                .iter()
+                .any(|w| new_at_rect.iter().any(|nw| nw.id == w.id))
+            {
+                continue; // at least one id stayed the same, so this is not an id change
+            }
+
+            // Only warn if at least one of the previous ids is gone from this layer entirely.
+            // If they all still exist (just at a different rect), then the rect match
+            // is just a coincidence caused by widgets shifting (e.g. a window being dragged).
+            if prev_at_rect.iter().all(|w| new_widgets.contains(w.id)) {
+                continue;
+            }
+
+            // If a new id at this rect existed elsewhere in the previous pass, and its previous
+            // rect is now empty, then a widget genuinely moved into a vacated position.
+            //
+            // We deliberately do NOT skip when the previous rect of that widget is still occupied
+            // (by some other id). That is the signature of an automatic id shift (#8092, #8084):
+            // one extra auto id is consumed, so every following widget keeps its rect but takes
+            // the id of its next sibling. Each new id "existed elsewhere last pass", but every
+            // old rect is still filled, so nothing actually moved.
+            let moved_into_vacated_rect = new_at_rect.iter().any(|w| {
+                prev_widgets.get(w.id).is_some_and(|prev_w| {
+                    prev_w.layer_id != *layer_id || !new.contains_key(&OrderedRect(prev_w.rect))
+                })
+            });
+            if moved_into_vacated_rect {
+                continue;
+            }
+
+            // Only warn if at least one widget has the same parent_id in both frames.
+            // If all parent_ids changed too, this is a cascading id shift, not a widget bug.
+            if !prev_at_rect
+                .iter()
+                .any(|pw| new_at_rect.iter().any(|nw| nw.parent_id == pw.parent_id))
+            {
+                continue;
+            }
+
+            log::warn!(
+                "Widget rect {rect:?} changed id between passes: prev ids: {:?}, new ids: {:?}",
+                prev_at_rect
+                    .iter()
+                    .map(|w| w.id.short_debug_format())
+                    .collect::<Vec<_>>(),
+                new_at_rect
+                    .iter()
+                    .map(|w| w.id.short_debug_format())
+                    .collect::<Vec<_>>(),
+            );
+            out_shapes.push(ClippedShape::new(
+                Rect::EVERYTHING,
+                epaint::Shape::rect_stroke(rect, 0, (2.0, Color32::RED), StrokeKind::Outside),
+            ));
+        }
+    }
+}
+
+/// Resolve chains of `labelled_by`, so that `a → b → label` becomes `a → label`.
+///
+/// Screen readers follow `labelled_by` a single step. The number field of a text-less
+/// [`crate::Slider`] is labelled by the slider, which in turn may be labelled by
+/// [`crate::Response::labelled_by`]. Without this, the number field would have no name.
+///
+/// `nodes` are the `(id, node)` pairs of an [`accesskit::TreeUpdate`].
+/// Invisible widgets (see [`Ui::is_visible`]) are not exposed to accessibility.
+///
+/// Nodes that aren't widgets themselves (e.g. text runs) inherit the visibility
+/// of their closest ancestor that is.
+fn is_accesskit_visible(widgets: &crate::WidgetRects, parent_map: &IdMap<Id>, mut id: Id) -> bool {
+    loop {
+        if let Some(widget) = widgets.get(id) {
+            return widget.visible;
+        }
+        match parent_map.get(&id) {
+            Some(parent_id) => id = *parent_id,
+            None => return true,
+        }
+    }
+}
+
+fn flatten_labelled_by(nodes: &mut [(accesskit::NodeId, accesskit::Node)]) {
+    profiling::function_scope!();
+
+    let index: std::collections::HashMap<accesskit::NodeId, usize> = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, (id, _))| (*id, i))
+        .collect();
+    let get = |id: &accesskit::NodeId| index.get(id).map(|i| &nodes[*i].1);
+
+    /// A node that has no name of its own, only a `labelled_by` to follow.
+    fn is_link(node: &accesskit::Node) -> bool {
+        node.label().is_none() && !node.labelled_by().is_empty()
+    }
+
+    let mut flattened: Vec<(usize, Vec<accesskit::NodeId>)> = Vec::new();
+
+    for (i, (id, node)) in nodes.iter().enumerate() {
+        let has_chain = node
+            .labelled_by()
+            .iter()
+            .any(|target| get(target).is_some_and(is_link));
+        if !has_chain {
+            continue;
+        }
+
+        let mut resolved = Vec::new();
+        let mut visited = vec![*id];
+        let mut stack: Vec<accesskit::NodeId> = node.labelled_by().iter().rev().copied().collect();
+        while let Some(target) = stack.pop() {
+            if visited.contains(&target) {
+                continue; // A cycle names nothing.
+            }
+            visited.push(target);
+            match get(&target) {
+                Some(link) if is_link(link) => {
+                    stack.extend(link.labelled_by().iter().rev().copied());
+                }
+                _ => resolved.push(target),
+            }
+        }
+        flattened.push((i, resolved));
+    }
+
+    for (i, labelled_by) in flattened {
+        nodes[i].1.set_labelled_by(labelled_by);
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::{FontDefinitions, Panel};
+
     use super::Context;
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn rect_id_change_ignores_widget_moving_into_vacated_rect() {
+        use crate::{Id, InteractOptions, LayerId, Rect, Sense, WidgetRect, WidgetRects, pos2};
+
+        let layer_id = LayerId::background();
+        let parent_id = Id::unique("parent");
+        let vacated_rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(10.0, 10.0));
+        let previous_rect = vacated_rect.translate((0.0, -10.0).into());
+        let old_id = Id::unique("removed");
+        let moved_id = Id::unique("moved");
+
+        let widget = |id, rect| WidgetRect {
+            id,
+            parent_id,
+            layer_id,
+            rect,
+            interact_rect: rect,
+            sense: Sense::hover(),
+            enabled: true,
+            visible: true,
+        };
+
+        let mut previous = WidgetRects::default();
+        previous.insert(
+            layer_id,
+            widget(old_id, vacated_rect),
+            InteractOptions::default(),
+        );
+        previous.insert(
+            layer_id,
+            widget(moved_id, previous_rect),
+            InteractOptions::default(),
+        );
+
+        let mut current = WidgetRects::default();
+        current.insert(
+            layer_id,
+            widget(moved_id, vacated_rect),
+            InteractOptions::default(),
+        );
+
+        let mut shapes = Vec::new();
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
+
+        assert!(shapes.is_empty());
+    }
+
+    /// Regression test: consuming one extra automatic id shifts every following widget in the
+    /// same parent by one id, while all rects stay the same. That must warn.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn rect_id_change_warns_for_auto_id_shift() {
+        use crate::{Id, InteractOptions, LayerId, Rect, Sense, WidgetRect, WidgetRects, pos2};
+
+        let layer_id = LayerId::background();
+        let parent_id = Id::unique("parent");
+        let auto_id = |i: usize| parent_id.with(i);
+        let rect =
+            |i: usize| Rect::from_min_size(pos2(0.0, 10.0 * i as f32), crate::vec2(100.0, 10.0));
+
+        let widget = |id, rect| WidgetRect {
+            id,
+            parent_id,
+            layer_id,
+            rect,
+            interact_rect: rect,
+            sense: Sense::click(),
+            enabled: true,
+            visible: true,
+        };
+
+        let mut previous = WidgetRects::default();
+        let mut current = WidgetRects::default();
+        for i in 0..5 {
+            previous.insert(
+                layer_id,
+                widget(auto_id(i), rect(i)),
+                InteractOptions::default(),
+            );
+            // One hidden auto id was consumed before these widgets this pass:
+            current.insert(
+                layer_id,
+                widget(auto_id(i + 1), rect(i)),
+                InteractOptions::default(),
+            );
+        }
+
+        let mut shapes = Vec::new();
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
+
+        assert!(!shapes.is_empty(), "An automatic id shift should warn");
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn rect_id_change_warns_for_new_widget_replacing_existing_widget() {
+        use crate::{Id, InteractOptions, LayerId, Rect, Sense, WidgetRect, WidgetRects, pos2};
+
+        let layer_id = LayerId::background();
+        let parent_id = Id::unique("parent");
+        let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(10.0, 10.0));
+        let widget = |id| WidgetRect {
+            id,
+            parent_id,
+            layer_id,
+            rect,
+            interact_rect: rect,
+            sense: Sense::hover(),
+            enabled: true,
+            visible: true,
+        };
+
+        let mut previous = WidgetRects::default();
+        previous.insert(
+            layer_id,
+            widget(Id::unique("old")),
+            InteractOptions::default(),
+        );
+
+        let mut current = WidgetRects::default();
+        current.insert(
+            layer_id,
+            widget(Id::unique("new")),
+            InteractOptions::default(),
+        );
+
+        let mut shapes = Vec::new();
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
+
+        assert_eq!(shapes.len(), 1);
+
+        shapes.clear();
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[rect]);
+
+        assert!(shapes.is_empty());
+    }
+
+    /// Changing the font providers mid-pass must not drop the [`crate::text::Fonts`]
+    /// that the rest of the pass is still laying out text with.
+    #[test]
+    fn test_font_providers_changed_mid_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.label("before");
+            ui.ctx().set_font_providers(vec![]);
+            ui.label("after");
+        });
+        output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    fn test_root_ui_with_begin_and_end_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        ctx.begin_pass(Default::default());
+
+        let full_rect = ctx.root_ui(|ui| ui.available_rect_before_wrap());
+        ctx.root_ui(|ui| {
+            Panel::left("left").exact_size(100.0).show(ui, |_| {});
+        });
+        let remaining_rect = ctx.root_ui(|ui| ui.available_rect_before_wrap());
+        assert!(
+            full_rect.left() < remaining_rect.left(),
+            "The panel should consume space in the shared root Ui"
+        );
+        assert_eq!(remaining_rect.right(), full_rect.right());
+
+        let output = ctx.end_pass();
+        output.drop_without_applying_deltas();
+
+        let remembered_rect = ctx
+            .pass_state(|state| state.root_ui_available_rect)
+            .or_else(|| ctx.prev_pass_state(|state| state.root_ui_available_rect));
+        assert_eq!(remembered_rect, Some(remaining_rect));
+    }
+
+    #[test]
+    fn test_root_ui_with_run_pass() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        let mut num_calls = 0;
+        let output = ctx.run_pass(Default::default(), |ctx| {
+            ctx.root_ui(|ui| {
+                Panel::top("top").exact_size(20.0).show(ui, |_| {});
+            });
+            num_calls += 1;
+        });
+        assert_eq!(num_calls, 1);
+        output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    #[should_panic(expected = "already borrowed")]
+    fn test_root_ui_while_borrowed_panics() {
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        let output = ctx.run_ui(Default::default(), |ui| {
+            ui.ctx().root_ui(|_| {});
+        });
+        output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    fn test_repaint_observer_sees_every_request() {
+        use core::time::Duration;
+        use std::sync::Arc;
+
+        use crate::mutex::Mutex;
+
+        let ctx = Context::default();
+
+        let callback_delays = Arc::new(Mutex::new(Vec::new()));
+        let observer_delays = Arc::new(Mutex::new(Vec::new()));
+        ctx.set_request_repaint_callback({
+            let callback_delays = Arc::clone(&callback_delays);
+            move |info| callback_delays.lock().push(info.delay)
+        });
+        ctx.set_repaint_observer({
+            let observer_delays = Arc::clone(&observer_delays);
+            move |info| observer_delays.lock().push(info.delay)
+        });
+
+        ctx.request_repaint_after(Duration::from_secs(1));
+        ctx.request_repaint_after(Duration::from_secs(2));
+
+        assert_eq!(
+            *callback_delays.lock(),
+            [Duration::from_secs(1)],
+            "The callback is only called when the repaint comes sooner"
+        );
+        assert_eq!(
+            *observer_delays.lock(),
+            [Duration::from_secs(1), Duration::from_secs(2)],
+            "The observer sees every request"
+        );
+    }
 
     #[test]
     fn test_single_pass() {
@@ -4257,6 +5278,7 @@ mod test {
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
             assert!(!output.platform_output.requested_discard());
+            output.drop_without_applying_deltas();
         }
 
         // A single call, with a denied request to discard:
@@ -4282,6 +5304,7 @@ mod test {
                     .reason,
                 "test"
             );
+            output.drop_without_applying_deltas();
         }
     }
 
@@ -4302,6 +5325,7 @@ mod test {
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
             assert!(!output.platform_output.requested_discard());
+            output.drop_without_applying_deltas();
         }
 
         // Request discard once:
@@ -4324,6 +5348,7 @@ mod test {
                 !output.platform_output.requested_discard(),
                 "The request should have been cleared when fulfilled"
             );
+            output.drop_without_applying_deltas();
         }
 
         // Request discard twice:
@@ -4348,6 +5373,7 @@ mod test {
                 output.platform_output.requested_discard(),
                 "The unfulfilled request should be reported"
             );
+            output.drop_without_applying_deltas();
         }
     }
 
@@ -4376,6 +5402,7 @@ mod test {
                 !output.platform_output.requested_discard(),
                 "The request should have been cleared when fulfilled"
             );
+            output.drop_without_applying_deltas();
         }
     }
 }
