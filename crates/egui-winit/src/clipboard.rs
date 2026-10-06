@@ -60,6 +60,10 @@ impl Clipboard {
         }
     }
 
+    #[cfg_attr(
+        not(feature = "clipboard"),
+        expect(clippy::needless_pass_by_ref_mut, clippy::unnecessary_wraps)
+    )]
     pub fn get(&mut self) -> Option<String> {
         #[cfg(all(
             any(
@@ -141,6 +145,10 @@ impl Clipboard {
     /// This mirrors [`Self::set_image`] for the opposite direction, so that a Ctrl+V/Cmd+V
     /// paste can carry an image (e.g. a screenshot or a copied image) instead of text — see
     /// [`egui::Event::PasteImage`].
+    #[cfg_attr(
+        not(feature = "clipboard"),
+        expect(clippy::needless_pass_by_ref_mut, clippy::unused_self)
+    )]
     pub fn get_image(&mut self) -> Option<egui::ColorImage> {
         #[cfg(all(
             not(any(target_os = "android", target_os = "ios")),
@@ -164,6 +172,10 @@ impl Clipboard {
         None
     }
 
+    #[cfg_attr(
+        not(feature = "clipboard"),
+        expect(clippy::needless_pass_by_ref_mut, clippy::unused_self)
+    )]
     pub fn set_image(&mut self, image: &egui::ColorImage) {
         #[cfg(all(
             not(any(target_os = "android", target_os = "ios")),
