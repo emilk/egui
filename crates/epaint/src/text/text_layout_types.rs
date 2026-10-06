@@ -489,6 +489,10 @@ pub struct TextFormat {
     ///
     /// If `None` (the default), the line height is determined by the font.
     ///
+    /// If the line height differs from the height of the font,
+    /// the text is vertically centered within the line height (like in CSS),
+    /// regardless of [`Self::valign`].
+    ///
     /// For even text it is recommended you round this to an even number of _pixels_.
     pub line_height: Option<f32>,
 
@@ -519,6 +523,13 @@ pub struct TextFormat {
     /// If you use [`Align::Center`], you get text that is centered
     /// around a common center-line, which is nice when mixining emojis
     /// and normal text in e.g. a button.
+    ///
+    /// The alignment is applied to the difference between the height of the row
+    /// and the [`Self::line_height`] of this section.
+    /// Any extra space from an explicit [`Self::line_height`] is always split evenly
+    /// above and below the text.
+    ///
+    /// Default: [`Align::BOTTOM`].
     pub valign: Align,
 }
 
