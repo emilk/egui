@@ -145,7 +145,7 @@ fn title_bar_ui(
         // The arguments are in native points, so we scale by the zoom factor.
         let zoom_factor = ui.ctx().zoom_factor();
         frame.set_traffic_lights_position(
-            (zoom_factor * title_bar_rect).y_range(),
+            zoom_factor * title_bar_rect.y_range(),
             zoom_factor * (title_bar_rect.left() + 12.0),
         );
         return;
