@@ -164,7 +164,7 @@ impl Modifiers {
     /// Is shift the only pressed button?
     #[inline]
     pub fn shift_only(&self) -> bool {
-        self.shift && !(self.alt || self.command)
+        self.shift && !(self.alt || self.ctrl || self.mac_cmd || self.command)
     }
 
     /// true if only [`Self::ctrl`] or only [`Self::mac_cmd`] is pressed.
@@ -406,5 +406,18 @@ impl core::ops::BitOrAssign for Modifiers {
 impl Modifiers {
     pub fn ui(&self, ui: &mut crate::Ui) {
         ui.label(ModifierNames::NAMES.format(self, ui.ctx().os().is_mac()));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Modifiers;
+
+    #[test]
+    fn shift_only_ignores_ctrl_combinations() {
+        assert!(Modifiers::SHIFT.shift_only());
+        assert!(!(Modifiers::CTRL | Modifiers::SHIFT).shift_only());
+        assert!(!(Modifiers::ALT | Modifiers::SHIFT).shift_only());
+        assert!(!(Modifiers::COMMAND | Modifiers::SHIFT).shift_only());
     }
 }
