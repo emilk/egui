@@ -14,7 +14,7 @@ use crate::{
     Result, epi,
     native::{
         event_loop_context,
-        winit_integration::{EventResult, is_invisible_or_minimized},
+        winit_integration::{EventResult, PassMode, is_invisible_or_minimized},
     },
 };
 
@@ -128,7 +128,9 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 .insert(window_id, Instant::now());
 
             // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-            event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
+            event_result =
+                self.winit_app
+                    .run_ui_and_paint(event_loop, window_id, PassMode::Full);
         }
 
         let combined_result = event_result.map(|event_result| match event_result {
@@ -242,7 +244,9 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         // RedrawRequested events on Windows. This ensures that viewport
         // commands like Visible(true) are still processed.
         for window_id in &invisible_window_ids {
-            let event_result = self.winit_app.run_ui_and_paint(event_loop, *window_id);
+            let event_result =
+                self.winit_app
+                    .run_ui_and_paint(event_loop, *window_id, PassMode::Full);
             self.handle_event_result(event_loop, event_result);
         }
 
@@ -272,7 +276,9 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             // have handled this window, so only run it if the deadline is still there:
             if self.windows_redraw_deadlines.remove(&window_id).is_some() {
                 log::trace!("RedrawRequested is overdue for {window_id:?}: running logic only");
-                let event_result = self.winit_app.run_logic(event_loop, window_id);
+                let event_result =
+                    self.winit_app
+                        .run_ui_and_paint(event_loop, window_id, PassMode::LogicOnly);
                 self.handle_event_result(event_loop, event_result);
             }
         }
@@ -413,7 +419,8 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
             let event_result = match event {
                 winit::event::WindowEvent::RedrawRequested => {
                     self.windows_redraw_deadlines.remove(&window_id);
-                    self.winit_app.run_ui_and_paint(event_loop, window_id)
+                    self.winit_app
+                        .run_ui_and_paint(event_loop, window_id, PassMode::Full)
                 }
                 _ => self.winit_app.window_event(event_loop, window_id, event),
             };

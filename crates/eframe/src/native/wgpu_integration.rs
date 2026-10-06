@@ -31,7 +31,7 @@ use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
     native::{
         epi_integration::EpiIntegration,
-        winit_integration::{EventResult, sleep_if_invisible_or_minimized},
+        winit_integration::{EventResult, PassMode, sleep_if_invisible_or_minimized},
     },
 };
 
@@ -432,23 +432,12 @@ impl WinitApp for WgpuWinitApp<'_> {
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        mode: PassMode,
     ) -> Result<EventResult> {
         self.initialized_all_windows(event_loop);
 
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id, event_loop, false)
-        } else {
-            Ok(EventResult::Wait)
-        }
-    }
-
-    fn run_logic(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        window_id: WindowId,
-    ) -> Result<EventResult> {
-        if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id, event_loop, true)
+            running.run_ui_and_paint(window_id, event_loop, mode)
         } else {
             Ok(EventResult::Wait)
         }
@@ -609,13 +598,11 @@ impl WgpuWinitRunning<'_> {
     }
 
     /// This is called both for the root viewport, and all deferred viewports.
-    ///
-    /// With `logic_only`, only [`crate::App::logic`] runs, as for a hidden window.
     fn run_ui_and_paint(
         &mut self,
         window_id: WindowId,
         event_loop: &ActiveEventLoop,
-        logic_only: bool,
+        mode: PassMode,
     ) -> Result<EventResult> {
         profiling::function_scope!();
 
@@ -703,7 +690,7 @@ impl WgpuWinitRunning<'_> {
             };
             let mut raw_input = egui_winit.take_egui_input(window);
 
-            let show_ui = !logic_only
+            let show_ui = mode == PassMode::Full
                 && (is_visible || is_viewport_or_descendant_visible(viewports, viewport_id));
 
             integration.pre_update();
