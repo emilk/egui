@@ -108,6 +108,9 @@ struct GlutinWindowContext {
 
     max_texture_side: Option<usize>,
 
+    /// Passed on to each [`egui_winit::State`]. See [`NativeOptions::clipboard_shortcuts`].
+    clipboard_shortcuts: bool,
+
     current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
     not_current_gl_context: Option<glutin::context::NotCurrentContext>,
 
@@ -1263,6 +1266,7 @@ impl GlutinWindowContext {
             viewports,
             viewport_from_window,
             max_texture_side: None,
+            clipboard_shortcuts: native_options.clipboard_shortcuts,
             window_from_viewport,
             focused_viewport: Some(ViewportId::ROOT),
         };
@@ -1317,14 +1321,16 @@ impl GlutinWindowContext {
 
         viewport.egui_winit.get_or_insert_with(|| {
             log::debug!("Initializing egui_winit for viewport {viewport_id:?}");
-            egui_winit::State::new(
+            let mut egui_winit = egui_winit::State::new(
                 self.egui_ctx.clone(),
                 viewport_id,
                 event_loop,
                 Some(window.scale_factor() as f32),
                 event_loop.system_theme(),
                 self.max_texture_side,
-            )
+            );
+            egui_winit.set_clipboard_shortcuts(self.clipboard_shortcuts);
+            egui_winit
         });
 
         if viewport.gl_surface.is_none() {
