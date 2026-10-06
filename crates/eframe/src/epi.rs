@@ -403,6 +403,25 @@ pub struct NativeOptions {
     /// Defaults to true.
     pub dithering: bool,
 
+    /// Should the platform clipboard keyboard shortcuts
+    /// (e.g. <kbd>Cmd/Ctrl</kbd>+<kbd>X</kbd>/<kbd>C</kbd>/<kbd>V</kbd>)
+    /// be translated into [`egui::Event::Cut`], [`egui::Event::Copy`] and [`egui::Event::Paste`]?
+    ///
+    /// Set this to `false` if you want to handle these key combinations yourself.
+    /// They will then arrive as ordinary [`egui::Event::Key`] events instead.
+    /// Note that built-in widgets such as [`egui::TextEdit`] will then no longer
+    /// respond to these shortcuts.
+    ///
+    /// This applies to all viewports.
+    /// See also `egui_winit::State::set_clipboard_shortcuts`.
+    ///
+    /// There is no web equivalent: on the web, Cut/Copy/Paste come from the browser's
+    /// clipboard events (which can also be triggered from e.g. the browser menu),
+    /// and the key presses are always also delivered as [`egui::Event::Key`].
+    ///
+    /// Defaults to true.
+    pub clipboard_shortcuts: bool,
+
     /// Android application for `winit`'s event loop.
     ///
     /// This value is required on Android to correctly create the event loop. See
@@ -479,6 +498,8 @@ impl Default for NativeOptions {
             persistence_path: None,
 
             dithering: true,
+
+            clipboard_shortcuts: true,
 
             #[cfg(target_os = "android")]
             android_app: None,
