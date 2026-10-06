@@ -27,7 +27,7 @@ To enable this, the integration has to use one of two APIs:
 * `Context::add_font_provider(Arc<dyn FontProvider>)`: lets egui find and load whole fonts at runtime. Native `eframe` uses this to list system fonts with [`fontique`](https://crates.io/crates/fontique) [#8512](https://github.com/emilk/egui/pull/8512).
 
 #### Experimental theme customizations
-This release adds a theme plugin system [#8153](https://github.com/emilk/egui/pull/8153). Enable the new `experimental` feature flag, and there will be a
+This release adds a theme plugin system [#8153](https://github.com/emilk/egui/pull/8153) by [@AdrienZianne](https://github.com/AdrienZianne). Enable the new `experimental` feature flag, and there will be a
 new `StyleProvider` trait, which can be used to customize visuals for a widget based on the provided classes. 
 ```rust
 /// Implement the trait for each Widget you'd like to customize
@@ -52,16 +52,16 @@ fn init(ctx: &Context) {
 
 #### Improved accessibility
 * Better popup, menu, modal and panel trees [#8581](https://github.com/emilk/egui/pull/8581).
-* AccessKit support on panel resize handles [#8578](https://github.com/emilk/egui/pull/8578).
+* AccessKit support on panel resize handles [#8578](https://github.com/emilk/egui/pull/8578) by [@YuEfSaEDU](https://github.com/YuEfSaEDU).
 * `WidgetType` is replaced with `accesskit::Role` (re-exported as `egui::Role`) [#8555](https://github.com/emilk/egui/pull/8555).
 * New `Response::accessible_name`, `Ui::label_inputs_by` / `Ui::name_inputs`, and `Area::role` [#8604](https://github.com/emilk/egui/pull/8604), [#8608](https://github.com/emilk/egui/pull/8608), [#8612](https://github.com/emilk/egui/pull/8612).
 * Invisible widgets are now hidden from the accessibility tree [#8621](https://github.com/emilk/egui/pull/8621).
 * `kittest` fails any input widget that has no accessible name [#8589](https://github.com/emilk/egui/pull/8589).
 
 #### Other
-* Paste images from the clipboard: `Event::PasteImage` [#8472](https://github.com/emilk/egui/pull/8472).
+* Paste images from the clipboard: `Event::PasteImage` [#8472](https://github.com/emilk/egui/pull/8472) by [@BernardDGS](https://github.com/BernardDGS).
 * New widgets and containers:
-  * `RangeSlider` [#8580](https://github.com/emilk/egui/pull/8580)
+  * `RangeSlider` [#8580](https://github.com/emilk/egui/pull/8580) by [@gavrelina](https://github.com/gavrelina)
   * `CompletionPopup` for code completion over a `TextEdit` [#8529](https://github.com/emilk/egui/pull/8529)
   * `Aligned` container [#8540](https://github.com/emilk/egui/pull/8540)
   * `ComboBox` built from atoms [#8618](https://github.com/emilk/egui/pull/8618)
