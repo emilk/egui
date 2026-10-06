@@ -18,6 +18,7 @@ fn label_harness(report: bool) -> Harness<'static> {
     let mut harness = Harness::builder()
         .with_size(Vec2::new(300.0, 100.0))
         .with_step_dt(1.0 / 60.0)
+        .with_accessibility_check(false) // the text edits are unlabelled
         .build_ui(|ui| {
             ui.label(TEXT);
         });
@@ -96,6 +97,7 @@ fn drag_selecting_in_a_text_edit_reports_the_selection() {
     let mut harness = Harness::builder()
         .with_size(Vec2::new(300.0, 100.0))
         .with_step_dt(1.0 / 60.0)
+        .with_accessibility_check(false) // the text edits are unlabelled
         .build_ui(move |ui| {
             ui.text_edit_singleline(&mut text);
         });
@@ -122,6 +124,7 @@ fn text_edit_harness(text: &str) -> Harness<'static, String> {
     let mut harness = Harness::builder()
         .with_size(Vec2::new(300.0, 100.0))
         .with_step_dt(1.0 / 60.0)
+        .with_accessibility_check(false) // the text edits are unlabelled
         .build_ui_state(
             |ui, text: &mut String| {
                 ui.text_edit_singleline(text);
@@ -181,6 +184,57 @@ fn a_middle_click_outside_the_widget_pastes_nothing() {
     assert_eq!(harness.state().as_str(), "ac");
 }
 
+/// Middle-click `TextEdit`s built by `add_text_edit`, and return the resulting text.
+fn middle_click_paste_into(add_text_edit: fn(&mut egui::Ui, &mut String)) -> String {
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(300.0, 100.0))
+        .with_step_dt(1.0 / 60.0)
+        .with_accessibility_check(false) // the text edits are unlabelled
+        .build_ui_state(add_text_edit, "ac".to_owned());
+    harness.run();
+
+    let rect = harness.get_by_role(Role::TextInput).rect();
+    let pos = Pos2::new(rect.left() + 1.0, rect.center().y);
+    harness.hover_at(pos);
+    harness.step();
+    harness.event(egui::Event::MiddleClickPaste {
+        pos,
+        text: "b".to_owned(),
+    });
+    harness.run();
+
+    harness.state().clone()
+}
+
+/// A middle-click is an edit like any other, so it must respect a `TextEdit`
+/// that does not accept edits.
+#[test]
+fn middle_click_does_not_paste_into_a_non_interactive_or_disabled_text_edit() {
+    assert_eq!(
+        middle_click_paste_into(|ui, text| {
+            ui.add(egui::TextEdit::singleline(text));
+        }),
+        "bac",
+        "sanity check: an ordinary TextEdit accepts the paste"
+    );
+
+    assert_eq!(
+        middle_click_paste_into(|ui, text| {
+            ui.add(egui::TextEdit::singleline(text).interactive(false));
+        }),
+        "ac",
+        "a non-interactive TextEdit must not accept the paste"
+    );
+
+    assert_eq!(
+        middle_click_paste_into(|ui, text| {
+            ui.add_enabled(false, egui::TextEdit::singleline(text));
+        }),
+        "ac",
+        "a disabled TextEdit must not accept the paste"
+    );
+}
+
 /// A password is never copied to the clipboard, and PRIMARY is no different.
 #[test]
 fn a_password_is_never_reported() {
@@ -188,6 +242,7 @@ fn a_password_is_never_reported() {
     let mut harness = Harness::builder()
         .with_size(Vec2::new(300.0, 100.0))
         .with_step_dt(1.0 / 60.0)
+        .with_accessibility_check(false) // the text edits are unlabelled
         .build_ui(move |ui| {
             ui.add(egui::TextEdit::singleline(&mut text).password(true));
         });

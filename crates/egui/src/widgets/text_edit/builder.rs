@@ -870,6 +870,7 @@ impl<'t> TextEdit<'t> {
         // selection for us; only it can, since PRIMARY is served by whichever
         // process owns it.
         if interactive
+            && ui.is_enabled()
             && text.is_mutable()
             && response.contains_pointer()
             && let Some((pos, pasted)) = ui.input(|i| {
@@ -879,6 +880,12 @@ impl<'t> TextEdit<'t> {
                 })
             })
         {
+            // The event position is in global coordinates; bring it into this layer's.
+            let pos = ui
+                .ctx()
+                .layer_transform_from_global(ui.layer_id())
+                .map_or(pos, |from_global| from_global * pos);
+
             let mut ccursor = galley.cursor_from_pos(
                 pos - inner_rect.min + state.text_offset + vec2(galley.rect.left(), 0.0),
             );
