@@ -56,6 +56,10 @@ pub struct TextEditState {
     /// Used to pause the cursor animation when typing.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) last_interaction_time: f64,
+
+    /// The selection last sent with [`crate::OutputCommand::TextSelectionSettled`].
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) reported_selection: Option<CCursorRange>,
 }
 
 impl TextEditState {
