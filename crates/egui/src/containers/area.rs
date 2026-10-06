@@ -5,8 +5,8 @@
 use emath::GuiRounding as _;
 
 use crate::{
-    emath, pos2, Align2, Context, Id, InnerResponse, LayerId, NumExt, Order, Pos2, Rect, Response,
-    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
+    Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2, Rect, Response,
+    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState, emath, pos2,
 };
 
 /// State of an [`Area`] that is persisted between frames.
@@ -93,7 +93,7 @@ impl AreaState {
 ///
 /// ```
 /// # egui::__run_test_ctx(|ctx| {
-/// egui::Area::new(egui::Id::new("my_area"))
+/// egui::Area::new(egui::Id::unique("my_area"))
 ///     .fixed_pos(egui::pos2(32.0, 32.0))
 ///     .show(ctx, |ui| {
 ///         ui.label("Floating text!");
@@ -103,10 +103,10 @@ impl AreaState {
 ///
 /// The previous rectangle used by this area can be obtained through [`crate::Memory::area_rect()`].
 #[must_use = "You should call .show()"]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Area {
     pub(crate) id: Id,
-    kind: UiKind,
+    info: UiStackInfo,
     sense: Option<Sense>,
     movable: bool,
     interactable: bool,
@@ -120,6 +120,11 @@ pub struct Area {
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
     fade_in: bool,
+    layout: Layout,
+    sizing_pass: bool,
+    accessibility_parent: Option<Id>,
+    accessibility_label: Option<String>,
+    accessibility_role: Option<crate::accesskit::Role>,
 }
 
 impl WidgetWithState for Area {
@@ -131,7 +136,7 @@ impl Area {
     pub fn new(id: Id) -> Self {
         Self {
             id,
-            kind: UiKind::GenericArea,
+            info: UiStackInfo::new(UiKind::GenericArea),
             sense: None,
             movable: true,
             interactable: true,
@@ -145,6 +150,11 @@ impl Area {
             pivot: Align2::LEFT_TOP,
             anchor: None,
             fade_in: true,
+            layout: Layout::default(),
+            sizing_pass: false,
+            accessibility_parent: None,
+            accessibility_label: None,
+            accessibility_role: None,
         }
     }
 
@@ -162,7 +172,43 @@ impl Area {
     /// Default to [`UiKind::GenericArea`].
     #[inline]
     pub fn kind(mut self, kind: UiKind) -> Self {
-        self.kind = kind;
+        self.info = UiStackInfo::new(kind);
+        self
+    }
+
+    /// Set the [`UiStackInfo`] of the area's [`Ui`].
+    ///
+    /// Default to [`UiStackInfo`] with kind [`UiKind::GenericArea`].
+    #[inline]
+    pub fn info(mut self, info: UiStackInfo) -> Self {
+        self.info = info;
+        self
+    }
+
+    /// Nest the area under this widget in the accessibility tree.
+    ///
+    /// Popups, menus and tooltips use this to hang under the widget that opened them,
+    /// instead of floating at the root of the tree.
+    #[inline]
+    pub fn accessibility_parent(mut self, widget_id: Id) -> Self {
+        self.accessibility_parent = Some(widget_id);
+        self
+    }
+
+    /// Name the area in the accessibility tree.
+    ///
+    /// The role comes from the [`UiKind`]; the name is what a screen reader or a test finds it by.
+    #[inline]
+    pub fn accessible_name(mut self, name: impl Into<String>) -> Self {
+        self.accessibility_label = Some(name.into());
+        self
+    }
+
+    /// Give the area a role in the accessibility tree other than the one its [`UiKind`] implies,
+    /// e.g. [`Role::Alert`](crate::accesskit::Role::Alert) for a toast.
+    #[inline]
+    pub fn role(mut self, role: crate::accesskit::Role) -> Self {
+        self.accessibility_role = Some(role);
         self
     }
 
@@ -267,7 +313,7 @@ impl Area {
         self
     }
 
-    /// Constrains this area to [`Context::screen_rect`]?
+    /// Constrains this area to [`Context::content_rect`]?
     ///
     /// Default: `true`.
     #[inline]
@@ -278,7 +324,7 @@ impl Area {
 
     /// Constrain the movement of the window to the given rectangle.
     ///
-    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    /// For instance: `.constrain_to(ctx.content_rect())`.
     #[inline]
     pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.constrain = true;
@@ -339,10 +385,38 @@ impl Area {
         self.fade_in = fade_in;
         self
     }
+
+    /// Set the layout for the child Ui.
+    #[inline]
+    pub fn layout(mut self, layout: Layout) -> Self {
+        self.layout = layout;
+        self
+    }
+
+    /// While true, a sizing pass will be done. This means the area will be invisible
+    /// and the contents will be laid out to estimate the proper containing size of the area.
+    /// If false, there will be no change to the default area behavior. This is useful if the
+    /// area contents area dynamic and you need to need to make sure the area adjusts its size
+    /// accordingly.
+    ///
+    /// This should only be set to true during the specific frames you want force a sizing pass.
+    /// Do NOT hard-code this as `.sizing_pass(true)`, as it will cause the area to never be
+    /// visible.
+    ///
+    /// # Arguments
+    /// - resize: If true, the area will be resized to fit its contents. False will keep the
+    ///   default area resizing behavior.
+    ///
+    /// Default: `false`.
+    #[inline]
+    pub fn sizing_pass(mut self, resize: bool) -> Self {
+        self.sizing_pass = resize;
+        self
+    }
 }
 
 pub(crate) struct Prepared {
-    kind: UiKind,
+    info: Option<UiStackInfo>,
     layer_id: LayerId,
     state: AreaState,
     move_response: Response,
@@ -358,6 +432,9 @@ pub(crate) struct Prepared {
     sizing_pass: bool,
 
     fade_in: bool,
+    layout: Layout,
+    accessibility_label: Option<String>,
+    accessibility_role: Option<crate::accesskit::Role>,
 }
 
 impl Area {
@@ -366,7 +443,7 @@ impl Area {
         ctx: &Context,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        let prepared = self.begin(ctx);
+        let mut prepared = self.begin(ctx);
         let mut content_ui = prepared.content_ui(ctx);
         let inner = add_contents(&mut content_ui);
         let response = prepared.end(ctx, content_ui);
@@ -376,7 +453,7 @@ impl Area {
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
         let Self {
             id,
-            kind,
+            info,
             sense,
             movable,
             order,
@@ -390,9 +467,14 @@ impl Area {
             constrain,
             constrain_rect,
             fade_in,
+            layout,
+            sizing_pass: force_sizing_pass,
+            accessibility_parent,
+            accessibility_label,
+            accessibility_role,
         } = self;
 
-        let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
+        let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
 
         let layer_id = LayerId::new(order, id);
 
@@ -405,15 +487,17 @@ impl Area {
             interactable,
             last_became_visible_at: None,
         });
+        if force_sizing_pass {
+            sizing_pass = true;
+            state.size = None;
+        }
         state.pivot = pivot;
-        state.interactable = interactable;
         if let Some(new_pos) = new_pos {
             state.pivot_pos = Some(new_pos);
         }
         state.pivot_pos.get_or_insert_with(|| {
-            default_pos.unwrap_or_else(|| automatic_area_position(ctx, layer_id))
+            default_pos.unwrap_or_else(|| automatic_area_position(ctx, constrain_rect, layer_id))
         });
-        state.interactable = interactable;
 
         let size = *state.size.get_or_insert_with(|| {
             sizing_pass = true;
@@ -421,7 +505,7 @@ impl Area {
             // during the sizing pass we will use this as the max size
             let mut size = default_size;
 
-            let default_area_size = ctx.style().spacing.default_area_size;
+            let default_area_size = ctx.global_style().spacing.default_area_size;
             if size.x.is_nan() {
                 size.x = default_area_size.x;
             }
@@ -435,6 +519,10 @@ impl Area {
 
             size
         });
+
+        // We should never be interactable during a sizing pass, since then we are shown at a different
+        // size which might interfere with hover state of the hovered widget causing popup feedback loops.
+        state.interactable = interactable && !sizing_pass;
 
         // TODO(emilk): if last frame was sizing pass, it should be considered invisible for smoother fade-in
         let visible_last_frame = ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id));
@@ -457,30 +545,49 @@ impl Area {
             let interact_id = layer_id.id.with("move");
             let sense = sense.unwrap_or_else(|| {
                 if movable {
-                    Sense::drag()
+                    Sense::DRAG
                 } else if interactable {
-                    Sense::click() // allow clicks to bring to front
+                    Sense::CLICK // allow clicks to bring to front
                 } else {
                     Sense::hover()
                 }
             });
 
+            // Must come before the widget is created, since that is when its node is placed.
+            if let Some(parent) = accessibility_parent {
+                ctx.register_accesskit_parent(interact_id, parent);
+            }
+
             let move_response = ctx.create_widget(
                 WidgetRect {
                     id: interact_id,
+                    parent_id: id,
                     layer_id,
                     rect: state.rect(),
                     interact_rect: state.rect().intersect(constrain_rect),
                     sense,
                     enabled,
+                    visible: !sizing_pass,
                 },
                 true,
+                Default::default(),
             );
 
-            if movable && move_response.dragged() {
-                if let Some(pivot_pos) = &mut state.pivot_pos {
-                    *pivot_pos += move_response.drag_delta();
-                }
+            // Used to prevent drift
+            let pivot_at_start_of_drag_id = id.with("pivot_at_drag_start");
+
+            if movable
+                && move_response.dragged()
+                && let Some(pivot_pos) = &mut state.pivot_pos
+            {
+                let pivot_at_start_of_drag = ctx.data_mut(|data| {
+                    *data.get_temp_mut_or::<Pos2>(pivot_at_start_of_drag_id, *pivot_pos)
+                });
+
+                *pivot_pos =
+                    pivot_at_start_of_drag + move_response.total_drag_delta().unwrap_or_default();
+            } else {
+                ctx.data_mut(|data| data.remove::<Pos2>(pivot_at_start_of_drag_id));
             }
 
             if (move_response.dragged() || move_response.clicked())
@@ -494,20 +601,21 @@ impl Area {
             move_response
         };
 
-        if constrain {
-            state.set_left_top_pos(
-                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min,
-            );
-        }
-
-        state.set_left_top_pos(state.left_top_pos());
+        state.set_left_top_pos(round_area_position(
+            ctx,
+            if constrain {
+                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min
+            } else {
+                state.left_top_pos()
+            },
+        ));
 
         // Update response with possibly moved/constrained rect:
         move_response.rect = state.rect();
         move_response.interact_rect = state.rect();
 
         Prepared {
-            kind,
+            info: Some(info),
             layer_id,
             state,
             move_response,
@@ -516,15 +624,24 @@ impl Area {
             constrain_rect,
             sizing_pass,
             fade_in,
+            layout,
+            accessibility_label,
+            accessibility_role,
         }
     }
 }
 
-impl Prepared {
-    pub(crate) fn state(&self) -> &AreaState {
-        &self.state
-    }
+pub(crate) fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
+    // We round a lot of rendering to pixels, so we round the whole
+    // area positions to pixels too, so avoid widgets appearing to float
+    // around independently of each other when the area is dragged.
+    // But just in case pixels_per_point is irrational,
+    // we then also round to ui coordinates:
 
+    pos.round_to_pixels(ctx.pixels_per_point()).round_ui()
+}
+
+impl Prepared {
     pub(crate) fn state_mut(&mut self) -> &mut AreaState {
         &mut self.state
     }
@@ -537,13 +654,23 @@ impl Prepared {
         self.constrain_rect
     }
 
-    pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
+    pub(crate) fn content_ui(&mut self, ctx: &Context) -> Ui {
         let max_rect = self.state.rect();
 
         let mut ui_builder = UiBuilder::new()
-            .ui_stack_info(UiStackInfo::new(self.kind))
+            .ui_stack_info(self.info.take().unwrap_or_default())
             .layer_id(self.layer_id)
-            .max_rect(max_rect);
+            .max_rect(max_rect)
+            .layout(self.layout)
+            .accessibility_parent(self.move_response.id)
+            .closable();
+
+        if let Some(label) = self.accessibility_label.take() {
+            ui_builder = ui_builder.accessibility_label(label);
+        }
+        if let Some(role) = self.accessibility_role {
+            ui_builder = ui_builder.accessibility_role(role);
+        }
 
         if !self.enabled {
             ui_builder = ui_builder.disabled();
@@ -555,16 +682,17 @@ impl Prepared {
         let mut ui = Ui::new(ctx.clone(), self.layer_id.id, ui_builder);
         ui.set_clip_rect(self.constrain_rect); // Don't paint outside our bounds
 
-        if self.fade_in {
-            if let Some(last_became_visible_at) = self.state.last_became_visible_at {
-                let age =
-                    ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
-                let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
-                let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in
-                ui.multiply_opacity(opacity);
-                if opacity < 1.0 {
-                    ctx.request_repaint();
-                }
+        if self.fade_in
+            && let Some(last_became_visible_at) = self.state.last_became_visible_at
+        {
+            let age =
+                ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt * 0.5);
+            let opacity =
+                crate::remap_clamp(age, 0.0..=ctx.global_style().animation_time, 0.0..=1.0);
+            let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in
+            ui.multiply_opacity(opacity);
+            if opacity < 1.0 {
+                ctx.request_repaint();
             }
         }
 
@@ -579,10 +707,10 @@ impl Prepared {
         self.move_response.id
     }
 
-    #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
+    #[expect(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
         let Self {
-            kind: _,
+            info: _,
             layer_id,
             mut state,
             move_response: mut response,
@@ -597,6 +725,12 @@ impl Prepared {
         let final_rect = state.rect();
         response.rect = final_rect;
         response.interact_rect = final_rect;
+
+        // TODO(lucasmerlin): Can the area response be based on Ui::response? Then this won't be needed
+        // Bubble up the close event
+        if content_ui.should_close() {
+            response.set_close();
+        }
 
         ctx.memory_mut(|m| m.areas_mut().set_state(layer_id, state));
 
@@ -618,7 +752,7 @@ fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
     }
 }
 
-fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
+fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerId) -> Pos2 {
     let mut existing: Vec<Rect> = ctx.memory(|mem| {
         mem.areas()
             .visible_windows()
@@ -629,13 +763,9 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
     });
     existing.sort_by_key(|r| r.left().round() as i32);
 
-    // NOTE: for the benefit of the egui demo, we position the windows so they don't
-    // cover the side panels, which means we use `available_rect` here instead of `constrain_rect` or `screen_rect`.
-    let available_rect = ctx.available_rect();
-
     let spacing = 16.0;
-    let left = available_rect.left() + spacing;
-    let top = available_rect.top() + spacing;
+    let left = constrain_rect.left() + spacing;
+    let top = constrain_rect.top() + spacing;
 
     if existing.is_empty() {
         return pos2(left, top);
@@ -645,10 +775,11 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
     let mut column_bbs = vec![existing[0]];
 
     for &rect in &existing {
+        #[expect(clippy::unwrap_used)]
         let current_column_bb = column_bbs.last_mut().unwrap();
         if rect.left() < current_column_bb.right() {
             // same column
-            *current_column_bb = current_column_bb.union(rect);
+            *current_column_bb |= rect;
         } else {
             // new column
             column_bbs.push(rect);
@@ -669,14 +800,15 @@ fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
 
     // Find first column with some available space at the bottom of it:
     for col_bb in &column_bbs {
-        if col_bb.bottom() < available_rect.center().y {
+        if col_bb.bottom() < constrain_rect.center().y {
             return pos2(col_bb.left(), col_bb.bottom() + spacing);
         }
     }
 
     // Maybe we can fit a new column?
+    #[expect(clippy::unwrap_used)]
     let rightmost = column_bbs.last().unwrap().right();
-    if rightmost + 200.0 < available_rect.right() {
+    if rightmost + 200.0 < constrain_rect.right() {
         return pos2(rightmost + spacing, top);
     }
 

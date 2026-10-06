@@ -6,6 +6,75 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.36.2 - 2026-09-08
+* Fix transparent child viewports on `Windows` with `glow` [#8423](https://github.com/emilk/egui/pull/8423) by [@rustbasic](https://github.com/rustbasic)
+
+
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
+## 0.36.0 - 2026-08-05
+Nothing new
+
+
+## 0.35.0 - 2026-06-25
+* Group `glow` config in a `struct` [#8108](https://github.com/emilk/egui/pull/8108) by [@TapGhoul](https://github.com/TapGhoul)
+
+
+## 0.34.3 - 2026-05-27
+Nothing new
+
+
+## 0.34.2 - 2026-05-04
+Nothing new
+
+
+## 0.34.1 - 2026-03-27
+Nothing new
+
+
+## 0.34.0 - 2026-03-26
+Nothing new
+
+
+## 0.33.3 - 2025-12-11
+Nothing new
+
+
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
+## 0.33.0 - 2025-10-09
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+
+
+## 0.32.3 - 2025-09-12
+Nothing new
+
+
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+Nothing new
+
+
+## 0.32.0 - 2025-07-10
+* Fix text distortion on mobile devices/browsers with `glow` backend [#6893](https://github.com/emilk/egui/pull/6893) by [@wareya](https://github.com/wareya)
+* Improve texture filtering by doing it in gamma space [#7311](https://github.com/emilk/egui/pull/7311) by [@emilk](https://github.com/emilk)
+
+
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
+## 0.31.0 - 2025-02-04
+Nothing new
+
+
 ## 0.30.0 - 2024-12-16
 * Update glow to 0.16 [#5395](https://github.com/emilk/egui/pull/5395) by [@sagudev](https://github.com/sagudev)
 

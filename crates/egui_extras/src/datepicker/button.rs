@@ -1,6 +1,7 @@
 use super::popup::DatePickerPopup;
-use chrono::NaiveDate;
+use core::ops::RangeInclusive;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
+use jiff::civil::Date;
 
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -10,7 +11,7 @@ pub(crate) struct DatePickerButtonState {
 
 /// Shows a date, and will open a date picker popup when clicked.
 pub struct DatePickerButton<'a> {
-    selection: &'a mut NaiveDate,
+    selection: &'a mut Date,
     id_salt: Option<&'a str>,
     combo_boxes: bool,
     arrows: bool,
@@ -19,10 +20,13 @@ pub struct DatePickerButton<'a> {
     show_icon: bool,
     format: String,
     highlight_weekends: bool,
+    start_end_years: Option<RangeInclusive<i16>>,
+    reverse_years: bool,
+    year_scroll_to: Option<i16>,
 }
 
 impl<'a> DatePickerButton<'a> {
-    pub fn new(selection: &'a mut NaiveDate) -> Self {
+    pub fn new(selection: &'a mut Date) -> Self {
         Self {
             selection,
             id_salt: None,
@@ -33,6 +37,9 @@ impl<'a> DatePickerButton<'a> {
             show_icon: true,
             format: "%Y-%m-%d".to_owned(),
             highlight_weekends: true,
+            start_end_years: None,
+            reverse_years: false,
+            year_scroll_to: None,
         }
     }
 
@@ -42,14 +49,6 @@ impl<'a> DatePickerButton<'a> {
     pub fn id_salt(mut self, id_salt: &'a str) -> Self {
         self.id_salt = Some(id_salt);
         self
-    }
-
-    /// Add id source.
-    /// Must be set if multiple date picker buttons are in the same Ui.
-    #[inline]
-    #[deprecated = "Renamed id_salt"]
-    pub fn id_source(self, id_salt: &'a str) -> Self {
-        self.id_salt(id_salt)
     }
 
     /// Show combo boxes in date picker popup. (Default: true)
@@ -88,7 +87,7 @@ impl<'a> DatePickerButton<'a> {
     }
 
     /// Change the format shown on the button. (Default: %Y-%m-%d)
-    /// See [`chrono::format::strftime`] for valid formats.
+    /// See [`jiff::fmt::strtime`] for valid formats.
     #[inline]
     pub fn format(mut self, format: impl Into<String>) -> Self {
         self.format = format.into();
@@ -101,6 +100,32 @@ impl<'a> DatePickerButton<'a> {
         self.highlight_weekends = highlight_weekends;
         self
     }
+
+    /// Set the start and end years for the date picker. (Default: today's year - 100 to today's year + 10)
+    /// This will limit the years you can choose from in the dropdown to the specified range.
+    ///
+    /// For example, if you want to provide the range of years from 2000 to 2035, you can use:
+    /// `start_end_years(2000..=2035)`.
+    #[inline]
+    pub fn start_end_years(mut self, start_end_years: RangeInclusive<i16>) -> Self {
+        self.start_end_years = Some(start_end_years);
+        self
+    }
+
+    /// List years in descending order in the year dropdown. (Default: false)
+    #[inline]
+    pub fn reverse_years(mut self, reverse_years: bool) -> Self {
+        self.reverse_years = reverse_years;
+        self
+    }
+
+    /// Scroll the year dropdown to this year when the picker first opens.
+    /// Defaults to the currently selected year.
+    #[inline]
+    pub fn year_scroll_to(mut self, year: i16) -> Self {
+        self.year_scroll_to = Some(year);
+        self
+    }
 }
 
 impl Widget for DatePickerButton<'_> {
@@ -111,9 +136,9 @@ impl Widget for DatePickerButton<'_> {
             .unwrap_or_default();
 
         let mut text = if self.show_icon {
-            RichText::new(format!("{} 📆", self.selection.format(&self.format)))
+            RichText::new(format!("{} 📆", self.selection.strftime(&self.format)))
         } else {
-            RichText::new(format!("{}", self.selection.format(&self.format)))
+            RichText::new(format!("{}", self.selection.strftime(&self.format)))
         };
         let visuals = ui.visuals().widgets.open;
         if button_state.picker_visible {
@@ -140,7 +165,6 @@ impl Widget for DatePickerButton<'_> {
                 pos.x = button_response.rect.right() - width_with_padding;
             }
 
-            // Check to make sure the calendar never is displayed out of window
             pos.x = pos.x.max(ui.style().spacing.window_margin.leftf());
 
             //TODO(elwerene): Better positioning
@@ -167,6 +191,9 @@ impl Widget for DatePickerButton<'_> {
                                 calendar: self.calendar,
                                 calendar_week: self.calendar_week,
                                 highlight_weekends: self.highlight_weekends,
+                                start_end_years: self.start_end_years,
+                                reverse_years: self.reverse_years,
+                                year_scroll_to: self.year_scroll_to,
                             }
                             .draw(ui)
                         })
@@ -177,7 +204,11 @@ impl Widget for DatePickerButton<'_> {
                 button_response.mark_changed();
             }
 
+            // We don't want to close our popup if any other popup is open, since other popups would
+            // most likely be the combo boxes in the date picker.
+            let any_popup_open = ui.any_popup_open();
             if !button_response.clicked()
+                && !any_popup_open
                 && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;

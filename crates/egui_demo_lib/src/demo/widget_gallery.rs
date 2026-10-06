@@ -15,13 +15,17 @@ pub struct WidgetGallery {
     opacity: f32,
     radio: Enum,
     scalar: f32,
+    range: egui::Rangef,
     string: String,
     color: egui::Color32,
     animate_progress_bar: bool,
 
-    #[cfg(feature = "chrono")]
+    #[cfg(feature = "jiff")]
     #[cfg_attr(feature = "serde", serde(skip))]
-    date: Option<chrono::NaiveDate>,
+    date: Option<jiff::civil::Date>,
+
+    #[cfg(feature = "jiff")]
+    with_date_button: bool,
 }
 
 impl Default for WidgetGallery {
@@ -33,26 +37,42 @@ impl Default for WidgetGallery {
             boolean: false,
             radio: Enum::First,
             scalar: 42.0,
+            range: egui::Rangef::new(90.0, 250.0),
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
             animate_progress_bar: false,
-            #[cfg(feature = "chrono")]
+            #[cfg(feature = "jiff")]
             date: None,
+            #[cfg(feature = "jiff")]
+            with_date_button: true,
         }
+    }
+}
+
+impl WidgetGallery {
+    #[allow(clippy::allow_attributes, unused_mut)] // if not jiff
+    #[inline]
+    pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
+        #[cfg(feature = "jiff")]
+        {
+            self.with_date_button = _with_date_button;
+        }
+        self
     }
 }
 
 impl crate::Demo for WidgetGallery {
     fn name(&self) -> &'static str {
-        "🗄 Widget Gallery"
+        "🗄️ Widget Gallery"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable([true, false]) // resizable so we can shrink if the text edit grows
             .default_width(280.0)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -89,12 +109,14 @@ impl crate::View for WidgetGallery {
             if self.visible {
                 ui.checkbox(&mut self.enabled, "Interactive")
                     .on_hover_text("Uncheck to inspect how the widgets look when disabled.");
-                (ui.add(
+                let drag_value = ui.add(
                     egui::DragValue::new(&mut self.opacity)
                         .speed(0.01)
                         .range(0.0..=1.0),
-                ) | ui.label("Opacity"))
-                .on_hover_text("Reduce this value to make widgets semi-transparent");
+                );
+                let label = ui.label("Opacity");
+                (drag_value.labelled_by(label.id) | label)
+                    .on_hover_text("Reduce this value to make widgets semi-transparent");
             }
         });
 
@@ -119,11 +141,14 @@ impl WidgetGallery {
             boolean,
             radio,
             scalar,
+            range,
             string,
             color,
             animate_progress_bar,
-            #[cfg(feature = "chrono")]
+            #[cfg(feature = "jiff")]
             date,
+            #[cfg(feature = "jiff")]
+            with_date_button,
         } = self;
 
         ui.add(doc_link_label("Label", "label"));
@@ -185,12 +210,19 @@ impl WidgetGallery {
             });
         ui.end_row();
 
-        ui.add(doc_link_label("Slider", "Slider"));
-        ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
+        let label = ui.add(doc_link_label("Slider", "Slider"));
+        ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"))
+            .labelled_by(label.id);
         ui.end_row();
 
-        ui.add(doc_link_label("DragValue", "DragValue"));
-        ui.add(egui::DragValue::new(scalar).speed(1.0));
+        let label = ui.add(doc_link_label("RangeSlider", "RangeSlider"));
+        ui.add(egui::RangeSlider::new(&mut range.min, &mut range.max, 0.0..=360.0).suffix("°"))
+            .labelled_by(label.id);
+        ui.end_row();
+
+        let label = ui.add(doc_link_label("DragValue", "DragValue"));
+        ui.add(egui::DragValue::new(scalar).speed(1.0))
+            .labelled_by(label.id);
         ui.end_row();
 
         ui.add(doc_link_label("ProgressBar", "ProgressBar"));
@@ -209,7 +241,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Image", "Image"));
-        let egui_icon = egui::include_image!("../../data/icon.png");
+        let egui_icon = egui::include_image!("../../data/icon.svg");
         ui.add(egui::Image::new(egui_icon.clone()));
         ui.end_row();
 
@@ -217,17 +249,14 @@ impl WidgetGallery {
             "Button with image",
             "Button::image_and_text",
         ));
-        if ui
-            .add(egui::Button::image_and_text(egui_icon, "Click me!"))
-            .clicked()
-        {
+        if ui.button((egui_icon, "Click me!")).clicked() {
             *boolean = !*boolean;
         }
         ui.end_row();
 
-        #[cfg(feature = "chrono")]
-        {
-            let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date_naive());
+        #[cfg(feature = "jiff")]
+        if *with_date_button {
+            let date = date.get_or_insert_with(|| jiff::Zoned::now().date());
             ui.add(doc_link_label_with_crate(
                 "egui_extras",
                 "DatePickerButton",
@@ -285,28 +314,45 @@ fn doc_link_label_with_crate<'a>(
     }
 }
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "jiff")]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::View;
+    use crate::View as _;
     use egui::Vec2;
-    use egui_kittest::Harness;
+    use egui_kittest::{Harness, SnapshotResults};
 
     #[test]
     pub fn should_match_screenshot() {
         let mut demo = WidgetGallery {
             // If we don't set a fixed date, the snapshot test will fail.
-            date: Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            date: Some(jiff::civil::date(2024, 1, 1)),
             ..Default::default()
         };
-        let mut harness = Harness::builder()
-            .with_pixels_per_point(2.0)
-            .with_size(Vec2::new(380.0, 550.0))
-            .build_ui(|ui| demo.ui(ui));
 
-        harness.fit_contents();
+        let mut results = SnapshotResults::new();
 
-        harness.snapshot("widget_gallery");
+        for pixels_per_point in [1, 2] {
+            for theme in [egui::Theme::Light, egui::Theme::Dark] {
+                let mut harness = Harness::builder()
+                    .with_pixels_per_point(pixels_per_point as f32)
+                    .with_theme(theme)
+                    .with_size(Vec2::new(380.0, 550.0))
+                    .build_ui(|ui| {
+                        egui_extras::install_image_loaders(ui.ctx());
+                        demo.ui(ui);
+                    });
+
+                harness.fit_contents();
+
+                let theme_name = match theme {
+                    egui::Theme::Light => "light",
+                    egui::Theme::Dark => "dark",
+                };
+                let image_name = format!("widget_gallery_{theme_name}_x{pixels_per_point}");
+                harness.snapshot(&image_name);
+                results.extend_harness(&mut harness);
+            }
+        }
     }
 }

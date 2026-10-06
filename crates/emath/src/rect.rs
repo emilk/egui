@@ -1,6 +1,7 @@
 use std::fmt;
 
-use crate::{lerp, pos2, vec2, Div, Mul, Pos2, Rangef, Rot2, Vec2};
+use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, fast_midpoint, lerp, pos2, vec2};
+use core::ops::{BitOr, BitOrAssign};
 
 /// A rectangular region of space.
 ///
@@ -286,6 +287,33 @@ impl Rect {
         p.clamp(self.min, self.max)
     }
 
+    /// Floor the rect coordinates
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self {
+            min: self.min.floor(),
+            max: self.max.floor(),
+        }
+    }
+
+    /// Round the rect coordinates
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self {
+            min: self.min.round(),
+            max: self.max.round(),
+        }
+    }
+
+    /// Ceil the rect coordinates
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self {
+            min: self.min.ceil(),
+            max: self.max.ceil(),
+        }
+    }
+
     #[inline(always)]
     pub fn extend_with(&mut self, p: Pos2) {
         self.min = self.min.min(p);
@@ -330,8 +358,8 @@ impl Rect {
     #[inline(always)]
     pub fn center(&self) -> Pos2 {
         Pos2 {
-            x: (self.min.x + self.max.x) / 2.0,
-            y: (self.min.y + self.max.y) / 2.0,
+            x: fast_midpoint(self.min.x, self.max.x),
+            y: fast_midpoint(self.min.y, self.max.y),
         }
     }
 
@@ -341,11 +369,13 @@ impl Rect {
         self.max - self.min
     }
 
+    /// Note: this can be negative.
     #[inline(always)]
     pub fn width(&self) -> f32 {
         self.max.x - self.min.x
     }
 
+    /// Note: this can be negative.
     #[inline(always)]
     pub fn height(&self) -> f32 {
         self.max.y - self.min.y
@@ -373,9 +403,10 @@ impl Rect {
         }
     }
 
+    /// This is never negative, and instead returns zero for negative rectangles.
     #[inline(always)]
     pub fn area(&self) -> f32 {
-        self.width() * self.height()
+        self.width().at_least(0.0) * self.height().at_least(0.0)
     }
 
     /// The distance from the rect to the position.
@@ -445,7 +476,8 @@ impl Rect {
     /// Linearly interpolate so that `[0, 0]` is [`Self::min`] and
     /// `[1, 1]` is [`Self::max`].
     #[inline]
-    pub fn lerp_inside(&self, t: Vec2) -> Pos2 {
+    pub fn lerp_inside(&self, t: impl Into<Vec2>) -> Pos2 {
+        let t = t.into();
         Pos2 {
             x: lerp(self.min.x..=self.max.x, t.x),
             y: lerp(self.min.y..=self.max.y, t.y),
@@ -469,6 +501,32 @@ impl Rect {
     #[inline(always)]
     pub fn y_range(&self) -> Rangef {
         Rangef::new(self.min.y, self.max.y)
+    }
+
+    /// The extent along the given axis: `0` for x, `1` for y.
+    ///
+    /// Equivalent to [`Self::x_range`] for `axis == 0` and [`Self::y_range`] for `axis == 1`.
+    ///
+    /// # Panics
+    /// If `axis` is not `0` or `1`.
+    #[inline]
+    pub fn range_along(&self, axis: usize) -> Rangef {
+        match axis {
+            0 => self.x_range(),
+            1 => self.y_range(),
+            _ => panic!("axis must be 0 or 1, got {axis}"),
+        }
+    }
+
+    /// The size along the given axis: `0` for x (width), `1` for y (height).
+    ///
+    /// Equivalent to `self.size()[axis]`.
+    ///
+    /// # Panics
+    /// If `axis` is not `0` or `1`.
+    #[inline]
+    pub fn size_along(&self, axis: usize) -> f32 {
+        self.size()[axis]
     }
 
     #[inline(always)]
@@ -651,7 +709,7 @@ impl Rect {
     pub fn intersects_ray(&self, o: Pos2, d: Vec2) -> bool {
         debug_assert!(
             d.is_normalized(),
-            "expected normalized direction, but `d` has length {}",
+            "Debug assert: expected normalized direction, but `d` has length {}",
             d.length()
         );
 
@@ -696,7 +754,7 @@ impl Rect {
             let mut t1 = (self.max[i] - self.center()[i]) * inv_d;
 
             if inv_d < 0.0 {
-                std::mem::swap(&mut t0, &mut t1);
+                core::mem::swap(&mut t0, &mut t1);
             }
 
             tmin = tmin.max(t0);
@@ -710,7 +768,11 @@ impl Rect {
 
 impl fmt::Debug for Rect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{:?} - {:?}]", self.min, self.max)
+        if let Some(precision) = f.precision() {
+            write!(f, "[{1:.0$?} - {2:.0$?}]", precision, self.min, self.max)
+        } else {
+            write!(f, "[{:?} - {:?}]", self.min, self.max)
+        }
     }
 }
 
@@ -769,6 +831,22 @@ impl Div<f32> for Rect {
     }
 }
 
+impl BitOr for Rect {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(self, other: Self) -> Self {
+        self.union(other)
+    }
+}
+
+impl BitOrAssign for Rect {
+    #[inline]
+    fn bitor_assign(&mut self, other: Self) {
+        *self = self.union(other);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -806,6 +884,7 @@ mod tests {
         );
     }
 
+    #[expect(clippy::print_stdout)]
     #[test]
     fn test_ray_intersection() {
         let rect = Rect::from_min_max(pos2(1.0, 1.0), pos2(3.0, 3.0));

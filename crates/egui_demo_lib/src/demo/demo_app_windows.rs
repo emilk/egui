@@ -1,16 +1,26 @@
 use std::collections::BTreeSet;
 
-use egui::{Context, Modifiers, ScrollArea, Ui};
-
 use super::About;
-use crate::is_mobile;
 use crate::Demo;
-use crate::View;
-
+use crate::View as _;
+use crate::is_mobile;
+use egui::containers::menu;
+use egui::style::StyleModifier;
+use egui::{Modifiers, ScrollArea, Ui};
 // ----------------------------------------------------------------------------
 
 struct DemoGroup {
     demos: Vec<Box<dyn Demo>>,
+}
+
+impl core::ops::Add for DemoGroup {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        let mut demos = self.demos;
+        demos.extend(other.demos);
+        Self { demos }
+    }
 }
 
 impl DemoGroup {
@@ -29,12 +39,18 @@ impl DemoGroup {
         }
     }
 
-    pub fn windows(&mut self, ctx: &Context, open: &mut BTreeSet<String>) {
+    pub fn windows(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
         let Self { demos } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
-            demo.show(ctx, &mut is_open);
+            demo.show(ui, &mut is_open);
             set_open(open, demo.name(), is_open);
+        }
+    }
+
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        for demo in &mut self.demos {
+            demo.logic(ctx);
         }
     }
 }
@@ -62,10 +78,11 @@ impl Default for DemoGroups {
         Self {
             about: About::default(),
             demos: DemoGroup::new(vec![
+                Box::<super::band::BandDemo>::default(),
                 Box::<super::paint_bezier::PaintBezier>::default(),
                 Box::<super::code_editor::CodeEditor>::default(),
                 Box::<super::code_example::CodeExample>::default(),
-                Box::<super::context_menu::ContextMenus>::default(),
+                Box::<super::completion::CompletionDemo>::default(),
                 Box::<super::dancing_strings::DancingStrings>::default(),
                 Box::<super::drag_and_drop::DragAndDropDemo>::default(),
                 Box::<super::extra_viewport::ExtraViewport>::default(),
@@ -77,8 +94,9 @@ impl Default for DemoGroups {
                 Box::<super::modals::Modals>::default(),
                 Box::<super::multi_touch::MultiTouch>::default(),
                 Box::<super::painting::Painting>::default(),
-                Box::<super::pan_zoom::PanZoom>::default(),
                 Box::<super::panels::Panels>::default(),
+                Box::<super::popups::PopupsDemo>::default(),
+                Box::<super::scene::SceneDemo>::default(),
                 Box::<super::screenshot::Screenshot>::default(),
                 Box::<super::scrolling::Scrolling>::default(),
                 Box::<super::sliders::Sliders>::default(),
@@ -100,6 +118,8 @@ impl Default for DemoGroups {
                 Box::<super::tests::InputTest>::default(),
                 Box::<super::tests::LayoutTest>::default(),
                 Box::<super::tests::ManualLayoutTest>::default(),
+                Box::<super::tests::SvgTest>::default(),
+                Box::<super::tests::TessellationTest>::default(),
                 Box::<super::tests::WindowResizeTest>::default(),
             ]),
         }
@@ -107,25 +127,34 @@ impl Default for DemoGroups {
 }
 
 impl DemoGroups {
+    pub fn about_egui_checkbox(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
+        let Self { about, .. } = self;
+        let mut is_open = open.contains(about.name());
+        ui.toggle_value(&mut is_open, about.name());
+        set_open(open, about.name(), is_open);
+    }
+
     pub fn checkboxes(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
         let Self {
-            about,
+            about: _,
             demos,
             tests,
         } = self;
 
-        {
-            let mut is_open = open.contains(about.name());
-            ui.toggle_value(&mut is_open, about.name());
-            set_open(open, about.name(), is_open);
-        }
-        ui.separator();
+        ui.vertical_centered(|ui| {
+            ui.strong("Demos");
+        });
         demos.checkboxes(ui, open);
+
         ui.separator();
+
+        ui.vertical_centered(|ui| {
+            ui.strong("Tests");
+        });
         tests.checkboxes(ui, open);
     }
 
-    pub fn windows(&mut self, ctx: &Context, open: &mut BTreeSet<String>) {
+    pub fn windows(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
         let Self {
             about,
             demos,
@@ -133,11 +162,16 @@ impl DemoGroups {
         } = self;
         {
             let mut is_open = open.contains(about.name());
-            about.show(ctx, &mut is_open);
+            about.show(ui, &mut is_open);
             set_open(open, about.name(), is_open);
         }
-        demos.windows(ctx, open);
-        tests.windows(ctx, open);
+        demos.windows(ui, open);
+        tests.windows(ui, open);
+    }
+
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        self.demos.logic(ctx);
+        self.tests.logic(ctx);
     }
 }
 
@@ -183,109 +217,112 @@ impl Default for DemoWindows {
 
 impl DemoWindows {
     /// Show the app ui (menu bar and windows).
-    pub fn ui(&mut self, ctx: &Context) {
-        if is_mobile(ctx) {
-            self.mobile_ui(ctx);
+    pub fn ui(&mut self, ui: &mut egui::Ui) {
+        if is_mobile(ui.ctx()) {
+            self.mobile_ui(ui);
         } else {
-            self.desktop_ui(ctx);
+            self.desktop_ui(ui);
         }
+    }
+
+    /// Run background logic for all demos.
+    ///
+    /// Called every frame, even when hidden, so demos can keep working in the background.
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        self.groups.logic(ctx);
     }
 
     fn about_is_open(&self) -> bool {
         self.open.contains(About::default().name())
     }
 
-    fn mobile_ui(&mut self, ctx: &Context) {
+    fn mobile_ui(&mut self, ui: &mut egui::Ui) {
         if self.about_is_open() {
             let mut close = false;
-            egui::CentralPanel::default().show(ctx, |ui| {
-                egui::ScrollArea::vertical()
-                    .auto_shrink(false)
-                    .show(ui, |ui| {
-                        self.groups.about.ui(ui);
-                        ui.add_space(12.0);
-                        ui.vertical_centered_justified(|ui| {
-                            if ui
-                                .button(egui::RichText::new("Continue to the demo!").size(20.0))
-                                .clicked()
-                            {
-                                close = true;
-                            }
-                        });
+
+            egui::ScrollArea::vertical()
+                .auto_shrink(false)
+                .show(ui, |ui| {
+                    self.groups.about.ui(ui);
+                    ui.add_space(12.0);
+                    ui.vertical_centered_justified(|ui| {
+                        if ui
+                            .button(egui::RichText::new("Continue to the demo!").size(20.0))
+                            .clicked()
+                        {
+                            close = true;
+                        }
                     });
-            });
+                });
+
             if close {
                 set_open(&mut self.open, About::default().name(), false);
             }
         } else {
-            self.mobile_top_bar(ctx);
-            self.groups.windows(ctx, &mut self.open);
+            self.mobile_top_bar(ui);
+            self.groups.windows(ui, &mut self.open);
         }
     }
 
-    fn mobile_top_bar(&mut self, ctx: &Context) {
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                let font_size = 16.5;
+    fn mobile_top_bar(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::top("menu_bar").show(ui, |ui| {
+            menu::MenuBar::new()
+                .config(menu::MenuConfig::new().style(StyleModifier::default()))
+                .ui(ui, |ui| {
+                    let font_size = 16.5;
 
-                ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
-                    ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
-                    self.demo_list_ui(ui);
-                    if ui.ui_contains_pointer() && ui.input(|i| i.pointer.any_click()) {
-                        ui.close_menu();
-                    }
-                });
+                    ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
+                        self.demo_list_ui(ui);
+                    });
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    use egui::special_emojis::{GITHUB, TWITTER};
-                    ui.hyperlink_to(
-                        egui::RichText::new(TWITTER).size(font_size),
-                        "https://twitter.com/ernerfeldt",
-                    );
-                    ui.hyperlink_to(
-                        egui::RichText::new(GITHUB).size(font_size),
-                        "https://github.com/emilk/egui",
-                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        use egui::special_emojis::GITHUB;
+                        ui.hyperlink_to(
+                            egui::RichText::new("🦋").size(font_size),
+                            "https://bsky.app/profile/ernerfeldt.bsky.social",
+                        );
+                        ui.hyperlink_to(
+                            egui::RichText::new(GITHUB).size(font_size),
+                            "https://github.com/emilk/egui",
+                        );
+                    });
                 });
-            });
         });
     }
 
-    fn desktop_ui(&mut self, ctx: &Context) {
-        egui::SidePanel::right("egui_demo_panel")
+    fn desktop_ui(&mut self, ui: &mut egui::Ui) {
+        egui::Panel::right("egui_demo_panel")
             .resizable(false)
-            .default_width(160.0)
-            .min_width(160.0)
-            .show(ctx, |ui| {
-                ui.add_space(4.0);
-                ui.vertical_centered(|ui| {
-                    ui.heading("✒ egui demos");
+            .default_size(160.0)
+            .min_size(160.0)
+            .show(ui, |ui| {
+                ui.vertical_centered_justified(|ui| {
+                    ui.add_space(4.0);
+                    ui.add(
+                        egui::Image::new(egui::include_image!("../../data/egui-logo.svg"))
+                            .max_height(32.0)
+                            .tint(ui.visuals().strong_text_color()),
+                    );
+
+                    ui.add_space(4.0);
+
+                    self.groups.about_egui_checkbox(ui, &mut self.open);
                 });
 
-                ui.separator();
-
-                use egui::special_emojis::{GITHUB, TWITTER};
-                ui.hyperlink_to(
-                    format!("{GITHUB} egui on GitHub"),
-                    "https://github.com/emilk/egui",
-                );
-                ui.hyperlink_to(
-                    format!("{TWITTER} @ernerfeldt"),
-                    "https://twitter.com/ernerfeldt",
-                );
+                ui.add_space(4.0);
 
                 ui.separator();
 
                 self.demo_list_ui(ui);
             });
 
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
+        egui::Panel::top("menu_bar").show(ui, |ui| {
+            menu::MenuBar::new().ui(ui, |ui| {
                 file_menu_button(ui);
             });
         });
 
-        self.groups.windows(ctx, &mut self.open);
+        self.groups.windows(ui, &mut self.open);
     }
 
     fn demo_list_ui(&mut self, ui: &mut egui::Ui) {
@@ -294,8 +331,9 @@ impl DemoWindows {
                 self.groups.checkboxes(ui, &mut self.open);
                 ui.separator();
                 if ui.button("Organize windows").clicked() {
-                    ui.ctx().memory_mut(|mem| mem.reset_areas());
+                    ui.memory_mut(|mem| mem.reset_areas());
                 }
+                ui.add_space(4.0);
             });
         });
     }
@@ -313,11 +351,11 @@ fn file_menu_button(ui: &mut Ui) {
     // or else they would only be checked if the "File" menu was actually open!
 
     if ui.input_mut(|i| i.consume_shortcut(&organize_shortcut)) {
-        ui.ctx().memory_mut(|mem| mem.reset_areas());
+        ui.memory_mut(|mem| mem.reset_areas());
     }
 
     if ui.input_mut(|i| i.consume_shortcut(&reset_shortcut)) {
-        ui.ctx().memory_mut(|mem| *mem = Default::default());
+        ui.memory_mut(|mem| *mem = Default::default());
     }
 
     ui.menu_button("File", |ui| {
@@ -342,8 +380,7 @@ fn file_menu_button(ui: &mut Ui) {
             )
             .clicked()
         {
-            ui.ctx().memory_mut(|mem| mem.reset_areas());
-            ui.close_menu();
+            ui.memory_mut(|mem| mem.reset_areas());
         }
 
         if ui
@@ -354,24 +391,28 @@ fn file_menu_button(ui: &mut Ui) {
             .on_hover_text("Forget scroll, positions, sizes etc")
             .clicked()
         {
-            ui.ctx().memory_mut(|mem| *mem = Default::default());
-            ui.close_menu();
+            ui.memory_mut(|mem| *mem = Default::default());
         }
     });
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{demo::demo_app_windows::DemoGroups, Demo};
+    use crate::{Demo as _, demo::demo_app_windows::DemoGroups};
+
     use egui::Vec2;
-    use egui_kittest::kittest::Queryable;
-    use egui_kittest::{Harness, SnapshotOptions};
+    use egui_kittest::{HarnessBuilder, OsThreshold, SnapshotOptions, SnapshotResults};
 
     #[test]
     fn demos_should_match_snapshot() {
-        let demos = DemoGroups::default().demos;
+        let DemoGroups {
+            demos,
+            tests,
+            about: _,
+        } = DemoGroups::default();
+        let demos = demos + tests;
 
-        let mut errors = Vec::new();
+        let mut results = SnapshotResults::new();
 
         for mut demo in demos.demos {
             // Widget Gallery needs to be customized (to set a specific date) and has its own test
@@ -379,38 +420,39 @@ mod tests {
                 continue;
             }
 
-            // Remove the emoji from the demo name
-            let name = demo
-                .name()
-                .split_once(' ')
-                .map_or(demo.name(), |(_, name)| name);
+            let name = remove_leading_emoji(demo.name());
 
-            let mut harness = Harness::new(|ctx| {
-                demo.show(ctx, &mut true);
-            });
+            let mut harness = HarnessBuilder::default()
+                .with_size(Vec2::splat(2048.0))
+                .build_ui(|ui| {
+                    egui_extras::install_image_loaders(ui);
+                    demo.show(ui, &mut true);
+                });
 
-            let window = harness.node().children().next().unwrap();
-            // TODO(lucasmerlin): Windows should probably have a label?
-            //let window = harness.get_by_label(name);
-
-            let size = window.raw_bounds().expect("window bounds").size();
-            harness.set_size(Vec2::new(size.width as f32, size.height as f32));
+            // Resize to fit every window, plus some margin:
+            harness.set_size(harness.ctx.globally_used_rect().max.to_vec2() + Vec2::splat(16.0));
 
             // Run the app for some more frames...
             harness.run_ok();
 
             let mut options = SnapshotOptions::default();
-            // The Bézier Curve demo needs a threshold of 2.1 to pass on linux
+
             if name == "Bézier Curve" {
-                options.threshold = 2.1;
+                // The Bézier Curve demo needs a threshold of 2.1 to pass on linux:
+                options = options.threshold(OsThreshold::new(0.0_f32).linux(2.1));
             }
 
-            let result = harness.try_snapshot_options(&format!("demos/{name}"), &options);
-            if let Err(err) = result {
-                errors.push(err.to_string());
-            }
+            results.add(harness.try_snapshot_options(format!("demos/{name}"), &options));
         }
+    }
 
-        assert!(errors.is_empty(), "Errors: {errors:#?}");
+    fn remove_leading_emoji(full_name: &str) -> &str {
+        if let Some((start, name)) = full_name.split_once(' ')
+            && start.len() <= 7 // An emoji, plus an optional variation selector
+            && start.bytes().next().is_some_and(|byte| byte >= 128)
+        {
+            return name;
+        }
+        full_name
     }
 }

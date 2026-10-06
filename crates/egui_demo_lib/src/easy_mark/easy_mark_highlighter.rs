@@ -108,7 +108,7 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
         // Swallow everything up to the next special character:
         let line_end = text[skip..]
             .find('\n')
-            .map_or_else(|| text.len(), |i| (skip + i + 1));
+            .map_or_else(|| text.len(), |i| skip + i + 1);
         let end = text[skip..]
             .find(&['*', '`', '~', '_', '/', '$', '^', '\\', '<', '['][..])
             .map_or_else(|| text.len(), |i| (skip + i).max(1));

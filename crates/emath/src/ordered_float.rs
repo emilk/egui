@@ -1,8 +1,8 @@
 //! Total order on floating point types.
 //! Can be used for sorting, min/max computation, and other collection algorithms.
 
-use std::cmp::Ordering;
-use std::hash::{Hash, Hasher};
+use core::cmp::Ordering;
+use core::hash::{Hash, Hasher};
 
 /// Wraps a floating-point value to add total order and hash.
 /// Possible types for `T` are `f32` and `f64`.
@@ -18,6 +18,13 @@ impl<T: Float + Copy> OrderedFloat<T> {
     #[inline]
     pub fn into_inner(self) -> T {
         self.0
+    }
+}
+
+impl<T: core::fmt::Debug> core::fmt::Debug for OrderedFloat<T> {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
@@ -101,7 +108,7 @@ impl Float for f64 {
 
 // Keep this trait in private module, to avoid exposing its methods as extensions in user code
 mod private {
-    use super::{Hash, Hasher};
+    use super::{Hash as _, Hasher};
 
     pub trait FloatImpl {
         fn is_nan(&self) -> bool;
@@ -117,13 +124,15 @@ mod private {
 
         #[inline]
         fn hash<H: Hasher>(&self, state: &mut H) {
-            if *self == 0.0 {
-                state.write_u8(0);
-            } else if self.is_nan() {
-                state.write_u8(1);
+            let bits = if self.is_nan() {
+                // "Canonical" NaN.
+                0x7fc00000
             } else {
-                self.to_bits().hash(state);
-            }
+                // A trick taken from the `ordered-float` crate: -0.0 + 0.0 == +0.0.
+                // https://github.com/reem/rust-ordered-float/blob/1841f0541ea0e56779cbac03de2705149e020675/src/lib.rs#L2178-L2181
+                (self + 0.0).to_bits()
+            };
+            bits.hash(state);
         }
     }
 
@@ -135,13 +144,13 @@ mod private {
 
         #[inline]
         fn hash<H: Hasher>(&self, state: &mut H) {
-            if *self == 0.0 {
-                state.write_u8(0);
-            } else if self.is_nan() {
-                state.write_u8(1);
+            let bits = if self.is_nan() {
+                // "Canonical" NaN.
+                0x7ff8000000000000
             } else {
-                self.to_bits().hash(state);
-            }
+                (self + 0.0).to_bits()
+            };
+            bits.hash(state);
         }
     }
 }

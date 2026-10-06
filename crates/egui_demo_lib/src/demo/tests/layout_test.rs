@@ -1,4 +1,4 @@
-use egui::{vec2, Align, Direction, Layout, Resize, Slider, Ui};
+use egui::{Align, Direction, Layout, Resize, Slider, Ui, vec2};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -78,11 +78,12 @@ impl crate::Demo for LayoutTest {
         "Layout Test"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });

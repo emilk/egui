@@ -23,7 +23,7 @@ macro_rules! impl_numeric_float {
 
             #[inline(always)]
             fn to_f64(self) -> f64 {
-                #[allow(trivial_numeric_casts)]
+                #[allow(clippy::allow_attributes, trivial_numeric_casts)]
                 {
                     self as f64
                 }
@@ -31,7 +31,7 @@ macro_rules! impl_numeric_float {
 
             #[inline(always)]
             fn from_f64(num: f64) -> Self {
-                #[allow(trivial_numeric_casts)]
+                #[allow(clippy::allow_attributes, trivial_numeric_casts)]
                 {
                     num as Self
                 }
@@ -92,9 +92,9 @@ impl_numeric_integer!(i64);
 impl_numeric_integer!(u64);
 impl_numeric_integer!(isize);
 impl_numeric_integer!(usize);
-impl_numeric_non_zero_unsigned!(std::num::NonZeroU8);
-impl_numeric_non_zero_unsigned!(std::num::NonZeroU16);
-impl_numeric_non_zero_unsigned!(std::num::NonZeroU32);
-impl_numeric_non_zero_unsigned!(std::num::NonZeroU64);
-impl_numeric_non_zero_unsigned!(std::num::NonZeroU128);
-impl_numeric_non_zero_unsigned!(std::num::NonZeroUsize);
+impl_numeric_non_zero_unsigned!(core::num::NonZeroU8);
+impl_numeric_non_zero_unsigned!(core::num::NonZeroU16);
+impl_numeric_non_zero_unsigned!(core::num::NonZeroU32);
+impl_numeric_non_zero_unsigned!(core::num::NonZeroU64);
+impl_numeric_non_zero_unsigned!(core::num::NonZeroU128);
+impl_numeric_non_zero_unsigned!(core::num::NonZeroUsize);

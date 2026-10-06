@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use super::{Demo, View};
 
 use egui::{
-    vec2, Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Resize, RichText, Sense,
-    Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
+    Align, Align2, Checkbox, CollapsingHeader, Color32, ComboBox, FontId, Resize, RichText, Sense,
+    Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window, vec2,
 };
 
 /// Showcase some ui code
@@ -16,6 +18,8 @@ pub struct MiscDemoWindow {
     custom_collapsing_header: CustomCollapsingHeader,
     tree: Tree,
     box_painting: BoxPainting,
+    text_rotation: TextRotation,
+    repaint: Repaint,
 
     dummy_bool: bool,
     dummy_usize: usize,
@@ -32,10 +36,12 @@ impl Default for MiscDemoWindow {
             custom_collapsing_header: Default::default(),
             tree: Tree::demo(),
             box_painting: Default::default(),
+            text_rotation: Default::default(),
+            repaint: Default::default(),
 
             dummy_bool: false,
             dummy_usize: 0,
-            checklist: std::array::from_fn(|i| i == 0),
+            checklist: core::array::from_fn(|i| i == 0),
         }
     }
 }
@@ -45,12 +51,17 @@ impl Demo for MiscDemoWindow {
         "✨ Misc Demos"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         Window::new(self.name())
             .open(open)
             .vscroll(true)
             .hscroll(true)
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
+    }
+
+    fn logic(&mut self, ctx: &egui::Context) {
+        self.repaint.logic(ctx);
     }
 }
 
@@ -79,6 +90,10 @@ impl View for MiscDemoWindow {
                 });
             });
 
+        CollapsingHeader::new("Text rotation")
+            .default_open(false)
+            .show(ui, |ui| self.text_rotation.ui(ui));
+
         CollapsingHeader::new("Colors")
             .default_open(false)
             .show(ui, |ui| {
@@ -92,6 +107,10 @@ impl View for MiscDemoWindow {
         CollapsingHeader::new("Tree")
             .default_open(false)
             .show(ui, |ui| self.tree.ui(ui));
+
+        CollapsingHeader::new("Repaint")
+            .default_open(false)
+            .show(ui, |ui| self.repaint.ui(ui));
 
         CollapsingHeader::new("Checkboxes")
             .default_open(false)
@@ -124,9 +143,7 @@ impl View for MiscDemoWindow {
                     )
                     .changed()
                 {
-                    self.checklist
-                        .iter_mut()
-                        .for_each(|checked| *checked = all_checked);
+                    self.checklist.fill(all_checked);
                 }
                 for (i, checked) in self.checklist.iter_mut().enumerate() {
                     ui.checkbox(checked, format!("Item {}", i + 1));
@@ -167,12 +184,12 @@ impl View for MiscDemoWindow {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("You can pretty easily paint your own small icons:");
-                    use std::f32::consts::TAU;
+                    use core::f32::consts::TAU;
                     let size = Vec2::splat(16.0);
                     let (response, painter) = ui.allocate_painter(size, Sense::hover());
                     let rect = response.rect;
                     let c = rect.center();
-                    let r = rect.width() / 2.0 - 1.0;
+                    let r = rect.width() * 0.5 - 1.0;
                     let color = Color32::from_gray(128);
                     let stroke = Stroke::new(1.0, color);
                     painter.circle_stroke(c, r, stroke);
@@ -207,7 +224,7 @@ fn label_ui(ui: &mut egui::Ui) {
 
     ui.horizontal_wrapped(|ui| {
             // Trick so we don't have to add spaces in the text below:
-            let width = ui.fonts(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+            let width = ui.fonts_mut(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
             ui.spacing_mut().item_spacing.x = width;
 
             ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
@@ -220,7 +237,7 @@ fn label_ui(ui: &mut egui::Ui) {
             let _ = ui.small_button("this button");
             ui.label(".");
 
-            ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟🖩…).")
+            ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟📐…).")
                 .on_hover_text("There is currently no support for right-to-left languages.");
             ui.label("See the 🔤 Font Book for more!");
 
@@ -247,7 +264,7 @@ pub struct Widgets {
 impl Default for Widgets {
     fn default() -> Self {
         Self {
-            angle: std::f32::consts::TAU / 3.0,
+            angle: core::f32::consts::TAU / 3.0,
             password: "hunter2".to_owned(),
         }
     }
@@ -265,7 +282,7 @@ impl Widgets {
         ui.horizontal(|ui| {
             ui.label("An angle:");
             ui.drag_angle(angle);
-            ui.label(format!("≈ {:.3}τ", *angle / std::f32::consts::TAU))
+            ui.label(format!("≈ {:.3}τ", *angle / core::f32::consts::TAU))
                 .on_hover_text("Each τ represents one turn (τ = 2π)");
         })
         .response
@@ -278,6 +295,134 @@ impl Widgets {
                 .on_hover_text("See the example code for how to use egui to store UI state");
             ui.add(super::password::password(password));
         });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Demonstrates [`egui::Context::request_repaint`] and
+/// [`egui::Context::request_repaint_after`].
+#[derive(PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+struct Repaint {
+    /// Request a repaint every frame, so we run as fast as the integration allows.
+    repaint_continuously: bool,
+
+    /// Request a repaint after [`Self::delay`].
+    repaint_after_delay: bool,
+
+    /// How long to wait before the next repaint when [`Self::repaint_after_delay`] is set.
+    delay: f64,
+
+    /// Issue the repaint requests from `logic` (which runs even while hidden) instead of `ui`.
+    in_background: bool,
+
+    /// Log each `ui` and `logic` frame, so background activity is visible in the console.
+    log_each_frame: bool,
+
+    /// How many times [`Self::ui`] has run since the last reset.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    ui_count: u64,
+
+    /// How many times [`Self::logic`] has run since the last reset.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    logic_count: u64,
+}
+
+impl Default for Repaint {
+    fn default() -> Self {
+        Self {
+            repaint_continuously: false,
+            repaint_after_delay: false,
+            delay: 1.0,
+            in_background: false,
+            log_each_frame: false,
+            ui_count: 0,
+            logic_count: 0,
+        }
+    }
+}
+
+impl Repaint {
+    fn ui(&mut self, ui: &mut Ui) {
+        self.ui_count += 1;
+        if self.log_each_frame {
+            log::info!("Repaint demo: `ui` frame {}", self.ui_count);
+        }
+
+        ui.label("Use this to verify if logic is correctly called while in background.");
+
+        ui.horizontal(|ui| {
+            if ui.button("Reset counts").clicked() {
+                self.ui_count = 0;
+                self.logic_count = 0;
+            }
+            ui.label(format!(
+                "`ui`: {}, `logic`: {}",
+                self.ui_count, self.logic_count
+            ))
+            .on_hover_text(
+                "`ui` is incremented in `App::ui` (only runs while visible), \
+                     `logic` in `App::logic` (runs even while hidden).",
+            );
+        });
+
+        ui.separator();
+
+        ui.checkbox(
+            &mut self.repaint_continuously,
+            "Repaint continuously (every frame)",
+        );
+
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.repaint_after_delay, "Repaint after");
+            ui.add_enabled(
+                self.repaint_after_delay,
+                Slider::new(&mut self.delay, 0.0..=5.0)
+                    .suffix(" s")
+                    .text("delay"),
+            );
+        });
+
+        ui.checkbox(&mut self.in_background, "In the background (during logic)")
+            .on_hover_text(
+                "Issue the repaint requests from `App::logic` (which runs even while hidden) \
+                 instead of `App::ui` (which is skipped while hidden).\n\n\
+                 With this enabled, hide this tab for a while, then come back: \
+                 the `logic` count will have kept climbing.",
+            );
+
+        ui.checkbox(&mut self.log_each_frame, "Log each frame")
+            .on_hover_text("Log each `ui` and `logic` frame to the console.");
+
+        // When not in background mode, drive the repaints from here (`ui`), which only
+        // runs while visible. Otherwise they are driven from `logic` (see below).
+        if !self.in_background {
+            self.request_repaint(ui.ctx());
+        }
+    }
+
+    /// Runs even when the app is hidden, unlike [`Self::ui`].
+    fn logic(&mut self, ctx: &egui::Context) {
+        self.logic_count += 1;
+        if self.log_each_frame {
+            log::info!("Repaint demo: `logic` frame {}", self.logic_count);
+        }
+
+        if self.in_background {
+            self.request_repaint(ctx);
+        }
+    }
+
+    /// Request repaints according to the selected options.
+    fn request_repaint(&self, ctx: &egui::Context) {
+        if self.repaint_continuously {
+            ctx.request_repaint();
+        }
+        if self.repaint_after_delay {
+            ctx.request_repaint_after(core::time::Duration::from_secs_f64(self.delay));
+        }
     }
 }
 
@@ -358,7 +503,7 @@ impl ColorWidgets {
 #[cfg_attr(feature = "serde", serde(default))]
 struct BoxPainting {
     size: Vec2,
-    rounding: f32,
+    corner_radius: f32,
     stroke_width: f32,
     num_boxes: usize,
 }
@@ -367,7 +512,7 @@ impl Default for BoxPainting {
     fn default() -> Self {
         Self {
             size: vec2(64.0, 32.0),
-            rounding: 5.0,
+            corner_radius: 5.0,
             stroke_width: 2.0,
             num_boxes: 1,
         }
@@ -378,7 +523,7 @@ impl BoxPainting {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.add(Slider::new(&mut self.size.x, 0.0..=500.0).text("width"));
         ui.add(Slider::new(&mut self.size.y, 0.0..=500.0).text("height"));
-        ui.add(Slider::new(&mut self.rounding, 0.0..=50.0).text("rounding"));
+        ui.add(Slider::new(&mut self.corner_radius, 0.0..=50.0).text("corner_radius"));
         ui.add(Slider::new(&mut self.stroke_width, 0.0..=10.0).text("stroke_width"));
         ui.add(Slider::new(&mut self.num_boxes, 0..=8).text("num_boxes"));
 
@@ -387,9 +532,10 @@ impl BoxPainting {
                 let (rect, _response) = ui.allocate_at_least(self.size, Sense::hover());
                 ui.painter().rect(
                     rect,
-                    self.rounding,
+                    self.corner_radius,
                     ui.visuals().text_color().gamma_multiply(0.5),
                     Stroke::new(self.stroke_width, Color32::WHITE),
+                    egui::StrokeKind::Inside,
                 );
             }
         });
@@ -444,7 +590,7 @@ enum Action {
 
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct Tree(Vec<Tree>);
+struct Tree(Vec<Self>);
 
 impl Tree {
     pub fn demo() -> Self {
@@ -477,7 +623,7 @@ impl Tree {
             return Action::Delete;
         }
 
-        self.0 = std::mem::take(self)
+        self.0 = core::mem::take(self)
             .0
             .into_iter()
             .enumerate()
@@ -511,7 +657,7 @@ fn ui_stack_demo(ui: &mut Ui) {
                         with various information.\n\nThis is how the stack looks like here:",
         );
     });
-    let stack = ui.stack().clone();
+    let stack = Arc::clone(ui.stack());
     egui::Frame::new()
         .inner_margin(ui.spacing().menu_margin)
         .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
@@ -531,15 +677,15 @@ fn ui_stack_demo(ui: &mut Ui) {
                     for node in stack.iter() {
                         body.row(18.0, |mut row| {
                             row.col(|ui| {
-                                let response = ui.label(format!("{:?}", node.id));
+                                let response = ui.label(format!("{:?}", node.unique_id));
 
                                 if response.hovered() {
-                                    ui.ctx().debug_painter().debug_rect(
+                                    ui.debug_painter().debug_rect(
                                         node.max_rect,
                                         Color32::GREEN,
                                         "max_rect",
                                     );
-                                    ui.ctx().debug_painter().circle_filled(
+                                    ui.debug_painter().circle_filled(
                                         node.min_rect.min,
                                         2.0,
                                         Color32::RED,
@@ -727,4 +873,96 @@ fn text_layout_demo(ui: &mut Ui) {
     );
 
     ui.label(job);
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+struct TextRotation {
+    size: Vec2,
+    angle: f32,
+    align: egui::Align2,
+}
+
+impl Default for TextRotation {
+    fn default() -> Self {
+        Self {
+            size: vec2(200.0, 200.0),
+            angle: 0.0,
+            align: egui::Align2::LEFT_TOP,
+        }
+    }
+}
+
+impl TextRotation {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.add(Slider::new(&mut self.angle, 0.0..=2.0 * core::f32::consts::PI).text("angle"));
+
+        let default_color = if ui.visuals().dark_mode {
+            Color32::LIGHT_GRAY
+        } else {
+            Color32::DARK_GRAY
+        };
+
+        let aligns = [
+            (Align2::LEFT_TOP, "LEFT_TOP"),
+            (Align2::LEFT_CENTER, "LEFT_CENTER"),
+            (Align2::LEFT_BOTTOM, "LEFT_BOTTOM"),
+            (Align2::CENTER_TOP, "CENTER_TOP"),
+            (Align2::CENTER_CENTER, "CENTER_CENTER"),
+            (Align2::CENTER_BOTTOM, "CENTER_BOTTOM"),
+            (Align2::RIGHT_TOP, "RIGHT_TOP"),
+            (Align2::RIGHT_CENTER, "RIGHT_CENTER"),
+            (Align2::RIGHT_BOTTOM, "RIGHT_BOTTOM"),
+        ];
+
+        ComboBox::new("anchor", "Anchor")
+            .selected_text(aligns.iter().find(|(a, _)| *a == self.align).unwrap().1)
+            .show_ui(ui, |ui| {
+                for (align2, name) in &aligns {
+                    ui.selectable_value(&mut self.align, *align2, *name);
+                }
+            });
+
+        ui.horizontal_wrapped(|ui| {
+            let (response, painter) = ui.allocate_painter(self.size, Sense::empty());
+            let rect = response.rect;
+
+            let start_pos = self.size * 0.5;
+
+            let s = ui.ctx().fonts_mut(|f| {
+                let mut t = egui::Shape::text(
+                    f,
+                    rect.min + start_pos,
+                    egui::Align2::LEFT_TOP,
+                    "sample_text",
+                    egui::FontId::new(12.0, egui::FontFamily::Proportional),
+                    default_color,
+                );
+
+                if let egui::epaint::Shape::Text(ts) = &mut t {
+                    let new = ts.clone().with_angle_and_anchor(self.angle, self.align);
+                    *ts = new;
+                }
+
+                t
+            });
+
+            if let egui::epaint::Shape::Text(ts) = &s {
+                let align_pt =
+                    rect.min + start_pos + self.align.pos_in_rect(&ts.galley.rect).to_vec2();
+                painter.circle(align_pt, 2.0, Color32::RED, (0.0, Color32::RED));
+            }
+
+            painter.rect(
+                rect,
+                0.0,
+                default_color.gamma_multiply(0.3),
+                (0.0, Color32::BLACK),
+                egui::StrokeKind::Middle,
+            );
+            painter.add(s);
+        });
+    }
 }

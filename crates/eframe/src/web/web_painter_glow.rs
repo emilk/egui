@@ -1,7 +1,7 @@
-use egui::{Event, UserData, ViewportId};
+use egui::ScreenshotCallback;
 use egui_glow::glow;
 use std::sync::Arc;
-use wasm_bindgen::JsCast;
+use wasm_bindgen::JsCast as _;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
@@ -12,7 +12,6 @@ use super::web_painter::WebPainter;
 pub(crate) struct WebPainterGlow {
     canvas: HtmlCanvasElement,
     painter: egui_glow::Painter,
-    screenshots: Vec<(egui::ColorImage, Vec<UserData>)>,
 }
 
 impl WebPainterGlow {
@@ -20,24 +19,26 @@ impl WebPainterGlow {
         self.painter.gl()
     }
 
-    pub async fn new(
+    pub fn new(
         _ctx: egui::Context,
         canvas: HtmlCanvasElement,
         options: &WebOptions,
     ) -> Result<Self, String> {
         let (gl, shader_prefix) =
             init_glow_context_from_canvas(&canvas, options.webgl_context_option)?;
-        #[allow(clippy::arc_with_non_send_sync)]
+
+        #[allow(clippy::allow_attributes, clippy::arc_with_non_send_sync)] // For wasm
         let gl = std::sync::Arc::new(gl);
 
-        let painter = egui_glow::Painter::new(gl, shader_prefix, None, options.dithering)
-            .map_err(|err| format!("Error starting glow painter: {err}"))?;
+        let painter = egui_glow::Painter::new(
+            gl,
+            shader_prefix,
+            options.glow_options.shader_version,
+            options.dithering,
+        )
+        .map_err(|err| format!("Error starting glow painter: {err}"))?;
 
-        Ok(Self {
-            canvas,
-            painter,
-            screenshots: Vec::new(),
-        })
+        Ok(Self { canvas, painter })
     }
 }
 
@@ -55,13 +56,16 @@ impl WebPainter for WebPainterGlow {
         clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
-        textures_delta: &egui::TexturesDelta,
-        capture: Vec<UserData>,
+        textures_delta: &mut egui::TexturesDelta,
+        capture: Vec<ScreenshotCallback>,
     ) -> Result<(), JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
 
-        for (id, image_delta) in &textures_delta.set {
-            self.painter.set_texture(*id, image_delta);
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for (id, image_deltas) in textures_delta.set.drain() {
+            for image_delta in image_deltas {
+                self.painter.set_texture(id, &image_delta);
+            }
         }
 
         egui_glow::painter::clear(self.painter.gl(), canvas_dimension, clear_color);
@@ -69,11 +73,14 @@ impl WebPainter for WebPainterGlow {
             .paint_primitives(canvas_dimension, pixels_per_point, clipped_primitives);
 
         if !capture.is_empty() {
-            let image = self.painter.read_screen_rgba(canvas_dimension);
-            self.screenshots.push((image, capture));
+            let image = Arc::new(self.painter.read_screen_rgba(canvas_dimension));
+            for callback in capture {
+                callback.complete(Arc::clone(&image));
+            }
         }
 
-        for &id in &textures_delta.free {
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for id in textures_delta.free.drain() {
             self.painter.free_texture(id);
         }
 
@@ -82,19 +89,6 @@ impl WebPainter for WebPainterGlow {
 
     fn destroy(&mut self) {
         self.painter.destroy();
-    }
-
-    fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
-        for (image, data) in self.screenshots.drain(..) {
-            let image = Arc::new(image);
-            for data in data {
-                events.push(Event::Screenshot {
-                    viewport_id: ViewportId::default(),
-                    image: image.clone(),
-                    user_data: data,
-                });
-            }
-        }
     }
 }
 
@@ -191,17 +185,13 @@ fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
         .get_extension("WEBGL_debug_renderer_info")
         .unwrap()
         .is_some()
-    {
-        if let Ok(renderer) =
+        && let Ok(renderer) =
             gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
-        {
-            if let Some(renderer) = renderer.as_string() {
-                if renderer.contains("Apple") {
-                    return true;
-                }
-            }
-        }
+        && let Some(renderer) = renderer.as_string()
+        && renderer.contains("Apple")
+    {
+        true
+    } else {
+        false
     }
-
-    false
 }

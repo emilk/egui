@@ -10,7 +10,7 @@ impl Default for FrameDemo {
             frame: egui::Frame::new()
                 .inner_margin(12)
                 .outer_margin(24)
-                .rounding(14)
+                .corner_radius(14)
                 .shadow(egui::Shadow {
                     offset: [8, 12],
                     blur: 16,
@@ -28,11 +28,12 @@ impl crate::Demo for FrameDemo {
         "▣ Frame"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -56,7 +57,7 @@ impl crate::View for FrameDemo {
                 // We want to paint a background around the outer margin of the demonstration frame, so we use another frame around it:
                 egui::Frame::default()
                     .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
-                    .rounding(ui.visuals().widgets.noninteractive.rounding)
+                    .corner_radius(ui.visuals().widgets.noninteractive.corner_radius)
                     .show(ui, |ui| {
                         self.frame.show(ui, |ui| {
                             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);

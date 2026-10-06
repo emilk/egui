@@ -1,24 +1,26 @@
-use egui::{TexturesDelta, UserData, ViewportCommand};
+use std::sync::Arc;
 
-use crate::{epi, App};
+use egui::{ScreenshotCallback, TexturesDelta, ViewportCommand};
 
-use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter, NeedRepaint};
+use crate::{App, epi, web::web_painter::WebPainter};
+
+use super::{NeedRepaint, now_sec, text_agent::TextAgent};
 
 pub struct AppRunner {
-    #[allow(dead_code)]
+    #[allow(clippy::allow_attributes, dead_code)]
     pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
-    painter: super::ActiveWebPainter,
+    painter: Box<dyn WebPainter>,
     pub(crate) input: super::WebInput,
     app: Box<dyn epi::App>,
-    pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
+    pub(crate) needs_repaint: Arc<NeedRepaint>,
     last_save_time: f64,
     pub(crate) text_agent: TextAgent,
 
     // If not empty, the painter should capture n frames from now.
     // zero means capture the exact next frame.
-    screenshot_commands_with_frame_delay: Vec<(UserData, usize)>,
+    screenshot_commands_with_frame_delay: Vec<(ScreenshotCallback, usize)>,
 
     // Output for the last run:
     textures_delta: TexturesDelta,
@@ -34,6 +36,10 @@ impl Drop for AppRunner {
 impl AppRunner {
     /// # Errors
     /// Failure to initialize WebGL renderer, or failure to create app.
+    #[cfg_attr(
+        not(feature = "wgpu_no_default_features"),
+        expect(clippy::unused_async)
+    )]
     pub async fn new(
         canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
@@ -41,7 +47,42 @@ impl AppRunner {
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
-        let painter = super::ActiveWebPainter::new(egui_ctx.clone(), canvas, &web_options).await?;
+        egui_ctx.add_glyph_rasterizer(super::canvas_glyphs::glyph_rasterizer());
+
+        #[allow(clippy::allow_attributes, unused_assignments)]
+        #[cfg(feature = "glow")]
+        let mut gl = None;
+
+        #[allow(clippy::allow_attributes, unused_assignments)]
+        #[cfg(feature = "wgpu_no_default_features")]
+        let mut wgpu_render_state = None;
+
+        let painter = match web_options.renderer {
+            #[cfg(feature = "glow")]
+            epi::Renderer::Glow => {
+                log::debug!("Using the glow renderer");
+                let painter = super::web_painter_glow::WebPainterGlow::new(
+                    egui_ctx.clone(),
+                    canvas,
+                    &web_options,
+                )?;
+                gl = Some(Arc::clone(painter.gl()));
+                Box::new(painter) as Box<dyn WebPainter>
+            }
+
+            #[cfg(feature = "wgpu_no_default_features")]
+            epi::Renderer::Wgpu => {
+                log::debug!("Using the wgpu renderer");
+                let painter = super::web_painter_wgpu::WebPainterWgpu::new(
+                    egui_ctx.clone(),
+                    canvas,
+                    &web_options,
+                )
+                .await?;
+                wgpu_render_state = painter.render_state();
+                Box::new(painter) as Box<dyn WebPainter>
+            }
+        };
 
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
@@ -59,10 +100,18 @@ impl AppRunner {
 
         egui_ctx.options_mut(|o| {
             // On web by default egui follows the zoom factor of the browser,
-            // and lets the browser handle the zoom shortscuts.
+            // and lets the browser handle the zoom shortcuts.
             // A user can still zoom egui separately by calling [`egui::Context::set_zoom_factor`].
             o.zoom_with_keyboard = false;
             o.zoom_factor = 1.0;
+        });
+
+        // Tell egui right away about native_pixels_per_point
+        // so that the app knows about it during app creation:
+        egui_ctx.input_mut(|i| {
+            let viewport_info = i.raw.viewports.entry(egui::ViewportId::ROOT).or_default();
+            viewport_info.native_pixels_per_point = Some(super::native_pixels_per_point());
+            i.pixels_per_point = super::native_pixels_per_point();
         });
 
         let cc = epi::CreationContext {
@@ -71,15 +120,13 @@ impl AppRunner {
             storage: Some(&storage),
 
             #[cfg(feature = "glow")]
-            gl: Some(painter.gl().clone()),
+            gl: gl.clone(),
 
             #[cfg(feature = "glow")]
             get_proc_address: None,
 
-            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
-            wgpu_render_state: painter.render_state(),
-            #[cfg(all(feature = "wgpu", feature = "glow"))]
-            wgpu_render_state: None,
+            #[cfg(feature = "wgpu_no_default_features")]
+            wgpu_render_state: wgpu_render_state.clone(),
         };
         let app = app_creator(&cc).map_err(|err| err.to_string())?;
 
@@ -88,17 +135,15 @@ impl AppRunner {
             storage: Some(Box::new(storage)),
 
             #[cfg(feature = "glow")]
-            gl: Some(painter.gl().clone()),
+            gl,
 
-            #[cfg(all(feature = "wgpu", not(feature = "glow")))]
-            wgpu_render_state: painter.render_state(),
-            #[cfg(all(feature = "wgpu", feature = "glow"))]
-            wgpu_render_state: None,
+            #[cfg(feature = "wgpu_no_default_features")]
+            wgpu_render_state,
         };
 
-        let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
+        let needs_repaint: Arc<NeedRepaint> = Arc::new(NeedRepaint::new(web_options.max_fps));
         {
-            let needs_repaint = needs_repaint.clone();
+            let needs_repaint = Arc::clone(&needs_repaint);
             egui_ctx.set_request_repaint_callback(move |info| {
                 needs_repaint.repaint_after(info.delay.as_secs_f64());
             });
@@ -170,6 +215,7 @@ impl AppRunner {
 
     pub fn destroy(mut self) {
         log::debug!("Destroying AppRunner");
+        self.egui_ctx.on_exit();
         self.painter.destroy();
     }
 
@@ -210,61 +256,105 @@ impl AppRunner {
     pub fn logic(&mut self) {
         // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
         self.update_focus();
-        // We might have received a screenshot
-        self.painter.handle_screenshots(&mut self.input.raw.events);
 
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
 
+        if super::DEBUG_RESIZE {
+            log::info!(
+                "egui running at canvas size: {}x{}, DPR: {}, zoom_factor: {}. egui size: {}x{} points",
+                self.canvas().width(),
+                self.canvas().height(),
+                super::native_pixels_per_point(),
+                self.egui_ctx.zoom_factor(),
+                canvas_size.x,
+                canvas_size.y,
+            );
+        }
+
         self.app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
-        let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            self.app.update(egui_ctx, &mut self.frame);
-        });
-        let egui::FullOutput {
-            platform_output,
-            textures_delta,
-            shapes,
-            pixels_per_point,
-            viewport_output,
-        } = full_output;
+        let is_visible = raw_input
+            .viewports
+            .get(&egui::ViewportId::ROOT)
+            .and_then(|v| v.visible())
+            .unwrap_or(true);
 
-        if viewport_output.len() > 1 {
-            log::warn!("Multiple viewports not yet supported on the web");
+        if is_visible {
+            let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
+                self.app.logic(ui.ctx(), &mut self.frame);
+                self.app.ui(ui, &mut self.frame);
+            });
+            let egui::FullOutput {
+                platform_output,
+                textures_delta,
+                shapes,
+                pixels_per_point,
+                viewport_output,
+            } = full_output;
+
+            if viewport_output.len() > 1 {
+                log::warn!("Multiple viewports not yet supported on the web");
+            }
+            self.handle_viewport_commands(
+                viewport_output
+                    .into_values()
+                    .flat_map(|viewport_output| viewport_output.commands),
+            );
+
+            self.handle_platform_output(platform_output);
+            self.textures_delta.append(textures_delta);
+            self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+        } else {
+            // The tab is hidden, so we run no egui pass at all.
+            // That way all ui state is left untouched, and is still there
+            // when the tab is shown again.
+
+            let egui::LogicOutput {
+                platform_output,
+                viewport_commands,
+            } = self.egui_ctx.run_logic(&raw_input, |ctx| {
+                self.app.logic(ctx, &mut self.frame);
+            });
+
+            // No pass consumed the input, so save it for the next one:
+            self.input.raw.append(raw_input);
+
+            self.handle_viewport_commands(viewport_commands.into_values().flatten());
+            self.handle_platform_output(platform_output);
         }
-        for (_viewport_id, viewport_output) in viewport_output {
-            for command in viewport_output.commands {
-                match command {
-                    ViewportCommand::Screenshot(user_data) => {
-                        self.screenshot_commands_with_frame_delay
-                            .push((user_data, 1));
-                    }
-                    _ => {
-                        // TODO(emilk): handle some of the commands
-                        log::warn!(
-                            "Unhandled egui viewport command: {command:?} - not implemented in web backend"
-                        );
-                    }
+    }
+
+    fn handle_viewport_commands(&mut self, commands: impl Iterator<Item = ViewportCommand>) {
+        for command in commands {
+            match command {
+                ViewportCommand::Screenshot(callback) => {
+                    self.screenshot_commands_with_frame_delay
+                        .push((callback, 1));
+                }
+                ViewportCommand::SetTheme(_) => {
+                    // Web has no window decorations to theme, egui visuals follow the configured theme.
+                }
+                _ => {
+                    // TODO(emilk): handle some of the commands
+                    log::warn!(
+                        "Unhandled egui viewport command: {command:?} - not implemented in web backend"
+                    );
                 }
             }
         }
-
-        self.handle_platform_output(platform_output);
-        self.textures_delta.append(textures_delta);
-        self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
     }
 
     /// Paint the results of the last call to [`Self::logic`].
     pub fn paint(&mut self) {
-        let textures_delta = std::mem::take(&mut self.textures_delta);
-        let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
+        let clipped_primitives = core::mem::take(&mut self.clipped_primitives);
 
         if let Some(clipped_primitives) = clipped_primitives {
             let mut screenshot_commands = vec![];
             self.screenshot_commands_with_frame_delay
-                .retain_mut(|(user_data, frame_delay)| {
+                .retain_mut(|(callback, frame_delay)| {
                     if *frame_delay == 0 {
-                        screenshot_commands.push(user_data.clone());
+                        screenshot_commands.push(callback.clone());
                         false
                     } else {
                         *frame_delay -= 1;
@@ -276,10 +366,10 @@ impl AppRunner {
             }
 
             if let Err(err) = self.painter.paint_and_update_textures(
-                self.app.clear_color(&self.egui_ctx.style().visuals),
+                self.app.clear_color(&self.egui_ctx.global_style().visuals),
                 &clipped_primitives,
                 self.egui_ctx.pixels_per_point(),
-                &textures_delta,
+                &mut self.textures_delta,
                 screenshot_commands,
             ) {
                 log::error!("Failed to paint: {}", super::string_from_js_value(&err));
@@ -292,8 +382,6 @@ impl AppRunner {
     }
 
     fn handle_platform_output(&self, platform_output: egui::PlatformOutput) {
-        #![allow(deprecated)]
-
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
             super::screen_reader::speak(&platform_output.events_description());
@@ -302,13 +390,11 @@ impl AppRunner {
         let egui::PlatformOutput {
             commands,
             cursor_icon,
-            open_url,
-            copied_text,
-            events: _,                    // already handled
+            cursor_image: _, // TODO(alextournai): support custom bitmap cursors on the web (via CSS `url(...)`)
+            events: _,       // already handled
             mutable_text_under_cursor: _, // TODO(#4569): https://github.com/emilk/egui/issues/4569
             ime,
-            #[cfg(feature = "accesskit")]
-                accesskit_update: _, // not currently implemented
+            accesskit_update: _,        // not currently implemented
             num_completed_passes: _,    // handled by `Context::run`
             request_discard_reasons: _, // handled by `Context::run`
         } = platform_output;
@@ -327,31 +413,26 @@ impl AppRunner {
             }
         }
 
-        super::set_cursor_icon(cursor_icon);
-
-        if let Some(open) = open_url {
-            super::open_url(&open.url, open.new_tab);
-        }
-
-        if !copied_text.is_empty() {
-            super::set_clipboard_text(&copied_text);
-        }
+        super::set_cursor_icon(self.canvas(), cursor_icon);
 
         if self.has_focus() {
             // The eframe app has focus.
-            if ime.is_some() {
+            if let Some(ime) = ime {
+                if ime.should_interrupt_composition {
+                    self.text_agent.interrupt_ime_composition();
+                }
                 // We are editing text: give the focus to the text agent.
                 self.text_agent.focus();
             } else {
                 // We are not editing text - give the focus to the canvas.
                 self.text_agent.blur();
-                self.canvas().focus().ok();
+                super::focus_without_scroll(self.canvas()).ok();
             }
         }
 
         if let Err(err) = self
             .text_agent
-            .move_to(ime, self.canvas(), self.egui_ctx.zoom_factor())
+            .update(ime, self.canvas(), self.egui_ctx.zoom_factor())
         {
             log::error!(
                 "failed to update text agent position: {}",
@@ -373,6 +454,10 @@ impl epi::Storage for LocalStorage {
 
     fn set_string(&mut self, key: &str, value: String) {
         super::storage::local_storage_set(key, &value);
+    }
+
+    fn remove_string(&mut self, key: &str) {
+        super::storage::local_storage_remove(key);
     }
 
     fn flush(&mut self) {}

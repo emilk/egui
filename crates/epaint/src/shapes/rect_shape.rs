@@ -8,19 +8,38 @@ use crate::*;
 pub struct RectShape {
     pub rect: Rect,
 
-    /// How rounded the corners are. Use `Rounding::ZERO` for no rounding.
-    pub rounding: Rounding,
+    /// How rounded the corners of the rectangle are.
+    ///
+    /// Use [`CornerRadius::ZERO`] for for sharp corners.
+    ///
+    /// This is the corner radii of the rectangle.
+    /// If there is a stroke, then the stroke will have an inner and outer corner radius,
+    /// and those will depend on [`StrokeKind`] and the stroke width.
+    ///
+    /// For [`StrokeKind::Inside`], the outside of the stroke coincides with the rectangle,
+    /// so the rounding will in this case specify the outer corner radius.
+    pub corner_radius: CornerRadius,
 
     /// How to fill the rectangle.
     pub fill: Color32,
 
     /// The thickness and color of the outline.
     ///
-    /// The stroke extends _outside_ the edge of [`Self::rect`],
-    /// i.e. using [`crate::StrokeKind::Outside`].
-    ///
-    /// This means the [`Self::visual_bounding_rect`] is `rect.size() + 2.0 * stroke.width`.
+    /// Whether or not the stroke is inside or outside the edge of [`Self::rect`],
+    /// is controlled by [`Self::stroke_kind`].
     pub stroke: Stroke,
+
+    /// Is the stroke on the inside, outside, or centered on the rectangle?
+    ///
+    /// If you want to perfectly tile rectangles, use [`StrokeKind::Inside`].
+    pub stroke_kind: StrokeKind,
+
+    /// Snap the rectangle to pixels?
+    ///
+    /// Rounding produces sharper rectangles.
+    ///
+    /// If `None`, [`crate::TessellationOptions::round_rects_to_pixels`] will be used.
+    pub round_to_pixels: Option<bool>,
 
     /// If larger than zero, the edges of the rectangle
     /// (for both fill and stroke) will be blurred.
@@ -35,53 +54,89 @@ pub struct RectShape {
     /// Since most rectangles do not have a texture, this is optional and in an `Arc`,
     /// so that [`RectShape`] is kept small..
     pub brush: Option<Arc<Brush>>,
+
+    /// Rotate rectangle by this many radians clockwise around its center.
+    pub angle: f32,
 }
 
 #[test]
 fn rect_shape_size() {
     assert_eq!(
-        std::mem::size_of::<RectShape>(), 48,
+        core::mem::size_of::<RectShape>(),
+        56,
         "RectShape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
-        std::mem::size_of::<RectShape>() <= 64,
+        core::mem::size_of::<RectShape>() <= 64,
         "RectShape is getting way too big!"
     );
 }
 
 impl RectShape {
-    /// The stroke extends _outside_ the [`Rect`].
+    /// See also [`Self::filled`] and [`Self::stroke`].
     #[inline]
     pub fn new(
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
     ) -> Self {
         Self {
             rect,
-            rounding: rounding.into(),
+            corner_radius: corner_radius.into(),
             fill: fill_color.into(),
             stroke: stroke.into(),
+            stroke_kind,
+            round_to_pixels: None,
             blur_width: 0.0,
             brush: Default::default(),
+            angle: 0.0,
         }
     }
 
     #[inline]
     pub fn filled(
         rect: Rect,
-        rounding: impl Into<Rounding>,
+        corner_radius: impl Into<CornerRadius>,
         fill_color: impl Into<Color32>,
     ) -> Self {
-        Self::new(rect, rounding, fill_color, Stroke::NONE)
+        Self::new(
+            rect,
+            corner_radius,
+            fill_color,
+            Stroke::NONE,
+            StrokeKind::Outside, // doesn't matter
+        )
     }
 
-    /// The stroke extends _outside_ the [`Rect`].
     #[inline]
-    pub fn stroke(rect: Rect, rounding: impl Into<Rounding>, stroke: impl Into<Stroke>) -> Self {
+    pub fn stroke(
+        rect: Rect,
+        corner_radius: impl Into<CornerRadius>,
+        stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
+    ) -> Self {
         let fill = Color32::TRANSPARENT;
-        Self::new(rect, rounding, fill, stroke)
+        Self::new(rect, corner_radius, fill, stroke, stroke_kind)
+    }
+
+    /// Set if the stroke is on the inside, outside, or centered on the rectangle.
+    #[inline]
+    pub fn with_stroke_kind(mut self, stroke_kind: StrokeKind) -> Self {
+        self.stroke_kind = stroke_kind;
+        self
+    }
+
+    /// Snap the rectangle to pixels?
+    ///
+    /// Rounding produces sharper rectangles.
+    ///
+    /// If `None`, [`crate::TessellationOptions::round_rects_to_pixels`] will be used.
+    #[inline]
+    pub fn with_round_to_pixels(mut self, round_to_pixels: bool) -> Self {
+        self.round_to_pixels = Some(round_to_pixels);
+        self
     }
 
     /// If larger than zero, the edges of the rectangle
@@ -106,14 +161,47 @@ impl RectShape {
         self
     }
 
+    /// Set the rotation of the rectangle (in radians, clockwise).
+    /// The rectangle rotates around its center.
+    #[inline]
+    pub fn with_angle(mut self, angle: f32) -> Self {
+        self.angle = angle;
+        self
+    }
+
+    /// Set the rotation of the rectangle (in radians, clockwise) around a custom pivot point.
+    #[inline]
+    pub fn with_angle_and_pivot(mut self, angle: f32, pivot: Pos2) -> Self {
+        self.angle = angle;
+        let rot = emath::Rot2::from_angle(angle);
+        let center = self.rect.center();
+        let new_center = pivot + rot * (center - pivot);
+        self.rect = self.rect.translate(new_center - center);
+        self
+    }
+
     /// The visual bounding rectangle (includes stroke width)
     #[inline]
     pub fn visual_bounding_rect(&self) -> Rect {
         if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
             Rect::NOTHING
         } else {
-            let Stroke { width, .. } = self.stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
-            self.rect.expand(width + self.blur_width / 2.0)
+            let expand = match self.stroke_kind {
+                StrokeKind::Inside => 0.0,
+                StrokeKind::Middle => self.stroke.width * 0.5,
+                StrokeKind::Outside => self.stroke.width,
+            };
+            let expanded = self.rect.expand(expand + self.blur_width * 0.5);
+            if self.angle == 0.0 {
+                expanded
+            } else {
+                // Rotate around the rectangle's center and compute bounding box
+                let center = self.rect.center();
+                let rect_relative = Rect::from_center_size(Pos2::ZERO, expanded.size());
+                rect_relative
+                    .rotate_bb(emath::Rot2::from_angle(self.angle))
+                    .translate(center.to_vec2())
+            }
         }
     }
 

@@ -1,19 +1,23 @@
-use std::{hash::Hash, sync::Arc};
+use std::sync::Arc;
 
-use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
-
-#[allow(unused_imports)] // Used for doclinks
+#[expect(unused_imports)] // Used for doclinks
 use crate::Ui;
+use crate::{
+    AsIdSalt, ClosableTag, Id, IdSalt, LayerId, Layout, Rect, Sense, Style, UiStackInfo,
+    class::{Classes, HasClasses},
+};
 
-/// Build a [`Ui`] as the child of another [`Ui`].
+/// The properties specified when creating a top-level or child [`Ui`].
 ///
 /// By default, everything is inherited from the parent,
 /// except for `max_rect` which by default is set to
 /// the parent [`Ui::available_rect_before_wrap`].
+///
+/// See also [`Ui::new`] and [`Ui::new_child`] for uses.
 #[must_use]
 #[derive(Clone, Default)]
 pub struct UiBuilder {
-    pub id_salt: Option<Id>,
+    pub id_source: Option<IdSource>,
     pub ui_stack_info: UiStackInfo,
     pub layer_id: Option<LayerId>,
     pub max_rect: Option<Rect>,
@@ -23,6 +27,20 @@ pub struct UiBuilder {
     pub sizing_pass: bool,
     pub style: Option<Arc<Style>>,
     pub sense: Option<Sense>,
+    pub accessibility_parent: Option<Id>,
+    pub accessibility_label: Option<String>,
+    pub accessibility_role: Option<crate::accesskit::Role>,
+    pub classes: Classes,
+}
+
+/// Is this [`Ui`] a root or a child of another [`Ui`]?
+#[derive(Clone)]
+pub enum IdSource {
+    /// Explicitly use this [`Id`]
+    Explicit(Id),
+
+    /// Salt the parent [`Id`] with this.
+    Child(IdSalt),
 }
 
 impl UiBuilder {
@@ -32,14 +50,36 @@ impl UiBuilder {
     }
 
     /// Seed the child `Ui` with this `id_salt`, which will be mixed
-    /// with the [`Ui::id`] of the parent.
+    /// with the [`Ui::scope_id`] of the parent.
     ///
     /// You should give each [`Ui`] an `id_salt` that is unique
     /// within the parent, or give it none at all.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl Hash) -> Self {
-        self.id_salt = Some(Id::new(id_salt));
+    pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
+        self.id_source = Some(IdSource::Child(IdSalt::new(id_salt)));
         self
+    }
+
+    /// Set the [`Ui::scope_id`] of the new `Ui` to something independent of the parent `Ui`.
+    /// This way child widgets can be moved in the ui tree without losing state.
+    /// You have to ensure that in a frame the child widgets do not get rendered in multiple places.
+    ///
+    /// You should set the same unique `scope_id` at every place in the ui tree where you want the
+    /// child widgets to share state.
+    /// If the child widgets are not moved in the ui tree, use [`UiBuilder::id_salt`] instead.
+    ///
+    /// The `scope_id` is also used as the [`Ui::unique_id`] of the new `Ui`, so it must be globally unique.
+    #[inline]
+    pub fn scope_id(mut self, scope_id: Id) -> Self {
+        self.id_source = Some(IdSource::Explicit(scope_id));
+        self
+    }
+
+    /// Renamed to [`Self::scope_id`].
+    #[deprecated = "Renamed to `UiBuilder::scope_id`"]
+    #[inline]
+    pub fn id(self, id: Id) -> Self {
+        self.scope_id(id)
     }
 
     /// Provide some information about the new `Ui` being built.
@@ -86,6 +126,8 @@ impl UiBuilder {
     /// Make the new `Ui` disabled, i.e. grayed-out and non-interactive.
     ///
     /// Note that if the parent `Ui` is disabled, the child will always be disabled.
+    ///
+    /// See also [`crate::Ui::add_enabled`], [`crate::Ui::add_enabled_ui`] and [`crate::Ui::is_enabled`].
     #[inline]
     pub fn disabled(mut self) -> Self {
         self.disabled = true;
@@ -125,6 +167,7 @@ impl UiBuilder {
     }
 
     /// Set if you want sense clicks and/or drags. Default is [`Sense::hover`].
+    ///
     /// The sense will be registered below the Senses of any widgets contained in this [`Ui`], so
     /// if the user clicks a button contained within this [`Ui`], that button will receive the click
     /// instead.
@@ -134,5 +177,60 @@ impl UiBuilder {
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = Some(sense);
         self
+    }
+
+    /// Make this [`Ui`] closable.
+    ///
+    /// Calling [`Ui::close`] in a child [`Ui`] will mark this [`Ui`] for closing.
+    /// After [`Ui::close`] was called, [`Ui::should_close`] and [`crate::Response::should_close`] will
+    /// return `true` (for this frame).
+    ///
+    /// This works by adding a [`ClosableTag`] to the [`UiStackInfo`].
+    #[inline]
+    pub fn closable(mut self) -> Self {
+        self.ui_stack_info
+            .tags
+            .insert(ClosableTag::NAME, Some(Arc::new(ClosableTag::default())));
+        self
+    }
+
+    /// Set the accessibility parent for this [`Ui`].
+    ///
+    /// Pass [`Ui::unique_id`] or `Response::id`, not [`Ui::scope_id`].
+    ///
+    /// This will override the automatic parent assignment for accessibility purposes.
+    /// If not set, the parent [`Ui`]'s ID will be used as the accessibility parent.
+    #[inline]
+    pub fn accessibility_parent(mut self, parent_id: Id) -> Self {
+        self.accessibility_parent = Some(parent_id);
+        self
+    }
+
+    /// Name this [`Ui`] in the accessibility tree.
+    ///
+    /// Every `Ui` is a node there, with a role from its [`UiKind`](crate::UiKind).
+    /// A name lets a screen reader, or a test, tell this panel, popup or region from the others.
+    #[inline]
+    pub fn accessibility_label(mut self, label: impl Into<String>) -> Self {
+        self.accessibility_label = Some(label.into());
+        self
+    }
+
+    /// Give this [`Ui`]'s node a role other than the one its [`UiKind`](crate::UiKind) implies,
+    /// e.g. [`Role::Alert`](crate::accesskit::Role::Alert) for a toast.
+    #[inline]
+    pub fn accessibility_role(mut self, role: crate::accesskit::Role) -> Self {
+        self.accessibility_role = Some(role);
+        self
+    }
+}
+
+impl HasClasses for UiBuilder {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }

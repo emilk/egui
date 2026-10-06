@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
 
@@ -20,19 +20,19 @@ fn main() -> eframe::Result {
 
 #[derive(Default)]
 struct MyApp {
-    dropped_files: Vec<egui::DroppedFile>,
+    dropped_files: Vec<egui::DroppedFileHandle>,
     picked_path: Option<String>,
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
-            if ui.button("Open file…").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    self.picked_path = Some(path.display().to_string());
-                }
+            if ui.button("Open file…").clicked()
+                && let Some(path) = rfd::FileDialog::new().pick_file()
+            {
+                self.picked_path = Some(path.display().to_string());
             }
 
             if let Some(picked_path) = &self.picked_path {
@@ -48,35 +48,32 @@ impl eframe::App for MyApp {
                     ui.label("Dropped files:");
 
                     for file in &self.dropped_files {
-                        let mut info = if let Some(path) = &file.path {
-                            path.display().to_string()
-                        } else if !file.name.is_empty() {
-                            file.name.clone()
-                        } else {
-                            "???".to_owned()
-                        };
+                        #[cfg(not(target_arch = "wasm32"))]
+                        ui.label(file.path().display().to_string());
 
-                        let mut additional_info = vec![];
-                        if !file.mime.is_empty() {
-                            additional_info.push(format!("type: {}", file.mime));
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            let Some(web_file) = file.web_file() else {
+                                continue;
+                            };
+                            let name = web_file.name();
+                            let mime = web_file.type_();
+                            let size = web_file.size();
+                            if mime.is_empty() {
+                                ui.label(format!("{name} ({size} bytes)"));
+                            } else {
+                                ui.label(format!("{name} (type: {mime}, {size} bytes)"));
+                            }
                         }
-                        if let Some(bytes) = &file.bytes {
-                            additional_info.push(format!("{} bytes", bytes.len()));
-                        }
-                        if !additional_info.is_empty() {
-                            info += &format!(" ({})", additional_info.join(", "));
-                        }
-
-                        ui.label(info);
                     }
                 });
             }
         });
 
-        preview_files_being_dropped(ctx);
+        preview_files_being_dropped(ui.ctx());
 
         // Collect dropped files:
-        ctx.input(|i| {
+        ui.input(|i| {
             if !i.raw.dropped_files.is_empty() {
                 self.dropped_files.clone_from(&i.raw.dropped_files);
             }
@@ -86,8 +83,8 @@ impl eframe::App for MyApp {
 
 /// Preview hovering files:
 fn preview_files_being_dropped(ctx: &egui::Context) {
+    use core::fmt::Write as _;
     use egui::{Align2, Color32, Id, LayerId, Order, TextStyle};
-    use std::fmt::Write as _;
 
     if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
         let text = ctx.input(|i| {
@@ -95,25 +92,27 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
             for file in &i.raw.hovered_files {
                 if let Some(path) = &file.path {
                     write!(text, "\n{}", path.display()).ok();
-                } else if !file.mime.is_empty() {
-                    write!(text, "\n{}", file.mime).ok();
-                } else {
+                } else if file.mime.is_empty() {
                     text += "\n???";
+                } else {
+                    write!(text, "\n{}", file.mime).ok();
                 }
             }
             text
         });
 
-        let painter =
-            ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
+        let painter = ctx.layer_painter(LayerId::new(
+            Order::Foreground,
+            Id::unique("file_drop_target"),
+        ));
 
-        let screen_rect = ctx.screen_rect();
-        painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
+        let content_rect = ctx.content_rect();
+        painter.rect_filled(content_rect, 0.0, Color32::from_black_alpha(192));
         painter.text(
-            screen_rect.center(),
+            content_rect.center(),
             Align2::CENTER_CENTER,
             text,
-            TextStyle::Heading.resolve(&ctx.style()),
+            TextStyle::Heading.resolve(&ctx.global_style()),
             Color32::WHITE,
         );
     }

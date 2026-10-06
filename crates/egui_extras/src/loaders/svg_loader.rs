@@ -1,18 +1,27 @@
-use std::{borrow::Cow, mem::size_of, path::Path, sync::Arc};
+use core::mem::size_of;
+use std::sync::Arc;
 
 use ahash::HashMap;
 
 use egui::{
+    ColorImage,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage,
 };
 
-type Entry = Result<Arc<ColorImage>, String>;
+struct Entry {
+    last_used: u64,
+    result: Result<Arc<ColorImage>, String>,
+}
 
-#[derive(Default)]
+struct State {
+    pass_index: u64,
+    cache: HashMap<String, HashMap<SizeHint, Entry>>,
+    options: resvg::usvg::Options<'static>,
+}
+
 pub struct SvgLoader {
-    cache: Mutex<HashMap<(Cow<'static, str>, SizeHint), Entry>>,
+    state: Mutex<State>,
 }
 
 impl SvgLoader {
@@ -20,11 +29,26 @@ impl SvgLoader {
 }
 
 fn is_supported(uri: &str) -> bool {
-    let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
-        return false;
-    };
+    egui::load::has_extension(uri, "svg")
+}
 
-    ext == "svg"
+impl Default for SvgLoader {
+    fn default() -> Self {
+        // opt is mutated when `svg_text` feature flag is enabled
+        #[allow(clippy::allow_attributes, unused_mut)]
+        let mut options = resvg::usvg::Options::default();
+
+        #[cfg(feature = "svg_text")]
+        options.fontdb_mut().load_system_fonts();
+
+        Self {
+            state: Mutex::new(State {
+                pass_index: 0,
+                cache: HashMap::default(),
+                options,
+            }),
+        }
+    }
 }
 
 impl ImageLoader for SvgLoader {
@@ -37,21 +61,37 @@ impl ImageLoader for SvgLoader {
             return Err(LoadError::NotSupported);
         }
 
-        let mut cache = self.cache.lock();
-        // We can't avoid the `uri` clone here without unsafe code.
-        if let Some(entry) = cache.get(&(Cow::Borrowed(uri), size_hint)).cloned() {
-            match entry {
+        let mut state = self.state.lock();
+        let State {
+            pass_index,
+            cache,
+            options,
+        } = &mut *state;
+
+        let bucket = cache.entry(uri.to_owned()).or_default();
+
+        if let Some(entry) = bucket.get_mut(&size_hint) {
+            entry.last_used = *pass_index;
+
+            match entry.result.clone() {
                 Ok(image) => Ok(ImagePoll::Ready { image }),
                 Err(err) => Err(LoadError::Loading(err)),
             }
         } else {
             match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
-                    log::trace!("started loading {uri:?}");
-                    let result = crate::image::load_svg_bytes_with_size(&bytes, Some(size_hint))
+                    log::trace!("Started loading {uri:?}");
+                    let result = crate::image::load_svg_bytes_with_size(&bytes, size_hint, options)
                         .map(Arc::new);
-                    log::trace!("finished loading {uri:?}");
-                    cache.insert((Cow::Owned(uri.to_owned()), size_hint), result.clone());
+
+                    log::trace!("Finished loading {uri:?}");
+                    bucket.insert(
+                        size_hint,
+                        Entry {
+                            last_used: *pass_index,
+                            result: result.clone(),
+                        },
+                    );
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready { image }),
                         Err(err) => Err(LoadError::Loading(err)),
@@ -64,22 +104,41 @@ impl ImageLoader for SvgLoader {
     }
 
     fn forget(&self, uri: &str) {
-        self.cache.lock().retain(|(u, _), _| u != uri);
+        self.state.lock().cache.retain(|key, _| key != uri);
     }
 
     fn forget_all(&self) {
-        self.cache.lock().clear();
+        self.state.lock().cache.clear();
     }
 
     fn byte_size(&self) -> usize {
-        self.cache
+        self.state
             .lock()
+            .cache
             .values()
-            .map(|result| match result {
+            .flat_map(|bucket| bucket.values())
+            .map(|entry| match &entry.result {
                 Ok(image) => image.pixels.len() * size_of::<egui::Color32>(),
                 Err(err) => err.len(),
             })
             .sum()
+    }
+
+    fn end_pass(&self, pass_index: u64) {
+        let mut state = self.state.lock();
+
+        state.pass_index = pass_index;
+
+        state.cache.retain(|_key, bucket| {
+            if 2 <= bucket.len() {
+                // There are multiple images of the same URI (e.g. SVGs of different scales).
+                // This could be because someone has an SVG in a resizable container,
+                // and so we get a lot of different sizes of it.
+                // This could wast RAM, so we remove the ones that are not used in this frame.
+                bucket.retain(|_, texture| pass_index <= texture.last_used + 1);
+            }
+            !bucket.is_empty()
+        });
     }
 }
 

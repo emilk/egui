@@ -1,0 +1,25 @@
+# Looks for unused crates.
+name: Cargo Shear
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  cargo-shear:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Cargo Shear
+        uses: taiki-e/install-action@v2.48.7
+        with:
+          tool: cargo-shear@1.11.2
+
+      - name: Run Cargo Shear
+        run: |
+          cargo shear

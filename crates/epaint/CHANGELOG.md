@@ -5,6 +5,151 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.2 - 2026-09-08
+* Fix rendering of thin, angled rectangles [#8482](https://github.com/emilk/egui/pull/8482) by [@emilk](https://github.com/emilk)
+* Simplify and optimize `Color32::from_rgba_unmultiplied` [#8427](https://github.com/emilk/egui/pull/8427) by [@Keith-Cancel](https://github.com/Keith-Cancel)
+
+
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
+## 0.36.0 - 2026-08-05
+* Add `LayoutJob::clear` [#8376](https://github.com/emilk/egui/pull/8376) by [@emilk](https://github.com/emilk)
+* Add `extra_text_line_spacing` to control vertical spacing between text lines [#8040](https://github.com/emilk/egui/pull/8040) by [@rustbasic](https://github.com/rustbasic)
+
+
+## 0.35.0 - 2026-06-25
+### ⭐ Added
+* Make the size of tabs and thin space configurable [#8070](https://github.com/emilk/egui/pull/8070) by [@emilk](https://github.com/emilk)
+* Add `subpixel_binning` to `TextOptions` and `FontTweak` [#8072](https://github.com/emilk/egui/pull/8072) by [@emilk](https://github.com/emilk)
+* Add `LayoutJob::format_at_byte` [#8244](https://github.com/emilk/egui/pull/8244) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Use `harfrust` for better kerning and ligatures [#8031](https://github.com/emilk/egui/pull/8031) by [@gcailly](https://github.com/gcailly)
+* Rename `AlphaFromCoverage` to `FontColorTransferFunction` [#8201](https://github.com/emilk/egui/pull/8201) by [@emilk](https://github.com/emilk)
+* Use strongly typed `CharIndex` and `ByteIndex` + bug fixes [#8245](https://github.com/emilk/egui/pull/8245) by [@emilk](https://github.com/emilk)
+* Make font hinting target configurable via `FontTweak` [#8262](https://github.com/emilk/egui/pull/8262) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove `impl Into<f32>` arguments [#8194](https://github.com/emilk/egui/pull/8194) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix glyph caching on font variations [#8189](https://github.com/emilk/egui/pull/8189) by [@emilk](https://github.com/emilk)
+
+
+## 0.34.3 - 2026-05-27
+Nothing new
+
+
+## 0.34.2 - 2026-05-04
+* Fix text layout bugs in wrapped texts [#8137](https://github.com/emilk/egui/pull/8137) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
+## 0.34.1 - 2026-03-27
+Nothing new
+
+
+## 0.34.0 - 2026-03-26
+### ⭐ Added
+* Replace ab_glyph with Skrifa + vello_cpu; enable font hinting [#7694](https://github.com/emilk/egui/pull/7694) by [@valadaptive](https://github.com/valadaptive)
+* Add font variations API [#7859](https://github.com/emilk/egui/pull/7859) by [@valadaptive](https://github.com/valadaptive)
+* Allow rotation of rectangles and ellipses [#7682](https://github.com/emilk/egui/pull/7682) by [@RyanBluth](https://github.com/RyanBluth)
+
+### 🔧 Changed
+* Apply preferred font weight when loading variable fonts [#7790](https://github.com/emilk/egui/pull/7790) by [@pmnxis](https://github.com/pmnxis)
+* Make `Galley::pos_from_layout_cursor` `pub` [#7864](https://github.com/emilk/egui/pull/7864) by [@dionb](https://github.com/dionb)
+
+### 🐛 Fixed
+* Fixes the overly aggressive overflow elision in `truncate()` and similar for os scaling other than 100% [#7867](https://github.com/emilk/egui/pull/7867) by [@RndUsr123](https://github.com/RndUsr123)
+* Fix text color when selecting newline character [#7951](https://github.com/emilk/egui/pull/7951) by [@emilk](https://github.com/emilk)
+* Fix galley width calculation being off due to subpixel binning [#7972](https://github.com/emilk/egui/pull/7972) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🚀 Performance
+* Avoid cloning `Row`s during `Galley::concat` [#7649](https://github.com/emilk/egui/pull/7649) by [@afishhh](https://github.com/afishhh)
+
+
+## 0.33.3 - 2025-12-11
+Nothing new
+
+
+## 0.33.2 - 2025-11-13
+Nothing new
+
+
+## 0.33.0 - 2025-10-09
+* Remove the `deadlock_detection` feature [#7497](https://github.com/emilk/egui/pull/7497) by [@lucasmerlin](https://github.com/lucasmerlin)
+* More even text kerning [#7431](https://github.com/emilk/egui/pull/7431) by [@valadaptive](https://github.com/valadaptive)
+* Return `0.0` if font not found in `glyph_width` instead of panic [#7559](https://github.com/emilk/egui/pull/7559) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+* Remove `log` feature [#7583](https://github.com/emilk/egui/pull/7583) by [@emilk](https://github.com/emilk)
+
+
+## 0.32.3 - 2025-09-12
+* Optimize `Mesh::add_rect_with_uv` [#7511](https://github.com/emilk/egui/pull/7511) by [@valadaptive](https://github.com/valadaptive)
+
+
+## 0.32.2 - 2025-09-04
+* Panic mutexes that can't lock for 30 seconds, in debug builds [#7468](https://github.com/emilk/egui/pull/7468) by [@emilk](https://github.com/emilk)
+* Skip zero-length layout job sections [#7430](https://github.com/emilk/egui/pull/7430) by [@HactarCE](https://github.com/HactarCE)
+
+
+## 0.32.1 - 2025-08-15
+* Fix multi-line `TextShape` rotation [#7404](https://github.com/emilk/egui/pull/7404) by [@afishhh](https://github.com/afishhh)
+* Fix glyph rendering: clamp coverage to [0, 1] [#7415](https://github.com/emilk/egui/pull/7415) by [@emilk](https://github.com/emilk)
+
+
+## 0.32.0 - 2025-07-10
+### ⭐ Added
+* Impl AsRef<[u8]> for FontData [#5757](https://github.com/emilk/egui/pull/5757) by [@StratusFearMe21](https://github.com/StratusFearMe21)
+* Add `expand_bg` to customize size of text background [#5365](https://github.com/emilk/egui/pull/5365) by [@MeGaGiGaGon](https://github.com/MeGaGiGaGon)
+* Add anchored text rotation method, and clarify related docs [#7130](https://github.com/emilk/egui/pull/7130) by [@pmarks](https://github.com/pmarks)
+* Add `Galley::intrinsic_size` [#7146](https://github.com/emilk/egui/pull/7146) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+### 🔧 Changed
+* Fix semi-transparent colors appearing too bright [#5824](https://github.com/emilk/egui/pull/5824) by [@emilk](https://github.com/emilk)
+* Improve text sharpness [#5838](https://github.com/emilk/egui/pull/5838) by [@emilk](https://github.com/emilk)
+* Improve text rendering in light mode [#7290](https://github.com/emilk/egui/pull/7290) by [@emilk](https://github.com/emilk)
+* Make text underline and strikethrough pixel perfect crisp [#5857](https://github.com/emilk/egui/pull/5857) by [@emilk](https://github.com/emilk)
+* Update `emoji-icon-font` with fix for fullwidth latin characters [#7067](https://github.com/emilk/egui/pull/7067) by [@emilk](https://github.com/emilk)
+* Add assert messages and print bad argument values in asserts [#5216](https://github.com/emilk/egui/pull/5216) by [@bircni](https://github.com/bircni)
+
+### 🔥 Removed
+* Remove things that have been deprecated for over a year [#7099](https://github.com/emilk/egui/pull/7099) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix: transform `TextShape` underline width [#5865](https://github.com/emilk/egui/pull/5865) by [@emilk](https://github.com/emilk)
+* Fix `visual_bounding_rect` for rotated text [#7050](https://github.com/emilk/egui/pull/7050) by [@pmarks](https://github.com/pmarks)
+
+### 🚀 Performance
+* Optimize editing long text by caching each paragraph [#5411](https://github.com/emilk/egui/pull/5411) by [@afishhh](https://github.com/afishhh)
+
+
+## 0.31.1 - 2025-03-05
+* Fix panic when rendering thin textured rectangles [#5692](https://github.com/emilk/egui/pull/5692) by [@PPakalns](https://github.com/PPakalns)
+
+
+## 0.31.0 - 2025-02-04
+### ⭐ Added
+* Improve tessellation quality [#5669](https://github.com/emilk/egui/pull/5669) by [@emilk](https://github.com/emilk)
+* Add `epaint::Brush` for controlling `RectShape` texturing [#5565](https://github.com/emilk/egui/pull/5565) by [@emilk](https://github.com/emilk)
+* Add `RectShape::stroke_kind ` to control if stroke is inside/outside/centered [#5647](https://github.com/emilk/egui/pull/5647) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Rename `Rounding` to `CornerRadius` [#5673](https://github.com/emilk/egui/pull/5673) by [@emilk](https://github.com/emilk)
+* Make all lines and rectangles crisp [#5518](https://github.com/emilk/egui/pull/5518) by [@emilk](https://github.com/emilk)
+* Better rounding of rectangles with thin outlines [#5571](https://github.com/emilk/egui/pull/5571) by [@emilk](https://github.com/emilk)
+* Require a `StrokeKind` when painting rectangles with strokes [#5648](https://github.com/emilk/egui/pull/5648) by [@emilk](https://github.com/emilk)
+
+### 🔥 Removed
+* Remove `StrokeKind::default` [#5658](https://github.com/emilk/egui/pull/5658) by [@emilk](https://github.com/emilk)
+
+### 🚀 Performance
+* Use `u8` in `Rounding`, and introduce `Roundingf` [#5563](https://github.com/emilk/egui/pull/5563) by [@emilk](https://github.com/emilk)
+* Store `Margin` using `i8` to reduce its size [#5567](https://github.com/emilk/egui/pull/5567) by [@emilk](https://github.com/emilk)
+* Shrink size of `Shadow` by using `i8/u8` instead of `f32` [#5568](https://github.com/emilk/egui/pull/5568) by [@emilk](https://github.com/emilk)
+
+
 ## 0.30.0 - 2024-12-16
 * Expand max font atlas size from 8k to 16k [#5257](https://github.com/emilk/egui/pull/5257) by [@rustbasic](https://github.com/rustbasic)
 * Put font data into `Arc` to reduce memory consumption [#5276](https://github.com/emilk/egui/pull/5276) by [@StarStarJ](https://github.com/StarStarJ)

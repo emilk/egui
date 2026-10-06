@@ -22,8 +22,8 @@ bitflags::bitflags! {
     }
 }
 
-impl std::fmt::Debug for Sense {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Sense {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Sense {{")?;
         if self.senses_click() {
             write!(f, " click")?;
@@ -53,19 +53,23 @@ impl Sense {
         Self::FOCUSABLE
     }
 
-    /// Sense clicks and hover, but not drags.
+    /// Sense clicks and hover, but not drags, and make the widget focusable.
+    ///
+    /// Use [`Sense::CLICK`] if you don't want the widget to be focusable.
     #[inline]
     pub fn click() -> Self {
         Self::CLICK | Self::FOCUSABLE
     }
 
-    /// Sense drags and hover, but not clicks.
+    /// Sense drags and hover, but not clicks. Make the widget focusable.
+    ///
+    /// Use [`Sense::DRAG`] if you don't want the widget to be focusable
     #[inline]
     pub fn drag() -> Self {
         Self::DRAG | Self::FOCUSABLE
     }
 
-    /// Sense both clicks, drags and hover (e.g. a slider or window).
+    /// Sense both clicks, drags and hover (e.g. a slider or window), and make the widget focusable.
     ///
     /// Note that this will introduce a latency when dragging,
     /// because when the user starts a press egui can't know if this is the start

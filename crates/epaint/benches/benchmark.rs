@@ -1,9 +1,14 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 use epaint::{
-    pos2, tessellator::Path, ClippedShape, Color32, Mesh, PathStroke, Pos2, Rect, Shape, Stroke,
-    TessellationOptions, Tessellator, TextureAtlas, Vec2,
+    ClippedShape, Color32, Mesh, PathStroke, Pos2, Rect, Shape, Stroke, TessellationOptions,
+    Tessellator, TextureAtlas, Vec2, pos2, tessellator::Path,
 };
+
+use core::hint::black_box;
+
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
 
 fn single_dashed_lines(c: &mut Criterion) {
     c.bench_function("single_dashed_lines", move |b| {
@@ -50,15 +55,20 @@ fn tessellate_circles(c: &mut Criterion) {
             for _ in 0..10_000 {
                 let clip_rect = Rect::from_min_size(Pos2::ZERO, Vec2::splat(1024.0));
                 let shape = Shape::circle_filled(Pos2::new(10.0, 10.0), r, Color32::WHITE);
-                clipped_shapes.push(ClippedShape { clip_rect, shape });
+                clipped_shapes.push(ClippedShape::new(clip_rect, shape));
             }
         }
-        assert_eq!(clipped_shapes.len(), 100_000);
+        assert_eq!(
+            clipped_shapes.len(),
+            100_000,
+            "length of clipped shapes should be 100k, but was {}",
+            clipped_shapes.len()
+        );
 
         let pixels_per_point = 2.0;
         let options = TessellationOptions::default();
 
-        let atlas = TextureAtlas::new([4096, 256]);
+        let atlas = TextureAtlas::new([4096, 256], Default::default());
         let font_tex_size = atlas.size();
         let prepared_discs = atlas.prepared_discs();
 

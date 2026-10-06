@@ -11,8 +11,20 @@ use super::percent_decode;
 /// Data gathered between frames.
 #[derive(Default)]
 pub(crate) struct WebInput {
-    /// Required because we don't get a position on touched
+    /// Required because we don't get a position on touchend
     pub primary_touch: Option<egui::TouchId>,
+
+    /// Helps to track the delta scale from gesture events
+    pub accumulated_scale: f32,
+
+    /// Helps to track the delta rotation from gesture events
+    pub accumulated_rotation: f32,
+
+    /// The last modifier state we sent to egui.
+    ///
+    /// The web has no dedicated modifier event, so we derive the state from each DOM event and
+    /// emit [`egui::Event::ModifiersChanged`] when it changes (see [`Self::set_modifiers`]).
+    pub modifiers: egui::Modifiers,
 
     /// The raw input to `egui`.
     pub raw: egui::RawInput,
@@ -25,11 +37,18 @@ impl WebInput {
             time: Some(super::now_sec()),
             ..self.raw.take()
         };
-        raw_input
+        let viewport = raw_input
             .viewports
             .entry(egui::ViewportId::ROOT)
-            .or_default()
-            .native_pixels_per_point = Some(super::native_pixels_per_point());
+            .or_default();
+        viewport.native_pixels_per_point = Some(super::native_pixels_per_point());
+
+        // A hidden browser tab is effectively occluded.
+        let hidden = web_sys::window()
+            .and_then(|w| w.document())
+            .is_some_and(|doc| doc.hidden());
+        viewport.occluded = Some(hidden);
+
         raw_input
     }
 
@@ -40,21 +59,42 @@ impl WebInput {
         }
 
         // log::debug!("on_web_page_focus_change: {focused}");
-        self.raw.modifiers = egui::Modifiers::default(); // Avoid sticky modifier keys on alt-tab:
+        self.modifiers = egui::Modifiers::default(); // Avoid sticky modifier keys on alt-tab:
         self.raw.focused = focused;
         self.raw.events.push(egui::Event::WindowFocused(focused));
         self.primary_touch = None;
+    }
+
+    /// Update the modifier state, emitting [`egui::Event::ModifiersChanged`] if it changed.
+    ///
+    /// Call before pushing the DOM event itself so egui sees the new modifier state first.
+    pub fn set_modifiers(&mut self, modifiers: egui::Modifiers) {
+        if self.modifiers != modifiers {
+            self.modifiers = modifiers;
+            self.raw
+                .events
+                .push(egui::Event::ModifiersChanged(modifiers));
+        }
     }
 }
 
 // ----------------------------------------------------------------------------
 
 /// Stores when to do the next repaint.
-pub(crate) struct NeedRepaint(Mutex<f64>);
+pub(crate) struct NeedRepaint {
+    /// Time in seconds when the next repaint should happen.
+    next_repaint: Mutex<f64>,
 
-impl Default for NeedRepaint {
-    fn default() -> Self {
-        Self(Mutex::new(f64::NEG_INFINITY)) // start with a repaint
+    /// Rate limit for repaint. 0 means "unlimited". The rate may still be limited by vsync.
+    max_fps: u32,
+}
+
+impl NeedRepaint {
+    pub fn new(max_fps: Option<u32>) -> Self {
+        Self {
+            next_repaint: Mutex::new(f64::NEG_INFINITY), // start with a repaint
+            max_fps: max_fps.unwrap_or(0),
+        }
     }
 }
 
@@ -62,25 +102,43 @@ impl NeedRepaint {
     /// Returns the time (in [`now_sec`] scale) when
     /// we should next repaint.
     pub fn when_to_repaint(&self) -> f64 {
-        *self.0.lock()
+        *self.next_repaint.lock()
     }
 
     /// Unschedule repainting.
     pub fn clear(&self) {
-        *self.0.lock() = f64::INFINITY;
+        *self.next_repaint.lock() = f64::INFINITY;
     }
 
     pub fn repaint_after(&self, num_seconds: f64) {
-        let mut repaint_time = self.0.lock();
-        *repaint_time = repaint_time.min(super::now_sec() + num_seconds);
+        let mut time = super::now_sec() + num_seconds;
+        time = self.round_repaint_time_to_rate(time);
+        let mut repaint_time = self.next_repaint.lock();
+        *repaint_time = repaint_time.min(time);
+    }
+
+    /// Request a repaint. Depending on the presence of rate limiting, this may not be instant.
+    pub fn repaint(&self) {
+        let time = self.round_repaint_time_to_rate(super::now_sec());
+        let mut repaint_time = self.next_repaint.lock();
+        *repaint_time = repaint_time.min(time);
+    }
+
+    pub fn repaint_asap(&self) {
+        *self.next_repaint.lock() = f64::NEG_INFINITY;
     }
 
     pub fn needs_repaint(&self) -> bool {
         self.when_to_repaint() <= super::now_sec()
     }
 
-    pub fn repaint_asap(&self) {
-        *self.0.lock() = f64::NEG_INFINITY;
+    fn round_repaint_time_to_rate(&self, time: f64) -> f64 {
+        if self.max_fps == 0 {
+            time
+        } else {
+            let interval = 1.0 / self.max_fps as f64;
+            (time / interval).ceil() * interval
+        }
     }
 }
 

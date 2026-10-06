@@ -1,0 +1,23 @@
+[package]
+name = "egui_tests"
+edition.workspace = true
+license.workspace = true
+publish = false
+rust-version.workspace = true
+version.workspace = true
+
+[package.metadata.cargo-shear]
+ignored = ["image"] # We need the png feature
+
+[dev-dependencies]
+# `monochrome_emoji_fonts` so that the snapshots keep their emoji:
+egui = { workspace = true, default-features = true, features = [
+  "experimental",
+  "monochrome_emoji_fonts",
+] }
+egui_kittest = { workspace = true, features = ["snapshot", "wgpu"] }
+egui_extras = { workspace = true, features = ["image", "svg"] }
+image = { workspace = true, features = ["png"] }
+
+[lints]
+workspace = true

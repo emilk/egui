@@ -1,7 +1,8 @@
-use egui::accesskit::Role;
 use egui::Vec2;
+use egui::accesskit::Role;
 use egui_demo_app::{Anchor, WrapApp};
-use egui_kittest::kittest::Queryable;
+use egui_kittest::SnapshotResults;
+use egui_kittest::kittest::Queryable as _;
 
 #[test]
 fn test_demo_app() {
@@ -27,7 +28,7 @@ fn test_demo_app() {
         "Expected to find the Custom3d app.",
     );
 
-    let mut results = vec![];
+    let mut results = SnapshotResults::new();
 
     for (name, anchor) in apps {
         harness.get_by_role_and_label(Role::Button, name).click();
@@ -54,26 +55,23 @@ fn test_demo_app() {
                 harness
                     .get_by_role_and_label(Role::TextInput, "URI:")
                     .focus();
-                harness.press_key_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+                harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
 
                 harness
                     .get_by_role_and_label(Role::TextInput, "URI:")
                     .type_text("file://../eframe/data/icon.png");
 
-                harness.get_by_role_and_label(Role::Button, "✔").click();
+                harness.get_by_role_and_label(Role::Button, "✔️").click();
+
+                // Wait for the image to load
+                harness.try_run_realtime().ok();
             }
             _ => {}
         }
 
         // Can't use Harness::run because fractal clock keeps requesting repaints
-        harness.run_steps(2);
+        harness.run_steps(4);
 
-        if let Err(e) = harness.try_snapshot(&anchor.to_string()) {
-            results.push(e);
-        }
-    }
-
-    if let Some(error) = results.first() {
-        panic!("{error}");
+        results.add(harness.try_snapshot(anchor.to_string()));
     }
 }

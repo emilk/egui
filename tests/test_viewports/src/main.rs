@@ -1,10 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-#![allow(rustdoc::missing_crate_level_docs)] // it's an example
+#![expect(clippy::unwrap_used, rustdoc::missing_crate_level_docs)] // it's a test
 
 use std::sync::Arc;
 
 use eframe::egui;
-use egui::{mutex::RwLock, Id, InnerResponse, UiBuilder, ViewportBuilder, ViewportId};
+use egui::{Id, InnerResponse, UiBuilder, ViewportBuilder, ViewportId, mutex::RwLock};
 
 // Drag-and-drop between windows is not yet implemented, but if you wanna work on it, enable this:
 pub const DRAG_AND_DROP_TEST: bool = false;
@@ -31,7 +31,7 @@ pub struct ViewportState {
     pub visible: bool,
     pub immediate: bool,
     pub title: String,
-    pub children: Vec<Arc<RwLock<ViewportState>>>,
+    pub children: Vec<Arc<RwLock<Self>>>,
 }
 
 impl ViewportState {
@@ -76,35 +76,29 @@ impl ViewportState {
 
         if immediate {
             let mut vp_state = vp_state.write();
-            ctx.show_viewport_immediate(vp_id, viewport, move |ctx, class| {
-                if ctx.input(|i| i.viewport().close_requested()) {
+            ctx.show_viewport_immediate(vp_id, viewport, move |ui, class| {
+                if ui.input(|i| i.viewport().close_requested()) {
                     vp_state.visible = false;
                 }
-                show_as_popup(ctx, class, &title, vp_id.into(), |ui: &mut egui::Ui| {
+                show_as_popup(ui, class, |ui: &mut egui::Ui| {
                     generic_child_ui(ui, &mut vp_state, close_button);
                 });
             });
         } else {
             let count = Arc::new(RwLock::new(0));
-            ctx.show_viewport_deferred(vp_id, viewport, move |ctx, class| {
+            ctx.show_viewport_deferred(vp_id, viewport, move |ui, class| {
                 let mut vp_state = vp_state.write();
-                if ctx.input(|i| i.viewport().close_requested()) {
+                if ui.input(|i| i.viewport().close_requested()) {
                     vp_state.visible = false;
                 }
-                let count = count.clone();
-                show_as_popup(
-                    ctx,
-                    class,
-                    &title,
-                    vp_id.into(),
-                    move |ui: &mut egui::Ui| {
-                        let current_count = *count.read();
-                        ui.label(format!("Callback has been reused {current_count} times"));
-                        *count.write() += 1;
+                let count = Arc::clone(&count);
+                show_as_popup(ui, class, move |ui: &mut egui::Ui| {
+                    let current_count = *count.read();
+                    ui.label(format!("Callback has been reused {current_count} times"));
+                    *count.write() += 1;
 
-                        generic_child_ui(ui, &mut vp_state, close_button);
-                    },
-                );
+                    generic_child_ui(ui, &mut vp_state, close_button);
+                });
             });
         }
     }
@@ -159,18 +153,18 @@ impl Default for App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.heading("Root viewport");
             {
-                let mut embed_viewports = ctx.embed_viewports();
+                let mut embed_viewports = ui.embed_viewports();
                 ui.checkbox(&mut embed_viewports, "Embed all viewports");
                 if ui.button("Open all viewports").clicked() {
                     for viewport in &self.top {
                         viewport.write().set_visible_recursive(true);
                     }
                 }
-                ctx.set_embed_viewports(embed_viewports);
+                ui.set_embed_viewports(embed_viewports);
             }
             ui.checkbox(&mut self.close_button, "with close button");
             generic_ui(ui, &self.top, self.close_button);
@@ -180,17 +174,15 @@ impl eframe::App for App {
 
 /// This will make the content as a popup if cannot has his own native window
 fn show_as_popup(
-    ctx: &egui::Context,
+    ui: &mut egui::Ui,
     class: egui::ViewportClass,
-    title: &str,
-    id: Id,
     content: impl FnOnce(&mut egui::Ui),
 ) {
-    if class == egui::ViewportClass::Embedded {
-        // Not a real viewport
-        egui::Window::new(title).id(id).show(ctx, content);
+    if class == egui::ViewportClass::EmbeddedWindow {
+        // Not a real viewport - already has a frame
+        content(ui);
     } else {
-        egui::CentralPanel::default().show(ctx, content);
+        egui::CentralPanel::default().show(ui, content);
     }
 }
 
@@ -199,7 +191,7 @@ fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState, close_butto
         ui.label("Title:");
         if ui.text_edit_singleline(&mut vp_state.title).changed() {
             // Title changes
-            ui.ctx().send_viewport_cmd_to(
+            ui.send_viewport_cmd_to(
                 vp_state.id,
                 egui::ViewportCommand::Title(vp_state.title.clone()),
             );
@@ -210,7 +202,7 @@ fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState, close_butto
 }
 
 fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_button: bool) {
-    let container_id = ui.id();
+    let container_id = ui.scope_id();
 
     let ctx = ui.ctx().clone();
     ui.label(format!(
@@ -247,8 +239,12 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_
         if let Some(monitor_size) = ctx.input(|i| i.viewport().monitor_size) {
             ui.label(format!("monitor_size: {monitor_size:?} (points)"));
         }
-        if let Some(screen_rect) = ui.input(|i| i.raw.screen_rect) {
-            ui.label(format!("Screen rect size: Pos: {:?}", screen_rect.size()));
+        if let Some(viewport_rect) = ui.input(|i| i.raw.screen_rect) {
+            ui.label(format!(
+                "Viewport Rect: Pos: {:?}, Size: {:?} (points)",
+                viewport_rect.min,
+                viewport_rect.size()
+            ));
         }
         if let Some(inner_rect) = ctx.input(|i| i.viewport().inner_rect) {
             ui.label(format!(
@@ -293,7 +289,7 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_
                 *visible
             };
             if visible {
-                ViewportState::show(child.clone(), &ctx, close_button);
+                ViewportState::show(Arc::clone(child), &ctx, close_button);
             }
         }
     }
@@ -306,7 +302,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
     use std::collections::HashMap;
     use std::sync::OnceLock;
 
-    let container_id = ui.id();
+    let container_id = ui.scope_id();
 
     const COLS: usize = 2;
     static DATA: OnceLock<RwLock<DragAndDrop>> = OnceLock::new();
@@ -335,10 +331,10 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
         }
 
         fn insert(&mut self, container: Id, col: usize, value: impl Into<String>) {
-            assert!(col <= COLS, "The coll should be less then: {COLS}");
+            assert!(col < COLS, "The coll should be less than: {COLS}");
 
             let value: String = value.into();
-            let id = Id::new(format!("%{}% {}", self.counter, &value));
+            let id = Id::unique(format!("%{}% {}", self.counter, value));
             self.data.insert(id, value);
             let viewport_data = self.containers_data.entry(container).or_insert_with(|| {
                 let mut res = Vec::new();
@@ -351,7 +347,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
         }
 
         fn cols(&self, container: Id, col: usize) -> Vec<(Id, String)> {
-            assert!(col <= COLS, "The col should be less then: {COLS}");
+            assert!(col < COLS, "The col should be less than: {COLS}");
             let container_data = &self.containers_data[&container];
             container_data[col]
                 .iter()
@@ -364,9 +360,10 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             let Some(id) = self.is_dragged.take() else {
                 return;
             };
-            assert!(col <= COLS, "The col should be less then: {COLS}");
+            assert!(col < COLS, "The col should be less than: {COLS}");
 
             // Should be a better way to do this!
+            #[expect(clippy::iter_over_hash_type)]
             for container_data in self.containers_data.values_mut() {
                 for ids in container_data {
                     ids.retain(|i| *i != id);
@@ -419,17 +416,8 @@ fn drag_source<R>(
 ) -> InnerResponse<R> {
     let is_being_dragged = ui.ctx().is_being_dragged(id);
 
-    if !is_being_dragged {
-        let res = ui.scope(body);
-
-        // Check for drags:
-        let response = ui.interact(res.response.rect, id, egui::Sense::drag());
-        if response.hovered() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
-        }
-        res
-    } else {
-        ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+    if is_being_dragged {
+        ui.set_cursor_icon(egui::CursorIcon::Grabbing);
 
         // Paint the body to a new layer:
         let layer_id = egui::LayerId::new(egui::Order::Tooltip, id);
@@ -444,6 +432,15 @@ fn drag_source<R>(
         }
 
         res
+    } else {
+        let res = ui.scope(body);
+
+        // Check for drags:
+        let response = ui.interact(res.response.rect, id, egui::Sense::drag());
+        if response.hovered() {
+            ui.set_cursor_icon(egui::CursorIcon::Grab);
+        }
+        res
     }
 }
 
@@ -454,17 +451,13 @@ fn drop_target<R>(
 ) -> egui::InnerResponse<R> {
     let is_being_dragged = ui.ctx().dragged_id().is_some();
 
-    let margin = egui::Vec2::splat(ui.visuals().clip_rect_margin); // 3.0
-
     let background_id = ui.painter().add(egui::Shape::Noop);
 
     let available_rect = ui.available_rect_before_wrap();
-    let inner_rect = available_rect.shrink2(margin);
-    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(inner_rect));
+    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(available_rect));
     let ret = body(&mut content_ui);
 
-    let outer_rect =
-        egui::Rect::from_min_max(available_rect.min, content_ui.min_rect().max + margin);
+    let outer_rect = egui::Rect::from_min_max(available_rect.min, content_ui.min_rect().max);
     let (rect, response) = ui.allocate_at_least(outer_rect.size(), egui::Sense::hover());
 
     let style = if is_being_dragged && response.hovered() {
@@ -478,7 +471,13 @@ fn drop_target<R>(
 
     ui.painter().set(
         background_id,
-        egui::epaint::RectShape::new(rect, style.rounding, fill, stroke),
+        egui::epaint::RectShape::new(
+            rect,
+            style.corner_radius,
+            fill,
+            stroke,
+            egui::StrokeKind::Inside,
+        ),
     );
 
     egui::InnerResponse::new(ret, response)

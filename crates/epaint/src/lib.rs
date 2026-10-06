@@ -2,7 +2,7 @@
 //!
 //! Made for [`egui`](https://github.com/emilk/egui/).
 //!
-//! Create some [`Shape`]:s and pass them to [`tessellate_shapes`] to generate [`Mesh`]:es
+//! Create some [`Shape`]:s and pass them to [`Tessellator::tessellate_shapes`] to generate [`Mesh`]:es
 //! that you can then paint using some graphics API of your choice (e.g. OpenGL).
 //!
 //! ## Coordinate system
@@ -20,18 +20,20 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
+#![expect(clippy::float_cmp)]
+#![expect(clippy::manual_range_contains)]
 
 mod brush;
 pub mod color;
+mod corner_radius;
+mod corner_radius_f32;
+mod direction;
 pub mod image;
 mod margin;
-mod marginf;
+mod margin_f32;
 mod mesh;
 pub mod mutex;
-mod rounding;
-mod roundingf;
+mod rounded_rect;
 mod shadow;
 pub mod shape_transform;
 mod shapes;
@@ -48,38 +50,40 @@ mod viewport;
 pub use self::{
     brush::Brush,
     color::ColorMode,
-    image::{ColorImage, FontImage, ImageData, ImageDelta},
+    corner_radius::CornerRadius,
+    corner_radius_f32::CornerRadiusF32,
+    direction::Direction,
+    image::{ColorImage, FontColorTransferFunction, ImageData, ImageDelta},
     margin::Margin,
-    marginf::Marginf,
+    margin_f32::*,
     mesh::{Mesh, Mesh16, Vertex},
-    rounding::Rounding,
-    roundingf::Roundingf,
+    rounded_rect::RoundedRect,
     shadow::Shadow,
     shapes::{
-        CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape,
-        QuadraticBezierShape, RectShape, Shape, TextShape,
+        BandPoint, BandShape, CircleShape, CubicBezierShape, EllipseShape, PaintCallback,
+        PaintCallbackInfo, PathShape, QuadraticBezierShape, RectShape, Shape, TextShape,
     },
     stats::PaintStats,
     stroke::{PathStroke, Stroke, StrokeKind},
     tessellator::{TessellationOptions, Tessellator},
-    text::{FontFamily, FontId, Fonts, Galley},
+    text::{FontFamily, FontId, Fonts, FontsView, Galley, TextOptions},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
     viewport::ViewportInPixels,
 };
 
-#[allow(deprecated)]
-pub use tessellator::tessellate_shapes;
-
 pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
-pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
-
-#[deprecated = "Use the ahash crate directly."]
-pub use ahash;
+pub use emath::{Pos2, Rect, Vec2, pos2, vec2};
 
 pub use ecolor;
 pub use emath;
+
+/// A few special emojis that are not part of the unicode standard.
+///
+/// Bundled in the default fonts, since no platform font has them.
+#[cfg(feature = "default_fonts")]
+pub use epaint_default_fonts::special_emojis;
 
 #[cfg(feature = "color-hex")]
 pub use ecolor::hex_color;
@@ -125,6 +129,47 @@ pub struct ClippedShape {
 
     /// The shape
     pub shape: Shape,
+
+    /// Applied to the tessellated result of `shape`, _after_ it has been snapped to the pixel grid.
+    ///
+    /// [`emath::TSTransform::IDENTITY`] means "no transform", which is what you want most of the
+    /// time.
+    ///
+    /// Snapping in the shape's own coordinates makes the rendering converge on the untransformed
+    /// one, so this suits a transform that animates towards [`emath::TSTransform::IDENTITY`], such
+    /// as a popup scaling into place: it doesn't end with a jump of up to a pixel. The cost is
+    /// that the rendering is resampled, and so slightly blurrier, while the transform is not the
+    /// identity. For a lasting transform, such as a pan/zoom canvas, transform the shape itself.
+    ///
+    /// Note that `clip_rect` is in the space this transform maps _to_.
+    pub transform_after_tessellation: emath::TSTransform,
+}
+
+impl ClippedShape {
+    /// A shape with no [`Self::transform_after_tessellation`].
+    #[inline]
+    pub fn new(clip_rect: emath::Rect, shape: impl Into<Shape>) -> Self {
+        Self {
+            clip_rect,
+            shape: shape.into(),
+            transform_after_tessellation: emath::TSTransform::IDENTITY,
+        }
+    }
+
+    /// Transform (move/scale) the shape in-place.
+    ///
+    /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
+    /// to other shapes where the stroke is also scaled.
+    pub fn transform(&mut self, transform: emath::TSTransform) {
+        self.clip_rect = transform * self.clip_rect;
+        if self.transform_after_tessellation == emath::TSTransform::IDENTITY {
+            self.shape.transform(transform);
+        } else {
+            // The shape is tessellated in its own coordinate space, so the new transform has to
+            // apply to the finished rendering too, or the two would fight over the pixel grid.
+            self.transform_after_tessellation = transform * self.transform_after_tessellation;
+        }
+    }
 }
 
 /// A [`Mesh`] or [`PaintCallback`] within a clip rectangle.

@@ -1,28 +1,27 @@
-use crate::{textures::TextureOptions, Color32};
+use ecolor::linear_f32_from_linear_u8;
+use emath::Vec2;
+
+use crate::{Color32, textures::TextureOptions};
 use std::sync::Arc;
 
 /// An image stored in RAM.
 ///
 /// To load an image file, see [`ColorImage::from_rgba_unmultiplied`].
 ///
-/// In order to paint the image on screen, you first need to convert it to
+/// This is currently an enum with only one variant, but more image types may be added in the future.
 ///
-/// See also: [`ColorImage`], [`FontImage`].
-#[derive(Clone, PartialEq)]
+/// See also: [`ColorImage`].
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageData {
     /// RGBA image.
     Color(Arc<ColorImage>),
-
-    /// Used for the font texture.
-    Font(FontImage),
 }
 
 impl ImageData {
     pub fn size(&self) -> [usize; 2] {
         match self {
             Self::Color(image) => image.size,
-            Self::Font(image) => image.size,
         }
     }
 
@@ -36,7 +35,7 @@ impl ImageData {
 
     pub fn bytes_per_pixel(&self) -> usize {
         match self {
-            Self::Color(_) | Self::Font(_) => 4,
+            Self::Color(_) => 4,
         }
     }
 }
@@ -47,8 +46,11 @@ impl ImageData {
 #[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ColorImage {
-    /// width, height.
+    /// width, height in texels.
     pub size: [usize; 2],
+
+    /// Size of the original SVG image (if any), or just the texel size of the image.
+    pub source_size: Vec2,
 
     /// The pixels, row by row, from top to bottom.
     pub pixels: Vec<Color32>,
@@ -56,9 +58,24 @@ pub struct ColorImage {
 
 impl ColorImage {
     /// Create an image filled with the given color.
-    pub fn new(size: [usize; 2], color: Color32) -> Self {
+    pub fn new(size: [usize; 2], pixels: Vec<Color32>) -> Self {
+        debug_assert!(
+            size[0] * size[1] == pixels.len(),
+            "size: {size:?}, pixels.len(): {}",
+            pixels.len()
+        );
         Self {
             size,
+            source_size: Vec2::new(size[0] as f32, size[1] as f32),
+            pixels,
+        }
+    }
+
+    /// Create an image filled with the given color.
+    pub fn filled(size: [usize; 2], color: Color32) -> Self {
+        Self {
+            size,
+            source_size: Vec2::new(size[0] as f32, size[1] as f32),
             pixels: vec![color; size[0] * size[1]],
         }
     }
@@ -94,30 +111,48 @@ impl ColorImage {
     /// }
     /// ```
     pub fn from_rgba_unmultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 4, rgba.len());
+        assert_eq!(
+            size[0] * size[1] * 4,
+            rgba.len(),
+            "size: {:?}, rgba.len(): {}",
+            size,
+            rgba.len()
+        );
         let pixels = rgba
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
             .collect();
-        Self { size, pixels }
+        Self::new(size, pixels)
     }
 
     pub fn from_rgba_premultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 4, rgba.len());
+        assert_eq!(
+            size[0] * size[1] * 4,
+            rgba.len(),
+            "size: {:?}, rgba.len(): {}",
+            size,
+            rgba.len()
+        );
         let pixels = rgba
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_premultiplied(p[0], p[1], p[2], p[3]))
             .collect();
-        Self { size, pixels }
+        Self::new(size, pixels)
     }
 
     /// Create a [`ColorImage`] from flat opaque gray data.
     ///
     /// Panics if `size[0] * size[1] != gray.len()`.
     pub fn from_gray(size: [usize; 2], gray: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1], gray.len());
+        assert_eq!(
+            size[0] * size[1],
+            gray.len(),
+            "size: {:?}, gray.len(): {}",
+            size,
+            gray.len()
+        );
         let pixels = gray.iter().map(|p| Color32::from_gray(*p)).collect();
-        Self { size, pixels }
+        Self::new(size, pixels)
     }
 
     /// Alternative method to `from_gray`.
@@ -127,8 +162,14 @@ impl ColorImage {
     #[doc(alias = "from_grey_iter")]
     pub fn from_gray_iter(size: [usize; 2], gray_iter: impl Iterator<Item = u8>) -> Self {
         let pixels: Vec<_> = gray_iter.map(Color32::from_gray).collect();
-        assert_eq!(size[0] * size[1], pixels.len());
-        Self { size, pixels }
+        assert_eq!(
+            size[0] * size[1],
+            pixels.len(),
+            "size: {:?}, pixels.len(): {}",
+            size,
+            pixels.len()
+        );
+        Self::new(size, pixels)
     }
 
     /// A view of the underlying data as `&[u8]`
@@ -150,19 +191,25 @@ impl ColorImage {
     ///
     /// Panics if `size[0] * size[1] * 3 != rgb.len()`.
     pub fn from_rgb(size: [usize; 2], rgb: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 3, rgb.len());
+        assert_eq!(
+            size[0] * size[1] * 3,
+            rgb.len(),
+            "size: {:?}, rgb.len(): {}",
+            size,
+            rgb.len()
+        );
         let pixels = rgb
             .chunks_exact(3)
             .map(|p| Color32::from_rgb(p[0], p[1], p[2]))
             .collect();
-        Self { size, pixels }
+        Self::new(size, pixels)
     }
 
     /// An example color image, useful for tests.
     pub fn example() -> Self {
         let width = 128;
         let height = 64;
-        let mut img = Self::new([width, height], Color32::TRANSPARENT);
+        let mut img = Self::filled([width, height], Color32::TRANSPARENT);
         for y in 0..height {
             for x in 0..width {
                 let h = x as f32 / width as f32;
@@ -173,6 +220,13 @@ impl ColorImage {
             }
         }
         img
+    }
+
+    /// Set the source size of e.g. the original SVG image.
+    #[inline]
+    pub fn with_source_size(mut self, source_size: Vec2) -> Self {
+        self.source_size = source_size;
+        self
     }
 
     #[inline]
@@ -212,29 +266,57 @@ impl ColorImage {
                 &self.pixels[row * row_stride + min_x..row * row_stride + max_x],
             );
         }
-        Self {
-            size: [width, height],
-            pixels: output,
+        Self::new([width, height], output)
+    }
+
+    /// Clone a sub-region as a new image.
+    pub fn region_by_pixels(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> Self {
+        assert!(
+            x + w <= self.width(),
+            "x + w should be <= self.width(), but x: {}, w: {}, width: {}",
+            x,
+            w,
+            self.width()
+        );
+        assert!(
+            y + h <= self.height(),
+            "y + h should be <= self.height(), but y: {}, h: {}, height: {}",
+            y,
+            h,
+            self.height()
+        );
+
+        let mut pixels = Vec::with_capacity(w * h);
+        for y in y..y + h {
+            let offset = y * self.width() + x;
+            pixels.extend(&self.pixels[offset..(offset + w)]);
         }
+        assert_eq!(
+            pixels.len(),
+            w * h,
+            "pixels.len should be w * h, but got {}",
+            pixels.len()
+        );
+        Self::new([w, h], pixels)
     }
 }
 
-impl std::ops::Index<(usize, usize)> for ColorImage {
+impl core::ops::Index<(usize, usize)> for ColorImage {
     type Output = Color32;
 
     #[inline]
     fn index(&self, (x, y): (usize, usize)) -> &Color32 {
         let [w, h] = self.size;
-        assert!(x < w && y < h);
+        assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
         &self.pixels[y * w + x]
     }
 }
 
-impl std::ops::IndexMut<(usize, usize)> for ColorImage {
+impl core::ops::IndexMut<(usize, usize)> for ColorImage {
     #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Color32 {
         let [w, h] = self.size;
-        assert!(x < w && y < h);
+        assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
         &mut self.pixels[y * w + x]
     }
 }
@@ -253,8 +335,8 @@ impl From<Arc<ColorImage>> for ImageData {
     }
 }
 
-impl std::fmt::Debug for ColorImage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for ColorImage {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ColorImage")
             .field("size", &self.size)
             .field("pixel-count", &self.pixels.len())
@@ -264,107 +346,103 @@ impl std::fmt::Debug for ColorImage {
 
 // ----------------------------------------------------------------------------
 
-/// A single-channel image designed for the font texture.
+/// How to convert font coverage values into alpha and color values.
 ///
-/// Each value represents "coverage", i.e. how much a texel is covered by a character.
+/// epaint stores all glyphs in the font atlas as white (with varying opacity),
+/// so that egui can reuse the same glyph for different text colors
+/// (with a simple color multiplication in the shader).
 ///
-/// This is roughly interpreted as the opacity of a white image.
-#[derive(Clone, Default, PartialEq)]
+/// Because of this simplification, we need to apply a non-linear
+/// ramp to the glyph colors before writing them into the font atlas,
+/// as a way to compensate.
+///
+/// This whole thing is less than rigorous.
+///
+/// It would be better to either render all text colors into the font atlas
+/// (which would require more atlas space, but would allow for more accurate rendering of colored text and emojis),
+/// or do the color compensation in the shader, based on the active text color.
+///
+/// When experimenting, use <https://fonts.google.com/specimen/Ubuntu> to compare to a ground truth.
+///
+/// See <https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html> for related analysis.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct FontImage {
-    /// width, height
-    pub size: [usize; 2],
-
-    /// The coverage value.
+pub enum FontColorTransferFunction {
+    /// Use the raw RGBA values from the font rasterizer, without any conversion.
     ///
-    /// Often you want to use [`Self::srgba_pixels`] instead.
-    pub pixels: Vec<f32>,
-}
-
-impl FontImage {
-    pub fn new(size: [usize; 2]) -> Self {
-        Self {
-            size,
-            pixels: vec![0.0; size[0] * size[1]],
-        }
-    }
-
-    #[inline]
-    pub fn width(&self) -> usize {
-        self.size[0]
-    }
-
-    #[inline]
-    pub fn height(&self) -> usize {
-        self.size[1]
-    }
-
-    /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
+    /// This is the required mode for colored emojis etc.
     ///
-    /// `gamma` should normally be set to `None`.
+    /// This mode looks good for black-on-white text, i.e. light mode.
+    Off,
+
+    /// `alpha = coverage^gamma`.
     ///
-    /// If you are having problems with text looking skinny and pixelated, try using a low gamma, e.g. `0.4`.
-    #[inline]
-    pub fn srgba_pixels(&self, gamma: Option<f32>) -> impl ExactSizeIterator<Item = Color32> + '_ {
-        // TODO(emilk): this default coverage gamma is a magic constant, chosen by eye. I don't even know why we need it.
-        // Maybe we need to implement the ideas in https://hikogui.org/2022/10/24/the-trouble-with-anti-aliasing.html
-        let gamma = gamma.unwrap_or(0.55);
-        self.pixels.iter().map(move |coverage| {
-            let alpha = coverage.powf(gamma);
-            // We want to multiply with `vec4(alpha)` in the fragment shader:
-            let a = fast_round(alpha * 255.0);
-            Color32::from_rgba_premultiplied(a, a, a, a)
-        })
-    }
+    /// Gamma=1 looks good for black-on-white text, i.e. light mode.
+    Gamma(f32),
 
-    /// Clone a sub-region as a new image.
-    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> Self {
-        assert!(x + w <= self.width());
-        assert!(y + h <= self.height());
-
-        let mut pixels = Vec::with_capacity(w * h);
-        for y in y..y + h {
-            let offset = y * self.width() + x;
-            pixels.extend(&self.pixels[offset..(offset + w)]);
-        }
-        assert_eq!(pixels.len(), w * h);
-        Self {
-            size: [w, h],
-            pixels,
-        }
-    }
+    /// `alpha = 2 * coverage - coverage^2`
+    ///
+    /// This looks good for white-on-black text, i.e. dark mode.
+    ///
+    /// Very similar to a gamma of 0.5, but produces sharper text.
+    /// See <https://www.desmos.com/calculator/w0ndf5blmn> for a comparison to gamma=0.5.
+    #[default]
+    TwoCoverageMinusCoverageSq,
 }
 
-impl std::ops::Index<(usize, usize)> for FontImage {
-    type Output = f32;
+impl FontColorTransferFunction {
+    /// A good-looking default for light mode (black-on-white text).
+    pub const LIGHT_MODE_DEFAULT: Self = Self::Off;
 
-    #[inline]
-    fn index(&self, (x, y): (usize, usize)) -> &f32 {
-        let [w, h] = self.size;
-        assert!(x < w && y < h);
-        &self.pixels[y * w + x]
-    }
-}
+    /// A good-looking default for dark mode (white-on-black text).
+    pub const DARK_MODE_DEFAULT: Self = Self::TwoCoverageMinusCoverageSq;
 
-impl std::ops::IndexMut<(usize, usize)> for FontImage {
-    #[inline]
-    fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut f32 {
-        let [w, h] = self.size;
-        assert!(x < w && y < h);
-        &mut self.pixels[y * w + x]
-    }
-}
-
-impl From<FontImage> for ImageData {
+    /// How to convert a white color written by the font rasterizer
+    /// into a color to be written into the font atlas.
     #[inline(always)]
-    fn from(image: FontImage) -> Self {
-        Self::Font(image)
-    }
-}
+    pub fn to_atlas_color(self, input_color: Color32) -> Color32 {
+        match self {
+            Self::Off | Self::Gamma(1.0) => input_color,
 
-#[inline]
-fn fast_round(r: f32) -> u8 {
-    (r + 0.5) as _ // rust does a saturating cast since 1.45
+            Self::Gamma(gamma) => {
+                let coverage = linear_f32_from_linear_u8(input_color.a());
+                let alpha = coverage.powf(gamma);
+                Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
+            }
+
+            Self::TwoCoverageMinusCoverageSq => {
+                let coverage = linear_f32_from_linear_u8(input_color.a());
+                let alpha = 2.0 * coverage - coverage * coverage;
+                Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
+            }
+        }
+    }
+
+    /// Convert coverage to alpha.
+    #[inline(always)]
+    pub fn alpha_from_coverage(self, coverage: f32) -> f32 {
+        let coverage = coverage.clamp(0.0, 1.0);
+        match self {
+            Self::Off | Self::Gamma(1.0) => coverage,
+            Self::Gamma(gamma) => coverage.powf(gamma),
+            Self::TwoCoverageMinusCoverageSq => 2.0 * coverage - coverage * coverage,
+        }
+    }
+
+    #[inline(always)]
+    pub fn color_from_coverage(self, coverage: f32) -> Color32 {
+        let alpha = self.alpha_from_coverage(coverage);
+        Color32::from_white_alpha(ecolor::linear_u8_from_linear_f32(alpha))
+    }
+
+    /// Convert this into the closest gamma exponent
+    pub fn to_gamma(self) -> f32 {
+        match self {
+            Self::Off => 1.0,
+            Self::Gamma(gamma) => gamma,
+            Self::TwoCoverageMinusCoverageSq => 0.5, // approximately the same
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -372,7 +450,7 @@ fn fast_round(r: f32) -> u8 {
 /// A change to an image.
 ///
 /// Either a whole new image, or an update to a rectangular region of it.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[must_use = "The painter must take care of this"]
 pub struct ImageDelta {

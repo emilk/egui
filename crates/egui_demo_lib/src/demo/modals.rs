@@ -1,4 +1,4 @@
-use egui::{ComboBox, Context, Id, Modal, ProgressBar, Ui, Widget, Window};
+use egui::{ComboBox, Id, Modal, ProgressBar, Ui, Widget as _, Window};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -29,16 +29,17 @@ impl Modals {
 
 impl crate::Demo for Modals {
     fn name(&self) -> &'static str {
-        "🗖 Modals"
+        "💭 Modals"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
         Window::new(self.name())
             .open(open)
             .vscroll(false)
             .resizable(false)
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 
@@ -70,13 +71,13 @@ impl crate::View for Modals {
         );
 
         if *user_modal_open {
-            let modal = Modal::new(Id::new("Modal A")).show(ui.ctx(), |ui| {
+            let modal = Modal::new(Id::unique("Modal A")).show(ui.ctx(), |ui| {
                 ui.set_width(250.0);
 
                 ui.heading("Edit User");
 
-                ui.label("Name:");
-                ui.text_edit_singleline(name);
+                let label = ui.label("Name:");
+                ui.text_edit_singleline(name).labelled_by(label.id);
 
                 ComboBox::new("role", "Role")
                     .selected_text(*role)
@@ -96,7 +97,9 @@ impl crate::View for Modals {
                             *save_modal_open = true;
                         }
                         if ui.button("Cancel").clicked() {
-                            *user_modal_open = false;
+                            // You can call `ui.close()` to close the modal.
+                            // (This causes the current modals `should_close` to return true)
+                            ui.close();
                         }
                     },
                 );
@@ -108,7 +111,7 @@ impl crate::View for Modals {
         }
 
         if *save_modal_open {
-            let modal = Modal::new(Id::new("Modal B")).show(ui.ctx(), |ui| {
+            let modal = Modal::new(Id::unique("Modal B")).show(ui.ctx(), |ui| {
                 ui.set_width(200.0);
                 ui.heading("Save? Are you sure?");
 
@@ -123,7 +126,7 @@ impl crate::View for Modals {
                         }
 
                         if ui.button("No Thanks").clicked() {
-                            *save_modal_open = false;
+                            ui.close();
                         }
                     },
                 );
@@ -135,7 +138,7 @@ impl crate::View for Modals {
         }
 
         if let Some(progress) = *save_progress {
-            Modal::new(Id::new("Modal C")).show(ui.ctx(), |ui| {
+            Modal::new(Id::unique("Modal C")).show(ui.ctx(), |ui| {
                 ui.set_width(70.0);
                 ui.heading("Saving…");
 
@@ -147,7 +150,7 @@ impl crate::View for Modals {
                     *user_modal_open = false;
                 } else {
                     *save_progress = Some(progress + 0.003);
-                    ui.ctx().request_repaint();
+                    ui.request_repaint();
                 }
             });
         }
@@ -160,12 +163,12 @@ impl crate::View for Modals {
 
 #[cfg(test)]
 mod tests {
+    use crate::Demo as _;
     use crate::demo::modals::Modals;
-    use crate::Demo;
     use egui::accesskit::Role;
-    use egui::Key;
-    use egui_kittest::kittest::Queryable;
-    use egui_kittest::Harness;
+    use egui::{Key, Popup};
+    use egui_kittest::kittest::Queryable as _;
+    use egui_kittest::{Harness, SnapshotResults};
 
     #[test]
     fn clicking_escape_when_popup_open_should_not_close_modal() {
@@ -174,9 +177,9 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );
@@ -185,12 +188,12 @@ mod tests {
 
         // Harness::run would fail because we keep requesting repaints to simulate progress.
         harness.run_ok();
-        assert!(harness.ctx.memory(|mem| mem.any_popup_open()));
+        assert!(Popup::is_any_open(&harness.ctx));
         assert!(harness.state().user_modal_open);
 
-        harness.press_key(Key::Escape);
+        harness.key_press(Key::Escape);
         harness.run_ok();
-        assert!(!harness.ctx.memory(|mem| mem.any_popup_open()));
+        assert!(!Popup::is_any_open(&harness.ctx));
         assert!(harness.state().user_modal_open);
     }
 
@@ -202,9 +205,9 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );
@@ -212,7 +215,7 @@ mod tests {
         assert!(harness.state().user_modal_open);
         assert!(harness.state().save_modal_open);
 
-        harness.press_key(Key::Escape);
+        harness.key_press(Key::Escape);
         harness.run();
 
         assert!(harness.state().user_modal_open);
@@ -226,29 +229,25 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );
 
-        let mut results = Vec::new();
+        let mut results = SnapshotResults::new();
 
         harness.run();
-        results.push(harness.try_snapshot("modals_1"));
+        results.add(harness.try_snapshot("modals_1"));
 
         harness.get_by_label("Save").click();
         harness.run_ok();
-        results.push(harness.try_snapshot("modals_2"));
+        results.add(harness.try_snapshot("modals_2"));
 
         harness.get_by_label("Yes Please").click();
         harness.run_ok();
-        results.push(harness.try_snapshot("modals_3"));
-
-        for result in results {
-            result.unwrap();
-        }
+        results.add(harness.try_snapshot("modals_3"));
     }
 
     // This tests whether the backdrop actually prevents interaction with lower layers.
@@ -260,16 +259,16 @@ mod tests {
             ..Modals::default()
         };
 
-        let mut harness = Harness::new_state(
-            |ctx, modals| {
-                modals.show(ctx, &mut true);
+        let mut harness = Harness::new_ui_state(
+            |ui, modals| {
+                modals.show(ui, &mut true);
             },
             initial_state,
         );
 
         harness.run_ok();
 
-        harness.get_by_label("Yes Please").simulate_click();
+        harness.get_by_label("Yes Please").click();
 
         harness.run_ok();
 

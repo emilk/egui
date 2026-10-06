@@ -1,15 +1,24 @@
-use std::iter::once;
+use core::{iter::once, time::Duration};
 use std::sync::Arc;
 
 use egui::TexturesDelta;
-use egui_wgpu::{wgpu, RenderState, ScreenDescriptor, WgpuSetup};
+use egui_wgpu::{RenderState, ScreenDescriptor, WgpuSetup, wgpu};
 use image::RgbaImage;
 
 use crate::texture_to_image::texture_to_image;
 
+/// Timeout for waiting on the GPU to finish rendering.
+///
+/// Windows will reset native drivers after 2 seconds of being stuck (known was TDR - timeout detection & recovery).
+/// However, software rasterizers like lavapipe may not do that and take longer if there's a lot of work in flight.
+/// In the end, what we really want to protect here against is undetected errors that lead to device loss
+/// and therefore infinite waits it happens occasionally on MacOS/Metal as of writing.
+pub(crate) const WAIT_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// Default wgpu setup used for the wgpu renderer.
 pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
-    let mut setup = egui_wgpu::WgpuSetupCreateNew::default();
+    // No display handle needed for headless testing — we don't present to a window.
+    let mut setup = egui_wgpu::WgpuSetupCreateNew::without_display_handle();
 
     // WebGPU not supported yet since we rely on blocking screenshots.
     setup
@@ -28,7 +37,7 @@ pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
             wgpu::Backend::Dx12 => 2,
             wgpu::Backend::Gl => 4,
             wgpu::Backend::BrowserWebGpu => 6,
-            wgpu::Backend::Empty => 7,
+            wgpu::Backend::Noop => 7,
         });
 
         // Prefer CPU adapters, otherwise if we can't, prefer discrete GPU over integrated GPU.
@@ -43,13 +52,17 @@ pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
         adapters
             .first()
             .map(|a| (*a).clone())
-            .ok_or("No adapter found".to_owned())
+            .ok_or_else(|| "No adapter found".to_owned())
     }));
 
     egui_wgpu::WgpuSetup::CreateNew(setup)
 }
 
-pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
+pub fn create_render_state(
+    setup: WgpuSetup,
+    options: egui_wgpu::RendererOptions,
+) -> egui_wgpu::RenderState {
+    // No display handle needed for headless testing — we don't present to a window.
     let instance = pollster::block_on(setup.new_instance());
 
     pollster::block_on(egui_wgpu::RenderState::create(
@@ -59,9 +72,7 @@ pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
         },
         &instance,
         None,
-        None,
-        1,
-        false,
+        options,
     ))
     .expect("Failed to create render state")
 }
@@ -81,14 +92,17 @@ impl WgpuTestRenderer {
     /// Create a new [`WgpuTestRenderer`] with the default setup.
     pub fn new() -> Self {
         Self {
-            render_state: create_render_state(default_wgpu_setup()),
+            render_state: create_render_state(
+                default_wgpu_setup(),
+                egui_wgpu::RendererOptions::PREDICTABLE,
+            ),
         }
     }
 
     /// Create a new [`WgpuTestRenderer`] with the given setup.
     pub fn from_setup(setup: WgpuSetup) -> Self {
         Self {
-            render_state: create_render_state(setup),
+            render_state: create_render_state(setup, egui_wgpu::RendererOptions::PREDICTABLE),
         }
     }
 
@@ -107,6 +121,13 @@ impl WgpuTestRenderer {
         );
         Self { render_state }
     }
+
+    /// Create a new [`WgpuTestRenderer`] with custom render options.
+    pub fn with_render_options(options: egui_wgpu::RendererOptions) -> Self {
+        Self {
+            render_state: create_render_state(default_wgpu_setup(), options),
+        }
+    }
 }
 
 impl crate::TestRenderer for WgpuTestRenderer {
@@ -116,15 +137,23 @@ impl crate::TestRenderer for WgpuTestRenderer {
         frame.wgpu_render_state = Some(self.render_state.clone());
     }
 
-    fn handle_delta(&mut self, delta: &TexturesDelta) {
+    fn handle_delta(&mut self, delta: &mut TexturesDelta) {
         let mut renderer = self.render_state.renderer.write();
-        for (id, image) in &delta.set {
-            renderer.update_texture(
-                &self.render_state.device,
-                &self.render_state.queue,
-                *id,
-                image,
-            );
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for (id, images) in delta.set.drain() {
+            for image in images {
+                renderer.update_texture(
+                    &self.render_state.device,
+                    &self.render_state.queue,
+                    id,
+                    &image,
+                );
+            }
+        }
+
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for id in delta.free.drain() {
+            renderer.free_texture(&id);
         }
     }
 
@@ -143,7 +172,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
                     label: Some("Egui Command Encoder"),
                 });
 
-        let size = ctx.screen_rect().size() * ctx.pixels_per_point();
+        let size = ctx.content_rect().size() * ctx.pixels_per_point();
         let screen = ScreenDescriptor {
             pixels_per_point: ctx.pixels_per_point(),
             size_in_pixels: [size.x.round() as u32, size.y.round() as u32],
@@ -190,6 +219,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
                             load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                             store: wgpu::StoreOp::Store,
                         },
+                        depth_slice: None,
                     })],
                     ..Default::default()
                 })
@@ -200,9 +230,15 @@ impl crate::TestRenderer for WgpuTestRenderer {
 
         self.render_state
             .queue
-            .submit(user_buffers.into_iter().chain(once(encoder.finish())));
+            .submit(core::iter::chain(user_buffers, once(encoder.finish())));
 
-        self.render_state.device.poll(wgpu::Maintain::Wait);
+        self.render_state
+            .device
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(WAIT_TIMEOUT),
+            })
+            .map_err(|err| format!("PollError: {err}"))?;
 
         Ok(texture_to_image(
             &self.render_state.device,

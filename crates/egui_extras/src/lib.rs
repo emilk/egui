@@ -6,10 +6,9 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
+#![expect(clippy::manual_range_contains)]
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "datepicker")]
 mod datepicker;
 
 pub mod syntax_highlighting;
@@ -17,20 +16,21 @@ pub mod syntax_highlighting;
 #[doc(hidden)]
 pub mod image;
 mod layout;
-mod loaders;
+pub mod loaders;
 mod sizing;
 mod strip;
+#[cfg(feature = "svg")]
+mod svg_glyph;
 mod table;
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "datepicker")]
 pub use crate::datepicker::DatePickerButton;
 
-#[doc(hidden)]
-#[allow(deprecated)]
-pub use crate::image::RetainedImage;
 pub(crate) use crate::layout::StripLayout;
 pub use crate::sizing::Size;
 pub use crate::strip::*;
+#[cfg(feature = "svg")]
+pub use crate::svg_glyph::SvgGlyph;
 pub use crate::table::*;
 
 pub use loaders::install_image_loaders;

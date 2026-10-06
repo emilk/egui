@@ -7,7 +7,7 @@
 
 `eframe` is the official framework library for writing apps using [`egui`](https://github.com/emilk/egui). The app can be compiled both to run natively (for Linux, Mac, Windows, and Android) or as a web app (using [Wasm](https://en.wikipedia.org/wiki/WebAssembly)).
 
-To get started, see the [examples](https://github.com/emilk/egui/tree/master/examples).
+To get started, see the [examples](https://github.com/emilk/egui/tree/main/examples).
 To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 
 There is also a tutorial video at <https://www.youtube.com/watch?v=NtUkr_z7l84>.
@@ -16,7 +16,7 @@ For how to use `egui`, see [the egui docs](https://docs.rs/egui).
 
 ---
 
-`eframe` uses [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow) for rendering, and on native it uses [`egui-winit`](https://github.com/emilk/egui/tree/master/crates/egui-winit).
+`eframe` defaults to using [wgpu](https://crates.io/crates/wgpu) for rendering (with an option to change to [glow](https://crates.io/crates/glow)), and on native it uses [`egui-winit`](https://github.com/emilk/egui/tree/main/crates/egui-winit).
 
 To use on Linux, first run:
 
@@ -24,18 +24,18 @@ To use on Linux, first run:
 sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
 ```
 
-You need to either use `edition = "2021"`, or set `resolver = "2"` in the `[workspace]` section of your to-level `Cargo.toml`. See [this link](https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html) for more info.
+You need to either use `edition = "2024"`, or set `resolver = "2"` in the `[workspace]` section of your to-level `Cargo.toml`. See [this link](https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html) for more info.
 
-You can opt-in to the using [`egui_wgpu`](https://github.com/emilk/egui/tree/master/crates/egui_wgpu) for rendering by enabling the `wgpu` feature and setting `NativeOptions::renderer` to `Renderer::Wgpu`.
+You can opt-in to the using [`egui_glow`](https://github.com/emilk/egui/tree/main/crates/egui_glow) for rendering by enabling the `glow` feature and setting `NativeOptions::renderer` to `Renderer::Glow`.
 
 ## Alternatives
 `eframe` is not the only way to write an app using `egui`! You can also try [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad), [`bevy_egui`](https://github.com/mvlabat/bevy_egui), [`egui_sdl2_gl`](https://github.com/ArjunNair/egui_sdl2_gl), and others.
 
-You can also use `egui_glow` and [`winit`](https://github.com/rust-windowing/winit) to build your own app as demonstrated in <https://github.com/emilk/egui/blob/master/crates/egui_glow/examples/pure_glow.rs>.
+You can also use `egui_glow` and [`winit`](https://github.com/rust-windowing/winit) to build your own app as demonstrated in <https://github.com/emilk/egui/blob/main/crates/egui_glow/examples/pure_glow.rs>.
 
 
 ## Limitations when running egui on the web
-`eframe` uses WebGL (via [`glow`](https://crates.io/crates/glow)) and Wasm, and almost nothing else from the web tech stack. This has some benefits, but also produces some challenges and serious downsides.
+`eframe` and egui compiles to Wasm using either WebGPU (when available) or WebGL2 for rendering, and almost nothing else from the web tech stack. This has some benefits, but also produces some challenges and serious downsides.
 
 * Rendering: Getting pixel-perfect rendering right on the web is very difficult.
 * Search: you cannot search an egui web page like you would a normal web page.

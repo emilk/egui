@@ -1,3 +1,5 @@
+#![expect(clippy::unwrap_used)]
+
 use std::{
     env,
     io::{self, Write as _},
@@ -25,14 +27,14 @@ pub fn ask_to_run(mut cmd: Command, ask: bool, reason: &str) -> Result<(), DynEr
     let is_ci = env::var_os("CI").is_some() || env::var_os("TF_BUILD").is_some();
     if ask && !is_ci {
         let mut buf = String::new();
-        print!("The script is going to run: \n\n`{cmd:?}`\n\n To {reason}.\nProceed? [Y/n] ",);
+        print!("The script is going to run: \n\n`{cmd:?}`\n\n To {reason}.\nProceed? [Y/n] ");
         io::stdout().flush().unwrap();
         io::stdin().read_line(&mut buf).unwrap();
         match buf.trim().to_lowercase().as_ref() {
             "" | "y" | "yes" => {}
             "n" | "no" => return Err("Aborting as per your request".into()),
             a => return Err(format!("Invalid answer `{a}`").into()),
-        };
+        }
     } else {
         println!("Running `{cmd:?}` to {reason}.");
     }

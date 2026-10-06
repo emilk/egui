@@ -1,6 +1,7 @@
-#![allow(clippy::collapsible_else_if)]
-#![allow(unsafe_code)]
+#![expect(clippy::unwrap_used)]
+#![expect(unsafe_code)]
 
+use core::mem::offset_of;
 use std::{collections::HashMap, sync::Arc};
 
 use egui::{
@@ -8,7 +9,6 @@ use egui::{
     epaint::{Mesh, PaintCallbackInfo, Primitive, Vertex},
 };
 use glow::HasContext as _;
-use memoffset::offset_of;
 
 use crate::check_for_gl_error;
 use crate::misc_util::{compile_shader, link_program};
@@ -55,10 +55,10 @@ impl TextureWrapModeExt for egui::TextureWrapMode {
 #[derive(Debug)]
 pub struct PainterError(String);
 
-impl std::error::Error for PainterError {}
+impl core::error::Error for PainterError {}
 
-impl std::fmt::Display for PainterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for PainterError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "OpenGL: {}", self.0)
     }
 }
@@ -113,7 +113,7 @@ pub struct Painter {
 ///
 /// # Example
 ///
-/// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
+/// See the [`custom3d_glow`](https://github.com/emilk/egui/blob/main/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
 pub struct CallbackFn {
     f: Box<dyn Fn(PaintCallbackInfo, &Painter) + Sync + Send>,
 }
@@ -168,23 +168,18 @@ impl Painter {
         let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let shader_version_declaration = shader_version.version_declaration();
-        log::debug!("Shader header: {:?}.", shader_version_declaration);
+        log::debug!("Shader header: {shader_version_declaration:?}.");
 
         let supported_extensions = gl.supported_extensions();
         log::trace!("OpenGL extensions: {supported_extensions:?}");
-        let srgb_textures = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
-            || supported_extensions.iter().any(|extension| {
-                // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
-                extension.contains("sRGB")
-            });
-        log::debug!("SRGB texture Support: {:?}", srgb_textures);
+        let srgb_textures = false; // egui wants normal sRGB-unaware textures
 
         let supports_srgb_framebuffer = !cfg!(target_arch = "wasm32")
             && supported_extensions.iter().any(|extension| {
                 // {GL,GLX,WGL}_ARB_framebuffer_sRGB, …
                 extension.ends_with("ARB_framebuffer_sRGB")
             });
-        log::debug!("SRGB framebuffer Support: {:?}", supports_srgb_framebuffer);
+        log::debug!("SRGB framebuffer Support: {supports_srgb_framebuffer}");
 
         unsafe {
             let vert = compile_shader(
@@ -202,11 +197,10 @@ impl Painter {
                 &gl,
                 glow::FRAGMENT_SHADER,
                 &format!(
-                    "{}\n#define NEW_SHADER_INTERFACE {}\n#define DITHERING {}\n#define SRGB_TEXTURES {}\n{}\n{}",
+                    "{}\n#define NEW_SHADER_INTERFACE {}\n#define DITHERING {}\n{}\n{}",
                     shader_version_declaration,
                     shader_version.is_new_shader_interface() as i32,
                     dithering as i32,
-                    srgb_textures as i32,
                     shader_prefix,
                     FRAG_SRC
                 ),
@@ -225,7 +219,7 @@ impl Painter {
             let a_tc_loc = gl.get_attrib_location(program, "a_tc").unwrap();
             let a_srgba_loc = gl.get_attrib_location(program, "a_srgba").unwrap();
 
-            let stride = std::mem::size_of::<Vertex>() as i32;
+            let stride = core::mem::size_of::<Vertex>() as i32;
             let buffer_infos = vec![
                 vao::BufferInfo {
                     location: a_pos_loc,
@@ -296,7 +290,7 @@ impl Painter {
     /// So if in a [`egui::Shape::Callback`] you need to use an offscreen FBO, you should
     /// then restore to this afterwards with
     /// `gl.bind_framebuffer(glow::FRAMEBUFFER, painter.intermediate_fbo());`
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn intermediate_fbo(&self) -> Option<glow::Framebuffer> {
         // We don't currently ever render to an offscreen buffer,
         // but we may want to start to in order to do anti-aliasing on web, for instance.
@@ -364,17 +358,21 @@ impl Painter {
         screen_size_px: [u32; 2],
         pixels_per_point: f32,
         clipped_primitives: &[egui::ClippedPrimitive],
-        textures_delta: &egui::TexturesDelta,
+        textures_delta: &mut egui::TexturesDelta,
     ) {
         profiling::function_scope!();
 
-        for (id, image_delta) in &textures_delta.set {
-            self.set_texture(*id, image_delta);
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for (id, image_deltas) in textures_delta.set.drain() {
+            for image_delta in image_deltas {
+                self.set_texture(id, &image_delta);
+            }
         }
 
         self.paint_primitives(screen_size_px, pixels_per_point, clipped_primitives);
 
-        for &id in &textures_delta.free {
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for id in textures_delta.free.drain() {
             self.free_texture(id);
         }
     }
@@ -445,7 +443,9 @@ impl Painter {
                         if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
                             (callback.f)(info, self);
                         } else {
-                            log::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
+                            log::warn!(
+                                "Warning: Unsupported render callback. Expected egui_glow::CallbackFn"
+                            );
                         }
 
                         check_for_gl_error!(&self.gl, "callback");
@@ -469,7 +469,7 @@ impl Painter {
 
     #[inline(never)] // Easier profiling
     fn paint_mesh(&mut self, mesh: &Mesh) {
-        debug_assert!(mesh.is_valid());
+        debug_assert!(mesh.is_valid(), "Mesh is not valid");
         if let Some(texture) = self.texture(mesh.texture_id) {
             unsafe {
                 self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
@@ -532,24 +532,7 @@ impl Painter {
 
                 self.upload_texture_srgb(delta.pos, image.size, delta.options, data);
             }
-            egui::ImageData::Font(image) => {
-                assert_eq!(
-                    image.width() * image.height(),
-                    image.pixels.len(),
-                    "Mismatch between texture size and texel count"
-                );
-
-                let data: Vec<u8> = {
-                    profiling::scope!("font -> sRGBA");
-                    image
-                        .srgba_pixels(None)
-                        .flat_map(|a| a.to_array())
-                        .collect()
-                };
-
-                self.upload_texture_srgb(delta.pos, image.size, delta.options, &data);
-            }
-        };
+        }
     }
 
     fn upload_texture_srgb(
@@ -560,7 +543,12 @@ impl Painter {
         data: &[u8],
     ) {
         profiling::function_scope!();
-        assert_eq!(data.len(), w * h * 4);
+        assert_eq!(
+            data.len(),
+            w * h * 4,
+            "Mismatch between texture size and texel count, by {}",
+            data.len() % (w * h * 4)
+        );
         assert!(
             w <= self.max_texture_side && h <= self.max_texture_side,
             "Got a texture image of size {}x{}, but the maximum supported texture side is only {}",
@@ -658,7 +646,6 @@ impl Painter {
         self.textures.get(&texture_id).copied()
     }
 
-    #[allow(clippy::needless_pass_by_value)] // False positive
     pub fn register_native_texture(&mut self, native: glow::Texture) -> egui::TextureId {
         self.assert_not_destroyed();
         let id = egui::TextureId::User(self.next_native_tex_id);
@@ -667,7 +654,6 @@ impl Painter {
         id
     }
 
-    #[allow(clippy::needless_pass_by_value)] // False positive
     pub fn replace_native_texture(&mut self, id: egui::TextureId, replacing: glow::Texture) {
         if let Some(old_tex) = self.textures.insert(id, replacing) {
             self.textures_to_destroy.push(old_tex);
@@ -693,10 +679,7 @@ impl Painter {
         for row in pixels.chunks_exact((w * 4) as usize).rev() {
             flipped.extend_from_slice(bytemuck::cast_slice(row));
         }
-        egui::ColorImage {
-            size: [w as usize, h as usize],
-            pixels: flipped,
-        }
+        egui::ColorImage::new([w as usize, h as usize], flipped)
     }
 
     pub fn read_screen_rgb(&self, [w, h]: [u32; 2]) -> Vec<u8> {
@@ -719,6 +702,7 @@ impl Painter {
     unsafe fn destroy_gl(&self) {
         unsafe {
             self.gl.delete_program(self.program);
+            #[expect(clippy::iter_over_hash_type)]
             for tex in self.textures.values() {
                 self.gl.delete_texture(*tex);
             }

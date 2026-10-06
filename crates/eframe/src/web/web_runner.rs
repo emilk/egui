@@ -1,10 +1,15 @@
-use std::{cell::RefCell, rc::Rc};
+use core::cell::RefCell;
+use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 
-use crate::{epi, App};
+use crate::{App, epi};
 
-use super::{events, text_agent::TextAgent, AppRunner, PanicHandler};
+use super::{
+    AppRunner, PanicHandler,
+    events::{self, ResizeObserverContext},
+    text_agent::TextAgent,
+};
 
 /// This is how `eframe` runs your web application
 ///
@@ -18,7 +23,7 @@ pub struct WebRunner {
 
     /// If we ever panic during running, this `RefCell` is poisoned.
     /// So before we use it, we need to check [`Self::panic_handler`].
-    runner: Rc<RefCell<Option<AppRunner>>>,
+    app_runner: Rc<RefCell<Option<AppRunner>>>,
 
     /// In case of a panic, unsubscribe these.
     /// They have to be in a separate `Rc` so that we don't need to pass them to
@@ -33,13 +38,13 @@ pub struct WebRunner {
 
 impl WebRunner {
     /// Will install a panic handler that will catch and log any panics
-    #[allow(clippy::new_without_default)]
+    #[expect(clippy::new_without_default)]
     pub fn new() -> Self {
         let panic_handler = PanicHandler::install();
 
         Self {
             panic_handler,
-            runner: Rc::new(RefCell::new(None)),
+            app_runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
             frame: Default::default(),
             resize_observer: Default::default(),
@@ -58,27 +63,35 @@ impl WebRunner {
     ) -> Result<(), JsValue> {
         self.destroy();
 
-        let text_agent = TextAgent::attach(self)?;
-
-        let runner = AppRunner::new(canvas, web_options, app_creator, text_agent).await?;
-
         {
             // Make sure the canvas can be given focus.
             // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
-            runner.canvas().set_tab_index(0);
+            canvas.set_tab_index(0);
 
             // Don't outline the canvas when it has focus:
-            runner.canvas().style().set_property("outline", "none")?;
+            canvas.style().set_property("outline", "none")?;
         }
-
-        self.runner.replace(Some(runner));
 
         {
-            events::install_event_handlers(self)?;
-
-            // The resize observer handles calling `request_animation_frame` to start the render loop.
-            events::install_resize_observer(self)?;
+            // First set up the app runner:
+            let text_agent = TextAgent::attach(self, &canvas)?;
+            let app_runner =
+                AppRunner::new(canvas.clone(), web_options, app_creator, text_agent).await?;
+            self.app_runner.replace(Some(app_runner));
         }
+
+        {
+            let resize_observer = events::ResizeObserverContext::new(self)?;
+
+            // Properly size the canvas. Will also call `self.request_animation_frame()` (eventually)
+            resize_observer.observe(&canvas);
+
+            self.resize_observer.replace(Some(resize_observer));
+        }
+
+        events::install_event_handlers(self)?;
+
+        log::info!("event handlers installed.");
 
         Ok(())
     }
@@ -95,7 +108,7 @@ impl WebRunner {
 
     fn unsubscribe_from_all_events(&self) {
         let events_to_unsubscribe: Vec<_> =
-            std::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
+            core::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
 
         if !events_to_unsubscribe.is_empty() {
             log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
@@ -109,10 +122,7 @@ impl WebRunner {
             }
         }
 
-        if let Some(context) = self.resize_observer.take() {
-            context.resize_observer.disconnect();
-            drop(context.closure);
-        }
+        self.resize_observer.replace(None);
     }
 
     /// Shut down eframe and clean up resources.
@@ -120,26 +130,25 @@ impl WebRunner {
         self.unsubscribe_from_all_events();
 
         if let Some(frame) = self.frame.take() {
-            let window = web_sys::window().unwrap();
-            window.cancel_animation_frame(frame.id).ok();
+            frame.cancel(&web_sys::window().unwrap());
         }
 
-        if let Some(runner) = self.runner.replace(None) {
+        if let Some(runner) = self.app_runner.replace(None) {
             runner.destroy();
         }
     }
 
     /// Returns `None` if there has been a panic, or if we have been destroyed.
     /// In that case, just return to JS.
-    pub(crate) fn try_lock(&self) -> Option<std::cell::RefMut<'_, AppRunner>> {
+    pub(crate) fn try_lock(&self) -> Option<core::cell::RefMut<'_, AppRunner>> {
         if self.panic_handler.has_panicked() {
             // Unsubscribe from all events so that we don't get any more callbacks
             // that will try to access the poisoned runner.
             self.unsubscribe_from_all_events();
             None
         } else {
-            let lock = self.runner.try_borrow_mut().ok()?;
-            std::cell::RefMut::filter_map(lock, |lock| -> Option<&mut AppRunner> { lock.as_mut() })
+            let lock = self.app_runner.try_borrow_mut().ok()?;
+            core::cell::RefMut::filter_map(lock, |lock| -> Option<&mut AppRunner> { lock.as_mut() })
                 .ok()
         }
     }
@@ -150,9 +159,9 @@ impl WebRunner {
     /// and return `None` if this  runner has panicked.
     pub fn app_mut<ConcreteApp: 'static + App>(
         &self,
-    ) -> Option<std::cell::RefMut<'_, ConcreteApp>> {
+    ) -> Option<core::cell::RefMut<'_, ConcreteApp>> {
         self.try_lock()
-            .map(|lock| std::cell::RefMut::map(lock, |runner| runner.app_mut::<ConcreteApp>()))
+            .map(|lock| core::cell::RefMut::map(lock, |runner| runner.app_mut::<ConcreteApp>()))
     }
 
     /// Convenience function to reduce boilerplate and ensure that all event handlers
@@ -166,20 +175,45 @@ impl WebRunner {
         event_name: &'static str,
         mut closure: impl FnMut(E, &mut AppRunner) + 'static,
     ) -> Result<(), wasm_bindgen::JsValue> {
-        let runner_ref = self.clone();
+        let options = web_sys::AddEventListenerOptions::default();
+        self.add_event_listener_ex(
+            target,
+            event_name,
+            &options,
+            move |event, app_runner, _web_runner| closure(event, app_runner),
+        )
+    }
+
+    /// Convenience function to reduce boilerplate and ensure that all event handlers
+    /// are dealt with in the same way.
+    ///
+    /// All events added with this method will automatically be unsubscribed on panic,
+    /// or when [`Self::destroy`] is called.
+    pub fn add_event_listener_ex<E: wasm_bindgen::JsCast>(
+        &self,
+        target: &web_sys::EventTarget,
+        event_name: &'static str,
+        options: &web_sys::AddEventListenerOptions,
+        mut closure: impl FnMut(E, &mut AppRunner, &Self) + 'static,
+    ) -> Result<(), wasm_bindgen::JsValue> {
+        let web_runner = self.clone();
 
         // Create a JS closure based on the FnMut provided
         let closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
             // Only call the wrapped closure if the egui code has not panicked
-            if let Some(mut runner_lock) = runner_ref.try_lock() {
+            if let Some(mut runner_lock) = web_runner.try_lock() {
                 // Cast the event to the expected event type
                 let event = event.unchecked_into::<E>();
-                closure(event, &mut runner_lock);
+                closure(event, &mut runner_lock, &web_runner);
             }
         }) as Box<dyn FnMut(web_sys::Event)>);
 
         // Add the event listener to the target
-        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        target.add_event_listener_with_callback_and_add_event_listener_options(
+            event_name,
+            closure.as_ref().unchecked_ref(),
+            options,
+        )?;
 
         let handle = TargetEvent {
             target: target.clone(),
@@ -200,6 +234,12 @@ impl WebRunner {
     ///
     /// It is safe to call `request_animation_frame` multiple times in quick succession,
     /// this function guarantees that only one animation frame is scheduled at a time.
+    ///
+    /// A hidden browser tab (e.g. a backgrounded tab) does not receive
+    /// `requestAnimationFrame` callbacks, which would otherwise stop our paint loop
+    /// and prevent `App::update` from running in response to `request_repaint`.
+    /// To keep running in that case, we fall back to `setTimeout`, which keeps firing
+    /// while hidden (the browser throttles it to roughly once per second).
     pub(crate) fn request_animation_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
         if self.frame.borrow().is_some() {
             // there is already an animation frame in flight
@@ -208,36 +248,56 @@ impl WebRunner {
 
         let window = web_sys::window().unwrap();
         let closure = Closure::once({
-            let runner_ref = self.clone();
+            let web_runner = self.clone();
             move || {
                 // We can paint now, so clear the animation frame.
                 // This drops the `closure` and allows another
                 // animation frame to be scheduled
-                let _ = runner_ref.frame.take();
-                events::paint_and_schedule(&runner_ref)
+                let _ = web_runner.frame.take();
+                events::paint_and_schedule(&web_runner)
             }
         });
 
-        let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
-        self.frame.borrow_mut().replace(AnimationFrameRequest {
-            id,
-            _closure: closure,
-        });
+        let hidden = window.document().is_some_and(|document| document.hidden());
+
+        let request = if hidden {
+            // The tab is hidden: `requestAnimationFrame` would not fire, so use a timer instead.
+            let id = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                closure.as_ref().unchecked_ref(),
+                // Browsers clamp background timers to ~1s, so the exact value has little effect
+                // while hidden, but keeps us responsive right after the tab is hidden:
+                10,
+            )?;
+            AnimationFrameRequest {
+                id,
+                kind: AnimationFrameKind::Timeout,
+                _closure: closure,
+            }
+        } else {
+            let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
+            AnimationFrameRequest {
+                id,
+                kind: AnimationFrameKind::AnimationFrame,
+                _closure: closure,
+            }
+        };
+
+        self.frame.borrow_mut().replace(request);
 
         Ok(())
     }
 
-    pub(crate) fn set_resize_observer(
-        &self,
-        resize_observer: web_sys::ResizeObserver,
-        closure: Closure<dyn FnMut(js_sys::Array)>,
-    ) {
-        self.resize_observer
-            .borrow_mut()
-            .replace(ResizeObserverContext {
-                resize_observer,
-                closure,
-            });
+    /// Cancel any in-flight frame request and schedule a fresh one.
+    ///
+    /// Called on `visibilitychange` so we switch between `requestAnimationFrame` (visible)
+    /// and `setTimeout` (hidden) scheduling. This is necessary because an in-flight
+    /// `requestAnimationFrame` is paused while the tab is hidden, which would otherwise
+    /// stall the paint loop and stop `App::update` from running while hidden.
+    pub(crate) fn reschedule_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
+        if let Some(frame) = self.frame.borrow_mut().take() {
+            frame.cancel(&web_sys::window().unwrap());
+        }
+        self.request_animation_frame()
     }
 }
 
@@ -248,14 +308,35 @@ struct AnimationFrameRequest {
     /// Represents the ID of a frame in flight.
     id: i32,
 
+    /// How the frame was scheduled, so we know how to cancel it.
+    kind: AnimationFrameKind,
+
     /// The callback given to `request_animation_frame`, stored here both to prevent it
     /// from being canceled, and from having to `.forget()` it.
     _closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
 }
 
-struct ResizeObserverContext {
-    resize_observer: web_sys::ResizeObserver,
-    closure: Closure<dyn FnMut(js_sys::Array)>,
+impl AnimationFrameRequest {
+    /// Cancel the in-flight frame request, using the API matching how it was scheduled.
+    fn cancel(&self, window: &web_sys::Window) {
+        match self.kind {
+            AnimationFrameKind::AnimationFrame => {
+                window.cancel_animation_frame(self.id).ok();
+            }
+            AnimationFrameKind::Timeout => {
+                window.clear_timeout_with_handle(self.id);
+            }
+        }
+    }
+}
+
+/// How an [`AnimationFrameRequest`] was scheduled.
+enum AnimationFrameKind {
+    /// Scheduled with `requestAnimationFrame` (visible tab).
+    AnimationFrame,
+
+    /// Scheduled with `setTimeout` (hidden tab).
+    Timeout,
 }
 
 struct TargetEvent {
@@ -264,7 +345,7 @@ struct TargetEvent {
     closure: Closure<dyn FnMut(web_sys::Event)>,
 }
 
-#[allow(unused)]
+#[expect(unused)]
 struct IntervalHandle {
     handle: i32,
     closure: Closure<dyn FnMut()>,
@@ -273,7 +354,7 @@ struct IntervalHandle {
 enum EventToUnsubscribe {
     TargetEvent(TargetEvent),
 
-    #[allow(unused)]
+    #[expect(unused)]
     IntervalHandle(IntervalHandle),
 }
 

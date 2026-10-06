@@ -1,9 +1,10 @@
-use std::{collections::BTreeMap, fmt::Debug};
+use core::fmt::Debug;
+use std::collections::BTreeMap;
 
 use crate::{
-    data::input::TouchDeviceId,
-    emath::{normalized_angle, Pos2, Vec2},
     Event, RawInput, TouchId, TouchPhase,
+    data::input::TouchDeviceId,
+    emath::{Pos2, Vec2, normalized_angle},
 };
 
 /// All you probably need to know about a multi-touch gesture.
@@ -174,7 +175,7 @@ impl TouchState {
         if added_or_removed_touches {
             // Adding or removing fingers makes the average values "jump". We better forget
             // about the previous values, and don't create delta information for this frame:
-            if let Some(ref mut state) = &mut self.gesture_state {
+            if let Some(state) = &mut self.gesture_state {
                 state.previous = None;
             }
         }
@@ -194,7 +195,7 @@ impl TouchState {
 
             let zoom_delta = state.current.avg_distance / state_previous.avg_distance;
 
-            let zoom_delta2 = match state.pinch_type {
+            let zoom_delta_2d = match state.pinch_type {
                 PinchType::Horizontal => Vec2::new(
                     state.current.avg_abs_distance2.x / state_previous.avg_abs_distance2.x,
                     1.0,
@@ -213,7 +214,7 @@ impl TouchState {
                 start_pos: state.start_pointer_pos,
                 num_touches: self.active_touches.len(),
                 zoom_delta,
-                zoom_delta_2d: zoom_delta2,
+                zoom_delta_2d,
                 rotation_delta: normalized_angle(state.current.heading - state_previous.heading),
                 translation_delta: state.current.avg_pos - state_previous.avg_pos,
                 force: state.current.avg_force,
@@ -224,7 +225,7 @@ impl TouchState {
 
     fn update_gesture(&mut self, time: f64, pointer_pos: Option<Pos2>) {
         if let Some(dyn_state) = self.calc_dynamic_state() {
-            if let Some(ref mut state) = &mut self.gesture_state {
+            if let Some(state) = &mut self.gesture_state {
                 // updating an ongoing gesture
                 state.previous = Some(state.current);
                 state.current = dyn_state;
@@ -288,6 +289,7 @@ impl TouchState {
             // touch individually, and then calculate the average of all individual changes in
             // direction. But this approach cannot be implemented locally in this method, making
             // everything a bit more complicated.
+            #[expect(clippy::unwrap_used)] // guarded against already
             let first_touch = self.active_touches.values().next().unwrap();
             state.heading = (state.avg_pos - first_touch.pos).angle();
 
@@ -304,7 +306,7 @@ impl TouchState {
 
 impl Debug for TouchState {
     // This outputs less clutter than `#[derive(Debug)]`:
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for (id, touch) in &self.active_touches {
             f.write_fmt(format_args!("#{id:?}: {touch:#?}\n"))?;
         }
@@ -323,13 +325,14 @@ enum PinchType {
 
 impl PinchType {
     fn classify(touches: &BTreeMap<TouchId, ActiveTouch>) -> Self {
+        #![expect(clippy::unwrap_used)]
+
         // For non-proportional 2d zooming:
         // If the user is pinching with two fingers that have roughly the same Y coord,
         // then the Y zoom is unstable and should be 1.
         // Similarly, if the fingers are directly above/below each other,
         // we should only zoom on the Y axis.
         // If the fingers are roughly on a diagonal, we revert to the proportional zooming.
-
         if touches.len() == 2 {
             let mut touches = touches.values();
             let t0 = touches.next().unwrap().pos;

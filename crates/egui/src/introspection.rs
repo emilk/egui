@@ -1,7 +1,7 @@
 //! Showing UI:s for egui/epaint types.
 use crate::{
-    epaint, memory, pos2, remap_clamp, vec2, Color32, CursorIcon, FontFamily, FontId, Label, Mesh,
-    NumExt, Rect, Response, Sense, Shape, Slider, TextStyle, TextWrapMode, Ui, Widget,
+    Color32, CursorIcon, FontFamily, FontId, Label, Mesh, NumExt as _, Rect, Response, Sense,
+    Shape, Slider, TextStyle, TextWrapMode, Ui, Widget, epaint, memory, pos2, remap_clamp, vec2,
 };
 
 pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
@@ -17,7 +17,8 @@ pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
 pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
     let families = ui.fonts(|f| f.families());
     ui.horizontal(|ui| {
-        ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(1));
+        ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(1))
+            .on_hover_text("Font size");
         for alternative in families {
             let text = alternative.to_string();
             ui.radio_value(&mut font_id.family, alternative, text);
@@ -89,6 +90,7 @@ impl Widget for &epaint::stats::PaintStats {
                 shapes,
                 shape_text,
                 shape_path,
+                shape_band,
                 shape_mesh,
                 shape_vec,
                 num_callbacks,
@@ -106,6 +108,7 @@ impl Widget for &epaint::stats::PaintStats {
                 ui.small("(mostly cached)");
             });
             label(ui, shape_path, "paths");
+            label(ui, shape_band, "bands");
             label(ui, shape_mesh, "nested meshes");
             label(ui, shape_vec, "nested shapes");
             ui.label(format!("{num_callbacks:6} callbacks"));
@@ -160,7 +163,7 @@ impl Widget for &mut epaint::TessellationOptions {
                     .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
 
                 if *feathering {
-                    ui.add(crate::DragValue::new(feathering_size_in_pixels).range(0.0..=10.0).speed(0.1).suffix(" px"));
+                    ui.add(crate::DragValue::new(feathering_size_in_pixels).range(0.0..=10.0).speed(0.025).suffix(" px"));
                 }
             });
 

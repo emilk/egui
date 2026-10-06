@@ -3,17 +3,12 @@
 use crate::{ClippedShape, Galley, Mesh, Primitive, Shape};
 
 /// Size of the elements in a vector/array.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 enum ElementSize {
+    #[default]
     Unknown,
     Homogeneous(usize),
     Heterogenous,
-}
-
-impl Default for ElementSize {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// Aggregate information about a bunch of allocations.
@@ -31,7 +26,7 @@ impl<T> From<&[T]> for AllocInfo {
     }
 }
 
-impl std::ops::Add for AllocInfo {
+impl core::ops::Add for AllocInfo {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
@@ -52,13 +47,13 @@ impl std::ops::Add for AllocInfo {
     }
 }
 
-impl std::ops::AddAssign for AllocInfo {
+impl core::ops::AddAssign for AllocInfo {
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs;
     }
 }
 
-impl std::iter::Sum for AllocInfo {
+impl core::iter::Sum for AllocInfo {
     fn sum<I>(iter: I) -> Self
     where
         I: Iterator<Item = Self>,
@@ -91,7 +86,7 @@ impl AllocInfo {
             + galley.rows.iter().map(Self::from_galley_row).sum()
     }
 
-    fn from_galley_row(row: &crate::text::Row) -> Self {
+    fn from_galley_row(row: &crate::text::PlacedRow) -> Self {
         Self::from_mesh(&row.visuals.mesh) + Self::from_slice(&row.glyphs)
     }
 
@@ -100,18 +95,21 @@ impl AllocInfo {
     }
 
     pub fn from_slice<T>(slice: &[T]) -> Self {
-        use std::mem::size_of;
+        use core::mem::size_of;
         let element_size = size_of::<T>();
         Self {
             element_size: ElementSize::Homogeneous(element_size),
             num_allocs: 1,
             num_elements: slice.len(),
-            num_bytes: std::mem::size_of_val(slice),
+            num_bytes: core::mem::size_of_val(slice),
         }
     }
 
     pub fn num_elements(&self) -> usize {
-        assert!(self.element_size != ElementSize::Heterogenous);
+        assert!(
+            self.element_size != ElementSize::Heterogenous,
+            "Heterogenous element size"
+        );
         self.num_elements
     }
 
@@ -137,10 +135,10 @@ impl AllocInfo {
                 what,
                 self.megabytes()
             )
-        } else if self.element_size != ElementSize::Heterogenous {
+        } else if self.element_size == ElementSize::Heterogenous {
             format!(
                 "{:6} {:16}  {}     {:3} allocations",
-                self.num_elements(),
+                "",
                 what,
                 self.megabytes(),
                 self.num_allocs()
@@ -148,7 +146,7 @@ impl AllocInfo {
         } else {
             format!(
                 "{:6} {:16}  {}     {:3} allocations",
-                "",
+                self.num_elements(),
                 what,
                 self.megabytes(),
                 self.num_allocs()
@@ -163,6 +161,7 @@ pub struct PaintStats {
     pub shapes: AllocInfo,
     pub shape_text: AllocInfo,
     pub shape_path: AllocInfo,
+    pub shape_band: AllocInfo,
     pub shape_mesh: AllocInfo,
     pub shape_vec: AllocInfo,
     pub num_callbacks: usize,
@@ -180,6 +179,7 @@ impl PaintStats {
     pub fn from_shapes(shapes: &[ClippedShape]) -> Self {
         let mut stats = Self::default();
         stats.shape_path.element_size = ElementSize::Heterogenous; // nicer display later
+        stats.shape_band.element_size = ElementSize::Heterogenous; // nicer display later
         stats.shape_vec.element_size = ElementSize::Heterogenous; // nicer display later
 
         stats.shapes = AllocInfo::from_slice(shapes);
@@ -208,6 +208,9 @@ impl PaintStats {
             | Shape::QuadraticBezier(_) => {}
             Shape::Path(path_shape) => {
                 self.shape_path += AllocInfo::from_slice(&path_shape.points);
+            }
+            Shape::Band(band_shape) => {
+                self.shape_band += AllocInfo::from_slice(&band_shape.points);
             }
             Shape::Text(text_shape) => {
                 self.shape_text += AllocInfo::from_galley(&text_shape.galley);

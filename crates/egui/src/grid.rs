@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use emath::GuiRounding as _;
 
 use crate::{
-    vec2, Align2, Color32, Context, Id, InnerResponse, NumExt, Painter, Rect, Region, Style, Ui,
-    UiBuilder, Vec2,
+    Align2, AsIdSalt, Color32, Context, Id, IdSalt, InnerResponse, NumExt as _, Painter, Rect,
+    Region, Style, Ui, UiBuilder, Vec2, vec2,
 };
 
 #[cfg(debug_assertions)]
@@ -73,6 +75,11 @@ pub(crate) struct GridLayout {
     curr_state: State,
     initial_available: Rect,
 
+    /// Are we inside an enclosing sizing pass (e.g. [`crate::Resize`] measuring
+    /// the minimum content width)? If so we must not remember the (narrow) sizes
+    /// we measure during it.
+    sizing_pass: bool,
+
     // Options:
     num_columns: Option<usize>,
     spacing: Vec2,
@@ -88,6 +95,10 @@ pub(crate) struct GridLayout {
 impl GridLayout {
     pub(crate) fn new(ui: &Ui, id: Id, prev_state: Option<State>) -> Self {
         let is_first_frame = prev_state.is_none();
+
+        // An outer sizing pass, we should render as small as possible.
+        let sizing_pass = ui.is_sizing_pass();
+
         let prev_state = prev_state.unwrap_or_default();
 
         // TODO(emilk): respect current layout
@@ -102,12 +113,13 @@ impl GridLayout {
 
         Self {
             ctx: ui.ctx().clone(),
-            style: ui.style().clone(),
+            style: Arc::clone(ui.style()),
             id,
             is_first_frame,
             prev_state,
             curr_state: State::default(),
             initial_available,
+            sizing_pass,
 
             num_columns: None,
             spacing: ui.spacing().item_spacing,
@@ -178,13 +190,17 @@ impl GridLayout {
     }
 
     pub(crate) fn next_cell(&self, cursor: Rect, child_size: Vec2) -> Rect {
-        let width = self.prev_state.col_width(self.col).unwrap_or(0.0);
+        let width = if self.sizing_pass {
+            0.0
+        } else {
+            self.prev_state.col_width(self.col).unwrap_or(0.0)
+        };
         let height = self.prev_row_height(self.row);
         let size = child_size.max(vec2(width, height));
         Rect::from_min_size(cursor.min, size).round_ui()
     }
 
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub(crate) fn align_size_within_rect(&self, size: Vec2, frame: Rect) -> Rect {
         // TODO(emilk): allow this alignment to be customized
         Align2::LEFT_CENTER
@@ -208,7 +224,12 @@ impl GridLayout {
 
                 if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
                     let painter = self.ctx.debug_painter();
-                    painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                    painter.rect_stroke(
+                        rect,
+                        0.0,
+                        (1.0, Color32::LIGHT_BLUE),
+                        crate::StrokeKind::Inside,
+                    );
 
                     let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                     let paint_line_seg = |a, b| painter.line_segment([a, b], stroke);
@@ -305,7 +326,7 @@ impl GridLayout {
 /// ```
 #[must_use = "You should call .show()"]
 pub struct Grid {
-    id_salt: Id,
+    id_salt: IdSalt,
     num_columns: Option<usize>,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
@@ -317,9 +338,9 @@ pub struct Grid {
 
 impl Grid {
     /// Create a new [`Grid`] with a locally unique identifier.
-    pub fn new(id_salt: impl std::hash::Hash) -> Self {
+    pub fn new(id_salt: impl AsIdSalt) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: IdSalt::new(id_salt),
             num_columns: None,
             min_col_width: None,
             min_row_height: None,
@@ -444,14 +465,14 @@ impl Grid {
 
             if ui.is_visible() {
                 // Try to cover up the glitchy initial frame:
-                ui.ctx().request_discard("new Grid");
+                ui.request_discard("new Grid");
             }
 
             // Hide the ui this frame, and make things as narrow as possible:
             ui_builder = ui_builder.sizing_pass().invisible();
         }
 
-        ui.allocate_new_ui(ui_builder, |ui| {
+        ui.scope_builder(ui_builder, |ui| {
             ui.horizontal(|ui| {
                 let is_color = color_picker.is_some();
                 let grid = GridLayout {

@@ -1,4 +1,4 @@
-use crate::{emath, Color32, TextureId, WHITE_UV};
+use crate::{Color32, TextureId, WHITE_UV, emath};
 use emath::{Pos2, Rect, Rot2, TSTransform, Vec2};
 
 /// The 2D vertex type.
@@ -21,6 +21,18 @@ pub struct Vertex {
 
     /// sRGBA with premultiplied alpha
     pub color: Color32, // 32 bit
+}
+
+impl Vertex {
+    /// An untextured vertex
+    #[inline]
+    pub fn untextured(pos: Pos2, color: Color32) -> Self {
+        Self {
+            pos,
+            uv: WHITE_UV,
+            color,
+        }
+    }
 }
 
 #[repr(C)]
@@ -78,9 +90,9 @@ impl Mesh {
 
     /// Returns the amount of memory used by the vertices and indices.
     pub fn bytes_used(&self) -> usize {
-        std::mem::size_of::<Self>()
-            + self.vertices.len() * std::mem::size_of::<Vertex>()
-            + self.indices.len() * std::mem::size_of::<u32>()
+        core::mem::size_of::<Self>()
+            + self.vertices.len() * core::mem::size_of::<Vertex>()
+            + self.indices.len() * core::mem::size_of::<u32>()
     }
 
     /// Are all indices within the bounds of the contained vertices?
@@ -98,6 +110,13 @@ impl Mesh {
         self.indices.is_empty() && self.vertices.is_empty()
     }
 
+    /// Iterate over the triangles of this mesh, returning vertex indices.
+    pub fn triangles(&self) -> impl Iterator<Item = [u32; 3]> + '_ {
+        self.indices
+            .chunks_exact(3)
+            .map(|chunk| [chunk[0], chunk[1], chunk[2]])
+    }
+
     /// Calculate a bounding rectangle.
     pub fn calc_bounds(&self) -> Rect {
         let mut bounds = Rect::NOTHING;
@@ -112,7 +131,7 @@ impl Mesh {
     /// Panics when `other` mesh has a different texture.
     pub fn append(&mut self, other: Self) {
         profiling::function_scope!();
-        debug_assert!(other.is_valid());
+        debug_assert!(other.is_valid(), "Other mesh is invalid");
 
         if self.is_empty() {
             *self = other;
@@ -126,7 +145,7 @@ impl Mesh {
     ///
     /// Panics when `other` mesh has a different texture.
     pub fn append_ref(&mut self, other: &Self) {
-        debug_assert!(other.is_valid());
+        debug_assert!(other.is_valid(), "Other mesh is invalid");
 
         if self.is_empty() {
             self.texture_id = other.texture_id;
@@ -148,20 +167,17 @@ impl Mesh {
     /// Panics when the mesh has assigned a texture.
     #[inline(always)]
     pub fn colored_vertex(&mut self, pos: Pos2, color: Color32) {
-        debug_assert!(self.texture_id == TextureId::default());
-        self.vertices.push(Vertex {
-            pos,
-            uv: WHITE_UV,
-            color,
-        });
+        debug_assert!(
+            self.texture_id == TextureId::default(),
+            "Mesh has an assigned texture"
+        );
+        self.vertices.push(Vertex::untextured(pos, color));
     }
 
     /// Add a triangle.
     #[inline(always)]
     pub fn add_triangle(&mut self, a: u32, b: u32, c: u32) {
-        self.indices.push(a);
-        self.indices.push(b);
-        self.indices.push(c);
+        self.indices.extend_from_slice(&[a, b, c]);
     }
 
     /// Make room for this many additional triangles (will reserve 3x as many indices).
@@ -179,39 +195,44 @@ impl Mesh {
     }
 
     /// Rectangle with a texture and color.
+    #[inline(always)]
     pub fn add_rect_with_uv(&mut self, rect: Rect, uv: Rect, color: Color32) {
-        #![allow(clippy::identity_op)]
-
+        #![expect(clippy::identity_op)]
         let idx = self.vertices.len() as u32;
-        self.add_triangle(idx + 0, idx + 1, idx + 2);
-        self.add_triangle(idx + 2, idx + 1, idx + 3);
+        self.indices
+            .extend_from_slice(&[idx + 0, idx + 1, idx + 2, idx + 2, idx + 1, idx + 3]);
 
-        self.vertices.push(Vertex {
-            pos: rect.left_top(),
-            uv: uv.left_top(),
-            color,
-        });
-        self.vertices.push(Vertex {
-            pos: rect.right_top(),
-            uv: uv.right_top(),
-            color,
-        });
-        self.vertices.push(Vertex {
-            pos: rect.left_bottom(),
-            uv: uv.left_bottom(),
-            color,
-        });
-        self.vertices.push(Vertex {
-            pos: rect.right_bottom(),
-            uv: uv.right_bottom(),
-            color,
-        });
+        self.vertices.extend_from_slice(&[
+            Vertex {
+                pos: rect.left_top(),
+                uv: uv.left_top(),
+                color,
+            },
+            Vertex {
+                pos: rect.right_top(),
+                uv: uv.right_top(),
+                color,
+            },
+            Vertex {
+                pos: rect.left_bottom(),
+                uv: uv.left_bottom(),
+                color,
+            },
+            Vertex {
+                pos: rect.right_bottom(),
+                uv: uv.right_bottom(),
+                color,
+            },
+        ]);
     }
 
     /// Uniformly colored rectangle.
     #[inline(always)]
     pub fn add_colored_rect(&mut self, rect: Rect, color: Color32) {
-        debug_assert!(self.texture_id == TextureId::default());
+        debug_assert!(
+            self.texture_id == TextureId::default(),
+            "Mesh has an assigned texture"
+        );
         self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color);
     }
 
@@ -220,7 +241,7 @@ impl Mesh {
     /// Splits this mesh into many smaller meshes (if needed)
     /// where the smaller meshes have 16-bit indices.
     pub fn split_to_u16(self) -> Vec<Mesh16> {
-        debug_assert!(self.is_valid());
+        debug_assert!(self.is_valid(), "Mesh is invalid");
 
         const MAX_SIZE: u32 = u16::MAX as u32;
 
@@ -268,12 +289,17 @@ impl Mesh {
             let mesh = Mesh16 {
                 indices: self.indices[span_start..index_cursor]
                     .iter()
-                    .map(|vi| u16::try_from(vi - min_vindex).unwrap())
+                    .map(|vi| {
+                        #[expect(clippy::unwrap_used)]
+                        {
+                            u16::try_from(vi - min_vindex).unwrap()
+                        }
+                    })
                     .collect(),
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
                 texture_id: self.texture_id,
             };
-            debug_assert!(mesh.is_valid());
+            debug_assert!(mesh.is_valid(), "Mesh is invalid");
             output.push(mesh);
         }
         output

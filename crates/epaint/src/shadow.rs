@@ -1,4 +1,4 @@
-use crate::{Color32, Marginf, Rect, RectShape, Rounding, Vec2};
+use crate::{Color32, CornerRadius, MarginF32, Rect, RectShape, RoundedRect, Vec2};
 
 /// The color and fuzziness of a fuzzy shape.
 ///
@@ -29,7 +29,8 @@ pub struct Shadow {
 #[test]
 fn shadow_size() {
     assert_eq!(
-        std::mem::size_of::<Shadow>(), 8,
+        core::mem::size_of::<Shadow>(),
+        8,
         "Shadow changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
 }
@@ -44,7 +45,7 @@ impl Shadow {
     };
 
     /// The argument is the rectangle of the shadow caster.
-    pub fn as_shape(&self, rect: Rect, rounding: impl Into<Rounding>) -> RectShape {
+    pub fn as_shape(&self, rect: Rect, corner_radius: impl Into<CornerRadius>) -> RectShape {
         // tessellator.clip_rect = clip_rect; // TODO(emilk): culling
 
         let Self {
@@ -55,16 +56,18 @@ impl Shadow {
         } = *self;
         let [offset_x, offset_y] = offset;
 
-        let rect = rect
-            .translate(Vec2::new(offset_x as _, offset_y as _))
-            .expand(spread as _);
-        let rounding = rounding.into() + Rounding::from(spread);
+        let (rect, corner_radius) = RoundedRect::new(
+            rect.translate(Vec2::new(offset_x as _, offset_y as _)),
+            corner_radius.into(),
+        )
+        .expand(f32::from(spread))
+        .into_parts();
 
-        RectShape::filled(rect, rounding, color).with_blur_width(blur as _)
+        RectShape::filled(rect, corner_radius, color).with_blur_width(blur as _)
     }
 
     /// How much larger than the parent rect are we in each direction?
-    pub fn margin(&self) -> Marginf {
+    pub fn margin(&self) -> MarginF32 {
         let Self {
             offset,
             blur,
@@ -74,7 +77,7 @@ impl Shadow {
         let spread = spread as f32;
         let blur = blur as f32;
         let [offset_x, offset_y] = offset;
-        Marginf {
+        MarginF32 {
             left: spread + 0.5 * blur - offset_x as f32,
             right: spread + 0.5 * blur + offset_x as f32,
             top: spread + 0.5 * blur - offset_y as f32,
