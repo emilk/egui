@@ -32,7 +32,7 @@ pub(crate) struct DatePickerPopup<'a> {
     pub calendar: bool,
     pub calendar_week: bool,
     pub highlight_weekends: bool,
-    pub start_end_years: Option<std::ops::RangeInclusive<i16>>,
+    pub start_end_years: Option<core::ops::RangeInclusive<i16>>,
     pub reverse_years: bool,
     pub year_scroll_to: Option<i16>,
 }

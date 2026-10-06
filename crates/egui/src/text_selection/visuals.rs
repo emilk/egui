@@ -56,7 +56,7 @@ pub fn paint_text_selection(
             row.x_offset(max.column)
         } else {
             let newline_size = if placed_row.ends_with_newline {
-                row.height() / 2.0 // visualize that we select the newline
+                row.height() * 0.5 // visualize that we select the newline
             } else {
                 0.0
             };
@@ -139,8 +139,8 @@ pub(crate) fn paint_ime_preedit_text_visuals(
     painter: &Painter,
     galley: &Arc<Galley>,
     row_height: f32,
-    preedit_range: std::ops::Range<CCursor>,
-    mut relative_active_range: Option<std::ops::Range<CCursor>>,
+    preedit_range: core::ops::Range<CCursor>,
+    mut relative_active_range: Option<core::ops::Range<CCursor>>,
     time_since_last_interaction: f64,
 ) {
     /// Instead of implementing [`PartialOrd`] and [`Ord`] for [`CCursor`] to
@@ -150,7 +150,7 @@ pub(crate) fn paint_ime_preedit_text_visuals(
     /// These traits are intentionally not implemented because
     /// [`CCursor::prefer_next_row`] makes it difficult to define a clear
     /// ordering between two [`CCursor`]s.
-    fn is_cursor_range_empty(range: &std::ops::Range<CCursor>) -> bool {
+    fn is_cursor_range_empty(range: &core::ops::Range<CCursor>) -> bool {
         range.start.index == range.end.index
     }
 

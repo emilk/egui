@@ -1,6 +1,8 @@
 use crate::*;
 
 /// A path which can be stroked and/or filled (if closed).
+///
+/// If you want a path of varying width, use [`BandShape`] instead.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PathShape {
@@ -68,7 +70,7 @@ impl PathShape {
         if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
             Rect::NOTHING
         } else {
-            Rect::from_points(&self.points).expand(self.stroke.width / 2.0)
+            Rect::from_points(&self.points).expand(self.stroke.width * 0.5)
         }
     }
 }

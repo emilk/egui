@@ -1,10 +1,10 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use std::ops::Range;
+use core::ops::Range;
 
 use epaint::text::CharIndex;
 
-use crate::{OrderedViewportIdMap, RepaintCause, ViewportOutput, WidgetType};
+use crate::{OrderedViewportIdMap, RepaintCause, Role, ViewportOutput};
 
 /// What egui emits each frame from [`crate::Context::run_ui`].
 ///
@@ -16,7 +16,7 @@ pub struct FullOutput {
 
     /// Texture changes since last frame (including the font texture).
     ///
-    /// The backend needs to apply [`crate::TexturesDelta::set`] _before_ painting,
+    /// The backend needs to apply [`crate::TexturesDelta::push`] _before_ painting,
     /// and free any texture in [`crate::TexturesDelta::free`] _after_ painting.
     ///
     /// It is assumed that all egui viewports share the same painter and texture namespace.
@@ -68,6 +68,28 @@ impl FullOutput {
             }
         }
     }
+
+    /// [`epaint::textures::TexturesDelta`] will panic when dropped with still unapplied deltas,
+    /// this is a helper to clear the deltas.
+    pub fn drop_without_applying_deltas(mut self) {
+        self.textures_delta.clear();
+    }
+}
+
+/// What egui emits from [`crate::Context::run_logic`], i.e. from a tick where no ui was shown.
+///
+/// There is nothing to paint, but the app may still have asked the integration to do things,
+/// e.g. to show a hidden window again with [`crate::ViewportCommand::Focus`].
+#[derive(Clone, Default)]
+pub struct LogicOutput {
+    /// Non-rendering related output.
+    pub platform_output: PlatformOutput,
+
+    /// The commands sent with [`crate::Context::send_viewport_cmd`] and friends.
+    ///
+    /// Note that this contains no information about which viewports exist:
+    /// the integration should leave its viewports as they are.
+    pub viewport_commands: OrderedViewportIdMap<Vec<crate::ViewportCommand>>,
 }
 
 /// Information about text being edited.
@@ -76,6 +98,9 @@ impl FullOutput {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IMEOutput {
+    /// IME's purpose.
+    pub purpose: crate::IMEPurpose,
+
     /// Where the [`crate::TextEdit`] is located on screen.
     pub rect: crate::Rect,
 
@@ -217,7 +242,7 @@ impl PlatformOutput {
     /// Take everything ephemeral (everything except `cursor_icon` and
     /// `cursor_image` currently)
     pub fn take(&mut self) -> Self {
-        let taken = std::mem::take(self);
+        let taken = core::mem::take(self);
         self.cursor_icon = taken.cursor_icon; // sticky between frames
         self.cursor_image = taken.cursor_image.clone(); // sticky between frames
         taken
@@ -302,8 +327,8 @@ pub struct CustomCursorImage {
     pub hotspot: [u16; 2],
 }
 
-impl std::fmt::Debug for CustomCursorImage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for CustomCursorImage {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("CustomCursorImage")
             .field("size", &self.size)
             .field("hotspot", &self.hotspot)
@@ -519,8 +544,8 @@ impl OutputEvent {
     }
 }
 
-impl std::fmt::Debug for OutputEvent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for OutputEvent {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Clicked(wi) => write!(f, "Clicked({wi:?})"),
             Self::DoubleClicked(wi) => write!(f, "DoubleClicked({wi:?})"),
@@ -536,8 +561,8 @@ impl std::fmt::Debug for OutputEvent {
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetInfo {
-    /// The type of widget this is.
-    pub typ: WidgetType,
+    /// The accessibility role of this widget.
+    pub role: Role,
 
     /// Whether the widget is enabled.
     pub enabled: bool,
@@ -566,10 +591,10 @@ pub struct WidgetInfo {
     pub hint_text: Option<String>,
 }
 
-impl std::fmt::Debug for WidgetInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for WidgetInfo {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self {
-            typ,
+            role,
             enabled,
             label,
             current_text_value: text_value,
@@ -582,7 +607,7 @@ impl std::fmt::Debug for WidgetInfo {
 
         let mut s = f.debug_struct("WidgetInfo");
 
-        s.field("typ", typ);
+        s.field("role", role);
 
         if !enabled {
             s.field("enabled", enabled);
@@ -614,10 +639,37 @@ impl std::fmt::Debug for WidgetInfo {
     }
 }
 
+/// A human-readable, lowercase name for a widget role, e.g. for a text-to-speech system.
+///
+/// The [`Role`] is spelled out in `CamelCase`, so we split it into lowercase words.
+/// [`Role::Unknown`] has no useful name, and gives an empty string.
+///
+/// ```
+/// # use egui::{Role, role_description};
+/// assert_eq!(role_description(Role::Button), "button");
+/// assert_eq!(role_description(Role::CheckBox), "check box");
+/// assert_eq!(role_description(Role::SpinButton), "spin button");
+/// assert_eq!(role_description(Role::Unknown), "");
+/// ```
+pub fn role_description(role: Role) -> String {
+    if role == Role::Unknown {
+        return String::new();
+    }
+
+    let mut description = String::new();
+    for ch in format!("{role:?}").chars() {
+        if ch.is_ascii_uppercase() && !description.is_empty() {
+            description.push(' ');
+        }
+        description.push(ch.to_ascii_lowercase());
+    }
+    description
+}
+
 impl WidgetInfo {
-    pub fn new(typ: WidgetType) -> Self {
+    pub fn new(role: Role) -> Self {
         Self {
-            typ,
+            role,
             enabled: true,
             label: None,
             current_text_value: None,
@@ -630,22 +682,22 @@ impl WidgetInfo {
     }
 
     #[expect(clippy::needless_pass_by_value)]
-    pub fn labeled(typ: WidgetType, enabled: bool, label: impl ToString) -> Self {
+    pub fn labeled(role: Role, enabled: bool, label: impl ToString) -> Self {
         Self {
             enabled,
             label: Some(label.to_string()),
-            ..Self::new(typ)
+            ..Self::new(role)
         }
     }
 
     /// checkboxes, radio-buttons etc
     #[expect(clippy::needless_pass_by_value)]
-    pub fn selected(typ: WidgetType, enabled: bool, selected: bool, label: impl ToString) -> Self {
+    pub fn selected(role: Role, enabled: bool, selected: bool, label: impl ToString) -> Self {
         Self {
             enabled,
             label: Some(label.to_string()),
             selected: Some(selected),
-            ..Self::new(typ)
+            ..Self::new(role)
         }
     }
 
@@ -653,7 +705,7 @@ impl WidgetInfo {
         Self {
             enabled,
             value: Some(value),
-            ..Self::new(WidgetType::DragValue)
+            ..Self::new(Role::SpinButton)
         }
     }
 
@@ -664,7 +716,7 @@ impl WidgetInfo {
             enabled,
             label: if label.is_empty() { None } else { Some(label) },
             value: Some(value),
-            ..Self::new(WidgetType::Slider)
+            ..Self::new(Role::Slider)
         }
     }
 
@@ -688,7 +740,7 @@ impl WidgetInfo {
             current_text_value: Some(text_value),
             prev_text_value,
             hint_text: Some(hint_text),
-            ..Self::new(WidgetType::TextEdit)
+            ..Self::new(Role::TextInput)
         }
     }
 
@@ -702,14 +754,14 @@ impl WidgetInfo {
             enabled,
             text_selection: Some(text_selection),
             current_text_value: Some(current_text_value.to_string()),
-            ..Self::new(WidgetType::TextEdit)
+            ..Self::new(Role::TextInput)
         }
     }
 
     /// This can be used by a text-to-speech system to describe the widget.
     pub fn description(&self) -> String {
         let Self {
-            typ,
+            role,
             enabled,
             label,
             current_text_value: text_value,
@@ -720,33 +772,10 @@ impl WidgetInfo {
             hint_text: _,
         } = self;
 
-        // TODO(emilk): localization
-        let widget_type = match typ {
-            WidgetType::Link => "link",
-            WidgetType::TextEdit => "text edit",
-            WidgetType::Button => "button",
-            WidgetType::Checkbox => "checkbox",
-            WidgetType::RadioButton => "radio",
-            WidgetType::RadioGroup => "radio group",
-            WidgetType::SelectableLabel => "selectable",
-            WidgetType::ComboBox => "combo",
-            WidgetType::Slider => "slider",
-            WidgetType::DragValue => "drag value",
-            WidgetType::ColorButton => "color button",
-            WidgetType::Image => "image",
-            WidgetType::CollapsingHeader => "collapsing header",
-            WidgetType::Panel => "panel",
-            WidgetType::ProgressIndicator => "progress indicator",
-            WidgetType::Window => "window",
-            WidgetType::ScrollBar => "scroll bar",
-            WidgetType::ResizeHandle => "resize handle",
-            WidgetType::Label | WidgetType::Other => "",
-        };
-
-        let mut description = widget_type.to_owned();
+        let mut description = role_description(*role);
 
         if let Some(selected) = selected {
-            if *typ == WidgetType::Checkbox {
+            if *role == Role::CheckBox {
                 let state = if *selected { "checked" } else { "unchecked" };
                 description = format!("{state} {description}");
             } else {
@@ -758,7 +787,7 @@ impl WidgetInfo {
             description = format!("{label}: {description}");
         }
 
-        if typ == &WidgetType::TextEdit {
+        if role == &Role::TextInput {
             let text = if let Some(text_value) = text_value {
                 if text_value.is_empty() {
                     "blank".into()

@@ -147,8 +147,9 @@ impl Default for GlowConfiguration {
     }
 }
 
-#[test]
-fn glow_config_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `GlowConfiguration` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<GlowConfiguration>();
-}
+};

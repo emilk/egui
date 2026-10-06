@@ -1,4 +1,5 @@
-use std::{fmt::Debug, sync::Arc};
+use core::fmt::Debug;
+use std::sync::Arc;
 
 use ecolor::Color32;
 use emath::{Pos2, Rect};
@@ -25,7 +26,7 @@ impl Default for ColorMode {
 }
 
 impl Debug for ColorMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Solid(arg0) => f.debug_tuple("Solid").field(arg0).finish(),
             Self::UV(_arg0) => f.debug_tuple("UV").field(&"<closure>").finish(),
