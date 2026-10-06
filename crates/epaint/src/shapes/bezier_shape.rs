@@ -189,84 +189,36 @@ impl CubicBezierShape {
             .max(1.0) as u32
     }
 
-    /// Find out the t value for the point where the curve is intersected with the base line.
-    /// The base line is the line from P0 to P3.
-    /// If the curve only has two intersection points with the base line, they should be 0.0 and 1.0.
-    /// In this case, the "fill" will be simple since the curve is a convex line.
-    /// If the curve has more than two intersection points with the base line, the "fill" will be a problem.
-    /// We need to find out where is the 3rd t value (0<t<1)
-    /// And the original cubic curve will be split into two curves (0.0..t and t..1.0).
-    /// B(t) = (1-t)^3*P0 + 3*t*(1-t)^2*P1 + 3*t^2*(1-t)*P2 + t^3*P3
-    /// or B(t) = (P3 - 3*P2 + 3*P1 - P0)*t^3 + (3*P2 - 6*P1 + 3*P0)*t^2 + (3*P1 - 3*P0)*t + P0
-    /// this B(t) should be on the line between P0 and P3. Therefore:
-    /// (B.x - P0.x)/(P3.x - P0.x) = (B.y - P0.y)/(P3.y - P0.y), or:
-    /// B.x * (P3.y - P0.y) - B.y * (P3.x - P0.x) + P0.x * (P0.y - P3.y) + P0.y * (P3.x - P0.x) = 0
-    /// B.x = (P3.x - 3 * P2.x + 3 * P1.x - P0.x) * t^3 + (3 * P2.x - 6 * P1.x + 3 * P0.x) * t^2 + (3 * P1.x - 3 * P0.x) * t + P0.x
-    /// B.y = (P3.y - 3 * P2.y + 3 * P1.y - P0.y) * t^3 + (3 * P2.y - 6 * P1.y + 3 * P0.y) * t^2 + (3 * P1.y - 3 * P0.y) * t + P0.y
-    /// Combine the above three equations and iliminate B.x and B.y, we get:
+    /// Find the t value (if any) in the open interval `(epsilon, 1 - epsilon)`
+    /// where the curve crosses its base line, i.e. the line from P0 to P3.
+    ///
+    /// If the curve only touches the base line at its end points (t = 0 and t = 1),
+    /// the "fill" is simple since the curve is convex, and `None` is returned.
+    /// If the curve crosses the base line once more in between,
+    /// we return that t so the curve can be split into two curves (`0.0..t` and `t..1.0`).
+    ///
+    /// The (scaled) signed distance from the base line is
+    /// `f(t) = cross(B(t) - P0, P3 - P0)`, which is a cubic polynomial in t:
     /// ```text
-    /// t^3 * ( (P3.x - 3*P2.x + 3*P1.x - P0.x) * (P3.y - P0.y) - (P3.y - 3*P2.y + 3*P1.y - P0.y) * (P3.x - P0.x))
-    /// + t^2 * ( (3 * P2.x - 6 * P1.x + 3 * P0.x) * (P3.y - P0.y) - (3 * P2.y - 6 * P1.y + 3 * P0.y) * (P3.x - P0.x))
-    /// + t^1 * ( (3 * P1.x - 3 * P0.x) * (P3.y - P0.y) - (3 * P1.y - 3 * P0.y) * (P3.x - P0.x))
-    /// + (P0.x * (P3.y - P0.y) - P0.y * (P3.x - P0.x)) + P0.x * (P0.y - P3.y) + P0.y * (P3.x - P0.x)
-    /// = 0
+    /// B(t) - P0 = (P3 - 3*P2 + 3*P1 - P0)*t^3 + (3*P2 - 6*P1 + 3*P0)*t^2 + (3*P1 - 3*P0)*t
+    /// f(t) = a*t^3 + b*t^2 + c*t, where:
+    /// a = cross(P3 - 3*P2 + 3*P1 - P0, P3 - P0)
+    /// b = cross(3*P2 - 6*P1 + 3*P0, P3 - P0)
+    /// c = cross(3*P1 - 3*P0, P3 - P0)
     /// ```
-    /// or `a * t^3 + b * t^2 + c * t + d = 0`
-    ///
-    /// let x = t - b / (3 * a), then we have:
-    /// ```text
-    /// x^3 + p * x + q = 0, where:
-    /// p = (3.0 * a * c - b^2) / (3.0 * a^2)
-    /// q = (2.0 * b^3 - 9.0 * a * b * c + 27.0 * a^2 * d) / (27.0 * a^3)
-    /// ```
-    ///
-    /// when p > 0, there will be one real root, two complex roots
-    /// when p = 0, there will be two real roots, when p=q=0, there will be three real roots but all 0.
-    /// when p < 0, there will be three unique real roots. this is what we need. (x1, x2, x3)
-    ///  t = x + b / (3 * a), then we have: t1, t2, t3.
-    /// the one between 0.0 and 1.0 is what we need.
-    /// <`https://baike.baidu.com/item/%E4%B8%80%E5%85%83%E4%B8%89%E6%AC%A1%E6%96%B9%E7%A8%8B/8388473 /`>
-    ///
+    /// Since `f(0) = 0` and `f(1) = cross(P3 - P0, P3 - P0) = 0`, we have `b = -(a + c)`, so
+    /// `f(t) = a*t*(t - 1)*(t - c/a)`, and the only interesting root is `t = c/a`.
     pub fn find_cross_t(&self, epsilon: f32) -> Option<f32> {
-        let p0 = self.points[0];
-        let p1 = self.points[1];
-        let p2 = self.points[2];
-        let p3 = self.points[3];
+        let [p0, p1, p2, p3] = self.points;
 
         let a = (p3.x - 3.0 * p2.x + 3.0 * p1.x - p0.x) * (p3.y - p0.y)
             - (p3.y - 3.0 * p2.y + 3.0 * p1.y - p0.y) * (p3.x - p0.x);
-        let b = (3.0 * p2.x - 6.0 * p1.x + 3.0 * p0.x) * (p3.y - p0.y)
-            - (3.0 * p2.y - 6.0 * p1.y + 3.0 * p0.y) * (p3.x - p0.x);
-        let c =
-            (3.0 * p1.x - 3.0 * p0.x) * (p3.y - p0.y) - (3.0 * p1.y - 3.0 * p0.y) * (p3.x - p0.x);
-        let d = p0.x * (p3.y - p0.y) - p0.y * (p3.x - p0.x)
-            + p0.x * (p0.y - p3.y)
-            + p0.y * (p3.x - p0.x);
+        let c = 3.0 * ((p1.x - p0.x) * (p3.y - p0.y) - (p1.y - p0.y) * (p3.x - p0.x));
 
-        let h = -b / (3.0 * a);
-        let p = (3.0 * a * c - b * b) / (3.0 * a * a);
-        let q = (2.0 * b * b * b - 9.0 * a * b * c + 27.0 * a * a * d) / (27.0 * a * a * a);
-
-        if p > 0.0 {
-            return None;
-        }
-        let r = (-(p / 3.0).powi(3)).sqrt();
-        let theta = (-q / (2.0 * r)).acos() / 3.0;
-
-        let t1 = 2.0 * r.cbrt() * theta.cos() + h;
-        let t2 = 2.0 * r.cbrt() * (theta + 120.0 * core::f32::consts::PI / 180.0).cos() + h;
-        let t3 = 2.0 * r.cbrt() * (theta + 240.0 * core::f32::consts::PI / 180.0).cos() + h;
-
-        if t1 > epsilon && t1 < 1.0 - epsilon {
-            return Some(t1);
-        }
-        if t2 > epsilon && t2 < 1.0 - epsilon {
-            return Some(t2);
-        }
-        if t3 > epsilon && t3 < 1.0 - epsilon {
-            return Some(t3);
-        }
-        None
+        // t=0 and t=1 are always roots, so the cubic is a*t*(t-1)*(t - c/a).
+        // If a == 0 we get inf or NaN, which fails the range check below.
+        let t = c / a;
+        (epsilon < t && t < 1.0 - epsilon).then_some(t)
     }
 
     /// Calculate the point (x,y) at t based on the cubic Bézier curve equation.
@@ -1087,6 +1039,58 @@ mod tests {
         });
 
         assert_eq!(result.len(), 88);
+    }
+
+    #[test]
+    fn test_cubic_find_cross_t() {
+        let cross_t = |points: [Pos2; 4]| {
+            CubicBezierShape::from_points_stroke(points, true, Color32::RED, crate::Stroke::NONE)
+                .find_cross_t(1e-5)
+        };
+
+        // Symmetric S-curve: crosses the base line exactly in the middle.
+        assert_eq!(
+            cross_t([
+                pos2(0.0, 0.0),
+                pos2(1.0, 1.0),
+                pos2(2.0, -1.0),
+                pos2(3.0, 0.0)
+            ]),
+            Some(0.5)
+        );
+
+        // Asymmetric S-curve: c/a = y1 / (y1 - y2) = 1 / (1 + 3) = 0.25
+        let t = cross_t([
+            pos2(0.0, 0.0),
+            pos2(1.0, 1.0),
+            pos2(2.0, -3.0),
+            pos2(3.0, 0.0),
+        ])
+        .expect("S-curve should cross its base line");
+        assert!((t - 0.25).abs() < 1e-6, "t = {t}");
+
+        // Convex arch: only touches the base line at the end points.
+        assert_eq!(
+            cross_t([
+                pos2(0.0, 0.0),
+                pos2(1.0, 1.0),
+                pos2(2.0, 1.0),
+                pos2(3.0, 0.0)
+            ]),
+            None
+        );
+
+        // Straight line and fully degenerate curve (a == 0): no crossing.
+        assert_eq!(
+            cross_t([
+                pos2(0.0, 0.0),
+                pos2(1.0, 1.0),
+                pos2(2.0, 2.0),
+                pos2(3.0, 3.0)
+            ]),
+            None
+        );
+        assert_eq!(cross_t([Pos2::ZERO; 4]), None);
     }
 
     #[test]
