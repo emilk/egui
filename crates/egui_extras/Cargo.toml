@@ -108,3 +108,4 @@ ehttp = { workspace = true, optional = true }
 
 [dev-dependencies]
 egui = { workspace = true, features = ["default_fonts"] }
+tempfile.workspace = true

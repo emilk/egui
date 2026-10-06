@@ -129,6 +129,10 @@ pub struct State {
     pub accesskit: Option<accesskit_winit::Adapter>,
 
     allow_ime: bool,
+
+    /// See [`Self::set_clipboard_shortcuts`].
+    clipboard_shortcuts: bool,
+
     ime_rect_px: Option<egui::Rect>,
     old_ime_purpose: egui::IMEPurpose,
 
@@ -190,6 +194,7 @@ impl State {
             accesskit: None,
 
             allow_ime: false,
+            clipboard_shortcuts: true,
             ime_rect_px: None,
             old_ime_purpose: egui::IMEPurpose::Normal,
             #[cfg(target_os = "macos")]
@@ -257,6 +262,33 @@ impl State {
     /// Set the last value that [`Window::set_ime_allowed()`] was called with.
     pub fn set_allow_ime(&mut self, allow: bool) {
         self.allow_ime = allow;
+    }
+
+    /// Are clipboard keyboard shortcuts translated into clipboard events?
+    ///
+    /// See [`Self::set_clipboard_shortcuts`].
+    #[inline]
+    pub fn clipboard_shortcuts(&self) -> bool {
+        self.clipboard_shortcuts
+    }
+
+    /// Should the platform clipboard keyboard shortcuts be translated into
+    /// [`egui::Event::Cut`], [`egui::Event::Copy`] and [`egui::Event::Paste`]?
+    ///
+    /// The shortcuts are <kbd>Cmd/Ctrl</kbd>+<kbd>X</kbd>/<kbd>C</kbd>/<kbd>V</kbd>,
+    /// the dedicated Cut/Copy/Paste keys, and on Windows also
+    /// <kbd>Shift</kbd>+<kbd>Delete</kbd>, <kbd>Ctrl</kbd>+<kbd>Insert</kbd> and <kbd>Shift</kbd>+<kbd>Insert</kbd>.
+    ///
+    /// If `false`, these key presses are instead passed on as ordinary [`egui::Event::Key`] events,
+    /// so your app can bind them to whatever it wants.
+    /// Note that this means built-in widgets such as [`egui::TextEdit`] will no longer
+    /// respond to these shortcuts, since they listen for the clipboard events.
+    /// You can still push [`egui::Event::Cut`] etc. yourself.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn set_clipboard_shortcuts(&mut self, enabled: bool) {
+        self.clipboard_shortcuts = enabled;
     }
 
     #[inline]
@@ -796,6 +828,12 @@ impl State {
         }
     }
 
+    /// Forward raw mouse motion (e.g. `winit::event::DeviceEvent::MouseMotion`) to egui
+    /// as [`egui::Event::MouseMoved`].
+    ///
+    /// The motion is ignored unless the pointer is inside the window or a pointer button is held down,
+    /// so that mouse motion elsewhere on the screen doesn't cause repaints.
+    ///
     /// Returns `true` if the event was sent to egui.
     pub fn on_mouse_motion(&mut self, delta: (f64, f64)) -> bool {
         if !self.is_pointer_in_window() && !self.any_pointer_button_down {
@@ -845,6 +883,17 @@ impl State {
                 pressed,
                 modifiers: self.modifiers,
             });
+
+            // Middle-click pastes the PRIMARY selection on X11 and Wayland:
+            if pressed
+                && button == egui::PointerButton::Middle
+                && let Some(text) = self.clipboard.get_primary_text()
+                && !text.is_empty()
+            {
+                self.egui_input
+                    .events
+                    .push(egui::Event::MiddleClickPaste { pos, text });
+            }
 
             if self.simulate_touch_screen {
                 if pressed {
@@ -1077,7 +1126,7 @@ impl State {
         // are mapped to the physical keys that normally contain C, X, V, etc.
         // See also: https://github.com/emilk/egui/issues/3653
         if let Some(active_key) = logical_key.or(physical_key) {
-            if pressed {
+            if pressed && self.clipboard_shortcuts {
                 if is_cut_command(self.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Cut);
                     return;
@@ -1191,6 +1240,9 @@ impl State {
             match command {
                 egui::OutputCommand::CopyText(text) => {
                     self.clipboard.set_text(text);
+                }
+                egui::OutputCommand::TextSelectionSettled(text) => {
+                    self.clipboard.set_primary_text(text);
                 }
                 egui::OutputCommand::CopyImage(image) => {
                     self.clipboard.set_image(&image);
