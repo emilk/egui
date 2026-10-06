@@ -29,9 +29,8 @@ impl crate::View for About {
 
         ui.vertical_centered(|ui| {
             ui.add_space(4.0);
-            let egui_icon = egui::include_image!("../../data/egui-logo.svg");
             ui.add(
-                egui::Image::new(egui_icon.clone())
+                egui::Image::new(egui::include_image!("../../data/egui-logo.svg"))
                     .max_height(30.0)
                     .tint(ui.visuals().strong_text_color()),
             );
@@ -39,9 +38,8 @@ impl crate::View for About {
         });
 
         ui.label(format!(
-            "egui is an immediate mode GUI library written in Rust. egui runs natively on {}{}{}, and \
+            "egui is an immediate mode GUI library written in Rust. egui runs natively on {OS_APPLE}{OS_LINUX}{OS_WINDOWS}, and \
             on the web it is compiled to WebAssembly and rendered with WebGL or WebGPU.{}",
-            OS_APPLE, OS_LINUX, OS_WINDOWS,
             if cfg!(target_arch = "wasm32") {
                 " Everything you see is rendered as textured triangles. There is no DOM, HTML, JS or CSS. Just Rust."
             } else {""}
@@ -116,5 +114,5 @@ fn links(ui: &mut egui::Ui) {
         "@ernerfeldt.bsky.social",
         "https://bsky.app/profile/ernerfeldt.bsky.social",
     );
-    ui.hyperlink_to("📓 egui documentation", "https://docs.rs/egui/");
+    ui.hyperlink_to("egui documentation", "https://docs.rs/egui/");
 }

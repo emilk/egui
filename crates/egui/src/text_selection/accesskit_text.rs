@@ -1,4 +1,5 @@
 use emath::TSTransform;
+use epaint::text::CharIndex;
 
 use crate::{Context, Galley, Id};
 
@@ -9,7 +10,8 @@ pub(crate) const MAX_CHARS_PER_TEXT_RUN: usize = 255;
 
 /// Convert a (row, column) layout cursor position to a text run node ID and character index,
 /// accounting for rows that are split into multiple text runs.
-fn text_run_position(parent_id: Id, row: usize, column: usize) -> accesskit::TextPosition {
+fn text_run_position(parent_id: Id, row: usize, column: CharIndex) -> accesskit::TextPosition {
+    let column = column.0;
     // When column lands exactly on a chunk boundary (e.g., 255), it refers to
     // the end of the previous chunk, not the start of a new one.
     let chunk_index = if column > 0 && column.is_multiple_of(MAX_CHARS_PER_TEXT_RUN) {
@@ -25,11 +27,15 @@ fn text_run_position(parent_id: Id, row: usize, column: usize) -> accesskit::Tex
 }
 
 /// Update accesskit with the current text state.
+///
+/// This adds the [`accesskit::Role::TextRun`] children of the widget, and the
+/// current text selection. It never touches the role of the widget itself: that
+/// is set from the [`crate::WidgetInfo`] the widget reports, so a link stays a
+/// link and a button stays a button.
 pub fn update_accesskit_for_text_widget(
     ctx: &Context,
     widget_id: Id,
     cursor_range: Option<CCursorRange>,
-    role: accesskit::Role,
     global_from_galley: TSTransform,
     galley: &Galley,
 ) {
@@ -44,8 +50,6 @@ pub fn update_accesskit_for_text_widget(
                 focus: text_run_position(parent_id, focus.row, focus.column),
             });
         }
-
-        builder.set_role(role);
 
         parent_id
     });

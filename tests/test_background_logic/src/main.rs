@@ -2,7 +2,7 @@
 #![expect(rustdoc::missing_crate_level_docs)]
 #![allow(clippy::print_stderr)]
 
-use std::time::Duration;
+use core::time::Duration;
 
 use eframe::egui::{self, ViewportInfo};
 
@@ -56,7 +56,8 @@ fn viewport_info(ctx: &egui::Context) -> String {
         ];
         for (name, value) in flags {
             if let Some(value) = value {
-                s += &format!(" {name}={value}");
+                use core::fmt::Write as _;
+                write!(s, " {name}={value}").ok();
             }
         }
         s

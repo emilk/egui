@@ -93,7 +93,7 @@ impl AreaState {
 ///
 /// ```
 /// # egui::__run_test_ctx(|ctx| {
-/// egui::Area::new(egui::Id::new("my_area"))
+/// egui::Area::new(egui::Id::unique("my_area"))
 ///     .fixed_pos(egui::pos2(32.0, 32.0))
 ///     .show(ctx, |ui| {
 ///         ui.label("Floating text!");
@@ -122,6 +122,9 @@ pub struct Area {
     fade_in: bool,
     layout: Layout,
     sizing_pass: bool,
+    accessibility_parent: Option<Id>,
+    accessibility_label: Option<String>,
+    accessibility_role: Option<crate::accesskit::Role>,
 }
 
 impl WidgetWithState for Area {
@@ -149,6 +152,9 @@ impl Area {
             fade_in: true,
             layout: Layout::default(),
             sizing_pass: false,
+            accessibility_parent: None,
+            accessibility_label: None,
+            accessibility_role: None,
         }
     }
 
@@ -176,6 +182,33 @@ impl Area {
     #[inline]
     pub fn info(mut self, info: UiStackInfo) -> Self {
         self.info = info;
+        self
+    }
+
+    /// Nest the area under this widget in the accessibility tree.
+    ///
+    /// Popups, menus and tooltips use this to hang under the widget that opened them,
+    /// instead of floating at the root of the tree.
+    #[inline]
+    pub fn accessibility_parent(mut self, widget_id: Id) -> Self {
+        self.accessibility_parent = Some(widget_id);
+        self
+    }
+
+    /// Name the area in the accessibility tree.
+    ///
+    /// The role comes from the [`UiKind`]; the name is what a screen reader or a test finds it by.
+    #[inline]
+    pub fn accessible_name(mut self, name: impl Into<String>) -> Self {
+        self.accessibility_label = Some(name.into());
+        self
+    }
+
+    /// Give the area a role in the accessibility tree other than the one its [`UiKind`] implies,
+    /// e.g. [`Role::Alert`](crate::accesskit::Role::Alert) for a toast.
+    #[inline]
+    pub fn role(mut self, role: crate::accesskit::Role) -> Self {
+        self.accessibility_role = Some(role);
         self
     }
 
@@ -280,7 +313,7 @@ impl Area {
         self
     }
 
-    /// Constrains this area to [`Context::screen_rect`]?
+    /// Constrains this area to [`Context::content_rect`]?
     ///
     /// Default: `true`.
     #[inline]
@@ -291,7 +324,7 @@ impl Area {
 
     /// Constrain the movement of the window to the given rectangle.
     ///
-    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    /// For instance: `.constrain_to(ctx.content_rect())`.
     #[inline]
     pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.constrain = true;
@@ -400,6 +433,8 @@ pub(crate) struct Prepared {
 
     fade_in: bool,
     layout: Layout,
+    accessibility_label: Option<String>,
+    accessibility_role: Option<crate::accesskit::Role>,
 }
 
 impl Area {
@@ -434,6 +469,9 @@ impl Area {
             fade_in,
             layout,
             sizing_pass: force_sizing_pass,
+            accessibility_parent,
+            accessibility_label,
+            accessibility_role,
         } = self;
 
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
@@ -454,14 +492,12 @@ impl Area {
             state.size = None;
         }
         state.pivot = pivot;
-        state.interactable = interactable;
         if let Some(new_pos) = new_pos {
             state.pivot_pos = Some(new_pos);
         }
         state.pivot_pos.get_or_insert_with(|| {
             default_pos.unwrap_or_else(|| automatic_area_position(ctx, constrain_rect, layer_id))
         });
-        state.interactable = interactable;
 
         let size = *state.size.get_or_insert_with(|| {
             sizing_pass = true;
@@ -483,6 +519,10 @@ impl Area {
 
             size
         });
+
+        // We should never be interactable during a sizing pass, since then we are shown at a different
+        // size which might interfere with hover state of the hovered widget causing popup feedback loops.
+        state.interactable = interactable && !sizing_pass;
 
         // TODO(emilk): if last frame was sizing pass, it should be considered invisible for smoother fade-in
         let visible_last_frame = ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id));
@@ -513,14 +553,21 @@ impl Area {
                 }
             });
 
+            // Must come before the widget is created, since that is when its node is placed.
+            if let Some(parent) = accessibility_parent {
+                ctx.register_accesskit_parent(interact_id, parent);
+            }
+
             let move_response = ctx.create_widget(
                 WidgetRect {
                     id: interact_id,
+                    parent_id: id,
                     layer_id,
                     rect: state.rect(),
                     interact_rect: state.rect().intersect(constrain_rect),
                     sense,
                     enabled,
+                    visible: !sizing_pass,
                 },
                 true,
                 Default::default(),
@@ -578,11 +625,13 @@ impl Area {
             sizing_pass,
             fade_in,
             layout,
+            accessibility_label,
+            accessibility_role,
         }
     }
 }
 
-fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
+pub(crate) fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
     // We round a lot of rendering to pixels, so we round the whole
     // area positions to pixels too, so avoid widgets appearing to float
     // around independently of each other when the area is dragged.
@@ -593,10 +642,6 @@ fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
 }
 
 impl Prepared {
-    pub(crate) fn state(&self) -> &AreaState {
-        &self.state
-    }
-
     pub(crate) fn state_mut(&mut self) -> &mut AreaState {
         &mut self.state
     }
@@ -620,6 +665,13 @@ impl Prepared {
             .accessibility_parent(self.move_response.id)
             .closable();
 
+        if let Some(label) = self.accessibility_label.take() {
+            ui_builder = ui_builder.accessibility_label(label);
+        }
+        if let Some(role) = self.accessibility_role {
+            ui_builder = ui_builder.accessibility_role(role);
+        }
+
         if !self.enabled {
             ui_builder = ui_builder.disabled();
         }
@@ -634,7 +686,7 @@ impl Prepared {
             && let Some(last_became_visible_at) = self.state.last_became_visible_at
         {
             let age =
-                ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
+                ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt * 0.5);
             let opacity =
                 crate::remap_clamp(age, 0.0..=ctx.global_style().animation_time, 0.0..=1.0);
             let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in

@@ -2,12 +2,12 @@
 //!
 //! `epi` provides interfaces for window management and serialization.
 //!
-//! Start by looking at the [`App`] trait, and implement [`App::update`].
+//! Start by looking at the [`App`] trait, and implement [`App::ui`].
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
 #[cfg(target_arch = "wasm32")]
-use std::any::Any;
+use core::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
@@ -41,7 +41,7 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
-type DynError = Box<dyn std::error::Error + Send + Sync>;
+type DynError = Box<dyn core::error::Error + Send + Sync>;
 
 /// This is how your app is created.
 ///
@@ -73,7 +73,7 @@ pub struct CreationContext<'s> {
     /// The `get_proc_address` wrapper of underlying GL context
     #[cfg(feature = "glow")]
     pub get_proc_address:
-        Option<std::sync::Arc<dyn Fn(&std::ffi::CStr) -> *const std::ffi::c_void + Send + Sync>>,
+        Option<std::sync::Arc<dyn Fn(&core::ffi::CStr) -> *const core::ffi::c_void + Send + Sync>>,
 
     /// The underlying WGPU render state.
     ///
@@ -82,6 +82,10 @@ pub struct CreationContext<'s> {
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu_no_default_features")]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
+
+    /// The root [`winit::window::Window`].
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) window: Option<std::sync::Arc<winit::window::Window>>,
 
     /// Raw platform window handle
     #[cfg(not(target_arch = "wasm32"))]
@@ -125,10 +129,20 @@ impl CreationContext<'_> {
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: None,
             #[cfg(not(target_arch = "wasm32"))]
+            window: None,
+            #[cfg(not(target_arch = "wasm32"))]
             raw_window_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
             raw_display_handle: Err(HandleError::NotSupported),
         }
+    }
+
+    /// Access to the root [`winit::window::Window`].
+    ///
+    /// `None` for headless (tests etc).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn winit_window(&self) -> Option<&std::sync::Arc<winit::window::Window>> {
+        self.window.as_ref()
     }
 }
 
@@ -140,6 +154,15 @@ pub trait App {
     /// and additionally also called when the UI is hidden, but [`egui::Context::request_repaint`] was called.
     ///
     /// You may NOT show any ui or do any painting during the call to [`Self::logic`].
+    ///
+    /// While the window is hidden, `eframe` runs no egui pass at all (so that no ui state is
+    /// disturbed), and calls this via [`egui::Context::run_logic`] instead.
+    /// You can then still tell that the window is hidden with
+    /// [`egui::InputState::viewport`], but the rest of [`egui::Context::input`]
+    /// (events, time, …) is that of the last shown frame.
+    ///
+    /// Send [`egui::ViewportCommand::RequestPaintWhileHidden`] if you want `App::ui` to be called
+    /// even if the application is hidden.
     ///
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
@@ -160,22 +183,6 @@ pub trait App {
     /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
     /// (A "viewport" in egui means an native OS window).
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut Frame);
-
-    /// Called each time the UI needs repainting, which may be many times per second.
-    ///
-    /// Put your widgets into a [`egui::Panel`], [`egui::CentralPanel`], [`egui::Window`] or [`egui::Area`].
-    ///
-    /// The [`egui::Context`] can be cloned and saved if you like.
-    ///
-    /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
-    ///
-    /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
-    /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
-    /// (A "viewport" in egui means an native OS window).
-    #[deprecated = "Use Self::ui instead"]
-    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
-        _ = (ctx, frame);
-    }
 
     /// Get a handle to the app.
     ///
@@ -227,8 +234,8 @@ pub trait App {
     // Settings:
 
     /// Time between automatic calls to [`Self::save`]
-    fn auto_save_interval(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(30)
+    fn auto_save_interval(&self) -> core::time::Duration {
+        core::time::Duration::from_secs(30)
     }
 
     /// Background color values for the app, e.g. what is sent to `gl.clearColor`.
@@ -256,7 +263,7 @@ pub trait App {
         true
     }
 
-    /// A hook for manipulating or filtering raw input before it is processed by [`Self::update`].
+    /// A hook for manipulating or filtering raw input before it is processed by [`Self::ui`].
     ///
     /// This function provides a way to modify or filter input events before they are processed by egui.
     ///
@@ -273,22 +280,6 @@ pub trait App {
     ///
     /// This function does not return a value. Any changes to the input should be made directly to `_raw_input`.
     fn raw_input_hook(&mut self, _ctx: &egui::Context, _raw_input: &mut egui::RawInput) {}
-}
-
-/// Selects the level of hardware graphics acceleration.
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum HardwareAcceleration {
-    /// Require graphics acceleration.
-    Required,
-
-    /// Prefer graphics acceleration, but fall back to software.
-    Preferred,
-
-    /// Do NOT use graphics acceleration.
-    ///
-    /// On some platforms (macOS) this is ignored and treated the same as [`Self::Preferred`].
-    Off,
 }
 
 /// Options controlling the behavior of a native window.
@@ -314,11 +305,6 @@ pub struct NativeOptions {
     /// To avoid this, set the icon to [`egui::IconData::default`].
     pub viewport: egui::ViewportBuilder,
 
-    /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
-    ///
-    /// The default is `true`.
-    pub vsync: bool,
-
     /// Set the level of the multisampling anti-aliasing (MSAA).
     ///
     /// Must be a power-of-two. Higher = more smooth 3D.
@@ -339,11 +325,6 @@ pub struct NativeOptions {
     ///
     /// `egui` doesn't need the stencil buffer, so the default value is 0.
     pub stencil_buffer: u8,
-
-    /// Specify whether or not hardware acceleration is preferred, required, or not.
-    ///
-    /// Default: [`HardwareAcceleration::Preferred`].
-    pub hardware_acceleration: HardwareAcceleration,
 
     /// What rendering backend to use.
     #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
@@ -381,19 +362,16 @@ pub struct NativeOptions {
     #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
     pub window_builder: Option<WindowBuilderHook>,
 
-    #[cfg(feature = "glow")]
-    /// Needed for cross compiling for VirtualBox VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
-    /// See <https://github.com/emilk/egui/pull/1993>.
-    ///
-    /// For OpenGL ES 2.0: set this to [`egui_glow::ShaderVersion::Es100`] to solve blank texture problem (by using the "fallback shader").
-    pub shader_version: Option<egui_glow::ShaderVersion>,
-
     /// On desktop: make the window position to be centered at initialization.
     ///
     /// Platform specific:
     ///
     /// Wayland desktop currently not supported.
     pub centered: bool,
+
+    /// Configures glow instance.
+    #[cfg(feature = "glow")]
+    pub glow_options: egui_glow::GlowConfiguration,
 
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu_no_default_features")]
@@ -402,6 +380,15 @@ pub struct NativeOptions {
     /// Controls whether or not the native window position and size will be
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
+
+    /// Load system fonts on demand for characters that the installed fonts lack,
+    /// e.g. CJK, Arabic, or Devanagari (only if the `system_fonts` feature is enabled).
+    ///
+    /// Turn this off if you bundle fonts that cover everything your app shows,
+    /// or if you need identical text rendering on all machines.
+    ///
+    /// Default: `true`.
+    pub system_font_fallback: bool,
 
     /// The folder where `eframe` will store the app state. If not set, eframe will use a default
     /// data storage path for each target system.
@@ -439,6 +426,9 @@ impl Clone for NativeOptions {
             #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             window_builder: None, // Skip any builder callbacks if cloning
 
+            #[cfg(feature = "glow")]
+            glow_options: self.glow_options.clone(),
+
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_options: self.wgpu_options.clone(),
 
@@ -458,11 +448,9 @@ impl Default for NativeOptions {
         Self {
             viewport: Default::default(),
 
-            vsync: true,
             multisampling: 0,
             depth_buffer: 0,
             stencil_buffer: 0,
-            hardware_acceleration: HardwareAcceleration::Preferred,
 
             #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             renderer: Renderer::default(),
@@ -475,15 +463,18 @@ impl Default for NativeOptions {
             #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
             window_builder: None,
 
-            #[cfg(feature = "glow")]
-            shader_version: None,
-
             centered: false,
 
+            #[cfg(feature = "glow")]
+            glow_options: egui_glow::GlowConfiguration::default(),
+
             #[cfg(feature = "wgpu_no_default_features")]
-            wgpu_options: egui_wgpu::WgpuConfiguration::default(),
+            wgpu_options: egui_wgpu::WgpuConfiguration::default()
+                .with_surface_config(egui_wgpu::SurfaceConfig::LOW_LATENCY),
 
             persist_window: true,
+
+            system_font_fallback: true,
 
             persistence_path: None,
 
@@ -515,6 +506,10 @@ pub struct WebOptions {
     /// Default: [`WebGlContextOption::BestFirst`].
     #[cfg(feature = "glow")]
     pub webgl_context_option: WebGlContextOption,
+
+    /// Configures glow instance.
+    #[cfg(feature = "glow")]
+    pub glow_options: egui_glow::GlowConfiguration,
 
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu_no_default_features")]
@@ -559,6 +554,9 @@ impl Default for WebOptions {
 
             #[cfg(feature = "glow")]
             webgl_context_option: WebGlContextOption::BestFirst,
+
+            #[cfg(feature = "glow")]
+            glow_options: egui_glow::GlowConfiguration::default(),
 
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
@@ -637,8 +635,8 @@ impl Default for Renderer {
 }
 
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-impl std::fmt::Display for Renderer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Renderer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             #[cfg(feature = "glow")]
             Self::Glow => "glow".fmt(f),
@@ -650,7 +648,7 @@ impl std::fmt::Display for Renderer {
 }
 
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
-impl std::str::FromStr for Renderer {
+impl core::str::FromStr for Renderer {
     type Err = String;
 
     fn from_str(name: &str) -> Result<Self, String> {
@@ -694,6 +692,10 @@ pub struct Frame {
     #[cfg(feature = "wgpu_no_default_features")]
     #[doc(hidden)]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
+
+    /// The current [`winit::window::Window`] (i.e. the one the active viewport is rendered to).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) window: Option<std::sync::Arc<winit::window::Window>>,
 
     /// Raw platform window handle
     #[cfg(not(target_arch = "wasm32"))]
@@ -740,6 +742,8 @@ impl Frame {
             raw_display_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
             raw_window_handle: Err(HandleError::NotSupported),
+            #[cfg(not(target_arch = "wasm32"))]
+            window: None,
             storage: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: None,
@@ -769,6 +773,14 @@ impl Frame {
         self.storage.as_deref_mut()
     }
 
+    /// Access to the current [`winit::window::Window`] (i.e. the one the active viewport is rendered to).
+    ///
+    /// `None` for headless (tests etc).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn winit_window(&self) -> Option<&std::sync::Arc<winit::window::Window>> {
+        self.window.as_ref()
+    }
+
     /// A reference to the underlying [`glow`] (OpenGL) context.
     ///
     /// This can be used, for instance, to:
@@ -776,7 +788,7 @@ impl Frame {
     /// * Read the pixel buffer from the previous frame (`glow::Context::read_pixels`).
     /// * Render things behind the egui windows.
     ///
-    /// Note that all egui painting is deferred to after the call to [`App::update`]
+    /// Note that all egui painting is deferred to after the call to [`App::ui`]
     /// ([`egui`] only collects [`egui::Shape`]s and then eframe paints them all in one go later on).
     ///
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
@@ -804,6 +816,28 @@ impl Frame {
     #[cfg(feature = "wgpu_no_default_features")]
     pub fn wgpu_render_state(&self) -> Option<&egui_wgpu::RenderState> {
         self.wgpu_render_state.as_ref()
+    }
+
+    /// The currently-applied runtime surface config (present mode, frame latency)
+    /// used by the `wgpu` renderer, if any.
+    ///
+    /// Returns `None` when not using the `wgpu` backend.
+    #[cfg(feature = "wgpu_no_default_features")]
+    pub fn wgpu_surface_config(&self) -> Option<egui_wgpu::SurfaceConfig> {
+        self.wgpu_render_state
+            .as_ref()
+            .map(|state| state.surface_config)
+    }
+
+    /// Set the runtime surface config (present mode, frame latency) for the `wgpu`
+    /// renderer. The surface is reconfigured on the next paint.
+    ///
+    /// No-op when not using the `wgpu` backend.
+    #[cfg(feature = "wgpu_no_default_features")]
+    pub fn set_wgpu_surface_config(&mut self, config: egui_wgpu::SurfaceConfig) {
+        if let Some(state) = &mut self.wgpu_render_state {
+            state.surface_config = config;
+        }
     }
 }
 
@@ -882,7 +916,7 @@ pub struct IntegrationInfo {
 
     /// Seconds of cpu usage (in seconds) on the previous frame.
     ///
-    /// This includes [`App::update`] as well as rendering (except for vsync waiting).
+    /// This includes [`App::ui`] as well as rendering (except for vsync waiting).
     ///
     /// For a more detailed view of cpu usage, connect your preferred profiler by enabling it's feature in [`profiling`](https://crates.io/crates/profiling).
     ///
@@ -927,6 +961,9 @@ pub trait Storage {
 
     /// Set the value for the given key.
     fn set_string(&mut self, key: &str, value: String);
+
+    /// Remove a given key.
+    fn remove_string(&mut self, key: &str);
 
     /// write-to-disk or similar
     fn flush(&mut self);

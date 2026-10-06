@@ -7,7 +7,7 @@ impl crate::Demo for ExtraViewport {
     }
 
     fn name(&self) -> &'static str {
-        "🗖 Extra Viewport"
+        "🖥️ Extra Viewport"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -15,7 +15,7 @@ impl crate::Demo for ExtraViewport {
             return;
         }
 
-        let id = egui::Id::new(self.name());
+        let id = egui::Id::unique(self.name());
 
         ui.show_viewport_immediate(
             egui::ViewportId(id),
@@ -27,7 +27,7 @@ impl crate::Demo for ExtraViewport {
                     // Not a real viewport
                     ui.label("This egui integration does not support multiple viewports");
                 } else {
-                    egui::CentralPanel::default().show_inside(ui, |ui| {
+                    egui::CentralPanel::default().show(ui, |ui| {
                         viewport_content(ui, open);
                     });
                 }

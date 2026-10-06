@@ -50,12 +50,12 @@ impl Default for ImageViewer {
 
 impl crate::DemoApp for ImageViewer {
     fn demo_ui(&mut self, ui: &mut egui::Ui, _: &mut eframe::Frame) {
-        egui::Panel::top("url bar").show_inside(ui, |ui| {
+        egui::Panel::top("url bar").show(ui, |ui| {
             ui.horizontal_centered(|ui| {
                 let label = ui.label("URI:");
                 ui.text_edit_singleline(&mut self.uri_edit_text)
                     .labelled_by(label.id);
-                if ui.small_button("✔").clicked() {
+                if ui.small_button("✔️").clicked() {
                     ui.ctx().forget_image(&self.current_uri);
                     self.uri_edit_text = self.uri_edit_text.trim().to_owned();
                     self.current_uri = self.uri_edit_text.clone();
@@ -71,7 +71,7 @@ impl crate::DemoApp for ImageViewer {
             });
         });
 
-        egui::Panel::left("controls").show_inside(ui, |ui| {
+        egui::Panel::left("controls").show(ui, |ui| {
             // uv
             ui.label("UV");
             ui.add(Slider::new(&mut self.image_options.uv.min.x, 0.0..=1.0).text("min x"));
@@ -188,8 +188,9 @@ impl crate::DemoApp for ImageViewer {
 
             // alt text
             ui.add_space(5.0);
-            ui.label("Alt text");
-            ui.text_edit_singleline(&mut self.alt_text);
+            let label = ui.label("Alt text");
+            ui.text_edit_singleline(&mut self.alt_text)
+                .labelled_by(label.id);
 
             // forget all images
             if ui.button("Forget all images").clicked() {
@@ -197,7 +198,7 @@ impl crate::DemoApp for ImageViewer {
             }
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 let mut image = egui::Image::from_uri(&self.current_uri);
                 image = image.uv(self.image_options.uv);

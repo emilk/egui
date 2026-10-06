@@ -15,7 +15,16 @@ pub struct WidgetRect {
     /// (see [`crate::Options::warn_on_id_clash`]).
     ///
     /// You can ensure globally unique ids using [`crate::Ui::push_id`].
+    ///
+    /// For the [`WidgetRect`] of a [`crate::Ui`] this is the
+    /// [`crate::Ui::unique_id`] of that [`crate::Ui`].
     pub id: Id,
+
+    /// The [`crate::Ui::unique_id`] of the parent [`crate::Ui`] that hosts this widget.
+    ///
+    /// Used by debug checks to distinguish true id-instability from
+    /// cascading id shifts caused by a parent Ui's auto-id changing.
+    pub parent_id: Id,
 
     /// What layer the widget is on.
     pub layer_id: LayerId,
@@ -40,25 +49,34 @@ pub struct WidgetRect {
 
     /// Is the widget enabled?
     pub enabled: bool,
+
+    /// Is the widget visible?
+    ///
+    /// Invisible widgets (see [`crate::Ui::is_visible`]) are not exposed to accessibility.
+    pub visible: bool,
 }
 
 impl WidgetRect {
     pub fn transform(self, transform: emath::TSTransform) -> Self {
         let Self {
             id,
+            parent_id,
             layer_id,
             rect,
             interact_rect,
             sense,
             enabled,
+            visible,
         } = self;
         Self {
             id,
+            parent_id,
             layer_id,
             rect: transform * rect,
             interact_rect: transform * interact_rect,
             sense,
             enabled,
+            visible,
         }
     }
 }
@@ -185,6 +203,7 @@ impl WidgetRects {
                 existing.interact_rect = widget_rect.interact_rect; // last wins
                 existing.sense |= widget_rect.sense;
                 existing.enabled |= widget_rect.enabled;
+                existing.visible |= widget_rect.visible;
 
                 if existing.layer_id == widget_rect.layer_id {
                     if move_to_top {

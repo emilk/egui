@@ -108,7 +108,7 @@ impl TextureAtlas {
         //     let hw = w as i32 / 2;
         const LARGEST_CIRCLE_RADIUS: f32 = 8.0; // keep small so that the initial texture atlas is small
         for i in 0.. {
-            let r = 2.0_f32.powf(i as f32 / 2.0 - 1.0);
+            let r = 2.0_f32.powf(i as f32 * 0.5 - 1.0);
             if r > LARGEST_CIRCLE_RADIUS {
                 break;
             }
@@ -120,8 +120,9 @@ impl TextureAtlas {
                     let distance_to_center = ((dx * dx + dy * dy) as f32).sqrt();
                     let coverage =
                         remap_clamp(distance_to_center, (r - 0.5)..=(r + 0.5), 1.0..=0.0);
-                    image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] =
-                        options.alpha_from_coverage.color_from_coverage(coverage);
+                    image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] = options
+                        .color_transfer_function
+                        .color_from_coverage(coverage);
                 }
             }
             atlas.discs.push(PrerasterizedDisc {
@@ -201,7 +202,7 @@ impl TextureAtlas {
     pub fn take_delta(&mut self) -> Option<ImageDelta> {
         let texture_options = Self::texture_options();
 
-        let dirty = std::mem::replace(&mut self.dirty, Rectu::NOTHING);
+        let dirty = core::mem::replace(&mut self.dirty, Rectu::NOTHING);
         if dirty == Rectu::NOTHING {
             None
         } else if dirty == Rectu::EVERYTHING {
