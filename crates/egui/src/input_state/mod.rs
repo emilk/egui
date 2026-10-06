@@ -2,7 +2,7 @@ mod touch_state;
 mod wheel_state;
 
 use crate::{
-    SafeAreaInsets,
+    MouseWheelSource, SafeAreaInsets,
     emath::{NumExt as _, Pos2, Rect, Vec2, vec2},
     util::History,
 };
@@ -416,6 +416,7 @@ impl InputState {
                     unit,
                     delta,
                     phase,
+                    source,
                     modifiers,
                 } => {
                     self.wheel.on_wheel_event(
@@ -425,6 +426,7 @@ impl InputState {
                         *unit,
                         *delta,
                         *phase,
+                        *source,
                         *modifiers,
                     );
                 }
@@ -637,6 +639,24 @@ impl InputState {
     /// True if there is an active scroll action that might scroll more when using [`Self::smooth_scroll_delta`].
     pub fn is_scrolling(&self) -> bool {
         self.wheel.is_scrolling()
+    }
+
+    /// What is driving the current scrolling, if any: a mouse wheel, fingers on a trackpad,
+    /// or the OS continuing a trackpad scroll with momentum.
+    ///
+    /// `Some` while [`Self::is_scrolling`]. For trackpads, that is between the
+    /// [`crate::TouchPhase::Start`] and [`crate::TouchPhase::End`] of the gesture;
+    /// for mouse wheels, until the smoothing of the last notch is done.
+    ///
+    /// Touch screens don't scroll with wheel events but by dragging with the pointer,
+    /// so this is `None` for them.
+    ///
+    /// ## Platform-specific
+    /// * **macOS**: `Wheel`, `Trackpad` or `Momentum`, all reliable.
+    /// * **Everywhere else**: `Unknown`, until winit reports the source
+    ///   (`Trackpad` for winit's `PanGesture`).
+    pub fn scroll_source(&self) -> Option<MouseWheelSource> {
+        self.wheel.is_scrolling().then_some(self.wheel.source)
     }
 
     /// How long has it been (in seconds) since the last scroll event?
@@ -1166,10 +1186,9 @@ impl PointerState {
                                 < self.options.max_double_click_delay
                                 && click_dist_sq
                                     < self.options.max_click_dist * self.options.max_click_dist;
-                            let triple_click = (time - self.last_last_click_time)
-                                < (self.options.max_double_click_delay * 2.0)
-                                && click_dist_sq
-                                    < self.options.max_click_dist * self.options.max_click_dist;
+                            let triple_click = double_click
+                                && (self.last_click_time - self.last_last_click_time)
+                                    < self.options.max_double_click_delay;
                             let count = if triple_click {
                                 3
                             } else if double_click {
@@ -1603,7 +1622,7 @@ impl InputState {
 
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
-        crate::containers::CollapsingHeader::new("🖱 Pointer")
+        crate::containers::CollapsingHeader::new("🖱️ Pointer")
             .default_open(false)
             .show(ui, |ui| {
                 pointer.ui(ui);
@@ -1615,7 +1634,7 @@ impl InputState {
             });
         }
 
-        crate::containers::CollapsingHeader::new("⬍ Scroll")
+        crate::containers::CollapsingHeader::new("↕️ Scroll")
             .default_open(false)
             .show(ui, |ui| {
                 wheel.ui(ui);

@@ -73,7 +73,7 @@ pub struct LayoutJob {
     /// starting on a new row.
     ///
     /// If `false`, all `\n` characters will be ignored
-    /// and show up as the replacement character.
+    /// and show up as the `.notdef` glyph ("tofu").
     ///
     /// Default: `true`.
     pub break_on_newline: bool,
@@ -155,7 +155,7 @@ impl LayoutJob {
         }
     }
 
-    /// Does not break on `\n`, but shows the replacement character instead.
+    /// Does not break on `\n`, but shows the `.notdef` glyph ("tofu") instead.
     #[inline]
     pub fn simple_singleline(text: String, font_id: FontId, color: Color32) -> Self {
         Self {

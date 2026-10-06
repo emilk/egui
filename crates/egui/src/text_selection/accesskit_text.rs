@@ -27,11 +27,15 @@ fn text_run_position(parent_id: Id, row: usize, column: CharIndex) -> accesskit:
 }
 
 /// Update accesskit with the current text state.
+///
+/// This adds the [`accesskit::Role::TextRun`] children of the widget, and the
+/// current text selection. It never touches the role of the widget itself: that
+/// is set from the [`crate::WidgetInfo`] the widget reports, so a link stays a
+/// link and a button stays a button.
 pub fn update_accesskit_for_text_widget(
     ctx: &Context,
     widget_id: Id,
     cursor_range: Option<CCursorRange>,
-    role: accesskit::Role,
     global_from_galley: TSTransform,
     galley: &Galley,
 ) {
@@ -46,8 +50,6 @@ pub fn update_accesskit_for_text_widget(
                 focus: text_run_position(parent_id, focus.row, focus.column),
             });
         }
-
-        builder.set_role(role);
 
         parent_id
     });

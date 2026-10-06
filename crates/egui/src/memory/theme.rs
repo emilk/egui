@@ -42,7 +42,7 @@ impl Theme {
         #![expect(clippy::collapsible_else_if)]
         if self == Self::Dark {
             if ui
-                .add(Button::new("☀").frame(false))
+                .add(Button::new("☀️").frame(false))
                 .on_hover_text("Switch to light mode")
                 .clicked()
             {
@@ -90,7 +90,7 @@ impl ThemePreference {
     pub fn icon(self) -> &'static str {
         match self {
             Self::Dark => "🌙",
-            Self::Light => "☀",
+            Self::Light => "☀️",
             Self::System => "💻",
         }
     }

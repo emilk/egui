@@ -161,6 +161,9 @@ pub trait App {
     /// [`egui::InputState::viewport`], but the rest of [`egui::Context::input`]
     /// (events, time, …) is that of the last shown frame.
     ///
+    /// Send [`egui::ViewportCommand::RequestPaintWhileHidden`] if you want `App::ui` to be called
+    /// even if the application is hidden.
+    ///
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force another call to [`Self::logic`], call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
@@ -378,6 +381,15 @@ pub struct NativeOptions {
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
 
+    /// Load system fonts on demand for characters that the installed fonts lack,
+    /// e.g. CJK, Arabic, or Devanagari (only if the `system_fonts` feature is enabled).
+    ///
+    /// Turn this off if you bundle fonts that cover everything your app shows,
+    /// or if you need identical text rendering on all machines.
+    ///
+    /// Default: `true`.
+    pub system_font_fallback: bool,
+
     /// The folder where `eframe` will store the app state. If not set, eframe will use a default
     /// data storage path for each target system.
     pub persistence_path: Option<std::path::PathBuf>,
@@ -461,6 +473,8 @@ impl Default for NativeOptions {
                 .with_surface_config(egui_wgpu::SurfaceConfig::LOW_LATENCY),
 
             persist_window: true,
+
+            system_font_fallback: true,
 
             persistence_path: None,
 

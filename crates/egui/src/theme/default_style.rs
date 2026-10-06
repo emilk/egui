@@ -2,7 +2,7 @@ use emath::{Align2, Vec2};
 use epaint::{Color32, Margin};
 
 use crate::{
-    Button, Context, Frame, TextEdit, TextStyle,
+    Button, ComboBox, Context, Frame, TextEdit, TextStyle,
     class::HasClasses as _,
     theme::StyleProvider,
     widget_style::{
@@ -38,7 +38,11 @@ impl StyleProvider<ButtonStyle> for DefaultStyle {
             ..
         } = modifiers;
         let spacing = &style.spacing;
-        let mut widget_visuals = *style.visuals.widgets.state(*state);
+        let mut widget_visuals = if classes.has_class(&ComboBox::CLASS_OPEN) {
+            style.visuals.widgets.open
+        } else {
+            *style.visuals.widgets.state(*state)
+        };
 
         if classes.has_class(&Button::CLASS_SELECTED) {
             let visuals = &style.visuals;
@@ -148,10 +152,12 @@ impl StyleProvider<TextEditStyle> for DefaultStyle {
                 frame: Frame {
                     fill,
                     corner_radius: widget_visuals.corner_radius,
-                    inner_margin: Margin::symmetric(4, 2),
+                    inner_margin: style.spacing.button_padding.into(),
                     ..Default::default()
                 }
                 .apply_stroke_and_expansion_without_layout_shift(stroke, widget_visuals.expansion),
+                // Same as a button, so they line up when next to each other:
+                min_size: Vec2::new(0.0, style.spacing.interact_size.y),
                 gap: style.spacing.icon_spacing,
                 text_style: text,
                 align2: Some(Align2::LEFT_TOP),
@@ -185,7 +191,10 @@ impl StyleProvider<CheckboxStyle> for DefaultStyle {
             check_size: spacing.icon_width_inner,
             checkbox_frame: Frame {
                 fill: widget_visuals.bg_fill,
-                corner_radius: widget_visuals.corner_radius,
+                // The box is small, so cap the rounding to keep it from looking like a radio button:
+                corner_radius: widget_visuals
+                    .corner_radius
+                    .at_most((0.3 * spacing.icon_width).round() as u8),
                 stroke: widget_visuals.bg_stroke,
                 ..Default::default()
             },

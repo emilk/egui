@@ -1,8 +1,9 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use nohash_hasher::IntMap;
 
-use crate::text::{FontData, FontDefinitions, TextOptions, font_face::FontFace};
+use crate::text::{FontData, TextOptions, font_face::FontFace};
 
 /// Unique ID for looking up a single font face/file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -26,8 +27,8 @@ impl nohash_hasher::IsEnabled for FontFaceKey {}
 
 /// Every parsed [`FontFace`], by key and by name.
 ///
-/// This is the one place fonts get parsed, whether they come from
-/// [`FontDefinitions`] or are found later (e.g. by a font provider).
+/// This is the one place fonts get parsed, whether they are configured up front
+/// or discovered later by a font provider.
 pub(crate) struct FaceStore {
     options: TextOptions,
     by_key: IntMap<FontFaceKey, FontFace>,
@@ -35,20 +36,22 @@ pub(crate) struct FaceStore {
 }
 
 impl FaceStore {
-    /// Parse every font in the definitions.
-    ///
-    /// Panics if a font fails to parse.
-    pub fn new(options: TextOptions, definitions: &FontDefinitions) -> Self {
-        let mut slf = Self {
+    pub fn new(options: TextOptions) -> Self {
+        Self {
             options,
             by_key: Default::default(),
             by_name: Default::default(),
-        };
-        for (name, font_data) in &definitions.font_data {
-            slf.install(name, font_data)
-                .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"));
         }
-        slf
+    }
+
+    /// Apply new [`TextOptions`] (hinting, sub-pixel binning) to every face,
+    /// and to faces installed later.
+    pub fn set_options(&mut self, options: TextOptions) {
+        self.options = options;
+        #[expect(clippy::iter_over_hash_type, reason = "Order does not matter here")]
+        for face in self.by_key.values_mut() {
+            face.set_options(options);
+        }
     }
 
     /// Parse a font and add it, unless a font with the same name is already installed.
@@ -63,7 +66,7 @@ impl FaceStore {
         let font_face = FontFace::new(
             self.options,
             name.to_owned(),
-            font_data.blob(),
+            Arc::clone(&font_data.font),
             font_data.index,
             font_data.tweak.clone(),
         )?;
@@ -74,11 +77,6 @@ impl FaceStore {
     }
 
     #[inline]
-    pub fn key_by_name(&self, name: &str) -> Option<FontFaceKey> {
-        self.by_name.get(name).copied()
-    }
-
-    #[inline]
     pub fn get(&self, key: FontFaceKey) -> Option<&FontFace> {
         self.by_key.get(&key)
     }
@@ -86,10 +84,5 @@ impl FaceStore {
     #[inline]
     pub fn get_mut(&mut self, key: FontFaceKey) -> Option<&mut FontFace> {
         self.by_key.get_mut(&key)
-    }
-
-    /// All installed faces, in no particular order.
-    pub fn iter(&self) -> impl Iterator<Item = (FontFaceKey, &FontFace)> {
-        self.by_key.iter().map(|(key, face)| (*key, face))
     }
 }

@@ -1,10 +1,16 @@
 use std::sync::Arc;
 
-use crate::{ColorImage, text::FontFamily};
+use crate::{
+    ColorImage,
+    text::{FontFamily, FontPriority},
+};
 
 /// Input to a [`GlyphRasterizer`].
 pub struct GlyphRasterizerRequest<'a> {
-    /// An unsupported grapheme cluster.
+    /// The grapheme cluster to rasterize.
+    ///
+    /// For a fallback rasterizer ([`FontPriority::Lowest`]) this is a cluster no installed font has.
+    /// A priority rasterizer ([`FontPriority::Highest`]) is asked about every cluster.
     pub cluster: &'a str,
 
     /// The requested font family.
@@ -17,95 +23,122 @@ pub struct GlyphRasterizerRequest<'a> {
     pub subpixel_offset_px: f32,
 }
 
-/// A glyph rasterized by a platform fallback.
-pub struct RasterizedGlyph {
-    /// Pixels in physical pixels. Color glyphs retain their original colors.
+/// A glyph bitmap, ready to be copied into the glyph atlas.
+#[derive(Clone)]
+pub struct GlyphBitmap {
+    /// Pixels in physical pixels. Coverage glyphs are white with alpha;
+    /// color glyphs retain their original colors.
     pub image: ColorImage,
 
-    /// Offset from the baseline to the image top-left, in physical pixels.
+    /// Offset from the glyph origin to the image top-left, in physical pixels.
     pub offset_px: emath::Vec2,
+
+    /// A color glyph (e.g. emoji) that must not be tinted with the text color.
+    pub is_color: bool,
+}
+
+/// A glyph rasterized by a [`GlyphRasterizer`].
+#[derive(Clone)]
+pub struct RasterizedGlyph {
+    pub bitmap: GlyphBitmap,
 
     /// Horizontal advance, in physical pixels.
     pub advance_px: f32,
-
-    /// Do not tint this glyph with the text color.
-    pub is_color: bool,
 }
 
 /// The callback of a [`GlyphRasterizer`].
 type RasterizeFn =
     dyn for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph> + Send + Sync;
 
-/// Where to look first for the glyphs of a grapheme cluster.
-///
-/// The other source is used as a fallback if the first one cannot render the cluster.
-///
-/// See [`GlyphSourcePreference`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum GlyphSource {
-    /// The fonts in [`FontDefinitions`](crate::text::FontDefinitions).
-    ///
-    /// Predictable: looks the same everywhere, both on native and on web.
-    Fonts,
-
-    /// What the platform offers, e.g. the [`GlyphRasterizer`] (the browser on web).
-    ///
-    /// Supports colored emojis.
-    /// Unpredictable: may look different on different computers.
-    Platform,
-}
-
-/// Decides where to look first for the glyphs of each grapheme cluster.
-///
-/// Default: [`default_glyph_source`], so that color emoji come from the platform,
-/// while text-presentation symbols (e.g. ⏮︎) look the same on all platforms.
-///
-/// Use `|_| GlyphSource::Fonts` to only use the platform for clusters
-/// that no font in [`FontDefinitions`](crate::text::FontDefinitions) can render.
-///
-/// Set with `egui::Context::set_glyph_source_preference` or [`Fonts::with_glyph_source_preference`](crate::text::Fonts::with_glyph_source_preference).
-pub type GlyphSourcePreference = Arc<dyn Fn(&str) -> GlyphSource + Send + Sync>;
-
 /// Rasterizes grapheme clusters using something other than the installed fonts,
-/// e.g. the browser on web.
+/// e.g. the browser on web, or your own custom glyphs.
 ///
-/// Used for clusters no installed font can render,
-/// and for clusters where the [`GlyphSourcePreference`] says [`GlyphSource::Platform`].
+/// By default ([`FontPriority::Lowest`]) a rasterizer is a fallback:
+/// it is only asked about clusters that no installed font can render,
+/// after the [`FontProvider`](crate::text::FontProvider)s have been asked for a font for them.
+///
+/// With [`FontPriority::Highest`] it is instead asked about every cluster,
+/// before any font. Use this to override how specific glyphs look,
+/// e.g. to always render `…` your own way.
+/// Return `None` quickly for everything you do not want to override.
+///
+/// Several rasterizers can be installed. Within a priority tier
+/// they are asked in the order they were added, and the first to return `Some` wins.
+///
+/// Results (and failures) are cached per cluster, family, and size,
+/// so each rasterizer is asked at most once per such combination.
+///
+/// Every rasterizer has a [`Self::key`], which makes installing it idempotent:
+/// adding one when a rasterizer with the same key is already installed is a no-op.
 #[derive(Clone)]
 pub struct GlyphRasterizer {
+    /// Identifies this rasterizer: two rasterizers with the same key are the same rasterizer.
+    ///
+    /// Adding one when a rasterizer with this key is already installed is a no-op,
+    /// so it is safe to add it every frame.
+    /// To swap out an installed rasterizer, replace them all with
+    /// e.g. `Context::set_glyph_rasterizers`.
+    pub key: Arc<str>,
+
     /// Rasterize one grapheme cluster.
     ///
-    /// Return `None` if the platform cannot render it either.
+    /// Return `None` if this rasterizer does not handle it.
     pub rasterize: Arc<RasterizeFn>,
+
+    /// Is this a fallback ([`FontPriority::Lowest`], the default),
+    /// or does it override the installed fonts ([`FontPriority::Highest`])?
+    pub priority: FontPriority,
 }
 
 impl GlyphRasterizer {
+    /// A fallback rasterizer ([`FontPriority::Lowest`]).
+    ///
+    /// `key` identifies the rasterizer (see [`Self::key`]).
+    /// Pick something unique, e.g. a fully qualified name like `"my_crate::MyGlyphs"`.
+    ///
+    /// See [`Self::with_priority`].
     pub fn new(
+        key: impl Into<Arc<str>>,
         rasterize: impl for<'a> Fn(&GlyphRasterizerRequest<'a>) -> Option<RasterizedGlyph>
         + Send
         + Sync
         + 'static,
     ) -> Self {
         Self {
+            key: key.into(),
             rasterize: Arc::new(rasterize),
+            priority: FontPriority::Lowest,
         }
     }
-}
 
-/// The default [`GlyphSourcePreference`]:
-/// [`GlyphSource::Platform`] for clusters with emoji presentation
-/// (see [`has_emoji_presentation`]), [`GlyphSource::Fonts`] for everything else.
-pub fn default_glyph_source(cluster: &str) -> GlyphSource {
-    if has_emoji_presentation(cluster) {
-        GlyphSource::Platform
-    } else {
-        GlyphSource::Fonts
+    /// Should this rasterizer be asked before ([`FontPriority::Highest`])
+    /// or after ([`FontPriority::Lowest`]) the installed fonts?
+    #[inline]
+    pub fn with_priority(mut self, priority: FontPriority) -> Self {
+        self.priority = priority;
+        self
+    }
+
+    /// Add `self` to `rasterizers`, unless one with the same [`Self::key`] is already there.
+    ///
+    /// Returns `true` if it was added.
+    #[doc(hidden)]
+    pub fn insert_into(self, rasterizers: &mut Vec<Self>) -> bool {
+        if rasterizers.iter().any(|r| r.key == self.key) {
+            false
+        } else {
+            rasterizers.push(self);
+            true
+        }
     }
 }
 
 impl core::fmt::Debug for GlyphRasterizer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str("GlyphRasterizer")
+        f.debug_struct("GlyphRasterizer")
+            .field("priority", &self.priority)
+            .field("key", &self.key)
+            .finish_non_exhaustive()
     }
 }
 
@@ -118,7 +151,7 @@ impl core::fmt::Debug for GlyphRasterizer {
 /// False for text-presentation symbols (⏮, ✔, ♥) and for clusters
 /// with an explicit text presentation selector (⏮︎, U+FE0E).
 ///
-/// Used by [`default_glyph_source`].
+/// Used by `eframe`'s web glyph rasterizer to guess whether a browser-drawn glyph is color.
 pub fn has_emoji_presentation(cluster: &str) -> bool {
     use unicode_properties::emoji::{
         EmojiStatus, UnicodeEmoji as _, is_emoji_presentation_selector,

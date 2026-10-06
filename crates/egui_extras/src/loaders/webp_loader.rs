@@ -118,7 +118,7 @@ impl AnimatedImage {
 
 fn store_frame_durations(ctx: &egui::Context, image_uri: &str, frame_durations: FrameDurations) {
     ctx.data_mut(|data| {
-        *data.get_temp_mut_or_default(Id::new(image_uri)) = frame_durations;
+        *data.get_temp_mut_or_default(Id::unique(image_uri)) = frame_durations;
     });
 }
 
@@ -156,7 +156,7 @@ impl ImageLoader for WebPLoader {
 
             // Do the image parsing on a bg thread
             thread::Builder::new()
-                .name(format!("egui_extras::WebPLoader::load({image_uri:?}"))
+                .name(format!("egui_extras::WebPLoader::load({image_uri:?})"))
                 .spawn({
                     let ctx = ctx.clone();
                     let cache = Arc::clone(cache);
@@ -164,13 +164,17 @@ impl ImageLoader for WebPLoader {
                     move || {
                         log::trace!("WebPLoader - started loading {image_uri:?}");
                         let result = WebP::load(&bytes);
-                        let frame_durations = match &result {
-                            Ok(WebP::Animated(animated_image)) => {
-                                Some(animated_image.frame_durations.clone())
-                            }
-                            _ => None,
-                        };
-                        let found = {
+                        // Store the frame durations before marking the image as ready,
+                        // so that an animated WebP is never shown without its durations.
+                        // This must happen before we lock the cache (see deadlock note below).
+                        if let Ok(WebP::Animated(animated_image)) = &result {
+                            store_frame_durations(
+                                &ctx,
+                                &image_uri,
+                                animated_image.frame_durations.clone(),
+                            );
+                        }
+                        let repaint = {
                             let mut cache = cache.lock();
 
                             if let std::collections::hash_map::Entry::Occupied(mut entry) =
@@ -181,7 +185,7 @@ impl ImageLoader for WebPLoader {
                                 log::trace!("WebPLoader - finished loading {image_uri:?}");
                                 true
                             } else {
-                                log::trace!("WebPLoader - canceled loading {image_uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading");
+                                log::trace!("WebPLoader - canceled loading {image_uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
                                 false
                             }
                         };
@@ -192,10 +196,7 @@ impl ImageLoader for WebPLoader {
                         // - main thread: lock ctx (e.g. in `Context::has_pending_images`)
                         // - loader thread: try to lock ctx (in `request_repaint`)
                         // - main thread: try to lock cache (from `Self::has_pending`)
-                        if found {
-                            if let Some(frame_durations) = frame_durations {
-                                store_frame_durations(&ctx, &image_uri, frame_durations);
-                            }
+                        if repaint {
                             ctx.request_repaint();
                         }
                     }

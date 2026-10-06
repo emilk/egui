@@ -1,5 +1,6 @@
 use epaint::ColorImage;
 
+use crate::MouseWheelSource;
 use crate::{
     Key,
     emath::{Pos2, Vec2},
@@ -176,6 +177,12 @@ pub enum Event {
         /// If unknown set this to [`TouchPhase::Move`].
         phase: TouchPhase,
 
+        /// What is driving the scroll: a wheel, fingers on a trackpad,
+        /// or the system continuing a finger scroll with momentum.
+        ///
+        /// Set this to [`MouseWheelSource::Unknown`] if unknown.
+        source: MouseWheelSource,
+
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
     },
@@ -185,14 +192,4 @@ pub enum Event {
 
     /// An assistive technology (e.g. screen reader) requested an action.
     AccessKitActionRequest(accesskit::ActionRequest),
-
-    /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].
-    Screenshot {
-        viewport_id: crate::ViewportId,
-
-        /// Whatever was passed to [`crate::ViewportCommand::Screenshot`].
-        user_data: crate::UserData,
-
-        image: std::sync::Arc<ColorImage>,
-    },
 }

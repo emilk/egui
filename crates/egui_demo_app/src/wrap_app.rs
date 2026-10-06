@@ -226,13 +226,13 @@ impl WrapApp {
             ),
             #[cfg(feature = "easymark")]
             (
-                "🖹 EasyMark editor",
+                "📝 EasyMark editor",
                 Anchor::EasyMarkEditor,
                 &mut self.state.easy_mark_editor as &mut dyn DemoApp,
             ),
             #[cfg(feature = "http")]
             (
-                "⬇ HTTP",
+                "⬇️ HTTP",
                 Anchor::Http,
                 &mut self.state.http as &mut dyn DemoApp,
             ),
@@ -243,7 +243,7 @@ impl WrapApp {
             ),
             #[cfg(feature = "image_viewer")]
             (
-                "🖼 Image Viewer",
+                "🖼️ Image Viewer",
                 Anchor::ImageViewer,
                 &mut self.state.image_viewer as &mut dyn DemoApp,
             ),
@@ -492,8 +492,10 @@ impl WrapApp {
                 text
             });
 
-            let painter =
-                ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
+            let painter = ctx.layer_painter(LayerId::new(
+                Order::Foreground,
+                Id::unique("file_drop_target"),
+            ));
 
             let content_rect = ctx.content_rect();
             painter.rect_filled(content_rect, 0.0, Color32::from_black_alpha(192));
