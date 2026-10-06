@@ -42,12 +42,18 @@
 /// It will attempt to load `http://` and `https://` URIs, and infer the content type from the `Content-Type` header.
 ///
 /// The `image` loader is an [`ImageLoader`][`egui::load::ImageLoader`].
-/// It will attempt to load any URI with any extension other than `svg`.
+/// It will attempt to load `file://` URIs whose extension is one of the enabled image formats of the
+/// `image` crate, or a format registered by an `image` plugin
+/// (see [`image::hooks::register_decoding_hook`](https://docs.rs/image/latest/image/hooks/fn.register_decoding_hook.html)).
+/// Other `file://` URIs are rejected with [`LoadError::NotSupported`][`egui::load::LoadError::NotSupported`].
 /// It will also try to load any URI without an extension.
 /// The content type specified by [`BytesPoll::Ready::mime`][`egui::load::BytesPoll::Ready::mime`] always takes precedence.
 /// This means that even if the URI has a `png` extension, and the `png` image format is enabled, if the content type is
-/// not one of the supported and enabled image formats, the loader will return [`LoadError::NotSupported`][`egui::load::LoadError::NotSupported`],
+/// not one of the supported and enabled image formats (or an `image/*` type with a registered `image` plugin),
+/// the loader will return [`LoadError::FormatNotSupported`][`egui::load::LoadError::FormatNotSupported`],
 /// allowing a different loader to attempt to load the image.
+/// The actual format is detected from the contents of the bytes, using [`image::ImageReader::with_guessed_format`](https://docs.rs/image/latest/image/struct.ImageReader.html#method.with_guessed_format),
+/// which also takes `image` plugins into account.
 ///
 /// The `svg` loader is an [`ImageLoader`][`egui::load::ImageLoader`].
 /// It will attempt to load any URI with an `svg` extension. It will _not_ attempt to load a URI without an extension.
