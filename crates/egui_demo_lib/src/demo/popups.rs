@@ -99,7 +99,7 @@ impl PopupsDemo {
                 let button = Button::new((
                     RichText::new("Background").color(text_color),
                     Atom::grow(),
-                    RichText::new(SubMenuButton::RIGHT_ARROW).color(text_color),
+                    SubMenuButton::arrow_atom(Some(text_color)),
                 ))
                 .fill(self.color);
 
@@ -152,14 +152,14 @@ impl crate::View for PopupsDemo {
             })
             .inner;
 
-        self.apply_options(Popup::menu(&response).id(Id::new("menu")))
+        self.apply_options(Popup::menu(&response).id(Id::unique("menu")))
             .show(|ui| self.nested_menus(ui));
 
-        self.apply_options(Popup::context_menu(&response).id(Id::new("context_menu")))
+        self.apply_options(Popup::context_menu(&response).id(Id::unique("context_menu")))
             .show(|ui| self.nested_menus(ui));
 
         if self.popup_open {
-            self.apply_options(Popup::from_response(&response).id(Id::new("popup")))
+            self.apply_options(Popup::from_response(&response).id(Id::unique("popup")))
                 .show(|ui| {
                     ui.label("Popup contents");
                 });
@@ -207,7 +207,9 @@ impl crate::View for PopupsDemo {
                         for (align2, name) in &aligns {
                             ui.selectable_value(align, *align2, *name);
                         }
-                    });
+                    })
+                    .response
+                    .on_hover_text(label);
             };
 
             rust_view_ui(ui, "let align = RectAlign {");
@@ -252,13 +254,16 @@ impl crate::View for PopupsDemo {
                         for (align4, name) in &presets {
                             ui.selectable_value(&mut self.align4, *align4, *name);
                         }
-                    });
+                    })
+                    .response
+                    .on_hover_text("Preset");
                 rust_view_ui(ui, ";");
             });
 
             ui.horizontal(|ui| {
                 rust_view_ui(ui, "let gap = ");
-                ui.add(egui::DragValue::new(&mut self.gap));
+                ui.add(egui::DragValue::new(&mut self.gap))
+                    .on_hover_text("gap");
                 rust_view_ui(ui, ";");
             });
 
@@ -296,13 +301,16 @@ impl crate::View for PopupsDemo {
                             ui.selectable_value(&mut self.close_behavior, *close_behavior, *name)
                                 .on_hover_text(*tooltip);
                         }
-                    });
+                    })
+                    .response
+                    .on_hover_text("Close behavior");
                 rust_view_ui(ui, ";");
             });
 
             ui.horizontal(|ui| {
                 rust_view_ui(ui, "let popup_open = ");
-                ui.checkbox(&mut self.popup_open, "");
+                ui.checkbox(&mut self.popup_open, "")
+                    .on_hover_text("popup_open");
                 rust_view_ui(ui, ";");
             });
             ui.monospace("");

@@ -421,6 +421,7 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
 fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result<(), JsValue> {
     // Save-on-close
     runner_ref.add_event_listener(window, "onbeforeunload", |_: web_sys::Event, runner| {
+        runner.egui_ctx().on_exit();
         runner.save();
     })?;
 
@@ -848,6 +849,7 @@ fn install_wheel(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
                 delta,
                 modifiers,
                 phase: egui::TouchPhase::Move,
+                source: egui::MouseWheelSource::Unknown,
             }
         };
         let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);

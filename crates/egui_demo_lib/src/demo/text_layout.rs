@@ -29,7 +29,7 @@ impl Default for TextLayoutDemo {
 
 impl crate::Demo for TextLayoutDemo {
     fn name(&self) -> &'static str {
-        "🖹 Text Layout"
+        "📄 Text Layout"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -71,8 +71,8 @@ impl crate::View for TextLayoutDemo {
         egui::Grid::new("TextLayoutDemo")
             .num_columns(2)
             .show(ui, |ui| {
-                ui.label("Max rows:");
-                ui.add(egui::DragValue::new(max_rows));
+                let label = ui.label("Max rows:");
+                ui.add(egui::DragValue::new(max_rows)).labelled_by(label.id);
                 ui.end_row();
 
                 ui.label("Line-break:");
@@ -91,8 +91,9 @@ impl crate::View for TextLayoutDemo {
                 });
                 ui.end_row();
 
-                ui.label("Extra letter spacing:");
-                ui.add(egui::DragValue::new(extra_letter_spacing).speed(0.1));
+                let label = ui.label("Extra letter spacing:");
+                ui.add(egui::DragValue::new(extra_letter_spacing).speed(0.1))
+                    .labelled_by(label.id);
                 ui.end_row();
 
                 ui.label("Line height:");

@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.2 - 2026-09-08
+* Hide drop shadow window decoration when in fullscreen mode [#8449](https://github.com/emilk/egui/pull/8449) by [@tarolling](https://github.com/tarolling)
+
+
 ## 0.36.1 - 2026-08-07
 Nothing new
 

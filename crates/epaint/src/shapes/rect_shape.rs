@@ -188,10 +188,10 @@ impl RectShape {
         } else {
             let expand = match self.stroke_kind {
                 StrokeKind::Inside => 0.0,
-                StrokeKind::Middle => self.stroke.width / 2.0,
+                StrokeKind::Middle => self.stroke.width * 0.5,
                 StrokeKind::Outside => self.stroke.width,
             };
-            let expanded = self.rect.expand(expand + self.blur_width / 2.0);
+            let expanded = self.rect.expand(expand + self.blur_width * 0.5);
             if self.angle == 0.0 {
                 expanded
             } else {

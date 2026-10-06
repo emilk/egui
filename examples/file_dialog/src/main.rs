@@ -101,8 +101,10 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
             text
         });
 
-        let painter =
-            ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
+        let painter = ctx.layer_painter(LayerId::new(
+            Order::Foreground,
+            Id::unique("file_drop_target"),
+        ));
 
         let content_rect = ctx.content_rect();
         painter.rect_filled(content_rect, 0.0, Color32::from_black_alpha(192));
