@@ -9,7 +9,9 @@ use crate::{
 
 use super::{
     TextCursorState,
-    text_cursor_state::cursor_rect,
+    text_cursor_state::{
+        GranularDragSelect, SelectGranularity, cursor_rect, extend_granular_select, select_unit_at,
+    },
     visuals::{RowVertexIndices, paint_text_selection},
 };
 
@@ -61,6 +63,24 @@ impl core::fmt::Debug for WidgetTextCursor {
     }
 }
 
+/// A label selection that started with a double- or triple-click,
+/// remembered so that dragging and shift-clicking extend it by whole words or lines,
+/// while keeping the originally clicked word or line selected.
+///
+/// Both ends of the anchor word/line are always in the same widget,
+/// but the drag may extend the selection into other widgets.
+#[derive(Clone, Copy, Debug)]
+struct GranularDrag {
+    /// The unit of the current gesture (e.g. a shift-click extends by characters).
+    granularity: SelectGranularity,
+
+    /// Start of the word/line that was initially clicked.
+    anchor_min: WidgetTextCursor,
+
+    /// End of the word/line that was initially clicked.
+    anchor_max: WidgetTextCursor,
+}
+
 #[derive(Clone, Copy, Debug)]
 struct CurrentSelection {
     /// The selection is in this layer.
@@ -101,6 +121,10 @@ struct ViewportLabelSelectionState {
     /// Are we in drag-to-select state?
     is_dragging: bool,
 
+    /// Set if the current selection started with a double- or triple-click,
+    /// so that dragging extends the selection by whole words or lines.
+    granular_drag: Option<GranularDrag>,
+
     /// Have we reached the widget containing the primary selection?
     has_reached_primary: bool,
 
@@ -131,6 +155,7 @@ impl Default for ViewportLabelSelectionState {
             selection_bbox_this_frame: Rect::NOTHING,
             any_hovered: Default::default(),
             is_dragging: Default::default(),
+            granular_drag: Default::default(),
             has_reached_primary: Default::default(),
             has_reached_secondary: Default::default(),
             text_to_copy: Default::default(),
@@ -209,6 +234,21 @@ impl ViewportLabelSelectionState {
         if ui.input(|i| i.pointer.any_pressed() && !i.modifiers.shift) {
             // Maybe a new selection is about to begin, but the old one is over:
             // state.selection = None; // TODO(emilk): this makes sense, but doesn't work as expected.
+        }
+
+        if ui.input(|i| i.pointer.any_pressed()) {
+            if ui.input(|i| i.modifiers.shift) && self.selection.is_some() {
+                // A shift-click extends the current selection, keeping any double- or
+                // triple-clicked word/line selected, but now by the granularity of this press:
+                if let Some(granular) = &mut self.granular_drag {
+                    granular.granularity = SelectGranularity::of_press(ui);
+                }
+            } else {
+                // Any other new press ends the previous word/line selection.
+                // If this press is a double- or triple-click on a label,
+                // `on_label` will set this again later this pass:
+                self.granular_drag = None;
+            }
         }
 
         self.selection_bbox_last_frame = self.selection_bbox_this_frame;
@@ -391,7 +431,53 @@ impl ViewportLabelSelectionState {
 
             let new_primary = if response.contains_pointer() {
                 // Dragging into this widget - easy case:
-                Some(galley.cursor_from_pos((galley_from_global * pointer_pos).to_vec2()))
+                let cursor_at_pointer =
+                    galley.cursor_from_pos((galley_from_global * pointer_pos).to_vec2());
+
+                if let Some(granular) = &self.granular_drag {
+                    // The selection started with a double- or triple-click,
+                    // so extend it by whole words or lines:
+                    if response.id == granular.anchor_min.widget_id {
+                        // We are in the same widget as the anchor word/line:
+                        let anchor = CCursorRange::two(
+                            granular.anchor_min.ccursor,
+                            granular.anchor_max.ccursor,
+                        );
+                        let range = extend_granular_select(
+                            granular.granularity,
+                            anchor,
+                            galley.text(),
+                            cursor_at_pointer,
+                        );
+                        selection.secondary = WidgetTextCursor::new(
+                            response.id,
+                            range.secondary,
+                            global_from_galley,
+                            galley,
+                        );
+                        Some(range.primary)
+                    } else {
+                        // The drag has left the anchor's widget.
+                        // Are we before or after the anchor? Decide by screen position:
+                        let after_anchor = granular.anchor_max.pos.y < pointer_pos.y
+                            || (granular.anchor_min.pos.y <= pointer_pos.y
+                                && granular.anchor_max.pos.x <= pointer_pos.x);
+
+                        let unit =
+                            select_unit_at(granular.granularity, galley.text(), cursor_at_pointer);
+                        let [unit_min, unit_max] = unit.sorted_cursors();
+
+                        if after_anchor {
+                            selection.secondary = granular.anchor_min;
+                            Some(unit_max)
+                        } else {
+                            selection.secondary = granular.anchor_max;
+                            Some(unit_min)
+                        }
+                    }
+                } else {
+                    Some(cursor_at_pointer)
+                }
             } else if is_in_same_column
                 && !self.has_reached_primary
                 && selection.primary.pos.y <= selection.secondary.pos.y
@@ -577,7 +663,51 @@ impl ViewportLabelSelectionState {
             // This is where we handle start-of-drag and double-click-to-select.
             // Actual drag-to-select happens elsewhere.
             let dragged = false;
+            let shift = ui.input(|i| i.modifiers.shift);
+
+            if shift
+                && let Some(granular) = &self.granular_drag
+                && granular.anchor_min.widget_id == response.id
+            {
+                // A shift-click in the widget with the double- or triple-clicked word/line,
+                // which should stay selected:
+                cursor_state.set_granular_drag(Some(GranularDragSelect {
+                    granularity: granular.granularity,
+                    anchor: CCursorRange::two(
+                        granular.anchor_min.ccursor,
+                        granular.anchor_max.ccursor,
+                    ),
+                }));
+            }
+
             cursor_state.pointer_interaction(ui, response, cursor_at_pointer, galley, dragged);
+
+            if shift && self.granular_drag.is_some() {
+                // A shift-click extending a double- or triple-click selection:
+                // keep the original word/line as the anchor (see `on_begin_pass`).
+                // If the anchor is in another widget, `cursor_for` has already
+                // extended the selection relative to it.
+            } else if let Some(granular) = cursor_state.granular_drag() {
+                // If this was a double- or triple-click, remember the clicked word/line
+                // so that dragging extends the selection by that granularity:
+                let [anchor_min, anchor_max] = if let Some(selection) = &self.selection
+                    && shift
+                    && selection.secondary.widget_id != response.id
+                {
+                    // A shift-double-click extending a selection that is anchored in another widget.
+                    // `cursor_state` only sees the edge of this widget, so use the real anchor:
+                    [selection.secondary; 2]
+                } else {
+                    granular.anchor.sorted_cursors().map(|ccursor| {
+                        WidgetTextCursor::new(response.id, ccursor, global_from_galley, galley)
+                    })
+                };
+                self.granular_drag = Some(GranularDrag {
+                    granularity: granular.granularity,
+                    anchor_min,
+                    anchor_max,
+                });
+            }
         }
 
         if let Some(mut cursor_range) = cursor_state.range(galley) {
@@ -586,8 +716,10 @@ impl ViewportLabelSelectionState {
 
             if let Some(selection) = &self.selection
                 && selection.primary.widget_id == response.id
+                && process_selection_key_events(ui.ctx(), galley, response.id, &mut cursor_range)
             {
-                process_selection_key_events(ui.ctx(), galley, response.id, &mut cursor_range);
+                // The keyboard changed the selection, so forget any double- or triple-clicked word/line:
+                self.granular_drag = None;
             }
 
             if got_copy_event(ui.ctx()) || self.report_selection {
