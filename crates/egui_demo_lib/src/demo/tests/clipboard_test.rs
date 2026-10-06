@@ -33,7 +33,8 @@ impl crate::View for ClipboardTest {
 
         let text_edit_response = ui
             .horizontal(|ui| {
-                let text_edit_response = ui.text_edit_singleline(&mut self.text);
+                let text_edit_response =
+                    ui.add(egui::TextEdit::singleline(&mut self.text).hint_text("Text to copy"));
                 if ui.button("📋").clicked() {
                     ui.copy_text(self.text.clone());
                 }

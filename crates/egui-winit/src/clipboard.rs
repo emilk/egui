@@ -38,8 +38,14 @@ pub struct Clipboard {
 }
 
 impl Clipboard {
-    /// Construct a new instance
-    pub fn new(_raw_display_handle: Option<RawDisplayHandle>) -> Self {
+    /// Construct a new instance.
+    ///
+    /// # Safety
+    ///
+    /// If `raw_display_handle` is `Some`, the display handle must remain valid for the
+    /// entire lifetime of the returned `Clipboard` instance.
+    #[expect(unsafe_code)]
+    pub unsafe fn new(_raw_display_handle: Option<RawDisplayHandle>) -> Self {
         Self {
             #[cfg(all(
                 not(any(target_os = "android", target_os = "ios")),
@@ -57,7 +63,8 @@ impl Clipboard {
                 ),
                 feature = "smithay-clipboard"
             ))]
-            smithay: Self::init_smithay(_raw_display_handle),
+            // SAFETY: The caller guarantees that the display handle remains valid.
+            smithay: unsafe { Self::init_smithay(_raw_display_handle) },
 
             clipboard: Default::default(),
         }
@@ -205,27 +212,21 @@ cfg_select! {
         target_os = "netbsd",
         target_os = "openbsd"
     ) => {
-        #[cfg_attr(
-            not(any(feature = "arboard", feature = "smithay-clipboard")),
-            expect(
-                clippy::unused_self,
-                clippy::needless_pass_by_ref_mut,
-                clippy::unnecessary_wraps,
-                reason = "these do nothing without a clipboard backend to talk to"
-            )
-        )]
         impl Clipboard {
+            /// # Safety
+            ///
+            /// The display handle in `raw_display_handle` must remain valid for the
+            /// lifetime of the returned `Clipboard`.
             #[cfg(feature = "smithay-clipboard")]
-            fn init_smithay(
+            #[expect(unsafe_code)]
+            unsafe fn init_smithay(
                 raw_display_handle: Option<RawDisplayHandle>,
             ) -> Option<smithay_clipboard::Clipboard> {
-                #![expect(clippy::undocumented_unsafe_blocks)]
-
                 profiling::function_scope!();
 
                 if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
                     log::trace!("Initializing smithay clipboard…");
-                    #[expect(unsafe_code)]
+                    // SAFETY: The caller guarantees that the display handle remains valid.
                     Some(unsafe { smithay_clipboard::Clipboard::new(display.display.as_ptr()) })
                 } else {
                     #[cfg(feature = "wayland")]
@@ -239,6 +240,14 @@ cfg_select! {
             }
 
             /// `Err` if there is no smithay clipboard; `Ok(None)` if reading failed.
+            #[cfg_attr(
+                not(feature = "smithay-clipboard"),
+                expect(
+                    clippy::unused_self,
+                    clippy::needless_pass_by_ref_mut,
+                    reason = "does nothing without this backend"
+                )
+            )]
             fn smithay_get(&mut self, _selection: Selection) -> Result<Option<String>, Unavailable> {
                 #[cfg(feature = "smithay-clipboard")]
                 if let Some(clipboard) = &mut self.smithay {
@@ -249,7 +258,10 @@ cfg_select! {
 
                     return Ok(match read {
                         Ok(text) => Some(text),
+                        // Smithay uses NotFound when no supported text MIME type is offered.
+                        Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
                         Err(err) => {
+                            // Not fatal: the caller falls back to arboard.
                             log::debug!("smithay paste error: {err}");
                             None
                         }
@@ -260,6 +272,15 @@ cfg_select! {
             }
 
             /// Returns the text back if there is no smithay clipboard to take it.
+            #[cfg_attr(
+                not(feature = "smithay-clipboard"),
+                expect(
+                    clippy::unused_self,
+                    clippy::needless_pass_by_ref_mut,
+                    clippy::unnecessary_wraps,
+                    reason = "does nothing without this backend"
+                )
+            )]
             fn smithay_set(&mut self, _selection: Selection, _text: String) -> Option<String> {
                 #[cfg(feature = "smithay-clipboard")]
                 if let Some(clipboard) = &mut self.smithay {
@@ -273,6 +294,14 @@ cfg_select! {
                 Some(_text)
             }
 
+            #[cfg_attr(
+                not(feature = "arboard"),
+                expect(
+                    clippy::unused_self,
+                    clippy::needless_pass_by_ref_mut,
+                    reason = "does nothing without this backend"
+                )
+            )]
             fn arboard_get_primary(&mut self) -> Option<String> {
                 #[cfg(feature = "arboard")]
                 if let Some(clipboard) = &mut self.arboard {
@@ -296,6 +325,14 @@ cfg_select! {
                 None
             }
 
+            #[cfg_attr(
+                not(feature = "arboard"),
+                expect(
+                    clippy::unused_self,
+                    clippy::needless_pass_by_ref_mut,
+                    reason = "does nothing without this backend"
+                )
+            )]
             fn arboard_set_primary(&mut self, _text: String) {
                 #[cfg(feature = "arboard")]
                 if let Some(clipboard) = &mut self.arboard {
@@ -374,5 +411,60 @@ fn init_arboard() -> Option<arboard::Clipboard> {
             log::warn!("Failed to initialize arboard clipboard: {err}");
             None
         }
+    }
+}
+
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    feature = "arboard",
+))]
+#[cfg(test)]
+mod tests {
+    use super::{color_image_from_arboard, is_expected_content_absence};
+
+    /// Regression test for the spurious `error!`-level log a maintainer caught by manually
+    /// testing an image paste (nothing had exercised this distinction before): only
+    /// `ContentNotAvailable` — clipboard simply doesn't hold the requested content type — is
+    /// expected and should stay silent; every other `arboard::Error` variant is a real failure
+    /// and must still be logged.
+    #[test]
+    fn only_content_not_available_is_treated_as_expected() {
+        assert!(is_expected_content_absence(
+            &arboard::Error::ContentNotAvailable
+        ));
+
+        assert!(!is_expected_content_absence(
+            &arboard::Error::ClipboardNotSupported
+        ));
+        assert!(!is_expected_content_absence(
+            &arboard::Error::ClipboardOccupied
+        ));
+        assert!(!is_expected_content_absence(
+            &arboard::Error::ConversionFailure
+        ));
+        assert!(!is_expected_content_absence(&arboard::Error::Unknown {
+            description: "anything".to_owned(),
+        }));
+    }
+
+    #[test]
+    fn color_image_from_arboard_converts_straight_to_premultiplied_alpha() {
+        // 2x1 image: opaque red, then half-transparent white — straight (unmultiplied) alpha,
+        // as arboard/the OS clipboard would hand it to us.
+        let image = arboard::ImageData {
+            width: 2,
+            height: 1,
+            bytes: std::borrow::Cow::Borrowed(&[255, 0, 0, 255, 255, 255, 255, 128]),
+        };
+        let color_image = color_image_from_arboard(&image);
+        assert_eq!(color_image.size, [2, 1]);
+        assert_eq!(
+            color_image.pixels[0],
+            egui::Color32::from_rgba_unmultiplied(255, 0, 0, 255)
+        );
+        assert_eq!(
+            color_image.pixels[1],
+            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 128)
+        );
     }
 }

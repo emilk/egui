@@ -189,7 +189,7 @@ impl View for MiscDemoWindow {
                     let (response, painter) = ui.allocate_painter(size, Sense::hover());
                     let rect = response.rect;
                     let c = rect.center();
-                    let r = rect.width() / 2.0 - 1.0;
+                    let r = rect.width() * 0.5 - 1.0;
                     let color = Color32::from_gray(128);
                     let stroke = Stroke::new(1.0, color);
                     painter.circle_stroke(c, r, stroke);
@@ -677,7 +677,7 @@ fn ui_stack_demo(ui: &mut Ui) {
                     for node in stack.iter() {
                         body.row(18.0, |mut row| {
                             row.col(|ui| {
-                                let response = ui.label(format!("{:?}", node.id));
+                                let response = ui.label(format!("{:?}", node.unique_id));
 
                                 if response.hovered() {
                                     ui.debug_painter().debug_rect(
@@ -929,7 +929,7 @@ impl TextRotation {
             let (response, painter) = ui.allocate_painter(self.size, Sense::empty());
             let rect = response.rect;
 
-            let start_pos = self.size / 2.0;
+            let start_pos = self.size * 0.5;
 
             let s = ui.ctx().fonts_mut(|f| {
                 let mut t = egui::Shape::text(

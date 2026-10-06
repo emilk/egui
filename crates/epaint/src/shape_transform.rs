@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
+    BandShape, CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
     QuadraticBezierShape, RectShape, Shape, TextShape, color,
 };
 
@@ -44,6 +44,17 @@ pub fn adjust_colors(
         }) => {
             adjust_color(fill);
             adjust_color_mode(&mut stroke.color, adjust_color);
+        }
+
+        Shape::Band(BandShape {
+            points: _,
+            fill,
+            stroke,
+            stroke_kind: _,
+            angle: _,
+        }) => {
+            adjust_color(fill);
+            adjust_color(&mut stroke.color);
         }
 
         Shape::Circle(CircleShape {

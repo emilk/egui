@@ -221,6 +221,7 @@ bytemuck.workspace = true
 image = { workspace = true, features = ["png"] } # For copying images
 js-sys.workspace = true
 percent-encoding.workspace = true
+send_wrapper.workspace = true
 wasm-bindgen.workspace = true
 web-sys = { workspace = true, features = [
   "AddEventListenerOptions",

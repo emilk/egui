@@ -161,6 +161,7 @@ pub struct PaintStats {
     pub shapes: AllocInfo,
     pub shape_text: AllocInfo,
     pub shape_path: AllocInfo,
+    pub shape_band: AllocInfo,
     pub shape_mesh: AllocInfo,
     pub shape_vec: AllocInfo,
     pub num_callbacks: usize,
@@ -178,6 +179,7 @@ impl PaintStats {
     pub fn from_shapes(shapes: &[ClippedShape]) -> Self {
         let mut stats = Self::default();
         stats.shape_path.element_size = ElementSize::Heterogenous; // nicer display later
+        stats.shape_band.element_size = ElementSize::Heterogenous; // nicer display later
         stats.shape_vec.element_size = ElementSize::Heterogenous; // nicer display later
 
         stats.shapes = AllocInfo::from_slice(shapes);
@@ -206,6 +208,9 @@ impl PaintStats {
             | Shape::QuadraticBezier(_) => {}
             Shape::Path(path_shape) => {
                 self.shape_path += AllocInfo::from_slice(&path_shape.points);
+            }
+            Shape::Band(band_shape) => {
+                self.shape_band += AllocInfo::from_slice(&band_shape.points);
             }
             Shape::Text(text_shape) => {
                 self.shape_text += AllocInfo::from_galley(&text_shape.galley);

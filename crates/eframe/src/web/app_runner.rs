@@ -47,7 +47,7 @@ impl AppRunner {
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let egui_ctx = egui::Context::default();
-        egui_ctx.set_glyph_rasterizer(Some(super::canvas_glyphs::glyph_rasterizer()));
+        egui_ctx.add_glyph_rasterizer(super::canvas_glyphs::glyph_rasterizer());
 
         #[allow(clippy::allow_attributes, unused_assignments)]
         #[cfg(feature = "glow")]
@@ -331,6 +331,9 @@ impl AppRunner {
                 ViewportCommand::Screenshot(callback) => {
                     self.screenshot_commands_with_frame_delay
                         .push((callback, 1));
+                }
+                ViewportCommand::SetTheme(_) => {
+                    // Web has no window decorations to theme, egui visuals follow the configured theme.
                 }
                 _ => {
                     // TODO(emilk): handle some of the commands

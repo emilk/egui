@@ -285,9 +285,9 @@ impl CodeTheme {
         #![expect(clippy::needless_return)]
 
         let (id, default) = if style.visuals.dark_mode {
-            (egui::Id::new("dark"), Self::dark as fn(f32) -> Self)
+            (egui::Id::unique("dark"), Self::dark as fn(f32) -> Self)
         } else {
-            (egui::Id::new("light"), Self::light as fn(f32) -> Self)
+            (egui::Id::unique("light"), Self::light as fn(f32) -> Self)
         };
 
         #[cfg(feature = "serde")]
@@ -312,9 +312,9 @@ impl CodeTheme {
     /// There is one dark and one light theme stored at any one time.
     pub fn store_in_memory(self, ctx: &egui::Context) {
         let id = if ctx.global_style().visuals.dark_mode {
-            egui::Id::new("dark")
+            egui::Id::unique("dark")
         } else {
-            egui::Id::new("light")
+            egui::Id::unique("light")
         };
 
         #[cfg(feature = "serde")]
@@ -718,6 +718,7 @@ impl Language {
     fn new(language: &str) -> Option<Self> {
         match language.to_lowercase().as_str() {
             "c" | "h" | "hpp" | "cpp" | "c++" => Some(Self::cpp()),
+            "json" => Some(Self::json()),
             "py" | "python" => Some(Self::python()),
             "rs" | "rust" => Some(Self::rust()),
             "toml" => Some(Self::toml()),
@@ -839,6 +840,14 @@ impl Language {
         }
     }
 
+    fn json() -> Self {
+        Self {
+            double_slash_comments: true, // for json5 etc. Common extension.
+            hash_comments: false,
+            keywords: ["false", "null", "true"].into_iter().collect(),
+        }
+    }
+
     fn python() -> Self {
         Self {
             double_slash_comments: false,
@@ -875,5 +884,38 @@ impl Language {
             hash_comments: true,
             keywords: Default::default(),
         }
+    }
+}
+
+#[cfg(all(test, not(feature = "syntect")))]
+mod tests {
+    use super::{CodeTheme, HighlightSettings, Highlighter, TokenType};
+
+    #[test]
+    fn json() {
+        let theme = CodeTheme::dark(12.0);
+        let text = r#"{"on": true, "off": null}"#;
+        let job = Highlighter::highlight_impl(&theme, text, "json", HighlightSettings(&()))
+            .expect("json is supported");
+
+        let format_of = |token: &str| {
+            let start = text.find(token).expect("token is in text");
+            job.sections
+                .iter()
+                .find(|section| section.byte_range.start == egui::text::ByteIndex(start))
+                .map(|section| section.format.clone())
+        };
+        assert_eq!(
+            format_of("\"on\""),
+            Some(theme.formats[TokenType::StringLiteral].clone())
+        );
+        assert_eq!(
+            format_of("true"),
+            Some(theme.formats[TokenType::Keyword].clone())
+        );
+        assert_eq!(
+            format_of("null"),
+            Some(theme.formats[TokenType::Keyword].clone())
+        );
     }
 }
