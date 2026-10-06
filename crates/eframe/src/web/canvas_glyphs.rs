@@ -8,8 +8,8 @@ use core::cell::RefCell;
 use std::collections::HashMap;
 
 use egui::{
-    ColorImage, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE, RasterizedGlyph,
-    has_emoji_presentation, vec2,
+    ColorImage, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE,
+    RasterizedGlyph, has_emoji_presentation, vec2,
 };
 use wasm_bindgen::JsCast as _;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
@@ -108,12 +108,14 @@ impl CanvasGlyphs {
         } = white;
 
         Some(RasterizedGlyph {
-            image: ColorImage::from_rgba_unmultiplied([width as _, height as _], &rgba),
-            // The pen sits at `(PADDING + left, PADDING + ascent)` in the image,
-            // so the image's top-left is this far from the pen:
-            offset_px: vec2(-(left + PADDING) as f32, -(ascent + PADDING) as f32),
+            bitmap: GlyphBitmap {
+                image: ColorImage::from_rgba_unmultiplied([width as _, height as _], &rgba),
+                // The pen sits at `(PADDING + left, PADDING + ascent)` in the image,
+                // so the image's top-left is this far from the pen:
+                offset_px: vec2(-(left + PADDING) as f32, -(ascent + PADDING) as f32),
+                is_color,
+            },
             advance_px: advance as f32,
-            is_color,
         })
     }
 
@@ -181,12 +183,18 @@ impl CanvasGlyphs {
                 PADDING + ascent,
             )
             .ok()?;
-        let rgba = self
+
+        // `web-sys` changes the signature of `get_image_data` based on `web_sys_unstable_apis`,
+        // so we need to call it differently depending on that cfg.
+        let image_data = cfg_select! {
+            web_sys_unstable_apis => self
             .context
-            .get_image_data(0.0, 0.0, width as f64, height as f64)
-            .ok()?
-            .data()
-            .0;
+            .get_image_data(0, 0, width as i32, height as i32),
+            _ => self
+            .context
+            .get_image_data(0.0, 0.0, width as f64, height as f64),
+        };
+        let rgba = image_data.ok()?.data().0;
 
         Some(Drawn {
             rgba,
@@ -250,7 +258,7 @@ thread_local! {
 }
 
 pub(super) fn glyph_rasterizer() -> GlyphRasterizer {
-    GlyphRasterizer::new(|request| {
+    GlyphRasterizer::new("eframe::web::canvas_glyphs", |request| {
         CANVAS_GLYPHS.with(|glyphs| {
             let mut glyphs = glyphs.borrow_mut();
             if glyphs.is_none() {

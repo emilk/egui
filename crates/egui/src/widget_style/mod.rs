@@ -8,7 +8,7 @@ use emath::{Align2, Vec2};
 use epaint::{Color32, FontId, Stroke};
 
 use crate::{
-    AtomLayout, Context, FontSelection, Frame, Response, Style, UiStack,
+    Context, FontSelection, Frame, Response, Style, UiStack, WidgetAtom,
     class::{Classes, HasClasses as _},
     style::{WidgetVisuals, Widgets},
 };
@@ -50,7 +50,7 @@ impl TextVisuals {
     }
 }
 
-/// Visual and layout style shared by widgets built from an [`AtomLayout`].
+/// Visual and layout style shared by widgets built from a [`WidgetAtom`].
 #[derive(Debug, Clone)]
 pub struct AtomLayoutStyle {
     /// Alignment of the atoms within the allocated rectangle.
@@ -91,11 +91,11 @@ impl Default for AtomLayoutStyle {
 }
 
 impl AtomLayoutStyle {
-    /// Apply this style to an [`AtomLayout`].
+    /// Apply this style to a [`WidgetAtom`].
     ///
-    /// A per-widget [`AtomLayout::gap`] wins over [`Self::gap`], so widgets like
+    /// A per-widget [`WidgetAtom::gap`] wins over [`Self::gap`], so widgets like
     /// [`crate::DragValue`] can pack their atoms tighter than the theme does.
-    pub fn apply(self, mut layout: AtomLayout<'_>) -> AtomLayout<'_> {
+    pub fn apply(self, mut layout: WidgetAtom<'_>) -> WidgetAtom<'_> {
         let Self {
             align2,
             min_size,

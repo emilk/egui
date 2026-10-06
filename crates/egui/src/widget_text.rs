@@ -322,6 +322,26 @@ impl RichText {
         self
     }
 
+    /// The explicit text color set by [`Self::color`], if any.
+    ///
+    /// This does not resolve colors from [`Self::strong`], [`Self::weak`],
+    /// the style, or the widget that paints the text.
+    ///
+    /// ```
+    /// use egui::{Color32, RichText};
+    ///
+    /// let text = RichText::new("Hello");
+    /// assert_eq!(text.color_override(), None);
+    /// assert_eq!(text.color_override().unwrap_or(Color32::WHITE), Color32::WHITE);
+    ///
+    /// let text = text.color(Color32::RED);
+    /// assert_eq!(text.color_override(), Some(Color32::RED));
+    /// ```
+    #[inline]
+    pub fn color_override(&self) -> Option<Color32> {
+        self.text_color
+    }
+
     /// Read the font height of the selected text style.
     ///
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
@@ -558,6 +578,50 @@ impl Default for WidgetText {
 }
 
 impl WidgetText {
+    /// Concatenate several differently styled pieces of text into a single [`WidgetText`].
+    ///
+    /// The pieces are laid out as one paragraph, without any spacing between them.
+    ///
+    /// The style and vertical text alignment of `ui` is used for the pieces,
+    /// so the result should be used in that same `ui`.
+    ///
+    /// ```
+    /// # use egui::{RichText, WidgetText};
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.label(WidgetText::concat(
+    ///     ui,
+    ///     [
+    ///         RichText::new("Normal, "),
+    ///         RichText::new("strong, ").strong(),
+    ///         RichText::new("and small").small(),
+    ///     ],
+    /// ));
+    /// # });
+    /// ```
+    ///
+    /// See also [`Self::concat_with_valign`] and [`RichText::append_to`]
+    /// for more control over the resulting [`LayoutJob`].
+    pub fn concat(ui: &Ui, parts: impl IntoIterator<Item = impl Into<RichText>>) -> Self {
+        Self::concat_with_valign(ui.style(), ui.text_valign(), parts)
+    }
+
+    /// Same as [`Self::concat`], but with an explicit [`Style`] and vertical text alignment.
+    ///
+    /// `valign` is how each piece is aligned against the others,
+    /// and is usually [`Ui::text_valign`].
+    pub fn concat_with_valign(
+        style: &Style,
+        valign: Align,
+        parts: impl IntoIterator<Item = impl Into<RichText>>,
+    ) -> Self {
+        let mut job = LayoutJob::default();
+        for part in parts {
+            part.into()
+                .append_to(&mut job, style, FontSelection::Default, valign);
+        }
+        job.into()
+    }
+
     /// Override the font size.
     ///
     /// For [`Self::Galley`], this does nothing because it has already been laid out.
@@ -886,7 +950,45 @@ impl From<Arc<Galley>> for WidgetText {
 
 #[cfg(test)]
 mod tests {
-    use crate::WidgetText;
+    use crate::{Color32, RichText, Visuals, WidgetText};
+
+    #[test]
+    fn rich_text_color_override_is_explicit() {
+        let visuals = Visuals {
+            override_text_color: Some(Color32::GREEN),
+            ..Visuals::default()
+        };
+        for (text, resolved_color) in [
+            (RichText::new("plain"), visuals.override_text_color),
+            (
+                RichText::new("strong").strong(),
+                Some(visuals.strong_text_color()),
+            ),
+            (
+                RichText::new("weak").weak(),
+                Some(visuals.weak_text_color()),
+            ),
+        ] {
+            assert_eq!(text.color_override(), None);
+            assert_eq!(text.get_text_color(&visuals), resolved_color);
+
+            for color in [Color32::RED, Color32::TRANSPARENT, Color32::PLACEHOLDER] {
+                let colored = text.clone().color(color).strong().weak();
+                assert_eq!(colored.color_override(), Some(color));
+                assert_eq!(colored.get_text_color(&visuals), Some(color));
+            }
+        }
+    }
+
+    #[test]
+    fn rich_text_color_override_tracks_latest_color() {
+        let text = RichText::new("Hello").color(Color32::RED);
+        assert_eq!(text.color_override(), Some(Color32::RED));
+
+        let text = text.color(Color32::BLUE);
+        assert_eq!(text.color_override(), Some(Color32::BLUE));
+        assert_eq!(text.text(), "Hello");
+    }
 
     #[test]
     fn ensure_small_widget_text() {
