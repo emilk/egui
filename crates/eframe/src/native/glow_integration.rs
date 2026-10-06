@@ -36,7 +36,7 @@ use log::warn;
 
 use super::{
     epi_integration, event_loop_context,
-    winit_integration::{EventResult, UserEvent, WinitApp, create_egui_context},
+    winit_integration::{EventResult, PassMode, UserEvent, WinitApp, create_egui_context},
 };
 use crate::epaint::textures::TexturesDelta;
 use crate::{
@@ -523,9 +523,10 @@ impl WinitApp for GlowWinitApp<'_> {
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        mode: PassMode,
     ) -> Result<EventResult> {
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(event_loop, window_id)
+            running.run_ui_and_paint(event_loop, window_id, mode)
         } else {
             Ok(EventResult::Wait)
         }
@@ -628,6 +629,7 @@ impl GlowWinitRunning<'_> {
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        mode: PassMode,
     ) -> Result<EventResult> {
         profiling::function_scope!();
 
@@ -687,8 +689,9 @@ impl GlowWinitRunning<'_> {
             let mut raw_input = egui_winit.take_egui_input(window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
-            let show_ui =
-                is_visible || is_viewport_or_descendant_visible(&glutin.viewports, viewport_id);
+            let show_ui = mode == PassMode::Full
+                && (is_visible
+                    || is_viewport_or_descendant_visible(&glutin.viewports, viewport_id));
 
             self.integration.pre_update();
 
@@ -938,6 +941,11 @@ impl GlowWinitRunning<'_> {
                     )
                 })?;
 
+                // On Wayland this makes winit hold back the next `RedrawRequested` until the
+                // compositor sends a frame callback. That is our frame pacing there, since we
+                // swap with interval 0 on Wayland (see `GlutinWindowContext::new`).
+                // egui-wgpu does the same. A no-op on other platforms.
+                window.pre_present_notify();
                 gl_surface.swap_buffers(context)?;
                 frame_timer.resume();
             }
@@ -1168,7 +1176,17 @@ impl GlutinWindowContext {
             egui_glow::HardwareAcceleration::Preferred => None,
             egui_glow::HardwareAcceleration::Off => Some(false),
         };
-        let swap_interval = if native_options.glow_options.vsync {
+        // On Wayland, winit paces `RedrawRequested` by the compositor's frame callbacks
+        // (see `pre_present_notify`), which is what vsync means there. A blocking swap would add
+        // nothing but a way to hang: a compositor may never present a hidden window's buffer.
+        // See <https://github.com/emilk/egui/issues/5136>.
+        let is_wayland = {
+            use raw_window_handle::{HasDisplayHandle as _, RawDisplayHandle};
+            event_loop
+                .display_handle()
+                .is_ok_and(|handle| matches!(handle.as_raw(), RawDisplayHandle::Wayland(_)))
+        };
+        let swap_interval = if native_options.glow_options.vsync && !is_wayland {
             glutin::surface::SwapInterval::Wait(NonZeroU32::MIN)
         } else {
             glutin::surface::SwapInterval::DontWait
