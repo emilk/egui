@@ -72,9 +72,8 @@ impl WindowChromeMetrics {
         let ns_view = ns_view_from_handle(appkit_handle)?;
         let ns_window = ns_view.window()?;
         let placement = TrafficLightsPlacement {
-            title_bar_top: title_bar_y.min as f64,
-            title_bar_bottom: title_bar_y.max as f64,
-            left_margin: left_margin as f64,
+            title_bar_y,
+            left_margin,
         };
         remember_traffic_lights_placement(&ns_window, placement);
         position_traffic_lights_in_title_bar(&ns_window, placement)?;
@@ -143,9 +142,8 @@ fn traffic_lights_metrics(ns_window: &NSWindow) -> Option<Vec2> {
 
 #[derive(Clone, Copy, Debug)]
 struct TrafficLightsPlacement {
-    title_bar_top: f64,
-    title_bar_bottom: f64,
-    left_margin: f64,
+    title_bar_y: Rangef,
+    left_margin: f32,
 }
 
 /// A window whose traffic lights we keep re-positioning.
@@ -279,11 +277,8 @@ fn position_traffic_lights_in_title_bar(
     // Distance from the top of the window to the center of the buttons.
     // Clamped so the buttons never go above the top of the window.
     let half_button_height = close_button_frame.size.height / 2.0;
-    let center_y =
-        (0.5 * (placement.title_bar_top + placement.title_bar_bottom)).max(half_button_height);
-    let title_bar_height = placement
-        .title_bar_bottom
-        .max(center_y + half_button_height);
+    let center_y = (placement.title_bar_y.center() as f64).max(half_button_height);
+    let title_bar_height = (placement.title_bar_y.max as f64).max(center_y + half_button_height);
 
     // Resize the native title bar so that it covers the buttons.
     // Otherwise taller title bars would push the buttons outside their superview,
@@ -299,7 +294,7 @@ fn position_traffic_lights_in_title_bar(
     title_bar_container.setFrame(container_frame);
     title_bar_view.setFrame(title_bar_container.bounds());
 
-    let x_offset = placement.left_margin - close_button_frame.origin.x;
+    let x_offset = placement.left_margin as f64 - close_button_frame.origin.x;
     let bounds = title_bar_view.bounds();
     let flipped = title_bar_view.isFlipped();
 
