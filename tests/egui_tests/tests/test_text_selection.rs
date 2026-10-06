@@ -408,10 +408,10 @@ fn shift_double_click_should_extend_by_words_backward() {
 
     // Backward: from the middle of "gamma" to the start of "alpha".
     // The anchor stays where it was, in the middle of "gamma":
-    click(&mut harness, pos(14));
+    click(&mut harness, pos(12));
     wait(&mut harness, 1.0);
     shift_double_click(&mut harness, pos(2));
-    assert_eq!(copied_text(&mut harness).as_deref(), Some("alpha beta gam"));
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("alpha beta g"));
 }
 
 #[test]
@@ -583,5 +583,153 @@ fn label_shift_double_click_should_extend_by_words_across_labels_backward() {
     assert!(
         copied.starts_with("beta gamma\ndelta eps") && !copied.ends_with("epsilon"),
         "Expected a word-based extension that keeps the anchor, got {copied:?}"
+    );
+}
+
+/// Like on macOS: after a double-click, the clicked word stays selected
+/// even when shift-clicking before it.
+#[test]
+fn shift_click_before_double_clicked_word_keeps_word() {
+    let (mut harness, char_pos) = text_edit_harness(WORDS);
+    let pos = |i: usize| char_pos.borrow()[i];
+
+    // Double-click on "gamma", then shift-click in "beta":
+    click(&mut harness, pos(13));
+    click(&mut harness, pos(13));
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(8));
+
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("ta gamma"));
+}
+
+#[test]
+fn shift_clicks_on_both_sides_of_double_clicked_word_keep_word() {
+    let (mut harness, char_pos) = text_edit_harness(WORDS);
+    let pos = |i: usize| char_pos.borrow()[i];
+
+    // Double-click on "gamma", then shift-click in "delta":
+    click(&mut harness, pos(13));
+    click(&mut harness, pos(13));
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(19));
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("gamma de"));
+
+    // …then shift-click in "beta". The anchor flips to the end of "gamma":
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(8));
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("ta gamma"));
+
+    // …and back again:
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(19));
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("gamma de"));
+}
+
+#[test]
+fn shift_double_click_before_double_clicked_word_keeps_word() {
+    let (mut harness, char_pos) = text_edit_harness(WORDS);
+    let pos = |i: usize| char_pos.borrow()[i];
+
+    // Double-click on "gamma", then shift-double-click on "beta":
+    click(&mut harness, pos(13));
+    click(&mut harness, pos(13));
+    wait(&mut harness, 1.0);
+    shift_double_click(&mut harness, pos(8));
+
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("beta gamma"));
+}
+
+#[test]
+fn shift_click_before_triple_clicked_line_keeps_line() {
+    let (mut harness, char_pos) = text_edit_harness("alpha beta\ncarrot\ndelta epsilon");
+    let pos = |i: usize| char_pos.borrow()[i];
+
+    // Triple-click on "carrot", then shift-click in "alpha":
+    click(&mut harness, pos(13));
+    click(&mut harness, pos(13));
+    click(&mut harness, pos(13));
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(2));
+
+    assert_eq!(
+        copied_text(&mut harness).as_deref(),
+        Some("pha beta\ncarrot")
+    );
+}
+
+/// A plain click forgets the double-clicked word, so a later shift-click extends from the click.
+#[test]
+fn shift_click_after_plain_click_does_not_keep_double_clicked_word() {
+    let (mut harness, char_pos) = text_edit_harness(WORDS);
+    let pos = |i: usize| char_pos.borrow()[i];
+
+    click(&mut harness, pos(13));
+    click(&mut harness, pos(13));
+    wait(&mut harness, 1.0);
+    click(&mut harness, pos(12));
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(8));
+
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("ta g"));
+}
+
+#[test]
+fn label_shift_click_before_double_clicked_word_keeps_word() {
+    // Note: in these label tests, the center of a character maps to the cursor after it.
+    let (mut harness, pos) = labels_harness_with(THREE_LABELS);
+
+    // Double-click on "gamma", then shift-click in "beta":
+    click(&mut harness, pos(0, 13));
+    click(&mut harness, pos(0, 13));
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(0, 8));
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("a gamma"));
+
+    // Shift-double-click in "alpha" extends by words, still keeping "gamma":
+    wait(&mut harness, 1.0);
+    shift_double_click(&mut harness, pos(0, 2));
+    assert_eq!(
+        copied_text(&mut harness).as_deref(),
+        Some("alpha beta gamma")
+    );
+}
+
+#[test]
+fn label_shift_click_before_double_clicked_word_keeps_word_across_labels() {
+    let (mut harness, pos) = labels_harness_with(THREE_LABELS);
+
+    // Double-click on "epsilon" in the middle label, then shift-click in "beta" in the first:
+    click(&mut harness, pos(1, 9));
+    click(&mut harness, pos(1, 9));
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(0, 8));
+    assert_eq!(
+        copied_text(&mut harness).as_deref(),
+        Some("a gamma\ndelta epsilon")
+    );
+
+    // Shift-double-click in the last label flips the anchor to the start of "epsilon":
+    wait(&mut harness, 1.0);
+    shift_double_click(&mut harness, pos(2, 6));
+    assert_eq!(
+        copied_text(&mut harness).as_deref(),
+        Some("epsilon zeta\neta theta")
+    );
+}
+
+#[test]
+fn label_shift_click_before_triple_clicked_line_keeps_line() {
+    let (mut harness, pos) = labels_harness_with(THREE_LABELS);
+
+    // Triple-click on the middle label, then shift-click in "beta" in the first:
+    click(&mut harness, pos(1, 9));
+    click(&mut harness, pos(1, 9));
+    click(&mut harness, pos(1, 9));
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(0, 8));
+
+    assert_eq!(
+        copied_text(&mut harness).as_deref(),
+        Some("a gamma\ndelta epsilon zeta")
     );
 }
