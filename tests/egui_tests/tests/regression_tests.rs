@@ -363,7 +363,7 @@ fn nested_container_tooltips() {
 
     // Moving between the widgets, inwards and then outwards again:
     let mut harness = build_harness();
-    for (button, expected) in cases.iter().chain(cases.iter().rev()) {
+    for (button, expected) in core::iter::chain(cases.iter(), cases.iter().rev()) {
         harness.get_by_label(button).hover();
         harness.run();
         assert_shown_tooltip(&harness, &TOOLTIPS, Some(expected));
