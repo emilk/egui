@@ -226,8 +226,8 @@ impl ViewportLabelSelectionState {
 
         if ui.input(|i| i.pointer.any_pressed()) {
             // Any new press ends the previous word/line drag.
-            // A shift-click always extends the selection by characters (like in `TextEdit`).
-            // If this press is a double- or triple-click on a label,
+            // A shift-click extends the selection by characters (like in `TextEdit`).
+            // If this press is a double- or triple-click on a label (with or without shift),
             // `on_label` will set this again later this pass:
             self.granular_drag = None;
         }
@@ -639,21 +639,23 @@ impl ViewportLabelSelectionState {
             // If this was a double- or triple-click, remember the clicked word/line
             // so that dragging extends the selection by that granularity:
             if let Some(granular) = cursor_state.granular_drag() {
-                let [anchor_min, anchor_max] = granular.anchor.sorted_cursors();
+                let shift = ui.input(|i| i.modifiers.shift);
+                let [anchor_min, anchor_max] = if let Some(selection) = &self.selection
+                    && shift
+                    && selection.secondary.widget_id != response.id
+                {
+                    // A shift-double-click extending a selection that is anchored in another widget.
+                    // `cursor_state` only sees the edge of this widget, so use the real anchor:
+                    [selection.secondary; 2]
+                } else {
+                    granular.anchor.sorted_cursors().map(|ccursor| {
+                        WidgetTextCursor::new(response.id, ccursor, global_from_galley, galley)
+                    })
+                };
                 self.granular_drag = Some(GranularDrag {
                     granularity: granular.granularity,
-                    anchor_min: WidgetTextCursor::new(
-                        response.id,
-                        anchor_min,
-                        global_from_galley,
-                        galley,
-                    ),
-                    anchor_max: WidgetTextCursor::new(
-                        response.id,
-                        anchor_max,
-                        global_from_galley,
-                        galley,
-                    ),
+                    anchor_min,
+                    anchor_max,
                 });
             }
         }

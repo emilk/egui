@@ -22,6 +22,9 @@ pub(crate) struct GranularDragSelect {
     pub granularity: SelectGranularity,
 
     /// The word or line that was initially clicked.
+    ///
+    /// For a shift-double-click (or triple-click) this is instead the (empty)
+    /// far end of the selection that is being extended.
     pub anchor: CCursorRange,
 }
 
@@ -93,7 +96,8 @@ impl TextCursorState {
     ) -> bool {
         let text = galley.text();
 
-        // Shift-click always extends the selection by characters, even if it is a double- or triple-click:
+        // Shift-click extends the existing selection (handled on press, below),
+        // so don't replace it with the clicked word/line when the click is released:
         let shift = ui.input(|i| i.modifiers.shift);
 
         if response.double_clicked() && !shift {
@@ -111,22 +115,43 @@ impl TextCursorState {
                 // The start of a drag (or a click).
                 // Clicks are counted on release, but for double-click-and-drag
                 // we need to select the word (or line) already on the second (or third) press:
-                let press_click_count = ui.input(|i| i.pointer.press_click_count());
-                if shift {
-                    self.granular_drag = None;
-                    if let Some(mut cursor_range) = self.range(galley) {
+                let granularity = match ui.input(|i| i.pointer.press_click_count()) {
+                    0 | 1 => None,
+                    2 => Some(SelectGranularity::Word),
+                    _ => Some(SelectGranularity::Line),
+                };
+                let existing_range = if shift { self.range(galley) } else { None };
+
+                match (existing_range, granularity) {
+                    (Some(mut cursor_range), None) => {
+                        // Shift-click: extend the selection by characters.
+                        self.granular_drag = None;
                         cursor_range.primary = cursor_at_pointer;
                         self.set_char_range(Some(cursor_range));
-                    } else {
+                    }
+                    (Some(cursor_range), Some(granularity)) => {
+                        // Shift-double-click (or triple-click): keep the anchor of the selection,
+                        // and extend the selection to the word (or line) at the pointer.
+                        // A subsequent drag continues extending by that granularity.
+                        let anchor = CCursorRange::one(cursor_range.secondary);
+                        self.granular_drag = Some(GranularDragSelect {
+                            granularity,
+                            anchor,
+                        });
+                        self.set_char_range(Some(extend_granular_select(
+                            granularity,
+                            anchor,
+                            text,
+                            cursor_at_pointer,
+                        )));
+                    }
+                    (None, Some(granularity)) => {
+                        self.begin_granular_drag(granularity, text, cursor_at_pointer);
+                    }
+                    (None, None) => {
+                        self.granular_drag = None;
                         self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
                     }
-                } else if 3 <= press_click_count {
-                    self.begin_granular_drag(SelectGranularity::Line, text, cursor_at_pointer);
-                } else if press_click_count == 2 {
-                    self.begin_granular_drag(SelectGranularity::Word, text, cursor_at_pointer);
-                } else {
-                    self.granular_drag = None;
-                    self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
                 }
                 true
             } else if is_being_dragged {
@@ -184,8 +209,11 @@ pub(crate) fn select_unit_at(
 
 /// Extend a double- or triple-click selection to also cover the word (or line) at the pointer.
 ///
-/// Returns the union of the anchor word/line and the word/line at the pointer,
+/// Returns the union of the anchor and the word/line at the pointer,
 /// with `primary` at the pointer end.
+///
+/// The anchor is usually the word/line that was double/triple-clicked,
+/// but for a shift-double-click it is the (empty) far end of the previous selection.
 pub(crate) fn extend_granular_select(
     granularity: SelectGranularity,
     anchor: CCursorRange,
@@ -196,14 +224,14 @@ pub(crate) fn extend_granular_select(
     let [anchor_min, anchor_max] = anchor.sorted_cursors();
     let [unit_min, unit_max] = unit.sorted_cursors();
 
-    if unit_min.index < anchor_min.index {
+    if cursor_at_pointer.index < anchor_min.index {
         // Dragging backwards, before the anchor:
         CCursorRange {
             primary: unit_min,
             secondary: anchor_max,
             h_pos: None,
         }
-    } else if anchor_max.index < unit_max.index {
+    } else if anchor_max.index < cursor_at_pointer.index || anchor.is_empty() {
         // Dragging forwards, after the anchor:
         CCursorRange {
             primary: unit_max,

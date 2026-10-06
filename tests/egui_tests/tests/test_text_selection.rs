@@ -53,6 +53,11 @@ fn shift_click<S>(harness: &mut Harness<'_, S>, pos: Pos2) {
     release_with(harness, pos, Modifiers::SHIFT);
 }
 
+fn shift_double_click<S>(harness: &mut Harness<'_, S>, pos: Pos2) {
+    shift_click(harness, pos);
+    shift_click(harness, pos);
+}
+
 /// Let some time pass without any input.
 fn wait<S>(harness: &mut Harness<'_, S>, seconds: f32) {
     for _ in 0..(seconds / STEP_DT).round() as usize {
@@ -379,17 +384,74 @@ fn shift_click_after_double_click_should_extend_by_chars() {
     assert_eq!(copied_text(&mut harness).as_deref(), Some("beta gamma de"));
 }
 
+/// Like on macOS: shift-double-click extends the selection by whole words,
+/// keeping the anchor of the existing selection.
 #[test]
-fn shift_double_click_should_extend_by_chars() {
+fn shift_double_click_should_extend_by_words() {
+    let (mut harness, char_pos) = text_edit_harness(WORDS);
+    let pos = |i: usize| char_pos.borrow()[i];
+
+    // Forward: from the start of "beta" to the end of "delta":
+    click(&mut harness, pos(6));
+    wait(&mut harness, 1.0);
+    shift_double_click(&mut harness, pos(19));
+    assert_eq!(
+        copied_text(&mut harness).as_deref(),
+        Some("beta gamma delta")
+    );
+}
+
+#[test]
+fn shift_double_click_should_extend_by_words_backward() {
+    let (mut harness, char_pos) = text_edit_harness(WORDS);
+    let pos = |i: usize| char_pos.borrow()[i];
+
+    // Backward: from the middle of "gamma" to the start of "alpha".
+    // The anchor stays where it was, in the middle of "gamma":
+    click(&mut harness, pos(14));
+    wait(&mut harness, 1.0);
+    shift_double_click(&mut harness, pos(2));
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("alpha beta gam"));
+}
+
+#[test]
+fn shift_double_click_drag_should_extend_by_words() {
     let (mut harness, char_pos) = text_edit_harness(WORDS);
     let pos = |i: usize| char_pos.borrow()[i];
 
     click(&mut harness, pos(6));
     wait(&mut harness, 1.0);
-    shift_click(&mut harness, pos(19));
-    shift_click(&mut harness, pos(19));
 
-    assert_eq!(copied_text(&mut harness).as_deref(), Some("beta gamma de"));
+    // Shift-double-click on "gamma", keep the button down and drag into "delta":
+    shift_click(&mut harness, pos(13));
+    press_with(&mut harness, pos(13), Modifiers::SHIFT);
+    drag_to(&mut harness, pos(19));
+    assert_eq!(
+        copied_text(&mut harness).as_deref(),
+        Some("beta gamma delta")
+    );
+
+    // Drag back before the anchor, into "alpha":
+    drag_to(&mut harness, pos(2));
+    release_with(&mut harness, pos(2), Modifiers::SHIFT);
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("alpha "));
+}
+
+#[test]
+fn shift_triple_click_should_extend_by_lines() {
+    let (mut harness, char_pos) = text_edit_harness("alpha beta\ncarrot\ndelta epsilon");
+    let pos = |i: usize| char_pos.borrow()[i];
+
+    click(&mut harness, pos(2));
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(13));
+    shift_click(&mut harness, pos(13));
+    shift_click(&mut harness, pos(13));
+
+    assert_eq!(
+        copied_text(&mut harness).as_deref(),
+        Some("pha beta\ncarrot")
+    );
 }
 
 const THREE_LABELS: &[&str] = &["alpha beta gamma", "delta epsilon zeta", "eta theta iota"];
@@ -468,5 +530,58 @@ fn label_shift_click_after_word_drag_should_extend_by_chars() {
     assert!(
         copied.starts_with("beta gamma\ndelta ep") && !copied.ends_with("epsilon"),
         "Expected a character-based extension, got {copied:?}"
+    );
+}
+
+#[test]
+fn label_shift_double_click_should_extend_by_words() {
+    let (mut harness, pos) = labels_harness_with(THREE_LABELS);
+
+    // Within one label, from the start of "beta" to the end of "gamma":
+    click(&mut harness, pos(0, 6));
+    wait(&mut harness, 1.0);
+    shift_double_click(&mut harness, pos(0, 13));
+    assert_eq!(copied_text(&mut harness).as_deref(), Some("beta gamma"));
+}
+
+#[test]
+fn label_shift_double_click_should_extend_by_words_across_labels() {
+    let (mut harness, pos) = labels_harness_with(THREE_LABELS);
+
+    // Forward, from the start of "beta" to the end of "epsilon" in the next label:
+    click(&mut harness, pos(0, 6));
+    wait(&mut harness, 1.0);
+    shift_double_click(&mut harness, pos(1, 9));
+    assert_eq!(
+        copied_text(&mut harness).as_deref(),
+        Some("beta gamma\ndelta epsilon")
+    );
+
+    // Keep extending by words from the same anchor, with a shift-double-click-and-drag:
+    wait(&mut harness, 1.0);
+    shift_click(&mut harness, pos(1, 9));
+    press_with(&mut harness, pos(1, 9), Modifiers::SHIFT);
+    drag_to(&mut harness, pos(2, 6));
+    release_with(&mut harness, pos(2, 6), Modifiers::SHIFT);
+    assert_eq!(
+        copied_text(&mut harness).as_deref(),
+        Some("beta gamma\ndelta epsilon zeta\neta theta")
+    );
+}
+
+#[test]
+fn label_shift_double_click_should_extend_by_words_across_labels_backward() {
+    let (mut harness, pos) = labels_harness_with(THREE_LABELS);
+
+    // Backward, from the middle of "epsilon" to the start of "beta" in the previous label:
+    click(&mut harness, pos(1, 9));
+    wait(&mut harness, 1.0);
+    shift_double_click(&mut harness, pos(0, 8));
+
+    // The selection should start at a word boundary, but end at the anchor inside "epsilon":
+    let copied = copied_text(&mut harness).unwrap_or_default();
+    assert!(
+        copied.starts_with("beta gamma\ndelta eps") && !copied.ends_with("epsilon"),
+        "Expected a word-based extension that keeps the anchor, got {copied:?}"
     );
 }
