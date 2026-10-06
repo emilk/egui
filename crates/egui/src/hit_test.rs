@@ -456,6 +456,7 @@ mod tests {
             interact_rect: rect,
             sense,
             enabled: true,
+            visible: true,
         }
     }
 

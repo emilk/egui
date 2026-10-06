@@ -10,7 +10,7 @@ pub struct SizedAtom<'a> {
 
     /// The size of the atom.
     ///
-    /// Used for placing this atom in [`crate::AtomLayout`], the cursor will advance by
+    /// Used for placing this atom in a [`crate::ContainerAtom`], the cursor will advance by
     /// size.x + gap.
     pub size: Vec2,
 

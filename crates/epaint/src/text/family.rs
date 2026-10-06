@@ -53,7 +53,16 @@ impl Family {
             }
         }
         if chain.is_empty() {
-            log::error!("No font provider has any font for FontFamily::{name:?}");
+            if cfg!(feature = "default_fonts") {
+                log::error!("No font provider has any font for FontFamily::{name:?}");
+            } else {
+                log::error!(
+                    "No font provider has any font for FontFamily::{name:?}. \
+                     No text will be visible. \
+                     Enable the `default_fonts` feature of `epaint`/`egui` to bundle fonts, \
+                     or install a `FontProvider` of your own."
+                );
+            }
         }
 
         Self {
@@ -177,6 +186,15 @@ impl Family {
                 .get_mut(key)
                 .is_some_and(|face| face.glyph_id_resolution(c).is_some())
         })
+    }
+
+    /// The names of the faces in the fallback chain, in priority order.
+    pub fn face_names(&self, faces: &FaceStore) -> Vec<String> {
+        self.chain
+            .iter()
+            .filter_map(|key| faces.get(*key))
+            .map(|face| face.name().to_owned())
+            .collect()
     }
 
     /// All supported characters, and in which faces they are available.

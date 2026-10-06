@@ -679,11 +679,7 @@ impl Window<'_> {
         }
 
         area.with_widget_info(|| {
-            WidgetInfo::labeled(
-                WidgetType::Window,
-                true,
-                title.text().as_deref().unwrap_or(""),
-            )
+            WidgetInfo::labeled(Role::Window, true, title.text().as_deref().unwrap_or(""))
         });
 
         {
@@ -755,7 +751,7 @@ impl Window<'_> {
 
             // Do resize interaction _again_, to move their widget rectangles on TOP of the rest of the window.
             let resize_interaction = do_resize_interaction(
-                ctx,
+                &area_content_ui,
                 possible,
                 area.id(),
                 area_layer_id,
@@ -1019,7 +1015,7 @@ fn move_and_resize_window(ctx: &Context, id: Id, interaction: &ResizeInteraction
     let mut rect = rect_at_start_of_drag; // prevent drift
 
     // Put the rect in the center of the stroke:
-    rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
+    rect = rect.shrink(interaction.window_frame.stroke.width * 0.5);
 
     if interaction.left.drag {
         rect.min.x += total_drag_delta.x;
@@ -1034,13 +1030,13 @@ fn move_and_resize_window(ctx: &Context, id: Id, interaction: &ResizeInteraction
     }
 
     // Return to having the rect outside the stroke:
-    rect = rect.expand(interaction.window_frame.stroke.width / 2.0);
+    rect = rect.expand(interaction.window_frame.stroke.width * 0.5);
 
     Some(rect.round_ui())
 }
 
 fn do_resize_interaction(
-    ctx: &Context,
+    ui: &Ui,
     possible: PossibleInteractions,
     accessibility_parent: Id,
     layer_id: LayerId,
@@ -1059,9 +1055,12 @@ fn do_resize_interaction(
     }
 
     // The rect that is in the middle of the stroke:
-    let rect = outer_rect.shrink(window_frame.stroke.width / 2.0);
+    let rect = outer_rect.shrink(window_frame.stroke.width * 0.5);
 
-    let side_response = |rect, id| {
+    let ctx = ui.ctx();
+    let visible = ui.is_visible();
+
+    let side_response = |rect, id, name: &'static str| {
         ctx.register_accesskit_parent(id, accessibility_parent);
         let response = ctx.create_widget(
             WidgetRect {
@@ -1072,6 +1071,7 @@ fn do_resize_interaction(
                 interact_rect: rect,
                 sense: Sense::DRAG, // Don't use Sense::drag() since we don't want these to be focusable
                 enabled: true,
+                visible,
             },
             true,
             InteractOptions {
@@ -1082,7 +1082,9 @@ fn do_resize_interaction(
             },
         );
 
-        response.widget_info(|| WidgetInfo::new(crate::WidgetType::ResizeHandle));
+        // Named so a screen reader can tell the eight handles apart,
+        // and so the harness' accessibility check is satisfied:
+        response.widget_info(|| WidgetInfo::labeled(Role::Splitter, true, name));
 
         SideResponse {
             hover: response.hovered(),
@@ -1116,6 +1118,7 @@ fn do_resize_interaction(
         let response = side_response(
             vertical_rect(rect.right_top(), rect.right_bottom()),
             id.with("right"),
+            "Resize window right edge",
         );
         right |= response;
     }
@@ -1123,6 +1126,7 @@ fn do_resize_interaction(
         let response = side_response(
             vertical_rect(rect.left_top(), rect.left_bottom()),
             id.with("left"),
+            "Resize window left edge",
         );
         left |= response;
     }
@@ -1130,6 +1134,7 @@ fn do_resize_interaction(
         let response = side_response(
             horizontal_rect(rect.left_bottom(), rect.right_bottom()),
             id.with("bottom"),
+            "Resize window bottom edge",
         );
         bottom |= response;
     }
@@ -1137,6 +1142,7 @@ fn do_resize_interaction(
         let response = side_response(
             horizontal_rect(rect.left_top(), rect.right_top()),
             id.with("top"),
+            "Resize window top edge",
         );
         top |= response;
     }
@@ -1150,7 +1156,11 @@ fn do_resize_interaction(
     // the whole corner is grabbable:
 
     if possible.resize_right || possible.resize_bottom {
-        let response = side_response(corner_rect(rect.right_bottom()), id.with("right_bottom"));
+        let response = side_response(
+            corner_rect(rect.right_bottom()),
+            id.with("right_bottom"),
+            "Resize window bottom-right corner",
+        );
         if possible.resize_right {
             right |= response;
         }
@@ -1160,7 +1170,11 @@ fn do_resize_interaction(
     }
 
     if possible.resize_right || possible.resize_top {
-        let response = side_response(corner_rect(rect.right_top()), id.with("right_top"));
+        let response = side_response(
+            corner_rect(rect.right_top()),
+            id.with("right_top"),
+            "Resize window top-right corner",
+        );
         if possible.resize_right {
             right |= response;
         }
@@ -1170,7 +1184,11 @@ fn do_resize_interaction(
     }
 
     if possible.resize_left || possible.resize_bottom {
-        let response = side_response(corner_rect(rect.left_bottom()), id.with("left_bottom"));
+        let response = side_response(
+            corner_rect(rect.left_bottom()),
+            id.with("left_bottom"),
+            "Resize window bottom-left corner",
+        );
         if possible.resize_left {
             left |= response;
         }
@@ -1180,7 +1198,11 @@ fn do_resize_interaction(
     }
 
     if possible.resize_left || possible.resize_top {
-        let response = side_response(corner_rect(rect.left_top()), id.with("left_top"));
+        let response = side_response(
+            corner_rect(rect.left_top()),
+            id.with("left_top"),
+            "Resize window top-left corner",
+        );
         if possible.resize_left {
             left |= response;
         }
@@ -1230,11 +1252,11 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
     let cr = CornerRadiusF32::from(ui.visuals().window_corner_radius);
 
     // Put the rect in the center of the fixed window stroke:
-    let rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
+    let rect = rect.shrink(interaction.window_frame.stroke.width * 0.5);
 
     // Make sure the inner part of the stroke is at a pixel boundary:
     let stroke = visuals.bg_stroke;
-    let half_stroke = stroke.width / 2.0;
+    let half_stroke = stroke.width * 0.5;
     let rect = rect
         .shrink(half_stroke)
         .round_to_pixels(ui.pixels_per_point())
@@ -1312,7 +1334,7 @@ fn title_ui(
     let heading_font_height =
         ui.fonts_mut(|f| f.row_height(&TextStyle::Heading.resolve(ui.style())));
     let button_allocation_size = Vec2::splat(heading_font_height);
-    let button_shrink = (button_allocation_size - button_size) / 2.0;
+    let button_shrink = (button_allocation_size - button_size) * 0.5;
 
     let collapse_atom_id = IdSalt::new("__window_collapse_button");
     let close_atom_id = IdSalt::new("__window_close_button");
@@ -1345,7 +1367,7 @@ fn title_ui(
 
     let mut child_ui = ui.new_child(UiBuilder::new());
 
-    let mut layout = AtomLayout::new(atoms)
+    let mut layout = WidgetAtom::new(atoms)
         .gap(spacing)
         .fallback_font(TextStyle::Heading)
         .wrap_mode(TextWrapMode::Truncate)
@@ -1381,7 +1403,7 @@ fn title_ui(
         );
         icon_response.widget_info(|| {
             WidgetInfo::labeled(
-                WidgetType::Button,
+                Role::Button,
                 child_ui.is_enabled(),
                 if collapsing.is_open() { "Hide" } else { "Show" },
             )
@@ -1466,8 +1488,7 @@ fn title_ui(
 fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     let close_id = ui.auto_id_with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
-    response
-        .widget_info(|| WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), "Close window"));
+    response.widget_info(|| WidgetInfo::labeled(Role::Button, ui.is_enabled(), "Close window"));
 
     ui.expand_to_include_rect(response.rect);
 

@@ -140,8 +140,8 @@ impl FractalClock {
         };
 
         let hand_rotations = [
-            hands[0].angle - hands[2].angle + TAU / 2.0,
-            hands[1].angle - hands[2].angle + TAU / 2.0,
+            hands[0].angle - hands[2].angle + TAU * 0.5,
+            hands[1].angle - hands[2].angle + TAU * 0.5,
         ];
 
         let hand_rotors = [
