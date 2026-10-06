@@ -90,6 +90,9 @@ pub struct SharedState {
     viewport_from_window: HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
     resized_viewport: Option<ViewportId>,
+
+    /// Passed on to each [`egui_winit::State`]. See [`NativeOptions::clipboard_shortcuts`].
+    clipboard_shortcuts: bool,
 }
 
 pub type Viewports = egui::OrderedViewportIdMap<Viewport>;
@@ -161,6 +164,7 @@ impl<'app> WgpuWinitApp<'app> {
             viewports,
             painter,
             viewport_from_window,
+            clipboard_shortcuts,
             ..
         } = &mut *shared;
 
@@ -170,6 +174,7 @@ impl<'app> WgpuWinitApp<'app> {
                 &running.integration.egui_ctx,
                 viewport_from_window,
                 painter,
+                *clipboard_shortcuts,
             );
         }
     }
@@ -181,6 +186,7 @@ impl<'app> WgpuWinitApp<'app> {
             viewports,
             viewport_from_window,
             painter,
+            clipboard_shortcuts,
             ..
         } = &mut *running.shared.borrow_mut();
 
@@ -192,7 +198,13 @@ impl<'app> WgpuWinitApp<'app> {
             None,
             painter,
         )
-        .initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+        .initialize_window(
+            event_loop,
+            egui_ctx,
+            viewport_from_window,
+            painter,
+            *clipboard_shortcuts,
+        );
     }
 
     #[cfg(target_os = "android")]
@@ -294,7 +306,6 @@ impl<'app> WgpuWinitApp<'app> {
             });
         }
 
-        #[allow(clippy::allow_attributes, unused_mut)] // used for accesskit
         let mut egui_winit = egui_winit::State::new(
             egui_ctx.clone(),
             ViewportId::ROOT,
@@ -303,6 +314,7 @@ impl<'app> WgpuWinitApp<'app> {
             event_loop.system_theme(),
             painter.max_texture_side(),
         );
+        egui_winit.set_clipboard_shortcuts(self.native_options.clipboard_shortcuts);
 
         #[cfg(feature = "accesskit")]
         {
@@ -360,6 +372,7 @@ impl<'app> WgpuWinitApp<'app> {
             painter,
             focused_viewport: Some(ViewportId::ROOT),
             resized_viewport: None,
+            clipboard_shortcuts: self.native_options.clipboard_shortcuts,
         }));
 
         {
@@ -1076,6 +1089,7 @@ impl Viewport {
         egui_ctx: &egui::Context,
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
+        clipboard_shortcuts: bool,
     ) {
         if self.window.is_some() {
             return; // we already have one
@@ -1097,14 +1111,16 @@ impl Viewport {
                     log::error!("on set_window: viewport_id {viewport_id:?} {err}");
                 }
 
-                self.egui_winit = Some(egui_winit::State::new(
+                let mut egui_winit = egui_winit::State::new(
                     egui_ctx.clone(),
                     viewport_id,
                     event_loop,
                     Some(window.scale_factor() as f32),
                     event_loop.system_theme(),
                     painter.max_texture_side(),
-                ));
+                );
+                egui_winit.set_clipboard_shortcuts(clipboard_shortcuts);
+                self.egui_winit = Some(egui_winit);
 
                 egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window, true);
                 self.window = Some(window);
@@ -1176,6 +1192,7 @@ fn render_immediate_viewport(
             viewports,
             painter,
             viewport_from_window,
+            clipboard_shortcuts,
             ..
         } = &mut *shared.borrow_mut();
 
@@ -1189,7 +1206,13 @@ fn render_immediate_viewport(
         );
         if viewport.window.is_none() {
             event_loop_context::with_current_event_loop(|event_loop| {
-                viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+                viewport.initialize_window(
+                    event_loop,
+                    egui_ctx,
+                    viewport_from_window,
+                    painter,
+                    *clipboard_shortcuts,
+                );
             });
         }
 

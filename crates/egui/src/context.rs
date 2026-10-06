@@ -4871,7 +4871,7 @@ fn warn_if_rect_changes_id(
         let prev = create_lookup(prev_widgets.get_layer(*layer_id));
         let new = create_lookup(new_layer_widgets.iter());
 
-        for (hashable_rect, new_at_rect) in new {
+        for (hashable_rect, new_at_rect) in &new {
             let rect = new_at_rect[0].rect;
             if exclusions
                 .iter()
@@ -4880,7 +4880,7 @@ fn warn_if_rect_changes_id(
                 continue;
             }
 
-            let Some(prev_at_rect) = prev.get(&hashable_rect) else {
+            let Some(prev_at_rect) = prev.get(hashable_rect) else {
                 continue; // this rect did not exist in the previous pass
             };
 
@@ -4898,9 +4898,20 @@ fn warn_if_rect_changes_id(
                 continue;
             }
 
-            // If a new id at this rect existed elsewhere in the previous pass, a widget moved
-            // into a vacated position (e.g. after inserting a row into a virtualized list).
-            if new_at_rect.iter().any(|w| prev_widgets.contains(w.id)) {
+            // If a new id at this rect existed elsewhere in the previous pass, and its previous
+            // rect is now empty, then a widget genuinely moved into a vacated position.
+            //
+            // We deliberately do NOT skip when the previous rect of that widget is still occupied
+            // (by some other id). That is the signature of an automatic id shift (#8092, #8084):
+            // one extra auto id is consumed, so every following widget keeps its rect but takes
+            // the id of its next sibling. Each new id "existed elsewhere last pass", but every
+            // old rect is still filled, so nothing actually moved.
+            let moved_into_vacated_rect = new_at_rect.iter().any(|w| {
+                prev_widgets.get(w.id).is_some_and(|prev_w| {
+                    prev_w.layer_id != *layer_id || !new.contains_key(&OrderedRect(prev_w.rect))
+                })
+            });
+            if moved_into_vacated_rect {
                 continue;
             }
 
@@ -5056,6 +5067,52 @@ mod test {
         super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
 
         assert!(shapes.is_empty());
+    }
+
+    /// Regression test: consuming one extra automatic id shifts every following widget in the
+    /// same parent by one id, while all rects stay the same. That must warn.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn rect_id_change_warns_for_auto_id_shift() {
+        use crate::{Id, InteractOptions, LayerId, Rect, Sense, WidgetRect, WidgetRects, pos2};
+
+        let layer_id = LayerId::background();
+        let parent_id = Id::unique("parent");
+        let auto_id = |i: usize| parent_id.with(i);
+        let rect =
+            |i: usize| Rect::from_min_size(pos2(0.0, 10.0 * i as f32), crate::vec2(100.0, 10.0));
+
+        let widget = |id, rect| WidgetRect {
+            id,
+            parent_id,
+            layer_id,
+            rect,
+            interact_rect: rect,
+            sense: Sense::click(),
+            enabled: true,
+            visible: true,
+        };
+
+        let mut previous = WidgetRects::default();
+        let mut current = WidgetRects::default();
+        for i in 0..5 {
+            previous.insert(
+                layer_id,
+                widget(auto_id(i), rect(i)),
+                InteractOptions::default(),
+            );
+            // One hidden auto id was consumed before these widgets this pass:
+            current.insert(
+                layer_id,
+                widget(auto_id(i + 1), rect(i)),
+                InteractOptions::default(),
+            );
+        }
+
+        let mut shapes = Vec::new();
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
+
+        assert!(!shapes.is_empty(), "An automatic id shift should warn");
     }
 
     #[cfg(debug_assertions)]
