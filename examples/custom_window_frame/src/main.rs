@@ -141,8 +141,15 @@ fn title_bar_ui(
     }
 
     if cfg!(target_os = "macos") {
-        // Use the native traffic lights instead of our own buttons:
-        position_traffic_lights(ui.ctx(), frame, title_bar_rect);
+        // Use the native traffic lights instead of our own buttons.
+        // They are centered in a title bar starting at the top of the window,
+        // so give it a height that puts their center at the center of our title bar.
+        // The arguments are in native points, so we scale by the zoom factor.
+        let zoom_factor = ui.ctx().zoom_factor();
+        frame.set_traffic_lights_position(
+            2.0 * title_bar_rect.center().y * zoom_factor,
+            (title_bar_rect.left() + 12.0) * zoom_factor,
+        );
         return;
     }
 
@@ -157,31 +164,6 @@ fn title_bar_ui(
             close_maximize_minimize(ui);
         },
     );
-}
-
-/// Center the native macOS traffic lights in our custom title bar.
-fn position_traffic_lights(ctx: &egui::Context, frame: &eframe::Frame, title_bar_rect: egui::Rect) {
-    cfg_select! {
-        target_os = "macos" => {
-            use raw_window_handle::HasWindowHandle as _;
-
-            let Ok(window_handle) = frame.window_handle() else {
-                return;
-            };
-            // The traffic lights are centered in a title bar starting at the top of the window,
-            // so give it a height that puts its center at the center of our title bar.
-            // The arguments are in native points, so we scale by the zoom factor.
-            let zoom_factor = ctx.zoom_factor();
-            eframe::WindowChromeMetrics::position_traffic_lights(
-                &window_handle.as_raw(),
-                2.0 * title_bar_rect.center().y * zoom_factor,
-                (title_bar_rect.left() + 12.0) * zoom_factor,
-            );
-        }
-        _ => {
-            let _ = (ctx, frame, title_bar_rect);
-        }
-    }
 }
 
 /// Show some close/maximize/minimize buttons for the native window.
