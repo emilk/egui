@@ -1,19 +1,33 @@
 //! Show a custom window frame instead of the default OS window chrome decorations.
+//!
+//! On macOS we keep the native "traffic light" buttons and center them in our custom title bar.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui::{self, ViewportCommand};
 
+const TITLE_BAR_HEIGHT: f32 = 32.0;
+
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_decorations(false) // Hide the OS-specific "chrome" around the window
-            .with_inner_size([400.0, 100.0])
-            .with_min_inner_size([400.0, 100.0])
-            .with_transparent(true), // To have rounded corners we need transparency
+    let viewport = egui::ViewportBuilder::default()
+        .with_inner_size([400.0, 100.0])
+        .with_min_inner_size([400.0, 100.0])
+        .with_transparent(true); // To have rounded corners we need transparency
 
+    let viewport = if cfg!(target_os = "macos") {
+        // Keep the native traffic lights, but let our content fill the whole window:
+        viewport
+            .with_fullsize_content_view(true)
+            .with_titlebar_shown(false)
+            .with_title_shown(false)
+    } else {
+        viewport.with_decorations(false) // Hide the OS-specific "chrome" around the window
+    };
+
+    let options = eframe::NativeOptions {
+        viewport,
         ..Default::default()
     };
     eframe::run_native(
@@ -24,14 +38,23 @@ fn main() -> eframe::Result {
 }
 
 #[derive(Default)]
-struct MyApp {}
+struct MyApp {
+    /// The zoom factor we last positioned the macOS traffic lights for.
+    #[cfg_attr(not(target_os = "macos"), expect(dead_code))]
+    traffic_lights_zoom: Option<f32>,
+}
 
 impl eframe::App for MyApp {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
         egui::Rgba::TRANSPARENT.to_array() // Make sure we don't paint anything behind the rounded corners
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        #[cfg(target_os = "macos")]
+        self.position_traffic_lights(ui.ctx(), frame);
+        #[cfg(not(target_os = "macos"))]
+        let _ = frame;
+
         custom_window_frame(ui, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window.");
             ui.horizontal(|ui| {
@@ -39,6 +62,33 @@ impl eframe::App for MyApp {
                 egui::widgets::global_theme_preference_buttons(ui);
             });
         });
+    }
+}
+
+impl MyApp {
+    /// Center the native macOS traffic lights in our custom title bar.
+    #[cfg(target_os = "macos")]
+    fn position_traffic_lights(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
+        use raw_window_handle::HasWindowHandle as _;
+
+        // The arguments are in native points, so we need to re-apply them when the zoom changes:
+        let zoom_factor = ctx.zoom_factor();
+        if self.traffic_lights_zoom == Some(zoom_factor) {
+            return;
+        }
+        let Ok(window_handle) = frame.window_handle() else {
+            return;
+        };
+        let left_margin = 12.0;
+        if eframe::WindowChromeMetrics::position_traffic_lights(
+            &window_handle.as_raw(),
+            TITLE_BAR_HEIGHT * zoom_factor,
+            left_margin * zoom_factor,
+        )
+        .is_some()
+        {
+            self.traffic_lights_zoom = Some(zoom_factor);
+        }
     }
 }
 
@@ -56,10 +106,9 @@ fn custom_window_frame(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce
 
         ui.expand_to_include_rect(app_rect); // Expand frame to include it all
 
-        let title_bar_height = 32.0;
         let title_bar_rect = {
             let mut rect = app_rect;
-            rect.max.y = rect.min.y + title_bar_height;
+            rect.max.y = rect.min.y + TITLE_BAR_HEIGHT;
             rect
         };
         title_bar_ui(ui, title_bar_rect, title);
@@ -113,6 +162,10 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
 
     if title_bar_response.drag_started_by(PointerButton::Primary) {
         ui.send_viewport_cmd(ViewportCommand::StartDrag);
+    }
+
+    if cfg!(target_os = "macos") {
+        return; // We use the native traffic lights instead
     }
 
     ui.scope_builder(
