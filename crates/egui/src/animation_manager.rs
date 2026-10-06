@@ -95,7 +95,7 @@ impl AnimationManager {
                 let time_since_toggle = (input.time - anim.toggle_time) as f32;
                 // On the frame we toggle we don't want to return the old value,
                 // so we extrapolate forwards by half a frame:
-                let time_since_toggle = time_since_toggle + input.predicted_dt / 2.0;
+                let time_since_toggle = time_since_toggle + input.predicted_dt * 0.5;
                 let current_value = remap_clamp(
                     time_since_toggle,
                     0.0..=animation_time,
@@ -121,7 +121,7 @@ mod tests {
     fn zero_duration_value_animation_reaches_target_immediately() {
         let mut animations = AnimationManager::default();
         let input = InputState::default();
-        let id = Id::new("value_animation");
+        let id = Id::unique("value_animation");
 
         assert_eq!(animations.animate_value(&input, 0.0, id, 0.0), 0.0);
         assert_eq!(animations.animate_value(&input, 0.0, id, 1.0), 1.0);

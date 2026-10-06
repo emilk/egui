@@ -108,7 +108,7 @@ fn title_bar_ui(
 
     let title_bar_response = ui.interact(
         title_bar_rect,
-        Id::new("title_bar"),
+        Id::unique("title_bar"),
         Sense::click_and_drag(),
     );
 

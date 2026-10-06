@@ -76,8 +76,8 @@ pub fn viewport_builder(
                 .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
             if 0.0 < monitor_size.width && 0.0 < monitor_size.height {
-                let x = (monitor_size.width - inner_size.x) / 2.0;
-                let y = (monitor_size.height - inner_size.y) / 2.0;
+                let x = (monitor_size.width - inner_size.x) * 0.5;
+                let y = (monitor_size.height - inner_size.y) * 0.5;
                 viewport_builder = viewport_builder.with_position([x, y]);
             }
         }
@@ -147,6 +147,35 @@ pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi
 
 // ----------------------------------------------------------------------------
 
+/// Stands in for the system font provider when the `system_fonts` feature is off.
+///
+/// It never finds a font, but tells you once why nothing was even looked for,
+/// so missing CJK/Arabic/emoji glyphs don't look like an egui bug.
+#[cfg(not(feature = "system_fonts"))]
+#[derive(Default)]
+struct MissingSystemFontsWarning {
+    warned: core::sync::atomic::AtomicBool,
+}
+
+#[cfg(not(feature = "system_fonts"))]
+impl egui::FontProvider for MissingSystemFontsWarning {
+    fn font_for(&self, request: &egui::FallbackRequest<'_>) -> Option<egui::FontInsert> {
+        use core::sync::atomic::Ordering::Relaxed;
+        if !self.warned.swap(true, Relaxed) {
+            log::info!(
+                "No font has {:?}. \
+                 Enable the `system_fonts` feature in `eframe`, \
+                 add a font with `egui::Context::add_font`, \
+                 or set `NativeOptions::system_font_fallback` to `false` to silence this.",
+                request.cluster
+            );
+        }
+        None
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Everything needed to make a winit-based integration for [`epi`].
 ///
 /// Only one instance per app (not one per viewport).
@@ -196,10 +225,16 @@ impl EpiIntegration {
             #[cfg(feature = "glow")]
             glow_register_native_texture,
             #[cfg(feature = "wgpu_no_default_features")]
+            // We only care about the surface config if we are using wgpu
+            wgpu_surface_config: wgpu_render_state
+                .is_some()
+                .then_some(native_options.wgpu_options.surface),
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
             window: Some(Arc::clone(window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
+            activation_token: None,
         };
 
         let icon = native_options
@@ -216,6 +251,13 @@ impl EpiIntegration {
                 .unwrap_or_else(|| app_name.to_owned()),
             Some(icon),
         );
+
+        if native_options.system_font_fallback {
+            egui_ctx.add_font_provider(cfg_select! {
+                feature = "system_fonts" => Arc::new(egui_system_fonts::SystemFontProvider::new()),
+                _ => Arc::new(MissingSystemFontsWarning::default()),
+            });
+        }
 
         Self {
             frame,

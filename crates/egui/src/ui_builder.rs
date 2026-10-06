@@ -28,6 +28,8 @@ pub struct UiBuilder {
     pub style: Option<Arc<Style>>,
     pub sense: Option<Sense>,
     pub accessibility_parent: Option<Id>,
+    pub accessibility_label: Option<String>,
+    pub accessibility_role: Option<crate::accesskit::Role>,
     pub classes: Classes,
 }
 
@@ -48,7 +50,7 @@ impl UiBuilder {
     }
 
     /// Seed the child `Ui` with this `id_salt`, which will be mixed
-    /// with the [`Ui::id`] of the parent.
+    /// with the [`Ui::scope_id`] of the parent.
     ///
     /// You should give each [`Ui`] an `id_salt` that is unique
     /// within the parent, or give it none at all.
@@ -58,19 +60,26 @@ impl UiBuilder {
         self
     }
 
-    /// Set an id of the new `Ui` that is independent of the parent `Ui`.
+    /// Set the [`Ui::scope_id`] of the new `Ui` to something independent of the parent `Ui`.
     /// This way child widgets can be moved in the ui tree without losing state.
     /// You have to ensure that in a frame the child widgets do not get rendered in multiple places.
     ///
-    /// You should set the same unique `id` at every place in the ui tree where you want the
+    /// You should set the same unique `scope_id` at every place in the ui tree where you want the
     /// child widgets to share state.
     /// If the child widgets are not moved in the ui tree, use [`UiBuilder::id_salt`] instead.
     ///
-    /// This is a shortcut for `.id_salt(my_id).global_scope(true)`.
+    /// The `scope_id` is also used as the [`Ui::unique_id`] of the new `Ui`, so it must be globally unique.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id_source = Some(IdSource::Explicit(id));
+    pub fn scope_id(mut self, scope_id: Id) -> Self {
+        self.id_source = Some(IdSource::Explicit(scope_id));
         self
+    }
+
+    /// Renamed to [`Self::scope_id`].
+    #[deprecated = "Renamed to `UiBuilder::scope_id`"]
+    #[inline]
+    pub fn id(self, id: Id) -> Self {
+        self.scope_id(id)
     }
 
     /// Provide some information about the new `Ui` being built.
@@ -187,11 +196,31 @@ impl UiBuilder {
 
     /// Set the accessibility parent for this [`Ui`].
     ///
+    /// Pass [`Ui::unique_id`] or `Response::id`, not [`Ui::scope_id`].
+    ///
     /// This will override the automatic parent assignment for accessibility purposes.
     /// If not set, the parent [`Ui`]'s ID will be used as the accessibility parent.
     #[inline]
     pub fn accessibility_parent(mut self, parent_id: Id) -> Self {
         self.accessibility_parent = Some(parent_id);
+        self
+    }
+
+    /// Name this [`Ui`] in the accessibility tree.
+    ///
+    /// Every `Ui` is a node there, with a role from its [`UiKind`](crate::UiKind).
+    /// A name lets a screen reader, or a test, tell this panel, popup or region from the others.
+    #[inline]
+    pub fn accessibility_label(mut self, label: impl Into<String>) -> Self {
+        self.accessibility_label = Some(label.into());
+        self
+    }
+
+    /// Give this [`Ui`]'s node a role other than the one its [`UiKind`](crate::UiKind) implies,
+    /// e.g. [`Role::Alert`](crate::accesskit::Role::Alert) for a toast.
+    #[inline]
+    pub fn accessibility_role(mut self, role: crate::accesskit::Role) -> Self {
+        self.accessibility_role = Some(role);
         self
     }
 }

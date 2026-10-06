@@ -161,6 +161,9 @@ pub trait App {
     /// [`egui::InputState::viewport`], but the rest of [`egui::Context::input`]
     /// (events, time, …) is that of the last shown frame.
     ///
+    /// Send [`egui::ViewportCommand::RequestPaintWhileHidden`] if you want `App::ui` to be called
+    /// even if the application is hidden.
+    ///
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force another call to [`Self::logic`], call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
@@ -378,6 +381,15 @@ pub struct NativeOptions {
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
 
+    /// Load system fonts on demand for characters that the installed fonts lack,
+    /// e.g. CJK, Arabic, or Devanagari (only if the `system_fonts` feature is enabled).
+    ///
+    /// Turn this off if you bundle fonts that cover everything your app shows,
+    /// or if you need identical text rendering on all machines.
+    ///
+    /// Default: `true`.
+    pub system_font_fallback: bool,
+
     /// The folder where `eframe` will store the app state. If not set, eframe will use a default
     /// data storage path for each target system.
     pub persistence_path: Option<std::path::PathBuf>,
@@ -390,6 +402,25 @@ pub struct NativeOptions {
     ///
     /// Defaults to true.
     pub dithering: bool,
+
+    /// Should the platform clipboard keyboard shortcuts
+    /// (e.g. <kbd>Cmd/Ctrl</kbd>+<kbd>X</kbd>/<kbd>C</kbd>/<kbd>V</kbd>)
+    /// be translated into [`egui::Event::Cut`], [`egui::Event::Copy`] and [`egui::Event::Paste`]?
+    ///
+    /// Set this to `false` if you want to handle these key combinations yourself.
+    /// They will then arrive as ordinary [`egui::Event::Key`] events instead.
+    /// Note that built-in widgets such as [`egui::TextEdit`] will then no longer
+    /// respond to these shortcuts.
+    ///
+    /// This applies to all viewports.
+    /// See also `egui_winit::State::set_clipboard_shortcuts`.
+    ///
+    /// There is no web equivalent: on the web, Cut/Copy/Paste come from the browser's
+    /// clipboard events (which can also be triggered from e.g. the browser menu),
+    /// and the key presses are always also delivered as [`egui::Event::Key`].
+    ///
+    /// Defaults to true.
+    pub clipboard_shortcuts: bool,
 
     /// Android application for `winit`'s event loop.
     ///
@@ -462,9 +493,13 @@ impl Default for NativeOptions {
 
             persist_window: true,
 
+            system_font_fallback: true,
+
             persistence_path: None,
 
             dithering: true,
+
+            clipboard_shortcuts: true,
 
             #[cfg(target_os = "android")]
             android_app: None,
@@ -679,6 +714,15 @@ pub struct Frame {
     #[doc(hidden)]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
+    /// The surface config the app wants the `wgpu` renderer to use.
+    ///
+    /// `None` unless we are rendering with `wgpu`.
+    ///
+    /// eframe pushes this into the painter once per frame, before painting.
+    #[cfg(feature = "wgpu_no_default_features")]
+    #[doc(hidden)]
+    pub wgpu_surface_config: Option<egui_wgpu::SurfaceConfig>,
+
     /// The current [`winit::window::Window`] (i.e. the one the active viewport is rendered to).
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) window: Option<std::sync::Arc<winit::window::Window>>,
@@ -690,6 +734,11 @@ pub struct Frame {
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
+
+    /// The activation token the windowing system last handed us, waiting to be
+    /// taken by the app. See [`Frame::request_activation_token`].
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) activation_token: Option<String>,
 }
 
 // Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
@@ -730,9 +779,13 @@ impl Frame {
             raw_window_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
             window: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            activation_token: None,
             storage: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: None,
+            #[cfg(feature = "wgpu_no_default_features")]
+            wgpu_surface_config: None,
         }
     }
 
@@ -810,6 +863,50 @@ impl Frame {
         }
     }
 
+    /// Ask the windowing system for a fresh activation token (Linux only).
+    ///
+    /// The token lets you hand your focus to a process you are about to spawn:
+    /// pass it in the `XDG_ACTIVATION_TOKEN` environment variable and the
+    /// compositor grants the new window focus instead of tripping its
+    /// focus-stealing prevention. On X11 the token is a startup-notification id,
+    /// which the child reads from `DESKTOP_STARTUP_ID`.
+    ///
+    /// The answer arrives asynchronously, a frame or more later — collect it
+    /// with [`Frame::take_activation_token`]. Nothing is delivered on platforms
+    /// without an activation protocol, so give up after a deadline of your own
+    /// rather than waiting forever.
+    ///
+    /// This is a no-op off Linux, and when running headless.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn request_activation_token(&self) {
+        let Some(window) = self.window.as_ref() else {
+            return;
+        };
+
+        cfg_select! {
+            all(any(feature = "wayland", feature = "x11"), target_os = "linux") => {
+                use winit::platform::startup_notify::WindowExtStartupNotify as _;
+                if let Err(err) = window.request_activation_token() {
+                    log::debug!("request_activation_token failed: {err}");
+                }
+            }
+            _ => {
+                let _ = window;
+            }
+        }
+    }
+
+    /// Take the activation token asked for with
+    /// [`Frame::request_activation_token`], if one has arrived.
+    ///
+    /// Returns it at most once: a token is single-use, and the compositor
+    /// invalidates it shortly after issuing it, so spawn the child process
+    /// with it right away rather than storing it.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn take_activation_token(&mut self) -> Option<String> {
+        self.activation_token.take()
+    }
+
     /// A reference to the underlying [`glow`] (OpenGL) context.
     ///
     /// This can be used, for instance, to:
@@ -847,25 +944,27 @@ impl Frame {
         self.wgpu_render_state.as_ref()
     }
 
-    /// The currently-applied runtime surface config (present mode, frame latency)
-    /// used by the `wgpu` renderer, if any.
+    /// The surface config (present mode, frame latency) the app wants the `wgpu`
+    /// renderer to use.
     ///
-    /// Returns `None` when not using the `wgpu` backend.
+    /// `None` unless we are rendering with `wgpu`.
     #[cfg(feature = "wgpu_no_default_features")]
     pub fn wgpu_surface_config(&self) -> Option<egui_wgpu::SurfaceConfig> {
-        self.wgpu_render_state
-            .as_ref()
-            .map(|state| state.surface_config)
+        self.wgpu_surface_config
     }
 
-    /// Set the runtime surface config (present mode, frame latency) for the `wgpu`
-    /// renderer. The surface is reconfigured on the next paint.
+    /// Set the surface config (present mode, frame latency) the app wants the `wgpu`
+    /// renderer to use.
     ///
-    /// No-op when not using the `wgpu` backend.
+    /// No-op unless we are rendering with `wgpu`.
+    ///
+    /// The config might not take effect if the surface does not support the
+    /// requested present mode. On web the config is ignored, since the browser
+    /// controls presentation via `requestAnimationFrame`.
     #[cfg(feature = "wgpu_no_default_features")]
     pub fn set_wgpu_surface_config(&mut self, config: egui_wgpu::SurfaceConfig) {
-        if let Some(state) = &mut self.wgpu_render_state {
-            state.surface_config = config;
+        if let Some(current) = &mut self.wgpu_surface_config {
+            *current = config;
         }
     }
 }

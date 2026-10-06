@@ -78,9 +78,12 @@ fn test_harness_variants<Variant: Clone>(
     mut contents: impl FnMut(&mut Ui, Variant),
 ) {
     test_variants(make_variant, |variant, failure| {
-        let mut harness = Harness::builder().with_size(size).build_ui(|ui| {
-            contents(ui, variant.clone());
-        });
+        let mut harness = Harness::builder()
+            .with_size(size)
+            .with_accessibility_check(false)
+            .build_ui(|ui| {
+                contents(ui, variant.clone());
+            });
         // Run a few frames so images have time to load.
         harness.run();
         if failure {

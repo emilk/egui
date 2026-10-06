@@ -15,11 +15,22 @@ pub(crate) struct AppKindEframe<State> {
     pub frame: eframe::Frame,
 }
 
+/// What [`AppKind::run_ui`] produces for the `Ui` kinds.
+pub(crate) struct UiRunOutput {
+    /// The response of the scope wrapping the ui closure.
+    pub response: egui::Response,
+
+    /// The [`egui::Ui::scope_id`] of the `Ui` passed to the ui closure.
+    pub ui_id: egui::Id,
+}
+
 pub(crate) enum AppKind<'a, State> {
     Ui(AppKindUi<'a>),
     UiState(AppKindUiState<'a, State>),
     #[cfg(feature = "eframe")]
-    Eframe(AppKindEframe<State>),
+    // Boxed: `eframe::Frame` is far larger than the two closures, and an
+    // unboxed variant makes the whole enum that size.
+    Eframe(Box<AppKindEframe<State>>),
 }
 
 impl<State> AppKind<'_, State> {
@@ -32,10 +43,11 @@ impl<State> AppKind<'_, State> {
         ui: &mut egui::Ui,
         state: &mut State,
         sizing_pass: bool,
-    ) -> Option<egui::Response> {
+    ) -> Option<UiRunOutput> {
         match self {
             #[cfg(feature = "eframe")]
-            AppKind::Eframe(AppKindEframe { get_app, frame, .. }) => {
+            AppKind::Eframe(eframe_kind) => {
+                let AppKindEframe { get_app, frame, .. } = &mut **eframe_kind;
                 let app = get_app(state);
                 app.logic(ui, frame);
                 app.ui(ui, frame);
@@ -45,30 +57,32 @@ impl<State> AppKind<'_, State> {
         }
     }
 
-    fn run_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        state: &mut State,
-        sizing_pass: bool,
-    ) -> egui::Response {
+    fn run_ui(&mut self, ui: &mut egui::Ui, state: &mut State, sizing_pass: bool) -> UiRunOutput {
         let mut builder = egui::UiBuilder::new();
         if sizing_pass {
             builder.sizing_pass = true;
         }
-        ui.scope_builder(builder, |ui| {
+        let egui::InnerResponse {
+            inner: ui_id,
+            response,
+        } = ui.scope_builder(builder, |ui| {
             Frame::central_panel(ui.style())
                 // Only set outer margin, so we show no frame for tests with only free-floating windows/popups:
                 .outer_margin(8.0)
                 .inner_margin(0.0)
-                .show(ui, |ui| match self {
-                    AppKind::Ui(f) => f(ui),
-                    AppKind::UiState(f) => f(ui, state),
-                    #[cfg(feature = "eframe")]
-                    AppKind::Eframe(_) => unreachable!(
-                        "run_ui should only be called with AppKind::Ui or AppKind::UiState"
-                    ),
-                });
-        })
-        .response
+                .show(ui, |ui| {
+                    match self {
+                        AppKind::Ui(f) => f(ui),
+                        AppKind::UiState(f) => f(ui, state),
+                        #[cfg(feature = "eframe")]
+                        AppKind::Eframe(_) => unreachable!(
+                            "run_ui should only be called with AppKind::Ui or AppKind::UiState"
+                        ),
+                    }
+                    ui.scope_id()
+                })
+                .inner
+        });
+        UiRunOutput { response, ui_id }
     }
 }
