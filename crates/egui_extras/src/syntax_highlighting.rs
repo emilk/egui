@@ -667,9 +667,9 @@ impl Highlighter {
                     theme.formats[TokenType::StringLiteral].clone(),
                 );
                 text = &text[end..];
-            } else if text.starts_with(|c: char| c.is_ascii_alphanumeric() || c == '_') {
+            } else if text.starts_with(is_word_char) {
                 let end = text[1..]
-                    .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                    .find(|c: char| !is_word_char(c))
                     .map_or_else(|| text.len(), |i| i + 1);
                 let word = &text[..end];
                 let tt = if language.is_keyword(word) {
@@ -704,6 +704,12 @@ impl Highlighter {
 
         Some(job)
     }
+}
+
+/// Can this character be part of a word (identifier or keyword)?
+#[cfg(not(feature = "syntect"))]
+fn is_word_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_'
 }
 
 #[cfg(not(feature = "syntect"))]
