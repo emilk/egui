@@ -80,7 +80,7 @@ serde = ["dep:serde", "epaint/serde", "accesskit/serde"]
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
 
-## Expose [`DroppedFile::web_file`], the browser `File` handle of a dropped file (wasm32 only).
+## Expose `DroppedFile::web_file`, the browser `File` handle of a dropped file (wasm32 only).
 ##
 ## This pulls in `web-sys`, and with it `js-sys` and `wasm-bindgen`, which add `wasm-bindgen`
 ## symbols to the final binary. Integrations that are not `wasm-bindgen`-based can leave it off.
