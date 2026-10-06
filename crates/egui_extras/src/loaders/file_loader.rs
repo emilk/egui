@@ -53,42 +53,42 @@ fn convert_uri_to_decoded_path(uri: &str) -> Option<PathBuf> {
     let s = uri.strip_prefix(PROTOCOL)?;
     let bytes = percent_decode(s)?;
 
-    #[cfg(unix)]
-    {
-        use std::os::unix::ffi::OsStringExt as _;
-        Some(PathBuf::from(std::ffi::OsString::from_vec(bytes)))
-    }
-
-    #[cfg(not(unix))]
-    {
-        let s = String::from_utf8(bytes).ok()?;
-        Some(uri_path_to_path(&s))
+    cfg_select! {
+        unix => {
+            use std::os::unix::ffi::OsStringExt as _;
+            Some(PathBuf::from(std::ffi::OsString::from_vec(bytes)))
+        }
+        _ => {
+            let s = String::from_utf8(bytes).ok()?;
+            Some(uri_path_to_path(&s))
+        }
     }
 }
 
 /// Converts the part of a `file://` uri after the protocol into a path.
 fn uri_path_to_path(s: &str) -> PathBuf {
-    if cfg!(target_os = "windows") {
-        // Standard windows file uris should have the form
-        //
-        // file:///c:/path/to/the%20file.txt
-        //
-        // in which the hostname field is left out. Check for this by looking at the next character
-        // after the schema, if it's a slash then we likely have a standard file path.
-        if let Some(stripped) = s.strip_prefix("/") {
-            return PathBuf::from(stripped);
+    cfg_select! {
+        target_os = "windows" => {
+            // Standard windows file uris should have the form
+            //
+            // file:///c:/path/to/the%20file.txt
+            //
+            // in which the hostname field is left out. Check for this by looking at the next character
+            // after the schema, if it's a slash then we likely have a standard file path.
+            if let Some(stripped) = s.strip_prefix("/") {
+                PathBuf::from(stripped)
+            } else {
+                // If it's not a standard file uri, it might be a UNC network path of the form
+                //
+                // file://hostname/path/to/the%20file.txt
+                //
+                // These file uris need to be converted into UNC correct and so need to have the leading
+                // two backslashes prepended.
+                PathBuf::from(format!("\\\\{s}"))
+            }
         }
-
-        // If it's not a standard file uri, it might be a UNC network path of the form
-        //
-        // file://hostname/path/to/the%20file.txt
-        //
-        // These file uris need to be converted into UNC correct and so need to have the leading
-        // two backslashes prepended.
-        return PathBuf::from(format!("\\\\{s}"));
+        _ => PathBuf::from(s),
     }
-
-    PathBuf::from(s)
 }
 
 /// Percent-decodes `%XX` escapes, leaving any invalid escape (like `%zz` or a trailing `%`) as-is.
@@ -143,21 +143,24 @@ fn read_file(path: &Path, decoded_path: Option<&Path>) -> Result<File, String> {
         },
     };
 
-    #[cfg(feature = "file")]
-    let mime = mime_guess2::from_path(path)
-        .first_raw()
-        .map(|v| v.to_owned());
-
-    #[cfg(not(feature = "file"))]
-    let mime = {
-        _ = path;
-        None
-    };
-
     Ok(File {
         bytes: bytes.into(),
-        mime,
+        mime: guess_mime(path),
     })
+}
+
+fn guess_mime(path: &Path) -> Option<String> {
+    cfg_select! {
+        feature = "file" => {
+            mime_guess2::from_path(path)
+                .first_raw()
+                .map(|v| v.to_owned())
+        }
+        _ => {
+            _ = path;
+            None
+        }
+    }
 }
 
 impl BytesLoader for FileLoader {
@@ -325,13 +328,13 @@ mod tests {
             Some(&b"a b.png"[..])
         );
         assert_eq!(
-            percent_decode("caf%C3%A9.png").as_deref(),
-            Some("café.png".as_bytes()),
+            percent_decode("na%C3%AFve.png").as_deref(),
+            Some("naïve.png".as_bytes()),
             "multi-byte UTF-8"
         );
         assert_eq!(
-            percent_decode("caf%c3%a9.png").as_deref(),
-            Some("café.png".as_bytes()),
+            percent_decode("na%c3%afve.png").as_deref(),
+            Some("naïve.png".as_bytes()),
             "lower-case hex"
         );
         assert_eq!(
@@ -352,7 +355,7 @@ mod tests {
         assert_eq!(percent_decode("%zz%20%").as_deref(), Some(&b"%zz %"[..]));
 
         // Invalid UTF-8 is kept losslessly:
-        assert_eq!(percent_decode("caf%E9").as_deref(), Some(&b"caf\xE9"[..]));
+        assert_eq!(percent_decode("na%EFve").as_deref(), Some(&b"na\xEFve"[..]));
     }
 
     #[test]
@@ -369,8 +372,8 @@ mod tests {
                 Some(PathBuf::from("c:\\path\\to\\the image.jpg")),
             );
             assert_eq!(
-                convert_uri_to_decoded_path("file://host/share/caf%C3%A9.jpg"),
-                Some(PathBuf::from("\\\\host\\share\\café.jpg")),
+                convert_uri_to_decoded_path("file://host/share/na%C3%AFve.jpg"),
+                Some(PathBuf::from("\\\\host\\share\\naïve.jpg")),
             );
         } else {
             assert_eq!(
@@ -378,26 +381,28 @@ mod tests {
                 Some(PathBuf::from("/path/to/the image.jpg")),
             );
             assert_eq!(
-                convert_uri_to_decoded_path("file:///caf%C3%A9/100%25.jpg"),
-                Some(PathBuf::from("/café/100%.jpg")),
+                convert_uri_to_decoded_path("file:///na%C3%AFve/100%25.jpg"),
+                Some(PathBuf::from("/naïve/100%.jpg")),
             );
         }
 
-        #[cfg(unix)]
-        {
-            use std::os::unix::ffi::OsStrExt as _;
-            assert_eq!(
-                convert_uri_to_decoded_path("file:///caf%E9.jpg"),
-                Some(PathBuf::from(std::ffi::OsStr::from_bytes(b"/caf\xE9.jpg"))),
-                "invalid UTF-8 is a valid path on unix"
-            );
+        cfg_select! {
+            unix => {
+                use std::os::unix::ffi::OsStrExt as _;
+                assert_eq!(
+                    convert_uri_to_decoded_path("file:///na%EFve.jpg"),
+                    Some(PathBuf::from(std::ffi::OsStr::from_bytes(b"/na\xEFve.jpg"))),
+                    "invalid UTF-8 is a valid path on unix"
+                );
+            }
+            _ => {
+                assert_eq!(
+                    convert_uri_to_decoded_path("file:///c:/na%EFve.jpg"),
+                    None,
+                    "invalid UTF-8 can't be decoded"
+                );
+            }
         }
-        #[cfg(not(unix))]
-        assert_eq!(
-            convert_uri_to_decoded_path("file:///c:/caf%E9.jpg"),
-            None,
-            "invalid UTF-8 can't be decoded"
-        );
     }
 
     #[test]
