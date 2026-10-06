@@ -770,7 +770,7 @@ impl Frame {
     /// Position the native macOS "traffic lights" (close/minimize/maximize buttons)
     /// in a custom title bar.
     ///
-    /// The buttons are centered vertically in `title_bar`
+    /// The buttons are centered vertically in `title_bar_y`
     /// (the y-range of your title bar, measured from the top of the window),
     /// with the close button `left_margin` from the left edge.
     ///
@@ -781,7 +781,7 @@ impl Frame {
     /// See `WindowChromeMetrics::position_traffic_lights` for details.
     ///
     /// Does nothing on other platforms.
-    pub fn set_traffic_lights_position(&self, title_bar: egui::Rangef, left_margin: f32) {
+    pub fn set_traffic_lights_position(&self, title_bar_y: egui::Rangef, left_margin: f32) {
         cfg_select! {
             all(
                 target_os = "macos",
@@ -790,13 +790,13 @@ impl Frame {
                 if let Ok(window_handle) = &self.raw_window_handle {
                     crate::native::macos::WindowChromeMetrics::position_traffic_lights(
                         window_handle,
-                        title_bar,
+                        title_bar_y,
                         left_margin,
                     );
                 }
             }
             _ => {
-                let _ = (self, title_bar, left_margin);
+                let _ = (self, title_bar_y, left_margin);
             }
         }
     }

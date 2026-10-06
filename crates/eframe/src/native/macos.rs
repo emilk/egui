@@ -41,7 +41,7 @@ impl WindowChromeMetrics {
 
     /// Position the traffic lights in a custom title bar.
     ///
-    /// The buttons are centered vertically in `title_bar`
+    /// The buttons are centered vertically in `title_bar_y`
     /// (the y-range of your title bar, measured from the top of the window),
     /// with the close button `left_margin` from the left edge of the window.
     /// The native spacing between the buttons is preserved.
@@ -61,7 +61,7 @@ impl WindowChromeMetrics {
     /// Returns the updated window chrome metrics, or `None` on failure.
     pub fn position_traffic_lights(
         window_handle: &RawWindowHandle,
-        title_bar: Rangef,
+        title_bar_y: Rangef,
         left_margin: f32,
     ) -> Option<Self> {
         let RawWindowHandle::AppKit(appkit_handle) = window_handle else {
@@ -72,8 +72,8 @@ impl WindowChromeMetrics {
         let ns_view = ns_view_from_handle(appkit_handle)?;
         let ns_window = ns_view.window()?;
         let placement = TrafficLightsPlacement {
-            title_bar_top: title_bar.min as f64,
-            title_bar_bottom: title_bar.max as f64,
+            title_bar_top: title_bar_y.min as f64,
+            title_bar_bottom: title_bar_y.max as f64,
             left_margin: left_margin as f64,
         };
         remember_traffic_lights_placement(&ns_window, placement);
