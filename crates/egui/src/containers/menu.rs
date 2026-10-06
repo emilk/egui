@@ -87,6 +87,13 @@ pub struct MenuConfig {
     ///
     /// Default is [`menu_style`].
     pub style: StyleModifier,
+
+    /// The visual gap between the frame of a menu and the frames of the submenus it opens.
+    ///
+    /// `0.0` places submenus flush against their parent menu.
+    ///
+    /// Default is `2.0`.
+    pub submenu_gap: f32,
 }
 
 impl Default for MenuConfig {
@@ -95,6 +102,7 @@ impl Default for MenuConfig {
             close_behavior: PopupCloseBehavior::default(),
             bar: false,
             style: menu_style.into(),
+            submenu_gap: 2.0,
         }
     }
 }
@@ -120,6 +128,17 @@ impl MenuConfig {
     #[inline]
     pub fn style(mut self, style: impl Into<StyleModifier>) -> Self {
         self.style = style.into();
+        self
+    }
+
+    /// The visual gap between the frame of a menu and the frames of the submenus it opens.
+    ///
+    /// `0.0` places submenus flush against their parent menu.
+    ///
+    /// Default is `2.0`.
+    #[inline]
+    pub fn submenu_gap(mut self, submenu_gap: f32) -> Self {
+        self.submenu_gap = submenu_gap;
         self
     }
 
@@ -572,7 +591,8 @@ impl SubMenu {
             });
         }
 
-        let gap = measurement_frame.total_margin().sum().x * 0.5 + 2.0;
+        // Half the margin brings the two menu frames edge-to-edge, then add the visual gap:
+        let gap = measurement_frame.total_margin().sum().x * 0.5 + menu_config.submenu_gap;
 
         let mut response = button_response.clone();
         // Expand the button rect so that the button and the first item in the submenu are aligned
