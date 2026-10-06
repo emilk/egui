@@ -378,8 +378,8 @@ impl RawKey {
 ///
 /// ```
 /// # use egui::{Id, util::IdTypeMap};
-/// let a = Id::new("a");
-/// let b = Id::new("b");
+/// let a = Id::unique("a");
+/// let b = Id::unique("b");
 /// let mut map: IdTypeMap = Default::default();
 ///
 /// // `a` associated with an f64 and an i32
@@ -597,13 +597,37 @@ impl IdTypeMap {
         }
     }
 
-    /// Note all state of the given type.
+    /// Remove all state of the given type.
     pub fn remove_by_type<T: 'static>(&mut self) {
         let key = TypeId::of::<T>();
         self.map.retain(|_, e| {
             let e: &Element = e;
             e.type_id() != key
         });
+    }
+
+    /// Iterate over all values of the given type, ignoring serialized values
+    pub fn iter_temp_by_type<T: 'static>(&self) -> impl Iterator<Item = &T> {
+        let key = TypeId::of::<T>();
+        self.map.values().filter_map(move |e| {
+            if e.type_id() == key {
+                e.get_temp()
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Mutable version of [`IdTypeMap::iter_temp_by_type()`]
+    pub fn iter_mut_temp_by_type<T: 'static>(&mut self) -> impl Iterator<Item = &mut T> {
+        let key = TypeId::of::<T>();
+        self.map.values_mut().filter_map(move |e| {
+            if (e as &Element).type_id() == key {
+                e.get_mut_temp()
+            } else {
+                None
+            }
+        })
     }
 
     #[inline]
@@ -804,10 +828,37 @@ impl<'de> serde::Deserialize<'de> for IdTypeMap {
 
 // ----------------------------------------------------------------------------
 
+// Iterator test helpers
+
+#[cfg(test)]
+fn assert_iterator_contents<'a, T: 'static + PartialEq>(
+    mut expected: Vec<T>,
+    iterator: impl Iterator<Item = &'a T>,
+) {
+    iterator.for_each(|element| {
+        let found_at = expected
+            .iter()
+            .position(|expected_element| expected_element == element)
+            .expect("Iterator should yield only expected elements");
+        expected.swap_remove(found_at);
+    });
+    assert!(
+        expected.is_empty(),
+        "Iterator should yield all expected elements"
+    );
+}
+
+#[cfg(test)]
+fn test_by_type_iterators<T: 'static + PartialEq + Clone>(map: &mut IdTypeMap, expected: &[T]) {
+    let expected: Vec<_> = expected.into();
+    assert_iterator_contents(expected.clone(), map.iter_temp_by_type());
+    assert_iterator_contents(expected, map.iter_mut_temp_by_type().map(|e| &*e));
+}
+
 #[test]
 fn test_two_id_two_type() {
-    let a = Id::new("a");
-    let b = Id::new("b");
+    let a = Id::unique("a");
+    let b = Id::unique("b");
 
     let mut map: IdTypeMap = Default::default();
     map.insert_persisted(a, 13.37);
@@ -816,14 +867,17 @@ fn test_two_id_two_type() {
     assert_eq!(map.get_persisted::<i32>(b), Some(42));
     assert_eq!(map.get_temp::<f64>(a), Some(13.37));
     assert_eq!(map.get_temp::<i32>(b), Some(42));
+
+    test_by_type_iterators(&mut map, &[13.37]);
+    test_by_type_iterators(&mut map, &[42]);
 }
 
 #[test]
 fn test_two_id_x_two_types() {
     #![expect(clippy::approx_constant)]
 
-    let a = Id::new("a");
-    let b = Id::new("b");
+    let a = Id::unique("a");
+    let b = Id::unique("b");
     let mut map: IdTypeMap = Default::default();
 
     // `a` associated with an f64 and an i32
@@ -845,11 +899,15 @@ fn test_two_id_x_two_types() {
     assert_eq!(map.get_persisted::<i32>(a), Some(42));
     assert_eq!(map.get_persisted::<f64>(b), Some(13.37));
     assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_owned()));
+
+    test_by_type_iterators(&mut map, &[3.14, 13.37]);
+    test_by_type_iterators(&mut map, &[42]);
+    test_by_type_iterators(&mut map, &["Hello World".to_owned()]);
 }
 
 #[test]
 fn test_one_id_two_types() {
-    let id = Id::new("a");
+    let id = Id::unique("a");
 
     let mut map: IdTypeMap = Default::default();
     map.insert_persisted(id, 13.37);
@@ -858,6 +916,9 @@ fn test_one_id_two_types() {
     assert_eq!(map.get_temp::<f64>(id), Some(13.37));
     assert_eq!(map.get_persisted::<f64>(id), Some(13.37));
     assert_eq!(map.get_temp::<i32>(id), Some(42));
+
+    test_by_type_iterators(&mut map, &[13.37]);
+    test_by_type_iterators(&mut map, &[42]);
 
     // ------------
     // Test removal:
@@ -869,6 +930,7 @@ fn test_one_id_two_types() {
     // Other type is still there, even though it is the same if:
     assert_eq!(map.get_temp::<f64>(id), Some(13.37));
     assert_eq!(map.get_persisted::<f64>(id), Some(13.37));
+    test_by_type_iterators(&mut map, &[13.37]);
 
     // But we can still remove the last:
     map.remove::<f64>(id);
@@ -885,7 +947,7 @@ fn test_mix() {
     #[derive(Clone, Debug, PartialEq)]
     struct Bar(f32);
 
-    let id = Id::new("a");
+    let id = Id::unique("a");
 
     let mut map: IdTypeMap = Default::default();
     map.insert_persisted(id, Foo(555));
@@ -894,6 +956,9 @@ fn test_mix() {
     assert_eq!(map.get_temp::<Foo>(id), Some(Foo(555)));
     assert_eq!(map.get_persisted::<Foo>(id), Some(Foo(555)));
     assert_eq!(map.get_temp::<Bar>(id), Some(Bar(1.0)));
+
+    test_by_type_iterators(&mut map, &[Foo(555)]);
+    test_by_type_iterators(&mut map, &[Bar(1.0)]);
 
     // ------------
     // Test removal:
@@ -905,6 +970,7 @@ fn test_mix() {
     // Other type is still there, even though it is the same if:
     assert_eq!(map.get_temp::<Foo>(id), Some(Foo(555)));
     assert_eq!(map.get_persisted::<Foo>(id), Some(Foo(555)));
+    test_by_type_iterators(&mut map, &[Foo(555)]);
 
     // But we can still remove the last:
     map.remove::<Foo>(id);
@@ -923,7 +989,7 @@ fn test_mix_serialize() {
     #[derive(Clone, Debug, PartialEq)]
     struct NonSerializable(f32);
 
-    let id = Id::new("a");
+    let id = Id::unique("a");
 
     let mut map: IdTypeMap = Default::default();
     map.insert_persisted(id, Serializable(555));
@@ -989,10 +1055,10 @@ fn test_serialize_generations() {
 
     let mut map: IdTypeMap = Default::default();
     for i in 0..3 {
-        map.insert_persisted(Id::new(i), A(i));
+        map.insert_persisted(Id::unique(i), A(i));
     }
     for i in 0..3 {
-        assert_eq!(map.get_generation::<A>(Id::new(i)), Some(0));
+        assert_eq!(map.get_generation::<A>(Id::unique(i)), Some(0));
     }
 
     map = serialize_and_deserialize(&map);
@@ -1002,17 +1068,17 @@ fn test_serialize_generations() {
     // and then we increment with 1 on each deserialize.
     // So we should have generation 2 now:
     for i in 0..3 {
-        assert_eq!(map.get_generation::<A>(Id::new(i)), Some(2));
+        assert_eq!(map.get_generation::<A>(Id::unique(i)), Some(2));
     }
 
     // Reading should reset:
-    assert_eq!(map.get_persisted::<A>(Id::new(0)), Some(A(0)));
-    assert_eq!(map.get_generation::<A>(Id::new(0)), Some(0));
+    assert_eq!(map.get_persisted::<A>(Id::unique(0)), Some(A(0)));
+    assert_eq!(map.get_generation::<A>(Id::unique(0)), Some(0));
 
     // Generations should increment:
     map = serialize_and_deserialize(&map);
-    assert_eq!(map.get_generation::<A>(Id::new(0)), Some(2));
-    assert_eq!(map.get_generation::<A>(Id::new(1)), Some(3));
+    assert_eq!(map.get_generation::<A>(Id::unique(0)), Some(2));
+    assert_eq!(map.get_generation::<A>(Id::unique(1)), Some(3));
 }
 
 #[cfg(feature = "persistence")]
@@ -1038,10 +1104,10 @@ fn test_serialize_gc() {
     let num_b = 10;
 
     for i in 0..num_a {
-        map.insert_persisted(Id::new(i), A(i));
+        map.insert_persisted(Id::unique(i), A(i));
     }
     for i in 0..num_b {
-        map.insert_persisted(Id::new(i), B(i));
+        map.insert_persisted(Id::unique(i), B(i));
     }
 
     map = serialize_and_deserialize(map, 100);
@@ -1051,15 +1117,15 @@ fn test_serialize_gc() {
     assert_eq!(map.count::<B>(), num_b);
 
     // Create a new small generation:
-    map.insert_persisted(Id::new(1_000_000), A(1_000_000));
-    map.insert_persisted(Id::new(1_000_000), B(1_000_000));
+    map.insert_persisted(Id::unique(1_000_000), A(1_000_000));
+    map.insert_persisted(Id::unique(1_000_000), B(1_000_000));
 
     assert_eq!(map.count::<A>(), num_a + 1);
     assert_eq!(map.count::<B>(), num_b + 1);
 
     // And read a value:
-    assert_eq!(map.get_persisted::<A>(Id::new(0)), Some(A(0)));
-    assert_eq!(map.get_persisted::<B>(Id::new(0)), Some(B(0)));
+    assert_eq!(map.get_persisted::<A>(Id::unique(0)), Some(A(0)));
+    assert_eq!(map.get_persisted::<B>(Id::unique(0)), Some(B(0)));
 
     map = serialize_and_deserialize(map, 100);
 
@@ -1075,8 +1141,8 @@ fn test_serialize_gc() {
     );
 
     // Create another small generation:
-    map.insert_persisted(Id::new(2_000_000), A(2_000_000));
-    map.insert_persisted(Id::new(2_000_000), B(2_000_000));
+    map.insert_persisted(Id::unique(2_000_000), A(2_000_000));
+    map.insert_persisted(Id::unique(2_000_000), B(2_000_000));
 
     map = serialize_and_deserialize(map, 100);
 
@@ -1091,11 +1157,11 @@ fn test_serialize_gc() {
     assert_eq!(map.count::<B>(), 1);
 
     assert_eq!(
-        map.get_persisted::<A>(Id::new(2_000_000)),
+        map.get_persisted::<A>(Id::unique(2_000_000)),
         Some(A(2_000_000))
     );
     assert_eq!(
-        map.get_persisted::<B>(Id::new(2_000_000)),
+        map.get_persisted::<B>(Id::unique(2_000_000)),
         Some(B(2_000_000))
     );
 }

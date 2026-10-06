@@ -161,6 +161,9 @@ pub trait App {
     /// [`egui::InputState::viewport`], but the rest of [`egui::Context::input`]
     /// (events, time, …) is that of the last shown frame.
     ///
+    /// Send [`egui::ViewportCommand::RequestPaintWhileHidden`] if you want `App::ui` to be called
+    /// even if the application is hidden.
+    ///
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force another call to [`Self::logic`], call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
@@ -378,6 +381,15 @@ pub struct NativeOptions {
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
 
+    /// Load system fonts on demand for characters that the installed fonts lack,
+    /// e.g. CJK, Arabic, or Devanagari (only if the `system_fonts` feature is enabled).
+    ///
+    /// Turn this off if you bundle fonts that cover everything your app shows,
+    /// or if you need identical text rendering on all machines.
+    ///
+    /// Default: `true`.
+    pub system_font_fallback: bool,
+
     /// The folder where `eframe` will store the app state. If not set, eframe will use a default
     /// data storage path for each target system.
     pub persistence_path: Option<std::path::PathBuf>,
@@ -390,6 +402,25 @@ pub struct NativeOptions {
     ///
     /// Defaults to true.
     pub dithering: bool,
+
+    /// Should the platform clipboard keyboard shortcuts
+    /// (e.g. <kbd>Cmd/Ctrl</kbd>+<kbd>X</kbd>/<kbd>C</kbd>/<kbd>V</kbd>)
+    /// be translated into [`egui::Event::Cut`], [`egui::Event::Copy`] and [`egui::Event::Paste`]?
+    ///
+    /// Set this to `false` if you want to handle these key combinations yourself.
+    /// They will then arrive as ordinary [`egui::Event::Key`] events instead.
+    /// Note that built-in widgets such as [`egui::TextEdit`] will then no longer
+    /// respond to these shortcuts.
+    ///
+    /// This applies to all viewports.
+    /// See also `egui_winit::State::set_clipboard_shortcuts`.
+    ///
+    /// There is no web equivalent: on the web, Cut/Copy/Paste come from the browser's
+    /// clipboard events (which can also be triggered from e.g. the browser menu),
+    /// and the key presses are always also delivered as [`egui::Event::Key`].
+    ///
+    /// Defaults to true.
+    pub clipboard_shortcuts: bool,
 
     /// Android application for `winit`'s event loop.
     ///
@@ -462,9 +493,13 @@ impl Default for NativeOptions {
 
             persist_window: true,
 
+            system_font_fallback: true,
+
             persistence_path: None,
 
             dithering: true,
+
+            clipboard_shortcuts: true,
 
             #[cfg(target_os = "android")]
             android_app: None,
