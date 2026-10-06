@@ -796,6 +796,12 @@ impl State {
         }
     }
 
+    /// Forward raw mouse motion (e.g. `winit::event::DeviceEvent::MouseMotion`) to egui
+    /// as [`egui::Event::MouseMoved`].
+    ///
+    /// The motion is ignored unless the pointer is inside the window or a pointer button is held down,
+    /// so that mouse motion elsewhere on the screen doesn't cause repaints.
+    ///
     /// Returns `true` if the event was sent to egui.
     pub fn on_mouse_motion(&mut self, delta: (f64, f64)) -> bool {
         if !self.is_pointer_in_window() && !self.any_pointer_button_down {
