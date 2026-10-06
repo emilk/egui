@@ -8,6 +8,7 @@ mod ime_event;
 mod keyboard_shortcut;
 mod modifier_names;
 mod modifiers;
+mod mouse_wheel_source;
 mod mouse_wheel_unit;
 mod pointer_button;
 mod raw_input;
@@ -16,7 +17,7 @@ mod touch;
 mod viewport_info;
 
 pub use self::{
-    dropped_file::DroppedFile,
+    dropped_file::{DroppedFile, DroppedFileHandle},
     event::Event,
     event_filter::EventFilter,
     hovered_file::HoveredFile,
@@ -24,6 +25,7 @@ pub use self::{
     keyboard_shortcut::KeyboardShortcut,
     modifier_names::ModifierNames,
     modifiers::Modifiers,
+    mouse_wheel_source::MouseWheelSource,
     mouse_wheel_unit::MouseWheelUnit,
     pointer_button::{NUM_POINTER_BUTTONS, PointerButton},
     raw_input::RawInput,

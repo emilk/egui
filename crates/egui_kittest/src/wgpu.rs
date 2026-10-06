@@ -1,5 +1,5 @@
+use core::{iter::once, time::Duration};
 use std::sync::Arc;
-use std::{iter::once, time::Duration};
 
 use egui::TexturesDelta;
 use egui_wgpu::{RenderState, ScreenDescriptor, WgpuSetup, wgpu};
@@ -230,7 +230,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
 
         self.render_state
             .queue
-            .submit(std::iter::chain(user_buffers, once(encoder.finish())));
+            .submit(core::iter::chain(user_buffers, once(encoder.finish())));
 
         self.render_state
             .device

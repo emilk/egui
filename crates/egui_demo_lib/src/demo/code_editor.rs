@@ -23,7 +23,7 @@ fn main() {\n\
 
 impl crate::Demo for CodeEditor {
     fn name(&self) -> &'static str {
-        "🖮 Code Editor"
+        "⌨️ Code Editor"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -48,8 +48,8 @@ impl crate::View for CodeEditor {
 
         if cfg!(feature = "syntect") {
             ui.horizontal(|ui| {
-                ui.label("Language:");
-                ui.text_edit_singleline(language);
+                let label = ui.label("Language:");
+                ui.text_edit_singleline(language).labelled_by(label.id);
             });
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
@@ -61,7 +61,7 @@ impl crate::View for CodeEditor {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.label("Compile the demo with the ");
-                ui.code("syntax_highlighting");
+                ui.code("syntect");
                 ui.label(" feature to enable more accurate syntax highlighting using ");
                 ui.hyperlink_to("syntect", "https://github.com/trishume/syntect");
                 ui.label(".");
@@ -91,6 +91,7 @@ impl crate::View for CodeEditor {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             let editor = egui::TextEdit::multiline(code)
+                .hint_text("Code")
                 .font(egui::TextStyle::Monospace) // for cursor height
                 .code_editor()
                 .desired_rows(10)

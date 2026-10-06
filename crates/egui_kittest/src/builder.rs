@@ -2,8 +2,8 @@ use crate::app_kind::AppKind;
 #[cfg(feature = "eframe")]
 use crate::app_kind::AppKindEframe;
 use crate::{Harness, LazyRenderer, TestRenderer};
+use core::marker::PhantomData;
 use egui::{Pos2, Rect, Vec2};
-use std::marker::PhantomData;
 
 /// Builder for [`Harness`].
 #[must_use]
@@ -17,6 +17,15 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) state: PhantomData<State>,
     pub(crate) renderer: Box<dyn TestRenderer>,
     pub(crate) wait_for_pending_images: bool,
+    pub(crate) fit_contents: bool,
+    pub(crate) missing_glyph_policy: egui::MissingGlyphPolicy,
+    pub(crate) check_accessibility: bool,
+
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    pub(crate) render_every_step: bool,
+
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    pub(crate) render_cursor: bool,
 
     #[cfg(feature = "snapshot")]
     pub(crate) default_snapshot_options: crate::SnapshotOptions,
@@ -36,6 +45,15 @@ impl<State> Default for HarnessBuilder<State> {
             max_steps: 4,
             step_dt: 1.0 / 4.0,
             wait_for_pending_images: true,
+            fit_contents: false,
+            missing_glyph_policy: egui::MissingGlyphPolicy::Panic,
+            check_accessibility: true,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_every_step: false,
+
+            #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+            render_cursor: true,
             os: egui::os::OperatingSystem::Nix,
 
             #[cfg(feature = "snapshot")]
@@ -54,6 +72,30 @@ impl<State> HarnessBuilder<State> {
         let size = size.into();
         self.screen_rect.set_width(size.x);
         self.screen_rect.set_height(size.y);
+        self
+    }
+
+    /// Resize the harness to fit its initial contents before returning it.
+    ///
+    /// This happens before automatic recording starts. It only has an effect on harnesses built
+    /// with [`Self::build_ui`] or [`Self::build_ui_state`].
+    #[inline]
+    pub fn with_fit_contents(mut self) -> Self {
+        self.fit_contents = true;
+        self
+    }
+
+    /// Draw a box ("tofu") for characters no font can draw, instead of panicking.
+    ///
+    /// By default the harness panics as soon as it lays out a character that no installed
+    /// font, [`egui::FontProvider`] or [`egui::GlyphRasterizer`] can draw, because that is
+    /// usually a bug, and tofu in a snapshot is easy to miss.
+    /// Opt out here if your test renders such characters on purpose.
+    ///
+    /// See [`egui::Context::set_missing_glyph_policy`].
+    #[inline]
+    pub fn allow_missing_glyphs(mut self) -> Self {
+        self.missing_glyph_policy = egui::MissingGlyphPolicy::Tofu;
         self
     }
 
@@ -104,6 +146,16 @@ impl<State> HarnessBuilder<State> {
         self
     }
 
+    /// Check that every input widget has an accessible name, and panic if one does not.
+    /// See [`Harness::check_accessibility`].
+    ///
+    /// Default is `true`.
+    #[inline]
+    pub fn with_accessibility_check(mut self, check_accessibility: bool) -> Self {
+        self.check_accessibility = check_accessibility;
+        self
+    }
+
     /// Set the time delta for a single [`Harness::step`].
     ///
     /// Default is 1.0 / 4.0 (4fps).
@@ -124,6 +176,27 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_wait_for_pending_images(mut self, wait_for_pending_images: bool) -> Self {
         self.wait_for_pending_images = wait_for_pending_images;
+        self
+    }
+
+    /// Should every step be rendered?
+    ///
+    /// Useful when test logic requires some specific gpu logic, e.g. reading data back from the gpu.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[inline]
+    pub fn with_render_every_step(mut self, render_every_step: bool) -> Self {
+        self.render_every_step = render_every_step;
+        self
+    }
+
+    /// Should a synthetic mouse cursor be painted on top of rendered frames?
+    ///
+    /// On by default, so that snapshots and recordings show where the pointer is.
+    /// Turn it off to render without.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    #[inline]
+    pub fn with_render_cursor(mut self, render_cursor: bool) -> Self {
+        self.render_cursor = render_cursor;
         self
     }
 

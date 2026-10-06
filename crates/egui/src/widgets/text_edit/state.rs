@@ -95,7 +95,7 @@ pub(crate) enum TextEditCursorPurpose {
         /// irrelevant.
         ///
         /// When `None`, no active range is displayed.
-        active_range: Option<std::ops::Range<CCursor>>,
+        active_range: Option<core::ops::Range<CCursor>>,
     },
 }
 

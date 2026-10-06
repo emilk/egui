@@ -1,4 +1,4 @@
-use std::fmt::Write as _;
+use core::fmt::Write as _;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 
@@ -15,7 +15,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
 /// to prevent the Context from building a massive map of `WidgetRects` (which would slow the test,
 /// causing unreliable results).
 fn create_benchmark_ui(ctx: &egui::Context) -> Ui {
-    Ui::new(ctx.clone(), Id::new("clashing_id"), UiBuilder::new())
+    Ui::new(ctx.clone(), Id::unique("clashing_id"), UiBuilder::new())
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -176,7 +176,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         {
             c.bench_function("text_layout_uncached", |b| {
                 b.iter(|| {
-                    use egui::epaint::text::{LayoutJob, layout};
+                    use egui::epaint::text::LayoutJob;
 
                     let job = LayoutJob::simple(
                         LOREM_IPSUM_LONG.to_owned(),
@@ -184,7 +184,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                         text_color,
                         wrap_width,
                     );
-                    layout(&mut fonts.fonts, pixels_per_point, job.into())
+                    fonts.layout_uncached(pixels_per_point, job.into())
                 });
             });
         }
@@ -213,7 +213,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let mut rng = rand::rng();
             b.iter(|| {
-                fonts.begin_pass(egui::epaint::TextOptions::default());
+                fonts.begin_pass(
+                    egui::epaint::TextOptions::default(),
+                    egui::epaint::text::ViewportKey::default(),
+                );
 
                 // Delete a random character, simulating a user making an edit in a long file:
                 let mut new_string = string.clone();

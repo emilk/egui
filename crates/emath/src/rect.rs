@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, fast_midpoint, lerp, pos2, vec2};
-use std::ops::{BitOr, BitOrAssign};
+use core::ops::{BitOr, BitOrAssign};
 
 /// A rectangular region of space.
 ///
@@ -285,6 +285,33 @@ impl Rect {
     #[must_use]
     pub fn clamp(&self, p: Pos2) -> Pos2 {
         p.clamp(self.min, self.max)
+    }
+
+    /// Floor the rect coordinates
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self {
+            min: self.min.floor(),
+            max: self.max.floor(),
+        }
+    }
+
+    /// Round the rect coordinates
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self {
+            min: self.min.round(),
+            max: self.max.round(),
+        }
+    }
+
+    /// Ceil the rect coordinates
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self {
+            min: self.min.ceil(),
+            max: self.max.ceil(),
+        }
     }
 
     #[inline(always)]
@@ -727,7 +754,7 @@ impl Rect {
             let mut t1 = (self.max[i] - self.center()[i]) * inv_d;
 
             if inv_d < 0.0 {
-                std::mem::swap(&mut t0, &mut t1);
+                core::mem::swap(&mut t0, &mut t1);
             }
 
             tmin = tmin.max(t0);
