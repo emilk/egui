@@ -113,12 +113,32 @@ fn install_blur_focus(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
     // NOTE: because of the text agent we sometime miss 'blur' events,
     // so we also poll the focus state each frame in `AppRunner::logic`.
     for event_name in ["blur", "focus", "visibilitychange"] {
-        let closure = move |_event: web_sys::MouseEvent, runner: &mut AppRunner| {
-            log::trace!("{} {event_name:?}", runner.canvas().id());
-            runner.update_focus();
-        };
+        let closure =
+            move |_event: web_sys::MouseEvent, runner: &mut AppRunner, web_runner: &WebRunner| {
+                log::trace!("{} {event_name:?}", runner.canvas().id());
+                runner.update_focus();
 
-        runner_ref.add_event_listener(target, event_name, closure)?;
+                if event_name == "visibilitychange" {
+                    // The tab was hidden or shown. An in-flight `requestAnimationFrame` is paused
+                    // while hidden, so reschedule the paint loop using the scheduling mechanism
+                    // (`setTimeout` vs `requestAnimationFrame`) appropriate for the new state.
+                    // This keeps `App::update` running while hidden, and switches back to smooth
+                    // animation frames once visible again.
+                    if let Err(err) = web_runner.reschedule_frame() {
+                        log::error!(
+                            "Failed to reschedule frame on visibility change: {}",
+                            super::string_from_js_value(&err)
+                        );
+                    }
+                }
+            };
+
+        runner_ref.add_event_listener_ex(
+            target,
+            event_name,
+            &web_sys::AddEventListenerOptions::default(),
+            closure,
+        )?;
     }
     Ok(())
 }
@@ -137,25 +157,24 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
                 && !modifiers.command
                 // When text agent is focused, it is responsible for handling input events
                 && !runner.text_agent.has_focus()
+                && let Some(text) = text_from_keyboard_event(&event)
             {
-                if let Some(text) = text_from_keyboard_event(&event) {
-                    let egui_event = egui::Event::Text(text);
-                    let should_stop_propagation =
-                        (runner.web_options.should_stop_propagation)(&egui_event);
-                    let should_prevent_default =
-                        (runner.web_options.should_prevent_default)(&egui_event);
-                    runner.input.raw.events.push(egui_event);
-                    runner.needs_repaint.repaint_asap();
+                let egui_event = egui::Event::Text(text);
+                let should_stop_propagation =
+                    (runner.web_options.should_stop_propagation)(&egui_event);
+                let should_prevent_default =
+                    (runner.web_options.should_prevent_default)(&egui_event);
+                runner.input.raw.events.push(egui_event);
+                runner.needs_repaint.repaint_asap();
 
-                    // If this is indeed text, then prevent any other action.
-                    if should_prevent_default {
-                        event.prevent_default();
-                    }
+                // If this is indeed text, then prevent any other action.
+                if should_prevent_default {
+                    event.prevent_default();
+                }
 
-                    // Use web options to tell if the event should be propagated to parent elements.
-                    if should_stop_propagation {
-                        event.stop_propagation();
-                    }
+                // Use web options to tell if the event should be propagated to parent elements.
+                if should_stop_propagation {
+                    event.stop_propagation();
                 }
             }
 
@@ -171,21 +190,19 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
         return;
     }
 
-    if event.is_composing() || event.key_code() == 229 {
-        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-        return;
-    }
-
     let modifiers = modifiers_from_kb_event(&event);
-    runner.input.raw.modifiers = modifiers;
+    runner.input.set_modifiers(modifiers);
 
     let key = event.key();
-    let egui_key = translate_key(&key);
+    let logical_key = translate_key(&key);
+    let physical_key = translate_key(&event.code());
 
-    if let Some(egui_key) = egui_key {
+    // Fall back to the physical key so that modifier keys (which have no logical
+    // `egui::Key`) and non-Latin layouts still produce a `Key` event.
+    if let Some(active_key) = logical_key.or(physical_key) {
         let egui_event = egui::Event::Key {
-            key: egui_key,
-            physical_key: None, // TODO(fornwall)
+            key: active_key,
+            physical_key,
             pressed: true,
             repeat: false, // egui will fill this in for us!
             modifiers,
@@ -194,13 +211,15 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
         runner.input.raw.events.push(egui_event);
         runner.needs_repaint.repaint_asap();
 
-        let prevent_default = should_prevent_default_for_key(runner, &modifiers, egui_key);
+        let prevent_default = should_prevent_default_for_key(runner, &modifiers, active_key);
 
-        // log::debug!(
-        //     "On keydown {:?} {egui_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
-        //     event.key().as_str(),
-        //     runner.egui_ctx().wants_keyboard_input()
-        // );
+        if false {
+            log::debug!(
+                "On keydown {:?} {active_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
+                event.key().as_str(),
+                runner.egui_ctx().egui_wants_keyboard_input()
+            );
+        }
 
         if prevent_default {
             event.prevent_default();
@@ -266,14 +285,17 @@ fn install_keyup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
 #[expect(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
 pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let modifiers = modifiers_from_kb_event(&event);
-    runner.input.raw.modifiers = modifiers;
+    runner.input.set_modifiers(modifiers);
 
     let mut should_stop_propagation = true;
 
-    if let Some(key) = translate_key(&event.key()) {
+    let logical_key = translate_key(&event.key());
+    let physical_key = translate_key(&event.code());
+
+    if let Some(active_key) = logical_key.or(physical_key) {
         let egui_event = egui::Event::Key {
-            key,
-            physical_key: None, // TODO(fornwall)
+            key: active_key,
+            physical_key,
             pressed: false,
             repeat: false,
             modifiers,
@@ -319,30 +341,28 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
             return; // The eframe app is not interested
         }
 
-        if let Some(data) = event.clipboard_data() {
-            if let Ok(text) = data.get_data("text") {
-                let text = text.replace("\r\n", "\n");
+        if let Some(data) = event.clipboard_data()
+            && let Ok(text) = data.get_data("text")
+        {
+            let text = text.replace("\r\n", "\n");
 
-                let mut should_stop_propagation = true;
-                let mut should_prevent_default = true;
-                if !text.is_empty() {
-                    let egui_event = egui::Event::Paste(text);
-                    should_stop_propagation =
-                        (runner.web_options.should_stop_propagation)(&egui_event);
-                    should_prevent_default =
-                        (runner.web_options.should_prevent_default)(&egui_event);
-                    runner.input.raw.events.push(egui_event);
-                    runner.needs_repaint.repaint_asap();
-                }
+            let mut should_stop_propagation = true;
+            let mut should_prevent_default = true;
+            if !text.is_empty() {
+                let egui_event = egui::Event::Paste(text);
+                should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
+                should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
+                runner.input.raw.events.push(egui_event);
+                runner.needs_repaint.repaint_asap();
+            }
 
-                // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-                if should_stop_propagation {
-                    event.stop_propagation();
-                }
+            // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
+            if should_stop_propagation {
+                event.stop_propagation();
+            }
 
-                if should_prevent_default {
-                    event.prevent_default();
-                }
+            if should_prevent_default {
+                event.prevent_default();
             }
         }
     })?;
@@ -401,6 +421,7 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
 fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result<(), JsValue> {
     // Save-on-close
     runner_ref.add_event_listener(window, "onbeforeunload", |_: web_sys::Event, runner| {
+        runner.egui_ctx().on_exit();
         runner.save();
     })?;
 
@@ -516,11 +537,11 @@ fn install_pointerdown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(
         "pointerdown",
         |event: web_sys::PointerEvent, runner: &mut AppRunner| {
             let modifiers = modifiers_from_mouse_event(&event);
-            runner.input.raw.modifiers = modifiers;
+            runner.input.set_modifiers(modifiers);
             let mut should_stop_propagation = true;
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
-                let modifiers = runner.input.raw.modifiers;
+                let modifiers = runner.input.modifiers;
                 let egui_event = egui::Event::PointerButton {
                     pos,
                     button,
@@ -553,52 +574,51 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
         "pointerup",
         |event: web_sys::PointerEvent, runner| {
             let modifiers = modifiers_from_mouse_event(&event);
-            runner.input.raw.modifiers = modifiers;
+            runner.input.set_modifiers(modifiers);
 
             let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
 
             if is_interested_in_pointer_event(
                 runner,
                 egui::pos2(event.client_x() as f32, event.client_y() as f32),
-            ) {
-                if let Some(button) = button_from_mouse_event(&event) {
-                    let modifiers = runner.input.raw.modifiers;
-                    let egui_event = egui::Event::PointerButton {
-                        pos,
-                        button,
-                        pressed: false,
-                        modifiers,
-                    };
-                    let should_stop_propagation =
-                        (runner.web_options.should_stop_propagation)(&egui_event);
-                    let should_prevent_default =
-                        (runner.web_options.should_prevent_default)(&egui_event);
-                    runner.input.raw.events.push(egui_event);
+            ) && let Some(button) = button_from_mouse_event(&event)
+            {
+                let modifiers = runner.input.modifiers;
+                let egui_event = egui::Event::PointerButton {
+                    pos,
+                    button,
+                    pressed: false,
+                    modifiers,
+                };
+                let should_stop_propagation =
+                    (runner.web_options.should_stop_propagation)(&egui_event);
+                let should_prevent_default =
+                    (runner.web_options.should_prevent_default)(&egui_event);
+                runner.input.raw.events.push(egui_event);
 
-                    // Previously on iOS, the canvas would not receive focus on
-                    // any touch event, which resulted in the on-screen keyboard
-                    // not working when focusing on a text field in an egui app.
-                    // This attempts to fix that by forcing the focus on any
-                    // click on the canvas.
-                    runner.canvas().focus().ok();
+                // Previously on iOS, the canvas would not receive focus on
+                // any touch event, which resulted in the on-screen keyboard
+                // not working when focusing on a text field in an egui app.
+                // This attempts to fix that by forcing the focus on any
+                // click on the canvas.
+                super::focus_without_scroll(runner.canvas()).ok();
 
-                    // In Safari we are only allowed to do certain things
-                    // (like playing audio, start a download, etc)
-                    // on user action, such as a click.
-                    // So we need to run the app logic here and now:
-                    runner.logic();
+                // In Safari we are only allowed to do certain things
+                // (like playing audio, start a download, etc)
+                // on user action, such as a click.
+                // So we need to run the app logic here and now:
+                runner.logic();
 
-                    // Make sure we paint the output of the above logic call asap:
-                    runner.needs_repaint.repaint_asap();
+                // Make sure we paint the output of the above logic call asap:
+                runner.needs_repaint.repaint_asap();
 
-                    if should_prevent_default {
-                        event.prevent_default();
-                    }
+                if should_prevent_default {
+                    event.prevent_default();
+                }
 
-                    // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-                    if should_stop_propagation {
-                        event.stop_propagation();
-                    }
+                // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
+                if should_stop_propagation {
+                    event.stop_propagation();
                 }
             }
         },
@@ -629,7 +649,7 @@ fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
 fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "mousemove", |event: web_sys::MouseEvent, runner| {
         let modifiers = modifiers_from_mouse_event(&event);
-        runner.input.raw.modifiers = modifiers;
+        runner.input.set_modifiers(modifiers);
 
         let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
 
@@ -687,7 +707,7 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
                     pos,
                     button: egui::PointerButton::Primary,
                     pressed: true,
-                    modifiers: runner.input.raw.modifiers,
+                    modifiers: runner.input.modifiers,
                 };
                 should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
                 should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
@@ -711,29 +731,27 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
 
 fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "touchmove", |event: web_sys::TouchEvent, runner| {
-        if let Some((pos, touch)) = primary_touch_pos(runner, &event) {
-            if is_interested_in_pointer_event(
+        if let Some((pos, touch)) = primary_touch_pos(runner, &event)
+            && is_interested_in_pointer_event(
                 runner,
                 egui::pos2(touch.client_x() as f32, touch.client_y() as f32),
-            ) {
-                let egui_event = egui::Event::PointerMoved(pos);
-                let should_stop_propagation =
-                    (runner.web_options.should_stop_propagation)(&egui_event);
-                let should_prevent_default =
-                    (runner.web_options.should_prevent_default)(&egui_event);
-                runner.input.raw.events.push(egui_event);
+            )
+        {
+            let egui_event = egui::Event::PointerMoved(pos);
+            let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
+            let should_prevent_default = (runner.web_options.should_prevent_default)(&egui_event);
+            runner.input.raw.events.push(egui_event);
 
-                push_touches(runner, egui::TouchPhase::Move, &event);
-                runner.needs_repaint.repaint();
+            push_touches(runner, egui::TouchPhase::Move, &event);
+            runner.needs_repaint.repaint();
 
-                // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-                if should_stop_propagation {
-                    event.stop_propagation();
-                }
+            // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
+            if should_stop_propagation {
+                event.stop_propagation();
+            }
 
-                if should_prevent_default {
-                    event.prevent_default();
-                }
+            if should_prevent_default {
+                event.prevent_default();
             }
         }
     })
@@ -741,50 +759,49 @@ fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
 
 fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "touchend", |event: web_sys::TouchEvent, runner| {
-        if let Some((pos, touch)) = primary_touch_pos(runner, &event) {
-            if is_interested_in_pointer_event(
+        if let Some((pos, touch)) = primary_touch_pos(runner, &event)
+            && is_interested_in_pointer_event(
                 runner,
                 egui::pos2(touch.client_x() as f32, touch.client_y() as f32),
-            ) {
-                // First release mouse to click:
-                let mut should_stop_propagation = true;
-                let mut should_prevent_default = true;
-                let egui_event = egui::Event::PointerButton {
-                    pos,
-                    button: egui::PointerButton::Primary,
-                    pressed: false,
-                    modifiers: runner.input.raw.modifiers,
-                };
-                should_stop_propagation &=
-                    (runner.web_options.should_stop_propagation)(&egui_event);
-                should_prevent_default &= (runner.web_options.should_prevent_default)(&egui_event);
-                runner.input.raw.events.push(egui_event);
-                // Then remove hover effect:
-                should_stop_propagation &=
-                    (runner.web_options.should_stop_propagation)(&egui::Event::PointerGone);
-                should_prevent_default &=
-                    (runner.web_options.should_prevent_default)(&egui::Event::PointerGone);
-                runner.input.raw.events.push(egui::Event::PointerGone);
+            )
+        {
+            // First release mouse to click:
+            let mut should_stop_propagation = true;
+            let mut should_prevent_default = true;
+            let egui_event = egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: runner.input.modifiers,
+            };
+            should_stop_propagation &= (runner.web_options.should_stop_propagation)(&egui_event);
+            should_prevent_default &= (runner.web_options.should_prevent_default)(&egui_event);
+            runner.input.raw.events.push(egui_event);
+            // Then remove hover effect:
+            should_stop_propagation &=
+                (runner.web_options.should_stop_propagation)(&egui::Event::PointerGone);
+            should_prevent_default &=
+                (runner.web_options.should_prevent_default)(&egui::Event::PointerGone);
+            runner.input.raw.events.push(egui::Event::PointerGone);
 
-                push_touches(runner, egui::TouchPhase::End, &event);
+            push_touches(runner, egui::TouchPhase::End, &event);
 
-                runner.needs_repaint.repaint_asap();
+            runner.needs_repaint.repaint_asap();
 
-                // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
-                if should_stop_propagation {
-                    event.stop_propagation();
-                }
+            // Use web options to tell if the web event should be propagated to parent elements based on the egui event.
+            if should_stop_propagation {
+                event.stop_propagation();
+            }
 
-                if should_prevent_default {
-                    event.prevent_default();
-                }
+            if should_prevent_default {
+                event.prevent_default();
+            }
 
-                // Fix virtual keyboard IOS
-                // Need call focus at the same time of event
-                if runner.text_agent.has_focus() {
-                    runner.text_agent.set_focus(false);
-                    runner.text_agent.set_focus(true);
-                }
+            // Fix virtual keyboard IOS
+            // Need call focus at the same time of event
+            if runner.text_agent.has_focus() {
+                runner.text_agent.set_focus(false);
+                runner.text_agent.set_focus(true);
             }
         }
     })
@@ -817,7 +834,7 @@ fn install_wheel(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
 
         let modifiers = modifiers_from_wheel_event(&event);
 
-        let egui_event = if modifiers.ctrl && !runner.input.raw.modifiers.ctrl {
+        let egui_event = if modifiers.ctrl && !runner.input.modifiers.ctrl {
             // The browser is saying the ctrl key is down, but it isn't _really_.
             // This happens on pinch-to-zoom on multitouch trackpads
             // egui will treat ctrl+scroll as zoom, so it all works.
@@ -832,6 +849,7 @@ fn install_wheel(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
                 delta,
                 modifiers,
                 phase: egui::TouchPhase::Move,
+                source: egui::MouseWheelSource::Unknown,
             }
         };
         let should_stop_propagation = (runner.web_options.should_stop_propagation)(&egui_event);
@@ -957,62 +975,25 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
         event.prevent_default();
     })?;
 
-    runner_ref.add_event_listener(target, "drop", {
-        let runner_ref = runner_ref.clone();
+    runner_ref.add_event_listener(target, "drop", |event: web_sys::DragEvent, runner| {
+        if let Some(data_transfer) = event.data_transfer() {
+            // TODO(https://github.com/emilk/egui/issues/3702): support dropping folders
+            runner.input.raw.hovered_files.clear();
+            runner.needs_repaint.repaint_asap();
 
-        move |event: web_sys::DragEvent, runner| {
-            if let Some(data_transfer) = event.data_transfer() {
-                // TODO(https://github.com/emilk/egui/issues/3702): support dropping folders
-                runner.input.raw.hovered_files.clear();
-                runner.needs_repaint.repaint_asap();
+            if let Some(files) = data_transfer.files() {
+                for i in 0..files.length() {
+                    if let Some(file) = files.get(i) {
+                        log::debug!("Dropped {:?} ({} bytes)", file.name(), file.size());
 
-                if let Some(files) = data_transfer.files() {
-                    for i in 0..files.length() {
-                        if let Some(file) = files.get(i) {
-                            let name = file.name();
-                            let mime = file.type_();
-                            let last_modified = std::time::UNIX_EPOCH
-                                + std::time::Duration::from_millis(file.last_modified() as u64);
-
-                            log::debug!("Loading {:?} ({} bytes)…", name, file.size());
-
-                            let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
-
-                            let runner_ref = runner_ref.clone();
-                            let future = async move {
-                                match future.await {
-                                    Ok(array_buffer) => {
-                                        let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-                                        log::debug!("Loaded {:?} ({} bytes).", name, bytes.len());
-
-                                        if let Some(mut runner_lock) = runner_ref.try_lock() {
-                                            runner_lock.input.raw.dropped_files.push(
-                                                egui::DroppedFile {
-                                                    name,
-                                                    mime,
-                                                    last_modified: Some(last_modified),
-                                                    bytes: Some(bytes.into()),
-                                                    ..Default::default()
-                                                },
-                                            );
-                                            runner_lock.needs_repaint.repaint_asap();
-                                        }
-                                    }
-                                    Err(err) => {
-                                        log::error!(
-                                            "Failed to read file: {}",
-                                            string_from_js_value(&err)
-                                        );
-                                    }
-                                }
-                            };
-                            wasm_bindgen_futures::spawn_local(future);
-                        }
+                        runner.input.raw.dropped_files.push(std::sync::Arc::new(
+                            super::dropped_file::WebFile::from(file),
+                        ));
                     }
                 }
-                event.stop_propagation();
-                event.prevent_default();
             }
+            event.stop_propagation();
+            event.prevent_default();
         }
     })?;
 
@@ -1119,14 +1100,14 @@ fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32
     } else if JsValue::from_str("contentBoxSize").js_in(entry.as_ref()) {
         let content_box_size = entry.content_box_size();
         let idx0 = content_box_size.at(0);
-        if !idx0.is_undefined() {
-            let size: web_sys::ResizeObserverSize = idx0.dyn_into()?;
-            width = size.inline_size();
-            height = size.block_size();
-        } else {
+        if idx0.is_undefined() {
             // legacy
             let size = JsValue::clone(content_box_size.as_ref());
             let size: web_sys::ResizeObserverSize = size.dyn_into()?;
+            width = size.inline_size();
+            height = size.block_size();
+        } else {
+            let size: web_sys::ResizeObserverSize = idx0.dyn_into()?;
             width = size.inline_size();
             height = size.block_size();
         }

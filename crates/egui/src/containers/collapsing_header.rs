@@ -1,12 +1,10 @@
-use std::hash::Hash;
-
 use crate::{
-    Context, Id, InnerResponse, NumExt as _, Rect, Response, Sense, Stroke, TextStyle,
-    TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetInfo, WidgetText, WidgetType,
-    emath, epaint, pos2, remap, remap_clamp, vec2,
+    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Role, Sense,
+    TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, emath,
+    epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
-use epaint::{Shape, StrokeKind};
+use epaint::StrokeKind;
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -69,7 +67,7 @@ impl CollapsingState {
 
     pub fn toggle(&mut self, ui: &Ui) {
         self.state.open = !self.state.open;
-        ui.ctx().request_repaint();
+        ui.request_repaint();
     }
 
     /// 0 for closed, 1 for open, with tweening
@@ -79,30 +77,6 @@ impl CollapsingState {
         } else {
             ctx.animate_bool_responsive(self.id, self.state.open)
         }
-    }
-
-    /// Will toggle when clicked, etc.
-    pub(crate) fn show_default_button_with_size(
-        &mut self,
-        ui: &mut Ui,
-        button_size: Vec2,
-    ) -> Response {
-        let (_id, rect) = ui.allocate_space(button_size);
-        let response = ui.interact(rect, self.id, Sense::click());
-        response.widget_info(|| {
-            WidgetInfo::labeled(
-                WidgetType::Button,
-                ui.is_enabled(),
-                if self.is_open() { "Hide" } else { "Show" },
-            )
-        });
-
-        if response.clicked() {
-            self.toggle(ui);
-        }
-        let openness = self.openness(ui.ctx());
-        paint_default_icon(ui, openness, &response);
-        response
     }
 
     /// Will toggle when clicked, etc.
@@ -213,20 +187,31 @@ impl CollapsingState {
             self.store(ui.ctx()); // we store any earlier toggling as promised in the docstring
             None
         } else if openness < 1.0 {
-            Some(ui.scope_builder(builder, |child_ui| {
-                let max_height = if self.state.open && self.state.open_height.is_none() {
-                    // First frame of expansion.
-                    // We don't know full height yet, but we will next frame.
-                    // Just use a placeholder value that shows some movement:
-                    10.0
-                } else {
-                    let full_height = self.state.open_height.unwrap_or_default();
-                    remap_clamp(openness, 0.0..=1.0, 0.0..=full_height).round_ui()
-                };
+            // The spacing between the header and the body. We animate this too.
+            let item_spacing = ui.spacing().item_spacing.y;
 
-                let mut clip_rect = child_ui.clip_rect();
-                clip_rect.max.y = clip_rect.max.y.min(child_ui.max_rect().top() + max_height);
-                child_ui.set_clip_rect(clip_rect);
+            let fallback_height_guess = 10.0; // Just use a placeholder value that shows some movement for the first frame
+            let full_height = self.state.open_height.unwrap_or(fallback_height_guess);
+
+            let clipped_child_height =
+                (remap_clamp(openness, 0.0..=1.0, 0.0..=full_height + item_spacing) - item_spacing)
+                    .round_ui();
+
+            if clipped_child_height < 0.0 {
+                ui.add_space(clipped_child_height); // animate the spacing!
+            }
+
+            Some(ui.scope_builder(builder, |child_ui| {
+                let clipped_child_height = clipped_child_height.at_least(0.0);
+
+                {
+                    let mut clip_rect = child_ui.clip_rect();
+                    clip_rect.max.y = f32::min(
+                        clip_rect.max.y,
+                        child_ui.max_rect().top() + clipped_child_height,
+                    );
+                    child_ui.set_clip_rect(clip_rect);
+                }
 
                 let ret = add_body(child_ui);
 
@@ -237,8 +222,8 @@ impl CollapsingState {
                 }
                 self.store(child_ui.ctx()); // remember the height
 
-                // Pretend children took up at most `max_height` space:
-                min_rect.max.y = min_rect.max.y.at_most(min_rect.top() + max_height);
+                // Pretend children took up at most `clipped_child_height` space:
+                min_rect.max.y = f32::min(min_rect.max.y, min_rect.top() + clipped_child_height);
                 child_ui.force_set_min_rect(min_rect);
                 ret
             }))
@@ -356,17 +341,13 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     // Draw a pointy triangle arrow:
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
     let rect = rect.expand(visuals.expansion);
-    let mut points = vec![rect.left_top(), rect.right_top(), rect.center_bottom()];
-    use std::f32::consts::TAU;
-    let rotation = emath::Rot2::from_angle(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
-    for p in &mut points {
-        *p = rect.center() + rotation * (*p - rect.center());
-    }
+    use core::f32::consts::TAU;
+    let rotation = remap(openness, 0.0..=1.0, -TAU * 0.25..=0.0);
 
-    ui.painter().add(Shape::convex_polygon(
-        points,
+    ui.painter().add(epaint::Shape::rotated_triangle(
+        rect,
+        rotation,
         visuals.fg_stroke.color,
-        Stroke::NONE,
     ));
 }
 
@@ -393,7 +374,7 @@ pub struct CollapsingHeader {
     text: WidgetText,
     default_open: bool,
     open: Option<bool>,
-    id_salt: Id,
+    id_salt: IdSalt,
     enabled: bool,
     selectable: bool,
     selected: bool,
@@ -410,7 +391,7 @@ impl CollapsingHeader {
     /// you need to provide a unique id source with [`Self::id_salt`].
     pub fn new(text: impl Into<WidgetText>) -> Self {
         let text = text.into();
-        let id_salt = Id::new(text.text());
+        let id_salt = IdSalt::new(text.text());
         Self {
             text,
             default_open: false,
@@ -422,6 +403,46 @@ impl CollapsingHeader {
             show_background: false,
             icon: None,
         }
+    }
+
+    /// Show a collapsing header where you draw the header contents yourself.
+    ///
+    /// Unlike [`Self::new`], which only takes a text label, the header here is an
+    /// arbitrary closure, so you can put e.g. checkboxes, buttons or several widgets
+    /// next to the expand/collapse arrow. Only the arrow toggles the open state.
+    ///
+    /// `id_salt` must be unique within the parent [`Ui`].
+    /// The header starts out collapsed.
+    ///
+    /// This is a convenience wrapper around [`CollapsingState::show_header`].
+    /// Use [`CollapsingState`] directly if you need more control,
+    /// e.g. to make it open by default or to get the responses back.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut enabled = true;
+    /// egui::CollapsingHeader::custom(
+    ///     ui,
+    ///     "my_custom_header",
+    ///     |ui| {
+    ///         ui.checkbox(&mut enabled, "Enabled");
+    ///     },
+    ///     |ui| {
+    ///         ui.label("Body");
+    ///     },
+    /// );
+    /// # });
+    /// ```
+    pub fn custom(
+        ui: &mut Ui,
+        id_salt: impl AsIdSalt,
+        ui_header: impl FnOnce(&mut Ui),
+        ui_body: impl FnOnce(&mut Ui),
+    ) {
+        let id = ui.make_persistent_id(id_salt);
+        CollapsingState::load_with_default_open(ui.ctx(), id, false)
+            .show_header(ui, ui_header)
+            .body(ui_body);
     }
 
     /// By default, the [`CollapsingHeader`] is collapsed.
@@ -446,17 +467,8 @@ impl CollapsingHeader {
     /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
     /// This is useful if the title label is dynamic or not unique.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl Hash) -> Self {
-        self.id_salt = Id::new(id_salt);
-        self
-    }
-
-    /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
-    /// This is useful if the title label is dynamic or not unique.
-    #[deprecated = "Renamed id_salt"]
-    #[inline]
-    pub fn id_source(mut self, id_salt: impl Hash) -> Self {
-        self.id_salt = Id::new(id_salt);
+    pub fn id_salt(mut self, id_salt: impl AsIdSalt) -> Self {
+        self.id_salt = IdSalt::new(id_salt);
         self
     }
 
@@ -574,7 +586,11 @@ impl CollapsingHeader {
         }
 
         header_response.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::CollapsingHeader, ui.is_enabled(), galley.text())
+            WidgetInfo::labeled(Role::DisclosureTriangle, ui.is_enabled(), galley.text())
+        });
+
+        ui.ctx().accesskit_node_builder(header_response.id, |node| {
+            node.set_expanded(state.is_open());
         });
 
         let openness = state.openness(ui.ctx());

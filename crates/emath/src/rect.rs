@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, fast_midpoint, lerp, pos2, vec2};
-use std::ops::{BitOr, BitOrAssign};
+use core::ops::{BitOr, BitOrAssign};
 
 /// A rectangular region of space.
 ///
@@ -287,6 +287,33 @@ impl Rect {
         p.clamp(self.min, self.max)
     }
 
+    /// Floor the rect coordinates
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self {
+            min: self.min.floor(),
+            max: self.max.floor(),
+        }
+    }
+
+    /// Round the rect coordinates
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self {
+            min: self.min.round(),
+            max: self.max.round(),
+        }
+    }
+
+    /// Ceil the rect coordinates
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self {
+            min: self.min.ceil(),
+            max: self.max.ceil(),
+        }
+    }
+
     #[inline(always)]
     pub fn extend_with(&mut self, p: Pos2) {
         self.min = self.min.min(p);
@@ -449,7 +476,8 @@ impl Rect {
     /// Linearly interpolate so that `[0, 0]` is [`Self::min`] and
     /// `[1, 1]` is [`Self::max`].
     #[inline]
-    pub fn lerp_inside(&self, t: Vec2) -> Pos2 {
+    pub fn lerp_inside(&self, t: impl Into<Vec2>) -> Pos2 {
+        let t = t.into();
         Pos2 {
             x: lerp(self.min.x..=self.max.x, t.x),
             y: lerp(self.min.y..=self.max.y, t.y),
@@ -473,6 +501,32 @@ impl Rect {
     #[inline(always)]
     pub fn y_range(&self) -> Rangef {
         Rangef::new(self.min.y, self.max.y)
+    }
+
+    /// The extent along the given axis: `0` for x, `1` for y.
+    ///
+    /// Equivalent to [`Self::x_range`] for `axis == 0` and [`Self::y_range`] for `axis == 1`.
+    ///
+    /// # Panics
+    /// If `axis` is not `0` or `1`.
+    #[inline]
+    pub fn range_along(&self, axis: usize) -> Rangef {
+        match axis {
+            0 => self.x_range(),
+            1 => self.y_range(),
+            _ => panic!("axis must be 0 or 1, got {axis}"),
+        }
+    }
+
+    /// The size along the given axis: `0` for x (width), `1` for y (height).
+    ///
+    /// Equivalent to `self.size()[axis]`.
+    ///
+    /// # Panics
+    /// If `axis` is not `0` or `1`.
+    #[inline]
+    pub fn size_along(&self, axis: usize) -> f32 {
+        self.size()[axis]
     }
 
     #[inline(always)]
@@ -700,7 +754,7 @@ impl Rect {
             let mut t1 = (self.max[i] - self.center()[i]) * inv_d;
 
             if inv_d < 0.0 {
-                std::mem::swap(&mut t0, &mut t1);
+                core::mem::swap(&mut t0, &mut t1);
             }
 
             tmin = tmin.max(t0);

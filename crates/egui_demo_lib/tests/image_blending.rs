@@ -3,6 +3,7 @@ use egui_kittest::Harness;
 
 #[test]
 fn test_image_blending() {
+    let mut results = egui_kittest::SnapshotResults::new();
     for pixels_per_point in [1.0, 2.0] {
         let mut harness = Harness::builder()
             .with_pixels_per_point(pixels_per_point)
@@ -21,5 +22,6 @@ fn test_image_blending() {
         harness.run();
         harness.fit_contents();
         harness.snapshot(format!("image_blending/image_x{pixels_per_point}"));
+        results.extend_harness(&mut harness);
     }
 }

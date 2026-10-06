@@ -6,18 +6,21 @@ impl crate::Demo for IdTest {
         "ID Test"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use crate::View as _;
-            self.ui(ui);
-        });
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
+                use crate::View as _;
+                self.ui(ui);
+            });
     }
 }
 
 impl crate::View for IdTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         // Make sure the warnings are on (by default they are only on in debug builds).
-        ui.ctx().options_mut(|opt| opt.warn_on_id_clash = true);
+        ui.options_mut(|opt| opt.warn_on_id_clash = true);
 
         ui.heading("Name collision example");
 

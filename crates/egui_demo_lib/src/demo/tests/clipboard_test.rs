@@ -15,11 +15,14 @@ impl crate::Demo for ClipboardTest {
         "Clipboard Test"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use crate::View as _;
-            self.ui(ui);
-        });
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
+        egui::Window::new(self.name())
+            .open(open)
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
+                use crate::View as _;
+                self.ui(ui);
+            });
     }
 }
 
@@ -30,9 +33,10 @@ impl crate::View for ClipboardTest {
 
         let text_edit_response = ui
             .horizontal(|ui| {
-                let text_edit_response = ui.text_edit_singleline(&mut self.text);
+                let text_edit_response =
+                    ui.add(egui::TextEdit::singleline(&mut self.text).hint_text("Text to copy"));
                 if ui.button("📋").clicked() {
-                    ui.ctx().copy_text(self.text.clone());
+                    ui.copy_text(self.text.clone());
                 }
                 text_edit_response
             })
@@ -48,7 +52,7 @@ impl crate::View for ClipboardTest {
                 ] {
                     if ui.button(name).clicked() {
                         // Next frame we should get a copy/cut/paste-event…
-                        ui.ctx().send_viewport_cmd(cmd);
+                        ui.send_viewport_cmd(cmd);
 
                         // …that should en up here:
                         text_edit_response.request_focus();
@@ -69,7 +73,7 @@ impl crate::View for ClipboardTest {
                 ui.ctx().try_load_image(&uri, Default::default())
                 && ui.button("📋").clicked()
             {
-                ui.ctx().copy_image((*image).clone());
+                ui.copy_image((*image).clone());
             }
         });
 

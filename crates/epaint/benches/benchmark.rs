@@ -1,11 +1,11 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 
 use epaint::{
-    AlphaFromCoverage, ClippedShape, Color32, Mesh, PathStroke, Pos2, Rect, Shape, Stroke,
-    TessellationOptions, Tessellator, TextureAtlas, Vec2, pos2, tessellator::Path,
+    ClippedShape, Color32, Mesh, PathStroke, Pos2, Rect, Shape, Stroke, TessellationOptions,
+    Tessellator, TextureAtlas, Vec2, pos2, tessellator::Path,
 };
 
-use std::hint::black_box;
+use core::hint::black_box;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
@@ -55,7 +55,7 @@ fn tessellate_circles(c: &mut Criterion) {
             for _ in 0..10_000 {
                 let clip_rect = Rect::from_min_size(Pos2::ZERO, Vec2::splat(1024.0));
                 let shape = Shape::circle_filled(Pos2::new(10.0, 10.0), r, Color32::WHITE);
-                clipped_shapes.push(ClippedShape { clip_rect, shape });
+                clipped_shapes.push(ClippedShape::new(clip_rect, shape));
             }
         }
         assert_eq!(
@@ -68,7 +68,7 @@ fn tessellate_circles(c: &mut Criterion) {
         let pixels_per_point = 2.0;
         let options = TessellationOptions::default();
 
-        let atlas = TextureAtlas::new([4096, 256], AlphaFromCoverage::default());
+        let atlas = TextureAtlas::new([4096, 256], Default::default());
         let font_tex_size = atlas.size();
         let prepared_discs = atlas.prepared_discs();
 

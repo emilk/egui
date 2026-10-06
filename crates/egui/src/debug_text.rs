@@ -5,7 +5,7 @@
 //! to get callbacks on certain events ([`Plugin::on_begin_pass`], [`Plugin::on_end_pass`]).
 
 use crate::{
-    Align, Align2, Color32, Context, FontFamily, FontId, Plugin, Rect, Shape, Vec2, WidgetText,
+    Align, Align2, Color32, Context, FontFamily, FontId, Plugin, Rect, Shape, Ui, Vec2, WidgetText,
     text,
 };
 
@@ -26,7 +26,7 @@ pub fn print(ctx: &Context, text: impl Into<WidgetText>) {
         return;
     }
 
-    let location = std::panic::Location::caller();
+    let location = core::panic::Location::caller();
     let location = format!("{}:{}", location.file(), location.line());
 
     let plugin = ctx.plugin::<DebugTextPlugin>();
@@ -57,9 +57,9 @@ impl Plugin for DebugTextPlugin {
         "DebugTextPlugin"
     }
 
-    fn on_end_pass(&mut self, ctx: &Context) {
-        let entries = std::mem::take(&mut self.entries);
-        Self::paint_entries(ctx, entries);
+    fn on_end_pass(&mut self, ui: &mut Ui) {
+        let entries = core::mem::take(&mut self.entries);
+        Self::paint_entries(ui, entries);
     }
 }
 
@@ -99,7 +99,7 @@ impl DebugTextPlugin {
                 let available_width = ctx.content_rect().max.x - pos.x;
                 let galley = text.into_galley_impl(
                     ctx,
-                    &ctx.style(),
+                    &ctx.global_style(),
                     text::TextWrapping::wrap_at_width(available_width),
                     font_id.clone().into(),
                     Align::TOP,

@@ -1,10 +1,10 @@
+use core::f32::consts::TAU;
 use egui::{
     Color32, Painter, Pos2, Rect, Shape, Stroke, Ui, Vec2,
     containers::{CollapsingHeader, Frame},
     emath, pos2,
     widgets::Slider,
 };
-use std::f32::consts::TAU;
 
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -41,7 +41,7 @@ impl FractalClock {
     pub fn ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
         if !self.paused {
             self.time = seconds_since_midnight.unwrap_or_else(|| ui.input(|i| i.time));
-            ui.ctx().request_repaint();
+            ui.request_repaint();
         }
 
         let painter = Painter::new(
@@ -140,8 +140,8 @@ impl FractalClock {
         };
 
         let hand_rotations = [
-            hands[0].angle - hands[2].angle + TAU / 2.0,
-            hands[1].angle - hands[2].angle + TAU / 2.0,
+            hands[0].angle - hands[2].angle + TAU * 0.5,
+            hands[1].angle - hands[2].angle + TAU * 0.5,
         ];
 
         let hand_rotors = [
@@ -202,7 +202,7 @@ impl FractalClock {
                 }
             }
 
-            std::mem::swap(&mut nodes, &mut new_nodes);
+            core::mem::swap(&mut nodes, &mut new_nodes);
         }
         self.line_count = shapes.len();
         painter.extend(shapes);

@@ -10,11 +10,13 @@
 
 use crate::style::StyleModifier;
 use crate::{
-    Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms, Layout, Popup,
-    PopupCloseBehavior, Response, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
+    Atom, AtomKind, AtomPaintArgs, Button, Color32, Context, Frame, Id, InnerResponse, IntoAtoms,
+    IntoSizedResult, Layout, PointerButton, Popup, PopupCloseBehavior, PopupKind, Response,
+    SetOpenCommand, SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _,
 };
-use emath::{Align, RectAlign, Vec2, vec2};
-use epaint::Stroke;
+use emath::{Align, Rect, RectAlign, Vec2, vec2};
+use epaint::{Shape, Stroke};
+use std::sync::Arc;
 
 /// Apply a menu style to the [`Style`].
 ///
@@ -38,6 +40,18 @@ pub fn find_menu_root(ui: &Ui) -> &UiStack {
                 || stack.info.tags.contains(MenuConfig::MENU_CONFIG_TAG)
         })
         .expect("We should always find the root")
+}
+
+/// Find the [`UiStack`] of the [`MenuBar`] this [`Ui`] is directly part of, if any.
+///
+/// Returns `None` if the closest menu root is not a menu bar (e.g. if we are in a popup menu).
+fn find_menu_bar_root(ui: &Ui) -> Option<&UiStack> {
+    let root = find_menu_root(ui);
+    root.info
+        .tags
+        .get_downcast::<MenuConfig>(MenuConfig::MENU_CONFIG_TAG)
+        .is_some_and(|config| config.bar)
+        .then_some(root)
 }
 
 /// Is this Ui part of a menu?
@@ -73,6 +87,13 @@ pub struct MenuConfig {
     ///
     /// Default is [`menu_style`].
     pub style: StyleModifier,
+
+    /// The visual gap between the frame of a menu and the frames of the submenus it opens.
+    ///
+    /// `0.0` places submenus flush against their parent menu.
+    ///
+    /// Default is `2.0`.
+    pub submenu_gap: f32,
 }
 
 impl Default for MenuConfig {
@@ -81,6 +102,7 @@ impl Default for MenuConfig {
             close_behavior: PopupCloseBehavior::default(),
             bar: false,
             style: menu_style.into(),
+            submenu_gap: 2.0,
         }
     }
 }
@@ -106,6 +128,17 @@ impl MenuConfig {
     #[inline]
     pub fn style(mut self, style: impl Into<StyleModifier>) -> Self {
         self.style = style.into();
+        self
+    }
+
+    /// The visual gap between the frame of a menu and the frames of the submenus it opens.
+    ///
+    /// `0.0` places submenus flush against their parent menu.
+    ///
+    /// Default is `2.0`.
+    #[inline]
+    pub fn submenu_gap(mut self, submenu_gap: f32) -> Self {
+        self.submenu_gap = submenu_gap;
         self
     }
 
@@ -145,7 +178,7 @@ impl MenuState {
     /// Find the root of the menu and get the state
     pub fn from_ui<R>(ui: &Ui, f: impl FnOnce(&mut Self, &UiStack) -> R) -> R {
         let stack = find_menu_root(ui);
-        Self::from_id(ui.ctx(), stack.id, |state| f(state, stack))
+        Self::from_id(ui.ctx(), stack.unique_id, |state| f(state, stack))
     }
 
     /// Get the state via the menus root [`Ui`] id
@@ -161,14 +194,13 @@ impl MenuState {
             if state.last_visible_pass + 1 < pass_nr {
                 state.open_item = None;
             }
-            if let Some(item) = state.open_item {
-                if data
+            if let Some(item) = state.open_item
+                && data
                     .get_temp(item.with(Self::ID))
                     .is_none_or(|item: Self| item.last_visible_pass + 1 < pass_nr)
-                {
-                    // If the open item wasn't shown for at least a frame, reset the open item
-                    state.open_item = None;
-                }
+            {
+                // If the open item wasn't shown for at least a frame, reset the open item
+                state.open_item = None;
             }
             let r = f(&mut state);
             data.insert_temp(state_id, state);
@@ -198,7 +230,7 @@ impl MenuState {
 
 /// Horizontal menu bar where you can add [`MenuButton`]s.
 ///
-/// The menu bar goes well in a [`crate::TopBottomPanel::top`],
+/// The menu bar goes well in a [`crate::Panel::top`],
 /// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
 ///
@@ -208,7 +240,7 @@ impl MenuState {
 /// egui::MenuBar::new().ui(ui, |ui| {
 ///     ui.menu_button("File", |ui| {
 ///         if ui.button("Quit").clicked() {
-///             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+///             ui.send_viewport_cmd(egui::ViewportCommand::Close);
 ///         }
 ///     });
 /// });
@@ -219,9 +251,6 @@ pub struct MenuBar {
     config: MenuConfig,
     style: StyleModifier,
 }
-
-#[deprecated = "Renamed to `egui::MenuBar`"]
-pub type Bar = MenuBar;
 
 impl Default for MenuBar {
     fn default() -> Self {
@@ -297,6 +326,10 @@ pub struct MenuButton<'a> {
 }
 
 impl<'a> MenuButton<'a> {
+    /// Salt for the id (relative to the [`MenuBar`]) where we store the popup id of
+    /// the currently open menu in that bar.
+    const OPEN_MENU_ID_SALT: &'static str = "egui_menu_bar_open_menu";
+
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self::from_button(Button::new(atoms.into_atoms()))
     }
@@ -326,13 +359,42 @@ impl<'a> MenuButton<'a> {
         let response = self.button.ui(ui);
         let mut config = self.config.unwrap_or_else(|| MenuConfig::find(ui));
         config.bar = false;
-        let inner = Popup::menu(&response)
+
+        let mut menu = Popup::menu(&response);
+        let popup_id = menu.get_id();
+
+        // If we are part of a menu bar, we remember which of its menus is open, so that
+        // hovering another menu button in the same bar can switch to that menu without
+        // requiring a click. This is the typical behavior of menu bars at the top of a window.
+        let bar_open_menu_id =
+            find_menu_bar_root(ui).map(|bar| bar.unique_id.with(Self::OPEN_MENU_ID_SALT));
+        if let Some(bar_open_menu_id) = bar_open_menu_id
+            && response.hovered()
+            && !response.clicked()
+        {
+            let open_menu_in_bar = ui.data(|d| d.get_temp::<Id>(bar_open_menu_id));
+            if let Some(open_menu_in_bar) = open_menu_in_bar
+                && open_menu_in_bar != popup_id
+                && Popup::is_id_open(ui.ctx(), open_menu_in_bar)
+            {
+                menu = menu.open_memory(Some(SetOpenCommand::Bool(true)));
+            }
+        }
+
+        let inner = menu
             .close_behavior(config.close_behavior)
             .style(config.style.clone())
             .info(
                 UiStackInfo::new(UiKind::Menu).with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
             )
             .show(content);
+
+        if let Some(bar_open_menu_id) = bar_open_menu_id
+            && inner.is_some()
+        {
+            ui.data_mut(|d| d.insert_temp(bar_open_menu_id, popup_id));
+        }
+
         (response, inner)
     }
 }
@@ -344,17 +406,44 @@ pub struct SubMenuButton<'a> {
 }
 
 impl<'a> SubMenuButton<'a> {
-    /// The default right arrow symbol: `"⏵"`
-    pub const RIGHT_ARROW: &'static str = "⏵";
+    /// The submenu arrow triangle shape.
+    pub fn arrow_shape(rect: Rect, color: impl Into<Color32>) -> Shape {
+        let rect = Rect::from_center_size(
+            rect.center(),
+            vec2(rect.width() * 0.55, rect.height() * 0.35),
+        );
+        Shape::rotated_triangle(rect, -core::f32::consts::TAU / 4.0, color)
+    }
+
+    /// An [`Atom`] painting the [`Self::arrow_shape`].
+    ///
+    /// With `None` the arrow follows the buttons text color, `Some(color)` overrides it.
+    pub fn arrow_atom(color: Option<Color32>) -> Atom<'static> {
+        // A closure, so the size can be based on the `Ui`s spacing.
+        AtomKind::closure(move |ui, _args| {
+            let size = Vec2::splat(ui.spacing().icon_width);
+            IntoSizedResult {
+                intrinsic_size: size,
+                sized: SizedAtomKind::Paint {
+                    paint: Arc::new(move |ui: &Ui, args: AtomPaintArgs| {
+                        let color = color.unwrap_or(args.fallback_text_color);
+                        ui.painter().add(Self::arrow_shape(args.rect, color));
+                    }),
+                    size,
+                },
+            }
+        })
+        .into()
+    }
 
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
-        Self::from_button(Button::new(atoms.into_atoms()).right_text("⏵"))
+        Self::from_button(Button::new(atoms.into_atoms()).right_text(Self::arrow_atom(None)))
     }
 
     /// Create a new submenu button from a [`Button`].
     ///
-    /// Use [`Button::right_text`] and [`SubMenuButton::RIGHT_ARROW`] to add the default right
-    /// arrow symbol.
+    /// Use [`Button::right_text`] and [`SubMenuButton::arrow_atom`] to add the default right
+    /// arrow.
     pub fn from_button(button: Button<'a>) -> Self {
         Self {
             button,
@@ -433,28 +522,31 @@ impl SubMenu {
         button_response: &Response,
         content: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let frame = Frame::menu(ui.style());
+        // This frame is only used to measure the offset we should set for the popup, so that
+        // contents align
+        let measurement_frame = Frame::menu(ui.style());
 
         let id = Self::id_from_widget_id(button_response.id);
 
         // Get the state from the parent menu
         let (open_item, menu_id, parent_config) = MenuState::from_ui(ui, |state, stack| {
-            (state.open_item, stack.id, MenuConfig::from_stack(stack))
+            (
+                state.open_item,
+                stack.unique_id,
+                MenuConfig::from_stack(stack),
+            )
         });
 
         let mut menu_config = self.config.unwrap_or_else(|| parent_config.clone());
         menu_config.bar = false;
 
-        let menu_root_response = ui
-            .ctx()
-            .read_response(menu_id)
-            // Since we are a child of that ui, this should always exist
-            .unwrap();
+        #[expect(clippy::unwrap_used)] // Since we are a child of that ui, this should always exist
+        let menu_root_response = ui.ctx().read_response(menu_id).unwrap();
 
         let hover_pos = ui.ctx().pointer_hover_pos();
 
         // We don't care if the user is hovering over the border
-        let menu_rect = menu_root_response.rect - frame.total_margin();
+        let menu_rect = menu_root_response.rect - measurement_frame.total_margin();
         let is_hovering_menu = hover_pos.is_some_and(|pos| {
             ui.ctx().layer_id_at(pos) == Some(menu_root_response.layer_id)
                 && menu_rect.contains(pos)
@@ -462,6 +554,7 @@ impl SubMenu {
 
         let is_any_open = open_item.is_some();
         let mut is_open = open_item == Some(id);
+        let was_open = is_open;
         let mut set_open = None;
 
         // We expand the button rect so there is no empty space where no menu is shown
@@ -474,9 +567,21 @@ impl SubMenu {
         // But since we check if no other menu is open, nothing should be able to cover the button
         let is_hovered = hover_pos.is_some_and(|pos| button_rect.contains(pos));
 
+        // `clicked` includes keyboard and accessibility click actions.
+        // We want Enter/Space to toggle an already open submenu, while pointer clicks should keep
+        // the submenu open (for touch and pointer interactions).
+        let clicked = button_response.clicked();
+        let clicked_by_pointer = button_response.clicked_by(PointerButton::Primary);
+        let clicked_by_keyboard_or_access = clicked && !clicked_by_pointer;
+
+        if ui.is_enabled() && is_open && clicked_by_keyboard_or_access {
+            set_open = Some(false);
+            is_open = false;
+        }
+
         // The clicked handler is there for accessibility (keyboard navigation)
         let should_open =
-            ui.is_enabled() && (button_response.clicked() || (is_hovered && !is_any_open));
+            ui.is_enabled() && ((!was_open && clicked) || (is_hovered && !is_any_open));
         if should_open {
             set_open = Some(true);
             is_open = true;
@@ -486,21 +591,22 @@ impl SubMenu {
             });
         }
 
-        let gap = frame.total_margin().sum().x / 2.0 + 2.0;
+        // Half the margin brings the two menu frames edge-to-edge, then add the visual gap:
+        let gap = measurement_frame.total_margin().sum().x * 0.5 + menu_config.submenu_gap;
 
         let mut response = button_response.clone();
         // Expand the button rect so that the button and the first item in the submenu are aligned
-        let expand = Vec2::new(0.0, frame.total_margin().sum().y / 2.0);
+        let expand = Vec2::new(0.0, measurement_frame.total_margin().sum().y * 0.5);
         response.interact_rect = response.interact_rect.expand2(expand);
 
         let popup_response = Popup::from_response(&response)
             .id(id)
+            .kind(PopupKind::Menu)
             .open(is_open)
             .align(RectAlign::RIGHT_START)
             .layout(Layout::top_down_justified(Align::Min))
             .gap(gap)
             .style(menu_config.style.clone())
-            .frame(frame)
             // The close behavior is handled by the menu (see below)
             .close_behavior(PopupCloseBehavior::IgnoreClicks)
             .info(
@@ -557,7 +663,7 @@ impl SubMenu {
             if is_moving_towards_rect {
                 // We need to repaint while this is true, so we can detect when
                 // the pointer is no longer moving towards the rect
-                ui.ctx().request_repaint();
+                ui.request_repaint();
             }
             let hovering_other_menu_entry = is_open
                 && !is_hovered

@@ -1,34 +1,14 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
-#![allow(clippy::use_self)]
+#![expect(clippy::use_self)]
 
-use emath::GuiRounding as _;
-use epaint::mutex::RwLock;
-use epaint::text::FontsView;
-use std::{any::Any, hash::Hash, sync::Arc};
+use core::{any::Any, ops::Deref};
+use std::sync::Arc;
 
-use crate::ClosableTag;
-#[cfg(debug_assertions)]
-use crate::Stroke;
 use crate::containers::menu;
-use crate::{
-    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, IntoAtoms,
-    LayerId, Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText,
-    Sense, Style, TextStyle, TextWrapMode, UiBuilder, UiKind, UiStack, UiStackInfo, Vec2,
-    WidgetRect, WidgetText,
-    containers::{CollapsingHeader, CollapsingResponse, Frame},
-    ecolor::Hsva,
-    emath, epaint, grid,
-    layout::{Direction, Layout},
-    pass_state,
-    placer::Placer,
-    pos2, style,
-    util::IdTypeMap,
-    vec2, widgets,
-    widgets::{
-        Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link, RadioButton,
-        Separator, Spinner, TextEdit, Widget, color_picker,
-    },
-};
+use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
+use crate::{class, class::HasClasses as _};
+use emath::GuiRounding as _;
+
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -48,25 +28,10 @@ use crate::{
 /// # });
 /// ```
 pub struct Ui {
-    /// Generated based on id of parent ui together with an optional id salt.
-    ///
-    /// This should be stable from one frame to next
-    /// so it can be used as a source for storing state
-    /// (e.g. window position, or if a collapsing header is open).
-    ///
-    /// However, it is not necessarily globally unique.
-    /// For instance, sibling `Ui`s share the same [`Self::id`]
-    /// unless they where explicitly given different id salts using
-    /// [`UiBuilder::id_salt`].
-    id: Id,
+    /// The [`Id`] scope of this `Ui`. See [`Self::scope_id`].
+    scope_id: Id,
 
-    /// This is a globally unique ID of this `Ui`,
-    /// based on where in the hierarchy of widgets this Ui is in.
-    ///
-    /// This means it is not _stable_, as it can change if new widgets
-    /// are added or removed prior to this one.
-    /// It should therefore only be used for transient interactions (clicks etc),
-    /// not for storing state over time.
+    /// A globally unique, but unstable, [`Id`] of this `Ui`. See [`Self::unique_id`].
     unique_id: Id,
 
     /// This is used to create a unique interact ID for some widgets.
@@ -74,14 +39,14 @@ pub struct Ui {
     /// This value is based on where in the hierarchy of widgets this Ui is in,
     /// and the value is increment with each added child widget.
     /// This works as an Id source only as long as new widgets aren't added or removed.
-    /// They are therefore only good for Id:s that has no state.
+    /// They are therefore only good for Id:s that have no state.
     next_auto_id_salt: u64,
 
     /// Specifies paint layer, clip rectangle and a reference to [`Context`].
     painter: Painter,
 
     /// The [`Style`] (visuals, spacing, etc) of this ui.
-    /// Commonly many [`Ui`]:s share the same [`Style`].
+    /// Commonly many [`Ui`]s share the same [`Style`].
     /// The [`Ui`] implements copy-on-write for this.
     style: Arc<Style>,
 
@@ -96,10 +61,6 @@ pub struct Ui {
     /// where we size up the contents of the Ui, without actually showing it.
     sizing_pass: bool,
 
-    /// Indicates whether this Ui belongs to a Menu.
-    #[expect(deprecated)]
-    menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
-
     /// The [`UiStack`] for this [`Ui`].
     stack: Arc<UiStack>,
 
@@ -112,6 +73,16 @@ pub struct Ui {
     min_rect_already_remembered: bool,
 }
 
+/// Allow using [`Ui`] like a [`Context`].
+impl Deref for Ui {
+    type Target = Context;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.ctx()
+    }
+}
+
 impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
@@ -119,11 +90,10 @@ impl Ui {
     /// Create a new top-level [`Ui`].
     ///
     /// Normally you would not use this directly, but instead use
-    /// [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
-    pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
+    /// [`crate::Panel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
+    pub fn new(ctx: Context, scope_id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            id_salt,
-            global_scope: _,
+            id_source,
             ui_stack_info,
             layer_id,
             max_rect,
@@ -133,49 +103,57 @@ impl Ui {
             sizing_pass,
             style,
             sense,
-            #[cfg(feature = "accesskit")]
             accessibility_parent,
+            accessibility_label,
+            accessibility_role,
+            classes,
         } = ui_builder;
 
-        let layer_id = layer_id.unwrap_or(LayerId::background());
+        let layer_id = layer_id.unwrap_or_else(LayerId::background);
 
         debug_assert!(
-            id_salt.is_none(),
-            "Top-level Ui:s should not have an id_salt"
+            id_source.is_none(),
+            "Top-level Ui:s should not have an UiBuilder::id_source"
         );
 
         let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
-        let style = style.unwrap_or_else(|| ctx.style());
-        let sense = sense.unwrap_or(Sense::hover());
+        let style = style.unwrap_or_else(|| ctx.global_style());
+        let sense = sense.unwrap_or_else(Sense::hover);
+        let classes = classes.with_class(class::ROOT);
+
+        // A root `Ui` has no parent to derive a unique id from,
+        // so the caller must provide a globally unique id, which serves as both:
+        let unique_id = scope_id;
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
-            id,
+            unique_id,
+            scope_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
             parent: None,
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
+            classes,
         };
+
         let mut ui = Ui {
-            id,
-            unique_id: id,
-            next_auto_id_salt: id.with("auto").value(),
+            scope_id,
+            unique_id,
+            next_auto_id_salt: unique_id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer,
             enabled: true,
             sizing_pass,
-            menu_state: None,
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
         };
 
-        #[cfg(feature = "accesskit")]
         if let Some(accessibility_parent) = accessibility_parent {
             ui.ctx()
                 .register_accesskit_parent(ui.unique_id, accessibility_parent);
@@ -186,13 +164,16 @@ impl Ui {
         ui.ctx().create_widget(
             WidgetRect {
                 id: ui.unique_id,
+                parent_id: ui.unique_id,
                 layer_id: ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
                 sense,
                 enabled: ui.enabled,
+                visible: !invisible && ui.is_visible(),
             },
             true,
+            Default::default(),
         );
 
         if disabled {
@@ -202,53 +183,19 @@ impl Ui {
             ui.set_invisible();
         }
 
-        #[cfg(feature = "accesskit")]
+        let role = accessibility_role.unwrap_or_else(|| {
+            ui.stack
+                .kind()
+                .map_or(accesskit::Role::GenericContainer, UiKind::accesskit_role)
+        });
         ui.ctx().accesskit_node_builder(ui.unique_id, |node| {
-            node.set_role(accesskit::Role::GenericContainer);
+            node.set_role(role);
+            if let Some(label) = accessibility_label {
+                node.set_label(label);
+            }
         });
 
         ui
-    }
-
-    /// Create a new [`Ui`] at a specific region.
-    ///
-    /// Note: calling this function twice from the same [`Ui`] will create a conflict of id. Use
-    /// [`Self::scope`] if needed.
-    ///
-    /// When in doubt, use `None` for the `UiStackInfo` argument.
-    #[deprecated = "Use ui.new_child() instead"]
-    pub fn child_ui(
-        &mut self,
-        max_rect: Rect,
-        layout: Layout,
-        ui_stack_info: Option<UiStackInfo>,
-    ) -> Self {
-        self.new_child(
-            UiBuilder::new()
-                .max_rect(max_rect)
-                .layout(layout)
-                .ui_stack_info(ui_stack_info.unwrap_or_default()),
-        )
-    }
-
-    /// Create a new [`Ui`] at a specific region with a specific id.
-    ///
-    /// When in doubt, use `None` for the `UiStackInfo` argument.
-    #[deprecated = "Use ui.new_child() instead"]
-    pub fn child_ui_with_id_source(
-        &mut self,
-        max_rect: Rect,
-        layout: Layout,
-        id_salt: impl Hash,
-        ui_stack_info: Option<UiStackInfo>,
-    ) -> Self {
-        self.new_child(
-            UiBuilder::new()
-                .id_salt(id_salt)
-                .max_rect(max_rect)
-                .layout(layout)
-                .ui_stack_info(ui_stack_info.unwrap_or_default()),
-        )
     }
 
     /// Create a child `Ui` with the properties of the given builder.
@@ -262,8 +209,7 @@ impl Ui {
     /// [`Ui::advance_cursor_after_rect`].
     pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            id_salt,
-            global_scope,
+            id_source,
             ui_stack_info,
             layer_id,
             max_rect,
@@ -273,15 +219,16 @@ impl Ui {
             sizing_pass,
             style,
             sense,
-            #[cfg(feature = "accesskit")]
             accessibility_parent,
+            accessibility_label,
+            accessibility_role,
+            classes,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
 
-        let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
-        let mut layout = layout.unwrap_or(*self.layout());
+        let mut layout = layout.unwrap_or_else(|| *self.layout());
         let enabled = self.enabled && !disabled && !invisible;
         if let Some(layer_id) = layer_id {
             painter.set_layer_id(layer_id);
@@ -290,8 +237,8 @@ impl Ui {
             painter.set_invisible();
         }
         let sizing_pass = self.sizing_pass || sizing_pass;
-        let style = style.unwrap_or_else(|| self.style.clone());
-        let sense = sense.unwrap_or(Sense::hover());
+        let style = style.unwrap_or_else(|| Arc::clone(&self.style));
+        let sense = sense.unwrap_or_else(Sense::hover);
 
         if sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
@@ -303,13 +250,15 @@ impl Ui {
         }
 
         debug_assert!(!max_rect.any_nan(), "max_rect is NaN: {max_rect:?}");
-        let (stable_id, unique_id) = if global_scope {
-            (id_salt, id_salt)
-        } else {
-            let stable_id = self.id.with(id_salt);
-            let unique_id = stable_id.with(self.next_auto_id_salt);
 
-            (stable_id, unique_id)
+        let id_source = id_source.unwrap_or_else(|| IdSource::Child(IdSalt::new("child")));
+        let (scope_id, unique_id) = match id_source {
+            IdSource::Explicit(id) => (id, id),
+            IdSource::Child(id_salt) => {
+                let scope_id = self.scope_id.with(id_salt);
+                let unique_id = scope_id.with(self.next_auto_id_salt);
+                (scope_id, unique_id)
+            }
         };
         let next_auto_id_salt = unique_id.value().wrapping_add(1);
 
@@ -317,15 +266,18 @@ impl Ui {
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
-            id: unique_id,
+            unique_id,
+            scope_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
-            parent: Some(self.stack.clone()),
+            parent: Some(Arc::clone(&self.stack)),
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
+            classes,
         };
+
         let mut child_ui = Ui {
-            id: stable_id,
+            scope_id,
             unique_id,
             next_auto_id_salt,
             painter,
@@ -333,7 +285,6 @@ impl Ui {
             placer,
             enabled,
             sizing_pass,
-            menu_state: self.menu_state.clone(),
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
@@ -343,7 +294,6 @@ impl Ui {
             child_ui.disable();
         }
 
-        #[cfg(feature = "accesskit")]
         child_ui.ctx().register_accesskit_parent(
             child_ui.unique_id,
             accessibility_parent.unwrap_or(self.unique_id),
@@ -354,38 +304,37 @@ impl Ui {
         child_ui.ctx().create_widget(
             WidgetRect {
                 id: child_ui.unique_id,
+                parent_id: self.unique_id,
                 layer_id: child_ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
                 sense,
                 enabled: child_ui.enabled,
+                visible: child_ui.is_visible(),
             },
             true,
+            Default::default(),
         );
 
-        #[cfg(feature = "accesskit")]
+        let role = accessibility_role.unwrap_or_else(|| {
+            child_ui
+                .stack
+                .kind()
+                .map_or(accesskit::Role::GenericContainer, UiKind::accesskit_role)
+        });
         child_ui
             .ctx()
             .accesskit_node_builder(child_ui.unique_id, |node| {
-                node.set_role(accesskit::Role::GenericContainer);
+                node.set_role(role);
+                if let Some(label) = accessibility_label {
+                    node.set_label(label);
+                }
             });
 
         child_ui
     }
 
     // -------------------------------------------------
-
-    /// Set to true in special cases where we do one frame
-    /// where we size up the contents of the Ui, without actually showing it.
-    ///
-    /// This will also turn the Ui invisible.
-    /// Should be called right after [`Self::new`], if at all.
-    #[inline]
-    #[deprecated = "Use UiBuilder.sizing_pass().invisible()"]
-    pub fn set_sizing_pass(&mut self) {
-        self.sizing_pass = true;
-        self.set_invisible();
-    }
 
     /// Set to true in special cases where we do one frame
     /// where we size up the contents of the Ui, without actually showing it.
@@ -396,28 +345,40 @@ impl Ui {
 
     // -------------------------------------------------
 
-    /// Generated based on id of parent ui together with an optional id salt.
+    /// The stable [`Id`] scope of this `Ui`.
     ///
-    /// This should be stable from one frame to next
-    /// so it can be used as a source for storing state
-    /// (e.g. window position, or if a collapsing header is open).
+    /// This is _stable_ from one frame to the next,
+    /// so it should be used as the base for the [`Id`]s of widgets that store state
+    /// (e.g. window position, or if a collapsing header is open):
+    /// `ui.scope_id().with("my_widget")`.
+    /// See also [`Self::make_persistent_id`].
     ///
-    /// However, it is not necessarily globally unique.
-    /// For instance, sibling `Ui`s share the same [`Self::id`]
-    /// unless they were explicitly given different id salts using
-    /// [`UiBuilder::id_salt`].
+    /// This is NOT the [`Id`] of this particular `Ui`, but of its _scope_.
+    /// A child `Ui` inherits the scope of its parent (mixed with an optional [`UiBuilder::id_salt`]),
+    /// so sibling `Ui`s share the same scope unless given different salts.
+    /// Use [`Self::push_id`] to create a new scope.
+    ///
+    /// For a globally unique (but unstable) [`Id`] of this `Ui`, see [`Self::unique_id`].
     #[inline]
-    pub fn id(&self) -> Id {
-        self.id
+    pub fn scope_id(&self) -> Id {
+        self.scope_id
     }
 
-    /// This is a globally unique ID of this `Ui`,
-    /// based on where in the hierarchy of widgets this Ui is in.
+    /// Renamed to [`Self::scope_id`].
+    #[deprecated = "Renamed to `Ui::scope_id`"]
+    #[inline]
+    pub fn id(&self) -> Id {
+        self.scope_id
+    }
+
+    /// A globally unique, but unstable, [`Id`] of this `Ui`.
     ///
-    /// This means it is not _stable_, as it can change if new widgets
-    /// are added or removed prior to this one.
+    /// This is NOT _stable_: it is based on where in the widget hierarchy this `Ui` is,
+    /// so it changes if widgets are added or removed before it.
     /// It should therefore only be used for transient interactions (clicks etc),
-    /// not for storing state over time.
+    /// never for storing state over time.
+    ///
+    /// For a stable [`Id`] to base widget state on, see [`Self::scope_id`].
     #[inline]
     pub fn unique_id(&self) -> Id {
         self.unique_id
@@ -425,7 +386,7 @@ impl Ui {
 
     /// Style options for this [`Ui`] and its children.
     ///
-    /// Note that this may be a different [`Style`] than that of [`Context::style`].
+    /// Note that this may be a different [`Style`] than that of [`Context::global_style`].
     #[inline]
     pub fn style(&self) -> &Arc<Style> {
         &self.style
@@ -434,7 +395,7 @@ impl Ui {
     /// Mutably borrow internal [`Style`].
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the style of all [`Ui`]:s, use [`Context::set_style_of`].
+    /// To set the style of all [`Ui`]s, use [`Context::set_style_of`].
     ///
     /// Example:
     /// ```
@@ -448,14 +409,14 @@ impl Ui {
 
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals_of`].
+    /// To set the style of all [`Ui`]s, use [`Context::set_style_of`].
     pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
         self.style = style.into();
     }
 
     /// Reset to the default style set in [`Context`].
     pub fn reset_style(&mut self) {
-        self.style = self.ctx().style();
+        self.style = self.ctx().global_style();
     }
 
     /// The current spacing options for this [`Ui`].
@@ -465,7 +426,7 @@ impl Ui {
         &self.style.spacing
     }
 
-    /// Mutably borrow internal [`Spacing`](crate::style::Spacing).
+    /// Mutably borrow internal [`Spacing`].
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
     /// Example:
@@ -488,7 +449,7 @@ impl Ui {
     /// Mutably borrow internal `visuals`.
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals_of`].
+    /// To set the visuals of all [`Ui`]s, use [`Context::set_visuals_of`].
     ///
     /// Example:
     /// ```
@@ -498,6 +459,12 @@ impl Ui {
     /// ```
     pub fn visuals_mut(&mut self) -> &mut crate::Visuals {
         &mut self.style_mut().visuals
+    }
+
+    /// Is this [`Ui`] in a tooltip?
+    #[inline]
+    pub fn is_tooltip(&self) -> bool {
+        self.layer_id().order == Order::Tooltip
     }
 
     /// Get a reference to this [`Ui`]'s [`UiStack`].
@@ -561,33 +528,6 @@ impl Ui {
         }
     }
 
-    /// Calling `set_enabled(false)` will cause the [`Ui`] to deny all future interaction
-    /// and all the widgets will draw with a gray look.
-    ///
-    /// Usually it is more convenient to use [`Self::add_enabled_ui`] or [`Self::add_enabled`].
-    ///
-    /// Calling `set_enabled(true)` has no effect - it will NOT re-enable the [`Ui`] once disabled.
-    ///
-    /// ### Example
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// # let mut enabled = true;
-    /// ui.group(|ui| {
-    ///     ui.checkbox(&mut enabled, "Enable subsection");
-    ///     ui.set_enabled(enabled);
-    ///     if ui.button("Button that is not always clickable").clicked() {
-    ///         /* … */
-    ///     }
-    /// });
-    /// # });
-    /// ```
-    #[deprecated = "Use disable(), add_enabled_ui(), or add_enabled() instead"]
-    pub fn set_enabled(&mut self, enabled: bool) {
-        if !enabled {
-            self.disable();
-        }
-    }
-
     /// If `false`, any widgets added to the [`Ui`] will be invisible and non-interactive.
     ///
     /// This is `false` if any parent had [`UiBuilder::invisible`]
@@ -604,7 +544,7 @@ impl Ui {
     ///
     /// Once invisible, there is no way to make the [`Ui`] visible again.
     ///
-    /// Usually it is more convenient to use [`Self::add_visible_ui`] or [`Self::add_visible`].
+    /// Usually it is more convenient to use [`Self::add_visible`].
     ///
     /// ### Example
     /// ```
@@ -624,34 +564,6 @@ impl Ui {
     pub fn set_invisible(&mut self) {
         self.painter.set_invisible();
         self.disable();
-    }
-
-    /// Calling `set_visible(false)` will cause all further widgets to be invisible,
-    /// yet still allocate space.
-    ///
-    /// The widgets will not be interactive (`set_visible(false)` implies `set_enabled(false)`).
-    ///
-    /// Calling `set_visible(true)` has no effect.
-    ///
-    /// ### Example
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// # let mut visible = true;
-    /// ui.group(|ui| {
-    ///     ui.checkbox(&mut visible, "Show subsection");
-    ///     ui.set_visible(visible);
-    ///     if ui.button("Button that is not always shown").clicked() {
-    ///         /* … */
-    ///     }
-    /// });
-    /// # });
-    /// ```
-    #[deprecated = "Use set_invisible(), add_visible_ui(), or add_visible() instead"]
-    pub fn set_visible(&mut self, visible: bool) {
-        if !visible {
-            self.painter.set_invisible();
-            self.disable();
-        }
     }
 
     /// Make the widget in this [`Ui`] semi-transparent.
@@ -701,17 +613,8 @@ impl Ui {
     ///
     /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
     pub fn wrap_mode(&self) -> TextWrapMode {
-        #[expect(deprecated)]
         if let Some(wrap_mode) = self.style.wrap_mode {
             wrap_mode
-        }
-        // `wrap` handling for backward compatibility
-        else if let Some(wrap) = self.style.wrap {
-            if wrap {
-                TextWrapMode::Wrap
-            } else {
-                TextWrapMode::Extend
-            }
         } else if let Some(grid) = self.placer.grid() {
             if grid.wrap_text() {
                 TextWrapMode::Wrap
@@ -726,14 +629,6 @@ impl Ui {
                 TextWrapMode::Extend
             }
         }
-    }
-
-    /// Should text wrap in this [`Ui`]?
-    ///
-    /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
-    #[deprecated = "Use `wrap_mode` instead"]
-    pub fn wrap_text(&self) -> bool {
-        self.wrap_mode() == TextWrapMode::Wrap
     }
 
     /// How to vertically align text
@@ -797,93 +692,6 @@ impl Ui {
     /// or if [`Context::will_discard`] is true.
     pub fn is_rect_visible(&self, rect: Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
-    }
-}
-
-/// # Helpers for accessing the underlying [`Context`].
-/// These functions all lock the [`Context`] owned by this [`Ui`].
-/// Please see the documentation of [`Context`] for how locking works!
-impl Ui {
-    /// Read-only access to the shared [`InputState`].
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// if ui.input(|i| i.key_pressed(egui::Key::A)) {
-    ///     // …
-    /// }
-    /// # });
-    /// ```
-    #[inline]
-    pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
-        self.ctx().input(reader)
-    }
-
-    /// Read-write access to the shared [`InputState`].
-    #[inline]
-    pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
-        self.ctx().input_mut(writer)
-    }
-
-    /// Read-only access to the shared [`Memory`].
-    #[inline]
-    pub fn memory<R>(&self, reader: impl FnOnce(&Memory) -> R) -> R {
-        self.ctx().memory(reader)
-    }
-
-    /// Read-write access to the shared [`Memory`].
-    #[inline]
-    pub fn memory_mut<R>(&self, writer: impl FnOnce(&mut Memory) -> R) -> R {
-        self.ctx().memory_mut(writer)
-    }
-
-    /// Read-only access to the shared [`IdTypeMap`], which stores superficial widget state.
-    #[inline]
-    pub fn data<R>(&self, reader: impl FnOnce(&IdTypeMap) -> R) -> R {
-        self.ctx().data(reader)
-    }
-
-    /// Read-write access to the shared [`IdTypeMap`], which stores superficial widget state.
-    #[inline]
-    pub fn data_mut<R>(&self, writer: impl FnOnce(&mut IdTypeMap) -> R) -> R {
-        self.ctx().data_mut(writer)
-    }
-
-    /// Read-only access to the shared [`PlatformOutput`].
-    ///
-    /// This is what egui outputs each frame.
-    ///
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
-    /// ```
-    #[inline]
-    pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
-        self.ctx().output(reader)
-    }
-
-    /// Read-write access to the shared [`PlatformOutput`].
-    ///
-    /// This is what egui outputs each frame.
-    ///
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
-    /// ```
-    #[inline]
-    pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
-        self.ctx().output_mut(writer)
-    }
-
-    /// Read-only access to [`FontsView`].
-    #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&FontsView<'_>) -> R) -> R {
-        self.ctx().fonts(reader)
-    }
-
-    /// Read-write access to [`FontsView`].
-    #[inline]
-    pub fn fonts_mut<R>(&self, reader: impl FnOnce(&mut FontsView<'_>) -> R) -> R {
-        self.ctx().fonts_mut(reader)
     }
 }
 
@@ -1098,28 +906,33 @@ impl Ui {
 
 /// # [`Id`] creation
 impl Ui {
-    /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
-    pub fn make_persistent_id<IdSource>(&self, id_salt: IdSource) -> Id
-    where
-        IdSource: Hash,
-    {
-        self.id.with(&id_salt)
+    /// Generate an [`Id`] for a widget that has persistent state in [`Memory`].
+    ///
+    /// This is the same as `ui.scope_id().with(id_salt)`.
+    /// Since it is based on the stable [`Self::scope_id`], it is stable over time,
+    /// as long as `id_salt` is unique within the current id scope.
+    pub fn make_persistent_id(&self, id_salt: impl AsIdSalt) -> Id {
+        self.scope_id.with(id_salt)
     }
 
-    /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
+    /// The `Id` that will be assigned to the next widget added to this `Ui`,
+    /// unless it has an explicit `Id`.
+    ///
+    /// This is based on the [`Self::unique_id`] of this `Ui` and the number of widgets added so far.
+    /// It is therefore NOT stable: it changes if widgets are added or removed before it.
+    /// Do not use it for widgets that store state; use [`Self::make_persistent_id`] for that.
     pub fn next_auto_id(&self) -> Id {
-        Id::new(self.next_auto_id_salt)
+        Id::unique(self.next_auto_id_salt)
     }
 
-    /// Same as `ui.next_auto_id().with(id_salt)`
-    pub fn auto_id_with<IdSource>(&self, id_salt: IdSource) -> Id
-    where
-        IdSource: Hash,
-    {
-        Id::new(self.next_auto_id_salt).with(id_salt)
+    /// Same as `ui.next_auto_id().with(id_salt)`.
+    ///
+    /// Like [`Self::next_auto_id`], this is NOT stable over time.
+    pub fn auto_id_with(&self, id_salt: impl AsIdSalt) -> Id {
+        Id::unique(self.next_auto_id_salt).with(id_salt)
     }
 
-    /// Pretend like `count` widgets have been allocated.
+    /// Pretend like `count` widgets have been allocated, advancing [`Self::next_auto_id`].
     pub fn skip_ahead_auto_ids(&mut self, count: usize) {
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(count as u64);
     }
@@ -1129,36 +942,119 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        #[cfg(feature = "accesskit")]
+        self.interact_opt(rect, id, sense, Default::default())
+    }
+
+    /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
+    pub fn interact_opt(
+        &self,
+        rect: Rect,
+        id: Id,
+        sense: Sense,
+        options: crate::InteractOptions,
+    ) -> Response {
         self.ctx().register_accesskit_parent(id, self.unique_id);
 
         self.ctx().create_widget(
             WidgetRect {
                 id,
+                parent_id: self.unique_id,
                 layer_id: self.layer_id(),
                 rect,
                 interact_rect: self.clip_rect().intersect(rect),
                 sense,
                 enabled: self.enabled,
+                visible: self.is_visible(),
             },
             true,
+            options,
         )
     }
 
-    /// Deprecated: use [`Self::interact`] instead.
-    #[deprecated = "The contains_pointer argument is ignored. Use `ui.interact` instead."]
-    pub fn interact_with_hovered(
-        &self,
-        rect: Rect,
-        _contains_pointer: bool,
-        id: Id,
-        sense: Sense,
-    ) -> Response {
-        self.interact(rect, id, sense)
+    /// Run `add_contents`, then mark every input widget it added that has no accessible name
+    /// as labelled by `label_id`.
+    ///
+    /// An input widget is one whose role passes [`crate::accessibility::is_input`]. For a row
+    /// whose label is painted apart from its value widgets (a property row, a form), this names
+    /// the value widgets without each editor having to know the row label.
+    /// Costs a lookup per widget added, and nothing when accessibility is off.
+    pub fn label_inputs_by<R>(
+        &mut self,
+        label_id: Id,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let first = self.widget_count_in_layer();
+        let result = add_contents(self);
+        for id in self.unnamed_inputs_added_since(first) {
+            self.ctx().accesskit_node_builder(id, |node| {
+                // As in `Response::labelled_by`: an own label, even a blank one, wins.
+                node.clear_label();
+                node.push_labelled_by(label_id.accesskit_id());
+            });
+        }
+        result
     }
 
-    /// Read the [`Ui`]s background [`Response`].
-    /// It's [`Sense`] will be based on the [`UiBuilder::sense`] used to create this [`Ui`].
+    /// Run `add_contents`, then give every input widget it added that has no accessible name
+    /// the name `name`.
+    ///
+    /// An input widget is one whose role passes [`crate::accessibility::is_input`]. This is for
+    /// widgets that cannot be named where they are built, e.g. inside a third-party crate.
+    /// Costs a lookup per widget added, and nothing when accessibility is off.
+    pub fn name_inputs<R>(
+        &mut self,
+        name: impl Into<String>,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let first = self.widget_count_in_layer();
+        let result = add_contents(self);
+        let name = name.into();
+        for id in self.unnamed_inputs_added_since(first) {
+            self.ctx()
+                .accesskit_node_builder(id, |node| node.set_label(name.clone()));
+        }
+        result
+    }
+
+    /// How many widgets this pass has registered on this `Ui`'s layer so far.
+    fn widget_count_in_layer(&self) -> usize {
+        let layer_id = self.layer_id();
+        self.ctx()
+            .viewport(|viewport| viewport.this_pass.widgets.get_layer(layer_id).count())
+    }
+
+    /// The input widgets registered on this `Ui`'s layer from index `first` on that have
+    /// no name: no label, no `labelled_by`, and no placeholder (which names a text field).
+    ///
+    /// A layer's widget list only grows during a pass. The one exception, a window dragged
+    /// by its title bar (`InteractOptions::move_to_top`), lives on its own layer.
+    fn unnamed_inputs_added_since(&self, first: usize) -> Vec<Id> {
+        let layer_id = self.layer_id();
+        self.ctx().viewport(|viewport| {
+            let Some(state) = &viewport.this_pass.accesskit_state else {
+                return Vec::new();
+            };
+            viewport
+                .this_pass
+                .widgets
+                .get_layer(layer_id)
+                .skip(first)
+                .filter_map(|rect| {
+                    let node = state.nodes.get(&rect.id)?;
+                    let unnamed = crate::accessibility::is_input(node.role())
+                        && node.label().is_none_or(|label| label.trim().is_empty())
+                        && node.labelled_by().is_empty()
+                        && node
+                            .placeholder()
+                            .is_none_or(|placeholder| placeholder.trim().is_empty());
+                    unnamed.then_some(rect.id)
+                })
+                .collect()
+        })
+    }
+
+    /// Read the [`Ui`]'s background [`Response`].
+    /// Its [`Sense`] will be based on the [`UiBuilder::sense`] used to create this [`Ui`].
     ///
     /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`]
     /// of the last pass.
@@ -1168,7 +1064,7 @@ impl Ui {
     pub fn response(&self) -> Response {
         // This is the inverse of Context::read_response. We prefer a response
         // based on last frame's widget rect since the one from this frame is Rect::NOTHING until
-        // Ui::interact_bg is called or the Ui is dropped.
+        // Ui::remember_min_rect is called or the Ui is dropped.
         let mut response = self
             .ctx()
             .viewport(|viewport| {
@@ -1203,28 +1099,25 @@ impl Ui {
         let mut response = self.ctx().create_widget(
             WidgetRect {
                 id: self.unique_id,
+                parent_id: self
+                    .stack
+                    .parent
+                    .as_ref()
+                    .map_or(self.unique_id, |p| p.unique_id),
                 layer_id: self.layer_id(),
                 rect: self.min_rect(),
                 interact_rect: self.clip_rect().intersect(self.min_rect()),
                 sense: self.sense,
                 enabled: self.enabled,
+                visible: self.is_visible(),
             },
             false,
+            Default::default(),
         );
         if self.should_close() {
             response.set_close();
         }
         response
-    }
-
-    /// Interact with the background of this [`Ui`],
-    /// i.e. behind all the widgets.
-    ///
-    /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
-    #[deprecated = "Use UiBuilder::sense with Ui::response instead"]
-    pub fn interact_bg(&self, sense: Sense) -> Response {
-        // This will update the WidgetRect that was first created in `Ui::new`.
-        self.interact(self.min_rect(), self.unique_id, sense)
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
@@ -1258,7 +1151,7 @@ impl Ui {
     /// [`crate::Area`], [`crate::Window`], [`crate::CollapsingHeader`], etc.
     ///
     /// What exactly happens when you close a container depends on the container implementation.
-    /// [`crate::Area`] e.g. will return true from it's [`Response::should_close`] method.
+    /// [`crate::Area`] e.g. will return true from its [`Response::should_close`] method.
     ///
     /// If you want to close a specific kind of container, use [`Ui::close_kind`] instead.
     ///
@@ -1371,7 +1264,7 @@ impl Ui {
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
         let (id, rect) = self.allocate_space(desired_size);
         let mut response = self.interact(rect, id, sense);
-        response.intrinsic_size = Some(desired_size);
+        response.set_intrinsic_size(desired_size);
         response
     }
 
@@ -1439,7 +1332,7 @@ impl Ui {
                     crate::StrokeKind::Inside,
                 );
 
-                let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
+                let stroke = crate::Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                 let paint_line_seg = |a, b| self.painter().line_segment([a, b], stroke);
 
                 if debug_expand_width && too_wide {
@@ -1460,7 +1353,7 @@ impl Ui {
             }
         }
 
-        let id = Id::new(self.next_auto_id_salt);
+        let id = Id::unique(self.next_auto_id_salt);
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
 
         (id, rect)
@@ -1501,7 +1394,7 @@ impl Ui {
         self.placer.advance_after_rects(rect, rect, item_spacing);
         register_rect(self, rect);
 
-        let id = Id::new(self.next_auto_id_salt);
+        let id = Id::unique(self.next_auto_id_salt);
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
         id
     }
@@ -1579,34 +1472,6 @@ impl Ui {
         )
     }
 
-    /// Allocated the given rectangle and then adds content to that rectangle.
-    ///
-    /// If the contents overflow, more space will be allocated.
-    /// When finished, the amount of space actually used (`min_rect`) will be allocated.
-    /// So you can request a lot of space and then use less.
-    #[deprecated = "Use `allocate_new_ui` instead"]
-    pub fn allocate_ui_at_rect<R>(
-        &mut self,
-        max_rect: Rect,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
-        self.scope_builder(UiBuilder::new().max_rect(max_rect), add_contents)
-    }
-
-    /// Allocated space (`UiBuilder::max_rect`) and then add content to it.
-    ///
-    /// If the contents overflow, more space will be allocated.
-    /// When finished, the amount of space actually used (`min_rect`) will be allocated in the parent.
-    /// So you can request a lot of space and then use less.
-    #[deprecated = "Use `scope_builder` instead"]
-    pub fn allocate_new_ui<R>(
-        &mut self,
-        ui_builder: UiBuilder,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
-        self.scope_dyn(ui_builder, Box::new(add_contents))
-    }
-
     /// Convenience function to get a region to paint on.
     ///
     /// Note that egui uses screen coordinates for everything.
@@ -1619,7 +1484,7 @@ impl Ui {
     /// let (response, painter) = ui.allocate_painter(size, Sense::hover());
     /// let rect = response.rect;
     /// let c = rect.center();
-    /// let r = rect.width() / 2.0 - 1.0;
+    /// let r = rect.width() * 0.5 - 1.0;
     /// let color = Color32::from_gray(128);
     /// let stroke = Stroke::new(1.0, color);
     /// painter.circle_stroke(c, r, stroke);
@@ -1897,7 +1762,7 @@ impl Ui {
     /// If you call `add_visible` from within an already invisible [`Ui`],
     /// the widget will always be invisible, even if the `visible` argument is true.
     ///
-    /// See also [`Self::add_visible_ui`], [`Self::set_visible`] and [`Self::is_visible`].
+    /// See also [`Self::set_invisible`] and [`Self::is_visible`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -1920,38 +1785,6 @@ impl Ui {
         } else {
             self.add(widget)
         }
-    }
-
-    /// Add a section that is possibly invisible, i.e. greyed out and non-interactive.
-    ///
-    /// An invisible ui still takes up the same space as if it were visible.
-    ///
-    /// If you call `add_visible_ui` from within an already invisible [`Ui`],
-    /// the result will always be invisible, even if the `visible` argument is true.
-    ///
-    /// See also [`Self::add_visible`], [`Self::set_visible`] and [`Self::is_visible`].
-    ///
-    /// ### Example
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// # let mut visible = true;
-    /// ui.checkbox(&mut visible, "Show subsection");
-    /// ui.add_visible_ui(visible, |ui| {
-    ///     ui.label("Maybe you see this, maybe you don't!");
-    /// });
-    /// # });
-    /// ```
-    #[deprecated = "Use 'ui.scope_builder' instead"]
-    pub fn add_visible_ui<R>(
-        &mut self,
-        visible: bool,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        let mut ui_builder = UiBuilder::new();
-        if !visible {
-            ui_builder = ui_builder.invisible();
-        }
-        self.scope_builder(ui_builder, add_contents)
     }
 
     /// Add extra space before the next widget.
@@ -2145,10 +1978,10 @@ impl Ui {
     ///
     /// Usage: `if ui.small_button("Click me").clicked() { … }`
     ///
-    /// Shortcut for `add(Button::new(text).small())`
+    /// Shortcut for `add(Button::new(atoms).small())`
     #[must_use = "You should check if the user clicked this with `if ui.small_button(…).clicked() { … } "]
-    pub fn small_button(&mut self, text: impl Into<WidgetText>) -> Response {
-        Button::new(text).small().ui(self)
+    pub fn small_button<'a>(&mut self, atoms: impl IntoAtoms<'a>) -> Response {
+        Button::new(atoms).small().ui(self)
     }
 
     /// Show a checkbox.
@@ -2277,7 +2110,7 @@ impl Ui {
     /// but is shown to the user in fractions of one Tau (i.e. fractions of one turn).
     /// The angle is NOT wrapped, so the user may select, for instance 2𝞃 (720°)
     pub fn drag_angle_tau(&mut self, radians: &mut f32) -> Response {
-        use std::f32::consts::TAU;
+        use core::f32::consts::TAU;
 
         let mut taus = *radians / TAU;
         let mut response = self.add(DragValue::new(&mut taus).speed(0.01).suffix("τ"));
@@ -2299,7 +2132,7 @@ impl Ui {
     /// Show an image available at the given `uri`.
     ///
     /// ⚠ This will do nothing unless you install some image loaders first!
-    /// The easiest way to do this is via [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/fn.install_image_loaders.html).
+    /// The easiest way to do this is via [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install_image_loaders.html).
     ///
     /// The loaders handle caching image data, sampled textures, etc. across frames, so calling this is immediate-mode safe.
     ///
@@ -2375,7 +2208,7 @@ impl Ui {
     ///
     /// If the user clicks the button, a full color picker is shown.
     /// The given color is in `sRGBA` space without premultiplied alpha.
-    /// If unsure, what "premultiplied alpha" is, then this is probably the function you want to use.
+    /// If unsure what "premultiplied alpha" is, then this is probably the function you want to use.
     pub fn color_edit_button_srgba_unmultiplied(&mut self, srgba: &mut [u8; 4]) -> Response {
         let mut rgba = Rgba::from_srgba_unmultiplied(srgba[0], srgba[1], srgba[2], srgba[3]);
         let response =
@@ -2455,25 +2288,10 @@ impl Ui {
     /// ```
     pub fn push_id<R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl AsIdSalt,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope_dyn(UiBuilder::new().id_salt(id_salt), Box::new(add_contents))
-    }
-
-    /// Push another level onto the [`UiStack`].
-    ///
-    /// You can use this, for instance, to tag a group of widgets.
-    #[deprecated = "Use 'ui.scope_builder' instead"]
-    pub fn push_stack_info<R>(
-        &mut self,
-        ui_stack_info: UiStackInfo,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.scope_dyn(
-            UiBuilder::new().ui_stack_info(ui_stack_info),
-            Box::new(add_contents),
-        )
     }
 
     /// Create a scoped child ui.
@@ -2488,11 +2306,16 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    ///
+    /// See also [`Self::scope_builder`] for more options.
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.scope_dyn(UiBuilder::new(), Box::new(add_contents))
     }
 
-    /// Create a child, add content to it, and then allocate only what was used in the parent `Ui`.
+    /// Create a scoped child ui, inheriting properties from the parent as specified by the [`UiBuilder`].
+    /// In contrast to [`Self::new_child`], this allocates the space used by the child.
+    ///
+    /// See also [`Self::scope`] and [`Self::scope_dyn`].
     pub fn scope_builder<R>(
         &mut self,
         ui_builder: UiBuilder,
@@ -2501,7 +2324,7 @@ impl Ui {
         self.scope_dyn(ui_builder, Box::new(add_contents))
     }
 
-    /// Create a child, add content to it, and then allocate only what was used in the parent `Ui`.
+    /// [`Self::scope_builder`] but with dynamic dispatch.
     pub fn scope_dyn<'c, R>(
         &mut self,
         ui_builder: UiBuilder,
@@ -2514,26 +2337,6 @@ impl Ui {
         let response = child_ui.remember_min_rect();
         self.advance_cursor_after_rect(child_ui.min_rect());
         InnerResponse::new(ret, response)
-    }
-
-    /// Redirect shapes to another paint layer.
-    ///
-    /// ```
-    /// # use egui::{LayerId, Order, Id};
-    /// # egui::__run_test_ui(|ui| {
-    /// let layer_id = LayerId::new(Order::Tooltip, Id::new("my_floating_ui"));
-    /// ui.with_layer_id(layer_id, |ui| {
-    ///     ui.label("This is now in a different layer");
-    /// });
-    /// # });
-    /// ```
-    #[deprecated = "Use ui.scope_builder(UiBuilder::new().layer_id(…), …) instead"]
-    pub fn with_layer_id<R>(
-        &mut self,
-        layer_id: LayerId,
-        add_contents: impl FnOnce(&mut Self) -> R,
-    ) -> InnerResponse<R> {
-        self.scope_builder(UiBuilder::new().layer_id(layer_id), add_contents)
     }
 
     /// A [`CollapsingHeader`] that starts out collapsed.
@@ -2555,7 +2358,7 @@ impl Ui {
     #[inline]
     pub fn indent<R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl AsIdSalt,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.indent_dyn(id_salt, Box::new(add_contents))
@@ -2563,7 +2366,7 @@ impl Ui {
 
     fn indent_dyn<'c, R>(
         &mut self,
-        id_salt: impl Hash,
+        id_salt: impl AsIdSalt,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         assert!(
@@ -2922,7 +2725,7 @@ impl Ui {
         let column_width = (self.available_width() - total_spacing) / (NUM_COL as f32);
         let top_left = self.cursor().min;
 
-        let mut columns = std::array::from_fn(|col_idx| {
+        let mut columns = core::array::from_fn(|col_idx| {
             let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
             let child_rect = Rect::from_min_max(
                 pos,
@@ -3011,7 +2814,14 @@ impl Ui {
     ///
     /// Returns the dropped item, if it was released this frame.
     ///
-    /// The given frame is used for its margins, but it color is ignored.
+    /// The margins, corner radius and shadow of the given frame are always used.
+    ///
+    /// When nothing is being dragged, the frame's own fill and stroke are kept,
+    /// unless the frame has no styling of its own (transparent fill and no visible stroke,
+    /// e.g. [`Frame::default`]), in which case the inactive widget style is used,
+    /// so the drop zone is still visible.
+    ///
+    /// During a drag, the fill and stroke are always replaced with the drop target visuals.
     #[doc(alias = "drag and drop")]
     pub fn dnd_drop_zone<Payload, R>(
         &mut self,
@@ -3029,28 +2839,30 @@ impl Ui {
         let inner = add_contents(&mut frame.content_ui);
         let response = frame.allocate_space(self);
 
-        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
-        // `hovered` is always false when another widget is being dragged.
-        let style = if is_anything_being_dragged
-            && can_accept_what_is_being_dragged
-            && response.contains_pointer()
-        {
-            self.visuals().widgets.active
-        } else {
-            self.visuals().widgets.inactive
-        };
+        let has_own_styling =
+            frame.frame.fill != Color32::TRANSPARENT || !frame.frame.stroke.is_empty();
 
-        let mut fill = style.bg_fill;
-        let mut stroke = style.bg_stroke;
+        if is_anything_being_dragged || !has_own_styling {
+            // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+            // `hovered` is always false when another widget is being dragged.
+            let style = if can_accept_what_is_being_dragged && response.contains_pointer() {
+                self.visuals().widgets.active
+            } else {
+                self.visuals().widgets.inactive
+            };
 
-        if is_anything_being_dragged && !can_accept_what_is_being_dragged {
-            // When dragging something else, show that it can't be dropped here:
-            fill = self.visuals().disable(fill);
-            stroke.color = self.visuals().disable(stroke.color);
+            let mut fill = style.bg_fill;
+            let mut stroke = style.bg_stroke;
+
+            if is_anything_being_dragged && !can_accept_what_is_being_dragged {
+                // When dragging something else, show that it can't be dropped here:
+                fill = self.visuals().disable(fill);
+                stroke.color = self.visuals().disable(stroke.color);
+            }
+
+            frame.frame.fill = fill;
+            frame.frame.stroke = stroke;
         }
-
-        frame.frame.fill = fill;
-        frame.frame.stroke = stroke;
 
         frame.paint(self);
 
@@ -3089,22 +2901,6 @@ impl Ui {
 
 /// # Menus
 impl Ui {
-    /// Close the menu we are in (including submenus), if any.
-    ///
-    /// See also: [`Self::menu_button`] and [`Response::context_menu`].
-    #[deprecated = "Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead"]
-    pub fn close_menu(&self) {
-        self.close_kind(UiKind::Menu);
-    }
-
-    #[expect(deprecated)]
-    pub(crate) fn set_menu_state(
-        &mut self,
-        menu_state: Option<Arc<RwLock<crate::menu::MenuState>>>,
-    ) {
-        self.menu_state = menu_state;
-    }
-
     #[inline]
     /// Create a menu button that when clicked will show the given menu.
     ///
@@ -3164,7 +2960,7 @@ impl Ui {
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
             menu::SubMenuButton::from_button(
-                Button::image(image).right_text(menu::SubMenuButton::RIGHT_ARROW),
+                Button::image(image).right_text(menu::SubMenuButton::arrow_atom(None)),
             )
             .ui(self, add_contents)
         } else {
@@ -3202,7 +2998,8 @@ impl Ui {
     ) -> InnerResponse<Option<R>> {
         let (response, inner) = if menu::is_in_menu(self) {
             menu::SubMenuButton::from_button(
-                Button::image_and_text(image, title).right_text(menu::SubMenuButton::RIGHT_ARROW),
+                Button::image_and_text(image, title)
+                    .right_text(menu::SubMenuButton::arrow_atom(None)),
             )
             .ui(self, add_contents)
         } else {
@@ -3312,7 +3109,7 @@ fn register_rect(ui: &Ui, rect: Rect) {
 
     // Use the debug-painter to avoid clip rect,
     // otherwise the content of the widget may cover what we paint here!
-    let painter = ui.ctx().debug_painter();
+    let painter = ui.debug_painter();
 
     if debug.hover_shows_next {
         ui.placer.debug_paint_cursor(&painter, "next");
@@ -3322,8 +3119,9 @@ fn register_rect(ui: &Ui, rect: Rect) {
 #[cfg(not(debug_assertions))]
 fn register_rect(_ui: &Ui, _rect: Rect) {}
 
-#[test]
-fn ui_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Ui` is `Send + Sync` on every target.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Ui>();
-}
+};

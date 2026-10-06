@@ -3,13 +3,13 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.88.0 or later to use `egui`.
+//! You need to have rust 1.95.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
 //!
 //! To create a GUI using egui you first need a [`Context`] (by convention referred to by `ctx`).
-//! Then you add a [`Window`] or a [`SidePanel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
+//! Then you add a [`Window`] or a [`Panel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
 //!
 //!
 //! ## Feature flags
@@ -42,23 +42,6 @@
 //!
 //! In some GUI frameworks this would require defining multiple types and functions with callbacks or message handlers,
 //! but thanks to `egui` being immediate mode everything is one self-contained function!
-//!
-//! ### Getting a [`Ui`]
-//!
-//! Use one of [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
-//! get access to an [`Ui`] where you can put widgets. For example:
-//!
-//! ```
-//! # egui::__run_test_ctx(|ctx| {
-//! egui::CentralPanel::default().show(&ctx, |ui| {
-//!     ui.add(egui::Label::new("Hello World!"));
-//!     ui.label("A shorter and more convenient way to add a label.");
-//!     if ui.button("Click me").clicked() {
-//!         // take some action here
-//!     }
-//! });
-//! # });
-//! ```
 //!
 //! ### Quick start
 //!
@@ -129,8 +112,8 @@
 //! loop {
 //!     let raw_input: egui::RawInput = gather_input();
 //!
-//!     let full_output = ctx.run(raw_input, |ctx| {
-//!         egui::CentralPanel::default().show(&ctx, |ui| {
+//!     let full_output = ctx.run_ui(raw_input, |ui| {
+//!         egui::CentralPanel::default().show(ui, |ui| {
 //!             ui.label("Hello world!");
 //!             if ui.button("Click me").clicked() {
 //!                 // take some action here
@@ -195,7 +178,7 @@
 //! * lays out the letters `click me` in order to figure out the size of the button
 //! * decides where on screen to place the button
 //! * check if the mouse is hovering or clicking that location
-//! * chose button colors based on if it is being hovered or clicked
+//! * choose button colors based on if it is being hovered or clicked
 //! * add a [`Shape::Rect`] and [`Shape::Text`] to the list of shapes to be painted later this frame
 //! * return a [`Response`] with the [`clicked`](`Response::clicked`) member so the user can check for interactions
 //!
@@ -322,7 +305,7 @@
 //! when you release the panel/window shrinks again.
 //! This is an artifact of immediate mode, and here are some alternatives on how to avoid it:
 //!
-//! 1. Turn off resizing with [`Window::resizable`], [`SidePanel::resizable`], [`TopBottomPanel::resizable`].
+//! 1. Turn off resizing with [`Window::resizable`], [`Panel::resizable`].
 //! 2. Wrap your panel contents in a [`ScrollArea`], or use [`Window::vscroll`] and [`Window::hscroll`].
 //! 3. Use a justified layout:
 //!
@@ -402,9 +385,10 @@
 //! egui apps can run significantly (~20%) faster by using a custom allocator, like [mimalloc](https://crates.io/crates/mimalloc) or [talc](https://crates.io/crates/talc).
 //!
 
-#![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
+#![expect(clippy::float_cmp)]
+#![expect(clippy::manual_range_contains)]
 
+pub mod accessibility;
 mod animation_manager;
 mod atomics;
 pub mod cache;
@@ -417,6 +401,7 @@ pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
 mod id;
+mod id_salt;
 mod input_state;
 mod interaction;
 pub mod introspection;
@@ -424,35 +409,36 @@ pub mod layers;
 mod layout;
 pub mod load;
 mod memory;
-#[deprecated = "Use `egui::containers::menu` instead"]
-pub mod menu;
 pub mod os;
 mod painter;
 mod pass_state;
 pub(crate) mod placer;
-mod plugin;
+pub mod plugin;
 pub mod response;
 mod sense;
 pub mod style;
 pub mod text_selection;
+#[cfg(feature = "experimental")]
+pub mod theme;
+#[cfg(not(feature = "experimental"))]
+mod theme;
 mod ui;
 mod ui_builder;
 mod ui_stack;
 pub mod util;
 pub mod viewport;
 mod widget_rect;
+pub mod widget_style;
 pub mod widget_text;
 pub mod widgets;
 
 #[cfg(feature = "callstack")]
 #[cfg(debug_assertions)]
 mod callstack;
+pub mod class;
 
-#[cfg(feature = "accesskit")]
 pub use accesskit;
-
-#[deprecated = "Use the ahash crate directly."]
-pub use ahash;
+pub use accesskit::Role;
 
 pub use epaint;
 pub use epaint::ecolor;
@@ -466,39 +452,61 @@ pub use emath::{
     remap_clamp, vec2,
 };
 pub use epaint::{
-    ClippedPrimitive, ColorImage, CornerRadius, ImageData, Margin, Mesh, PaintCallback,
+    ClippedPrimitive, ColorImage, CornerRadius, Direction, ImageData, Margin, Mesh, PaintCallback,
     PaintCallbackInfo, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId, mutex,
-    text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
+    text::{
+        FallbackRequest, FontData, FontDefinitions, FontFamily, FontId, FontInsert, FontPriority,
+        FontProvider, FontTweak, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest,
+        InsertFontFamily, MAX_GLYPH_SIZE, MissingGlyphPolicy, RasterizedGlyph,
+        has_emoji_presentation,
+    },
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
 };
 
 pub mod text {
     pub use crate::text_selection::CCursorRange;
     pub use epaint::text::{
-        FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob, LayoutSection, TAB_SIZE,
-        TextFormat, TextWrapping, cursor::CCursor,
+        ByteIndex, ByteRange, CharIndex, CharRange, FontData, FontDefinitions, FontFamily, Fonts,
+        Galley, LayoutJob, LayoutSection, TextFormat, TextWrapping, cursor::CCursor,
     };
 }
 
 pub use self::{
-    atomics::*,
-    containers::{menu::MenuBar, *},
+    atomics::{
+        AllocatedWidgetAtom, Atom, AtomClosure, AtomExt, AtomKind, AtomPaint, AtomPaintArgs, Atoms,
+        ContainerAtom, CustomRects, IntoAtoms, IntoSizedArgs, IntoSizedResult, SizedAtom,
+        SizedAtomKind, SizedContainerAtom, SizedWidgetAtom, WidgetAtom, WidgetAtomResponse,
+    },
+    containers::{
+        Aligned, Area, AreaState, CentralPanel, ClosableTag, CollapsingHeader, CollapsingResponse,
+        ComboBox, DragPanButtons, Frame, IconPainter, Modal, ModalResponse, Panel, PanelState,
+        Popup, PopupAnchor, PopupCloseBehavior, PopupKind, Resize, Scene, ScrollArea,
+        SetOpenCommand, Sides, Tooltip, Window, WindowDrag, collapsing_header, frame,
+        menu::{self, MenuBar},
+        modal, panel, scroll_area,
+    },
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
-        Key, UserData,
-        input::*,
+        Key, ScreenshotCallback,
+        input::{
+            DroppedFile, DroppedFileHandle, Event, EventFilter, HoveredFile, ImeEvent,
+            KeyboardShortcut, ModifierNames, Modifiers, MouseWheelSource, MouseWheelUnit,
+            NUM_POINTER_BUTTONS, PointerButton, RawInput, SafeAreaInsets, TouchDeviceId, TouchId,
+            TouchPhase, ViewportEvent, ViewportInfo,
+        },
         output::{
-            self, CursorIcon, FullOutput, OpenUrl, OutputCommand, PlatformOutput,
-            UserAttentionType, WidgetInfo,
+            self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
+            PlatformOutput, UserAttentionType, WidgetInfo, role_description,
         },
     },
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,
     grid::Grid,
-    id::{Id, IdMap},
+    id::{Id, IdMap, IdSet},
+    id_salt::{AsIdSalt, IdSalt, IdSaltMap, IdSaltSet},
     input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
     layers::{LayerId, Order},
-    layout::*,
+    layout::Layout,
     load::SizeHint,
     memory::{FocusDirection, Memory, Options, Theme, ThemePreference},
     painter::Painter,
@@ -508,16 +516,40 @@ pub use self::{
     style::{FontSelection, Spacing, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
-    ui_builder::UiBuilder,
-    ui_stack::*,
-    viewport::*,
-    widget_rect::{WidgetRect, WidgetRects},
+    ui_builder::{IdSource, UiBuilder},
+    ui_stack::{UiKind, UiStack, UiStackInfo, UiStackIterator, UiTags},
+    viewport::{
+        CursorGrab, DeferredViewportUiCallback, IMEPurpose, IconData, ImmediateViewport,
+        ImmediateViewportRendererCallback, OrderedViewportIdMap, ResizeDirection, SystemTheme,
+        ViewportBuilder, ViewportClass, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
+        ViewportIdSet, ViewportOutput, WindowLevel, X11WindowType,
+    },
+    widget_rect::{InteractOptions, WidgetRect, WidgetRects},
     widget_text::{RichText, WidgetText},
-    widgets::*,
+    widgets::{
+        BoxedWidget, Button, Checkbox, CompletionOutput, CompletionPopup, CompletionQuery,
+        DragValue, DragValueSettings, FrameDurations, Hyperlink, Image, ImageFit, ImageOptions,
+        ImageSize, ImageSource, Label, Link, NumFormatter, NumParser, ProgressBar, RadioButton,
+        RangeSlider, Separator, Slider, SliderClamping, SliderOrientation, SliderSpec, Spinner,
+        Suggestion, TextBuffer, TextEdit, ValueFormat, Widget, WidgetWithState, color_picker,
+        decode_animated_image_uri, global_theme_preference_buttons, has_gif_magic_header,
+        has_webp_header, paint_texture_at, reset_button, reset_button_with, text_edit,
+    },
 };
 
-#[deprecated = "Renamed to CornerRadius"]
-pub type Rounding = CornerRadius;
+#[expect(deprecated)]
+pub use self::{
+    atomics::{AllocatedAtomLayout, AtomLayout, AtomLayoutResponse, SizedAtomLayout},
+    id::AsId,
+    widgets::global_theme_preference_switch,
+};
+
+/// Modules and types that are private to the crate,
+/// but which the rest of the crate reaches via `crate::…`.
+pub(crate) use self::{
+    containers::{area, resize},
+    layout::Region,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -525,7 +557,7 @@ pub type Rounding = CornerRadius;
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
     if cfg!(debug_assertions) {
         ui.label(
-            RichText::new("⚠ Debug build ⚠")
+            RichText::new("⚠️ Debug build ⚠️")
                 .small()
                 .color(ui.visuals().warn_fg_color),
         )
@@ -599,92 +631,29 @@ macro_rules! github_link_file {
 /// The minus character: <https://www.compart.com/en/unicode/U+2212>
 pub(crate) const MINUS_CHAR_STR: &str = "−";
 
-/// The default egui fonts supports around 1216 emojis in total.
-/// Here are some of the most useful:
-/// ∞⊗⎗⎘⎙⏏⏴⏵⏶⏷
-/// ⏩⏪⏭⏮⏸⏹⏺■▶📾🔀🔁🔃
-/// ☀☁★☆☐☑☜☝☞☟⛃⛶✔
-/// ↺↻⟲⟳⬅➡⬆⬇⬈⬉⬊⬋⬌⬍⮨⮩⮪⮫
-/// ♡
-/// 📅📆
-/// 📈📉📊
-/// 📋📌📎📤📥🔆
-/// 🔈🔉🔊🔍🔎🔗🔘
-/// 🕓🖧🖩🖮🖱🖴🖵🖼🗀🗁🗋🗐🗑🗙🚫❓
+/// A few special emojis that are not part of the unicode standard,
+/// plus a list of the emojis in the default fonts.
+#[cfg(feature = "default_fonts")]
+pub use epaint::special_emojis;
+
+/// The old name for the type of a widget, now expressed as an [`accesskit::Role`].
 ///
-/// NOTE: In egui all emojis are monochrome!
+/// Most variants kept their name, so e.g. `WidgetType::Button` still resolves,
+/// but some were renamed to their accessibility counterparts:
 ///
-/// You can explore them all in the Font Book in [the online demo](https://www.egui.rs/#demo).
-///
-/// In addition, egui supports a few special emojis that are not part of the unicode standard.
-/// This module contains some of them:
-pub mod special_emojis {
-    /// Tux, the Linux penguin.
-    pub const OS_LINUX: char = '🐧';
-
-    /// The Windows logo.
-    pub const OS_WINDOWS: char = '';
-
-    /// The Android logo.
-    pub const OS_ANDROID: char = '';
-
-    /// The Apple logo.
-    pub const OS_APPLE: char = '';
-
-    /// The Github logo.
-    pub const GITHUB: char = '';
-
-    /// The word `git`.
-    pub const GIT: char = '';
-
-    // I really would like to have ferris here.
-}
-
-/// The different types of built-in widgets in egui
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum WidgetType {
-    Label, // TODO(emilk): emit Label events
-
-    /// e.g. a hyperlink
-    Link,
-
-    TextEdit,
-
-    Button,
-
-    Checkbox,
-
-    RadioButton,
-
-    /// A group of radio buttons.
-    RadioGroup,
-
-    SelectableLabel,
-
-    ComboBox,
-
-    Slider,
-
-    DragValue,
-
-    ColorButton,
-
-    Image,
-
-    CollapsingHeader,
-
-    Panel,
-
-    ProgressIndicator,
-
-    Window,
-
-    /// If you cannot fit any of the above slots.
-    ///
-    /// If this is something you think should be added, file an issue.
-    Other,
-}
+/// | Old `WidgetType`    | New [`Role`]              |
+/// | ------------------- | ------------------------- |
+/// | `TextEdit`          | [`Role::TextInput`]       |
+/// | `DragValue`         | [`Role::SpinButton`]      |
+/// | `ColorButton`       | [`Role::ColorWell`]       |
+/// | `CollapsingHeader`  | [`Role::DisclosureTriangle`] |
+/// | `SelectableLabel`   | [`Role::Button`]          |
+/// | `Panel`             | [`Role::Pane`]            |
+/// | `ResizeHandle`      | [`Role::Splitter`]        |
+/// | `Other`             | [`Role::Unknown`]         |
+#[deprecated = "Renamed to `egui::Role` (a re-export of `accesskit::Role`). \
+Note that some variants were renamed too, e.g. `WidgetType::TextEdit` is now `Role::TextInput`."]
+pub type WidgetType = Role;
 
 // ----------------------------------------------------------------------------
 
@@ -692,23 +661,22 @@ pub enum WidgetType {
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(Default::default(), |ctx| {
+    let output = ctx.run_pass(Default::default(), |ctx| {
         run_ui(ctx);
     });
+    output.drop_without_applying_deltas();
 }
 
 /// For use in tests; especially doctests.
-pub fn __run_test_ui(add_contents: impl Fn(&mut Ui)) {
+pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(Default::default(), |ctx| {
-        crate::CentralPanel::default().show(ctx, |ui| {
-            add_contents(ui);
-        });
+    let output = ctx.run_ui(Default::default(), |ui| {
+        add_contents(ui);
     });
+    output.drop_without_applying_deltas();
 }
 
-#[cfg(feature = "accesskit")]
 pub fn accesskit_root_id() -> Id {
-    Id::new("accesskit_root")
+    Id::unique("accesskit_root")
 }

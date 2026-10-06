@@ -25,7 +25,7 @@ mod ios {
 
         let app = UIApplication::sharedApplication(main_thread_marker);
 
-        #[allow(unsafe_code)]
+        #[expect(unsafe_code)]
         unsafe {
             // Look for the first window scene that's in the foreground
             for scene in app.connectedScenes() {
@@ -36,8 +36,8 @@ mod ios {
                             | UISceneActivationState::ForegroundInactive
                     )
                 {
-                    // Safe to cast, the class kind was checked above
-                    let window_scene = Retained::cast::<UIWindowScene>(scene.clone());
+                    // SAFETY: class kind was checked above with `isKindOfClass`
+                    let window_scene = Retained::cast_unchecked::<UIWindowScene>(scene.clone());
                     if let Some(window) = window_scene.keyWindow() {
                         let insets = window.safeAreaInsets();
                         return SafeAreaInsets(MarginF32 {

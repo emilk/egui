@@ -1,8 +1,9 @@
-use std::{any::Any, sync::Arc};
+use core::any::Any;
+use std::sync::Arc;
 
 use crate::{
-    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, Tooltip, Ui,
-    WidgetRect, WidgetText,
+    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, SetOpenCommand,
+    Tooltip, Ui, WidgetRect, WidgetText,
     emath::{Align, Pos2, Rect, Vec2},
     pass_state,
 };
@@ -14,7 +15,7 @@ use crate::{
 /// It also lets you easily show a tooltip on hover.
 ///
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
-/// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
+/// [`Ui::add`] returns a [`Response`], as does [`Ui::button`], and all similar shortcuts.
 ///
 /// ⚠️ The `Response` contains a clone of [`Context`], and many methods lock the `Context`.
 /// It can therefore be a deadlock to use `Context` from within a context-locking closures,
@@ -55,7 +56,7 @@ pub struct Response {
     /// Where the pointer (mouse/touch) were when this widget was clicked or dragged.
     /// `None` if the widget is not being interacted with.
     #[doc(hidden)]
-    pub interact_pointer_pos: Option<Pos2>,
+    pub interact_pointer_pos_or_nan: Pos2,
 
     /// The intrinsic / desired size of the widget.
     ///
@@ -67,10 +68,20 @@ pub struct Response {
     /// At the time of writing, this is only used by external crates
     /// for improved layouting.
     /// See for instance [`egui_flex`](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_flex).
-    pub intrinsic_size: Option<Vec2>,
+    #[doc(hidden)]
+    pub intrinsic_size_or_nan: Vec2,
 
     #[doc(hidden)]
     pub flags: Flags,
+}
+
+#[test]
+fn test_response_size() {
+    assert_eq!(
+        core::mem::size_of::<Response>(),
+        88,
+        "Keep Response small, because we create them often, and we want to keep it lean and fast"
+    );
 }
 
 /// A bit set for various boolean properties of `Response`.
@@ -137,10 +148,30 @@ bitflags::bitflags! {
 
         /// Should this container be closed?
         const CLOSE = 1<<12;
+
+        /// Was the widget visible?
+        /// If `false`, it is not exposed to accessibility.
+        const VISIBLE = 1<<13;
     }
 }
 
 impl Response {
+    /// The [`crate::Ui::unique_id`] of the parent [`crate::Ui`] that hosts this widget.
+    ///
+    /// Looks up the [`WidgetRect`] from the current (or previous) pass.
+    pub fn parent_id(&self) -> Id {
+        let id = self.ctx.viewport(|viewport| {
+            viewport
+                .this_pass
+                .widgets
+                .get(self.id)
+                .or_else(|| viewport.prev_pass.widgets.get(self.id))
+                .map(|w| w.parent_id)
+        });
+        debug_assert!(id.is_some(), "WidgetRect for Response not found!");
+        id.unwrap_or(Id::NULL)
+    }
+
     /// Returns true if this widget was clicked this frame by the primary button.
     ///
     /// A click is registered when the mouse or touch is released within
@@ -173,6 +204,12 @@ impl Response {
 
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
     ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
+    ///
+    /// Note that the widget must be sensing clicks with [`Sense::click`].
+    /// [`crate::Button`] senses clicks; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
+    ///
     /// This also returns true if the widget was pressed-and-held on a touch screen.
     #[inline]
     pub fn secondary_clicked(&self) -> bool {
@@ -188,6 +225,12 @@ impl Response {
     }
 
     /// Returns true if this widget was clicked this frame by the middle mouse button.
+    ///
+    /// A click is registered when the mouse or touch is released within
+    /// a certain amount of time and distance from when and where it was pressed.
+    ///
+    /// Note that the widget must be sensing clicks with [`Sense::click`].
+    /// [`crate::Button`] senses clicks; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
     #[inline]
     pub fn middle_clicked(&self) -> bool {
         self.clicked_by(PointerButton::Middle)
@@ -246,10 +289,10 @@ impl Response {
                 false
             } else if let Some(pos) = pointer_interact_pos {
                 let layer_under_pointer = self.ctx.layer_id_at(pos);
-                if layer_under_pointer != Some(self.layer_id) {
-                    true
-                } else {
+                if layer_under_pointer == Some(self.layer_id) {
                     !self.interact_rect.contains(pos)
+                } else {
+                    true
                 }
             } else {
                 false // clicked without a pointer, weird
@@ -267,10 +310,25 @@ impl Response {
         self.flags.contains(Flags::ENABLED)
     }
 
+    /// Was the widget visible?
+    /// If `false`, it is not exposed to accessibility.
+    ///
+    /// See also [`Ui::is_visible`].
+    #[inline(always)]
+    pub fn visible(&self) -> bool {
+        self.flags.contains(Flags::VISIBLE)
+    }
+
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
     ///
     /// In contrast to [`Self::contains_pointer`], this will be `false` whenever some other widget is being dragged.
     /// `hovered` is always `false` for disabled widgets.
+    ///
+    /// While a widget is being clicked or dragged it is the only hovered widget,
+    /// so this stays `true` even after the pointer moves off it. Together with
+    /// how [`Self::dragged`] resolves a press that leaves the widget, that means
+    /// `hovered() || dragged()` holds for a whole press-drag-release gesture,
+    /// which is what you want for highlighting something like a drag handle.
     #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.flags.contains(Flags::HOVERED)
@@ -287,6 +345,49 @@ impl Response {
     #[inline(always)]
     pub fn contains_pointer(&self) -> bool {
         self.flags.contains(Flags::CONTAINS_POINTER)
+    }
+
+    /// Does this widget or any widget inside of it contain the pointer?
+    ///
+    /// This is meant for responses of containers, e.g. from [`Ui::response`] or [`Ui::scope`]:
+    /// [`Self::contains_pointer`] is `false` when a child widget is covering the pointer,
+    /// while this returns `true`.
+    ///
+    /// Will return `false` if some other area is covering this layer.
+    ///
+    /// This calls [`Context::rect_contains_pointer`] with [`Self::interact_rect`].
+    pub fn container_contains_pointer(&self) -> bool {
+        self.ctx
+            .rect_contains_pointer(self.layer_id, self.interact_rect)
+    }
+
+    /// Is this widget or any widget inside of it hovered?
+    ///
+    /// Like [`Self::container_contains_pointer`], but also `false` if anything is being dragged.
+    ///
+    /// See also [`Self::hovered`].
+    pub fn container_hovered(&self) -> bool {
+        self.ctx.dragged_id().is_none() && self.container_contains_pointer()
+    }
+
+    /// Was this widget or any widget inside of it clicked with the primary button?
+    ///
+    /// This is meant for responses of containers, e.g. from [`Ui::response`] or [`Ui::scope`].
+    /// Unlike [`Self::clicked`], this is `true` even if the click landed on a child widget.
+    ///
+    /// See also [`Self::container_contains_pointer`].
+    pub fn container_clicked(&self) -> bool {
+        self.container_contains_pointer() && self.ctx.input(|i| i.pointer.primary_clicked())
+    }
+
+    /// Was this widget or any widget inside of it clicked with the secondary button?
+    ///
+    /// This is meant for responses of containers, e.g. from [`Ui::response`] or [`Ui::scope`].
+    /// Unlike [`Self::secondary_clicked`], this is `true` even if the click landed on a child widget.
+    ///
+    /// See also [`Self::container_contains_pointer`].
+    pub fn container_secondary_clicked(&self) -> bool {
+        self.container_contains_pointer() && self.ctx.input(|i| i.pointer.secondary_clicked())
     }
 
     /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
@@ -365,11 +466,21 @@ impl Response {
     /// To find out which button(s), use [`Self::dragged_by`].
     ///
     /// If the widget is only sensitive to drags, this is `true` as soon as the pointer presses down on it.
-    /// If the widget also senses clicks, this won't be true until the pointer has moved a bit,
-    /// or the user has pressed down for long enough.
+    ///
+    /// If the widget also senses clicks, the press could be either, so the
+    /// decision is postponed until whichever of these comes first:
+    /// * the pointer moves further than [`crate::InputOptions::max_click_dist`],
+    /// * it is held longer than [`crate::InputOptions::max_click_duration`],
+    /// * or it leaves the widget — a click has to be released on the widget, so
+    ///   once the pointer is outside, the gesture can only be a drag. This is what
+    ///   keeps a handle thinner than `max_click_dist` from spending the decision
+    ///   window as neither hovered nor dragged.
+    ///
     /// See [`crate::input_state::PointerState::is_decidedly_dragging`] for details.
     ///
-    /// If you want to avoid the delay, use [`Self::is_pointer_button_down_on`] instead.
+    /// While the decision is pending the pointer is still on the widget, so
+    /// [`Self::hovered`] is `true` throughout. If you want neither the delay nor
+    /// the distinction, use [`Self::is_pointer_button_down_on`].
     ///
     /// If the widget is NOT sensitive to drags, this will always be `false`.
     /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
@@ -396,7 +507,7 @@ impl Response {
         self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
     }
 
-    /// If dragged, how many points were we dragged and in what direction?
+    /// If dragged, how many points were we dragged in since last frame?
     #[inline]
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
@@ -410,7 +521,22 @@ impl Response {
         }
     }
 
-    /// If dragged, how far did the mouse move?
+    /// If dragged, how many points have we been dragged since the start of the drag?
+    #[inline]
+    pub fn total_drag_delta(&self) -> Option<Vec2> {
+        if self.dragged() {
+            let mut delta = self.ctx.input(|i| i.pointer.total_drag_delta())?;
+            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+                delta *= from_global.scaling;
+            }
+            Some(delta)
+        } else {
+            None
+        }
+    }
+
+    /// If dragged, how far did the mouse move since last frame?
+    ///
     /// This will use raw mouse movement if provided by the integration, otherwise will fall back to [`Response::drag_delta`]
     /// Raw mouse movement is unaccelerated and unclamped by screen boundaries, and does not relate to any position on the screen.
     /// This may be useful in certain situations such as draggable values and 3D cameras, where screen position does not matter.
@@ -418,7 +544,7 @@ impl Response {
     pub fn drag_motion(&self) -> Vec2 {
         if self.dragged() {
             self.ctx
-                .input(|i| i.pointer.motion().unwrap_or(i.pointer.delta()))
+                .input(|i| i.pointer.motion().unwrap_or_else(|| i.pointer.delta()))
         } else {
             Vec2::ZERO
         }
@@ -457,7 +583,7 @@ impl Response {
     ///
     /// Only returns something if [`Self::contains_pointer`] is true,
     /// the user is drag-dropping something of this type,
-    /// and they released it this frame
+    /// and they released it this frame.
     #[doc(alias = "drag and drop")]
     pub fn dnd_release_payload<Payload: Any + Send + Sync>(&self) -> Option<Arc<Payload>> {
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
@@ -474,7 +600,26 @@ impl Response {
     /// `None` if the widget is not being interacted with.
     #[inline]
     pub fn interact_pointer_pos(&self) -> Option<Pos2> {
-        self.interact_pointer_pos
+        let pos = self.interact_pointer_pos_or_nan;
+        if pos.any_nan() { None } else { Some(pos) }
+    }
+
+    /// The intrinsic / desired size of the widget.
+    ///
+    /// This is the size that a non-wrapped, non-truncated, non-justified version of the widget
+    /// would have.
+    ///
+    /// If this is `None`, use [`Self::rect`] instead.
+    #[inline]
+    pub fn intrinsic_size(&self) -> Option<Vec2> {
+        let size = self.intrinsic_size_or_nan;
+        if size.any_nan() { None } else { Some(size) }
+    }
+
+    /// Set the intrinsic / desired size of the widget.
+    #[inline]
+    pub fn set_intrinsic_size(&mut self, size: Vec2) {
+        self.intrinsic_size_or_nan = size;
     }
 
     /// If it is a good idea to show a tooltip, where is pointer?
@@ -499,6 +644,9 @@ impl Response {
     /// even when dragging outside the widget.
     ///
     /// This could also be thought of as "is this widget being interacted with?".
+    ///
+    /// Unlike [`Self::dragged`], this is `true` from the press frame onwards, with
+    /// no click-versus-drag decision window.
     #[inline(always)]
     pub fn is_pointer_button_down_on(&self) -> bool {
         self.flags.contains(Flags::IS_POINTER_BUTTON_DOWN_ON)
@@ -616,6 +764,8 @@ impl Response {
     /// Like `on_hover_text`, but show the text next to cursor.
     #[doc(alias = "tooltip")]
     pub fn on_hover_text_at_pointer(self, text: impl Into<WidgetText>) -> Self {
+        let text = text.into();
+        self.describe_for_accessibility(text.text());
         self.on_hover_ui_at_pointer(|ui| {
             // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
             // See https://github.com/emilk/egui/issues/5167
@@ -633,6 +783,8 @@ impl Response {
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     #[doc(alias = "tooltip")]
     pub fn on_hover_text(self, text: impl Into<WidgetText>) -> Self {
+        let text = text.into();
+        self.describe_for_accessibility(text.text());
         self.on_hover_ui(|ui| {
             // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
             // See https://github.com/emilk/egui/issues/5167
@@ -640,6 +792,27 @@ impl Response {
 
             ui.add(crate::widgets::Label::new(text));
         })
+    }
+
+    /// Use the tooltip text as the accessible description of the widget,
+    /// and as its name if it has none (e.g. an icon-only button).
+    fn describe_for_accessibility(&self, text: &str) {
+        // Only widgets that already have a node; don't invent nodes for hover-only rects.
+        if self.ctx.has_accesskit_node(self.id) {
+            self.ctx.accesskit_node_builder(self.id, |node| {
+                if node.description().is_none() {
+                    node.set_description(text);
+                }
+                // A `Label` is named by its value, and a widget named by
+                // `labelled_by` already has a name, so leave those be.
+                if node.role() != accesskit::Role::Label
+                    && node.labelled_by().is_empty()
+                    && node.label().is_none_or(str::is_empty)
+                {
+                    node.set_label(text);
+                }
+            });
+        }
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -709,21 +882,23 @@ impl Response {
     /// ```
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
-        if (self.sense | sense) == self.sense {
-            // Early-out: we already sense everything we need to sense.
-            return self.clone();
-        }
+        // We could check here if the new Sense equals the old one to avoid the extra create_widget
+        // call. But that would break calling `interact` on a response from `Context::read_response`
+        // or `Ui::response`. (See https://github.com/emilk/egui/pull/7713 for more details.)
 
         self.ctx.create_widget(
             WidgetRect {
                 layer_id: self.layer_id,
                 id: self.id,
+                parent_id: self.parent_id(),
                 rect: self.rect,
                 interact_rect: self.interact_rect,
                 sense: self.sense | sense,
                 enabled: self.enabled(),
+                visible: self.flags.contains(Flags::VISIBLE),
             },
             true,
+            Default::default(),
         )
     }
 
@@ -747,7 +922,7 @@ impl Response {
     /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Option<Align>) {
-        self.scroll_to_me_animation(align, self.ctx.style().scroll_animation);
+        self.scroll_to_me_animation(align, self.ctx.global_style().scroll_animation);
     }
 
     /// Like [`Self::scroll_to_me`], but allows you to specify the [`crate::style::ScrollAnimation`].
@@ -793,7 +968,6 @@ impl Response {
         if let Some(event) = event {
             self.output_event(event);
         } else {
-            #[cfg(feature = "accesskit")]
             self.ctx.accesskit_node_builder(self.id, |builder| {
                 self.fill_accesskit_node_from_widget_info(builder, make_info());
             });
@@ -803,7 +977,6 @@ impl Response {
     }
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
-        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             self.fill_accesskit_node_from_widget_info(builder, event.widget_info().clone());
         });
@@ -814,7 +987,6 @@ impl Response {
         self.ctx.output_mut(|o| o.events.push(event));
     }
 
-    #[cfg(feature = "accesskit")]
     pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::Node) {
         if !self.enabled() {
             builder.set_disabled();
@@ -833,40 +1005,20 @@ impl Response {
         }
     }
 
-    #[cfg(feature = "accesskit")]
     fn fill_accesskit_node_from_widget_info(
         &self,
         builder: &mut accesskit::Node,
         info: crate::WidgetInfo,
     ) {
-        use crate::WidgetType;
         use accesskit::{Role, Toggled};
 
         self.fill_accesskit_node_common(builder);
-        builder.set_role(match info.typ {
-            WidgetType::Label => Role::Label,
-            WidgetType::Link => Role::Link,
-            WidgetType::TextEdit => Role::TextInput,
-            WidgetType::Button | WidgetType::CollapsingHeader | WidgetType::SelectableLabel => {
-                Role::Button
-            }
-            WidgetType::Image => Role::Image,
-            WidgetType::Checkbox => Role::CheckBox,
-            WidgetType::RadioButton => Role::RadioButton,
-            WidgetType::RadioGroup => Role::RadioGroup,
-            WidgetType::ComboBox => Role::ComboBox,
-            WidgetType::Slider => Role::Slider,
-            WidgetType::DragValue => Role::SpinButton,
-            WidgetType::ColorButton => Role::ColorWell,
-            WidgetType::Panel => Role::Pane,
-            WidgetType::ProgressIndicator => Role::ProgressIndicator,
-            WidgetType::Window => Role::Window,
-            WidgetType::Other => Role::Unknown,
-        });
+        builder.set_role(info.role);
         if !info.enabled {
             builder.set_disabled();
         }
-        if let Some(label) = info.label {
+        // An empty label would take precedence over `labelled_by`, so leave it unset.
+        if let Some(label) = info.label.filter(|label| !label.is_empty()) {
             if matches!(builder.role(), Role::Label) {
                 builder.set_value(label);
             } else {
@@ -885,7 +1037,7 @@ impl Response {
             } else {
                 Toggled::False
             });
-        } else if matches!(info.typ, WidgetType::Checkbox) {
+        } else if matches!(info.role, Role::CheckBox) {
             // Indeterminate state
             builder.set_toggled(Toggled::Mixed);
         }
@@ -895,6 +1047,9 @@ impl Response {
     }
 
     /// Associate a label with a control for accessibility.
+    ///
+    /// The label becomes the accessible name of the widget, replacing any name the widget
+    /// gave itself (e.g. a [`crate::DragValue`] named after its prefix or suffix).
     ///
     /// # Example
     ///
@@ -908,15 +1063,32 @@ impl Response {
     /// # });
     /// ```
     pub fn labelled_by(self, id: Id) -> Self {
-        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
+            // A screen reader reads the widget's own label over `labelled_by`,
+            // so clear it to let the label win.
+            builder.clear_label();
             builder.push_labelled_by(id.accesskit_id());
         });
-        #[cfg(not(feature = "accesskit"))]
-        {
-            let _ = id;
-        }
 
+        self
+    }
+
+    /// Name the widget in the accessibility tree when nothing visible names it,
+    /// e.g. an icon-only button or a text field without a label next to it.
+    ///
+    /// Prefer [`Self::labelled_by`] when a visible label sits next to the widget.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut text = String::new();
+    /// ui.text_edit_singleline(&mut text).accessible_name("Search");
+    /// # });
+    /// ```
+    pub fn accessible_name(self, name: impl Into<String>) -> Self {
+        let name = name.into();
+        self.ctx.accesskit_node_builder(self.id, |builder| {
+            builder.set_label(name);
+        });
         self
     }
 
@@ -946,6 +1118,45 @@ impl Response {
     /// See [`Self::context_menu`].
     pub fn context_menu_opened(&self) -> bool {
         Popup::context_menu(self).is_open()
+    }
+
+    /// Show a context menu on secondary clicks anywhere within this widget,
+    /// even if the click landed on a child widget that senses clicks.
+    ///
+    /// This is meant for responses of containers, e.g. from [`Ui::response`] or [`Ui::scope`].
+    /// Unlike [`Self::context_menu`], the container does not need to sense clicks itself.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let response = ui.horizontal(|ui| {
+    ///     ui.label("Right-click me…");
+    ///     let _ = ui.button("…or me!");
+    /// }).response;
+    /// response.container_context_menu(|ui| {
+    ///     if ui.button("Close the menu").clicked() {
+    ///         ui.close();
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    ///
+    /// See also [`Self::container_secondary_clicked`].
+    pub fn container_context_menu(
+        &self,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Option<InnerResponse<()>> {
+        Popup::menu(self)
+            .open_memory(if self.container_secondary_clicked() {
+                Some(SetOpenCommand::Bool(true))
+            } else if self.container_clicked() {
+                // Explicitly close the menu if the container was clicked,
+                // otherwise the context menu would stay open when clicking elsewhere in the container.
+                Some(SetOpenCommand::Bool(false))
+            } else {
+                None
+            })
+            .at_pointer_fixed()
+            .show(add_contents)
     }
 
     /// Draw a debug rectangle over the response displaying the response's id and whether it is
@@ -997,8 +1208,10 @@ impl Response {
             interact_rect: self.interact_rect.union(other.interact_rect),
             sense: self.sense.union(other.sense),
             flags: self.flags | other.flags,
-            interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
-            intrinsic_size: None,
+            interact_pointer_pos_or_nan: self
+                .interact_pointer_pos()
+                .unwrap_or(other.interact_pointer_pos_or_nan),
+            intrinsic_size_or_nan: Vec2::NAN,
         }
     }
 }
@@ -1023,7 +1236,7 @@ impl Response {
 /// ```
 ///
 /// Now `draw_vec2(ui, foo).hovered` is true if either [`DragValue`](crate::DragValue) were hovered.
-impl std::ops::BitOr for Response {
+impl core::ops::BitOr for Response {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self {
@@ -1044,7 +1257,7 @@ impl std::ops::BitOr for Response {
 /// if response.hovered() { ui.label("You hovered at least one of the widgets"); }
 /// # });
 /// ```
-impl std::ops::BitOrAssign for Response {
+impl core::ops::BitOrAssign for Response {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = self.union(rhs);
     }

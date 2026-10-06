@@ -1,13 +1,12 @@
 //! Helper crate for running scripts within the `egui` repo
 
-#![allow(clippy::print_stdout)]
-#![allow(clippy::print_stderr)]
+#![expect(clippy::print_stderr, clippy::print_stdout)]
 #![allow(clippy::exit)]
 
 mod deny;
 pub(crate) mod utils;
 
-type DynError = Box<dyn std::error::Error>;
+type DynError = Box<dyn core::error::Error>;
 
 fn main() {
     if let Err(e) = try_main() {

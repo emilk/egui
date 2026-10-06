@@ -20,6 +20,12 @@ pub(crate) struct WebInput {
     /// Helps to track the delta rotation from gesture events
     pub accumulated_rotation: f32,
 
+    /// The last modifier state we sent to egui.
+    ///
+    /// The web has no dedicated modifier event, so we derive the state from each DOM event and
+    /// emit [`egui::Event::ModifiersChanged`] when it changes (see [`Self::set_modifiers`]).
+    pub modifiers: egui::Modifiers,
+
     /// The raw input to `egui`.
     pub raw: egui::RawInput,
 }
@@ -31,11 +37,18 @@ impl WebInput {
             time: Some(super::now_sec()),
             ..self.raw.take()
         };
-        raw_input
+        let viewport = raw_input
             .viewports
             .entry(egui::ViewportId::ROOT)
-            .or_default()
-            .native_pixels_per_point = Some(super::native_pixels_per_point());
+            .or_default();
+        viewport.native_pixels_per_point = Some(super::native_pixels_per_point());
+
+        // A hidden browser tab is effectively occluded.
+        let hidden = web_sys::window()
+            .and_then(|w| w.document())
+            .is_some_and(|doc| doc.hidden());
+        viewport.occluded = Some(hidden);
+
         raw_input
     }
 
@@ -46,10 +59,22 @@ impl WebInput {
         }
 
         // log::debug!("on_web_page_focus_change: {focused}");
-        self.raw.modifiers = egui::Modifiers::default(); // Avoid sticky modifier keys on alt-tab:
+        self.modifiers = egui::Modifiers::default(); // Avoid sticky modifier keys on alt-tab:
         self.raw.focused = focused;
         self.raw.events.push(egui::Event::WindowFocused(focused));
         self.primary_touch = None;
+    }
+
+    /// Update the modifier state, emitting [`egui::Event::ModifiersChanged`] if it changed.
+    ///
+    /// Call before pushing the DOM event itself so egui sees the new modifier state first.
+    pub fn set_modifiers(&mut self, modifiers: egui::Modifiers) {
+        if self.modifiers != modifiers {
+            self.modifiers = modifiers;
+            self.raw
+                .events
+                .push(egui::Event::ModifiersChanged(modifiers));
+        }
     }
 }
 

@@ -6,6 +6,62 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.2 - 2026-09-08
+* Fix `egui-wgpu` build on `wasm32-unknown-emscripten` [#8454](https://github.com/emilk/egui/pull/8454) by [@bfeip](https://github.com/bfeip)
+
+
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
+## 0.36.0 - 2026-08-05
+* Upgrade wgpu to v30 [#8289](https://github.com/emilk/egui/pull/8289) by [@akx](https://github.com/akx)
+* Fix: ensure mapped range is dropped before unmapping buffer in capture [#8337](https://github.com/emilk/egui/pull/8337) by [@MagicCrazyMan](https://github.com/MagicCrazyMan)
+* Make wgpu Instance public [#8321](https://github.com/emilk/egui/pull/8321) by [@oleflb](https://github.com/oleflb)
+
+
+## 0.35.0 - 2026-06-25
+* Call `pre_present_notify` before presenting [#8089](https://github.com/emilk/egui/pull/8089) by [@dimtpap](https://github.com/dimtpap)
+* Wgpu: Allow configuring VSync and frame latency at runtime [#8114](https://github.com/emilk/egui/pull/8114) by [@emilk](https://github.com/emilk)
+* Configure wgpu to be low-latency by default [#8203](https://github.com/emilk/egui/pull/8203) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix "drunk text" bug [#8250](https://github.com/emilk/egui/pull/8250) by [@emilk](https://github.com/emilk)
+
+
+## 0.34.3 - 2026-05-27
+* Fix random hangs by improving `wgpu::Surface` lifecycle handling [#8171](https://github.com/emilk/egui/pull/8171) by [@grtlr](https://github.com/grtlr)
+
+
+## 0.34.2 - 2026-05-04
+* Update to wgpu 29.0.1 [#8073](https://github.com/emilk/egui/pull/8073) by [@emilk](https://github.com/emilk)
+* Warn if using a software rasterizer [#8101](https://github.com/emilk/egui/pull/8101) by [@emilk](https://github.com/emilk)
+
+
+## 0.34.1 - 2026-03-27
+* `wgpu` backend: Enable WebGL fallback [#8038](https://github.com/emilk/egui/pull/8038) by [@emilk](https://github.com/emilk)
+
+
+## 0.34.0 - 2026-03-26
+### ⭐ Added
+* Add error message when calling `.render()` without `.update_buffers()` [#8005](https://github.com/emilk/egui/pull/8005) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Put the `capture` module behind a feature flag, make the `egui` dependency optional [#7698](https://github.com/emilk/egui/pull/7698) by [@StT191](https://github.com/StT191)
+* Attach stencil buffer [#7702](https://github.com/emilk/egui/pull/7702) by [@jgraef](https://github.com/jgraef)
+* Update wgpu to 28.0.0 [#7853](https://github.com/emilk/egui/pull/7853) by [@SuchAFuriousDeath](https://github.com/SuchAFuriousDeath)
+* Update to wgpu 29 [#7990](https://github.com/emilk/egui/pull/7990) by [@cwfitzgerald](https://github.com/cwfitzgerald)
+
+### 🐛 Fixed
+* Fix wgpu memory leak leading to panic when window is minimized (#7434) [#7928](https://github.com/emilk/egui/pull/7928) by [@landaire](https://github.com/landaire)
+
+
+## 0.33.3 - 2025-12-11
+Nothing new
+
+
+## 0.33.2 - 2025-11-13
+* Fix jittering during window resize on MacOS for WGPU/Metal [#7641](https://github.com/emilk/egui/pull/7641) by [@aspcartman](https://github.com/aspcartman)
+
+
 ## 0.33.0 - 2025-10-09
 ### 🔧 Changed
 * Update wgpu to 26 and wasm-bindgen to 0.2.100 [#7540](https://github.com/emilk/egui/pull/7540) by [@Kumpelinus](https://github.com/Kumpelinus)

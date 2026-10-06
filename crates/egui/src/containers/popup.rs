@@ -1,6 +1,4 @@
-#![expect(deprecated)] // This is a new, safe wrapper around the old `Memory::popup` API.
-
-use std::iter::once;
+use core::iter::once;
 
 use emath::{Align, Pos2, Rect, RectAlign, Vec2, vec2};
 
@@ -87,7 +85,7 @@ pub enum PopupCloseBehavior {
     /// but in the popup's body
     CloseOnClickOutside,
 
-    /// Clicks will be ignored. Popup might be closed manually by calling [`crate::Memory::close_all_popups`]
+    /// Clicks will be ignored. Popup might be closed manually by calling [`Popup::close_all`]
     /// or by pressing the escape button
     IgnoreClicks,
 }
@@ -181,10 +179,14 @@ pub struct Popup<'a> {
 
     /// Default width passed to the Area
     width: Option<f32>,
+    sizing_pass: bool,
     sense: Sense,
+    interactable: bool,
     layout: Layout,
     frame: Option<Frame>,
     style: StyleModifier,
+    anchor_widget: Option<Id>,
+    accessibility_label: Option<String>,
 }
 
 impl<'a> Popup<'a> {
@@ -203,10 +205,14 @@ impl<'a> Popup<'a> {
             alternative_aligns: None,
             gap: 0.0,
             width: None,
+            sizing_pass: false,
             sense: Sense::click(),
+            interactable: true,
             layout: Layout::default(),
             frame: None,
             style: StyleModifier::default(),
+            anchor_widget: None,
+            accessibility_label: None,
         }
     }
 
@@ -221,6 +227,7 @@ impl<'a> Popup<'a> {
             response,
             response.layer_id,
         )
+        .anchor_widget(response.id)
     }
 
     /// Show a popup relative to some widget,
@@ -357,6 +364,25 @@ impl<'a> Popup<'a> {
         self
     }
 
+    /// The widget this popup belongs to.
+    ///
+    /// The popup is nested under it in the accessibility tree.
+    /// Set automatically by [`Self::from_response`] and everything built on it.
+    #[inline]
+    pub fn anchor_widget(mut self, widget_id: Id) -> Self {
+        self.anchor_widget = Some(widget_id);
+        self
+    }
+
+    /// Name the popup in the accessibility tree.
+    ///
+    /// See [`Area::accessible_name`].
+    #[inline]
+    pub fn accessible_name(mut self, name: impl Into<String>) -> Self {
+        self.accessibility_label = Some(name.into());
+        self
+    }
+
     /// Set the gap between the anchor and the popup.
     #[inline]
     pub fn gap(mut self, gap: f32) -> Self {
@@ -368,6 +394,15 @@ impl<'a> Popup<'a> {
     #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
+        self
+    }
+
+    /// If `false`, the pointer goes straight through the popup and it's widgets to whatever is behind it.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn interactable(mut self, interactable: bool) -> Self {
+        self.interactable = interactable;
         self
     }
 
@@ -389,6 +424,19 @@ impl<'a> Popup<'a> {
     #[inline]
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
+        self
+    }
+
+    /// Force the popup's underlying [`Area`] to run an invisible sizing pass.
+    ///
+    /// Popups automatically run a sizing pass when they open or reopen. Set this to `true` for
+    /// one frame when the contents of an already open popup change and its cached size may no
+    /// longer fit. Do not leave it enabled continuously, because the popup would remain invisible.
+    ///
+    /// Default: `false`.
+    #[inline]
+    pub fn sizing_pass(mut self, sizing_pass: bool) -> Self {
+        self.sizing_pass = sizing_pass;
         self
     }
 
@@ -465,7 +513,7 @@ impl<'a> Popup<'a> {
     pub fn get_best_align(&self) -> RectAlign {
         let expected_popup_size = self
             .get_expected_size()
-            .unwrap_or(vec2(self.width.unwrap_or(0.0), 0.0));
+            .unwrap_or_else(|| vec2(self.width.unwrap_or(0.0), 0.0));
 
         let Some(anchor_rect) = self.anchor.rect(self.id, &self.ctx) else {
             return self.rect_align;
@@ -473,17 +521,16 @@ impl<'a> Popup<'a> {
 
         RectAlign::find_best_align(
             #[expect(clippy::iter_on_empty_collections)]
-            once(self.rect_align).chain(
+            #[expect(clippy::or_fun_call)]
+            core::iter::chain(
+                once(self.rect_align),
                 self.alternative_aligns
                     // Need the empty slice so the iters have the same type so we can unwrap_or
-                    .map(|a| a.iter().copied().chain([].iter().copied()))
-                    .unwrap_or(
-                        self.rect_align
-                            .symmetries()
-                            .iter()
-                            .copied()
-                            .chain(RectAlign::MENU_ALIGNS.iter().copied()),
-                    ),
+                    .map(|a| core::iter::chain(a.iter().copied(), [].iter().copied()))
+                    .unwrap_or(core::iter::chain(
+                        self.rect_align.symmetries().iter().copied(),
+                        RectAlign::MENU_ALIGNS.iter().copied(),
+                    )),
             ),
             self.ctx.content_rect(),
             anchor_rect,
@@ -548,10 +595,14 @@ impl<'a> Popup<'a> {
             alternative_aligns: _,
             gap,
             width,
+            sizing_pass,
             sense,
+            interactable,
             layout,
             frame,
             style,
+            anchor_widget,
+            accessibility_label,
         } = self;
 
         if kind != PopupKind::Tooltip {
@@ -573,7 +624,9 @@ impl<'a> Popup<'a> {
             .pivot(pivot)
             .fixed_pos(anchor)
             .sense(sense)
+            .interactable(interactable)
             .layout(layout)
+            .sizing_pass(sizing_pass || !was_open_last_frame)
             .info(info.unwrap_or_else(|| {
                 UiStackInfo::new(kind.into()).with_tag_value(
                     MenuConfig::MENU_CONFIG_TAG,
@@ -586,6 +639,12 @@ impl<'a> Popup<'a> {
         if let Some(width) = width {
             area = area.default_width(width);
         }
+        if let Some(anchor_widget) = anchor_widget {
+            area = area.accessibility_parent(anchor_widget);
+        }
+        if let Some(label) = accessibility_label {
+            area = area.accessible_name(label);
+        }
 
         let mut response = area.show(&ctx, |ui| {
             style.apply(ui.style_mut());
@@ -593,8 +652,24 @@ impl<'a> Popup<'a> {
             frame.show(ui, content).inner
         });
 
-        // If the popup was just opened with a click, we don't want to immediately close it again.
-        let close_click = was_open_last_frame && ctx.input(|i| i.pointer.any_click());
+        // Only a click whose press started while the popup was already open may close it.
+        // Otherwise a popup opened on a pointer *press* (e.g. a right-press context menu)
+        // would immediately close again on the following *release*.
+        // This also covers the case where the popup was just opened with a click.
+        let press_started_while_open_id = id.with("press_started_while_open");
+        let (any_pressed, any_click) =
+            ctx.input(|i| (i.pointer.any_pressed(), i.pointer.any_click()));
+        let press_started_while_open = if !was_open_last_frame {
+            ctx.data_mut(|d| d.remove::<bool>(press_started_while_open_id));
+            false
+        } else if any_pressed {
+            ctx.data_mut(|d| d.insert_temp(press_started_while_open_id, true));
+            true
+        } else {
+            ctx.data(|d| d.get_temp(press_started_while_open_id))
+                .unwrap_or(false)
+        };
+        let close_click = press_started_while_open && any_click;
 
         let closed_by_click = match close_behavior {
             PopupCloseBehavior::CloseOnClick => close_click,
@@ -616,6 +691,7 @@ impl<'a> Popup<'a> {
 
         if should_close {
             response.response.set_close();
+            ctx.data_mut(|d| d.remove::<bool>(press_started_while_open_id));
         }
 
         match open_kind {
@@ -665,10 +741,6 @@ impl Popup<'_> {
     }
 
     /// Open the given popup and close all others.
-    ///
-    /// If you are NOT using [`Popup::show`], you must
-    /// also call [`crate::Memory::keep_popup_open`] as long as
-    /// you're showing the popup.
     pub fn open_id(ctx: &Context, popup_id: Id) {
         ctx.memory_mut(|mem| mem.open_popup(popup_id));
     }
