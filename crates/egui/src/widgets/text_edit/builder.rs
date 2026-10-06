@@ -584,8 +584,6 @@ impl<'t> TextEdit<'t> {
 
             for section in &mut layout_job.sections {
                 section.format.line_height = Some(line_height);
-                // Center the text within any `extra_text_line_spacing`:
-                section.format.valign = Align::Center;
             }
 
             ui.fonts_mut(|f| f.layout_job(layout_job))
