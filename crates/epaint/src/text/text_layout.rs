@@ -1099,8 +1099,14 @@ fn galley_from_rows(
 
             glyph.pos.y = glyph.font_face_ascent
 
-                // Apply valign to the different in height of the entire row, and the height of this `Font`:
+                // Apply valign to the difference in height of the entire row,
+                // and the line height of this glyph (which is the font height, unless explicitly set):
                 + format.valign.to_factor() * (max_row_height - glyph.line_height)
+
+                // If the line height was set explicitly (e.g. taller than the font),
+                // we always center the text within that line height, like CSS does.
+                // When `line_height` is not set, this is zero.
+                + 0.5 * (glyph.line_height - glyph.font_height)
 
                 // When mixing different `FontImpl` (e.g. latin and emojis),
                 // we always center the difference:
@@ -2348,6 +2354,85 @@ mod tests {
             galley.intrinsic_size().round(),
             Vec2::new(17.0, font_height.round() * 2.0),
             "Unexpected intrinsic size"
+        );
+    }
+
+    #[test]
+    fn test_valign_with_custom_line_height() {
+        let pixels_per_point = 1.0;
+        let mut fonts = test_fonts();
+
+        let font_id = FontId::default();
+        let family = fonts.family_key(&font_id.family);
+        let font_height = fonts
+            .family_metrics(
+                family,
+                pixels_per_point,
+                font_id.size,
+                &VariationCoords::default(),
+            )
+            .row_height;
+        let extra_height = 20.0;
+        let line_height = (font_height + extra_height).round();
+        let free_space = line_height - font_height;
+
+        // Row height, and y-position of the last glyph (in the last section):
+        let mut glyph_y = |sections: &[(Option<f32>, Align)]| {
+            let mut job = LayoutJob::default();
+            for &(line_height, valign) in sections {
+                job.append(
+                    "Hello",
+                    0.0,
+                    TextFormat {
+                        font_id: font_id.clone(),
+                        line_height,
+                        valign,
+                        ..Default::default()
+                    },
+                );
+            }
+            let galley = layout(&mut fonts, pixels_per_point, job.into());
+            assert_eq!(galley.rows.len(), 1);
+            let glyph = galley.rows[0].row.glyphs.last().unwrap();
+            (galley.size().y, glyph.pos.y)
+        };
+
+        let (default_height, baseline_y) = glyph_y(&[(None, Align::default())]);
+        assert_eq!(default_height, font_height.round());
+
+        // A custom line height always centers the text, regardless of `valign`
+        // (including the default `valign`):
+        for valign in [
+            TextFormat::default().valign,
+            Align::TOP,
+            Align::Center,
+            Align::BOTTOM,
+        ] {
+            let (height, y) = glyph_y(&[(Some(line_height), valign)]);
+            assert_eq!(
+                height, line_height,
+                "Row should have the custom line height"
+            );
+            assert!(
+                (y - baseline_y - 0.5 * free_space).abs() <= 1.0,
+                "{valign:?}: text should be centered in the line: baseline_y={baseline_y}, y={y}, free_space={free_space}"
+            );
+        }
+
+        // `valign` still governs how a section without a custom line height
+        // is placed within a taller row:
+        let tall = (Some(line_height), Align::Center);
+        let (_, top) = glyph_y(&[tall, (None, Align::TOP)]);
+        let (_, center) = glyph_y(&[tall, (None, Align::Center)]);
+        let (_, bottom) = glyph_y(&[tall, (None, Align::BOTTOM)]);
+        assert!((top - baseline_y).abs() <= 1.0, "top={top}");
+        assert!(
+            (center - top - 0.5 * free_space).abs() <= 1.0,
+            "top={top}, center={center}, free_space={free_space}"
+        );
+        assert!(
+            (bottom - top - free_space).abs() <= 1.0,
+            "top={top}, bottom={bottom}, free_space={free_space}"
         );
     }
 
