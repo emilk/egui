@@ -188,6 +188,92 @@ impl Clipboard {
     }
 }
 
+// The X11/Wayland PRIMARY selection: filled in by selecting text, pasted with the middle mouse button.
+cfg_select! {
+    any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ) => {
+        #[cfg_attr(
+            not(any(feature = "arboard", feature = "smithay-clipboard")),
+            expect(
+                clippy::unused_self,
+                clippy::needless_pass_by_ref_mut,
+                clippy::needless_pass_by_value,
+                reason = "no backend to use"
+            )
+        )]
+        impl Clipboard {
+            /// Read the PRIMARY selection, if there is one.
+            pub fn get_primary_text(&mut self) -> Option<String> {
+                #[cfg(feature = "smithay-clipboard")]
+                if let Some(clipboard) = &mut self.smithay {
+                    return clipboard
+                        .load_primary()
+                        .inspect_err(|err| log::debug!("smithay primary paste error: {err}"))
+                        .ok();
+                }
+
+                #[cfg(feature = "arboard")]
+                if let Some(clipboard) = &mut self.arboard {
+                    use arboard::GetExtLinux as _;
+                    return clipboard
+                        .get()
+                        .clipboard(arboard::LinuxClipboardKind::Primary)
+                        .text()
+                        .inspect_err(|err| log::debug!("arboard primary paste error: {err}"))
+                        .ok();
+                }
+
+                None
+            }
+
+            /// Set the PRIMARY selection.
+            pub fn set_primary_text(&mut self, text: String) {
+                #[cfg(feature = "smithay-clipboard")]
+                if let Some(clipboard) = &mut self.smithay {
+                    clipboard.store_primary(text);
+                    return;
+                }
+
+                #[cfg(feature = "arboard")]
+                if let Some(clipboard) = &mut self.arboard {
+                    use arboard::SetExtLinux as _;
+                    if let Err(err) = clipboard
+                        .set()
+                        .clipboard(arboard::LinuxClipboardKind::Primary)
+                        .text(text)
+                    {
+                        log::error!("arboard primary copy error: {err}");
+                    }
+                    return;
+                }
+
+                _ = text;
+            }
+        }
+    }
+    _ => {
+        #[expect(
+            clippy::unused_self,
+            clippy::needless_pass_by_ref_mut,
+            reason = "there is no PRIMARY selection on this platform"
+        )]
+        impl Clipboard {
+            /// Read the PRIMARY selection. Always `None` on this platform.
+            pub fn get_primary_text(&mut self) -> Option<String> {
+                None
+            }
+
+            /// Set the PRIMARY selection. Does nothing on this platform.
+            pub fn set_primary_text(&mut self, _text: String) {}
+        }
+    }
+}
+
 /// Whether an `arboard::Error` from reading the clipboard is the expected, mundane outcome
 /// of the clipboard simply not holding the requested content type (e.g. text was asked for
 /// but the clipboard holds an image, or vice versa, or it's just empty) — as opposed to a

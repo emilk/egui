@@ -1436,6 +1436,7 @@ dependencies = [
  "resvg",
  "serde",
  "syntect",
+ "tempfile",
 ]
 
 [[package]]

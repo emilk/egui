@@ -480,6 +480,17 @@ impl Area {
 
         let state = AreaState::load(ctx, id);
         let mut sizing_pass = state.is_none();
+
+        // The size is not persisted, so after a restart we have a restored position but no size.
+        // That position was already constrained in the previous session,
+        // and will be constrained again next frame, once we know the actual size.
+        // So we don't constrain it with the guessed size of this sizing pass,
+        // which could move the area (e.g. a shrunk window placed against the edge of the screen).
+        let restored_without_size = !force_sizing_pass
+            && state
+                .as_ref()
+                .is_some_and(|state| state.pivot_pos.is_some() && state.size.is_none());
+
         let mut state = state.unwrap_or(AreaState {
             pivot_pos: None,
             pivot,
@@ -519,6 +530,8 @@ impl Area {
 
             size
         });
+
+        let constrain = constrain && !restored_without_size;
 
         // We should never be interactable during a sizing pass, since then we are shown at a different
         // size which might interfere with hover state of the hovered widget causing popup feedback loops.
