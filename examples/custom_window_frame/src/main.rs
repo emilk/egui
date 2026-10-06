@@ -39,9 +39,9 @@ fn main() -> eframe::Result {
 
 #[derive(Default)]
 struct MyApp {
-    /// The zoom factor we last positioned the macOS traffic lights for.
+    /// The `[title_bar_height, left_margin]` (in native points) we last positioned the macOS traffic lights with.
     #[cfg_attr(not(target_os = "macos"), expect(dead_code))]
-    traffic_lights_zoom: Option<f32>,
+    traffic_lights_placement: Option<[f32; 2]>,
 }
 
 impl eframe::App for MyApp {
@@ -50,49 +50,64 @@ impl eframe::App for MyApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        #[cfg(target_os = "macos")]
-        self.position_traffic_lights(ui.ctx(), frame);
-        #[cfg(not(target_os = "macos"))]
-        let _ = frame;
-
-        custom_window_frame(ui, "egui with custom frame", |ui| {
+        let title_bar_rect = custom_window_frame(ui, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window.");
             ui.horizontal(|ui| {
                 ui.label("egui theme:");
                 egui::widgets::global_theme_preference_buttons(ui);
             });
         });
+
+        #[cfg(target_os = "macos")]
+        self.position_traffic_lights(ui.ctx(), frame, title_bar_rect);
+        #[cfg(not(target_os = "macos"))]
+        let _ = (frame, title_bar_rect);
     }
 }
 
 impl MyApp {
     /// Center the native macOS traffic lights in our custom title bar.
     #[cfg(target_os = "macos")]
-    fn position_traffic_lights(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
+    fn position_traffic_lights(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &eframe::Frame,
+        title_bar_rect: egui::Rect,
+    ) {
         use raw_window_handle::HasWindowHandle as _;
+
+        // The traffic lights are centered in a title bar starting at the top of the window,
+        // so give it a height that puts its center at the center of our title bar.
+        let title_bar_height = 2.0 * title_bar_rect.center().y;
+        let left_margin = title_bar_rect.left() + 12.0;
 
         // The arguments are in native points, so we need to re-apply them when the zoom changes:
         let zoom_factor = ctx.zoom_factor();
-        if self.traffic_lights_zoom == Some(zoom_factor) {
+        let placement = [title_bar_height * zoom_factor, left_margin * zoom_factor];
+        if self.traffic_lights_placement == Some(placement) {
             return;
         }
         let Ok(window_handle) = frame.window_handle() else {
             return;
         };
-        let left_margin = 12.0;
         if eframe::WindowChromeMetrics::position_traffic_lights(
             &window_handle.as_raw(),
-            TITLE_BAR_HEIGHT * zoom_factor,
-            left_margin * zoom_factor,
+            placement[0],
+            placement[1],
         )
         .is_some()
         {
-            self.traffic_lights_zoom = Some(zoom_factor);
+            self.traffic_lights_placement = Some(placement);
         }
     }
 }
 
-fn custom_window_frame(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
+/// Returns the rect of the title bar.
+fn custom_window_frame(
+    ui: &mut egui::Ui,
+    title: &str,
+    add_contents: impl FnOnce(&mut egui::Ui),
+) -> egui::Rect {
     use egui::UiBuilder;
 
     let panel_frame = egui::Frame::new()
@@ -101,28 +116,32 @@ fn custom_window_frame(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce
         .stroke(ui.global_style().visuals.widgets.noninteractive.fg_stroke)
         .outer_margin(1); // so the stroke is within the bounds
 
-    panel_frame.show(ui, |ui| {
-        let app_rect = ui.max_rect();
+    panel_frame
+        .show(ui, |ui| {
+            let app_rect = ui.max_rect();
 
-        ui.expand_to_include_rect(app_rect); // Expand frame to include it all
+            ui.expand_to_include_rect(app_rect); // Expand frame to include it all
 
-        let title_bar_rect = {
-            let mut rect = app_rect;
-            rect.max.y = rect.min.y + TITLE_BAR_HEIGHT;
-            rect
-        };
-        title_bar_ui(ui, title_bar_rect, title);
+            let title_bar_rect = {
+                let mut rect = app_rect;
+                rect.max.y = rect.min.y + TITLE_BAR_HEIGHT;
+                rect
+            };
+            title_bar_ui(ui, title_bar_rect, title);
 
-        // Add the contents:
-        let content_rect = {
-            let mut rect = app_rect;
-            rect.min.y = title_bar_rect.max.y;
-            rect
-        }
-        .shrink(4.0);
-        let mut content_ui = ui.new_child(UiBuilder::new().max_rect(content_rect));
-        add_contents(&mut content_ui);
-    });
+            // Add the contents:
+            let content_rect = {
+                let mut rect = app_rect;
+                rect.min.y = title_bar_rect.max.y;
+                rect
+            }
+            .shrink(4.0);
+            let mut content_ui = ui.new_child(UiBuilder::new().max_rect(content_rect));
+            add_contents(&mut content_ui);
+
+            title_bar_rect
+        })
+        .inner
 }
 
 fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
