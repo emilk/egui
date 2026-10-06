@@ -51,8 +51,8 @@ impl WindowChromeMetrics {
     /// and call this again whenever the zoom factor changes.
     ///
     /// `AppKit` resets the position of the traffic lights whenever the window is laid out again
-    /// (e.g. when resized or exiting fullscreen), so the placement is remembered and re-applied
-    /// automatically until the window closes.
+    /// (e.g. when resized or exiting fullscreen), so eframe remembers the placement and re-applies
+    /// it after each frame (and on window resize notifications) until the window closes.
     /// Calling this again with new values replaces the previous placement.
     ///
     /// This is meant to be used together with [`egui::ViewportBuilder::with_fullsize_content_view`].
@@ -81,6 +81,29 @@ impl WindowChromeMetrics {
         Some(Self {
             traffic_lights_size: traffic_lights_metrics(&ns_window)?,
         })
+    }
+}
+
+/// Re-apply the traffic lights placement set with
+/// [`WindowChromeMetrics::position_traffic_lights`], if any.
+///
+/// `AppKit` lays out the title bar again during its display pass (e.g. while resizing),
+/// which can happen after any notification we observe, so we also re-apply after each frame.
+pub(crate) fn maintain_traffic_lights(window_handle: &RawWindowHandle) {
+    let RawWindowHandle::AppKit(appkit_handle) = window_handle else {
+        return;
+    };
+    if MainThreadMarker::new().is_none() {
+        return;
+    }
+    let Some(ns_window) = ns_view_from_handle(appkit_handle).and_then(|view| view.window()) else {
+        return;
+    };
+    let key = core::ptr::from_ref(&*ns_window) as usize;
+    let placement = PLACED_WINDOWS
+        .with_borrow(|windows| windows.get(&key).map(|placed| placed.placement.get()));
+    if let Some(placement) = placement {
+        position_traffic_lights_in_title_bar(&ns_window, placement);
     }
 }
 

@@ -383,6 +383,11 @@ impl EpiIntegration {
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
         }
+
+        #[cfg(target_os = "macos")]
+        if let Ok(window_handle) = raw_window_handle::HasWindowHandle::window_handle(window) {
+            super::macos::maintain_traffic_lights(&window_handle.as_raw());
+        }
     }
 
     // ------------------------------------------------------------------------
