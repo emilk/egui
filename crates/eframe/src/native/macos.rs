@@ -5,7 +5,7 @@ use core::{
 use std::{collections::HashMap, rc::Rc};
 
 use block2::RcBlock;
-use egui::Vec2;
+use egui::{Rangef, Vec2};
 use objc2::{
     MainThreadMarker,
     rc::Retained,
@@ -39,12 +39,12 @@ impl WindowChromeMetrics {
         window_chrome_metrics(window_handle)
     }
 
-    /// Position the traffic lights in a custom title bar of the given height.
+    /// Position the traffic lights in a custom title bar.
     ///
-    /// The buttons are centered vertically in a title bar of height `title_bar_height`,
+    /// The buttons are centered vertically in `title_bar`
+    /// (the y-range of your title bar, measured from the top of the window),
     /// with the close button `left_margin` from the left edge of the window.
     /// The native spacing between the buttons is preserved.
-    /// A `title_bar_height` smaller than the buttons is clamped to the button height.
     ///
     /// Both arguments are in "native scale", just like [`Self::traffic_lights_size`],
     /// so multiply egui points by [`egui::Context::zoom_factor`] before passing them in,
@@ -61,7 +61,7 @@ impl WindowChromeMetrics {
     /// Returns the updated window chrome metrics, or `None` on failure.
     pub fn position_traffic_lights(
         window_handle: &RawWindowHandle,
-        title_bar_height: f32,
+        title_bar: Rangef,
         left_margin: f32,
     ) -> Option<Self> {
         let RawWindowHandle::AppKit(appkit_handle) = window_handle else {
@@ -72,7 +72,8 @@ impl WindowChromeMetrics {
         let ns_view = ns_view_from_handle(appkit_handle)?;
         let ns_window = ns_view.window()?;
         let placement = TrafficLightsPlacement {
-            title_bar_height: title_bar_height as f64,
+            title_bar_top: title_bar.min as f64,
+            title_bar_bottom: title_bar.max as f64,
             left_margin: left_margin as f64,
         };
         remember_traffic_lights_placement(&ns_window, placement);
@@ -142,7 +143,8 @@ fn traffic_lights_metrics(ns_window: &NSWindow) -> Option<Vec2> {
 
 #[derive(Clone, Copy, Debug)]
 struct TrafficLightsPlacement {
-    title_bar_height: f64,
+    title_bar_top: f64,
+    title_bar_bottom: f64,
     left_margin: f64,
 }
 
@@ -274,11 +276,16 @@ fn position_traffic_lights_in_title_bar(
         (title_bar_view, title_bar_container, theme_frame)
     };
 
+    // Distance from the top of the window to the center of the buttons.
+    // Clamped so the buttons never go above the top of the window.
+    let half_button_height = close_button_frame.size.height / 2.0;
+    let center_y =
+        (0.5 * (placement.title_bar_top + placement.title_bar_bottom)).max(half_button_height);
     let title_bar_height = placement
-        .title_bar_height
-        .max(close_button_frame.size.height);
+        .title_bar_bottom
+        .max(center_y + half_button_height);
 
-    // Resize the title bar to the requested height, so that the buttons stay inside it.
+    // Resize the native title bar so that it covers the buttons.
     // Otherwise taller title bars would push the buttons outside their superview,
     // where they no longer receive clicks.
     let theme_bounds = theme_frame.bounds();
@@ -303,7 +310,7 @@ fn position_traffic_lights_in_title_bar(
     ] {
         let button = ns_window.standardWindowButton(button_kind)?;
         let frame = button.frame();
-        let top_margin = (title_bar_height - frame.size.height) / 2.0;
+        let top_margin = center_y - frame.size.height / 2.0;
         let mut origin = frame.origin;
         origin.x += x_offset;
         origin.y = if flipped {

@@ -47,7 +47,7 @@ impl eframe::App for MyApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        custom_window_frame(ui, frame, "egui with custom frame", |ui| {
+        custom_window_frame(frame, ui, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window.");
             ui.horizontal(|ui| {
                 ui.label("egui theme:");
@@ -58,8 +58,8 @@ impl eframe::App for MyApp {
 }
 
 fn custom_window_frame(
-    ui: &mut egui::Ui,
     frame: &eframe::Frame,
+    ui: &mut egui::Ui,
     title: &str,
     add_contents: impl FnOnce(&mut egui::Ui),
 ) {
@@ -82,7 +82,7 @@ fn custom_window_frame(
             rect.max.y = rect.min.y + title_bar_height;
             rect
         };
-        title_bar_ui(ui, frame, title_bar_rect, title);
+        title_bar_ui(frame, ui, title_bar_rect, title);
 
         // Add the contents:
         let content_rect = {
@@ -97,8 +97,8 @@ fn custom_window_frame(
 }
 
 fn title_bar_ui(
-    ui: &mut egui::Ui,
     frame: &eframe::Frame,
+    ui: &mut egui::Ui,
     title_bar_rect: eframe::epaint::Rect,
     title: &str,
 ) {
@@ -142,13 +142,11 @@ fn title_bar_ui(
 
     if cfg!(target_os = "macos") {
         // Use the native traffic lights instead of our own buttons.
-        // They are centered in a title bar starting at the top of the window,
-        // so give it a height that puts their center at the center of our title bar.
         // The arguments are in native points, so we scale by the zoom factor.
         let zoom_factor = ui.ctx().zoom_factor();
         frame.set_traffic_lights_position(
-            2.0 * title_bar_rect.center().y * zoom_factor,
-            (title_bar_rect.left() + 12.0) * zoom_factor,
+            (zoom_factor * title_bar_rect).y_range(),
+            zoom_factor * (title_bar_rect.left() + 12.0),
         );
         return;
     }
