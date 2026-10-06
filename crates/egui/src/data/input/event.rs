@@ -34,16 +34,9 @@ pub enum Event {
     /// [`Self::Paste`] still takes priority when both are available.
     PasteImage(std::sync::Arc<ColorImage>),
 
-    /// The user middle-clicked at `pos` to paste the X11/Wayland PRIMARY selection.
+    /// Paste the X11/Wayland PRIMARY selection where the user middle-clicked.
     ///
-    /// The integration reads PRIMARY and sends the text along with the position,
-    /// since only it can: the selection is served by whichever process owns it.
-    ///
-    /// Unlike [`Self::Paste`], the text cursor first moves to `pos`. That is the
-    /// X11 convention: middle-click pastes where you clicked, not where the
-    /// cursor happened to be.
-    ///
-    /// Only sent on X11 and Wayland, the only platforms with a PRIMARY selection.
+    /// Unlike [`Self::Paste`], this goes to the hovered `TextEdit` and inserts the text at `pos`.
     MiddleClickPaste {
         /// Where the user clicked, in points.
         pos: Pos2,

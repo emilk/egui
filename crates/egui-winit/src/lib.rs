@@ -852,9 +852,7 @@ impl State {
                 modifiers: self.modifiers,
             });
 
-            // Middle-click pastes the PRIMARY selection on X11 and Wayland.
-            // Only we can read it, so we do it here and hand egui the text
-            // together with the position that was clicked.
+            // Middle-click pastes the PRIMARY selection on X11 and Wayland:
             if pressed
                 && button == egui::PointerButton::Middle
                 && let Some(text) = self.clipboard.get_primary_text()
@@ -1212,8 +1210,6 @@ impl State {
                     self.clipboard.set_text(text);
                 }
                 egui::OutputCommand::TextSelectionSettled(text) => {
-                    // On X11 and Wayland the selection doubles as a clipboard
-                    // that is pasted with the middle mouse button.
                     self.clipboard.set_primary_text(text);
                 }
                 egui::OutputCommand::CopyImage(image) => {

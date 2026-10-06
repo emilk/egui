@@ -320,18 +320,6 @@ pub struct Options {
     ///
     /// Default is `false`.
     pub reduce_texture_memory: bool,
-
-    /// Report finished text selections through
-    /// [`crate::OutputCommand::TextSelectionSettled`].
-    ///
-    /// Assembling the selected text costs an allocation, and a selection can
-    /// span several widgets, so egui only does it when someone is listening.
-    ///
-    /// Defaults to `true` on X11 and Wayland, where the integration feeds the
-    /// text to the PRIMARY selection so it can be pasted with the middle mouse
-    /// button. Turn it on elsewhere if your integration wants to observe text
-    /// selections.
-    pub report_text_selection: bool,
 }
 
 impl Default for Options {
@@ -360,9 +348,6 @@ impl Default for Options {
             // Input:
             input_options: Default::default(),
             reduce_texture_memory: false,
-
-            report_text_selection: crate::os::OperatingSystem::from_target_os()
-                == crate::os::OperatingSystem::Nix,
         }
     }
 }
@@ -420,7 +405,6 @@ impl Options {
             warn_on_id_clash,
             input_options,
             reduce_texture_memory,
-            report_text_selection,
         } = self;
 
         use crate::Widget as _;
@@ -452,8 +436,6 @@ impl Options {
                 ui.checkbox(warn_on_id_clash, "Warn if two widgets have the same Id");
 
                 ui.checkbox(reduce_texture_memory, "Reduce texture memory");
-
-                ui.checkbox(report_text_selection, "Report finished text selections");
             });
 
         CollapsingHeader::new("🎑 Style")

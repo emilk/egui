@@ -865,10 +865,7 @@ impl<'t> TextEdit<'t> {
             }
         }
 
-        // Middle-click pastes the X11/Wayland PRIMARY selection at the click,
-        // rather than at the text cursor. The integration has already read the
-        // selection for us; only it can, since PRIMARY is served by whichever
-        // process owns it.
+        // Middle-click pastes the X11/Wayland PRIMARY selection where you click:
         if interactive
             && ui.is_enabled()
             && text.is_mutable()
@@ -880,7 +877,6 @@ impl<'t> TextEdit<'t> {
                 })
             })
         {
-            // The event position is in global coordinates; bring it into this layer's.
             let pos = ui
                 .ctx()
                 .layer_transform_from_global(ui.layer_id())
@@ -905,10 +901,7 @@ impl<'t> TextEdit<'t> {
             ui.memory_mut(|mem| mem.request_focus(id));
 
             text_changed = true;
-
-            // The galley was laid out before this insertion, so the new text
-            // only shows up in the next pass.
-            ui.ctx().request_repaint();
+            ui.ctx().request_repaint(); // The galley is now stale
         }
 
         if interactive && response.hovered() {
@@ -1056,15 +1049,9 @@ impl<'t> TextEdit<'t> {
             }
         }
 
-        // Report a finished selection, which on X11 and Wayland ends up in the
-        // PRIMARY selection.
-        //
-        // This reads the cursor state rather than `selection_changed`, which
-        // only covers the events handled above: a drag-selection lands in
-        // `state.cursor` further down, after those have been processed.
+        // Report the selection once it has settled (e.g. after a drag):
         let selection = state.cursor.char_range().filter(|range| !range.is_empty());
-        if crate::text_selection::settled::should_report(ui, selection != state.reported_selection)
-        {
+        if selection != state.reported_selection && !ui.input(|i| i.pointer.any_down()) {
             state.reported_selection = selection;
 
             if !password && let Some(range) = selection {

@@ -124,20 +124,13 @@ pub enum OutputCommand {
     /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
     CopyText(String),
 
-    /// The user has finished changing the text selection, and this is what is
-    /// now selected.
+    /// The user has finished changing the text selection, and this is what is now selected.
     ///
-    /// Emitted when the selection settles: on pointer release after a drag or a
-    /// multi-click, and when the keyboard changes it while no pointer button is
-    /// held. Deliberately not emitted on every change during a drag, since an
-    /// integration that acts on it would then do so many times per selection.
+    /// Sent once the selection settles (e.g. when the mouse button is released after a drag),
+    /// and only if it changed, so not on every frame of a drag.
     ///
-    /// On X11 and Wayland this feeds the PRIMARY selection, which is pasted
-    /// with the middle mouse button. Integrations with nothing to do with it can
-    /// ignore it.
-    ///
-    /// Only emitted when [`crate::Options::report_text_selection`] is set, which
-    /// it is by default only on the platforms that have a PRIMARY selection.
+    /// On X11 and Wayland, `egui-winit` puts this in the PRIMARY selection,
+    /// so that it can be pasted with the middle mouse button.
     TextSelectionSettled(String),
 
     /// Put this image to the system clipboard.

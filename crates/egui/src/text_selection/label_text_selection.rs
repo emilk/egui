@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    TextCursorState, settled,
+    TextCursorState,
     text_cursor_state::cursor_rect,
     visuals::{RowVertexIndices, paint_text_selection},
 };
@@ -111,13 +111,10 @@ struct ViewportLabelSelectionState {
     text_to_copy: String,
     last_copied_galley_rect: Option<Rect>,
 
-    /// Has the selection changed since it was last reported as settled?
+    /// Has the selection changed since it was last reported with [`crate::OutputCommand::TextSelectionSettled`]?
     selection_is_dirty: bool,
 
-    /// Should the text accumulated this pass be reported as settled?
-    ///
-    /// Decided in `on_begin_pass`, since the text is gathered label by label
-    /// as they are laid out, before `on_end_pass` gets to send it anywhere.
+    /// Should we report the selection with [`crate::OutputCommand::TextSelectionSettled`] at the end of this pass?
     report_selection: bool,
 
     /// Painted selections this frame.
@@ -223,7 +220,7 @@ impl ViewportLabelSelectionState {
         self.text_to_copy.clear();
         self.last_copied_galley_rect = None;
         self.painted_selections.clear();
-        self.report_selection = settled::should_report(ui, self.selection_is_dirty);
+        self.report_selection = self.selection_is_dirty && !ui.input(|i| i.pointer.any_down());
     }
 
     fn on_end_pass(&mut self, ui: &Ui) {
@@ -284,24 +281,17 @@ impl ViewportLabelSelectionState {
         }
 
         let text_to_copy = core::mem::take(&mut self.text_to_copy);
-        let copy_to_clipboard = got_copy_event(ui.ctx());
-
         if self.report_selection {
-            // Whether or not there was anything to report, the pending
-            // selection has now been dealt with.
             self.selection_is_dirty = false;
-        }
-
-        if !text_to_copy.is_empty() {
-            if self.report_selection {
-                if copy_to_clipboard {
-                    ui.copy_text(text_to_copy.clone());
-                }
+            if !text_to_copy.is_empty() {
                 ui.ctx()
-                    .send_cmd(crate::OutputCommand::TextSelectionSettled(text_to_copy));
-            } else if copy_to_clipboard {
-                ui.copy_text(text_to_copy);
+                    .send_cmd(crate::OutputCommand::TextSelectionSettled(
+                        text_to_copy.clone(),
+                    ));
             }
+        }
+        if !text_to_copy.is_empty() && got_copy_event(ui.ctx()) {
+            ui.copy_text(text_to_copy);
         }
     }
 

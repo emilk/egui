@@ -57,10 +57,7 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) last_interaction_time: f64,
 
-    /// The selection that was last reported as settled.
-    ///
-    /// Kept so an unchanged selection is not reported twice. Ephemeral; see the
-    /// `text_selection::settled` module.
+    /// The selection last sent with [`crate::OutputCommand::TextSelectionSettled`].
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) reported_selection: Option<CCursorRange>,
 }
