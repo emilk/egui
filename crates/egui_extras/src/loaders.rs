@@ -38,6 +38,9 @@
 /// - Relative paths are relative to the current working directory
 /// - Absolute paths are left as is.
 ///
+/// If no file exists at that path, and the path contains percent-escapes (like `%20`),
+/// the loader will also try the percent-decoded path (e.g. `file:///tmp/a%20b.png` → `/tmp/a b.png`).
+///
 /// The `http` loader is a [`BytesLoader`][`egui::load::BytesLoader`].
 /// It will attempt to load `http://` and `https://` URIs, and infer the content type from the `Content-Type` header.
 ///
