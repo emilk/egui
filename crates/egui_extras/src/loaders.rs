@@ -122,6 +122,9 @@ pub mod file_loader;
 #[cfg(feature = "http")]
 pub mod http_loader;
 
+#[cfg(feature = "image")]
+mod background_decode;
+
 #[cfg(feature = "gif")]
 pub mod gif_loader;
 #[cfg(feature = "image")]

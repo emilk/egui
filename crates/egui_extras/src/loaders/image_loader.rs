@@ -1,21 +1,23 @@
-use ahash::HashMap;
 use core::{mem::size_of, task::Poll};
 use egui::{
     ColorImage, decode_animated_image_uri,
-    load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
-    mutex::Mutex,
+    load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
 };
 use image::ImageFormat;
 use std::{ffi::OsStr, path::Path, sync::Arc};
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::thread;
+use super::background_decode::DecodeCache;
 
-type Entry = Poll<Result<Arc<ColorImage>, String>>;
-
-#[derive(Default)]
 pub struct ImageCrateLoader {
-    cache: Arc<Mutex<HashMap<String, Entry>>>,
+    cache: DecodeCache<Arc<ColorImage>>,
+}
+
+impl Default for ImageCrateLoader {
+    fn default() -> Self {
+        Self {
+            cache: DecodeCache::new("ImageLoader"),
+        }
+    }
 }
 
 impl ImageCrateLoader {
@@ -102,90 +104,9 @@ impl ImageLoader for ImageCrateLoader {
             return Err(LoadError::NotSupported);
         }
 
-        #[cfg(not(target_arch = "wasm32"))]
-        #[expect(clippy::unnecessary_wraps)] // needed here to match other return types
-        fn load_image(
-            ctx: &egui::Context,
-            uri: &str,
-            cache: &Arc<Mutex<HashMap<String, Entry>>>,
-            bytes: &Bytes,
-        ) -> ImageLoadResult {
-            let uri = uri.to_owned();
-            cache.lock().insert(uri.clone(), Poll::Pending);
-
-            // Do the image parsing on a bg thread
-            thread::Builder::new()
-                .name(format!("egui_extras::ImageLoader::load({uri:?})"))
-                .spawn({
-                    let ctx = ctx.clone();
-                    let cache = Arc::clone(cache);
-
-                    let uri = uri.clone();
-                    let bytes = bytes.clone();
-                    move || {
-                        log::trace!("ImageLoader - started loading {uri:?}");
-                        let result = crate::image::load_image_bytes(&bytes)
-                            .map(Arc::new)
-                            .map_err(|err| err.to_string());
-                        let repaint = {
-                            let mut cache = cache.lock();
-
-                            if let std::collections::hash_map::Entry::Occupied(mut entry) = cache.entry(uri.clone()) {
-                                let entry = entry.get_mut();
-                                *entry = Poll::Ready(result);
-                                log::trace!("ImageLoader - finished loading {uri:?}");
-                                true
-                            } else {
-                                log::trace!("ImageLoader - canceled loading {uri:?}\nNote: This can happen if `forget_image` is called while the image is still loading.");
-                                false
-                            }
-                        };
-                        // We may not lock Context while the cache lock is held, since this can
-                        // deadlock.
-                        // Example deadlock scenario:
-                        // - loader thread: lock cache
-                        // - main thread: lock ctx (e.g. in `Context::has_pending_images`)
-                        // - loader thread: try to lock ctx (in `request_repaint`)
-                        // - main thread: try to lock cache (from `Self::has_pending`)
-                        if repaint {
-                            ctx.request_repaint();
-                        }
-                    }
-                })
-                .expect("failed to spawn thread");
-
-            Ok(ImagePoll::Pending { size: None })
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        fn load_image(
-            _ctx: &egui::Context,
-            uri: &str,
-            cache: &Arc<Mutex<HashMap<String, Entry>>>,
-            bytes: &Bytes,
-        ) -> ImageLoadResult {
-            let mut cache_lock = cache.lock();
-            log::trace!("started loading {uri:?}");
-            let result = crate::image::load_image_bytes(bytes)
-                .map(Arc::new)
-                .map_err(|err| err.to_string());
-            log::trace!("finished loading {uri:?}");
-            cache_lock.insert(uri.into(), core::task::Poll::Ready(result.clone()));
-            match result {
-                Ok(image) => Ok(ImagePoll::Ready { image }),
-                Err(err) => Err(LoadError::Loading(err)),
-            }
-        }
-
-        let entry = self.cache.lock().get(uri).cloned();
-        if let Some(entry) = entry {
-            match entry {
-                Poll::Ready(Ok(image)) => Ok(ImagePoll::Ready { image }),
-                Poll::Ready(Err(err)) => Err(LoadError::Loading(err)),
-                Poll::Pending => Ok(ImagePoll::Pending { size: None }),
-            }
-        } else {
-            match ctx.try_load_bytes(uri) {
+        let entry = match self.cache.get(uri) {
+            Some(entry) => entry,
+            None => match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, mime, .. }) => {
                     // (2)
                     if let Some(mime) = mime
@@ -195,36 +116,39 @@ impl ImageLoader for ImageCrateLoader {
                             detected_format: Some(mime),
                         });
                     }
-                    load_image(ctx, uri, &self.cache, &bytes)
+                    self.cache.decode(ctx, uri, &bytes, |bytes| {
+                        crate::image::load_image_bytes(bytes)
+                            .map(Arc::new)
+                            .map_err(|err| err.to_string())
+                    })
                 }
-                Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
-                Err(err) => Err(err),
-            }
+                Ok(BytesPoll::Pending { size }) => return Ok(ImagePoll::Pending { size }),
+                Err(err) => return Err(err),
+            },
+        };
+
+        match entry {
+            Poll::Ready(Ok(image)) => Ok(ImagePoll::Ready { image }),
+            Poll::Ready(Err(err)) => Err(LoadError::Loading(err)),
+            Poll::Pending => Ok(ImagePoll::Pending { size: None }),
         }
     }
 
     fn forget(&self, uri: &str) {
-        let _ = self.cache.lock().remove(uri);
+        self.cache.forget(uri);
     }
 
     fn forget_all(&self) {
-        self.cache.lock().clear();
+        self.cache.forget_all();
     }
 
     fn byte_size(&self) -> usize {
         self.cache
-            .lock()
-            .values()
-            .map(|result| match result {
-                Poll::Ready(Ok(image)) => image.pixels.len() * size_of::<egui::Color32>(),
-                Poll::Ready(Err(err)) => err.len(),
-                Poll::Pending => 0,
-            })
-            .sum()
+            .byte_size(|image| image.pixels.len() * size_of::<egui::Color32>())
     }
 
     fn has_pending(&self) -> bool {
-        self.cache.lock().values().any(|result| result.is_pending())
+        self.cache.has_pending()
     }
 }
 
