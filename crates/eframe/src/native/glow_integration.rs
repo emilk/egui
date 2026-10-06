@@ -111,6 +111,16 @@ struct GlutinWindowContext {
     current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
     not_current_gl_context: Option<glutin::context::NotCurrentContext>,
 
+    /// The viewport whose `gl_surface` the context was last made current with.
+    ///
+    /// `None` if the context is not current, or if that surface has since been dropped.
+    ///
+    /// We track this ourselves instead of only asking glutin's `Surface::is_current`,
+    /// because on Windows (WGL) that only checks if the _context_ is current, ignoring the surface.
+    /// With several viewports sharing one context, that gives the wrong answer.
+    /// See <https://github.com/emilk/egui/issues/4289>.
+    current_viewport: Option<ViewportId>,
+
     viewports: OrderedViewportIdMap<Viewport>,
     viewport_from_window: HashMap<WindowId, ViewportId>,
     window_from_viewport: OrderedViewportIdMap<WindowId>,
@@ -759,6 +769,7 @@ impl GlowWinitRunning<'_> {
                 viewports,
                 current_gl_context,
                 not_current_gl_context,
+                current_viewport,
                 ..
             } = &mut *glutin;
             let viewport = &viewports[&viewport_id];
@@ -773,7 +784,13 @@ impl GlowWinitRunning<'_> {
 
             {
                 frame_timer.pause();
-                change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
+                change_gl_context(
+                    current_gl_context,
+                    not_current_gl_context,
+                    current_viewport,
+                    viewport_id,
+                    gl_surface,
+                );
                 frame_timer.resume();
             }
 
@@ -819,6 +836,7 @@ impl GlowWinitRunning<'_> {
             viewports,
             current_gl_context,
             not_current_gl_context,
+            current_viewport,
             ..
         } = &mut *glutin;
 
@@ -839,7 +857,13 @@ impl GlowWinitRunning<'_> {
             {
                 // We may need to switch contexts again, because of immediate viewports:
                 frame_timer.pause();
-                change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
+                change_gl_context(
+                    current_gl_context,
+                    not_current_gl_context,
+                    current_viewport,
+                    viewport_id,
+                    gl_surface,
+                );
                 frame_timer.resume();
             }
 
@@ -1069,21 +1093,26 @@ impl GlowWinitRunning<'_> {
 fn change_gl_context(
     current_gl_context: &mut Option<glutin::context::PossiblyCurrentContext>,
     not_current_gl_context: &mut Option<glutin::context::NotCurrentContext>,
+    current_viewport: &mut Option<ViewportId>,
+    viewport_id: ViewportId,
     gl_surface: &glutin::surface::Surface<glutin::surface::WindowSurface>,
 ) {
     profiling::function_scope!();
 
-    if !cfg!(target_os = "windows") {
-        // According to https://github.com/emilk/egui/issues/4289
-        // we cannot do this early-out on Windows.
-        // TODO(emilk): optimize context switching on Windows too.
-        // See https://github.com/emilk/egui/issues/4173
-
-        if let Some(current_gl_context) = current_gl_context {
-            profiling::scope!("is_current");
-            if gl_surface.is_current(current_gl_context) {
-                return; // Early-out to save a lot of time.
-            }
+    // Early-out to save a lot of time: switching context is expensive,
+    // especially on Windows (https://github.com/emilk/egui/issues/4173).
+    //
+    // We cannot rely only on `gl_surface.is_current`, because on Windows it ignores the surface
+    // and only checks if the context is current. With several viewports sharing one context
+    // (or after the surface the context was current on has been dropped), it gives the wrong
+    // answer: https://github.com/emilk/egui/issues/4289
+    // So we keep track of which viewport the context is current on ourselves.
+    if *current_viewport == Some(viewport_id)
+        && let Some(current_gl_context) = current_gl_context
+    {
+        profiling::scope!("is_current");
+        if gl_surface.is_current(current_gl_context) {
+            return;
         }
     }
 
@@ -1091,6 +1120,7 @@ fn change_gl_context(
         not_current_context
     } else {
         profiling::scope!("make_not_current");
+        *current_viewport = None;
         current_gl_context
             .take()
             .unwrap()
@@ -1100,6 +1130,7 @@ fn change_gl_context(
 
     profiling::scope!("make_current");
     *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());
+    *current_viewport = Some(viewport_id);
 }
 
 impl GlutinWindowContext {
@@ -1265,6 +1296,7 @@ impl GlutinWindowContext {
             gl_config,
             current_gl_context: None,
             not_current_gl_context,
+            current_viewport: None,
             viewports,
             viewport_from_window,
             max_texture_side: None,
@@ -1364,6 +1396,7 @@ impl GlutinWindowContext {
                 if let Some(not_current_context) = self.not_current_gl_context.take() {
                     not_current_context
                 } else {
+                    self.current_viewport = None;
                     self.current_gl_context
                         .take()
                         .unwrap()
@@ -1371,6 +1404,7 @@ impl GlutinWindowContext {
                         .unwrap()
                 };
             let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
+            self.current_viewport = Some(viewport_id);
 
             // try setting swap interval. but its not absolutely necessary, so don't panic on failure.
             log::trace!("made context current. setting swap interval for surface");
@@ -1400,6 +1434,7 @@ impl GlutinWindowContext {
             viewport.gl_surface = None;
             viewport.window = None;
         }
+        self.current_viewport = None;
         if let Some(current) = self.current_gl_context.take() {
             log::debug!("context is current, so making it non-current");
             self.not_current_gl_context = Some(current.make_not_current()?);
@@ -1434,6 +1469,8 @@ impl GlutinWindowContext {
             change_gl_context(
                 &mut self.current_gl_context,
                 &mut self.not_current_gl_context,
+                &mut self.current_viewport,
+                viewport_id,
                 gl_surface,
             );
             gl_surface.resize(
@@ -1454,6 +1491,13 @@ impl GlutinWindowContext {
         &mut self,
         viewport_output: &OrderedViewportIdMap<ViewportOutput>,
     ) {
+        if let Some(current_viewport) = self.current_viewport
+            && !viewport_output.contains_key(&current_viewport)
+        {
+            // The context is still current, but on a surface we are about to drop.
+            self.current_viewport = None;
+        }
+
         // GC old viewports
         self.viewports
             .retain(|id, _| viewport_output.contains_key(id));
@@ -1487,6 +1531,7 @@ impl GlutinWindowContext {
 
             let viewport = initialize_or_update_viewport(
                 &mut self.viewports,
+                &mut self.current_viewport,
                 ids,
                 class,
                 builder,
@@ -1516,13 +1561,14 @@ impl GlutinWindowContext {
     }
 }
 
-fn initialize_or_update_viewport(
-    viewports: &mut OrderedViewportIdMap<Viewport>,
+fn initialize_or_update_viewport<'a>(
+    viewports: &'a mut OrderedViewportIdMap<Viewport>,
+    current_viewport: &mut Option<ViewportId>,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
-) -> &mut Viewport {
+) -> &'a mut Viewport {
     profiling::function_scope!();
 
     use std::collections::btree_map::Entry;
@@ -1580,6 +1626,9 @@ fn initialize_or_update_viewport(
                 viewport.window = None;
                 viewport.egui_winit = None;
                 viewport.gl_surface = None;
+                if *current_viewport == Some(ids.this) {
+                    *current_viewport = None;
+                }
             }
 
             viewport.deferred_commands.append(&mut delta_commands);
@@ -1632,9 +1681,11 @@ fn render_immediate_viewport(
 
     {
         let mut glutin = glutin.borrow_mut();
+        let glutin = &mut *glutin;
 
         initialize_or_update_viewport(
             &mut glutin.viewports,
+            &mut glutin.current_viewport,
             ids,
             ViewportClass::Immediate,
             builder,
@@ -1697,6 +1748,7 @@ fn render_immediate_viewport(
     let GlutinWindowContext {
         current_gl_context,
         not_current_gl_context,
+        current_viewport,
         viewports,
         ..
     } = &mut *glutin;
@@ -1719,7 +1771,13 @@ fn render_immediate_viewport(
 
     let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-    change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
+    change_gl_context(
+        current_gl_context,
+        not_current_gl_context,
+        current_viewport,
+        viewport_id,
+        gl_surface,
+    );
 
     let current_gl_context = current_gl_context.as_ref().unwrap();
 
