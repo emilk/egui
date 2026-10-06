@@ -19,7 +19,7 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 ### Highlights ✨
 
 #### Emoji and glyph support
-egui can now render any glyph that is supported on your system, including colored emojis and non-Latin scripts [#8490](https://github.com/emilk/egui/pull/8490), [#8512](https://github.com/emilk/egui/pull/8512).
+egui can now render _any_ glyph that is supported on your system, including colored emojis and non-Latin scripts.
 
 To enable this, the integration has to use one of two APIs:
 
@@ -28,7 +28,7 @@ To enable this, the integration has to use one of two APIs:
 
 #### Experimental theme customizations
 This release adds a theme plugin system [#8153](https://github.com/emilk/egui/pull/8153) by [@AdrienZianne](https://github.com/AdrienZianne). Enable the new `experimental` feature flag, and there will be a
-new `StyleProvider` trait, which can be used to customize visuals for a widget based on the provided classes. 
+new `StyleProvider` trait, which can be used to customize visuals for a widget based on the provided classes.
 ```rust
 /// Implement the trait for each Widget you'd like to customize
 impl StyleProvider<ButtonStyle> for MyTheme {
@@ -56,26 +56,22 @@ fn init(ctx: &Context) {
 * `WidgetType` is replaced with `accesskit::Role` (re-exported as `egui::Role`) [#8555](https://github.com/emilk/egui/pull/8555).
 * New `Response::accessible_name`, `Ui::label_inputs_by` / `Ui::name_inputs`, and `Area::role` [#8604](https://github.com/emilk/egui/pull/8604), [#8608](https://github.com/emilk/egui/pull/8608), [#8612](https://github.com/emilk/egui/pull/8612).
 * Invisible widgets are now hidden from the accessibility tree [#8621](https://github.com/emilk/egui/pull/8621).
-* `kittest` fails any input widget that has no accessible name [#8589](https://github.com/emilk/egui/pull/8589).
 
 #### Other
 * Paste images from the clipboard: `Event::PasteImage` [#8472](https://github.com/emilk/egui/pull/8472) by [@BernardDGS](https://github.com/BernardDGS).
-* New widgets and containers:
-  * `RangeSlider` [#8580](https://github.com/emilk/egui/pull/8580) by [@gavrelina](https://github.com/gavrelina)
-  * `CompletionPopup` for code completion over a `TextEdit` [#8529](https://github.com/emilk/egui/pull/8529)
-  * `Aligned` container [#8540](https://github.com/emilk/egui/pull/8540)
-  * `ComboBox` built from atoms [#8618](https://github.com/emilk/egui/pull/8618)
-  * `BandShape` and `epaint::RoundedRect` [#8476](https://github.com/emilk/egui/pull/8476), [#8440](https://github.com/emilk/egui/pull/8440)
+* `Aligned` container, e.g. for centering a group of widgets [#8540](https://github.com/emilk/egui/pull/8540)
+* `CompletionPopup` for code completion over a `TextEdit` [#8529](https://github.com/emilk/egui/pull/8529)
+* `RangeSlider` [#8580](https://github.com/emilk/egui/pull/8580) by [@gavrelina](https://github.com/gavrelina)
 * Atoms: `AtomLayout` is split into `WidgetAtom` and `ContainerAtom` [#8222](https://github.com/emilk/egui/pull/8222).
 * Some style tweaks: roomier buttons and a larger corner radius [#8617](https://github.com/emilk/egui/pull/8617), [#8445](https://github.com/emilk/egui/pull/8445).
+* Nicer kinetic scrolling with rubber-banding on overshoot [#8662](https://github.com/emilk/egui/pull/8662), [#8663](https://github.com/emilk/egui/pull/8663)
 
-### ⚠️ Breaking or deprecated
+### ⚠️ Breaking changes
 * `default_fonts` is no longer a default feature [#8583](https://github.com/emilk/egui/pull/8583).
+* `ViewportCommand::Screenshot` now uses a callback [#8489](https://github.com/emilk/egui/pull/8489).
 * `Id::new`, `AsId` and `From<&str> for Id` are all deprecated [#8534](https://github.com/emilk/egui/pull/8534), [#8586](https://github.com/emilk/egui/pull/8586).
 * New: `Id::unique`, `IdSaltSet`, `IdSaltMap` [#8534](https://github.com/emilk/egui/pull/8534), [#8590](https://github.com/emilk/egui/pull/8590).
 * `Panel` constructors take `impl AsIdSalt` [#8592](https://github.com/emilk/egui/pull/8592).
-* `ViewportCommand::Screenshot` now uses a callback [#8489](https://github.com/emilk/egui/pull/8489).
-* `global_theme_preference_switch` is deprecated in favor of `global_theme_preference_buttons` [#8505](https://github.com/emilk/egui/pull/8505).
 
 TODO: all the added/changed/removed/fixed
 
