@@ -222,7 +222,11 @@ impl ViewportLabelSelectionState {
         if ui.input(|i| i.pointer.any_pressed() && !i.modifiers.shift) {
             // Maybe a new selection is about to begin, but the old one is over:
             // state.selection = None; // TODO(emilk): this makes sense, but doesn't work as expected.
+        }
 
+        if ui.input(|i| i.pointer.any_pressed()) {
+            // Any new press ends the previous word/line drag.
+            // A shift-click always extends the selection by characters (like in `TextEdit`).
             // If this press is a double- or triple-click on a label,
             // `on_label` will set this again later this pass:
             self.granular_drag = None;

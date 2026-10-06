@@ -1067,7 +1067,7 @@ pub struct PointerState {
     /// Unlike [`Click::count`] this is known already at the start of the press,
     /// which is what e.g. double-click-and-drag text selection needs.
     #[cfg_attr(feature = "serde", serde(default))]
-    press_click_count: usize,
+    press_click_count: u32,
 
     /// Where did the last click originate?
     /// `None` if no mouse click occurred.
@@ -1180,23 +1180,7 @@ impl PointerState {
                         self.has_moved_too_much_for_a_click = false;
 
                         // Would a click ending this press be a double- or triple-click?
-                        // Uses the same heuristics as the click counting on release.
-                        let close_to_last_click = self.last_click_pos.is_some_and(|last_pos| {
-                            last_pos.distance_sq(pos)
-                                < self.options.max_click_dist * self.options.max_click_dist
-                        });
-                        self.press_click_count = if close_to_last_click
-                            && (time - self.last_last_click_time)
-                                < (self.options.max_double_click_delay * 2.0)
-                        {
-                            3
-                        } else if close_to_last_click
-                            && (time - self.last_click_time) < self.options.max_double_click_delay
-                        {
-                            2
-                        } else {
-                            1
-                        };
+                        self.press_click_count = self.click_count(time, pos);
 
                         self.pointer_events.push(PointerEvent::Pressed {
                             position: pos,
@@ -1207,24 +1191,7 @@ impl PointerState {
                         let clicked = self.could_any_button_be_click();
 
                         let click = if clicked {
-                            let click_dist_sq = self
-                                .last_click_pos
-                                .map_or(0.0, |last_pos| last_pos.distance_sq(pos));
-
-                            let double_click = (time - self.last_click_time)
-                                < self.options.max_double_click_delay
-                                && click_dist_sq
-                                    < self.options.max_click_dist * self.options.max_click_dist;
-                            let triple_click = double_click
-                                && (self.last_click_time - self.last_last_click_time)
-                                    < self.options.max_double_click_delay;
-                            let count = if triple_click {
-                                3
-                            } else if double_click {
-                                2
-                            } else {
-                                1
-                            };
+                            let count = self.click_count(time, pos);
 
                             self.last_last_click_time = self.last_click_time;
                             self.last_click_time = time;
@@ -1409,13 +1376,38 @@ impl PointerState {
         (self.time - self.last_click_time) as f32
     }
 
+    /// How many clicks (1, 2 or 3) a click at the given time and place would count as,
+    /// given the previous clicks.
+    ///
+    /// Used both when a button is pressed (for [`Self::press_click_count`])
+    /// and when it is released (for [`Click::count`]), so that the two always agree.
+    fn click_count(&self, time: f64, pos: Pos2) -> u32 {
+        let click_dist_sq = self
+            .last_click_pos
+            .map_or(0.0, |last_pos| last_pos.distance_sq(pos));
+
+        let double_click = (time - self.last_click_time) < self.options.max_double_click_delay
+            && click_dist_sq < self.options.max_click_dist * self.options.max_click_dist;
+        let triple_click = double_click
+            && (self.last_click_time - self.last_last_click_time)
+                < self.options.max_double_click_delay;
+
+        if triple_click {
+            3
+        } else if double_click {
+            2
+        } else {
+            1
+        }
+    }
+
     /// The click count that a click ending the latest press would have:
     /// 2 for the second press of a double-click, 3 for the third press of a triple-click, etc.
     ///
     /// Unlike [`Self::button_double_clicked`] this is known already at the start of the press,
     /// which is what e.g. double-click-and-drag text selection needs.
     #[inline(always)]
-    pub(crate) fn press_click_count(&self) -> usize {
+    pub(crate) fn press_click_count(&self) -> u32 {
         self.press_click_count
     }
 

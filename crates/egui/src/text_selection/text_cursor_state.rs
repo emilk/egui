@@ -93,12 +93,15 @@ impl TextCursorState {
     ) -> bool {
         let text = galley.text();
 
-        if response.double_clicked() {
+        // Shift-click always extends the selection by characters, even if it is a double- or triple-click:
+        let shift = ui.input(|i| i.modifiers.shift);
+
+        if response.double_clicked() && !shift {
             // Select word:
             let ccursor_range = select_word_at(text, cursor_at_pointer);
             self.set_char_range(Some(ccursor_range));
             true
-        } else if response.triple_clicked() {
+        } else if response.triple_clicked() && !shift {
             // Select line:
             let ccursor_range = select_line_at(text, cursor_at_pointer);
             self.set_char_range(Some(ccursor_range));
@@ -109,22 +112,21 @@ impl TextCursorState {
                 // Clicks are counted on release, but for double-click-and-drag
                 // we need to select the word (or line) already on the second (or third) press:
                 let press_click_count = ui.input(|i| i.pointer.press_click_count());
-                if 3 <= press_click_count {
+                if shift {
+                    self.granular_drag = None;
+                    if let Some(mut cursor_range) = self.range(galley) {
+                        cursor_range.primary = cursor_at_pointer;
+                        self.set_char_range(Some(cursor_range));
+                    } else {
+                        self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
+                    }
+                } else if 3 <= press_click_count {
                     self.begin_granular_drag(SelectGranularity::Line, text, cursor_at_pointer);
                 } else if press_click_count == 2 {
                     self.begin_granular_drag(SelectGranularity::Word, text, cursor_at_pointer);
                 } else {
                     self.granular_drag = None;
-                    if ui.input(|i| i.modifiers.shift) {
-                        if let Some(mut cursor_range) = self.range(galley) {
-                            cursor_range.primary = cursor_at_pointer;
-                            self.set_char_range(Some(cursor_range));
-                        } else {
-                            self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
-                        }
-                    } else {
-                        self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
-                    }
+                    self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
                 }
                 true
             } else if is_being_dragged {
