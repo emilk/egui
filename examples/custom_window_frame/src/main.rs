@@ -141,12 +141,11 @@ fn title_bar_ui(
     }
 
     if cfg!(target_os = "macos") {
-        // Use the native traffic lights instead of our own buttons.
-        // The arguments are in native points, so we scale by the zoom factor.
-        let zoom_factor = ui.ctx().zoom_factor();
+        // Use the native traffic lights instead of our own buttons:
         frame.set_traffic_lights_position(
-            zoom_factor * title_bar_rect.y_range(),
-            zoom_factor * (title_bar_rect.left() + 12.0),
+            ui.ctx(),
+            title_bar_rect.y_range(),
+            title_bar_rect.left() + 12.0,
         );
         return;
     }

@@ -774,29 +774,36 @@ impl Frame {
     /// (the y-range of your title bar, measured from the top of the window),
     /// with the close button `left_margin` from the left edge.
     ///
-    /// Both arguments are in "native scale", so multiply egui points by [`egui::Context::zoom_factor`].
-    /// It is fine to call this every frame.
+    /// Both arguments are in egui points.
+    /// Call this every frame, so that the buttons follow changes to the zoom factor.
     ///
     /// This is meant to be used together with [`egui::ViewportBuilder::with_fullsize_content_view`].
     /// See `WindowChromeMetrics::position_traffic_lights` for details.
     ///
     /// Does nothing on other platforms.
-    pub fn set_traffic_lights_position(&self, title_bar_y: egui::Rangef, left_margin: f32) {
+    pub fn set_traffic_lights_position(
+        &self,
+        egui_ctx: &egui::Context,
+        title_bar_y: egui::Rangef,
+        left_margin: f32,
+    ) {
         cfg_select! {
             all(
                 target_os = "macos",
                 any(feature = "glow", feature = "wgpu_no_default_features")
             ) => {
                 if let Ok(window_handle) = &self.raw_window_handle {
+                    // Convert from egui points to native points:
+                    let zoom_factor = egui_ctx.zoom_factor();
                     crate::native::macos::WindowChromeMetrics::position_traffic_lights(
                         window_handle,
-                        title_bar_y,
-                        left_margin,
+                        zoom_factor * title_bar_y,
+                        zoom_factor * left_margin,
                     );
                 }
             }
             _ => {
-                let _ = (self, title_bar_y, left_margin);
+                let _ = (self, egui_ctx, title_bar_y, left_margin);
             }
         }
     }
