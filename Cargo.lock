@@ -1248,7 +1248,6 @@ name = "eframe"
 version = "0.36.1"
 dependencies = [
  "ahash",
- "block2 0.6.2",
  "bytemuck",
  "directories",
  "document-features",

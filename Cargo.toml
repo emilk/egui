@@ -81,7 +81,6 @@ android_logger = "0.15.1"
 arboard = { version = "3.6", default-features = false }
 backtrace = "0.3.76"
 bitflags = "2.13"
-block2 = "0.6.2"
 bytemuck = "1.25"
 cint = "0.3.1"
 color-hex = "0.2.0"

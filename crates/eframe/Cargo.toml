@@ -174,15 +174,11 @@ glutin-winit = { workspace = true, optional = true, default-features = false, fe
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
-block2.workspace = true
 objc2.workspace = true
 objc2-foundation = { workspace = true, default-features = false, features = [
   "std",
   "block2",
   "NSData",
-  "NSNotification",
-  "NSObject",
-  "NSOperation",
   "NSString",
 ] }
 objc2-app-kit = { workspace = true, default-features = false, features = [

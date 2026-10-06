@@ -775,10 +775,12 @@ impl Frame {
     /// with the close button `left_margin` from the left edge.
     ///
     /// Both arguments are in egui points.
-    /// Call this every frame, so that the buttons follow changes to the zoom factor.
+    /// Call this every frame: `AppKit` resets the position of the buttons whenever it lays out
+    /// the window again (e.g. on resize), and this way they also follow changes to the zoom factor.
+    ///
+    /// The native spacing between the buttons is preserved.
     ///
     /// This is meant to be used together with [`egui::ViewportBuilder::with_fullsize_content_view`].
-    /// See `WindowChromeMetrics::position_traffic_lights` for details.
     ///
     /// Does nothing on other platforms.
     pub fn set_traffic_lights_position(
@@ -795,7 +797,7 @@ impl Frame {
                 if let Ok(window_handle) = &self.raw_window_handle {
                     // Convert from egui points to native points:
                     let zoom_factor = egui_ctx.zoom_factor();
-                    crate::native::macos::WindowChromeMetrics::position_traffic_lights(
+                    crate::native::macos::position_traffic_lights(
                         window_handle,
                         zoom_factor * title_bar_y,
                         zoom_factor * left_margin,
