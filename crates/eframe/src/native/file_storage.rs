@@ -67,7 +67,7 @@ fn roaming_appdata() -> Option<PathBuf> {
             &FOLDERID_RoamingAppData,
             KF_FLAG_DONT_VERIFY as u32,
             core::ptr::null_mut(),
-            &mut path_raw,
+            &raw mut path_raw,
         )
     };
 

@@ -6,6 +6,10 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.36.2 - 2026-09-08
+* Fix transparent child viewports on `Windows` with `glow` [#8423](https://github.com/emilk/egui/pull/8423) by [@rustbasic](https://github.com/rustbasic)
+
+
 ## 0.36.1 - 2026-08-07
 Nothing new
 

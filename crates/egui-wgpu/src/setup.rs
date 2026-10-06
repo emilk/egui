@@ -101,7 +101,10 @@ impl WgpuSetup {
                 let mut backends = create_new.instance_descriptor.backends;
 
                 // Don't try WebGPU if we're not in a secure context.
-                #[cfg(target_arch = "wasm32")]
+                // Emscripten is excluded: wgpu gates both its `webgpu` backend and
+                // its `web_sys` re-export on `not(Emscripten)` (see the cfg aliases
+                // in `wgpu/build.rs`).
+                #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
                 if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
                     let is_secure_context =
                         wgpu::web_sys::window().is_some_and(|w| w.is_secure_context());

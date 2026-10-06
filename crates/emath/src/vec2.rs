@@ -10,7 +10,7 @@ use crate::Vec2b;
 ///
 /// Normally the units are points (logical pixels).
 #[repr(C)]
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vec2 {
@@ -346,6 +346,21 @@ impl core::ops::IndexMut<usize> for Vec2 {
     }
 }
 
+impl PartialEq for Vec2 {
+    #[track_caller]
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        debug_assert!(
+            !self.any_nan() && !other.any_nan(),
+            "Comparing NaN vectors ({self:?} and {other:?}). \
+             A NaN is not even equal to itself, which leads to very confusing bugs."
+        );
+        self.x == other.x && self.y == other.y
+    }
+}
+
+/// This is a lie for NaN vectors, which are not equal to themselves.
+/// [`PartialEq`] catches those in debug builds.
 impl Eq for Vec2 {}
 
 impl Neg for Vec2 {

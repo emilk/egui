@@ -161,16 +161,16 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
         if icon_big.is_null() {
             log::warn!("Failed to create HICON (for big icon) from embedded png data.");
             return AppIconStatus::NotSetIgnored; // We could try independently with the small icon but what's the point, it would look bad!
-        } else {
-            // SAFETY: Unsafe WinApi function, takes objects previously created with WinAPI, all checked for null prior.
-            unsafe {
-                SendMessageW(
-                    window_handle,
-                    WM_SETICON,
-                    ICON_BIG as usize,
-                    icon_big as isize,
-                );
-            }
+        }
+
+        // SAFETY: Unsafe WinApi function, takes objects previously created with WinAPI, all checked for null prior.
+        unsafe {
+            SendMessageW(
+                window_handle,
+                WM_SETICON,
+                ICON_BIG as usize,
+                icon_big as isize,
+            );
         }
     }
     {
@@ -180,16 +180,16 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
         if icon_small.is_null() {
             log::warn!("Failed to create HICON (for small icon) from embedded png data.");
             return AppIconStatus::NotSetIgnored;
-        } else {
-            // SAFETY: Unsafe WinApi function, takes objects previously created with WinAPI, all checked for null prior.
-            unsafe {
-                SendMessageW(
-                    window_handle,
-                    WM_SETICON,
-                    ICON_SMALL as usize,
-                    icon_small as isize,
-                );
-            }
+        }
+
+        // SAFETY: Unsafe WinApi function, takes objects previously created with WinAPI, all checked for null prior.
+        unsafe {
+            SendMessageW(
+                window_handle,
+                WM_SETICON,
+                ICON_SMALL as usize,
+                icon_small as isize,
+            );
         }
     }
 

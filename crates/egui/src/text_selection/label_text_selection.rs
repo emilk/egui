@@ -667,7 +667,6 @@ impl ViewportLabelSelectionState {
             ui.ctx(),
             response.id,
             cursor_range,
-            accesskit::Role::Label,
             global_from_galley,
             galley,
         );
@@ -750,7 +749,7 @@ mod tests {
 
     fn test_selection() -> CurrentSelection {
         let cursor = WidgetTextCursor {
-            widget_id: Id::new("selected_label"),
+            widget_id: Id::unique("selected_label"),
             ccursor: CCursor::default(),
             pos: Pos2::ZERO,
         };

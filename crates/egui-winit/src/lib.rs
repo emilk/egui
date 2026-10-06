@@ -20,7 +20,12 @@ use egui::accesskit;
 use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
 pub use winit;
 
+// TODO(emilk): remove once we are on a winit with https://github.com/rust-windowing/winit/pull/4732
+#[cfg(target_os = "macos")]
+mod macos_scroll_momentum;
+
 pub mod clipboard;
+#[cfg(not(target_arch = "wasm32"))]
 mod dropped_file;
 mod safe_area;
 mod window_settings;
@@ -29,6 +34,7 @@ pub use window_settings::WindowSettings;
 
 use raw_window_handle::HasDisplayHandle;
 
+#[cfg(not(target_arch = "wasm32"))]
 use dropped_file::NativeFile;
 
 use winit::{
@@ -126,6 +132,10 @@ pub struct State {
     ime_rect_px: Option<egui::Rect>,
     old_ime_purpose: egui::IMEPurpose,
 
+    // TODO(emilk): remove once we are on a winit with https://github.com/rust-windowing/winit/pull/4732
+    #[cfg(target_os = "macos")]
+    scroll_momentum_monitor: Option<macos_scroll_momentum::ScrollMomentumMonitor>,
+
     /// Used by [`State::try_on_ime_processed_keyboard_input`] to track key
     /// release events that should be filtered out. See comments in that method
     /// for details.
@@ -150,6 +160,14 @@ impl State {
             ..Default::default()
         };
 
+        // SAFETY: The display handle is obtained from `display_target` which the caller
+        // is responsible for keeping alive. Winit display handles remain valid for the
+        // duration of the event loop, which outlives any `State` instance.
+        #[expect(unsafe_code)]
+        let clipboard = unsafe {
+            clipboard::Clipboard::new(display_target.display_handle().ok().map(|h| h.as_raw()))
+        };
+
         let mut slf = Self {
             viewport_id,
             start_time: web_time::Instant::now()
@@ -163,9 +181,7 @@ impl State {
             current_cursor_icon: None,
             current_custom_cursor: None,
 
-            clipboard: clipboard::Clipboard::new(
-                display_target.display_handle().ok().map(|h| h.as_raw()),
-            ),
+            clipboard,
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
@@ -176,6 +192,8 @@ impl State {
             allow_ime: false,
             ime_rect_px: None,
             old_ime_purpose: egui::IMEPurpose::Normal,
+            #[cfg(target_os = "macos")]
+            scroll_momentum_monitor: macos_scroll_momentum::ScrollMomentumMonitor::install(),
             #[cfg(target_os = "windows")]
             pressed_processed_physical_keys: HashSet::new(),
         };
@@ -218,6 +236,12 @@ impl State {
     /// Fetches text from the clipboard and returns it.
     pub fn clipboard_text(&mut self) -> Option<String> {
         self.clipboard.get()
+    }
+
+    /// Fetches an image from the clipboard and returns it, if there is one and the platform
+    /// backend supports it. Mirrors [`Self::clipboard_text`] for images.
+    pub fn clipboard_image(&mut self) -> Option<egui::ColorImage> {
+        self.clipboard.get_image()
     }
 
     /// Places the text onto the clipboard.
@@ -471,6 +495,7 @@ impl State {
                     consumed: false,
                 }
             }
+            #[cfg(not(target_arch = "wasm32"))]
             WindowEvent::DroppedFile(path) => {
                 self.egui_input.hovered_files.clear();
                 self.egui_input
@@ -481,6 +506,13 @@ impl State {
                     consumed: false,
                 }
             }
+            // Winit's web backend does not emit file-drop events. Browser file reads
+            // require a browser file handle, which this path-only event cannot provide.
+            #[cfg(target_arch = "wasm32")]
+            WindowEvent::DroppedFile(_) => EventResponse {
+                repaint: false,
+                consumed: false,
+            },
             WindowEvent::ModifiersChanged(state) => {
                 let state = state.state();
 
@@ -561,6 +593,7 @@ impl State {
                     unit: egui::MouseWheelUnit::Point,
                     delta: Vec2::new(delta.x, delta.y) / pixels_per_point,
                     phase: to_egui_touch_phase(*phase),
+                    source: egui::MouseWheelSource::Trackpad,
                     modifiers: self.modifiers,
                 });
                 EventResponse {
@@ -958,10 +991,37 @@ impl State {
             };
             let phase = to_egui_touch_phase(phase);
             let modifiers = self.modifiers;
+
+            // winit doesn't tell us what is driving the scroll, and collapses the macOS
+            // momentum phase into the regular `TouchPhase`, so we detect that ourselves.
+            // TODO(emilk): use `WindowEvent::MouseWheel::source` once we are on a winit
+            // with https://github.com/rust-windowing/winit/pull/4732
+            let source = cfg_select! {
+                target_os = "macos" => {
+                    if self
+                        .scroll_momentum_monitor
+                        .as_ref()
+                        .is_some_and(|monitor| monitor.latest_scroll_event_is_momentum())
+                    {
+                        egui::MouseWheelSource::Momentum
+                    } else {
+                        // On macOS, only trackpads (and the Magic Mouse) report precise deltas:
+                        match unit {
+                            egui::MouseWheelUnit::Point => egui::MouseWheelSource::Trackpad,
+                            egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => {
+                                egui::MouseWheelSource::Wheel
+                            }
+                        }
+                    }
+                }
+                _ => egui::MouseWheelSource::Unknown,
+            };
+
             self.egui_input.events.push(egui::Event::MouseWheel {
                 unit,
                 delta,
                 phase,
+                source,
                 modifiers,
             });
         }
@@ -1030,6 +1090,14 @@ impl State {
                         if !contents.is_empty() {
                             self.egui_input.events.push(egui::Event::Paste(contents));
                         }
+                    } else if let Some(image) = self.clipboard.get_image() {
+                        // No usable text on the clipboard (e.g. an image was copied with
+                        // mspaint/Snipping Tool, which never puts a text representation
+                        // alongside it) — fall back to an image paste rather than doing
+                        // nothing, mirroring `Event::Copy`/`OutputCommand::CopyImage`.
+                        self.egui_input
+                            .events
+                            .push(egui::Event::PasteImage(std::sync::Arc::new(image)));
                     }
                     return;
                 }
@@ -1417,19 +1485,19 @@ fn is_printable_char(chr: char) -> bool {
 
 fn is_cut_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
     keycode == egui::Key::Cut
-        || (modifiers.command && keycode == egui::Key::X)
+        || (modifiers.command_only() && keycode == egui::Key::X)
         || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Delete)
 }
 
 fn is_copy_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
     keycode == egui::Key::Copy
-        || (modifiers.command && keycode == egui::Key::C)
+        || (modifiers.command_only() && keycode == egui::Key::C)
         || (cfg!(target_os = "windows") && modifiers.ctrl && keycode == egui::Key::Insert)
 }
 
 fn is_paste_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
     keycode == egui::Key::Paste
-        || (modifiers.command && keycode == egui::Key::V)
+        || (modifiers.command_only() && keycode == egui::Key::V)
         || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Insert)
 }
 
@@ -1514,6 +1582,39 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::F35 => Key::F35,
 
         NamedKey::BrowserBack => Key::BrowserBack,
+        NamedKey::BrowserForward => Key::BrowserForward,
+        NamedKey::BrowserRefresh => Key::BrowserRefresh,
+        NamedKey::BrowserSearch => Key::BrowserSearch,
+        NamedKey::BrowserHome => Key::BrowserHome,
+        NamedKey::BrowserFavorites => Key::BrowserFavorites,
+        NamedKey::BrowserStop => Key::BrowserStop,
+
+        NamedKey::MediaPlayPause => Key::MediaPlayPause,
+        NamedKey::MediaTrackNext => Key::MediaTrackNext,
+        NamedKey::MediaTrackPrevious => Key::MediaTrackPrevious,
+        NamedKey::MediaStop => Key::MediaStop,
+        NamedKey::AudioVolumeMute => Key::AudioVolumeMute,
+        NamedKey::AudioVolumeDown => Key::AudioVolumeDown,
+        NamedKey::AudioVolumeUp => Key::AudioVolumeUp,
+
+        NamedKey::LaunchMail => Key::LaunchMail,
+        NamedKey::LaunchApplication1 => Key::LaunchApp1,
+        NamedKey::LaunchApplication2 => Key::LaunchApp2,
+
+        NamedKey::CapsLock => Key::CapsLock,
+        NamedKey::NumLock => Key::NumLock,
+        NamedKey::ScrollLock => Key::ScrollLock,
+        NamedKey::PrintScreen => Key::PrintScreen,
+        NamedKey::Pause => Key::Pause,
+        NamedKey::ContextMenu => Key::Menu,
+
+        NamedKey::Fn => Key::Fn,
+        NamedKey::Eject => Key::Eject,
+        NamedKey::Help => Key::Help,
+        NamedKey::Power => Key::Power,
+        NamedKey::Standby => Key::Sleep,
+        NamedKey::Clear => Key::Clear,
+
         _ => {
             log::trace!("Unknown key: {named_key:?}");
             return None;
@@ -1653,6 +1754,44 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         // ISO 102nd key — `<>|` on French AZERTY, `\|` on UK QWERTY.
         KeyCode::IntlBackslash => Key::IntlBackslash,
 
+        // Lock / System keys:
+        KeyCode::CapsLock => Key::CapsLock,
+        KeyCode::NumLock => Key::NumLock,
+        KeyCode::ScrollLock => Key::ScrollLock,
+        KeyCode::PrintScreen => Key::PrintScreen,
+        KeyCode::Pause => Key::Pause,
+        KeyCode::ContextMenu => Key::Menu,
+
+        // Browser keys:
+        KeyCode::BrowserBack => Key::BrowserBack,
+        KeyCode::BrowserForward => Key::BrowserForward,
+        KeyCode::BrowserRefresh => Key::BrowserRefresh,
+        KeyCode::BrowserSearch => Key::BrowserSearch,
+        KeyCode::BrowserHome => Key::BrowserHome,
+        KeyCode::BrowserFavorites => Key::BrowserFavorites,
+        KeyCode::BrowserStop => Key::BrowserStop,
+
+        // Media keys:
+        KeyCode::MediaPlayPause => Key::MediaPlayPause,
+        KeyCode::MediaTrackNext => Key::MediaTrackNext,
+        KeyCode::MediaTrackPrevious => Key::MediaTrackPrevious,
+        KeyCode::MediaStop => Key::MediaStop,
+        KeyCode::AudioVolumeMute => Key::AudioVolumeMute,
+        KeyCode::AudioVolumeDown => Key::AudioVolumeDown,
+        KeyCode::AudioVolumeUp => Key::AudioVolumeUp,
+
+        // Launch keys:
+        KeyCode::LaunchMail => Key::LaunchMail,
+        KeyCode::LaunchApp1 => Key::LaunchApp1,
+        KeyCode::LaunchApp2 => Key::LaunchApp2,
+
+        // Mac / other system keys:
+        KeyCode::Fn => Key::Fn,
+        KeyCode::Eject => Key::Eject,
+        KeyCode::Help => Key::Help,
+        KeyCode::Power => Key::Power,
+        KeyCode::Sleep => Key::Sleep,
+
         _ => {
             return None;
         }
@@ -1705,12 +1844,32 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 
 // Helpers for egui Viewports
 // ---------------------------------------------------------------------------
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(Debug)]
 pub enum ActionRequested {
-    Screenshot(egui::UserData),
+    Screenshot(egui::ScreenshotCallback),
     Cut,
     Copy,
     Paste,
+
+    /// Run `App::ui` and paint a frame even while the window is hidden (minimized or occluded).
+    ///
+    /// This is useful when the UI needs to keep running without anything currently visible on
+    /// screen. For example, a tool can use this to drive an app in the background:
+    /// `egui_inspection` includes it with every request so that a hidden app still runs its UI,
+    /// paints the screenshot, rebuilds the widget tree, and applies injected input.
+    ///
+    /// See [`egui::ViewportCommand::RequestPaintWhileHidden`].
+    PaintWhileHidden,
+}
+
+impl ActionRequested {
+    /// Does this need a painted frame, even from a window that is hidden?
+    ///
+    /// A screenshot of a hidden window is still a screenshot of something, and painting is
+    /// the only way to produce it.
+    pub fn wants_paint(&self) -> bool {
+        matches!(self, Self::Screenshot(_) | Self::PaintWhileHidden)
+    }
 }
 
 pub fn process_viewport_commands(
@@ -1867,7 +2026,9 @@ fn process_viewport_command(
             #[cfg(target_os = "windows")]
             {
                 use winit::platform::windows::WindowExtWindows as _;
-                window.set_undecorated_shadow(!v);
+
+                // don't request the undecorated-window drop shadow in fullscreen (#8399)
+                window.set_undecorated_shadow(!v && window.fullscreen().is_none());
             }
         }
         ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
@@ -1906,11 +2067,18 @@ fn process_viewport_command(
                 }
             });
         }
-        ViewportCommand::SetTheme(t) => window.set_theme(match t {
-            egui::SystemTheme::Light => Some(winit::window::Theme::Light),
-            egui::SystemTheme::Dark => Some(winit::window::Theme::Dark),
-            egui::SystemTheme::SystemDefault => None,
-        }),
+        ViewportCommand::SetTheme(t) => {
+            window.set_theme(match t {
+                egui::SystemTheme::Light => Some(winit::window::Theme::Light),
+                egui::SystemTheme::Dark => Some(winit::window::Theme::Dark),
+                egui::SystemTheme::SystemDefault => None,
+            });
+
+            #[cfg(target_os = "windows")]
+            {
+                refresh_windows_non_client_activation(window);
+            }
+        }
         ViewportCommand::ContentProtected(v) => window.set_content_protected(v),
         ViewportCommand::CursorPosition(pos) => {
             if let Err(err) = window.set_cursor_position(PhysicalPosition::new(
@@ -1935,8 +2103,11 @@ fn process_viewport_command(
                 log::warn!("{command:?}: {err}");
             }
         }
-        ViewportCommand::Screenshot(user_data) => {
-            actions_requested.push(ActionRequested::Screenshot(user_data));
+        ViewportCommand::Screenshot(callback) => {
+            actions_requested.push(ActionRequested::Screenshot(callback));
+        }
+        ViewportCommand::RequestPaintWhileHidden => {
+            actions_requested.push(ActionRequested::PaintWhileHidden);
         }
         ViewportCommand::RequestCut => {
             actions_requested.push(ActionRequested::Cut);
@@ -1971,12 +2142,33 @@ pub fn create_window(
 ) -> Result<Window, winit::error::OsError> {
     profiling::function_scope!();
 
-    let mut window_attributes = create_winit_window_attributes(egui_ctx, viewport_builder.clone());
+    let window_attributes = apply_monitor_to_window_attributes(
+        create_winit_window_attributes(egui_ctx, viewport_builder.clone()),
+        viewport_builder,
+        event_loop,
+    );
 
-    // Resolve target monitor index → MonitorHandle, so the window is created
-    // directly in borderless fullscreen on the requested output. This is the
-    // only reliable way to target a specific monitor under Wayland, and also
-    // avoids the Mutter race where OuterPosition is ignored pre-mapping.
+    let window = event_loop.create_window(window_attributes)?;
+    apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
+    Ok(window)
+}
+
+/// Apply [`ViewportBuilder::with_monitor`] to freshly-built [`winit::window::WindowAttributes`].
+///
+/// Resolve the target monitor index → `MonitorHandle` and request borderless
+/// fullscreen on that output, so the window is created directly on the right
+/// monitor. This is the only reliable way to target a specific monitor under
+/// Wayland, and also avoids the Mutter race where `OuterPosition` is ignored
+/// pre-mapping.
+///
+/// Must be called by every backend that builds its own window from
+/// [`create_winit_window_attributes`] (the glow backend and per-viewport window
+/// creation do this) — otherwise `with_monitor` silently does nothing there.
+pub fn apply_monitor_to_window_attributes(
+    mut window_attributes: winit::window::WindowAttributes,
+    viewport_builder: &ViewportBuilder,
+    event_loop: &ActiveEventLoop,
+) -> winit::window::WindowAttributes {
     if let Some(idx) = viewport_builder.monitor {
         if let Some(monitor) = event_loop.available_monitors().nth(idx) {
             window_attributes = window_attributes
@@ -1988,10 +2180,7 @@ pub fn create_window(
             );
         }
     }
-
-    let window = event_loop.create_window(window_attributes)?;
-    apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
-    Ok(window)
+    window_attributes
 }
 
 pub fn create_winit_window_attributes(
@@ -2135,6 +2324,37 @@ pub fn create_winit_window_attributes(
         window_attributes = window_attributes.with_name(app_id, "");
     }
 
+    // Consume the activation token our launcher handed us, so the first
+    // window actually gets the focus.
+    //
+    // A desktop entry with `StartupNotify=true` passes a token through
+    // `XDG_ACTIVATION_TOKEN` (Wayland) or `DESKTOP_STARTUP_ID` (X11), and
+    // winit can only apply it at window creation. eframe never read it, so
+    // under a compositor that enforces focus-stealing prevention the window
+    // opened unfocused and stayed that way: `ViewportCommand::Focus` is
+    // exactly the request such a compositor refuses, so nothing could
+    // recover it and the user had to click the window themselves.
+    //
+    // The variables are cleared once read, per the startup-notification
+    // spec: a token is single-use, and leaving it in the environment would
+    // have every later window — and every child process — replay it.
+    #[cfg(all(target_os = "linux", any(feature = "wayland", feature = "x11")))]
+    {
+        use winit::platform::startup_notify::{
+            WindowAttributesExtStartupNotify as _, reset_activation_token_env,
+        };
+        let token = std::env::var("XDG_ACTIVATION_TOKEN")
+            .or_else(|_| std::env::var("DESKTOP_STARTUP_ID"))
+            .ok()
+            .filter(|t| !t.is_empty());
+        if let Some(token) = token {
+            log::debug!("using the activation token from the environment to focus the window");
+            reset_activation_token_env();
+            window_attributes = window_attributes
+                .with_activation_token(winit::window::ActivationToken::from_raw(token));
+        }
+    }
+
     #[cfg(all(feature = "x11", target_os = "linux"))]
     {
         use winit::platform::x11::WindowAttributesExtX11 as _;
@@ -2171,7 +2391,10 @@ pub fn create_winit_window_attributes(
         if let Some(show) = _taskbar {
             window_attributes = window_attributes.with_skip_taskbar(!show);
         }
-        window_attributes = window_attributes.with_undecorated_shadow(!decorations.unwrap_or(true));
+
+        // don't request the undecorated-window drop shadow in fullscreen (#8399)
+        let want_undecorated_shadow = !decorations.unwrap_or(true) && !fullscreen.unwrap_or(false);
+        window_attributes = window_attributes.with_undecorated_shadow(want_undecorated_shadow);
     }
 
     #[cfg(target_os = "macos")]
@@ -2252,6 +2475,41 @@ pub fn apply_viewport_builder_to_window(
         }
         if let Some(maximized) = builder.maximized {
             window.set_maximized(maximized);
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn refresh_windows_non_client_activation(window: &winit::window::Window) {
+    use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{SendMessageW, WM_NCACTIVATE};
+
+    let Ok(window_handle) = window.window_handle() else {
+        return;
+    };
+
+    let RawWindowHandle::Win32(handle) = window_handle.as_raw() else {
+        return;
+    };
+
+    let hwnd = handle.hwnd.get() as _;
+
+    // SAFETY:
+    // On Windows, changing the window theme updates egui immediately, but the
+    // native title bar may keep its previous colors until the activation state
+    // changes. Send WM_NCACTIVATE to refresh the non-client title bar state
+    // without actually changing the real focus.
+    #[expect(unsafe_code)]
+    unsafe {
+        #[expect(clippy::branches_sharing_code)]
+        if window.has_focus() {
+            // The window is active already, so send inactive -> active to force
+            // Windows to recalculate/repaint the title bar state.
+            SendMessageW(hwnd, WM_NCACTIVATE, 0, 0);
+            SendMessageW(hwnd, WM_NCACTIVATE, 1, 0);
+        } else {
+            // Keep the visual state inactive if the window does not have focus.
+            SendMessageW(hwnd, WM_NCACTIVATE, 0, 0);
         }
     }
 }
