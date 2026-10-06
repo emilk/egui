@@ -128,9 +128,9 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 .insert(window_id, Instant::now());
 
             // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-            event_result =
-                self.winit_app
-                    .run_ui_and_paint(event_loop, window_id, PassMode::Full);
+            event_result = self
+                .winit_app
+                .run_ui_and_paint(event_loop, window_id, PassMode::Full);
         }
 
         let combined_result = event_result.map(|event_result| match event_result {
