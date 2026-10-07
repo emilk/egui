@@ -145,6 +145,9 @@ pub struct MenuState {
 
     /// A stationary pointer should not close a submenu opened with the keyboard.
     ignore_hover: bool,
+
+    /// The widget that arrow keys moved focus to in the last pass.
+    arrow_focus: Option<Id>,
 }
 
 impl MenuState {
@@ -167,12 +170,14 @@ impl MenuState {
                 is_submenu: false,
                 focus_first: false,
                 ignore_hover: false,
+                arrow_focus: None,
             });
             // If the menu was closed for at least a frame, reset the open item
             if state.last_visible_pass + 1 < pass_nr {
                 state.open_item = None;
                 state.focus_first = false;
                 state.ignore_hover = false;
+                state.arrow_focus = None;
             }
             if let Some(item) = state.open_item
                 && data
@@ -197,10 +202,12 @@ impl MenuState {
 
     /// Navigate within this menu after all of its entries have registered focus interest.
     pub(crate) fn handle_keyboard(ui: &Ui, anchor_widget: Option<Id>) {
+        let menu_id = ui.layer_id().id;
+        Self::from_id(ui.ctx(), menu_id, |state| state.arrow_focus = None);
         if ui.is_sizing_pass() || !ui.memory(|mem| mem.allows_interaction(ui.layer_id())) {
             return;
         }
-        let (focus_first, is_submenu) = Self::from_id(ui.ctx(), ui.layer_id().id, |state| {
+        let (focus_first, is_submenu) = Self::from_id(ui.ctx(), menu_id, |state| {
             (core::mem::take(&mut state.focus_first), state.is_submenu)
         });
         let direction = ui.memory(|mem| mem.focus_direction());
@@ -243,6 +250,7 @@ impl MenuState {
                 _ => None,
             }
         };
+        Self::from_id(ui.ctx(), menu_id, |state| state.arrow_focus = next);
         ui.memory_mut(|mem| {
             mem.move_focus(FocusDirection::None);
             if let Some(next) = next {
@@ -534,14 +542,16 @@ impl SubMenu {
 
         // Get the state from the parent menu
         let pass_nr = ui.ctx().cumulative_pass_nr();
-        let (open_item, menu_id, parent_config) = MenuState::from_ui(ui, |state, stack| {
-            state.last_visible_pass = pass_nr;
-            (
-                state.open_item,
-                stack.unique_id,
-                MenuConfig::from_stack(stack),
-            )
-        });
+        let (open_item, menu_id, parent_config, parent_arrow_focus) =
+            MenuState::from_ui(ui, |state, stack| {
+                state.last_visible_pass = pass_nr;
+                (
+                    state.open_item,
+                    stack.unique_id,
+                    MenuConfig::from_stack(stack),
+                    state.arrow_focus,
+                )
+            });
 
         let mut menu_config = self.config.unwrap_or_else(|| parent_config.clone());
         menu_config.bar = false;
@@ -574,8 +584,8 @@ impl SubMenu {
         let is_hovered = hover_pos.is_some_and(|pos| button_rect.contains(pos));
 
         // `clicked` includes keyboard and accessibility click actions.
-        // We want Enter/Space to toggle an already open submenu, while pointer clicks should keep
-        // the submenu open (for touch and pointer interactions).
+        // Enter/Space on the focused button enters the submenu, an accessibility click toggles it,
+        // and pointer clicks keep it open (for touch and pointer interactions).
         let clicked = button_response.clicked();
         let clicked_by_pointer = button_response.clicked_by(PointerButton::Primary);
         let clicked_by_keyboard_or_access = clicked && !clicked_by_pointer;
@@ -585,7 +595,15 @@ impl SubMenu {
         if arrow_right {
             ui.memory_mut(|mem| mem.move_focus(FocusDirection::None));
         }
-        let keyboard_open = arrow_right || (!was_open && clicked_by_keyboard_or_access);
+        let enter = arrow_right
+            || (button_response.enabled()
+                && button_response.has_focus()
+                && clicked_by_keyboard_or_access);
+        // Only arrow keys open on focus, so Tab can still move past the submenu.
+        let focus_open = button_response.enabled()
+            && button_response.has_focus()
+            && parent_arrow_focus == Some(button_response.id);
+        let keyboard_open = enter || focus_open || (!was_open && clicked_by_keyboard_or_access);
         if keyboard_open {
             // Keep the entry request through the popup's initial sizing pass.
             MenuState::mark_shown(ui.ctx(), id);
@@ -596,25 +614,35 @@ impl SubMenu {
                 .any(|event| matches!(event, crate::Event::PointerMoved(_)))
                 || i.pointer.any_click()
         });
-        let ignore_hover = MenuState::from_id(ui.ctx(), id, |state| {
+        let (ignore_hover, left_submenu) = MenuState::from_id(ui.ctx(), id, |state| {
             state.is_submenu = true;
-            state.focus_first |= arrow_right;
+            state.focus_first |= enter;
             if keyboard_open {
                 state.ignore_hover = true;
             } else if !was_open || pointer_changed {
                 state.ignore_hover = false;
             }
-            state.ignore_hover
+            // Left inside the submenu moves focus back to our button.
+            let left_submenu = state.arrow_focus == Some(button_response.id);
+            if left_submenu {
+                state.arrow_focus = None;
+            }
+            (state.ignore_hover, left_submenu)
         });
 
-        if ui.is_enabled() && is_open && clicked_by_keyboard_or_access {
+        let focus_moved_away =
+            left_submenu || parent_arrow_focus.is_some_and(|focus| focus != button_response.id);
+        if is_open && (focus_moved_away || (clicked_by_keyboard_or_access && !enter)) {
             set_open = Some(false);
             is_open = false;
         }
 
         // The clicked handler is there for accessibility (keyboard navigation)
         let should_open = button_response.enabled()
-            && (arrow_right || (!was_open && clicked) || (is_hovered && !is_any_open));
+            && (enter
+                || focus_open
+                || (!was_open && clicked)
+                || (is_hovered && !is_any_open));
         if should_open {
             set_open = Some(true);
             is_open = true;
