@@ -532,11 +532,8 @@ pub(crate) struct Focus {
     /// The top-most modal layer from the current frame.
     top_modal_layer_current_frame: Option<LayerId>,
 
-    /// Widgets interested in focus, with their rectangles.
+    /// A cache of widget IDs that are interested in focus with their corresponding rectangles.
     focus_widgets_cache: IdMap<Rect>,
-
-    /// Focus registration order for the current pass, independent of painting order.
-    focus_order: Vec<(Id, LayerId)>,
 }
 
 /// The widget with focus.
@@ -569,7 +566,6 @@ impl Focus {
     }
 
     fn begin_pass(&mut self, new_input: &crate::data::input::RawInput) {
-        self.focus_order.clear();
         self.id_two_frames_ago = self.id_previous_frame;
         self.id_previous_frame = self.focused();
         if let Some(id) = self.id_next_frame.take() {
@@ -659,12 +655,11 @@ impl Focus {
         self.id_previous_frame == Some(id)
     }
 
-    fn interested_in_focus(&mut self, id: Id, layer_id: LayerId) {
+    fn interested_in_focus(&mut self, id: Id) {
         // The rect is updated at the end of the frame.
         self.focus_widgets_cache
             .entry(id)
             .or_insert(Rect::EVERYTHING);
-        self.focus_order.push((id, layer_id));
 
         if self.give_to_next && !self.had_focus_last_frame(id) {
             self.focused_widget = Some(FocusWidget::new(id));
@@ -998,31 +993,13 @@ impl Memory {
         if !self.allows_interaction(layer_id) {
             return;
         }
-        self.focus_mut().interested_in_focus(id, layer_id);
+        self.focus_mut().interested_in_focus(id);
     }
 
     /// The navigation request after applying the focused widget's event filter.
     pub(crate) fn focus_direction(&self) -> FocusDirection {
         self.focus()
             .map_or(FocusDirection::None, |focus| focus.focus_direction)
-    }
-
-    /// Focusable widgets in registration order, without repeated registrations.
-    pub(crate) fn focusable_widgets_in_layer(&self, layer_id: LayerId) -> Vec<Id> {
-        let Some(focus) = self.focus() else {
-            return Vec::new();
-        };
-        let mut seen = HashSet::default();
-        focus
-            .focus_order
-            .iter()
-            .filter_map(|&(id, layer)| {
-                (layer == layer_id
-                    && focus.focus_widgets_cache.contains_key(&id)
-                    && seen.insert(id))
-                .then_some(id)
-            })
-            .collect()
     }
 
     /// Limit focus to widgets on the given layer and above.

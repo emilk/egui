@@ -212,8 +212,14 @@ impl MenuState {
             return;
         }
         let is_submenu = anchor_widget.is_some_and(|id| SubMenu::id_from_widget_id(id) == menu_id);
-        let (focused, entries) =
-            ui.memory(|mem| (mem.focused(), mem.focusable_widgets_in_layer(ui.layer_id())));
+        let focused = ui.memory(|mem| mem.focused());
+        let entries: Vec<Id> = ui.ctx().viewport(|viewport| {
+            viewport
+                .this_pass
+                .widgets
+                .focusable_widgets_in_layer(ui.layer_id())
+                .collect()
+        });
         let focus_first = focus_first && focused == anchor_widget;
         let index = entries.iter().position(|id| Some(*id) == focused);
         let entering = focused == anchor_widget && !is_submenu;
