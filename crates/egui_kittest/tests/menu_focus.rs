@@ -48,10 +48,7 @@ fn menu_navigation_reports_gained_focus() {
         },
         Vec::new(),
     );
-    harness.get_by_label("Menu").focus();
-    harness.run();
-    harness.key_press(Key::Enter);
-    harness.run();
+    open_navigation_menu(&mut harness);
     harness.get_by_label("First").focus();
     harness.run();
     harness.state_mut().clear();
@@ -166,10 +163,7 @@ fn submenu_entry_survives_reopening_and_empty_contents() {
     );
     for enabled in [false, true, true] {
         *harness.state_mut() = enabled;
-        harness.get_by_label("Menu").focus();
-        harness.run();
-        harness.key_press(Key::Enter);
-        harness.run();
+        open_navigation_menu(&mut harness);
         harness.get_by_label_contains("Submenu").focus();
         harness.run();
         harness.key_press(Key::ArrowRight);
@@ -233,10 +227,7 @@ fn menu_controls_keep_their_arrow_keys() {
         },
         (String::from("first\nsecond"), 5.0),
     );
-    harness.get_by_label("Menu").focus();
-    harness.run();
-    harness.key_press(Key::Enter);
-    harness.run();
+    open_navigation_menu(&mut harness);
     harness
         .get_by_role(egui::accesskit::Role::MultilineTextInput)
         .focus();
@@ -308,7 +299,7 @@ fn navigation_menu(context_menu: bool) -> Harness<'static> {
         })
 }
 
-fn open_navigation_menu(harness: &mut Harness<'_>) {
+fn open_navigation_menu<State>(harness: &mut Harness<'_, State>) {
     harness.get_by_label("Menu").focus();
     harness.run();
     harness.key_press(Key::Enter);
@@ -544,9 +535,7 @@ fn standalone_submenu_in_menu_bar_excludes_background() {
     harness.run();
     harness.key_press(Key::ArrowRight);
     harness.run();
-    for _ in 0..3 {
-        harness.step();
-    }
+    harness.run_steps(3);
     assert!(harness.get_by_label("Standalone item").is_focused());
     harness.key_press(Key::ArrowRight);
     harness.run();
