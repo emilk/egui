@@ -140,7 +140,7 @@ impl crate::View for TextEditDemo {
             if ui.button("end").clicked() {
                 let text_edit_id = output.response.id;
                 if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
-                    let ccursor = egui::text::CCursor::new(text.chars().count());
+                    let ccursor = egui::text::CCursor::end_of_str(text);
                     state
                         .cursor
                         .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
