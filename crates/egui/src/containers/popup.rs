@@ -206,7 +206,7 @@ impl<'a> Popup<'a> {
             gap: 0.0,
             width: None,
             sizing_pass: false,
-            sense: Sense::click(),
+            sense: Sense::CLICK,
             interactable: true,
             layout: Layout::default(),
             frame: None,
@@ -623,12 +623,7 @@ impl<'a> Popup<'a> {
             .order(kind.order())
             .pivot(pivot)
             .fixed_pos(anchor)
-            .sense(if kind == PopupKind::Menu {
-                // Only menu entries should receive keyboard focus.
-                sense - Sense::FOCUSABLE
-            } else {
-                sense
-            })
+            .sense(sense)
             .interactable(interactable)
             .layout(layout)
             .sizing_pass(sizing_pass || !was_open_last_frame)
