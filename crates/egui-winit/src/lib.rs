@@ -133,7 +133,7 @@ pub struct State {
     /// See [`Self::set_clipboard_shortcuts`].
     clipboard_shortcuts: bool,
 
-    ime_rect_px: Option<egui::Rect>,
+    ime_cursor_rect_px: Option<egui::Rect>,
     old_ime_purpose: egui::IMEPurpose,
 
     // TODO(emilk): remove once we are on a winit with https://github.com/rust-windowing/winit/pull/4732
@@ -195,7 +195,7 @@ impl State {
 
             allow_ime: false,
             clipboard_shortcuts: true,
-            ime_rect_px: None,
+            ime_cursor_rect_px: None,
             old_ime_purpose: egui::IMEPurpose::Normal,
             #[cfg(target_os = "macos")]
             scroll_momentum_monitor: macos_scroll_momentum::ScrollMomentumMonitor::install(),
@@ -1288,25 +1288,25 @@ impl State {
             }
 
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            let ime_rect_px = pixels_per_point * ime.rect;
-            if self.ime_rect_px != Some(ime_rect_px)
+            let ime_cursor_rect_px = pixels_per_point * ime.cursor_rect;
+            if self.ime_cursor_rect_px != Some(ime_cursor_rect_px)
                 || self.egui_ctx.input(|i| !i.events.is_empty())
             {
-                self.ime_rect_px = Some(ime_rect_px);
+                self.ime_cursor_rect_px = Some(ime_cursor_rect_px);
                 profiling::scope!("set_ime_cursor_area");
                 window.set_ime_cursor_area(
                     winit::dpi::PhysicalPosition {
-                        x: ime_rect_px.min.x,
-                        y: ime_rect_px.min.y,
+                        x: ime_cursor_rect_px.min.x,
+                        y: ime_cursor_rect_px.min.y,
                     },
                     winit::dpi::PhysicalSize {
-                        width: ime_rect_px.width(),
-                        height: ime_rect_px.height(),
+                        width: ime_cursor_rect_px.width(),
+                        height: ime_cursor_rect_px.height(),
                     },
                 );
             }
         } else {
-            self.ime_rect_px = None;
+            self.ime_cursor_rect_px = None;
         }
 
         #[cfg(feature = "accesskit")]
