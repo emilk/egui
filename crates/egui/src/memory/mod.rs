@@ -173,7 +173,7 @@ pub enum FocusDirection {
 }
 
 impl FocusDirection {
-    fn is_cardinal(&self) -> bool {
+    pub(crate) fn is_cardinal(&self) -> bool {
         match self {
             Self::Up | Self::Right | Self::Down | Self::Left => true,
 
@@ -924,6 +924,12 @@ impl Memory {
         self.interrupt_ime();
     }
 
+    /// Defer focus until the next pass so an already rendered widget sees `gained_focus`.
+    pub(crate) fn request_focus_next_frame(&mut self, id: Id) {
+        self.focus_mut().id_next_frame = Some(id);
+        self.interrupt_ime();
+    }
+
     /// Surrender keyboard focus for a specific widget.
     /// See also [`crate::Response::surrender_focus`].
     #[inline(always)]
@@ -988,6 +994,12 @@ impl Memory {
             return;
         }
         self.focus_mut().interested_in_focus(id);
+    }
+
+    /// The navigation request after applying the focused widget's event filter.
+    pub(crate) fn focus_direction(&self) -> FocusDirection {
+        self.focus()
+            .map_or(FocusDirection::None, |focus| focus.focus_direction)
     }
 
     /// Limit focus to widgets on the given layer and above.
