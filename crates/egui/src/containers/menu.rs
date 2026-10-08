@@ -12,8 +12,8 @@ use crate::style::StyleModifier;
 use crate::{
     Atom, AtomKind, AtomPaintArgs, Button, Color32, Context, FocusDirection, Frame, Id,
     InnerResponse, IntoAtoms, IntoSizedResult, Layout, PointerButton, Popup, PopupCloseBehavior,
-    PopupKind, Response,SetOpenCommand, SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack, UiStackInfo,
-    Widget as _,
+    PopupKind, Response, SetOpenCommand, SizedAtomKind, Style, Ui, UiBuilder, UiKind, UiStack,
+    UiStackInfo, Widget as _,
 };
 use emath::{Align, Rect, RectAlign, Vec2, vec2};
 use epaint::{Shape, Stroke};
