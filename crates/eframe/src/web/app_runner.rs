@@ -138,6 +138,12 @@ impl AppRunner {
             gl,
 
             #[cfg(feature = "wgpu_no_default_features")]
+            // We only care about the surface config if we are using wgpu
+            wgpu_surface_config: wgpu_render_state
+                .is_some()
+                .then_some(web_options.wgpu_options.surface),
+
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
         };
 
@@ -404,6 +410,7 @@ impl AppRunner {
                 egui::OutputCommand::CopyText(text) => {
                     super::set_clipboard_text(&text);
                 }
+                egui::OutputCommand::TextSelectionSettled(_) => {} // No PRIMARY selection on web
                 egui::OutputCommand::CopyImage(image) => {
                     super::set_clipboard_image(&image);
                 }

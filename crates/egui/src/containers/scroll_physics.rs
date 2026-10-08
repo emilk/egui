@@ -54,6 +54,9 @@ pub struct WheelScroll {
 
     /// Is there an enclosing scroll area that could take the delta if we can't use it?
     pub can_chain_to_parent: bool,
+
+    /// Duration of this frame, in seconds. Used to turn `delta` into a speed when we bounce.
+    pub dt: f32,
 }
 
 /// How one axis of a scroll area moves when coasting, and when pulled past the edge.
@@ -177,6 +180,8 @@ impl AxisPhysics {
     /// * During the OS-driven momentum phase we bounce off the edge once and then ignore the
     ///   rest of it, so that the decaying deltas don't keep pushing us out.
     ///   `bounced_this_momentum` remembers that between calls.
+    /// * Past the edge, a delta back towards the content moves us 1:1, without resistance,
+    ///   so that scrolling the other way during a bounce doesn't feel stuck.
     ///
     /// Returns `true` if the delta was consumed, i.e. no enclosing scroll area should get it.
     pub fn wheel(
@@ -190,6 +195,7 @@ impl AxisPhysics {
             delta,
             source,
             can_chain_to_parent,
+            dt,
         } = scroll;
 
         let is_momentum = source == Some(MouseWheelSource::Momentum);
@@ -218,16 +224,25 @@ impl AxisPhysics {
             return false;
         }
 
-        if rubber_band && is_momentum {
+        if rubber_band && self.overscroll(*offset) * delta < 0.0 {
+            // Heading back towards the content:
+            *offset += delta;
+            *vel = 0.0;
+        } else if rubber_band && is_momentum {
+            let unclamped = *offset + delta;
             if *bounced_this_momentum {
                 // Ignore the rest of the momentum phase.
-            } else if self.is_overscrolled(*offset) {
-                // We're already past the edge, pulled there by the fingers.
-                // Let the spring bring us back, without adding the
-                // OS momentum on top (that would overshoot a lot).
-                *bounced_this_momentum = true;
+            } else if self.bounds.contains(unclamped) {
+                *offset = unclamped;
             } else {
-                *bounced_this_momentum = self.kick(offset, vel, delta);
+                // We hit the edge, or the fingers already pulled us past it.
+                // Either way, keep going out at the speed of the momentum and let `step`
+                // bounce us back, so the bounce doesn't depend on when the fingers lifted.
+                if !self.is_overscrolled(*offset) {
+                    *offset = self.clamp(unclamped);
+                }
+                *vel = self.bounce_velocity(*offset, delta, dt);
+                *bounced_this_momentum = true;
             }
         } else if rubber_band {
             *offset = rubber_band_drag(
@@ -245,22 +260,15 @@ impl AxisPhysics {
         true
     }
 
-    /// Scroll normally up to the edge. The part of `delta` that would have taken us past
-    /// the edge becomes velocity instead, so that [`Self::step`] bounces us off the edge,
-    /// about as far as that part of the delta would have scrolled us.
-    ///
-    /// Returns `true` if we hit the edge.
-    fn kick(&self, offset: &mut f32, vel: &mut f32, delta: f32) -> bool {
-        let unclamped = *offset + delta;
-        *offset = self.clamp(unclamped);
-        let past_edge = unclamped - *offset;
-        if past_edge == 0.0 {
-            false
-        } else {
-            // A critically damped spring kicked with velocity `v` from rest peaks at `v · τ / e`:
-            *vel = past_edge * core::f32::consts::E / RUBBER_BAND_TIME;
-            true
-        }
+    /// The velocity of a bounce from `offset` when scrolling `delta` in `dt` seconds,
+    /// limited so that we don't stretch past [`TRACKPAD_MAX_STRETCH`].
+    fn bounce_velocity(&self, offset: f32, delta: f32, dt: f32) -> f32 {
+        // A critically damped spring kicked with velocity `v` from rest peaks at `v · τ / e`:
+        let room =
+            (self.viewport_extent * TRACKPAD_MAX_STRETCH - self.overscroll(offset).abs()).max(0.0);
+        let max_speed = room * core::f32::consts::E / RUBBER_BAND_TIME;
+        let speed = if 0.0 < dt { delta.abs() / dt } else { 0.0 };
+        speed.min(max_speed).copysign(delta)
     }
 }
 
@@ -352,6 +360,7 @@ mod tests {
             delta,
             source,
             can_chain_to_parent,
+            dt: DT,
         }
     }
 
@@ -534,23 +543,23 @@ mod tests {
     }
 
     #[test]
-    fn momentum_after_rubber_banding_does_not_push_further() {
+    fn momentum_after_rubber_banding_bounces_once() {
         let p = physics(true);
         let mut bounced = false;
 
         // The fingers pulled us past the edge:
         let (mut offset, mut vel) = (-40.0, 0.0);
 
-        // Momentum arrives; it must not push us further out, nor kick us:
-        for _ in 0..5 {
-            assert!(p.wheel(
-                &mut offset,
-                &mut vel,
-                wheel(-30.0, Some(MouseWheelSource::Momentum), false),
-                &mut bounced
-            ));
-            assert_eq!((offset, vel), (-40.0, 0.0));
-        }
+        // Momentum arrives; it keeps us going out at its speed, but only once:
+        let momentum = wheel(-30.0, Some(MouseWheelSource::Momentum), false);
+        assert!(p.wheel(&mut offset, &mut vel, momentum, &mut bounced));
         assert!(bounced);
+        assert_eq!(offset, -40.0);
+        assert!(vel < 0.0, "{vel}");
+        let before = (offset, vel);
+        for _ in 0..5 {
+            assert!(p.wheel(&mut offset, &mut vel, momentum, &mut bounced));
+            assert_eq!((offset, vel), before);
+        }
     }
 }

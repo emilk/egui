@@ -1,12 +1,12 @@
-use ahash::HashMap;
-use core::{mem::size_of, time::Duration};
+use core::{mem::size_of, task::Poll, time::Duration};
 use egui::{
     ColorImage, FrameDurations, Id, decode_animated_image_uri, has_webp_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
-    mutex::Mutex,
 };
 use image::{AnimationDecoder as _, ColorType, ImageDecoder as _, Rgba, codecs::webp::WebPDecoder};
 use std::{io::Cursor, sync::Arc};
+
+use super::background_decode::DecodeCache;
 
 #[derive(Clone)]
 enum WebP {
@@ -113,11 +113,16 @@ impl AnimatedImage {
     }
 }
 
-type Entry = Result<WebP, String>;
-
-#[derive(Default)]
 pub struct WebPLoader {
-    cache: Mutex<HashMap<String, Entry>>,
+    cache: DecodeCache<WebP>,
+}
+
+impl Default for WebPLoader {
+    fn default() -> Self {
+        Self {
+            cache: DecodeCache::new("WebPLoader"),
+        }
+    }
 }
 
 impl WebPLoader {
@@ -133,65 +138,55 @@ impl ImageLoader for WebPLoader {
         let (image_uri, frame_index) =
             decode_animated_image_uri(frame_uri).map_err(|_error| LoadError::NotSupported)?;
 
-        let mut cache = self.cache.lock();
-        if let Some(entry) = cache.get(image_uri).cloned() {
-            match entry {
-                Ok(image) => Ok(ImagePoll::Ready {
-                    image: image.get_image(frame_index),
-                }),
-                Err(error) => Err(LoadError::Loading(error)),
-            }
-        } else {
-            match ctx.try_load_bytes(image_uri) {
+        let entry = match self.cache.get(image_uri) {
+            Some(entry) => entry,
+            None => match ctx.try_load_bytes(image_uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     if !has_webp_header(&bytes) {
                         return Err(LoadError::NotSupported);
                     }
-
-                    log::trace!("started loading {image_uri:?}");
-
-                    let result = WebP::load(&bytes);
-
-                    if let Ok(WebP::Animated(animated_image)) = &result {
-                        ctx.data_mut(|data| {
-                            *data.get_temp_mut_or_default(Id::unique(image_uri)) =
-                                animated_image.frame_durations.clone();
-                        });
-                    }
-
-                    log::trace!("finished loading {image_uri:?}");
-
-                    cache.insert(image_uri.into(), result.clone());
-
-                    match result {
-                        Ok(image) => Ok(ImagePoll::Ready {
-                            image: image.get_image(frame_index),
-                        }),
-                        Err(error) => Err(LoadError::Loading(error)),
-                    }
+                    let ctx_clone = ctx.clone();
+                    let id = Id::unique(image_uri);
+                    self.cache.decode(ctx, image_uri, &bytes, move |bytes| {
+                        let result = WebP::load(bytes);
+                        // Store the frame durations before the image is marked as ready,
+                        // so that an animated WebP is never shown without its durations.
+                        if let Ok(WebP::Animated(animated_image)) = &result {
+                            ctx_clone.data_mut(|data| {
+                                *data.get_temp_mut_or_default(id) =
+                                    animated_image.frame_durations.clone();
+                            });
+                        }
+                        result
+                    })
                 }
-                Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
-                Err(error) => Err(error),
-            }
+                Ok(BytesPoll::Pending { size }) => return Ok(ImagePoll::Pending { size }),
+                Err(error) => return Err(error),
+            },
+        };
+
+        match entry {
+            Poll::Ready(Ok(image)) => Ok(ImagePoll::Ready {
+                image: image.get_image(frame_index),
+            }),
+            Poll::Ready(Err(error)) => Err(LoadError::Loading(error)),
+            Poll::Pending => Ok(ImagePoll::Pending { size: None }),
         }
     }
 
     fn forget(&self, uri: &str) {
-        let _ = self.cache.lock().remove(uri);
+        self.cache.forget(uri);
     }
 
     fn forget_all(&self) {
-        self.cache.lock().clear();
+        self.cache.forget_all();
     }
 
     fn byte_size(&self) -> usize {
-        self.cache
-            .lock()
-            .values()
-            .map(|entry| match entry {
-                Ok(entry_value) => entry_value.byte_len(),
-                Err(error) => error.len(),
-            })
-            .sum()
+        self.cache.byte_size(WebP::byte_len)
+    }
+
+    fn has_pending(&self) -> bool {
+        self.cache.has_pending()
     }
 }

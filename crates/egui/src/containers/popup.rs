@@ -656,8 +656,24 @@ impl<'a> Popup<'a> {
             inner
         });
 
-        // If the popup was just opened with a click, we don't want to immediately close it again.
-        let close_click = was_open_last_frame && ctx.input(|i| i.pointer.any_click());
+        // Only a click whose press started while the popup was already open may close it.
+        // Otherwise a popup opened on a pointer *press* (e.g. a right-press context menu)
+        // would immediately close again on the following *release*.
+        // This also covers the case where the popup was just opened with a click.
+        let press_started_while_open_id = id.with("press_started_while_open");
+        let (any_pressed, any_click) =
+            ctx.input(|i| (i.pointer.any_pressed(), i.pointer.any_click()));
+        let press_started_while_open = if !was_open_last_frame {
+            ctx.data_mut(|d| d.remove::<bool>(press_started_while_open_id));
+            false
+        } else if any_pressed {
+            ctx.data_mut(|d| d.insert_temp(press_started_while_open_id, true));
+            true
+        } else {
+            ctx.data(|d| d.get_temp(press_started_while_open_id))
+                .unwrap_or(false)
+        };
+        let close_click = press_started_while_open && any_click;
 
         let closed_by_click = match close_behavior {
             PopupCloseBehavior::CloseOnClick => close_click,
@@ -679,6 +695,7 @@ impl<'a> Popup<'a> {
 
         if should_close {
             response.response.set_close();
+            ctx.data_mut(|d| d.remove::<bool>(press_started_while_open_id));
         }
 
         match open_kind {

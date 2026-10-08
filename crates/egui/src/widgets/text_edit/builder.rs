@@ -865,6 +865,45 @@ impl<'t> TextEdit<'t> {
             }
         }
 
+        // Middle-click pastes the X11/Wayland PRIMARY selection where you click:
+        if interactive
+            && ui.is_enabled()
+            && text.is_mutable()
+            && response.contains_pointer()
+            && let Some((pos, pasted)) = ui.input(|i| {
+                i.events.iter().find_map(|event| match event {
+                    Event::MiddleClickPaste { pos, text } => Some((*pos, text.clone())),
+                    _ => None,
+                })
+            })
+        {
+            let pos = ui
+                .ctx()
+                .layer_transform_from_global(ui.layer_id())
+                .map_or(pos, |from_global| from_global * pos);
+
+            let mut ccursor = galley.cursor_from_pos(
+                pos - inner_rect.min + state.text_offset + vec2(galley.rect.left(), 0.0),
+            );
+
+            if multiline {
+                text.insert_text_at(&mut ccursor, &pasted, char_limit);
+            } else {
+                let single_line = pasted.replace(['\r', '\n'], " ");
+                text.insert_text_at(&mut ccursor, &single_line, char_limit);
+            }
+
+            state
+                .cursor
+                .set_char_range(Some(CCursorRange::one(ccursor)));
+            state.cursor_purpose = TextEditCursorPurpose::Selection;
+            state.last_interaction_time = ui.input(|i| i.time);
+            ui.memory_mut(|mem| mem.request_focus(id));
+
+            text_changed = true;
+            ui.ctx().request_repaint(); // The galley is now stale
+        }
+
         if interactive && response.hovered() {
             ui.set_cursor_icon(CursorIcon::Text);
         }
@@ -1007,6 +1046,19 @@ impl<'t> TextEdit<'t> {
                         });
                     }
                 }
+            }
+        }
+
+        // Report the selection once it has settled (e.g. after a drag):
+        let selection = state.cursor.char_range().filter(|range| !range.is_empty());
+        if selection != state.reported_selection && !ui.input(|i| i.pointer.any_down()) {
+            state.reported_selection = selection;
+
+            if !password && let Some(range) = selection {
+                ui.ctx()
+                    .send_cmd(crate::OutputCommand::TextSelectionSettled(
+                        range.slice_str(text.as_str()).to_owned(),
+                    ));
             }
         }
 

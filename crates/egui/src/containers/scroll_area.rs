@@ -1323,7 +1323,10 @@ impl Prepared {
             && ui.ctx().dragged_id().is_none()
             || is_dragging_background;
 
-        if scroll_source.mouse_wheel && ui.is_enabled() && is_hovering_outer_rect {
+        if scroll_source.mouse_wheel
+            && ui.is_enabled()
+            && (ui.rect_contains_pointer(outer_rect) || is_dragging_background)
+        {
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && direction_enabled[0] != direction_enabled[1];
             let scroll_source = ui.input(|i| i.scroll_source());
@@ -1353,6 +1356,7 @@ impl Prepared {
                             delta: -scroll_delta,
                             source: scroll_source,
                             can_chain_to_parent: has_scrolling_ancestor,
+                            dt: ui.input(|i| i.stable_dt).at_most(0.1),
                         },
                         &mut state.bounced_this_momentum[d],
                     );

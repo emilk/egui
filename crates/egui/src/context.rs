@@ -47,7 +47,8 @@ use crate::IdMap;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
-/// This is given in the callback set by [`Context::set_request_repaint_callback`].
+/// This is given in the callback set by [`Context::set_request_repaint_callback`],
+/// and to the observer set by [`Context::set_repaint_observer`].
 #[derive(Clone, Copy, Debug)]
 pub struct RequestRepaintInfo {
     /// This is used to specify what viewport that should repaint.
@@ -150,6 +151,16 @@ impl ContextImpl {
 
         viewport.repaint.causes.push(cause);
 
+        let info = RequestRepaintInfo {
+            viewport_id,
+            delay,
+            current_cumulative_pass_nr: viewport.repaint.cumulative_pass_nr,
+        };
+
+        if let Some(observer) = &self.repaint_observer {
+            (observer)(info);
+        }
+
         // We save some CPU time by only calling the callback if we need to.
         // If the new delay is greater or equal to the previous lowest,
         // it means we have already called the callback, and don't need to do it again.
@@ -157,11 +168,7 @@ impl ContextImpl {
             viewport.repaint.repaint_delay = delay;
 
             if let Some(callback) = &self.request_repaint_callback {
-                (callback)(RequestRepaintInfo {
-                    viewport_id,
-                    delay,
-                    current_cumulative_pass_nr: viewport.repaint.cumulative_pass_nr,
-                });
+                (callback)(info);
             }
         }
     }
@@ -434,6 +441,7 @@ struct ContextImpl {
     paint_stats: PaintStats,
 
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
+    repaint_observer: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
     viewport_parents: ViewportIdMap<ViewportId>,
     viewports: ViewportIdMap<ViewportState>,
@@ -2263,6 +2271,28 @@ impl Context {
     ) {
         let callback = Box::new(callback);
         self.write(|ctx| ctx.request_repaint_callback = Some(callback));
+    }
+
+    /// For integrations: this observer will be called for every repaint request,
+    /// i.e. every call to [`Self::request_repaint`], [`Self::request_repaint_after`] and their variants,
+    /// including the ones egui makes itself.
+    ///
+    /// The callback set with [`Self::set_request_repaint_callback`] is only called when a request
+    /// makes the next repaint of a viewport come sooner. The observer also sees the requests
+    /// that don't, e.g. a request for a later delay than one already scheduled.
+    /// An integration can use this to see everything that was requested during a pass,
+    /// for instance to make its own scheduling decisions, or to count repaint requests.
+    ///
+    /// The observer is called on the thread that made the request, while the [`Context`] is locked,
+    /// so it must not call back into the [`Context`].
+    ///
+    /// Note that only one observer can be set. Any new call overrides the previous observer.
+    pub fn set_repaint_observer(
+        &self,
+        observer: impl Fn(RequestRepaintInfo) + Send + Sync + 'static,
+    ) {
+        let observer = Box::new(observer);
+        self.write(|ctx| ctx.repaint_observer = Some(observer));
     }
 
     /// Request to discard the visual output of this pass,
@@ -4841,7 +4871,7 @@ fn warn_if_rect_changes_id(
         let prev = create_lookup(prev_widgets.get_layer(*layer_id));
         let new = create_lookup(new_layer_widgets.iter());
 
-        for (hashable_rect, new_at_rect) in new {
+        for (hashable_rect, new_at_rect) in &new {
             let rect = new_at_rect[0].rect;
             if exclusions
                 .iter()
@@ -4850,7 +4880,7 @@ fn warn_if_rect_changes_id(
                 continue;
             }
 
-            let Some(prev_at_rect) = prev.get(&hashable_rect) else {
+            let Some(prev_at_rect) = prev.get(hashable_rect) else {
                 continue; // this rect did not exist in the previous pass
             };
 
@@ -4868,9 +4898,20 @@ fn warn_if_rect_changes_id(
                 continue;
             }
 
-            // If a new id at this rect existed elsewhere in the previous pass, a widget moved
-            // into a vacated position (e.g. after inserting a row into a virtualized list).
-            if new_at_rect.iter().any(|w| prev_widgets.contains(w.id)) {
+            // If a new id at this rect existed elsewhere in the previous pass, and its previous
+            // rect is now empty, then a widget genuinely moved into a vacated position.
+            //
+            // We deliberately do NOT skip when the previous rect of that widget is still occupied
+            // (by some other id). That is the signature of an automatic id shift (#8092, #8084):
+            // one extra auto id is consumed, so every following widget keeps its rect but takes
+            // the id of its next sibling. Each new id "existed elsewhere last pass", but every
+            // old rect is still filled, so nothing actually moved.
+            let moved_into_vacated_rect = new_at_rect.iter().any(|w| {
+                prev_widgets.get(w.id).is_some_and(|prev_w| {
+                    prev_w.layer_id != *layer_id || !new.contains_key(&OrderedRect(prev_w.rect))
+                })
+            });
+            if moved_into_vacated_rect {
                 continue;
             }
 
@@ -5028,6 +5069,52 @@ mod test {
         assert!(shapes.is_empty());
     }
 
+    /// Regression test: consuming one extra automatic id shifts every following widget in the
+    /// same parent by one id, while all rects stay the same. That must warn.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn rect_id_change_warns_for_auto_id_shift() {
+        use crate::{Id, InteractOptions, LayerId, Rect, Sense, WidgetRect, WidgetRects, pos2};
+
+        let layer_id = LayerId::background();
+        let parent_id = Id::unique("parent");
+        let auto_id = |i: usize| parent_id.with(i);
+        let rect =
+            |i: usize| Rect::from_min_size(pos2(0.0, 10.0 * i as f32), crate::vec2(100.0, 10.0));
+
+        let widget = |id, rect| WidgetRect {
+            id,
+            parent_id,
+            layer_id,
+            rect,
+            interact_rect: rect,
+            sense: Sense::click(),
+            enabled: true,
+            visible: true,
+        };
+
+        let mut previous = WidgetRects::default();
+        let mut current = WidgetRects::default();
+        for i in 0..5 {
+            previous.insert(
+                layer_id,
+                widget(auto_id(i), rect(i)),
+                InteractOptions::default(),
+            );
+            // One hidden auto id was consumed before these widgets this pass:
+            current.insert(
+                layer_id,
+                widget(auto_id(i + 1), rect(i)),
+                InteractOptions::default(),
+            );
+        }
+
+        let mut shapes = Vec::new();
+        super::warn_if_rect_changes_id(&mut shapes, &previous, &current, &[]);
+
+        assert!(!shapes.is_empty(), "An automatic id shift should warn");
+    }
+
     #[cfg(debug_assertions)]
     #[test]
     fn rect_id_change_warns_for_new_widget_replacing_existing_widget() {
@@ -5137,6 +5224,41 @@ mod test {
             ui.ctx().root_ui(|_| {});
         });
         output.drop_without_applying_deltas();
+    }
+
+    #[test]
+    fn test_repaint_observer_sees_every_request() {
+        use core::time::Duration;
+        use std::sync::Arc;
+
+        use crate::mutex::Mutex;
+
+        let ctx = Context::default();
+
+        let callback_delays = Arc::new(Mutex::new(Vec::new()));
+        let observer_delays = Arc::new(Mutex::new(Vec::new()));
+        ctx.set_request_repaint_callback({
+            let callback_delays = Arc::clone(&callback_delays);
+            move |info| callback_delays.lock().push(info.delay)
+        });
+        ctx.set_repaint_observer({
+            let observer_delays = Arc::clone(&observer_delays);
+            move |info| observer_delays.lock().push(info.delay)
+        });
+
+        ctx.request_repaint_after(Duration::from_secs(1));
+        ctx.request_repaint_after(Duration::from_secs(2));
+
+        assert_eq!(
+            *callback_delays.lock(),
+            [Duration::from_secs(1)],
+            "The callback is only called when the repaint comes sooner"
+        );
+        assert_eq!(
+            *observer_delays.lock(),
+            [Duration::from_secs(1), Duration::from_secs(2)],
+            "The observer sees every request"
+        );
     }
 
     #[test]

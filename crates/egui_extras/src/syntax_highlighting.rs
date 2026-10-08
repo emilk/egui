@@ -1,7 +1,7 @@
 //! Syntax highlighting for code.
 //!
 //! Turn on the `syntect` feature for great syntax highlighting of any language.
-//! Otherwise, a very simple fallback will be used, that works okish for C, C++, Rust, and Python.
+//! Otherwise, a very simple fallback will be used, that works okish for C, C++, Rust, Python, and SQL.
 
 use egui::TextStyle;
 use egui::text::LayoutJob;
@@ -646,14 +646,18 @@ impl Highlighter {
 
         while !text.is_empty() {
             if language.double_slash_comments && text.starts_with("//")
+                || language.double_dash_comments && text.starts_with("--")
                 || language.hash_comments && text.starts_with('#')
             {
                 let end = text.find('\n').unwrap_or(text.len());
                 job.append(&text[..end], 0.0, theme.formats[TokenType::Comment].clone());
                 text = &text[end..];
-            } else if text.starts_with('"') {
+            } else if text.starts_with('"')
+                || language.single_quote_strings && text.starts_with('\'')
+            {
+                let quote = if text.starts_with('"') { '"' } else { '\'' };
                 let end = text[1..]
-                    .find('"')
+                    .find(quote)
                     .map(|i| i + 2)
                     .or_else(|| text.find('\n'))
                     .unwrap_or(text.len());
@@ -663,9 +667,9 @@ impl Highlighter {
                     theme.formats[TokenType::StringLiteral].clone(),
                 );
                 text = &text[end..];
-            } else if text.starts_with(|c: char| c.is_ascii_alphanumeric()) {
+            } else if text.starts_with(is_word_char) {
                 let end = text[1..]
-                    .find(|c: char| !c.is_ascii_alphanumeric())
+                    .find(|c: char| !is_word_char(c))
                     .map_or_else(|| text.len(), |i| i + 1);
                 let word = &text[..end];
                 let tt = if language.is_keyword(word) {
@@ -702,13 +706,28 @@ impl Highlighter {
     }
 }
 
+/// Can this character be part of a word (identifier or keyword)?
+#[cfg(not(feature = "syntect"))]
+fn is_word_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_'
+}
+
 #[cfg(not(feature = "syntect"))]
 struct Language {
     /// `// comment`
     double_slash_comments: bool,
 
+    /// `-- comment`
+    double_dash_comments: bool,
+
     /// `# comment`
     hash_comments: bool,
+
+    /// `'string'`, in addition to `"string"`.
+    single_quote_strings: bool,
+
+    /// If true, `keywords` must be lowercase.
+    case_insensitive_keywords: bool,
 
     keywords: std::collections::BTreeSet<&'static str>,
 }
@@ -721,6 +740,7 @@ impl Language {
             "json" => Some(Self::json()),
             "py" | "python" => Some(Self::python()),
             "rs" | "rust" => Some(Self::rust()),
+            "sql" => Some(Self::sql()),
             "toml" => Some(Self::toml()),
             _ => {
                 None // unsupported language
@@ -729,13 +749,20 @@ impl Language {
     }
 
     fn is_keyword(&self, word: &str) -> bool {
-        self.keywords.contains(word)
+        if self.case_insensitive_keywords {
+            self.keywords.contains(word.to_ascii_lowercase().as_str())
+        } else {
+            self.keywords.contains(word)
+        }
     }
 
     fn cpp() -> Self {
         Self {
             double_slash_comments: true,
+            double_dash_comments: false,
             hash_comments: false,
+            single_quote_strings: false,
+            case_insensitive_keywords: false,
             keywords: [
                 "alignas",
                 "alignof",
@@ -843,7 +870,10 @@ impl Language {
     fn json() -> Self {
         Self {
             double_slash_comments: true, // for json5 etc. Common extension.
+            double_dash_comments: false,
             hash_comments: false,
+            single_quote_strings: false,
+            case_insensitive_keywords: false,
             keywords: ["false", "null", "true"].into_iter().collect(),
         }
     }
@@ -851,7 +881,10 @@ impl Language {
     fn python() -> Self {
         Self {
             double_slash_comments: false,
+            double_dash_comments: false,
             hash_comments: true,
+            single_quote_strings: false,
+            case_insensitive_keywords: false,
             keywords: [
                 "and", "as", "assert", "break", "class", "continue", "def", "del", "elif", "else",
                 "except", "False", "finally", "for", "from", "global", "if", "import", "in", "is",
@@ -866,7 +899,10 @@ impl Language {
     fn rust() -> Self {
         Self {
             double_slash_comments: true,
+            double_dash_comments: false,
             hash_comments: false,
+            single_quote_strings: false,
+            case_insensitive_keywords: false,
             keywords: [
                 "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else",
                 "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match",
@@ -878,10 +914,96 @@ impl Language {
         }
     }
 
+    fn sql() -> Self {
+        Self {
+            double_slash_comments: false,
+            double_dash_comments: true,
+            hash_comments: false,
+            single_quote_strings: true,
+            case_insensitive_keywords: true,
+            keywords: [
+                "add",
+                "all",
+                "alter",
+                "and",
+                "any",
+                "as",
+                "asc",
+                "between",
+                "by",
+                "case",
+                "cast",
+                "check",
+                "column",
+                "constraint",
+                "create",
+                "cross",
+                "database",
+                "default",
+                "delete",
+                "desc",
+                "distinct",
+                "drop",
+                "else",
+                "end",
+                "exists",
+                "false",
+                "foreign",
+                "from",
+                "full",
+                "group",
+                "having",
+                "if",
+                "in",
+                "index",
+                "inner",
+                "insert",
+                "intersect",
+                "into",
+                "is",
+                "join",
+                "key",
+                "left",
+                "like",
+                "limit",
+                "not",
+                "null",
+                "offset",
+                "on",
+                "or",
+                "order",
+                "outer",
+                "primary",
+                "references",
+                "replace",
+                "right",
+                "select",
+                "set",
+                "table",
+                "then",
+                "true",
+                "union",
+                "unique",
+                "update",
+                "using",
+                "values",
+                "view",
+                "when",
+                "where",
+                "with",
+            ]
+            .into_iter()
+            .collect(),
+        }
+    }
+
     fn toml() -> Self {
         Self {
             double_slash_comments: false,
+            double_dash_comments: false,
             hash_comments: true,
+            single_quote_strings: false,
+            case_insensitive_keywords: false,
             keywords: Default::default(),
         }
     }
@@ -916,6 +1038,40 @@ mod tests {
         assert_eq!(
             format_of("null"),
             Some(theme.formats[TokenType::Keyword].clone())
+        );
+    }
+
+    #[test]
+    fn sql() {
+        let theme = CodeTheme::dark(12.0);
+        let text = "SELECT order_id FROM t where name = 'bob' -- done";
+        let job = Highlighter::highlight_impl(&theme, text, "sql", HighlightSettings(&()))
+            .expect("sql is supported");
+
+        let format_of = |token: &str| {
+            let start = text.find(token).expect("token is in text");
+            job.sections
+                .iter()
+                .find(|section| {
+                    section.byte_range.start == egui::text::ByteIndex(start)
+                        && section.byte_range.end == egui::text::ByteIndex(start + token.len())
+                })
+                .map(|section| section.format.clone())
+        };
+        let keyword = Some(theme.formats[TokenType::Keyword].clone());
+        assert_eq!(format_of("SELECT"), keyword);
+        assert_eq!(format_of("where"), keyword);
+        assert_eq!(
+            format_of("order_id"),
+            Some(theme.formats[TokenType::Literal].clone())
+        );
+        assert_eq!(
+            format_of("'bob'"),
+            Some(theme.formats[TokenType::StringLiteral].clone())
+        );
+        assert_eq!(
+            format_of("-- done"),
+            Some(theme.formats[TokenType::Comment].clone())
         );
     }
 }
