@@ -339,6 +339,26 @@ pub struct WgpuConfiguration {
     /// in that case either.
     pub on_surface_status:
         Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
+
+    /// Optional lock used to synchronize surface reconfiguration with your own GPU submissions.
+    ///
+    /// [`wgpu::Surface::configure`] waits for the GPU to become idle, and fails with
+    /// "Failed to wait for GPU to come idle before reconfiguring the Surface"
+    /// if another thread submits new work to the same [`wgpu::Queue`] during that wait.
+    /// This can happen e.g. when resizing a window while background threads are
+    /// continuously submitting compute work.
+    ///
+    /// If set, egui takes a write lock for the duration of every surface (re)configuration.
+    /// To avoid the race, keep a clone of this `Arc` and hold a read lock around each
+    /// [`wgpu::Queue::submit`] you do from other threads.
+    ///
+    /// Keep the read lock only as long as the submit call itself:
+    /// the UI thread blocks on the write lock whenever the window is resized.
+    /// Never take the read lock recursively, and never wait on the UI thread while holding it,
+    /// or you may deadlock.
+    ///
+    /// Only used by the native (winit) integration. Default: `None`.
+    pub surface_configure_lock: Option<Arc<RwLock<()>>>,
 }
 
 // Compile-time check that `WgpuConfiguration` is `Send + Sync`.
@@ -363,6 +383,7 @@ impl core::fmt::Debug for WgpuConfiguration {
             surface,
             wgpu_setup,
             on_surface_status: _,
+            surface_configure_lock: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
             .field("surface", &surface)
@@ -410,6 +431,7 @@ impl Default for WgpuConfiguration {
                     SurfaceErrorAction::SkipFrame
                 }
             }),
+            surface_configure_lock: None,
         }
     }
 }
