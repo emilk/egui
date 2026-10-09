@@ -556,12 +556,12 @@ impl State {
                 self.modifiers.alt = alt;
                 self.modifiers.ctrl = ctrl;
                 self.modifiers.shift = shift;
-                self.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
-                self.modifiers.command = if cfg!(target_os = "macos") {
-                    super_
-                } else {
-                    ctrl
-                };
+                // Use `Context::os()` rather than `target_os`, so that this also works on the web,
+                // where the OS is only known at runtime (web integrations should set it using
+                // `Context::set_os()` and `egui::os::OperatingSystem::from_user_agent()`).
+                let is_mac = self.egui_ctx.os().is_mac();
+                self.modifiers.mac_cmd = is_mac && super_;
+                self.modifiers.command = if is_mac { super_ } else { ctrl };
 
                 self.egui_input
                     .events
