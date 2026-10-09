@@ -205,6 +205,7 @@ impl<'a, State> Harness<'a, State> {
             fit_contents,
             missing_glyph_policy,
             check_accessibility,
+            context_setup,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step,
@@ -221,6 +222,9 @@ impl<'a, State> Harness<'a, State> {
                 render_options: _,
         } = builder;
         let ctx = ctx.unwrap_or_default();
+        if let Some(setup) = context_setup {
+            setup(&ctx);
+        }
         ctx.set_theme(theme);
         ctx.set_os(os);
         ctx.set_missing_glyph_policy(missing_glyph_policy);

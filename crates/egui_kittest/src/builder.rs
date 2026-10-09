@@ -20,6 +20,7 @@ pub struct HarnessBuilder<State = ()> {
     pub(crate) fit_contents: bool,
     pub(crate) missing_glyph_policy: egui::MissingGlyphPolicy,
     pub(crate) check_accessibility: bool,
+    pub(crate) context_setup: Option<Box<dyn FnOnce(&egui::Context)>>,
 
     #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub(crate) render_every_step: bool,
@@ -48,6 +49,7 @@ impl<State> Default for HarnessBuilder<State> {
             fit_contents: false,
             missing_glyph_policy: egui::MissingGlyphPolicy::Panic,
             check_accessibility: true,
+            context_setup: None,
 
             #[cfg(any(feature = "wgpu", feature = "snapshot"))]
             render_every_step: false,
@@ -228,6 +230,22 @@ impl<State> HarnessBuilder<State> {
         self.renderer(test_renderer)
     }
 
+    /// Configure the [`egui::Context`] before the harness runs its first pass.
+    ///
+    /// The harness runs one pass as soon as it is built, and the root [`egui::Ui`] of a pass
+    /// takes its style from the context at the start of that pass.
+    /// Set styles, fonts and image loaders here rather than in the ui closure,
+    /// or that first pass is laid out without them, and widgets that keep their first layout
+    /// (e.g. auto-sized table columns) keep the wrong one.
+    ///
+    /// The harness's own test settings (theme, no animations, no cursor blinking) are applied
+    /// after this, so they still hold.
+    #[inline]
+    pub fn with_context_setup(mut self, setup: impl FnOnce(&egui::Context) + 'static) -> Self {
+        self.context_setup = Some(Box::new(setup));
+        self
+    }
+
     /// Enable wgpu rendering with the given setup.
     #[cfg(feature = "wgpu")]
     pub fn wgpu_setup(self, setup: egui_wgpu::WgpuSetup) -> Self {
@@ -267,13 +285,16 @@ impl<State> HarnessBuilder<State> {
     #[cfg(feature = "eframe")]
     #[track_caller]
     pub fn build_eframe<'a>(
-        self,
+        mut self,
         build: impl FnOnce(&mut eframe::CreationContext<'a>) -> State,
     ) -> Harness<'a, State>
     where
         State: eframe::App + 'static,
     {
         let ctx = egui::Context::default();
+        if let Some(setup) = self.context_setup.take() {
+            setup(&ctx);
+        }
 
         let mut cc = eframe::CreationContext::_new_kittest(ctx.clone());
         let mut frame = eframe::Frame::_new_kittest();
