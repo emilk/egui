@@ -2530,17 +2530,20 @@ pub fn apply_viewport_builder_to_window(
             window.set_outer_position(pos);
         }
         if let Some(maximized) = builder.maximized {
-            #[cfg(target_os = "windows")]
-            if maximized && window.is_visible() == Some(false) {
-                set_maximized_while_hidden(window);
-            } else {
-                window.set_maximized(maximized);
-            }
-
-            #[cfg(not(target_os = "windows"))]
-            window.set_maximized(maximized);
+            set_maximized(window, maximized);
         }
     }
+}
+
+/// Like [`winit::window::Window::set_maximized`], but doesn't flash a hidden window on Windows.
+pub fn set_maximized(window: &winit::window::Window, maximized: bool) {
+    #[cfg(target_os = "windows")]
+    if maximized && window.is_visible() == Some(false) {
+        set_maximized_while_hidden(window);
+        return;
+    }
+
+    window.set_maximized(maximized);
 }
 
 /// Maximize a hidden window without it flashing on screen.

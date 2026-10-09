@@ -132,7 +132,7 @@ impl WindowSettings {
         } else if self.fullscreen {
             window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
         } else if self.maximized {
-            window.set_maximized(true);
+            crate::set_maximized(window, true);
         }
     }
 
