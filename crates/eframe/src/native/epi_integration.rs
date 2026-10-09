@@ -41,12 +41,9 @@ pub fn viewport_builder(
         }
         window_settings.clamp_position_to_monitors(egui_zoom_factor, event_loop);
 
-        viewport_builder = window_settings.initialize_viewport_builder(
-            egui_zoom_factor,
-            event_loop,
-            viewport_builder,
-        );
-        window_settings.inner_size_points()
+        viewport_builder =
+            window_settings.initialize_viewport_builder(egui_zoom_factor, viewport_builder);
+        Some(window_settings.inner_size_points())
     } else {
         if let Some(pos) = viewport_builder.position {
             viewport_builder = viewport_builder.with_position(pos);
@@ -198,6 +195,14 @@ pub struct EpiIntegration {
     can_drag_window: bool,
     #[cfg(feature = "persistence")]
     persist_window: bool,
+
+    /// See [`WindowSettings::enter_fullscreen_after_first_frame`].
+    enter_fullscreen_after_first_frame: bool,
+
+    /// Normal (non-maximized) geometry of the root window, as last saved.
+    #[cfg(feature = "persistence")]
+    normal_geometry: Option<egui_winit::WindowGeometry>,
+
     app_icon_setter: super::app_icon::AppTitleIconSetter,
 }
 
@@ -259,6 +264,12 @@ impl EpiIntegration {
             });
         }
 
+        let window_settings = load_window_settings(frame.storage());
+        let enter_fullscreen_after_first_frame =
+            window_settings.is_some_and(|settings| settings.enter_fullscreen_after_first_frame());
+        #[cfg(feature = "persistence")]
+        let normal_geometry = window_settings.map(|settings| settings.normal_geometry());
+
         Self {
             frame,
             last_auto_save: Instant::now(),
@@ -268,6 +279,9 @@ impl EpiIntegration {
             can_drag_window: false,
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
+            enter_fullscreen_after_first_frame,
+            #[cfg(feature = "persistence")]
+            normal_geometry,
             app_icon_setter,
             beginning: Instant::now()
                 .checked_sub(web_time::Duration::from_secs_f64(egui_ctx.time()))
@@ -422,6 +436,9 @@ impl EpiIntegration {
     pub fn post_rendering(&mut self, window: &winit::window::Window) {
         profiling::function_scope!();
         if core::mem::take(&mut self.is_first_frame) {
+            if self.enter_fullscreen_after_first_frame {
+                WindowSettings::enter_deferred_fullscreen(window);
+            }
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
         }
@@ -454,11 +471,13 @@ impl EpiIntegration {
                 && self.persist_window
             {
                 profiling::scope!("native_window");
-                epi::set_value(
-                    storage,
-                    STORAGE_WINDOW_KEY,
-                    &WindowSettings::from_window(self.egui_ctx.zoom_factor(), window),
+                let window_settings = WindowSettings::from_window(
+                    self.egui_ctx.zoom_factor(),
+                    window,
+                    self.normal_geometry,
                 );
+                self.normal_geometry = Some(window_settings.normal_geometry());
+                epi::set_value(storage, STORAGE_WINDOW_KEY, &window_settings);
             }
             if app.persist_egui_memory() {
                 profiling::scope!("egui_memory");

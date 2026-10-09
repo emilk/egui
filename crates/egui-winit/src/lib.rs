@@ -30,7 +30,7 @@ mod dropped_file;
 mod safe_area;
 mod window_settings;
 
-pub use window_settings::WindowSettings;
+pub use window_settings::{WindowGeometry, WindowSettings};
 
 use raw_window_handle::HasDisplayHandle;
 
