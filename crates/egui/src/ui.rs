@@ -2671,6 +2671,11 @@ impl Ui {
         Payload: Any + Send + Sync,
     {
         let is_being_dragged = self.ctx().is_being_dragged(id);
+        let ui_builder = UiBuilder::new().scope_id(id);
+        let add_contents = |ui: &mut Self| {
+            ui.style_mut().interaction.selectable_labels = false;
+            add_contents(ui)
+        };
 
         if is_being_dragged {
             crate::DragAndDrop::set_payload(self.ctx(), payload);
@@ -2678,7 +2683,7 @@ impl Ui {
             // Paint the body to a new layer:
             let layer_id = LayerId::new(Order::Tooltip, id);
             let InnerResponse { inner, response } =
-                self.scope_builder(UiBuilder::new().layer_id(layer_id), add_contents);
+                self.scope_builder(ui_builder.layer_id(layer_id), add_contents);
 
             // Now we move the visuals of the body to where the mouse is.
             // Normally you need to decide a location for a widget first,
@@ -2695,31 +2700,10 @@ impl Ui {
 
             InnerResponse::new(inner, response)
         } else {
-            // Reserve the background's place before its children, then update its rectangle below.
-            // Only register the widget here; interaction needs the final rectangle.
-            self.ctx().pass_state_mut(|state| {
-                state.widgets.insert(
-                    self.layer_id(),
-                    WidgetRect {
-                        id,
-                        parent_id: self.scope_id,
-                        layer_id: self.layer_id(),
-                        rect: Rect::NOTHING,
-                        interact_rect: Rect::NOTHING,
-                        sense: Sense::hover(),
-                        enabled: self.enabled,
-                    },
-                    Default::default(),
-                );
-            });
-            let InnerResponse { inner, response } = self.scope(add_contents);
-
             // Sense clicks too, so pressing a child button doesn't immediately start a drag.
-            let dnd_response = self
-                .interact(response.rect, id, Sense::click_and_drag())
-                .on_hover_cursor(CursorIcon::Grab);
-
-            InnerResponse::new(inner, dnd_response | response)
+            let InnerResponse { inner, response } =
+                self.scope_builder(ui_builder.sense(Sense::click_and_drag()), add_contents);
+            InnerResponse::new(inner, response.on_hover_cursor(CursorIcon::Grab))
         }
     }
 
