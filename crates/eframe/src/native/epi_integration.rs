@@ -33,6 +33,10 @@ pub fn viewport_builder(
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
 
+        // The app may change the zoom factor after the window exists, so the size may have been
+        // saved at another zoom factor than the one this window is built with:
+        window_settings.convert_to_zoom_factor(egui_zoom_factor);
+
         if clamp_size_to_monitor_size {
             window_settings.clamp_size_to_sane_values(largest_monitor_point_size(
                 egui_zoom_factor,
@@ -506,4 +510,45 @@ pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Mem
     }
     #[cfg(not(feature = "persistence"))]
     None
+}
+
+#[cfg(all(test, feature = "persistence"))]
+mod tests {
+    use egui_winit::WindowSettings;
+
+    #[track_caller]
+    fn assert_size(settings: &WindowSettings, expected: egui::Vec2) {
+        let size = settings.inner_size_points().expect("a size");
+        assert!(
+            (size - expected).length() < 1e-3,
+            "{size:?} != {expected:?}"
+        );
+    }
+
+    #[test]
+    fn stored_window_size_is_restored_at_zoom_factor_one() {
+        // A 1000x800 point window at zoom factor 1, saved by an app that had zoomed in:
+        for zoom_factor in [1.25_f32, 2.0] {
+            let saved = format!(
+                "(inner_size_points:Some((x:{},y:{})),zoom_factor:Some({zoom_factor}))",
+                1000.0 / zoom_factor,
+                800.0 / zoom_factor
+            );
+            let settings: WindowSettings = ron::from_str(&saved).expect("settings");
+            let mut settings: WindowSettings =
+                ron::from_str(&ron::ser::to_string(&settings).expect("ron")).expect("settings");
+
+            settings.convert_to_zoom_factor(1.0);
+            assert_size(&settings, egui::vec2(1000.0, 800.0));
+        }
+    }
+
+    #[test]
+    fn window_settings_saved_without_zoom_factor_still_load() {
+        let saved = "(inner_position_pixels:Some((x:10.0,y:40.0)),outer_position_pixels:Some((x:10.0,y:10.0)),fullscreen:false,maximized:true,inner_size_points:Some((x:800.0,y:600.0)))";
+        let mut settings: WindowSettings = ron::from_str(saved).expect("settings");
+
+        settings.convert_to_zoom_factor(1.0);
+        assert_size(&settings, egui::vec2(800.0, 600.0));
+    }
 }
