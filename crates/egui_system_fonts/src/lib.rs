@@ -115,13 +115,24 @@ impl FontProvider for SystemFontProvider {
             FontFamily::Proportional | FontFamily::Name(_) => GenericFamily::SansSerif,
         };
 
-        let mut query = collection.query(source_cache);
-        if let Some(script) = script_of(base_char) {
-            query.set_families([QueryFamily::Generic(generic)]);
-            query.set_fallbacks(FallbackKey::new(script, self.locale.as_ref()));
+        let font = if let Some(script) = script_of(base_char) {
+            // The fallback for a script may be a single font for one locale,
+            // e.g. a Japanese font for Han, which lacks many Simplified Chinese characters.
+            // So if it can't render the char, try the other locales of the script:
+            // TODO(https://github.com/linebender/parley/issues/644): remove `other_locales`
+            // once fontique falls back per char (https://github.com/linebender/parley/pull/689).
+            core::iter::once(self.locale.as_ref())
+                .chain(other_locales(script).iter().map(Some))
+                .find_map(|locale| {
+                    let mut query = collection.query(source_cache);
+                    query.set_families([QueryFamily::Generic(generic)]);
+                    query.set_fallbacks(fallback_key(script, locale));
+                    find_font(&mut query, base_char)
+                })
         } else {
             // Punctuation, symbols, emoji, etc. belong to no script, so there is no fallback for them.
             // Try the generic families instead.
+            let mut query = collection.query(source_cache);
             query.set_families(
                 [
                     generic,
@@ -133,19 +144,8 @@ impl FontProvider for SystemFontProvider {
                 ]
                 .map(QueryFamily::Generic),
             );
-        }
-
-        let mut found = None;
-        query.matches_with(|font| {
-            if can_render(font, base_char) {
-                found = Some(font.clone());
-                QueryStatus::Stop
-            } else {
-                QueryStatus::Continue
-            }
-        });
-        drop(query);
-        let font = found?;
+            find_font(&mut query, base_char)
+        }?;
 
         let family_name = collection.family_name(font.family.0).unwrap_or("unknown");
         let name = format!("system:{family_name}:{}:{}", font.family.1, font.index);
@@ -161,6 +161,59 @@ impl FontProvider for SystemFontProvider {
             }],
         })
     }
+}
+
+/// The first font in the query that can render `c`.
+fn find_font(query: &mut fontique::Query<'_>, c: char) -> Option<QueryFont> {
+    let mut found = None;
+    query.matches_with(|font| {
+        if can_render(font, c) {
+            found = Some(font.clone());
+            QueryStatus::Stop
+        } else {
+            QueryStatus::Continue
+        }
+    });
+    found
+}
+
+const HAN: Script = Script::from_bytes(*b"Hani");
+
+/// The locales of the Han fonts, starting with Simplified Chinese.
+///
+/// Simplified Chinese is `zh-SG` rather than `zh-CN`, because fontique treats `zh-CN`
+/// as the default Han locale. Its font is whatever the first locale-less Han lookup returned,
+/// which every `Query::set_fallbacks` does, so it is often the Japanese font.
+static HAN_LOCALES: std::sync::LazyLock<Vec<Language>> = std::sync::LazyLock::new(|| {
+    ["zh-SG", "zh-TW", "ja", "ko"]
+        .iter()
+        .filter_map(|locale| Language::parse(locale).ok())
+        .collect()
+});
+
+/// The fallback key for a script and locale, avoiding fontique's default Han locale (see [`HAN_LOCALES`]).
+fn fallback_key(script: Script, locale: Option<&Language>) -> FallbackKey {
+    let locale = match locale {
+        Some(locale) if script == HAN && is_simplified_chinese(locale) => HAN_LOCALES.first(),
+        locale => locale,
+    };
+    FallbackKey::new(script, locale)
+}
+
+/// Is this a Simplified Chinese locale, like `zh`, `zh-CN` or `zh-Hans`?
+///
+/// Mirrors how fontique picks between Simplified and Traditional Chinese.
+fn is_simplified_chinese(locale: &Language) -> bool {
+    locale.language() == "zh"
+        && locale.script() != Some("Hant")
+        && !matches!(locale.region(), Some("HK" | "TW" | "MO"))
+}
+
+/// Locales to try for a script when the fallback for the preferred locale lacks a char.
+///
+/// Only Han needs this: its fonts are per locale, and each covers a different set of characters.
+fn other_locales(script: Script) -> &'static [Language] {
+    if script == HAN { &HAN_LOCALES } else { &[] }
 }
 
 /// The script of a character, or `None` for characters shared between scripts (punctuation, symbols, …).
@@ -238,6 +291,66 @@ mod tests {
             };
             println!("{script} {c:?}: {}", insert.name);
             assert!(insert.name.starts_with("system:"));
+        }
+    }
+
+    #[test]
+    fn simplified_chinese_locales() {
+        let is_simplified = |locale| is_simplified_chinese(&Language::parse(locale).unwrap());
+        for locale in ["zh", "zh-CN", "zh-Hans", "zh-Hans-CN", "zh-SG"] {
+            assert!(is_simplified(locale), "{locale}");
+        }
+        for locale in ["zh-TW", "zh-HK", "zh-MO", "zh-Hant", "ja", "ko", "de-DE"] {
+            assert!(!is_simplified(locale), "{locale}");
+        }
+    }
+
+    /// A `zh-CN` locale should get a Chinese font for characters shared with Japanese,
+    /// even after fontique has looked up Han without a locale.
+    #[test]
+    #[ignore = "Depends on which fonts are installed on this machine"]
+    #[expect(clippy::print_stdout)]
+    fn zh_cn_locale_prefers_chinese_font() {
+        let provider = SystemFontProvider::new().with_locale(Some("zh-CN"));
+        let ja_provider = SystemFontProvider::new().with_locale(Some("ja"));
+        let font_name = |provider: &SystemFontProvider, c: char| {
+            let cluster = c.to_string();
+            let request = FallbackRequest {
+                cluster: &cluster,
+                family: &FontFamily::Proportional,
+            };
+            provider.font_for(&request).unwrap().name
+        };
+
+        // Each of these does a locale-less Han lookup in fontique:
+        for c in ['ก', '한'] {
+            font_name(&provider, c);
+        }
+        let zh = font_name(&provider, '直');
+        let ja = font_name(&ja_provider, '直');
+        println!("zh-CN: {zh}, ja: {ja}");
+        assert_ne!(zh, ja, "zh-CN should not get the Japanese font");
+    }
+
+    /// With a non-CJK locale, the Han fallback may be a Japanese font,
+    /// which lacks many Simplified and Traditional Chinese characters.
+    ///
+    /// Other scripts are looked up first, because that changes what fontique returns for Han.
+    #[test]
+    #[ignore = "Depends on which fonts are installed on this machine"]
+    #[expect(clippy::print_stdout)]
+    fn finds_chinese_chars_with_non_cjk_locale() {
+        let provider = SystemFontProvider::new().with_locale(Some("de-DE"));
+        for c in ['ไ', '한', 'م', 'न', '这', '还', '測', '個'] {
+            let cluster = c.to_string();
+            let request = FallbackRequest {
+                cluster: &cluster,
+                family: &FontFamily::Proportional,
+            };
+            let Some(insert) = provider.font_for(&request) else {
+                panic!("No system font for {c:?}");
+            };
+            println!("{c:?}: {}", insert.name);
         }
     }
 
