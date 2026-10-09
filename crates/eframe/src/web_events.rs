@@ -10,7 +10,7 @@
 
 #![cfg_attr(not(any(test, target_arch = "wasm32")), allow(dead_code))]
 
-use egui::{Event, Modifiers, MouseWheelUnit, Pos2, Rect, TouchPhase, Vec2};
+use egui::{Event, Modifiers, MouseWheelSource, MouseWheelUnit, Pos2, Rect, TouchPhase, Vec2};
 
 /// A mouse button, as identified by `MouseEvent::button()`: <https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button>
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -168,6 +168,7 @@ impl WebEventState {
                     // Match the DOM path (`install_wheel` negates `WheelEvent` deltas).
                     delta: -delta,
                     phase: TouchPhase::Move,
+                    source: MouseWheelSource::Unknown,
                     modifiers,
                 }]
             }
@@ -256,6 +257,7 @@ mod tests {
                 unit: egui::MouseWheelUnit::Point,
                 delta: Vec2::new(0.0, -120.0),
                 phase: egui::TouchPhase::Move,
+                source: MouseWheelSource::Unknown,
                 modifiers: Modifiers::NONE,
             }]
         );
@@ -275,6 +277,7 @@ mod tests {
                 unit: egui::MouseWheelUnit::Line,
                 delta: Vec2::new(0.0, -3.0),
                 phase: egui::TouchPhase::Move,
+                source: MouseWheelSource::Unknown,
                 modifiers: Modifiers::NONE,
             }]
         );
