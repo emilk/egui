@@ -17,6 +17,21 @@ pub fn is_invisible_or_minimized(window: &Window) -> bool {
     window.is_visible() == Some(false) || window.is_minimized() == Some(true)
 }
 
+/// Tells winit that we stopped presenting to this window because it is occluded,
+/// so winit may commit the surface on our behalf.
+///
+/// On Wayland, a suspended window gets no frame callbacks, and every configure has to be
+/// committed to take effect. Only Wayland needs this.
+pub fn notify_presentation_paused(window: &Window) {
+    #[cfg(all(feature = "wayland", target_os = "linux"))]
+    {
+        use winit::platform::wayland::WindowExtWayland as _;
+        window.notify_presentation_paused();
+    }
+    #[cfg(not(all(feature = "wayland", target_os = "linux")))]
+    let _ = window;
+}
+
 /// On Mac, a minimized window uses up all CPU:
 /// <https://github.com/emilk/egui/issues/325>
 ///

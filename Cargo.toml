@@ -316,3 +316,9 @@ let_underscore_must_use = "allow"
 let_underscore_untyped = "allow"
 self_named_module_files = "allow" # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
+
+
+# TEMPORARY, remove before merging: WindowExtWayland::notify_presentation_paused from
+# rust-windowing/winit#4710, until a winit 0.30 release includes it.
+[patch.crates-io]
+winit = { git = "https://github.com/crmne/winit", rev = "a51e41b21d962dd0ed5f04b3d6506943d613346a" }

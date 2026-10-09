@@ -1018,6 +1018,10 @@ impl WgpuWinitRunning<'_> {
                     && let Some(viewport) = shared.viewports.get_mut(&viewport_id)
                 {
                     viewport.info.occluded = Some(*is_occluded);
+                    if *is_occluded && let Some(window) = &viewport.window {
+                        // We only run the app logic for occluded windows, and paint nothing:
+                        winit_integration::notify_presentation_paused(window);
+                    }
                 }
             }
 
