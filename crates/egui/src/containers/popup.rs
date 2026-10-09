@@ -85,6 +85,12 @@ pub enum PopupCloseBehavior {
     /// but in the popup's body
     CloseOnClickOutside,
 
+    /// Popup will be closed on a press outside its body, or on a primary click anywhere.
+    ///
+    /// Used by context menus that open on press, see
+    /// [`crate::style::Interaction::context_menu_opens_on_press`].
+    CloseOnPressOutside,
+
     /// Clicks will be ignored. Popup might be closed manually by calling [`Popup::close_all`]
     /// or by pressing the escape button
     IgnoreClicks,
@@ -252,9 +258,18 @@ impl<'a> Popup<'a> {
     /// Show a context menu when the widget was secondary clicked.
     /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
     /// In contrast to [`Self::menu`], this will open at the pointer position.
+    ///
+    /// Opens on press instead if [`crate::style::Interaction::context_menu_opens_on_press`] is set.
     pub fn context_menu(response: &Response) -> Self {
+        let secondary_pressed = response.is_pointer_button_down_on()
+            && response.ctx.input(|i| i.pointer.secondary_pressed());
+        let (open, close_behavior) = Self::context_menu_behavior(
+            &response.ctx,
+            secondary_pressed,
+            response.secondary_clicked(),
+        );
         Self::menu(response)
-            .open_memory(if response.secondary_clicked() {
+            .open_memory(if open {
                 Some(SetOpenCommand::Bool(true))
             } else if response.clicked() {
                 // Explicitly close the menu if the widget was clicked
@@ -264,6 +279,26 @@ impl<'a> Popup<'a> {
                 None
             })
             .at_pointer_fixed()
+            .close_behavior(close_behavior)
+    }
+
+    /// Should a context menu open this frame, and how should it close?
+    ///
+    /// It opens on a secondary click, and also on a secondary press if
+    /// [`crate::style::Interaction::context_menu_opens_on_press`] is set.
+    pub(crate) fn context_menu_behavior(
+        ctx: &Context,
+        secondary_pressed: bool,
+        secondary_clicked: bool,
+    ) -> (bool, PopupCloseBehavior) {
+        if ctx.global_style().interaction.context_menu_opens_on_press {
+            (
+                secondary_pressed || secondary_clicked,
+                PopupCloseBehavior::CloseOnPressOutside,
+            )
+        } else {
+            (secondary_clicked, PopupCloseBehavior::CloseOnClick)
+        }
     }
 
     /// Set the kind of the popup. Used for [`Area::kind`] and [`Area::order`].
@@ -679,6 +714,13 @@ impl<'a> Popup<'a> {
             PopupCloseBehavior::CloseOnClick => close_click,
             PopupCloseBehavior::CloseOnClickOutside => {
                 close_click && response.response.clicked_elsewhere()
+            }
+            // Only primary clicks close it, so that the release of the secondary press
+            // that opened a context menu does not.
+            PopupCloseBehavior::CloseOnPressOutside => {
+                was_open_last_frame
+                    && (response.response.pressed_elsewhere()
+                        || ctx.input(|i| i.pointer.primary_clicked()))
             }
             PopupCloseBehavior::IgnoreClicks => false,
         };

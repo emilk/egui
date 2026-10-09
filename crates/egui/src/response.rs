@@ -2,8 +2,8 @@ use core::any::Any;
 use std::sync::Arc;
 
 use crate::{
-    Context, CursorIcon, Id, LayerId, PointerButton, Popup, PopupKind, Sense, SetOpenCommand,
-    Tooltip, Ui, WidgetRect, WidgetText,
+    Context, CursorIcon, Id, InputState, LayerId, PointerButton, Popup, PopupKind, Sense,
+    SetOpenCommand, Tooltip, Ui, WidgetRect, WidgetText,
     emath::{Align, Pos2, Rect, Vec2},
     pass_state,
 };
@@ -277,14 +277,22 @@ impl Response {
     ///
     /// Clicks on other layers above this widget *will* be considered as clicking elsewhere.
     pub fn clicked_elsewhere(&self) -> bool {
-        let (pointer_interact_pos, any_click) = self
-            .ctx
-            .input(|i| (i.pointer.interact_pos(), i.pointer.any_click()));
+        self.pointer_elsewhere(|i| i.pointer.any_click())
+    }
+
+    /// Like [`Self::clicked_elsewhere`], but true already on press.
+    pub(crate) fn pressed_elsewhere(&self) -> bool {
+        self.pointer_elsewhere(|i| i.pointer.any_pressed())
+    }
+
+    fn pointer_elsewhere(&self, event: impl FnOnce(&InputState) -> bool) -> bool {
+        let (pointer_interact_pos, any_event) =
+            self.ctx.input(|i| (i.pointer.interact_pos(), event(i)));
 
         // We do not use self.clicked(), because we want to catch all clicks within our frame,
         // even if we aren't clickable (or even enabled).
         // This is important for windows and such that should close then the user clicks elsewhere.
-        if any_click {
+        if any_event {
             if self.contains_pointer() || self.hovered() {
                 false
             } else if let Some(pos) = pointer_interact_pos {
@@ -1094,6 +1102,8 @@ impl Response {
 
     /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
+    /// Opens on press instead if [`crate::style::Interaction::context_menu_opens_on_press`] is set.
+    ///
     /// Make sure the widget senses clicks (e.g. [`crate::Button`] does, [`crate::Label`] does not).
     ///
     /// ```
@@ -1126,6 +1136,8 @@ impl Response {
     /// This is meant for responses of containers, e.g. from [`Ui::response`] or [`Ui::scope`].
     /// Unlike [`Self::context_menu`], the container does not need to sense clicks itself.
     ///
+    /// Opens on press instead if [`crate::style::Interaction::context_menu_opens_on_press`] is set.
+    ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.horizontal(|ui| {
@@ -1145,8 +1157,15 @@ impl Response {
         &self,
         add_contents: impl FnOnce(&mut Ui),
     ) -> Option<InnerResponse<()>> {
+        let secondary_pressed =
+            self.container_contains_pointer() && self.ctx.input(|i| i.pointer.secondary_pressed());
+        let (open, close_behavior) = Popup::context_menu_behavior(
+            &self.ctx,
+            secondary_pressed,
+            self.container_secondary_clicked(),
+        );
         Popup::menu(self)
-            .open_memory(if self.container_secondary_clicked() {
+            .open_memory(if open {
                 Some(SetOpenCommand::Bool(true))
             } else if self.container_clicked() {
                 // Explicitly close the menu if the container was clicked,
@@ -1156,6 +1175,7 @@ impl Response {
                 None
             })
             .at_pointer_fixed()
+            .close_behavior(close_behavior)
             .show(add_contents)
     }
 
