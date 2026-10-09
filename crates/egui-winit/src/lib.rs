@@ -30,7 +30,7 @@ mod dropped_file;
 mod safe_area;
 mod window_settings;
 
-pub use window_settings::WindowSettings;
+pub use window_settings::{WindowGeometry, WindowSettings};
 
 use raw_window_handle::HasDisplayHandle;
 
@@ -2292,6 +2292,10 @@ pub fn create_winit_window_attributes(
         .with_visible(visible.unwrap_or(true))
         .with_maximized(if cfg!(target_os = "ios") {
             true
+        } else if cfg!(target_os = "windows") && visible == Some(false) {
+            // Maximizing a hidden window on Windows briefly shows it.
+            // Deferred to `apply_viewport_builder_to_window`, which hides that flash.
+            false
         } else {
             maximized.unwrap_or(false)
         })
@@ -2526,8 +2530,60 @@ pub fn apply_viewport_builder_to_window(
             window.set_outer_position(pos);
         }
         if let Some(maximized) = builder.maximized {
-            window.set_maximized(maximized);
+            set_maximized(window, maximized);
         }
+    }
+}
+
+/// Like [`winit::window::Window::set_maximized`], but doesn't flash a hidden window on Windows.
+pub fn set_maximized(window: &winit::window::Window, maximized: bool) {
+    #[cfg(target_os = "windows")]
+    if maximized && window.is_visible() == Some(false) {
+        set_maximized_while_hidden(window);
+        return;
+    }
+
+    window.set_maximized(maximized);
+}
+
+/// Maximize a hidden window without it flashing on screen.
+///
+/// winit implements maximize with `ShowWindow(SW_MAXIMIZE)`, which also shows the window,
+/// and then hides it again with `SW_HIDE` if it is supposed to be invisible.
+/// We cloak the window during that so the brief show is never composited.
+/// The window stays hidden but maximized, so the first frame is rendered at the right size.
+// TODO(rust-windowing/winit#4575): remove this (and the `with_maximized` special case in
+// `create_winit_window_attributes`) once we are on a winit with that fix (or rust-windowing/winit#4587).
+#[cfg(target_os = "windows")]
+fn set_maximized_while_hidden(window: &winit::window::Window) {
+    use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
+    use windows_sys::Win32::Graphics::Dwm::{DWMWA_CLOAK, DwmSetWindowAttribute};
+
+    let Ok(RawWindowHandle::Win32(handle)) = window.window_handle().map(|h| h.as_raw()) else {
+        window.set_maximized(true);
+        return;
+    };
+    let hwnd = handle.hwnd.get() as _;
+
+    let set_cloaked = |cloaked: bool| {
+        let value = i32::from(cloaked);
+        // SAFETY: `hwnd` is a valid window handle and `value` is a BOOL, as DWMWA_CLOAK expects.
+        #[expect(unsafe_code)]
+        unsafe {
+            DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_CLOAK as u32,
+                (&raw const value).cast(),
+                size_of::<i32>() as u32,
+            )
+        }
+    };
+
+    let cloaked = set_cloaked(true) >= 0;
+    // winit runs this synchronously, since we're on the event loop thread:
+    window.set_maximized(true);
+    if cloaked {
+        set_cloaked(false);
     }
 }
 
