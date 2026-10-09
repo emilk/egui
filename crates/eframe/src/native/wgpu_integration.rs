@@ -1160,12 +1160,12 @@ fn create_window(
 ) -> Result<(Window, ViewportBuilder), winit::error::OsError> {
     profiling::function_scope!();
 
-    let window_settings = epi_integration::load_window_settings(storage);
+    let mut window_settings = epi_integration::load_window_settings(storage);
     let viewport_builder = epi_integration::viewport_builder(
         egui_ctx.zoom_factor(),
         event_loop,
         native_options,
-        window_settings,
+        &mut window_settings,
     )
     .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
 

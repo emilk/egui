@@ -1,9 +1,11 @@
 use egui::ViewportBuilder;
 
+/// Mac and Windows place the window exactly in [`WindowSettings::initialize_window`].
+const PLACE_AFTER_CREATION: bool = cfg!(any(target_os = "macos", target_os = "windows"));
+
 /// Position and size of a native window.
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
 pub struct WindowGeometry {
     /// Position of window frame/titlebar in physical pixels.
     outer_position_pixels: Option<egui::Pos2>,
@@ -13,16 +15,6 @@ pub struct WindowGeometry {
 
     /// Inner size of window in points.
     inner_size_points: egui::Vec2,
-}
-
-impl Default for WindowGeometry {
-    fn default() -> Self {
-        Self {
-            outer_position_pixels: None,
-            scale_factor: 1.0,
-            inner_size_points: egui::Vec2::ZERO,
-        }
-    }
 }
 
 impl WindowGeometry {
@@ -42,9 +34,8 @@ impl WindowGeometry {
 }
 
 /// Can be used to store native window settings (position and size).
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
 pub struct WindowSettings {
     /// Position and size when neither maximized nor fullscreen.
     normal_geometry: WindowGeometry,
@@ -98,11 +89,12 @@ impl WindowSettings {
         }
 
         viewport_builder = viewport_builder.with_inner_size(geometry.inner_size_points);
-        if cfg!(target_os = "macos") && self.fullscreen {
-            // Mac only enters fullscreen once the window is visible, animating from its current frame.
-            // Start maximized so the first frame fills the screen,
-            // and enter fullscreen in `enter_deferred_fullscreen`.
-            viewport_builder.with_fullscreen(false).with_maximized(true)
+        if PLACE_AFTER_CREATION {
+            // Moving a maximized or fullscreen window resets it,
+            // so `initialize_window` maximizes or enters fullscreen after moving.
+            viewport_builder
+                .with_fullscreen(false)
+                .with_maximized(false)
         } else {
             viewport_builder
                 .with_fullscreen(self.fullscreen)
@@ -111,31 +103,35 @@ impl WindowSettings {
     }
 
     pub fn initialize_window(&self, window: &winit::window::Window) {
+        if !PLACE_AFTER_CREATION {
+            return;
+        }
+
         // `WindowBuilder::with_position` only places the window roughly, since winit converts
         // points with a different scale factor than we saved with. So move it exactly:
         let geometry = &self.normal_geometry;
-        let Some(pos) = geometry.outer_position_pixels else {
-            return;
-        };
-        let pos: winit::dpi::Position = if cfg!(target_os = "macos") {
-            // Mac places windows in points. Pixels are ambiguous across monitors with different scale factors.
-            let pos = pos / geometry.scale_factor;
-            #[expect(
-                clippy::disallowed_types,
-                reason = "these are OS points, unaffected by egui zoom"
-            )]
-            winit::dpi::LogicalPosition::new(pos.x, pos.y).into()
-        } else {
-            winit::dpi::PhysicalPosition::new(pos.x, pos.y).into()
-        };
-
-        // Moving a maximized window un-maximizes it, so move the normal frame instead:
-        let maximized = window.is_maximized();
-        if maximized {
-            window.set_maximized(false);
+        if let Some(pos) = geometry.outer_position_pixels {
+            if cfg!(target_os = "macos") {
+                // Mac places windows in points. Pixels are ambiguous across monitors with different scale factors.
+                let pos = pos / geometry.scale_factor;
+                #[expect(
+                    clippy::disallowed_types,
+                    reason = "these are OS points, unaffected by egui zoom"
+                )]
+                window.set_outer_position(winit::dpi::LogicalPosition::new(pos.x, pos.y));
+            } else {
+                window.set_outer_position(winit::dpi::PhysicalPosition::new(pos.x, pos.y));
+            }
         }
-        window.set_outer_position(pos);
-        if maximized {
+
+        if self.fullscreen && cfg!(target_os = "macos") {
+            // Mac only enters fullscreen once the window is visible, animating from its current frame.
+            // Maximize so the first frame fills the screen,
+            // and enter fullscreen in `enter_deferred_fullscreen`.
+            window.set_maximized(true);
+        } else if self.fullscreen {
+            window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+        } else if self.maximized {
             window.set_maximized(true);
         }
     }
@@ -175,21 +171,32 @@ impl WindowSettings {
     ) {
         // If the app last ran on two monitors and only one is now connected, then
         // the given position is invalid.
-        // If this happens on Mac, the window is clamped into valid area.
+        // If this happens on Mac, a maximized window gets zero size, so we drop the position.
         // If this happens on Windows, the window becomes invisible to the user 🤦‍♂️
         // So on Windows we clamp the position to the monitor it is on.
-        if !cfg!(target_os = "windows") {
-            return;
-        }
-
         let geometry = &mut self.normal_geometry;
-        if let Some(pos_px) = &mut geometry.outer_position_pixels {
+        let Some(pos_px) = geometry.outer_position_pixels else {
+            return;
+        };
+
+        if cfg!(target_os = "macos") {
+            // Pixels mean different points on each Mac monitor, so compare in points:
+            let pos = pos_px / geometry.scale_factor;
+            let is_on_a_monitor = event_loop.available_monitors().any(|monitor| {
+                (monitor_rect_px(&monitor) / monitor.scale_factor() as f32).contains(pos)
+            });
+            if !is_on_a_monitor {
+                geometry.outer_position_pixels = None;
+            }
+        } else if cfg!(target_os = "windows") {
+            let mut pos_px = pos_px;
             clamp_pos_to_monitors(
                 egui_zoom_factor,
                 event_loop,
                 geometry.inner_size_points,
-                pos_px,
+                &mut pos_px,
             );
+            geometry.outer_position_pixels = Some(pos_px);
         }
     }
 }

@@ -17,7 +17,7 @@ pub fn viewport_builder(
     egui_zoom_factor: f32,
     event_loop: &ActiveEventLoop,
     native_options: &mut epi::NativeOptions,
-    window_settings: Option<WindowSettings>,
+    window_settings: &mut Option<WindowSettings>,
 ) -> ViewportBuilder {
     profiling::function_scope!();
 
@@ -30,7 +30,7 @@ pub fn viewport_builder(
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
     #[cfg(not(target_os = "ios"))]
-    let inner_size_points = if let Some(mut window_settings) = window_settings {
+    let inner_size_points = if let Some(window_settings) = window_settings {
         // Restore pos/size from previous session
 
         if clamp_size_to_monitor_size {
@@ -268,7 +268,14 @@ impl EpiIntegration {
         let enter_fullscreen_after_first_frame =
             window_settings.is_some_and(|settings| settings.enter_fullscreen_after_first_frame());
         #[cfg(feature = "persistence")]
-        let normal_geometry = window_settings.map(|settings| settings.normal_geometry());
+        let normal_geometry = window_settings
+            .map(|settings| settings.normal_geometry())
+            .or_else(|| {
+                // Nothing saved yet, so use the window's own geometry, unless it starts maximized:
+                (!window.is_maximized() && window.fullscreen().is_none()).then(|| {
+                    egui_winit::WindowGeometry::from_window(egui_ctx.zoom_factor(), window)
+                })
+            });
 
         Self {
             frame,
