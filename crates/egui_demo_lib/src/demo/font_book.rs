@@ -96,7 +96,10 @@ impl crate::View for FontBook {
         let matching_glyphs: Vec<(char, &GlyphInfo)> = available_glyphs
             .iter()
             .filter(|(chr, glyph_info)| {
-                filter.is_empty() || glyph_info.name.contains(filter) || *filter == chr.to_string()
+                filter.is_empty()
+                    || glyph_info.name.contains(filter)
+                    || format!("{:x}", **chr as u32).starts_with(filter.as_str())
+                    || *filter == chr.to_string()
             })
             .map(|(&chr, glyph_info)| (chr, glyph_info))
             .collect();
@@ -106,7 +109,9 @@ impl crate::View for FontBook {
         // Each glyph gets a fixed-size cell so we can calculate what is visible,
         // and only paint those glyphs.
         let spacing = egui::Vec2::splat(2.0);
-        let cell_size = egui::Vec2::splat((1.5 * font_id.size).round());
+        let cell_height = ui.fonts_mut(|fonts| fonts.row_height(&font_id));
+        let cell_width = (font_id.size * 2.0).max(cell_height);
+        let cell_size = egui::vec2(cell_width, cell_height);
 
         let num_columns = ((ui.available_width() + spacing.x) / (cell_size.x + spacing.x)).floor();
         let num_columns = (num_columns as usize).max(1);
@@ -124,8 +129,21 @@ impl crate::View for FontBook {
                         let start = row * num_columns;
                         let end = (start + num_columns).min(matching_glyphs.len());
                         for &(chr, glyph_info) in &matching_glyphs[start..end] {
+                            let glyph_width = ui
+                                .painter()
+                                .layout_no_wrap(
+                                    chr.to_string(),
+                                    font_id.clone(),
+                                    egui::Color32::WHITE,
+                                )
+                                .size()
+                                .x;
+                            let mut glyph_font_id = font_id.clone();
+                            if glyph_width > cell_width {
+                                glyph_font_id.size *= cell_width / glyph_width;
+                            }
                             let button =
-                                egui::Button::new(egui::RichText::new(chr).font(font_id.clone()))
+                                egui::Button::new(egui::RichText::new(chr).font(glyph_font_id))
                                     .frame(false);
 
                             let tooltip_ui = |ui: &mut egui::Ui| {
