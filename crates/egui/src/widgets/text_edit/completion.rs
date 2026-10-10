@@ -4,7 +4,7 @@ use emath::RectAlign;
 
 use crate::{
     Atom, Atoms, Button, Event, EventFilter, Id, InputState, IntoAtoms, Key, Popup, PopupKind,
-    ScrollArea, TextEdit, Ui, WidgetText,
+    Rect, ScrollArea, TextEdit, Ui, WidgetText,
     class::{ClassName, HasClasses as _},
     text::{CCursor, CCursorRange, CharIndex},
     vec2,
@@ -99,6 +99,9 @@ struct CompletionState {
     /// The word for which the user dismissed the popup with Escape.
     /// The popup stays hidden until the word changes.
     dismissed_word: Option<String>,
+
+    /// Where the popup was last shown, to tell a click on it from a click elsewhere.
+    popup_rect: Option<Rect>,
 }
 
 impl CompletionState {
@@ -311,10 +314,25 @@ impl<'a> CompletionPopup<'a> {
 
         let mut accepted_index = (keys.accept && !suggestions.is_empty()).then_some(state.selected);
 
-        // Don't show the popup in the frame we accept, to avoid a one-frame flash of stale suggestions:
-        let is_open = response.has_focus() && !suggestions.is_empty() && accepted_index.is_none();
+        // Clicking a suggestion is a click outside the `TextEdit`, which gives up its focus
+        // (on the press or on the release, see `SurrenderFocusOn`) before the popup has run.
+        // Keep the popup up while the pointer is busy on it, so the suggestion gets its click:
+        let pointer_on_popup = state.open
+            && ui.input(|input| {
+                let busy = input.pointer.any_down() || input.pointer.any_released();
+                busy && input
+                    .pointer
+                    .interact_pos()
+                    .zip(state.popup_rect)
+                    .is_some_and(|(pos, rect)| rect.contains(pos))
+            });
 
-        let clicked = Popup::from_response(&response)
+        // Don't show the popup in the frame we accept, to avoid a one-frame flash of stale suggestions:
+        let is_open = (response.has_focus() || pointer_on_popup)
+            && !suggestions.is_empty()
+            && accepted_index.is_none();
+
+        let popup = Popup::from_response(&response)
             .id(id.with("completion_popup"))
             .kind(PopupKind::Popup)
             .open(is_open)
@@ -347,8 +365,9 @@ impl<'a> CompletionPopup<'a> {
                         clicked
                     })
                     .inner
-            })
-            .and_then(|inner| inner.inner);
+            });
+        state.popup_rect = popup.as_ref().map(|popup| popup.response.rect);
+        let clicked = popup.and_then(|popup| popup.inner);
 
         if clicked.is_some() {
             accepted_index = clicked;
