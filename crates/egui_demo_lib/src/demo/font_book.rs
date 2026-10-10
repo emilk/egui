@@ -109,7 +109,7 @@ impl crate::View for FontBook {
         // Each glyph gets a fixed-size cell so we can calculate what is visible,
         // and only paint those glyphs.
         let spacing = egui::Vec2::splat(2.0);
-        let cell_height = ui.fonts_mut(|fonts| fonts.row_height(&font_id));
+        let cell_height = ui.fonts_mut(|fonts| fonts.row_height(&font_id)) * 2.0;
         let cell_width = (font_id.size * 2.0).max(cell_height);
         let cell_size = egui::vec2(cell_width, cell_height);
 
@@ -129,19 +129,27 @@ impl crate::View for FontBook {
                         let start = row * num_columns;
                         let end = (start + num_columns).min(matching_glyphs.len());
                         for &(chr, glyph_info) in &matching_glyphs[start..end] {
-                            let glyph_width = ui
+                            let glyph_bounds = ui
                                 .painter()
                                 .layout_no_wrap(
                                     chr.to_string(),
                                     font_id.clone(),
                                     egui::Color32::WHITE,
                                 )
-                                .size()
-                                .x;
+                                .mesh_bounds;
+                            let glyph_size = glyph_bounds.size();
+                            let scale_x = if glyph_size.x > cell_width {
+                                cell_width / glyph_size.x
+                            } else {
+                                1.0
+                            };
+                            let scale_y = if glyph_size.y > cell_height {
+                                cell_height / glyph_size.y
+                            } else {
+                                1.0
+                            };
                             let mut glyph_font_id = font_id.clone();
-                            if glyph_width > cell_width {
-                                glyph_font_id.size *= cell_width / glyph_width;
-                            }
+                            glyph_font_id.size *= scale_x.min(scale_y);
                             let button =
                                 egui::Button::new(egui::RichText::new(chr).font(glyph_font_id))
                                     .frame(false);
