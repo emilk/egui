@@ -246,6 +246,11 @@ fn layout_shaped_run(
     let mut cluster_start_byte: usize = 0;
     let mut cluster_glyph_count: usize = 0;
 
+    // The shaper returns a right-to-left run in visual order: cluster offsets
+    // decrease, and a cluster ends where the one emitted before it starts.
+    let mut is_rtl = false;
+    let mut rtl_cluster_end_byte = run_text.len();
+
     for (info, pos) in iter::zip(glyph_buffer.glyph_infos(), glyph_buffer.glyph_positions()) {
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         let cluster = info.cluster;
@@ -283,11 +288,19 @@ fn layout_shaped_run(
         let is_new_cluster = ctx.prev_cluster.is_none_or(|pc| pc != cluster);
         if is_new_cluster {
             if ctx.prev_cluster.is_some() {
+                let cluster_bytes = if (cluster as usize) < cluster_start_byte {
+                    is_rtl = true;
+                    let cluster_bytes = cluster_start_byte..rtl_cluster_end_byte;
+                    rtl_cluster_end_byte = cluster_start_byte;
+                    cluster_bytes
+                } else {
+                    cluster_start_byte..cluster as usize
+                };
                 emit_continuation_glyphs(
                     ctx,
                     paragraph,
                     run_text,
-                    cluster_start_byte..cluster as usize,
+                    cluster_bytes,
                     cluster_glyph_count,
                     face_metrics,
                 );
@@ -388,11 +401,16 @@ fn layout_shaped_run(
 
     // Emit continuation glyphs for the last cluster in the run.
     if ctx.prev_cluster.is_some() {
+        let cluster_bytes = if is_rtl {
+            cluster_start_byte..rtl_cluster_end_byte
+        } else {
+            cluster_start_byte..run_text.len()
+        };
         emit_continuation_glyphs(
             ctx,
             paragraph,
             run_text,
-            cluster_start_byte..run_text.len(),
+            cluster_bytes,
             cluster_glyph_count,
             face_metrics,
         );
@@ -2649,6 +2667,48 @@ mod tests {
             assert_eq!(
                 galley.end().index.0,
                 expected_chars,
+                "Galley::end().index mismatch for {text:?}",
+            );
+        }
+    }
+
+    /// Regression test for <https://github.com/emilk/egui/issues/8576>.
+    ///
+    /// The shaper returns a right-to-left run in visual order, with decreasing
+    /// cluster offsets. Such a run must still produce one glyph per character.
+    #[test]
+    fn test_right_to_left_run_glyph_count() {
+        let pixels_per_point = 1.0;
+        let mut fonts = test_fonts();
+        let font_id = FontId::default();
+
+        let cases = [
+            "ب",
+            "بب",
+            "ببب",
+            "אב",
+            "a אבג b",
+            "שלום 42 עולם",
+            // Base char + combining mark inside a right-to-left run
+            "ב\u{05BC}א",
+        ];
+
+        for text in cases {
+            let job = LayoutJob::simple(
+                text.to_owned(),
+                font_id.clone(),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+            let total_glyphs: usize = galley.rows.iter().map(|r| r.row.glyphs.len()).sum();
+            let num_chars = text.chars().count();
+
+            assert_eq!(total_glyphs, num_chars, "Glyph count mismatch for {text:?}");
+            assert_eq!(
+                galley.end().index.0,
+                num_chars,
                 "Galley::end().index mismatch for {text:?}",
             );
         }
