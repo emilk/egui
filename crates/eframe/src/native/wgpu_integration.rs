@@ -274,6 +274,13 @@ impl<'app> WgpuWinitApp<'app> {
 
         let wgpu_render_state = painter.render_state();
 
+        if let Some(render_state) = &wgpu_render_state {
+            let info = render_state.adapter.get_info();
+            if egui_wgpu::adapter_is_software(&info) {
+                egui_ctx.set_software_adapter(true);
+            }
+        }
+
         let integration = EpiIntegration::new(
             egui_ctx.clone(),
             &window,
@@ -518,16 +525,33 @@ impl WinitApp for WgpuWinitApp<'_> {
             let mut shared = running.shared.borrow_mut();
             let focused_viewport = shared.focused_viewport;
             let viewports = &mut shared.viewports;
-            if let Some(window_id) = focused_viewport
-                .and_then(|id| viewports.get_mut(&id))
-                .and_then(|viewport| viewport.on_mouse_motion(delta))
-                .or_else(|| {
+            // Pick the viewport before recording the delta. A software adapter
+            // drops hover motion here. Recording it first would still queue a
+            // `MouseMoved` that the next real frame has to shade.
+            let viewport_id = focused_viewport
+                .filter(|id| {
                     viewports
-                        .values_mut()
-                        .find_map(|viewport| viewport.on_mouse_motion(delta))
+                        .get(id)
+                        .is_some_and(Viewport::accepts_mouse_motion)
                 })
+                .or_else(|| {
+                    viewports.iter().find_map(|(id, viewport)| {
+                        viewport.accepts_mouse_motion().then_some(*id)
+                    })
+                });
+            if let Some(viewport_id) = viewport_id
+                && let Some(viewport) = viewports.get_mut(&viewport_id)
             {
-                return Ok(EventResult::RepaintNext(window_id));
+                if viewport
+                    .egui_winit
+                    .as_ref()
+                    .is_some_and(egui_winit::State::suppress_pointer_navigation_repaint)
+                {
+                    return Ok(EventResult::Wait);
+                }
+                if let Some(window_id) = viewport.on_mouse_motion(delta) {
+                    return Ok(EventResult::RepaintNext(window_id));
+                }
             }
         }
 
@@ -1074,6 +1098,16 @@ impl WgpuWinitRunning<'_> {
 }
 
 impl Viewport {
+    /// The pointer is over this viewport, or a button is held for a drag that
+    /// started here. Does not record the delta.
+    fn accepts_mouse_motion(&self) -> bool {
+        let Some(egui_winit) = self.egui_winit.as_ref() else {
+            return false;
+        };
+        self.window.is_some()
+            && (egui_winit.is_pointer_in_window() || egui_winit.is_any_pointer_button_down())
+    }
+
     /// Forward raw mouse motion to egui.
     ///
     /// Returns the window to repaint if the event was used.

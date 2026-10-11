@@ -101,6 +101,10 @@ pub struct State {
     modifiers: egui::Modifiers,
 
     pointer_pos_in_points: Option<egui::Pos2>,
+    /// Pressed buttons, including a press that arrived before the cursor
+    /// entered the window. `any_pointer_button_down` stays limited to the
+    /// touch-simulation path.
+    pointer_buttons_held: u32,
     any_pointer_button_down: bool,
     current_cursor_icon: Option<egui::CursorIcon>,
 
@@ -181,6 +185,7 @@ impl State {
             egui_input,
             modifiers: egui::Modifiers::default(),
             pointer_pos_in_points: None,
+            pointer_buttons_held: 0,
             any_pointer_button_down: false,
             current_cursor_icon: None,
             current_custom_cursor: None,
@@ -408,7 +413,9 @@ impl State {
             WindowEvent::CursorMoved { position, .. } => {
                 self.on_cursor_moved(window, *position);
                 EventResponse {
-                    repaint: true,
+                    // A software rasterizer spends the whole frame shading
+                    // hover that nothing clicked. Drags still repaint.
+                    repaint: !self.suppress_pointer_navigation_repaint(),
                     consumed: self.egui_ctx.egui_is_using_pointer(),
                 }
             }
@@ -857,6 +864,14 @@ impl State {
         self.any_pointer_button_down
     }
 
+    /// Skip scheduling a frame for this pointer move.
+    ///
+    /// Only when the integration has marked the adapter as software and no
+    /// button is held. The move is still recorded for the next real frame.
+    pub fn suppress_pointer_navigation_repaint(&self) -> bool {
+        self.egui_ctx.is_software_adapter() && self.pointer_buttons_held == 0
+    }
+
     /// Call this when there is a new [`accesskit::ActionRequest`].
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
@@ -872,6 +887,15 @@ impl State {
         state: winit::event::ElementState,
         button: winit::event::MouseButton,
     ) {
+        match state {
+            winit::event::ElementState::Pressed => {
+                self.pointer_buttons_held = self.pointer_buttons_held.saturating_add(1);
+            }
+            winit::event::ElementState::Released => {
+                self.pointer_buttons_held = self.pointer_buttons_held.saturating_sub(1);
+            }
+        }
+
         if let Some(pos) = self.pointer_pos_in_points
             && let Some(button) = translate_mouse_button(button)
         {
@@ -951,9 +975,17 @@ impl State {
                 });
             }
         } else {
-            self.egui_input
-                .events
-                .push(egui::Event::PointerMoved(pos_in_points));
+            let moved = egui::Event::PointerMoved(pos_in_points);
+            // Hover with no frame scheduled would otherwise queue one event
+            // per winit sample until the next click.
+            if self.suppress_pointer_navigation_repaint()
+                && let Some(slot) = self.egui_input.events.last_mut()
+                && matches!(slot, egui::Event::PointerMoved(_))
+            {
+                *slot = moved;
+            } else {
+                self.egui_input.events.push(moved);
+            }
         }
     }
 

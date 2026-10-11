@@ -451,12 +451,33 @@ pub fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wg
 
 // ---------------------------------------------------------------------------
 
+/// `true` when this adapter is a software rasterizer.
+///
+/// `DeviceType::Cpu` is the signal wgpu gives us. The name and driver
+/// checks catch WARP and llvmpipe when the reported device type is wrong.
+pub fn adapter_is_software(info: &wgpu::AdapterInfo) -> bool {
+    if info.device_type == wgpu::DeviceType::Cpu {
+        return true;
+    }
+
+    fn looks_like_software(value: &str) -> bool {
+        let value = value.to_ascii_lowercase();
+        value.contains("warp")
+            || value.contains("llvmpipe")
+            || value.contains("microsoft basic render")
+    }
+
+    looks_like_software(&info.name)
+        || looks_like_software(&info.driver)
+        || looks_like_software(&info.driver_info)
+}
+
 fn log_adapter_info(info: &wgpu::AdapterInfo) {
     let summary = adapter_info_summary(info);
 
     let is_test = cfg!(test); // Software rasterizers are expected (and preferred) during testing!
 
-    if info.device_type == wgpu::DeviceType::Cpu && !is_test {
+    if adapter_is_software(info) && !is_test {
         log::warn!("Software rasterizer detected - loss of performance expected. {summary}");
     } else {
         log::debug!("wgpu adapter: {summary}");

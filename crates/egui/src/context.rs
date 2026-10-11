@@ -450,6 +450,10 @@ struct ContextImpl {
 
     is_accesskit_enabled: bool,
 
+    /// Set by the integration when the wgpu adapter is a software rasterizer.
+    /// Pointer-move repaints can then be skipped. Real GPUs leave this false.
+    software_adapter: bool,
+
     loaders: Arc<Loaders>,
 
     themes: theme::Themes,
@@ -507,7 +511,7 @@ impl ContextImpl {
             pixels_per_point,
             self.memory.options.input_options,
         );
-        let repaint_after = viewport.input.wants_repaint_after();
+        let repaint_after = viewport.input.wants_repaint_after(self.software_adapter);
 
         let content_rect = viewport.input.content_rect();
 
@@ -4238,6 +4242,20 @@ impl Context {
     /// Disable generation of AccessKit tree updates in all future frames.
     pub fn disable_accesskit(&self) {
         self.write(|ctx| ctx.is_accesskit_enabled = false);
+    }
+
+    /// Record that the current wgpu adapter is a software rasterizer.
+    ///
+    /// Integrations call this once, after adapter selection. While it is set,
+    /// `egui-winit` does not schedule a frame for a pointer move with no
+    /// button held. Clicks, drags, and every other event still repaint.
+    pub fn set_software_adapter(&self, software_adapter: bool) {
+        self.write(|ctx| ctx.software_adapter = software_adapter);
+    }
+
+    /// `true` after [`Self::set_software_adapter`]`(true)`.
+    pub fn is_software_adapter(&self) -> bool {
+        self.read(|ctx| ctx.software_adapter)
     }
 }
 

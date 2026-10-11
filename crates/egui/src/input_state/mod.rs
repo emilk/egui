@@ -672,10 +672,19 @@ impl InputState {
     /// NOTE: It's important to call this immediately after [`Self::begin_pass`] since calls to
     /// [`Self::consume_key`] will remove events from the vec, meaning those key presses wouldn't
     /// cause a repaint.
-    pub(crate) fn wants_repaint_after(&self) -> Option<Duration> {
-        if self.pointer.wants_repaint()
+    pub(crate) fn wants_repaint_after(&self, software_adapter: bool) -> Option<Duration> {
+        // A software rasterizer pays a full frame for every hover sample.
+        // The move is already stored on the pointer. Do not use it to
+        // schedule the next frame. A held button, a click, a key, or a
+        // wheel delta still does.
+        let hover_move_only = software_adapter && self.pointer.hover_move_only();
+        let notable_event = self.events.iter().any(|event| {
+            !(hover_move_only && matches!(event, Event::PointerMoved(_) | Event::MouseMoved(_)))
+        });
+
+        if (!hover_move_only && self.pointer.wants_repaint())
             || self.wheel.unprocessed_wheel_delta.abs().max_elem() > 0.2
-            || !self.events.is_empty()
+            || notable_event
             || !self.raw.hovered_files.is_empty()
             || !self.raw.dropped_files.is_empty()
         {
@@ -1269,6 +1278,16 @@ impl PointerState {
         !self.pointer_events.is_empty() || self.delta != Vec2::ZERO
     }
 
+    /// Pointer samples with no button down. A press, release, or held button
+    /// is not this, so those still schedule a frame.
+    fn hover_move_only(&self) -> bool {
+        !self.any_down()
+            && self
+                .pointer_events
+                .iter()
+                .all(|event| matches!(event, PointerEvent::Moved(_)))
+    }
+
     /// How much the pointer moved compared to last frame, in points.
     #[inline(always)]
     pub fn delta(&self) -> Vec2 {
@@ -1750,5 +1769,75 @@ impl PointerState {
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
         ui.label(format!("last_move_time: {last_move_time:#?}"));
         ui.label(format!("pointer_events: {pointer_events:?}"));
+    }
+}
+
+#[cfg(test)]
+mod software_adapter_repaint {
+    use super::*;
+    use crate::{Modifiers, MouseWheelUnit, PointerButton, TouchPhase, emath::pos2, vec2};
+
+    fn pass(previous: InputState, events: Vec<Event>) -> InputState {
+        let mut raw = RawInput::default();
+        raw.time = Some(previous.time + raw.predicted_dt as f64);
+        raw.events = events;
+        previous.begin_pass(raw, false, 1.0, InputOptions::default())
+    }
+
+    fn moved(at: f32) -> Event {
+        Event::PointerMoved(pos2(at, 2.0))
+    }
+
+    fn press() -> Event {
+        Event::PointerButton {
+            pos: pos2(1.0, 2.0),
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::default(),
+        }
+    }
+
+    #[test]
+    fn hover_move_does_not_schedule_a_frame_on_a_software_adapter() {
+        let hover = pass(InputState::default(), vec![moved(10.0)]);
+
+        assert_eq!(hover.pointer.latest_pos(), Some(pos2(10.0, 2.0)));
+        assert_eq!(hover.wants_repaint_after(false), Some(Duration::ZERO));
+        assert_eq!(hover.wants_repaint_after(true), None);
+    }
+
+    #[test]
+    fn held_button_move_still_schedules_a_frame_on_a_software_adapter() {
+        let pressed = pass(InputState::default(), vec![press()]);
+        let dragging = pass(pressed, vec![moved(8.0)]);
+
+        assert_eq!(dragging.wants_repaint_after(true), Some(Duration::ZERO));
+        assert_eq!(dragging.pointer.latest_pos(), Some(pos2(8.0, 2.0)));
+    }
+
+    #[test]
+    fn key_and_wheel_still_schedule_a_frame_on_a_software_adapter() {
+        let key = pass(
+            InputState::default(),
+            vec![Event::Key {
+                key: Key::ArrowDown,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: Modifiers::default(),
+            }],
+        );
+        assert_eq!(key.wants_repaint_after(true), Some(Duration::ZERO));
+
+        let wheel = pass(
+            InputState::default(),
+            vec![Event::MouseWheel {
+                unit: MouseWheelUnit::Point,
+                delta: vec2(0.0, 20.0),
+                phase: TouchPhase::Move,
+                modifiers: Modifiers::default(),
+            }],
+        );
+        assert_eq!(wheel.wants_repaint_after(true), Some(Duration::ZERO));
     }
 }
