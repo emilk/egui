@@ -103,7 +103,7 @@ fn highlight_inner(
     // Dummy private settings, to minimize code changes without `syntect`
     #[cfg(not(feature = "syntect"))]
     #[derive(Clone, Default)]
-    struct PrivateSettings(std::sync::Arc<()>);
+    struct PrivateSettings(alloc::sync::Arc<()>);
 
     ctx.memory_mut(|mem| {
         let settings = settings.unwrap_or_else(|| {
@@ -729,7 +729,7 @@ struct Language {
     /// If true, `keywords` must be lowercase.
     case_insensitive_keywords: bool,
 
-    keywords: std::collections::BTreeSet<&'static str>,
+    keywords: alloc::collections::BTreeSet<&'static str>,
 }
 
 #[cfg(not(feature = "syntect"))]
