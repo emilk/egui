@@ -1,5 +1,5 @@
+use alloc::borrow::Cow;
 use core::ops::Range;
-use std::borrow::Cow;
 
 use epaint::{
     Galley,

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 #[expect(unused_imports)] // Used for doclinks
 use crate::Ui;

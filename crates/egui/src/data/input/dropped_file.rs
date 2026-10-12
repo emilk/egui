@@ -1,4 +1,5 @@
-use std::{path::Path, sync::Arc};
+use alloc::sync::Arc;
+use std::path::Path;
 
 #[cfg(target_arch = "wasm32")]
 use core::{future::Future, pin::Pin};

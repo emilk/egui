@@ -2,7 +2,7 @@ use ecolor::linear_f32_from_linear_u8;
 use emath::Vec2;
 
 use crate::{Color32, textures::TextureOptions};
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 /// An image stored in RAM.
 ///

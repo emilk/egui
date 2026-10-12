@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 /// How to select a sized font.
 #[derive(Clone, Debug, PartialEq)]

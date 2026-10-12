@@ -32,7 +32,7 @@ pub enum Event {
     /// that supports copying an image out (via `arboard`, say) should support pasting one back
     /// in the same way. Only emitted when the clipboard has no usable text representation —
     /// [`Self::Paste`] still takes priority when both are available.
-    PasteImage(std::sync::Arc<ColorImage>),
+    PasteImage(alloc::sync::Arc<ColorImage>),
 
     /// Paste the X11/Wayland PRIMARY selection where the user middle-clicked.
     ///

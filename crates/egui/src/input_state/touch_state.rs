@@ -1,5 +1,5 @@
+use alloc::collections::BTreeMap;
 use core::fmt::Debug;
-use std::collections::BTreeMap;
 
 use crate::{
     Event, RawInput, TouchId, TouchPhase,

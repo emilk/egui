@@ -1,6 +1,6 @@
 use crate::class::{ClassName, HasClasses};
+use alloc::fmt;
 use smallvec::SmallVec;
-use std::fmt;
 
 /// [`Classes`] is a collection of [`ClassName`]s that can be added to widgets or containers.
 ///
