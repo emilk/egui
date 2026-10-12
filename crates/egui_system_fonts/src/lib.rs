@@ -121,14 +121,16 @@ impl FontProvider for SystemFontProvider {
             // So if it can't render the char, try the other locales of the script:
             // TODO(https://github.com/linebender/parley/issues/644): remove `other_locales`
             // once fontique falls back per char (https://github.com/linebender/parley/pull/689).
-            core::iter::once(self.locale.as_ref())
-                .chain(other_locales(script).iter().map(Some))
-                .find_map(|locale| {
-                    let mut query = collection.query(source_cache);
-                    query.set_families([QueryFamily::Generic(generic)]);
-                    query.set_fallbacks(fallback_key(script, locale));
-                    find_font(&mut query, base_char)
-                })
+            core::iter::chain(
+                [self.locale.as_ref()],
+                other_locales(script).iter().map(Some),
+            )
+            .find_map(|locale| {
+                let mut query = collection.query(source_cache);
+                query.set_families([QueryFamily::Generic(generic)]);
+                query.set_fallbacks(fallback_key(script, locale));
+                find_font(&mut query, base_char)
+            })
         } else {
             // Punctuation, symbols, emoji, etc. belong to no script, so there is no fallback for them.
             // Try the generic families instead.
