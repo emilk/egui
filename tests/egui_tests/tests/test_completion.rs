@@ -275,7 +275,11 @@ fn clicking_a_suggestion_with_cursor_mid_text() {
         harness.key_press(Key::ArrowLeft);
         harness.key_press(Key::ArrowLeft);
         harness.run();
-        assert_eq!(cursor(&harness), Some("/gr".len()), "{surrender_focus_on:?}");
+        assert_eq!(
+            cursor(&harness),
+            Some("/gr".len()),
+            "{surrender_focus_on:?}"
+        );
         assert!(harness.state().popup_open, "{surrender_focus_on:?}");
 
         harness.get_by_label("/grill-with-docs ").click();
