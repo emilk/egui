@@ -61,7 +61,7 @@ type ColorPickerFn = Box<dyn Send + Sync + Fn(usize, &Style) -> Option<Color32>>
 
 pub(crate) struct GridLayout {
     ctx: Context,
-    style: alloc::sync::Arc<Style>,
+    style: Arc<Style>,
     id: Id,
 
     /// First frame (no previous know state).

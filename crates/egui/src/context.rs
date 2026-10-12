@@ -4556,7 +4556,7 @@ impl Context {
     /// This doesn't request a new frame when the data arrives. Call `ctx.request_repaint` if needed.
     pub fn request_screenshot(
         &self,
-        callback: impl FnOnce(alloc::sync::Arc<crate::ColorImage>) + Send + 'static,
+        callback: impl FnOnce(Arc<crate::ColorImage>) + Send + 'static,
     ) {
         self.send_viewport_cmd(ViewportCommand::Screenshot(crate::ScreenshotCallback::new(
             callback,
