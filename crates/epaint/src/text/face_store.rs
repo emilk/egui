@@ -1,5 +1,5 @@
+use alloc::sync::Arc;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 
 use nohash_hasher::IntMap;
 

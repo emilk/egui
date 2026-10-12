@@ -1,5 +1,5 @@
+use alloc::{borrow::Cow, sync::Arc};
 use core::{slice::Iter, time::Duration};
-use std::{borrow::Cow, sync::Arc};
 
 use emath::{Align, Float as _, GuiRounding as _, NumExt as _, Rot2};
 use epaint::{

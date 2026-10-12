@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use crate::text::{
     FontFamily, FontInsert, FontPriority, InsertFontFamily,
@@ -157,7 +157,7 @@ impl FontProviders {
 #[cfg(feature = "default_fonts")]
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use alloc::sync::Arc;
 
     use epaint_default_fonts::{HACK_REGULAR, UBUNTU_LIGHT};
 

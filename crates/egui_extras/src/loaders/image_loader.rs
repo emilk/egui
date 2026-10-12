@@ -1,10 +1,11 @@
+use alloc::sync::Arc;
 use core::{mem::size_of, task::Poll};
 use egui::{
     ColorImage, decode_animated_image_uri,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
 };
 use image::ImageFormat;
-use std::{ffi::OsStr, path::Path, sync::Arc};
+use std::{ffi::OsStr, path::Path};
 
 use super::background_decode::DecodeCache;
 

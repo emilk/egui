@@ -1,7 +1,7 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
+use alloc::{borrow::Cow, sync::Arc};
 use core::{cell::RefCell, panic::Location, time::Duration};
-use std::{borrow::Cow, sync::Arc};
 
 use emath::GuiRounding as _;
 use epaint::{
@@ -4556,7 +4556,7 @@ impl Context {
     /// This doesn't request a new frame when the data arrives. Call `ctx.request_repaint` if needed.
     pub fn request_screenshot(
         &self,
-        callback: impl FnOnce(std::sync::Arc<crate::ColorImage>) + Send + 'static,
+        callback: impl FnOnce(Arc<crate::ColorImage>) + Send + 'static,
     ) {
         self.send_viewport_cmd(ViewportCommand::Screenshot(crate::ScreenshotCallback::new(
             callback,
@@ -4831,7 +4831,7 @@ fn warn_if_rect_changes_id(
 ) {
     profiling::function_scope!();
 
-    use std::collections::BTreeMap;
+    use alloc::collections::BTreeMap;
 
     /// A wrapper around [`Rect`] that implements [`Ord`] using the bit representation of its floats.
     #[derive(Clone, Copy, PartialEq, Eq)]
@@ -5228,8 +5228,8 @@ mod test {
 
     #[test]
     fn test_repaint_observer_sees_every_request() {
+        use alloc::sync::Arc;
         use core::time::Duration;
-        use std::sync::Arc;
 
         use crate::mutex::Mutex;
 

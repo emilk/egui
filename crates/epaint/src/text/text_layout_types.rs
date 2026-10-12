@@ -1,5 +1,5 @@
+use alloc::sync::Arc;
 use core::{ops::Range, str::FromStr as _};
-use std::sync::Arc;
 
 use super::{
     cursor::{CCursor, LayoutCursor},

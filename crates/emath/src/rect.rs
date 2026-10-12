@@ -1,4 +1,4 @@
-use std::fmt;
+use alloc::fmt;
 
 use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, fast_midpoint, lerp, pos2, vec2};
 use core::ops::{BitOr, BitOrAssign};

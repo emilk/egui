@@ -1,12 +1,12 @@
 //! egui theme (spacing, colors, etc).
 
+use alloc::{collections::BTreeMap, sync::Arc};
 use core::ops::RangeInclusive;
 use emath::Align;
 use epaint::{
     CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
     text::{FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
 };
-use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{
     ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
@@ -91,7 +91,7 @@ pub enum TextStyle {
     /// ```
     /// egui::TextStyle::Name("footing".into());
     /// ````
-    Name(std::sync::Arc<str>),
+    Name(alloc::sync::Arc<str>),
 }
 
 impl core::fmt::Display for TextStyle {

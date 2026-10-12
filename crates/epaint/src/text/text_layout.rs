@@ -1,7 +1,7 @@
 #![expect(clippy::unwrap_used)] // TODO(emilk): remove unwraps
 
+use alloc::sync::Arc;
 use core::{iter, ops::Range};
-use std::sync::Arc;
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
 
@@ -1609,8 +1609,8 @@ fn shape_text(
 
 #[cfg(test)]
 mod tests {
+    use alloc::sync::Arc;
     use core::iter;
-    use std::sync::Arc;
 
     use super::{super::*, *};
     use crate::{ColorImage, text::cursor::CCursor};

@@ -1,8 +1,8 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![expect(clippy::use_self)]
 
+use alloc::sync::Arc;
 use core::{any::Any, ops::Deref};
-use std::sync::Arc;
 
 use crate::containers::menu;
 use crate::{IdSource, containers::*, ecolor::*, layout::*, placer::Placer, widgets::*, *};
