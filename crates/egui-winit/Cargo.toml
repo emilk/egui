@@ -55,7 +55,7 @@ serde = ["egui/serde", "dep:serde"]
 wayland = ["winit/wayland", "bytemuck", "arboard?/wayland-data-control"]
 
 ## Enables compiling for x11.
-x11 = ["winit/x11", "bytemuck"]
+x11 = ["winit/x11", "winit/rwh_06", "bytemuck"]
 
 [dependencies]
 egui = { workspace = true, default-features = false }

@@ -127,7 +127,7 @@ impl WindowSettings {
         if self.fullscreen && cfg!(target_os = "macos") {
             // Mac only enters fullscreen once the window is visible, animating from its current frame.
             // Maximize so the first frame fills the screen,
-            // and enter fullscreen in `enter_deferred_fullscreen`.
+            // and enter fullscreen in `before_first_show`.
             window.set_maximized(true);
         } else if self.fullscreen {
             window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
@@ -136,18 +136,27 @@ impl WindowSettings {
         }
     }
 
-    /// Should [`Self::enter_deferred_fullscreen`] be called once the first frame is painted?
-    pub fn enter_fullscreen_after_first_frame(&self) -> bool {
-        cfg!(target_os = "macos") && self.fullscreen
+    /// Call once the first frame is painted, right before showing the window.
+    pub fn before_first_show(&self, window: &winit::window::Window) {
+        if cfg!(target_os = "macos") && self.fullscreen {
+            // Enter the fullscreen deferred by `initialize_window`.
+            // Un-maximize first, so the window leaves fullscreen to its normal frame:
+            window.set_maximized(false);
+            window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+        }
     }
 
-    /// Enter the fullscreen deferred by [`Self::initialize_viewport_builder`].
-    ///
-    /// Call once the first frame is painted, before showing the window.
-    pub fn enter_deferred_fullscreen(window: &winit::window::Window) {
-        // Un-maximize first, so the window leaves fullscreen to its normal frame:
-        window.set_maximized(false);
-        window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+    /// Call right after showing the window for the first time.
+    pub fn after_first_show(&self, window: &winit::window::Window) {
+        // X11 window managers ignore maximize and fullscreen requests for hidden windows,
+        // so the ones from `initialize_viewport_builder` are lost:
+        if is_x11(window) {
+            if self.fullscreen {
+                window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+            } else if self.maximized {
+                window.set_maximized(true);
+            }
+        }
     }
 
     pub fn clamp_size_to_sane_values(&mut self, largest_monitor_size_points: egui::Vec2) {
@@ -199,6 +208,20 @@ impl WindowSettings {
             geometry.outer_position_pixels = Some(pos_px);
         }
     }
+}
+
+#[cfg(feature = "x11")]
+fn is_x11(window: &winit::window::Window) -> bool {
+    use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
+    matches!(
+        window.window_handle().map(|h| h.as_raw()),
+        Ok(RawWindowHandle::Xlib(_) | RawWindowHandle::Xcb(_))
+    )
+}
+
+#[cfg(not(feature = "x11"))]
+fn is_x11(_window: &winit::window::Window) -> bool {
+    false
 }
 
 fn find_active_monitor(

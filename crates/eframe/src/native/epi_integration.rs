@@ -196,8 +196,8 @@ pub struct EpiIntegration {
     #[cfg(feature = "persistence")]
     persist_window: bool,
 
-    /// See [`WindowSettings::enter_fullscreen_after_first_frame`].
-    enter_fullscreen_after_first_frame: bool,
+    /// Settings the root window was restored with, for the parts applied when it is first shown.
+    restored_window_settings: Option<WindowSettings>,
 
     /// Normal (non-maximized) geometry of the root window, as last saved.
     #[cfg(feature = "persistence")]
@@ -264,11 +264,9 @@ impl EpiIntegration {
             });
         }
 
-        let window_settings = load_window_settings(frame.storage());
-        let enter_fullscreen_after_first_frame =
-            window_settings.is_some_and(|settings| settings.enter_fullscreen_after_first_frame());
+        let restored_window_settings = load_window_settings(frame.storage());
         #[cfg(feature = "persistence")]
-        let normal_geometry = window_settings
+        let normal_geometry = restored_window_settings
             .map(|settings| settings.normal_geometry())
             .or_else(|| {
                 // Nothing saved yet, so use the window's own geometry, unless it starts maximized:
@@ -286,7 +284,7 @@ impl EpiIntegration {
             can_drag_window: false,
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
-            enter_fullscreen_after_first_frame,
+            restored_window_settings,
             #[cfg(feature = "persistence")]
             normal_geometry,
             app_icon_setter,
@@ -443,11 +441,14 @@ impl EpiIntegration {
     pub fn post_rendering(&mut self, window: &winit::window::Window) {
         profiling::function_scope!();
         if core::mem::take(&mut self.is_first_frame) {
-            if self.enter_fullscreen_after_first_frame {
-                WindowSettings::enter_deferred_fullscreen(window);
+            if let Some(window_settings) = &self.restored_window_settings {
+                window_settings.before_first_show(window);
             }
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
+            if let Some(window_settings) = &self.restored_window_settings {
+                window_settings.after_first_show(window);
+            }
         }
     }
 
