@@ -1,5 +1,5 @@
+use alloc::fmt;
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
-use std::fmt;
 
 use crate::Vec2b;
 

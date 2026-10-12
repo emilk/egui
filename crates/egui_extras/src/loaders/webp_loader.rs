@@ -1,10 +1,11 @@
+use alloc::sync::Arc;
 use core::{mem::size_of, task::Poll, time::Duration};
 use egui::{
     ColorImage, FrameDurations, Id, decode_animated_image_uri, has_webp_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
 };
 use image::{AnimationDecoder as _, ColorType, ImageDecoder as _, Rgba, codecs::webp::WebPDecoder};
-use std::{io::Cursor, sync::Arc};
+use std::io::Cursor;
 
 use super::background_decode::DecodeCache;
 

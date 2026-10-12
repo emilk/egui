@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use emath::Rangef;
 
@@ -145,6 +145,6 @@ mod blob_serde {
         deserializer: D,
     ) -> Result<Blob, D::Error> {
         let bytes: Vec<u8> = serde::Deserialize::deserialize(deserializer)?;
-        Ok(std::sync::Arc::new(bytes))
+        Ok(alloc::sync::Arc::new(bytes))
     }
 }

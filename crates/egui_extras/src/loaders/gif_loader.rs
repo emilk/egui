@@ -1,4 +1,5 @@
 use ahash::HashMap;
+use alloc::sync::Arc;
 use core::{mem::size_of, time::Duration};
 use egui::{
     ColorImage, FrameDurations, Id, decode_animated_image_uri, has_gif_magic_header,
@@ -6,7 +7,7 @@ use egui::{
     mutex::Mutex,
 };
 use image::AnimationDecoder as _;
-use std::{io::Cursor, sync::Arc};
+use std::io::Cursor;
 
 /// Array of Frames and the duration for how long each frame should be shown
 #[derive(Debug, Clone)]

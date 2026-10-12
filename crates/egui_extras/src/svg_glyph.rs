@@ -1,6 +1,6 @@
 //! Render text glyphs from SVG files. See [`SvgGlyph`].
 
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use egui::{
     Color32, ColorImage, FontPriority, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest,

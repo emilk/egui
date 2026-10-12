@@ -98,7 +98,7 @@ fn highlight_inner(
     // Private type, so that users can't interfere with it in the `IdTypeMap`
     #[cfg(feature = "syntect")]
     #[derive(Clone, Default)]
-    struct PrivateSettings(std::sync::Arc<SyntectSettings>);
+    struct PrivateSettings(alloc::sync::Arc<SyntectSettings>);
 
     // Dummy private settings, to minimize code changes without `syntect`
     #[cfg(not(feature = "syntect"))]

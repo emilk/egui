@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use emath::GuiRounding as _;
 
@@ -61,7 +61,7 @@ type ColorPickerFn = Box<dyn Send + Sync + Fn(usize, &Style) -> Option<Color32>>
 
 pub(crate) struct GridLayout {
     ctx: Context,
-    style: std::sync::Arc<Style>,
+    style: alloc::sync::Arc<Style>,
     id: Id,
 
     /// First frame (no previous know state).
