@@ -1,6 +1,7 @@
 use egui::ViewportBuilder;
 
-/// Mac and Windows place the window exactly in [`WindowSettings::initialize_window`].
+/// On Mac and Windows, [`WindowSettings::initialize_window`] moves the window to its saved position
+/// after it is created, and only then maximizes it or makes it fullscreen.
 const PLACE_AFTER_CREATION: bool = cfg!(any(target_os = "macos", target_os = "windows"));
 
 /// Position and size of a native window.
@@ -83,7 +84,9 @@ impl WindowSettings {
         let geometry = &self.normal_geometry;
 
         if let Some(pos) = geometry.outer_position_pixels {
-            // This only places the window roughly, so `initialize_window` moves it again.
+            // On Windows, winit converts this back to pixels with the scale factor of the monitor
+            // the window is created on, which can differ from `geometry.scale_factor`.
+            // So on Mac and Windows, `initialize_window` sets the saved position again.
             viewport_builder =
                 viewport_builder.with_position(pos / (egui_zoom_factor * geometry.scale_factor));
         }
@@ -107,8 +110,11 @@ impl WindowSettings {
             return;
         }
 
-        // `WindowBuilder::with_position` only places the window roughly, since winit converts
-        // points with a different scale factor than we saved with. So move it exactly:
+        // The position from `initialize_viewport_builder` can be off:
+        // on Windows, winit converts it to pixels with the scale factor of the monitor the window
+        // was created on, not the one we saved it on.
+        // On Mac, windows were sometimes not restored onto secondary monitors from it alone.
+        // So set the saved position directly, in the unit each platform positions windows in:
         let geometry = &self.normal_geometry;
         if let Some(pos) = geometry.outer_position_pixels {
             if cfg!(target_os = "macos") {
