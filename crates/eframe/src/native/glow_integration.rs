@@ -1031,6 +1031,13 @@ impl GlowWinitRunning<'_> {
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
+                // The event can be stale: winit buffers events emitted while we create and set up
+                // the window (e.g. maximize it), so it can arrive after the window has changed size again.
+                let physical_size = &viewport_id
+                    .and_then(|id| glutin.viewports.get(&id))
+                    .and_then(|viewport| viewport.window.as_ref())
+                    .map_or(*physical_size, |window| window.inner_size());
+
                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                 // See: https://github.com/rust-windowing/winit/issues/208
                 // This solves an issue where the app would panic when minimizing on Windows.
