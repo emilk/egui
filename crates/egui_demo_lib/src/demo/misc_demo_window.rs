@@ -726,12 +726,11 @@ fn ui_stack_demo(ui: &mut Ui) {
 /// On native, eframe looks for these glyphs among the system fonts.
 /// On web, the browser draws them.
 fn system_font_fallback_demo(ui: &mut Ui) {
-    ui.label("Glyphs that no font has are drawn as tofu (□).");
+    ui.label("Some non-latin chars to test font fallback:");
     egui::Grid::new("system_font_fallback")
         .num_columns(2)
         .show(ui, |ui| {
             for (language, sample) in [
-                // Many Simplified Chinese characters, like 这 and 还, are missing from Japanese fonts:
                 ("Simplified Chinese", "这些字体还能显示吗？"),
                 ("Traditional Chinese", "這些字體還能顯示嗎？"),
                 ("Japanese", "ひらがな、カタカナ、漢字"),
