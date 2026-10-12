@@ -792,10 +792,10 @@ fn text_edit_set_value_respects_char_limit() {
 
     harness
         .get_by_role(Role::TextInput)
-        .set_text_value_accesskit("hello");
+        .set_text_value_accesskit("abcdef");
     harness.run();
 
-    assert_eq!(harness.state(), "hel");
+    assert_eq!(harness.state(), "abc");
 }
 
 #[test]
