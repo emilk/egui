@@ -282,6 +282,8 @@ fn layout_shaped_run(
         // never between glyphs within the same cluster (e.g. base + mark).
         let is_new_cluster = ctx.prev_cluster.is_none_or(|pc| pc != cluster);
         if is_new_cluster {
+            // The face's `trak` tracking, on every cluster, as CoreText applies it.
+            advance_width_px += face_metrics.tracking_units * px_scale;
             if ctx.prev_cluster.is_some() {
                 emit_continuation_glyphs(
                     ctx,
@@ -598,7 +600,14 @@ fn layout_section(
                 flags |= harfrust::BufferFlags::END_OF_TEXT;
             }
 
-            let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
+            let glyph_buffer = shape_text(
+                font_face,
+                run_text,
+                font_size,
+                &format.coords,
+                shape_buffer,
+                flags,
+            );
 
             layout_shaped_run(
                 fonts,
@@ -1572,6 +1581,7 @@ fn segment_into_runs(
 fn shape_text(
     font_face: &FontFace,
     text: &str,
+    font_size: f32,
     coords: &VariationCoords,
     mut buffer: harfrust::UnicodeBuffer,
     flags: harfrust::BufferFlags,
@@ -1580,7 +1590,13 @@ fn shape_text(
     let tweak = font_face.tweak();
 
     // Build shaper with variable font instance if variation coordinates are set.
-    let variations: Vec<harfrust::Variation> = iter::chain(tweak.coords.as_ref(), coords.as_ref())
+    // The automatic optical size first, as in `FontFace::styled_metrics`: the shaper's advances
+    // must come from the same instance the glyphs are drawn at.
+    let auto_opsz = font_face.auto_opsz(font_size, coords);
+    let variations: Vec<harfrust::Variation> = auto_opsz
+        .iter()
+        .chain(tweak.coords.as_ref())
+        .chain(coords.as_ref())
         .map(|&(tag, value)| harfrust::Variation { tag, value })
         .collect();
 
