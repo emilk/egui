@@ -1667,8 +1667,16 @@ impl Ui {
         //
         // Make sure we keep the same main direction since it changes e.g. how text is wrapped:
         let layout = Layout::centered_and_justified(self.layout().main_dir());
-        self.allocate_ui_with_layout(max_size.into(), layout, |ui| ui.add(widget))
-            .inner
+        self.allocate_ui_with_layout(max_size.into(), layout, |ui| {
+            let cross_axis = usize::from(layout.is_horizontal());
+            if ui.is_sizing_pass() && ui.max_rect().size()[cross_axis].is_finite() {
+                // This child is still empty. Preserve the explicit size during measurement,
+                // even though new_child normally removes cross justification in sizing passes.
+                ui.placer = Placer::new(ui.max_rect(), layout);
+            }
+            ui.add(widget)
+        })
+        .inner
     }
 
     /// Add a [`Widget`] to this [`Ui`] at a specific location (manual layout) without
