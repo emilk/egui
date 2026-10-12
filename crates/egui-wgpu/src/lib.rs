@@ -78,6 +78,20 @@ pub struct SurfaceConfig {
     ///
     /// `None` => Let `wgpu` pick a default (currently `2`).
     pub desired_maximum_frame_latency: Option<u32>,
+
+    /// Prefer an HDR surface.
+    ///
+    /// When `true` and the surface offers [`wgpu::TextureFormat::Rgba16Float`] in the extended
+    /// linear sRGB color space (scRGB: `1.0` is SDR white, larger values are brighter), that becomes
+    /// the [`RenderState::target_format`] (see [`preferred_hdr_framebuffer_format`]). egui itself
+    /// keeps drawing at SDR white, so the UI looks the same as on an 8-bit surface; apps can paint
+    /// values above `1.0` (e.g. in a [`Callback`]) to show HDR content on HDR displays.
+    ///
+    /// When the surface doesn't offer it (SDR displays, platforms without HDR support), the
+    /// usual 8-bit format is used.
+    ///
+    /// Default: `false`.
+    pub prefer_hdr: bool,
 }
 
 impl SurfaceConfig {
@@ -90,6 +104,7 @@ impl SurfaceConfig {
         } else {
             Some(1)
         },
+        prefer_hdr: false,
     };
 
     /// Good default for GUIs with a lot of extra GPU work,
@@ -97,6 +112,7 @@ impl SurfaceConfig {
     pub const HIGH_THROUGHPUT: Self = Self {
         present_mode: wgpu::PresentMode::AutoVsync,
         desired_maximum_frame_latency: Some(2), // High-throughput.
+        prefer_hdr: false,
     };
 }
 
@@ -261,14 +277,25 @@ impl RenderState {
 
         log_adapter_info(&adapter.get_info());
 
-        let surface_formats = {
+        let capabilities = {
             profiling::scope!("get_capabilities");
-            compatible_surface.map_or_else(
-                || vec![wgpu::TextureFormat::Rgba8Unorm],
-                |s| s.get_capabilities(&adapter).formats,
-            )
+            compatible_surface.map(|s| s.get_capabilities(&adapter))
         };
-        let target_format = crate::preferred_framebuffer_format(&surface_formats)?;
+        let surface_formats = capabilities.as_ref().map_or_else(
+            || vec![wgpu::TextureFormat::Rgba8Unorm],
+            |c| c.formats.clone(),
+        );
+        let hdr_format = if config.surface.prefer_hdr {
+            capabilities
+                .as_ref()
+                .and_then(crate::preferred_hdr_framebuffer_format)
+        } else {
+            None
+        };
+        let target_format = match hdr_format {
+            Some(format) => format,
+            None => crate::preferred_framebuffer_format(&surface_formats)?,
+        };
 
         let renderer = Renderer::new(&device, target_format, options);
 
@@ -436,6 +463,22 @@ pub fn preferred_framebuffer_format(
         .ok_or(WgpuError::NoSurfaceFormatsAvailable)
 }
 
+/// The HDR framebuffer format a surface with these capabilities offers, if any.
+///
+/// That is [`wgpu::TextureFormat::Rgba16Float`] in the extended linear sRGB color space (scRGB,
+/// where `1.0` is SDR white and larger values are brighter). With [`wgpu::SurfaceColorSpace::Auto`] (the default), wgpu configures an `Rgba16Float` surface
+/// in exactly that color space when it is supported. See [`SurfaceConfig::prefer_hdr`].
+pub fn preferred_hdr_framebuffer_format(
+    capabilities: &wgpu::SurfaceCapabilities,
+) -> Option<wgpu::TextureFormat> {
+    let format = wgpu::TextureFormat::Rgba16Float;
+    (capabilities.formats.contains(&format)
+        && capabilities
+            .color_spaces(format)
+            .contains(wgpu::SurfaceColorSpaces::EXTENDED_SRGB_LINEAR))
+    .then_some(format)
+}
+
 /// Take's epi's depth/stencil bits and returns the corresponding wgpu format.
 pub fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wgpu::TextureFormat> {
     match (depth_buffer, stencil_buffer) {
@@ -550,5 +593,47 @@ pub fn parse_vendor_id(vendor_id: u32) -> &'static str {
         wgpu::hal::auxil::db::nvidia::VENDOR => "NVIDIA",
         wgpu::hal::auxil::db::qualcomm::VENDOR => "Qualcomm",
         _ => "Unknown",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn capabilities(
+        formats: &[(wgpu::TextureFormat, wgpu::SurfaceColorSpaces)],
+    ) -> wgpu::SurfaceCapabilities {
+        wgpu::SurfaceCapabilities {
+            formats: formats.iter().map(|(f, _)| *f).collect(),
+            format_capabilities: formats
+                .iter()
+                .map(|(format, color_spaces)| wgpu::SurfaceFormatCapabilities {
+                    format: *format,
+                    color_spaces: *color_spaces,
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn hdr_format_needs_rgba16float_in_extended_linear_srgb() {
+        use wgpu::{SurfaceColorSpaces as Cs, TextureFormat as F};
+        let hdr = capabilities(&[
+            (F::Bgra8Unorm, Cs::SRGB),
+            (F::Rgba16Float, Cs::SRGB | Cs::EXTENDED_SRGB_LINEAR),
+        ]);
+        assert_eq!(preferred_hdr_framebuffer_format(&hdr), Some(F::Rgba16Float));
+        // fp16 offered, but not as scRGB: no HDR
+        let srgb_only = capabilities(&[(F::Bgra8Unorm, Cs::SRGB), (F::Rgba16Float, Cs::SRGB)]);
+        assert_eq!(preferred_hdr_framebuffer_format(&srgb_only), None);
+        // an SDR surface
+        let sdr = capabilities(&[(F::Bgra8Unorm, Cs::SRGB)]);
+        assert_eq!(preferred_hdr_framebuffer_format(&sdr), None);
+        // the 8-bit choice is unchanged either way
+        assert_eq!(
+            preferred_framebuffer_format(&hdr.formats).ok(),
+            Some(F::Bgra8Unorm)
+        );
     }
 }
