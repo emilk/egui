@@ -630,7 +630,33 @@ impl<'t> TextEdit<'t> {
         let mut text_changed = false;
 
         let mut handle_events =
-            |ui: &Ui, galley: &mut Arc<Galley>, layouter, wrap_width, text: &mut dyn TextBuffer| {
+            |ui: &Ui,
+             galley: &mut Arc<Galley>,
+             layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
+             wrap_width,
+             text: &mut dyn TextBuffer| {
+                // Assistive technologies set the whole value without focusing the field first
+                // (e.g. UI Automation's `ValuePattern.SetValue`), so this can't wait for focus
+                // like the keyboard events below.
+                if interactive
+                    && text.is_mutable()
+                    && let Some(value) = accesskit_set_text_request(ui, id)
+                {
+                    text.clear();
+                    let ccursor = insert_replacing_selection(
+                        text,
+                        &CCursorRange::default(),
+                        &value,
+                        multiline,
+                        char_limit,
+                    );
+                    *galley = layouter(ui, text, wrap_width);
+                    state
+                        .cursor
+                        .set_char_range(Some(CCursorRange::one(ccursor)));
+                    text_changed = true;
+                }
+
                 if interactive && ui.memory(|mem| mem.has_focus(id)) {
                     ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
 
@@ -1107,6 +1133,9 @@ impl<'t> TextEdit<'t> {
             // A `&str` buffer is how callers show selectable text; it cannot be typed into either.
             if !interactive || !text.is_mutable() {
                 builder.set_read_only();
+            } else {
+                builder.add_action(accesskit::Action::SetValue);
+                builder.add_action(accesskit::Action::ReplaceSelectedText);
             }
         });
 
@@ -1238,16 +1267,30 @@ fn events(
                 if text_to_insert.is_empty() {
                     None
                 } else {
-                    let mut ccursor = text.delete_selected(&cursor_range);
-                    if multiline {
-                        text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
-                    } else {
-                        let single_line = text_to_insert.replace(['\r', '\n'], " ");
-                        text.insert_text_at(&mut ccursor, &single_line, char_limit);
-                    }
-
+                    let ccursor = insert_replacing_selection(
+                        text,
+                        &cursor_range,
+                        text_to_insert,
+                        multiline,
+                        char_limit,
+                    );
                     Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
                 }
+            }
+            Event::AccessKitActionRequest(accesskit::ActionRequest {
+                action: accesskit::Action::ReplaceSelectedText,
+                target_node,
+                target_tree,
+                data: Some(accesskit::ActionData::Value(text_to_insert)),
+            }) if *target_node == id.accesskit_id() && *target_tree == accesskit::TreeId::ROOT => {
+                let ccursor = insert_replacing_selection(
+                    text,
+                    &cursor_range,
+                    text_to_insert,
+                    multiline,
+                    char_limit,
+                );
+                Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
             }
             Event::Text(text_to_insert) => {
                 // Newlines are handled by `Key::Enter`.
@@ -1485,6 +1528,39 @@ fn events(
     );
 
     (any_change, cursor_range)
+}
+
+/// Replace the selection with `text_to_insert`, the way a paste does: single-line fields turn
+/// newlines into spaces, and `char_limit` is respected. Returns the cursor after the insertion.
+fn insert_replacing_selection(
+    text: &mut dyn TextBuffer,
+    cursor_range: &CCursorRange,
+    text_to_insert: &str,
+    multiline: bool,
+    char_limit: usize,
+) -> CCursor {
+    let mut ccursor = text.delete_selected(cursor_range);
+    if multiline {
+        text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
+    } else {
+        let single_line = text_to_insert.replace(['\r', '\n'], " ");
+        text.insert_text_at(&mut ccursor, &single_line, char_limit);
+    }
+    ccursor
+}
+
+/// The text of the last [`accesskit::Action::SetValue`] request for this widget, if any.
+fn accesskit_set_text_request(ui: &Ui, id: Id) -> Option<String> {
+    ui.input(|input| {
+        use accesskit::{Action, ActionData};
+        input
+            .accesskit_action_requests(id, Action::SetValue)
+            .filter_map(|request| match &request.data {
+                Some(ActionData::Value(value)) => Some(value.to_string()),
+                _ => None,
+            })
+            .last()
+    })
 }
 
 // ----------------------------------------------------------------------------
