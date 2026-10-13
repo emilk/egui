@@ -108,4 +108,5 @@ ehttp = { workspace = true, optional = true }
 
 [dev-dependencies]
 egui = { workspace = true, features = ["default_fonts"] }
+egui_kittest = { workspace = true, features = ["snapshot", "wgpu"] }
 tempfile.workspace = true

@@ -1425,6 +1425,7 @@ dependencies = [
  "ahash",
  "document-features",
  "egui",
+ "egui_kittest",
  "ehttp",
  "enum-map",
  "image",
