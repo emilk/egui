@@ -161,7 +161,7 @@ impl Modifiers {
         self.alt && self.ctrl && self.shift && self.command
     }
 
-    /// Is shift the only pressed button?
+    /// Is shift the only pressed modifier?
     #[inline]
     pub fn shift_only(&self) -> bool {
         self.shift && !(self.alt || self.ctrl || self.mac_cmd || self.command)
