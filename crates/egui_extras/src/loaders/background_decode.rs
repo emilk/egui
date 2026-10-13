@@ -1,9 +1,9 @@
 //! Shared machinery for image loaders that decode images on a background thread.
 
 use ahash::HashMap;
+use alloc::sync::Arc;
 use core::task::Poll;
 use egui::{load::Bytes, mutex::Mutex};
-use std::sync::Arc;
 
 type Entry<T> = Poll<Result<T, String>>;
 

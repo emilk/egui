@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use crate::{
     ImageData, ImageDelta, TextureId, TextureManager, emath::NumExt as _, mutex::RwLock,

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use emath::{Rect, TSTransform};
 use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
@@ -629,43 +629,63 @@ impl<'t> TextEdit<'t> {
 
         let mut text_changed = false;
 
-        let mut handle_events =
-            |ui: &Ui, galley: &mut Arc<Galley>, layouter, wrap_width, text: &mut dyn TextBuffer| {
-                if interactive && ui.memory(|mem| mem.has_focus(id)) {
-                    ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
+        let mut handle_events = |ui: &Ui,
+                                 galley: &mut Arc<Galley>,
+                                 layouter: LayouterFn<'_>,
+                                 wrap_width,
+                                 text: &mut dyn TextBuffer| {
+            // Assistive technologies set the whole value without focusing the field first
+            // (e.g. UI Automation's `ValuePattern.SetValue`), so this can't wait for focus
+            // like the keyboard events below.
+            if interactive
+                && text.is_mutable()
+                && let Some(value) = accesskit_set_text_request(ui, id)
+            {
+                let everything = CCursorRange::select_all_str(text.as_str());
+                let ccursor =
+                    insert_replacing_selection(text, &everything, &value, multiline, char_limit);
+                *galley = layouter(ui, text, wrap_width);
+                state
+                    .cursor
+                    .set_char_range(Some(CCursorRange::one(ccursor)));
+                text_changed = true;
+            }
 
-                    let default_cursor_range = if cursor_at_end {
-                        CCursorRange::one(galley.end())
-                    } else {
-                        CCursorRange::default()
-                    };
-                    prev_cursor_range = state.cursor.range(galley);
+            if interactive && ui.memory(|mem| mem.has_focus(id)) {
+                ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
 
-                    let (changed, new_cursor_range) = events(
-                        ui,
-                        &mut state,
-                        text,
-                        galley,
-                        layouter,
-                        &EventsOptions {
-                            id,
-                            wrap_width,
-                            multiline,
-                            password,
-                            default_cursor_range,
-                            owns_ime_events,
-                            char_limit,
-                            event_filter,
-                            return_key,
-                        },
-                    );
+                let default_cursor_range = if cursor_at_end {
+                    CCursorRange::one(galley.end())
+                } else {
+                    CCursorRange::default()
+                };
+                prev_cursor_range = state.cursor.range(galley);
 
-                    if changed {
-                        text_changed = true;
-                    }
-                    cursor_range = Some(new_cursor_range);
+                let (changed, new_cursor_range) = events(
+                    ui,
+                    &mut state,
+                    text,
+                    galley,
+                    layouter,
+                    &EventsOptions {
+                        id,
+                        wrap_width,
+                        multiline,
+                        password,
+                        default_cursor_range,
+                        owns_ime_events,
+                        char_limit,
+                        event_filter,
+                        return_key,
+                    },
+                );
+
+                if changed {
+                    text_changed = true;
                 }
-            };
+                cursor_range = Some(new_cursor_range);
+            }
+        };
 
         // We need to calculate the galley within the atom closure, so we can calculate it based on
         // the available width (in case of wrapping multiline text edits). But we show it later,
@@ -882,16 +902,16 @@ impl<'t> TextEdit<'t> {
                 .layer_transform_from_global(ui.layer_id())
                 .map_or(pos, |from_global| from_global * pos);
 
-            let mut ccursor = galley.cursor_from_pos(
+            let ccursor = galley.cursor_from_pos(
                 pos - inner_rect.min + state.text_offset + vec2(galley.rect.left(), 0.0),
             );
-
-            if multiline {
-                text.insert_text_at(&mut ccursor, &pasted, char_limit);
-            } else {
-                let single_line = pasted.replace(['\r', '\n'], " ");
-                text.insert_text_at(&mut ccursor, &single_line, char_limit);
-            }
+            let ccursor = insert_replacing_selection(
+                text,
+                &CCursorRange::one(ccursor),
+                &pasted,
+                multiline,
+                char_limit,
+            );
 
             state
                 .cursor
@@ -1104,8 +1124,11 @@ impl<'t> TextEdit<'t> {
                 accesskit::Role::TextInput
             };
             builder.set_role(role);
-            // A `&str` buffer is how callers show selectable text; it cannot be typed into either.
-            if !interactive || !text.is_mutable() {
+            if interactive && text.is_mutable() {
+                builder.add_action(accesskit::Action::SetValue);
+                builder.add_action(accesskit::Action::ReplaceSelectedText);
+            } else {
+                // A `&str` buffer is how callers show selectable text; it cannot be typed into either.
                 builder.set_read_only();
             }
         });
@@ -1238,16 +1261,30 @@ fn events(
                 if text_to_insert.is_empty() {
                     None
                 } else {
-                    let mut ccursor = text.delete_selected(&cursor_range);
-                    if multiline {
-                        text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
-                    } else {
-                        let single_line = text_to_insert.replace(['\r', '\n'], " ");
-                        text.insert_text_at(&mut ccursor, &single_line, char_limit);
-                    }
-
+                    let ccursor = insert_replacing_selection(
+                        text,
+                        &cursor_range,
+                        text_to_insert,
+                        multiline,
+                        char_limit,
+                    );
                     Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
                 }
+            }
+            Event::AccessKitActionRequest(accesskit::ActionRequest {
+                action: accesskit::Action::ReplaceSelectedText,
+                target_node,
+                target_tree,
+                data: Some(accesskit::ActionData::Value(text_to_insert)),
+            }) if *target_node == id.accesskit_id() && *target_tree == accesskit::TreeId::ROOT => {
+                let ccursor = insert_replacing_selection(
+                    text,
+                    &cursor_range,
+                    text_to_insert,
+                    multiline,
+                    char_limit,
+                );
+                Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
             }
             Event::Text(text_to_insert) => {
                 // Newlines are handled by `Key::Enter`.
@@ -1485,6 +1522,39 @@ fn events(
     );
 
     (any_change, cursor_range)
+}
+
+/// Replace the selection with `text_to_insert`, the way a paste does: single-line fields turn
+/// newlines into spaces, and `char_limit` is respected. Returns the cursor after the insertion.
+fn insert_replacing_selection(
+    text: &mut dyn TextBuffer,
+    cursor_range: &CCursorRange,
+    text_to_insert: &str,
+    multiline: bool,
+    char_limit: usize,
+) -> CCursor {
+    let mut ccursor = text.delete_selected(cursor_range);
+    if multiline {
+        text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
+    } else {
+        let single_line = text_to_insert.replace(['\r', '\n'], " ");
+        text.insert_text_at(&mut ccursor, &single_line, char_limit);
+    }
+    ccursor
+}
+
+/// The text of the last [`accesskit::Action::SetValue`] request for this widget, if any.
+fn accesskit_set_text_request(ui: &Ui, id: Id) -> Option<String> {
+    ui.input(|input| {
+        use accesskit::{Action, ActionData};
+        input
+            .accesskit_action_requests(id, Action::SetValue)
+            .filter_map(|request| match &request.data {
+                Some(ActionData::Value(value)) => Some(value.to_string()),
+                _ => None,
+            })
+            .last()
+    })
 }
 
 // ----------------------------------------------------------------------------

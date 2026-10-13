@@ -42,7 +42,7 @@ pub struct FullOutput {
 impl FullOutput {
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
-        use std::collections::btree_map::Entry;
+        use alloc::collections::btree_map::Entry;
 
         let Self {
             platform_output,
@@ -331,7 +331,7 @@ pub enum UserAttentionType {
 /// the OS every frame.
 #[derive(Clone, PartialEq, Eq)]
 pub struct CustomCursorImage {
-    pub rgba: std::sync::Arc<[u8]>,
+    pub rgba: alloc::sync::Arc<[u8]>,
     pub size: [u16; 2],
     pub hotspot: [u16; 2],
 }

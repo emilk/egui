@@ -55,7 +55,7 @@ serde = ["egui/serde", "dep:serde"]
 wayland = ["winit/wayland", "bytemuck", "arboard?/wayland-data-control"]
 
 ## Enables compiling for x11.
-x11 = ["winit/x11", "bytemuck"]
+x11 = ["winit/x11", "winit/rwh_06", "bytemuck"]
 
 [dependencies]
 egui = { workspace = true, default-features = false }
@@ -107,7 +107,11 @@ objc2-ui-kit = { workspace = true, features = [
 ] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows-sys = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"] }
+windows-sys = { workspace = true, features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Dwm",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { workspace = true, optional = true }

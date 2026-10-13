@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use alloc::{collections::BTreeMap, sync::Arc};
 
 use crate::{
     Color32, ColorImage, TextureAtlas,

@@ -1,7 +1,7 @@
+use alloc::borrow::Cow;
+use alloc::fmt;
+use alloc::sync::Arc;
 use core::borrow::Borrow;
-use std::borrow::Cow;
-use std::fmt;
-use std::sync::Arc;
 
 /// A class, used to customize widget styling and behavior.
 #[derive(Clone)]

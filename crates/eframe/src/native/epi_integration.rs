@@ -17,7 +17,7 @@ pub fn viewport_builder(
     egui_zoom_factor: f32,
     event_loop: &ActiveEventLoop,
     native_options: &mut epi::NativeOptions,
-    window_settings: Option<WindowSettings>,
+    window_settings: &mut Option<WindowSettings>,
 ) -> ViewportBuilder {
     profiling::function_scope!();
 
@@ -30,7 +30,7 @@ pub fn viewport_builder(
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
     #[cfg(not(target_os = "ios"))]
-    let inner_size_points = if let Some(mut window_settings) = window_settings {
+    let inner_size_points = if let Some(window_settings) = window_settings {
         // Restore pos/size from previous session
 
         if clamp_size_to_monitor_size {
@@ -41,12 +41,9 @@ pub fn viewport_builder(
         }
         window_settings.clamp_position_to_monitors(egui_zoom_factor, event_loop);
 
-        viewport_builder = window_settings.initialize_viewport_builder(
-            egui_zoom_factor,
-            event_loop,
-            viewport_builder,
-        );
-        window_settings.inner_size_points()
+        viewport_builder =
+            window_settings.initialize_viewport_builder(egui_zoom_factor, viewport_builder);
+        Some(window_settings.inner_size_points())
     } else {
         if let Some(pos) = viewport_builder.position {
             viewport_builder = viewport_builder.with_position(pos);
@@ -198,6 +195,14 @@ pub struct EpiIntegration {
     can_drag_window: bool,
     #[cfg(feature = "persistence")]
     persist_window: bool,
+
+    /// Settings the root window was restored with, for the parts applied when it is first shown.
+    restored_window_settings: Option<WindowSettings>,
+
+    /// Normal (non-maximized) geometry of the root window, as last saved.
+    #[cfg(feature = "persistence")]
+    normal_geometry: Option<egui_winit::WindowGeometry>,
+
     app_icon_setter: super::app_icon::AppTitleIconSetter,
 }
 
@@ -259,6 +264,17 @@ impl EpiIntegration {
             });
         }
 
+        let restored_window_settings = load_window_settings(frame.storage());
+        #[cfg(feature = "persistence")]
+        let normal_geometry = restored_window_settings
+            .map(|settings| settings.normal_geometry())
+            .or_else(|| {
+                // Nothing saved yet, so use the window's own geometry, unless it starts maximized:
+                (!window.is_maximized() && window.fullscreen().is_none()).then(|| {
+                    egui_winit::WindowGeometry::from_window(egui_ctx.zoom_factor(), window)
+                })
+            });
+
         Self {
             frame,
             last_auto_save: Instant::now(),
@@ -268,6 +284,9 @@ impl EpiIntegration {
             can_drag_window: false,
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
+            restored_window_settings,
+            #[cfg(feature = "persistence")]
+            normal_geometry,
             app_icon_setter,
             beginning: Instant::now()
                 .checked_sub(web_time::Duration::from_secs_f64(egui_ctx.time()))
@@ -422,8 +441,14 @@ impl EpiIntegration {
     pub fn post_rendering(&mut self, window: &winit::window::Window) {
         profiling::function_scope!();
         if core::mem::take(&mut self.is_first_frame) {
+            if let Some(window_settings) = &self.restored_window_settings {
+                window_settings.before_first_show(window);
+            }
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
+            if let Some(window_settings) = &self.restored_window_settings {
+                window_settings.after_first_show(window);
+            }
         }
     }
 
@@ -454,11 +479,13 @@ impl EpiIntegration {
                 && self.persist_window
             {
                 profiling::scope!("native_window");
-                epi::set_value(
-                    storage,
-                    STORAGE_WINDOW_KEY,
-                    &WindowSettings::from_window(self.egui_ctx.zoom_factor(), window),
+                let window_settings = WindowSettings::from_window(
+                    self.egui_ctx.zoom_factor(),
+                    window,
+                    self.normal_geometry,
                 );
+                self.normal_geometry = Some(window_settings.normal_geometry());
+                epi::set_value(storage, STORAGE_WINDOW_KEY, &window_settings);
             }
             if app.persist_egui_memory() {
                 profiling::scope!("egui_memory");

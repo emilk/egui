@@ -55,11 +55,11 @@
 mod bytes_loader;
 mod texture_loader;
 
+use alloc::{borrow::Cow, sync::Arc};
 use core::{
     fmt::{Debug, Display},
     ops::Deref,
 };
-use std::{borrow::Cow, sync::Arc};
 
 use ahash::HashMap;
 

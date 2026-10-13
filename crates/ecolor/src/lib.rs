@@ -20,6 +20,7 @@
 //!
 
 #![expect(clippy::wrong_self_convention)]
+#![warn(clippy::std_instead_of_alloc)]
 
 #[cfg(feature = "cint")]
 mod cint_impl;
