@@ -731,15 +731,15 @@ fn system_font_fallback_demo(ui: &mut Ui) {
         .num_columns(2)
         .show(ui, |ui| {
             for (language, sample) in [
-                ("Simplified Chinese", "这些字体还能显示吗？"),
-                ("Traditional Chinese", "這些字體還能顯示嗎？"),
+                ("Arabic", "مرحبا"),
+                ("Devanagari", "नमस्ते"),
+                ("Emoji", "🦀 🚀 ✨ 🎞️"),
+                ("Hebrew", "שלום"),
                 ("Japanese", "ひらがな、カタカナ、漢字"),
                 ("Korean", "안녕하세요"),
+                ("Simplified Chinese", "这些字体还能显示吗？"),
                 ("Thai", "สวัสดี"),
-                ("Devanagari", "नमस्ते"),
-                ("Arabic", "مرحبا"),
-                ("Hebrew", "שלום"),
-                ("Emoji", "🦀 🚀 ✨ 🎞️"),
+                ("Traditional Chinese", "這些字體還能顯示嗎？"),
             ] {
                 ui.label(language);
                 ui.label(sample);
