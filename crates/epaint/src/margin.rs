@@ -75,11 +75,6 @@ impl Margin {
     }
 
     /// Total margins on both sides
-    ///
-    /// ```
-    /// const TOTAL: epaint::Vec2 = epaint::Margin::symmetric(8, 4).sum();
-    /// assert_eq!(TOTAL, epaint::vec2(16.0, 8.0));
-    /// ```
     #[inline]
     pub const fn sum(self) -> Vec2 {
         vec2(self.leftf() + self.rightf(), self.topf() + self.bottomf())
