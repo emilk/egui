@@ -5,13 +5,23 @@ use egui::ViewportBuilder;
 const PLACE_AFTER_CREATION: bool = cfg!(any(target_os = "macos", target_os = "windows"));
 
 /// Position and size of a native window.
+///
+/// Windows and Linux position windows in physical pixels, which are unambiguous
+/// across monitors with different scale factors. Mac positions them in logical points.
+/// We store the position in pixels together with the scale factor it was saved with,
+/// so it can be converted to the logical units winit and Mac expect at restore time.
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowGeometry {
     /// Position of window frame/titlebar in physical pixels.
     outer_position_pixels: Option<egui::Pos2>,
 
-    /// Scale factor of the window, without egui zoom.
+    /// Scale factor of the window when it was saved, without egui zoom.
+    ///
+    /// Needed to convert `outer_position_pixels` to logical units, which
+    /// `ViewportBuilder::with_position` and Mac's `set_outer_position` take.
+    /// Stored because at restore time there is no window to ask yet, and the
+    /// monitor winit creates it on may not be the one it was saved on.
     scale_factor: f32,
 
     /// Inner size of window in points.
