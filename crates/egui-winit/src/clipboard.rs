@@ -182,7 +182,6 @@ impl Clipboard {
             feature = "arboard",
         ))]
         if let Some(clipboard) = &mut self.arboard {
-            // TODO: is transparency really correct here?
             if let Err(err) = clipboard.set_image(arboard::ImageData {
                 width: image.width(),
                 height: image.height(),

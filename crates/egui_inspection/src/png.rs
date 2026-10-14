@@ -8,7 +8,7 @@ impl EncodedPng {
     /// # Errors
     /// When the encoder fails.
     pub fn from_color_image(image: &egui::ColorImage) -> Result<Self, image::ImageError> {
-        let size = [image.resolution[0] as u32, image.resolution[1] as u32];
+        let size = [image.width() as u32, image.height() as u32];
         Self::from_rgba(size, image.as_raw())
     }
 
@@ -22,7 +22,7 @@ impl EncodedPng {
         image: &egui::ColorImage,
         scale: f32,
     ) -> Result<Self, image::ImageError> {
-        let [w, h] = [image.resolution[0] as u32, image.resolution[1] as u32];
+        let [w, h] = [image.width() as u32, image.height() as u32];
         if scale >= 1.0 || w == 0 || h == 0 {
             return Self::from_rgba([w, h], image.as_raw());
         }

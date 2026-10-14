@@ -37,7 +37,7 @@ impl TextureManager {
 
         self.metas.entry(id).or_insert_with(|| TextureMeta {
             name,
-            resolution: image.size(),
+            resolution: image.resolution(),
             bytes_per_pixel: image.bytes_per_pixel(),
             retain_count: 1,
             options,
@@ -59,7 +59,7 @@ impl TextureManager {
                 );
             } else {
                 // whole update
-                meta.resolution = delta.image.size();
+                meta.resolution = delta.image.resolution();
                 meta.bytes_per_pixel = delta.image.bytes_per_pixel();
             }
             self.delta.push(id, delta);
@@ -353,7 +353,7 @@ impl core::fmt::Debug for TexturesDelta {
             #[expect(clippy::iter_over_hash_type)]
             for (tex_id, deltas) in &self.set {
                 for delta in deltas {
-                    let size = delta.image.size();
+                    let size = delta.image.resolution();
                     if let Some(pos) = delta.pos {
                         write!(
                             string,

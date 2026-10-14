@@ -27,7 +27,7 @@ impl ImageData {
         }
     }
 
-    #[deprecated("Renamed resolution")]
+    #[deprecated = "Renamed 'resolution'"]
     pub fn size(&self) -> [usize; 2] {
         self.resolution()
     }
@@ -66,9 +66,11 @@ pub struct ColorImage {
 }
 
 impl ColorImage {
-    /// Create an image filled with the given color.
+    /// Create an image from the given pixels, row by row, from top to bottom.
+    ///
+    /// Panics if `resolution[0] * resolution[1] != pixels.len()`.
     pub fn new(resolution: [usize; 2], pixels: Vec<Color32>) -> Self {
-        debug_assert!(
+        assert!(
             resolution[0] * resolution[1] == pixels.len(),
             "resolution: {resolution:?}, pixels.len(): {}",
             pixels.len()
@@ -240,7 +242,7 @@ impl ColorImage {
         self.resolution
     }
 
-    #[deprecated("Renamed resolution")]
+    #[deprecated = "Renamed 'resolution'"]
     pub fn size(&self) -> [usize; 2] {
         self.resolution()
     }
@@ -267,6 +269,30 @@ impl ColorImage {
     #[inline]
     pub fn pixels_mut(&mut self) -> &mut [Color32] {
         &mut self.pixels
+    }
+
+    /// Size of the original SVG image (if any), or just the texel resolution of the image.
+    #[inline]
+    pub fn source_size(&self) -> Vec2 {
+        self.source_size
+    }
+
+    /// Double the height until it is larger than `required_height`,
+    /// filling new rows with transparent pixels.
+    ///
+    /// Returns `true` if the image grew.
+    pub(crate) fn grow_to_min_height(&mut self, required_height: usize) -> bool {
+        while required_height >= self.height() {
+            self.resolution[1] *= 2;
+        }
+
+        let num_pixels = self.width() * self.height();
+        if self.pixels.len() < num_pixels {
+            self.pixels.resize(num_pixels, Color32::TRANSPARENT);
+            true
+        } else {
+            false
+        }
     }
 
     /// Create a new image from a patch of the current image.

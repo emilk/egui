@@ -471,10 +471,9 @@ impl SizedTexture {
 
     /// Fetch the [id][`SizedTexture::id`] and [size][`SizedTexture::size`] from a [`TextureHandle`].
     pub fn from_handle(handle: &TextureHandle) -> Self {
-        let size = handle.size();
         Self {
             id: handle.id(),
-            size: Vec2::new(size[0] as f32, size[1] as f32),
+            size: handle.resolution_vec2(),
         }
     }
 }

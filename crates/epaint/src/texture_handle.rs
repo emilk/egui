@@ -101,14 +101,13 @@ impl TextureHandle {
 
     /// width x height
     pub fn resolution_vec2(&self) -> crate::Vec2 {
-        let [w, h] = self.size();
+        let [w, h] = self.resolution();
         crate::Vec2::new(w as f32, h as f32)
     }
 
     #[deprecated = "Renamed 'resolution_vec2'"]
     pub fn size_vec2(&self) -> crate::Vec2 {
-        let [w, h] = self.size();
-        crate::Vec2::new(w as f32, h as f32)
+        self.resolution_vec2()
     }
 
     /// `width x height x bytes_per_pixel`
@@ -121,7 +120,7 @@ impl TextureHandle {
 
     /// width / height
     pub fn aspect_ratio(&self) -> f32 {
-        let [w, h] = self.size();
+        let [w, h] = self.resolution();
         w as f32 / h.at_least(1) as f32
     }
 

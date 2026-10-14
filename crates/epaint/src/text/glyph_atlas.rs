@@ -388,7 +388,7 @@ impl GlyphAtlas {
         pixels_per_point: f32,
         transfer: FontColorTransferFunction,
     ) -> Option<UvRect> {
-        let [width, height] = bitmap.image.resolution;
+        let [width, height] = bitmap.image.resolution();
         if width == 0 || height == 0 || MAX_GLYPH_SIZE < width || MAX_GLYPH_SIZE < height {
             return None;
         }
