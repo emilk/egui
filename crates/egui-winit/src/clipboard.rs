@@ -182,10 +182,11 @@ impl Clipboard {
             feature = "arboard",
         ))]
         if let Some(clipboard) = &mut self.arboard {
+            // TODO: is transparency really correct here?
             if let Err(err) = clipboard.set_image(arboard::ImageData {
                 width: image.width(),
                 height: image.height(),
-                bytes: std::borrow::Cow::Borrowed(bytemuck::cast_slice(&image.pixels)),
+                bytes: std::borrow::Cow::Borrowed(bytemuck::cast_slice(image.pixels())),
             }) {
                 log::error!("arboard copy/cut error: {err}");
             }
@@ -404,13 +405,13 @@ mod tests {
             bytes: std::borrow::Cow::Borrowed(&[255, 0, 0, 255, 255, 255, 255, 128]),
         };
         let color_image = color_image_from_arboard(&image);
-        assert_eq!(color_image.size, [2, 1]);
+        assert_eq!(color_image.resolution(), [2, 1]);
         assert_eq!(
-            color_image.pixels[0],
+            color_image.pixels()[0],
             egui::Color32::from_rgba_unmultiplied(255, 0, 0, 255)
         );
         assert_eq!(
-            color_image.pixels[1],
+            color_image.pixels()[1],
             egui::Color32::from_rgba_unmultiplied(255, 255, 255, 128)
         );
     }

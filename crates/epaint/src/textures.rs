@@ -37,7 +37,7 @@ impl TextureManager {
 
         self.metas.entry(id).or_insert_with(|| TextureMeta {
             name,
-            size: image.size(),
+            resolution: image.size(),
             bytes_per_pixel: image.bytes_per_pixel(),
             retain_count: 1,
             options,
@@ -53,13 +53,13 @@ impl TextureManager {
         if let Some(meta) = self.metas.get_mut(&id) {
             if let Some(pos) = delta.pos {
                 debug_assert!(
-                    pos[0] + delta.image.width() <= meta.size[0]
-                        && pos[1] + delta.image.height() <= meta.size[1],
+                    pos[0] + delta.image.width() <= meta.resolution[0]
+                        && pos[1] + delta.image.height() <= meta.resolution[1],
                     "Partial texture update is outside the bounds of texture {id:?}",
                 );
             } else {
                 // whole update
-                meta.size = delta.image.size();
+                meta.resolution = delta.image.size();
                 meta.bytes_per_pixel = delta.image.bytes_per_pixel();
             }
             self.delta.push(id, delta);
@@ -132,7 +132,7 @@ pub struct TextureMeta {
     pub name: String,
 
     /// width x height
-    pub size: [usize; 2],
+    pub resolution: [usize; 2],
 
     /// 4 or 1
     pub bytes_per_pixel: usize,
@@ -148,7 +148,7 @@ impl TextureMeta {
     /// Size in bytes.
     /// width x height x [`Self::bytes_per_pixel`].
     pub fn bytes_used(&self) -> usize {
-        self.size[0] * self.size[1] * self.bytes_per_pixel
+        self.resolution[0] * self.resolution[1] * self.bytes_per_pixel
     }
 }
 

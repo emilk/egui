@@ -87,14 +87,25 @@ impl TextureHandle {
     }
 
     /// width x height
-    pub fn size(&self) -> [usize; 2] {
+    pub fn resolution(&self) -> [usize; 2] {
         self.tex_mngr
             .read()
             .meta(self.id)
-            .map_or([0, 0], |tex| tex.size)
+            .map_or([0, 0], |tex| tex.resolution)
+    }
+
+    #[deprecated = "Renamed 'resolution'"]
+    pub fn size(&self) -> [usize; 2] {
+        self.resolution()
     }
 
     /// width x height
+    pub fn resolution_vec2(&self) -> crate::Vec2 {
+        let [w, h] = self.size();
+        crate::Vec2::new(w as f32, h as f32)
+    }
+
+    #[deprecated = "Renamed 'resolution_vec2'"]
     pub fn size_vec2(&self) -> crate::Vec2 {
         let [w, h] = self.size();
         crate::Vec2::new(w as f32, h as f32)

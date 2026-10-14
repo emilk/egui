@@ -143,15 +143,15 @@ impl TextureAtlas {
         &self.options
     }
 
-    pub fn size(&self) -> [usize; 2] {
-        self.image.size
+    pub fn resolution(&self) -> [usize; 2] {
+        self.image.resolution
     }
 
     /// Returns the locations and sizes of pre-rasterized discs (filled circles) in this atlas.
     pub fn prepared_discs(&self) -> Vec<PreparedDisc> {
-        let size = self.size();
-        let inv_w = 1.0 / size[0] as f32;
-        let inv_h = 1.0 / size[1] as f32;
+        let resolution = self.resolution();
+        let inv_w = 1.0 / resolution[0] as f32;
+        let inv_h = 1.0 / resolution[1] as f32;
         self.discs
             .iter()
             .map(|disc| {
@@ -265,7 +265,7 @@ impl TextureAtlas {
 
 fn resize_to_min_height(image: &mut ColorImage, required_height: usize) -> bool {
     while required_height >= image.height() {
-        image.size[1] *= 2; // double the height
+        image.resolution[1] *= 2; // double the height
     }
 
     if image.width() * image.height() > image.pixels.len() {
