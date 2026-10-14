@@ -45,7 +45,7 @@ fn show(ctx: &Context, input: RawInput, add: impl FnMut(&mut Ui)) -> Frame {
     // records the picture the next frame compares against.
     if !output.skip_redraw {
         let _primitives =
-            ctx.tessellate(std::mem::take(&mut output.shapes), output.pixels_per_point);
+            ctx.tessellate(core::mem::take(&mut output.shapes), output.pixels_per_point);
     }
     output.drop_without_applying_deltas();
     frame
@@ -180,7 +180,7 @@ fn a_callback_paints_even_when_the_shapes_compare_equal() {
         ui.painter()
             .add(Shape::Vec(vec![Shape::Callback(PaintCallback {
                 rect: Rect::from_min_size(pos2(0.0, 0.0), vec2(10.0, 10.0)),
-                callback: callback.clone(),
+                callback: Arc::<u8>::clone(&callback),
             })]));
     };
 
