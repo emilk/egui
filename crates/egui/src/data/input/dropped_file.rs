@@ -1,4 +1,5 @@
-use std::{path::Path, sync::Arc};
+use alloc::sync::Arc;
+use std::path::Path;
 
 #[cfg(target_arch = "wasm32")]
 use core::{future::Future, pin::Pin};
@@ -33,7 +34,9 @@ pub trait DroppedFile: core::fmt::Debug {
     fn bytes(&self) -> Result<Vec<u8>, String>;
 
     /// The browser file handle, if this file was dropped on the web.
-    #[cfg(target_arch = "wasm32")]
+    ///
+    /// Requires the `web_file` feature.
+    #[cfg(all(target_arch = "wasm32", feature = "web_file"))]
     fn web_file(&self) -> Option<&web_sys::File> {
         None
     }

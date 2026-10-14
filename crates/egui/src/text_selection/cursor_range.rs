@@ -48,6 +48,12 @@ impl CCursorRange {
         Self::two(galley.begin(), galley.end())
     }
 
+    /// Select all of `text`, i.e. from the start to after its last character.
+    #[inline]
+    pub fn select_all_str(text: &str) -> Self {
+        Self::two(CCursor::default(), CCursor::end_of_str(text))
+    }
+
     /// The range of selected character indices.
     pub fn as_sorted_char_range(&self) -> core::ops::Range<CharIndex> {
         let [start, end] = self.sorted_cursors();

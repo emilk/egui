@@ -1425,6 +1425,7 @@ dependencies = [
  "ahash",
  "document-features",
  "egui",
+ "egui_kittest",
  "ehttp",
  "enum-map",
  "image",
@@ -1436,6 +1437,7 @@ dependencies = [
  "resvg",
  "serde",
  "syntect",
+ "tempfile",
 ]
 
 [[package]]

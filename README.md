@@ -61,7 +61,7 @@ ui.image(egui::include_image!("ferris.png"));
 * [Other](#other)
 * [Credits](#credits)
 
-([egui 的中文翻译文档 / chinese translation](https://github.com/Re-Ch-Love/egui-doc-cn/blob/main/README_zh-hans.md))
+([中文 README / Chinese README](https://github.com/Re-Ch-X/egui-doc-cn/blob/main/README_zh-hans.md))
 
 
 ## Quick start
@@ -270,7 +270,7 @@ If you call `.await` in your GUI code, the UI will freeze, which is very bad UX.
 
 ### How do I create a file dialog?
 
-The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native and Wasm. See example app here https://github.com/woelper/egui_pick_file which also has a demo available via [gitub pages](https://woelper.github.io/egui_pick_file/).
+The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native and Wasm. See example app here https://github.com/woelper/egui_pick_file which also has a demo available via [GitHub pages](https://woelper.github.io/egui_pick_file/).
 
 ### What about accessibility, such as screen readers?
 egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.

@@ -373,7 +373,7 @@ pub fn keyboard_should_open_nested_submenu() {
 }
 
 #[test]
-pub fn keyboard_should_close_nested_submenu_with_second_enter() {
+pub fn keyboard_should_close_nested_submenu_with_left() {
     let mut harness = keyboard_submenu_harness();
 
     harness.get_by_label("X").focus();
@@ -389,20 +389,18 @@ pub fn keyboard_should_close_nested_submenu_with_second_enter() {
     harness.run();
 
     assert!(
-        harness.query_by_label("Goal").is_some(),
-        "Expected nested submenu to open before close attempt"
+        harness.get_by_label("Goal").is_focused(),
+        "Expected Enter to open the nested submenu and focus its first entry"
     );
 
-    harness.get_by_label_contains("Y").focus();
-    harness.run();
-
-    harness.key_press(egui::Key::Enter);
+    harness.key_press(egui::Key::ArrowLeft);
     harness.run();
 
     assert!(
         harness.query_by_label("Goal").is_none(),
-        "Expected nested submenu to close when pressing Enter again"
+        "Expected nested submenu to close when pressing Left"
     );
+    assert!(harness.get_by_label_contains("Y").is_focused());
 }
 
 /// Regression test for a bug in `horizontal_wrapped` layouts where text wraps but does not

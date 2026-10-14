@@ -1,7 +1,7 @@
 #![expect(clippy::mem_forget)]
 
 #[cfg(feature = "color_fonts")]
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use ahash::HashMap;
 use ecolor::Color32;

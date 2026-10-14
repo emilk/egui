@@ -7,6 +7,9 @@
 //!
 
 #![expect(clippy::manual_range_contains)]
+#![warn(clippy::std_instead_of_alloc)]
+
+extern crate alloc;
 
 #[cfg(feature = "datepicker")]
 mod datepicker;

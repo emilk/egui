@@ -22,6 +22,9 @@
 
 #![expect(clippy::float_cmp)]
 #![expect(clippy::manual_range_contains)]
+#![warn(clippy::std_instead_of_alloc)]
+
+extern crate alloc;
 
 mod brush;
 pub mod color;

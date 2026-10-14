@@ -1356,6 +1356,7 @@ impl Prepared {
                             delta: -scroll_delta,
                             source: scroll_source,
                             can_chain_to_parent: has_scrolling_ancestor,
+                            dt: ui.input(|i| i.stable_dt).at_most(0.1),
                         },
                         &mut state.bounced_this_momentum[d],
                     );

@@ -206,7 +206,7 @@ impl<'a> Popup<'a> {
             gap: 0.0,
             width: None,
             sizing_pass: false,
-            sense: Sense::click(),
+            sense: Sense::CLICK,
             interactable: true,
             layout: Layout::default(),
             frame: None,
@@ -649,7 +649,11 @@ impl<'a> Popup<'a> {
         let mut response = area.show(&ctx, |ui| {
             style.apply(ui.style_mut());
             let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
-            frame.show(ui, content).inner
+            let inner = frame.show(ui, content).inner;
+            if kind == PopupKind::Menu {
+                MenuState::handle_keyboard(ui, anchor_widget);
+            }
+            inner
         });
 
         // Only a click whose press started while the popup was already open may close it.

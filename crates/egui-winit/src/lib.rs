@@ -30,7 +30,7 @@ mod dropped_file;
 mod safe_area;
 mod window_settings;
 
-pub use window_settings::WindowSettings;
+pub use window_settings::{WindowGeometry, WindowSettings};
 
 use raw_window_handle::HasDisplayHandle;
 
@@ -129,7 +129,11 @@ pub struct State {
     pub accesskit: Option<accesskit_winit::Adapter>,
 
     allow_ime: bool,
-    ime_rect_px: Option<egui::Rect>,
+
+    /// See [`Self::set_clipboard_shortcuts`].
+    clipboard_shortcuts: bool,
+
+    ime_cursor_rect_px: Option<egui::Rect>,
     old_ime_purpose: egui::IMEPurpose,
 
     // TODO(emilk): remove once we are on a winit with https://github.com/rust-windowing/winit/pull/4732
@@ -190,7 +194,8 @@ impl State {
             accesskit: None,
 
             allow_ime: false,
-            ime_rect_px: None,
+            clipboard_shortcuts: true,
+            ime_cursor_rect_px: None,
             old_ime_purpose: egui::IMEPurpose::Normal,
             #[cfg(target_os = "macos")]
             scroll_momentum_monitor: macos_scroll_momentum::ScrollMomentumMonitor::install(),
@@ -257,6 +262,33 @@ impl State {
     /// Set the last value that [`Window::set_ime_allowed()`] was called with.
     pub fn set_allow_ime(&mut self, allow: bool) {
         self.allow_ime = allow;
+    }
+
+    /// Are clipboard keyboard shortcuts translated into clipboard events?
+    ///
+    /// See [`Self::set_clipboard_shortcuts`].
+    #[inline]
+    pub fn clipboard_shortcuts(&self) -> bool {
+        self.clipboard_shortcuts
+    }
+
+    /// Should the platform clipboard keyboard shortcuts be translated into
+    /// [`egui::Event::Cut`], [`egui::Event::Copy`] and [`egui::Event::Paste`]?
+    ///
+    /// The shortcuts are <kbd>Cmd/Ctrl</kbd>+<kbd>X</kbd>/<kbd>C</kbd>/<kbd>V</kbd>,
+    /// the dedicated Cut/Copy/Paste keys, and on Windows also
+    /// <kbd>Shift</kbd>+<kbd>Delete</kbd>, <kbd>Ctrl</kbd>+<kbd>Insert</kbd> and <kbd>Shift</kbd>+<kbd>Insert</kbd>.
+    ///
+    /// If `false`, these key presses are instead passed on as ordinary [`egui::Event::Key`] events,
+    /// so your app can bind them to whatever it wants.
+    /// Note that this means built-in widgets such as [`egui::TextEdit`] will no longer
+    /// respond to these shortcuts, since they listen for the clipboard events.
+    /// You can still push [`egui::Event::Cut`] etc. yourself.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn set_clipboard_shortcuts(&mut self, enabled: bool) {
+        self.clipboard_shortcuts = enabled;
     }
 
     #[inline]
@@ -524,12 +556,12 @@ impl State {
                 self.modifiers.alt = alt;
                 self.modifiers.ctrl = ctrl;
                 self.modifiers.shift = shift;
-                self.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
-                self.modifiers.command = if cfg!(target_os = "macos") {
-                    super_
-                } else {
-                    ctrl
-                };
+                // Use `Context::os()` rather than `target_os`, so that this also works on the web,
+                // where the OS is only known at runtime (web integrations should set it using
+                // `Context::set_os()` and `egui::os::OperatingSystem::from_user_agent()`).
+                let is_mac = self.egui_ctx.os().is_mac();
+                self.modifiers.mac_cmd = is_mac && super_;
+                self.modifiers.command = if is_mac { super_ } else { ctrl };
 
                 self.egui_input
                     .events
@@ -796,6 +828,12 @@ impl State {
         }
     }
 
+    /// Forward raw mouse motion (e.g. `winit::event::DeviceEvent::MouseMotion`) to egui
+    /// as [`egui::Event::MouseMoved`].
+    ///
+    /// The motion is ignored unless the pointer is inside the window or a pointer button is held down,
+    /// so that mouse motion elsewhere on the screen doesn't cause repaints.
+    ///
     /// Returns `true` if the event was sent to egui.
     pub fn on_mouse_motion(&mut self, delta: (f64, f64)) -> bool {
         if !self.is_pointer_in_window() && !self.any_pointer_button_down {
@@ -845,6 +883,17 @@ impl State {
                 pressed,
                 modifiers: self.modifiers,
             });
+
+            // Middle-click pastes the PRIMARY selection on X11 and Wayland:
+            if pressed
+                && button == egui::PointerButton::Middle
+                && let Some(text) = self.clipboard.get_primary_text()
+                && !text.is_empty()
+            {
+                self.egui_input
+                    .events
+                    .push(egui::Event::MiddleClickPaste { pos, text });
+            }
 
             if self.simulate_touch_screen {
                 if pressed {
@@ -1077,7 +1126,7 @@ impl State {
         // are mapped to the physical keys that normally contain C, X, V, etc.
         // See also: https://github.com/emilk/egui/issues/3653
         if let Some(active_key) = logical_key.or(physical_key) {
-            if pressed {
+            if pressed && self.clipboard_shortcuts {
                 if is_cut_command(self.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Cut);
                     return;
@@ -1192,6 +1241,9 @@ impl State {
                 egui::OutputCommand::CopyText(text) => {
                     self.clipboard.set_text(text);
                 }
+                egui::OutputCommand::TextSelectionSettled(text) => {
+                    self.clipboard.set_primary_text(text);
+                }
                 egui::OutputCommand::CopyImage(image) => {
                     self.clipboard.set_image(&image);
                 }
@@ -1236,25 +1288,25 @@ impl State {
             }
 
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            let ime_rect_px = pixels_per_point * ime.rect;
-            if self.ime_rect_px != Some(ime_rect_px)
+            let ime_cursor_rect_px = pixels_per_point * ime.cursor_rect;
+            if self.ime_cursor_rect_px != Some(ime_cursor_rect_px)
                 || self.egui_ctx.input(|i| !i.events.is_empty())
             {
-                self.ime_rect_px = Some(ime_rect_px);
+                self.ime_cursor_rect_px = Some(ime_cursor_rect_px);
                 profiling::scope!("set_ime_cursor_area");
                 window.set_ime_cursor_area(
                     winit::dpi::PhysicalPosition {
-                        x: ime_rect_px.min.x,
-                        y: ime_rect_px.min.y,
+                        x: ime_cursor_rect_px.min.x,
+                        y: ime_cursor_rect_px.min.y,
                     },
                     winit::dpi::PhysicalSize {
-                        width: ime_rect_px.width(),
-                        height: ime_rect_px.height(),
+                        width: ime_cursor_rect_px.width(),
+                        height: ime_cursor_rect_px.height(),
                     },
                 );
             }
         } else {
-            self.ime_rect_px = None;
+            self.ime_cursor_rect_px = None;
         }
 
         #[cfg(feature = "accesskit")]
@@ -2240,6 +2292,10 @@ pub fn create_winit_window_attributes(
         .with_visible(visible.unwrap_or(true))
         .with_maximized(if cfg!(target_os = "ios") {
             true
+        } else if cfg!(target_os = "windows") && visible == Some(false) {
+            // Maximizing a hidden window on Windows briefly shows it.
+            // Deferred to `apply_viewport_builder_to_window`, which hides that flash.
+            false
         } else {
             maximized.unwrap_or(false)
         })
@@ -2474,8 +2530,60 @@ pub fn apply_viewport_builder_to_window(
             window.set_outer_position(pos);
         }
         if let Some(maximized) = builder.maximized {
-            window.set_maximized(maximized);
+            set_maximized(window, maximized);
         }
+    }
+}
+
+/// Like [`winit::window::Window::set_maximized`], but doesn't flash a hidden window on Windows.
+pub fn set_maximized(window: &winit::window::Window, maximized: bool) {
+    #[cfg(target_os = "windows")]
+    if maximized && window.is_visible() == Some(false) {
+        set_maximized_while_hidden(window);
+        return;
+    }
+
+    window.set_maximized(maximized);
+}
+
+/// Maximize a hidden window without it flashing on screen.
+///
+/// winit implements maximize with `ShowWindow(SW_MAXIMIZE)`, which also shows the window,
+/// and then hides it again with `SW_HIDE` if it is supposed to be invisible.
+/// We cloak the window during that so the brief show is never composited.
+/// The window stays hidden but maximized, so the first frame is rendered at the right size.
+// TODO(rust-windowing/winit#4575): remove this (and the `with_maximized` special case in
+// `create_winit_window_attributes`) once we are on a winit with that fix (or rust-windowing/winit#4587).
+#[cfg(target_os = "windows")]
+fn set_maximized_while_hidden(window: &winit::window::Window) {
+    use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
+    use windows_sys::Win32::Graphics::Dwm::{DWMWA_CLOAK, DwmSetWindowAttribute};
+
+    let Ok(RawWindowHandle::Win32(handle)) = window.window_handle().map(|h| h.as_raw()) else {
+        window.set_maximized(true);
+        return;
+    };
+    let hwnd = handle.hwnd.get() as _;
+
+    let set_cloaked = |cloaked: bool| {
+        let value = i32::from(cloaked);
+        // SAFETY: `hwnd` is a valid window handle and `value` is a BOOL, as DWMWA_CLOAK expects.
+        #[expect(unsafe_code)]
+        unsafe {
+            DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_CLOAK as u32,
+                (&raw const value).cast(),
+                size_of::<i32>() as u32,
+            )
+        }
+    };
+
+    let cloaked = set_cloaked(true) >= 0;
+    // winit runs this synchronously, since we're on the event loop thread:
+    window.set_maximized(true);
+    if cloaked {
+        set_cloaked(false);
     }
 }
 

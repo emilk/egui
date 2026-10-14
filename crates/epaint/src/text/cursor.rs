@@ -19,12 +19,25 @@ pub struct CCursor {
 }
 
 impl CCursor {
+    /// A cursor at the given character offset.
+    ///
+    /// NOTE: `index` is a *character* offset (i.e. counting [`char`]s), NOT a byte offset!
+    /// For instance, the cursor after `"ö"` is at `CCursor::new(1)`, even though `"ö".len() == 2`.
+    ///
+    /// To put the cursor after the last character of a string, use [`Self::end_of_str`].
     #[inline]
     pub fn new(index: impl Into<CharIndex>) -> Self {
         Self {
             index: index.into(),
             prefer_next_row: false,
         }
+    }
+
+    /// A cursor placed after the last character of `text`,
+    /// i.e. at `text.chars().count()`.
+    #[inline]
+    pub fn end_of_str(text: &str) -> Self {
+        Self::new(text.chars().count())
     }
 }
 

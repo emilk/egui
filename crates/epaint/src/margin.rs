@@ -76,7 +76,7 @@ impl Margin {
 
     /// Total margins on both sides
     #[inline]
-    pub fn sum(self) -> Vec2 {
+    pub const fn sum(self) -> Vec2 {
         vec2(self.leftf() + self.rightf(), self.topf() + self.bottomf())
     }
 

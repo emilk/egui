@@ -90,6 +90,15 @@ impl View for MiscDemoWindow {
                 });
             });
 
+        CollapsingHeader::new("System font fallback")
+            .default_open(false)
+            .show(ui, |ui| {
+                system_font_fallback_demo(ui);
+                ui.vertical_centered(|ui| {
+                    ui.add(crate::egui_github_link_file_line!());
+                });
+            });
+
         CollapsingHeader::new("Text rotation")
             .default_open(false)
             .show(ui, |ui| self.text_rotation.ui(ui));
@@ -563,16 +572,18 @@ impl CustomCollapsingHeader {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label("Example of a collapsing header with custom header:");
 
-        let id = ui.make_persistent_id("my_collapsing_header");
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
-            .show_header(ui, |ui| {
+        egui::CollapsingHeader::custom(
+            ui,
+            "my_collapsing_header",
+            |ui| {
                 ui.toggle_value(&mut self.selected, "Click to select/unselect");
                 ui.radio_value(&mut self.radio_value, false, "");
                 ui.radio_value(&mut self.radio_value, true, "");
-            })
-            .body(|ui| {
+            },
+            |ui| {
                 ui.label("The body is always custom");
-            });
+            },
+        );
 
         CollapsingHeader::new("Normal collapsing header for comparison").show(ui, |ui| {
             ui.label("Nothing exciting here");
@@ -709,6 +720,33 @@ fn ui_stack_demo(ui: &mut Ui) {
 }
 
 // ----------------------------------------------------------------------------
+
+/// Text in scripts that egui's default fonts lack.
+///
+/// On native, eframe looks for these glyphs among the system fonts.
+/// On web, the browser draws them.
+fn system_font_fallback_demo(ui: &mut Ui) {
+    ui.label("Some non-latin chars to test font fallback:");
+    egui::Grid::new("system_font_fallback")
+        .num_columns(2)
+        .show(ui, |ui| {
+            for (language, sample) in [
+                ("Arabic", "مرحبا"),
+                ("Chinese (simplified)", "这些字体还能显示吗？"),
+                ("Chinese (traditional)", "這些字體還能顯示嗎？"),
+                ("Devanagari", "नमस्ते"),
+                ("Emoji", "🦀 🚀 ✨ 🎞️"),
+                ("Hebrew", "שלום"),
+                ("Japanese", "ひらがな、カタカナ、漢字"),
+                ("Korean", "안녕하세요"),
+                ("Thai", "สวัสดี"),
+            ] {
+                ui.label(language);
+                ui.label(sample);
+                ui.end_row();
+            }
+        });
+}
 
 fn text_layout_demo(ui: &mut Ui) {
     use egui::text::LayoutJob;

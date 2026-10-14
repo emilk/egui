@@ -403,6 +403,25 @@ pub struct NativeOptions {
     /// Defaults to true.
     pub dithering: bool,
 
+    /// Should the platform clipboard keyboard shortcuts
+    /// (e.g. <kbd>Cmd/Ctrl</kbd>+<kbd>X</kbd>/<kbd>C</kbd>/<kbd>V</kbd>)
+    /// be translated into [`egui::Event::Cut`], [`egui::Event::Copy`] and [`egui::Event::Paste`]?
+    ///
+    /// Set this to `false` if you want to handle these key combinations yourself.
+    /// They will then arrive as ordinary [`egui::Event::Key`] events instead.
+    /// Note that built-in widgets such as [`egui::TextEdit`] will then no longer
+    /// respond to these shortcuts.
+    ///
+    /// This applies to all viewports.
+    /// See also `egui_winit::State::set_clipboard_shortcuts`.
+    ///
+    /// There is no web equivalent: on the web, Cut/Copy/Paste come from the browser's
+    /// clipboard events (which can also be triggered from e.g. the browser menu),
+    /// and the key presses are always also delivered as [`egui::Event::Key`].
+    ///
+    /// Defaults to true.
+    pub clipboard_shortcuts: bool,
+
     /// Android application for `winit`'s event loop.
     ///
     /// This value is required on Android to correctly create the event loop. See
@@ -479,6 +498,8 @@ impl Default for NativeOptions {
             persistence_path: None,
 
             dithering: true,
+
+            clipboard_shortcuts: true,
 
             #[cfg(target_os = "android")]
             android_app: None,
@@ -693,6 +714,15 @@ pub struct Frame {
     #[doc(hidden)]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
+    /// The surface config the app wants the `wgpu` renderer to use.
+    ///
+    /// `None` unless we are rendering with `wgpu`.
+    ///
+    /// eframe pushes this into the painter once per frame, before painting.
+    #[cfg(feature = "wgpu_no_default_features")]
+    #[doc(hidden)]
+    pub wgpu_surface_config: Option<egui_wgpu::SurfaceConfig>,
+
     /// The current [`winit::window::Window`] (i.e. the one the active viewport is rendered to).
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) window: Option<std::sync::Arc<winit::window::Window>>,
@@ -704,6 +734,11 @@ pub struct Frame {
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
+
+    /// The activation token the windowing system last handed us, waiting to be
+    /// taken by the app. See [`Frame::request_activation_token`].
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) activation_token: Option<String>,
 }
 
 // Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
@@ -744,9 +779,13 @@ impl Frame {
             raw_window_handle: Err(HandleError::NotSupported),
             #[cfg(not(target_arch = "wasm32"))]
             window: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            activation_token: None,
             storage: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: None,
+            #[cfg(feature = "wgpu_no_default_features")]
+            wgpu_surface_config: None,
         }
     }
 
@@ -779,6 +818,93 @@ impl Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn winit_window(&self) -> Option<&std::sync::Arc<winit::window::Window>> {
         self.window.as_ref()
+    }
+
+    /// Position the native macOS "traffic lights" (close/minimize/maximize buttons)
+    /// in a custom title bar.
+    ///
+    /// The buttons are centered vertically in `title_bar_y`
+    /// (the y-range of your title bar, measured from the top of the window),
+    /// with the close button `left_margin` from the left edge.
+    ///
+    /// Both arguments are in egui points.
+    /// Call this every frame: `AppKit` resets the position of the buttons whenever it lays out
+    /// the window again (e.g. on resize), and this way they also follow changes to the zoom factor.
+    ///
+    /// The native spacing between the buttons is preserved.
+    ///
+    /// This is meant to be used together with [`egui::ViewportBuilder::with_fullsize_content_view`].
+    ///
+    /// Does nothing on other platforms.
+    pub fn set_traffic_lights_position(
+        &self,
+        egui_ctx: &egui::Context,
+        title_bar_y: egui::Rangef,
+        left_margin: f32,
+    ) {
+        cfg_select! {
+            all(
+                target_os = "macos",
+                any(feature = "glow", feature = "wgpu_no_default_features")
+            ) => {
+                if let Ok(window_handle) = &self.raw_window_handle {
+                    // Convert from egui points to native points:
+                    let zoom_factor = egui_ctx.zoom_factor();
+                    crate::native::macos::position_traffic_lights(
+                        window_handle,
+                        zoom_factor * title_bar_y,
+                        zoom_factor * left_margin,
+                    );
+                }
+            }
+            _ => {
+                let _ = (self, egui_ctx, title_bar_y, left_margin);
+            }
+        }
+    }
+
+    /// Ask the windowing system for a fresh activation token (Linux only).
+    ///
+    /// The token lets you hand your focus to a process you are about to spawn:
+    /// pass it in the `XDG_ACTIVATION_TOKEN` environment variable and the
+    /// compositor grants the new window focus instead of tripping its
+    /// focus-stealing prevention. On X11 the token is a startup-notification id,
+    /// which the child reads from `DESKTOP_STARTUP_ID`.
+    ///
+    /// The answer arrives asynchronously, a frame or more later — collect it
+    /// with [`Frame::take_activation_token`]. Nothing is delivered on platforms
+    /// without an activation protocol, so give up after a deadline of your own
+    /// rather than waiting forever.
+    ///
+    /// This is a no-op off Linux, and when running headless.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn request_activation_token(&self) {
+        let Some(window) = self.window.as_ref() else {
+            return;
+        };
+
+        cfg_select! {
+            all(any(feature = "wayland", feature = "x11"), target_os = "linux") => {
+                use winit::platform::startup_notify::WindowExtStartupNotify as _;
+                if let Err(err) = window.request_activation_token() {
+                    log::debug!("request_activation_token failed: {err}");
+                }
+            }
+            _ => {
+                let _ = window;
+            }
+        }
+    }
+
+    /// Take the activation token asked for with
+    /// [`Frame::request_activation_token`], if one has arrived.
+    ///
+    /// Returns it at most once: a token is single-use, and the compositor
+    /// invalidates it shortly after issuing it, so spawn the child process
+    /// with it right away rather than storing it.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn take_activation_token(&mut self) -> Option<String> {
+        self.activation_token.take()
     }
 
     /// A reference to the underlying [`glow`] (OpenGL) context.
@@ -818,25 +944,27 @@ impl Frame {
         self.wgpu_render_state.as_ref()
     }
 
-    /// The currently-applied runtime surface config (present mode, frame latency)
-    /// used by the `wgpu` renderer, if any.
+    /// The surface config (present mode, frame latency) the app wants the `wgpu`
+    /// renderer to use.
     ///
-    /// Returns `None` when not using the `wgpu` backend.
+    /// `None` unless we are rendering with `wgpu`.
     #[cfg(feature = "wgpu_no_default_features")]
     pub fn wgpu_surface_config(&self) -> Option<egui_wgpu::SurfaceConfig> {
-        self.wgpu_render_state
-            .as_ref()
-            .map(|state| state.surface_config)
+        self.wgpu_surface_config
     }
 
-    /// Set the runtime surface config (present mode, frame latency) for the `wgpu`
-    /// renderer. The surface is reconfigured on the next paint.
+    /// Set the surface config (present mode, frame latency) the app wants the `wgpu`
+    /// renderer to use.
     ///
-    /// No-op when not using the `wgpu` backend.
+    /// No-op unless we are rendering with `wgpu`.
+    ///
+    /// The config might not take effect if the surface does not support the
+    /// requested present mode. On web the config is ignored, since the browser
+    /// controls presentation via `requestAnimationFrame`.
     #[cfg(feature = "wgpu_no_default_features")]
     pub fn set_wgpu_surface_config(&mut self, config: egui_wgpu::SurfaceConfig) {
-        if let Some(state) = &mut self.wgpu_render_state {
-            state.surface_config = config;
+        if let Some(current) = &mut self.wgpu_surface_config {
+            *current = config;
         }
     }
 }

@@ -131,6 +131,27 @@ impl<'tree> Node<'tree> {
         );
     }
 
+    /// Send an [`accesskit::Action::SetValue`] action with a text value to the node.
+    ///
+    /// This is how assistive technologies set the content of text inputs,
+    /// e.g. UI Automation's `ValuePattern.SetValue` on Windows.
+    pub fn set_text_value_accesskit(&self, value: &str) {
+        self.do_accesskit_action(
+            accesskit::Action::SetValue,
+            Some(accesskit::ActionData::Value(value.into())),
+        );
+    }
+
+    /// Send an [`accesskit::Action::ReplaceSelectedText`] action to the node.
+    ///
+    /// This replaces the selection, or inserts at the cursor, in a focused text input.
+    pub fn replace_selected_text_accesskit(&self, text: &str) {
+        self.do_accesskit_action(
+            accesskit::Action::ReplaceSelectedText,
+            Some(accesskit::ActionData::Value(text.into())),
+        );
+    }
+
     fn do_accesskit_action(&self, action: accesskit::Action, data: Option<accesskit::ActionData>) {
         let (target_node, target_tree) = self.accesskit_node.locate();
         self.event(egui::Event::AccessKitActionRequest(
