@@ -182,11 +182,7 @@ impl Clipboard {
             feature = "arboard",
         ))]
         if let Some(clipboard) = &mut self.arboard {
-            if let Err(err) = clipboard.set_image(arboard::ImageData {
-                width: image.width(),
-                height: image.height(),
-                bytes: std::borrow::Cow::Borrowed(bytemuck::cast_slice(&image.pixels)),
-            }) {
+            if let Err(err) = clipboard.set_image(arboard_from_color_image(image)) {
                 log::error!("arboard copy/cut error: {err}");
             }
             log::debug!("Copied image to clipboard");
@@ -309,6 +305,24 @@ fn color_image_from_arboard(image: &arboard::ImageData<'_>) -> egui::ColorImage 
     egui::ColorImage::from_rgba_unmultiplied([image.width, image.height], &image.bytes)
 }
 
+/// arboard expects unmultiplied alpha, but [`egui::Color32`] is premultiplied.
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    feature = "arboard",
+))]
+fn arboard_from_color_image(image: &egui::ColorImage) -> arboard::ImageData<'static> {
+    let bytes: Vec<u8> = image
+        .pixels
+        .iter()
+        .flat_map(|color| color.to_srgba_unmultiplied())
+        .collect();
+    arboard::ImageData {
+        width: image.width(),
+        height: image.height(),
+        bytes: bytes.into(),
+    }
+}
+
 #[cfg(all(
     not(any(target_os = "android", target_os = "ios")),
     feature = "arboard",
@@ -367,7 +381,7 @@ unsafe fn init_smithay_clipboard(
 ))]
 #[cfg(test)]
 mod tests {
-    use super::{color_image_from_arboard, is_expected_content_absence};
+    use super::{arboard_from_color_image, color_image_from_arboard, is_expected_content_absence};
 
     /// Regression test for the spurious `error!`-level log a maintainer caught by manually
     /// testing an image paste (nothing had exercised this distinction before): only
@@ -412,6 +426,24 @@ mod tests {
         assert_eq!(
             color_image.pixels[1],
             egui::Color32::from_rgba_unmultiplied(255, 255, 255, 128)
+        );
+    }
+
+    #[test]
+    fn arboard_from_color_image_converts_premultiplied_to_straight_alpha() {
+        let color_image = egui::ColorImage::new(
+            [3, 1],
+            vec![
+                egui::Color32::from_rgba_unmultiplied(255, 0, 0, 255),
+                egui::Color32::from_rgba_unmultiplied(255, 255, 255, 128),
+                egui::Color32::TRANSPARENT,
+            ],
+        );
+        let image = arboard_from_color_image(&color_image);
+        assert_eq!([image.width, image.height], [3, 1]);
+        assert_eq!(
+            &*image.bytes,
+            &[255, 0, 0, 255, 255, 255, 255, 128, 0, 0, 0, 0]
         );
     }
 }
