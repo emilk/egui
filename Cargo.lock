@@ -1416,6 +1416,8 @@ dependencies = [
  "rand 0.10.2",
  "serde",
  "unicode_names2",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
