@@ -6,7 +6,7 @@
 //!
 //! ```no_run
 //! # let egui_ctx = egui::Context::default();
-//! egui_ctx.add_font_provider(std::sync::Arc::new(egui_system_fonts::SystemFontProvider::new()));
+//! egui_ctx.add_font_provider(std::sync::Arc::new(egui_system_font_provider::SystemFontProvider::new()));
 //! ```
 
 use epaint::{
@@ -55,7 +55,7 @@ impl SystemFontProvider {
     pub fn new() -> Self {
         Self {
             fonts: Mutex::new(Promise::spawn_thread(
-                "egui_system_fonts",
+                "egui_system_font_provider",
                 load_system_fonts,
             )),
             locale: sys_locale::get_locale().and_then(|locale| parse_locale(&locale)),
