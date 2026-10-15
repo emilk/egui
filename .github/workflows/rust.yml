@@ -46,6 +46,9 @@ jobs:
       - name: Lint vertical spacing
         run: ./scripts/lint.py
 
+      - name: Check that all crates can be published (catches dependency cycles and missing features)
+        run: cargo publish --workspace --dry-run --locked
+
       - run: cargo clippy --locked --all-features --all-targets
 
       - run: cargo clippy --locked --all-features -p egui_extras
