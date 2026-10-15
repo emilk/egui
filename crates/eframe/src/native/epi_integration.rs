@@ -259,7 +259,7 @@ impl EpiIntegration {
 
         if native_options.system_font_fallback {
             egui_ctx.add_font_provider(cfg_select! {
-                feature = "system_fonts" => Arc::new(egui_system_fonts::SystemFontProvider::new()),
+                feature = "system_fonts" => Arc::new(egui_system_font_provider::SystemFontProvider::new()),
                 _ => Arc::new(MissingSystemFontsWarning::default()),
             });
         }

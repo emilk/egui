@@ -39,7 +39,7 @@ syntect = ["egui_extras/syntect"]
 
 
 [dependencies]
-egui = { workspace = true, default-features = false, features = ["color-hex"] }
+egui = { workspace = true, default-features = false, features = ["color-hex", "default_fonts"] }
 egui_extras = { workspace = true, features = ["image", "svg"] }
 
 log.workspace = true
