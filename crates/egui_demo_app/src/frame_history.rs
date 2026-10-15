@@ -53,7 +53,7 @@ impl FrameHistory {
     }
 
     fn graph(&self, ui: &mut egui::Ui) -> egui::Response {
-        use egui::{emath, epaint, pos2, vec2, Pos2, Rect, Sense, Shape, Stroke, TextStyle};
+        use egui::{Pos2, Rect, Sense, Shape, Stroke, TextStyle, emath, epaint, pos2, vec2};
 
         ui.label("egui CPU usage history");
 
@@ -72,9 +72,10 @@ impl FrameHistory {
         let mut shapes = Vec::with_capacity(3 + 2 * history.len());
         shapes.push(Shape::Rect(epaint::RectShape::new(
             rect,
-            style.rounding,
+            style.corner_radius,
             ui.visuals().extreme_bg_color,
             ui.style().noninteractive().bg_stroke,
+            egui::StrokeKind::Inside,
         )));
 
         let rect = rect.shrink(4.0);
@@ -89,7 +90,7 @@ impl FrameHistory {
             ));
             let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
             let text = format!("{:.1} ms", 1e3 * cpu_usage);
-            shapes.push(ui.fonts(|f| {
+            shapes.push(ui.fonts_mut(|f| {
                 Shape::text(
                     f,
                     pos2(rect.left(), y),

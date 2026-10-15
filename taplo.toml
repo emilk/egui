@@ -1,0 +1,13 @@
+# https://github.com/tamasfe/taplo
+
+include = [
+  "*.toml",
+  "crates/**/*.toml",
+  "examples/**/*.toml",
+  "scripts/**/*.toml",
+  "tests/**/*.toml",
+]
+
+[formatting]
+align_comments = false # causes unnecessary churn
+column_width = 100

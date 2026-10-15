@@ -5,6 +5,97 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.36.2 - 2026-09-08
+* Hide drop shadow window decoration when in fullscreen mode [#8449](https://github.com/emilk/egui/pull/8449) by [@tarolling](https://github.com/tarolling)
+
+
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
+## 0.36.0 - 2026-08-05
+Nothing new
+
+
+## 0.35.0 - 2026-06-25
+* Delegate handling of IME interruptions to integrations to fix virtual keyboard flickering on web [#8078](https://github.com/emilk/egui/pull/8078) by [@umajho](https://github.com/umajho)
+* Always enable windows undecorated shadows [#8169](https://github.com/emilk/egui/pull/8169) by [@Wumpf](https://github.com/Wumpf)
+* Choose restored window monitor by overlap [#8191](https://github.com/emilk/egui/pull/8191) by [@YelovSK](https://github.com/YelovSK)
+* Add `ViewportBuilder::with_monitor` + `ViewportCommand::SetMonitor` [#8140](https://github.com/emilk/egui/pull/8140) by [@Le-Syl21](https://github.com/Le-Syl21)
+* Implement proper visuals for IME composition [#8083](https://github.com/emilk/egui/pull/8083) by [@umajho](https://github.com/umajho)
+
+
+## 0.34.3 - 2026-05-27
+Nothing new
+
+
+## 0.34.2 - 2026-05-04
+Nothing new
+
+
+## 0.34.1 - 2026-03-27
+Nothing new
+
+
+## 0.34.0 - 2026-03-26
+* Add `is_scrolling`/`is_smooth_scrolling` util, checking for active scroll action [#7669](https://github.com/emilk/egui/pull/7669) by [@IsseW](https://github.com/IsseW)
+* Fix backspacing leaving last character in IME prediction not removed on macOS native and Safari [#7810](https://github.com/emilk/egui/pull/7810) by [@umajho](https://github.com/umajho)
+* Much improved IME [#7967](https://github.com/emilk/egui/pull/7967) by [@umajho](https://github.com/umajho)
+* Allow fallback from smithay to arboard when getting clipboard [#7976](https://github.com/emilk/egui/pull/7976) by [@wizzeh](https://github.com/wizzeh)
+
+
+## 0.33.3 - 2025-12-11
+Nothing new
+
+
+## 0.33.2 - 2025-11-13
+* Don't enable `arboard` on iOS [#7663](https://github.com/emilk/egui/pull/7663) by [@irh](https://github.com/irh)
+
+
+## 0.33.0 - 2025-10-09
+### ⭐ Added
+* Add rotation gesture support for trackpad sources [#7453](https://github.com/emilk/egui/pull/7453) by [@thatcomputerguy0101](https://github.com/thatcomputerguy0101)
+* Add support for the safe area on iOS [#7578](https://github.com/emilk/egui/pull/7578) by [@irh](https://github.com/irh)
+
+### 🔧 Changed
+* Update MSRV from 1.86 to 1.88 [#7579](https://github.com/emilk/egui/pull/7579) by [@Wumpf](https://github.com/Wumpf)
+* Create `egui_wgpu::RendererOptions` [#7601](https://github.com/emilk/egui/pull/7601) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix build error in egui-winit with profiling enabled [#7557](https://github.com/emilk/egui/pull/7557) by [@torokati44](https://github.com/torokati44)
+* Properly end winit event loop [#7565](https://github.com/emilk/egui/pull/7565) by [@tye-exe](https://github.com/tye-exe)
+* Fix eframe window not being focused on mac on startup [#7593](https://github.com/emilk/egui/pull/7593) by [@emilk](https://github.com/emilk)
+
+
+## 0.32.3 - 2025-09-12
+Nothing new
+
+
+## 0.32.2 - 2025-09-04
+Nothing new
+
+
+## 0.32.1 - 2025-08-15
+* Update to winit 0.30.12 [#7420](https://github.com/emilk/egui/pull/7420) by [@emilk](https://github.com/emilk)
+
+
+## 0.32.0 - 2025-07-10
+* Mark all keys as released if the app loses focus [#5743](https://github.com/emilk/egui/pull/5743) by [@emilk](https://github.com/emilk)
+* Fix text input on Android [#5759](https://github.com/emilk/egui/pull/5759) by [@StratusFearMe21](https://github.com/StratusFearMe21)
+* Add macOS-specific `has_shadow` and `with_has_shadow` to ViewportBuilder [#6850](https://github.com/emilk/egui/pull/6850) by [@gaelanmcmillan](https://github.com/gaelanmcmillan)
+* Support for back-button on Android [#7073](https://github.com/emilk/egui/pull/7073) by [@ardocrat](https://github.com/ardocrat)
+* Fix incorrect window sizes for non-resizable windows on Wayland [#7103](https://github.com/emilk/egui/pull/7103) by [@GoldsteinE](https://github.com/GoldsteinE)
+
+
+## 0.31.1 - 2025-03-05
+Nothing new
+
+
+## 0.31.0 - 2025-02-04
+* Re-enable IME support on Linux [#5198](https://github.com/emilk/egui/pull/5198) by [@YgorSouza](https://github.com/YgorSouza)
+* Update to winit 0.30.7 [#5516](https://github.com/emilk/egui/pull/5516) by [@emilk](https://github.com/emilk)
+
+
 ## 0.30.0 - 2024-12-16
 * iOS: Support putting UI next to the dynamic island [#5211](https://github.com/emilk/egui/pull/5211) by [@frederik-uni](https://github.com/frederik-uni)
 * Remove implicit `accesskit_winit` feature [#5316](https://github.com/emilk/egui/pull/5316) by [@waywardmonkeys](https://github.com/waywardmonkeys)

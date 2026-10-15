@@ -2,7 +2,7 @@ use ahash::HashMap;
 
 use emath::TSTransform;
 
-use crate::{ahash, emath, LayerId, Pos2, Rect, WidgetRect, WidgetRects};
+use crate::{LayerId, Pos2, Sense, WidgetRect, WidgetRects, emath, id::IdSet};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
@@ -65,7 +65,7 @@ pub fn hit_test(
         .filter(|layer| layer.order.allow_interaction())
         .flat_map(|&layer_id| widgets.get_layer(layer_id))
         .filter(|&w| {
-            if w.interact_rect.is_negative() {
+            if w.interact_rect.is_negative() || w.rect.any_nan() || w.interact_rect.any_nan() {
                 return false;
             }
 
@@ -90,6 +90,11 @@ pub fn hit_test(
             *hit = hit.transform(to_global);
         }
     }
+
+    // Protect against bad input and transforms.
+    // NOTE: `Rect::intersect` scrubs NaNs (`f32::max(NAN, x) == x`),
+    // so `interact_rect` can be finite even when `rect` is not.
+    close.retain(|w| !w.rect.any_nan() && !w.interact_rect.any_nan());
 
     // When using layer transforms it is common to stack layers close to each other.
     // For instance, you may have a resize-separator on a panel, with two
@@ -128,10 +133,27 @@ pub fn hit_test(
     // the `enabled` flag everywhere:
     for w in &mut close {
         if !w.enabled {
-            w.sense.click = false;
-            w.sense.drag = false;
+            w.sense -= Sense::CLICK;
+            w.sense -= Sense::DRAG;
         }
     }
+
+    // Find widgets which are hidden behind another widget and discard them.
+    // This is the case when a widget fully contains another widget and is on a different layer.
+    // It prevents "hovering through" widgets when there is a clickable widget behind.
+
+    let mut hidden = IdSet::default();
+    for (i, current) in close.iter().enumerate().rev() {
+        for next in &close[i + 1..] {
+            if next.interact_rect.contains_rect(current.interact_rect)
+                && current.layer_id != next.layer_id
+            {
+                hidden.insert(current.id);
+            }
+        }
+    }
+
+    close.retain(|c| !hidden.contains(&c.id));
 
     let mut hits = hit_test_on_close(&close, pos);
 
@@ -158,11 +180,17 @@ pub fn hit_test(
             restore_widget_rect(wr);
         }
         if let Some(wr) = &mut hits.drag {
-            debug_assert!(wr.sense.drag);
+            debug_assert!(
+                wr.sense.senses_drag(),
+                "We should only return drag hits if they sense drag"
+            );
             restore_widget_rect(wr);
         }
         if let Some(wr) = &mut hits.click {
-            debug_assert!(wr.sense.click);
+            debug_assert!(
+                wr.sense.senses_click(),
+                "We should only return click hits if they sense click"
+            );
             restore_widget_rect(wr);
         }
     }
@@ -176,11 +204,17 @@ fn contains_circle(interact_rect: emath::Rect, pos: Pos2, radius: f32) -> bool {
 }
 
 fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
-    #![allow(clippy::collapsible_else_if)]
-
     // First find the best direct hits:
-    let hit_click = find_closest_within(close.iter().copied().filter(|w| w.sense.click), pos, 0.0);
-    let hit_drag = find_closest_within(close.iter().copied().filter(|w| w.sense.drag), pos, 0.0);
+    let hit_click = find_closest_within(
+        close.iter().copied().filter(|w| w.sense.senses_click()),
+        pos,
+        0.0,
+    );
+    let hit_drag = find_closest_within(
+        close.iter().copied().filter(|w| w.sense.senses_drag()),
+        pos,
+        0.0,
+    );
 
     match (hit_click, hit_drag) {
         (None, None) => {
@@ -190,14 +224,14 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                 close
                     .iter()
                     .copied()
-                    .filter(|w| w.sense.click || w.sense.drag),
+                    .filter(|w| w.sense.senses_click() || w.sense.senses_drag()),
                 pos,
             );
 
             if let Some(closest) = closest {
                 WidgetHits {
-                    click: closest.sense.click.then_some(closest),
-                    drag: closest.sense.drag.then_some(closest),
+                    click: closest.sense.senses_click().then_some(closest),
+                    drag: closest.sense.senses_drag().then_some(closest),
                     ..Default::default()
                 }
             } else {
@@ -218,9 +252,12 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
             // or a moveable window.
             // It could also be something small, like a slider, or panel resize handle.
 
-            let closest_click = find_closest(close.iter().copied().filter(|w| w.sense.click), pos);
+            let closest_click = find_closest(
+                close.iter().copied().filter(|w| w.sense.senses_click()),
+                pos,
+            );
             if let Some(closest_click) = closest_click {
-                if closest_click.sense.drag {
+                if closest_click.sense.senses_drag() {
                     // We have something close that sense both clicks and drag.
                     // Should we use it over the direct drag-hit?
                     if hit_drag
@@ -244,7 +281,7 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                         }
                     }
                 } else {
-                    // These is a close pure-click widget.
+                    // This is a close pure-click widget.
                     // However, we should be careful to only return two different widgets
                     // when it is absolutely not going to confuse the user.
                     if hit_drag
@@ -277,23 +314,22 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                     close
                         .iter()
                         .copied()
-                        .filter(|w| w.sense.drag && w.id != hit_drag.id),
+                        .filter(|w| w.sense.senses_drag() && w.id != hit_drag.id),
                     pos,
                 );
 
-                if let Some(closest_drag) = closest_drag {
-                    if hit_drag
+                if let Some(closest_drag) = closest_drag
+                    && hit_drag
                         .interact_rect
                         .contains_rect(closest_drag.interact_rect)
-                    {
-                        // `hit_drag` is a big background thing and `closest_drag` is something small on top of it.
-                        // Be helpful and return the small things:
-                        return WidgetHits {
-                            click: None,
-                            drag: Some(closest_drag),
-                            ..Default::default()
-                        };
-                    }
+                {
+                    // `hit_drag` is a big background thing and `closest_drag` is something small on top of it.
+                    // Be helpful and return the small things:
+                    return WidgetHits {
+                        click: None,
+                        drag: Some(closest_drag),
+                        ..Default::default()
+                    };
                 }
 
                 WidgetHits {
@@ -326,12 +362,14 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
 
         (Some(hit_click), Some(hit_drag)) => {
             // We have a perfect hit on both click and drag. Which is the topmost?
-            let click_idx = close.iter().position(|w| *w == hit_click).unwrap();
-            let drag_idx = close.iter().position(|w| *w == hit_drag).unwrap();
+            // We look them up by id, because a `WidgetRect` with a NaN coordinate
+            // is not equal even to itself.
+            let click_idx = close.iter().position(|w| w.id == hit_click.id);
+            let drag_idx = close.iter().position(|w| w.id == hit_drag.id);
 
             let click_is_on_top_of_drag = drag_idx < click_idx;
             if click_is_on_top_of_drag {
-                if hit_click.sense.drag {
+                if hit_click.sense.senses_drag() {
                     // The top thing senses both clicks and drags.
                     WidgetHits {
                         click: Some(hit_click),
@@ -349,7 +387,7 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                     }
                 }
             } else {
-                if hit_drag.sense.click {
+                if hit_drag.sense.senses_click() {
                     // The top thing senses both clicks and drags.
                     WidgetHits {
                         click: Some(hit_drag),
@@ -389,16 +427,6 @@ fn find_closest_within(
 
         let dist_sq = widget.interact_rect.distance_sq_to_pos(pos);
 
-        if let Some(closest) = closest {
-            if dist_sq == closest_dist_sq {
-                // It's a tie! Pick the thin candidate over the thick one.
-                // This makes it easier to hit a thin resize-handle, for instance:
-                if should_prioritizie_hits_on_back(closest.interact_rect, widget.interact_rect) {
-                    continue;
-                }
-            }
-        }
-
         // In case of a tie, take the last one = the one on top.
         if dist_sq <= closest_dist_sq {
             closest_dist_sq = dist_sq;
@@ -409,30 +437,11 @@ fn find_closest_within(
     closest
 }
 
-/// Should we prioritizie hits on `back` over those on `front`?
-///
-/// `back` should be behind the `front` widget.
-///
-/// Returns true if `back` is a small hit-target and `front` is not.
-fn should_prioritizie_hits_on_back(back: Rect, front: Rect) -> bool {
-    if front.contains_rect(back) {
-        return false; // back widget is fully occluded; no way to hit it
-    }
-
-    // Reduce each rect to its width or height, whichever is smaller:
-    let back = back.width().min(back.height());
-    let front = front.width().min(front.height());
-
-    // These are hard-coded heuristics that could surely be improved.
-    let back_is_much_thinner = back <= 0.5 * front;
-    let back_is_thin = back <= 16.0;
-
-    back_is_much_thinner && back_is_thin
-}
-
 #[cfg(test)]
 mod tests {
-    use emath::{pos2, vec2, Rect};
+    #![expect(clippy::print_stdout)]
+
+    use emath::{Rect, pos2, vec2};
 
     use crate::{Id, Sense};
 
@@ -441,11 +450,13 @@ mod tests {
     fn wr(id: Id, sense: Sense, rect: Rect) -> WidgetRect {
         WidgetRect {
             id,
+            parent_id: Id::NULL,
             layer_id: LayerId::background(),
             rect,
             interact_rect: rect,
             sense,
             enabled: true,
+            visible: true,
         }
     }
 
@@ -453,17 +464,17 @@ mod tests {
     fn buttons_on_window() {
         let widgets = vec![
             wr(
-                Id::new("bg-area"),
+                Id::unique("bg-area"),
                 Sense::drag(),
                 Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0)),
             ),
             wr(
-                Id::new("click"),
+                Id::unique("click"),
                 Sense::click(),
                 Rect::from_min_size(pos2(10.0, 10.0), vec2(10.0, 10.0)),
             ),
             wr(
-                Id::new("click-and-drag"),
+                Id::unique("click-and-drag"),
                 Sense::click_and_drag(),
                 Rect::from_min_size(pos2(100.0, 10.0), vec2(10.0, 10.0)),
             ),
@@ -471,45 +482,45 @@ mod tests {
 
         // Perfect hit:
         let hits = hit_test_on_close(&widgets, pos2(15.0, 15.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("click"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("bg-area"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("click"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("bg-area"));
 
         // Close hit:
         let hits = hit_test_on_close(&widgets, pos2(5.0, 5.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("click"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("bg-area"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("click"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("bg-area"));
 
         // Perfect hit:
         let hits = hit_test_on_close(&widgets, pos2(105.0, 15.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("click-and-drag"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("click-and-drag"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("click-and-drag"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("click-and-drag"));
 
-        // Close hit - should still ignore the drag-background so as not to confuse the userr:
+        // Close hit - should still ignore the drag-background so as not to confuse the user:
         let hits = hit_test_on_close(&widgets, pos2(105.0, 5.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("click-and-drag"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("click-and-drag"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("click-and-drag"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("click-and-drag"));
     }
 
     #[test]
     fn thin_resize_handle_next_to_label() {
         let widgets = vec![
             wr(
-                Id::new("bg-area"),
+                Id::unique("bg-area"),
                 Sense::drag(),
                 Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0)),
             ),
             wr(
-                Id::new("bg-left-label"),
+                Id::unique("bg-left-label"),
                 Sense::click_and_drag(),
                 Rect::from_min_size(pos2(0.0, 0.0), vec2(40.0, 100.0)),
             ),
             wr(
-                Id::new("thin-drag-handle"),
+                Id::unique("thin-drag-handle"),
                 Sense::drag(),
                 Rect::from_min_size(pos2(30.0, 0.0), vec2(70.0, 100.0)),
             ),
             wr(
-                Id::new("fg-right-label"),
+                Id::unique("fg-right-label"),
                 Sense::click_and_drag(),
                 Rect::from_min_size(pos2(60.0, 0.0), vec2(50.0, 100.0)),
             ),
@@ -521,22 +532,22 @@ mod tests {
 
         // In the middle of the bg-left-label:
         let hits = hit_test_on_close(&widgets, pos2(25.0, 50.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("bg-left-label"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("bg-left-label"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("bg-left-label"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("bg-left-label"));
 
         // On both the left click-and-drag and thin handle, but the thin handle is on top and should win:
         let hits = hit_test_on_close(&widgets, pos2(35.0, 50.0));
         assert_eq!(hits.click, None);
-        assert_eq!(hits.drag.unwrap().id, Id::new("thin-drag-handle"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("thin-drag-handle"));
 
         // Only on the thin-drag-handle:
         let hits = hit_test_on_close(&widgets, pos2(50.0, 50.0));
         assert_eq!(hits.click, None);
-        assert_eq!(hits.drag.unwrap().id, Id::new("thin-drag-handle"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("thin-drag-handle"));
 
         // On both the thin handle and right label. The label is on top and should win
         let hits = hit_test_on_close(&widgets, pos2(65.0, 50.0));
-        assert_eq!(hits.click.unwrap().id, Id::new("fg-right-label"));
-        assert_eq!(hits.drag.unwrap().id, Id::new("fg-right-label"));
+        assert_eq!(hits.click.unwrap().id, Id::unique("fg-right-label"));
+        assert_eq!(hits.drag.unwrap().id, Id::unique("fg-right-label"));
     }
 }

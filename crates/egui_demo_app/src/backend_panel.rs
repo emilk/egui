@@ -94,7 +94,7 @@ impl BackendPanel {
         self.egui_windows.checkboxes(ui);
 
         #[cfg(debug_assertions)]
-        if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
+        if ui.global_style().debug.debug_on_hover_with_all_modifiers {
             ui.separator();
             ui.label("Press down all modifiers and hover a widget to see a callstack for it");
         }
@@ -102,15 +102,15 @@ impl BackendPanel {
         #[cfg(target_arch = "wasm32")]
         {
             ui.separator();
-            let mut screen_reader = ui.ctx().options(|o| o.screen_reader);
+            let mut screen_reader = ui.options(|o| o.screen_reader);
             ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
-            ui.ctx().options_mut(|o| o.screen_reader = screen_reader);
+            ui.options_mut(|o| o.screen_reader = screen_reader);
         }
 
         if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
             ui.separator();
             // For testing panic handling on web:
-            #[allow(clippy::manual_assert)]
+            #[expect(clippy::manual_assert)]
             if ui.button("panic!()").clicked() {
                 panic!("intentional panic!");
             }
@@ -119,7 +119,7 @@ impl BackendPanel {
         if !cfg!(target_arch = "wasm32") {
             ui.separator();
             if ui.button("Quit").clicked() {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                ui.send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
     }
@@ -147,6 +147,10 @@ impl BackendPanel {
             if cfg!(debug_assertions) {
                 ui.collapsing("More…", |ui| {
                     ui.horizontal(|ui| {
+                        ui.label("Total ui frames:");
+                        ui.monospace(ui.ctx().cumulative_frame_nr().to_string());
+                    });
+                    ui.horizontal(|ui| {
                         ui.label("Total ui passes:");
                         ui.monospace(ui.ctx().cumulative_pass_nr().to_string());
                     });
@@ -156,15 +160,15 @@ impl BackendPanel {
                     {
                         log::info!("Waiting 2s before requesting repaint…");
                         let ctx = ui.ctx().clone();
-                        call_after_delay(std::time::Duration::from_secs(2), move || {
+                        call_after_delay(core::time::Duration::from_secs(2), move || {
                             log::info!("Request a repaint in 3s…");
-                            ctx.request_repaint_after(std::time::Duration::from_secs(3));
+                            ctx.request_repaint_after(core::time::Duration::from_secs(3));
                         });
                     }
 
                     ui.horizontal(|ui| {
                         if ui.button("Request discard").clicked() {
-                            ui.ctx().request_discard("Manual button click");
+                            ui.request_discard("Manual button click");
 
                             if !ui.ctx().will_discard() {
                                 ui.label("Discard denied!");
@@ -183,7 +187,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         ui.label("egui running inside ");
         ui.hyperlink_to(
             "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
+            "https://github.com/emilk/egui/tree/main/crates/eframe",
         );
         ui.label(".");
     });
@@ -207,7 +211,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let wgpu_adapter_details_ui = |ui: &mut egui::Ui, adapter: &eframe::wgpu::Adapter| {
             let info = &adapter.get_info();
 
-            let wgpu::AdapterInfo {
+            let eframe::wgpu::AdapterInfo {
                 name,
                 vendor,
                 device,
@@ -215,6 +219,11 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 driver,
                 driver_info,
                 backend,
+                device_pci_bus_id,
+                subgroup_min_size,
+                subgroup_max_size,
+                transient_saves_memory,
+                limit_bucket,
             } = &info;
 
             // Example values:
@@ -257,6 +266,23 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     ui.label(format!("0x{device:02X}"));
                     ui.end_row();
                 }
+                if !device_pci_bus_id.is_empty() {
+                    ui.label("PCI Bus ID:");
+                    ui.label(device_pci_bus_id.as_str());
+                    ui.end_row();
+                }
+                if *subgroup_min_size != 0 || *subgroup_max_size != 0 {
+                    ui.label("Subgroup size:");
+                    ui.label(format!("{subgroup_min_size}..={subgroup_max_size}"));
+                    ui.end_row();
+                }
+                ui.label("Transient saves memory:");
+                ui.label(format!("{transient_saves_memory:?}"));
+                ui.end_row();
+
+                ui.label("Limit bucket:");
+                ui.label(format!("{limit_bucket:?}"));
+                ui.end_row();
             });
         };
 
@@ -289,6 +315,11 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 ui.end_row();
             }
         });
+
+        if let Some(mut cfg) = _frame.wgpu_surface_config() {
+            wgpu_surface_config_ui(ui, &mut cfg);
+            _frame.set_wgpu_surface_config(cfg);
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -297,12 +328,11 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             {
                 let mut fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
                 if ui
-                    .checkbox(&mut fullscreen, "🗖 Fullscreen (F11)")
+                    .checkbox(&mut fullscreen, "🔳 Fullscreen (F11)")
                     .on_hover_text("Fullscreen the window")
                     .changed()
                 {
-                    ui.ctx()
-                        .send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
+                    ui.send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
                 }
             }
 
@@ -319,24 +349,68 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1280.0, 720.0)),
-                        "🖥 Desktop 720p",
+                        "🖥️ Desktop 720p",
                     );
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1920.0, 1080.0)),
-                        "🖥 Desktop 1080p",
+                        "🖥️ Desktop 1080p",
                     );
                 });
 
             if let Some(size) = size {
-                ui.ctx()
-                    .send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
-                ui.ctx()
-                    .send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
-                ui.close_menu();
+                ui.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+                ui.send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
+                ui.close();
             }
         });
     }
+}
+
+#[cfg(feature = "wgpu")]
+fn wgpu_surface_config_ui(ui: &mut egui::Ui, cfg: &mut eframe::SurfaceConfig) {
+    use eframe::wgpu::PresentMode;
+
+    egui::Grid::new("wgpu_surface_config")
+        .num_columns(2)
+        .show(ui, |ui| {
+            ui.label("Present mode:");
+            egui::ComboBox::from_id_salt("wgpu_present_mode")
+                .selected_text(format!("{:?}", cfg.present_mode))
+                .show_ui(ui, |ui| {
+                    for mode in [
+                        PresentMode::AutoVsync,
+                        PresentMode::AutoNoVsync,
+                        PresentMode::Fifo,
+                        PresentMode::FifoRelaxed,
+                        PresentMode::Immediate,
+                        PresentMode::Mailbox,
+                    ] {
+                        ui.selectable_value(&mut cfg.present_mode, mode, format!("{mode:?}"));
+                    }
+                });
+            ui.end_row();
+
+            ui.label("Desired max frame latency:");
+            egui::ComboBox::from_id_salt("wgpu_desired_max_frame_latency")
+                .selected_text(match cfg.desired_maximum_frame_latency {
+                    None => "Default".to_owned(),
+                    Some(n) => n.to_string(),
+                })
+                .show_ui(ui, |ui| {
+                    ui.weak("Lower value = lower latency");
+                    ui.selectable_value(&mut cfg.desired_maximum_frame_latency, None, "Default");
+                    for n in [0_u32, 1, 2, 3] {
+                        ui.selectable_value(
+                            &mut cfg.desired_maximum_frame_latency,
+                            Some(n),
+                            n.to_string(),
+                        );
+                    }
+                    ui.weak("Higher value = higher throughput/FPS");
+                });
+            ui.end_row();
+        });
 }
 
 // ----------------------------------------------------------------------------
@@ -451,18 +525,20 @@ impl EguiWindows {
 // ----------------------------------------------------------------------------
 
 #[cfg(not(target_arch = "wasm32"))]
-fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+fn call_after_delay(delay: core::time::Duration, f: impl FnOnce() + Send + 'static) {
     std::thread::Builder::new()
         .name("call_after_delay".to_owned())
         .spawn(move || {
             std::thread::sleep(delay);
             f();
         })
-        .unwrap();
+        .expect("Failed to spawn a thread");
 }
 
 #[cfg(target_arch = "wasm32")]
-fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+fn call_after_delay(delay: core::time::Duration, f: impl FnOnce() + Send + 'static) {
+    #![expect(clippy::unwrap_used)]
+
     use wasm_bindgen::prelude::*;
     let window = web_sys::window().unwrap();
     let closure = Closure::once(f);

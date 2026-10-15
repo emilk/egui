@@ -1,18 +1,19 @@
 use ahash::HashMap;
+use alloc::sync::Arc;
+use core::{mem::size_of, time::Duration};
 use egui::{
-    decode_gif_uri, has_gif_magic_header,
+    ColorImage, FrameDurations, Id, decode_animated_image_uri, has_gif_magic_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage, GifFrameDurations, Id,
 };
 use image::AnimationDecoder as _;
-use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
+use std::io::Cursor;
 
 /// Array of Frames and the duration for how long each frame should be shown
 #[derive(Debug, Clone)]
 pub struct AnimatedImage {
     frames: Vec<Arc<ColorImage>>,
-    frame_durations: GifFrameDurations,
+    frame_durations: FrameDurations,
 }
 
 impl AnimatedImage {
@@ -35,7 +36,7 @@ impl AnimatedImage {
         }
         Ok(Self {
             frames: images,
-            frame_durations: GifFrameDurations(Arc::new(durations)),
+            frame_durations: FrameDurations::new(durations),
         })
     }
 }
@@ -54,7 +55,7 @@ impl AnimatedImage {
 
     /// Gets image at index
     pub fn get_image(&self, index: usize) -> Arc<ColorImage> {
-        self.frames[index % self.frames.len()].clone()
+        Arc::clone(&self.frames[index % self.frames.len()])
     }
 }
 type Entry = Result<Arc<AnimatedImage>, String>;
@@ -75,7 +76,7 @@ impl ImageLoader for GifLoader {
 
     fn load(&self, ctx: &egui::Context, frame_uri: &str, _: SizeHint) -> ImageLoadResult {
         let (image_uri, frame_index) =
-            decode_gif_uri(frame_uri).map_err(|_err| LoadError::NotSupported)?;
+            decode_animated_image_uri(frame_uri).map_err(|_err| LoadError::NotSupported)?;
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(image_uri).cloned() {
             match entry {
@@ -94,7 +95,7 @@ impl ImageLoader for GifLoader {
                     let result = AnimatedImage::load_gif(&bytes).map(Arc::new);
                     if let Ok(v) = &result {
                         ctx.data_mut(|data| {
-                            *data.get_temp_mut_or_default(Id::new(image_uri)) =
+                            *data.get_temp_mut_or_default(Id::unique(image_uri)) =
                                 v.frame_durations.clone();
                         });
                     }

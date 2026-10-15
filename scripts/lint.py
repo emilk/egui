@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Runs custom linting on Rust code.
 """
@@ -66,10 +66,17 @@ def lint_lines(filepath, lines_in):
                 )
                 lines_out.append("#[inline]")
 
-
         if re.search(r"TODO[^(]", line):
+            errors.append(f"{filepath}:{line_nr}: write 'TODO(username):' instead")
+
+        if re.search(r"\.zip\(", line):
             errors.append(
-                f"{filepath}:{line_nr}: write 'TODO(username):' instead"
+                f"{filepath}:{line_nr}: use `std::iter::zip` or `itertools::izip!` instead of `.zip(`"
+            )
+
+        if re.search(r"\.chain\(", line):
+            errors.append(
+                f"{filepath}:{line_nr}: use `std::iter::chain` or `itertools::chain!` instead of `.chain(`"
             )
 
         if (
@@ -105,6 +112,10 @@ def test_lint():
             self
         }
         """,
+        "for (a, b) in std::iter::zip(xs, ys) {}",
+        "for (a, b, c) in itertools::izip!(xs, ys, zs) {}",
+        "for x in std::iter::chain(xs, ys) {}",
+        "for x in itertools::chain!(xs, ys, zs) {}",
     ]
 
     should_fail = [
@@ -121,6 +132,8 @@ def test_lint():
             self
         }
         """,
+        "for (a, b) in xs.iter().zip(ys) {}",
+        "for x in xs.iter().chain(ys) {}",
     ]
 
     for code in should_pass:
@@ -161,7 +174,11 @@ def main():
         root_dirpath = os.path.abspath(f"{script_dirpath}/..")
         os.chdir(root_dirpath)
 
-        exclude = set(["target", "target_ra", "target_wasm"])
+        exclude = {
+            "target",
+            "target_ra",  # legacy Rust Analyzer target dir
+            "target_wasm",
+        }
         for root, dirs, files in os.walk(".", topdown=True):
             dirs[:] = [d for d in dirs if d not in exclude]
             for filename in files:

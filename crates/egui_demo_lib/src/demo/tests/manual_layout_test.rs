@@ -29,11 +29,12 @@ impl crate::Demo for ManualLayoutTest {
         "Manual Layout Test"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .resizable(false)
             .open(open)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -58,13 +59,17 @@ impl crate::View for ManualLayoutTest {
         });
         egui::Grid::new("pos_size").show(ui, |ui| {
             ui.label("Widget position:");
-            ui.add(egui::Slider::new(&mut widget_offset.x, 0.0..=400.0));
-            ui.add(egui::Slider::new(&mut widget_offset.y, 0.0..=400.0));
+            ui.add(egui::Slider::new(&mut widget_offset.x, 0.0..=400.0))
+                .on_hover_text("Widget position x");
+            ui.add(egui::Slider::new(&mut widget_offset.y, 0.0..=400.0))
+                .on_hover_text("Widget position y");
             ui.end_row();
 
             ui.label("Widget size:");
-            ui.add(egui::Slider::new(&mut widget_size.x, 0.0..=400.0));
-            ui.add(egui::Slider::new(&mut widget_size.y, 0.0..=400.0));
+            ui.add(egui::Slider::new(&mut widget_size.x, 0.0..=400.0))
+                .on_hover_text("Widget width");
+            ui.add(egui::Slider::new(&mut widget_size.y, 0.0..=400.0))
+                .on_hover_text("Widget height");
             ui.end_row();
         });
 

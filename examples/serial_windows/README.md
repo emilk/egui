@@ -7,8 +7,7 @@ Expected order of execution:
 - Similarly, when the second window is closed after a delay a third will be shown.
 - Once the third is closed the program will stop.
 
-NOTE: this doesn't work on Mac due to <https://github.com/rust-windowing/winit/issues/2431>.
-See also <https://github.com/emilk/egui/issues/1918>.
+NOTE: this doesn't work on Mac. See also <https://github.com/emilk/egui/issues/1918>.
 
 ```sh
 cargo run -p serial_windows

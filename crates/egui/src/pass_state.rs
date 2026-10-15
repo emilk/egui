@@ -1,9 +1,9 @@
-use ahash::{HashMap, HashSet};
+use ahash::HashMap;
 
-use crate::{id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects};
+use crate::{Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects, id::IdSet, style};
 
 #[cfg(debug_assertions)]
-use crate::{pos2, Align2, Color32, FontId, NumExt, Painter};
+use crate::{Align2, Color32, FontId, NumExt as _, Painter, pos2};
 
 /// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]
@@ -34,7 +34,7 @@ pub struct PerLayerState {
     /// Is there any open popup (menus, combo-boxes, etc)?
     ///
     /// Does NOT include tooltips.
-    pub open_popups: HashSet<Id>,
+    pub open_popups: IdSet,
 
     /// Which widget is showing a tooltip (if any)?
     ///
@@ -67,11 +67,10 @@ impl ScrollTarget {
     }
 }
 
-#[cfg(feature = "accesskit")]
 #[derive(Clone)]
 pub struct AccessKitPassState {
     pub nodes: IdMap<accesskit::Node>,
-    pub parent_stack: Vec<Id>,
+    pub parent_map: IdMap<Id>,
 }
 
 #[cfg(debug_assertions)]
@@ -96,7 +95,7 @@ impl DebugRect {
         // Paint rectangle around widget:
         {
             // Print width and height:
-            let text_color = if ctx.style().visuals.dark_mode {
+            let text_color = if ctx.global_style().visuals.dark_mode {
                 Color32::WHITE
             } else {
                 Color32::BLACK
@@ -121,7 +120,13 @@ impl DebugRect {
                 Color32::LIGHT_BLUE
             };
             let rect_bg_color = Color32::BLUE.gamma_multiply(0.5);
-            painter.rect(rect, 0.0, rect_bg_color, (1.0, rect_fg_color));
+            painter.rect(
+                rect,
+                0.0,
+                rect_bg_color,
+                (1.0, rect_fg_color),
+                crate::StrokeKind::Outside,
+            );
         }
 
         if !callstack.is_empty() {
@@ -131,7 +136,7 @@ impl DebugRect {
             let galley = painter.layout_no_wrap(text, font_id, text_color);
 
             // Position the text either under or above:
-            let screen_rect = ctx.screen_rect();
+            let content_rect = ctx.content_rect();
             let y = if galley.size().y <= rect.top() {
                 // Above
                 rect.top() - galley.size().y - 16.0
@@ -141,12 +146,12 @@ impl DebugRect {
             };
 
             let y = y
-                .at_most(screen_rect.bottom() - galley.size().y)
+                .at_most(content_rect.bottom() - galley.size().y)
                 .at_least(0.0);
 
             let x = rect
                 .left()
-                .at_most(screen_rect.right() - galley.size().x)
+                .at_most(content_rect.right() - galley.size().x)
                 .at_least(0.0);
             let text_pos = pos2(x, y);
 
@@ -157,7 +162,13 @@ impl DebugRect {
                 text_bg_color
             };
             let text_rect = Rect::from_min_size(text_pos, galley.size());
-            painter.rect(text_rect, 0.0, text_bg_color, (1.0, text_rect_stroke_color));
+            painter.rect(
+                text_rect,
+                0.0,
+                text_bg_color,
+                (1.0, text_rect_stroke_color),
+                crate::StrokeKind::Middle,
+            );
             painter.galley(text_pos, galley, text_color);
 
             if is_clicking {
@@ -188,17 +199,15 @@ pub struct PassState {
 
     pub tooltips: TooltipPassState,
 
-    /// Starts off as the `screen_rect`, shrinks as panels are added.
-    /// The [`crate::CentralPanel`] does not change this.
-    /// This is the area available to Window's.
-    pub available_rect: Rect,
+    /// What the root UI had available at the end of the previous pass.
+    ///
+    /// Only set if [`crate::Context::run_ui`] or [`crate::Context::root_ui`] has been called.
+    pub root_ui_available_rect: Option<Rect>,
 
-    /// Starts off as the `screen_rect`, shrinks as panels are added.
-    /// The [`crate::CentralPanel`] retracts from this.
-    pub unused_rect: Rect,
-
-    /// How much space is used by panels.
-    pub used_by_panels: Rect,
+    /// What the root UI had used at the end of the previous pass.
+    ///
+    /// Only set if [`crate::Context::run_ui`] or [`crate::Context::root_ui`] has been called.
+    pub root_ui_min_rect: Option<Rect>,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
     pub scroll_target: [Option<ScrollTarget>; 2],
@@ -214,7 +223,6 @@ pub struct PassState {
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     pub scroll_delta: (Vec2, style::ScrollAnimation),
 
-    #[cfg(feature = "accesskit")]
     pub accesskit_state: Option<AccessKitPassState>,
 
     /// Highlight these widgets the next pass.
@@ -222,6 +230,9 @@ pub struct PassState {
 
     #[cfg(debug_assertions)]
     pub debug_rect: Option<DebugRect>,
+
+    #[cfg(debug_assertions)]
+    pub(crate) widget_id_change_warning_exclusions: Vec<Rect>,
 }
 
 impl Default for PassState {
@@ -231,124 +242,61 @@ impl Default for PassState {
             widgets: Default::default(),
             layers: Default::default(),
             tooltips: Default::default(),
-            available_rect: Rect::NAN,
-            unused_rect: Rect::NAN,
-            used_by_panels: Rect::NAN,
+            root_ui_available_rect: None,
+            root_ui_min_rect: None,
             scroll_target: [None, None],
             scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
-            #[cfg(feature = "accesskit")]
             accesskit_state: None,
             highlight_next_pass: Default::default(),
 
             #[cfg(debug_assertions)]
             debug_rect: None,
+
+            #[cfg(debug_assertions)]
+            widget_id_change_warning_exclusions: Vec::new(),
         }
     }
 }
 
 impl PassState {
-    pub(crate) fn begin_pass(&mut self, screen_rect: Rect) {
+    pub(crate) fn begin_pass(&mut self) {
         profiling::function_scope!();
         let Self {
             used_ids,
             widgets,
             tooltips,
             layers,
-            available_rect,
-            unused_rect,
-            used_by_panels,
+            root_ui_available_rect,
+            root_ui_min_rect,
             scroll_target,
             scroll_delta,
-            #[cfg(feature = "accesskit")]
             accesskit_state,
             highlight_next_pass,
 
             #[cfg(debug_assertions)]
             debug_rect,
+
+            #[cfg(debug_assertions)]
+            widget_id_change_warning_exclusions,
         } = self;
 
         used_ids.clear();
         widgets.clear();
         tooltips.clear();
         layers.clear();
-        *available_rect = screen_rect;
-        *unused_rect = screen_rect;
-        *used_by_panels = Rect::NOTHING;
+        *root_ui_available_rect = None;
+        *root_ui_min_rect = None;
         *scroll_target = [None, None];
         *scroll_delta = Default::default();
 
         #[cfg(debug_assertions)]
         {
             *debug_rect = None;
+            widget_id_change_warning_exclusions.clear();
         }
 
-        #[cfg(feature = "accesskit")]
-        {
-            *accesskit_state = None;
-        }
+        *accesskit_state = None;
 
         highlight_next_pass.clear();
-    }
-
-    /// How much space is still available after panels has been added.
-    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
-    /// This is also the area to which windows are constrained.
-    pub(crate) fn available_rect(&self) -> Rect {
-        debug_assert!(
-            self.available_rect.is_finite(),
-            "Called `available_rect()` before `Context::run()`"
-        );
-        self.available_rect
-    }
-
-    /// Shrink `available_rect`.
-    pub(crate) fn allocate_left_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
-            panel_rect.min.distance(self.available_rect.min) < 0.1,
-            "Mismatching left panel. You must not create a panel from within another panel."
-        );
-        self.available_rect.min.x = panel_rect.max.x;
-        self.unused_rect.min.x = panel_rect.max.x;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
-    }
-
-    /// Shrink `available_rect`.
-    pub(crate) fn allocate_right_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
-            panel_rect.max.distance(self.available_rect.max) < 0.1,
-            "Mismatching right panel. You must not create a panel from within another panel."
-        );
-        self.available_rect.max.x = panel_rect.min.x;
-        self.unused_rect.max.x = panel_rect.min.x;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
-    }
-
-    /// Shrink `available_rect`.
-    pub(crate) fn allocate_top_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
-            panel_rect.min.distance(self.available_rect.min) < 0.1,
-            "Mismatching top panel. You must not create a panel from within another panel."
-        );
-        self.available_rect.min.y = panel_rect.max.y;
-        self.unused_rect.min.y = panel_rect.max.y;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
-    }
-
-    /// Shrink `available_rect`.
-    pub(crate) fn allocate_bottom_panel(&mut self, panel_rect: Rect) {
-        debug_assert!(
-            panel_rect.max.distance(self.available_rect.max) < 0.1,
-            "Mismatching bottom panel. You must not create a panel from within another panel."
-        );
-        self.available_rect.max.y = panel_rect.min.y;
-        self.unused_rect.max.y = panel_rect.min.y;
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
-    }
-
-    pub(crate) fn allocate_central_panel(&mut self, panel_rect: Rect) {
-        // Note: we do not shrink `available_rect`, because
-        // we allow windows to cover the CentralPanel.
-        self.unused_rect = Rect::NOTHING; // Nothing left unused after this
-        self.used_by_panels = self.used_by_panels.union(panel_rect);
     }
 }

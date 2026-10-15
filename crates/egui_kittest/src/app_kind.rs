@@ -1,88 +1,88 @@
 use egui::Frame;
 
-type AppKindContextState<'a, State> = Box<dyn FnMut(&egui::Context, &mut State) + 'a>;
 type AppKindUiState<'a, State> = Box<dyn FnMut(&mut egui::Ui, &mut State) + 'a>;
-type AppKindContext<'a> = Box<dyn FnMut(&egui::Context) + 'a>;
 type AppKindUi<'a> = Box<dyn FnMut(&mut egui::Ui) + 'a>;
 
-pub(crate) enum AppKind<'a, State> {
-    Context(AppKindContext<'a>),
-    Ui(AppKindUi<'a>),
-    ContextState(AppKindContextState<'a, State>),
-    UiState(AppKindUiState<'a, State>),
+/// In order to access the [`eframe::App`] trait from the generic `State`, we store a function pointer
+/// here that will return the dyn trait from the struct.
+/// In the builder we have the correct `where`-clause to be able to create this.
+/// Later we can use it anywhere to get the [`eframe::App`] from the `State`.
+#[cfg(feature = "eframe")]
+pub(crate) struct AppKindEframe<State> {
+    pub get_app: fn(&mut State) -> &mut dyn eframe::App,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub take_app: fn(State) -> Box<dyn eframe::App>,
+    pub frame: eframe::Frame,
 }
 
-// TODO(lucasmerlin): These aren't working unfortunately :(
-// I think they should work though: https://geo-ant.github.io/blog/2021/rust-traits-and-variadic-functions/
-// pub trait IntoAppKind<'a, UiKind> {
-//     fn into_harness_kind(self) -> AppKind<'a>;
-// }
-//
-// impl<'a, F> IntoAppKind<'a, &egui::Context> for F
-// where
-//     F: FnMut(&egui::Context) + 'a,
-// {
-//     fn into_harness_kind(self) -> AppKind<'a> {
-//         AppKind::Context(Box::new(self))
-//     }
-// }
-//
-// impl<'a, F> IntoAppKind<'a, &mut egui::Ui> for F
-// where
-//     F: FnMut(&mut egui::Ui) + 'a,
-// {
-//     fn into_harness_kind(self) -> AppKind<'a> {
-//         AppKind::Ui(Box::new(self))
-//     }
-// }
+/// What [`AppKind::run_ui`] produces for the `Ui` kinds.
+pub(crate) struct UiRunOutput {
+    /// The response of the scope wrapping the ui closure.
+    pub response: egui::Response,
 
-impl<'a, State> AppKind<'a, State> {
+    /// The [`egui::Ui::scope_id`] of the `Ui` passed to the ui closure.
+    pub ui_id: egui::Id,
+}
+
+pub(crate) enum AppKind<'a, State> {
+    Ui(AppKindUi<'a>),
+    UiState(AppKindUiState<'a, State>),
+    #[cfg(feature = "eframe")]
+    // Boxed: `eframe::Frame` is far larger than the two closures, and an
+    // unboxed variant makes the whole enum that size.
+    Eframe(Box<AppKindEframe<State>>),
+}
+
+impl<State> AppKind<'_, State> {
+    // The `Option` is needed when the `eframe` feature is enabled, because the
+    // `Eframe` variant has no `egui::Response` to return. Without `eframe` the
+    // wrap is unnecessary, so we silence `clippy::unnecessary_wraps` for that case.
+    #[cfg_attr(not(feature = "eframe"), expect(clippy::unnecessary_wraps))]
     pub fn run(
         &mut self,
-        ctx: &egui::Context,
+        ui: &mut egui::Ui,
         state: &mut State,
         sizing_pass: bool,
-    ) -> Option<egui::Response> {
+    ) -> Option<UiRunOutput> {
         match self {
-            AppKind::Context(f) => {
-                debug_assert!(!sizing_pass, "Context closures cannot do a sizing pass");
-                f(ctx);
+            #[cfg(feature = "eframe")]
+            AppKind::Eframe(eframe_kind) => {
+                let AppKindEframe { get_app, frame, .. } = &mut **eframe_kind;
+                let app = get_app(state);
+                app.logic(ui, frame);
+                app.ui(ui, frame);
                 None
             }
-            AppKind::ContextState(f) => {
-                debug_assert!(!sizing_pass, "Context closures cannot do a sizing pass");
-                f(ctx, state);
-                None
-            }
-            kind_ui => Some(kind_ui.run_ui(ctx, state, sizing_pass)),
+            kind_ui => Some(kind_ui.run_ui(ui, state, sizing_pass)),
         }
     }
 
-    fn run_ui(
-        &mut self,
-        ctx: &egui::Context,
-        state: &mut State,
-        sizing_pass: bool,
-    ) -> egui::Response {
-        egui::CentralPanel::default()
-            .frame(Frame::none())
-            .show(ctx, |ui| {
-                let mut builder = egui::UiBuilder::new();
-                if sizing_pass {
-                    builder.sizing_pass = true;
-                }
-                ui.scope_builder(builder, |ui| {
-                    Frame::central_panel(ui.style())
-                        .outer_margin(8.0)
-                        .inner_margin(0.0)
-                        .show(ui, |ui| match self {
-                            AppKind::Ui(f) => f(ui),
-                            AppKind::UiState(f) => f(ui, state),
-                            _ => unreachable!(),
-                        });
+    fn run_ui(&mut self, ui: &mut egui::Ui, state: &mut State, sizing_pass: bool) -> UiRunOutput {
+        let mut builder = egui::UiBuilder::new();
+        if sizing_pass {
+            builder.sizing_pass = true;
+        }
+        let egui::InnerResponse {
+            inner: ui_id,
+            response,
+        } = ui.scope_builder(builder, |ui| {
+            Frame::central_panel(ui.style())
+                // Only set outer margin, so we show no frame for tests with only free-floating windows/popups:
+                .outer_margin(8.0)
+                .inner_margin(0.0)
+                .show(ui, |ui| {
+                    match self {
+                        AppKind::Ui(f) => f(ui),
+                        AppKind::UiState(f) => f(ui, state),
+                        #[cfg(feature = "eframe")]
+                        AppKind::Eframe(_) => unreachable!(
+                            "run_ui should only be called with AppKind::Ui or AppKind::UiState"
+                        ),
+                    }
+                    ui.scope_id()
                 })
-                .response
-            })
-            .inner
+                .inner
+        });
+        UiRunOutput { response, ui_id }
     }
 }

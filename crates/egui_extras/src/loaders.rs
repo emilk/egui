@@ -38,16 +38,25 @@
 /// - Relative paths are relative to the current working directory
 /// - Absolute paths are left as is.
 ///
+/// If no file exists at that path, and the path contains percent-escapes (like `%20`),
+/// the loader will also try the percent-decoded path (e.g. `file:///tmp/a%20b.png` → `/tmp/a b.png`).
+///
 /// The `http` loader is a [`BytesLoader`][`egui::load::BytesLoader`].
 /// It will attempt to load `http://` and `https://` URIs, and infer the content type from the `Content-Type` header.
 ///
 /// The `image` loader is an [`ImageLoader`][`egui::load::ImageLoader`].
-/// It will attempt to load any URI with any extension other than `svg`.
+/// It will attempt to load `file://` URIs whose extension is one of the enabled image formats of the
+/// `image` crate, or a format registered by an `image` plugin
+/// (see [`image::hooks::register_decoding_hook`](https://docs.rs/image/latest/image/hooks/fn.register_decoding_hook.html)).
+/// Other `file://` URIs are rejected with [`LoadError::NotSupported`][`egui::load::LoadError::NotSupported`].
 /// It will also try to load any URI without an extension.
 /// The content type specified by [`BytesPoll::Ready::mime`][`egui::load::BytesPoll::Ready::mime`] always takes precedence.
 /// This means that even if the URI has a `png` extension, and the `png` image format is enabled, if the content type is
-/// not one of the supported and enabled image formats, the loader will return [`LoadError::NotSupported`][`egui::load::LoadError::NotSupported`],
+/// not one of the supported and enabled image formats (or an `image/*` type with a registered `image` plugin),
+/// the loader will return [`LoadError::FormatNotSupported`][`egui::load::LoadError::FormatNotSupported`],
 /// allowing a different loader to attempt to load the image.
+/// The actual format is detected from the contents of the bytes, using [`image::ImageReader::with_guessed_format`](https://docs.rs/image/latest/image/struct.ImageReader.html#method.with_guessed_format),
+/// which also takes `image` plugins into account.
 ///
 /// The `svg` loader is an [`ImageLoader`][`egui::load::ImageLoader`].
 /// It will attempt to load any URI with an `svg` extension. It will _not_ attempt to load a URI without an extension.
@@ -58,21 +67,23 @@
 pub fn install_image_loaders(ctx: &egui::Context) {
     #[cfg(all(not(target_arch = "wasm32"), feature = "file"))]
     if !ctx.is_loader_installed(self::file_loader::FileLoader::ID) {
-        ctx.add_bytes_loader(std::sync::Arc::new(self::file_loader::FileLoader::default()));
+        ctx.add_bytes_loader(alloc::sync::Arc::new(
+            self::file_loader::FileLoader::default(),
+        ));
         log::trace!("installed FileLoader");
     }
 
     #[cfg(feature = "http")]
-    if !ctx.is_loader_installed(self::ehttp_loader::EhttpLoader::ID) {
-        ctx.add_bytes_loader(std::sync::Arc::new(
-            self::ehttp_loader::EhttpLoader::default(),
+    if !ctx.is_loader_installed(self::http_loader::EhttpLoader::ID) {
+        ctx.add_bytes_loader(alloc::sync::Arc::new(
+            self::http_loader::EhttpLoader::default(),
         ));
         log::trace!("installed EhttpLoader");
     }
 
     #[cfg(feature = "image")]
     if !ctx.is_loader_installed(self::image_loader::ImageCrateLoader::ID) {
-        ctx.add_image_loader(std::sync::Arc::new(
+        ctx.add_image_loader(alloc::sync::Arc::new(
             self::image_loader::ImageCrateLoader::default(),
         ));
         log::trace!("installed ImageCrateLoader");
@@ -80,13 +91,21 @@ pub fn install_image_loaders(ctx: &egui::Context) {
 
     #[cfg(feature = "gif")]
     if !ctx.is_loader_installed(self::gif_loader::GifLoader::ID) {
-        ctx.add_image_loader(std::sync::Arc::new(self::gif_loader::GifLoader::default()));
+        ctx.add_image_loader(alloc::sync::Arc::new(self::gif_loader::GifLoader::default()));
         log::trace!("installed GifLoader");
+    }
+
+    #[cfg(feature = "webp")]
+    if !ctx.is_loader_installed(self::webp_loader::WebPLoader::ID) {
+        ctx.add_image_loader(alloc::sync::Arc::new(
+            self::webp_loader::WebPLoader::default(),
+        ));
+        log::trace!("installed WebPLoader");
     }
 
     #[cfg(feature = "svg")]
     if !ctx.is_loader_installed(self::svg_loader::SvgLoader::ID) {
-        ctx.add_image_loader(std::sync::Arc::new(self::svg_loader::SvgLoader::default()));
+        ctx.add_image_loader(alloc::sync::Arc::new(self::svg_loader::SvgLoader::default()));
         log::trace!("installed SvgLoader");
     }
 
@@ -102,14 +121,19 @@ pub fn install_image_loaders(ctx: &egui::Context) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-mod file_loader;
+pub mod file_loader;
 
 #[cfg(feature = "http")]
-mod ehttp_loader;
+pub mod http_loader;
+
+#[cfg(feature = "image")]
+mod background_decode;
 
 #[cfg(feature = "gif")]
-mod gif_loader;
+pub mod gif_loader;
 #[cfg(feature = "image")]
-mod image_loader;
+pub mod image_loader;
 #[cfg(feature = "svg")]
-mod svg_loader;
+pub mod svg_loader;
+#[cfg(feature = "webp")]
+pub mod webp_loader;

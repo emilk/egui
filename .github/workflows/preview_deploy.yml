@@ -20,6 +20,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,5 +61,7 @@ jobs:
           message: |
             Preview available at https://egui-pr-preview.github.io/pr/${{ env.URL_SLUG }}
             Note that it might take a couple seconds for the update to show up after the preview_build workflow has completed.
+            
+            View snapshot changes at [kitdiff](https://rerun-io.github.io/kitdiff/?url=https://github.com/emilk/egui/pull/${{ env.PR_NUMBER }})
           pr_number: ${{ env.PR_NUMBER }}
           comment_tag: 'egui-preview'

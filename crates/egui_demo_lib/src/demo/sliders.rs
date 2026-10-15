@@ -1,4 +1,4 @@
-use egui::{style::HandleShape, Slider, SliderClamping, SliderOrientation, Ui};
+use egui::{Slider, SliderClamping, SliderOrientation, Ui, style::HandleShape};
 
 /// Showcase sliders
 #[derive(PartialEq)]
@@ -40,14 +40,15 @@ impl Default for Sliders {
 
 impl crate::Demo for Sliders {
     fn name(&self) -> &'static str {
-        "⬌ Sliders"
+        "↔️ Sliders"
     }
 
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, |ui| {
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| {
                 use crate::View as _;
                 self.ui(ui);
             });
@@ -124,7 +125,7 @@ impl crate::View for Sliders {
             );
 
             if ui.button("Assign PI").clicked() {
-                self.value = std::f64::consts::PI;
+                self.value = core::f64::consts::PI;
             }
         }
 

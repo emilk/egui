@@ -1,7 +1,8 @@
-use egui::epaint::{CubicBezierShape, PathShape, QuadraticBezierShape};
 use egui::{
-    emath, epaint, pos2, Color32, Context, Frame, Grid, Pos2, Rect, Sense, Shape, Stroke, Ui, Vec2,
-    Widget, Window,
+    Color32, Frame, Grid, Pos2, Rect, Sense, Shape, Stroke, StrokeKind, Ui, Vec2, Widget as _,
+    Window, emath,
+    epaint::{self, CubicBezierShape, PathShape, QuadraticBezierShape},
+    pos2,
 };
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -72,8 +73,7 @@ impl PaintBezier {
         ui.collapsing("Global tessellation options", |ui| {
             let mut tessellation_options = ui.ctx().tessellation_options(|to| *to);
             tessellation_options.ui(ui);
-            ui.ctx()
-                .tessellation_options_mut(|to| *to = tessellation_options);
+            ui.tessellation_options_mut(|to| *to = tessellation_options);
         });
 
         ui.radio_value(&mut self.degree, 3, "Quadratic Bézier");
@@ -132,6 +132,7 @@ impl PaintBezier {
                     shape.visual_bounding_rect(),
                     0.0,
                     self.bounding_box_stroke,
+                    StrokeKind::Outside,
                 ));
                 painter.add(shape);
             }
@@ -143,13 +144,14 @@ impl PaintBezier {
                     shape.visual_bounding_rect(),
                     0.0,
                     self.bounding_box_stroke,
+                    StrokeKind::Outside,
                 ));
                 painter.add(shape);
             }
             _ => {
                 unreachable!();
             }
-        };
+        }
 
         painter.add(PathShape::line(points_in_screen, self.aux_stroke));
         painter.extend(control_point_shapes);
@@ -160,17 +162,18 @@ impl PaintBezier {
 
 impl crate::Demo for PaintBezier {
     fn name(&self) -> &'static str {
-        "） Bézier Curve"
+        "〰️ Bézier Curve"
     }
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
+    fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
         use crate::View as _;
         Window::new(self.name())
             .open(open)
             .vscroll(false)
             .resizable(false)
             .default_size([300.0, 350.0])
-            .show(ctx, |ui| self.ui(ui));
+            .constrain_to(ui.available_rect_before_wrap())
+            .show(ui, |ui| self.ui(ui));
     }
 }
 

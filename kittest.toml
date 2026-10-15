@@ -1,0 +1,10 @@
+output_path = "tests/snapshots"
+
+# Other OSes get a higher threshold so they can still run tests locally without failures due to small rendering
+# differences.
+# To update snapshots, update them via ./scripts/update_snapshots_from_ci.sh or via kitdiff
+threshold = 2.0
+
+[mac]
+# Since our CI runs snapshot tests on macOS, this is our source of truth.
+threshold = 0.6

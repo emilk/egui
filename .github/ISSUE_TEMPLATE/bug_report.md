@@ -10,13 +10,13 @@ assignees: ''
 <!--
 First look if there is already a similar bug report. If there is, upvote the issue with 👍
 
-Please also check if the bug is still present in latest master! Do so by adding the following lines to your Cargo.toml:
+Please also check if the bug is still present in latest main! Do so by adding the following lines to your Cargo.toml:
 
 
 [patch.crates-io]
-egui = { git = "https://github.com/emilk/egui", branch = "master" }
+egui = { git = "https://github.com/emilk/egui", branch = "main" }
 # if you're using eframe:
-eframe = { git = "https://github.com/emilk/egui", branch = "master" }
+eframe = { git = "https://github.com/emilk/egui", branch = "main" }
 -->
 
 **Describe the bug**

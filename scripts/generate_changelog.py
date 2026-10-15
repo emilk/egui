@@ -5,20 +5,23 @@ Summarizes recent PRs based on their GitHub labels.
 
 The result can be copy-pasted into CHANGELOG.md,
 though it often needs some manual editing too.
+
+Setup:  pip install GitPython tqdm
+Also requires the `gh` CLI (https://cli.github.com/) authenticated via `gh auth login`.
 """
 
 import argparse
+import json
 import multiprocessing
 import os
 import re
-import sys
+import subprocess
 
 from collections import defaultdict
 from datetime import date
 from dataclasses import dataclass
 from typing import Any, List, Optional
 
-import requests
 from git import Repo  # pip install GitPython
 from tqdm import tqdm
 
@@ -42,29 +45,6 @@ class CommitInfo:
     pr_number: Optional[int]
 
 
-def get_github_token() -> str:
-    import os
-
-    token = os.environ.get("GH_ACCESS_TOKEN", "")
-    if token != "":
-        return token
-
-    home_dir = os.path.expanduser("~")
-    token_file = os.path.join(home_dir, ".githubtoken")
-
-    try:
-        with open(token_file, "r") as f:
-            token = f.read().strip()
-        return token
-    except Exception:
-        pass
-
-    print(
-        "ERROR: expected a GitHub token in the environment variable GH_ACCESS_TOKEN or in ~/.githubtoken"
-    )
-    sys.exit(1)
-
-
 # Slow
 def fetch_pr_info_from_commit_info(commit_info: CommitInfo) -> Optional[PrInfo]:
     if commit_info.pr_number is None:
@@ -75,25 +55,34 @@ def fetch_pr_info_from_commit_info(commit_info: CommitInfo) -> Optional[PrInfo]:
 
 # Slow
 def fetch_pr_info(pr_number: int) -> Optional[PrInfo]:
-    url = f"https://api.github.com/repos/{OWNER}/{REPO}/pulls/{pr_number}"
-    gh_access_token = get_github_token()
-    headers = {"Authorization": f"Token {gh_access_token}"}
-    response = requests.get(url, headers=headers)
-    json = response.json()
+    result = subprocess.run(
+        [
+            "gh",
+            "pr",
+            "view",
+            str(pr_number),
+            "--repo",
+            f"{OWNER}/{REPO}",
+            "--json",
+            "number,title,labels,author",
+        ],
+        capture_output=True,
+        text=True,
+    )
 
-    # Check if the request was successful (status code 200)
-    if response.status_code == 200:
-        labels = [label["name"] for label in json["labels"]]
-        gh_user_name = json["user"]["login"]
-        return PrInfo(
-            pr_number=pr_number,
-            gh_user_name=gh_user_name,
-            title=json["title"],
-            labels=labels,
-        )
-    else:
-        print(f"ERROR {url}: {response.status_code} - {json['message']}")
+    if result.returncode != 0:
+        print(f"ERROR fetching PR #{pr_number}: {result.stderr.strip()}")
         return None
+
+    data = json.loads(result.stdout)
+    labels = [label["name"] for label in data["labels"]]
+    gh_user_name = data["author"]["login"]
+    return PrInfo(
+        pr_number=pr_number,
+        gh_user_name=gh_user_name,
+        title=data["title"],
+        labels=labels,
+    )
 
 
 def get_commit_info(commit: Any) -> CommitInfo:
@@ -154,6 +143,8 @@ def changelog_from_prs(pr_infos: List[PrInfo], crate_name: str) -> str:
 
     fixed = []
     added = []
+    performance = []
+    removed = []
     rest = []
     for pr in pr_infos:
         summary = pr_summary(pr, crate_name)
@@ -161,6 +152,10 @@ def changelog_from_prs(pr_infos: List[PrInfo], crate_name: str) -> str:
             fixed.append(pr)
         elif summary.startswith("Add") or "feature" in pr.labels:
             added.append(pr)
+        elif "performance" in pr.labels:
+            performance.append(pr)
+        elif summary.startswith("Remove"):
+            removed.append(pr)
         else:
             rest.append(pr)
 
@@ -168,7 +163,9 @@ def changelog_from_prs(pr_infos: List[PrInfo], crate_name: str) -> str:
 
     result += pr_info_section(added, crate_name=crate_name, heading="⭐ Added")
     result += pr_info_section(rest, crate_name=crate_name, heading="🔧 Changed")
+    result += pr_info_section(removed, crate_name=crate_name, heading="🔥 Removed")
     result += pr_info_section(fixed, crate_name=crate_name, heading="🐛 Fixed")
+    result += pr_info_section(performance, crate_name=crate_name, heading="🚀 Performance")
 
     return result.rstrip()
 
@@ -182,7 +179,9 @@ def remove_prefix(text, prefix):
 def print_section(heading: str, content: str) -> None:
     if content != "":
         print(f"## {heading}")
-        print(content)
+        print(content.strip())
+        print()
+        print()
         print()
 
 
@@ -256,10 +255,13 @@ def main() -> None:
         "eframe",
         "egui_extras",
         "egui_glow",
+        "egui_inspection",
         "egui_kittest",
+        "egui_system_fonts",
         "egui-wgpu",
         "egui-winit",
         "egui",
+        "emath",
         "epaint",
         "epaint_default_fonts",
     ]
@@ -335,8 +337,7 @@ def main() -> None:
     print()
     for crate in crate_names:
         if crate in crate_sections:
-            prs = crate_sections[crate]
-            print_section(crate, changelog_from_prs(prs, crate))
+            print_section(crate, changelog_from_prs(crate_sections[crate], crate))
     print_section("Unsorted PRs", "\n".join([f"* {item}" for item in unsorted_prs]))
     print_section(
         "Unsorted commits", "\n".join([f"* {item}" for item in unsorted_commits])

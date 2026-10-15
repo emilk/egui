@@ -1,7 +1,7 @@
 //! Showing UI:s for egui/epaint types.
 use crate::{
-    epaint, memory, pos2, remap_clamp, vec2, Color32, CursorIcon, FontFamily, FontId, Label, Mesh,
-    NumExt, Rect, Response, Sense, Shape, Slider, TextStyle, TextWrapMode, Ui, Widget,
+    Color32, CursorIcon, FontFamily, FontId, Label, Mesh, NumExt as _, Rect, Response, Sense,
+    Shape, Slider, TextStyle, TextWrapMode, Ui, Widget, epaint, memory, pos2, remap_clamp, vec2,
 };
 
 pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
@@ -17,7 +17,8 @@ pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
 pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
     let families = ui.fonts(|f| f.families());
     ui.horizontal(|ui| {
-        ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(1));
+        ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(1))
+            .on_hover_text("Font size");
         for alternative in families {
             let text = alternative.to_string();
             ui.radio_value(&mut font_id.family, alternative, text);
@@ -89,6 +90,7 @@ impl Widget for &epaint::stats::PaintStats {
                 shapes,
                 shape_text,
                 shape_path,
+                shape_band,
                 shape_mesh,
                 shape_vec,
                 num_callbacks,
@@ -106,6 +108,7 @@ impl Widget for &epaint::stats::PaintStats {
                 ui.small("(mostly cached)");
             });
             label(ui, shape_path, "paths");
+            label(ui, shape_band, "bands");
             label(ui, shape_mesh, "nested meshes");
             label(ui, shape_vec, "nested shapes");
             ui.label(format!("{num_callbacks:6} callbacks"));
@@ -144,6 +147,8 @@ impl Widget for &mut epaint::TessellationOptions {
                 coarse_tessellation_culling,
                 prerasterized_discs,
                 round_text_to_pixels,
+                round_line_segments_to_pixels,
+                round_rects_to_pixels,
                 debug_paint_clip_rects,
                 debug_paint_text_rects,
                 debug_ignore_clip_rects,
@@ -158,7 +163,7 @@ impl Widget for &mut epaint::TessellationOptions {
                     .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
 
                 if *feathering {
-                    ui.add(crate::DragValue::new(feathering_size_in_pixels).range(0.0..=10.0).speed(0.1).suffix(" px"));
+                    ui.add(crate::DragValue::new(feathering_size_in_pixels).range(0.0..=10.0).speed(0.025).suffix(" px"));
                 }
             });
 
@@ -179,13 +184,22 @@ impl Widget for &mut epaint::TessellationOptions {
 
             ui.checkbox(validate_meshes, "Validate meshes").on_hover_text("Check that incoming meshes are valid, i.e. that all indices are in range, etc.");
 
+            ui.collapsing("Align to pixel grid", |ui| {
+                ui.checkbox(round_text_to_pixels, "Text")
+                    .on_hover_text("Most text already is, so don't expect to see a large change.");
+
+                ui.checkbox(round_line_segments_to_pixels, "Line segments")
+                    .on_hover_text("Makes line segments appear crisp on any display.");
+
+                ui.checkbox(round_rects_to_pixels, "Rectangles")
+                    .on_hover_text("Makes line segments appear crisp on any display.");
+            });
+
             ui.collapsing("Debug", |ui| {
                 ui.checkbox(
                     coarse_tessellation_culling,
                     "Do coarse culling in the tessellator",
                 );
-                ui.checkbox(round_text_to_pixels, "Align text positions to pixel grid")
-                    .on_hover_text("Most text already is, so don't expect to see a large change.");
 
                 ui.checkbox(debug_ignore_clip_rects, "Ignore clip rectangles");
                 ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");

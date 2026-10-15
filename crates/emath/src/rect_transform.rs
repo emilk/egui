@@ -1,4 +1,4 @@
-use crate::{pos2, remap, remap_clamp, Pos2, Rect, Vec2};
+use crate::{Pos2, Rect, Vec2, pos2, remap, remap_clamp};
 
 /// Linearly transforms positions from one [`Rect`] to another.
 ///
@@ -65,7 +65,7 @@ impl RectTransform {
 }
 
 /// Transforms the position.
-impl std::ops::Mul<Pos2> for RectTransform {
+impl core::ops::Mul<Pos2> for RectTransform {
     type Output = Pos2;
 
     fn mul(self, pos: Pos2) -> Pos2 {
@@ -74,7 +74,7 @@ impl std::ops::Mul<Pos2> for RectTransform {
 }
 
 /// Transforms the position.
-impl std::ops::Mul<Pos2> for &RectTransform {
+impl core::ops::Mul<Pos2> for &RectTransform {
     type Output = Pos2;
 
     fn mul(self, pos: Pos2) -> Pos2 {
