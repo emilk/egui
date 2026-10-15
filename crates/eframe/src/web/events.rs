@@ -199,7 +199,7 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
 
     // Fall back to the physical key so that modifier keys (which have no logical
     // `egui::Key`) and non-Latin layouts still produce a `Key` event.
-    if let Some(active_key) = logical_key.or(physical_key) {
+    if let Some(active_key) = super::input::logical_or_physical_key(logical_key, physical_key) {
         let egui_event = egui::Event::Key {
             key: active_key,
             physical_key,
@@ -292,7 +292,7 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let logical_key = translate_key(&event.key());
     let physical_key = translate_key(&event.code());
 
-    if let Some(active_key) = logical_key.or(physical_key) {
+    if let Some(active_key) = super::input::logical_or_physical_key(logical_key, physical_key) {
         let egui_event = egui::Event::Key {
             key: active_key,
             physical_key,
