@@ -67,13 +67,24 @@ impl crate::View for FontBook {
 
         let font_id = self.font_id.clone();
 
-        ui.horizontal(|ui| {
-            let label = ui.label("Filter:");
-            ui.add(egui::TextEdit::singleline(&mut self.filter).desired_width(120.0))
-                .labelled_by(label.id);
-            self.filter = self.filter.to_lowercase();
-            if ui.button("ｘ").clicked() {
-                self.filter.clear();
+        let include_missing_emoji = self.include_missing_emoji;
+        let available_glyph_count = self
+            .available_glyphs
+            .entry(font_id.family.clone())
+            .or_insert_with(|| available_characters(ui, &font_id, include_missing_emoji))
+            .len();
+
+        let fonts_in_family = fonts_in_family(ui, &font_id.family);
+
+        egui::CollapsingHeader::new(format!(
+            "The selected family has {} characters, from {} fonts",
+            available_glyph_count,
+            fonts_in_family.len()
+        ))
+        .show(ui, |ui| {
+            ui.label("In fallback order:");
+            for name in fonts_in_family {
+                ui.label(egui::RichText::new(name).text_style(egui::TextStyle::Monospace));
             }
         });
 
@@ -90,25 +101,21 @@ impl crate::View for FontBook {
             self.available_glyphs.clear();
         }
 
+        ui.horizontal(|ui| {
+            let label = ui.label("Filter:");
+            ui.add(egui::TextEdit::singleline(&mut self.filter).desired_width(120.0))
+                .labelled_by(label.id);
+            self.filter = self.filter.to_lowercase();
+            if ui.button("ｘ").clicked() {
+                self.filter.clear();
+            }
+        });
+
         let include_missing_emoji = self.include_missing_emoji;
         let available_glyphs = self
             .available_glyphs
             .entry(font_id.family.clone())
             .or_insert_with(|| available_characters(ui, &font_id, include_missing_emoji));
-
-        let fonts_in_family = fonts_in_family(ui, &font_id.family);
-
-        egui::CollapsingHeader::new(format!(
-            "The selected family has {} characters, from {} fonts",
-            available_glyphs.len(),
-            fonts_in_family.len()
-        ))
-        .show(ui, |ui| {
-            ui.label("In fallback order:");
-            for name in fonts_in_family {
-                ui.label(egui::RichText::new(name).text_style(egui::TextStyle::Monospace));
-            }
-        });
 
         let filter = &self.filter;
 
