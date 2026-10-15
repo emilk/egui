@@ -225,7 +225,7 @@ impl Drop for RecordingPlugin {
 
 fn color_image_to_rgba(image: &egui::ColorImage) -> RgbaImage {
     let pixels = image
-        .pixels
+        .pixels()
         .iter()
         .flat_map(|pixel| pixel.to_array())
         .collect();

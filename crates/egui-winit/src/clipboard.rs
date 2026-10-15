@@ -312,7 +312,7 @@ fn color_image_from_arboard(image: &arboard::ImageData<'_>) -> egui::ColorImage 
 ))]
 fn arboard_from_color_image(image: &egui::ColorImage) -> arboard::ImageData<'static> {
     let bytes: Vec<u8> = image
-        .pixels
+        .pixels()
         .iter()
         .flat_map(|color| color.to_srgba_unmultiplied())
         .collect();
@@ -418,13 +418,13 @@ mod tests {
             bytes: std::borrow::Cow::Borrowed(&[255, 0, 0, 255, 255, 255, 255, 128]),
         };
         let color_image = color_image_from_arboard(&image);
-        assert_eq!(color_image.size, [2, 1]);
+        assert_eq!(color_image.resolution(), [2, 1]);
         assert_eq!(
-            color_image.pixels[0],
+            color_image.pixels()[0],
             egui::Color32::from_rgba_unmultiplied(255, 0, 0, 255)
         );
         assert_eq!(
-            color_image.pixels[1],
+            color_image.pixels()[1],
             egui::Color32::from_rgba_unmultiplied(255, 255, 255, 128)
         );
     }
