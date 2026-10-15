@@ -11,6 +11,8 @@ pub struct FontBook {
     filter: String,
     font_id: egui::FontId,
     available_glyphs: BTreeMap<egui::FontFamily, BTreeMap<char, GlyphInfo>>,
+    #[cfg(target_arch = "wasm32")]
+    include_missing_emoji: bool,
 }
 
 impl Default for FontBook {
@@ -19,6 +21,8 @@ impl Default for FontBook {
             filter: Default::default(),
             font_id: egui::FontId::proportional(18.0),
             available_glyphs: Default::default(),
+            #[cfg(target_arch = "wasm32")]
+            include_missing_emoji: false,
         }
     }
 }
@@ -62,10 +66,45 @@ impl crate::View for FontBook {
         egui::introspection::font_id_ui(ui, &mut self.font_id);
 
         let font_id = self.font_id.clone();
+
+        ui.horizontal(|ui| {
+            let label = ui.label("Filter:");
+            ui.add(egui::TextEdit::singleline(&mut self.filter).desired_width(120.0))
+                .labelled_by(label.id);
+            self.filter = self.filter.to_lowercase();
+            if ui.button("ｘ").clicked() {
+                self.filter.clear();
+            }
+        });
+
+        #[cfg(target_arch = "wasm32")]
+        if ui
+            .checkbox(
+                &mut self.include_missing_emoji,
+                "Show emoji missing from selected font",
+            )
+            .on_hover_text(
+                "Include emoji candidates even when the selected font has no glyph for them.",
+            )
+            .changed()
+        {
+            self.available_glyphs.clear();
+        }
+
+        let include_missing_emoji = {
+            #[cfg(target_arch = "wasm32")]
+            {
+                self.include_missing_emoji
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                false
+            }
+        };
         let available_glyphs = self
             .available_glyphs
             .entry(font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, &font_id.family));
+            .or_insert_with(|| available_characters(ui, &font_id, include_missing_emoji));
 
         let fonts_in_family = fonts_in_family(ui, &font_id.family);
 
@@ -78,16 +117,6 @@ impl crate::View for FontBook {
             ui.label("In fallback order:");
             for name in fonts_in_family {
                 ui.label(egui::RichText::new(name).text_style(egui::TextStyle::Monospace));
-            }
-        });
-
-        ui.horizontal(|ui| {
-            let label = ui.label("Filter:");
-            ui.add(egui::TextEdit::singleline(&mut self.filter).desired_width(120.0))
-                .labelled_by(label.id);
-            self.filter = self.filter.to_lowercase();
-            if ui.button("ｘ").clicked() {
-                self.filter.clear();
             }
         });
 
@@ -198,9 +227,86 @@ fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: e
         });
 }
 
-fn available_characters(ui: &egui::Ui, family: &egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
+#[cfg(target_arch = "wasm32")]
+struct CanvasTofuDetector {
+    canvas: web_sys::HtmlCanvasElement,
+    context: web_sys::CanvasRenderingContext2d,
+    tofu_cache: std::collections::HashMap<String, Option<Vec<u8>>>,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl CanvasTofuDetector {
+    fn new() -> Option<Self> {
+        use wasm_bindgen::JsCast as _;
+
+        let document = web_sys::window()?.document()?;
+        let canvas = document
+            .create_element("canvas")
+            .ok()?
+            .dyn_into::<web_sys::HtmlCanvasElement>()
+            .ok()?;
+        let context = canvas
+            .get_context("2d")
+            .ok()??
+            .dyn_into::<web_sys::CanvasRenderingContext2d>()
+            .ok()?;
+        Some(Self {
+            canvas,
+            context,
+            tofu_cache: Default::default(),
+        })
+    }
+
+    fn draw(&self, text: &str, font: &str) -> Option<Vec<u8>> {
+        self.canvas.set_width(64);
+        self.canvas.set_height(64);
+        self.context.set_font(font);
+        self.context.set_text_baseline("alphabetic");
+        self.context.set_fill_style_str("white");
+        self.context.fill_text(text, 4.0, 48.0).ok()?;
+        Some(
+            self.context
+                .get_image_data(0.0, 0.0, 64.0, 64.0)
+                .ok()?
+                .data()
+                .0,
+        )
+    }
+
+    fn is_tofu(&mut self, text: &str, family: &egui::FontFamily) -> Option<bool> {
+        let family = if family == &egui::FontFamily::Monospace {
+            "monospace"
+        } else {
+            "system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji'"
+        };
+        let font = format!("32px {family}");
+        let candidate = self.draw(text, &font)?;
+        if !self.tofu_cache.contains_key(&font) {
+            let sample = char::from_u32(0x0378).map(|chr| chr.to_string());
+            let sample = sample.as_deref().and_then(|text| self.draw(text, &font));
+            self.tofu_cache.insert(font.clone(), sample);
+        }
+        let tofu = self.tofu_cache.get(&font)?.as_ref()?;
+        Some(candidate.as_slice() == tofu.as_slice())
+    }
+}
+
+fn available_characters(
+    ui: &egui::Ui,
+    font_id: &egui::FontId,
+    include_missing_emoji: bool,
+) -> BTreeMap<char, GlyphInfo> {
+    #[cfg(target_arch = "wasm32")]
+    let mut tofu_detector = include_missing_emoji
+        .then(CanvasTofuDetector::new)
+        .flatten();
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = include_missing_emoji;
+
     ui.fonts_mut(|f| {
-        f.characters(family)
+        #[cfg_attr(not(target_arch = "wasm32"), allow(unused_mut))]
+        let mut characters: BTreeMap<char, GlyphInfo> = f
+            .characters(&font_id.family)
             .iter()
             .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control())
             .map(|(chr, fonts)| {
@@ -212,7 +318,60 @@ fn available_characters(ui: &egui::Ui, family: &egui::FontFamily) -> BTreeMap<ch
                     },
                 )
             })
-            .collect()
+            .collect();
+
+        #[cfg(target_arch = "wasm32")]
+        if include_missing_emoji {
+            for (start, end) in [
+                (0x00A9, 0x00A9),
+                (0x00AE, 0x00AE),
+                (0x203C, 0x2049),
+                (0x2122, 0x2139),
+                (0x2194, 0x21FF),
+                (0x2300, 0x23FF),
+                (0x24C2, 0x24C2),
+                (0x25AA, 0x25FE),
+                (0x2600, 0x27BF),
+                (0x2934, 0x2935),
+                (0x2B00, 0x2BFF),
+                (0x3030, 0x303D),
+                (0x3297, 0x3299),
+                (0x1F000, 0x1FAFF),
+            ] {
+                for codepoint in start..=end {
+                    let Some(chr) = char::from_u32(codepoint) else {
+                        continue;
+                    };
+                    let text = chr.to_string();
+                    let emoji_selector = char::from_u32(0xFE0F).unwrap();
+                    let emoji = format!("{chr}{emoji_selector}");
+                    if !(egui::has_emoji_presentation(&text)
+                        || egui::has_emoji_presentation(&emoji))
+                    {
+                        continue;
+                    }
+
+                    let has_glyph = f.has_glyph(font_id, chr);
+                    let include_candidate = if has_glyph {
+                        true
+                    } else {
+                        // Keep candidates when Canvas is unavailable or comparison fails.
+                        !tofu_detector
+                            .as_mut()
+                            .and_then(|detector| detector.is_tofu(&emoji, &font_id.family))
+                            .unwrap_or(false)
+                    };
+                    if include_candidate {
+                        characters.entry(chr).or_insert_with(|| GlyphInfo {
+                            name: char_name(chr),
+                            fonts: vec!["system emoji fallback".to_owned()],
+                        });
+                    }
+                }
+            }
+        }
+
+        characters
     })
 }
 
