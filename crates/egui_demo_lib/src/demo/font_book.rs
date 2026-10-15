@@ -328,8 +328,7 @@ fn available_characters(
                     continue;
                 };
                 let text = chr.to_string();
-                let emoji_selector = char::from_u32(0xFE0F).unwrap();
-                let emoji = format!("{chr}{emoji_selector}");
+                let emoji = format!("{chr}\u{FE0F}");
                 if !(egui::has_emoji_presentation(&text) || egui::has_emoji_presentation(&emoji)) {
                     continue;
                 }
