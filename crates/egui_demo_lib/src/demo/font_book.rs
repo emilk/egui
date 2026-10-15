@@ -11,7 +11,7 @@ pub struct FontBook {
     filter: String,
     font_id: egui::FontId,
     available_glyphs: BTreeMap<egui::FontFamily, BTreeMap<char, GlyphInfo>>,
-    #[cfg(target_arch = "wasm32")]
+
     include_missing_emoji: bool,
 }
 
@@ -21,7 +21,7 @@ impl Default for FontBook {
             filter: Default::default(),
             font_id: egui::FontId::proportional(18.0),
             available_glyphs: Default::default(),
-            #[cfg(target_arch = "wasm32")]
+
             include_missing_emoji: false,
         }
     }
@@ -77,7 +77,6 @@ impl crate::View for FontBook {
             }
         });
 
-        #[cfg(target_arch = "wasm32")]
         if ui
             .checkbox(
                 &mut self.include_missing_emoji,
@@ -91,16 +90,7 @@ impl crate::View for FontBook {
             self.available_glyphs.clear();
         }
 
-        let include_missing_emoji = {
-            #[cfg(target_arch = "wasm32")]
-            {
-                self.include_missing_emoji
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                false
-            }
-        };
+        let include_missing_emoji = self.include_missing_emoji;
         let available_glyphs = self
             .available_glyphs
             .entry(font_id.family.clone())
@@ -300,11 +290,8 @@ fn available_characters(
     let mut tofu_detector = include_missing_emoji
         .then(CanvasTofuDetector::new)
         .flatten();
-    #[cfg(not(target_arch = "wasm32"))]
-    let _ = include_missing_emoji;
 
     ui.fonts_mut(|f| {
-        #[cfg_attr(not(target_arch = "wasm32"), expect(unused_mut))]
         let mut characters: BTreeMap<char, GlyphInfo> = f
             .characters(&font_id.family)
             .iter()
@@ -320,53 +307,55 @@ fn available_characters(
             })
             .collect();
 
-        #[cfg(target_arch = "wasm32")]
-        if include_missing_emoji {
-            for (start, end) in [
-                (0x00A9, 0x00A9),
-                (0x00AE, 0x00AE),
-                (0x203C, 0x2049),
-                (0x2122, 0x2139),
-                (0x2194, 0x21FF),
-                (0x2300, 0x23FF),
-                (0x24C2, 0x24C2),
-                (0x25AA, 0x25FE),
-                (0x2600, 0x27BF),
-                (0x2934, 0x2935),
-                (0x2B00, 0x2BFF),
-                (0x3030, 0x303D),
-                (0x3297, 0x3299),
-                (0x1F000, 0x1FAFF),
-            ] {
-                for codepoint in start..=end {
-                    let Some(chr) = char::from_u32(codepoint) else {
-                        continue;
-                    };
-                    let text = chr.to_string();
-                    let emoji_selector = char::from_u32(0xFE0F).unwrap();
-                    let emoji = format!("{chr}{emoji_selector}");
-                    if !(egui::has_emoji_presentation(&text)
-                        || egui::has_emoji_presentation(&emoji))
-                    {
-                        continue;
-                    }
+        for (start, end) in [
+            (0x00A9, 0x00A9),
+            (0x00AE, 0x00AE),
+            (0x203C, 0x2049),
+            (0x2122, 0x2139),
+            (0x2194, 0x21FF),
+            (0x2300, 0x23FF),
+            (0x24C2, 0x24C2),
+            (0x25AA, 0x25FE),
+            (0x2600, 0x27BF),
+            (0x2934, 0x2935),
+            (0x2B00, 0x2BFF),
+            (0x3030, 0x303D),
+            (0x3297, 0x3299),
+            (0x1F000, 0x1FAFF),
+        ] {
+            for codepoint in start..=end {
+                let Some(chr) = char::from_u32(codepoint) else {
+                    continue;
+                };
+                let text = chr.to_string();
+                let emoji_selector = char::from_u32(0xFE0F).unwrap();
+                let emoji = format!("{chr}{emoji_selector}");
+                if !(egui::has_emoji_presentation(&text) || egui::has_emoji_presentation(&emoji)) {
+                    continue;
+                }
 
-                    let has_glyph = f.has_glyph(font_id, chr);
-                    let include_candidate = if has_glyph {
-                        true
-                    } else {
+                let has_glyph = f.has_glyph(font_id, chr);
+                let include_candidate = if include_missing_emoji && !has_glyph {
+                    #[cfg(target_arch = "wasm32")]
+                    {
                         // Keep candidates when Canvas is unavailable or comparison fails.
                         !tofu_detector
                             .as_mut()
                             .and_then(|detector| detector.is_tofu(&emoji, &font_id.family))
                             .unwrap_or(false)
-                    };
-                    if include_candidate {
-                        characters.entry(chr).or_insert_with(|| GlyphInfo {
-                            name: char_name(chr),
-                            fonts: vec!["system emoji fallback".to_owned()],
-                        });
                     }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        true
+                    }
+                } else {
+                    has_glyph
+                };
+                if include_candidate {
+                    characters.entry(chr).or_insert_with(|| GlyphInfo {
+                        name: char_name(chr),
+                        fonts: vec!["system emoji fallback".to_owned()],
+                    });
                 }
             }
         }
