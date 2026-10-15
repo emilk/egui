@@ -108,6 +108,12 @@ pub struct Viewport {
     /// Any not yet applied deltas for this viewport.
     pending_delta: TexturesDelta,
 
+    /// The swapchain still holds the last painted picture.
+    ///
+    /// Cleared when this viewport is not visible, so the next visible frame
+    /// paints even if the shapes match.
+    picture_presented: bool,
+
     /// `None` for sync viewports.
     viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
@@ -362,6 +368,7 @@ impl<'app> WgpuWinitApp<'app> {
                 window: Some(window),
                 egui_winit: Some(egui_winit),
                 pending_delta: Default::default(),
+                picture_presented: false,
             },
         );
 
@@ -653,7 +660,12 @@ impl WgpuWinitRunning<'_> {
                 if viewport.viewport_ui_cb.is_none() {
                     // This will only happen if this is an immediate viewport.
                     // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                    if let Some(viewport) = viewports.get(&viewport.ids.parent)
+                    // This pass does not present, so the next real paint cannot skip.
+                    let parent_id = viewport.ids.parent;
+                    if let Some(viewport) = viewports.get_mut(&viewport_id) {
+                        viewport.picture_presented = false;
+                    }
+                    if let Some(viewport) = viewports.get(&parent_id)
                         && let Some(window) = viewport.window.as_ref()
                     {
                         return Ok(EventResult::RepaintNext(window.id()));
@@ -677,6 +689,7 @@ impl WgpuWinitRunning<'_> {
             let viewport_ui_cb = viewport_ui_cb.clone();
 
             let Some(window) = window else {
+                viewport.picture_presented = false;
                 return Ok(EventResult::Wait);
             };
             egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);
@@ -688,13 +701,24 @@ impl WgpuWinitRunning<'_> {
                     .actions_requested
                     .iter()
                     .any(egui_winit::ActionRequested::wants_paint);
+            if !is_visible {
+                viewport.picture_presented = false;
+            }
 
             {
                 profiling::scope!("set_window");
-                pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(window))))?;
+                let set_window_result =
+                    pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(window))));
+                // A failed surface is not the picture on screen. The next frame
+                // that does get a surface has to paint, even if the shapes match.
+                if set_window_result.is_err() {
+                    viewport.picture_presented = false;
+                }
+                set_window_result?;
             }
 
             let Some(egui_winit) = egui_winit.as_mut() else {
+                viewport.picture_presented = false;
                 return Ok(EventResult::Wait);
             };
             let mut raw_input = egui_winit.take_egui_input(window);
@@ -717,6 +741,14 @@ impl WgpuWinitRunning<'_> {
             // Nothing will be shown, so we run no egui pass at all.
             // That way all ui state is left untouched, and is still there
             // when this viewport becomes visible again.
+            //
+            // Wayland runs this pass while the window is still reported visible,
+            // because the compositor withheld the frame callback. The next full
+            // frame is often only the replayed pointer move. It has to present,
+            // or that compositor never receives a buffer.
+            if let Some(viewport) = shared.borrow_mut().viewports.get_mut(&viewport_id) {
+                viewport.picture_presented = false;
+            }
             let is_root_viewport = viewport_ui_cb.is_none();
             if is_root_viewport {
                 // The app logic keeps ticking, so it can e.g. ask to be shown again:
@@ -789,6 +821,7 @@ impl WgpuWinitRunning<'_> {
             textures_delta,
             shapes,
             pixels_per_point,
+            skip_redraw,
             viewport_output,
         } = full_output;
 
@@ -813,14 +846,13 @@ impl WgpuWinitRunning<'_> {
             ..
         } = viewport
         else {
+            viewport.picture_presented = false;
             return Ok(EventResult::Wait);
         };
 
         egui_winit.handle_platform_output_with_event_loop(window, event_loop, platform_output);
 
         let vsync_secs = if is_visible {
-            let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
-
             let mut screenshot_commands = vec![];
             viewport.actions_requested.retain(|cmd| {
                 if let ActionRequested::Screenshot(callback) = cmd {
@@ -830,15 +862,34 @@ impl WgpuWinitRunning<'_> {
                     true
                 }
             });
-            let vsync_secs = painter.paint_and_update_textures(
-                viewport_id,
-                pixels_per_point,
-                app.clear_color(&egui_ctx.global_style().visuals),
-                &clipped_primitives,
-                pending_deltas,
-                screenshot_commands,
-                window,
-            );
+            // A hidden frame clears `picture_presented`, so the first visible
+            // frame paints even when the shapes match the last tessellation.
+            let skip_redraw = skip_redraw
+                && pending_deltas.is_empty()
+                && screenshot_commands.is_empty()
+                && viewport.picture_presented;
+
+            let vsync_secs = if skip_redraw {
+                0.0
+            } else {
+                let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+                let (vsync_secs, presented) = painter.paint_and_update_textures(
+                    viewport_id,
+                    pixels_per_point,
+                    app.clear_color(&egui_ctx.global_style().visuals),
+                    &clipped_primitives,
+                    pending_deltas,
+                    screenshot_commands,
+                    window,
+                );
+                // Occlusion and a lost surface return without presenting. The next
+                // frame has to paint even when the shapes match, or the window stays blank.
+                viewport.picture_presented = presented;
+                if presented {
+                    integration.post_rendering(window);
+                }
+                vsync_secs
+            };
 
             for action in viewport.actions_requested.drain(..) {
                 match action {
@@ -870,8 +921,6 @@ impl WgpuWinitRunning<'_> {
                     }
                 }
             }
-
-            integration.post_rendering(window);
 
             vsync_secs
         } else {
@@ -1136,6 +1185,7 @@ impl Viewport {
                     pollster::block_on(painter.set_window(viewport_id, Some(Arc::clone(&window))))
                 {
                     log::error!("on set_window: viewport_id {viewport_id:?} {err}");
+                    self.picture_presented = false;
                 }
 
                 let mut egui_winit = egui_winit::State::new(
@@ -1268,6 +1318,7 @@ fn render_immediate_viewport(
         textures_delta,
         shapes,
         pixels_per_point,
+        skip_redraw,
         viewport_output,
     } = egui_ctx.run_ui(input, |ui| {
         viewport_ui_cb(ui);
@@ -1302,21 +1353,33 @@ fn render_immediate_viewport(
                 "when rendering viewport_id={:?}, set_window Error {err}",
                 ids.this
             );
+            viewport.picture_presented = false;
         }
     }
 
-    let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
-    painter.paint_and_update_textures(
-        ids.this,
-        pixels_per_point,
-        [0.0, 0.0, 0.0, 0.0],
-        &clipped_primitives,
-        &mut viewport.pending_delta,
-        vec![],
-        window,
-    );
-
     egui_winit.handle_platform_output(window, platform_output);
+
+    // A minimized immediate viewport is not on screen. Leave `picture_presented`
+    // clear so the first frame after it returns paints, even if the shapes match.
+    let visible = viewport.info.visible() != Some(false);
+    if !visible {
+        viewport.picture_presented = false;
+    }
+    let skip_redraw =
+        visible && skip_redraw && viewport.pending_delta.is_empty() && viewport.picture_presented;
+    if !skip_redraw && visible {
+        let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+        let (_, presented) = painter.paint_and_update_textures(
+            ids.this,
+            pixels_per_point,
+            [0.0, 0.0, 0.0, 0.0],
+            &clipped_primitives,
+            &mut viewport.pending_delta,
+            vec![],
+            window,
+        );
+        viewport.picture_presented = presented;
+    }
 
     handle_viewport_output(
         &egui_ctx,
@@ -1424,6 +1487,7 @@ fn initialize_or_update_viewport<'a>(
                 window: None,
                 egui_winit: None,
                 pending_delta: Default::default(),
+                picture_presented: false,
             })
         }
 
@@ -1443,6 +1507,7 @@ fn initialize_or_update_viewport<'a>(
                     ids.this,
                     viewport.builder.title
                 );
+                viewport.picture_presented = false;
                 viewport.window = None;
                 viewport.egui_winit = None;
                 if let Err(err) = pollster::block_on(painter.set_window(viewport.ids.this, None)) {

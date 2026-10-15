@@ -17,6 +17,7 @@ pub struct EguiGlow {
     shapes: Vec<egui::epaint::ClippedShape>,
     pixels_per_point: f32,
     textures_delta: egui::TexturesDelta,
+    skip_redraw: bool,
 }
 
 impl EguiGlow {
@@ -54,6 +55,7 @@ impl EguiGlow {
             shapes: Default::default(),
             pixels_per_point: native_pixels_per_point.unwrap_or(1.0),
             textures_delta: Default::default(),
+            skip_redraw: false,
         }
     }
 
@@ -74,6 +76,7 @@ impl EguiGlow {
             textures_delta,
             shapes,
             pixels_per_point,
+            skip_redraw,
             viewport_output,
         } = self.egui_ctx.run_ui(raw_input, run_ui);
 
@@ -100,10 +103,27 @@ impl EguiGlow {
         self.shapes = shapes;
         self.pixels_per_point = pixels_per_point;
         self.textures_delta.append(textures_delta);
+        self.skip_redraw = skip_redraw;
+    }
+
+    /// The last [`Self::run`] painted the same picture as the last tessellation,
+    /// and there is no texture update waiting.
+    ///
+    /// The caller must not clear the framebuffer or swap buffers until the next
+    /// [`Self::run`]. Clearing and then skipping the draw shows an empty window.
+    pub fn skip_redraw(&self) -> bool {
+        self.skip_redraw && self.textures_delta.is_empty()
     }
 
     /// Paint the results of the last call to [`Self::run`].
+    ///
+    /// Returns without drawing when [`Self::skip_redraw`] is true.
     pub fn paint(&mut self, window: &winit::window::Window) {
+        if self.skip_redraw() {
+            self.shapes.clear();
+            return;
+        }
+
         let shapes = core::mem::take(&mut self.shapes);
         let mut textures_delta = core::mem::take(&mut self.textures_delta);
 
