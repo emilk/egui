@@ -9,7 +9,7 @@
 (cd crates/egui_glow                 && cargo publish --quiet)  &&  echo "✅ egui_glow"
 (cd crates/egui-wgpu                 && cargo publish --quiet)  &&  echo "✅ egui-wgpu"
 (cd crates/egui_system_font_provider && cargo publish --quiet)  &&  echo "✅ egui_system_font_provider"
-(cd crates/egui_inspection           && cargo publish --quiet)  &&  echo "✅ eframe"
+(cd crates/egui_inspection           && cargo publish --quiet)  &&  echo "✅ egui_inspection"
 (cd crates/eframe                    && cargo publish --quiet)  &&  echo "✅ eframe"
 (cd crates/egui_extras               && cargo publish --quiet)  &&  echo "✅ egui_extras"
 (cd crates/egui_kittest              && cargo publish --quiet)  &&  echo "✅ egui_kittest"
