@@ -304,7 +304,7 @@ fn available_characters(
     let _ = include_missing_emoji;
 
     ui.fonts_mut(|f| {
-        #[cfg_attr(not(target_arch = "wasm32"), allow(unused_mut))]
+        #[cfg_attr(not(target_arch = "wasm32"), expect(unused_mut))]
         let mut characters: BTreeMap<char, GlyphInfo> = f
             .characters(&font_id.family)
             .iter()
