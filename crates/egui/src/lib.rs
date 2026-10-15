@@ -484,7 +484,7 @@ pub use self::{
         Aligned, Area, AreaState, CentralPanel, ClosableTag, CollapsingHeader, CollapsingResponse,
         ComboBox, DragPanButtons, Frame, IconPainter, Modal, ModalResponse, Panel, PanelState,
         Popup, PopupAnchor, PopupCloseBehavior, PopupKind, Resize, Scene, ScrollArea,
-        SetOpenCommand, Sides, Tooltip, Window, WindowDrag, collapsing_header, frame,
+        SetOpenCommand, Split, Tooltip, Window, WindowDrag, collapsing_header, frame,
         menu::{self, MenuBar},
         modal, panel, scroll_area,
     },
@@ -543,6 +543,7 @@ pub use self::{
 #[expect(deprecated)]
 pub use self::{
     atomics::{AllocatedAtomLayout, AtomLayout, AtomLayoutResponse, SizedAtomLayout},
+    containers::Sides,
     id::AsId,
     widgets::global_theme_preference_switch,
 };

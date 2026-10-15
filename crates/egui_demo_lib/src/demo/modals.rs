@@ -89,7 +89,7 @@ impl crate::View for Modals {
 
                 ui.separator();
 
-                egui::Sides::new().show(
+                egui::Split::new().show(
                     ui,
                     |_ui| {},
                     |ui| {
@@ -117,7 +117,7 @@ impl crate::View for Modals {
 
                 ui.add_space(32.0);
 
-                egui::Sides::new().show(
+                egui::Split::new().show(
                     ui,
                     |_ui| {},
                     |ui| {

@@ -16,7 +16,7 @@ pub(crate) mod resize;
 mod scene;
 pub mod scroll_area;
 mod scroll_physics;
-mod sides;
+mod split;
 mod tooltip;
 pub(crate) mod window;
 
@@ -33,7 +33,10 @@ pub use {
     resize::Resize,
     scene::{DragPanButtons, Scene},
     scroll_area::ScrollArea,
-    sides::Sides,
+    split::Split,
     tooltip::*,
     window::{Window, WindowDrag},
 };
+
+#[expect(deprecated)]
+pub use split::Sides;

@@ -19,7 +19,7 @@ impl TestMenu {
     fn ui(&mut self, ui: &mut Ui) {
         ui.vertical(|ui| {
             MenuBar::new().config(self.config.clone()).ui(ui, |ui| {
-                egui::Sides::new().show(
+                egui::Split::new().show(
                     ui,
                     |ui| {
                         ui.menu_button("Menu A", |ui| {

@@ -179,7 +179,7 @@ impl TableDemo {
         table
             .header(20.0, |mut header| {
                 header.col(|ui| {
-                    egui::Sides::new().show(
+                    egui::Split::new().show(
                         ui,
                         |ui| {
                             ui.strong("Row");

@@ -1,40 +1,40 @@
-use egui::{TextWrapMode, Vec2, containers::Sides};
+use egui::{TextWrapMode, Vec2, containers::Split};
 use egui_kittest::{Harness, SnapshotResults};
 
 #[test]
-fn sides_container_tests() {
+fn split_container_tests() {
     let mut results = SnapshotResults::new();
 
     test_variants("default", |sides| sides, &mut results);
 
     test_variants(
         "shrink_left",
-        |sides| sides.shrink_left().truncate(),
+        |sides| sides.shrink_start().truncate(),
         &mut results,
     );
 
     test_variants(
         "shrink_right",
-        |sides| sides.shrink_right().truncate(),
+        |sides| sides.shrink_end().truncate(),
         &mut results,
     );
 
     test_variants(
         "wrap_left",
-        |sides| sides.shrink_left().wrap_mode(TextWrapMode::Wrap),
+        |sides| sides.shrink_start().wrap_mode(TextWrapMode::Wrap),
         &mut results,
     );
 
     test_variants(
         "wrap_right",
-        |sides| sides.shrink_right().wrap_mode(TextWrapMode::Wrap),
+        |sides| sides.shrink_end().wrap_mode(TextWrapMode::Wrap),
         &mut results,
     );
 }
 
 fn test_variants(
     name: &str,
-    mut create_sides: impl FnMut(Sides) -> Sides,
+    mut create_sides: impl FnMut(Split) -> Split,
     results: &mut SnapshotResults,
 ) {
     for (variant_name, left_text, right_text, fit_contents) in [
@@ -56,7 +56,7 @@ fn test_variants(
         let mut harness = Harness::builder()
             .with_size(Vec2::new(400.0, 50.0))
             .build_ui(|ui| {
-                create_sides(Sides::new()).show(
+                create_sides(Split::new()).show(
                     ui,
                     |left| {
                         left.label(left_text);
@@ -71,6 +71,6 @@ fn test_variants(
             harness.fit_contents();
         }
 
-        results.add(harness.try_snapshot(format!("sides/{name}_{variant_name}")));
+        results.add(harness.try_snapshot(format!("split/{name}_{variant_name}")));
     }
 }
