@@ -1,14 +1,14 @@
 [package]
-name = "egui_system_fonts"
+name = "egui_system_font_provider"
 version.workspace = true
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Load system fonts on demand for characters the egui fonts lack"
 edition.workspace = true
 rust-version.workspace = true
-homepage = "https://github.com/emilk/egui/tree/main/crates/egui_system_fonts"
+homepage = "https://github.com/emilk/egui/tree/main/crates/egui_system_font_provider"
 license.workspace = true
 readme = "README.md"
-repository = "https://github.com/emilk/egui/tree/main/crates/egui_system_fonts"
+repository = "https://github.com/emilk/egui/tree/main/crates/egui_system_font_provider"
 categories = ["gui"]
 keywords = ["egui", "gui", "fonts", "text"]
 include = ["../../LICENSE-APACHE", "../../LICENSE-MIT", "**/*.rs", "Cargo.toml"]

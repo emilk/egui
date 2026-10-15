@@ -1278,7 +1278,7 @@ dependencies = [
  "egui-winit",
  "egui_glow",
  "egui_inspection",
- "egui_system_fonts",
+ "egui_system_font_provider",
  "glow",
  "glutin",
  "glutin-winit",
@@ -1491,7 +1491,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "egui_system_fonts"
+name = "egui_system_font_provider"
 version = "0.36.2"
 dependencies = [
  "egui",
