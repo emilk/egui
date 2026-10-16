@@ -507,12 +507,20 @@ pub(crate) struct Focus {
     /// The ID of a widget that had keyboard focus during the previous frame.
     id_previous_frame: Option<Id>,
 
-    /// The ID of a widget that had keyboard focus *two* frames ago.
+    /// Has the focused widget been shown during this frame, while it had the focus?
+    focused_widget_shown: bool,
+
+    /// The ID of a widget that lost keyboard focus during this frame,
+    /// after it had already been shown in this frame.
+    id_lost_after_shown: Option<Id>,
+
+    /// The ID of a widget that lost keyboard focus during the previous frame,
+    /// after it had already been shown in that frame.
     ///
-    /// Kept so `Response::lost_focus` can still fire after a mid-frame
-    /// focus transition (e.g. clicking a `TextEdit` that was added to
-    /// the UI later than the currently focused one).
-    id_two_frames_ago: Option<Id>,
+    /// That widget could not see the loss in the previous frame, so `Response::lost_focus`
+    /// reports it in this frame instead. This happens e.g. when the user clicks
+    /// a `TextEdit` that was added to the UI later than the focused one.
+    id_lost_after_shown_previous_frame: Option<Id>,
 
     /// The ID of a widget to give the focus to in the next frame.
     id_next_frame: Option<Id>,
@@ -566,9 +574,32 @@ impl Focus {
         self.focused_widget.as_ref().map(|w| w.id)
     }
 
+    /// Give keyboard focus to `id`.
+    fn give_focus_to(&mut self, id: Id) {
+        if self.focused() != Some(id) {
+            if let Some(old_id) = self.focused()
+                && self.focused_widget_shown
+            {
+                // The old widget has already been shown in this frame,
+                // so it can only see the loss in the next frame.
+                self.id_lost_after_shown = Some(old_id);
+            }
+            self.focused_widget_shown = false;
+        }
+        self.focused_widget = Some(FocusWidget::new(id));
+    }
+
+    /// See [`Memory::lost_focus`].
+    fn lost_focus(&self, id: Id) -> bool {
+        let had_focus = self.id_previous_frame == Some(id)
+            || self.id_lost_after_shown_previous_frame == Some(id);
+        had_focus && self.focused() != Some(id)
+    }
+
     fn begin_pass(&mut self, new_input: &crate::data::input::RawInput) {
-        self.id_two_frames_ago = self.id_previous_frame;
         self.id_previous_frame = self.focused();
+        self.id_lost_after_shown_previous_frame = self.id_lost_after_shown.take();
+        self.focused_widget_shown = false;
         if let Some(id) = self.id_next_frame.take() {
             self.focused_widget = Some(FocusWidget::new(id));
         }
@@ -636,7 +667,7 @@ impl Focus {
         if self.focus_direction.is_cardinal()
             && let Some(found_widget) = self.find_widget_in_direction(used_ids)
         {
-            self.focused_widget = Some(FocusWidget::new(found_widget));
+            self.give_focus_to(found_widget);
         }
 
         if let Some(focused_widget) = self.focused_widget {
@@ -688,6 +719,10 @@ impl Focus {
             // nothing has focus and the user pressed Shift+Tab - give focus to the last widgets that wants it:
             self.focused_widget = self.last_interested.map(FocusWidget::new);
             self.reset_focus();
+        }
+
+        if self.focused() == Some(id) {
+            self.focused_widget_shown = true;
         }
 
         self.last_interested = Some(id);
@@ -862,19 +897,11 @@ impl Memory {
 
     /// Check if the widget lost keyboard focus.
     ///
-    /// Returns `true` when `id` was the focused widget at the start
-    /// of this frame *or* the start of the previous frame — but is
-    /// not focused now. The two-frame window matters when focus
-    /// transfers mid-frame: the previously-focused widget has
-    /// usually already been rendered by the time another widget
-    /// claims focus, so the loss signal can only reach it on its
-    /// next render pass.
+    /// Returns `true` in the first frame in which the widget can see the loss:
+    /// this frame if it lost focus before or while it was shown in this frame,
+    /// or the next frame if another widget took the focus after it was shown.
     pub(crate) fn lost_focus(&self, id: Id) -> bool {
-        let had_recent_focus = self
-            .focus()
-            .map(|f| f.id_previous_frame == Some(id) || f.id_two_frames_ago == Some(id))
-            .unwrap_or(false);
-        had_recent_focus && !self.has_focus(id)
+        self.focus().is_some_and(|focus| focus.lost_focus(id))
     }
 
     /// Check if the layer gained focus this frame.
@@ -921,7 +948,7 @@ impl Memory {
     /// Calling this will interrupt IME composition.
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
-        self.focus_mut().focused_widget = Some(FocusWidget::new(id));
+        self.focus_mut().give_focus_to(id);
         self.interrupt_ime();
     }
 
@@ -1458,42 +1485,33 @@ fn lost_focus_fires_after_mid_frame_focus_transfer() {
     let mut focus = Focus::default();
     let raw = RawInput::default();
 
-    fn lost_focus_check(focus: &Focus, id: Id) -> bool {
-        let was_focused =
-            focus.id_previous_frame == Some(id) || focus.id_two_frames_ago == Some(id);
-        was_focused && focus.focused() != Some(id)
-    }
-
     // Frame N-1
     {
         focus.begin_pass(&raw);
-        focus.focused_widget = Some(FocusWidget::new(a));
+        focus.give_focus_to(a);
     }
 
-    // Frame N: `A` is focused at start; user clicks `B` mid-frame
+    // Frame N: `A` is focused and shown; user clicks `B`, which is shown after `A`
     {
         focus.begin_pass(&raw);
-        assert_eq!(focus.id_previous_frame, Some(a));
-        assert!(!lost_focus_check(&focus, a));
-        focus.focused_widget = Some(FocusWidget::new(b));
+        focus.interested_in_focus(a);
+        assert!(!focus.lost_focus(a));
+        focus.interested_in_focus(b);
+        focus.give_focus_to(b);
     }
 
     // Frame N+1: `A` deferred lost_focus signal must fire
     {
         focus.begin_pass(&raw);
-        assert_eq!(focus.id_two_frames_ago, Some(a));
         assert_eq!(focus.id_previous_frame, Some(b));
-        assert!(lost_focus_check(&focus, a), "`A` lost_focus must fire");
-        assert!(!lost_focus_check(&focus, b));
+        assert!(focus.lost_focus(a), "`A` lost_focus must fire");
+        assert!(!focus.lost_focus(b));
     }
 
     // Frame N+2
     {
         focus.begin_pass(&raw);
-        assert!(
-            !lost_focus_check(&focus, a),
-            "A's lost_focus must stop firing once the two-frame window passes",
-        );
+        assert!(!focus.lost_focus(a), "`A` lost_focus must only fire once");
     }
 }
 
