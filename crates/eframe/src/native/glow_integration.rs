@@ -408,13 +408,13 @@ impl<'app> GlowWinitApp<'app> {
 
         crate::maybe_attach_inspection_plugin(&integration.egui_ctx, Some(self.app_name.clone()));
 
+        let window = glutin.window(ViewportId::ROOT);
         let app: Box<dyn 'app + App> = {
             // Use latest raw_window_handle for eframe compatibility
             use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
             let gl_config = glutin.gl_config.clone();
             let get_proc_address = move |addr: &_| gl_config.display().get_proc_address(addr);
-            let window = glutin.window(ViewportId::ROOT);
             let cc = CreationContext {
                 egui_ctx: integration.egui_ctx.clone(),
                 integration_info: integration.frame.info().clone(),
@@ -430,6 +430,22 @@ impl<'app> GlowWinitApp<'app> {
             profiling::scope!("app_creator");
             app_creator(&cc).map_err(crate::Error::AppCreation)?
         };
+
+        // Apply the app's initial theme before the hidden root window is first shown.
+        if integration
+            .egui_ctx
+            .options(|options| options.sync_window_theme)
+        {
+            let theme = integration
+                .egui_ctx
+                .options(|options| options.theme_preference);
+            let window_theme = match theme {
+                egui::ThemePreference::Dark => egui::SystemTheme::Dark,
+                egui::ThemePreference::Light => egui::SystemTheme::Light,
+                egui::ThemePreference::System => egui::SystemTheme::SystemDefault,
+            };
+            egui_winit::set_window_theme(&window, window_theme);
+        }
 
         let glutin = Rc::new(RefCell::new(glutin));
 
