@@ -339,6 +339,27 @@ pub struct WgpuConfiguration {
     /// in that case either.
     pub on_surface_status:
         Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
+
+    /// Optional callback wrapping every surface (re)configuration.
+    ///
+    /// [`wgpu::Surface::configure`] waits for the GPU to become idle, and fails with
+    /// "Failed to wait for GPU to come idle before reconfiguring the Surface"
+    /// if another thread submits new work to the same [`wgpu::Queue`] during that wait.
+    /// This can happen e.g. when resizing a window while background threads are
+    /// continuously submitting compute work.
+    ///
+    /// If set, egui calls this instead of configuring the surface directly, passing a closure
+    /// that performs the actual [`wgpu::Surface::configure`]. The callback must call it exactly once.
+    /// This lets you synchronize with your own GPU submissions, e.g. by taking a write lock
+    /// around the call, and a read lock around each [`wgpu::Queue::submit`] on other threads.
+    ///
+    /// Keep the read lock only as long as the submit call itself:
+    /// the UI thread blocks on the write lock whenever the window is resized.
+    /// Never take the read lock recursively, and never wait on the UI thread while holding it,
+    /// or you may deadlock.
+    ///
+    /// Only used by the native (winit) integration. Default: `None`.
+    pub surface_configure_callback: Option<Arc<dyn Fn(&mut dyn FnMut()) + Send + Sync>>,
 }
 
 // Compile-time check that `WgpuConfiguration` is `Send + Sync`.
@@ -363,6 +384,7 @@ impl core::fmt::Debug for WgpuConfiguration {
             surface,
             wgpu_setup,
             on_surface_status: _,
+            surface_configure_callback: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
             .field("surface", &surface)
@@ -410,6 +432,7 @@ impl Default for WgpuConfiguration {
                     SurfaceErrorAction::SkipFrame
                 }
             }),
+            surface_configure_callback: None,
         }
     }
 }
