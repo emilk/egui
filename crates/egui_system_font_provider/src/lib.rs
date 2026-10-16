@@ -137,7 +137,7 @@ impl FontProvider for SystemFontProvider {
             // Try the generic families instead.
             let mut query = collection.query(source_cache);
 
-            // If there is an emoji variation selector, the family should be emoji (U+FE0F)
+            // If there is an emoji variation selector (U+FE0F), the family should be emoji
             if let Some(next_ch) = chars.next()
                 && next_ch == '\u{FE0F}'
             {
