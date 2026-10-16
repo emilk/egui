@@ -6,6 +6,10 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.37.0 - 2026-10-15
+* Eframe: fall back to a compatibility-profile OpenGL context [#8655](https://github.com/emilk/egui/pull/8655) by [@crmne](https://github.com/crmne)
+
+
 ## 0.36.2 - 2026-09-08
 * Fix transparent child viewports on `Windows` with `glow` [#8423](https://github.com/emilk/egui/pull/8423) by [@rustbasic](https://github.com/rustbasic)
 
