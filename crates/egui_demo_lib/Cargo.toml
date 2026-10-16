@@ -61,7 +61,6 @@ web-sys = { workspace = true, features = [
     "Window",
 ] }
 
-
 [dev-dependencies]
 criterion.workspace = true
 # `monochrome_emoji_fonts` so that the snapshots of the demos keep their emoji:
