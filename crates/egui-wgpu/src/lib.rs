@@ -340,7 +340,7 @@ pub struct WgpuConfiguration {
     pub on_surface_status:
         Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
 
-    /// Optional lock used to synchronize surface reconfiguration with your own GPU submissions.
+    /// Optional callback wrapping every surface (re)configuration.
     ///
     /// [`wgpu::Surface::configure`] waits for the GPU to become idle, and fails with
     /// "Failed to wait for GPU to come idle before reconfiguring the Surface"
@@ -348,9 +348,10 @@ pub struct WgpuConfiguration {
     /// This can happen e.g. when resizing a window while background threads are
     /// continuously submitting compute work.
     ///
-    /// If set, egui takes a write lock for the duration of every surface (re)configuration.
-    /// To avoid the race, keep a clone of this `Arc` and hold a read lock around each
-    /// [`wgpu::Queue::submit`] you do from other threads.
+    /// If set, egui calls this instead of configuring the surface directly, passing a closure
+    /// that performs the actual [`wgpu::Surface::configure`]. The callback must call it exactly once.
+    /// This lets you synchronize with your own GPU submissions, e.g. by taking a write lock
+    /// around the call, and a read lock around each [`wgpu::Queue::submit`] on other threads.
     ///
     /// Keep the read lock only as long as the submit call itself:
     /// the UI thread blocks on the write lock whenever the window is resized.
@@ -358,7 +359,7 @@ pub struct WgpuConfiguration {
     /// or you may deadlock.
     ///
     /// Only used by the native (winit) integration. Default: `None`.
-    pub surface_configure_lock: Option<Arc<RwLock<()>>>,
+    pub surface_configure_callback: Option<Arc<dyn Fn(&mut dyn FnMut()) + Send + Sync>>,
 }
 
 // Compile-time check that `WgpuConfiguration` is `Send + Sync`.
@@ -383,7 +384,7 @@ impl core::fmt::Debug for WgpuConfiguration {
             surface,
             wgpu_setup,
             on_surface_status: _,
-            surface_configure_lock: _,
+            surface_configure_callback: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
             .field("surface", &surface)
@@ -431,7 +432,7 @@ impl Default for WgpuConfiguration {
                     SurfaceErrorAction::SkipFrame
                 }
             }),
-            surface_configure_lock: None,
+            surface_configure_callback: None,
         }
     }
 }

@@ -147,15 +147,18 @@ impl Painter {
             surf_config.desired_maximum_frame_latency = desired_maximum_frame_latency;
         }
 
-        // Prevent other threads from submitting work while `configure` waits for the GPU to idle.
-        // See `WgpuConfiguration::surface_configure_lock`.
-        let _guard = config
-            .surface_configure_lock
-            .as_ref()
-            .map(|lock| lock.write());
-        surface_state
-            .surface
-            .configure(&render_state.device, &surf_config);
+        // Let the user synchronize with their own GPU submissions while `configure` waits for the GPU to idle.
+        // See `WgpuConfiguration::surface_configure_callback`.
+        let mut configure = || {
+            surface_state
+                .surface
+                .configure(&render_state.device, &surf_config);
+        };
+        if let Some(callback) = &config.surface_configure_callback {
+            callback(&mut configure);
+        } else {
+            configure();
+        }
     }
 
     /// Drop the existing [`wgpu::Surface`] for `viewport_id` and create a fresh one for the
