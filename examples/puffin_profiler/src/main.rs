@@ -101,7 +101,7 @@ impl eframe::App for MyApp {
         });
 
         if self.show_immediate_viewport {
-            ui.ctx().show_viewport_immediate(
+            let _ = ui.ctx().show_viewport_immediate(
                 egui::ViewportId::from_hash_of("immediate_viewport"),
                 egui::ViewportBuilder::default()
                     .with_title("Immediate Viewport")
