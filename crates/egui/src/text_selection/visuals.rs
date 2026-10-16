@@ -62,6 +62,8 @@ pub fn paint_text_selection(
             };
             row.size.x + newline_size
         };
+        // In right-to-left text the cursor at the smaller char index is the one further right:
+        let (left, right) = (left.min(right), left.max(right));
 
         let rect = Rect::from_min_max(pos2(left, 0.0), pos2(right, row.size.y));
         let mesh = &mut row.visuals.mesh;
@@ -251,6 +253,7 @@ fn paint_underlines(
         } else {
             row.size.x
         };
+        let (left, right) = (left.min(right), left.max(right));
 
         let offset_y = placed_row.pos.y + row.size.y;
 
