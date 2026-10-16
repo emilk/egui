@@ -390,8 +390,8 @@ pub struct NativeOptions {
     /// Default: `true`.
     pub system_font_fallback: bool,
 
-    /// The folder where `eframe` will store the app state. If not set, eframe will use a default
-    /// data storage path for each target system.
+    /// The .ron file where `eframe` will store the app state. If not set, eframe will use a default
+    /// data storage path for each target system and save the state in app.ron.
     pub persistence_path: Option<std::path::PathBuf>,
 
     /// Controls whether to apply dithering to minimize banding artifacts.
