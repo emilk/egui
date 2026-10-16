@@ -1,5 +1,12 @@
 use std::collections::BTreeMap;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum MissingEmojiMode {
+    DoNotShow,
+    ShowTofu,
+    HideTofu,
+}
+
 struct GlyphInfo {
     name: String,
 
@@ -12,7 +19,7 @@ pub struct FontBook {
     font_id: egui::FontId,
     available_glyphs: BTreeMap<egui::FontFamily, BTreeMap<char, GlyphInfo>>,
 
-    include_missing_emoji: bool,
+    missing_emoji_mode: MissingEmojiMode,
 }
 
 impl Default for FontBook {
@@ -22,7 +29,7 @@ impl Default for FontBook {
             font_id: egui::FontId::proportional(18.0),
             available_glyphs: Default::default(),
 
-            include_missing_emoji: false,
+            missing_emoji_mode: MissingEmojiMode::DoNotShow,
         }
     }
 }
@@ -67,11 +74,11 @@ impl crate::View for FontBook {
 
         let font_id = self.font_id.clone();
 
-        let include_missing_emoji = self.include_missing_emoji;
+        let missing_emoji_mode = self.missing_emoji_mode;
         let available_glyph_count = self
             .available_glyphs
             .entry(font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, &font_id, include_missing_emoji))
+            .or_insert_with(|| available_characters(ui, &font_id, missing_emoji_mode))
             .len();
 
         let fonts_in_family = fonts_in_family(ui, &font_id.family);
@@ -88,16 +95,35 @@ impl crate::View for FontBook {
             }
         });
 
-        if ui
-            .checkbox(
-                &mut self.include_missing_emoji,
-                "Show emoji missing from selected font",
-            )
-            .on_hover_text(
-                "Include emoji candidates even when the selected font has no glyph for them.",
-            )
-            .changed()
-        {
+        let changed = ui
+            .horizontal(|ui| {
+                ui.label("Missing emoji:");
+                let mut changed = false;
+                changed |= ui
+                    .radio_value(
+                        &mut self.missing_emoji_mode,
+                        MissingEmojiMode::DoNotShow,
+                        "Do not show",
+                    )
+                    .changed();
+                changed |= ui
+                    .radio_value(
+                        &mut self.missing_emoji_mode,
+                        MissingEmojiMode::ShowTofu,
+                        "Show tofu",
+                    )
+                    .changed();
+                changed |= ui
+                    .radio_value(
+                        &mut self.missing_emoji_mode,
+                        MissingEmojiMode::HideTofu,
+                        "Hide tofu",
+                    )
+                    .changed();
+                changed
+            })
+            .inner;
+        if changed {
             self.available_glyphs.clear();
         }
 
@@ -111,11 +137,11 @@ impl crate::View for FontBook {
             }
         });
 
-        let include_missing_emoji = self.include_missing_emoji;
+        let missing_emoji_mode = self.missing_emoji_mode;
         let available_glyphs = self
             .available_glyphs
             .entry(font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, &font_id, include_missing_emoji));
+            .or_insert_with(|| available_characters(ui, &font_id, missing_emoji_mode));
 
         let filter = &self.filter;
 
@@ -291,10 +317,10 @@ impl CanvasTofuDetector {
 fn available_characters(
     ui: &egui::Ui,
     font_id: &egui::FontId,
-    include_missing_emoji: bool,
+    missing_emoji_mode: MissingEmojiMode,
 ) -> BTreeMap<char, GlyphInfo> {
     #[cfg(target_arch = "wasm32")]
-    let mut tofu_detector = include_missing_emoji
+    let mut tofu_detector = (missing_emoji_mode == MissingEmojiMode::HideTofu)
         .then(CanvasTofuDetector::new)
         .flatten();
 
@@ -341,22 +367,27 @@ fn available_characters(
                 }
 
                 let has_glyph = f.has_glyph(font_id, chr);
-                let include_candidate = if include_missing_emoji && !has_glyph {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        // Keep candidates when Canvas is unavailable or comparison fails.
-                        !tofu_detector
-                            .as_mut()
-                            .and_then(|detector| detector.is_tofu(&emoji, &font_id.family))
-                            .unwrap_or(false)
-                    }
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        true
-                    }
-                } else {
-                    has_glyph
-                };
+                let include_candidate =
+                    if missing_emoji_mode != MissingEmojiMode::DoNotShow && !has_glyph {
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            if missing_emoji_mode == MissingEmojiMode::HideTofu {
+                                // Keep candidates when Canvas is unavailable or comparison fails.
+                                !tofu_detector
+                                    .as_mut()
+                                    .and_then(|detector| detector.is_tofu(&emoji, &font_id.family))
+                                    .unwrap_or(false)
+                            } else {
+                                true
+                            }
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            true
+                        }
+                    } else {
+                        has_glyph
+                    };
                 if include_candidate {
                     characters.entry(chr).or_insert_with(|| GlyphInfo {
                         name: char_name(chr),
