@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 use crate::{App, epi};
 
 use super::{
-    AppRunner, PanicHandler,
+    AppRunner, PanicHandler, WebCanvas, WebHost,
     events::{self, ResizeObserverContext},
     text_agent::TextAgent,
 };
@@ -33,6 +33,12 @@ pub struct WebRunner {
     /// Current animation frame in flight.
     frame: Rc<RefCell<Option<AnimationFrameRequest>>>,
 
+    /// Channel back to the host page. `Some` only when running in a worker.
+    ///
+    /// Kept here (not only in [`AppRunner`]) because `request_animation_frame`
+    /// needs it without locking the app runner.
+    host: Rc<RefCell<Option<WebHost>>>,
+
     resize_observer: Rc<RefCell<Option<ResizeObserverContext>>>,
 }
 
@@ -47,6 +53,7 @@ impl WebRunner {
             app_runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
             frame: Default::default(),
+            host: Default::default(),
             resize_observer: Default::default(),
         }
     }
@@ -75,8 +82,14 @@ impl WebRunner {
         {
             // First set up the app runner:
             let text_agent = TextAgent::attach(self, &canvas)?;
-            let app_runner =
-                AppRunner::new(canvas.clone(), web_options, app_creator, text_agent).await?;
+            let app_runner = AppRunner::new(
+                WebCanvas::Html(canvas.clone()),
+                web_options,
+                app_creator,
+                None, // DOM mode: no host-page channel
+                Some(text_agent),
+            )
+            .await?;
             self.app_runner.replace(Some(app_runner));
         }
 
@@ -94,6 +107,95 @@ impl WebRunner {
         log::info!("event handlers installed.");
 
         Ok(())
+    }
+
+    /// Start an egui app on an `OffscreenCanvas` inside a web worker.
+    ///
+    /// The canvas must already have been transferred from the main thread
+    /// (`canvas.transferControlToOffscreen()`), and the host page must forward
+    /// messages — call [`Self::on_worker_message`] from the worker's `onmessage`.
+    ///
+    /// # Errors
+    /// Returns an error if the renderer cannot be initialized.
+    pub async fn start_offscreen(
+        &self,
+        canvas: web_sys::OffscreenCanvas,
+        web_options: crate::WebOptions,
+        app_creator: epi::AppCreator<'static>,
+    ) -> Result<(), JsValue> {
+        let canvas = WebCanvas::Offscreen(canvas);
+        let host =
+            WebHost::new().ok_or_else(|| JsValue::from_str("no postMessage on worker global"))?;
+        // Also keep a copy here: `request_animation_frame` needs it, and it must
+        // not lock the app runner (it is called while the runner is borrowed).
+        self.host.borrow_mut().replace(host.clone());
+        // The panic hook was installed by [`Self::new`].
+        let app_runner = AppRunner::new(
+            canvas,
+            web_options,
+            app_creator,
+            Some(host),
+            None, // worker mode: no DOM, so no text agent
+        )
+        .await?;
+        self.app_runner.replace(Some(app_runner));
+        Ok(())
+    }
+
+    /// Feed one message from the host page into the running app.
+    ///
+    /// Call this from the worker's `onmessage` handler. Unknown messages are ignored.
+    pub fn on_worker_message(&self, message: &JsValue) {
+        let Some(mut runner) = self.try_lock() else {
+            return;
+        };
+        let Some(kind) = js_sys::Reflect::get(message, &JsValue::from_str("type"))
+            .ok()
+            .and_then(|value| value.as_string())
+        else {
+            return;
+        };
+
+        match kind.as_str() {
+            "frame" => {
+                // The host page answered our `request_frame`.
+                let _ = self.frame.borrow_mut().take();
+                drop(runner);
+                events::paint_and_schedule(self).ok();
+            }
+            "resize" => {
+                let width = number(message, "width").unwrap_or(0.0) as u32;
+                let height = number(message, "height").unwrap_or(0.0) as u32;
+                if width > 0 && height > 0 {
+                    runner.on_offscreen_resize(width, height);
+                }
+                if let Some(dpr) = number(message, "dpr") {
+                    super::set_native_pixels_per_point(dpr as f32);
+                }
+                if let Some(rect) = rect_of(message) {
+                    runner
+                        .offscreen_events
+                        .apply(crate::web_events::WebEvent::CanvasRect(rect));
+                }
+                drop(runner);
+                self.request_animation_frame().ok();
+            }
+            "focus" => {
+                runner.input.focused = bool_value(message, "focused").unwrap_or(true);
+            }
+            "visibility" => {
+                runner.input.occluded = bool_value(message, "hidden").unwrap_or(false);
+            }
+            _ => {
+                if let Some(event) = parse_host_message(message) {
+                    let zoom_factor = runner.egui_ctx().zoom_factor();
+                    runner.offscreen_events.set_zoom_factor(zoom_factor);
+                    let events = runner.offscreen_events.apply(event);
+                    runner.input.raw.events.extend(events);
+                    runner.needs_repaint.repaint_asap();
+                }
+            }
+        }
     }
 
     /// Has there been a panic?
@@ -246,7 +348,15 @@ impl WebRunner {
             return Ok(());
         }
 
-        let window = web_sys::window().unwrap();
+        // In a worker there is no `window`. ask the host page for a single frame
+        // instead (see `WebRunner::on_worker_message`). Requesting one frame at a
+        // time is what applies back-pressure: input messages can never queue up
+        // behind a backlog of frame messages.
+        let Some(window) = web_sys::window() else {
+            self.request_animation_frame_from_host();
+            return Ok(());
+        };
+
         let closure = Closure::once({
             let web_runner = self.clone();
             move || {
@@ -271,20 +381,32 @@ impl WebRunner {
             AnimationFrameRequest {
                 id,
                 kind: AnimationFrameKind::Timeout,
-                _closure: closure,
+                _closure: Some(closure),
             }
         } else {
             let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
             AnimationFrameRequest {
                 id,
                 kind: AnimationFrameKind::AnimationFrame,
-                _closure: closure,
+                _closure: Some(closure),
             }
         };
 
         self.frame.borrow_mut().replace(request);
 
         Ok(())
+    }
+
+    fn request_animation_frame_from_host(&self) {
+        let Some(host) = self.host.borrow().clone() else {
+            return;
+        };
+        host.request_frame();
+        self.frame.borrow_mut().replace(AnimationFrameRequest {
+            id: 0,
+            kind: AnimationFrameKind::Host,
+            _closure: None,
+        });
     }
 
     /// Cancel any in-flight frame request and schedule a fresh one.
@@ -294,8 +416,10 @@ impl WebRunner {
     /// `requestAnimationFrame` is paused while the tab is hidden, which would otherwise
     /// stall the paint loop and stop `App::update` from running while hidden.
     pub(crate) fn reschedule_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
-        if let Some(frame) = self.frame.borrow_mut().take() {
-            frame.cancel(&web_sys::window().unwrap());
+        if let Some(frame) = self.frame.borrow_mut().take()
+            && let Some(window) = web_sys::window()
+        {
+            frame.cancel(&window);
         }
         self.request_animation_frame()
     }
@@ -313,7 +437,9 @@ struct AnimationFrameRequest {
 
     /// The callback given to `request_animation_frame`, stored here both to prevent it
     /// from being canceled, and from having to `.forget()` it.
-    _closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
+
+    /// `None` for [`AnimationFrameKind::Host`], where the host page owns the callback.
+    _closure: Option<Closure<dyn FnMut() -> Result<(), JsValue>>>,
 }
 
 impl AnimationFrameRequest {
@@ -326,6 +452,8 @@ impl AnimationFrameRequest {
             AnimationFrameKind::Timeout => {
                 window.clear_timeout_with_handle(self.id);
             }
+            // Nothing to cancel: the host page owns the callback.
+            AnimationFrameKind::Host => {}
         }
     }
 }
@@ -337,6 +465,9 @@ enum AnimationFrameKind {
 
     /// Scheduled with `setTimeout` (hidden tab).
     Timeout,
+
+    /// Requested from the host page (worker mode).
+    Host,
 }
 
 struct TargetEvent {
@@ -374,5 +505,94 @@ impl EventToUnsubscribe {
                 Ok(())
             }
         }
+    }
+}
+
+/// Read a numeric field from a host message.
+fn number(message: &JsValue, key: &str) -> Option<f64> {
+    js_sys::Reflect::get(message, &JsValue::from_str(key))
+        .ok()?
+        .as_f64()
+}
+
+/// Read a boolean field from a host message.
+fn bool_value(message: &JsValue, key: &str) -> Option<bool> {
+    js_sys::Reflect::get(message, &JsValue::from_str(key))
+        .ok()?
+        .as_bool()
+}
+
+/// Read the `{left, top, right, bottom}` rect of a `resize` message.
+fn rect_of(message: &JsValue) -> Option<egui::Rect> {
+    let rect = js_sys::Reflect::get(message, &JsValue::from_str("rect")).ok()?;
+    Some(egui::Rect::from_min_max(
+        egui::pos2(number(&rect, "left")? as f32, number(&rect, "top")? as f32),
+        egui::pos2(
+            number(&rect, "right")? as f32,
+            number(&rect, "bottom")? as f32,
+        ),
+    ))
+}
+
+/// Read a pointer or wheel input message posted by `web_demo/offscreen_host.js`.
+///
+/// Returns `None` for unknown message kinds.
+fn parse_host_message(message: &JsValue) -> Option<crate::web_events::WebEvent> {
+    use crate::web_events::{PointerButton, WebEvent};
+
+    fn get(message: &JsValue, key: &str) -> Option<JsValue> {
+        let value = js_sys::Reflect::get(message, &JsValue::from_str(key)).ok()?;
+        if value.is_undefined() || value.is_null() {
+            None
+        } else {
+            Some(value)
+        }
+    }
+
+    fn modifiers_of(message: &JsValue) -> egui::Modifiers {
+        let alt = bool_value(message, "alt").unwrap_or(false);
+        let ctrl = bool_value(message, "ctrl").unwrap_or(false);
+        let shift = bool_value(message, "shift").unwrap_or(false);
+        let meta = bool_value(message, "meta").unwrap_or(false);
+        let is_mac = bool_value(message, "isMac").unwrap_or(false);
+        egui::Modifiers {
+            alt,
+            ctrl,
+            shift,
+            mac_cmd: is_mac && meta,
+            command: if is_mac { meta } else { ctrl },
+        }
+    }
+
+    let kind = get(message, "type")?.as_string()?;
+    match kind.as_str() {
+        "pointer" => {
+            let client = egui::Vec2::new(
+                number(message, "x").unwrap_or(0.0) as f32,
+                number(message, "y").unwrap_or(0.0) as f32,
+            );
+            let modifiers = modifiers_of(message);
+            let pointer_kind = get(message, "kind")?.as_string()?;
+            match pointer_kind.as_str() {
+                "move" => Some(WebEvent::PointerMove { client, modifiers }),
+                "down" | "up" => Some(WebEvent::PointerButton {
+                    client,
+                    button: PointerButton::from_dom(number(message, "button").unwrap_or(0.0) as i16),
+                    pressed: pointer_kind == "down",
+                    modifiers,
+                }),
+                "cancel" | "leave" => Some(WebEvent::PointerGone),
+                _ => None,
+            }
+        }
+        "wheel" => Some(WebEvent::Wheel {
+            delta: egui::Vec2::new(
+                number(message, "dx").unwrap_or(0.0) as f32,
+                number(message, "dy").unwrap_or(0.0) as f32,
+            ),
+            dom_delta_mode: number(message, "mode").unwrap_or(0.0) as u8,
+            modifiers: modifiers_of(message),
+        }),
+        _ => None,
     }
 }

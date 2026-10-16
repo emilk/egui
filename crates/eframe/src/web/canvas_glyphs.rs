@@ -3,6 +3,9 @@
 //! This draws unsupported grapheme clusters with Canvas 2D, then puts the resulting pixels in
 //! egui's font atlas. Clusters the browser cannot render either (tofu) are rejected,
 //! so egui draws its own replacement glyph.
+//!
+//! On the main thread the 2D context comes from a hidden `<canvas>` element.
+//! In a web worker (which has no `document`) it comes from an `OffscreenCanvas`.
 
 use core::cell::RefCell;
 use std::collections::HashMap;
@@ -11,8 +14,11 @@ use egui::{
     ColorImage, GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, MAX_GLYPH_SIZE,
     RasterizedGlyph, has_emoji_presentation, vec2,
 };
-use wasm_bindgen::JsCast as _;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
+use wasm_bindgen::{JsCast as _, JsValue};
+use web_sys::{
+    CanvasRenderingContext2d, HtmlCanvasElement, ImageData, OffscreenCanvas,
+    OffscreenCanvasRenderingContext2d, TextMetrics,
+};
 
 /// Room for anti-aliased pixels at the glyph bounds, in physical pixels.
 const PADDING: f64 = 2.0;
@@ -34,9 +40,23 @@ struct Drawn {
     advance: f64,
 }
 
+/// The 2D context the browser draws fallback glyphs with.
+enum GlyphCanvas {
+    /// A hidden `<canvas>` element (main thread).
+    Html {
+        canvas: HtmlCanvasElement,
+        context: CanvasRenderingContext2d,
+    },
+
+    /// An `OffscreenCanvas` (web worker: no `document` is available).
+    Offscreen {
+        canvas: OffscreenCanvas,
+        context: OffscreenCanvasRenderingContext2d,
+    },
+}
+
 struct CanvasGlyphs {
-    canvas: HtmlCanvasElement,
-    context: CanvasRenderingContext2d,
+    canvas: GlyphCanvas,
 
     /// What the browser draws for a missing glyph, per `(font, subpixel offset)`.
     ///
@@ -46,20 +66,8 @@ struct CanvasGlyphs {
 
 impl CanvasGlyphs {
     fn new() -> Option<Self> {
-        let document = web_sys::window()?.document()?;
-        let canvas = document
-            .create_element("canvas")
-            .ok()?
-            .dyn_into::<HtmlCanvasElement>()
-            .ok()?;
-        let context = canvas
-            .get_context("2d")
-            .ok()??
-            .dyn_into::<CanvasRenderingContext2d>()
-            .ok()?;
         Some(Self {
-            canvas,
-            context,
+            canvas: GlyphCanvas::new()?,
             tofu_cache: Default::default(),
         })
     }
@@ -149,9 +157,7 @@ impl CanvasGlyphs {
         fill_style: &str,
         subpixel_offset_px: f32,
     ) -> Option<Drawn> {
-        self.context.set_font(font);
-        self.context.set_text_baseline("alphabetic");
-        let metrics = self.context.measure_text(text).ok()?;
+        let metrics = self.canvas.measure(text, font).ok()?;
         let left = metrics.actual_bounding_box_left();
         let ascent = metrics.actual_bounding_box_ascent();
         let right = metrics.actual_bounding_box_right();
@@ -163,22 +169,13 @@ impl CanvasGlyphs {
             return None;
         }
 
-        // Only grow: resizing reallocates the backing store and resets all canvas state.
-        if self.canvas.width() < width {
-            self.canvas.set_width(width);
-        }
-        if self.canvas.height() < height {
-            self.canvas.set_height(height);
-        }
-        self.context
-            .clear_rect(0.0, 0.0, width as f64, height as f64);
-        self.context.set_font(font);
-        self.context.set_text_baseline("alphabetic");
-        self.context.set_fill_style_str(fill_style);
+        self.canvas.prepare(width, height);
         // Canvas positions text by its baseline, while the image starts at its top-left.
-        self.context
-            .fill_text(
+        self.canvas
+            .draw_text(
                 text,
+                font,
+                fill_style,
                 PADDING + left + subpixel_offset_px as f64,
                 PADDING + ascent,
             )
@@ -186,14 +183,7 @@ impl CanvasGlyphs {
 
         // `web-sys` changes the signature of `get_image_data` based on `web_sys_unstable_apis`,
         // so we need to call it differently depending on that cfg.
-        let image_data = cfg_select! {
-            web_sys_unstable_apis => self
-            .context
-            .get_image_data(0, 0, width as i32, height as i32),
-            _ => self
-            .context
-            .get_image_data(0.0, 0.0, width as f64, height as f64),
-        };
+        let image_data = self.canvas.get_image_data(width, height);
         let rgba = image_data.ok()?.data().0;
 
         Some(Drawn {
@@ -204,6 +194,124 @@ impl CanvasGlyphs {
             ascent,
             advance: metrics.width(),
         })
+    }
+}
+
+impl GlyphCanvas {
+    /// A hidden `<canvas>` element, or an `OffscreenCanvas` in a web worker
+    /// (where there is no `document`).
+    fn new() -> Option<Self> {
+        if let Some(canvas) = Self::new_html_canvas() {
+            return Some(canvas);
+        }
+
+        Self::new_offscreen_canvas()
+    }
+
+    fn new_html_canvas() -> Option<Self> {
+        let document = web_sys::window()?.document()?;
+        let canvas = document
+            .create_element("canvas")
+            .ok()?
+            .dyn_into::<HtmlCanvasElement>()
+            .ok()?;
+        let context = canvas
+            .get_context("2d")
+            .ok()??
+            .dyn_into::<CanvasRenderingContext2d>()
+            .ok()?;
+        Some(Self::Html { canvas, context })
+    }
+
+    fn new_offscreen_canvas() -> Option<Self> {
+        let canvas = OffscreenCanvas::new(1, 1).ok()?;
+        let context = canvas
+            .get_context("2d")
+            .ok()??
+            .dyn_into::<OffscreenCanvasRenderingContext2d>()
+            .ok()?;
+        Some(Self::Offscreen { canvas, context })
+    }
+
+    /// Point the 2D context at `font`, then measure `text`.
+    fn measure(&self, text: &str, font: &str) -> Result<TextMetrics, JsValue> {
+        macro_rules! measure_context {
+            ($context:expr) => {{
+                $context.set_font(font);
+                $context.set_text_baseline("alphabetic");
+                $context.measure_text(text)
+            }};
+        }
+
+        match self {
+            Self::Html { context, .. } => measure_context!(context),
+            Self::Offscreen { context, .. } => measure_context!(context),
+        }
+    }
+
+    /// Grow the backing store to fit `width`x`height` and clear it.
+    ///
+    /// Only grow: resizing reallocates the backing store and resets all canvas state.
+    fn prepare(&self, width: u32, height: u32) {
+        macro_rules! prepare_canvas {
+            ($canvas:expr, $context:expr) => {{
+                if $canvas.width() < width {
+                    $canvas.set_width(width);
+                }
+                if $canvas.height() < height {
+                    $canvas.set_height(height);
+                }
+                $context.clear_rect(0.0, 0.0, width as f64, height as f64);
+            }};
+        }
+
+        match self {
+            Self::Html { canvas, context } => prepare_canvas!(canvas, context),
+            Self::Offscreen { canvas, context } => prepare_canvas!(canvas, context),
+        }
+    }
+
+    /// Draw `text` at `(x, y)` in `fill_style`.
+    fn draw_text(
+        &self,
+        text: &str,
+        font: &str,
+        fill_style: &str,
+        x: f64,
+        y: f64,
+    ) -> Result<(), JsValue> {
+        macro_rules! draw_text {
+            ($context:expr) => {{
+                $context.set_font(font);
+                $context.set_text_baseline("alphabetic");
+                $context.set_fill_style_str(fill_style);
+                $context.fill_text(text, x, y)
+            }};
+        }
+
+        match self {
+            Self::Html { context, .. } => draw_text!(context),
+            Self::Offscreen { context, .. } => draw_text!(context),
+        }
+    }
+
+    /// Read back the pixels of the `width`x`height` top-left region.
+    fn get_image_data(&self, width: u32, height: u32) -> Result<ImageData, JsValue> {
+        macro_rules! get_image_data {
+            ($x:expr, $y:expr, $width:expr, $height:expr) => {{
+                match self {
+                    Self::Html { context, .. } => context.get_image_data($x, $y, $width, $height),
+                    Self::Offscreen { context, .. } => {
+                        context.get_image_data($x, $y, $width, $height)
+                    }
+                }
+            }};
+        }
+
+        cfg_select! {
+            web_sys_unstable_apis => get_image_data!(0, 0, width as i32, height as i32),
+            _ => get_image_data!(0.0, 0.0, width as f64, height as f64),
+        }
     }
 }
 

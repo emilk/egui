@@ -5,9 +5,11 @@
 
 mod app_runner;
 mod backend;
+mod canvas;
 mod canvas_glyphs;
 mod dropped_file;
 mod events;
+mod host;
 mod input;
 mod panic_handler;
 mod text_agent;
@@ -22,6 +24,8 @@ pub mod screen_reader;
 pub mod storage;
 
 pub(crate) use app_runner::AppRunner;
+pub(crate) use canvas::WebCanvas;
+pub(crate) use host::WebHost;
 pub use panic_handler::{PanicHandler, PanicSummary};
 pub use web_logger::WebLogger;
 pub use web_runner::WebRunner;
@@ -101,19 +105,65 @@ pub(crate) fn focus_without_scroll(element: &web_sys::HtmlElement) -> Result<(),
 ///
 /// Monotonically increasing.
 pub fn now_sec() -> f64 {
-    web_sys::window()
-        .expect("should have a Window")
-        .performance()
-        .expect("should have a Performance")
-        .now()
-        / 1000.0
+    if let Some(window) = web_sys::window() {
+        return window
+            .performance()
+            .expect("should have a Performance")
+            .now()
+            / 1000.0;
+    }
+
+    // Worker mode: there is no `window`, but the global scope has `performance`.
+    // This must actually advance: egui drives animations (e.g. the fade-in of new
+    // windows) and `request_repaint_after` from it.
+    WORKER_PERFORMANCE.with(|cell| {
+        cell.get_or_init(|| {
+            let value = js_sys::Reflect::get(
+                &js_sys::global(),
+                &wasm_bindgen::JsValue::from_str("performance"),
+            )
+            .ok()?;
+            value.dyn_into::<web_sys::Performance>().ok()
+        })
+        .as_ref()
+        .map_or_else(
+            // Should not happen in a browser worker; wall clock as a last resort.
+            || js_sys::Date::now() / 1000.0,
+            |performance| performance.now() / 1000.0,
+        )
+    })
+}
+
+thread_local! {
+    /// Worker-scope `performance` object. Looked up once: `now_sec` runs every
+    /// frame, and a worker has no `window` to keep it on.
+    static WORKER_PERFORMANCE: core::cell::OnceCell<Option<web_sys::Performance>> =
+        const { core::cell::OnceCell::new() };
+}
+
+thread_local! {
+    /// Set by the host page in worker mode; `None` means "ask the window".
+    static HOST_PIXELS_PER_POINT: core::cell::Cell<Option<f32>> = const { core::cell::Cell::new(None) };
+}
+
+/// Called from [`WebRunner::on_worker_message`] on `resize` messages, with
+/// the host page's `devicePixelRatio`.
+pub(crate) fn set_native_pixels_per_point(pixels_per_point: f32) {
+    HOST_PIXELS_PER_POINT.with(|cell| cell.set(Some(pixels_per_point)));
 }
 
 /// The native GUI scale factor, taking into account the browser zoom.
 ///
 /// Corresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
 pub fn native_pixels_per_point() -> f32 {
-    let pixels_per_point = web_sys::window().unwrap().device_pixel_ratio() as f32;
+    if let Some(pixels_per_point) = HOST_PIXELS_PER_POINT.with(core::cell::Cell::get) {
+        return pixels_per_point;
+    }
+    let Some(window) = web_sys::window() else {
+        // No DOM (worker mode), and the host has not told us the DPR yet.
+        return 1.0;
+    };
+    let pixels_per_point = window.device_pixel_ratio() as f32;
     if pixels_per_point > 0.0 && pixels_per_point.is_finite() {
         pixels_per_point
     } else {
@@ -177,7 +227,7 @@ fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
     rect
 }
 
-fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Context) -> egui::Vec2 {
+fn canvas_size_in_points(canvas: &WebCanvas, ctx: &egui::Context) -> egui::Vec2 {
     // ctx.pixels_per_point can be outdated
 
     let pixels_per_point = ctx.zoom_factor() * native_pixels_per_point();
@@ -362,13 +412,10 @@ pub fn open_url(url: &str, new_tab: bool) -> Option<()> {
 ///
 /// Percent decoded
 pub fn location_hash() -> String {
-    percent_decode(
-        &web_sys::window()
-            .unwrap()
-            .location()
-            .hash()
-            .unwrap_or_default(),
-    )
+    let Some(window) = web_sys::window() else {
+        return String::new();
+    };
+    percent_decode(&window.location().hash().unwrap_or_default())
 }
 
 /// Percent-decodes a string.
