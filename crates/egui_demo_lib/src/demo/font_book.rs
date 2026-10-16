@@ -383,7 +383,7 @@ fn available_characters(
                         }
                         #[cfg(not(target_arch = "wasm32"))]
                         {
-                            true
+                            missing_emoji_mode == MissingEmojiMode::ShowTofu
                         }
                     } else {
                         has_glyph
