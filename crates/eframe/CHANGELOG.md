@@ -7,6 +7,32 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.37.0 - 2026-10-15
+### ⭐ Added
+* Add option to turn off the default clipboard keyboard shortcuts in egui-winit and eframe [#5615](https://github.com/emilk/egui/pull/5615) by [@YgorSouza](https://github.com/YgorSouza)
+* Add `Frame::set_traffic_lights_position` for macOS custom title bars [#8494](https://github.com/emilk/egui/pull/8494) by [@martenbjork-rerun](https://github.com/martenbjork-rerun)
+
+### 🔧 Changed
+* Fall back to a compatibility-profile OpenGL context [#8655](https://github.com/emilk/egui/pull/8655) by [@crmne](https://github.com/crmne)
+* Deliver raw mouse motion to the viewport under the pointer, even if unfocused [#8405](https://github.com/emilk/egui/pull/8405) by [@Le-Syl21](https://github.com/Le-Syl21)
+* Don't switch the GL context twice per frame on Windows with one viewport [#8461](https://github.com/emilk/egui/pull/8461) by [@Platon7788](https://github.com/Platon7788)
+* Support the X11/Wayland PRIMARY selection [#8428](https://github.com/emilk/egui/pull/8428) by [@hallyhaa](https://github.com/hallyhaa)
+* Make `DroppedFile::web_file` (and its `web-sys` dependency) opt-in [#8669](https://github.com/emilk/egui/pull/8669) by [@DouglasDwyer](https://github.com/DouglasDwyer)
+* Make clipboard feature optional [#8392](https://github.com/emilk/egui/pull/8392) by [@eaglesemanation](https://github.com/eaglesemanation)
+* Keep running on Wayland when frame callbacks stop [#8631](https://github.com/emilk/egui/pull/8631) by [@crmne](https://github.com/crmne)
+
+### 🐛 Fixed
+* Fix eframe web text agent being visible [#8550](https://github.com/emilk/egui/pull/8550) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Use `arboard` if `smithay` does not find text in the clipboard [#8624](https://github.com/emilk/egui/pull/8624) by [@grtlr](https://github.com/grtlr)
+* Use the activation token from the environment on window creation [#8406](https://github.com/emilk/egui/pull/8406) by [@Le-Syl21](https://github.com/Le-Syl21)
+* Fix: Refresh Windows title bar after theme changes [#8402](https://github.com/emilk/egui/pull/8402) by [@rustbasic](https://github.com/rustbasic)
+* Save window settings only from the root viewport [#8661](https://github.com/emilk/egui/pull/8661) by [@rustbasic](https://github.com/rustbasic)
+* Preserve transparent viewport windows on Windows [#8616](https://github.com/emilk/egui/pull/8616) by [@rustbasic](https://github.com/rustbasic)
+* Fix `Frame::set_wgpu_surface_config` being ignored [#8442](https://github.com/emilk/egui/pull/8442) by [@chicoferreira](https://github.com/chicoferreira)
+* Improve window restoration logic [#8687](https://github.com/emilk/egui/pull/8687) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix premultiplied alpha when copying images to the clipboard [#8715](https://github.com/emilk/egui/pull/8715) by [@emilk](https://github.com/emilk)
+
+
 ## 0.36.2 - 2026-09-08
 * Don't busy-loop a CPU core while waiting for a redraw [#8398](https://github.com/emilk/egui/pull/8398) by [@42Pupusas](https://github.com/42Pupusas)
 * Hide drop shadow window decoration when in fullscreen mode [#8449](https://github.com/emilk/egui/pull/8449) by [@tarolling](https://github.com/tarolling)
