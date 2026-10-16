@@ -6,6 +6,23 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.37.0 - 2026-10-15
+### ⭐ Added
+* Add `diagnostic_max_steps` for a better`ExceededMaxStepsError` [#8421](https://github.com/emilk/egui/pull/8421) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Record egui_kittest tests as mp4s via `KITTEST_RECORD=1` [#8118](https://github.com/emilk/egui/pull/8118) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `HarnessBuilder::with_render_cursor` [#8551](https://github.com/emilk/egui/pull/8551) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `HarnessBuilder::with_context_setup` to configure the `Context` before the first pass [#8686](https://github.com/emilk/egui/pull/8686) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Fail kittest tests when an input widget has no accessible name [#8589](https://github.com/emilk/egui/pull/8589) by [@emilk](https://github.com/emilk)
+* Draw tofu for families without fonts, and add `MissingGlyphPolicy` (panics by default in `egui_kittest`) [#8601](https://github.com/emilk/egui/pull/8601) by [@emilk](https://github.com/emilk)
+* Apply `set_fonts`/`add_font` right away when no font is loaded yet [#8602](https://github.com/emilk/egui/pull/8602) by [@emilk](https://github.com/emilk)
+* A read-only text field needs no accessible name [#8611](https://github.com/emilk/egui/pull/8611) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Make kittest's predictable texture filtering honor `TextureOptions::NEAREST` [#8441](https://github.com/emilk/egui/pull/8441) by [@emilk](https://github.com/emilk)
+
+
 ## 0.36.2 - 2026-09-08
 * Add new `render_every_step` flag to egui_kittest [#8487](https://github.com/emilk/egui/pull/8487) by [@lucasmerlin](https://github.com/lucasmerlin)
 
