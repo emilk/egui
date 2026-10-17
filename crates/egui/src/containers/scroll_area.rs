@@ -917,6 +917,17 @@ impl ScrollArea {
             content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
             content_ui.set_clip_rect(content_clip_rect);
         }
+        // Ui Stack consumers run while the contents are being rendered, before `end` stores the final rects.
+        // Keep the visible rect current so they don't read the previous frame's viewport after a resize.
+        let visible_rect = content_ui.clip_rect();
+        {
+            let mut rects = scroll_area_rects.lock();
+            if let Some(rects) = rects.as_mut() {
+                rects.1 = visible_rect;
+            } else {
+                *rects = Some((content_ui.min_rect(), visible_rect));
+            }
+        }
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
         let dt = ui.input(|i| i.stable_dt).at_most(0.1);
