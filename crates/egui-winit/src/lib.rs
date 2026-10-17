@@ -2589,7 +2589,7 @@ fn egui_window_theme(egui_ctx: &egui::Context) -> Option<egui::SystemTheme> {
     egui_ctx.options(|options| {
         options
             .sync_window_theme
-            .then(|| match options.theme_preference {
+            .then_some(match options.theme_preference {
                 egui::ThemePreference::Dark => egui::SystemTheme::Dark,
                 egui::ThemePreference::Light => egui::SystemTheme::Light,
                 egui::ThemePreference::System => egui::SystemTheme::SystemDefault,
