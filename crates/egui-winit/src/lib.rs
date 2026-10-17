@@ -2119,18 +2119,7 @@ fn process_viewport_command(
                 }
             });
         }
-        ViewportCommand::SetTheme(t) => {
-            window.set_theme(match t {
-                egui::SystemTheme::Light => Some(winit::window::Theme::Light),
-                egui::SystemTheme::Dark => Some(winit::window::Theme::Dark),
-                egui::SystemTheme::SystemDefault => None,
-            });
-
-            #[cfg(target_os = "windows")]
-            {
-                refresh_windows_non_client_activation(window);
-            }
-        }
+        ViewportCommand::SetTheme(t) => set_window_theme(window, t),
         ViewportCommand::ContentProtected(v) => window.set_content_protected(v),
         ViewportCommand::CursorPosition(pos) => {
             if let Err(err) = window.set_cursor_position(PhysicalPosition::new(
@@ -2201,6 +2190,7 @@ pub fn create_window(
     );
 
     let window = event_loop.create_window(window_attributes)?;
+    set_window_theme_from_egui(egui_ctx, &window);
     apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
     Ok(window)
 }
@@ -2321,6 +2311,14 @@ pub fn create_winit_window_attributes(
             buttons
         })
         .with_active(active.unwrap_or(true));
+
+    if let Some(theme) = egui_window_theme(egui_ctx) {
+        window_attributes = window_attributes.with_theme(match theme {
+            egui::SystemTheme::Light => Some(winit::window::Theme::Light),
+            egui::SystemTheme::Dark => Some(winit::window::Theme::Dark),
+            egui::SystemTheme::SystemDefault => None,
+        });
+    }
 
     // Here and below: we create `LogicalSize` / `LogicalPosition` taking
     // zoom factor into account. We don't have a good way to get physical size here,
@@ -2585,6 +2583,37 @@ fn set_maximized_while_hidden(window: &winit::window::Window) {
     if cloaked {
         set_cloaked(false);
     }
+}
+
+fn egui_window_theme(egui_ctx: &egui::Context) -> Option<egui::SystemTheme> {
+    egui_ctx.options(|options| {
+        options
+            .sync_window_theme
+            .then(|| match options.theme_preference {
+                egui::ThemePreference::Dark => egui::SystemTheme::Dark,
+                egui::ThemePreference::Light => egui::SystemTheme::Light,
+                egui::ThemePreference::System => egui::SystemTheme::SystemDefault,
+            })
+    })
+}
+
+/// Applies the current egui theme to a native window when theme synchronization is enabled.
+pub fn set_window_theme_from_egui(egui_ctx: &egui::Context, window: &winit::window::Window) {
+    if let Some(theme) = egui_window_theme(egui_ctx) {
+        set_window_theme(window, theme);
+    }
+}
+
+/// Applies an egui system theme to a native window, including the Windows non-client refresh.
+pub fn set_window_theme(window: &winit::window::Window, theme: egui::SystemTheme) {
+    window.set_theme(match theme {
+        egui::SystemTheme::Light => Some(winit::window::Theme::Light),
+        egui::SystemTheme::Dark => Some(winit::window::Theme::Dark),
+        egui::SystemTheme::SystemDefault => None,
+    });
+
+    #[cfg(target_os = "windows")]
+    refresh_windows_non_client_activation(window);
 }
 
 #[cfg(target_os = "windows")]
