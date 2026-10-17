@@ -691,10 +691,57 @@ fn ui_stack_demo(ui: &mut Ui) {
                                 let response = ui.label(format!("{:?}", node.unique_id));
 
                                 if response.hovered() {
+                                    // ScrollArea rects are populated after its contents run, so use
+                                    // max_rect as a visible fallback during this UiStack pass.
+                                    let (mut highlight_rect, mut visible_rect) = node
+                                        .scroll_area_rects()
+                                        .unwrap_or((node.max_rect, node.max_rect));
+                                    if let Some(frame_rect) = node.frame_rect() {
+                                        highlight_rect = frame_rect;
+                                        if let Some(scroll_area_visible_rect) =
+                                            node.iter().skip(1).find_map(|ancestor| {
+                                                ancestor
+                                                    .scroll_area_rects()
+                                                    .map(|(_, visible_rect)| visible_rect)
+                                            })
+                                        {
+                                            highlight_rect =
+                                                highlight_rect.intersect(scroll_area_visible_rect);
+                                            visible_rect = scroll_area_visible_rect;
+                                        }
+                                    }
+                                    if node.kind() == Some(egui::UiKind::Collapsible) {
+                                        if let Some(full_height) = node.collapsible_full_height() {
+                                            highlight_rect.max.y =
+                                                highlight_rect.min.y + full_height;
+                                        }
+                                    }
+                                    ui.debug_painter().rect_filled(
+                                        highlight_rect.shrink(1.0),
+                                        0.0,
+                                        Color32::from_rgba_unmultiplied(255, 0, 0, 5),
+                                    );
                                     ui.debug_painter().debug_rect(
-                                        node.max_rect,
-                                        Color32::GREEN,
-                                        "max_rect",
+                                        highlight_rect,
+                                        Color32::RED,
+                                        "highlight_rect",
+                                    );
+                                    ui.debug_painter().rect_stroke(
+                                        highlight_rect.expand(1.0),
+                                        0.0,
+                                        Stroke::new(1.0, Color32::RED),
+                                        egui::StrokeKind::Outside,
+                                    );
+                                    ui.debug_painter().rect_filled(
+                                        visible_rect,
+                                        0.0,
+                                        Color32::from_rgba_unmultiplied(0, 255, 0, 64),
+                                    );
+                                    ui.debug_painter().rect_stroke(
+                                        visible_rect,
+                                        0.0,
+                                        Stroke::new(1.0, Color32::GREEN),
+                                        egui::StrokeKind::Outside,
                                     );
                                     ui.debug_painter().circle_filled(
                                         node.min_rect.min,
