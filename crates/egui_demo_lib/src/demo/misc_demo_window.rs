@@ -706,8 +706,21 @@ fn ui_stack_demo(ui: &mut Ui) {
                                             })
                                         {
                                             // Keep the Frame's horizontal bounds and align it vertically with the viewport.
-                                            highlight_rect.min.y = scroll_area_visible_rect.min.y;
-                                            highlight_rect.max.y = scroll_area_visible_rect.max.y;
+                                            #[cfg(target_arch = "wasm32")]
+                                            {
+                                                let highlight_height = highlight_rect.height();
+                                                highlight_rect.min.y =
+                                                    scroll_area_visible_rect.min.y;
+                                                highlight_rect.max.y =
+                                                    highlight_rect.min.y + highlight_height;
+                                            }
+                                            #[cfg(not(target_arch = "wasm32"))]
+                                            {
+                                                highlight_rect.min.y =
+                                                    scroll_area_visible_rect.min.y;
+                                                highlight_rect.max.y =
+                                                    scroll_area_visible_rect.max.y;
+                                            }
                                             visible_rect = scroll_area_visible_rect;
                                         }
                                     }
