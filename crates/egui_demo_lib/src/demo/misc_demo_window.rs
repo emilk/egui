@@ -710,11 +710,10 @@ fn ui_stack_demo(ui: &mut Ui) {
                                             visible_rect = scroll_area_visible_rect;
                                         }
                                     }
-                                    if node.kind() == Some(egui::UiKind::Collapsible) {
-                                        if let Some(full_height) = node.collapsible_full_height() {
-                                            highlight_rect.max.y =
-                                                highlight_rect.min.y + full_height;
-                                        }
+                                    if node.kind() == Some(egui::UiKind::Collapsible)
+                                        && let Some(full_height) = node.collapsible_full_height()
+                                    {
+                                        highlight_rect.max.y = highlight_rect.min.y + full_height;
                                     }
                                     ui.debug_painter().debug_rect(
                                         highlight_rect,
