@@ -705,8 +705,9 @@ fn ui_stack_demo(ui: &mut Ui) {
                                                     .map(|(_, visible_rect)| visible_rect)
                                             })
                                         {
-                                            highlight_rect =
-                                                highlight_rect.intersect(scroll_area_visible_rect);
+                                            // Keep the Frame's horizontal bounds and align it vertically with the viewport.
+                                            highlight_rect.min.y = scroll_area_visible_rect.min.y;
+                                            highlight_rect.max.y = scroll_area_visible_rect.max.y;
                                             visible_rect = scroll_area_visible_rect;
                                         }
                                     }
