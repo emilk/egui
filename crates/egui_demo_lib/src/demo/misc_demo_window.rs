@@ -716,32 +716,15 @@ fn ui_stack_demo(ui: &mut Ui) {
                                                 highlight_rect.min.y + full_height;
                                         }
                                     }
-                                    ui.debug_painter().rect_filled(
-                                        highlight_rect.shrink(1.0),
-                                        0.0,
-                                        Color32::from_rgba_unmultiplied(255, 0, 0, 5),
-                                    );
                                     ui.debug_painter().debug_rect(
                                         highlight_rect,
                                         Color32::RED,
                                         "highlight_rect",
                                     );
-                                    ui.debug_painter().rect_stroke(
-                                        highlight_rect.expand(1.0),
-                                        0.0,
-                                        Stroke::new(1.0, Color32::RED),
-                                        egui::StrokeKind::Outside,
-                                    );
-                                    ui.debug_painter().rect_filled(
+                                    ui.debug_painter().debug_rect(
                                         visible_rect,
-                                        0.0,
-                                        Color32::from_rgba_unmultiplied(0, 255, 0, 64),
-                                    );
-                                    ui.debug_painter().rect_stroke(
-                                        visible_rect,
-                                        0.0,
-                                        Stroke::new(1.0, Color32::GREEN),
-                                        egui::StrokeKind::Outside,
+                                        Color32::GREEN,
+                                        "visible_rect",
                                     );
                                     ui.debug_painter().circle_filled(
                                         node.min_rect.min,
