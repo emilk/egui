@@ -299,6 +299,7 @@ impl UiStack {
             .get_downcast::<f32>(COLLAPSIBLE_FULL_HEIGHT_TAG)
             .copied()
     }
+
     /// Is this [`crate::Ui`] a panel?
     #[inline]
     pub fn is_panel_ui(&self) -> bool {
