@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use core::{any::Any, iter::FusedIterator};
 
 use crate::class::{Classes, HasClasses as _};
-use epaint::Color32;
+use epaint::{Color32, mutex::Mutex};
 
 use crate::{Direction, Frame, Id, Rect};
 
@@ -173,6 +173,10 @@ impl UiStackInfo {
 
 // ----------------------------------------------------------------------------
 
+pub(crate) const COLLAPSIBLE_FULL_HEIGHT_TAG: &str = "egui_internal_collapsible_full_height";
+pub(crate) const SCROLL_AREA_RECTS_TAG: &str = "egui_internal_scroll_area_rects";
+pub(crate) const FRAME_RECT_TAG: &str = "egui_internal_frame_rect";
+
 /// User-chosen tags.
 ///
 /// You can use this in any way you want,
@@ -270,6 +274,31 @@ impl UiStack {
         &self.info.tags
     }
 
+    /// Returns the full content rect and visible clip rect of a [`crate::ScrollArea`].
+    pub fn scroll_area_rects(&self) -> Option<(Rect, Rect)> {
+        let rects = self
+            .info
+            .tags
+            .get_downcast::<Arc<Mutex<Option<(Rect, Rect)>>>>(SCROLL_AREA_RECTS_TAG)?;
+        *rects.lock()
+    }
+
+    /// Returns the measured outer rect of a [`crate::Frame`], if available.
+    pub fn frame_rect(&self) -> Option<Rect> {
+        let rect = self
+            .info
+            .tags
+            .get_downcast::<Arc<Mutex<Option<Rect>>>>(FRAME_RECT_TAG)?;
+        *rect.lock()
+    }
+
+    /// Returns the measured full body height of a [`crate::CollapsingHeader`], if available.
+    pub fn collapsible_full_height(&self) -> Option<f32> {
+        self.info
+            .tags
+            .get_downcast::<f32>(COLLAPSIBLE_FULL_HEIGHT_TAG)
+            .copied()
+    }
     /// Is this [`crate::Ui`] a panel?
     #[inline]
     pub fn is_panel_ui(&self) -> bool {
