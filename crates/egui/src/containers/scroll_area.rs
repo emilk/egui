@@ -896,7 +896,7 @@ impl ScrollArea {
             UiBuilder::new()
                 .ui_stack_info(
                     UiStackInfo::new(UiKind::ScrollArea)
-                        .with_tag_value(SCROLL_AREA_RECTS_TAG, scroll_area_rects.clone()),
+                        .with_tag_value(SCROLL_AREA_RECTS_TAG, Arc::clone(&scroll_area_rects)),
                 )
                 .max_rect(content_max_rect),
         );
@@ -1048,11 +1048,11 @@ impl ScrollArea {
             auto_shrink,
             direction_enabled,
             show_bars_factor,
-            scroll_area_rects,
             current_bar_use,
             scroll_bar_visibility,
             scroll_bar_rect,
             inner_rect,
+            scroll_area_rects,
             content_ui,
             viewport,
             scroll_source,
