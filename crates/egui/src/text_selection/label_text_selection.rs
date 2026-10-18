@@ -716,7 +716,13 @@ impl ViewportLabelSelectionState {
 
             if let Some(selection) = &self.selection
                 && selection.primary.widget_id == response.id
-                && process_selection_key_events(ui.ctx(), galley, response.id, &mut cursor_range)
+                && process_selection_key_events(
+                    ui.ctx(),
+                    galley,
+                    response.id,
+                    &mut cursor_range,
+                    ui.clip_rect().height(),
+                )
             {
                 // The keyboard changed the selection, so forget any double- or triple-clicked word/line:
                 self.granular_drag = None;
@@ -840,6 +846,7 @@ fn process_selection_key_events(
     galley: &Galley,
     widget_id: Id,
     cursor_range: &mut CCursorRange,
+    page_height: f32,
 ) -> bool {
     let os = ctx.os();
 
@@ -849,7 +856,7 @@ fn process_selection_key_events(
         // NOTE: we have a lock on ui/ctx here,
         // so be careful to not call into `ui` or `ctx` again.
         for event in &i.events {
-            changed |= cursor_range.on_event(os, event, galley, widget_id);
+            changed |= cursor_range.on_event(os, event, galley, widget_id, page_height);
         }
     });
 

@@ -1227,6 +1227,8 @@ fn events(
 
     let events = ui.input(|i| i.filtered_events(&event_filter));
 
+    let page_height = ui.clip_rect().height();
+
     enum CursorMutation {
         Selection(CCursorRange),
         ImeComposition {
@@ -1239,7 +1241,7 @@ fn events(
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
-            event if cursor_range.on_event(os, event, galley, id) => None,
+            event if cursor_range.on_event(os, event, galley, id, page_height) => None,
 
             Event::Copy => {
                 if !cursor_range.is_empty() {
