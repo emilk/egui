@@ -156,6 +156,7 @@ impl<'a> Window<'a> {
 
         window
     }
+
     pub(crate) fn from_viewport_with_title(
         id: ViewportId,
         viewport: ViewportBuilder,
