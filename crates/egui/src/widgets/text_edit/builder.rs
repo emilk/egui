@@ -628,6 +628,7 @@ impl<'t> TextEdit<'t> {
         }
 
         let mut text_changed = false;
+        let mut paged = false;
 
         let mut handle_events = |ui: &Ui,
                                  galley: &mut Arc<Galley>,
@@ -661,7 +662,7 @@ impl<'t> TextEdit<'t> {
                 };
                 prev_cursor_range = state.cursor.range(galley);
 
-                let (changed, new_cursor_range) = events(
+                let output = events(
                     ui,
                     &mut state,
                     text,
@@ -680,10 +681,11 @@ impl<'t> TextEdit<'t> {
                     },
                 );
 
-                if changed {
+                if output.text_changed {
                     text_changed = true;
                 }
-                cursor_range = Some(new_cursor_range);
+                paged |= output.paged;
+                cursor_range = Some(output.cursor_range);
             }
         };
 
@@ -998,8 +1000,11 @@ impl<'t> TextEdit<'t> {
                     .translate(galley_pos.to_vec2() - vec2(galley.rect.left(), 0.0));
 
                 if response.changed() || selection_changed {
-                    // Scroll to keep primary cursor in view:
-                    ui.scroll_to_rect(primary_cursor_rect, None);
+                    let paged_from = prev_cursor_range.filter(|_| paged).map(|prev| {
+                        cursor_rect(&galley, &prev.primary, row_height)
+                            .translate(galley_pos.to_vec2() - vec2(galley.rect.left(), 0.0))
+                    });
+                    text_selection::scroll_to_cursor(ui, primary_cursor_rect, paged_from);
                 }
 
                 if text.is_mutable() && interactive {
@@ -1185,6 +1190,12 @@ struct EventsOptions {
     return_key: Option<KeyboardShortcut>,
 }
 
+struct EventsOutput {
+    text_changed: bool,
+    cursor_range: CCursorRange,
+    paged: bool,
+}
+
 /// Check for (keyboard) events to edit the cursor and/or text.
 fn events(
     ui: &crate::Ui,
@@ -1193,7 +1204,7 @@ fn events(
     galley: &mut Arc<Galley>,
     layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
     opts: &EventsOptions,
-) -> (bool, CCursorRange) {
+) -> EventsOutput {
     let EventsOptions {
         id,
         wrap_width,
@@ -1224,6 +1235,7 @@ fn events(
     };
 
     let mut any_change = false;
+    let mut paged = false;
 
     let events = ui.input(|i| i.filtered_events(&event_filter));
 
@@ -1241,7 +1253,16 @@ fn events(
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
-            event if cursor_range.on_event(os, event, galley, id, page_height) => None,
+            event if cursor_range.on_event(os, event, galley, id, page_height) => {
+                if let Event::Key {
+                    key: Key::PageUp | Key::PageDown,
+                    ..
+                } = event
+                {
+                    paged = true;
+                }
+                None
+            }
 
             Event::Copy => {
                 if !cursor_range.is_empty() {
@@ -1523,7 +1544,11 @@ fn events(
         &(cursor_range, text.as_str().to_owned()),
     );
 
-    (any_change, cursor_range)
+    EventsOutput {
+        text_changed: any_change,
+        cursor_range,
+        paged,
+    }
 }
 
 /// Replace the selection with `text_to_insert`, the way a paste does: single-line fields turn
