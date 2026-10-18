@@ -17,12 +17,12 @@ use epaint::{
 
 use crate::{
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, FontProvider, GlyphRasterizer,
-    Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label,
-    LayerId, Memory, MissingGlyphPolicy, ModifierNames, Modifiers, NumExt as _, Order, Painter,
-    RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense, Style, TextStyle,
-    TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder, ViewportCommand, ViewportId,
-    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Visuals, Widget as _, WidgetRect,
-    WidgetText,
+    Grid, Id, ImmediateViewport, ImmediateViewportRendererCallback, IntoAtoms, Key,
+    KeyboardShortcut, Label, LayerId, Memory, MissingGlyphPolicy, ModifierNames, Modifiers,
+    NumExt as _, Order, Painter, RawInput, Response, RichText, SafeAreaInsets, ScrollArea, Sense,
+    Style, TextStyle, TextureHandle, TextureOptions, Ui, UiBuilder, ViewportBuilder,
+    ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
+    Visuals, Widget as _, WidgetRect, WidgetText,
     animation_manager::AnimationManager,
     containers::{self, area::AreaState},
     data::output::PlatformOutput,
@@ -4663,12 +4663,50 @@ impl Context {
         &self,
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
-        mut viewport_ui_cb: impl FnMut(&mut Ui, ViewportClass) -> T,
+        viewport_ui_cb: impl FnMut(&mut Ui, ViewportClass) -> T,
     ) -> T {
+        self.show_viewport_immediate_impl::<T, String>(
+            new_viewport_id,
+            builder,
+            None,
+            viewport_ui_cb,
+        )
+    }
+
+    /// Show a viewport, using `embedded_title` as the title if it is embedded in a [`crate::Window`].
+    ///
+    /// The viewport behaves like [`Self::show_viewport_immediate`]. The embedded title is only
+    /// used when egui cannot create a separate native viewport; otherwise the title in `builder`
+    /// is used for the native window.
+    pub fn show_viewport_with_embedded_title<'a, T>(
+        &self,
+        new_viewport_id: ViewportId,
+        builder: ViewportBuilder,
+        embedded_title: impl IntoAtoms<'a>,
+        viewport_ui_cb: impl FnMut(&mut Ui, ViewportClass) -> T,
+    ) -> T {
+        self.show_viewport_immediate_impl(
+            new_viewport_id,
+            builder,
+            Some(embedded_title),
+            viewport_ui_cb,
+        )
+    }
+
+    fn show_viewport_immediate_impl<'a, T, Title>(
+        &self,
+        new_viewport_id: ViewportId,
+        builder: ViewportBuilder,
+        embedded_title: Option<Title>,
+        mut viewport_ui_cb: impl FnMut(&mut Ui, ViewportClass) -> T,
+    ) -> T
+    where
+        Title: IntoAtoms<'a>,
+    {
         profiling::function_scope!();
 
         if self.embed_viewports() {
-            return self.show_embedded_viewport(new_viewport_id, builder, |ui| {
+            return self.show_embedded_viewport(new_viewport_id, builder, embedded_title, |ui| {
                 viewport_ui_cb(ui, ViewportClass::EmbeddedWindow)
             });
         }
@@ -4677,9 +4715,12 @@ impl Context {
             let immediate_viewport_renderer = immediate_viewport_renderer.borrow();
             let Some(immediate_viewport_renderer) = immediate_viewport_renderer.as_ref() else {
                 // This egui backend does not support multiple viewports.
-                return self.show_embedded_viewport(new_viewport_id, builder, |ui| {
-                    viewport_ui_cb(ui, ViewportClass::EmbeddedWindow)
-                });
+                return self.show_embedded_viewport(
+                    new_viewport_id,
+                    builder,
+                    embedded_title,
+                    |ui| viewport_ui_cb(ui, ViewportClass::EmbeddedWindow),
+                );
             };
 
             let ids = self.write(|ctx| {
@@ -4717,13 +4758,22 @@ impl Context {
         })
     }
 
-    fn show_embedded_viewport<T>(
+    fn show_embedded_viewport<'a, T, Title>(
         &self,
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
+        embedded_title: Option<Title>,
         viewport_ui_cb: impl FnOnce(&mut Ui) -> T,
-    ) -> T {
-        crate::Window::from_viewport(new_viewport_id, builder)
+    ) -> T
+    where
+        Title: IntoAtoms<'a>,
+    {
+        let window = match embedded_title {
+            Some(title) => crate::Window::from_viewport_with_title(new_viewport_id, builder, title),
+            None => crate::Window::from_viewport(new_viewport_id, builder),
+        };
+
+        window
             .collapsible(false)
             .show(self, |ui| viewport_ui_cb(ui))
             .unwrap_or_else(|| panic!("Window did not show"))
