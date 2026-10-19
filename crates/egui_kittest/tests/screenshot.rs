@@ -35,7 +35,7 @@ fn screenshot_callback() {
         .expect("Expected the screenshot callback to be invoked");
 
     // The frame was filled with red, so the center pixel should be red.
-    let center = screenshot.pixels[screenshot.pixels.len() / 2];
+    let center = screenshot.pixels()[screenshot.pixels().len() / 2];
     assert_eq!(center, Color32::RED, "center pixel should be red");
 
     // The screenshot should match the rendered frame size.
