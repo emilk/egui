@@ -295,9 +295,14 @@ pub enum StorageProvider {
     /// On web builds, this will behave the same as [`Self::Default`].
     AtPath(std::path::PathBuf),
 
-    /// Custom storage provider.
-    /// It allows specifying function that will be called during context creation to provide
-    Custom(fn(&str) -> Option<Box<dyn Storage>>),
+    /// A custom storage factory, called during context creation.
+    ///
+    /// The factory can capture owned configuration and returns `None` to disable storage.
+    /// On native, its argument is the viewport app ID, or the application name if unset.
+    /// On web, its argument is currently the placeholder `"app_name"`.
+    /// Cloning this provider shares the factory and its captured state, rather than
+    /// cloning any storage it creates.
+    Custom(std::rc::Rc<dyn Fn(&str) -> Option<Box<dyn Storage>>>),
 }
 
 /// Options controlling the behavior of a native window.

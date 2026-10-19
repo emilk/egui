@@ -1,15 +1,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use eframe::{Storage, StorageProvider, egui};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+    let storage_path = std::env::current_dir()
+        .unwrap_or_default()
+        .join("custom_storage.json");
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([350.0, 590.0]),
-        storage_build: StorageProvider::Custom(custom_storage),
+        storage_build: StorageProvider::Custom(Rc::new(move |_app_name| {
+            CustomStorageData::new(storage_path.clone())
+                .map(|data| Box::new(data) as Box<dyn Storage>)
+        })),
         ..Default::default()
     };
     eframe::run_native(
@@ -57,15 +63,6 @@ impl eframe::App for MyApp {
             ui.text_edit_singleline(&mut self.custom_data2);
         });
     }
-}
-
-fn custom_storage(_app_name: &str) -> Option<Box<dyn Storage>> {
-    CustomStorageData::new(
-        std::env::current_dir()
-            .unwrap_or_default()
-            .join("custom_storage.json"),
-    )
-    .map(|data| Box::new(data) as Box<dyn Storage>)
 }
 
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
