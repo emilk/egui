@@ -3385,7 +3385,7 @@ impl Context {
                 tessellator::Tessellator::new(
                     pixels_per_point,
                     tessellation_options,
-                    texture_atlas.size(),
+                    texture_atlas.resolution(),
                     texture_atlas.prepared_discs(),
                 )
                 .tessellate_shapes(shapes)
@@ -3942,7 +3942,7 @@ impl Context {
         CollapsingHeader::new("🔠 Font texture")
             .default_open(false)
             .show(ui, |ui| {
-                let font_image_size = self.fonts(|f| f.font_image_size());
+                let font_image_size = self.fonts(|f| f.font_image_resolution());
                 crate::introspection::font_texture_ui(ui, font_image_size);
             });
 
@@ -4000,7 +4000,7 @@ impl Context {
                         .min_row_height(max_preview_size.y)
                         .show(ui, |ui| {
                             for (&texture_id, meta) in textures {
-                                let [w, h] = meta.size;
+                                let [w, h] = meta.resolution;
                                 let point_size = vec2(w as f32, h as f32) / pixels_per_point;
 
                                 let mut size = point_size;
