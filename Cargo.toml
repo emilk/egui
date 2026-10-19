@@ -104,7 +104,7 @@ glutin-winit = { version = "0.5.0", default-features = false }
 harfrust = "0.12.0" # Can't update to 0.13: it needs read-fonts 0.43, but fontique 0.11 pins read-fonts 0.41, so bumping splits read-fonts into two versions
 image = { version = "0.25.10", default-features = false } # `flate2` is held at 1.1.9 in `Cargo.lock`: 1.1.10 moved to miniz_oxide 0.9, duplicating the 0.8 that png needs
 itertools = "0.15.0"
-jiff = { version = "0.2.35", default-features = false }
+jiff = { version = "0.2.38", default-features = false }
 js-sys = "0.3.103"
 kittest = { version = "0.5.0" }
 log = { version = "0.4.34", features = ["std"] }
@@ -113,7 +113,7 @@ mime_guess2 = { version = "2.3", default-features = false }
 mint = "0.5.9"
 nohash-hasher = "0.2.0"
 block2 = "0.6.2"
-objc2 = "0.6.4"
+objc2 = "0.6.5"
 objc2-app-kit = { version = "0.3.2", default-features = false }
 objc2-foundation = { version = "0.3.2", default-features = false }
 objc2-ui-kit = { version = "0.3.2", default-features = false }
@@ -125,7 +125,7 @@ pollster = "1.0"
 profiling = { version = "1.0", default-features = false }
 puffin = "0.20.0"
 puffin_http = "0.17.0"
-rand = "0.10.2"
+rand = "0.10.3"
 raw-window-handle = "0.6.2"
 rayon = "1.12"
 resvg = { version = "0.45.1", default-features = false } # Can't update to 0.46+: it needs tiny-skia 0.12, but winit 0.30's sctk-adwaita 0.10 is stuck on tiny-skia 0.11, so bumping duplicates tiny-skia
