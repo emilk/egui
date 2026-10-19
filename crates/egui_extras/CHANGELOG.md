@@ -5,6 +5,61 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.37.0 - 2026-10-15
+### ⭐ Added
+* Add JSON to the simple syntax highlighter in egui_extras [#8632](https://github.com/emilk/egui/pull/8632) by [@emilk](https://github.com/emilk)
+* Add feature for supporting raster images in svg [#8139](https://github.com/emilk/egui/pull/8139) by [@onsdagens](https://github.com/onsdagens)
+* Add simple SQL syntax highlighting to `egui_extras` [#8673](https://github.com/emilk/egui/pull/8673) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix window resizing with clipped table content [#8517](https://github.com/emilk/egui/pull/8517) by [@pederbe](https://github.com/pederbe)
+* Fix image loading in egui_extras to support image plugins [#8547](https://github.com/emilk/egui/pull/8547) by [@programmerlexi](https://github.com/programmerlexi)
+* Percent-decode file:// URIs in the file loader [#8342](https://github.com/emilk/egui/pull/8342) by [@Lfan-ke](https://github.com/Lfan-ke)
+
+### 🚀 Performance
+*  non-blocking webp loader [#8514](https://github.com/emilk/egui/pull/8514) by [@yawnnn](https://github.com/yawnnn)
+
+
+## 0.36.2 - 2026-09-08
+Nothing new
+
+
+## 0.36.1 - 2026-08-07
+Nothing new
+
+
+## 0.36.0 - 2026-08-05
+Nothing new
+
+
+## 0.35.0 - 2026-06-25
+* Improve FileLoader file uri to path handling for windows [#8163](https://github.com/emilk/egui/pull/8163) by [@aconbere](https://github.com/aconbere)
+* Add arbitrary request headers to `EhttpLoader` [#8121](https://github.com/emilk/egui/pull/8121) by [@frnsys](https://github.com/frnsys)
+* `Column::remainder().clip(true)` now shrinks when available width decreases [#8048](https://github.com/emilk/egui/pull/8048) by [@germ4n](https://github.com/germ4n)
+* Respect `image`'s orientation [#8240](https://github.com/emilk/egui/pull/8240) by [@mattfbacon](https://github.com/mattfbacon)
+* Remove 64 bit atomics in egui_extras [#8263](https://github.com/emilk/egui/pull/8263) by [@kay-lambdadelta](https://github.com/kay-lambdadelta)
+
+
+## 0.34.3 - 2026-05-27
+Nothing new
+
+
+## 0.34.2 - 2026-05-04
+Nothing new
+
+
+## 0.34.1 - 2026-03-27
+Nothing new
+
+
+## 0.34.0 - 2026-03-26
+* Fix media type with optional parameters [#7739](https://github.com/emilk/egui/pull/7739) by [@leungkkf](https://github.com/leungkkf)
+* Fix: CodeTheme functions - ui and add builder [#7684](https://github.com/emilk/egui/pull/7684) by [@Its-Just-Nans](https://github.com/Its-Just-Nans)
+* Update selected dependencies [#7920](https://github.com/emilk/egui/pull/7920) by [@oscargus](https://github.com/oscargus)
+* Add `DatePickerButton::reverse_years/year_scroll_to` [#7978](https://github.com/emilk/egui/pull/7978) by [@Deuracell](https://github.com/Deuracell)
+* Replace `chrono` with `jiff` [#8008](https://github.com/emilk/egui/pull/8008) by [@emilk](https://github.com/emilk)
+
+
 ## 0.33.3 - 2025-12-11
 * Bump `ehttp` to 0.6.0 [#7757](https://github.com/emilk/egui/pull/7757) by [@jprochazk](https://github.com/jprochazk)
 

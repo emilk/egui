@@ -106,10 +106,10 @@ impl MyApp {
     }
 }
 
-impl std::ops::Drop for MyApp {
+impl core::ops::Drop for MyApp {
     fn drop(&mut self) {
         for (handle, show_tx) in self.threads.drain(..) {
-            std::mem::drop(show_tx);
+            core::mem::drop(show_tx);
             handle.join().unwrap();
         }
     }

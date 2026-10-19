@@ -1,10 +1,9 @@
-use epaint::Margin;
-
 use crate::{
-    Atom, AtomExt as _, AtomKind, AtomLayout, AtomLayoutResponse, Color32, CornerRadius, Frame,
-    Image, IntoAtoms, NumExt as _, Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2,
-    Widget, WidgetInfo, WidgetText, WidgetType,
-    widget_style::{ButtonStyle, WidgetState},
+    Atom, AtomExt as _, AtomKind, Atoms, Color32, CornerRadius, Image, IntoAtoms, NumExt as _,
+    Response, Role, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetAtom,
+    WidgetAtomResponse, WidgetInfo, WidgetText,
+    class::{ClassName, Classes, HasClasses},
+    widget_style::ButtonStyle,
 };
 
 /// Clickable button with text.
@@ -27,35 +26,49 @@ use crate::{
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Button<'a> {
-    layout: AtomLayout<'a>,
+    layout: WidgetAtom<'a>,
     fill: Option<Color32>,
     stroke: Option<Stroke>,
-    small: bool,
-    frame: Option<bool>,
-    frame_when_inactive: bool,
     min_size: Vec2,
     corner_radius: Option<CornerRadius>,
-    selected: bool,
-    image_tint_follows_text_color: bool,
+    selected: Option<bool>,
     limit_image_size: bool,
+    classes: Classes,
 }
 
 impl<'a> Button<'a> {
+    /// Present on a selected button.
+    pub const CLASS_SELECTED: ClassName = ClassName::from_static("egui::selected");
+
+    /// Present on a small button.
+    pub const CLASS_SMALL: ClassName = ClassName::from_static("egui::small");
+
+    /// Present on a button that should have no frame at all.
+    pub const CLASS_NO_FRAME: ClassName = ClassName::from_static("egui::no_frame");
+
+    /// Present on a button that should have a frame, even when the global default is frameless.
+    pub const CLASS_FRAME: ClassName = ClassName::from_static("egui::frame");
+
+    /// Present on a button that should have no frame while it is inactive.
+    pub const CLASS_HIDE_FRAME_WHEN_INACTIVE: ClassName =
+        ClassName::from_static("egui::button::hide_frame_when_inactive");
+
+    /// Present when untinted images should follow the button text color.
+    pub const CLASS_IMAGE_TINT_FOLLOWS_TEXT_COLOR: ClassName =
+        ClassName::from_static("egui::button::image_tint_follows_text_color");
+
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         Self {
-            layout: AtomLayout::new(atoms.into_atoms())
+            layout: WidgetAtom::new(atoms.into_atoms())
                 .sense(Sense::click())
                 .fallback_font(TextStyle::Button),
             fill: None,
             stroke: None,
-            small: false,
-            frame: None,
-            frame_when_inactive: true,
             min_size: Vec2::ZERO,
             corner_radius: None,
-            selected: false,
-            image_tint_follows_text_color: false,
+            selected: None,
             limit_image_size: false,
+            classes: Classes::default(),
         }
     }
 
@@ -69,6 +82,8 @@ impl<'a> Button<'a> {
     /// ui.add(Button::new("toggle me").selected(selected).frame_when_inactive(!selected).frame(true));
     /// # });
     /// ```
+    ///
+    /// When selected, [`Self::CLASS_SELECTED`] is added.
     ///
     /// See also:
     ///   - [`Ui::selectable_value`]
@@ -140,7 +155,7 @@ impl<'a> Button<'a> {
     #[inline]
     pub fn fill(mut self, fill: impl Into<Color32>) -> Self {
         self.fill = Some(fill.into());
-        self
+        self.frame(true)
     }
 
     /// Override button stroke. Note that this will override any on-hover effects.
@@ -148,25 +163,36 @@ impl<'a> Button<'a> {
     #[inline]
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = Some(stroke.into());
-        self.frame = Some(true);
-        self
+        self.frame(true)
     }
 
     /// Make this a small button, suitable for embedding into text.
+    ///
+    /// This adds the built-in [`Self::CLASS_SMALL`], which with the default style removes the top and
+    /// bottom margin.
     #[inline]
-    pub fn small(mut self) -> Self {
-        self.small = true;
-        self
+    pub fn small(self) -> Self {
+        self.with_class(Self::CLASS_SMALL)
     }
 
     /// Turn off the frame
+    ///
+    /// This adds either the built-in [`Self::CLASS_FRAME`] or [`Self::CLASS_NO_FRAME`] class.
+    /// With the default style, the latter removes the fill, the stroke and the margin.
+    ///
+    /// Default: `ui.visuals().button_frame`.
     #[inline]
     pub fn frame(mut self, frame: bool) -> Self {
-        self.frame = Some(frame);
+        self.set_class(Self::CLASS_FRAME, frame);
+        self.set_class(Self::CLASS_NO_FRAME, !frame);
         self
     }
 
     /// If `false`, the button will not have a frame when inactive.
+    ///
+    /// This adds the built-in [`Self::CLASS_HIDE_FRAME_WHEN_INACTIVE`], which with the
+    /// default style removes the fill and the stroke, but keeps the margin, so the button does
+    /// not change size once the user interacts with it.
     ///
     /// Default: `true`.
     ///
@@ -174,7 +200,7 @@ impl<'a> Button<'a> {
     /// has no effect.
     #[inline]
     pub fn frame_when_inactive(mut self, frame_when_inactive: bool) -> Self {
-        self.frame_when_inactive = frame_when_inactive;
+        self.set_class(Self::CLASS_HIDE_FRAME_WHEN_INACTIVE, !frame_when_inactive);
         self
     }
 
@@ -200,21 +226,19 @@ impl<'a> Button<'a> {
         self
     }
 
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
-    }
-
-    /// If true, the tint of the image is multiplied by the widget text color.
+    /// If true, use the widget text color as the fallback tint for images.
     ///
-    /// This makes sense for images that are white, that should have the same color as the text color.
-    /// This will also make the icon color depend on hover state.
+    /// This makes sense for monochrome images that should have the same color as the text. It also
+    /// makes the image color depend on hover state. A non-white tint set on an image takes
+    /// precedence over this fallback; [`Color32::WHITE`] means untinted.
     ///
     /// Default: `false`.
     #[inline]
     pub fn image_tint_follows_text_color(mut self, image_tint_follows_text_color: bool) -> Self {
-        self.image_tint_follows_text_color = image_tint_follows_text_color;
+        self.set_class(
+            Self::CLASS_IMAGE_TINT_FOLLOWS_TEXT_COLOR,
+            image_tint_follows_text_color,
+        );
         self
     }
 
@@ -240,6 +264,18 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// Show some text on the left side of the button.
+    #[inline]
+    pub fn left_text(mut self, left_text: impl IntoAtoms<'a>) -> Self {
+        self.layout.push_left(Atom::grow());
+
+        for atom in left_text.into_atoms() {
+            self.layout.push_left(atom);
+        }
+
+        self
+    }
+
     /// Show some text on the right side of the button.
     #[inline]
     pub fn right_text(mut self, right_text: impl IntoAtoms<'a>) -> Self {
@@ -253,32 +289,47 @@ impl<'a> Button<'a> {
     }
 
     /// If `true`, mark this button as "selected".
+    ///
+    /// Calling this method opts the button into toggle semantics and the
+    /// current pressed/not-pressed state will be reported to assistive
+    /// technologies (e.g. screen readers). Plain buttons that never call
+    /// `selected` are not announced as toggles.
+    ///
+    /// When selected, [`Self::CLASS_SELECTED`] is added. You should prefer calling this though over
+    /// just adding [`Self::CLASS_SELECTED`] manually, since this also exposes accessibility information.
     #[inline]
     pub fn selected(mut self, selected: bool) -> Self {
-        self.selected = selected;
+        self.selected = Some(selected);
+        self.set_class(Self::CLASS_SELECTED, selected);
         self
     }
 
-    /// Show the button and return a [`AtomLayoutResponse`] for painting custom contents.
-    pub fn atom_ui(self, ui: &mut Ui) -> AtomLayoutResponse {
+    /// Set the gap between atoms.
+    #[inline]
+    pub fn gap(mut self, gap: f32) -> Self {
+        self.layout = self.layout.gap(gap);
+        self
+    }
+
+    /// Output the button's [`Atoms`].
+    ///
+    /// This includes any images you have on the button.
+    pub fn atoms(&self) -> &Atoms<'a> {
+        &self.layout.atoms
+    }
+
+    /// Show the button and return a [`WidgetAtomResponse`] for painting custom contents.
+    pub fn atom_ui(self, ui: &mut Ui) -> WidgetAtomResponse {
         let Button {
             mut layout,
             fill,
             stroke,
-            small,
-            frame,
-            frame_when_inactive,
-            mut min_size,
+            min_size,
             corner_radius,
             selected,
-            image_tint_follows_text_color,
             limit_image_size,
+            classes,
         } = self;
-
-        // Min size height always equal or greater than interact size if not small
-        if !small {
-            min_size.y = min_size.y.at_least(ui.spacing().interact_size.y);
-        }
 
         if limit_image_size {
             layout.map_atoms(|atom| {
@@ -292,72 +343,54 @@ impl<'a> Button<'a> {
 
         let text = layout.text().map(String::from);
 
-        let has_frame_margin = frame.unwrap_or_else(|| ui.visuals().button_frame);
-
         let id = ui.next_auto_id();
-        let response: Option<Response> = ui.ctx().read_response(id);
-        let state = response.map(|r| r.widget_state()).unwrap_or_default();
+        let ButtonStyle {
+            atom_layout: mut atom_layout_style,
+        } = ui.widget_style(id, &classes);
 
-        let ButtonStyle { frame, text_style } = ui.style().button_style(state, selected);
-
-        let mut button_padding = if has_frame_margin {
-            frame.inner_margin
-        } else {
-            Margin::ZERO
-        };
-
-        if small {
-            button_padding.bottom = 0;
-            button_padding.top = 0;
-        }
+        let min_size = min_size.at_least(atom_layout_style.min_size);
 
         // Override global style by local style
-        let mut frame = frame;
+        if let Some(stroke) = stroke {
+            atom_layout_style.frame = atom_layout_style.frame.stroke(stroke);
+        }
         if let Some(fill) = fill {
-            frame = frame.fill(fill);
+            atom_layout_style.frame = atom_layout_style.frame.fill(fill);
         }
         if let Some(corner_radius) = corner_radius {
-            frame = frame.corner_radius(corner_radius);
-        }
-        if let Some(stroke) = stroke {
-            frame = frame.stroke(stroke);
+            atom_layout_style.frame = atom_layout_style.frame.corner_radius(corner_radius);
         }
 
-        frame = frame.inner_margin(button_padding);
+        let prepared = atom_layout_style
+            .apply(layout)
+            .min_size(min_size)
+            .allocate(ui);
 
-        // Apply the style font and color as fallback
-        layout = layout
-            .fallback_font(text_style.font_id.clone())
-            .fallback_text_color(text_style.color);
-
-        // Retrocompatibility with button settings
-        layout = if has_frame_margin && (state != WidgetState::Inactive || frame_when_inactive) {
-            layout.frame(frame)
-        } else {
-            layout.frame(Frame::new().inner_margin(frame.inner_margin))
-        };
-
-        let mut prepared = layout.min_size(min_size).allocate(ui);
-
-        // Get AtomLayoutResponse, empty if not visible
+        // Get WidgetAtomResponse, empty if not visible
         let response = if ui.is_rect_visible(prepared.response.rect) {
-            if image_tint_follows_text_color {
-                prepared.map_images(|image| image.tint(text_style.color));
-            }
-
-            prepared.fallback_text_color = text_style.color;
-
             prepared.paint(ui)
         } else {
-            AtomLayoutResponse::empty(prepared.response)
+            WidgetAtomResponse::empty(prepared.response)
         };
 
-        response.response.widget_info(|| {
-            if let Some(text) = &text {
-                WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), text)
-            } else {
-                WidgetInfo::new(WidgetType::Button)
+        if let Some(cursor) = ui.visuals().interact_cursor
+            && response.response.hovered()
+        {
+            ui.ctx().set_cursor_icon(cursor);
+        }
+
+        response.response.widget_info(|| match (selected, &text) {
+            (Some(selected), Some(text)) => {
+                WidgetInfo::selected(Role::Button, ui.is_enabled(), selected, text)
             }
+            (Some(selected), None) => {
+                let mut info = WidgetInfo::new(Role::Button);
+                info.enabled = ui.is_enabled();
+                info.selected = Some(selected);
+                info
+            }
+            (None, Some(text)) => WidgetInfo::labeled(Role::Button, ui.is_enabled(), text),
+            (None, None) => WidgetInfo::new(Role::Button),
         });
 
         response
@@ -367,5 +400,15 @@ impl<'a> Button<'a> {
 impl Widget for Button<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.atom_ui(ui).response
+    }
+}
+
+impl HasClasses for Button<'_> {
+    fn classes(&self) -> &Classes {
+        &self.classes
+    }
+
+    fn classes_mut(&mut self) -> &mut Classes {
+        &mut self.classes
     }
 }

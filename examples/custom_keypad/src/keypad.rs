@@ -70,7 +70,7 @@ pub struct Keypad {
 impl Keypad {
     pub fn new() -> Self {
         Self {
-            id: egui::Id::new("keypad"),
+            id: egui::Id::unique("keypad"),
         }
     }
 

@@ -9,6 +9,39 @@ use egui::ViewportId;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 
+/// Returns `true` if the window is invisible or minimized.
+///
+/// These windows don't receive `RedrawRequested` events on Windows,
+/// so they need special handling to keep processing viewport commands.
+pub fn is_invisible_or_minimized(window: &Window) -> bool {
+    window.is_visible() == Some(false) || window.is_minimized() == Some(true)
+}
+
+/// On Mac, a minimized window uses up all CPU:
+/// <https://github.com/emilk/egui/issues/325>
+///
+/// On Windows, an invisible window also uses up all CPU:
+/// <https://github.com/emilk/egui/issues/7776>
+pub fn sleep_if_invisible_or_minimized(window: Option<&Window>) {
+    if window.is_some_and(is_invisible_or_minimized) {
+        profiling::scope!("minimized_sleep");
+        std::thread::sleep(core::time::Duration::from_millis(10));
+    }
+}
+
+/// What [`WinitApp::run_ui_and_paint`] runs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PassMode {
+    /// Run [`crate::App::logic`], plus the ui and painting if the viewport is visible.
+    Full,
+
+    /// Run only [`crate::App::logic`]: no egui pass and no painting.
+    ///
+    /// Used when the window was asked to redraw, but the windowing system hasn't let it
+    /// (e.g. a Wayland compositor withholding frame callbacks from a hidden window).
+    LogicOnly,
+}
+
 /// Create an egui context, restoring it from storage if possible.
 pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Context {
     profiling::function_scope!();
@@ -81,6 +114,7 @@ pub trait WinitApp {
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
+        mode: PassMode,
     ) -> crate::Result<EventResult>;
 
     fn suspended(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;

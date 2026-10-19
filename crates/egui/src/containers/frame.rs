@@ -143,12 +143,12 @@ pub struct Frame {
 #[test]
 fn frame_size() {
     assert_eq!(
-        std::mem::size_of::<Frame>(),
+        core::mem::size_of::<Frame>(),
         32,
         "Frame changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
-        std::mem::size_of::<Frame>() <= 64,
+        core::mem::size_of::<Frame>() <= 64,
         "Frame is getting way too big!"
     );
 }
@@ -174,11 +174,6 @@ impl Frame {
         Self::NONE
     }
 
-    #[deprecated = "Use `Frame::NONE` or `Frame::new()` instead."]
-    pub const fn none() -> Self {
-        Self::NONE
-    }
-
     /// For when you want to group a few widgets together within a frame.
     pub fn group(style: &Style) -> Self {
         Self::new()
@@ -197,6 +192,7 @@ impl Frame {
         Self::new().inner_margin(8).fill(style.visuals.panel_fill)
     }
 
+    /// The default frame for an [`crate::Window`].
     pub fn window(style: &Style) -> Self {
         Self::new()
             .inner_margin(style.spacing.window_margin)
@@ -283,16 +279,6 @@ impl Frame {
         self
     }
 
-    /// The rounding of the _outer_ corner of the [`Self::stroke`]
-    /// (or, if there is no stroke, the outer corner of [`Self::fill`]).
-    ///
-    /// In other words, this is the corner radius of the _widget rect_.
-    #[inline]
-    #[deprecated = "Renamed to `corner_radius`"]
-    pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {
-        self.corner_radius(corner_radius)
-    }
-
     /// Margin outside the painted frame.
     ///
     /// Similar to what is called `margin` in CSS.
@@ -312,6 +298,30 @@ impl Frame {
         self
     }
 
+    /// Handle `stroke` and `expansion` without affecting layout.
+    ///
+    /// This handles `expansion` by subtracting it from the outer margin and adding it to the
+    /// inner margin. It also corrects for `stroke`, by subtracting the stroke width from `inner_margin`.
+    ///
+    /// Any stroke already on the frame is replaced, and its width is given back to the `inner_margin`,
+    /// so calling this again to change the stroke is fine.
+    /// The `expansion` is not tracked though, so it is applied on top of any earlier expansion.
+    ///
+    /// Use this when stroke or expansion might change on hover, and you don't want it to cause
+    /// layout shifts.
+    #[inline]
+    pub fn apply_stroke_and_expansion_without_layout_shift(
+        mut self,
+        stroke: Stroke,
+        expansion: f32,
+    ) -> Self {
+        self.outer_margin = self.outer_margin - Margin::from(expansion);
+        self.inner_margin =
+            self.inner_margin + Margin::from(expansion + self.stroke.width - stroke.width);
+        self.stroke = stroke;
+        self
+    }
+
     /// Optional drop-shadow behind the frame.
     #[inline]
     pub fn shadow(mut self, shadow: Shadow) -> Self {
@@ -328,6 +338,17 @@ impl Frame {
         self.fill = self.fill.gamma_multiply(opacity);
         self.stroke.color = self.stroke.color.gamma_multiply(opacity);
         self.shadow.color = self.shadow.color.gamma_multiply(opacity);
+        self
+    }
+
+    /// Make this frame invisible by setting background and stroke to transparent.
+    ///
+    /// Will not affect layout or contents.
+    #[inline]
+    pub fn invisible(mut self) -> Self {
+        self.fill = Color32::TRANSPARENT;
+        self.stroke.color = Color32::TRANSPARENT;
+        self.shadow = Shadow::NONE;
         self
     }
 }
@@ -413,11 +434,15 @@ impl Frame {
     }
 
     /// Show the given ui surrounded by this frame.
+    ///
+    /// The returned [`InnerResponse::response`] will have the rect of the entire frame, including margins.
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(add_contents))
     }
 
     /// Show using dynamic dispatch.
+    ///
+    /// The returned [`InnerResponse::response`] will have the rect of the entire frame, including margins.
     pub fn show_dyn<'c, R>(
         self,
         ui: &mut Ui,

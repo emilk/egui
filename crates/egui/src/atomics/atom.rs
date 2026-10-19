@@ -1,10 +1,27 @@
-use crate::{AtomKind, FontSelection, Id, SizedAtom, Ui};
-use emath::{NumExt as _, Vec2};
+use crate::{
+    AtomKind, AtomPaintArgs, ContainerAtom, FontSelection, IdSalt, IntoSizedArgs, IntoSizedResult,
+    SizedAtom, Ui, WidgetAtom,
+};
+use emath::{Align2, NumExt as _, Vec2};
 use epaint::text::TextWrapMode;
 
 /// A low-level ui building block.
 ///
-/// Implements [`From`] for [`String`], [`str`], [`crate::Image`] and much more for convenience.
+/// This can be a piece of text, an image, or even a custom widget.
+/// It can be decorated with various layout hints, such as `grow`, `shrink`, `align`, and more.
+///
+/// `Atom` implements [`From`] for [`String`], [`str`], [`crate::Image`] and much more for convenience.
+///
+/// Many widgets take an `impl` [`crate::IntoAtoms`] parameter,
+/// which allows you to easily create atoms from tuples of text, images, and other atoms:
+/// ```
+/// # use egui::{Vec2, AtomExt, AtomKind, Atom, Image, Id};
+/// # egui::__run_test_ui(|ui| {
+/// let image = egui::include_image!("../../../eframe/data/icon.png");
+/// ui.button((image, "Click me!"));
+/// # });
+/// ```
+///
 /// You can directly call the `atom_*` methods on anything that implements `Into<Atom>`.
 /// ```
 /// # use egui::{Image, emath::Vec2};
@@ -14,6 +31,9 @@ use epaint::text::TextWrapMode;
 /// ```
 #[derive(Clone, Debug)]
 pub struct Atom<'a> {
+    /// See [`crate::AtomExt::atom_id`]
+    pub id: Option<IdSalt>,
+
     /// See [`crate::AtomExt::atom_size`]
     pub size: Option<Vec2>,
 
@@ -26,17 +46,22 @@ pub struct Atom<'a> {
     /// See [`crate::AtomExt::atom_shrink`]
     pub shrink: bool,
 
-    /// The atom type
+    /// See [`crate::AtomExt::atom_align`]
+    pub align: Align2,
+
+    /// The atom type / content
     pub kind: AtomKind<'a>,
 }
 
 impl Default for Atom<'_> {
     fn default() -> Self {
         Atom {
+            id: None,
             size: None,
             max_size: Vec2::INFINITY,
             grow: false,
             shrink: false,
+            align: Align2::CENTER_CENTER,
             kind: AtomKind::Empty,
         }
     }
@@ -54,11 +79,76 @@ impl<'a> Atom<'a> {
         }
     }
 
-    /// Create a [`AtomKind::Custom`] with a specific size.
-    pub fn custom(id: Id, size: impl Into<Vec2>) -> Self {
+    /// Create an [`AtomKind::Empty`] with a specific size.
+    ///
+    /// Example:
+    /// ```
+    /// # use egui::{AtomExt, AtomKind, Atom, Button, IdSalt, __run_test_ui};
+    /// # use emath::Vec2;
+    /// # __run_test_ui(|ui| {
+    /// let id = IdSalt::new("my_button");
+    /// let response = Button::new(("Hi!", Atom::custom(id, Vec2::splat(18.0)))).atom_ui(ui);
+    ///
+    /// let rect = response.rect(id);
+    /// if let Some(rect) = rect {
+    ///     ui.place(rect, Button::new("⏵"));
+    /// }
+    /// # });
+    /// ```
+    pub fn custom(id: IdSalt, size: impl Into<Vec2>) -> Self {
         Atom {
             size: Some(size.into()),
-            kind: AtomKind::Custom(id),
+            kind: AtomKind::Empty,
+            id: Some(id),
+            ..Default::default()
+        }
+    }
+
+    /// Create an [`AtomKind::Paint`] with a specific size.
+    ///
+    /// The closure paints the atom at the [`AtomPaintArgs::rect`] the layout gives it.
+    ///
+    /// Example:
+    /// ```
+    /// # use egui::{Atom, Button, Color32, CornerRadius, __run_test_ui};
+    /// # use emath::Vec2;
+    /// # __run_test_ui(|ui| {
+    /// let dot = Atom::paint(Vec2::splat(8.0), |ui, args| {
+    ///     ui.painter()
+    ///         .rect_filled(args.rect, CornerRadius::same(4), Color32::RED);
+    /// });
+    /// ui.add(Button::new((dot, "Recording")));
+    /// # });
+    /// ```
+    pub fn paint(size: impl Into<Vec2>, func: impl Fn(&Ui, AtomPaintArgs) + 'a) -> Self {
+        Atom {
+            size: Some(size.into()),
+            kind: AtomKind::paint(func),
+            ..Default::default()
+        }
+    }
+
+    /// Nest a [`WidgetAtom`] (interactive and requests a response) as a single atom.
+    ///
+    /// The nested widget is sized when the parent is sized and painted (and interacted with)
+    /// at the cell the parent computes for it. See [`AtomKind::Widget`].
+    ///
+    /// You can get the response by setting an explicit [`crate::Id`] and using [`crate::Context::read_response`]
+    pub fn widget(widget: WidgetAtom<'a>) -> Self {
+        Atom {
+            kind: AtomKind::Widget(Box::new(widget)),
+            ..Default::default()
+        }
+    }
+
+    /// Nest a [`ContainerAtom`] (a non-interactive atom-based layout) as a single atom.
+    ///
+    /// Like [`Self::widget`], the nested layout is sized when the parent is sized and painted at
+    /// the cell the parent computes for it. Unlike [`Self::widget`], a [`ContainerAtom`] has no
+    /// id or sense, so it is painted but not interacted with. See [`AtomKind::Container`].
+    pub fn container(container: ContainerAtom<'a>) -> Self {
+        Atom {
+            kind: AtomKind::Container(Box::new(container)),
             ..Default::default()
         }
     }
@@ -82,19 +172,32 @@ impl<'a> Atom<'a> {
             wrap_mode = Some(TextWrapMode::Truncate);
         }
 
-        let (intrinsic, kind) = self
-            .kind
-            .into_sized(ui, available_size, wrap_mode, fallback_font);
+        let id = self.id;
+
+        let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
+        let IntoSizedResult {
+            intrinsic_size,
+            sized,
+        } = self.kind.into_sized(
+            ui,
+            IntoSizedArgs {
+                available_size,
+                wrap_mode,
+                fallback_font,
+            },
+        );
 
         let size = self
             .size
-            .map_or_else(|| kind.size(), |s| s.at_most(self.max_size));
+            .map_or_else(|| sized.size(), |s| s.at_most(self.max_size));
 
         SizedAtom {
+            id,
             size,
-            intrinsic_size: intrinsic.at_least(self.size.unwrap_or_default()),
+            intrinsic_size: intrinsic_size.at_least(self.size.unwrap_or_default()),
             grow: self.grow,
-            kind,
+            align: self.align,
+            kind: sized,
         }
     }
 }

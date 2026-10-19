@@ -1,6 +1,6 @@
 use crate::{
-    CursorIcon, Label, Response, Sense, Stroke, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
-    epaint, text_selection,
+    CursorIcon, Label, Response, Role, Sense, Stroke, Ui, Widget, WidgetInfo, WidgetText, epaint,
+    text_selection,
 };
 
 use self::text_selection::LabelSelectionState;
@@ -40,8 +40,7 @@ impl Widget for Link {
         let label = Label::new(text).sense(Sense::click());
 
         let (galley_pos, galley, response) = label.layout_in_ui(ui);
-        response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::Link, ui.is_enabled(), galley.text()));
+        response.widget_info(|| WidgetInfo::labeled(Role::Link, ui.is_enabled(), galley.text()));
 
         if ui.is_rect_visible(response.rect) {
             let color = ui.visuals().hyperlink_color;

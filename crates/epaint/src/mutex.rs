@@ -2,7 +2,7 @@
 
 // ----------------------------------------------------------------------------
 
-const DEADLOCK_DURATION: std::time::Duration = std::time::Duration::from_secs(10);
+const DEADLOCK_DURATION: core::time::Duration = core::time::Duration::from_secs(10);
 
 /// Provides interior mutability.
 ///
@@ -128,7 +128,8 @@ mod tests {
     #![expect(clippy::disallowed_methods)] // Ok for tests
 
     use crate::mutex::Mutex;
-    use std::time::Duration;
+    use alloc::sync::Arc;
+    use core::time::Duration;
 
     #[test]
     fn lock_two_different_mutexes_single_thread() {
@@ -140,7 +141,6 @@ mod tests {
 
     #[test]
     fn lock_multiple_threads() {
-        use std::sync::Arc;
         let one = Arc::new(Mutex::new(()));
         let our_lock = one.lock();
         let other_thread = {
@@ -161,7 +161,8 @@ mod tests_rwlock {
     #![expect(clippy::disallowed_methods)] // Ok for tests
 
     use crate::mutex::RwLock;
-    use std::time::Duration;
+    use alloc::sync::Arc;
+    use core::time::Duration;
 
     #[test]
     fn lock_two_different_rwlocks_single_thread() {
@@ -173,7 +174,6 @@ mod tests_rwlock {
 
     #[test]
     fn rwlock_multiple_threads() {
-        use std::sync::Arc;
         let one = Arc::new(RwLock::new(()));
         let our_lock = one.write();
         let other_thread1 = {
@@ -229,8 +229,6 @@ mod tests_rwlock {
 
     #[test]
     fn rwlock_short_read_foreign_read_write_reentrancy() {
-        use std::sync::Arc;
-
         let lock = Arc::new(RwLock::new(()));
 
         // Thread #0 grabs a read lock
@@ -255,8 +253,6 @@ mod tests_rwlock {
     #[test]
     #[should_panic]
     fn rwlock_read_foreign_read_write_reentrancy() {
-        use std::sync::Arc;
-
         let lock = Arc::new(RwLock::new(()));
 
         // Thread #0 grabs a read lock

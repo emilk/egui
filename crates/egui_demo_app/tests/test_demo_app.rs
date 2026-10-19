@@ -61,7 +61,7 @@ fn test_demo_app() {
                     .get_by_role_and_label(Role::TextInput, "URI:")
                     .type_text("file://../eframe/data/icon.png");
 
-                harness.get_by_role_and_label(Role::Button, "✔").click();
+                harness.get_by_role_and_label(Role::Button, "✔️").click();
 
                 // Wait for the image to load
                 harness.try_run_realtime().ok();

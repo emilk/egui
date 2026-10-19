@@ -23,6 +23,18 @@ pub struct Vertex {
     pub color: Color32, // 32 bit
 }
 
+impl Vertex {
+    /// An untextured vertex
+    #[inline]
+    pub fn untextured(pos: Pos2, color: Color32) -> Self {
+        Self {
+            pos,
+            uv: WHITE_UV,
+            color,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg(all(feature = "unity", not(feature = "_override_unity")))]
@@ -78,9 +90,9 @@ impl Mesh {
 
     /// Returns the amount of memory used by the vertices and indices.
     pub fn bytes_used(&self) -> usize {
-        std::mem::size_of::<Self>()
-            + self.vertices.len() * std::mem::size_of::<Vertex>()
-            + self.indices.len() * std::mem::size_of::<u32>()
+        core::mem::size_of::<Self>()
+            + self.vertices.len() * core::mem::size_of::<Vertex>()
+            + self.indices.len() * core::mem::size_of::<u32>()
     }
 
     /// Are all indices within the bounds of the contained vertices?
@@ -159,11 +171,7 @@ impl Mesh {
             self.texture_id == TextureId::default(),
             "Mesh has an assigned texture"
         );
-        self.vertices.push(Vertex {
-            pos,
-            uv: WHITE_UV,
-            color,
-        });
+        self.vertices.push(Vertex::untextured(pos, color));
     }
 
     /// Add a triangle.

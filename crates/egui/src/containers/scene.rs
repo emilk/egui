@@ -24,7 +24,14 @@ fn fit_to_rect_in_scene(
     let scale = scale.min_elem();
 
     // Clamp scale to what is allowed
-    let scale = zoom_range.clamp(scale);
+    let mut scale = zoom_range.clamp(scale);
+
+    // A degenerate `rect_in_scene` (e.g. `Rect::ZERO`) gives an infinite scale,
+    // which the zoom range may not catch (e.g. `0.0..=f32::INFINITY`).
+    // Fall back to 1:1 so we never produce NaN.
+    if !scale.is_finite() || scale <= 0.0 {
+        scale = zoom_range.clamp(1.0);
+    }
 
     // Compute the translation to center the bounding rect in the screen:
     let center_in_global = rect_in_global.center().to_vec2();
@@ -48,6 +55,7 @@ pub struct Scene {
     sense: Sense,
     max_inner_size: Vec2,
     drag_pan_buttons: DragPanButtons,
+    scroll_zooms: bool,
 }
 
 /// Specifies which pointer buttons can be used to pan the scene by dragging.
@@ -80,6 +88,7 @@ impl Default for Scene {
             sense: Sense::click_and_drag(),
             max_inner_size: Vec2::splat(1000.0),
             drag_pan_buttons: DragPanButtons::all(),
+            scroll_zooms: false,
         }
     }
 }
@@ -127,6 +136,16 @@ impl Scene {
     #[inline]
     pub fn drag_pan_buttons(mut self, flags: DragPanButtons) -> Self {
         self.drag_pan_buttons = flags;
+        self
+    }
+
+    /// Specify whether scrolling the mousewheel without a modifier pans or
+    /// zooms the Scene. Touch input is not affected by this setting.
+    ///
+    /// By default, this is `false`.
+    #[inline]
+    pub fn scroll_zooms(mut self, scroll_zooms: bool) -> Self {
+        self.scroll_zooms = scroll_zooms;
         self
     }
 
@@ -185,7 +204,7 @@ impl Scene {
         // Create a new egui paint layer, where we can draw our contents:
         let scene_layer_id = LayerId::new(
             parent_ui.layer_id().order,
-            parent_ui.id().with("scene_area"),
+            parent_ui.scope_id().with("scene_area"),
         );
 
         // Put the layer directly on-top of the main layer of the ui:
@@ -205,8 +224,9 @@ impl Scene {
         // Update the `to_global` transform based on use interaction:
         self.register_pan_and_zoom(&local_ui, &mut pan_response, to_global);
 
-        // Set a correct global clip rect:
-        local_ui.set_clip_rect(to_global.inverse() * outer_rect);
+        // Set a correct global clip rect. Intersected with the parent's clip rect so a tighter
+        // clip (for instance, from window collapse) isn't overridden.
+        local_ui.set_clip_rect(to_global.inverse() * outer_rect.intersect(parent_ui.clip_rect()));
 
         // Tell egui to apply the transform on the layer:
         local_ui
@@ -244,8 +264,21 @@ impl Scene {
             && resp.contains_pointer()
         {
             let pointer_in_scene = to_global.inverse() * mouse_pos;
-            let zoom_delta = ui.input(|i| i.zoom_delta());
-            let pan_delta = ui.input(|i| i.smooth_scroll_delta());
+            let mut zoom_delta = ui.ctx().input(|i| i.zoom_delta());
+            let mut pan_delta = Vec2::ZERO;
+
+            // If scroll_zooms is set to true the scroll input will be consumed and
+            // added to any zoom input. This is required to support both mouse wheel
+            // and touch events.
+            if self.scroll_zooms {
+                let scroll_zoom_speed = ui.ctx().options(|opt| opt.input_options.scroll_zoom_speed);
+                let scroll_delta = ui
+                    .ctx()
+                    .input(|i| i.smooth_scroll_delta.x + i.smooth_scroll_delta.y);
+                zoom_delta += scroll_delta * scroll_zoom_speed;
+            } else {
+                pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
+            }
 
             // Most of the time we can return early. This is also important to
             // avoid `ui_from_scene` to change slightly due to floating point errors.

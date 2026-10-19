@@ -108,7 +108,7 @@ impl TextureAtlas {
         //     let hw = w as i32 / 2;
         const LARGEST_CIRCLE_RADIUS: f32 = 8.0; // keep small so that the initial texture atlas is small
         for i in 0.. {
-            let r = 2.0_f32.powf(i as f32 / 2.0 - 1.0);
+            let r = 2.0_f32.powf(i as f32 * 0.5 - 1.0);
             if r > LARGEST_CIRCLE_RADIUS {
                 break;
             }
@@ -120,8 +120,9 @@ impl TextureAtlas {
                     let distance_to_center = ((dx * dx + dy * dy) as f32).sqrt();
                     let coverage =
                         remap_clamp(distance_to_center, (r - 0.5)..=(r + 0.5), 1.0..=0.0);
-                    image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] =
-                        options.alpha_from_coverage.color_from_coverage(coverage);
+                    image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] = options
+                        .color_transfer_function
+                        .color_from_coverage(coverage);
                 }
             }
             atlas.discs.push(PrerasterizedDisc {
@@ -142,15 +143,15 @@ impl TextureAtlas {
         &self.options
     }
 
-    pub fn size(&self) -> [usize; 2] {
-        self.image.size
+    pub fn resolution(&self) -> [usize; 2] {
+        self.image.resolution()
     }
 
     /// Returns the locations and sizes of pre-rasterized discs (filled circles) in this atlas.
     pub fn prepared_discs(&self) -> Vec<PreparedDisc> {
-        let size = self.size();
-        let inv_w = 1.0 / size[0] as f32;
-        let inv_h = 1.0 / size[1] as f32;
+        let resolution = self.resolution();
+        let inv_w = 1.0 / resolution[0] as f32;
+        let inv_h = 1.0 / resolution[1] as f32;
         self.discs
             .iter()
             .map(|disc| {
@@ -201,7 +202,7 @@ impl TextureAtlas {
     pub fn take_delta(&mut self) -> Option<ImageDelta> {
         let texture_options = Self::texture_options();
 
-        let dirty = std::mem::replace(&mut self.dirty, Rectu::NOTHING);
+        let dirty = core::mem::replace(&mut self.dirty, Rectu::NOTHING);
         if dirty == Rectu::NOTHING {
             None
         } else if dirty == Rectu::EVERYTHING {
@@ -246,7 +247,7 @@ impl TextureAtlas {
 
             self.cursor = (0, self.image.height() / 3); // Restart a bit down - the top of the atlas has too many important things in it
             self.overflowed = true; // this will signal the user that we need to recreate the texture atlas next frame.
-        } else if resize_to_min_height(&mut self.image, required_height) {
+        } else if self.image.grow_to_min_height(required_height) {
             self.dirty = Rectu::EVERYTHING;
         }
 
@@ -259,20 +260,5 @@ impl TextureAtlas {
         self.dirty.max_y = self.dirty.max_y.max(pos.1 + h);
 
         (pos, &mut self.image)
-    }
-}
-
-fn resize_to_min_height(image: &mut ColorImage, required_height: usize) -> bool {
-    while required_height >= image.height() {
-        image.size[1] *= 2; // double the height
-    }
-
-    if image.width() * image.height() > image.pixels.len() {
-        image
-            .pixels
-            .resize(image.width() * image.height(), Color32::TRANSPARENT);
-        true
-    } else {
-        false
     }
 }

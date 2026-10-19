@@ -19,7 +19,7 @@ fn main() -> eframe::Result {
         Box::new(|_cc| Ok(Box::new(MyApp { has_next: true }))),
     )?;
 
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    std::thread::sleep(core::time::Duration::from_secs(2));
 
     log::info!("Starting second window…");
     eframe::run_native(
@@ -28,7 +28,7 @@ fn main() -> eframe::Result {
         Box::new(|_cc| Ok(Box::new(MyApp { has_next: true }))),
     )?;
 
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    std::thread::sleep(core::time::Duration::from_secs(2));
 
     log::info!("Starting third window…");
     eframe::run_native(
@@ -44,7 +44,7 @@ struct MyApp {
 
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             let label_text = if self.has_next {
                 "When this window is closed the next will be opened after a short delay"
             } else {

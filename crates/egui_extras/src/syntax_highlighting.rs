@@ -1,7 +1,8 @@
 //! Syntax highlighting for code.
 //!
 //! Turn on the `syntect` feature for great syntax highlighting of any language.
-//! Otherwise, a very simple fallback will be used, that works okish for C, C++, Rust, and Python.
+//! Otherwise, a very simple fallback will be used, that works okish for
+//! C, C++, JavaScript, TypeScript, JSON, Python, Rust, shell scripts, SQL, TOML, and YAML.
 
 use egui::TextStyle;
 use egui::text::LayoutJob;
@@ -98,12 +99,12 @@ fn highlight_inner(
     // Private type, so that users can't interfere with it in the `IdTypeMap`
     #[cfg(feature = "syntect")]
     #[derive(Clone, Default)]
-    struct PrivateSettings(std::sync::Arc<SyntectSettings>);
+    struct PrivateSettings(alloc::sync::Arc<SyntectSettings>);
 
     // Dummy private settings, to minimize code changes without `syntect`
     #[cfg(not(feature = "syntect"))]
     #[derive(Clone, Default)]
-    struct PrivateSettings(std::sync::Arc<()>);
+    struct PrivateSettings(alloc::sync::Arc<()>);
 
     ctx.memory_mut(|mem| {
         let settings = settings.unwrap_or_else(|| {
@@ -126,15 +127,32 @@ fn monospace_font_size(style: &egui::Style) -> f32 {
 
 // ----------------------------------------------------------------------------
 
+/// The kinds of tokens the fallback highlighter tells apart.
+///
+/// Use [`CodeTheme::format_mut`] to change how each is shown.
 #[cfg(not(feature = "syntect"))]
-#[derive(Clone, Copy, PartialEq, enum_map::Enum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, enum_map::Enum)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-enum TokenType {
+pub enum TokenType {
+    /// `// line`, `/* block */`, `# hash` or `-- dash` comments, depending on the language.
     Comment,
+
+    /// An identifier directly followed by `(`, e.g. `foo` in `foo(x)`.
+    Function,
+
+    /// A reserved word of the language, e.g. `fn` or `SELECT`.
     Keyword,
+
+    /// Any other word, including identifiers and numbers.
     Literal,
+
+    /// A quoted string, including its quotes.
     StringLiteral,
+
+    /// Any other character, e.g. `;` or `{`.
     Punctuation,
+
+    /// Spaces, tabs and newlines.
     Whitespace,
 }
 
@@ -210,6 +228,13 @@ impl SyntectTheme {
     derive(serde::Deserialize, serde::Serialize),
     serde(default)
 )]
+#[cfg_attr(
+    all(feature = "serde", not(feature = "syntect")),
+    expect(
+        clippy::unsafe_derive_deserialize,
+        reason = "the `enum_map!` macro expands to `unsafe` code"
+    )
+)]
 pub struct CodeTheme {
     dark_mode: bool,
 
@@ -278,9 +303,9 @@ impl CodeTheme {
         #![expect(clippy::needless_return)]
 
         let (id, default) = if style.visuals.dark_mode {
-            (egui::Id::new("dark"), Self::dark as fn(f32) -> Self)
+            (egui::Id::unique("dark"), Self::dark as fn(f32) -> Self)
         } else {
-            (egui::Id::new("light"), Self::light as fn(f32) -> Self)
+            (egui::Id::unique("light"), Self::light as fn(f32) -> Self)
         };
 
         #[cfg(feature = "serde")]
@@ -305,9 +330,9 @@ impl CodeTheme {
     /// There is one dark and one light theme stored at any one time.
     pub fn store_in_memory(self, ctx: &egui::Context) {
         let id = if ctx.global_style().visuals.dark_mode {
-            egui::Id::new("dark")
+            egui::Id::unique("dark")
         } else {
-            egui::Id::new("light")
+            egui::Id::unique("light")
         };
 
         #[cfg(feature = "serde")]
@@ -360,7 +385,7 @@ impl CodeTheme {
             ui.selectable_value(&mut self.dark_mode, true, "🌙 Dark theme")
                 .on_hover_text("Use the dark mode theme");
 
-            ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
+            ui.selectable_value(&mut self.dark_mode, false, "☀️ Light theme")
                 .on_hover_text("Use the light mode theme");
         });
         let current_theme_is_dark = self.is_dark();
@@ -376,12 +401,12 @@ impl CodeTheme {
     // function, but at the cost of more code duplication.
     #[expect(clippy::needless_pass_by_value)]
     fn dark_with_font_id(font_id: egui::FontId) -> Self {
-        #![expect(clippy::mem_forget)]
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: true,
             formats: enum_map::enum_map![
                 TokenType::Comment => TextFormat::simple(font_id.clone(), Color32::from_gray(120)),
+                TokenType::Function => TextFormat::simple(font_id.clone(), Color32::from_rgb(220, 190, 110)),
                 TokenType::Keyword => TextFormat::simple(font_id.clone(), Color32::from_rgb(255, 100, 100)),
                 TokenType::Literal => TextFormat::simple(font_id.clone(), Color32::from_rgb(87, 165, 171)),
                 TokenType::StringLiteral => TextFormat::simple(font_id.clone(), Color32::from_rgb(109, 147, 226)),
@@ -394,13 +419,13 @@ impl CodeTheme {
     // The syntect version takes it by value
     #[expect(clippy::needless_pass_by_value)]
     fn light_with_font_id(font_id: egui::FontId) -> Self {
-        #![expect(clippy::mem_forget)]
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: false,
             #[cfg(not(feature = "syntect"))]
             formats: enum_map::enum_map![
                 TokenType::Comment => TextFormat::simple(font_id.clone(), Color32::GRAY),
+                TokenType::Function => TextFormat::simple(font_id.clone(), Color32::from_rgb(170, 110, 0)),
                 TokenType::Keyword => TextFormat::simple(font_id.clone(), Color32::from_rgb(235, 0, 0)),
                 TokenType::Literal => TextFormat::simple(font_id.clone(), Color32::from_rgb(153, 134, 255)),
                 TokenType::StringLiteral => TextFormat::simple(font_id.clone(), Color32::from_rgb(37, 203, 105)),
@@ -408,6 +433,22 @@ impl CodeTheme {
                 TokenType::Whitespace => TextFormat::simple(font_id.clone(), Color32::TRANSPARENT),
             ],
         }
+    }
+
+    /// How tokens of the given type are shown.
+    pub fn format(&self, token_type: TokenType) -> &egui::TextFormat {
+        &self.formats[token_type]
+    }
+
+    /// Change how tokens of the given type are shown, e.g. to match the colors of your app.
+    ///
+    /// ```
+    /// use egui_extras::syntax_highlighting::{CodeTheme, TokenType};
+    /// let mut theme = CodeTheme::dark(12.0);
+    /// theme.format_mut(TokenType::Keyword).color = egui::Color32::from_rgb(200, 150, 255);
+    /// ```
+    pub fn format_mut(&mut self, token_type: TokenType) -> &mut egui::TextFormat {
+        &mut self.formats[token_type]
     }
 
     /// Show UI for changing the color theme.
@@ -429,12 +470,13 @@ impl CodeTheme {
                     ui.selectable_value(&mut self.dark_mode, true, "🌙 Dark theme")
                         .on_hover_text("Use the dark mode theme");
 
-                    ui.selectable_value(&mut self.dark_mode, false, "☀ Light theme")
+                    ui.selectable_value(&mut self.dark_mode, false, "☀️ Light theme")
                         .on_hover_text("Use the light mode theme");
                 });
                 ui.scope(|ui| {
                     for (tt, tt_name) in [
                         (TokenType::Comment, "// comment"),
+                        (TokenType::Function, "function()"),
                         (TokenType::Keyword, "keyword"),
                         (TokenType::Literal, "literal"),
                         (TokenType::StringLiteral, "\"string literal\""),
@@ -514,9 +556,9 @@ struct HighlightSettings<'a>(&'a SyntectSettings);
 #[derive(Copy, Clone)]
 struct HighlightSettings<'a>(&'a ());
 
-impl std::hash::Hash for HighlightSettings<'_> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::ptr::hash(self.0, state);
+impl core::hash::Hash for HighlightSettings<'_> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        core::ptr::hash(self.0, state);
     }
 }
 
@@ -604,7 +646,8 @@ impl Highlighter {
 }
 
 #[cfg(feature = "syntect")]
-fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
+fn as_byte_range(whole: &str, range: &str) -> egui::text::ByteRange {
+    use egui::text::ByteIndex;
     let whole_start = whole.as_ptr() as usize;
     let range_start = range.as_ptr() as usize;
     assert!(
@@ -617,7 +660,7 @@ fn as_byte_range(whole: &str, range: &str) -> std::ops::Range<usize> {
         range_start + range.len()
     );
     let offset = range_start - whole_start;
-    offset..(offset + range.len())
+    ByteIndex(offset)..ByteIndex(offset + range.len())
 }
 
 // ----------------------------------------------------------------------------
@@ -640,30 +683,39 @@ impl Highlighter {
 
         while !text.is_empty() {
             if language.double_slash_comments && text.starts_with("//")
+                || language.double_dash_comments && text.starts_with("--")
                 || language.hash_comments && text.starts_with('#')
             {
                 let end = text.find('\n').unwrap_or(text.len());
                 job.append(&text[..end], 0.0, theme.formats[TokenType::Comment].clone());
                 text = &text[end..];
-            } else if text.starts_with('"') {
-                let end = text[1..]
-                    .find('"')
-                    .map(|i| i + 2)
-                    .or_else(|| text.find('\n'))
-                    .unwrap_or(text.len());
+            } else if language.block_comments && text.starts_with("/*") {
+                let end = text[2..].find("*/").map_or(text.len(), |i| i + 4);
+                job.append(&text[..end], 0.0, theme.formats[TokenType::Comment].clone());
+                text = &text[end..];
+            } else if let Some(delimiter) = language
+                .string_delimiters
+                .iter()
+                .find(|delimiter| text.starts_with(**delimiter))
+            {
+                let end = string_literal_len(text, delimiter);
                 job.append(
                     &text[..end],
                     0.0,
                     theme.formats[TokenType::StringLiteral].clone(),
                 );
                 text = &text[end..];
-            } else if text.starts_with(|c: char| c.is_ascii_alphanumeric()) {
+            } else if text.starts_with(is_word_char) {
                 let end = text[1..]
-                    .find(|c: char| !c.is_ascii_alphanumeric())
+                    .find(|c: char| !is_word_char(c))
                     .map_or_else(|| text.len(), |i| i + 1);
                 let word = &text[..end];
                 let tt = if language.is_keyword(word) {
                     TokenType::Keyword
+                } else if text[end..].starts_with('(')
+                    && !word.starts_with(|c: char| c.is_ascii_digit())
+                {
+                    TokenType::Function
                 } else {
                     TokenType::Literal
                 };
@@ -696,15 +748,53 @@ impl Highlighter {
     }
 }
 
+/// Can this character be part of a word (identifier or keyword)?
+#[cfg(not(feature = "syntect"))]
+fn is_word_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_'
+}
+
+/// Byte length of the string literal at the start of `text`, including both delimiters.
+///
+/// A backslash escapes the character after it.
+/// An unterminated string ends at the end of its line.
+#[cfg(not(feature = "syntect"))]
+fn string_literal_len(text: &str, delimiter: &str) -> usize {
+    let body = &text[delimiter.len()..];
+    let mut chars = body.char_indices();
+    while let Some((i, c)) = chars.next() {
+        if c == '\\' {
+            chars.next();
+        } else if body[i..].starts_with(delimiter) {
+            return delimiter.len() + i + delimiter.len();
+        }
+    }
+    text.find('\n').unwrap_or(text.len())
+}
+
 #[cfg(not(feature = "syntect"))]
 struct Language {
     /// `// comment`
     double_slash_comments: bool,
 
+    /// `/* comment */`
+    block_comments: bool,
+
+    /// `-- comment`
+    double_dash_comments: bool,
+
     /// `# comment`
     hash_comments: bool,
 
-    keywords: std::collections::BTreeSet<&'static str>,
+    /// What strings start and end with, e.g. `"`.
+    ///
+    /// Longer delimiters must come first, so that `"""` is not read as an empty `""`.
+    string_delimiters: &'static [&'static str],
+
+    /// If true, `keywords` must be lowercase.
+    case_insensitive_keywords: bool,
+
+    keywords: alloc::collections::BTreeSet<&'static str>,
 }
 
 #[cfg(not(feature = "syntect"))]
@@ -712,9 +802,16 @@ impl Language {
     fn new(language: &str) -> Option<Self> {
         match language.to_lowercase().as_str() {
             "c" | "h" | "hpp" | "cpp" | "c++" => Some(Self::cpp()),
+            "js" | "javascript" | "jsx" | "mjs" | "ts" | "typescript" | "tsx" => {
+                Some(Self::javascript())
+            }
+            "json" | "jsonc" | "json5" => Some(Self::json()),
             "py" | "python" => Some(Self::python()),
             "rs" | "rust" => Some(Self::rust()),
+            "bash" | "sh" | "shell" | "zsh" => Some(Self::shell()),
+            "sql" => Some(Self::sql()),
             "toml" => Some(Self::toml()),
+            "yaml" | "yml" => Some(Self::yaml()),
             _ => {
                 None // unsupported language
             }
@@ -722,13 +819,21 @@ impl Language {
     }
 
     fn is_keyword(&self, word: &str) -> bool {
-        self.keywords.contains(word)
+        if self.case_insensitive_keywords {
+            self.keywords.contains(word.to_ascii_lowercase().as_str())
+        } else {
+            self.keywords.contains(word)
+        }
     }
 
     fn cpp() -> Self {
         Self {
             double_slash_comments: true,
+            block_comments: true,
+            double_dash_comments: false,
             hash_comments: false,
+            string_delimiters: &["\"", "'"],
+            case_insensitive_keywords: false,
             keywords: [
                 "alignas",
                 "alignof",
@@ -833,10 +938,98 @@ impl Language {
         }
     }
 
+    /// JavaScript and TypeScript.
+    fn javascript() -> Self {
+        Self {
+            double_slash_comments: true,
+            block_comments: true,
+            double_dash_comments: false,
+            hash_comments: false,
+            string_delimiters: &["\"", "'", "`"],
+            case_insensitive_keywords: false,
+            keywords: [
+                "abstract",
+                "as",
+                "async",
+                "await",
+                "break",
+                "case",
+                "catch",
+                "class",
+                "const",
+                "continue",
+                "debugger",
+                "declare",
+                "default",
+                "delete",
+                "do",
+                "else",
+                "enum",
+                "export",
+                "extends",
+                "false",
+                "finally",
+                "for",
+                "from",
+                "function",
+                "if",
+                "implements",
+                "import",
+                "in",
+                "instanceof",
+                "interface",
+                "keyof",
+                "let",
+                "namespace",
+                "new",
+                "null",
+                "of",
+                "private",
+                "protected",
+                "public",
+                "readonly",
+                "return",
+                "static",
+                "super",
+                "switch",
+                "this",
+                "throw",
+                "true",
+                "try",
+                "type",
+                "typeof",
+                "undefined",
+                "var",
+                "void",
+                "while",
+                "with",
+                "yield",
+            ]
+            .into_iter()
+            .collect(),
+        }
+    }
+
+    fn json() -> Self {
+        Self {
+            double_slash_comments: true, // for json5 etc. Common extension.
+            block_comments: true,
+            double_dash_comments: false,
+            hash_comments: false,
+            string_delimiters: &["\""],
+            case_insensitive_keywords: false,
+            keywords: ["false", "null", "true"].into_iter().collect(),
+        }
+    }
+
     fn python() -> Self {
         Self {
             double_slash_comments: false,
+            block_comments: false,
+            double_dash_comments: false,
             hash_comments: true,
+            string_delimiters: &["\"\"\"", "'''", "\"", "'"],
+            case_insensitive_keywords: false,
             keywords: [
                 "and", "as", "assert", "break", "class", "continue", "def", "del", "elif", "else",
                 "except", "False", "finally", "for", "from", "global", "if", "import", "in", "is",
@@ -851,7 +1044,11 @@ impl Language {
     fn rust() -> Self {
         Self {
             double_slash_comments: true,
+            block_comments: true,
+            double_dash_comments: false,
             hash_comments: false,
+            string_delimiters: &["\""],
+            case_insensitive_keywords: false,
             keywords: [
                 "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else",
                 "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match",
@@ -863,11 +1060,292 @@ impl Language {
         }
     }
 
+    /// Bash, sh, zsh, …
+    fn shell() -> Self {
+        Self {
+            double_slash_comments: false,
+            block_comments: false,
+            double_dash_comments: false,
+            hash_comments: true,
+            string_delimiters: &["\"", "'"],
+            case_insensitive_keywords: false,
+            keywords: [
+                "case", "do", "done", "elif", "else", "esac", "export", "fi", "for", "function",
+                "if", "in", "local", "return", "then", "until", "while",
+            ]
+            .into_iter()
+            .collect(),
+        }
+    }
+
+    fn sql() -> Self {
+        Self {
+            double_slash_comments: false,
+            block_comments: false,
+            double_dash_comments: true,
+            hash_comments: false,
+            string_delimiters: &["\"", "'"],
+            case_insensitive_keywords: true,
+            keywords: [
+                "add",
+                "all",
+                "alter",
+                "and",
+                "any",
+                "as",
+                "asc",
+                "between",
+                "by",
+                "case",
+                "cast",
+                "check",
+                "column",
+                "constraint",
+                "create",
+                "cross",
+                "database",
+                "default",
+                "delete",
+                "desc",
+                "distinct",
+                "drop",
+                "else",
+                "end",
+                "exists",
+                "false",
+                "foreign",
+                "from",
+                "full",
+                "group",
+                "having",
+                "if",
+                "in",
+                "index",
+                "inner",
+                "insert",
+                "intersect",
+                "into",
+                "is",
+                "join",
+                "key",
+                "left",
+                "like",
+                "limit",
+                "not",
+                "null",
+                "offset",
+                "on",
+                "or",
+                "order",
+                "outer",
+                "primary",
+                "references",
+                "replace",
+                "right",
+                "select",
+                "set",
+                "table",
+                "then",
+                "true",
+                "union",
+                "unique",
+                "update",
+                "using",
+                "values",
+                "view",
+                "when",
+                "where",
+                "with",
+            ]
+            .into_iter()
+            .collect(),
+        }
+    }
+
     fn toml() -> Self {
         Self {
             double_slash_comments: false,
+            block_comments: false,
+            double_dash_comments: false,
             hash_comments: true,
+            string_delimiters: &["\"\"\"", "'''", "\"", "'"],
+            case_insensitive_keywords: false,
             keywords: Default::default(),
         }
+    }
+
+    fn yaml() -> Self {
+        Self {
+            double_slash_comments: false,
+            block_comments: false,
+            double_dash_comments: false,
+            hash_comments: true,
+            string_delimiters: &["\"", "'"],
+            case_insensitive_keywords: false,
+            keywords: ["false", "null", "true"].into_iter().collect(),
+        }
+    }
+}
+
+#[cfg(all(test, not(feature = "syntect")))]
+mod tests {
+    use super::{CodeTheme, HighlightSettings, Highlighter, TokenType};
+
+    #[test]
+    fn json() {
+        let theme = CodeTheme::dark(12.0);
+        let text = r#"{"on": true, "off": null}"#;
+        let job = Highlighter::highlight_impl(&theme, text, "json", HighlightSettings(&()))
+            .expect("json is supported");
+
+        let format_of = |token: &str| {
+            let start = text.find(token).expect("token is in text");
+            job.sections
+                .iter()
+                .find(|section| section.byte_range.start == egui::text::ByteIndex(start))
+                .map(|section| section.format.clone())
+        };
+        assert_eq!(
+            format_of("\"on\""),
+            Some(theme.formats[TokenType::StringLiteral].clone())
+        );
+        assert_eq!(
+            format_of("true"),
+            Some(theme.formats[TokenType::Keyword].clone())
+        );
+        assert_eq!(
+            format_of("null"),
+            Some(theme.formats[TokenType::Keyword].clone())
+        );
+    }
+
+    #[test]
+    fn sql() {
+        let theme = CodeTheme::dark(12.0);
+        let text = "SELECT order_id FROM t where name = 'bob' -- done";
+        let job = Highlighter::highlight_impl(&theme, text, "sql", HighlightSettings(&()))
+            .expect("sql is supported");
+
+        let format_of = |token: &str| {
+            let start = text.find(token).expect("token is in text");
+            job.sections
+                .iter()
+                .find(|section| {
+                    section.byte_range.start == egui::text::ByteIndex(start)
+                        && section.byte_range.end == egui::text::ByteIndex(start + token.len())
+                })
+                .map(|section| section.format.clone())
+        };
+        let keyword = Some(theme.formats[TokenType::Keyword].clone());
+        assert_eq!(format_of("SELECT"), keyword);
+        assert_eq!(format_of("where"), keyword);
+        assert_eq!(
+            format_of("order_id"),
+            Some(theme.formats[TokenType::Literal].clone())
+        );
+        assert_eq!(
+            format_of("'bob'"),
+            Some(theme.formats[TokenType::StringLiteral].clone())
+        );
+        assert_eq!(
+            format_of("-- done"),
+            Some(theme.formats[TokenType::Comment].clone())
+        );
+    }
+
+    /// The token type of the section that spans exactly `token`, the first time it occurs in `text`.
+    fn token_type_of(text: &str, language: &str, token: &str) -> Option<TokenType> {
+        let theme = CodeTheme::dark(12.0);
+        let job = Highlighter::highlight_impl(&theme, text, language, HighlightSettings(&()))
+            .expect("language is supported");
+        let start = text.find(token).expect("token is in text");
+        let section = job.sections.iter().find(|section| {
+            section.byte_range.start == egui::text::ByteIndex(start)
+                && section.byte_range.end == egui::text::ByteIndex(start + token.len())
+        })?;
+        theme
+            .formats
+            .iter()
+            .find(|(_, format)| **format == section.format)
+            .map(|(tt, _)| tt)
+    }
+
+    #[test]
+    fn escaped_quotes_stay_inside_the_string() {
+        let text = r#"let s = "say \"hi\""; done()"#;
+        assert_eq!(
+            token_type_of(text, "rust", r#""say \"hi\"""#),
+            Some(TokenType::StringLiteral)
+        );
+        assert_eq!(
+            token_type_of(text, "rust", "done"),
+            Some(TokenType::Function)
+        );
+    }
+
+    #[test]
+    fn rust_lifetimes_are_not_strings() {
+        let text = "fn f<'a>(x: &'a str) {}";
+        assert_eq!(token_type_of(text, "rust", "str"), Some(TokenType::Literal));
+    }
+
+    #[test]
+    fn block_comments() {
+        let text = "a /* one\ntwo */ b";
+        assert_eq!(
+            token_type_of(text, "cpp", "/* one\ntwo */"),
+            Some(TokenType::Comment)
+        );
+        assert_eq!(token_type_of(text, "cpp", "b"), Some(TokenType::Literal));
+    }
+
+    #[test]
+    fn python_strings() {
+        let text = "x = 'it' + \"\"\"doc \"quoted\" \"\"\"";
+        assert_eq!(
+            token_type_of(text, "py", "'it'"),
+            Some(TokenType::StringLiteral)
+        );
+        assert_eq!(
+            token_type_of(text, "py", "\"\"\"doc \"quoted\" \"\"\""),
+            Some(TokenType::StringLiteral)
+        );
+    }
+
+    #[test]
+    fn javascript() {
+        let text = "const s = `x ${y}`; console.log(s)";
+        assert_eq!(token_type_of(text, "ts", "const"), Some(TokenType::Keyword));
+        assert_eq!(
+            token_type_of(text, "ts", "`x ${y}`"),
+            Some(TokenType::StringLiteral)
+        );
+        assert_eq!(token_type_of(text, "ts", "log"), Some(TokenType::Function));
+    }
+
+    #[test]
+    fn shell() {
+        let text = "if true; then echo 'hi'; fi # done";
+        assert_eq!(
+            token_type_of(text, "bash", "then"),
+            Some(TokenType::Keyword)
+        );
+        assert_eq!(
+            token_type_of(text, "bash", "'hi'"),
+            Some(TokenType::StringLiteral)
+        );
+        assert_eq!(
+            token_type_of(text, "bash", "# done"),
+            Some(TokenType::Comment)
+        );
+    }
+
+    #[test]
+    fn format_mut_changes_the_output() {
+        let mut theme = CodeTheme::dark(12.0);
+        theme.format_mut(TokenType::Keyword).color = egui::Color32::RED;
+        let job = Highlighter::highlight_impl(&theme, "fn", "rust", HighlightSettings(&()))
+            .expect("rust is supported");
+        assert_eq!(job.sections[0].format.color, egui::Color32::RED);
     }
 }

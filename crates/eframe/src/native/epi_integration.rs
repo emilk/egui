@@ -2,7 +2,7 @@
 
 use web_time::Instant;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use winit::event_loop::ActiveEventLoop;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
@@ -17,7 +17,7 @@ pub fn viewport_builder(
     egui_zoom_factor: f32,
     event_loop: &ActiveEventLoop,
     native_options: &mut epi::NativeOptions,
-    window_settings: Option<WindowSettings>,
+    window_settings: &mut Option<WindowSettings>,
 ) -> ViewportBuilder {
     profiling::function_scope!();
 
@@ -30,7 +30,7 @@ pub fn viewport_builder(
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
     #[cfg(not(target_os = "ios"))]
-    let inner_size_points = if let Some(mut window_settings) = window_settings {
+    let inner_size_points = if let Some(window_settings) = window_settings {
         // Restore pos/size from previous session
 
         if clamp_size_to_monitor_size {
@@ -41,12 +41,9 @@ pub fn viewport_builder(
         }
         window_settings.clamp_position_to_monitors(egui_zoom_factor, event_loop);
 
-        viewport_builder = window_settings.initialize_viewport_builder(
-            egui_zoom_factor,
-            event_loop,
-            viewport_builder,
-        );
-        window_settings.inner_size_points()
+        viewport_builder =
+            window_settings.initialize_viewport_builder(egui_zoom_factor, viewport_builder);
+        Some(window_settings.inner_size_points())
     } else {
         if let Some(pos) = viewport_builder.position {
             viewport_builder = viewport_builder.with_position(pos);
@@ -76,14 +73,14 @@ pub fn viewport_builder(
                 .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
             if 0.0 < monitor_size.width && 0.0 < monitor_size.height {
-                let x = (monitor_size.width - inner_size.x) / 2.0;
-                let y = (monitor_size.height - inner_size.y) / 2.0;
+                let x = (monitor_size.width - inner_size.x) * 0.5;
+                let y = (monitor_size.height - inner_size.y) * 0.5;
                 viewport_builder = viewport_builder.with_position([x, y]);
             }
         }
     }
 
-    match std::mem::take(&mut native_options.window_builder) {
+    match core::mem::take(&mut native_options.window_builder) {
         Some(hook) => hook(viewport_builder),
         None => viewport_builder,
     }
@@ -160,6 +157,35 @@ impl epi::StorageProvider {
 
 // ----------------------------------------------------------------------------
 
+/// Stands in for the system font provider when the `system_fonts` feature is off.
+///
+/// It never finds a font, but tells you once why nothing was even looked for,
+/// so missing CJK/Arabic/emoji glyphs don't look like an egui bug.
+#[cfg(not(feature = "system_fonts"))]
+#[derive(Default)]
+struct MissingSystemFontsWarning {
+    warned: core::sync::atomic::AtomicBool,
+}
+
+#[cfg(not(feature = "system_fonts"))]
+impl egui::FontProvider for MissingSystemFontsWarning {
+    fn font_for(&self, request: &egui::FallbackRequest<'_>) -> Option<egui::FontInsert> {
+        use core::sync::atomic::Ordering::Relaxed;
+        if !self.warned.swap(true, Relaxed) {
+            log::info!(
+                "No font has {:?}. \
+                 Enable the `system_fonts` feature in `eframe`, \
+                 add a font with `egui::Context::add_font`, \
+                 or set `NativeOptions::system_font_fallback` to `false` to silence this.",
+                request.cluster
+            );
+        }
+        None
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Everything needed to make a winit-based integration for [`epi`].
 ///
 /// Only one instance per app (not one per viewport).
@@ -169,6 +195,11 @@ pub struct EpiIntegration {
     pub beginning: Instant,
     is_first_frame: bool,
     pub egui_ctx: egui::Context,
+
+    /// Input that we have received, but not yet given to egui,
+    /// because we haven't run any pass since (see [`Self::update_logic_only`]).
+    pending_raw_input: egui::RawInput,
+
     pending_full_output: egui::FullOutput,
 
     /// When set, it is time to close the native window.
@@ -177,6 +208,14 @@ pub struct EpiIntegration {
     can_drag_window: bool,
     #[cfg(feature = "persistence")]
     persist_window: bool,
+
+    /// Settings the root window was restored with, for the parts applied when it is first shown.
+    restored_window_settings: Option<WindowSettings>,
+
+    /// Normal (non-maximized) geometry of the root window, as last saved.
+    #[cfg(feature = "persistence")]
+    normal_geometry: Option<egui_winit::WindowGeometry>,
+
     app_icon_setter: super::app_icon::AppTitleIconSetter,
 }
 
@@ -184,7 +223,7 @@ impl EpiIntegration {
     #[allow(clippy::allow_attributes, clippy::too_many_arguments)]
     pub fn new(
         egui_ctx: egui::Context,
-        window: &winit::window::Window,
+        window: &Arc<winit::window::Window>,
         app_name: &str,
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
@@ -204,9 +243,16 @@ impl EpiIntegration {
             #[cfg(feature = "glow")]
             glow_register_native_texture,
             #[cfg(feature = "wgpu_no_default_features")]
+            // We only care about the surface config if we are using wgpu
+            wgpu_surface_config: wgpu_render_state
+                .is_some()
+                .then_some(native_options.wgpu_options.surface),
+            #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state,
+            window: Some(Arc::clone(window)),
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
+            activation_token: None,
         };
 
         let icon = native_options
@@ -224,18 +270,42 @@ impl EpiIntegration {
             Some(icon),
         );
 
+        if native_options.system_font_fallback {
+            egui_ctx.add_font_provider(cfg_select! {
+                feature = "system_fonts" => Arc::new(egui_system_font_provider::SystemFontProvider::new()),
+                _ => Arc::new(MissingSystemFontsWarning::default()),
+            });
+        }
+
+        let restored_window_settings = load_window_settings(frame.storage());
+        #[cfg(feature = "persistence")]
+        let normal_geometry = restored_window_settings
+            .map(|settings| settings.normal_geometry())
+            .or_else(|| {
+                // Nothing saved yet, so use the window's own geometry, unless it starts maximized:
+                (!window.is_maximized() && window.fullscreen().is_none()).then(|| {
+                    egui_winit::WindowGeometry::from_window(egui_ctx.zoom_factor(), window)
+                })
+            });
+
         Self {
             frame,
             last_auto_save: Instant::now(),
-            egui_ctx,
+            pending_raw_input: Default::default(),
             pending_full_output: Default::default(),
             close: false,
             can_drag_window: false,
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
+            restored_window_settings,
+            #[cfg(feature = "persistence")]
+            normal_geometry,
             app_icon_setter,
-            beginning: Instant::now(),
+            beginning: Instant::now()
+                .checked_sub(web_time::Duration::from_secs_f64(egui_ctx.time()))
+                .unwrap_or_else(Instant::now),
             is_first_frame: true,
+            egui_ctx,
         }
     }
 
@@ -272,18 +342,22 @@ impl EpiIntegration {
 
     /// Run user code - this can create immediate viewports, so hold no locks over this!
     ///
-    /// If `viewport_ui_cb` is None, we are in the root viewport and will call [`crate::App::update`].
+    /// If `viewport_ui_cb` is None, we are in the root viewport and will call
+    /// [`crate::App::logic`] and [`crate::App::ui`].
+    ///
+    /// Only call this when the ui will actually be shown;
+    /// use [`Self::update_logic_only`] otherwise.
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
         viewport_ui_cb: Option<&DeferredViewportUiCallback>,
-        mut raw_input: egui::RawInput,
+        raw_input: egui::RawInput,
     ) -> egui::FullOutput {
-        raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
+        let raw_input = self.prepare_raw_input(app, raw_input);
 
         let close_requested = raw_input.viewport().close_requested();
 
-        app.raw_input_hook(&self.egui_ctx, &mut raw_input);
+        let is_root_viewport = viewport_ui_cb.is_none();
 
         let full_output = self.egui_ctx.run_ui(raw_input, |ui| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
@@ -295,13 +369,6 @@ impl EpiIntegration {
                     profiling::scope!("App::logic");
                     app.logic(ui.ctx(), &mut self.frame);
                 }
-
-                {
-                    profiling::scope!("App::update");
-                    #[expect(deprecated)]
-                    app.update(ui.ctx(), &mut self.frame);
-                }
-
                 {
                     profiling::scope!("App::ui");
                     app.ui(ui, &mut self.frame);
@@ -309,21 +376,75 @@ impl EpiIntegration {
             }
         });
 
-        let is_root_viewport = viewport_ui_cb.is_none();
         if is_root_viewport && close_requested {
             let canceled = full_output.viewport_output[&ViewportId::ROOT]
                 .commands
                 .contains(&egui::ViewportCommand::CancelClose);
-            if canceled {
-                log::debug!("Closing of root viewport canceled with ViewportCommand::CancelClose");
-            } else {
-                log::debug!("Closing root viewport (ViewportCommand::CancelClose was not sent)");
-                self.close = true;
-            }
+            self.handle_close_request(canceled);
         }
 
         self.pending_full_output.append(full_output);
-        std::mem::take(&mut self.pending_full_output)
+        core::mem::take(&mut self.pending_full_output)
+    }
+
+    /// Let the app tick its logic without showing any ui,
+    /// because the window is minimized or occluded.
+    ///
+    /// No egui pass is run, so all ui state is left untouched:
+    /// the app will find everything where it left it once the window is visible again.
+    ///
+    /// Only call this for the root viewport: only it has [`crate::App::logic`].
+    pub fn update_logic_only(
+        &mut self,
+        app: &mut dyn epi::App,
+        raw_input: egui::RawInput,
+    ) -> egui::LogicOutput {
+        let raw_input = self.prepare_raw_input(app, raw_input);
+
+        let close_requested = raw_input.viewport().close_requested();
+
+        let logic_output = self.egui_ctx.run_logic(&raw_input, |ctx| {
+            profiling::scope!("App::logic");
+            app.logic(ctx, &mut self.frame);
+        });
+
+        // No pass consumed the input, so save it for the next one:
+        self.pending_raw_input = raw_input;
+
+        if close_requested {
+            let canceled = logic_output
+                .viewport_commands
+                .get(&ViewportId::ROOT)
+                .is_some_and(|commands| commands.contains(&egui::ViewportCommand::CancelClose));
+            self.handle_close_request(canceled);
+        }
+
+        logic_output
+    }
+
+    /// Prepend any input we couldn't give to egui earlier, set the time, and run the app hook.
+    fn prepare_raw_input(
+        &mut self,
+        app: &mut dyn epi::App,
+        new_input: egui::RawInput,
+    ) -> egui::RawInput {
+        let mut raw_input = core::mem::take(&mut self.pending_raw_input);
+        raw_input.append(new_input); // The new input wins where they overlap
+
+        raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
+
+        app.raw_input_hook(&self.egui_ctx, &mut raw_input);
+
+        raw_input
+    }
+
+    fn handle_close_request(&mut self, canceled: bool) {
+        if canceled {
+            log::debug!("Closing of root viewport canceled with ViewportCommand::CancelClose");
+        } else {
+            log::debug!("Closing root viewport (ViewportCommand::CancelClose was not sent)");
+            self.close = true;
+        }
     }
 
     pub fn report_frame_time(&mut self, seconds: f32) {
@@ -332,9 +453,15 @@ impl EpiIntegration {
 
     pub fn post_rendering(&mut self, window: &winit::window::Window) {
         profiling::function_scope!();
-        if std::mem::take(&mut self.is_first_frame) {
+        if core::mem::take(&mut self.is_first_frame) {
+            if let Some(window_settings) = &self.restored_window_settings {
+                window_settings.before_first_show(window);
+            }
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
+            if let Some(window_settings) = &self.restored_window_settings {
+                window_settings.after_first_show(window);
+            }
         }
     }
 
@@ -365,11 +492,13 @@ impl EpiIntegration {
                 && self.persist_window
             {
                 profiling::scope!("native_window");
-                epi::set_value(
-                    storage,
-                    STORAGE_WINDOW_KEY,
-                    &WindowSettings::from_window(self.egui_ctx.zoom_factor(), window),
+                let window_settings = WindowSettings::from_window(
+                    self.egui_ctx.zoom_factor(),
+                    window,
+                    self.normal_geometry,
                 );
+                self.normal_geometry = Some(window_settings.normal_geometry());
+                epi::set_value(storage, STORAGE_WINDOW_KEY, &window_settings);
             }
             if app.persist_egui_memory() {
                 profiling::scope!("egui_memory");

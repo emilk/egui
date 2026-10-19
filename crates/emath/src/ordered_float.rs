@@ -1,8 +1,8 @@
 //! Total order on floating point types.
 //! Can be used for sorting, min/max computation, and other collection algorithms.
 
-use std::cmp::Ordering;
-use std::hash::{Hash, Hasher};
+use core::cmp::Ordering;
+use core::hash::{Hash, Hasher};
 
 /// Wraps a floating-point value to add total order and hash.
 /// Possible types for `T` are `f32` and `f64`.
@@ -21,9 +21,9 @@ impl<T: Float + Copy> OrderedFloat<T> {
     }
 }
 
-impl<T: std::fmt::Debug> std::fmt::Debug for OrderedFloat<T> {
+impl<T: core::fmt::Debug> core::fmt::Debug for OrderedFloat<T> {
     #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.0.fmt(f)
     }
 }

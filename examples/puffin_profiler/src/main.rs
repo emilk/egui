@@ -1,10 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
+use core::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use eframe::egui;
 
@@ -55,7 +53,7 @@ impl Default for MyApp {
 
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.heading("Example of how to use the puffin profiler with egui");
             ui.separator();
 
@@ -88,7 +86,7 @@ impl eframe::App for MyApp {
                 .clicked()
             {
                 puffin::profile_scope!("long_sleep");
-                std::thread::sleep(std::time::Duration::from_millis(50));
+                std::thread::sleep(core::time::Duration::from_millis(50));
             }
 
             ui.checkbox(
@@ -116,7 +114,7 @@ impl eframe::App for MyApp {
                         "This egui backend doesn't support multiple viewports"
                     );
 
-                    egui::CentralPanel::default().show_inside(ui, |ui| {
+                    egui::CentralPanel::default().show(ui, |ui| {
                         ui.label("Hello from immediate viewport");
                     });
 
@@ -143,7 +141,7 @@ impl eframe::App for MyApp {
                         "This egui backend doesn't support multiple viewports"
                     );
 
-                    egui::CentralPanel::default().show_inside(ui, |ui| {
+                    egui::CentralPanel::default().show(ui, |ui| {
                         ui.label("Hello from deferred viewport");
                     });
                     if ui.input(|i| i.viewport().close_requested()) {
@@ -172,7 +170,7 @@ fn start_puffin_server() {
             // We can store the server if we want, but in this case we just want
             // it to keep running. Dropping it closes the server, so let's not drop it!
             #[expect(clippy::mem_forget)]
-            std::mem::forget(puffin_server);
+            core::mem::forget(puffin_server);
         }
         Err(err) => {
             log::error!("Failed to start puffin server: {err}");

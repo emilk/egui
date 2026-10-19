@@ -154,7 +154,7 @@ impl Default for App {
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.heading("Root viewport");
             {
                 let mut embed_viewports = ui.embed_viewports();
@@ -182,7 +182,7 @@ fn show_as_popup(
         // Not a real viewport - already has a frame
         content(ui);
     } else {
-        egui::CentralPanel::default().show_inside(ui, content);
+        egui::CentralPanel::default().show(ui, content);
     }
 }
 
@@ -202,7 +202,7 @@ fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState, close_butto
 }
 
 fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_button: bool) {
-    let container_id = ui.id();
+    let container_id = ui.scope_id();
 
     let ctx = ui.ctx().clone();
     ui.label(format!(
@@ -302,7 +302,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
     use std::collections::HashMap;
     use std::sync::OnceLock;
 
-    let container_id = ui.id();
+    let container_id = ui.scope_id();
 
     const COLS: usize = 2;
     static DATA: OnceLock<RwLock<DragAndDrop>> = OnceLock::new();
@@ -334,7 +334,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
             assert!(col < COLS, "The coll should be less than: {COLS}");
 
             let value: String = value.into();
-            let id = Id::new(format!("%{}% {}", self.counter, &value));
+            let id = Id::unique(format!("%{}% {}", self.counter, value));
             self.data.insert(id, value);
             let viewport_data = self.containers_data.entry(container).or_insert_with(|| {
                 let mut res = Vec::new();
@@ -416,16 +416,7 @@ fn drag_source<R>(
 ) -> InnerResponse<R> {
     let is_being_dragged = ui.ctx().is_being_dragged(id);
 
-    if !is_being_dragged {
-        let res = ui.scope(body);
-
-        // Check for drags:
-        let response = ui.interact(res.response.rect, id, egui::Sense::drag());
-        if response.hovered() {
-            ui.set_cursor_icon(egui::CursorIcon::Grab);
-        }
-        res
-    } else {
+    if is_being_dragged {
         ui.set_cursor_icon(egui::CursorIcon::Grabbing);
 
         // Paint the body to a new layer:
@@ -441,6 +432,15 @@ fn drag_source<R>(
         }
 
         res
+    } else {
+        let res = ui.scope(body);
+
+        // Check for drags:
+        let response = ui.interact(res.response.rect, id, egui::Sense::drag());
+        if response.hovered() {
+            ui.set_cursor_icon(egui::CursorIcon::Grab);
+        }
+        res
     }
 }
 
@@ -451,17 +451,13 @@ fn drop_target<R>(
 ) -> egui::InnerResponse<R> {
     let is_being_dragged = ui.ctx().dragged_id().is_some();
 
-    let margin = egui::Vec2::splat(ui.visuals().clip_rect_margin); // 3.0
-
     let background_id = ui.painter().add(egui::Shape::Noop);
 
     let available_rect = ui.available_rect_before_wrap();
-    let inner_rect = available_rect.shrink2(margin);
-    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(inner_rect));
+    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(available_rect));
     let ret = body(&mut content_ui);
 
-    let outer_rect =
-        egui::Rect::from_min_max(available_rect.min, content_ui.min_rect().max + margin);
+    let outer_rect = egui::Rect::from_min_max(available_rect.min, content_ui.min_rect().max);
     let (rect, response) = ui.allocate_at_least(outer_rect.size(), egui::Sense::hover());
 
     let style = if is_being_dragged && response.hovered() {

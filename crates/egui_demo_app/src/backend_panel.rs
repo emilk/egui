@@ -160,9 +160,9 @@ impl BackendPanel {
                     {
                         log::info!("Waiting 2s before requesting repaint…");
                         let ctx = ui.ctx().clone();
-                        call_after_delay(std::time::Duration::from_secs(2), move || {
+                        call_after_delay(core::time::Duration::from_secs(2), move || {
                             log::info!("Request a repaint in 3s…");
-                            ctx.request_repaint_after(std::time::Duration::from_secs(3));
+                            ctx.request_repaint_after(core::time::Duration::from_secs(3));
                         });
                     }
 
@@ -211,7 +211,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let wgpu_adapter_details_ui = |ui: &mut egui::Ui, adapter: &eframe::wgpu::Adapter| {
             let info = &adapter.get_info();
 
-            let wgpu::AdapterInfo {
+            let eframe::wgpu::AdapterInfo {
                 name,
                 vendor,
                 device,
@@ -219,6 +219,11 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 driver,
                 driver_info,
                 backend,
+                device_pci_bus_id,
+                subgroup_min_size,
+                subgroup_max_size,
+                transient_saves_memory,
+                limit_bucket,
             } = &info;
 
             // Example values:
@@ -261,6 +266,23 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     ui.label(format!("0x{device:02X}"));
                     ui.end_row();
                 }
+                if !device_pci_bus_id.is_empty() {
+                    ui.label("PCI Bus ID:");
+                    ui.label(device_pci_bus_id.as_str());
+                    ui.end_row();
+                }
+                if *subgroup_min_size != 0 || *subgroup_max_size != 0 {
+                    ui.label("Subgroup size:");
+                    ui.label(format!("{subgroup_min_size}..={subgroup_max_size}"));
+                    ui.end_row();
+                }
+                ui.label("Transient saves memory:");
+                ui.label(format!("{transient_saves_memory:?}"));
+                ui.end_row();
+
+                ui.label("Limit bucket:");
+                ui.label(format!("{limit_bucket:?}"));
+                ui.end_row();
             });
         };
 
@@ -293,6 +315,11 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 ui.end_row();
             }
         });
+
+        if let Some(mut cfg) = _frame.wgpu_surface_config() {
+            wgpu_surface_config_ui(ui, &mut cfg);
+            _frame.set_wgpu_surface_config(cfg);
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -301,7 +328,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             {
                 let mut fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
                 if ui
-                    .checkbox(&mut fullscreen, "🗖 Fullscreen (F11)")
+                    .checkbox(&mut fullscreen, "🔳 Fullscreen (F11)")
                     .on_hover_text("Fullscreen the window")
                     .changed()
                 {
@@ -322,12 +349,12 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1280.0, 720.0)),
-                        "🖥 Desktop 720p",
+                        "🖥️ Desktop 720p",
                     );
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1920.0, 1080.0)),
-                        "🖥 Desktop 1080p",
+                        "🖥️ Desktop 1080p",
                     );
                 });
 
@@ -338,6 +365,52 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             }
         });
     }
+}
+
+#[cfg(feature = "wgpu")]
+fn wgpu_surface_config_ui(ui: &mut egui::Ui, cfg: &mut eframe::SurfaceConfig) {
+    use eframe::wgpu::PresentMode;
+
+    egui::Grid::new("wgpu_surface_config")
+        .num_columns(2)
+        .show(ui, |ui| {
+            ui.label("Present mode:");
+            egui::ComboBox::from_id_salt("wgpu_present_mode")
+                .selected_text(format!("{:?}", cfg.present_mode))
+                .show_ui(ui, |ui| {
+                    for mode in [
+                        PresentMode::AutoVsync,
+                        PresentMode::AutoNoVsync,
+                        PresentMode::Fifo,
+                        PresentMode::FifoRelaxed,
+                        PresentMode::Immediate,
+                        PresentMode::Mailbox,
+                    ] {
+                        ui.selectable_value(&mut cfg.present_mode, mode, format!("{mode:?}"));
+                    }
+                });
+            ui.end_row();
+
+            ui.label("Desired max frame latency:");
+            egui::ComboBox::from_id_salt("wgpu_desired_max_frame_latency")
+                .selected_text(match cfg.desired_maximum_frame_latency {
+                    None => "Default".to_owned(),
+                    Some(n) => n.to_string(),
+                })
+                .show_ui(ui, |ui| {
+                    ui.weak("Lower value = lower latency");
+                    ui.selectable_value(&mut cfg.desired_maximum_frame_latency, None, "Default");
+                    for n in [0_u32, 1, 2, 3] {
+                        ui.selectable_value(
+                            &mut cfg.desired_maximum_frame_latency,
+                            Some(n),
+                            n.to_string(),
+                        );
+                    }
+                    ui.weak("Higher value = higher throughput/FPS");
+                });
+            ui.end_row();
+        });
 }
 
 // ----------------------------------------------------------------------------
@@ -452,7 +525,7 @@ impl EguiWindows {
 // ----------------------------------------------------------------------------
 
 #[cfg(not(target_arch = "wasm32"))]
-fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+fn call_after_delay(delay: core::time::Duration, f: impl FnOnce() + Send + 'static) {
     std::thread::Builder::new()
         .name("call_after_delay".to_owned())
         .spawn(move || {
@@ -463,7 +536,7 @@ fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'stati
 }
 
 #[cfg(target_arch = "wasm32")]
-fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+fn call_after_delay(delay: core::time::Duration, f: impl FnOnce() + Send + 'static) {
     #![expect(clippy::unwrap_used)]
 
     use wasm_bindgen::prelude::*;

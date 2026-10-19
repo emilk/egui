@@ -4,7 +4,8 @@
 use eframe::{CreationContext, NativeOptions, egui};
 use egui::{Button, CentralPanel, UserAttentionType};
 
-use std::time::{Duration, SystemTime};
+use core::time::Duration;
+use std::time::SystemTime;
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -76,7 +77,7 @@ impl eframe::App for Application {
             ));
         }
 
-        CentralPanel::default().show_inside(ui, |ui| {
+        CentralPanel::default().show(ui, |ui| {
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     ui.label("Attention type:");

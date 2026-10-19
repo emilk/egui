@@ -27,7 +27,7 @@ pub struct Scrolling {
 
 impl crate::Demo for Scrolling {
     fn name(&self) -> &'static str {
-        "↕ Scrolling"
+        "↕️ Scrolling"
     }
 
     fn show(&mut self, ui: &mut egui::Ui, open: &mut bool) {
@@ -301,10 +301,10 @@ impl crate::View for ScrollTo {
                 .speed(1.0)
                 .suffix("px")
                 .ui(ui);
-            if ui.button("⬇").clicked() {
+            if ui.button("⬇️").clicked() {
                 scroll_delta = Some(self.delta * Vec2::UP); // scroll down (move contents up)
             }
-            if ui.button("⬆").clicked() {
+            if ui.button("⬆️").clicked() {
                 scroll_delta = Some(self.delta * Vec2::DOWN); // scroll up (move contents down)
             }
         });
@@ -340,10 +340,8 @@ impl crate::View for ScrollTo {
                     ui.scroll_to_cursor(Some(Align::BOTTOM));
                 }
 
-                let margin = ui.visuals().clip_rect_margin;
-
-                let current_scroll = ui.clip_rect().top() - ui.min_rect().top() + margin;
-                let max_scroll = ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin;
+                let current_scroll = ui.clip_rect().top() - ui.min_rect().top();
+                let max_scroll = ui.min_rect().height() - ui.clip_rect().height();
                 (current_scroll, max_scroll)
             })
             .inner;

@@ -1,4 +1,5 @@
-use std::{any::Any, sync::Arc};
+use alloc::sync::Arc;
+use core::any::Any;
 
 use crate::{Context, CursorIcon, Plugin, Ui};
 

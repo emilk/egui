@@ -1,7 +1,7 @@
-use emath::GuiRounding as _;
+use emath::{GuiRounding as _, fast_midpoint};
 
 use crate::{
-    Align,
+    Align, Direction,
     emath::{Align2, NumExt as _, Pos2, Rect, Vec2, pos2, vec2},
 };
 const INFINITY: f32 = f32::INFINITY;
@@ -82,36 +82,6 @@ impl Region {
             self.max_rect
         );
         debug_assert!(!self.cursor.any_nan(), "cursor has Nan: {:?}", self.cursor);
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Layout direction, one of [`LeftToRight`](Direction::LeftToRight), [`RightToLeft`](Direction::RightToLeft), [`TopDown`](Direction::TopDown), [`BottomUp`](Direction::BottomUp).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum Direction {
-    LeftToRight,
-    RightToLeft,
-    TopDown,
-    BottomUp,
-}
-
-impl Direction {
-    #[inline(always)]
-    pub fn is_horizontal(self) -> bool {
-        match self {
-            Self::LeftToRight | Self::RightToLeft => true,
-            Self::TopDown | Self::BottomUp => false,
-        }
-    }
-
-    #[inline(always)]
-    pub fn is_vertical(self) -> bool {
-        match self {
-            Self::LeftToRight | Self::RightToLeft => false,
-            Self::TopDown | Self::BottomUp => true,
-        }
     }
 }
 
@@ -378,8 +348,8 @@ impl Layout {
     }
 
     /// e.g. for when aligning text within a button.
-    fn align2(&self) -> Align2 {
-        Align2([self.horizontal_align(), self.vertical_align()])
+    pub fn align2(&self) -> Align2 {
+        Align2::new(self.horizontal_align(), self.vertical_align())
     }
 
     pub fn horizontal_justify(&self) -> bool {
@@ -507,12 +477,12 @@ impl Layout {
 
         // Make sure it isn't negative:
         if avail.max.x < avail.min.x {
-            let x = 0.5 * (avail.min.x + avail.max.x);
+            let x = fast_midpoint(avail.min.x, avail.max.x);
             avail.min.x = x;
             avail.max.x = x;
         }
         if avail.max.y < avail.min.y {
-            let y = 0.5 * (avail.min.y + avail.max.y);
+            let y = fast_midpoint(avail.min.y, avail.max.y);
             avail.min.y = y;
             avail.max.y = y;
         }
@@ -623,19 +593,31 @@ impl Layout {
         if (self.is_vertical() && self.horizontal_align() == Align::Center)
             || self.horizontal_justify()
         {
-            frame_size.x = frame_size.x.max(available_rect.width()); // fill full width
+            // For wrapping layouts, fill the current column width, not the entire layout width.
+            let width = if self.main_wrap {
+                region.cursor.width()
+            } else {
+                available_rect.width()
+            };
+            frame_size.x = frame_size.x.max(width); // fill full width
         }
         if (self.is_horizontal() && self.vertical_align() == Align::Center)
             || self.vertical_justify()
         {
-            frame_size.y = frame_size.y.max(available_rect.height()); // fill full height
+            // For wrapping layouts, fill the current row height, not the entire layout height.
+            let height = if self.main_wrap {
+                region.cursor.height()
+            } else {
+                available_rect.height()
+            };
+            frame_size.y = frame_size.y.max(height); // fill full height
         }
 
         let align2 = match self.main_dir {
-            Direction::LeftToRight => Align2([Align::LEFT, self.vertical_align()]),
-            Direction::RightToLeft => Align2([Align::RIGHT, self.vertical_align()]),
-            Direction::TopDown => Align2([self.horizontal_align(), Align::TOP]),
-            Direction::BottomUp => Align2([self.horizontal_align(), Align::BOTTOM]),
+            Direction::LeftToRight => self.align2().with_x(Align::LEFT),
+            Direction::RightToLeft => self.align2().with_x(Align::RIGHT),
+            Direction::TopDown => self.align2().with_y(Align::TOP),
+            Direction::BottomUp => self.align2().with_y(Align::BOTTOM),
         };
 
         let mut frame_rect = align2.align_size_within_rect(frame_size, available_rect);
@@ -791,14 +773,14 @@ impl Layout {
                     let new_top = region.cursor.bottom() + spacing.y;
                     region.cursor = Rect::from_min_max(
                         pos2(region.max_rect.left(), new_top),
-                        pos2(INFINITY, new_top + region.cursor.height()),
+                        pos2(INFINITY, new_top),
                     );
                 }
                 Direction::RightToLeft => {
                     let new_top = region.cursor.bottom() + spacing.y;
                     region.cursor = Rect::from_min_max(
                         pos2(-INFINITY, new_top),
-                        pos2(region.max_rect.right(), new_top + region.cursor.height()),
+                        pos2(region.max_rect.right(), new_top),
                     );
                 }
                 Direction::TopDown | Direction::BottomUp => {}
@@ -836,22 +818,22 @@ impl Layout {
             Direction::LeftToRight => {
                 painter.line_segment([cursor.left_top(), cursor.left_bottom()], stroke);
                 painter.arrow(next_pos, vec2(l, 0.0), stroke);
-                Align2([Align::LEFT, self.vertical_align()])
+                self.align2().with_x(Align::LEFT)
             }
             Direction::RightToLeft => {
                 painter.line_segment([cursor.right_top(), cursor.right_bottom()], stroke);
                 painter.arrow(next_pos, vec2(-l, 0.0), stroke);
-                Align2([Align::RIGHT, self.vertical_align()])
+                self.align2().with_x(Align::RIGHT)
             }
             Direction::TopDown => {
                 painter.line_segment([cursor.left_top(), cursor.right_top()], stroke);
                 painter.arrow(next_pos, vec2(0.0, l), stroke);
-                Align2([self.horizontal_align(), Align::TOP])
+                self.align2().with_y(Align::TOP)
             }
             Direction::BottomUp => {
                 painter.line_segment([cursor.left_bottom(), cursor.right_bottom()], stroke);
                 painter.arrow(next_pos, vec2(0.0, -l), stroke);
-                Align2([self.horizontal_align(), Align::BOTTOM])
+                self.align2().with_y(Align::BOTTOM)
             }
         };
 

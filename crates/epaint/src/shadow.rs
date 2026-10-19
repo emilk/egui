@@ -1,4 +1,4 @@
-use crate::{Color32, CornerRadius, MarginF32, Rect, RectShape, Vec2};
+use crate::{Color32, CornerRadius, MarginF32, Rect, RectShape, RoundedRect, Vec2};
 
 /// The color and fuzziness of a fuzzy shape.
 ///
@@ -29,7 +29,7 @@ pub struct Shadow {
 #[test]
 fn shadow_size() {
     assert_eq!(
-        std::mem::size_of::<Shadow>(),
+        core::mem::size_of::<Shadow>(),
         8,
         "Shadow changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
@@ -56,10 +56,12 @@ impl Shadow {
         } = *self;
         let [offset_x, offset_y] = offset;
 
-        let rect = rect
-            .translate(Vec2::new(offset_x as _, offset_y as _))
-            .expand(spread as _);
-        let corner_radius = corner_radius.into() + CornerRadius::from(spread);
+        let (rect, corner_radius) = RoundedRect::new(
+            rect.translate(Vec2::new(offset_x as _, offset_y as _)),
+            corner_radius.into(),
+        )
+        .expand(f32::from(spread))
+        .into_parts();
 
         RectShape::filled(rect, corner_radius, color).with_blur_width(blur as _)
     }

@@ -12,8 +12,8 @@ repository = "https://github.com/emilk/egui/tree/main/crates/epaint_default_font
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
 include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
+  "../../LICENSE-APACHE",
+  "../../LICENSE-MIT",
   "**/*.rs",
   "Cargo.toml",
   "fonts/*.ttf",
@@ -24,6 +24,15 @@ include = [
 
 [lints]
 workspace = true
+
+[features]
+default = []
+
+## Bundle the monochrome emoji fonts [`NOTO_EMOJI_REGULAR`] and [`EMOJI_ICON`].
+##
+## They add about 1 MB to the binary, and are only needed if you want the same
+## (monochrome) emoji on every platform, instead of the platform's own color emoji.
+monochrome_emoji_fonts = []
 
 [package.metadata.docs.rs]
 all-features = true

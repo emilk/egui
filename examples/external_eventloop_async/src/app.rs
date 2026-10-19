@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used)] // It's an example
 
-use std::{cell::Cell, io, os::fd::AsRawFd as _, rc::Rc, time::Duration};
+use core::{cell::Cell, time::Duration};
+use std::{io, os::fd::AsRawFd as _, rc::Rc};
 
 use tokio::task::LocalSet;
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -81,7 +82,7 @@ impl Default for MyApp {
 
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.heading("My External Eventloop Application");
 
             ui.horizontal(|ui| {

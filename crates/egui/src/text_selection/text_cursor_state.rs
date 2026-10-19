@@ -1,11 +1,52 @@
 //! Text cursor changes/interaction, without modifying the text.
 
-use epaint::text::{Galley, cursor::CCursor};
+use epaint::text::{ByteIndex, ByteRangeExt as _, CharIndex, Galley, cursor::CCursor};
 use unicode_segmentation::UnicodeSegmentation as _;
 
 use crate::{NumExt as _, Rect, Response, Ui, epaint};
 
 use super::CCursorRange;
+
+/// The unit by which a click or mouse-drag extends a text selection:
+/// characters after a single click, whole words after a double-click,
+/// whole lines after a triple-click.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SelectGranularity {
+    Char,
+    Word,
+    Line,
+}
+
+/// A selection that started with a double- or triple-click,
+/// remembered so that dragging and shift-clicking extend it by whole words or lines
+/// while always keeping the originally clicked word or line selected.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct GranularDragSelect {
+    /// The unit of the current gesture (e.g. a shift-click extends by characters).
+    pub granularity: SelectGranularity,
+
+    /// The word or line that was initially double- or triple-clicked.
+    ///
+    /// Extending the selection before this range keeps its end fixed,
+    /// and extending it after this range keeps its start fixed,
+    /// so the anchor word or line always stays selected (like on macOS).
+    ///
+    /// For a shift-double-click (or triple-click) of a selection
+    /// that did not start with a double- or triple-click,
+    /// this is instead the (empty) far end of the selection that is being extended.
+    pub anchor: CCursorRange,
+}
+
+impl SelectGranularity {
+    /// The granularity of the current press: by characters, words, or lines.
+    pub(crate) fn of_press(ui: &Ui) -> Self {
+        match ui.input(|i| i.pointer.press_click_count()) {
+            0 | 1 => Self::Char,
+            2 => Self::Word,
+            _ => Self::Line,
+        }
+    }
+}
 
 /// The state of a text cursor selection.
 ///
@@ -15,12 +56,17 @@ use super::CCursorRange;
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextCursorState {
     ccursor_range: Option<CCursorRange>,
+
+    /// Transient state of the current mouse gesture, so not serialized.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    granular_drag: Option<GranularDragSelect>,
 }
 
 impl From<CCursorRange> for TextCursorState {
     fn from(ccursor_range: CCursorRange) -> Self {
         Self {
             ccursor_range: Some(ccursor_range),
+            granular_drag: None,
         }
     }
 }
@@ -47,7 +93,40 @@ impl TextCursorState {
 
     /// Sets the currently selected range of characters.
     pub fn set_char_range(&mut self, ccursor_range: Option<CCursorRange>) {
+        let sorted_indices =
+            |range: Option<CCursorRange>| range.map(|r| r.sorted_cursors().map(|c| c.index));
+        if sorted_indices(ccursor_range) != sorted_indices(self.ccursor_range) {
+            // The selection was changed by something else than the mouse (e.g. typing),
+            // so forget the double- or triple-clicked word or line that anchored it:
+            self.granular_drag = None;
+        }
         self.ccursor_range = ccursor_range;
+    }
+
+    /// If the selection started with a double- or triple-click, the word or line that anchors it.
+    pub(crate) fn granular_drag(&self) -> Option<GranularDragSelect> {
+        self.granular_drag
+    }
+
+    /// Restore the anchor of a selection that started with a double- or triple-click.
+    ///
+    /// Used by labels, whose [`TextCursorState`] is recreated each pass.
+    pub(crate) fn set_granular_drag(&mut self, granular_drag: Option<GranularDragSelect>) {
+        self.granular_drag = granular_drag;
+    }
+
+    /// The remembered double- or triple-clicked word or line,
+    /// if it is still non-empty and part of the given selection.
+    fn anchor_range_within(&self, selection: CCursorRange, text: &str) -> Option<CCursorRange> {
+        let anchor = self.granular_drag?.anchor;
+        let [anchor_min, anchor_max] = anchor.sorted_cursors();
+        let [sel_min, sel_max] = selection.sorted_cursors();
+        let num_chars = text.chars().count();
+        (!anchor.is_empty()
+            && anchor_max.index.0 <= num_chars
+            && sel_min.index <= anchor_min.index
+            && anchor_max.index <= sel_max.index)
+            .then_some(anchor)
     }
 }
 
@@ -65,12 +144,16 @@ impl TextCursorState {
     ) -> bool {
         let text = galley.text();
 
-        if response.double_clicked() {
+        // Shift-click extends the existing selection (handled on press, below),
+        // so don't replace it with the clicked word/line when the click is released:
+        let shift = ui.input(|i| i.modifiers.shift);
+
+        if response.double_clicked() && !shift {
             // Select word:
             let ccursor_range = select_word_at(text, cursor_at_pointer);
             self.set_char_range(Some(ccursor_range));
             true
-        } else if response.triple_clicked() {
+        } else if response.triple_clicked() && !shift {
             // Select line:
             let ccursor_range = select_line_at(text, cursor_at_pointer);
             self.set_char_range(Some(ccursor_range));
@@ -78,20 +161,58 @@ impl TextCursorState {
         } else if response.sense.senses_drag() {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
                 // The start of a drag (or a click).
-                if ui.input(|i| i.modifiers.shift) {
-                    if let Some(mut cursor_range) = self.range(galley) {
+                // Clicks are counted on release, but for double-click-and-drag
+                // we need to select the word (or line) already on the second (or third) press:
+                let granularity = SelectGranularity::of_press(ui);
+                let existing_range = if shift { self.range(galley) } else { None };
+
+                if let Some(mut cursor_range) = existing_range {
+                    // Shift-click: extend the selection, by characters, words, or lines.
+                    // If the selection started with a double- or triple-click,
+                    // the clicked word/line stays selected, even if we now extend the selection
+                    // in the other direction (like on macOS).
+                    // Otherwise the far end (secondary) of the selection stays fixed.
+                    let anchor = self
+                        .anchor_range_within(cursor_range, text)
+                        .unwrap_or_else(|| CCursorRange::one(cursor_range.secondary));
+
+                    if granularity == SelectGranularity::Char && anchor.is_empty() {
+                        // Plain shift-click of a plain selection:
+                        self.granular_drag = None;
                         cursor_range.primary = cursor_at_pointer;
-                        self.set_char_range(Some(cursor_range));
+                        self.ccursor_range = Some(cursor_range);
                     } else {
-                        self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
+                        // A subsequent drag continues extending by the same granularity:
+                        self.granular_drag = Some(GranularDragSelect {
+                            granularity,
+                            anchor,
+                        });
+                        self.ccursor_range = Some(extend_granular_select(
+                            granularity,
+                            anchor,
+                            text,
+                            cursor_at_pointer,
+                        ));
                     }
+                } else if granularity == SelectGranularity::Char {
+                    self.granular_drag = None;
+                    self.ccursor_range = Some(CCursorRange::one(cursor_at_pointer));
                 } else {
-                    self.set_char_range(Some(CCursorRange::one(cursor_at_pointer)));
+                    self.begin_granular_drag(granularity, text, cursor_at_pointer);
                 }
                 true
             } else if is_being_dragged {
                 // Drag to select text:
-                if let Some(mut cursor_range) = self.range(galley) {
+                if let Some(granular) = self.granular_drag {
+                    // Extend the selection by whole words or lines:
+                    let new_range = extend_granular_select(
+                        granular.granularity,
+                        granular.anchor,
+                        text,
+                        cursor_at_pointer,
+                    );
+                    self.ccursor_range = Some(new_range);
+                } else if let Some(mut cursor_range) = self.range(galley) {
                     cursor_range.primary = cursor_at_pointer;
                     self.set_char_range(Some(cursor_range));
                 }
@@ -103,49 +224,103 @@ impl TextCursorState {
             false
         }
     }
-}
 
-fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
-    if ccursor.index == 0 {
-        CCursorRange::two(ccursor, ccursor_next_word(text, ccursor))
-    } else {
-        let it = text.chars();
-        let mut it = it.skip(ccursor.index - 1);
-        if let Some(char_before_cursor) = it.next() {
-            if let Some(char_after_cursor) = it.next() {
-                if is_word_char(char_before_cursor) && is_word_char(char_after_cursor) {
-                    let min = ccursor_previous_word(text, ccursor + 1);
-                    let max = ccursor_next_word(text, min);
-                    CCursorRange::two(min, max)
-                } else if is_word_char(char_before_cursor) {
-                    let min = ccursor_previous_word(text, ccursor);
-                    let max = ccursor_next_word(text, min);
-                    CCursorRange::two(min, max)
-                } else if is_word_char(char_after_cursor) {
-                    let max = ccursor_next_word(text, ccursor);
-                    CCursorRange::two(ccursor, max)
-                } else {
-                    let min = ccursor_previous_word(text, ccursor);
-                    let max = ccursor_next_word(text, ccursor);
-                    CCursorRange::two(min, max)
-                }
-            } else {
-                let min = ccursor_previous_word(text, ccursor);
-                CCursorRange::two(min, ccursor)
-            }
-        } else {
-            let max = ccursor_next_word(text, ccursor);
-            CCursorRange::two(ccursor, max)
-        }
+    /// Start a double- or triple-click selection: select the whole word (or line) at the pointer,
+    /// and remember it so that a subsequent drag extends the selection by that granularity.
+    fn begin_granular_drag(
+        &mut self,
+        granularity: SelectGranularity,
+        text: &str,
+        cursor_at_pointer: CCursor,
+    ) {
+        let anchor = select_unit_at(granularity, text, cursor_at_pointer);
+        self.granular_drag = Some(GranularDragSelect {
+            granularity,
+            anchor,
+        });
+        self.ccursor_range = Some(anchor);
     }
 }
 
+/// The whole word or line at the given position.
+pub(crate) fn select_unit_at(
+    granularity: SelectGranularity,
+    text: &str,
+    ccursor: CCursor,
+) -> CCursorRange {
+    match granularity {
+        SelectGranularity::Char => CCursorRange::one(ccursor),
+        SelectGranularity::Word => select_word_at(text, ccursor),
+        SelectGranularity::Line => select_line_at(text, ccursor),
+    }
+}
+
+/// Extend a selection to also cover the character, word, or line at the pointer.
+///
+/// Returns the union of the anchor and the character/word/line at the pointer,
+/// with `primary` at the pointer end.
+///
+/// The anchor is usually the word/line that was double/triple-clicked,
+/// but for a shift-double-click it may be the (empty) far end of the previous selection.
+pub(crate) fn extend_granular_select(
+    granularity: SelectGranularity,
+    anchor: CCursorRange,
+    text: &str,
+    cursor_at_pointer: CCursor,
+) -> CCursorRange {
+    let unit = select_unit_at(granularity, text, cursor_at_pointer);
+    let [anchor_min, anchor_max] = anchor.sorted_cursors();
+    let [unit_min, unit_max] = unit.sorted_cursors();
+
+    if cursor_at_pointer.index < anchor_min.index {
+        // Dragging backwards, before the anchor:
+        CCursorRange {
+            primary: unit_min,
+            secondary: anchor_max,
+            h_pos: None,
+        }
+    } else if anchor_max.index < cursor_at_pointer.index || anchor.is_empty() {
+        // Dragging forwards, after the anchor:
+        CCursorRange {
+            primary: unit_max,
+            secondary: anchor_min,
+            h_pos: None,
+        }
+    } else {
+        // The pointer is inside the anchor word/line:
+        anchor
+    }
+}
+
+fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
+    if text.is_empty() {
+        return CCursorRange::one(ccursor);
+    }
+
+    let line_start = find_line_start(text, ccursor);
+    let line_end = ccursor_next_line(text, line_start);
+
+    let line_range = line_start.index..line_end.index;
+    let current_line_text = slice_char_range(text, line_range.clone());
+
+    let relative_idx = ccursor.index - line_start.index;
+    let relative_ccursor = CCursor::new(relative_idx);
+
+    let min = ccursor_previous_word(current_line_text, relative_ccursor);
+    let max = ccursor_next_word(current_line_text, relative_ccursor);
+
+    CCursorRange::two(
+        CCursor::new(line_start.index + min.index),
+        CCursor::new(line_start.index + max.index),
+    )
+}
+
 fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
-    if ccursor.index == 0 {
+    if ccursor.index == CharIndex::ZERO {
         CCursorRange::two(ccursor, ccursor_next_line(text, ccursor))
     } else {
         let it = text.chars();
-        let mut it = it.skip(ccursor.index - 1);
+        let mut it = it.skip(ccursor.index.0 - 1);
         if let Some(char_before_cursor) = it.next() {
             if let Some(char_after_cursor) = it.next() {
                 if (!is_linebreak(char_before_cursor)) && (!is_linebreak(char_after_cursor)) {
@@ -156,13 +331,13 @@ fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
                     let min = ccursor_previous_line(text, ccursor);
                     let max = ccursor_next_line(text, min);
                     CCursorRange::two(min, max)
-                } else if !is_linebreak(char_after_cursor) {
-                    let max = ccursor_next_line(text, ccursor);
-                    CCursorRange::two(ccursor, max)
-                } else {
+                } else if is_linebreak(char_after_cursor) {
                     let min = ccursor_previous_line(text, ccursor);
                     let max = ccursor_next_line(text, ccursor);
                     CCursorRange::two(min, max)
+                } else {
+                    let max = ccursor_next_line(text, ccursor);
+                    CCursorRange::two(ccursor, max)
                 }
             } else {
                 let min = ccursor_previous_line(text, ccursor);
@@ -190,35 +365,39 @@ fn ccursor_next_line(text: &str, ccursor: CCursor) -> CCursor {
 }
 
 pub fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
-    let num_chars = text.chars().count();
+    let num_chars = CharIndex(text.chars().count());
     let reversed: String = text.graphemes(true).rev().collect();
+    let boundary = next_word_boundary_char_index(&reversed, num_chars - ccursor.index);
     CCursor {
-        index: num_chars
-            - next_word_boundary_char_index(&reversed, num_chars - ccursor.index).min(num_chars),
+        index: num_chars - boundary.min(num_chars),
         prefer_next_row: true,
     }
 }
 
 fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
-    let num_chars = text.chars().count();
+    let num_chars = CharIndex(text.chars().count());
+    let boundary = next_line_boundary_char_index(text.chars().rev(), num_chars - ccursor.index);
     CCursor {
-        index: num_chars
-            - next_line_boundary_char_index(text.chars().rev(), num_chars - ccursor.index),
+        index: num_chars - boundary,
         prefer_next_row: true,
     }
 }
 
-fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
-    for (word_byte_index, word) in text.split_word_bound_indices() {
-        let word_ci = char_index_from_byte_index(text, word_byte_index);
+fn next_word_boundary_char_index(text: &str, cursor_ci: CharIndex) -> CharIndex {
+    let mut current_char_idx = CharIndex::ZERO;
+
+    for (_word_byte_index, word) in text.split_word_bound_indices() {
+        let word_ci = current_char_idx;
 
         // We consider `.` a word boundary.
         // At least that's how Mac works when navigating something like `www.example.com`.
-        for (dot_ci_offset, chr) in word.chars().enumerate() {
-            let dot_ci = word_ci + dot_ci_offset;
+        let mut word_char_count = 0;
+        for chr in word.chars() {
+            let dot_ci = word_ci + word_char_count;
             if chr == '.' && cursor_ci < dot_ci {
                 return dot_ci;
             }
+            word_char_count += 1;
         }
 
         // Splitting considers contiguous whitespace as one word, such words must be skipped,
@@ -228,17 +407,22 @@ fn next_word_boundary_char_index(text: &str, cursor_ci: usize) -> usize {
         if cursor_ci < word_ci && !all_word_chars(word) {
             return word_ci;
         }
+
+        current_char_idx += word_char_count;
     }
 
-    char_index_from_byte_index(text, text.len())
+    current_char_idx
 }
 
 fn all_word_chars(text: &str) -> bool {
     text.chars().all(is_word_char)
 }
 
-fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
-    let mut it = it.skip(index);
+fn next_line_boundary_char_index(
+    it: impl Iterator<Item = char>,
+    mut index: CharIndex,
+) -> CharIndex {
+    let mut it = it.skip(index.0);
     if let Some(_first) = it.next() {
         index += 1;
 
@@ -265,45 +449,39 @@ fn is_linebreak(c: char) -> bool {
 
 /// Accepts and returns character offset (NOT byte offset!).
 pub fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
-    // We know that new lines, '\n', are a single byte char, but we have to
-    // work with char offsets because before the new line there may be any
-    // number of multi byte chars.
-    // We need to know the char index to be able to correctly set the cursor
-    // later.
-    let chars_count = text.chars().count();
+    let byte_idx = byte_index_from_char_index(text, current_index.index);
+    let text_before = (ByteIndex::ZERO..byte_idx).slice(text);
 
-    let position = text
-        .chars()
-        .rev()
-        .skip(chars_count - current_index.index)
-        .position(|x| x == '\n');
-
-    match position {
-        Some(pos) => CCursor::new(current_index.index - pos),
-        None => CCursor::new(0),
+    if let Some(last_newline_byte) = text_before.rfind('\n') {
+        let char_idx = char_index_from_byte_index(text, ByteIndex(last_newline_byte + 1));
+        CCursor::new(char_idx)
+    } else {
+        CCursor::new(0)
     }
 }
 
-pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
+pub fn byte_index_from_char_index(s: &str, char_index: CharIndex) -> ByteIndex {
     for (ci, (bi, _)) in s.char_indices().enumerate() {
-        if ci == char_index {
-            return bi;
+        if ci == char_index.0 {
+            return ByteIndex(bi);
         }
     }
-    s.len()
+    ByteIndex(s.len())
 }
 
-pub fn char_index_from_byte_index(input: &str, byte_index: usize) -> usize {
+pub fn char_index_from_byte_index(input: &str, byte_index: ByteIndex) -> CharIndex {
     for (ci, (bi, _)) in input.char_indices().enumerate() {
-        if bi == byte_index {
-            return ci;
+        if bi == byte_index.0 {
+            return CharIndex(ci);
         }
     }
 
-    input.char_indices().last().map_or(0, |(i, _)| i + 1)
+    // `byte_index` is at or past the end of the string (or not on a char boundary):
+    // return the total number of characters.
+    CharIndex(input.chars().count())
 }
 
-pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
+pub fn slice_char_range(s: &str, char_range: core::ops::Range<CharIndex>) -> &str {
     assert!(
         char_range.start <= char_range.end,
         "Invalid range, start must be less than end, but start = {}, end = {}",
@@ -312,7 +490,7 @@ pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
     );
     let start_byte = byte_index_from_char_index(s, char_range.start);
     let end_byte = byte_index_from_char_index(s, char_range.end);
-    &s[start_byte..end_byte]
+    (start_byte..end_byte).slice(s)
 }
 
 /// The thin rectangle of one end of the selection, e.g. the primary cursor, in local galley coordinates.
@@ -329,27 +507,27 @@ pub fn cursor_rect(galley: &Galley, cursor: &CCursor, row_height: f32) -> Rect {
 
 #[cfg(test)]
 mod test {
-    use crate::text_selection::text_cursor_state::next_word_boundary_char_index;
+    use super::*;
 
     #[test]
     fn test_next_word_boundary_char_index() {
         // ASCII only
         let text = "abc d3f g_h i-j";
-        assert_eq!(next_word_boundary_char_index(text, 1), 3);
-        assert_eq!(next_word_boundary_char_index(text, 3), 7);
-        assert_eq!(next_word_boundary_char_index(text, 9), 11);
-        assert_eq!(next_word_boundary_char_index(text, 12), 13);
-        assert_eq!(next_word_boundary_char_index(text, 13), 15);
-        assert_eq!(next_word_boundary_char_index(text, 15), 15);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(1)).0, 3);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(3)).0, 7);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(9)).0, 11);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(12)).0, 13);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(13)).0, 15);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(15)).0, 15);
 
-        assert_eq!(next_word_boundary_char_index("", 0), 0);
-        assert_eq!(next_word_boundary_char_index("", 1), 0);
+        assert_eq!(next_word_boundary_char_index("", CharIndex(0)).0, 0);
+        assert_eq!(next_word_boundary_char_index("", CharIndex(1)).0, 0);
 
         // ASCII only
         let text = "abc.def.ghi";
-        assert_eq!(next_word_boundary_char_index(text, 1), 3);
-        assert_eq!(next_word_boundary_char_index(text, 3), 7);
-        assert_eq!(next_word_boundary_char_index(text, 7), 11);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(1)).0, 3);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(3)).0, 7);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(7)).0, 11);
 
         // Unicode graphemes, some of which consist of multiple Unicode characters,
         // !!! Unicode character is not always what is tranditionally considered a character,
@@ -357,13 +535,200 @@ mod test {
         // handling of and around emojis is kind of weird and is not consistent across
         // text editors and browsers
         let text = "❤️👍 skvělá knihovna 👍❤️";
-        assert_eq!(next_word_boundary_char_index(text, 0), 2);
-        assert_eq!(next_word_boundary_char_index(text, 2), 3); // this does not skip the space between thumbs-up and 'skvělá'
-        assert_eq!(next_word_boundary_char_index(text, 6), 10);
-        assert_eq!(next_word_boundary_char_index(text, 9), 10);
-        assert_eq!(next_word_boundary_char_index(text, 12), 19);
-        assert_eq!(next_word_boundary_char_index(text, 15), 19);
-        assert_eq!(next_word_boundary_char_index(text, 19), 20);
-        assert_eq!(next_word_boundary_char_index(text, 20), 21);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(0)).0, 2);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(2)).0, 3); // this does not skip the space between thumbs-up and 'skvělá'
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(6)).0, 10);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(9)).0, 10);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(12)).0, 19);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(15)).0, 19);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(19)).0, 20);
+        assert_eq!(next_word_boundary_char_index(text, CharIndex(20)).0, 21);
+    }
+
+    #[test]
+    fn test_previous_word() {
+        let text = "abc def ghi";
+        assert_eq!(ccursor_previous_word(text, CCursor::new(7)).index.0, 4);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(5)).index.0, 4);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(4)).index.0, 0);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(0)).index.0, 0);
+    }
+
+    #[test]
+    fn test_next_word() {
+        let text = "abc def ghi";
+        assert_eq!(ccursor_next_word(text, CCursor::new(0)).index.0, 3);
+        assert_eq!(ccursor_next_word(text, CCursor::new(3)).index.0, 7);
+        assert_eq!(ccursor_next_word(text, CCursor::new(7)).index.0, 11);
+        assert_eq!(ccursor_next_word(text, CCursor::new(11)).index.0, 11);
+    }
+
+    #[test]
+    fn test_index_conversion_roundtrip() {
+        // "é" is 2 bytes, "👍" is 4 bytes.
+        let text = "aé👍b";
+        let char_count = text.chars().count(); // 4
+        assert_eq!(char_count, 4);
+
+        // char -> byte, including the end index
+        assert_eq!(byte_index_from_char_index(text, CharIndex(0)).0, 0);
+        assert_eq!(byte_index_from_char_index(text, CharIndex(1)).0, 1);
+        assert_eq!(byte_index_from_char_index(text, CharIndex(2)).0, 3);
+        assert_eq!(byte_index_from_char_index(text, CharIndex(3)).0, 7);
+        assert_eq!(byte_index_from_char_index(text, CharIndex(4)).0, 8);
+        // Past the end clamps to the byte length:
+        assert_eq!(
+            byte_index_from_char_index(text, CharIndex(99)).0,
+            text.len()
+        );
+
+        // byte -> char, including the end index
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(0)).0, 0);
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(1)).0, 1);
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(3)).0, 2);
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(7)).0, 3);
+        // The end byte index must map to the character count, not to some byte offset:
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(text.len())).0, 4);
+        // Past the end clamps to the character count:
+        assert_eq!(char_index_from_byte_index(text, ByteIndex(99)).0, 4);
+
+        // Empty string:
+        assert_eq!(byte_index_from_char_index("", CharIndex(0)).0, 0);
+        assert_eq!(char_index_from_byte_index("", ByteIndex(0)).0, 0);
+    }
+
+    #[test]
+    fn test_select_word_at() {
+        // CCursorRange::two(min, max) sets primary=max, secondary=min
+        let text = "hello world";
+        let range = select_word_at(text, CCursor::new(2));
+        let (lo, hi) = (
+            range.primary.index.min(range.secondary.index),
+            range.primary.index.max(range.secondary.index),
+        );
+        assert_eq!(lo.0, 0);
+        assert_eq!(hi.0, 5);
+
+        let range = select_word_at(text, CCursor::new(8));
+        let (lo, hi) = (
+            range.primary.index.min(range.secondary.index),
+            range.primary.index.max(range.secondary.index),
+        );
+        assert_eq!(lo.0, 6);
+        assert_eq!(hi.0, 11);
+    }
+
+    #[test]
+    fn test_extend_granular_select_words() {
+        let text = "alpha beta gamma";
+        let anchor = select_word_at(text, CCursor::new(8)); // "beta"
+        assert_eq!(anchor.slice_str(text), "beta");
+
+        // Dragging forward into "gamma" extends the selection to the end of that word:
+        let range = extend_granular_select(SelectGranularity::Word, anchor, text, CCursor::new(13));
+        assert_eq!(range.slice_str(text), "beta gamma");
+        assert_eq!(
+            range.primary.index.0, 16,
+            "primary should be at the pointer end"
+        );
+
+        // Dragging backward into "alpha" extends the selection to the start of that word:
+        let range = extend_granular_select(SelectGranularity::Word, anchor, text, CCursor::new(2));
+        assert_eq!(range.slice_str(text), "alpha beta");
+        assert_eq!(
+            range.primary.index.0, 0,
+            "primary should be at the pointer end"
+        );
+
+        // With the pointer still inside the anchor word, the selection stays the anchor word:
+        let range = extend_granular_select(SelectGranularity::Word, anchor, text, CCursor::new(7));
+        assert_eq!(range.slice_str(text), "beta");
+    }
+
+    #[test]
+    fn test_extend_granular_select_lines() {
+        let text = "first\nsecond\nthird";
+        let anchor = select_line_at(text, CCursor::new(8)); // "second"
+        assert_eq!(anchor.slice_str(text), "second");
+
+        let range = extend_granular_select(SelectGranularity::Line, anchor, text, CCursor::new(15));
+        assert_eq!(range.slice_str(text), "second\nthird");
+
+        let range = extend_granular_select(SelectGranularity::Line, anchor, text, CCursor::new(2));
+        assert_eq!(range.slice_str(text), "first\nsecond");
+    }
+
+    #[test]
+    fn test_word_boundary_large_text_performance() {
+        // Before the O(n²) → O(n) fix, this would take minutes on large text.
+        let large_text = "word ".repeat(200_000); // ~1MB
+        let len = large_text.chars().count();
+
+        let start = std::time::Instant::now();
+
+        let next = ccursor_next_word(&large_text, CCursor::new(len - 10));
+        assert!(next.index.0 <= len);
+
+        let prev = ccursor_previous_word(&large_text, CCursor::new(len - 10));
+        assert!(prev.index.0 < len);
+
+        let range = select_word_at(&large_text, CCursor::new(len - 3));
+        let lo = range.primary.index.min(range.secondary.index);
+        let hi = range.primary.index.max(range.secondary.index);
+        assert!(lo < hi, "Expected a non-empty word selection");
+
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed.as_secs() < 5,
+            "Word boundary operations on 1MB text took {elapsed:?}, expected < 5s"
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_previous_word_graphemes() {
+        let cases = [
+            ("", 0, 0),
+            ("hello", 0, 0),
+            ("hello", "hello".chars().count(), 0),
+            ("hello world", 6, 0),
+            ("hello world", 8, 6),
+            ("hello world", "hello world".chars().count(), 6),
+            ("hello world   ", "hello world   ".chars().count(), 6),
+            ("hello   world", "hello   world".chars().count(), 8),
+            ("   ", "   ".chars().count(), 0),
+            ("hello, world", "hello, world".chars().count(), 7),
+            ("www.example.com", "www.example.com".chars().count(), 12),
+            ("안녕! 😊 세상", 8, 6),
+            ("❤️👍 skvělá knihovna 👍❤️", 18, 11),
+            (
+                "a e\u{301} b",
+                "a e\u{301} b".chars().count(),
+                "a e\u{301} ".chars().count(),
+            ),
+            (
+                "hi 🙂 world",
+                "hi 🙂 world".chars().count(),
+                "hi 🙂 ".chars().count(),
+            ),
+            (
+                "hi 👨‍👩‍👧‍👦 world",
+                "hi 👨‍👩‍👧‍👦 world".chars().count(),
+                "hi 👨‍👩‍👧‍👦 ".chars().count(),
+            ),
+        ];
+
+        for (text, cursor, expected) in cases {
+            let result = ccursor_previous_word(text, CCursor::new(cursor));
+            assert_eq!(
+                result.index.0, expected,
+                "text={text:?}, cursor={cursor}, got={}, expected={expected}",
+                result.index.0
+            );
+        }
     }
 }

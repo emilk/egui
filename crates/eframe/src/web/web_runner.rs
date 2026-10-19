@@ -1,4 +1,5 @@
-use std::{cell::RefCell, rc::Rc};
+use core::cell::RefCell;
+use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 
@@ -73,7 +74,7 @@ impl WebRunner {
 
         {
             // First set up the app runner:
-            let text_agent = TextAgent::attach(self, canvas.get_root_node())?;
+            let text_agent = TextAgent::attach(self, &canvas)?;
             let app_runner =
                 AppRunner::new(canvas.clone(), web_options, app_creator, text_agent).await?;
             self.app_runner.replace(Some(app_runner));
@@ -107,7 +108,7 @@ impl WebRunner {
 
     fn unsubscribe_from_all_events(&self) {
         let events_to_unsubscribe: Vec<_> =
-            std::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
+            core::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
 
         if !events_to_unsubscribe.is_empty() {
             log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
@@ -129,8 +130,7 @@ impl WebRunner {
         self.unsubscribe_from_all_events();
 
         if let Some(frame) = self.frame.take() {
-            let window = web_sys::window().unwrap();
-            window.cancel_animation_frame(frame.id).ok();
+            frame.cancel(&web_sys::window().unwrap());
         }
 
         if let Some(runner) = self.app_runner.replace(None) {
@@ -140,7 +140,7 @@ impl WebRunner {
 
     /// Returns `None` if there has been a panic, or if we have been destroyed.
     /// In that case, just return to JS.
-    pub(crate) fn try_lock(&self) -> Option<std::cell::RefMut<'_, AppRunner>> {
+    pub(crate) fn try_lock(&self) -> Option<core::cell::RefMut<'_, AppRunner>> {
         if self.panic_handler.has_panicked() {
             // Unsubscribe from all events so that we don't get any more callbacks
             // that will try to access the poisoned runner.
@@ -148,7 +148,7 @@ impl WebRunner {
             None
         } else {
             let lock = self.app_runner.try_borrow_mut().ok()?;
-            std::cell::RefMut::filter_map(lock, |lock| -> Option<&mut AppRunner> { lock.as_mut() })
+            core::cell::RefMut::filter_map(lock, |lock| -> Option<&mut AppRunner> { lock.as_mut() })
                 .ok()
         }
     }
@@ -159,9 +159,9 @@ impl WebRunner {
     /// and return `None` if this  runner has panicked.
     pub fn app_mut<ConcreteApp: 'static + App>(
         &self,
-    ) -> Option<std::cell::RefMut<'_, ConcreteApp>> {
+    ) -> Option<core::cell::RefMut<'_, ConcreteApp>> {
         self.try_lock()
-            .map(|lock| std::cell::RefMut::map(lock, |runner| runner.app_mut::<ConcreteApp>()))
+            .map(|lock| core::cell::RefMut::map(lock, |runner| runner.app_mut::<ConcreteApp>()))
     }
 
     /// Convenience function to reduce boilerplate and ensure that all event handlers
@@ -234,6 +234,12 @@ impl WebRunner {
     ///
     /// It is safe to call `request_animation_frame` multiple times in quick succession,
     /// this function guarantees that only one animation frame is scheduled at a time.
+    ///
+    /// A hidden browser tab (e.g. a backgrounded tab) does not receive
+    /// `requestAnimationFrame` callbacks, which would otherwise stop our paint loop
+    /// and prevent `App::update` from running in response to `request_repaint`.
+    /// To keep running in that case, we fall back to `setTimeout`, which keeps firing
+    /// while hidden (the browser throttles it to roughly once per second).
     pub(crate) fn request_animation_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
         if self.frame.borrow().is_some() {
             // there is already an animation frame in flight
@@ -252,13 +258,46 @@ impl WebRunner {
             }
         });
 
-        let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
-        self.frame.borrow_mut().replace(AnimationFrameRequest {
-            id,
-            _closure: closure,
-        });
+        let hidden = window.document().is_some_and(|document| document.hidden());
+
+        let request = if hidden {
+            // The tab is hidden: `requestAnimationFrame` would not fire, so use a timer instead.
+            let id = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                closure.as_ref().unchecked_ref(),
+                // Browsers clamp background timers to ~1s, so the exact value has little effect
+                // while hidden, but keeps us responsive right after the tab is hidden:
+                10,
+            )?;
+            AnimationFrameRequest {
+                id,
+                kind: AnimationFrameKind::Timeout,
+                _closure: closure,
+            }
+        } else {
+            let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
+            AnimationFrameRequest {
+                id,
+                kind: AnimationFrameKind::AnimationFrame,
+                _closure: closure,
+            }
+        };
+
+        self.frame.borrow_mut().replace(request);
 
         Ok(())
+    }
+
+    /// Cancel any in-flight frame request and schedule a fresh one.
+    ///
+    /// Called on `visibilitychange` so we switch between `requestAnimationFrame` (visible)
+    /// and `setTimeout` (hidden) scheduling. This is necessary because an in-flight
+    /// `requestAnimationFrame` is paused while the tab is hidden, which would otherwise
+    /// stall the paint loop and stop `App::update` from running while hidden.
+    pub(crate) fn reschedule_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
+        if let Some(frame) = self.frame.borrow_mut().take() {
+            frame.cancel(&web_sys::window().unwrap());
+        }
+        self.request_animation_frame()
     }
 }
 
@@ -269,9 +308,35 @@ struct AnimationFrameRequest {
     /// Represents the ID of a frame in flight.
     id: i32,
 
+    /// How the frame was scheduled, so we know how to cancel it.
+    kind: AnimationFrameKind,
+
     /// The callback given to `request_animation_frame`, stored here both to prevent it
     /// from being canceled, and from having to `.forget()` it.
     _closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
+}
+
+impl AnimationFrameRequest {
+    /// Cancel the in-flight frame request, using the API matching how it was scheduled.
+    fn cancel(&self, window: &web_sys::Window) {
+        match self.kind {
+            AnimationFrameKind::AnimationFrame => {
+                window.cancel_animation_frame(self.id).ok();
+            }
+            AnimationFrameKind::Timeout => {
+                window.clear_timeout_with_handle(self.id);
+            }
+        }
+    }
+}
+
+/// How an [`AnimationFrameRequest`] was scheduled.
+enum AnimationFrameKind {
+    /// Scheduled with `requestAnimationFrame` (visible tab).
+    AnimationFrame,
+
+    /// Scheduled with `setTimeout` (hidden tab).
+    Timeout,
 }
 
 struct TargetEvent {

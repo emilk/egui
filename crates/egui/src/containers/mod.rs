@@ -2,6 +2,7 @@
 //!
 //! For instance, a [`Frame`] adds a frame and background to some contained UI.
 
+mod aligned;
 pub(crate) mod area;
 mod close_tag;
 pub mod collapsing_header;
@@ -9,24 +10,24 @@ mod combo_box;
 pub mod frame;
 pub mod menu;
 pub mod modal;
-pub mod old_popup;
 pub mod panel;
 mod popup;
 pub(crate) mod resize;
 mod scene;
 pub mod scroll_area;
+mod scroll_physics;
 mod sides;
 mod tooltip;
 pub(crate) mod window;
 
 pub use {
+    aligned::Aligned,
     area::{Area, AreaState},
     close_tag::ClosableTag,
     collapsing_header::{CollapsingHeader, CollapsingResponse},
     combo_box::*,
     frame::Frame,
     modal::{Modal, ModalResponse},
-    old_popup::*,
     panel::*,
     popup::*,
     resize::Resize,
@@ -34,5 +35,5 @@ pub use {
     scroll_area::ScrollArea,
     sides::Sides,
     tooltip::*,
-    window::Window,
+    window::{Window, WindowDrag},
 };

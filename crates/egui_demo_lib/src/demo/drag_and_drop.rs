@@ -16,7 +16,7 @@ impl Default for DragAndDropDemo {
                 vec!["Item H", "Item I", "Item J", "Item K"],
             ]
             .into_iter()
-            .map(|v| v.into_iter().map(ToString::to_string).collect())
+            .map(|v| v.into_iter().map(str::to_owned).collect())
             .collect(),
         }
     }
@@ -64,7 +64,7 @@ impl crate::View for DragAndDropDemo {
                 let (_, dropped_payload) = ui.dnd_drop_zone::<Location, ()>(frame, |ui| {
                     ui.set_min_size(vec2(64.0, 100.0));
                     for (row_idx, item) in column.iter().enumerate() {
-                        let item_id = Id::new(("my_drag_and_drop_demo", col_idx, row_idx));
+                        let item_id = Id::unique(("my_drag_and_drop_demo", col_idx, row_idx));
                         let item_location = Location {
                             col: col_idx,
                             row: row_idx,

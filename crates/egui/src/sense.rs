@@ -22,8 +22,8 @@ bitflags::bitflags! {
     }
 }
 
-impl std::fmt::Debug for Sense {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Sense {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Sense {{")?;
         if self.senses_click() {
             write!(f, " click")?;

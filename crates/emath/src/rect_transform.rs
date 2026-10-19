@@ -65,7 +65,7 @@ impl RectTransform {
 }
 
 /// Transforms the position.
-impl std::ops::Mul<Pos2> for RectTransform {
+impl core::ops::Mul<Pos2> for RectTransform {
     type Output = Pos2;
 
     fn mul(self, pos: Pos2) -> Pos2 {
@@ -74,7 +74,7 @@ impl std::ops::Mul<Pos2> for RectTransform {
 }
 
 /// Transforms the position.
-impl std::ops::Mul<Pos2> for &RectTransform {
+impl core::ops::Mul<Pos2> for &RectTransform {
     type Output = Pos2;
 
     fn mul(self, pos: Pos2) -> Pos2 {

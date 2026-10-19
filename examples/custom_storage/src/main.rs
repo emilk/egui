@@ -1,12 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![expect(rustdoc::missing_crate_level_docs)] // it's an example
 
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
-use eframe::{
-    Storage, StorageProvider,
-    egui::{self, ahash::HashMap},
-};
+use eframe::{Storage, StorageProvider, egui};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -52,7 +49,7 @@ impl eframe::App for MyApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.heading("egui using a custom storage for app");
             ui.label("Change data and restart the app to see it.");
             ui.separator();
@@ -95,6 +92,10 @@ impl Storage for CustomStorageData {
 
     fn set_string(&mut self, key: &str, value: String) {
         self.hashmap.insert(key.to_string(), value);
+    }
+
+    fn remove_string(&mut self, key: &str) {
+        self.hashmap.remove(key);
     }
 
     fn flush(&mut self) {
