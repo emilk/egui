@@ -19,18 +19,27 @@ pub enum ImageData {
 }
 
 impl ImageData {
-    pub fn size(&self) -> [usize; 2] {
+    /// Image resolution in texels.
+    #[inline]
+    pub fn resolution(&self) -> [usize; 2] {
         match self {
-            Self::Color(image) => image.size,
+            Self::Color(image) => image.resolution,
         }
     }
 
-    pub fn width(&self) -> usize {
-        self.size()[0]
+    #[deprecated = "Renamed 'resolution'"]
+    pub fn size(&self) -> [usize; 2] {
+        self.resolution()
     }
 
+    /// Image width in texels.
+    pub fn width(&self) -> usize {
+        self.resolution()[0]
+    }
+
+    /// Image height in texels.
     pub fn height(&self) -> usize {
-        self.size()[1]
+        self.resolution()[1]
     }
 
     pub fn bytes_per_pixel(&self) -> usize {
@@ -47,129 +56,127 @@ impl ImageData {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ColorImage {
     /// width, height in texels.
-    pub size: [usize; 2],
+    resolution: [usize; 2],
 
-    /// Size of the original SVG image (if any), or just the texel size of the image.
-    pub source_size: Vec2,
+    /// Size of the original SVG image (if any), or just the texel resolution of the image.
+    source_size: Vec2,
 
     /// The pixels, row by row, from top to bottom.
-    pub pixels: Vec<Color32>,
+    pixels: Vec<Color32>,
 }
 
 impl ColorImage {
-    /// Create an image filled with the given color.
-    pub fn new(size: [usize; 2], pixels: Vec<Color32>) -> Self {
-        debug_assert!(
-            size[0] * size[1] == pixels.len(),
-            "size: {size:?}, pixels.len(): {}",
+    /// Create an image from the given pixels, row by row, from top to bottom.
+    ///
+    /// Panics if `resolution[0] * resolution[1] != pixels.len()`.
+    pub fn new(resolution: [usize; 2], pixels: Vec<Color32>) -> Self {
+        assert!(
+            resolution[0] * resolution[1] == pixels.len(),
+            "resolution: {resolution:?}, pixels.len(): {}",
             pixels.len()
         );
         Self {
-            size,
-            source_size: Vec2::new(size[0] as f32, size[1] as f32),
+            resolution,
+            source_size: Vec2::new(resolution[0] as f32, resolution[1] as f32),
             pixels,
         }
     }
 
     /// Create an image filled with the given color.
-    pub fn filled(size: [usize; 2], color: Color32) -> Self {
-        Self {
-            size,
-            source_size: Vec2::new(size[0] as f32, size[1] as f32),
-            pixels: vec![color; size[0] * size[1]],
-        }
+    pub fn filled(resolution: [usize; 2], color: Color32) -> Self {
+        Self::new(resolution, vec![color; resolution[0] * resolution[1]])
     }
 
     /// Create a [`ColorImage`] from flat un-multiplied RGBA data.
     ///
     /// This is usually what you want to use after having loaded an image file.
     ///
-    /// Panics if `size[0] * size[1] * 4 != rgba.len()`.
+    /// Panics if `resolution[0] * resolution[1] * 4 != rgba.len()`.
     ///
     /// ## Example using the [`image`](crates.io/crates/image) crate:
     /// ``` ignore
     /// fn load_image_from_path(path: &std::path::Path) -> Result<egui::ColorImage, image::ImageError> {
     ///     let image = image::io::Reader::open(path)?.decode()?;
-    ///     let size = [image.width() as _, image.height() as _];
+    ///     let resolution = [image.width() as _, image.height() as _];
     ///     let image_buffer = image.to_rgba8();
     ///     let pixels = image_buffer.as_flat_samples();
     ///     Ok(egui::ColorImage::from_rgba_unmultiplied(
-    ///         size,
+    ///         resolution,
     ///         pixels.as_slice(),
     ///     ))
     /// }
     ///
     /// fn load_image_from_memory(image_data: &[u8]) -> Result<ColorImage, image::ImageError> {
     ///     let image = image::load_from_memory(image_data)?;
-    ///     let size = [image.width() as _, image.height() as _];
+    ///     let resolution = [image.width() as _, image.height() as _];
     ///     let image_buffer = image.to_rgba8();
     ///     let pixels = image_buffer.as_flat_samples();
     ///     Ok(ColorImage::from_rgba_unmultiplied(
-    ///         size,
+    ///         resolution,
     ///         pixels.as_slice(),
     ///     ))
     /// }
     /// ```
-    pub fn from_rgba_unmultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
+    pub fn from_rgba_unmultiplied(resolution: [usize; 2], rgba: &[u8]) -> Self {
         assert_eq!(
-            size[0] * size[1] * 4,
+            resolution[0] * resolution[1] * 4,
             rgba.len(),
-            "size: {:?}, rgba.len(): {}",
-            size,
+            "resolution: {:?}, rgba.len(): {}",
+            resolution,
             rgba.len()
         );
         let pixels = rgba
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
             .collect();
-        Self::new(size, pixels)
+        Self::new(resolution, pixels)
     }
 
-    pub fn from_rgba_premultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
+    pub fn from_rgba_premultiplied(resolution: [usize; 2], rgba: &[u8]) -> Self {
         assert_eq!(
-            size[0] * size[1] * 4,
+            resolution[0] * resolution[1] * 4,
             rgba.len(),
-            "size: {:?}, rgba.len(): {}",
-            size,
+            "resolution: {:?}, rgba.len(): {}",
+            resolution,
             rgba.len()
         );
         let pixels = rgba
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_premultiplied(p[0], p[1], p[2], p[3]))
             .collect();
-        Self::new(size, pixels)
+        Self::new(resolution, pixels)
     }
 
     /// Create a [`ColorImage`] from flat opaque gray data.
     ///
-    /// Panics if `size[0] * size[1] != gray.len()`.
-    pub fn from_gray(size: [usize; 2], gray: &[u8]) -> Self {
+    /// Panics if `resolution[0] * resolution[1] != gray.len()`.
+    pub fn from_gray(resolution: [usize; 2], gray: &[u8]) -> Self {
         assert_eq!(
-            size[0] * size[1],
+            resolution[0] * resolution[1],
             gray.len(),
-            "size: {:?}, gray.len(): {}",
-            size,
+            "resolution: {:?}, gray.len(): {}",
+            resolution,
             gray.len()
         );
         let pixels = gray.iter().map(|p| Color32::from_gray(*p)).collect();
-        Self::new(size, pixels)
+        Self::new(resolution, pixels)
     }
 
     /// Alternative method to `from_gray`.
     /// Create a [`ColorImage`] from iterator over flat opaque gray data.
     ///
-    /// Panics if `size[0] * size[1] != gray_iter.len()`.
+    /// Panics if `resolution[0] * resolution[1] != gray_iter.len()`.
     #[doc(alias = "from_grey_iter")]
-    pub fn from_gray_iter(size: [usize; 2], gray_iter: impl Iterator<Item = u8>) -> Self {
+    pub fn from_gray_iter(resolution: [usize; 2], gray_iter: impl Iterator<Item = u8>) -> Self {
         let pixels: Vec<_> = gray_iter.map(Color32::from_gray).collect();
         assert_eq!(
-            size[0] * size[1],
+            resolution[0] * resolution[1],
             pixels.len(),
-            "size: {:?}, pixels.len(): {}",
-            size,
+            "resolution: {:?}, pixels.len(): {}",
+            resolution,
             pixels.len()
         );
-        Self::new(size, pixels)
+        Self::new(resolution, pixels)
     }
 
     /// A view of the underlying data as `&[u8]`
@@ -189,20 +196,20 @@ impl ColorImage {
     /// This is what you want to use after having loaded an image file (and if
     /// you are ignoring the alpha channel - considering it to always be 0xff)
     ///
-    /// Panics if `size[0] * size[1] * 3 != rgb.len()`.
-    pub fn from_rgb(size: [usize; 2], rgb: &[u8]) -> Self {
+    /// Panics if `resolution[0] * resolution[1] * 3 != rgb.len()`.
+    pub fn from_rgb(resolution: [usize; 2], rgb: &[u8]) -> Self {
         assert_eq!(
-            size[0] * size[1] * 3,
+            resolution[0] * resolution[1] * 3,
             rgb.len(),
-            "size: {:?}, rgb.len(): {}",
-            size,
+            "resolution: {:?}, rgb.len(): {}",
+            resolution,
             rgb.len()
         );
         let pixels = rgb
             .chunks_exact(3)
             .map(|p| Color32::from_rgb(p[0], p[1], p[2]))
             .collect();
-        Self::new(size, pixels)
+        Self::new(resolution, pixels)
     }
 
     /// An example color image, useful for tests.
@@ -229,14 +236,63 @@ impl ColorImage {
         self
     }
 
+    /// Image resolution in texels.
     #[inline]
-    pub fn width(&self) -> usize {
-        self.size[0]
+    pub fn resolution(&self) -> [usize; 2] {
+        self.resolution
     }
 
+    #[deprecated = "Renamed 'resolution'"]
+    pub fn size(&self) -> [usize; 2] {
+        self.resolution()
+    }
+
+    /// Image width in texels.
+    #[inline]
+    pub fn width(&self) -> usize {
+        self.resolution[0]
+    }
+
+    /// Image height in texels.
     #[inline]
     pub fn height(&self) -> usize {
-        self.size[1]
+        self.resolution[1]
+    }
+
+    /// The pixels in the image, row-major.
+    #[inline]
+    pub fn pixels(&self) -> &[Color32] {
+        &self.pixels
+    }
+
+    /// The pixels in the image, row-major.
+    #[inline]
+    pub fn pixels_mut(&mut self) -> &mut [Color32] {
+        &mut self.pixels
+    }
+
+    /// Size of the original SVG image (if any), or just the texel resolution of the image.
+    #[inline]
+    pub fn source_size(&self) -> Vec2 {
+        self.source_size
+    }
+
+    /// Double the height until it is larger than `required_height`,
+    /// filling new rows with transparent pixels.
+    ///
+    /// Returns `true` if the image grew.
+    pub(crate) fn grow_to_min_height(&mut self, required_height: usize) -> bool {
+        while required_height >= self.height() {
+            self.resolution[1] *= 2;
+        }
+
+        let num_pixels = self.width() * self.height();
+        if self.pixels.len() < num_pixels {
+            self.pixels.resize(num_pixels, Color32::TRANSPARENT);
+            true
+        } else {
+            false
+        }
     }
 
     /// Create a new image from a patch of the current image.
@@ -259,7 +315,7 @@ impl ColorImage {
         let width = max_x - min_x;
         let height = max_y - min_y;
         let mut output = Vec::with_capacity(width * height);
-        let row_stride = self.size[0];
+        let row_stride = self.resolution[0];
 
         for row in min_y..max_y {
             output.extend_from_slice(
@@ -306,7 +362,7 @@ impl core::ops::Index<(usize, usize)> for ColorImage {
 
     #[inline]
     fn index(&self, (x, y): (usize, usize)) -> &Color32 {
-        let [w, h] = self.size;
+        let [w, h] = self.resolution;
         assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
         &self.pixels[y * w + x]
     }
@@ -315,7 +371,7 @@ impl core::ops::Index<(usize, usize)> for ColorImage {
 impl core::ops::IndexMut<(usize, usize)> for ColorImage {
     #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Color32 {
-        let [w, h] = self.size;
+        let [w, h] = self.resolution;
         assert!(x < w && y < h, "x: {x}, y: {y}, w: {w}, h: {h}");
         &mut self.pixels[y * w + x]
     }
@@ -338,7 +394,7 @@ impl From<Arc<ColorImage>> for ImageData {
 impl core::fmt::Debug for ColorImage {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ColorImage")
-            .field("size", &self.size)
+            .field("resolution", &self.resolution)
             .field("pixel-count", &self.pixels.len())
             .finish_non_exhaustive()
     }
