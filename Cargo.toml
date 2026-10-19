@@ -94,7 +94,7 @@ ehttp = { version = "0.7.1", default-features = false }
 enum-map = "3.1"
 env_logger = { version = "0.11.11", default-features = false }
 font-types = { version = "0.12.4", default-features = false, features = ["std"] }
-fontique = { version = "0.11.1", default-features = false, features = [
+fontique = { version = "0.12.0", default-features = false, features = [
   "system",
   "fontconfig-dlopen", # Load libfontconfig at runtime, so builds don't need its headers
 ] }
