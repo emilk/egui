@@ -67,6 +67,27 @@ pub struct TextOptions {
     ///
     /// Default: `true`.
     pub subpixel_binning: bool,
+
+    /// Render glyphs with subpixel (LCD) anti-aliasing, for a screen whose pixels have
+    /// horizontal red, green and blue stripes in this order.
+    ///
+    /// Glyphs in the font atlas then hold one coverage per color channel, which only a renderer
+    /// that blends each channel separately (dual-source blending) can draw. So egui uses this
+    /// only while the integration reports that its renderer can (`RawInput::subpixel_text`).
+    ///
+    /// Default: `None` (grayscale).
+    pub subpixel_order: Option<SubpixelOrder>,
+}
+
+/// The order of a screen's color stripes, for [`TextOptions::subpixel_order`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum SubpixelOrder {
+    /// Red on the left.
+    Rgb,
+
+    /// Blue on the left.
+    Bgr,
 }
 
 impl Default for TextOptions {
@@ -76,6 +97,7 @@ impl Default for TextOptions {
             color_transfer_function: crate::FontColorTransferFunction::default(),
             font_hinting: true,
             subpixel_binning: true,
+            subpixel_order: None,
         }
     }
 }

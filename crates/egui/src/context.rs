@@ -585,6 +585,7 @@ impl ContextImpl {
         profiling::function_scope!();
         let input = &self.viewport().input;
         let max_texture_side = input.max_texture_side;
+        let subpixel_text = input.subpixel_text;
 
         if core::mem::take(&mut self.reload_fonts) {
             // The rasterizers or providers changed during the last pass.
@@ -626,6 +627,10 @@ impl ContextImpl {
             mut text_options, ..
         } = self.memory.options.style().visuals;
         text_options.max_texture_side = max_texture_side;
+        if !subpixel_text {
+            // The renderer can't blend each channel separately.
+            text_options.subpixel_order = None;
+        }
 
         let mut is_new = false;
         let viewport_id = self.viewport_id();
@@ -5172,6 +5177,32 @@ mod test {
             ui.label("after");
         });
         output.drop_without_applying_deltas();
+    }
+
+    /// [`crate::TextOptions::subpixel_order`] is used only once the integration reports that its
+    /// renderer can draw subpixel text.
+    #[test]
+    fn test_subpixel_text_waits_for_the_renderer() {
+        use crate::{RawInput, epaint::SubpixelOrder};
+
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        ctx.all_styles_mut(|style| {
+            style.visuals.text_options.subpixel_order = Some(SubpixelOrder::Rgb);
+        });
+        let order_in_use = |input: RawInput| {
+            ctx.run_ui(input, |_| {}).drop_without_applying_deltas();
+            ctx.fonts(|fonts| fonts.options().subpixel_order)
+        };
+
+        assert_eq!(order_in_use(RawInput::default()), None);
+        let supported = RawInput {
+            subpixel_text: Some(true),
+            ..Default::default()
+        };
+        assert_eq!(order_in_use(supported), Some(SubpixelOrder::Rgb));
+        // The renderer's answer is kept until it changes.
+        assert_eq!(order_in_use(RawInput::default()), Some(SubpixelOrder::Rgb));
     }
 
     #[test]
