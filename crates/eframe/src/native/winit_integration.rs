@@ -35,11 +35,12 @@ pub enum PassMode {
     /// Run [`crate::App::logic`], plus the ui and painting if the viewport is visible.
     Full,
 
-    /// Run only [`crate::App::logic`]: no egui pass and no painting.
+    /// Run [`crate::App::logic`] and the ui, but paint nothing.
     ///
     /// Used when the window was asked to redraw, but the windowing system hasn't let it
     /// (e.g. a Wayland compositor withholding frame callbacks from a hidden window).
-    LogicOnly,
+    /// The ui still runs so that the viewports it shows open and close.
+    Overdue,
 }
 
 /// Create an egui context, restoring it from storage if possible.

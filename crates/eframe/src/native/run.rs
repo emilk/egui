@@ -26,12 +26,12 @@ use crate::{
 /// See <https://github.com/emilk/egui/issues/7776>.
 const INVISIBLE_WINDOW_REPAINT_INTERVAL: Duration = Duration::from_millis(100);
 
-/// How long to wait for a requested `RedrawRequested` before running the app logic anyway.
+/// How long to wait for a requested `RedrawRequested` before running the app anyway.
 ///
 /// On Wayland, `RedrawRequested` waits for the compositor's frame callback, and compositors
 /// may withhold those from a window that isn't shown (e.g. one covered by a fullscreen window),
 /// without telling us that it is occluded. Nothing we paint would be shown, and presenting could
-/// block, so until the compositor asks for a frame again we only run [`crate::App::logic`].
+/// block, so until the compositor asks for a frame again we run the app without painting.
 /// See <https://github.com/emilk/egui/issues/5136>.
 const MISSED_REDRAW_TIMEOUT: Duration = Duration::from_millis(250);
 
@@ -275,10 +275,12 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             // `handle_event_result` re-enters `check_redraw_requests`, which may already
             // have handled this window, so only run it if the deadline is still there:
             if self.windows_redraw_deadlines.remove(&window_id).is_some() {
-                log::trace!("RedrawRequested is overdue for {window_id:?}: running logic only");
+                log::trace!(
+                    "RedrawRequested is overdue for {window_id:?}: running without painting"
+                );
                 let event_result =
                     self.winit_app
-                        .run_ui_and_paint(event_loop, window_id, PassMode::LogicOnly);
+                        .run_ui_and_paint(event_loop, window_id, PassMode::Overdue);
                 self.handle_event_result(event_loop, event_result);
             }
         }

@@ -699,8 +699,13 @@ impl WgpuWinitRunning<'_> {
             };
             let mut raw_input = egui_winit.take_egui_input(window);
 
-            let show_ui = mode == PassMode::Full
-                && (is_visible || is_viewport_or_descendant_visible(viewports, viewport_id));
+            // A viewport whose redraw is overdue, e.g. on a Wayland workspace out of sight,
+            // still runs its egui pass, so the viewports it shows open and close, but paints
+            // nothing: presenting could block until the compositor asks for a frame again.
+            let overdue = mode == PassMode::Overdue;
+            let show_ui =
+                overdue || is_visible || is_viewport_or_descendant_visible(viewports, viewport_id);
+            let is_visible = is_visible && !overdue;
 
             integration.pre_update();
 

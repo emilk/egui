@@ -156,7 +156,10 @@ pub trait App {
     /// You may NOT show any ui or do any painting during the call to [`Self::logic`].
     ///
     /// While the window is hidden, `eframe` runs no egui pass at all (so that no ui state is
-    /// disturbed), and calls this via [`egui::Context::run_logic`] instead.
+    /// disturbed), and calls this via [`egui::Context::run_logic`] instead. A window whose
+    /// redraw the windowing system holds back (e.g. on a Wayland workspace out of sight) is an
+    /// exception: its ui still runs, without painting, so that the viewports it shows open and
+    /// close.
     /// You can then still tell that the window is hidden with
     /// [`egui::InputState::viewport`], but the rest of [`egui::Context::input`]
     /// (events, time, …) is that of the last shown frame.
