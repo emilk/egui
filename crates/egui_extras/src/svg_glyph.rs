@@ -152,7 +152,7 @@ impl SvgGlyph {
         let mut image = ColorImage::from_rgba_premultiplied([width, height], pixmap.data());
         if !is_color {
             // The atlas stores coverage for monochrome glyphs, and the tessellator tints them:
-            for pixel in &mut image.pixels {
+            for pixel in image.pixels_mut() {
                 *pixel = Color32::from_white_alpha(pixel.a());
             }
         }
@@ -252,13 +252,13 @@ mod tests {
     #[test]
     fn gray_is_tinted() {
         let glyph = gray_rect().rasterize(40.0).unwrap();
-        assert_eq!(glyph.bitmap.image.size, [20, 40]);
+        assert_eq!(glyph.bitmap.image.resolution(), [20, 40]);
         assert!(!glyph.bitmap.is_color);
         assert!(
             glyph
                 .bitmap
                 .image
-                .pixels
+                .pixels()
                 .iter()
                 .all(|&p| p == Color32::WHITE)
         );
@@ -270,7 +270,14 @@ mod tests {
     fn color_is_kept() {
         let glyph = red_rect().rasterize(40.0).unwrap();
         assert!(glyph.bitmap.is_color);
-        assert!(glyph.bitmap.image.pixels.iter().all(|&p| p == Color32::RED));
+        assert!(
+            glyph
+                .bitmap
+                .image
+                .pixels()
+                .iter()
+                .all(|&p| p == Color32::RED)
+        );
     }
 
     #[test]
@@ -315,7 +322,7 @@ mod tests {
             .with_baseline_offset(0.25)
             .rasterize(40.0)
             .unwrap();
-        assert_eq!(glyph.bitmap.image.size, [10, 20]);
+        assert_eq!(glyph.bitmap.image.resolution(), [10, 20]);
         assert_eq!(glyph.advance_px, 40.0);
         assert_eq!(
             glyph.bitmap.offset_px,

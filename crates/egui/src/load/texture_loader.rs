@@ -76,7 +76,7 @@ impl TextureLoader for DefaultTextureLoader {
             match ctx.try_load_image(uri, size_hint)? {
                 ImagePoll::Pending { size } => Ok(TexturePoll::Pending { size }),
                 ImagePoll::Ready { image } => {
-                    let source_size = image.source_size;
+                    let source_size = image.source_size();
                     let handle = ctx.load_texture(uri, image, texture_options);
                     let texture = SizedTexture::new(handle.id(), source_size);
                     bucket.insert(
