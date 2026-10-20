@@ -1291,6 +1291,7 @@ impl GlutinWindowContext {
         let mut viewport_info = ViewportInfo::default();
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
+            super::viewport_hooks::with(|hooks| hooks.window_created(ViewportId::ROOT, window));
             window_from_viewport.insert(ViewportId::ROOT, window.id());
             egui_winit::update_viewport_info(&mut viewport_info, egui_ctx, window, true);
 
@@ -1464,7 +1465,10 @@ impl GlutinWindowContext {
             self.current_gl_context = Some(current_gl_context);
         }
 
-        self.viewport_from_window.insert(window.id(), viewport_id);
+        // This runs on every frame; report a window only when it is new for this viewport.
+        if self.viewport_from_window.insert(window.id(), viewport_id) != Some(viewport_id) {
+            super::viewport_hooks::with(|hooks| hooks.window_created(viewport_id, &window));
+        }
         self.window_from_viewport.insert(viewport_id, window.id());
 
         Ok(())
@@ -1542,8 +1546,13 @@ impl GlutinWindowContext {
         }
 
         // GC old viewports
-        self.viewports
-            .retain(|id, _| viewport_output.contains_key(id));
+        self.viewports.retain(|id, _| {
+            let keep = viewport_output.contains_key(id);
+            if !keep {
+                super::viewport_hooks::with(|hooks| hooks.window_destroyed(*id));
+            }
+            keep
+        });
         self.viewport_from_window
             .retain(|_, id| viewport_output.contains_key(id));
         self.window_from_viewport
@@ -1765,6 +1774,7 @@ fn render_immediate_viewport(
             .map(|(id, viewport)| (*id, viewport.info.clone()))
             .collect();
         raw_input.time = Some(beginning.elapsed().as_secs_f64());
+        super::viewport_hooks::with(|hooks| hooks.raw_input(egui_ctx, &mut raw_input));
         raw_input
     };
 

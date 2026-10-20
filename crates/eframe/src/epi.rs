@@ -431,6 +431,10 @@ pub struct NativeOptions {
     /// [`with_android_app`]: winit::platform::android::EventLoopBuilderExtAndroid::with_android_app
     #[cfg(target_os = "android")]
     pub android_app: Option<winit::platform::android::activity::AndroidApp>,
+
+    /// Per-viewport window and raw-input callbacks, see [`crate::ViewportHooks`].
+    #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+    pub viewport_hooks: Option<std::sync::Arc<dyn crate::ViewportHooks>>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -455,6 +459,9 @@ impl Clone for NativeOptions {
 
             #[cfg(target_os = "android")]
             android_app: self.android_app.clone(),
+
+            #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+            viewport_hooks: self.viewport_hooks.clone(),
 
             ..*self
         }
@@ -503,6 +510,9 @@ impl Default for NativeOptions {
 
             #[cfg(target_os = "android")]
             android_app: None,
+
+            #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+            viewport_hooks: None,
         }
     }
 }

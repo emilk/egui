@@ -197,6 +197,10 @@ pub use native::macos::WindowChromeMetrics;
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use native::run::EframeWinitApplication;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
+pub use native::viewport_hooks::ViewportHooks;
+
 #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
 #[cfg(any(feature = "glow", feature = "wgpu_no_default_features"))]
 pub use native::run::EframePumpStatus;
@@ -421,6 +425,8 @@ fn init_native(app_name: &str, native_options: &mut NativeOptions) -> Renderer {
     if native_options.viewport.app_id.is_none() {
         native_options.viewport.app_id = Some(app_name.to_owned());
     }
+
+    native::viewport_hooks::install(native_options.viewport_hooks.clone());
 
     let renderer = native_options.renderer;
 
