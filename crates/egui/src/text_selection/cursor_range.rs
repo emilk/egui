@@ -172,13 +172,15 @@ impl CCursorRange {
         }
     }
 
-    /// Handle `Home` the way code editors do, for [`crate::TextEdit::smart_home`].
-    pub(crate) fn on_smart_home(
+    /// Handle the `Home` and `End` keys the way code editors do
+    /// See [`crate::TextEdit::smart_home`].
+    pub(crate) fn on_smart_home_end(
         &mut self,
         galley: &Galley,
         modifiers: &Modifiers,
         key: Key,
         smart_home: bool,
+        smart_end: bool,
     ) -> bool {
         if modifiers.ctrl {
             return false;
@@ -190,6 +192,10 @@ impl CCursorRange {
             }
             Key::ArrowLeft if smart_home && modifiers.mac_cmd && !modifiers.alt => {
                 smart_home_cursor(galley, self.primary)
+            }
+            Key::End if smart_end && !modifiers.mac_cmd => smart_end_cursor(galley, self.primary),
+            Key::ArrowRight if smart_end && modifiers.mac_cmd && !modifiers.alt => {
+                smart_end_cursor(galley, self.primary)
             }
             _ => return false,
         };
@@ -400,5 +406,25 @@ fn smart_home_cursor(galley: &Galley, cursor: CCursor) -> CCursor {
         row_start
     } else {
         first_non_blank
+    }
+}
+
+/// Go to end of line or to just after last non-whitespace character of the line
+fn smart_end_cursor(galley: &Galley, cursor: CCursor) -> CCursor {
+    let row_end = galley.cursor_end_of_row(&cursor);
+    let (line_start, line_end, line) = paragraph_around(galley, cursor);
+    let trailing = line.chars().rev().take_while(|c| c.is_whitespace()).count();
+    let last_non_blank_end = if line_end.index - trailing == line_start.index {
+        line_end // a blank line
+    } else {
+        CCursor::new(line_end.index - trailing)
+    };
+
+    if cursor == last_non_blank_end {
+        line_end
+    } else if row_end.index < last_non_blank_end.index && cursor != row_end {
+        row_end
+    } else {
+        last_non_blank_end
     }
 }

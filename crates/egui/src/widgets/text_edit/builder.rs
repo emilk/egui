@@ -95,6 +95,7 @@ pub struct TextEdit<'t> {
     char_limit: usize,
     return_key: Option<KeyboardShortcut>,
     smart_home: bool,
+    smart_end: bool,
     background_color: Option<Color32>,
     classes: Classes,
 }
@@ -160,6 +161,7 @@ impl<'t> TextEdit<'t> {
             char_limit: usize::MAX,
             return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
             smart_home: false,
+            smart_end: false,
             background_color: None,
             classes: Classes::default(),
         }
@@ -463,6 +465,20 @@ impl<'t> TextEdit<'t> {
         self.smart_home = smart_home;
         self
     }
+
+    /// Toggle the smart `End` key function.
+    ///
+    /// When `true`, the `End` key moves the cursor to just after
+    /// the last non-whitespace character of the line, and pressing
+    /// it again moves it to the end of the line. On a Mac,
+    /// `Cmd+ArrowRight` works the same way.
+    ///
+    /// Default is `false`, also for [`Self::code_editor`].
+    #[inline]
+    pub fn smart_end(mut self, smart_end: bool) -> Self {
+        self.smart_end = smart_end;
+        self
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -539,6 +555,7 @@ impl<'t> TextEdit<'t> {
             char_limit,
             return_key,
             smart_home,
+            smart_end,
             background_color,
             mut classes,
         } = self;
@@ -698,6 +715,7 @@ impl<'t> TextEdit<'t> {
                         event_filter,
                         return_key,
                         smart_home,
+                        smart_end,
                     },
                 );
 
@@ -1205,6 +1223,7 @@ struct EventsOptions {
     event_filter: EventFilter,
     return_key: Option<KeyboardShortcut>,
     smart_home: bool,
+    smart_end: bool,
 }
 
 /// Check for (keyboard) events to edit the cursor and/or text.
@@ -1227,6 +1246,7 @@ fn events(
         event_filter,
         return_key,
         smart_home,
+        smart_end,
     } = *opts;
 
     let os = ui.os();
@@ -1267,7 +1287,9 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if cursor_range.on_smart_home(galley, modifiers, *key, smart_home) => None,
+            } if cursor_range.on_smart_home_end(galley, modifiers, *key, smart_home, smart_end) => {
+                None
+            }
             event if cursor_range.on_event(os, event, galley, id) => None,
 
             Event::Copy => {
