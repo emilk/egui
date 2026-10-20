@@ -1,4 +1,4 @@
-//! Tests for smart `Home` in [`TextEdit`].
+//! Tests for smart `Home` and smart `End` in [`TextEdit`].
 
 #![expect(clippy::unwrap_used)] // it's a test
 
@@ -53,6 +53,10 @@ fn code_editor(text: &mut String) -> TextEdit<'_> {
     TextEdit::multiline(text).code_editor()
 }
 
+fn smart_end(text: &mut String) -> TextEdit<'_> {
+    TextEdit::multiline(text).smart_end(true)
+}
+
 fn cursor(harness: &Harness<'_, String>) -> (usize, usize) {
     let range = TextEditState::load(&harness.ctx, id())
         .and_then(|state| state.cursor.char_range())
@@ -74,7 +78,7 @@ fn press_modifiers(harness: &mut Harness<'_, String>, modifiers: Modifiers, key:
     harness.run();
 }
 
-// ---- Smart Home ----
+// ---- Smart `Home` key ----
 
 #[test]
 fn home_should_toggle_between_first_non_blank_and_line_start() {
@@ -265,4 +269,135 @@ fn home_should_not_stop_inside_an_indentation_that_wraps() {
 
     press(&mut harness, Key::Home);
     assert_eq!(primary(&harness), 200);
+}
+
+// ---- Smart `End` key ----
+
+#[test]
+fn end_should_toggle_between_last_non_blank_and_line_end() {
+    let mut harness = harness(smart_end, "code   \nx", 0);
+
+    press(&mut harness, Key::End);
+    assert_eq!(cursor(&harness), (4, 4));
+
+    press(&mut harness, Key::End);
+    assert_eq!(cursor(&harness), (7, 7));
+
+    press(&mut harness, Key::End);
+    assert_eq!(cursor(&harness), (4, 4));
+}
+
+#[test]
+fn end_on_a_blank_line_should_go_to_the_line_end() {
+    let mut harness = harness(smart_end, "a\n      \nb", 2);
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), 8);
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), 8);
+}
+
+#[test]
+fn end_without_trailing_blanks_should_be_a_plain_end() {
+    let mut harness = harness(smart_end, "plain\nx", 0);
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), 5);
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), 5);
+}
+
+#[test]
+fn end_should_skip_non_breaking_spaces() {
+    let mut harness = harness(smart_end, "x\u{a0}\u{a0}", 0);
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), 1);
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), 3);
+}
+
+#[test]
+fn shift_end_should_extend_the_selection() {
+    let mut harness = harness(smart_end, "code   ", 0);
+
+    press_modifiers(&mut harness, Modifiers::SHIFT, Key::End);
+    assert_eq!(cursor(&harness), (4, 0));
+
+    press_modifiers(&mut harness, Modifiers::SHIFT, Key::End);
+    assert_eq!(cursor(&harness), (7, 0));
+}
+
+#[test]
+fn ctrl_end_should_still_go_to_the_end_of_the_text() {
+    let mut harness = harness(smart_end, "a  \nb  ", 0);
+
+    press_modifiers(&mut harness, Modifiers::CTRL, Key::End);
+    assert_eq!(primary(&harness), 7);
+}
+
+#[test]
+fn cmd_right_should_be_a_smart_end_on_mac() {
+    let mut harness = harness(smart_end, "code   ", 0);
+
+    press_modifiers(&mut harness, Modifiers::MAC_CMD, Key::ArrowRight);
+    assert_eq!(primary(&harness), 4);
+
+    press_modifiers(&mut harness, Modifiers::MAC_CMD, Key::ArrowRight);
+    assert_eq!(primary(&harness), 7);
+}
+
+#[test]
+fn code_editor_should_have_a_plain_end() {
+    let mut harness = harness(code_editor, "code   ", 0);
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), 7);
+}
+
+#[test]
+fn end_on_a_wrapped_row_should_go_to_the_row_end_first() {
+    let text = format!("{}   ", "word ".repeat(40).trim_end()); // wraps into several rows
+    let last_non_blank_end = text.len() - 3;
+    let mut harness = harness(smart_end, &text, 0);
+
+    press(&mut harness, Key::End);
+    let first_row_end = primary(&harness);
+    assert!(
+        0 < first_row_end && first_row_end < last_non_blank_end,
+        "the text should have wrapped: cursor at {first_row_end}"
+    );
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), last_non_blank_end);
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), text.len());
+}
+
+#[test]
+fn end_should_not_stop_inside_trailing_blanks_that_wrap() {
+    // The trailing blanks alone are wider than the text edit.
+    let text = format!("word{}", " ".repeat(200));
+    let mut harness = harness(smart_end, &text, 0);
+
+    press(&mut harness, Key::ArrowDown);
+    let inside_the_blanks = primary(&harness);
+    assert!(
+        4 < inside_the_blanks && inside_the_blanks < text.len(),
+        "the trailing blanks should have wrapped: cursor at {inside_the_blanks}"
+    );
+
+    // Not the end of the wrapped row, which is also inside the blanks.
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), 4);
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), text.len());
+
+    press(&mut harness, Key::End);
+    assert_eq!(primary(&harness), 4);
 }
