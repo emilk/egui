@@ -1097,7 +1097,9 @@ fn replace_last_glyph_with_overflow_character(
         } else {
             0.0 // TODO(emilk): heed paragraph leading_space 😬
         };
-        let bidi_level = row.glyphs.last().map_or(0, |glyph| glyph.bidi_level);
+        // At the paragraph level the character goes to the visual end of the row
+        // (the left end of a right-to-left row), whatever direction the text before it has:
+        let bidi_level = u8::from(row.rtl_paragraph);
 
         let advance_width_px = match &raster {
             Some(raster) => raster.advance_px,
@@ -3465,6 +3467,50 @@ mod tests {
         for placed_row in &galley.rows {
             let range = visible_x_range(placed_row);
             assert!((range.min + range.max).abs() <= 1.0, "{range:?}");
+        }
+    }
+
+    #[test]
+    fn elision_is_at_the_visual_end_of_the_row() {
+        let mut fonts = test_fonts();
+        for (text, rtl) in [
+            ("אבגד הוזח טיכל מנסע", true),
+            ("שלום hello world again", true),
+            ("ab אבגד הוזח טיכל מנסע", false),
+        ] {
+            let full_width = layout_simple(&mut fonts, text).size().x;
+            let mut job = LayoutJob::simple_singleline(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+            );
+            job.wrap = TextWrapping::truncate_at_width(full_width / 2.0);
+            let galley = layout(&mut fonts, 1.0, Arc::new(job));
+            assert!(galley.elided);
+            let row = &galley.rows[0].row;
+            assert_eq!(row.rtl_paragraph, rtl);
+
+            // The logically first text is kept, followed by the overflow character:
+            let kept = row.text();
+            assert!(kept.ends_with('…'), "{kept:?}");
+            assert!(text.starts_with(kept.trim_end_matches('…')), "{kept:?}");
+
+            let ellipsis = row.glyphs.last().unwrap();
+            let others = &row.glyphs[..row.glyphs.len() - 1];
+            // Without fonts the overflow character has no width, and goes along with
+            // the glyph before it:
+            let visible = 0.0 < ellipsis.advance_width;
+            assert_eq!(visible, cfg!(feature = "default_fonts"));
+            if visible {
+                let at_visual_end = |g: &Glyph| {
+                    if rtl {
+                        ellipsis.max_x() <= g.pos.x
+                    } else {
+                        g.max_x() <= ellipsis.pos.x
+                    }
+                };
+                assert!(others.iter().all(at_visual_end), "{kept:?}");
+            }
         }
     }
 
