@@ -151,8 +151,10 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
     // right-to-left text where a reader expects it:
     if bidi.levels.is_some() {
         for placed_row in &mut rows {
-            if placed_row.row.glyphs.iter().any(Glyph::is_rtl) {
-                reorder_row_visually(point_scale, Arc::make_mut(&mut placed_row.row));
+            let row = Arc::make_mut(&mut placed_row.row);
+            reset_whitespace_levels(row);
+            if row.glyphs.iter().any(Glyph::is_rtl) {
+                reorder_row_visually(point_scale, row);
             }
         }
     }
@@ -1878,6 +1880,36 @@ impl BidiLevels {
     }
 }
 
+/// UAX #9 rule L1: segment separators (tab), paragraph separators, and any sequence
+/// of whitespace before one of them or at the end of the row take the paragraph level.
+///
+/// So the spaces where a right-to-left row wraps go to its left end,
+/// not next to the last word wherever that is on the row.
+fn reset_whitespace_levels(row: &mut Row) {
+    use unicode_bidi::BidiClass::{B, BN, FSI, LRE, LRI, LRO, PDF, PDI, RLE, RLI, RLO, S, WS};
+
+    let paragraph_level = u8::from(row.rtl_paragraph);
+    // Walking backwards: is everything after this glyph, up to a separator
+    // or the end of the row, whitespace?
+    let mut in_trailing_whitespace = true;
+    for glyph in row.glyphs.iter_mut().rev() {
+        match unicode_bidi::bidi_class(glyph.chr) {
+            B | S => {
+                glyph.bidi_level = paragraph_level;
+                in_trailing_whitespace = true;
+            }
+            // Whitespace, isolate formatting characters, and the characters
+            // that rule X9 removes:
+            WS | FSI | LRI | RLI | PDI | LRE | RLE | LRO | RLO | PDF | BN => {
+                if in_trailing_whitespace {
+                    glyph.bidi_level = paragraph_level;
+                }
+            }
+            _ => in_trailing_whitespace = false,
+        }
+    }
+}
+
 /// The clusters of a shaped buffer, as ranges of glyph indices, in _logical_ order.
 ///
 /// The shaper returns glyphs in visual order, which for a right-to-left run
@@ -3512,6 +3544,46 @@ mod tests {
                 assert!(others.iter().all(at_visual_end), "{kept:?}");
             }
         }
+    }
+
+    #[test]
+    fn whitespace_at_the_end_of_a_row_takes_the_paragraph_level() {
+        let mut fonts = test_fonts();
+        let mut layout_left = |text: &str, max_width: f32| {
+            let mut job = LayoutJob::simple(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                max_width,
+            );
+            job.halign_min_is_start = false;
+            layout(&mut fonts, 1.0, Arc::new(job))
+        };
+        for (first_row, rest, rtl) in [("אבג abc ", "def", true), ("abc אבג ", "דהו", false)]
+        {
+            let width = layout_left(first_row, f32::INFINITY).size().x;
+            let galley = layout_left(&format!("{first_row}{rest}"), width + 1.0);
+            assert_eq!(galley.rows.len(), 2);
+            let row = &galley.rows[0].row;
+            assert_eq!(row.text(), first_row);
+            assert_eq!(row.rtl_paragraph, rtl);
+
+            // Inside the paragraph this space is between two words of the other direction,
+            // but where the row wraps it goes to the visual end of the row:
+            let space = row.glyphs.last().unwrap();
+            assert_eq!(space.bidi_level, u8::from(rtl));
+            let others = &row.glyphs[..row.glyphs.len() - 1];
+            if rtl {
+                assert!(others.iter().all(|g| space.pos.x < g.pos.x));
+            } else {
+                assert!(others.iter().all(|g| g.pos.x < space.pos.x));
+            }
+        }
+
+        // A tab is a segment separator and also takes the paragraph level:
+        let galley = layout_with_direction(&mut fonts, "abc \tdef", TextDirection::RightToLeft);
+        let levels: Vec<u8> = galley.rows[0].glyphs.iter().map(|g| g.bidi_level).collect();
+        assert_eq!(levels, [2, 2, 2, 1, 1, 2, 2, 2]);
     }
 
     /// Asserts that the glyphs at these char indices are placed left to right.
