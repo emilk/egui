@@ -268,10 +268,14 @@ pub(crate) mod id_source {
                 return;
             }
             let source = truncate(format_source());
-            self.0.write().entry(key).or_insert_with(|| Entry {
-                source,
-                last_seen: AtomicU64::new(generation),
-            });
+            self.0
+                .write()
+                .entry(key)
+                .and_modify(|entry| entry.last_seen.store(generation, Relaxed))
+                .or_insert_with(|| Entry {
+                    source,
+                    last_seen: AtomicU64::new(generation),
+                });
         }
 
         pub(crate) fn get(&self, key: K) -> Option<String> {
