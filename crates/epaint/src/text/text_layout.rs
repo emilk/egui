@@ -409,9 +409,20 @@ fn emit_cluster_glyphs(
     } = *shaped;
     let px_scale = face_metrics.px_scale_factor;
     let mut emitted = 0;
+    let first_glyph = paragraph.glyphs.len();
+
+    // The glyph that stands for the cluster. Not always the first:
+    // a right-to-left shaper puts a cluster's marks before its base.
+    let base = if run.bidi_level % 2 == 1 {
+        glyph_range
+            .clone()
+            .find(|&idx| 0 < positions[idx].x_advance)
+            .unwrap_or(glyph_range.start)
+    } else {
+        glyph_range.start
+    };
 
     for idx in glyph_range.clone() {
-        let first_in_cluster = idx == glyph_range.start;
         let (info, pos) = (&infos[idx], &positions[idx]);
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         let cluster = info.cluster;
@@ -443,9 +454,9 @@ fn emit_cluster_glyphs(
 
         let glyph = if glyph_id == skrifa::GlyphId::NOTDEF {
             // The shaper couldn't map this character. Drop combining marks and duplicate
-            // NOTDEF glyphs within the same cluster. The first base character is rasterized,
+            // NOTDEF glyphs within the same cluster. The base character is rasterized,
             // or rendered as the `.notdef` glyph ("tofu") if no rasterizer can handle the cluster.
-            if is_combining_mark(chr) || !first_in_cluster {
+            if is_combining_mark(chr) || idx != base {
                 continue;
             }
 
@@ -524,6 +535,16 @@ fn emit_cluster_glyphs(
         };
         paragraph.glyphs.push(glyph);
         emitted += 1;
+    }
+
+    // A right-to-left shaper puts a cluster's marks before its base. Put the base first,
+    // so it carries the cluster's first char and the marks move with it in
+    // `reorder_row_visually`. Positions are already final, so only the order changes.
+    if run.bidi_level % 2 == 1
+        && let Some(cluster) = paragraph.glyphs.get_mut(first_glyph..)
+        && let Some(base) = cluster.iter().position(|glyph| 0.0 < glyph.advance_width)
+    {
+        cluster.rotate_left(base);
     }
 
     emitted
@@ -1946,6 +1967,7 @@ mod tests {
 
     use super::{super::*, *};
     use crate::{ColorImage, text::cursor::CCursor};
+    use emath::Rangef;
 
     fn test_fonts() -> FontsImpl {
         FontsImpl::new(TextOptions::default(), FontDefinitions::default())
@@ -3184,6 +3206,266 @@ mod tests {
                 "Galley::end().index mismatch for {text:?}",
             );
         }
+    }
+
+    /// Arabic-Indic digits belong to the Arabic script, so a shaper left to guess the direction
+    /// shapes them right to left and "٤٥" comes out as "٥٤". Outside right-to-left text the bidi
+    /// algorithm keeps them left to right (<https://github.com/crmne/zapfast/issues/184>).
+    #[test]
+    fn arabic_indic_digits_without_rtl_text_stay_left_to_right() {
+        let mut fonts = test_fonts();
+        for text in ["\u{664}\u{665}", "\u{664}\u{665} messages"] {
+            let galley = layout_simple(&mut fonts, text);
+            let glyphs = &galley.rows[0].row.glyphs;
+            assert_eq!(glyphs.len(), text.chars().count(), "{text:?}");
+            assert_eq!(galley.rows[0].row.text(), text);
+            assert!(
+                glyphs[0].pos.x < glyphs[1].pos.x,
+                "{text:?}: four is drawn left of five"
+            );
+        }
+    }
+
+    /// Asserts that the glyphs at these char indices are placed left to right.
+    #[track_caller]
+    fn assert_visual_order(row: &Row, left_to_right: &[usize]) {
+        let xs: Vec<f32> = left_to_right.iter().map(|&i| row.glyphs[i].pos.x).collect();
+        assert!(
+            xs.is_sorted_by(|a, b| a < b),
+            "{:?}: glyphs {left_to_right:?} are at {xs:?}",
+            row.text()
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn arabic_with_digits_and_brackets() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        let mut layout = |text: &str| {
+            fonts.with_pixels_per_point(1.0).layout_no_wrap(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+            )
+        };
+        let text = "عدد (123) هنا";
+        let galley = layout(text);
+        let row = &galley.rows[0].row;
+        assert_eq!(row.text(), text);
+
+        // The number reads left to right, the words and the brackets right to left:
+        assert_visual_order(row, &[12, 11, 10, 9, 8, 5, 6, 7, 4, 3, 2, 1, 0]);
+
+        // The shaper mirrors a bracket in right-to-left text,
+        // so the logical "(" is drawn as ")" on the right of the number:
+        let ltr = layout("(x)");
+        let image = fonts.image();
+        // Which bracket a bitmap shows, by the side its middle row is inked on.
+        // (Comparing bitmaps directly fails on their different sub-pixel offsets.)
+        let shape = |glyph: &Glyph| {
+            let [x0, y0] = glyph.uv_rect.min.map(usize::from);
+            let [x1, y1] = glyph.uv_rect.max.map(usize::from);
+            let y = usize::midpoint(y0, y1);
+            let ink: Vec<f32> = (x0..x1).map(|x| f32::from(image[(x, y)].a())).collect();
+            let weighted: f32 = ink.iter().enumerate().map(|(i, a)| i as f32 * a).sum();
+            let centroid = weighted / ink.iter().sum::<f32>();
+            if centroid < (ink.len() - 1) as f32 / 2.0 {
+                '('
+            } else {
+                ')'
+            }
+        };
+        assert_eq!(shape(&ltr.rows[0].row.glyphs[0]), '(');
+        assert_eq!(shape(&ltr.rows[0].row.glyphs[2]), ')');
+        assert_eq!(shape(&row.glyphs[4]), ')');
+        assert_eq!(shape(&row.glyphs[8]), '(');
+    }
+
+    #[test]
+    fn mixed_hebrew_and_latin_in_one_paragraph() {
+        let mut fonts = test_fonts();
+
+        // Left-to-right paragraph: only the Hebrew word is reversed.
+        let galley = layout_simple(&mut fonts, "Hello שלום world");
+        let ltr: Vec<usize> = (0..=5).chain([9, 8, 7, 6]).chain(10..=15).collect();
+        assert_visual_order(&galley.rows[0].row, &ltr);
+
+        // Right-to-left paragraph: the words run right to left, the Latin word inside reads left to right.
+        let galley = layout_simple(&mut fonts, "שלום Hello עולם");
+        let rtl: Vec<usize> = (10..=14).rev().chain(5..=9).chain((0..=4).rev()).collect();
+        assert_visual_order(&galley.rows[0].row, &rtl);
+
+        // Each wrapped row is reordered on its own, and keeps its logical chars:
+        let width = layout_simple(&mut fonts, "Hello ").size().x;
+        let job = LayoutJob::simple(
+            "שלום Hello עולם".to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            width + 1.0,
+        );
+        let galley = layout(&mut fonts, 1.0, Arc::new(job));
+        let texts: Vec<String> = galley.rows.iter().map(|row| row.row.text()).collect();
+        assert_eq!(texts, ["שלום ", "Hello ", "עולם"]);
+        assert_visual_order(&galley.rows[0].row, &[4, 3, 2, 1, 0]);
+        // The space after "Hello" is right to left, like the paragraph, so it ends up on the left:
+        assert_visual_order(&galley.rows[1].row, &[5, 0, 1, 2, 3, 4]);
+        assert_visual_order(&galley.rows[2].row, &[3, 2, 1, 0]);
+    }
+
+    /// A click on the left or right half of a glyph puts the cursor on that side of it,
+    /// in the glyph's own direction, also where the direction changes.
+    #[test]
+    fn cursor_hit_testing_across_a_direction_boundary() {
+        let mut fonts = test_fonts();
+        for text in ["abc אבג def", "אבג abc דהו"] {
+            let galley = layout_simple(&mut fonts, text);
+            let row = &galley.rows[0].row;
+            let y = row.size.y / 2.0;
+            for (i, glyph) in row.glyphs.iter().enumerate() {
+                let rect = glyph.logical_rect();
+                let left = galley.cursor_from_pos(vec2(rect.lerp_inside([0.25, 0.5]).x, y));
+                let right = galley.cursor_from_pos(vec2(rect.lerp_inside([0.75, 0.5]).x, y));
+                let (before, after) = if glyph.is_rtl() {
+                    (right, left)
+                } else {
+                    (left, right)
+                };
+                assert_eq!(before.index.0, i, "{text:?}: before {:?}", glyph.chr);
+                assert_eq!(after.index.0, i + 1, "{text:?}: after {:?}", glyph.chr);
+            }
+        }
+    }
+
+    /// A selection that is contiguous in logical order can be split on screen.
+    #[test]
+    fn selection_across_a_direction_boundary() {
+        let mut fonts = test_fonts();
+        let galley = layout_simple(&mut fonts, "abc אבג def");
+        let row = &galley.rows[0].row;
+        let span = |chars: Range<usize>| {
+            let glyphs = &row.glyphs[chars];
+            let min = glyphs.iter().map(|g| g.pos.x).fold(f32::INFINITY, f32::min);
+            let max = glyphs
+                .iter()
+                .map(Glyph::max_x)
+                .fold(f32::NEG_INFINITY, f32::max);
+            Rangef::new(min, max)
+        };
+        let ranges =
+            |chars: Range<usize>| row.x_ranges(CharIndex(chars.start)..CharIndex(chars.end));
+
+        // "abc א" is "abc " on the left and "א" at the right end of the Hebrew word:
+        assert_eq!(ranges(0..5).as_slice(), [span(0..4), span(4..5)]);
+        // The Hebrew word alone:
+        assert_eq!(ranges(4..7).as_slice(), [span(4..7)]);
+        // "בג def" is the left of the Hebrew word, and everything right of it:
+        assert_eq!(ranges(5..11).as_slice(), [span(5..7), span(7..11)]);
+
+        // Left-to-right text: one range, from cursor to cursor.
+        let galley = layout_simple(&mut fonts, "abc def");
+        let row = &galley.rows[0].row;
+        assert_eq!(
+            row.x_ranges(CharIndex(1)..CharIndex(5)).as_slice(),
+            [Rangef::new(
+                row.x_offset(CharIndex(1)),
+                row.x_offset(CharIndex(5))
+            )]
+        );
+    }
+
+    /// The end of a right-to-left row that ends in left-to-right text is after that text.
+    #[test]
+    fn rtl_row_ending_in_ltr_text_has_its_end_cursor_after_it() {
+        let mut fonts = test_fonts();
+        for text in ["ملف PDF", "صفحة 12 من 340"] {
+            let galley = layout_simple(&mut fonts, text);
+            let row = &galley.rows[0].row;
+            let last = row.glyphs.last().unwrap();
+            assert!(!last.is_rtl());
+            assert_eq!(
+                row.x_offset(row.char_count_excluding_newline()),
+                last.max_x(),
+                "{text:?}"
+            );
+        }
+    }
+
+    /// A right-to-left shaper puts a mark before its base. The base must still be drawn
+    /// and carry the char index, and the mark move with it when the row is reordered.
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn rtl_mark_stays_on_its_base() {
+        // Hack has the combining acute but no Hebrew, so alef is drawn as `.notdef`.
+        let mut fonts = FontsImpl::new(TextOptions::default(), hack_only());
+        let galley = layout_simple(&mut fonts, "\u{5D0}\u{301}\u{5D1}");
+        let row = &galley.rows[0].row;
+        let [alef, acute, bet] = [0, 1, 2].map(|i| &row.glyphs[i]);
+        assert!(0.0 < alef.advance_width, "alef carries its own index");
+        assert!(!alef.uv_rect.is_nothing(), "alef is drawn");
+        assert_eq!(acute.advance_width, 0.0);
+        assert!(!acute.uv_rect.is_nothing(), "the acute is drawn");
+        assert!(bet.pos.x < alef.pos.x, "bet is drawn left of alef");
+        let acute_x = acute.pos.x + acute.uv_rect.offset.x;
+        assert!(
+            alef.pos.x <= acute_x && acute_x <= alef.max_x(),
+            "the acute at {acute_x} is over alef at {}..{}",
+            alef.pos.x,
+            alef.max_x()
+        );
+    }
+
+    /// Glyph and row positions of left-to-right text: no wrapping, centered and justified.
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn ltr_layout_is_unchanged_by_bidi() {
+        let mut fonts = test_fonts();
+        let text = "Hello, wörld! fi ffi 123 (x) — ok\tdone";
+        let mut lines = Vec::new();
+        for (max_width, halign, justify) in [
+            (f32::INFINITY, Align::LEFT, false),
+            (80.0, Align::Center, false),
+            (80.0, Align::LEFT, true),
+        ] {
+            let mut job = LayoutJob::simple(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                max_width,
+            );
+            job.halign = halign;
+            job.justify = justify;
+            let galley = layout(&mut fonts, 1.0, Arc::new(job));
+            for placed_row in &galley.rows {
+                assert!(placed_row.row.glyphs.iter().all(|g| g.bidi_level == 0));
+                let xs: Vec<String> = placed_row
+                    .row
+                    .glyphs
+                    .iter()
+                    .map(|glyph| format!("{:.2}", glyph.pos.x))
+                    .collect();
+                lines.push(format!(
+                    "{:.2},{:.2} {:.2}x{:.2}: {}",
+                    placed_row.pos.x,
+                    placed_row.pos.y,
+                    placed_row.row.size.x,
+                    placed_row.row.size.y,
+                    xs.join(" ")
+                ));
+            }
+        }
+        // As laid out by egui 0.37.0, before bidi:
+        let expected = [
+            "0.00,0.00 233.75x16.00: 0.00 9.00 17.00 21.00 24.00 32.00 36.00 39.00 50.00 58.00 63.00 67.00 75.00 79.00 82.00 91.00 90.00 94.00 108.00 108.00 108.00 111.00 119.00 127.00 134.00 138.00 142.00 149.00 153.00 156.00 170.00 174.00 182.00 189.00 201.00 210.00 218.00 226.00",
+            "-18.00,0.00 35.44x16.00: 0.00 9.00 17.00 21.00 24.00 32.00 36.00",
+            "-35.00,16.00 69.00x16.00: 0.00 11.00 19.00 24.00 28.00 36.00 40.00 43.00 52.00 51.00 55.00 69.00 69.00 69.00",
+            "-29.00,32.00 58.94x16.00: 0.00 8.00 16.00 23.00 27.00 31.00 38.00 42.00 45.00 59.00",
+            "-30.00,48.00 59.69x16.00: 0.00 8.00 15.00 27.00 36.00 44.00 52.00",
+            "0.00,0.00 80.00x16.00: 0.00 18.00 35.00 48.00 60.00 77.00 89.00",
+            "0.00,16.00 80.00x16.00: 0.00 11.00 19.00 24.00 28.00 36.00 40.00 49.00 58.00 57.00 66.00 80.00 80.00 80.00",
+            "0.00,32.00 80.00x16.00: 0.00 10.00 20.00 29.00 38.00 44.00 53.00 59.00 66.00 82.00",
+            "0.00,48.00 59.69x16.00: 0.00 8.00 15.00 27.00 36.00 44.00 52.00",
+        ];
+        assert_eq!(lines, expected);
     }
 
     #[cfg(feature = "default_fonts")]
