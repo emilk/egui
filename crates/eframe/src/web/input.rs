@@ -173,6 +173,36 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
     egui::Key::from_name(key)
 }
 
+/// Keep keypad Enter logical when the browser supplies only its physical code.
+pub(crate) fn logical_or_physical_key(
+    logical: Option<egui::Key>,
+    physical: Option<egui::Key>,
+) -> Option<egui::Key> {
+    logical.or_else(|| {
+        physical.map(|key| {
+            if key == egui::Key::NumpadEnter {
+                egui::Key::Enter
+            } else {
+                key
+            }
+        })
+    })
+}
+
+#[test]
+fn enter_keys_keep_distinct_physical_positions() {
+    assert_eq!(translate_key("Enter"), Some(egui::Key::Enter));
+    assert_eq!(translate_key("NumpadEnter"), Some(egui::Key::NumpadEnter));
+    assert_eq!(
+        logical_or_physical_key(None, translate_key("NumpadEnter")),
+        Some(egui::Key::Enter)
+    );
+    assert_eq!(
+        logical_or_physical_key(translate_key("A"), translate_key("NumpadEnter")),
+        Some(egui::Key::A)
+    );
+}
+
 pub fn modifiers_from_kb_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
     egui::Modifiers {
         alt: event.alt_key(),
