@@ -100,71 +100,7 @@ pub fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web
 
 /// The text input from a keyboard event (e.g. `X` when pressing the `X` key).
 pub fn text_from_keyboard_event(event: &web_sys::KeyboardEvent) -> Option<String> {
-    let key = event.key();
-
-    let is_function_key = key.starts_with('F') && key.len() > 1;
-    if is_function_key {
-        return None;
-    }
-
-    let is_control_key = matches!(
-        key.as_str(),
-        "Alt"
-      | "ArrowDown"
-      | "ArrowLeft"
-      | "ArrowRight"
-      | "ArrowUp"
-      | "Backspace"
-      | "BrowserBack"
-      | "BrowserFavorites"
-      | "BrowserForward"
-      | "BrowserHome"
-      | "BrowserRefresh"
-      | "BrowserSearch"
-      | "BrowserStop"
-      | "CapsLock"
-      | "Clear"
-      | "ContextMenu"
-      | "Control"
-      | "Delete"
-      | "Eject"
-      | "End"
-      | "Enter"
-      | "Esc"
-      | "Escape"
-      | "Fn"
-      | "GroupNext" // https://github.com/emilk/egui/issues/510
-      | "Help"
-      | "Home"
-      | "Insert"
-      | "LaunchApp1"
-      | "LaunchApp2"
-      | "LaunchMail"
-      | "MediaPlayPause"
-      | "MediaTrackNext"
-      | "MediaTrackPrevious"
-      | "MediaStop"
-      | "Meta"
-      | "NumLock"
-      | "PageDown"
-      | "PageUp"
-      | "Pause"
-      | "Power"
-      | "PrintScreen"
-      | "ScrollLock"
-      | "Shift"
-      | "Sleep"
-      | "Tab"
-      | "AudioVolumeDown"
-      | "AudioVolumeMute"
-      | "AudioVolumeUp"
-    );
-
-    if is_control_key {
-        return None;
-    }
-
-    Some(key)
+    crate::web_keys::text_from_key(&event.key()).map(ToOwned::to_owned)
 }
 
 /// Web sends all keys as strings, so it is up to us to figure out if it is

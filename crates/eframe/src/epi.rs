@@ -739,6 +739,21 @@ pub struct Frame {
     /// taken by the app. See [`Frame::request_activation_token`].
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) activation_token: Option<String>,
+
+    /// See [`Frame::set_ui_language`].
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) ui_language: Option<String>,
+
+    /// See [`Frame::set_text_input_language`].
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) text_input_language: Option<String>,
+}
+
+#[cfg(target_arch = "wasm32")]
+fn set_if_changed(slot: &mut Option<String>, value: Option<&str>) {
+    if slot.as_deref() != value {
+        *slot = value.map(ToOwned::to_owned);
+    }
 }
 
 // Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
@@ -781,6 +796,10 @@ impl Frame {
             window: None,
             #[cfg(not(target_arch = "wasm32"))]
             activation_token: None,
+            #[cfg(target_arch = "wasm32")]
+            ui_language: None,
+            #[cfg(target_arch = "wasm32")]
+            text_input_language: None,
             storage: None,
             #[cfg(feature = "wgpu_no_default_features")]
             wgpu_render_state: None,
@@ -800,6 +819,43 @@ impl Frame {
     /// Information about the integration.
     pub fn info(&self) -> &IntegrationInfo {
         &self.info
+    }
+
+    /// Set the language of the user interface, as a BCP 47 tag (`"ar"`, `"pt-BR"`).
+    ///
+    /// On the web, eframe uses it as the default `lang` of the hidden text input used for IME
+    /// (see [`Self::set_text_input_language`]).
+    /// egui has no UI language of its own, so this is where eframe learns it.
+    ///
+    /// Cheap to call every frame. Does nothing natively.
+    pub fn set_ui_language(&mut self, lang: Option<&str>) {
+        cfg_select! {
+            target_arch = "wasm32" => {
+                set_if_changed(&mut self.ui_language, lang);
+            }
+            _ => {
+                let _ = (self, lang);
+            }
+        }
+    }
+
+    /// Set the language of the text being typed, as a BCP 47 tag, when it differs from the
+    /// UI language (for example the language of the document being edited).
+    ///
+    /// On the web, eframe puts it in the `lang` attribute of the hidden text input used for IME,
+    /// which browsers pass on to IMEs, virtual keyboards and spell checkers.
+    /// `None` falls back to the language from [`Self::set_ui_language`].
+    ///
+    /// Cheap to call every frame. Does nothing natively.
+    pub fn set_text_input_language(&mut self, lang: Option<&str>) {
+        cfg_select! {
+            target_arch = "wasm32" => {
+                set_if_changed(&mut self.text_input_language, lang);
+            }
+            _ => {
+                let _ = (self, lang);
+            }
+        }
     }
 
     /// A place where you can store custom data in a way that persists when you restart the app.

@@ -11,6 +11,9 @@ use super::{AppRunner, WebRunner};
 pub struct TextAgent {
     input: web_sys::HtmlInputElement,
     input_state: Rc<RefCell<InputState>>,
+
+    /// The `lang` attribute of `input`.
+    lang: RefCell<Option<String>>,
 }
 
 impl TextAgent {
@@ -120,7 +123,11 @@ impl TextAgent {
             }
         })?;
 
-        Ok(Self { input, input_state })
+        Ok(Self {
+            input,
+            input_state,
+            lang: RefCell::new(None),
+        })
     }
 
     pub fn update(
@@ -132,6 +139,26 @@ impl TextAgent {
         self.input_state
             .borrow_mut()
             .update(ime, canvas, zoom_factor)
+    }
+
+    /// Set the `lang` attribute of the input, which browsers pass on to IMEs,
+    /// virtual keyboards and spell checkers.
+    pub fn set_lang(&self, lang: Option<&str>) {
+        let mut current = self.lang.borrow_mut();
+        if current.as_deref() == lang {
+            return;
+        }
+        let result = match lang {
+            Some(lang) => self.input.set_attribute("lang", lang),
+            None => self.input.remove_attribute("lang"),
+        };
+        if let Err(err) = result {
+            log::error!(
+                "failed to set text agent lang: {}",
+                super::string_from_js_value(&err)
+            );
+        }
+        *current = lang.map(ToOwned::to_owned);
     }
 
     pub fn set_focus(&self, on: bool) {
@@ -425,7 +452,7 @@ impl InputState {
         if event.is_composing() || !matches!(special_case, KeydownSpecialCase::None) {
             true
         } else {
-            if event.key().chars().count() > 1
+            if crate::web_keys::is_named_key(&event.key())
                 || event.ctrl_key()
                 || event.alt_key()
                 || event.meta_key()
