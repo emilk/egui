@@ -13,6 +13,7 @@ mod fonts;
 mod galley_cache;
 mod glyph_atlas;
 mod glyph_rasterizer;
+pub mod grapheme;
 mod index;
 mod styled_metrics;
 mod text_layout;

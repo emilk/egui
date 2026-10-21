@@ -1,6 +1,6 @@
 //! Text cursor changes/interaction, without modifying the text.
 
-use epaint::text::{ByteIndex, ByteRangeExt as _, CharIndex, Galley, cursor::CCursor};
+use epaint::text::{ByteIndex, ByteRangeExt as _, CharIndex, Galley, cursor::CCursor, grapheme};
 use unicode_segmentation::UnicodeSegmentation as _;
 
 use crate::{NumExt as _, Rect, Response, Ui, epaint};
@@ -351,8 +351,11 @@ fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
 }
 
 pub fn ccursor_next_word(text: &str, ccursor: CCursor) -> CCursor {
+    let index = next_word_boundary_char_index(text, ccursor.index);
+    // A word boundary need not be a cluster boundary: an Arabic number sign (U+0600)
+    // belongs to the word before it, but to the cluster after it.
     CCursor {
-        index: next_word_boundary_char_index(text, ccursor.index),
+        index: grapheme::ceil_boundary(text, index),
         prefer_next_row: false,
     }
 }
@@ -371,7 +374,7 @@ pub fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
     let chars_after_cursor = num_chars - ccursor.index.min(num_chars);
     let boundary = next_word_boundary_char_index(&reversed, chars_after_cursor);
     CCursor {
-        index: num_chars - boundary.min(num_chars),
+        index: grapheme::floor_boundary(text, num_chars - boundary.min(num_chars)),
         prefer_next_row: true,
     }
 }
@@ -545,6 +548,42 @@ mod test {
         assert_eq!(next_word_boundary_char_index(text, CharIndex(15)).0, 19);
         assert_eq!(next_word_boundary_char_index(text, CharIndex(19)).0, 20);
         assert_eq!(next_word_boundary_char_index(text, CharIndex(20)).0, 21);
+    }
+
+    /// Word motion and double-click selection stop only between grapheme clusters.
+    #[test]
+    fn word_motion_does_not_split_clusters() {
+        let texts = [
+            "x\u{600}-y \u{600}.z",     // a prepended Arabic number sign
+            "cafe\u{301} na\u{308}ive", // decomposed accents
+            "👨\u{200D}👩\u{200D}👧 hi 🇸🇪🇫🇷 1\u{FE0F}\u{20E3}!", // emoji sequences
+            "क्षत्रिय कि",                // Devanagari
+            "กี่ ไม่",                     // Thai
+            "\u{1100}\u{1161}\u{11A8} \u{627}\u{651}", // Hangul jamo, Arabic with shadda
+        ];
+        for text in texts {
+            let end = text.chars().count();
+            let is_boundary = |index: CharIndex| {
+                index.0 == end || index.0 == 0 || grapheme::cluster_around(text, index).is_none()
+            };
+            for i in 0..=end {
+                let cursor = CCursor::new(i);
+                let next = ccursor_next_word(text, cursor);
+                assert!(
+                    is_boundary(next.index),
+                    "{text:?}: next word from {i} is {next:?}"
+                );
+                let previous = ccursor_previous_word(text, cursor);
+                assert!(
+                    is_boundary(previous.index),
+                    "{text:?}: previous word from {i} is {previous:?}"
+                );
+                let word = select_word_at(text, cursor);
+                for cursor in [word.primary, word.secondary] {
+                    assert!(is_boundary(cursor.index), "{text:?}: word at {i}: {word:?}");
+                }
+            }
+        }
     }
 
     #[test]
