@@ -152,7 +152,7 @@ impl FontCell {
             return None;
         }
 
-        let mut ctx = vello_cpu::RenderContext::new(width, height);
+        let mut ctx = glyph_render_context(width, height);
         ctx.set_transform(kurbo::Affine::translate((-bounds.x0, -bounds.y0)));
         ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
         ctx.fill_path(&path);
@@ -225,7 +225,7 @@ impl FontCell {
         );
         let coords: Vec<i16> = location.coords().iter().map(|c| c.to_bits()).collect();
 
-        let mut ctx = vello_cpu::RenderContext::new(canvas_size, canvas_size);
+        let mut ctx = glyph_render_context(canvas_size, canvas_size);
         let mut resources = vello_cpu::Resources::new();
         ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
         ctx.glyph_run(&mut resources, &font)
@@ -685,4 +685,20 @@ pub(crate) struct ShapedGlyph {
 
     /// CJK glyphs skip subpixel positioning to save atlas space.
     pub is_cjk: bool,
+}
+
+/// A single-threaded vello context for one glyph.
+///
+/// `RenderContext::new` uses worker threads when another crate in the build turns on `vello_cpu`'s
+/// `multithreading` feature: that builds a thread pool per glyph and panics in `render` without a
+/// `flush` first.
+fn glyph_render_context(width: u16, height: u16) -> vello_cpu::RenderContext {
+    vello_cpu::RenderContext::new_with(
+        width,
+        height,
+        vello_cpu::RenderSettings {
+            num_threads: 0,
+            ..Default::default()
+        },
+    )
 }
