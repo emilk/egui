@@ -3144,6 +3144,48 @@ mod tests {
         }
     }
 
+    /// Regression test for <https://github.com/emilk/egui/issues/8576>.
+    ///
+    /// The shaper returns a right-to-left run in visual order, with decreasing
+    /// cluster offsets. Such a run must still produce one glyph per character.
+    #[test]
+    fn test_right_to_left_run_glyph_count() {
+        let pixels_per_point = 1.0;
+        let mut fonts = test_fonts();
+        let font_id = FontId::default();
+
+        let cases = [
+            "ب",
+            "بب",
+            "ببب",
+            "אב",
+            "a אבג b",
+            "שלום 42 עולם",
+            // Base char + combining mark inside a right-to-left run
+            "ב\u{05BC}א",
+        ];
+
+        for text in cases {
+            let job = LayoutJob::simple(
+                text.to_owned(),
+                font_id.clone(),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+            let total_glyphs: usize = galley.rows.iter().map(|r| r.row.glyphs.len()).sum();
+            let num_chars = text.chars().count();
+
+            assert_eq!(total_glyphs, num_chars, "Glyph count mismatch for {text:?}");
+            assert_eq!(
+                galley.end().index.0,
+                num_chars,
+                "Galley::end().index mismatch for {text:?}",
+            );
+        }
+    }
+
     #[cfg(feature = "default_fonts")]
     fn measure_text(
         fonts: &mut FontsImpl,
