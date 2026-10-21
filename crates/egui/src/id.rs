@@ -304,10 +304,9 @@ pub(crate) mod id_source {
     ///
     /// Called at the end of each pass.
     pub(crate) fn end_pass() {
-        let generation = GENERATION.load(Relaxed);
+        let generation = GENERATION.fetch_add(1, Relaxed);
         SOURCE_MAP.purge(generation);
         crate::id_salt::id_salt_source::purge(generation);
-        GENERATION.fetch_add(1, Relaxed);
     }
 
     pub(super) fn insert_root(id: Id, source: &impl core::fmt::Debug) {
