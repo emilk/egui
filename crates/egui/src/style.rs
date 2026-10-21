@@ -398,6 +398,12 @@ impl Style {
     pub fn text_styles(&self) -> Vec<TextStyle> {
         self.text_styles.keys().cloned().collect()
     }
+
+    /// Set [`Self::right_to_left`]. A method as well as a field, so callers built against egui
+    /// without the field can fall back to a no-op trait method of the same name.
+    pub fn set_right_to_left(&mut self, right_to_left: bool) {
+        self.right_to_left = right_to_left;
+    }
 }
 
 /// Controls the sizes and distances between widgets.
