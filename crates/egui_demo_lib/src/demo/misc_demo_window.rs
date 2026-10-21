@@ -691,10 +691,53 @@ fn ui_stack_demo(ui: &mut Ui) {
                                 let response = ui.label(format!("{:?}", node.unique_id));
 
                                 if response.hovered() {
+                                    // ScrollArea rects are populated after its contents run, so use
+                                    // max_rect as a visible fallback during this UiStack pass.
+                                    let (mut highlight_rect, mut visible_rect) = node
+                                        .scroll_area_rects()
+                                        .unwrap_or((node.max_rect, node.max_rect));
+                                    if let Some(frame_rect) = node.frame_rect() {
+                                        highlight_rect = frame_rect;
+                                        if let Some(scroll_area_visible_rect) =
+                                            node.iter().skip(1).find_map(|ancestor| {
+                                                ancestor
+                                                    .scroll_area_rects()
+                                                    .map(|(_, visible_rect)| visible_rect)
+                                            })
+                                        {
+                                            // Keep the Frame's horizontal bounds and align it vertically with the viewport.
+                                            #[cfg(target_arch = "wasm32")]
+                                            {
+                                                let highlight_height = highlight_rect.height();
+                                                highlight_rect.min.y =
+                                                    scroll_area_visible_rect.min.y;
+                                                highlight_rect.max.y =
+                                                    highlight_rect.min.y + highlight_height;
+                                            }
+                                            #[cfg(not(target_arch = "wasm32"))]
+                                            {
+                                                highlight_rect.min.y =
+                                                    scroll_area_visible_rect.min.y;
+                                                highlight_rect.max.y =
+                                                    scroll_area_visible_rect.max.y;
+                                            }
+                                            visible_rect = scroll_area_visible_rect;
+                                        }
+                                    }
+                                    if node.kind() == Some(egui::UiKind::Collapsible)
+                                        && let Some(full_height) = node.collapsible_full_height()
+                                    {
+                                        highlight_rect.max.y = highlight_rect.min.y + full_height;
+                                    }
                                     ui.debug_painter().debug_rect(
-                                        node.max_rect,
+                                        highlight_rect,
+                                        Color32::RED,
+                                        "highlight_rect",
+                                    );
+                                    ui.debug_painter().debug_rect(
+                                        visible_rect,
                                         Color32::GREEN,
-                                        "max_rect",
+                                        "visible_rect",
                                     );
                                     ui.debug_painter().circle_filled(
                                         node.min_rect.min,
