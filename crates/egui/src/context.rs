@@ -2941,7 +2941,10 @@ impl Context {
         self.sync_window_theme();
 
         #[cfg(debug_assertions)]
-        self.debug_painting();
+        {
+            self.debug_painting();
+            crate::id::id_source::end_pass();
+        }
 
         let mut output = self.write(|ctx| ctx.end_pass());
 
