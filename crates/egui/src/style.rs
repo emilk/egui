@@ -360,6 +360,16 @@ const _: () = {
 };
 
 impl Style {
+    /// The direction egui lays out the parts of its own widgets in, like a checkbox and its label:
+    /// right to left if [`Self::right_to_left`].
+    pub(crate) fn chrome_direction(&self) -> crate::Direction {
+        if self.right_to_left {
+            crate::Direction::RightToLeft
+        } else {
+            crate::Direction::LeftToRight
+        }
+    }
+
     // TODO(emilk): rename style.interact() to maybe… `style.interactive` ?
     /// Use this style for interactive things.
     /// Note that you must already have a response,

@@ -813,29 +813,52 @@ fn paint_resize_corner(
 ) {
     let cr = window_frame.corner_radius;
 
-    let (corner, radius, corner_response) = if possible.resize_right && possible.resize_bottom {
-        (Align2::RIGHT_BOTTOM, cr.se, i.right & i.bottom)
-    } else if possible.resize_left && possible.resize_bottom {
-        (Align2::LEFT_BOTTOM, cr.sw, i.left & i.bottom)
-    } else if possible.resize_left && possible.resize_top {
-        (Align2::LEFT_TOP, cr.nw, i.left & i.top)
-    } else if possible.resize_right && possible.resize_top {
-        (Align2::RIGHT_TOP, cr.ne, i.right & i.top)
-    } else {
-        // We're not in two directions, but it is still nice to tell the user
-        // we're resizable by painting the resize corner in the expected place
-        // (i.e. for windows only resizable in one direction):
-        if possible.resize_right || possible.resize_bottom {
-            (Align2::RIGHT_BOTTOM, cr.se, i.right & i.bottom)
-        } else if possible.resize_left || possible.resize_bottom {
-            (Align2::LEFT_BOTTOM, cr.sw, i.left & i.bottom)
-        } else if possible.resize_left || possible.resize_top {
-            (Align2::LEFT_TOP, cr.nw, i.left & i.top)
-        } else if possible.resize_right || possible.resize_top {
-            (Align2::RIGHT_TOP, cr.ne, i.right & i.top)
-        } else {
-            return;
-        }
+    // Corners in order of preference, with whether they can resize horizontally and vertically.
+    let mut corners = [
+        (
+            Align2::RIGHT_BOTTOM,
+            cr.se,
+            i.right & i.bottom,
+            possible.resize_right,
+            possible.resize_bottom,
+        ),
+        (
+            Align2::LEFT_BOTTOM,
+            cr.sw,
+            i.left & i.bottom,
+            possible.resize_left,
+            possible.resize_bottom,
+        ),
+        (
+            Align2::LEFT_TOP,
+            cr.nw,
+            i.left & i.top,
+            possible.resize_left,
+            possible.resize_top,
+        ),
+        (
+            Align2::RIGHT_TOP,
+            cr.ne,
+            i.right & i.top,
+            possible.resize_right,
+            possible.resize_top,
+        ),
+    ];
+    if ui.style().right_to_left {
+        // The bottom corner at the end side comes first.
+        corners.swap(0, 1);
+    }
+
+    // If we can't resize in two directions, it is still nice to tell the user
+    // we're resizable by painting the resize corner in the expected place
+    // (i.e. for windows only resizable in one direction):
+    let Some((corner, radius, corner_response, _, _)) = corners
+        .iter()
+        .find(|(_, _, _, x, y)| *x && *y)
+        .or_else(|| corners.iter().find(|(_, _, _, x, y)| *x || *y))
+        .copied()
+    else {
+        return;
     };
 
     // Adjust the corner offset to accommodate for window rounding

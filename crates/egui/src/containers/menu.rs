@@ -271,8 +271,8 @@ impl MenuState {
                     .and_then(|index| entries.get(index))
                     .or_else(|| entries.last())
                     .copied(),
-                FocusDirection::Left => anchor_widget,
-                // SubMenu handles Right on its own button before we get here.
+                // SubMenu handles the key towards its submenu on its own button before we get here.
+                direction if direction == submenu_close_direction(ui) => anchor_widget,
                 _ => None,
             }
         };
@@ -477,13 +477,27 @@ pub struct SubMenuButton<'a> {
 }
 
 impl<'a> SubMenuButton<'a> {
-    /// The submenu arrow triangle shape.
+    /// The submenu arrow triangle shape, pointing right.
     pub fn arrow_shape(rect: Rect, color: impl Into<Color32>) -> Shape {
+        Self::arrow_shape_towards_submenu(rect, color, false)
+    }
+
+    /// The submenu arrow triangle shape, pointing left when `right_to_left`.
+    fn arrow_shape_towards_submenu(
+        rect: Rect,
+        color: impl Into<Color32>,
+        right_to_left: bool,
+    ) -> Shape {
         let rect = Rect::from_center_size(
             rect.center(),
             vec2(rect.width() * 0.55, rect.height() * 0.35),
         );
-        Shape::rotated_triangle(rect, -core::f32::consts::TAU / 4.0, color)
+        let rotation = if right_to_left {
+            core::f32::consts::TAU / 4.0
+        } else {
+            -core::f32::consts::TAU / 4.0
+        };
+        Shape::rotated_triangle(rect, rotation, color)
     }
 
     /// An [`Atom`] painting the [`Self::arrow_shape`].
@@ -498,7 +512,11 @@ impl<'a> SubMenuButton<'a> {
                 sized: SizedAtomKind::Paint {
                     paint: Arc::new(move |ui: &Ui, args: AtomPaintArgs| {
                         let color = color.unwrap_or(args.fallback_text_color);
-                        ui.painter().add(Self::arrow_shape(args.rect, color));
+                        ui.painter().add(Self::arrow_shape_towards_submenu(
+                            args.rect,
+                            color,
+                            ui.style().right_to_left,
+                        ));
                     }),
                     size,
                 },
@@ -546,12 +564,24 @@ impl<'a> SubMenuButton<'a> {
         if open {
             ui.style_mut().visuals.widgets.inactive = ui.style().visuals.widgets.open;
         }
-        let response = self.button.ui(ui);
+        // Mirrored in right-to-left, so the arrow sits on the side the submenu opens on.
+        let response = self.button.direction(ui.style().chrome_direction()).ui(ui);
         ui.style_mut().visuals.widgets.inactive = inactive;
 
         let popup_response = self.sub_menu.show(ui, &response, content);
 
         (response, popup_response)
+    }
+}
+
+/// The arrow key that moves focus from a submenu back to its button.
+///
+/// The opposite key opens the submenu.
+fn submenu_close_direction(ui: &Ui) -> FocusDirection {
+    if ui.style().right_to_left {
+        FocusDirection::Right
+    } else {
+        FocusDirection::Left
     }
 }
 
@@ -649,12 +679,16 @@ impl SubMenu {
         let clicked_by_pointer = button_response.clicked_by(PointerButton::Primary);
         let clicked_by_keyboard_or_access = clicked && !clicked_by_pointer;
         let focused = button_response.enabled() && button_response.has_focus();
-        let arrow_right =
-            focused && ui.memory(|mem| mem.focus_direction() == FocusDirection::Right);
-        if arrow_right {
+        let open_direction = if ui.style().right_to_left {
+            FocusDirection::Left
+        } else {
+            FocusDirection::Right
+        };
+        let arrow_open = focused && ui.memory(|mem| mem.focus_direction() == open_direction);
+        if arrow_open {
             ui.memory_mut(|mem| mem.move_focus(FocusDirection::None));
         }
-        let enter = arrow_right || (focused && clicked_by_keyboard_or_access);
+        let enter = arrow_open || (focused && clicked_by_keyboard_or_access);
         // Only arrow keys open on focus, so Tab can still move past the submenu.
         let focus_open = focused && parent_arrow_focus == Some(button_response.id);
         let keyboard_open = enter || focus_open || (!was_open && clicked_by_keyboard_or_access);
@@ -669,7 +703,7 @@ impl SubMenu {
             } else if !was_open || pointer_changed {
                 state.ignore_hover = false;
             }
-            // Left inside the submenu moves focus back to our button.
+            // Left (Right in right-to-left) inside the submenu moves focus back to our button.
             let left_submenu = state.arrow_focus == Some(button_response.id);
             if left_submenu {
                 state.arrow_focus = None;
@@ -814,67 +848,177 @@ mod tests {
     use core::cell::Cell;
 
     use crate::{
-        Context, Event, Modifiers, PointerButton, Pos2, RawInput, Rect, UiBuilder, pos2, vec2,
+        Context, Event, Id, Key, Modifiers, PointerButton, Pos2, RawInput, Rect, UiBuilder,
+        epaint::{ClippedShape, Shape},
+        pos2, vec2,
     };
 
-    /// Opens a submenu of a menu in the middle of the screen,
-    /// and returns the rects of the submenu button and of the submenu contents.
-    fn open_submenu(right_to_left: bool) -> (Rect, Rect) {
-        let ctx = Context::default();
-        ctx.all_styles_mut(|style| style.right_to_left = right_to_left);
-        let menu_button = Cell::new(Rect::NOTHING);
-        let submenu_button = Cell::new(Rect::NOTHING);
-        let submenu = Cell::new(Rect::NOTHING);
-        let run = |events: Vec<Event>| {
+    /// A menu in the middle of the screen with one submenu.
+    struct MenuTest {
+        ctx: Context,
+        menu_button: Cell<Rect>,
+        submenu_button: Cell<(Id, Rect)>,
+        submenu: Cell<Option<Rect>>,
+    }
+
+    impl MenuTest {
+        fn new(right_to_left: bool) -> Self {
+            let ctx = Context::default();
+            ctx.all_styles_mut(|style| style.right_to_left = right_to_left);
+            let test = Self {
+                ctx,
+                menu_button: Cell::new(Rect::NOTHING),
+                submenu_button: Cell::new((Id::NULL, Rect::NOTHING)),
+                submenu: Cell::new(None),
+            };
+            test.run(vec![]);
+            let pos = test.menu_button.get().center();
+            test.run(vec![Event::PointerMoved(pos), click(pos, true)]);
+            test.run(vec![click(pos, false)]);
+            test.run(vec![]);
+            test
+        }
+
+        fn run(&self, events: Vec<Event>) -> Vec<ClippedShape> {
             let input = RawInput {
                 screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
                 events,
                 ..Default::default()
             };
-            ctx.run_ui(input, |ui| {
+            self.submenu.set(None);
+            let mut output = self.ctx.run_ui(input, |ui| {
                 let max_rect = Rect::from_min_size(pos2(350.0, 100.0), vec2(100.0, 100.0));
                 ui.scope_builder(UiBuilder::new().max_rect(max_rect), |ui| {
                     let response = ui.menu_button("Menu", |ui| {
                         let response = ui.menu_button("Submenu", |ui| {
-                            ui.label("Item");
-                            submenu.set(ui.min_rect());
+                            let _ = ui.button("Item");
+                            self.submenu.set(Some(ui.min_rect()));
                         });
-                        submenu_button.set(response.response.rect);
+                        self.submenu_button
+                            .set((response.response.id, response.response.rect));
                     });
-                    menu_button.set(response.response.rect);
+                    self.menu_button.set(response.response.rect);
                 });
-            })
-            .drop_without_applying_deltas();
-        };
-        let button = |pos, pressed| Event::PointerButton {
+            });
+            output.textures_delta.clear();
+            output.shapes
+        }
+
+        /// Which way the submenu arrow points (`1.0` right, `-1.0` left),
+        /// and whether it is in the left half of the submenu button.
+        fn submenu_arrow(&self) -> (f32, bool) {
+            let button = self.submenu_button.get().1;
+            let triangles: Vec<_> = self
+                .run(vec![])
+                .into_iter()
+                .filter_map(|clipped| match clipped.shape {
+                    Shape::Path(path)
+                        if path.points.len() == 3
+                            && path.points.iter().all(|p| button.contains(*p)) =>
+                    {
+                        Some(path.points)
+                    }
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(triangles.len(), 1, "Expected one arrow: {triangles:?}");
+            let points = &triangles[0];
+            let mean_x = points.iter().map(|p| p.x).sum::<f32>() / 3.0;
+            let tip = points
+                .iter()
+                .max_by(|a, b| (a.x - mean_x).abs().total_cmp(&(b.x - mean_x).abs()))
+                .expect("three points");
+            ((tip.x - mean_x).signum(), mean_x < button.center().x)
+        }
+
+        fn press(&self, key: Key) {
+            let event = |pressed| Event::Key {
+                key,
+                physical_key: None,
+                pressed,
+                repeat: false,
+                modifiers: Modifiers::NONE,
+            };
+            self.run(vec![event(true), event(false)]);
+            for _ in 0..3 {
+                self.run(vec![]);
+            }
+        }
+
+        fn submenu_button_is_focused(&self) -> bool {
+            self.ctx.memory(|mem| mem.focused()) == Some(self.submenu_button.get().0)
+        }
+
+        /// Hovers the submenu button, and returns its rect and the submenu rect.
+        fn open_submenu_by_hover(&self) -> (Rect, Rect) {
+            self.run(vec![Event::PointerMoved(
+                self.submenu_button.get().1.center(),
+            )]);
+            for _ in 0..3 {
+                self.run(vec![]);
+            }
+            let submenu = self.submenu.get().expect("The submenu didn't open");
+            (self.submenu_button.get().1, submenu)
+        }
+
+        /// Opens the submenu with `open` from its focused button, then goes back with `back`.
+        fn assert_submenu_keys(&self, open: Key, back: Key) {
+            self.press(Key::ArrowDown);
+            assert!(self.submenu_button_is_focused());
+            self.press(open);
+            assert!(
+                self.submenu.get().is_some(),
+                "{open:?} didn't open the submenu"
+            );
+            assert!(!self.submenu_button_is_focused());
+
+            self.press(back);
+            assert!(self.submenu_button_is_focused(), "{back:?} didn't go back");
+            assert!(
+                self.submenu.get().is_none(),
+                "{back:?} didn't close the submenu"
+            );
+        }
+    }
+
+    fn click(pos: Pos2, pressed: bool) -> Event {
+        Event::PointerButton {
             pos,
             button: PointerButton::Primary,
             pressed,
             modifiers: Modifiers::NONE,
-        };
-
-        run(vec![]);
-        let pos = menu_button.get().center();
-        run(vec![Event::PointerMoved(pos), button(pos, true)]);
-        run(vec![button(pos, false)]);
-        run(vec![]);
-        run(vec![Event::PointerMoved(submenu_button.get().center())]);
-        for _ in 0..3 {
-            run(vec![]);
         }
-        assert!(submenu.get().is_positive(), "The submenu didn't open");
-        (submenu_button.get(), submenu.get())
     }
 
     #[test]
     fn submenu_opens_to_the_right() {
-        let (button, submenu) = open_submenu(false);
+        let (button, submenu) = MenuTest::new(false).open_submenu_by_hover();
         assert!(submenu.left() > button.right(), "{button:?} {submenu:?}");
     }
 
     #[test]
     fn submenu_opens_to_the_left_right_to_left() {
-        let (button, submenu) = open_submenu(true);
+        let (button, submenu) = MenuTest::new(true).open_submenu_by_hover();
         assert!(submenu.right() < button.left(), "{button:?} {submenu:?}");
+    }
+
+    #[test]
+    fn submenu_arrow_at_the_right_pointing_right() {
+        assert_eq!(MenuTest::new(false).submenu_arrow(), (1.0, false));
+    }
+
+    #[test]
+    fn submenu_arrow_at_the_left_pointing_left_right_to_left() {
+        assert_eq!(MenuTest::new(true).submenu_arrow(), (-1.0, true));
+    }
+
+    #[test]
+    fn submenu_keys() {
+        MenuTest::new(false).assert_submenu_keys(Key::ArrowRight, Key::ArrowLeft);
+    }
+
+    #[test]
+    fn submenu_keys_right_to_left() {
+        MenuTest::new(true).assert_submenu_keys(Key::ArrowLeft, Key::ArrowRight);
     }
 }

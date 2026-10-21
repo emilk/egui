@@ -1,7 +1,7 @@
 use crate::{
-    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Role, Sense,
-    TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, emath,
-    epaint, pos2, remap, remap_clamp, vec2,
+    Align, AsIdSalt, Context, Id, IdSalt, InnerResponse, Layout, NumExt as _, Rect, Response, Role,
+    Sense, TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText,
+    emath, epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
 use epaint::StrokeKind;
@@ -131,13 +131,23 @@ impl CollapsingState {
         ui: &mut Ui,
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
     ) -> HeaderResponse<'_, HeaderRet> {
-        let header_response = ui.horizontal(|ui| {
+        let add_contents = |ui: &mut Ui| {
             let prev_item_spacing = ui.spacing_mut().item_spacing;
             ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
             let collapser = self.show_default_button_indented(ui);
             ui.spacing_mut().item_spacing = prev_item_spacing;
             (collapser, add_header(ui))
-        });
+        };
+        let header_response = if ui.style().right_to_left {
+            // The toggle button comes first, on the right.
+            let size = vec2(
+                ui.available_size_before_wrap().x,
+                ui.spacing().interact_size.y,
+            );
+            ui.allocate_ui_with_layout(size, Layout::right_to_left(Align::Center), add_contents)
+        } else {
+            ui.horizontal(add_contents)
+        };
         HeaderResponse {
             state: self,
             ui,
@@ -163,7 +173,11 @@ impl CollapsingState {
         self.show_body_unindented(ui, |ui| {
             ui.indent(id, |ui| {
                 // make as wide as the header:
-                ui.expand_to_include_x(header_response.rect.right());
+                ui.expand_to_include_x(if ui.style().right_to_left {
+                    header_response.rect.left()
+                } else {
+                    header_response.rect.right()
+                });
                 add_body(ui)
             })
             .inner
@@ -575,8 +589,15 @@ impl CollapsingHeader {
         let (_, rect) = ui.allocate_space(desired_size);
 
         let mut header_response = ui.interact(rect, id, Sense::click());
+        // The icon sits at the start side, followed by the text.
+        let right_to_left = ui.style().right_to_left;
+        let text_x = if right_to_left {
+            rect.right() - ui.spacing().indent - galley.size().x
+        } else {
+            text_pos.x
+        };
         let text_pos = pos2(
-            text_pos.x,
+            text_x,
             header_response.rect.center().y - galley.size().y / 2.0,
         );
 
@@ -629,10 +650,12 @@ impl CollapsingHeader {
 
             {
                 let (mut icon_rect, _) = ui.spacing().icon_rectangles(header_response.rect);
-                icon_rect.set_center(pos2(
-                    header_response.rect.left() + ui.spacing().indent / 2.0,
-                    header_response.rect.center().y,
-                ));
+                let icon_x = if right_to_left {
+                    header_response.rect.right() - ui.spacing().indent / 2.0
+                } else {
+                    header_response.rect.left() + ui.spacing().indent / 2.0
+                };
+                icon_rect.set_center(pos2(icon_x, header_response.rect.center().y));
                 let icon_response = header_response.clone().with_new_rect(icon_rect);
                 if let Some(icon) = icon {
                     icon(ui, openness, &icon_response);
