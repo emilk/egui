@@ -171,6 +171,7 @@ impl GalleyCache {
                 break_on_newline: job.break_on_newline,
                 direction: job.direction,
                 halign: job.halign,
+                halign_min_is_start: job.halign_min_is_start,
                 justify: job.justify,
                 first_row_min_height: if is_first_paragraph {
                     job.first_row_min_height

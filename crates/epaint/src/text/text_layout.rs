@@ -159,21 +159,28 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
 
     let justify = job.justify && job.wrap.max_width.is_finite();
 
-    if justify || job.halign != Align::LEFT {
-        let num_rows = rows.len();
-        for (i, placed_row) in rows.iter_mut().enumerate() {
-            let is_last_row = i + 1 == num_rows;
-            let justify_row = justify && !placed_row.ends_with_newline && !is_last_row;
+    let num_rows = rows.len();
+    for (i, placed_row) in rows.iter_mut().enumerate() {
+        // Aligned around x = 0 for now, see `align_rtl_rows_to_start`:
+        let halign = if starts_on_the_right(&job, &placed_row.row) {
+            Align::RIGHT
+        } else {
+            job.halign
+        };
+        let is_last_row = i + 1 == num_rows;
+        let justify_row = justify && !placed_row.ends_with_newline && !is_last_row;
+        if justify || halign != Align::LEFT {
             halign_and_justify_row(
                 point_scale,
                 placed_row,
-                job.halign,
+                halign,
                 job.wrap.max_width,
                 justify_row,
                 job.keep_trailing_whitespace,
             );
         }
     }
+    align_rtl_rows_to_start(&job, &mut rows, pixels_per_point);
 
     // Calculate the Y positions and tessellate the text:
     galley_from_rows(point_scale, job, rows, elided, intrinsic_size)
@@ -1260,6 +1267,50 @@ fn halign_and_justify_row(
 
     // Note we ignore the leading/trailing whitespace here!
     row.size.x = target_max_x - target_min_x;
+}
+
+/// Is `row` aligned to the right because its start is there?
+///
+/// See [`LayoutJob::halign_min_is_start`].
+fn starts_on_the_right(job: &LayoutJob, row: &Row) -> bool {
+    job.halign == Align::Min
+        && job.halign_min_is_start
+        && row.rtl_paragraph
+        && !row.glyphs.is_empty()
+}
+
+/// Puts each row that [`starts_on_the_right`] flush with the right edge of the widest row.
+///
+/// Such a row has been aligned as `Align::RIGHT`, with its size in `row.size.x`;
+/// the other rows stay where they are. Returns `true` if any row moved.
+pub(crate) fn align_rtl_rows_to_start(
+    job: &LayoutJob,
+    rows: &mut [PlacedRow],
+    pixels_per_point: f32,
+) -> bool {
+    if !rows
+        .iter()
+        .any(|placed_row| starts_on_the_right(job, &placed_row.row))
+    {
+        return false;
+    }
+    let width = rows
+        .iter()
+        .map(|placed_row| {
+            if starts_on_the_right(job, &placed_row.row) {
+                placed_row.size.x
+            } else {
+                placed_row.pos.x + placed_row.size.x
+            }
+        })
+        .fold(0.0, f32::max);
+    let point_scale = PointScale::new(pixels_per_point);
+    for placed_row in rows {
+        if starts_on_the_right(job, &placed_row.row) {
+            placed_row.pos.x = point_scale.round_to_pixel(width - placed_row.size.x);
+        }
+    }
+    true
 }
 
 /// Calculate the Y positions and tessellate the text.
@@ -3347,6 +3398,74 @@ mod tests {
         let galley = fonts.with_pixels_per_point(1.0).layout_job(job);
         assert_eq!(galley.rows.len(), 3);
         assert!(galley.rows.iter().all(|row| row.rtl_paragraph));
+    }
+
+    /// The left and right edge of the visible glyphs of a row, in galley coordinates.
+    fn visible_x_range(placed_row: &PlacedRow) -> Rangef {
+        let visible = placed_row
+            .glyphs
+            .iter()
+            .filter(|glyph| !glyph.chr.is_whitespace());
+        let min = visible
+            .clone()
+            .map(|g| g.pos.x)
+            .fold(f32::INFINITY, f32::min);
+        let max = visible.map(Glyph::max_x).fold(f32::NEG_INFINITY, f32::max);
+        Rangef::new(placed_row.pos.x + min, placed_row.pos.x + max)
+    }
+
+    #[test]
+    fn rtl_paragraphs_start_on_the_right() {
+        let text = "abcdefghij\nאב גד\nאב";
+        let job = |halign: Align, halign_min_is_start: bool| {
+            let mut job = LayoutJob::simple(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            job.halign = halign;
+            job.halign_min_is_start = halign_min_is_start;
+            job
+        };
+        let mut fonts = test_fonts();
+        let close = |a: f32, b: f32| (a - b).abs() <= 0.5;
+
+        // The start of a right-to-left paragraph is on the right,
+        // flush with the widest row; the galley still starts at x = 0:
+        let galley = layout(&mut fonts, 1.0, Arc::new(job(Align::LEFT, true)));
+        let ranges: Vec<Rangef> = galley.rows.iter().map(visible_x_range).collect();
+        assert_eq!(galley.rect.min.x, 0.0);
+        assert!(close(ranges[0].min, 0.0), "{ranges:?}");
+        for range in &ranges[1..] {
+            assert!(close(range.max, ranges[0].max), "{ranges:?}");
+            assert!(0.0 < range.min, "{ranges:?}");
+        }
+
+        // `Fonts` lays out each paragraph on its own, then joins them:
+        let joined = Fonts::new(TextOptions::default(), FontDefinitions::default())
+            .with_pixels_per_point(1.0)
+            .layout_job(job(Align::LEFT, true));
+        let joined_ranges: Vec<Rangef> = joined.rows.iter().map(visible_x_range).collect();
+        assert_eq!(joined_ranges, ranges);
+        assert_eq!(joined.rect.min.x, 0.0);
+
+        // An explicit left alignment:
+        let galley = layout(&mut fonts, 1.0, Arc::new(job(Align::LEFT, false)));
+        for placed_row in &galley.rows {
+            assert!(close(visible_x_range(placed_row).min, 0.0));
+        }
+
+        // Right and center alignment do not depend on the direction:
+        let galley = layout(&mut fonts, 1.0, Arc::new(job(Align::RIGHT, true)));
+        for placed_row in &galley.rows {
+            assert!(close(visible_x_range(placed_row).max, 0.0));
+        }
+        let galley = layout(&mut fonts, 1.0, Arc::new(job(Align::Center, true)));
+        for placed_row in &galley.rows {
+            let range = visible_x_range(placed_row);
+            assert!((range.min + range.max).abs() <= 1.0, "{range:?}");
+        }
     }
 
     /// Asserts that the glyphs at these char indices are placed left to right.
