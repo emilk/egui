@@ -393,7 +393,10 @@ impl AppRunner {
     fn handle_platform_output(&self, platform_output: egui::PlatformOutput) {
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
-            super::screen_reader::speak(&platform_output.events_description());
+            super::screen_reader::speak(
+                &platform_output.events_description(),
+                self.frame.ui_language.as_deref(),
+            );
         }
 
         let egui::PlatformOutput {

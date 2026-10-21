@@ -823,7 +823,8 @@ impl Frame {
 
     /// Set the language of the user interface, as a BCP 47 tag (`"ar"`, `"pt-BR"`).
     ///
-    /// On the web, eframe uses it as the default `lang` of the hidden text input used for IME
+    /// On the web, eframe speaks the built-in screen reader's output in this language, and uses
+    /// it as the default `lang` of the hidden text input used for IME
     /// (see [`Self::set_text_input_language`]).
     /// egui has no UI language of its own, so this is where eframe learns it.
     ///
