@@ -118,7 +118,14 @@ fn popup_aligned_to_the_left() {
 #[test]
 fn popup_aligned_to_the_right_right_to_left() {
     let (button, popup) = popup_below_wide_button(true);
-    assert_eq!(popup.right(), button.right(), "{button:?} {popup:?}");
+    // Areas round their left-top corner to whole pixels, so with a fractional popup width
+    // (real fonts) the right edge can be up to half a pixel off.
+    // Painting rounds the frame edges to pixels too, so it still looks aligned.
+    let ppp = Context::default().pixels_per_point();
+    assert!(
+        (popup.right() - button.right()).abs() <= 0.5 / ppp,
+        "{button:?} {popup:?}"
+    );
     assert!(popup.top() >= button.bottom());
 }
 
