@@ -1997,9 +1997,11 @@ fn count_reorder_steps(steps: usize) {
 /// [`layout_shaped_run`] left it. It stays in logical order, so a glyph's
 /// index is still its char index; only the positions move.
 ///
-/// A block is one advancing glyph and the zero-width glyphs after it
-/// (combining marks, the continuation glyphs of a cluster). Blocks move as
-/// units so a mark stays over its base.
+/// A block is one advancing glyph and the zero-width glyphs after it at the same
+/// level (combining marks, the continuation glyphs of a cluster). Blocks move as
+/// units so a mark stays over its base. A zero-width glyph at another level,
+/// such as an isolate initiator, a PDI or a mark like RLM, is a block of its own:
+/// its level may be the only thing that separates two runs.
 ///
 /// Takes time linear in the number of glyphs: each pass of L2 reverses level runs
 /// (maximal sequences of blocks at one level), not single blocks, and there are
@@ -2013,7 +2015,12 @@ fn reorder_row_visually(point_scale: PointScale, row: &mut Row) {
     let mut blocks: Vec<Range<usize>> = Vec::new();
     for (i, glyph) in glyphs.iter().enumerate() {
         match blocks.last_mut() {
-            Some(last) if glyph.advance_width <= 0.0 => last.end = i + 1,
+            Some(last)
+                if glyph.advance_width <= 0.0
+                    && glyph.bidi_level == glyphs[last.start].bidi_level =>
+            {
+                last.end = i + 1;
+            }
             _ => blocks.push(i..i + 1),
         }
     }
@@ -3873,6 +3880,101 @@ mod tests {
             "the acute at {acute_x} is over alef at {}..{}",
             alef.pos.x,
             alef.max_x()
+        );
+    }
+
+    /// The chars of the advancing glyphs of a row, left to right as drawn.
+    fn drawn(row: &Row) -> String {
+        let mut glyphs: Vec<&Glyph> = row
+            .glyphs
+            .iter()
+            .filter(|g| 0.0 < g.advance_width)
+            .collect();
+        glyphs.sort_by(|a, b| a.pos.x.total_cmp(&b.pos.x));
+        glyphs.iter().map(|g| g.chr).collect()
+    }
+
+    /// Isolate initiators, PDI and marks like RLM have no width, but their levels
+    /// still separate runs (UAX #9 X5a–X6a, L2).
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn zero_width_bidi_controls_keep_their_levels() {
+        const LRI: char = '\u{2066}';
+        const RLI: char = '\u{2067}';
+        const FSI: char = '\u{2068}';
+        const PDI: char = '\u{2069}';
+        const RLM: char = '\u{200F}';
+
+        let mut fonts = test_fonts();
+        let mut drawn_with = |text: &str, direction| {
+            let galley = layout_with_direction(&mut fonts, text, direction);
+            assert_eq!(galley.rows.len(), 1);
+            let row = &galley.rows[0].row;
+            for glyph in &row.glyphs {
+                if matches!(glyph.chr, LRI | RLI | FSI | PDI | RLM) {
+                    assert_eq!(glyph.advance_width, 0.0, "{:?}", glyph.chr);
+                }
+            }
+            drawn(row)
+        };
+        let rtl = TextDirection::RightToLeft;
+
+        // A right-to-left menu path: a Hebrew part, then a Latin id, each in its own isolate.
+        assert_eq!(
+            drawn_with(&format!("{FSI}קובץ{PDI}{FSI}abc{PDI}"), rtl),
+            "abcץבוק"
+        );
+        assert_eq!(
+            drawn_with(&format!("קובץ {FSI}abc{PDI}"), TextDirection::Auto),
+            "abc ץבוק"
+        );
+
+        // Two Latin isolates in right-to-left text stay two runs, the first on the right:
+        assert_eq!(
+            drawn_with(&format!("{FSI}abc{PDI}{FSI}def{PDI}"), rtl),
+            "defabc"
+        );
+        assert_eq!(
+            drawn_with(&format!("א {LRI}abc{PDI}{LRI}def{PDI} ב"), rtl),
+            "ב defabc א"
+        );
+
+        // A number in an isolate inside Arabic:
+        assert_eq!(
+            drawn_with(&format!("عدد {LRI}123{PDI} هنا"), TextDirection::Auto),
+            "انه 123 ددع"
+        );
+
+        // Nested isolates: two left-to-right isolates inside a right-to-left one,
+        // inside a left-to-right paragraph.
+        assert_eq!(
+            drawn_with(
+                &format!("x {RLI}אב {LRI}cd{PDI}{LRI}ef{PDI}{PDI} y"),
+                TextDirection::Auto
+            ),
+            "x efcd בא y"
+        );
+
+        // An RLM at the start makes the paragraph right to left, and an RLM between
+        // Latin words splits them into two runs:
+        assert_eq!(
+            drawn_with(&format!("{RLM}abc אבג"), TextDirection::Auto),
+            "גבא abc"
+        );
+        assert_eq!(
+            drawn_with(&format!("{RLM}abc{RLM}def"), TextDirection::Auto),
+            "defabc"
+        );
+        let galley = layout_simple(&mut fonts, &format!("{RLM}abc אבג"));
+        let row = &galley.rows[0].row;
+        let right_end = row.glyphs[1..]
+            .iter()
+            .map(Glyph::max_x)
+            .fold(f32::MIN, f32::max);
+        let rlm_x = row.glyphs[0].pos.x;
+        assert!(
+            (rlm_x - right_end).abs() < 1.0,
+            "the RLM at {rlm_x} is at the right end, {right_end}"
         );
     }
 
