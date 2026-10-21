@@ -283,6 +283,7 @@ fn layout_shaped_run(
         }
         ctx.is_first_glyph_in_section = false;
 
+        let first_glyph = paragraph.glyphs.len();
         let as_one_bitmap = if char_count < glyph_range.len() {
             emit_cluster_bitmap(fonts, &shaped, glyph_range.clone(), ctx, paragraph)
         } else {
@@ -290,6 +291,17 @@ fn layout_shaped_run(
         };
         let emitted = as_one_bitmap
             .unwrap_or_else(|| emit_cluster_glyphs(fonts, &shaped, glyph_range, ctx, paragraph));
+
+        // Every glyph of a cluster was emitted for the cluster's first char.
+        // Give each its own char, in logical order, so the row's chars are the text.
+        if let Some(cluster_text) = run_text.get(byte_range.clone()) {
+            for (glyph, chr) in paragraph.glyphs[first_glyph..]
+                .iter_mut()
+                .zip(cluster_text.chars())
+            {
+                glyph.chr = chr;
+            }
+        }
 
         emit_continuation_glyphs(ctx, paragraph, run_text, byte_range, emitted, face_metrics);
     }
@@ -3412,6 +3424,75 @@ mod tests {
             alef.pos.x,
             alef.max_x()
         );
+    }
+
+    /// A base and a mark that the font draws as two glyphs of one cluster
+    /// each keep their own char.
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn multi_glyph_cluster_keeps_its_chars() {
+        // Hack has the combining acute, and no precomposed form of either cluster.
+        let mut fonts = FontsImpl::new(TextOptions::default(), hack_only());
+        for text in ["q\u{301}x", "\u{5D0}\u{301}\u{5D1}"] {
+            let galley = layout_simple(&mut fonts, text);
+            assert_eq!(galley.rows[0].row.text(), text);
+        }
+    }
+
+    /// Left and Right step over whole grapheme clusters.
+    #[test]
+    fn cursor_moves_by_grapheme_cluster() {
+        let mut fonts = test_fonts();
+        let text = "e\u{301}👨\u{200D}👩\u{200D}👧🇸🇪1\u{FE0F}\u{20E3}क्षกี่\u{627}\u{651}";
+        let boundaries = [0, 2, 7, 9, 12, 15, 18, 20];
+        let galley = layout_simple(&mut fonts, text);
+
+        let mut cursor = galley.begin();
+        let mut right = vec![cursor.index.0];
+        while cursor != galley.end() {
+            cursor = galley.cursor_right_one_character(&cursor);
+            right.push(cursor.index.0);
+        }
+        assert_eq!(right, boundaries);
+
+        let mut left = vec![cursor.index.0];
+        while cursor != galley.begin() {
+            cursor = galley.cursor_left_one_character(&cursor);
+            left.push(cursor.index.0);
+        }
+        left.reverse();
+        assert_eq!(left, boundaries);
+    }
+
+    /// Hit testing never puts the cursor inside a grapheme cluster,
+    /// in left-to-right and in right-to-left rows.
+    #[test]
+    fn hit_testing_lands_on_cluster_boundaries() {
+        let mut font_sets = vec![test_fonts()];
+        #[cfg(feature = "default_fonts")]
+        font_sets.push(FontsImpl::new(TextOptions::default(), hack_only()));
+
+        let texts = [
+            "\u{628}\u{651}\u{627}\u{64B} \u{5D0}\u{301}\u{5D1}\u{302}\u{303}", // right-to-left
+            "\u{5D0}\u{301} q\u{301}e\u{301} 🇸🇪 \u{5D1}\u{302}",                // mixed directions
+            "q\u{301}e\u{301}🇸🇪1\u{FE0F}\u{20E3}कि",                            // left-to-right
+        ];
+        for fonts in &mut font_sets {
+            for text in texts {
+                let galley = layout_simple(fonts, text);
+                let row = &galley.rows[0];
+                let mut x = row.rect().left() - 5.0;
+                while x < row.rect().right() + 5.0 {
+                    let cursor = galley.cursor_from_pos(vec2(x, row.rect().center().y));
+                    assert!(
+                        grapheme::cluster_around(text, cursor.index).is_none(),
+                        "{text:?}: the cursor at x = {x} is at {}, inside a cluster",
+                        cursor.index
+                    );
+                    x += 0.25;
+                }
+            }
+        }
     }
 
     /// Glyph and row positions of left-to-right text: no wrapping, centered and justified.

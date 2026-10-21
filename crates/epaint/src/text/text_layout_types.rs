@@ -4,6 +4,7 @@ use core::{ops::Range, str::FromStr as _};
 use super::{
     cursor::{CCursor, LayoutCursor},
     glyph_atlas::UvRect,
+    grapheme,
     index::{ByteIndex, ByteRange, ByteRangeExt as _, CharIndex},
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
@@ -995,7 +996,34 @@ impl Row {
     /// and then decides which side of it the cursor belongs on: for a
     /// left-to-right glyph the cursor _before_ it is on its left, for a
     /// right-to-left glyph it is on its right.
+    ///
+    /// The result is always a grapheme cluster boundary.
     pub fn char_at(&self, desired_x: f32) -> CharIndex {
+        let column = self.nearest_char_boundary(desired_x);
+        if column == CharIndex::ZERO || column == self.char_count_excluding_newline() {
+            return column;
+        }
+        let Some(cluster) = grapheme::cluster_around(&self.text(), column) else {
+            return column;
+        };
+
+        // Snap to the side of the cluster that `desired_x` is on.
+        let glyphs = &self.glyphs[cluster.start.0..cluster.end.0];
+        let left = glyphs.iter().map(|g| g.pos.x).fold(f32::INFINITY, f32::min);
+        let right = glyphs
+            .iter()
+            .map(Glyph::max_x)
+            .fold(f32::NEG_INFINITY, f32::max);
+        let past_center = f32::midpoint(left, right) <= desired_x;
+        if past_center == glyphs[0].is_rtl() {
+            cluster.start
+        } else {
+            cluster.end
+        }
+    }
+
+    /// Like [`Self::char_at`], but may land inside a grapheme cluster.
+    fn nearest_char_boundary(&self, desired_x: f32) -> CharIndex {
         if !self.glyphs.iter().any(Glyph::is_rtl) {
             // Logical order is visual order here. A scan by glyph center also passes
             // over the zero-width glyphs a nearest-glyph search would stop inside.
@@ -1423,21 +1451,22 @@ impl Galley {
 
 /// ## Cursor positions
 impl Galley {
-    #[expect(clippy::unused_self)]
+    /// The cursor one grapheme cluster back, in logical order.
     pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
         if cursor.index == CharIndex::ZERO {
             Default::default()
         } else {
             CCursor {
-                index: cursor.index - 1,
+                index: grapheme::previous_boundary(self.text(), cursor.index),
                 prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
             }
         }
     }
 
+    /// The cursor one grapheme cluster forward, in logical order.
     pub fn cursor_right_one_character(&self, cursor: &CCursor) -> CCursor {
         CCursor {
-            index: (cursor.index + 1).min(self.end().index),
+            index: grapheme::next_boundary(self.text(), cursor.index).min(self.end().index),
             prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
         }
     }

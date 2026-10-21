@@ -5,6 +5,7 @@ use epaint::{
     Galley,
     text::{
         ByteIndex, ByteRangeExt as _, CharIndex, CharRange, CharRangeExt as _, cursor::CCursor,
+        grapheme,
     },
 };
 
@@ -131,18 +132,21 @@ pub trait TextBuffer {
         }
     }
 
+    /// Backspace: see [`grapheme::backspace_start`] for how much it removes.
     fn delete_previous_char(&mut self, ccursor: CCursor) -> CCursor {
         if CharIndex::ZERO < ccursor.index {
             let max_ccursor = ccursor;
-            let min_ccursor = max_ccursor - 1;
+            let min_ccursor = CCursor::new(grapheme::backspace_start(self.as_str(), ccursor.index));
             self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
         } else {
             ccursor
         }
     }
 
+    /// Delete: removes the grapheme cluster after the cursor.
     fn delete_next_char(&mut self, ccursor: CCursor) -> CCursor {
-        self.delete_selected_ccursor_range([ccursor, ccursor + 1])
+        let end = grapheme::next_boundary(self.as_str(), ccursor.index).max(ccursor.index);
+        self.delete_selected_ccursor_range([ccursor, CCursor::new(end)])
     }
 
     fn delete_previous_word(&mut self, max_ccursor: CCursor) -> CCursor {
@@ -369,6 +373,49 @@ mod tests {
             h_pos: None,
         };
         (text, cursor_range)
+    }
+
+    /// `(text, cursor, text after Backspace, text after Delete)`.
+    #[test]
+    fn backspace_and_delete_by_cluster() {
+        let cases = [
+            ("e\u{301}x", 2, "ex", "e\u{301}"),
+            ("x👨\u{200D}👩\u{200D}👧", 6, "x", "x👨\u{200D}👩\u{200D}👧"),
+            ("👨\u{200D}👩\u{200D}👧x", 0, "👨\u{200D}👩\u{200D}👧x", "x"),
+            ("🇸🇪🇫🇷", 2, "🇫🇷", "🇸🇪"),
+            ("1\u{FE0F}\u{20E3}x", 3, "x", "1\u{FE0F}\u{20E3}"),
+            ("👍🏽x", 2, "x", "👍🏽"),
+            ("क्षx", 3, "क्x", "क्ष"),
+            ("xक्ष", 1, "क्ष", "x"),
+            ("กี่x", 3, "กีx", "กี่"),
+            ("xกี่", 1, "กี่", "x"),
+            (
+                "\u{1100}\u{1161}\u{11A8}x",
+                3,
+                "\u{1100}\u{1161}x",
+                "\u{1100}\u{1161}\u{11A8}",
+            ),
+            (
+                "x\u{1100}\u{1161}\u{11A8}",
+                1,
+                "\u{1100}\u{1161}\u{11A8}",
+                "x",
+            ),
+            ("\u{627}\u{651}x", 2, "\u{627}x", "\u{627}\u{651}"),
+            ("x\u{627}\u{651}", 1, "\u{627}\u{651}", "x"),
+        ];
+        for (text, cursor, after_backspace, after_delete) in cases {
+            let mut buffer = text.to_owned();
+            let ccursor = buffer.delete_previous_char(CCursor::new(cursor));
+            assert_eq!(buffer, after_backspace, "Backspace in {text:?} at {cursor}");
+            let removed = text.chars().count() - buffer.chars().count();
+            assert_eq!(ccursor.index.0, cursor - removed.min(cursor));
+
+            let mut buffer = text.to_owned();
+            let ccursor = buffer.delete_next_char(CCursor::new(cursor));
+            assert_eq!(buffer, after_delete, "Delete in {text:?} at {cursor}");
+            assert_eq!(ccursor.index.0, cursor);
+        }
     }
 
     #[test]
