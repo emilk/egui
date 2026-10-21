@@ -5,7 +5,7 @@ use core::ops::RangeInclusive;
 use emath::Align;
 use epaint::{
     CornerRadius, FontColorTransferFunction, Shadow, Stroke, TextOptions,
-    text::{FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
+    text::{FallbackAlign, FontTweak, FontVariationAxis, HintingTarget, SmoothHinting},
 };
 
 use crate::{
@@ -3144,6 +3144,7 @@ pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAx
                 thin_space_width,
                 tab_size,
                 subpixel_binning,
+                fallback_align,
             } = tweak;
 
             ui.label("Scale");
@@ -3241,6 +3242,16 @@ pub fn font_tweak_ui(ui: &mut Ui, tweak: &mut FontTweak, axes: &[FontVariationAx
 
             ui.label("tab_size");
             ui.add(DragValue::new(tab_size).range(0.0..=16.0).speed(0.1));
+            ui.end_row();
+
+            ui.label("fallback_align")
+                .on_hover_text("Where glyphs of this font sit when it is a fallback for another font.");
+            ui.horizontal(|ui| {
+                ui.radio_value(fallback_align, FallbackAlign::Center, "center")
+                    .on_hover_text("Center in the first font's row (emoji and icons).");
+                ui.radio_value(fallback_align, FallbackAlign::Baseline, "baseline")
+                    .on_hover_text("Share the first font's baseline, and grow the row to fit.");
+            });
             ui.end_row();
 
             // Show variation axes if we have them:

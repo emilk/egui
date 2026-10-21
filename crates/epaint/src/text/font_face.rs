@@ -623,6 +623,7 @@ impl FontFace {
             y_offset_in_points,
             ascent,
             row_height: ascent - descent + line_gap,
+            fallback_align: self.tweak.fallback_align,
             location,
             location_hash,
         }

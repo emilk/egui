@@ -923,6 +923,13 @@ pub struct Glyph {
     /// The row/line height of the sub-font within the font (`FontFace`).
     pub font_face_height: f32,
 
+    /// Where the sub-font sits if it is not the font's first sub-font.
+    ///
+    /// With [`FallbackAlign::Baseline`](crate::text::FallbackAlign::Baseline),
+    /// this glyph shares the baseline at [`Self::font_ascent`], and its row is made tall
+    /// enough for [`Self::font_face_ascent`] and [`Self::font_face_height`].
+    pub font_face_align: crate::text::FallbackAlign,
+
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
 

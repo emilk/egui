@@ -4,6 +4,7 @@ use alloc::sync::Arc;
 use core::{iter, ops::Range};
 
 use emath::{Align, GuiRounding as _, NumExt as _, Pos2, Rect, Vec2, pos2, vec2};
+use smallvec::SmallVec;
 
 use crate::{
     Color32, Mesh, Stroke, Vertex,
@@ -18,8 +19,8 @@ use crate::{
 };
 
 use super::{
-    ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
-    VariationCoords,
+    ByteRangeExt as _, FallbackAlign, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row,
+    RowVisuals, VariationCoords,
     family::FamilyKey,
     font_face::{FontFace, GlyphInfo, ShapedGlyph},
     glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
@@ -193,6 +194,7 @@ impl ShapingContext {
             line_height: self.line_height,
             font_face_height: face_metrics.row_height,
             font_face_ascent: face_metrics.ascent,
+            font_face_align: face_metrics.fallback_align,
             font_height: self.font_metrics.row_height,
             font_ascent: self.font_metrics.ascent,
             uv_rect,
@@ -953,6 +955,7 @@ fn replace_last_glyph_with_overflow_character(
                 line_height,
                 font_face_height: font_face_metrics.row_height,
                 font_face_ascent: font_face_metrics.ascent,
+                font_face_align: font_face_metrics.fallback_align,
                 font_height: font_metrics.row_height,
                 font_ascent: font_metrics.ascent,
                 uv_rect: replacement_glyph_alloc.uv_rect,
@@ -1088,29 +1091,44 @@ fn galley_from_rows(
         let row = Arc::make_mut(&mut placed_row.row);
 
         first_row_min_height = 0.0;
+        let overshoot = BaselineOvershoot::of_row(&row.glyphs);
         for glyph in &row.glyphs {
-            max_row_height = max_row_height.at_least(glyph.line_height);
+            let (_, grow) = overshoot.of_section(glyph.section_index);
+            max_row_height = max_row_height.at_least(glyph.line_height + grow);
         }
         max_row_height = point_scale.round_to_pixel(max_row_height);
 
         // Now position each glyph vertically:
         for glyph in &mut row.glyphs {
             let format = &job.sections[glyph.section_index as usize].format;
+            let (shift_down, grow) = overshoot.of_section(glyph.section_index);
 
-            glyph.pos.y = glyph.font_face_ascent
+            let (ascent, centering) = match glyph.font_face_align {
+                FallbackAlign::Center => (
+                    glyph.font_face_ascent,
+                    // When mixing different `FontImpl` (e.g. latin and emojis),
+                    // we center the difference:
+                    0.5 * (glyph.font_height - glyph.font_face_height),
+                ),
+                FallbackAlign::Baseline => (glyph.font_ascent, 0.0),
+            };
+
+            glyph.pos.y = ascent
 
                 // Apply valign to the difference in height of the entire row,
-                // and the line height of this glyph (which is the font height, unless explicitly set):
-                + format.valign.to_factor() * (max_row_height - glyph.line_height)
+                // and the line height of this glyph (which is the font height, unless explicitly set),
+                // grown to fit the fallback faces that share its baseline:
+                + format.valign.to_factor() * (max_row_height - (glyph.line_height + grow))
 
                 // If the line height was set explicitly (e.g. taller than the font),
                 // we always center the text within that line height, like CSS does.
                 // When `line_height` is not set, this is zero.
                 + 0.5 * (glyph.line_height - glyph.font_height)
 
-                // When mixing different `FontImpl` (e.g. latin and emojis),
-                // we always center the difference:
-                + 0.5 * (glyph.font_height - glyph.font_face_height);
+                + centering
+
+                // Make room above the baseline for taller fallback faces:
+                + shift_down;
 
             glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
         }
@@ -1162,6 +1180,58 @@ fn galley_from_rows(
     }
 
     galley
+}
+
+/// How far the fallback faces with [`FallbackAlign::Baseline`] in one row reach
+/// above and below the font box of their section, per section.
+///
+/// Sections without such faces are left out, so their glyphs are placed
+/// with exactly the arithmetic used when no face shares the baseline.
+struct BaselineOvershoot(SmallVec<[BaselineOvershootOfSection; 2]>);
+
+struct BaselineOvershootOfSection {
+    section_index: u32,
+    above: f32,
+    below: f32,
+}
+
+impl BaselineOvershoot {
+    fn of_row(glyphs: &[Glyph]) -> Self {
+        let mut sections = SmallVec::<[BaselineOvershootOfSection; 2]>::new();
+        for glyph in glyphs {
+            if glyph.font_face_align != FallbackAlign::Baseline {
+                continue;
+            }
+            let above = (glyph.font_face_ascent - glyph.font_ascent).at_least(0.0);
+            let below = ((glyph.font_face_height - glyph.font_face_ascent)
+                - (glyph.font_height - glyph.font_ascent))
+                .at_least(0.0);
+            if let Some(section) = sections
+                .iter_mut()
+                .find(|section| section.section_index == glyph.section_index)
+            {
+                section.above = section.above.at_least(above);
+                section.below = section.below.at_least(below);
+            } else {
+                sections.push(BaselineOvershootOfSection {
+                    section_index: glyph.section_index,
+                    above,
+                    below,
+                });
+            }
+        }
+        Self(sections)
+    }
+
+    /// How far the section's baseline moves down, and how much taller its line gets.
+    fn of_section(&self, section_index: u32) -> (f32, f32) {
+        self.0
+            .iter()
+            .find(|section| section.section_index == section_index)
+            .map_or((0.0, 0.0), |section| {
+                (section.above, section.above + section.below)
+            })
+    }
 }
 
 #[derive(Default)]
@@ -2698,6 +2768,185 @@ mod tests {
         }
     }
 
+    /// Every row and glyph position of a galley, exactly.
+    #[cfg(feature = "default_fonts")]
+    fn vertical_geometry(galley: &Galley) -> Vec<String> {
+        galley
+            .rows
+            .iter()
+            .map(|placed_row| {
+                let ys: Vec<String> = placed_row
+                    .row
+                    .glyphs
+                    .iter()
+                    .map(|glyph| format!("{:?}", glyph.pos.y))
+                    .collect();
+                format!(
+                    "{:?},{:?} {:?}x{:?}: {}",
+                    placed_row.pos.x,
+                    placed_row.pos.y,
+                    placed_row.row.size.x,
+                    placed_row.row.size.y,
+                    ys.join(" ")
+                )
+            })
+            .collect()
+    }
+
+    /// Latin with a fallback face and an icon, in two sizes, one with its own line height.
+    #[cfg(feature = "default_fonts")]
+    fn mixed_face_job() -> LayoutJob {
+        let mut job = LayoutJob::default();
+        job.wrap.max_width = 120.0;
+        let body = TextFormat::simple(FontId::proportional(14.0), Color32::WHITE);
+        job.append("Text \u{e618} with ", 0.0, body.clone());
+        job.append(
+            "mono ƀƁ\u{e61f}",
+            0.0,
+            TextFormat {
+                valign: Align::Center,
+                ..TextFormat::simple(FontId::monospace(20.0), Color32::WHITE)
+            },
+        );
+        job.append(
+            " tall ƀ rows\nand more",
+            0.0,
+            TextFormat {
+                line_height: Some(24.0),
+                ..body
+            },
+        );
+        job
+    }
+
+    /// Galley geometry for text that mixes faces, with the fonts egui ships.
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn mixed_face_layout_is_unchanged_by_default() {
+        let mut fonts = test_fonts();
+        let galley = layout(&mut fonts, 1.5, Arc::new(mixed_face_job()));
+        // As laid out before fallback faces could share the baseline:
+        let expected = [
+            "0.0,0.0 76.53125x16.0: 12.666667 12.666667 12.666667 12.666667 12.666667 13.333333 12.666667 12.666667 12.666667 12.666667 12.666667 12.666667",
+            "0.0,16.0 107.1875x24.0: 18.666666 18.666666 18.666666 18.666666 18.666666 19.333334 19.333334 20.0 17.333334",
+            "0.0,40.0 64.65625x24.0: 17.333334 17.333334 17.333334 17.333334 17.333334 17.333334 17.333334 17.333334 17.333334 17.333334 17.333334",
+            "0.0,64.0 59.59375x24.0: 17.333334 17.333334 17.333334 17.333334 17.333334 17.333334 17.333334 17.333334",
+        ];
+        assert_eq!(vertical_geometry(&galley), expected);
+    }
+
+    /// The proportional family `primary`, `fallback` (aligned with `align`), `egui-icons`.
+    #[cfg(feature = "default_fonts")]
+    fn fonts_with_fallback(
+        primary: &'static [u8],
+        fallback: &'static [u8],
+        align: FallbackAlign,
+    ) -> FontsImpl {
+        let mut definitions = FontDefinitions::empty();
+        let tweaked =
+            |data: &'static [u8], tweak| Arc::new(FontData::from_static(data).tweak(tweak));
+        definitions.font_data.insert(
+            "primary".to_owned(),
+            Arc::new(FontData::from_static(primary)),
+        );
+        definitions.font_data.insert(
+            "fallback".to_owned(),
+            tweaked(
+                fallback,
+                FontTweak {
+                    fallback_align: align,
+                    ..Default::default()
+                },
+            ),
+        );
+        definitions.font_data.insert(
+            "egui-icons".to_owned(),
+            tweaked(
+                epaint_default_fonts::EGUI_ICONS,
+                FontTweak {
+                    scale: 0.9,
+                    ..Default::default()
+                },
+            ),
+        );
+        definitions.families.insert(
+            FontFamily::Proportional,
+            ["primary", "fallback", "egui-icons"]
+                .map(str::to_owned)
+                .into(),
+        );
+        FontsImpl::new(TextOptions::default(), definitions)
+    }
+
+    /// Hack and Ubuntu differ in ascent and descent: either one, as the fallback
+    /// of the other, sits on the first one's baseline, and the row fits both.
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn fallback_on_the_baseline_grows_the_row() {
+        use epaint_default_fonts::{HACK_REGULAR, UBUNTU_LIGHT};
+
+        // `Ա` is only in Hack, `ƀ` only in Ubuntu, `\u{e618}` only in egui-icons.
+        for (primary, fallback, text) in [
+            (UBUNTU_LIGHT, HACK_REGULAR, "xԱ\u{e618}"),
+            (HACK_REGULAR, UBUNTU_LIGHT, "xƀ\u{e618}"),
+        ] {
+            let layout_with = |align, text: &str| {
+                let mut fonts = fonts_with_fallback(primary, fallback, align);
+                let job = LayoutJob::simple_singleline(
+                    text.to_owned(),
+                    FontId::proportional(100.0),
+                    Color32::WHITE,
+                );
+                layout(&mut fonts, 1.0, Arc::new(job))
+            };
+            let centered = layout_with(FallbackAlign::Center, text);
+            let on_baseline = layout_with(FallbackAlign::Baseline, text);
+
+            let [x, other, icon] = &on_baseline.rows[0].row.glyphs[..] else {
+                panic!("one row of three glyphs");
+            };
+            assert_ne!(x.font_face_height, other.font_face_height);
+            assert_eq!(x.pos.y, other.pos.y, "{text}: one baseline");
+            assert_ne!(
+                centered.rows[0].row.glyphs[0].pos.y, centered.rows[0].row.glyphs[1].pos.y,
+                "{text}: centered fallbacks sit elsewhere"
+            );
+
+            let ascent = x.font_ascent.max(other.font_face_ascent);
+            let descent = (x.font_height - x.font_ascent)
+                .max(other.font_face_height - other.font_face_ascent);
+            assert_eq!(x.pos.y, ascent.round(), "{text}");
+            assert_eq!(
+                on_baseline.rows[0].height(),
+                (ascent + descent).round(),
+                "{text}"
+            );
+            assert!(
+                centered.rows[0].height() < on_baseline.rows[0].height(),
+                "{text}: the row grows"
+            );
+
+            // The icon keeps its place relative to the text:
+            let icon_to_text = |galley: &Galley| {
+                let glyphs = &galley.rows[0].row.glyphs;
+                glyphs[2].pos.y - glyphs[0].pos.y
+            };
+            assert!(
+                (icon_to_text(&on_baseline) - icon_to_text(&centered)).abs() <= 1.0,
+                "{text}: icon at {} with text at {}",
+                icon.pos.y,
+                x.pos.y
+            );
+
+            // Text in the first font alone doesn't move:
+            assert_eq!(
+                vertical_geometry(&layout_with(FallbackAlign::Baseline, "x\u{e618} y")),
+                vertical_geometry(&layout_with(FallbackAlign::Center, "x\u{e618} y")),
+            );
+        }
+    }
+
+    #[cfg(feature = "default_fonts")]
     fn measure_text(
         fonts: &mut FontsImpl,
         text: &str,
