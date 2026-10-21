@@ -169,6 +169,7 @@ impl GalleyCache {
                 },
                 sections: Vec::new(),
                 break_on_newline: job.break_on_newline,
+                direction: job.direction,
                 halign: job.halign,
                 justify: job.justify,
                 first_row_min_height: if is_first_paragraph {
