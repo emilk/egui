@@ -704,11 +704,17 @@ impl SubMenu {
         let expand = Vec2::new(0.0, measurement_frame.total_margin().sum().y * 0.5);
         response.interact_rect = response.interact_rect.expand2(expand);
 
+        let align = if ui.style().right_to_left {
+            RectAlign::LEFT_START
+        } else {
+            RectAlign::RIGHT_START
+        };
+
         let popup_response = Popup::from_response(&response)
             .id(id)
             .kind(PopupKind::Menu)
             .open(is_open)
-            .align(RectAlign::RIGHT_START)
+            .align(align)
             .layout(Layout::top_down_justified(Align::Min))
             .gap(gap)
             .style(menu_config.style.clone())
@@ -800,5 +806,75 @@ impl SubMenu {
         }
 
         popup_response
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use core::cell::Cell;
+
+    use crate::{
+        Context, Event, Modifiers, PointerButton, Pos2, RawInput, Rect, UiBuilder, pos2, vec2,
+    };
+
+    /// Opens a submenu of a menu in the middle of the screen,
+    /// and returns the rects of the submenu button and of the submenu contents.
+    fn open_submenu(right_to_left: bool) -> (Rect, Rect) {
+        let ctx = Context::default();
+        ctx.all_styles_mut(|style| style.right_to_left = right_to_left);
+        let menu_button = Cell::new(Rect::NOTHING);
+        let submenu_button = Cell::new(Rect::NOTHING);
+        let submenu = Cell::new(Rect::NOTHING);
+        let run = |events: Vec<Event>| {
+            let input = RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+                events,
+                ..Default::default()
+            };
+            ctx.run_ui(input, |ui| {
+                let max_rect = Rect::from_min_size(pos2(350.0, 100.0), vec2(100.0, 100.0));
+                ui.scope_builder(UiBuilder::new().max_rect(max_rect), |ui| {
+                    let response = ui.menu_button("Menu", |ui| {
+                        let response = ui.menu_button("Submenu", |ui| {
+                            ui.label("Item");
+                            submenu.set(ui.min_rect());
+                        });
+                        submenu_button.set(response.response.rect);
+                    });
+                    menu_button.set(response.response.rect);
+                });
+            })
+            .drop_without_applying_deltas();
+        };
+        let button = |pos, pressed| Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        };
+
+        run(vec![]);
+        let pos = menu_button.get().center();
+        run(vec![Event::PointerMoved(pos), button(pos, true)]);
+        run(vec![button(pos, false)]);
+        run(vec![]);
+        run(vec![Event::PointerMoved(submenu_button.get().center())]);
+        for _ in 0..3 {
+            run(vec![]);
+        }
+        assert!(submenu.get().is_positive(), "The submenu didn't open");
+        (submenu_button.get(), submenu.get())
+    }
+
+    #[test]
+    fn submenu_opens_to_the_right() {
+        let (button, submenu) = open_submenu(false);
+        assert!(submenu.left() > button.right(), "{button:?} {submenu:?}");
+    }
+
+    #[test]
+    fn submenu_opens_to_the_left_right_to_left() {
+        let (button, submenu) = open_submenu(true);
+        assert!(submenu.right() < button.left(), "{button:?} {submenu:?}");
     }
 }

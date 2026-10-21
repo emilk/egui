@@ -339,6 +339,17 @@ pub struct Style {
 
     /// Use a more compact style for menus.
     pub compact_menu_style: bool,
+
+    /// Mirror egui's own chrome for right-to-left interfaces.
+    ///
+    /// When `true`, submenus open to the left, vertical scroll bars sit on the left,
+    /// collapsed collapsing-header triangles point left,
+    /// and window title bars put the close button on the left and the collapse button on the right.
+    ///
+    /// This does not change how [`crate::Ui`] lays out widgets; use a right-to-left [`crate::Layout`] for that.
+    ///
+    /// Default: `false`.
+    pub right_to_left: bool,
 }
 
 // Compile-time check that `Style` is `Send + Sync` on every target.
@@ -1555,6 +1566,7 @@ impl Default for Style {
             always_scroll_the_only_direction: false,
             scroll_animation: ScrollAnimation::default(),
             compact_menu_style: true,
+            right_to_left: false,
         }
     }
 }
@@ -1913,6 +1925,7 @@ impl Style {
             always_scroll_the_only_direction,
             scroll_animation,
             compact_menu_style,
+            right_to_left,
         } = self;
 
         crate::Grid::new("_options").show(ui, |ui| {
@@ -2019,6 +2032,11 @@ impl Style {
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
 
         ui.checkbox(compact_menu_style, "Compact menu style");
+
+        ui.checkbox(right_to_left, "Right-to-left interface")
+            .on_hover_text(
+                "Mirror submenus, scroll bars, collapsing headers and window title bars",
+            );
 
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
             .on_hover_text(

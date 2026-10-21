@@ -342,7 +342,13 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     let rect = Rect::from_center_size(rect.center(), vec2(rect.width(), rect.height()) * 0.75);
     let rect = rect.expand(visuals.expansion);
     use core::f32::consts::TAU;
-    let rotation = remap(openness, 0.0..=1.0, -TAU * 0.25..=0.0);
+    // Collapsed, the triangle points in the reading direction.
+    let collapsed_rotation = if ui.style().right_to_left {
+        TAU * 0.25
+    } else {
+        -TAU * 0.25
+    };
+    let rotation = remap(openness, 0.0..=1.0, collapsed_rotation..=0.0);
 
     ui.painter().add(epaint::Shape::rotated_triangle(
         rect,
@@ -732,5 +738,46 @@ impl<R> CollapsingResponse<R> {
     /// Was the [`CollapsingHeader`] fully open (and not being animated)?
     pub fn fully_open(&self) -> bool {
         self.openness >= 1.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{CollapsingHeader, Context, RawInput, epaint::Shape};
+
+    /// Which way the triangle of a collapsed header points: `1.0` right, `-1.0` left.
+    fn collapsed_triangle_direction(right_to_left: bool) -> f32 {
+        let ctx = Context::default();
+        ctx.all_styles_mut(|style| style.right_to_left = right_to_left);
+        let mut output = ctx.run_ui(RawInput::default(), |ui| {
+            CollapsingHeader::new("Header").show(ui, |ui| ui.label("Body"));
+        });
+        output.textures_delta.clear();
+        let triangles: Vec<_> = output
+            .shapes
+            .iter()
+            .filter_map(|clipped| match &clipped.shape {
+                Shape::Path(path) if path.points.len() == 3 => Some(path.points.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(triangles.len(), 1, "Expected one triangle: {triangles:?}");
+        let points = &triangles[0];
+        let mean_x = points.iter().map(|p| p.x).sum::<f32>() / 3.0;
+        let tip = points
+            .iter()
+            .max_by(|a, b| (a.x - mean_x).abs().total_cmp(&(b.x - mean_x).abs()))
+            .expect("three points");
+        (tip.x - mean_x).signum()
+    }
+
+    #[test]
+    fn collapsed_triangle_points_right() {
+        assert_eq!(collapsed_triangle_direction(false), 1.0);
+    }
+
+    #[test]
+    fn collapsed_triangle_points_left_right_to_left() {
+        assert_eq!(collapsed_triangle_direction(true), -1.0);
     }
 }
