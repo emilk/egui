@@ -80,6 +80,11 @@ pub struct LayoutJob {
     /// Default: `true`.
     pub break_on_newline: bool,
 
+    /// The base direction of each paragraph (UAX #9 paragraph embedding level).
+    ///
+    /// Default: [`TextDirection::Auto`].
+    pub direction: TextDirection,
+
     /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
     pub halign: Align,
 
@@ -107,6 +112,7 @@ impl Default for LayoutJob {
             wrap: Default::default(),
             first_row_min_height: 0.0,
             break_on_newline: true,
+            direction: TextDirection::Auto,
             halign: Align::LEFT,
             justify: false,
             round_output_to_gui: true,
@@ -315,6 +321,7 @@ impl core::hash::Hash for LayoutJob {
             wrap,
             first_row_min_height,
             break_on_newline,
+            direction,
             halign,
             justify,
             round_output_to_gui,
@@ -326,11 +333,34 @@ impl core::hash::Hash for LayoutJob {
         wrap.hash(state);
         emath::OrderedFloat(*first_row_min_height).hash(state);
         break_on_newline.hash(state);
+        direction.hash(state);
         halign.hash(state);
         justify.hash(state);
         round_output_to_gui.hash(state);
         keep_trailing_whitespace.hash(state);
     }
+}
+
+// ----------------------------------------------------------------------------
+
+/// The base direction of a paragraph of text: [`LayoutJob::direction`].
+///
+/// It decides where text of mixed direction goes on a row
+/// (in a right-to-left paragraph the first word is on the right),
+/// and which side of a row is its start.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum TextDirection {
+    /// Each paragraph takes the direction of its first strong character (UAX #9 rules P2 and P3),
+    /// the same as `dir="auto"` in HTML. A paragraph without one is left-to-right.
+    #[default]
+    Auto,
+
+    /// Every paragraph is left-to-right.
+    LeftToRight,
+
+    /// Every paragraph is right-to-left.
+    RightToLeft,
 }
 
 // ----------------------------------------------------------------------------
@@ -850,6 +880,11 @@ pub struct Row {
 
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
+
+    /// Is the paragraph this row belongs to right-to-left?
+    ///
+    /// See [`LayoutJob::direction`].
+    pub rtl_paragraph: bool,
 
     /// Logical size based on font heights etc.
     /// Includes leading and trailing whitespace.

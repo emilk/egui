@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
-    VariationCoords,
+    TextDirection, VariationCoords,
     family::FamilyKey,
     font_face::{ClusterGlyph, FontFace, GlyphInfo, ShapedCluster, ShapedGlyph},
     glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
@@ -70,6 +70,9 @@ struct Paragraph {
 
     /// In case of an empty paragraph ("\n"), use this as height.
     pub empty_paragraph_height: f32,
+
+    /// Is the base direction of this paragraph right-to-left?
+    pub rtl: bool,
 }
 
 impl Paragraph {
@@ -79,6 +82,7 @@ impl Paragraph {
             section_index_at_start,
             glyphs: vec![],
             empty_paragraph_height: 0.0,
+            rtl: false,
         }
     }
 }
@@ -109,9 +113,10 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
 
     // For most of this we ignore the y coordinate:
 
-    let bidi_levels = bidi_levels(&job.text);
+    let bidi = BidiLevels::new(&job.text, job.direction);
 
     let mut paragraphs = vec![Paragraph::from_section_index(0)];
+    paragraphs[0].rtl = bidi.is_rtl_paragraph(0);
     {
         let mut shape_buffer = fonts.take_shape_buffer();
         for section_index in 0..job.sections.len() {
@@ -121,7 +126,7 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
                 pixels_per_point,
                 &job,
                 section_index as u32,
-                bidi_levels.as_deref(),
+                &bidi,
                 &mut paragraphs,
             );
         }
@@ -144,7 +149,7 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
 
     // Up to here every glyph sits at its logical position. Now place
     // right-to-left text where a reader expects it:
-    if bidi_levels.is_some() {
+    if bidi.levels.is_some() {
         for placed_row in &mut rows {
             if placed_row.row.glyphs.iter().any(Glyph::is_rtl) {
                 reorder_row_visually(point_scale, Arc::make_mut(&mut placed_row.row));
@@ -670,7 +675,7 @@ fn layout_section(
     pixels_per_point: f32,
     job: &LayoutJob,
     section_index: u32,
-    bidi_levels: Option<&[u8]>,
+    bidi: &BidiLevels,
     out_paragraphs: &mut Vec<Paragraph>,
 ) -> harfrust::UnicodeBuffer {
     let section = &job.sections[section_index as usize];
@@ -714,15 +719,18 @@ fn layout_section(
 
     // Process each paragraph segment (split on newlines — the shaper can't handle them).
     for (seg_idx, segment) in SplitOrWhole::new(section_text, job.break_on_newline).enumerate() {
-        let segment_levels =
-            bidi_levels.map(|levels| &levels[segment_start..segment_start + segment.len()]);
-        segment_start += segment.len() + 1; // skip the `\n` we split on
+        let segment_levels = bidi
+            .levels
+            .as_deref()
+            .map(|levels| &levels[segment_start..segment_start + segment.len()]);
 
         if 0 < seg_idx {
             paragraph = out_paragraphs.push_mut(Paragraph::from_section_index(section_index));
             paragraph.empty_paragraph_height = line_height;
+            paragraph.rtl = bidi.is_rtl_paragraph(segment_start);
             ctx.is_first_glyph_in_section = true;
         }
+        segment_start += segment.len() + 1; // skip the `\n` we split on
 
         if segment.is_empty() {
             continue;
@@ -870,6 +878,7 @@ fn rows_from_paragraphs(
                 row: Arc::new(Row {
                     section_index_at_start: paragraph.section_index_at_start,
                     glyphs: vec![],
+                    rtl_paragraph: paragraph.rtl,
                     visuals: Default::default(),
                     size: vec2(0.0, paragraph.empty_paragraph_height),
                 }),
@@ -887,6 +896,7 @@ fn rows_from_paragraphs(
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
                         glyphs: paragraph.glyphs,
+                        rtl_paragraph: paragraph.rtl,
                         visuals: Default::default(),
                         size: vec2(paragraph_width, 0.0),
                     }),
@@ -939,6 +949,7 @@ fn line_break(
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
                         glyphs: vec![],
+                        rtl_paragraph: paragraph.rtl,
                         visuals: Default::default(),
                         size: Vec2::ZERO,
                     }),
@@ -965,6 +976,7 @@ fn line_break(
                     row: Arc::new(Row {
                         section_index_at_start,
                         glyphs,
+                        rtl_paragraph: paragraph.rtl,
                         visuals: Default::default(),
                         size: vec2(paragraph_max_x, 0.0),
                     }),
@@ -1008,6 +1020,7 @@ fn line_break(
                 row: Arc::new(Row {
                     section_index_at_start,
                     glyphs,
+                    rtl_paragraph: paragraph.rtl,
                     visuals: Default::default(),
                     size: vec2(paragraph_max_x - paragraph_min_x, 0.0),
                 }),
@@ -1752,19 +1765,64 @@ fn segment_into_runs(
     }
 }
 
-/// The resolved bidi embedding level (UAX #9) of every byte of `text`,
-/// or `None` when the text has no right-to-left character, which keeps
-/// the common case free of any bidi work.
-///
-/// Paragraph direction is taken from the first strong character (rules P2/P3),
-/// the same as `dir="auto"` in a browser.
-fn bidi_levels(text: &str) -> Option<Vec<u8>> {
-    if text.is_ascii() {
-        return None;
+/// The result of the bidi algorithm (UAX #9) on the text of a job, up to rule I2.
+struct BidiLevels {
+    /// The resolved embedding level of every byte of the text, or `None`
+    /// when the text has no right-to-left character and every paragraph is
+    /// left-to-right, which keeps the common case free of any bidi work.
+    levels: Option<Vec<u8>>,
+
+    /// The byte ranges of the right-to-left paragraphs, in order.
+    rtl_paragraphs: Vec<Range<usize>>,
+
+    direction: TextDirection,
+}
+
+impl BidiLevels {
+    fn new(text: &str, direction: TextDirection) -> Self {
+        let mut bidi = Self {
+            levels: None,
+            rtl_paragraphs: Vec::new(),
+            direction,
+        };
+        let paragraph_level = match direction {
+            TextDirection::Auto | TextDirection::LeftToRight if text.is_ascii() => return bidi,
+            TextDirection::Auto => None,
+            TextDirection::LeftToRight => Some(unicode_bidi::Level::ltr()),
+            TextDirection::RightToLeft => Some(unicode_bidi::Level::rtl()),
+        };
+        let info = unicode_bidi::BidiInfo::new(text, paragraph_level);
+        bidi.rtl_paragraphs = info
+            .paragraphs
+            .iter()
+            .filter(|paragraph| paragraph.level.is_rtl())
+            .map(|paragraph| paragraph.range.clone())
+            .collect();
+        // A right-to-left paragraph needs its levels even when they are all even,
+        // e.g. for trailing whitespace (rule L1).
+        if info.has_rtl() || !bidi.rtl_paragraphs.is_empty() {
+            bidi.levels = Some(info.levels.iter().map(|level| level.number()).collect());
+        }
+        bidi
     }
-    let info = unicode_bidi::BidiInfo::new(text, None);
-    info.has_rtl()
-        .then(|| info.levels.iter().map(|level| level.number()).collect())
+
+    /// Is the paragraph that contains the byte at `byte_offset` right-to-left?
+    ///
+    /// With [`TextDirection::Auto`], the empty paragraph after a final `\n` is left-to-right.
+    fn is_rtl_paragraph(&self, byte_offset: usize) -> bool {
+        match self.direction {
+            TextDirection::LeftToRight => false,
+            TextDirection::RightToLeft => true,
+            TextDirection::Auto => {
+                let i = self
+                    .rtl_paragraphs
+                    .partition_point(|range| range.end <= byte_offset);
+                self.rtl_paragraphs
+                    .get(i)
+                    .is_some_and(|range| range.contains(&byte_offset))
+            }
+        }
+    }
 }
 
 /// The clusters of a shaped buffer, as ranges of glyph indices, in _logical_ order.
@@ -3224,6 +3282,71 @@ mod tests {
                 "{text:?}: four is drawn left of five"
             );
         }
+    }
+
+    fn layout_with_direction(
+        fonts: &mut FontsImpl,
+        text: &str,
+        direction: TextDirection,
+    ) -> Galley {
+        let mut job = LayoutJob::simple(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        job.direction = direction;
+        layout(fonts, 1.0, Arc::new(job))
+    }
+
+    #[test]
+    fn paragraph_direction_is_auto_or_forced() {
+        let mut fonts = test_fonts();
+
+        // Each paragraph takes the direction of its first strong character:
+        let galley =
+            layout_with_direction(&mut fonts, "abc אבג\nאבג abc\n123", TextDirection::Auto);
+        let rtl: Vec<bool> = galley.rows.iter().map(|row| row.rtl_paragraph).collect();
+        assert_eq!(rtl, [false, true, false]);
+        assert_visual_order(&galley.rows[0].row, &[0, 1, 2, 6, 5, 4]);
+        assert_visual_order(&galley.rows[1].row, &[4, 5, 6, 2, 1, 0]);
+
+        // A forced direction overrides the first strong character:
+        let galley = layout_with_direction(&mut fonts, "abc אבג", TextDirection::RightToLeft);
+        assert!(galley.rows[0].rtl_paragraph);
+        assert_visual_order(&galley.rows[0].row, &[6, 5, 4, 0, 1, 2]);
+
+        let galley = layout_with_direction(&mut fonts, "אבג abc", TextDirection::LeftToRight);
+        assert!(!galley.rows[0].rtl_paragraph);
+        assert_visual_order(&galley.rows[0].row, &[2, 1, 0, 4, 5, 6]);
+
+        // Text without a right-to-left character can still be in a right-to-left paragraph:
+        let galley = layout_with_direction(&mut fonts, "abc", TextDirection::RightToLeft);
+        assert!(galley.rows[0].rtl_paragraph);
+        assert!(
+            galley.rows[0]
+                .glyphs
+                .iter()
+                .all(|glyph| glyph.bidi_level == 2)
+        );
+        assert_visual_order(&galley.rows[0].row, &[0, 1, 2]);
+    }
+
+    /// `Fonts` lays out each paragraph of a multi-paragraph job on its own;
+    /// every one of them must keep the job's direction.
+    #[test]
+    fn paragraph_direction_survives_the_paragraph_cache() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        let mut job = LayoutJob::simple(
+            "abc\ndef\n".to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        );
+        job.direction = TextDirection::RightToLeft;
+        let galley = fonts.with_pixels_per_point(1.0).layout_job(job);
+        assert_eq!(galley.rows.len(), 3);
+        assert!(galley.rows.iter().all(|row| row.rtl_paragraph));
     }
 
     /// Asserts that the glyphs at these char indices are placed left to right.
