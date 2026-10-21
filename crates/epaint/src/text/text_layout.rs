@@ -1856,6 +1856,11 @@ struct BidiLevels {
     /// The byte ranges of the right-to-left paragraphs, in order.
     rtl_paragraphs: Vec<Range<usize>>,
 
+    /// Is the last paragraph right-to-left? The empty paragraph after a final `\n` follows it.
+    last_rtl: bool,
+
+    text_len: usize,
+
     direction: TextDirection,
 }
 
@@ -1864,6 +1869,8 @@ impl BidiLevels {
         let mut bidi = Self {
             levels: None,
             rtl_paragraphs: Vec::new(),
+            last_rtl: direction == TextDirection::RightToLeft,
+            text_len: text.len(),
             direction,
         };
         let paragraph_level = match direction {
@@ -1873,27 +1880,47 @@ impl BidiLevels {
             TextDirection::RightToLeft => Some(unicode_bidi::Level::rtl()),
         };
         let info = unicode_bidi::BidiInfo::new(text, paragraph_level);
-        bidi.rtl_paragraphs = info
-            .paragraphs
-            .iter()
-            .filter(|paragraph| paragraph.level.is_rtl())
-            .map(|paragraph| paragraph.range.clone())
-            .collect();
+        let mut levels: Vec<u8> = info.levels.iter().map(|level| level.number()).collect();
+        for paragraph in &info.paragraphs {
+            let range = paragraph.range.clone();
+            let mut rtl = paragraph.level.is_rtl();
+            if direction == TextDirection::Auto && is_neutral(&text[range.clone()]) {
+                // No strong character: take the direction of the paragraph before,
+                // so that a new line in right-to-left text starts on the right.
+                rtl = bidi.last_rtl;
+                if rtl {
+                    let paragraph_info = unicode_bidi::BidiInfo::new(
+                        &text[range.clone()],
+                        Some(unicode_bidi::Level::rtl()),
+                    );
+                    for (level, resolved) in
+                        levels[range.clone()].iter_mut().zip(&paragraph_info.levels)
+                    {
+                        *level = resolved.number();
+                    }
+                }
+            }
+            if rtl {
+                bidi.rtl_paragraphs.push(range);
+            }
+            bidi.last_rtl = rtl;
+        }
         // A right-to-left paragraph needs its levels even when they are all even,
         // e.g. for trailing whitespace (rule L1).
         if info.has_rtl() || !bidi.rtl_paragraphs.is_empty() {
-            bidi.levels = Some(info.levels.iter().map(|level| level.number()).collect());
+            bidi.levels = Some(levels);
         }
         bidi
     }
 
     /// Is the paragraph that contains the byte at `byte_offset` right-to-left?
     ///
-    /// With [`TextDirection::Auto`], the empty paragraph after a final `\n` is left-to-right.
+    /// The empty paragraph after a final `\n` has the direction of the one before it.
     fn is_rtl_paragraph(&self, byte_offset: usize) -> bool {
         match self.direction {
             TextDirection::LeftToRight => false,
             TextDirection::RightToLeft => true,
+            TextDirection::Auto if self.text_len <= byte_offset => self.last_rtl,
             TextDirection::Auto => {
                 let i = self
                     .rtl_paragraphs
@@ -1904,6 +1931,11 @@ impl BidiLevels {
             }
         }
     }
+}
+
+/// Does `paragraph` lack a strong character (UAX #9 rule P2), e.g. an empty line or only digits?
+pub(crate) fn is_neutral(paragraph: &str) -> bool {
+    unicode_bidi::get_base_direction(paragraph) == unicode_bidi::Direction::Mixed
 }
 
 /// UAX #9 rule L1: segment separators (tab), paragraph separators, and any sequence
@@ -3464,11 +3496,12 @@ mod tests {
     fn paragraph_direction_is_auto_or_forced() {
         let mut fonts = test_fonts();
 
-        // Each paragraph takes the direction of its first strong character:
+        // Each paragraph takes the direction of its first strong character,
+        // or of the paragraph before it if it has none:
         let galley =
             layout_with_direction(&mut fonts, "abc אבג\nאבג abc\n123", TextDirection::Auto);
         let rtl: Vec<bool> = galley.rows.iter().map(|row| row.rtl_paragraph).collect();
-        assert_eq!(rtl, [false, true, false]);
+        assert_eq!(rtl, [false, true, true]);
         assert_visual_order(&galley.rows[0].row, &[0, 1, 2, 6, 5, 4]);
         assert_visual_order(&galley.rows[1].row, &[4, 5, 6, 2, 1, 0]);
 
@@ -3491,6 +3524,45 @@ mod tests {
                 .all(|glyph| glyph.bidi_level == 2)
         );
         assert_visual_order(&galley.rows[0].row, &[0, 1, 2]);
+    }
+
+    /// With `Auto`, a paragraph without a strong character takes the direction of the one before,
+    /// both when the job is laid out whole and when `Fonts` lays out each paragraph on its own.
+    #[test]
+    fn neutral_paragraphs_take_the_direction_before_them() {
+        let cases: [(&str, &[bool]); 5] = [
+            // An empty line after Hebrew, and the empty line after a final newline:
+            ("אבג\n\nabc\n\n", &[true, true, false, false, false]),
+            ("אבג\n", &[true, true]),
+            // Digits after Arabic, and after English:
+            ("ثمن\n123 456\nabc\n123", &[true, true, false, false]),
+            // The first paragraph has nothing before it:
+            ("123\nאבג\n", &[false, true, true]),
+            ("\n\nאבג", &[false, false, true]),
+        ];
+        let mut fonts = test_fonts();
+        let mut cached = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        for (text, expected) in cases {
+            let whole = layout_with_direction(&mut fonts, text, TextDirection::Auto);
+            let job = LayoutJob::simple(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            let split = cached.with_pixels_per_point(1.0).layout_job(job);
+            for galley in [&whole, &*split] {
+                let rtl: Vec<bool> = galley.rows.iter().map(|row| row.rtl_paragraph).collect();
+                assert_eq!(rtl, expected, "{text:?}");
+            }
+        }
+
+        // Digits in a right-to-left paragraph get the levels of one:
+        let galley = layout_with_direction(&mut fonts, "ثمن\n12 34", TextDirection::Auto);
+        let row = &galley.rows[1].row;
+        let levels: Vec<u8> = row.glyphs.iter().map(|g| g.bidi_level).collect();
+        assert_eq!(levels, [2, 2, 1, 2, 2]);
+        assert_visual_order(row, &[3, 4, 2, 0, 1]);
     }
 
     /// `Fonts` lays out each paragraph of a multi-paragraph job on its own;

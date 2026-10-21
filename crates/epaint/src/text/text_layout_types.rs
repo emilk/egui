@@ -372,7 +372,9 @@ impl core::hash::Hash for LayoutJob {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextDirection {
     /// Each paragraph takes the direction of its first strong character (UAX #9 rules P2 and P3),
-    /// the same as `dir="auto"` in HTML. A paragraph without one is left-to-right.
+    /// the same as `dir="auto"` in HTML. A paragraph without one, such as an empty line
+    /// or a line of digits, takes the direction of the paragraph before it, as in most editors;
+    /// the first paragraph of the text is then left-to-right.
     #[default]
     Auto,
 

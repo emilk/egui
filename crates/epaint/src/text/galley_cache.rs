@@ -4,7 +4,9 @@ use emath::OrderedFloat;
 use nohash_hasher::IntMap;
 
 use crate::text::{
-    ByteIndex, Galley, LayoutJob, LayoutSection, fonts::FontsImpl, text_layout::layout,
+    ByteIndex, Galley, LayoutJob, LayoutSection, TextDirection,
+    fonts::FontsImpl,
+    text_layout::{is_neutral, layout},
 };
 
 /// A laid-out [`Galley`], and what we need to know to evict it.
@@ -149,6 +151,8 @@ impl GalleyCache {
         let mut max_rows_remaining = job.wrap.max_rows;
         let mut child_galleys = Vec::new();
         let mut child_hashes = Vec::new();
+        // Is the last paragraph with a strong character right-to-left?
+        let mut previous_rtl = job.direction == TextDirection::RightToLeft;
 
         while start < job.text.len() {
             let is_first_paragraph = start == 0;
@@ -161,6 +165,23 @@ impl GalleyCache {
                 end += 1; // If the text ends with a newline, we include it in the last paragraph.
             }
 
+            // With `Auto`, a paragraph without a strong character takes the direction of the
+            // one before it, which its own job can't see:
+            let mut direction = job.direction;
+            if direction == TextDirection::Auto {
+                let paragraph = &job.text[start..end];
+                if paragraph.is_ascii() && !previous_rtl {
+                    // Left-to-right either way.
+                } else if is_neutral(paragraph) {
+                    if previous_rtl {
+                        direction = TextDirection::RightToLeft;
+                    }
+                } else {
+                    previous_rtl =
+                        unicode_bidi::get_base_direction(paragraph) == unicode_bidi::Direction::Rtl;
+                }
+            }
+
             let mut paragraph_job = LayoutJob {
                 text: job.text[start..end].to_owned(),
                 wrap: crate::text::TextWrapping {
@@ -169,7 +190,7 @@ impl GalleyCache {
                 },
                 sections: Vec::new(),
                 break_on_newline: job.break_on_newline,
-                direction: job.direction,
+                direction,
                 halign: job.halign,
                 halign_min_is_start: job.halign_min_is_start,
                 justify: job.justify,
