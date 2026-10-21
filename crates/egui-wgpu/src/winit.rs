@@ -336,6 +336,13 @@ impl Painter {
             .map(|rs| rs.device.limits().max_texture_dimension_2d as usize)
     }
 
+    /// Whether this painter can draw subpixel (LCD) text, once it has a device.
+    pub fn subpixel_text(&self) -> Option<bool> {
+        self.render_state
+            .as_ref()
+            .map(|rs| crate::Renderer::supports_subpixel_text(&rs.device))
+    }
+
     fn resize_and_generate_depth_texture_view_and_msaa_view(
         &mut self,
         viewport_id: ViewportId,

@@ -315,6 +315,9 @@ impl<'app> WgpuWinitApp<'app> {
             painter.max_texture_side(),
         );
         egui_winit.set_clipboard_shortcuts(self.native_options.clipboard_shortcuts);
+        if let Some(subpixel_text) = painter.subpixel_text() {
+            egui_winit.set_subpixel_text(subpixel_text);
+        }
 
         #[cfg(feature = "accesskit")]
         {
@@ -1147,6 +1150,9 @@ impl Viewport {
                     painter.max_texture_side(),
                 );
                 egui_winit.set_clipboard_shortcuts(clipboard_shortcuts);
+                if let Some(subpixel_text) = painter.subpixel_text() {
+                    egui_winit.set_subpixel_text(subpixel_text);
+                }
                 self.egui_winit = Some(egui_winit);
 
                 egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window, true);

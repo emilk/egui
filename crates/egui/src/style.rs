@@ -2548,12 +2548,24 @@ impl Visuals {
                 color_transfer_function,
                 font_hinting,
                 subpixel_binning,
+                subpixel_order,
             } = text_options;
 
             color_transfer_function_ui(ui, color_transfer_function);
 
             ui.checkbox(font_hinting, "Font hinting (sharper text)");
             ui.checkbox(subpixel_binning, "Sub-pixel binning (more even kerning)");
+            ui.horizontal(|ui| {
+                ui.label("Subpixel (LCD) text:");
+                ui.radio_value(subpixel_order, None, "Off");
+                ui.radio_value(subpixel_order, Some(epaint::SubpixelOrder::Rgb), "RGB");
+                ui.radio_value(subpixel_order, Some(epaint::SubpixelOrder::Bgr), "BGR");
+            })
+            .response
+            .on_hover_text(
+                "For a screen whose pixels have horizontal red, green and blue stripes. \
+                Used only where the renderer can blend each color channel separately.",
+            );
         });
 
         ui.collapsing("Text cursor", |ui| {
