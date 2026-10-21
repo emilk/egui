@@ -888,6 +888,7 @@ fn rows_from_paragraphs(
                     section_index_at_start: paragraph.section_index_at_start,
                     glyphs: vec![],
                     rtl_paragraph: paragraph.rtl,
+                    visual_order: Vec::new(),
                     visuals: Default::default(),
                     size: vec2(0.0, paragraph.empty_paragraph_height),
                 }),
@@ -906,6 +907,7 @@ fn rows_from_paragraphs(
                         section_index_at_start: paragraph.section_index_at_start,
                         glyphs: paragraph.glyphs,
                         rtl_paragraph: paragraph.rtl,
+                        visual_order: Vec::new(),
                         visuals: Default::default(),
                         size: vec2(paragraph_width, 0.0),
                     }),
@@ -959,6 +961,7 @@ fn line_break(
                         section_index_at_start: paragraph.section_index_at_start,
                         glyphs: vec![],
                         rtl_paragraph: paragraph.rtl,
+                        visual_order: Vec::new(),
                         visuals: Default::default(),
                         size: Vec2::ZERO,
                     }),
@@ -986,6 +989,7 @@ fn line_break(
                         section_index_at_start,
                         glyphs,
                         rtl_paragraph: paragraph.rtl,
+                        visual_order: Vec::new(),
                         visuals: Default::default(),
                         size: vec2(paragraph_max_x, 0.0),
                     }),
@@ -1030,6 +1034,7 @@ fn line_break(
                     section_index_at_start,
                     glyphs,
                     rtl_paragraph: paragraph.rtl,
+                    visual_order: Vec::new(),
                     visuals: Default::default(),
                     size: vec2(paragraph_max_x - paragraph_min_x, 0.0),
                 }),
@@ -1210,13 +1215,22 @@ fn halign_and_justify_row(
 
     // Glyphs are indexed in logical order but placed in visual order
     // (see `reorder_row_visually`), so measure and shift them by x:
-    let order = visual_order(row);
-    let kept = |i: &usize| glyph_range.0 <= *i && *i < glyph_range.1;
-    let first_kept = order.iter().position(kept).unwrap_or(0);
-    let last_kept = order.iter().rposition(kept).unwrap_or(0);
+    let Row {
+        glyphs,
+        visual_order,
+        ..
+    } = &mut *row;
+    let num_glyphs = glyphs.len();
+    let order = || visual_indices(visual_order, num_glyphs);
+    let kept = |i: usize| glyph_range.0 <= i && i < glyph_range.1;
+    let first_kept = order().position(kept).unwrap_or(0);
+    let last_kept = order().rev().find(|&i| kept(i)).unwrap_or(0);
 
-    let original_min_x = row.glyphs[order[first_kept]].logical_rect().min.x;
-    let original_max_x = row.glyphs[order[last_kept]].logical_rect().max.x;
+    let original_min_x = glyphs[order().nth(first_kept).unwrap_or(0)]
+        .logical_rect()
+        .min
+        .x;
+    let original_max_x = glyphs[last_kept].logical_rect().max.x;
     let original_width = original_max_x - original_min_x;
 
     let target_width = if justify && num_glyphs_in_range > 1 {
@@ -1231,7 +1245,7 @@ fn halign_and_justify_row(
         Align::RIGHT => (-target_width, 0.0),
     };
 
-    let num_spaces_in_range = row.glyphs[glyph_range.0..glyph_range.1]
+    let num_spaces_in_range = glyphs[glyph_range.0..glyph_range.1]
         .iter()
         .filter(|glyph| glyph.chr.is_whitespace())
         .count();
@@ -1259,8 +1273,8 @@ fn halign_and_justify_row(
     placed_row.pos.x = point_scale.round_to_pixel(target_min_x);
     let mut translate_x = -original_min_x - extra_x_per_glyph * first_kept as f32;
 
-    for &i in &order {
-        let glyph = &mut row.glyphs[i];
+    for i in order() {
+        let glyph = &mut glyphs[i];
         glyph.pos.x += translate_x;
         glyph.pos.x = point_scale.round_to_pixel(glyph.pos.x);
         translate_x += extra_x_per_glyph;
@@ -1497,7 +1511,7 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
     let mut run_start = None;
     let mut last_rect = Rect::NAN;
 
-    for i in visual_order(row) {
+    for i in row.visual_order() {
         let glyph = &row.glyphs[i];
         let format = &job.sections[glyph.section_index as usize].format;
         let color = format.background;
@@ -1603,7 +1617,7 @@ fn add_row_hline(
     let mut line_start = None;
     let mut last_right_x = f32::NAN;
 
-    for i in visual_order(row) {
+    for i in row.visual_order() {
         let glyph = &row.glyphs[i];
         let (stroke, mut y) = stroke_and_y(glyph);
         stroke.round_center_to_pixel(point_scale.pixels_per_point, &mut y);
@@ -1962,18 +1976,22 @@ impl Iterator for LogicalClusters<'_> {
     }
 }
 
-/// The glyph indices of `row` sorted by where the glyphs are placed.
-///
-/// The identity for left-to-right rows.
-fn visual_order(row: &Row) -> Vec<usize> {
-    let mut order: Vec<usize> = (0..row.glyphs.len()).collect();
-    if row.glyphs.iter().any(Glyph::is_rtl) {
-        order.sort_by(|&a, &b| row.glyphs[a].pos.x.total_cmp(&row.glyphs[b].pos.x));
-    }
-    order
+#[cfg(test)]
+std::thread_local! {
+    /// Counts the steps [`reorder_row_visually`] takes, for a test that keeps it linear.
+    static REORDER_STEPS: core::cell::Cell<usize> = const { core::cell::Cell::new(0) };
 }
 
-/// Place the glyphs of a row in visual order (UAX #9 rule L2) by rewriting their x.
+#[inline]
+fn count_reorder_steps(steps: usize) {
+    #[cfg(test)]
+    REORDER_STEPS.with(|count| count.set(count.get() + steps));
+    #[cfg(not(test))]
+    let _ = steps;
+}
+
+/// Place the glyphs of a row in visual order (UAX #9 rule L2) by rewriting their x,
+/// and store that order in [`Row::visual_order`].
 ///
 /// On entry `row.glyphs` is in logical order with increasing x, as
 /// [`layout_shaped_run`] left it. It stays in logical order, so a glyph's
@@ -1982,6 +2000,10 @@ fn visual_order(row: &Row) -> Vec<usize> {
 /// A block is one advancing glyph and the zero-width glyphs after it
 /// (combining marks, the continuation glyphs of a cluster). Blocks move as
 /// units so a mark stays over its base.
+///
+/// Takes time linear in the number of glyphs: each pass of L2 reverses level runs
+/// (maximal sequences of blocks at one level), not single blocks, and there are
+/// at most 126 levels.
 fn reorder_row_visually(point_scale: PointScale, row: &mut Row) {
     let glyphs = &mut row.glyphs;
     if glyphs.len() < 2 {
@@ -1995,10 +2017,7 @@ fn reorder_row_visually(point_scale: PointScale, row: &mut Row) {
             _ => blocks.push(i..i + 1),
         }
     }
-    let levels: Vec<u8> = blocks
-        .iter()
-        .map(|block| glyphs[block.start].bidi_level)
-        .collect();
+    count_reorder_steps(glyphs.len());
     let origins: Vec<f32> = blocks
         .iter()
         .map(|block| glyphs[block.start].pos.x)
@@ -2020,35 +2039,80 @@ fn reorder_row_visually(point_scale: PointScale, row: &mut Row) {
         })
         .collect();
 
+    // Level runs, as ranges of block indices:
+    let mut runs: Vec<Range<usize>> = Vec::new();
+    let mut run_levels: Vec<u8> = Vec::new();
+    for (b, block) in blocks.iter().enumerate() {
+        let level = glyphs[block.start].bidi_level;
+        match runs.last_mut() {
+            Some(last) if run_levels.last() == Some(&level) => last.end = b + 1,
+            _ => {
+                runs.push(b..b + 1);
+                run_levels.push(level);
+            }
+        }
+    }
+    count_reorder_steps(blocks.len());
+
     // L2: from the highest level down to the lowest odd level,
-    // reverse every maximal sequence of blocks at that level or higher.
-    let Some(lowest_odd) = levels.iter().copied().filter(|l| l % 2 == 1).min() else {
+    // reverse every maximal sequence of runs at that level or higher.
+    let Some(lowest_odd) = run_levels.iter().copied().filter(|l| l % 2 == 1).min() else {
         return;
     };
-    let highest = levels.iter().copied().max().unwrap_or(0);
-    let mut order: Vec<usize> = (0..blocks.len()).collect();
+    let highest = run_levels.iter().copied().max().unwrap_or(0);
+    let mut order: Vec<usize> = (0..runs.len()).collect();
     for level in (lowest_odd..=highest).rev() {
         let mut i = 0;
         while i < order.len() {
-            if levels[order[i]] < level {
+            if run_levels[order[i]] < level {
                 i += 1;
                 continue;
             }
             let start = i;
-            while i < order.len() && level <= levels[order[i]] {
+            while i < order.len() && level <= run_levels[order[i]] {
                 i += 1;
             }
             order[start..i].reverse();
         }
+        count_reorder_steps(order.len());
     }
 
+    // Each pass at or below a run's level reversed it as a whole, so its blocks
+    // are in reverse order if that happened an odd number of times:
+    let mut visual_order = Vec::with_capacity(glyphs.len());
     let mut pen = origins[0];
-    for &b in &order {
-        for glyph in &mut glyphs[blocks[b].clone()] {
-            glyph.pos.x = point_scale.round_to_pixel(pen + (glyph.pos.x - origins[b]));
+    for &r in &order {
+        let reversed =
+            lowest_odd <= run_levels[r] && (run_levels[r] - lowest_odd).is_multiple_of(2);
+        let run = runs[r].clone();
+        let mut place = |b: usize| {
+            for i in blocks[b].clone() {
+                let glyph = &mut glyphs[i];
+                glyph.pos.x = point_scale.round_to_pixel(pen + (glyph.pos.x - origins[b]));
+                visual_order.push(i as u32);
+            }
+            pen += widths[b];
+        };
+        if reversed {
+            run.rev().for_each(&mut place);
+        } else {
+            run.for_each(&mut place);
         }
-        pen += widths[b];
     }
+    count_reorder_steps(glyphs.len());
+    row.visual_order = visual_order;
+}
+
+/// The indices of `len` glyphs from left to right, given a [`Row::visual_order`].
+pub(crate) fn visual_indices(
+    visual_order: &[u32],
+    len: usize,
+) -> impl DoubleEndedIterator<Item = usize> + Clone + '_ {
+    // Rows that need no reordering have no `visual_order`; a row whose glyphs were
+    // changed after layout gets the logical order rather than a panic.
+    let identity = if visual_order.len() == len { 0 } else { len };
+    let reordered = if identity == 0 { visual_order } else { &[] };
+    (0..identity).chain(reordered.iter().map(|&i| i as usize))
 }
 
 /// Shape a text run and return the raw [`harfrust::GlyphBuffer`].
@@ -3584,6 +3648,44 @@ mod tests {
         let galley = layout_with_direction(&mut fonts, "abc \tdef", TextDirection::RightToLeft);
         let levels: Vec<u8> = galley.rows[0].glyphs.iter().map(|g| g.bidi_level).collect();
         assert_eq!(levels, [2, 2, 2, 1, 1, 2, 2, 2]);
+    }
+
+    #[test]
+    fn reordering_a_long_mixed_paragraph_takes_linear_steps() {
+        let mut fonts = test_fonts();
+        let text: String = iter::repeat_n("abc אבג 123 (דה) x: ", 500).collect();
+        let num_chars = text.chars().count();
+        assert!(10_000 <= num_chars);
+
+        for max_width in [f32::INFINITY, 300.0] {
+            REORDER_STEPS.with(|steps| steps.set(0));
+            let job = LayoutJob::simple(
+                text.clone(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                max_width,
+            );
+            let galley = layout(&mut fonts, 1.0, Arc::new(job));
+            let steps = REORDER_STEPS.with(core::cell::Cell::get);
+            assert!(
+                0 < steps && steps <= 6 * num_chars,
+                "{steps} steps for {num_chars} chars"
+            );
+
+            // The cached order is a permutation that matches where the glyphs are:
+            for placed_row in &galley.rows {
+                let row = &placed_row.row;
+                let mut order: Vec<usize> = row.visual_order().collect();
+                let xs: Vec<f32> = order
+                    .iter()
+                    .filter(|&&i| 0.0 < row.glyphs[i].advance_width)
+                    .map(|&i| row.glyphs[i].pos.x)
+                    .collect();
+                assert!(xs.is_sorted(), "{:?}", row.text());
+                order.sort_unstable();
+                assert!(order.into_iter().eq(0..row.glyphs.len()));
+            }
+        }
     }
 
     /// Asserts that the glyphs at these char indices are placed left to right.

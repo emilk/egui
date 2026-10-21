@@ -905,6 +905,10 @@ pub struct Row {
     /// See [`LayoutJob::direction`].
     pub rtl_paragraph: bool,
 
+    /// The indices of [`Self::glyphs`] from left to right, computed once during layout.
+    /// Empty when that is the logical order. See [`Self::visual_order`].
+    pub(crate) visual_order: Vec<u32>,
+
     /// Logical size based on font heights etc.
     /// Includes leading and trailing whitespace.
     pub size: Vec2,
@@ -1030,6 +1034,13 @@ impl Glyph {
 // ----------------------------------------------------------------------------
 
 impl Row {
+    /// The indices of [`Self::glyphs`] in the order they are placed, from left to right.
+    ///
+    /// The glyphs are in logical order; with right-to-left text that differs from this.
+    pub fn visual_order(&self) -> impl DoubleEndedIterator<Item = usize> + Clone + '_ {
+        super::text_layout::visual_indices(&self.visual_order, self.glyphs.len())
+    }
+
     /// The text on this row, excluding the implicit `\n` if any.
     pub fn text(&self) -> String {
         self.glyphs.iter().map(|g| g.chr).collect()
@@ -1111,12 +1122,9 @@ impl Row {
             return smallvec::smallvec![range];
         }
 
-        let mut order: Vec<usize> = (0..self.glyphs.len()).collect();
-        order.sort_by(|&a, &b| self.glyphs[a].pos.x.total_cmp(&self.glyphs[b].pos.x));
-
         let mut ranges: SmallVec<[Rangef; 1]> = SmallVec::new();
         let mut extends_last = false;
-        for i in order {
+        for i in self.visual_order() {
             let glyph = &self.glyphs[i];
             if glyph.advance_width <= 0.0 {
                 continue; // a mark or the rest of a cluster, inside its base
