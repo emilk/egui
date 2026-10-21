@@ -82,6 +82,11 @@ impl Label {
     }
 
     /// Sets the horizontal alignment of the Label to the given `Align` value.
+    ///
+    /// Without this, the alignment comes from the [`crate::Layout`]. When that is
+    /// `Align::Min`, each right-to-left paragraph is aligned to the right, where it starts
+    /// (see [`epaint::text::LayoutJob::halign_min_is_start`]).
+    /// An explicit `Align::LEFT` here puts right-to-left text on the left too.
     #[inline]
     pub fn halign(mut self, align: Align) -> Self {
         self.halign = Some(align);
@@ -207,6 +212,8 @@ impl Label {
             layout_job.wrap.max_width = available_width;
             layout_job.first_row_min_height = cursor.height();
             layout_job.halign = Align::Min;
+            // The text continues the row of the previous widget, from the left:
+            layout_job.halign_min_is_start = false;
             layout_job.justify = false;
             if let Some(first_section) = layout_job.sections.first_mut() {
                 first_section.leading_space = first_row_indentation;
@@ -251,6 +258,7 @@ impl Label {
                 layout_job.halign = self
                     .halign
                     .unwrap_or_else(|| ui.layout().horizontal_placement());
+                layout_job.halign_min_is_start &= self.halign.is_none();
                 layout_job.justify = ui.layout().horizontal_justify();
             }
 

@@ -86,7 +86,23 @@ pub struct LayoutJob {
     pub direction: TextDirection,
 
     /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
+    ///
+    /// See [`Self::halign_min_is_start`] for how `Align::LEFT` (`Align::Min`) treats
+    /// right-to-left paragraphs.
     pub halign: Align,
+
+    /// If `true` (default), [`Self::halign`] `Align::Min` aligns each paragraph to its _start_:
+    /// a left-to-right paragraph to the left and a right-to-left one
+    /// (see [`Self::direction`]) to the right.
+    ///
+    /// The right-to-left rows are then flush with the right edge of the widest row,
+    /// and the galley's left edge stays at zero, as for left-aligned text,
+    /// so code that places a galley by its `halign` needs no change.
+    ///
+    /// If `false`, `Align::Min` puts every row on the left.
+    ///
+    /// `Align::Center` and `Align::Max` are not affected by the paragraph direction.
+    pub halign_min_is_start: bool,
 
     /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`].
     pub justify: bool,
@@ -114,6 +130,7 @@ impl Default for LayoutJob {
             break_on_newline: true,
             direction: TextDirection::Auto,
             halign: Align::LEFT,
+            halign_min_is_start: true,
             justify: false,
             round_output_to_gui: true,
             keep_trailing_whitespace: false,
@@ -323,6 +340,7 @@ impl core::hash::Hash for LayoutJob {
             break_on_newline,
             direction,
             halign,
+            halign_min_is_start,
             justify,
             round_output_to_gui,
             keep_trailing_whitespace,
@@ -335,6 +353,7 @@ impl core::hash::Hash for LayoutJob {
         break_on_newline.hash(state);
         direction.hash(state);
         halign.hash(state);
+        halign_min_is_start.hash(state);
         justify.hash(state);
         round_output_to_gui.hash(state);
         keep_trailing_whitespace.hash(state);
@@ -1247,6 +1266,23 @@ impl Galley {
             merged_galley.intrinsic_size.x =
                 f32::max(merged_galley.intrinsic_size.x, galley.intrinsic_size.x);
             merged_galley.intrinsic_size.y += galley.intrinsic_size.y;
+        }
+
+        // Each galley aligned its right-to-left rows to its own widest row:
+        if super::text_layout::align_rtl_rows_to_start(
+            &merged_galley.job,
+            &mut merged_galley.rows,
+            pixels_per_point,
+        ) {
+            merged_galley.rect = Rect::ZERO;
+            merged_galley.mesh_bounds = Rect::NOTHING;
+            for placed_row in &merged_galley.rows {
+                merged_galley.rect |= placed_row.rect();
+                merged_galley.mesh_bounds |= placed_row
+                    .visuals
+                    .mesh_bounds
+                    .translate(placed_row.pos.to_vec2());
+            }
         }
 
         if merged_galley.job.round_output_to_gui {
