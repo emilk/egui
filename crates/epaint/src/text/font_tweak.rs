@@ -84,6 +84,19 @@ impl Default for FontTweak {
     }
 }
 
+impl FontTweak {
+    /// Set [`Self::fallback_align`] to [`FallbackAlign::Baseline`] (`true`) or [`FallbackAlign::Center`] (`false`).
+    /// A method as well as a field, so callers built against epaint without the field
+    /// can fall back to a no-op trait method of the same name.
+    pub fn set_baseline_fallback(&mut self, on: bool) {
+        self.fallback_align = if on {
+            FallbackAlign::Baseline
+        } else {
+            FallbackAlign::Center
+        };
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Where the glyphs of a fallback font sit vertically, see [`FontTweak::fallback_align`].
