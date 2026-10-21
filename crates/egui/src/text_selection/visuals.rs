@@ -45,6 +45,15 @@ pub fn paint_text_selection(
     let max = galley.layout_from_cursor(max);
 
     for ri in min.row..=max.row {
+        // Where the cursor goes on this row if it is empty, row-relative:
+        let empty_row_x = galley
+            .pos_from_layout_cursor(&LayoutCursor {
+                row: ri,
+                column: CharIndex::ZERO,
+            })
+            .min
+            .x
+            - galley.rows[ri].pos.x;
         let placed_row = &mut galley.rows[ri];
         let row = Arc::make_mut(&mut placed_row.row);
 
@@ -62,12 +71,27 @@ pub fn paint_text_selection(
             } else {
                 0.0
             };
-            if row.glyphs.iter().any(|glyph| glyph.is_rtl()) {
-                if 0.0 < newline_size {
-                    ranges.push(Rangef::new(row.size.x, row.size.x + newline_size));
+            // The newline is at the end of the row in reading order:
+            if row.rtl_paragraph {
+                let left = row
+                    .glyphs
+                    .iter()
+                    .map(|g| g.pos.x)
+                    .reduce(f32::min)
+                    .unwrap_or(empty_row_x);
+                match ranges.first_mut() {
+                    Some(range) if range.min <= left => range.min = left - newline_size,
+                    _ if 0.0 < newline_size => {
+                        ranges.insert(0, Rangef::new(left - newline_size, left));
+                    }
+                    _ => {}
                 }
-            } else if let Some(range) = ranges.last_mut() {
-                range.max = row.size.x + newline_size;
+            } else if !row.glyphs.iter().any(|glyph| glyph.is_rtl()) {
+                if let Some(range) = ranges.last_mut() {
+                    range.max = row.size.x + newline_size;
+                }
+            } else if 0.0 < newline_size {
+                ranges.push(Rangef::new(row.size.x, row.size.x + newline_size));
             }
             ranges
         };
@@ -372,5 +396,43 @@ mod tests {
             rect_count(CCursorRange::two(CCursor::new(0), CCursor::new(11))),
             1
         );
+    }
+
+    /// A selected newline is drawn at the end of its row in reading order.
+    #[test]
+    fn selected_newline_follows_the_paragraph_direction() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        for (text, rtl) in [("אבג\nדהו", true), ("abc אבג\ndef", false)] {
+            let mut galley = fonts.with_pixels_per_point(1.0).layout_no_wrap(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+            );
+            let end = galley.end();
+            let mut rects = vec![];
+            let range = CCursorRange::two(CCursor::new(0), end);
+            paint_text_selection(&mut galley, &Visuals::dark(), &range, Some(&mut rects));
+
+            let row = &galley.rows[0];
+            let selected_x = rects
+                .iter()
+                .filter(|rect| rect.row == 0)
+                .flat_map(|rect| rect.vertex_indices)
+                .map(|i| row.visuals.mesh.vertices[i as usize].pos.x);
+            let (min, max) = selected_x.fold((f32::INFINITY, f32::NEG_INFINITY), |(a, b), x| {
+                (a.min(x), b.max(x))
+            });
+            let glyphs_min = row
+                .glyphs
+                .iter()
+                .map(|g| g.pos.x)
+                .fold(f32::INFINITY, f32::min);
+            let glyphs_max = row.glyphs.iter().map(|g| g.max_x()).fold(0.0, f32::max);
+            if rtl {
+                assert!(min < glyphs_min && max <= glyphs_max, "{text:?}");
+            } else {
+                assert!(glyphs_min <= min && glyphs_max < max, "{text:?}");
+            }
+        }
     }
 }

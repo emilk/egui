@@ -11,10 +11,15 @@ pub struct CCursor {
     /// Character offset (NOT byte offset!).
     pub index: CharIndex,
 
-    /// If this cursors sits right at the border of a wrapped row break (NOT paragraph break)
-    /// do we prefer the next row?
-    /// This is *almost* always what you want, *except* for when
-    /// explicitly clicking the end of a row or pressing the end key.
+    /// Does the cursor stick to the char after it (downstream), rather than the one before it?
+    ///
+    /// This decides where a cursor is drawn when those two chars are apart on screen:
+    /// * At a wrapped row break (NOT paragraph break): the start of the next row,
+    ///   or the end of this one. The next row is *almost* always what you want, *except*
+    ///   for when explicitly clicking the end of a row or pressing the end key.
+    /// * Where the text direction changes: the edge of the run after the cursor,
+    ///   or of the run before it. A click sticks the cursor to the char that was clicked,
+    ///   and moving the cursor sticks it to the char it moved past.
     pub prefer_next_row: bool,
 }
 

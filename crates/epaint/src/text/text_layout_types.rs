@@ -1372,13 +1372,25 @@ impl Galley {
             return self.end_pos();
         };
 
-        let x = row.x_offset(layout_cursor.column) + row.pos.x;
+        let x = self.caret_x(layout_cursor.row, layout_cursor.column, true);
         Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
     }
 
     /// Returns a 0-width Rect.
+    ///
+    /// Where the text direction changes, the cursor is drawn at the edge of the char it sticks to,
+    /// see [`CCursor::prefer_next_row`].
     pub fn pos_from_cursor(&self, cursor: CCursor) -> Rect {
-        self.pos_from_layout_cursor(&self.layout_from_cursor(cursor))
+        let layout_cursor = self.layout_from_cursor(cursor);
+        let Some(row) = self.rows.get(layout_cursor.row) else {
+            return self.end_pos();
+        };
+        let x = self.caret_x(
+            layout_cursor.row,
+            layout_cursor.column,
+            cursor.prefer_next_row,
+        );
+        Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
     }
 
     /// Cursor at the given position within the galley.
@@ -1417,8 +1429,7 @@ impl Galley {
             if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
                 // char_at is `Row` not `PlacedRow` relative which means we have to subtract the pos.
-                let column = row.char_at(pos.x - row.pos.x);
-                let prefer_next_row = column < row.char_count_excluding_newline();
+                let (column, prefer_next_row) = row.caret_at(pos.x - row.pos.x);
                 cursor = CCursor {
                     index: ccursor_index + column,
                     prefer_next_row,
@@ -1560,22 +1571,24 @@ impl Galley {
         h_pos: Option<f32>,
     ) -> (CCursor, Option<f32>) {
         let layout_cursor = self.layout_from_cursor(*cursor);
-        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_cursor(*cursor).center().x);
         if layout_cursor.row == 0 {
             (CCursor::default(), None)
         } else {
             let new_row = layout_cursor.row - 1;
 
-            let new_layout_cursor = {
-                // keep same X coord
-                // char_at is Row-relative, so subtract the row's position
-                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
-                LayoutCursor {
-                    row: new_row,
-                    column,
-                }
+            // Keep the same x coordinate. `caret_at` is row-relative.
+            let (column, downstream) =
+                self.rows[new_row].caret_at(h_pos - self.rows[new_row].pos.x);
+            let new_cursor = self.cursor_from_layout(LayoutCursor {
+                row: new_row,
+                column,
+            });
+            let new_cursor = CCursor {
+                prefer_next_row: downstream,
+                ..new_cursor
             };
-            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
+            (new_cursor, Some(h_pos))
         }
     }
 
@@ -1585,40 +1598,26 @@ impl Galley {
         h_pos: Option<f32>,
     ) -> (CCursor, Option<f32>) {
         let layout_cursor = self.layout_from_cursor(*cursor);
-        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_cursor(*cursor).center().x);
         if layout_cursor.row + 1 < self.rows.len() {
             let new_row = layout_cursor.row + 1;
 
-            let new_layout_cursor = {
-                // keep same X coord
-                // char_at is Row-relative, so subtract the row's position
-                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
-                LayoutCursor {
-                    row: new_row,
-                    column,
-                }
+            // Keep the same x coordinate. `caret_at` is row-relative.
+            let (column, downstream) =
+                self.rows[new_row].caret_at(h_pos - self.rows[new_row].pos.x);
+            let new_cursor = self.cursor_from_layout(LayoutCursor {
+                row: new_row,
+                column,
+            });
+            let new_cursor = CCursor {
+                prefer_next_row: downstream,
+                ..new_cursor
             };
 
-            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
+            (new_cursor, Some(h_pos))
         } else {
             (self.end(), None)
         }
-    }
-
-    pub fn cursor_begin_of_row(&self, cursor: &CCursor) -> CCursor {
-        let layout_cursor = self.layout_from_cursor(*cursor);
-        self.cursor_from_layout(LayoutCursor {
-            row: layout_cursor.row,
-            column: CharIndex::ZERO,
-        })
-    }
-
-    pub fn cursor_end_of_row(&self, cursor: &CCursor) -> CCursor {
-        let layout_cursor = self.layout_from_cursor(*cursor);
-        self.cursor_from_layout(LayoutCursor {
-            row: layout_cursor.row,
-            column: self.rows[layout_cursor.row].char_count_excluding_newline(),
-        })
     }
 
     pub fn cursor_begin_of_paragraph(&self, cursor: &CCursor) -> CCursor {

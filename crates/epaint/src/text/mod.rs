@@ -1,5 +1,6 @@
 //! Everything related to text, fonts, text layout, cursors etc.
 
+mod caret;
 pub mod cursor;
 mod face_store;
 mod family;

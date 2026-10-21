@@ -2,7 +2,7 @@ use epaint::{Galley, text::CharIndex, text::cursor::CCursor};
 
 use crate::{Event, Id, Key, Modifiers, os::OperatingSystem};
 
-use super::text_cursor_state::{ccursor_next_word, ccursor_previous_word, slice_char_range};
+use super::text_cursor_state::slice_char_range;
 
 /// A selected text range (could be a range of length zero).
 ///
@@ -103,6 +103,25 @@ impl CCursorRange {
         }
     }
 
+    /// The two ends, the one on the left on screen first.
+    ///
+    /// On one row that is the one further left; across rows, the one that comes first
+    /// in a left-to-right paragraph and last in a right-to-left one.
+    fn sorted_on_screen(&self, galley: &Galley) -> [CCursor; 2] {
+        let [min, max] = self.sorted_cursors();
+        let min_row = galley.layout_from_cursor(min).row;
+        let max_row = galley.layout_from_cursor(max).row;
+        let swap = if min_row == max_row {
+            galley.pos_from_cursor(max).min.x < galley.pos_from_cursor(min).min.x
+        } else {
+            galley
+                .rows
+                .get(galley.layout_from_cursor(self.primary).row)
+                .is_some_and(|row| row.rtl_paragraph)
+        };
+        if swap { [max, min] } else { [min, max] }
+    }
+
     pub fn slice_str<'s>(&self, text: &'s str) -> &'s str {
         let [min, max] = self.sorted_cursors();
         slice_char_range(text, min.index..max.index)
@@ -125,11 +144,8 @@ impl CCursorRange {
             }
 
             Key::ArrowLeft | Key::ArrowRight if modifiers.is_none() && !self.is_empty() => {
-                if key == Key::ArrowLeft {
-                    *self = Self::one(self.sorted_cursors()[0]);
-                } else {
-                    *self = Self::one(self.sorted_cursors()[1]);
-                }
+                let [left, right] = self.sorted_on_screen(galley);
+                *self = Self::one(if key == Key::ArrowLeft { left } else { right });
                 true
             }
 
@@ -274,30 +290,32 @@ fn move_single_cursor(
                 Key::E => (galley.cursor_end_of_row(cursor), None),
                 Key::P => galley.cursor_up_one_row(cursor, *h_pos),
                 Key::N => galley.cursor_down_one_row(cursor, *h_pos),
+                // Backward and forward in logical order, as in Cocoa's `moveBackward:` and `moveForward:`:
                 Key::B => (galley.cursor_left_one_character(cursor), None),
                 Key::F => (galley.cursor_right_one_character(cursor), None),
                 _ => return,
             }
         } else {
             match key {
+                // Left and right move on screen, also in right-to-left text:
                 Key::ArrowLeft => {
                     if modifiers.alt || modifiers.ctrl {
                         // alt on mac, ctrl on windows
-                        (ccursor_previous_word(galley, *cursor), None)
+                        (galley.cursor_word_left_visually(cursor), None)
                     } else if modifiers.mac_cmd {
-                        (galley.cursor_begin_of_row(cursor), None)
+                        (galley.cursor_left_end_of_row(cursor), None)
                     } else {
-                        (galley.cursor_left_one_character(cursor), None)
+                        (galley.cursor_left_visually(cursor), None)
                     }
                 }
                 Key::ArrowRight => {
                     if modifiers.alt || modifiers.ctrl {
                         // alt on mac, ctrl on windows
-                        (ccursor_next_word(galley, *cursor), None)
+                        (galley.cursor_word_right_visually(cursor), None)
                     } else if modifiers.mac_cmd {
-                        (galley.cursor_end_of_row(cursor), None)
+                        (galley.cursor_right_end_of_row(cursor), None)
                     } else {
-                        (galley.cursor_right_one_character(cursor), None)
+                        (galley.cursor_right_visually(cursor), None)
                     }
                 }
                 Key::ArrowUp => {
@@ -340,4 +358,86 @@ fn move_single_cursor(
 
     *cursor = new_cursor;
     *h_pos = new_h_pos;
+}
+
+#[cfg(test)]
+mod tests {
+    use alloc::sync::Arc;
+
+    use epaint::{
+        Color32, FontId,
+        text::{FontDefinitions, Fonts, TextOptions},
+    };
+
+    use super::*;
+
+    fn galley(text: &str) -> Arc<Galley> {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        fonts.with_pixels_per_point(1.0).layout_no_wrap(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+        )
+    }
+
+    fn press(range: &mut CCursorRange, galley: &Galley, modifiers: Modifiers, key: Key) {
+        assert!(range.on_key_press(OperatingSystem::Windows, galley, &modifiers, key));
+    }
+
+    /// Shift+arrows move the cursor on screen, but select a logical range.
+    #[test]
+    fn shift_arrows_select_a_logical_range() {
+        let galley = galley("abc אבג def");
+        let mut range = CCursorRange::one(galley.begin());
+        for _ in 0..5 {
+            press(&mut range, &galley, Modifiers::SHIFT, Key::ArrowRight);
+        }
+        // Past "abc " and the left end of the Hebrew word, "ג":
+        assert_eq!(range.as_sorted_char_range(), CharIndex(0)..CharIndex(6));
+        press(&mut range, &galley, Modifiers::SHIFT, Key::ArrowRight);
+        assert_eq!(range.as_sorted_char_range(), CharIndex(0)..CharIndex(5));
+
+        press(&mut range, &galley, Modifiers::CTRL, Key::ArrowRight);
+        assert_eq!(range.single().map(|c| c.index), Some(CharIndex(4)));
+    }
+
+    /// Left and Right put the cursor at the end of the selection on that side of the screen.
+    #[test]
+    fn arrows_collapse_a_selection_to_its_end_on_screen() {
+        let galley = galley("abc אבג def");
+        // The Hebrew word, from the right of "א" to the left of "ג":
+        let before_alef = CCursor {
+            prefer_next_row: true,
+            ..CCursor::new(4)
+        };
+        let after_gimel = CCursor::new(7);
+        let hebrew = CCursorRange::two(before_alef, after_gimel);
+        assert_eq!(hebrew.as_sorted_char_range(), CharIndex(4)..CharIndex(7));
+
+        let mut range = hebrew;
+        press(&mut range, &galley, Modifiers::NONE, Key::ArrowLeft);
+        assert_eq!(range.single().map(|c| c.index), Some(CharIndex(7)));
+        let mut range = hebrew;
+        press(&mut range, &galley, Modifiers::NONE, Key::ArrowRight);
+        assert_eq!(range.single().map(|c| c.index), Some(CharIndex(4)));
+    }
+
+    #[test]
+    fn home_and_end_in_a_rtl_paragraph() {
+        // On screen: "abc גבא", which starts on the right.
+        let galley = galley("אבג abc");
+        let mut range = CCursorRange::one(CCursor::new(5));
+        press(&mut range, &galley, Modifiers::NONE, Key::Home);
+        assert_eq!(range.primary.index, CharIndex(0));
+        press(&mut range, &galley, Modifiers::NONE, Key::End);
+        assert_eq!(range.primary.index, CharIndex(4));
+        press(&mut range, &galley, Modifiers::NONE, Key::ArrowRight);
+        assert_eq!(range.primary.index, CharIndex(5));
+
+        // Ctrl+F on a Mac moves forward in logical order:
+        let mut range = CCursorRange::one(CCursor::new(2));
+        let modifiers = Modifiers::CTRL;
+        assert!(range.on_key_press(OperatingSystem::Mac, &galley, &modifiers, Key::F));
+        assert_eq!(range.primary.index, CharIndex(3));
+    }
 }
