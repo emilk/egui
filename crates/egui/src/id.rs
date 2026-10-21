@@ -212,7 +212,7 @@ pub type IdMap<V> = nohash_hasher::IntMap<Id, V>;
 /// Used by [`Id`]'s `Debug` impl so that `Id::unique("foo")` prints as `Id::unique("foo")`,
 /// and `Id::unique("foo").with("bar")` prints as `Id::unique("foo").with("bar")`, etc.
 ///
-/// Entries that have not been seen recently are purged by [`end_pass`],
+/// Entries that have not been seen recently are purged by [`id_source::end_pass`],
 /// so that the map does not grow without bound.
 #[cfg(debug_assertions)]
 pub(crate) mod id_source {
