@@ -326,6 +326,7 @@ pub struct ViewportBuilder {
     // windows:
     pub drag_and_drop: Option<bool>,
     pub taskbar: Option<bool>,
+    pub no_redirection_bitmap: Option<bool>,
 
     pub close_button: Option<bool>,
     pub minimize_button: Option<bool>,
@@ -524,6 +525,31 @@ impl ViewportBuilder {
     #[inline]
     pub fn with_taskbar(mut self, show: bool) -> Self {
         self.taskbar = Some(show);
+        self
+    }
+
+    /// windows: Whether to create the window without a GDI redirection surface
+    /// (the `WS_EX_NOREDIRECTIONBITMAP` extended style).
+    ///
+    /// A window normally gets a redirection surface that nothing in egui paints.
+    /// It is never seen on the live screen, but screen captures of a
+    /// [`transparent`](Self::with_transparent) window (e.g. with a system backdrop
+    /// such as acrylic) compose the window over it, which shows up as an opaque
+    /// box the size the window was created at. With this set, no surface exists
+    /// and captures show the window as the screen does.
+    ///
+    /// The window then can only be presented through DirectX or Vulkan (a flip-model
+    /// swapchain); OpenGL presents through the redirection surface, so a window
+    /// using the `glow` backend with this set shows nothing.
+    ///
+    /// This is a creation-time choice: changing it recreates the window.
+    ///
+    /// See [winit's documentation][no_redirection_bitmap] for details.
+    ///
+    /// [no_redirection_bitmap]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowAttributesExtWindows.html#tymethod.with_no_redirection_bitmap
+    #[inline]
+    pub fn with_no_redirection_bitmap(mut self, value: bool) -> Self {
+        self.no_redirection_bitmap = Some(value);
         self
     }
 
@@ -747,6 +773,7 @@ impl ViewportBuilder {
             window_level: new_window_level,
             mouse_passthrough: new_mouse_passthrough,
             taskbar: new_taskbar,
+            no_redirection_bitmap: new_no_redirection_bitmap,
             window_type: new_window_type,
             override_redirect: new_override_redirect,
             monitor: new_monitor,
@@ -920,6 +947,13 @@ impl ViewportBuilder {
 
         if new_taskbar.is_some() && self.taskbar != new_taskbar {
             self.taskbar = new_taskbar;
+            recreate_window = true;
+        }
+
+        if new_no_redirection_bitmap.is_some()
+            && self.no_redirection_bitmap != new_no_redirection_bitmap
+        {
+            self.no_redirection_bitmap = new_no_redirection_bitmap;
             recreate_window = true;
         }
 
