@@ -367,7 +367,9 @@ fn ccursor_next_line(text: &str, ccursor: CCursor) -> CCursor {
 pub fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
     let num_chars = CharIndex(text.chars().count());
     let reversed: String = text.graphemes(true).rev().collect();
-    let boundary = next_word_boundary_char_index(&reversed, num_chars - ccursor.index);
+    // The cursor can be past the end of the text, e.g. when a row has more glyphs than characters.
+    let chars_after_cursor = num_chars - ccursor.index.min(num_chars);
+    let boundary = next_word_boundary_char_index(&reversed, chars_after_cursor);
     CCursor {
         index: num_chars - boundary.min(num_chars),
         prefer_next_row: true,
@@ -552,6 +554,11 @@ mod test {
         assert_eq!(ccursor_previous_word(text, CCursor::new(5)).index.0, 4);
         assert_eq!(ccursor_previous_word(text, CCursor::new(4)).index.0, 0);
         assert_eq!(ccursor_previous_word(text, CCursor::new(0)).index.0, 0);
+
+        // A cursor past the end of the text must not underflow:
+        assert_eq!(ccursor_previous_word(text, CCursor::new(12)).index.0, 8);
+        assert_eq!(ccursor_previous_word(text, CCursor::new(99)).index.0, 8);
+        assert_eq!(ccursor_previous_word("", CCursor::new(1)).index.0, 0);
     }
 
     #[test]

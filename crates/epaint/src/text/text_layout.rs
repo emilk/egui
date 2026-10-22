@@ -226,11 +226,13 @@ struct TextRun {
 /// ligatures), zero-width "continuation" glyphs are emitted for the extra
 /// characters so that `glyphs.len() == char_count` — an invariant that all
 /// cursor and selection code relies on.
+#[expect(clippy::too_many_arguments)]
 fn layout_shaped_run(
     fonts: &mut FontsImpl,
     run: &TextRun,
     run_text: &str,
     glyph_buffer: &harfrust::GlyphBuffer,
+    direction: harfrust::Direction,
     face_metrics: &StyledMetrics,
     ctx: &mut ShapingContext,
     paragraph: &mut Paragraph,
@@ -245,6 +247,11 @@ fn layout_shaped_run(
     // continuation glyphs when a cluster has more chars than glyphs.
     let mut cluster_start_byte: usize = 0;
     let mut cluster_glyph_count: usize = 0;
+
+    // A run has a single direction. The shaper returns a right-to-left run in visual
+    // order: cluster offsets decrease, and a cluster ends where the one emitted before it starts.
+    let is_rtl = direction == harfrust::Direction::RightToLeft;
+    let mut rtl_cluster_end_byte = run_text.len();
 
     for (info, pos) in iter::zip(glyph_buffer.glyph_infos(), glyph_buffer.glyph_positions()) {
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
@@ -283,11 +290,18 @@ fn layout_shaped_run(
         let is_new_cluster = ctx.prev_cluster.is_none_or(|pc| pc != cluster);
         if is_new_cluster {
             if ctx.prev_cluster.is_some() {
+                let cluster_bytes = if is_rtl {
+                    let cluster_bytes = cluster_start_byte..rtl_cluster_end_byte;
+                    rtl_cluster_end_byte = cluster_start_byte;
+                    cluster_bytes
+                } else {
+                    cluster_start_byte..cluster as usize
+                };
                 emit_continuation_glyphs(
                     ctx,
                     paragraph,
                     run_text,
-                    cluster_start_byte..cluster as usize,
+                    cluster_bytes,
                     cluster_glyph_count,
                     face_metrics,
                 );
@@ -388,11 +402,16 @@ fn layout_shaped_run(
 
     // Emit continuation glyphs for the last cluster in the run.
     if ctx.prev_cluster.is_some() {
+        let cluster_bytes = if is_rtl {
+            cluster_start_byte..rtl_cluster_end_byte
+        } else {
+            cluster_start_byte..run_text.len()
+        };
         emit_continuation_glyphs(
             ctx,
             paragraph,
             run_text,
-            cluster_start_byte..run_text.len(),
+            cluster_bytes,
             cluster_glyph_count,
             face_metrics,
         );
@@ -598,13 +617,15 @@ fn layout_section(
                 flags |= harfrust::BufferFlags::END_OF_TEXT;
             }
 
-            let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
+            let (glyph_buffer, direction) =
+                shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
 
             layout_shaped_run(
                 fonts,
                 run,
                 run_text,
                 &glyph_buffer,
+                direction,
                 &face_metrics,
                 &mut ctx,
                 paragraph,
@@ -1564,7 +1585,8 @@ fn segment_into_runs(
     }
 }
 
-/// Shape a text run and return the raw [`harfrust::GlyphBuffer`].
+/// Shape a text run and return the raw [`harfrust::GlyphBuffer`],
+/// with the direction the shaper guessed for the whole run.
 ///
 /// The caller should iterate `glyph_infos()` / `glyph_positions()` (both
 /// `Copy` slices) and convert font units to pixels using `metrics.px_scale_factor`.
@@ -1575,7 +1597,7 @@ fn shape_text(
     coords: &VariationCoords,
     mut buffer: harfrust::UnicodeBuffer,
     flags: harfrust::BufferFlags,
-) -> harfrust::GlyphBuffer {
+) -> (harfrust::GlyphBuffer, harfrust::Direction) {
     let font_ref = font_face.skrifa_font_ref();
     let tweak = font_face.tweak();
 
@@ -1601,8 +1623,10 @@ fn shape_text(
     buffer.set_flags(flags);
     buffer.push_str(text);
     buffer.guess_segment_properties();
+    let direction = buffer.direction();
 
-    shaper.shape(buffer, harfrust::ShapeOptions::new())
+    let glyph_buffer = shaper.shape(buffer, harfrust::ShapeOptions::new());
+    (glyph_buffer, direction)
 }
 
 // ----------------------------------------------------------------------------
@@ -2649,6 +2673,48 @@ mod tests {
             assert_eq!(
                 galley.end().index.0,
                 expected_chars,
+                "Galley::end().index mismatch for {text:?}",
+            );
+        }
+    }
+
+    /// Regression test for <https://github.com/emilk/egui/issues/8576>.
+    ///
+    /// The shaper returns a right-to-left run in visual order, with decreasing
+    /// cluster offsets. Such a run must still produce one glyph per character.
+    #[test]
+    fn test_right_to_left_run_glyph_count() {
+        let pixels_per_point = 1.0;
+        let mut fonts = test_fonts();
+        let font_id = FontId::default();
+
+        let cases = [
+            "ب",
+            "بب",
+            "ببب",
+            "אב",
+            "a אבג b",
+            "שלום 42 עולם",
+            // Base char + combining mark inside a right-to-left run
+            "ב\u{05BC}א",
+        ];
+
+        for text in cases {
+            let job = LayoutJob::simple(
+                text.to_owned(),
+                font_id.clone(),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+            let total_glyphs: usize = galley.rows.iter().map(|r| r.row.glyphs.len()).sum();
+            let num_chars = text.chars().count();
+
+            assert_eq!(total_glyphs, num_chars, "Glyph count mismatch for {text:?}");
+            assert_eq!(
+                galley.end().index.0,
+                num_chars,
                 "Galley::end().index mismatch for {text:?}",
             );
         }
