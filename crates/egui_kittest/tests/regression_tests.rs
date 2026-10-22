@@ -878,6 +878,79 @@ pub fn textedit_hint_text_should_follow_text_alignment() {
     );
 }
 
+/// Selecting text in a `TextEdit` by dragging with the mouse should report
+/// `OutputEvent::TextSelectionChanged`, like selecting it with the keyboard does.
+///
+/// Regression test for <https://github.com/emilk/egui/issues/7272>.
+#[test]
+pub fn text_edit_drag_selection_should_report_text_selection_changed() {
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(200.0, 40.0))
+        .build_ui_state(
+            |ui, text: &mut String| {
+                ui.name_inputs("Filter", |ui| {
+                    ui.add(egui::TextEdit::singleline(text).desired_width(200.0))
+                });
+            },
+            "hello world".to_owned(),
+        );
+    harness.run();
+    harness.get_by_role(Role::TextInput).focus();
+    harness.run();
+
+    let rect = harness.get_by_role(Role::TextInput).rect();
+    let start = rect.left_center() + Vec2::new(4.0, 0.0);
+    let end = rect.center();
+
+    let mut selections = vec![];
+    let mut collect_selections = |harness: &Harness<'_, String>| {
+        for event in &harness.output().platform_output.events {
+            if let egui::output::OutputEvent::TextSelectionChanged(info) = event {
+                selections.extend(info.text_selection.clone());
+            }
+        }
+    };
+
+    harness.hover_at(start);
+    harness.step();
+    harness.drag_at(start);
+    harness.step();
+    collect_selections(&harness);
+    for i in 1..=4 {
+        harness.hover_at(start.lerp(end, i as f32 / 4.0));
+        harness.step();
+        collect_selections(&harness);
+    }
+    // Not `drop_at`, which runs a second frame (removing the cursor) whose output replaces this one:
+    harness.event(egui::Event::PointerButton {
+        pos: end,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: Modifiers::NONE,
+    });
+    harness.step();
+    collect_selections(&harness);
+
+    let settled =
+        harness
+            .output()
+            .platform_output
+            .commands
+            .iter()
+            .find_map(|command| match command {
+                egui::OutputCommand::TextSelectionSettled(text) => Some(text.clone()),
+                _ => None,
+            });
+    assert!(
+        settled.is_some_and(|text| !text.is_empty()),
+        "the drag should have selected some text"
+    );
+    assert!(
+        selections.iter().any(|range| !range.is_empty()),
+        "dragging over the text should report a non-empty selection, got {selections:?}"
+    );
+}
+
 /// A focused `DragValue` keeps the text the user is editing in memory.
 ///
 /// If something else changes the value while the `DragValue` has focus,
