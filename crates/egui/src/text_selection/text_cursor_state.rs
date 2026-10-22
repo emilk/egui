@@ -160,6 +160,11 @@ impl TextCursorState {
             true
         } else if response.sense.senses_drag() {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
+                // Preserves the text cursor position when right-clicking.
+                if ui.input(|i| i.pointer.secondary_down()) {
+                    return true;
+                }
+
                 // The start of a drag (or a click).
                 // Clicks are counted on release, but for double-click-and-drag
                 // we need to select the word (or line) already on the second (or third) press:
