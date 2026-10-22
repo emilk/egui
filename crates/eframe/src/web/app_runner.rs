@@ -25,6 +25,12 @@ pub struct AppRunner {
     // Output for the last run:
     textures_delta: TexturesDelta,
     clipped_primitives: Option<Vec<egui::ClippedPrimitive>>,
+
+    /// The canvas still shows the last painted picture.
+    ///
+    /// Cleared while the tab is hidden, so the next visible frame paints
+    /// even if the shapes match.
+    picture_presented: bool,
 }
 
 impl Drop for AppRunner {
@@ -168,6 +174,7 @@ impl AppRunner {
             screenshot_commands_with_frame_delay: vec![],
             textures_delta: Default::default(),
             clipped_primitives: None,
+            picture_presented: false,
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
@@ -296,6 +303,7 @@ impl AppRunner {
                 textures_delta,
                 shapes,
                 pixels_per_point,
+                skip_redraw,
                 viewport_output,
             } = full_output;
 
@@ -310,8 +318,20 @@ impl AppRunner {
 
             self.handle_platform_output(platform_output);
             self.textures_delta.append(textures_delta);
-            self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+            let skip_redraw = skip_redraw
+                && self.textures_delta.is_empty()
+                && self.screenshot_commands_with_frame_delay.is_empty()
+                && self.picture_presented;
+            if skip_redraw {
+                self.clipped_primitives = None;
+            } else {
+                // `paint` presents later. Until that succeeds the picture is not
+                // on screen, so the next frame cannot skip.
+                self.picture_presented = false;
+                self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+            }
         } else {
+            self.picture_presented = false;
             // The tab is hidden, so we run no egui pass at all.
             // That way all ui state is left untouched, and is still there
             // when the tab is shown again.
@@ -379,6 +399,8 @@ impl AppRunner {
                 screenshot_commands,
             ) {
                 log::error!("Failed to paint: {}", super::string_from_js_value(&err));
+            } else {
+                self.picture_presented = true;
             }
         }
     }
