@@ -332,22 +332,22 @@ pub fn run_native_ext(
 ///
 /// Call from `fn main` like this:
 /// ``` no_run
-/// use eframe::{egui, UserEvent};
+/// use eframe::egui;
 /// use winit::event_loop::{ControlFlow, EventLoop};
 ///
 /// fn main() -> eframe::Result {
 ///     let native_options = eframe::NativeOptions::default();
-///     let eventloop = EventLoop::<UserEvent>::with_user_event().build()?;
+///     let eventloop = EventLoop::new()?;
 ///     eventloop.set_control_flow(ControlFlow::Poll);
 ///
-///     let mut winit_app = eframe::create_native(
+///     let winit_app = eframe::create_native(
 ///         "MyExtApp",
 ///         native_options,
 ///         Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))),
 ///         &eventloop,
 ///     );
 ///
-///     eventloop.run_app(&mut winit_app)?;
+///     eventloop.run_app(winit_app)?;
 ///
 ///     Ok(())
 /// }
