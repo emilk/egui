@@ -309,18 +309,13 @@ impl<'app> GlowWinitApp<'app> {
         event_loop: &ActiveEventLoop,
     ) -> Result<&mut GlowWinitRunning<'app>> {
         profiling::function_scope!();
-
-        let storage = if let Some(file) = &self.native_options.persistence_path {
-            epi_integration::create_storage_with_file(file)
-        } else {
-            epi_integration::create_storage(
-                self.native_options
-                    .viewport
-                    .app_id
-                    .as_ref()
-                    .unwrap_or(&self.app_name),
-            )
-        };
+        let storage = self.native_options.storage_build.try_create_storage(
+            self.native_options
+                .viewport
+                .app_id
+                .as_ref()
+                .unwrap_or(&self.app_name),
+        );
 
         let egui_ctx = self
             .egui_ctx
