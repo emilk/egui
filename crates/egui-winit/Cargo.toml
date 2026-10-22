@@ -54,8 +54,11 @@ serde = ["egui/serde", "dep:serde"]
 ## Enables Wayland support.
 wayland = ["winit/wayland", "bytemuck", "arboard?/wayland-data-control"]
 
+## Resolve sandboxed file-drop capabilities through the desktop portal (prototype).
+wayland-portal = ["wayland", "winit/wayland-portal"]
+
 ## Enables compiling for x11.
-x11 = ["winit/x11", "winit/rwh_06", "bytemuck"]
+x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
 egui = { workspace = true, default-features = false }
@@ -64,6 +67,7 @@ log.workspace = true
 profiling.workspace = true
 raw-window-handle.workspace = true
 web-time.workspace = true
+url.workspace = true
 winit = { workspace = true, default-features = false }
 
 #! ### Optional dependencies

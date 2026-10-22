@@ -2,7 +2,7 @@
 #![expect(rustdoc::missing_crate_level_docs, clippy::unwrap_used)] // it's an example
 
 use core::cell::Cell;
-use eframe::{UserEvent, egui};
+use eframe::egui;
 use std::rc::Rc;
 use winit::event_loop::{ControlFlow, EventLoop};
 
@@ -13,17 +13,17 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
-    let eventloop = EventLoop::<UserEvent>::with_user_event().build().unwrap();
+    let eventloop = EventLoop::builder().build().unwrap();
     eventloop.set_control_flow(ControlFlow::Poll);
 
-    let mut winit_app = eframe::create_native(
+    let winit_app = eframe::create_native(
         "External Eventloop Application",
         options,
         Box::new(|_| Ok(Box::<MyApp>::default())),
         &eventloop,
     );
 
-    eventloop.run_app(&mut winit_app)?;
+    eventloop.run_app(winit_app)?;
 
     Ok(())
 }

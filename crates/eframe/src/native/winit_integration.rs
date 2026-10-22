@@ -13,7 +13,7 @@ use egui_winit::accesskit_winit;
 ///
 /// These windows don't receive `RedrawRequested` events on Windows,
 /// so they need special handling to keep processing viewport commands.
-pub fn is_invisible_or_minimized(window: &Window) -> bool {
+pub fn is_invisible_or_minimized(window: &dyn Window) -> bool {
     window.is_visible() == Some(false) || window.is_minimized() == Some(true)
 }
 
@@ -22,7 +22,7 @@ pub fn is_invisible_or_minimized(window: &Window) -> bool {
 ///
 /// On Windows, an invisible window also uses up all CPU:
 /// <https://github.com/emilk/egui/issues/7776>
-pub fn sleep_if_invisible_or_minimized(window: Option<&Window>) {
+pub fn sleep_if_invisible_or_minimized(window: Option<&dyn Window>) {
     if window.is_some_and(is_invisible_or_minimized) {
         profiling::scope!("minimized_sleep");
         std::thread::sleep(core::time::Duration::from_millis(10));
@@ -100,9 +100,11 @@ impl From<accesskit_winit::Event> for UserEvent {
 }
 
 pub trait WinitApp {
+    fn take_user_events(&mut self) -> Vec<UserEvent>;
+
     fn egui_ctx(&self) -> Option<&egui::Context>;
 
-    fn window(&self, window_id: WindowId) -> Option<Arc<Window>>;
+    fn window(&self, window_id: WindowId) -> Option<Arc<dyn Window>>;
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId>;
 
@@ -112,25 +114,25 @@ pub trait WinitApp {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        event_loop: &dyn ActiveEventLoop,
         window_id: WindowId,
         mode: PassMode,
     ) -> crate::Result<EventResult>;
 
-    fn suspended(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
+    fn suspended(&mut self, event_loop: &dyn ActiveEventLoop) -> crate::Result<EventResult>;
 
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
+    fn resumed(&mut self, event_loop: &dyn ActiveEventLoop) -> crate::Result<EventResult>;
 
     fn device_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
-        device_id: winit::event::DeviceId,
+        event_loop: &dyn ActiveEventLoop,
+        device_id: Option<winit::event::DeviceId>,
         event: winit::event::DeviceEvent,
     ) -> crate::Result<EventResult>;
 
     fn window_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        event_loop: &dyn ActiveEventLoop,
         window_id: WindowId,
         event: winit::event::WindowEvent,
     ) -> crate::Result<EventResult>;

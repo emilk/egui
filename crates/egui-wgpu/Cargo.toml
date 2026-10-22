@@ -36,7 +36,7 @@ default = [
 capture = ["dep:egui"]
 
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
-winit = ["dep:winit", "winit/rwh_06", "dep:egui", "capture"]
+winit = ["dep:winit", "dep:egui", "capture"]
 
 ## Enables Wayland support for winit.
 wayland = ["winit?/wayland"]

@@ -63,7 +63,7 @@ profiling.workspace = true
 document-features = { workspace = true, optional = true }
 
 # Native:
-winit = { workspace = true, optional = true, default-features = false, features = ["rwh_06"] }
+winit = { workspace = true, optional = true, default-features = false }
 
 
 [dev-dependencies]

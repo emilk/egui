@@ -22,7 +22,7 @@ pub struct EguiGlow {
 impl EguiGlow {
     /// For automatic shader version detection set `shader_version` to `None`.
     pub fn new(
-        event_loop: &winit::event_loop::ActiveEventLoop,
+        event_loop: &dyn winit::event_loop::ActiveEventLoop,
         gl: std::sync::Arc<glow::Context>,
         shader_version: Option<ShaderVersion>,
         native_pixels_per_point: Option<f32>,
@@ -40,7 +40,7 @@ impl EguiGlow {
         let egui_winit = egui_winit::State::new(
             egui_ctx.clone(),
             ViewportId::ROOT,
-            event_loop,
+            &event_loop,
             native_pixels_per_point,
             event_loop.system_theme(),
             Some(painter.max_texture_side()),
@@ -59,14 +59,20 @@ impl EguiGlow {
 
     pub fn on_window_event(
         &mut self,
-        window: &winit::window::Window,
+        window: &dyn winit::window::Window,
+        event_loop: &dyn winit::event_loop::ActiveEventLoop,
         event: &winit::event::WindowEvent,
     ) -> EventResponse {
-        self.egui_winit.on_window_event(window, event)
+        self.egui_winit.on_window_event(window, event_loop, event)
     }
 
     /// Call [`Self::paint`] later to paint.
-    pub fn run(&mut self, window: &winit::window::Window, run_ui: impl FnMut(&mut egui::Ui)) {
+    pub fn run(
+        &mut self,
+        window: &dyn winit::window::Window,
+        event_loop: &dyn winit::event_loop::ActiveEventLoop,
+        run_ui: impl FnMut(&mut egui::Ui),
+    ) {
         let raw_input = self.egui_winit.take_egui_input(window);
 
         let egui::FullOutput {
@@ -95,7 +101,7 @@ impl EguiGlow {
         }
 
         self.egui_winit
-            .handle_platform_output(window, platform_output);
+            .handle_platform_output_with_event_loop(window, event_loop, platform_output);
 
         self.shapes = shapes;
         self.pixels_per_point = pixels_per_point;
@@ -103,7 +109,7 @@ impl EguiGlow {
     }
 
     /// Paint the results of the last call to [`Self::run`].
-    pub fn paint(&mut self, window: &winit::window::Window) {
+    pub fn paint(&mut self, window: &dyn winit::window::Window) {
         let shapes = core::mem::take(&mut self.shapes);
         let mut textures_delta = core::mem::take(&mut self.textures_delta);
 
@@ -116,7 +122,7 @@ impl EguiGlow {
 
         let pixels_per_point = self.pixels_per_point;
         let clipped_primitives = self.egui_ctx.tessellate(shapes, pixels_per_point);
-        let dimensions: [u32; 2] = window.inner_size().into();
+        let dimensions: [u32; 2] = window.surface_size().into();
         self.painter
             .paint_primitives(dimensions, pixels_per_point, &clipped_primitives);
 

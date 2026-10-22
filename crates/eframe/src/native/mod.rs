@@ -1,6 +1,7 @@
 mod app_icon;
 mod epi_integration;
 mod event_loop_context;
+mod event_proxy;
 pub mod run;
 
 #[cfg(target_os = "macos")]

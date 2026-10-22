@@ -54,7 +54,9 @@ impl Clipboard {
                 feature = "smithay-clipboard"
             ))]
             // SAFETY: The caller guarantees that the display handle remains valid.
-            smithay: unsafe { init_smithay_clipboard(_raw_display_handle) },
+            // Winit 0.31 owns the Wayland data device. Binding a second device on the
+            // same connection can steal selection or drag events on Hyprland.
+            smithay: unsafe { init_smithay_clipboard(_raw_display_handle.filter(|handle| !matches!(handle, RawDisplayHandle::Wayland(_)))) },
 
             clipboard: Default::default(),
         }

@@ -160,7 +160,7 @@ impl Painter {
     fn recreate_surface(
         &mut self,
         viewport_id: ViewportId,
-        window: &Arc<winit::window::Window>,
+        window: &Arc<dyn winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
         profiling::function_scope!();
 
@@ -203,12 +203,12 @@ impl Painter {
     pub async fn set_window(
         &mut self,
         viewport_id: ViewportId,
-        window: Option<Arc<winit::window::Window>>,
+        window: Option<Arc<dyn winit::window::Window>>,
     ) -> Result<(), crate::WgpuError> {
         profiling::scope!("Painter::set_window"); // profile_function gives bad names for async functions
 
         if let Some(window) = window {
-            let size = window.inner_size();
+            let size = window.surface_size();
             if !self.surfaces.contains_key(&viewport_id) {
                 let surface = self.instance.create_surface(window)?;
                 self.add_surface(surface, viewport_id, size).await?;
@@ -229,12 +229,12 @@ impl Painter {
     pub async unsafe fn set_window_unsafe(
         &mut self,
         viewport_id: ViewportId,
-        window: Option<&winit::window::Window>,
+        window: Option<&dyn winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
         profiling::scope!("Painter::set_window_unsafe"); // profile_function gives bad names for async functions
 
         if let Some(window) = window {
-            let size = window.inner_size();
+            let size = window.surface_size();
             if !self.surfaces.contains_key(&viewport_id) {
                 let surface = unsafe {
                     self.instance
@@ -495,7 +495,7 @@ impl Painter {
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &mut epaint::textures::TexturesDelta,
         capture_data: Vec<egui::ScreenshotCallback>,
-        window: &Arc<winit::window::Window>,
+        window: &Arc<dyn winit::window::Window>,
     ) -> f32 {
         profiling::function_scope!();
 

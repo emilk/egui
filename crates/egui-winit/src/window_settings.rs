@@ -29,16 +29,16 @@ pub struct WindowGeometry {
 }
 
 impl WindowGeometry {
-    pub fn from_window(egui_zoom_factor: f32, window: &winit::window::Window) -> Self {
+    pub fn from_window(egui_zoom_factor: f32, window: &dyn winit::window::Window) -> Self {
         let scale_factor = window.scale_factor() as f32;
-        let inner_size = window.inner_size();
+        let surface_size = window.surface_size();
         Self {
             outer_position_pixels: window
                 .outer_position()
                 .ok()
                 .map(|p| egui::pos2(p.x as f32, p.y as f32)),
             scale_factor,
-            inner_size_points: egui::vec2(inner_size.width as f32, inner_size.height as f32)
+            inner_size_points: egui::vec2(surface_size.width as f32, surface_size.height as f32)
                 / (egui_zoom_factor * scale_factor),
         }
     }
@@ -60,7 +60,7 @@ impl WindowSettings {
     /// While maximized or fullscreen, keeps `last_normal_geometry`, so the window restores to it.
     pub fn from_window(
         egui_zoom_factor: f32,
-        window: &winit::window::Window,
+        window: &dyn winit::window::Window,
         last_normal_geometry: Option<WindowGeometry>,
     ) -> Self {
         let fullscreen = window.fullscreen().is_some();
@@ -115,7 +115,7 @@ impl WindowSettings {
         }
     }
 
-    pub fn initialize_window(&self, window: &winit::window::Window) {
+    pub fn initialize_window(&self, window: &dyn winit::window::Window) {
         if !PLACE_AFTER_CREATION {
             return;
         }
@@ -134,9 +134,9 @@ impl WindowSettings {
                     clippy::disallowed_types,
                     reason = "these are OS points, unaffected by egui zoom"
                 )]
-                window.set_outer_position(winit::dpi::LogicalPosition::new(pos.x, pos.y));
+                window.set_outer_position((winit::dpi::LogicalPosition::new(pos.x, pos.y)).into());
             } else {
-                window.set_outer_position(winit::dpi::PhysicalPosition::new(pos.x, pos.y));
+                window.set_outer_position((winit::dpi::PhysicalPosition::new(pos.x, pos.y)).into());
             }
         }
 
@@ -146,29 +146,29 @@ impl WindowSettings {
             // and enter fullscreen in `before_first_show`.
             window.set_maximized(true);
         } else if self.fullscreen {
-            window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+            window.set_fullscreen(Some(winit::monitor::Fullscreen::Borderless(None)));
         } else if self.maximized {
             crate::set_maximized(window, true);
         }
     }
 
     /// Call once the first frame is painted, right before showing the window.
-    pub fn before_first_show(&self, window: &winit::window::Window) {
+    pub fn before_first_show(&self, window: &dyn winit::window::Window) {
         if cfg!(target_os = "macos") && self.fullscreen {
             // Enter the fullscreen deferred by `initialize_window`.
             // Un-maximize first, so the window leaves fullscreen to its normal frame:
             window.set_maximized(false);
-            window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+            window.set_fullscreen(Some(winit::monitor::Fullscreen::Borderless(None)));
         }
     }
 
     /// Call right after showing the window for the first time.
-    pub fn after_first_show(&self, window: &winit::window::Window) {
+    pub fn after_first_show(&self, window: &dyn winit::window::Window) {
         // X11 window managers ignore maximize and fullscreen requests for hidden windows,
         // so the ones from `initialize_viewport_builder` are lost:
         if is_x11(window) {
             if self.fullscreen {
-                window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+                window.set_fullscreen(Some(winit::monitor::Fullscreen::Borderless(None)));
             } else if self.maximized {
                 window.set_maximized(true);
             }
@@ -192,7 +192,7 @@ impl WindowSettings {
     pub fn clamp_position_to_monitors(
         &mut self,
         egui_zoom_factor: f32,
-        event_loop: &winit::event_loop::ActiveEventLoop,
+        event_loop: &dyn winit::event_loop::ActiveEventLoop,
     ) {
         // If the app last ran on two monitors and only one is now connected, then
         // the given position is invalid.
@@ -208,7 +208,8 @@ impl WindowSettings {
             // Pixels mean different points on each Mac monitor, so compare in points:
             let pos = pos_px / geometry.scale_factor;
             let is_on_a_monitor = event_loop.available_monitors().any(|monitor| {
-                (monitor_rect_px(&monitor) / monitor.scale_factor() as f32).contains(pos)
+                monitor_rect_px(&monitor)
+                    .is_some_and(|rect| (rect / monitor.scale_factor() as f32).contains(pos))
             });
             if !is_on_a_monitor {
                 geometry.outer_position_pixels = None;
@@ -227,7 +228,7 @@ impl WindowSettings {
 }
 
 #[cfg(feature = "x11")]
-fn is_x11(window: &winit::window::Window) -> bool {
+fn is_x11(window: &dyn winit::window::Window) -> bool {
     use raw_window_handle::{HasWindowHandle as _, RawWindowHandle};
     matches!(
         window.window_handle().map(|h| h.as_raw()),
@@ -236,13 +237,13 @@ fn is_x11(window: &winit::window::Window) -> bool {
 }
 
 #[cfg(not(feature = "x11"))]
-fn is_x11(_window: &winit::window::Window) -> bool {
+fn is_x11(_window: &dyn winit::window::Window) -> bool {
     false
 }
 
 fn find_active_monitor(
     egui_zoom_factor: f32,
-    event_loop: &winit::event_loop::ActiveEventLoop,
+    event_loop: &dyn winit::event_loop::ActiveEventLoop,
     window_size_pts: egui::Vec2,
     position_px: &egui::Pos2,
 ) -> Option<winit::monitor::MonitorHandle> {
@@ -261,7 +262,10 @@ fn find_active_monitor(
     for monitor in monitors {
         let window_size_px = window_size_pts * (egui_zoom_factor * monitor.scale_factor() as f32);
         let window_rect = egui::Rect::from_min_size(*position_px, window_size_px);
-        let overlap = window_rect.intersect(monitor_rect_px(&monitor)).area();
+        let Some(rect) = monitor_rect_px(&monitor) else {
+            continue;
+        };
+        let overlap = window_rect.intersect(rect).area();
 
         if active_monitor_overlap < overlap {
             active_monitor = monitor;
@@ -272,18 +276,18 @@ fn find_active_monitor(
     Some(active_monitor)
 }
 
-fn monitor_rect_px(monitor: &winit::monitor::MonitorHandle) -> egui::Rect {
-    let pos = monitor.position();
-    let size = monitor.size();
-    egui::Rect::from_min_size(
+fn monitor_rect_px(monitor: &winit::monitor::MonitorHandle) -> Option<egui::Rect> {
+    let pos = monitor.position()?;
+    let size = monitor.current_video_mode()?.size();
+    Some(egui::Rect::from_min_size(
         egui::pos2(pos.x as f32, pos.y as f32),
         egui::vec2(size.width as f32, size.height as f32),
-    )
+    ))
 }
 
 fn clamp_pos_to_monitors(
     egui_zoom_factor: f32,
-    event_loop: &winit::event_loop::ActiveEventLoop,
+    event_loop: &dyn winit::event_loop::ActiveEventLoop,
     window_size_pts: egui::Vec2,
     position_px: &mut egui::Pos2,
 ) {
@@ -304,7 +308,9 @@ fn clamp_pos_to_monitors(
             32.0 * egui_zoom_factor * active_monitor.scale_factor() as f32,
         );
     }
-    let monitor_rect = monitor_rect_px(&active_monitor);
+    let Some(monitor_rect) = monitor_rect_px(&active_monitor) else {
+        return;
+    };
 
     // Window size cannot be negative or the subsequent `clamp` will panic.
     let window_size = (monitor_rect.size() - window_size_px).max(egui::Vec2::ZERO);
