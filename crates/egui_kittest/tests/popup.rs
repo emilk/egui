@@ -1,6 +1,6 @@
 use egui::{
     Align, Layout, Modifiers, PointerButton, Popup, PopupCloseBehavior, Pos2, Sense,
-    SetOpenCommand, Vec2,
+    SetOpenCommand, Vec2, os::OperatingSystem,
 };
 use egui_kittest::Harness;
 use kittest::Queryable as _;
@@ -258,6 +258,53 @@ fn popup_opened_on_press_stays_open_after_release() {
         assert!(
             harness.query_by_label(POPUP_CONTENT).is_none(),
             "{close_behavior:?}: clicking outside should close the popup"
+        );
+    }
+}
+
+/// On Mac, Control-click is a secondary click, so it opens context menus.
+#[test]
+fn ctrl_click_opens_context_menu_on_mac() {
+    const TARGET: &str = "Control-click me";
+    const MENU_ITEM: &str = "Menu item";
+
+    for (os, modifiers, opens) in [
+        (OperatingSystem::Mac, Modifiers::CTRL, true),
+        (OperatingSystem::Mac, Modifiers::NONE, false),
+        (OperatingSystem::Windows, Modifiers::CTRL, false),
+    ] {
+        let mut harness = harness_builder().with_os(os).build_ui(|ui| {
+            ui.add(egui::Label::new(TARGET).sense(Sense::click()))
+                .context_menu(|ui| {
+                    ui.label(MENU_ITEM);
+                });
+        });
+        harness.run();
+        let pos = harness.get_by_label(TARGET).rect().center();
+
+        // Press with Control held, then let go of Control before releasing, like a real user.
+        harness.event(egui::Event::PointerMoved(pos));
+        harness.event(egui::Event::ModifiersChanged(modifiers));
+        harness.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers,
+        });
+        harness.run_steps(3);
+        harness.event(egui::Event::ModifiersChanged(Modifiers::NONE));
+        harness.event(egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        });
+        harness.run();
+
+        assert_eq!(
+            harness.query_by_label(MENU_ITEM).is_some(),
+            opens,
+            "{os:?} with {modifiers:?}"
         );
     }
 }
