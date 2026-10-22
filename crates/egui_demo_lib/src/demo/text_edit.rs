@@ -69,7 +69,7 @@ impl crate::View for TextEditDemo {
             ui.selectable_value(valign, egui::Align::BOTTOM, "Bottom");
         });
 
-        let clear_id = egui::Id::new("clear_button");
+        let clear_id = egui::IdSalt::new("clear_button");
         let clear_size = egui::Vec2::splat(ui.spacing().interact_size.y);
 
         let output = egui::TextEdit::multiline(text)
@@ -140,7 +140,7 @@ impl crate::View for TextEditDemo {
             if ui.button("end").clicked() {
                 let text_edit_id = output.response.id;
                 if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
-                    let ccursor = egui::text::CCursor::new(text.chars().count());
+                    let ccursor = egui::text::CCursor::end_of_str(text);
                     state
                         .cursor
                         .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
@@ -164,7 +164,8 @@ mod tests {
         let mut harness = Harness::new_ui_state(
             move |ui, text| {
                 CentralPanel::default().show(ui, |ui| {
-                    ui.text_edit_singleline(text);
+                    let label = ui.label("Text:");
+                    ui.text_edit_singleline(text).labelled_by(label.id);
                 });
             },
             text,

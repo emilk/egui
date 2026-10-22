@@ -188,8 +188,9 @@ impl crate::DemoApp for ImageViewer {
 
             // alt text
             ui.add_space(5.0);
-            ui.label("Alt text");
-            ui.text_edit_singleline(&mut self.alt_text);
+            let label = ui.label("Alt text");
+            ui.text_edit_singleline(&mut self.alt_text)
+                .labelled_by(label.id);
 
             // forget all images
             if ui.button("Forget all images").clicked() {

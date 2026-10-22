@@ -26,16 +26,16 @@ If a widget is visual-only or draws custom shapes, give it explicit widget
 information:
 
 ```rust
-use egui::{Sense, WidgetInfo, WidgetType};
+use egui::{Role, Sense, WidgetInfo};
 
 let (_rect, response) = ui.allocate_exact_size(size, Sense::click());
 // Paint using ui.painter().
 response.widget_info(|| {
-    WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), "Open color picker")
+    WidgetInfo::labeled(Role::Button, ui.is_enabled(), "Open color picker")
 });
 ```
 
-Choose the closest `WidgetType`. For non-interactive custom content, prefer a
+Choose the closest `egui::Role`. For non-interactive custom content, prefer a
 label or image role where possible rather than leaving the node unnamed.
 
 ## Testing
@@ -44,7 +44,7 @@ label or image role where possible rather than leaving the node unnamed.
 that screen readers consume:
 
 ```rust
-use egui::accesskit::Role;
+use egui::Role;
 use egui_kittest::{Harness, kittest::Queryable as _};
 
 let mut harness = Harness::new_ui_state(

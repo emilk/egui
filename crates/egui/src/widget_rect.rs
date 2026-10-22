@@ -15,9 +15,12 @@ pub struct WidgetRect {
     /// (see [`crate::Options::warn_on_id_clash`]).
     ///
     /// You can ensure globally unique ids using [`crate::Ui::push_id`].
+    ///
+    /// For the [`WidgetRect`] of a [`crate::Ui`] this is the
+    /// [`crate::Ui::unique_id`] of that [`crate::Ui`].
     pub id: Id,
 
-    /// The [`Id`] of the parent [`crate::Ui`] that hosts this widget.
+    /// The [`crate::Ui::unique_id`] of the parent [`crate::Ui`] that hosts this widget.
     ///
     /// Used by debug checks to distinguish true id-instability from
     /// cascading id shifts caused by a parent Ui's auto-id changing.
@@ -46,6 +49,11 @@ pub struct WidgetRect {
 
     /// Is the widget enabled?
     pub enabled: bool,
+
+    /// Is the widget visible?
+    ///
+    /// Invisible widgets (see [`crate::Ui::is_visible`]) are not exposed to accessibility.
+    pub visible: bool,
 }
 
 impl WidgetRect {
@@ -58,6 +66,7 @@ impl WidgetRect {
             interact_rect,
             sense,
             enabled,
+            visible,
         } = self;
         Self {
             id,
@@ -67,6 +76,7 @@ impl WidgetRect {
             interact_rect: transform * interact_rect,
             sense,
             enabled,
+            visible,
         }
     }
 }
@@ -144,6 +154,16 @@ impl WidgetRects {
         self.by_layer.get(&layer_id).into_iter().flatten()
     }
 
+    /// Enabled widgets in this layer that can take keyboard focus, in the order they were added.
+    pub(crate) fn focusable_widgets_in_layer(
+        &self,
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = Id> + '_ {
+        self.get_layer(layer_id)
+            .filter(|widget| widget.enabled && widget.sense.is_focusable())
+            .map(|widget| widget.id)
+    }
+
     /// Clear the contents while retaining allocated memory.
     pub fn clear(&mut self) {
         let Self {
@@ -193,6 +213,7 @@ impl WidgetRects {
                 existing.interact_rect = widget_rect.interact_rect; // last wins
                 existing.sense |= widget_rect.sense;
                 existing.enabled |= widget_rect.enabled;
+                existing.visible |= widget_rect.visible;
 
                 if existing.layer_id == widget_rect.layer_id {
                     if move_to_top {

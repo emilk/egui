@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use alloc::{collections::BTreeMap, sync::Arc};
 
 use crate::text::{FontData, FontFamily, font_provider::FontProvider};
 
@@ -84,8 +84,8 @@ pub struct InsertFontFamily {
     pub priority: FontPriority,
 }
 
-/// Whether an inserted font goes before or after the existing fonts of a family.
-#[derive(Debug, Clone)]
+/// Whether an inserted font (or [`crate::text::GlyphRasterizer`]) goes before or after the existing fonts of a family.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum FontPriority {
     /// Prefer this font before all existing ones.
     ///

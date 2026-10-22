@@ -83,7 +83,10 @@ impl crate::Demo for WindowResizeTest {
             .constrain_to(ui.available_rect_before_wrap())
             .show(ui, |ui| {
                 ui.label("Shows how you can fill an area with a widget.");
-                ui.add_sized(ui.available_size(), TextEdit::multiline(&mut self.text));
+                ui.add_sized(
+                    ui.available_size(),
+                    TextEdit::multiline(&mut self.text).hint_text("Type here"),
+                );
             });
 
         Window::new("↔️ freely resized")

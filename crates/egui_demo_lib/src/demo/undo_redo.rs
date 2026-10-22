@@ -50,7 +50,7 @@ impl crate::View for UndoRedoDemo {
         });
 
         ui.checkbox(&mut self.state.toggle_value, "Checkbox with undo/redo");
-        ui.text_edit_singleline(&mut self.state.text);
+        ui.add(egui::TextEdit::singleline(&mut self.state.text).hint_text("Text with undo/redo"));
 
         ui.separator();
 

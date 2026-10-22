@@ -6,6 +6,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.37.0 - 2026-10-15
+* Fix `Frame::set_wgpu_surface_config` being ignored [#8442](https://github.com/emilk/egui/pull/8442) by [@chicoferreira](https://github.com/chicoferreira)
+
+
+## 0.36.2 - 2026-09-08
+* Fix `egui-wgpu` build on `wasm32-unknown-emscripten` [#8454](https://github.com/emilk/egui/pull/8454) by [@bfeip](https://github.com/bfeip)
+
+
 ## 0.36.1 - 2026-08-07
 Nothing new
 

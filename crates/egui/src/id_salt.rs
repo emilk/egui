@@ -8,7 +8,7 @@ pub trait AsIdSalt: core::hash::Hash + core::fmt::Debug {}
 
 impl<T: core::hash::Hash + core::fmt::Debug> AsIdSalt for T {}
 
-/// Uniquely identifies a child widget within a parent widget.
+/// A "locally unique" identifier, e.g. to identify a child widget within a parent widget.
 ///
 /// An [`IdSalt`] is only unique within a parent [`crate::Id`].
 /// An [`IdSalt`] is NOT globally unique.
@@ -29,6 +29,17 @@ impl nohash_hasher::IsEnabled for IdSalt {}
 
 impl IdSalt {
     /// Create a new [`IdSalt`] by hashing some source (e.g. a string or integer).
+    ///
+    /// The source is anything that implements [`Hash`](core::hash::Hash),
+    /// including strings, integers, and tuples. Prefer a tuple over formatting a string:
+    ///
+    /// ```
+    /// # use egui::IdSalt;
+    /// # let (row, column) = (0, 0);
+    /// let good = IdSalt::new((row, column)); // No allocation
+    /// let bad = IdSalt::new(format!("{row} {column}")); // Allocates
+    /// # let _ = (good, bad);
+    /// ```
     pub fn new(source: impl AsIdSalt) -> Self {
         let id_salt = Self::from_hash(ahash::RandomState::with_seeds(5, 6, 7, 8).hash_one(&source));
 
@@ -67,29 +78,39 @@ impl core::fmt::Debug for IdSalt {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+/// `IdSaltSet` is a `HashSet<IdSalt>` optimized by knowing that [`IdSalt`] has good entropy, and doesn't need more hashing.
+pub type IdSaltSet = nohash_hasher::IntSet<IdSalt>;
+
+/// `IdSaltMap<V>` is a `HashMap<IdSalt, V>` optimized by knowing that [`IdSalt`] has good entropy, and doesn't need more hashing.
+pub type IdSaltMap<V> = nohash_hasher::IntMap<IdSalt, V>;
+
+// ----------------------------------------------------------------------------
+
 /// In debug builds, remember the `Debug`-formatted source that produced each [`IdSalt`].
 ///
 /// Used by [`IdSalt`]'s `Debug` impl so that `IdSalt::new("foo")` prints as
 /// `IdSalt::new("foo")`, and `IdSalt::new(IdSalt::new("foo"))` prints as
 /// `IdSalt::new(IdSalt::new("foo"))`, etc.
 #[cfg(debug_assertions)]
-mod id_salt_source {
+pub(crate) mod id_salt_source {
     use super::{AsIdSalt, IdSalt};
-    use epaint::mutex::RwLock;
-    use nohash_hasher::IntMap;
+    use crate::id::id_source::SourceMap;
     use std::sync::LazyLock;
 
-    static SOURCE_MAP: LazyLock<RwLock<IntMap<IdSalt, String>>> = LazyLock::new(RwLock::default);
+    static SOURCE_MAP: LazyLock<SourceMap<IdSalt>> = LazyLock::new(SourceMap::default);
 
     pub(super) fn maybe_insert(id_salt: IdSalt, source: &impl AsIdSalt) {
-        if !SOURCE_MAP.read().contains_key(&id_salt) {
-            let formatted = format!("{source:?}");
-            SOURCE_MAP.write().insert(id_salt, formatted);
-        }
+        SOURCE_MAP.touch_or_insert_with(id_salt, || format!("{source:?}"));
     }
 
     pub(super) fn get(id_salt: IdSalt) -> Option<String> {
-        SOURCE_MAP.read().get(&id_salt).cloned()
+        SOURCE_MAP.get(id_salt)
+    }
+
+    pub(crate) fn purge(generation: u64) {
+        SOURCE_MAP.purge(generation);
     }
 }
 

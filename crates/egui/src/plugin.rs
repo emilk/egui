@@ -1,7 +1,7 @@
 use crate::{Context, FullOutput, RawInput, Ui};
 use ahash::HashMap;
+use alloc::sync::Arc;
 use epaint::mutex::{Mutex, MutexGuard};
-use std::sync::Arc;
 
 /// A plugin to extend egui.
 ///
@@ -20,6 +20,12 @@ pub trait Plugin: Send + Sync + core::any::Any + 'static {
     ///
     /// Useful to e.g. register image loaders.
     fn setup(&mut self, ctx: &Context) {}
+
+    /// Called once when the integration is shutting down.
+    ///
+    /// This is called before [`Context::memory`] is persisted and while integration resources are
+    /// still available. Plugins may use this to store state in persistent egui [`crate::Memory`].
+    fn on_exit(&mut self, ctx: &Context) {}
 
     /// Called at the start of each pass.
     ///
@@ -179,6 +185,13 @@ impl PluginsOrdered {
         profiling::scope!("plugins", "on_output");
         self.for_each_dyn(|plugin| {
             plugin.output_hook(ctx, output);
+        });
+    }
+
+    pub fn on_exit(&self, ctx: &Context) {
+        profiling::scope!("plugins", "on_exit");
+        self.for_each_dyn(|plugin| {
+            plugin.on_exit(ctx);
         });
     }
 

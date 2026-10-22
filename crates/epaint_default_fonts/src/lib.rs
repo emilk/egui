@@ -2,6 +2,8 @@
 //!
 //! This is intended to be consumed through the `epaint` crate.
 
+#![warn(clippy::std_instead_of_alloc)]
+
 pub mod special_emojis;
 
 /// A typeface designed for source code.

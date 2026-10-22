@@ -5,6 +5,14 @@ All notable changes to the `egui_inspection` crate will be noted in this file.
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
+## 0.37.0 - 2026-10-15
+* Handle `egui_inspection` requests even while a window is hidden [#8571](https://github.com/emilk/egui/pull/8571) by [@emilk](https://github.com/emilk)
+
+
+## 0.36.2 - 2026-09-08
+Nothing new
+
+
 ## 0.36.1 - 2026-08-07
 Nothing new
 

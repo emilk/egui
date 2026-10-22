@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use crate::text::{
     FontFamily, FontInsert, FontPriority, InsertFontFamily,
@@ -157,7 +157,7 @@ impl FontProviders {
 #[cfg(feature = "default_fonts")]
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use alloc::sync::Arc;
 
     use epaint_default_fonts::{ALBERT_SANS, HACK_REGULAR};
 
@@ -167,7 +167,7 @@ mod tests {
         mutex::Mutex,
         text::{
             FontData, FontDefinitions, FontId, Fonts, GlyphBitmap, GlyphRasterizer,
-            GlyphRasterizerRequest, RasterizedGlyph, TextOptions,
+            GlyphRasterizerRequest, RasterizedGlyph, TextOptions, ViewportKey,
         },
     };
 
@@ -219,7 +219,7 @@ mod tests {
     }
 
     fn color_rasterizer() -> GlyphRasterizer {
-        GlyphRasterizer::new(|_: &GlyphRasterizerRequest<'_>| {
+        GlyphRasterizer::new("test color_rasterizer", |_: &GlyphRasterizerRequest<'_>| {
             Some(RasterizedGlyph {
                 bitmap: GlyphBitmap {
                     image: ColorImage::new([1, 1], vec![Color32::RED]),
@@ -234,7 +234,7 @@ mod tests {
     fn fonts_with(provider: Arc<dyn FontProvider>, rasterizer: Option<GlyphRasterizer>) -> Fonts {
         let mut fonts =
             Fonts::new(TextOptions::default(), hack_only()).with_font_providers(vec![provider]);
-        fonts.set_glyph_rasterizer(rasterizer);
+        fonts.set_glyph_rasterizers(rasterizer.into_iter().collect());
         fonts
     }
 
@@ -322,7 +322,7 @@ mod tests {
             font_hinting: !TextOptions::default().font_hinting,
             ..Default::default()
         };
-        fonts.begin_pass(options);
+        fonts.begin_pass(options, ViewportKey::default());
 
         assert!(fonts.has_glyph(&font_id, SCHWA));
         assert!(!fonts.has_glyph(&font_id, HANGUL));

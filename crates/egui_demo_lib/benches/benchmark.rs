@@ -15,7 +15,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc; // Much faster allocator
 /// to prevent the Context from building a massive map of `WidgetRects` (which would slow the test,
 /// causing unreliable results).
 fn create_benchmark_ui(ctx: &egui::Context) -> Ui {
-    Ui::new(ctx.clone(), Id::new("clashing_id"), UiBuilder::new())
+    Ui::new(ctx.clone(), Id::unique("clashing_id"), UiBuilder::new())
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -213,7 +213,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             let mut rng = rand::rng();
             b.iter(|| {
-                fonts.begin_pass(egui::epaint::TextOptions::default());
+                fonts.begin_pass(
+                    egui::epaint::TextOptions::default(),
+                    egui::epaint::text::ViewportKey::default(),
+                );
 
                 // Delete a random character, simulating a user making an edit in a long file:
                 let mut new_string = string.clone();
@@ -235,7 +238,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             text_color,
             wrap_width,
         );
-        let font_image_size = fonts.font_image_size();
+        let font_image_size = fonts.font_image_resolution();
         let prepared_discs = fonts.texture_atlas().prepared_discs();
         let mut tessellator = egui::epaint::Tessellator::new(
             1.0,

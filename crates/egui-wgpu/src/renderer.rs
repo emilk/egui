@@ -652,17 +652,9 @@ impl Renderer {
             depth_or_array_layers: 1,
         };
 
-        let data_color32 = match &image_delta.image {
-            epaint::ImageData::Color(image) => {
-                assert_eq!(
-                    width as usize * height as usize,
-                    image.pixels.len(),
-                    "Mismatch between texture size and texel count"
-                );
-                Cow::Borrowed(&image.pixels)
-            }
+        let data_bytes: &[u8] = match &image_delta.image {
+            epaint::ImageData::Color(image) => bytemuck::cast_slice(image.pixels()),
         };
-        let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
 
         let queue_write_data_to_texture = |texture, origin| {
             profiling::scope!("write_texture");
@@ -1258,13 +1250,18 @@ impl ScissorRect {
     }
 }
 
-// Look at the feature flag for an explanation.
-#[cfg(not(all(
-    target_arch = "wasm32",
-    not(feature = "fragile-send-sync-non-atomic-wasm"),
-)))]
-#[test]
-fn renderer_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+// Compile-time check that `Renderer` is `Send + Sync`.
+// Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
+// On wasm this only holds with `fragile-send-sync-non-atomic-wasm` and without threads;
+// look at the feature flag for an explanation.
+#[cfg(any(
+    not(target_arch = "wasm32"),
+    all(
+        feature = "fragile-send-sync-non-atomic-wasm",
+        not(target_feature = "atomics")
+    ),
+))]
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Renderer>();
-}
+};

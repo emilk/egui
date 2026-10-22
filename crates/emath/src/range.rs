@@ -1,4 +1,4 @@
-use core::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
+use core::ops::{Div, Mul, RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 
 use crate::fast_midpoint;
 
@@ -136,6 +136,25 @@ impl Rangef {
         }
     }
 
+    /// The smallest range that contains both ranges.
+    ///
+    /// If the ranges do not overlap, the gap between them is included too.
+    ///
+    /// ```
+    /// # use emath::Rangef;
+    /// assert_eq!(Rangef::new(0.0, 10.0).union(Rangef::new(5.0, 15.0)), Rangef::new(0.0, 15.0));
+    /// assert_eq!(Rangef::new(0.0, 10.0).union(Rangef::new(20.0, 30.0)), Rangef::new(0.0, 30.0));
+    /// assert_eq!(Rangef::NOTHING.union(Rangef::point(3.0)), Rangef::point(3.0));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn union(self, other: Self) -> Self {
+        Self {
+            min: self.min.min(other.min),
+            max: self.max.max(other.max),
+        }
+    }
+
     /// Do the two ranges intersect?
     ///
     /// ```
@@ -234,5 +253,41 @@ impl PartialEq<Rangef> for RangeInclusive<f32> {
     #[inline]
     fn eq(&self, other: &Rangef) -> bool {
         *self.start() == other.min && *self.end() == other.max
+    }
+}
+
+impl Mul<f32> for Rangef {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, factor: f32) -> Self {
+        Self {
+            min: self.min * factor,
+            max: self.max * factor,
+        }
+    }
+}
+
+impl Mul<Rangef> for f32 {
+    type Output = Rangef;
+
+    #[inline]
+    fn mul(self, range: Rangef) -> Rangef {
+        Rangef {
+            min: self * range.min,
+            max: self * range.max,
+        }
+    }
+}
+
+impl Div<f32> for Rangef {
+    type Output = Self;
+
+    #[inline]
+    fn div(self, factor: f32) -> Self {
+        Self {
+            min: self.min / factor,
+            max: self.max / factor,
+        }
     }
 }

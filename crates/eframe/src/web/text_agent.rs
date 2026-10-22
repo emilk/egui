@@ -35,6 +35,9 @@ impl TextAgent {
         // of the page into view.
         let style = input.style();
         style.set_property("background-color", "transparent")?;
+        style.set_property("color", "transparent")?;
+        style.set_property("opacity", "0")?;
+        style.set_property("pointer-events", "none")?;
         style.set_property("border", "none")?;
         style.set_property("outline", "none")?;
         style.set_property("width", "1px")?;

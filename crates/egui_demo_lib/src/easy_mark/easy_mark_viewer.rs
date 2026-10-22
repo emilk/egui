@@ -30,7 +30,7 @@ pub fn easy_mark_it<'em>(ui: &mut Ui, items: impl Iterator<Item = easy_mark::Ite
 
 pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
     let row_height = ui.text_style_height(&TextStyle::Body);
-    let one_indent = row_height / 2.0;
+    let one_indent = row_height * 0.5;
 
     match item {
         easy_mark::Item::Newline => {

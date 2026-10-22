@@ -1,4 +1,4 @@
-use std::fmt;
+use alloc::fmt;
 
 use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, fast_midpoint, lerp, pos2, vec2};
 use core::ops::{BitOr, BitOrAssign};
@@ -285,6 +285,33 @@ impl Rect {
     #[must_use]
     pub fn clamp(&self, p: Pos2) -> Pos2 {
         p.clamp(self.min, self.max)
+    }
+
+    /// Floor the rect coordinates
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self {
+            min: self.min.floor(),
+            max: self.max.floor(),
+        }
+    }
+
+    /// Round the rect coordinates
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self {
+            min: self.min.round(),
+            max: self.max.round(),
+        }
+    }
+
+    /// Ceil the rect coordinates
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self {
+            min: self.min.ceil(),
+            max: self.max.ceil(),
+        }
     }
 
     #[inline(always)]

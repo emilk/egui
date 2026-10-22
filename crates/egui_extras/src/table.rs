@@ -375,7 +375,7 @@ impl<'a> TableBuilder<'a> {
     /// Don't make the scroll area higher than this (add scroll-bars instead!).
     ///
     /// In other words: add scroll-bars when this height is reached.
-    /// Default: `800.0`.
+    /// Default: `f32::INFINITY`.
     #[inline]
     pub fn max_scroll_height(mut self, max_scroll_height: f32) -> Self {
         self.scroll_options.max_scroll_height = max_scroll_height;
@@ -444,7 +444,7 @@ impl<'a> TableBuilder<'a> {
 
     /// Reset all column widths.
     pub fn reset(&self) {
-        let state_id = self.ui.id().with(self.id_salt);
+        let state_id = self.ui.scope_id().with(self.id_salt);
         TableState::reset(self.ui, state_id);
     }
 
@@ -464,7 +464,7 @@ impl<'a> TableBuilder<'a> {
         } = self;
 
         for (i, column) in columns.iter_mut().enumerate() {
-            let column_resize_id = ui.id().with("resize_column").with(i);
+            let column_resize_id = ui.scope_id().with("resize_column").with(i);
             if let Some(response) = ui.ctx().read_response(column_resize_id)
                 && response.double_clicked()
             {
@@ -474,7 +474,7 @@ impl<'a> TableBuilder<'a> {
 
         let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
-        let state_id = ui.id().with(id_salt);
+        let state_id = ui.scope_id().with(id_salt);
 
         let (is_sizing_pass, state) =
             TableState::load(ui, state_id, resizable, &columns, available_width);
@@ -482,7 +482,7 @@ impl<'a> TableBuilder<'a> {
         let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
-        let mut ui_builder = egui::UiBuilder::new();
+        let mut ui_builder = egui::UiBuilder::new().scope_id(state_id.with("__header"));
         if is_sizing_pass {
             ui_builder = ui_builder.sizing_pass();
         }
@@ -543,7 +543,7 @@ impl<'a> TableBuilder<'a> {
 
         let striped = striped.unwrap_or_else(|| ui.visuals().striped);
 
-        let state_id = ui.id().with(id_salt);
+        let state_id = ui.scope_id().with(id_salt);
 
         let (is_sizing_pass, state) =
             TableState::load(ui, state_id, resizable, &columns, available_width);
@@ -614,10 +614,10 @@ impl TableState {
             }
         });
 
-        if !is_sizing_pass && state.max_used_widths.len() == columns.len() {
+        if state.max_used_widths.len() == columns.len() {
             // Make sure any non-resizable `remainder` columns are updated
             // to take up the remainder of the current available width.
-            // Also handles changing item spacing.
+            // Also handles changing item spacing and the narrower available width of a sizing pass.
             let mut sizing = crate::sizing::Sizing::default();
             for (prev_width, max_used, column) in
                 itertools::izip!(&state.column_widths, &state.max_used_widths, columns)
@@ -634,7 +634,7 @@ impl TableState {
                         InitialColumnSize::Automatic(_) => Size::exact(*prev_width),
                         InitialColumnSize::Remainder => Size::remainder(),
                     }
-                    .at_least(if column.clip {
+                    .at_least(if column.clip || is_sizing_pass {
                         column.width_range.min
                     } else {
                         column.width_range.min.max(*max_used)
@@ -762,7 +762,7 @@ impl Table<'_> {
 
             let clip_rect = ui.clip_rect();
 
-            let mut ui_builder = egui::UiBuilder::new();
+            let mut ui_builder = egui::UiBuilder::new().scope_id(self.state_id.with("__body"));
             if is_sizing_pass {
                 ui_builder = ui_builder.sizing_pass();
             }
@@ -1307,7 +1307,7 @@ impl TableRow<'_, '_> {
             flags,
             width,
             height,
-            egui::Id::new((self.row_index, col_index)),
+            egui::IdSalt::new((self.row_index, col_index)),
             add_cell_contents,
         );
 

@@ -1,13 +1,14 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use emath::{Rect, TSTransform};
 use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
-    Align, Align2, AsIdSalt, AtomExt as _, AtomKind, AtomLayout, Atoms, Color32, Context,
-    CursorIcon, Event, EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent,
-    IntoAtoms, IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response,
-    Sense, SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetInfo, WidgetWithState,
+    Align, Align2, AsIdSalt, AtomExt as _, AtomKind, Atoms, Color32, Context, CursorIcon, Event,
+    EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent, IntoAtoms,
+    IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense,
+    SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom, WidgetInfo,
+    WidgetWithState,
     class::{ClassName, Classes, HasClasses},
     epaint,
     os::OperatingSystem,
@@ -219,16 +220,20 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Add a prefix to the text edit. This will always be shown before the editable text.
+    ///
+    /// Goes in front of any prefix already set, so `.prefix("b").prefix("a")` shows `ab`.
     #[inline]
     pub fn prefix(mut self, prefix: impl IntoAtoms<'static>) -> Self {
-        self.prefix = prefix.into_atoms();
+        self.prefix.extend_left(prefix.into_atoms());
         self
     }
 
     /// Add a suffix to the text edit. This will always be shown after the editable text.
+    ///
+    /// Goes after any suffix already set, so `.suffix("a").suffix("b")` shows `ab`.
     #[inline]
     pub fn suffix(mut self, suffix: impl IntoAtoms<'static>) -> Self {
-        self.suffix = suffix.into_atoms();
+        self.suffix.extend_right(suffix.into_atoms());
         self
     }
 
@@ -350,6 +355,22 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Set which key presses this [`TextEdit`] captures while it has focus.
+    ///
+    /// Keys not captured by the filter are instead used by egui for
+    /// keyboard navigation (tab and arrows move focus, escape surrenders focus).
+    ///
+    /// The default captures the arrow keys, but not tab or escape.
+    /// This is useful e.g. to implement a code completion popup,
+    /// where tab and escape should act on the popup instead of moving focus away.
+    ///
+    /// See also [`Self::lock_focus`] and [`crate::CompletionPopup`].
+    #[inline]
+    pub fn event_filter(mut self, event_filter: EventFilter) -> Self {
+        self.event_filter = event_filter;
+        self
+    }
+
     /// When `true` (default), the cursor will initially be placed at the end of the text.
     ///
     /// When `false`, the cursor will initially be placed at the beginning of the text.
@@ -443,7 +464,7 @@ impl HasClasses for TextEdit<'_> {
     }
 }
 
-impl TextEdit<'_> {
+impl<'t> TextEdit<'t> {
     /// Show the [`TextEdit`], returning a rich [`TextEditOutput`].
     ///
     /// ```
@@ -460,6 +481,20 @@ impl TextEdit<'_> {
     /// # });
     /// ```
     pub fn show(self, ui: &mut Ui) -> TextEditOutput {
+        self.show_returning_text(ui).0
+    }
+
+    /// The event filter set with [`Self::event_filter`] or [`Self::lock_focus`].
+    pub fn get_event_filter(&self) -> EventFilter {
+        self.event_filter
+    }
+
+    /// Like [`Self::show`], but also gives back the text buffer,
+    /// so the caller can keep editing it after the text edit has been shown.
+    ///
+    /// This is what [`crate::CompletionPopup`] uses to wrap a [`TextEdit`].
+    /// Use it to build your own widgets that edit the text after showing it.
+    pub fn show_returning_text(self, ui: &mut Ui) -> (TextEditOutput, &'t mut dyn TextBuffer) {
         let TextEdit {
             text,
             prefix,
@@ -594,7 +629,28 @@ impl TextEdit<'_> {
 
         let mut text_changed = false;
 
-        let mut handle_events = |ui: &Ui, galley: &mut Arc<Galley>, layouter, wrap_width, text| {
+        let mut handle_events = |ui: &Ui,
+                                 galley: &mut Arc<Galley>,
+                                 layouter: LayouterFn<'_>,
+                                 wrap_width,
+                                 text: &mut dyn TextBuffer| {
+            // Assistive technologies set the whole value without focusing the field first
+            // (e.g. UI Automation's `ValuePattern.SetValue`), so this can't wait for focus
+            // like the keyboard events below.
+            if interactive
+                && text.is_mutable()
+                && let Some(value) = accesskit_set_text_request(ui, id)
+            {
+                let everything = CCursorRange::select_all_str(text.as_str());
+                let ccursor =
+                    insert_replacing_selection(text, &everything, &value, multiline, char_limit);
+                *galley = layouter(ui, text, wrap_width);
+                state
+                    .cursor
+                    .set_char_range(Some(CCursorRange::one(ccursor)));
+                text_changed = true;
+            }
+
             if interactive && ui.memory(|mem| mem.has_focus(id)) {
                 ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
 
@@ -638,7 +694,10 @@ impl TextEdit<'_> {
             atom_layout_style.frame = frame;
         } else {
             if let Some(margin) = margin {
-                atom_layout_style.frame.inner_margin = margin;
+                // Make room for the stroke inside the margin, like the theme does,
+                // so that the stroke width changing on focus doesn't cause a layout shift:
+                let stroke_width = atom_layout_style.frame.stroke.width;
+                atom_layout_style.frame.inner_margin = margin - Margin::from(stroke_width);
             }
             if let Some(background_color) = background_color {
                 atom_layout_style.frame.fill = background_color;
@@ -646,8 +705,13 @@ impl TextEdit<'_> {
         }
         let frame = atom_layout_style.frame;
 
+        // We need to shrink when clip_text, so that we don't exceed the available size
+        // and thus clip. We also need to shrink in multi line text edits, so text can
+        // wrap appropriately.
+        let should_shrink = clip_text || multiline;
+
         let mut get_galley = None;
-        let inner_rect_id = Id::new("text_edit_rect");
+        let inner_rect_id = IdSalt::new("text_edit_rect");
         let mut response = {
             let any_shrink = hint_text.any_shrink();
             // Ideally we could just do `let mut atoms = prefix` here, but that won't compile
@@ -699,15 +763,10 @@ impl TextEdit<'_> {
                 // and the newly typed letter. So we pass a clone instead, and accept having a frame
                 // delay on the very first keystroke.
                 let mut galley_clone = Arc::clone(&galley);
-                handle_events(ui, &mut galley_clone, layouter, available_width, text);
+                handle_events(ui, &mut galley_clone, layouter, available_width, &mut *text);
 
                 get_galley = Some(galley);
             } else {
-                // We need to shrink when clip_text, so that we don't exceed the available size
-                // and thus clip. We also need to shrink in multi line text edits, so text can
-                // wrap appropriately.
-                let should_shrink = clip_text || multiline;
-
                 // We need a closure here, so we can calculate the galley based on the available
                 // width (after adding suffix and prefix), for correct wrapping in multi line text
                 // edits
@@ -718,7 +777,7 @@ impl TextEdit<'_> {
                         // Handling events here allows us to update the galley immediately on
                         // keystrokes, avoiding frame delays, and ensuring the scroll_to within
                         // ScrollAreas works correctly.
-                        handle_events(ui, &mut galley, layouter, args.available_size.x, text);
+                        handle_events(ui, &mut galley, layouter, args.available_size.x, &mut *text);
 
                         let intrinsic_size = galley.intrinsic_size();
                         let mut size = galley.size();
@@ -757,13 +816,18 @@ impl TextEdit<'_> {
             };
 
             let allocated = atom_layout_style
-                .apply(AtomLayout::new(atoms))
+                .apply(WidgetAtom::new(atoms))
                 // The text being edited gets its color from the layouter, so the only atoms
                 // left to color are the prefix and the suffix.
                 .fallback_text_color(prefix_suffix_color)
                 .id(id)
                 .min_size(Vec2::new(allocate_width, min_height.at_least(min_size.y)))
-                .max_width(allocate_width)
+                .max_width(if should_shrink {
+                    allocate_width
+                } else {
+                    // Expand to make all text visible:
+                    f32::INFINITY
+                })
                 .sense(sense)
                 .align2(align)
                 .wrap_mode(wrap_mode)
@@ -819,6 +883,45 @@ impl TextEdit<'_> {
 
                 state.last_interaction_time = ui.input(|i| i.time);
             }
+        }
+
+        // Middle-click pastes the X11/Wayland PRIMARY selection where you click:
+        if interactive
+            && ui.is_enabled()
+            && text.is_mutable()
+            && response.contains_pointer()
+            && let Some((pos, pasted)) = ui.input(|i| {
+                i.events.iter().find_map(|event| match event {
+                    Event::MiddleClickPaste { pos, text } => Some((*pos, text.clone())),
+                    _ => None,
+                })
+            })
+        {
+            let pos = ui
+                .ctx()
+                .layer_transform_from_global(ui.layer_id())
+                .map_or(pos, |from_global| from_global * pos);
+
+            let ccursor = galley.cursor_from_pos(
+                pos - inner_rect.min + state.text_offset + vec2(galley.rect.left(), 0.0),
+            );
+            let ccursor = insert_replacing_selection(
+                text,
+                &CCursorRange::one(ccursor),
+                &pasted,
+                multiline,
+                char_limit,
+            );
+
+            state
+                .cursor
+                .set_char_range(Some(CCursorRange::one(ccursor)));
+            state.cursor_purpose = TextEditCursorPurpose::Selection;
+            state.last_interaction_time = ui.input(|i| i.time);
+            ui.memory_mut(|mem| mem.request_focus(id));
+
+            text_changed = true;
+            ui.ctx().request_repaint(); // The galley is now stale
         }
 
         if interactive && response.hovered() {
@@ -966,6 +1069,19 @@ impl TextEdit<'_> {
             }
         }
 
+        // Report the selection once it has settled (e.g. after a drag):
+        let selection = state.cursor.char_range().filter(|range| !range.is_empty());
+        if selection != state.reported_selection && !ui.input(|i| i.pointer.any_down()) {
+            state.reported_selection = selection;
+
+            if !password && let Some(range) = selection {
+                ui.ctx()
+                    .send_cmd(crate::OutputCommand::TextSelectionSettled(
+                        range.slice_str(text.as_str()).to_owned(),
+                    ));
+            }
+        }
+
         state.clone().store(ui.ctx(), id);
 
         if response.changed() {
@@ -979,11 +1095,12 @@ impl TextEdit<'_> {
             });
         } else if selection_changed && let Some(cursor_range) = cursor_range {
             let char_range = cursor_range.as_sorted_char_range();
-            let info = WidgetInfo::text_selection_changed(
+            let mut info = WidgetInfo::text_selection_changed(
                 ui.is_enabled(),
                 char_range,
                 mask_if_password(password, text.as_str()),
             );
+            info.hint_text = Some(hint_text_str.clone());
             response.output_event(OutputEvent::TextSelectionChanged(info));
         } else {
             response.widget_info(|| {
@@ -996,31 +1113,43 @@ impl TextEdit<'_> {
             });
         }
 
-        let role = if password {
-            accesskit::Role::PasswordInput
-        } else if multiline {
-            accesskit::Role::MultilineTextInput
-        } else {
-            accesskit::Role::TextInput
-        };
+        ui.ctx().accesskit_node_builder(id, |builder| {
+            // `WidgetInfo` only reports the generic `Role::TextInput`,
+            // so refine the role here:
+            let role = if password {
+                accesskit::Role::PasswordInput
+            } else if multiline {
+                accesskit::Role::MultilineTextInput
+            } else {
+                accesskit::Role::TextInput
+            };
+            builder.set_role(role);
+            if interactive && text.is_mutable() {
+                builder.add_action(accesskit::Action::SetValue);
+                builder.add_action(accesskit::Action::ReplaceSelectedText);
+            } else {
+                // A `&str` buffer is how callers show selectable text; it cannot be typed into either.
+                builder.set_read_only();
+            }
+        });
 
         crate::text_selection::accesskit_text::update_accesskit_for_text_widget(
             ui.ctx(),
             id,
             cursor_range,
-            role,
             TSTransform::from_translation(galley_pos.to_vec2()),
             &galley,
         );
 
-        TextEditOutput {
+        let output = TextEditOutput {
             response,
             galley,
             galley_pos,
             text_clip_rect,
             state,
             cursor_range,
-        }
+        };
+        (output, text)
     }
 }
 
@@ -1132,16 +1261,30 @@ fn events(
                 if text_to_insert.is_empty() {
                     None
                 } else {
-                    let mut ccursor = text.delete_selected(&cursor_range);
-                    if multiline {
-                        text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
-                    } else {
-                        let single_line = text_to_insert.replace(['\r', '\n'], " ");
-                        text.insert_text_at(&mut ccursor, &single_line, char_limit);
-                    }
-
+                    let ccursor = insert_replacing_selection(
+                        text,
+                        &cursor_range,
+                        text_to_insert,
+                        multiline,
+                        char_limit,
+                    );
                     Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
                 }
+            }
+            Event::AccessKitActionRequest(accesskit::ActionRequest {
+                action: accesskit::Action::ReplaceSelectedText,
+                target_node,
+                target_tree,
+                data: Some(accesskit::ActionData::Value(text_to_insert)),
+            }) if *target_node == id.accesskit_id() && *target_tree == accesskit::TreeId::ROOT => {
+                let ccursor = insert_replacing_selection(
+                    text,
+                    &cursor_range,
+                    text_to_insert,
+                    multiline,
+                    char_limit,
+                );
+                Some(CursorMutation::Selection(CCursorRange::one(ccursor)))
             }
             Event::Text(text_to_insert) => {
                 // Newlines are handled by `Key::Enter`.
@@ -1379,6 +1522,39 @@ fn events(
     );
 
     (any_change, cursor_range)
+}
+
+/// Replace the selection with `text_to_insert`, the way a paste does: single-line fields turn
+/// newlines into spaces, and `char_limit` is respected. Returns the cursor after the insertion.
+fn insert_replacing_selection(
+    text: &mut dyn TextBuffer,
+    cursor_range: &CCursorRange,
+    text_to_insert: &str,
+    multiline: bool,
+    char_limit: usize,
+) -> CCursor {
+    let mut ccursor = text.delete_selected(cursor_range);
+    if multiline {
+        text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
+    } else {
+        let single_line = text_to_insert.replace(['\r', '\n'], " ");
+        text.insert_text_at(&mut ccursor, &single_line, char_limit);
+    }
+    ccursor
+}
+
+/// The text of the last [`accesskit::Action::SetValue`] request for this widget, if any.
+fn accesskit_set_text_request(ui: &Ui, id: Id) -> Option<String> {
+    ui.input(|input| {
+        use accesskit::{Action, ActionData};
+        input
+            .accesskit_action_requests(id, Action::SetValue)
+            .filter_map(|request| match &request.data {
+                Some(ActionData::Value(value)) => Some(value.to_string()),
+                _ => None,
+            })
+            .last()
+    })
 }
 
 // ----------------------------------------------------------------------------

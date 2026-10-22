@@ -5,6 +5,27 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.37.0 - 2026-10-15
+### ⭐ Added
+* Add `MouseWheelSource` and `InputState::scroll_source()` [#8665](https://github.com/emilk/egui/pull/8665) by [@emilk](https://github.com/emilk)
+* Add option to turn off the default clipboard keyboard shortcuts in egui-winit and eframe [#5615](https://github.com/emilk/egui/pull/5615) by [@YgorSouza](https://github.com/YgorSouza)
+
+### 🔧 Changed
+* Make Clipboard::new unsafe [#7826](https://github.com/emilk/egui/pull/7826) by [@SuchAFuriousDeath](https://github.com/SuchAFuriousDeath)
+* Eframe: hand focus to a launched process with an activation token [#8282](https://github.com/emilk/egui/pull/8282) by [@Le-Syl21](https://github.com/Le-Syl21)
+
+### 🐛 Fixed
+* Use `arboard` if `smithay` does not find text in the clipboard [#8624](https://github.com/emilk/egui/pull/8624) by [@grtlr](https://github.com/grtlr)
+* Only treat Cmd+X/C/V without extra modifiers as cut/copy/paste [#8668](https://github.com/emilk/egui/pull/8668) by [@emilk](https://github.com/emilk)
+* Position the IME candidate window at the text cursor [#8681](https://github.com/emilk/egui/pull/8681) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Pick Cmd vs Ctrl shortcut modifier from Context::os() [#8677](https://github.com/emilk/egui/pull/8677) by [@OlegOAndreev](https://github.com/OlegOAndreev)
+* Fix premultiplied alpha when copying images to the clipboard [#8715](https://github.com/emilk/egui/pull/8715) by [@emilk](https://github.com/emilk)
+
+
+## 0.36.2 - 2026-09-08
+* Hide drop shadow window decoration when in fullscreen mode [#8449](https://github.com/emilk/egui/pull/8449) by [@tarolling](https://github.com/tarolling)
+
+
 ## 0.36.1 - 2026-08-07
 Nothing new
 

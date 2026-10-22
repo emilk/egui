@@ -5,6 +5,25 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.37.0 - 2026-10-15
+### ⭐ Added
+* Add JSON to the simple syntax highlighter in egui_extras [#8632](https://github.com/emilk/egui/pull/8632) by [@emilk](https://github.com/emilk)
+* Add feature for supporting raster images in svg [#8139](https://github.com/emilk/egui/pull/8139) by [@onsdagens](https://github.com/onsdagens)
+* Add simple SQL syntax highlighting to `egui_extras` [#8673](https://github.com/emilk/egui/pull/8673) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix window resizing with clipped table content [#8517](https://github.com/emilk/egui/pull/8517) by [@pederbe](https://github.com/pederbe)
+* Fix image loading in egui_extras to support image plugins [#8547](https://github.com/emilk/egui/pull/8547) by [@programmerlexi](https://github.com/programmerlexi)
+* Percent-decode file:// URIs in the file loader [#8342](https://github.com/emilk/egui/pull/8342) by [@Lfan-ke](https://github.com/Lfan-ke)
+
+### 🚀 Performance
+*  non-blocking webp loader [#8514](https://github.com/emilk/egui/pull/8514) by [@yawnnn](https://github.com/yawnnn)
+
+
+## 0.36.2 - 2026-09-08
+Nothing new
+
+
 ## 0.36.1 - 2026-08-07
 Nothing new
 
