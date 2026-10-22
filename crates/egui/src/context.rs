@@ -1552,6 +1552,12 @@ impl Context {
         #[allow(clippy::allow_attributes, clippy::let_and_return)]
         let res = self.get_response(w);
 
+        // Only when the widget itself is shown, not in `get_response`:
+        // `read_response` and `Ui::widget_style` read a response before the widget runs,
+        // and a `TextEdit` that lost focus there would drop its selection
+        // before the widget that was clicked could use it.
+        self.surrender_focus_if_clicked_elsewhere(&res);
+
         #[cfg(debug_assertions)]
         if res.contains_pointer() {
             let plugins = self.read(|ctx| ctx.plugins.ordered_plugins());
@@ -1710,6 +1716,23 @@ impl Context {
         })
     }
 
+    /// A press or click elsewhere takes the keyboard focus from this widget,
+    /// according to [`crate::InputOptions::surrender_focus_on`].
+    fn surrender_focus_if_clicked_elsewhere(&self, res: &Response) {
+        self.write(|ctx| {
+            let surrender_focus_on = ctx.memory.options.input_options.surrender_focus_on;
+            let pointer = &ctx.viewport().input.pointer;
+            let should_surrender_focus = match surrender_focus_on {
+                SurrenderFocusOn::Presses => pointer.any_pressed(),
+                SurrenderFocusOn::Clicks => pointer.any_click(),
+                SurrenderFocusOn::Never => false,
+            };
+            if should_surrender_focus && !res.hovered() && ctx.memory.has_focus(res.id) {
+                ctx.memory.surrender_focus(res.id);
+            }
+        });
+    }
+
     /// Do all interaction for an existing widget, without (re-)registering it.
     pub(crate) fn get_response(&self, widget_rect: WidgetRect) -> Response {
         use response::Flags;
@@ -1804,14 +1827,9 @@ impl Context {
             }
 
             let clicked = Some(id) == viewport.interact_widgets.clicked;
-            let mut any_press = false;
-
             for pointer_event in &input.pointer.pointer_events {
                 match pointer_event {
-                    PointerEvent::Moved(_) => {}
-                    PointerEvent::Pressed { .. } => {
-                        any_press = true;
-                    }
+                    PointerEvent::Moved(_) | PointerEvent::Pressed { .. } => {}
                     PointerEvent::Released { click, .. } => {
                         if enabled && sense.senses_click() && clicked && click.is_some() {
                             res.flags.set(Flags::CLICKED, true);
@@ -1839,17 +1857,6 @@ impl Context {
             if input.pointer.any_down() && !is_interacted_with {
                 // We don't hover widgets while interacting with *other* widgets:
                 res.flags.set(Flags::HOVERED, false);
-            }
-
-            let should_surrender_focus = match memory.options.input_options.surrender_focus_on {
-                SurrenderFocusOn::Presses => any_press,
-                SurrenderFocusOn::Clicks => input.pointer.any_click(),
-                SurrenderFocusOn::Never => false,
-            };
-
-            let pointer_clicked_elsewhere = should_surrender_focus && !res.hovered();
-            if pointer_clicked_elsewhere && memory.has_focus(id) {
-                memory.surrender_focus(id);
             }
         });
 
