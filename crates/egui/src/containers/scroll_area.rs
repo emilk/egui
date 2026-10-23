@@ -771,6 +771,10 @@ struct Prepared {
     /// not for us to handle so we save it and restore it after this [`ScrollArea`] is done.
     saved_scroll_target: [Option<pass_state::ScrollTarget>; 2],
 
+    /// Likewise for a scroll delta ([`Ui::scroll_with_delta`]) asked for before this
+    /// [`ScrollArea`] was added this frame: it is for an enclosing scroll area, not for us.
+    saved_scroll_delta: (Vec2, crate::style::ScrollAnimation),
+
     /// The response from dragging the background (if enabled)
     background_drag_response: Option<Response>,
 
@@ -1004,9 +1008,13 @@ impl ScrollArea {
             if let Some(scroll_target) = state.offset_target[d] {
                 state.vel[d] = 0.0;
 
-                if (state.offset[d] - scroll_target.target_offset).abs() < 1.0 {
+                // A target past the end of the content is reached at the end of the content
+                let reachable_target =
+                    scroll_bounds(state.max_offset[d]).clamp(scroll_target.target_offset);
+
+                if (state.offset[d] - reachable_target).abs() < 1.0 {
                     // Arrived
-                    state.offset[d] = scroll_target.target_offset;
+                    state.offset[d] = reachable_target;
                     state.offset_target[d] = None;
                 } else {
                     // Move towards target
@@ -1017,12 +1025,11 @@ impl ScrollArea {
                         emath::ease_in_ease_out,
                     );
                     if t < 1.0 {
-                        state.offset[d] =
-                            emath::lerp(state.offset[d]..=scroll_target.target_offset, t);
+                        state.offset[d] = emath::lerp(state.offset[d]..=reachable_target, t);
                         ctx.request_repaint();
                     } else {
                         // Arrived
-                        state.offset[d] = scroll_target.target_offset;
+                        state.offset[d] = reachable_target;
                         state.offset_target[d] = None;
                     }
                 }
@@ -1032,6 +1039,9 @@ impl ScrollArea {
         let saved_scroll_target = content_ui
             .ctx()
             .pass_state_mut(|state| core::mem::take(&mut state.scroll_target));
+        let saved_scroll_delta = content_ui
+            .ctx()
+            .pass_state_mut(|state| core::mem::take(&mut state.scroll_delta));
 
         Prepared {
             id,
@@ -1049,6 +1059,7 @@ impl ScrollArea {
             wheel_scroll_multiplier,
             stick_to_end,
             saved_scroll_target,
+            saved_scroll_delta,
             background_drag_response,
             animated,
             rubber_banding,
@@ -1179,6 +1190,7 @@ impl Prepared {
             wheel_scroll_multiplier,
             stick_to_end,
             saved_scroll_target,
+            saved_scroll_delta,
             background_drag_response,
             animated,
             mut rubber_banding,
@@ -1188,6 +1200,8 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
+        let offset_at_start = state.offset;
+        let mut requested_target: [Option<f32>; 2] = [None, None];
         let mut had_explicit_scroll_adjustment = Vec2b::FALSE;
 
         for d in 0..2 {
@@ -1248,6 +1262,7 @@ impl Prepared {
 
                 if delta != 0.0 {
                     let target_offset = state.offset[d] + delta;
+                    requested_target[d] = Some(target_offset);
 
                     if !animated {
                         state.offset[d] = target_offset;
@@ -1265,7 +1280,6 @@ impl Prepared {
                             target_offset,
                         });
                     }
-                    ui.request_repaint();
                 }
 
                 if delta != 0.0 {
@@ -1282,6 +1296,17 @@ impl Prepared {
                 }
             }
         });
+
+        // Likewise for a scroll delta, on top of whatever our content asked for
+        // along the axes we don't scroll (which is also left for the areas up the stack)
+        if saved_scroll_delta.0 != Vec2::ZERO {
+            ui.ctx().pass_state_mut(|state| {
+                if state.scroll_delta.0 == Vec2::ZERO {
+                    state.scroll_delta.1 = saved_scroll_delta.1;
+                }
+                state.scroll_delta.0 += saved_scroll_delta.0;
+            });
+        }
 
         let inner_rect = {
             // At this point this is the available size for the inner rect.
@@ -1669,6 +1694,18 @@ impl Prepared {
             }
         }
         state.max_offset = available_offset;
+
+        // An explicit scroll request (`scroll_to_rect`, `scroll_with_delta`) needs a repaint
+        // only if it moves us
+        for d in 0..2 {
+            if let Some(target) = requested_target[d] {
+                let moved = state.offset[d] != offset_at_start[d];
+                let will_move = scroll_bounds(available_offset[d]).clamp(target) != state.offset[d];
+                if moved || will_move {
+                    ui.request_repaint();
+                }
+            }
+        }
 
         let suppress_stuck_recompute = Vec2b::new(
             had_explicit_scroll_adjustment[0] && state.offset_target[0].is_some(),
