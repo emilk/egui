@@ -228,6 +228,17 @@ pub struct PassState {
     /// Highlight these widgets the next pass.
     pub highlight_next_pass: IdSet,
 
+    /// The widgets holding the ends of the label text selection, if any, kept up to date
+    /// during the pass.
+    ///
+    /// Lets labels scrolled out of view skip the selection handling cheaply
+    /// when they take no part in it.
+    pub label_selection_ends: Option<[Id; 2]>,
+
+    /// Have the labels shown so far this pass reached one end of the label text selection
+    /// but not the other, so that the next one lies between them?
+    pub label_selection_between: bool,
+
     #[cfg(debug_assertions)]
     pub debug_rect: Option<DebugRect>,
 
@@ -248,6 +259,8 @@ impl Default for PassState {
             scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
             accesskit_state: None,
             highlight_next_pass: Default::default(),
+            label_selection_ends: None,
+            label_selection_between: false,
 
             #[cfg(debug_assertions)]
             debug_rect: None,
@@ -272,6 +285,8 @@ impl PassState {
             scroll_delta,
             accesskit_state,
             highlight_next_pass,
+            label_selection_ends,
+            label_selection_between,
 
             #[cfg(debug_assertions)]
             debug_rect,
@@ -298,5 +313,7 @@ impl PassState {
         *accesskit_state = None;
 
         highlight_next_pass.clear();
+        *label_selection_ends = None;
+        *label_selection_between = false;
     }
 }
