@@ -431,6 +431,10 @@ pub struct ScrollArea {
 
     /// If false, `scroll_to_*` functions will not be animated
     animated: bool,
+
+    /// Shown with [`Self::show_viewport`] (or [`Self::show_rows`]), so that what is out of view
+    /// may not be laid out at all.
+    content_may_be_partial: bool,
 }
 
 impl ScrollArea {
@@ -479,6 +483,7 @@ impl ScrollArea {
             content_margin: None,
             stick_to_end: Vec2b::FALSE,
             animated: true,
+            content_may_be_partial: false,
         }
     }
 
@@ -810,6 +815,7 @@ impl ScrollArea {
             content_margin: _, // Used elsewhere
             stick_to_end,
             animated,
+            content_may_be_partial,
         } = self;
 
         let ctx = ui.ctx().clone();
@@ -911,6 +917,18 @@ impl ScrollArea {
             // Make sure we didn't accidentally expand the clip rect
             content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
             content_ui.set_clip_rect(content_clip_rect);
+            let content_ui_id = content_ui.unique_id();
+            let viewport = pass_state::ScrollAreaViewport {
+                layer_id: ui.layer_id(),
+                rect: content_clip_rect.intersect(inner_rect),
+                scrolls: direction_enabled,
+                offset: state.offset,
+                max_offset: state.max_offset,
+                content_may_be_partial,
+            };
+            ui.ctx().pass_state_mut(|state| {
+                state.scroll_area_viewports.insert(content_ui_id, viewport);
+            });
         }
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
@@ -1137,7 +1155,11 @@ impl ScrollArea {
         ui: &mut Ui,
         add_contents: impl FnOnce(&mut Ui, Rect) -> R,
     ) -> ScrollAreaOutput<R> {
-        self.show_viewport_dyn(ui, Box::new(add_contents))
+        Self {
+            content_may_be_partial: true,
+            ..self
+        }
+        .show_viewport_dyn(ui, Box::new(add_contents))
     }
 
     fn show_viewport_dyn<'c, R>(
@@ -1203,6 +1225,11 @@ impl Prepared {
         let offset_at_start = state.offset;
         let mut requested_target: [Option<f32>; 2] = [None, None];
         let mut had_explicit_scroll_adjustment = Vec2b::FALSE;
+        let content_ui_id = content_ui.unique_id();
+        let own_scroll_delta = ui
+            .ctx()
+            .pass_state_mut(|state| state.scroll_area_deltas.remove(&content_ui_id))
+            .unwrap_or_default();
 
         for d in 0..2 {
             // We always take both scroll targets regardless of which scroll axes are enabled. This
@@ -1220,8 +1247,13 @@ impl Prepared {
                 });
 
                 // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-                let mut delta = -scroll_delta;
-                let mut animation = scroll_animation;
+                let mut delta = -scroll_delta - own_scroll_delta[d];
+                let mut animation = if scroll_delta == 0.0 && own_scroll_delta[d] != 0.0 {
+                    // Only a delta meant for us specifically, which is not animated:
+                    crate::style::ScrollAnimation::none()
+                } else {
+                    scroll_animation
+                };
 
                 if let Some(target) = scroll_target {
                     let pass_state::ScrollTarget {

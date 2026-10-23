@@ -223,6 +223,15 @@ pub struct PassState {
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     pub scroll_delta: (Vec2, style::ScrollAnimation),
 
+    /// The visible part of each [`crate::ScrollArea`] shown so far this pass,
+    /// keyed by the [`crate::Ui::unique_id`] of its content [`crate::Ui`].
+    pub scroll_area_viewports: IdMap<ScrollAreaViewport>,
+
+    /// Deltas for specific [`crate::ScrollArea`]s, keyed like [`Self::scroll_area_viewports`],
+    /// in the same sense as [`Self::scroll_delta`]. Taken only by that scroll area,
+    /// so that a nested one that can't scroll further doesn't swallow it.
+    pub scroll_area_deltas: IdMap<Vec2>,
+
     pub accesskit_state: Option<AccessKitPassState>,
 
     /// Highlight these widgets the next pass.
@@ -257,6 +266,8 @@ impl Default for PassState {
             root_ui_min_rect: None,
             scroll_target: [None, None],
             scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
+            scroll_area_viewports: Default::default(),
+            scroll_area_deltas: Default::default(),
             accesskit_state: None,
             highlight_next_pass: Default::default(),
             label_selection_ends: None,
@@ -267,6 +278,41 @@ impl Default for PassState {
 
             #[cfg(debug_assertions)]
             widget_id_change_warning_exclusions: Vec::new(),
+        }
+    }
+}
+
+/// See [`PassState::scroll_area_viewports`].
+#[derive(Clone, Copy, Debug)]
+pub struct ScrollAreaViewport {
+    /// Layer that the scroll area is in, which [`Self::rect`] is relative to
+    pub layer_id: LayerId,
+
+    /// Visible part of scroll area along the axes it scrolls,
+    /// in the coordinates of [`Self::layer_id`]
+    pub rect: Rect,
+
+    /// Directions to scroll in.
+    pub scrolls: emath::Vec2b,
+
+    /// Scroll offset at the start of this pass
+    pub offset: Vec2,
+
+    /// Largest scroll offset, as of the previous pass
+    pub max_offset: Vec2,
+
+    /// May what is out of view not be laid out at all (see [`crate::ScrollArea::show_viewport`])?
+    pub content_may_be_partial: bool,
+}
+
+impl ScrollAreaViewport {
+    /// Can the scroll area scroll further along axis `d`, towards the end if `towards_end`?
+    pub fn can_scroll(&self, d: usize, towards_end: bool) -> bool {
+        const EPSILON: f32 = 0.5;
+        if towards_end {
+            self.offset[d] < self.max_offset[d] - EPSILON
+        } else {
+            EPSILON < self.offset[d]
         }
     }
 }
@@ -283,6 +329,8 @@ impl PassState {
             root_ui_min_rect,
             scroll_target,
             scroll_delta,
+            scroll_area_viewports,
+            scroll_area_deltas,
             accesskit_state,
             highlight_next_pass,
             label_selection_ends,
@@ -303,6 +351,8 @@ impl PassState {
         *root_ui_min_rect = None;
         *scroll_target = [None, None];
         *scroll_delta = Default::default();
+        scroll_area_viewports.clear();
+        scroll_area_deltas.clear();
 
         #[cfg(debug_assertions)]
         {
