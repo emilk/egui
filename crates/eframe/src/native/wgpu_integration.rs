@@ -508,7 +508,7 @@ impl WinitApp for WgpuWinitApp<'_> {
         _: winit::event::DeviceId,
         event: winit::event::DeviceEvent,
     ) -> crate::Result<EventResult> {
-        if let winit::event::DeviceEvent::MouseMotion { delta } = event
+        if let winit::event::DeviceEvent::MouseMotion { delta } = &event
             && let Some(running) = &mut self.running
         {
             // `MouseMotion` is not associated with any window, so we deliver it to
@@ -520,12 +520,13 @@ impl WinitApp for WgpuWinitApp<'_> {
             let viewports = &mut shared.viewports;
             if let Some(window_id) = focused_viewport
                 .and_then(|id| viewports.get_mut(&id))
-                .and_then(|viewport| viewport.on_mouse_motion(delta))
+                .and_then(|viewport| viewport.on_mouse_motion(*delta))
                 .or_else(|| {
                     viewports
                         .values_mut()
-                        .find_map(|viewport| viewport.on_mouse_motion(delta))
+                        .find_map(|viewport| viewport.on_mouse_motion(*delta))
                 })
+                && winit_integration::repaint_for_device_event(running.app.as_mut(), &event, true)
             {
                 return Ok(EventResult::RepaintNext(window_id));
             }
@@ -924,6 +925,7 @@ impl WgpuWinitRunning<'_> {
         let Self {
             integration,
             shared,
+            app,
             ..
         } = self;
         let mut shared = shared.borrow_mut();
@@ -1066,9 +1068,12 @@ impl WgpuWinitRunning<'_> {
             })
             .unwrap_or_default();
 
+        let repaint =
+            winit_integration::repaint_for_event(app.as_mut(), event, event_response.repaint);
+
         if integration.should_close() {
             EventResult::CloseRequested
-        } else if event_response.repaint {
+        } else if repaint {
             if repaint_asap {
                 EventResult::RepaintNow(window_id)
             } else {

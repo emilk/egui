@@ -60,6 +60,14 @@ pub struct RawInput {
     /// and/or the pointer (mouse/touch) with [`crate::Context::egui_is_using_pointer`].
     pub events: Vec<Event>,
 
+    /// Whether pointer motion alone should ask for a repaint.
+    ///
+    /// When `false`, pointer motion still reaches the app on the next frame, but it does not
+    /// schedule that frame by itself. Clicks, scrolling, keys and other input still request a
+    /// repaint; call [`crate::Context::request_repaint`] when the app wants to react to the
+    /// motion now. Defaults to `true`.
+    pub repaint_on_pointer_move: bool,
+
     /// Dragged files hovering over egui.
     pub hovered_files: Vec<HoveredFile>,
 
@@ -101,6 +109,7 @@ impl Default for RawInput {
             time: None,
             predicted_dt: 1.0 / 60.0,
             events: vec![],
+            repaint_on_pointer_move: true,
             hovered_files: Default::default(),
             dropped_files: Default::default(),
             focused: true, // integrations opt into global focus tracking
@@ -135,6 +144,7 @@ impl RawInput {
             time: self.time,
             predicted_dt: self.predicted_dt,
             events: core::mem::take(&mut self.events),
+            repaint_on_pointer_move: self.repaint_on_pointer_move,
             hovered_files: self.hovered_files.clone(),
             dropped_files: core::mem::take(&mut self.dropped_files),
             focused: self.focused,
@@ -152,6 +162,7 @@ impl RawInput {
             time,
             predicted_dt,
             mut events,
+            repaint_on_pointer_move,
             mut hovered_files,
             mut dropped_files,
             focused,
@@ -166,6 +177,7 @@ impl RawInput {
         self.time = time; // use latest time
         self.predicted_dt = predicted_dt; // use latest dt
         self.events.append(&mut events);
+        self.repaint_on_pointer_move = repaint_on_pointer_move;
         self.hovered_files.append(&mut hovered_files);
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
@@ -184,6 +196,7 @@ impl RawInput {
             time,
             predicted_dt,
             events,
+            repaint_on_pointer_move,
             hovered_files,
             dropped_files,
             focused,
@@ -192,6 +205,9 @@ impl RawInput {
         } = self;
 
         ui.label(format!("Active viewport: {viewport_id:?}"));
+        ui.label(format!(
+            "repaint_on_pointer_move: {repaint_on_pointer_move}"
+        ));
         let ordered_viewports = viewports
             .iter()
             .map(|(id, value)| (*id, value))

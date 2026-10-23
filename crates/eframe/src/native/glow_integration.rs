@@ -563,7 +563,7 @@ impl WinitApp for GlowWinitApp<'_> {
         _: winit::event::DeviceId,
         event: winit::event::DeviceEvent,
     ) -> crate::Result<EventResult> {
-        if let winit::event::DeviceEvent::MouseMotion { delta } = event
+        if let winit::event::DeviceEvent::MouseMotion { delta } = &event
             && let Some(running) = &mut self.running
         {
             // `MouseMotion` is not associated with any window, so we deliver it to
@@ -575,12 +575,17 @@ impl WinitApp for GlowWinitApp<'_> {
             let viewports = &mut glutin.viewports;
             if let Some(window_id) = focused_viewport
                 .and_then(|id| viewports.get_mut(&id))
-                .and_then(|viewport| viewport.on_mouse_motion(delta))
+                .and_then(|viewport| viewport.on_mouse_motion(*delta))
                 .or_else(|| {
                     viewports
                         .values_mut()
-                        .find_map(|viewport| viewport.on_mouse_motion(delta))
+                        .find_map(|viewport| viewport.on_mouse_motion(*delta))
                 })
+                && super::winit_integration::repaint_for_device_event(
+                    running.app.as_mut(),
+                    &event,
+                    true,
+                )
             {
                 return Ok(EventResult::RepaintNext(window_id));
             }
@@ -1108,7 +1113,13 @@ impl GlowWinitRunning<'_> {
             log::trace!("Ignoring event: no viewport_id");
         }
 
-        if event_response.repaint {
+        let repaint = super::winit_integration::repaint_for_event(
+            self.app.as_mut(),
+            event,
+            event_response.repaint,
+        );
+
+        if repaint {
             if repaint_asap {
                 EventResult::RepaintNow(window_id)
             } else {
