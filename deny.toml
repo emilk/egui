@@ -35,6 +35,9 @@ ignore = [
   "RUSTSEC-2025-0141", # https://rustsec.org/advisories/RUSTSEC-2025-0141 - bincode is unmaintained - https://git.sr.ht/~stygianentity/bincode/tree/v3.0/item/README.md
   "RUSTSEC-2026-0192", # ttf-parser is unmaintained. Only brought in via winit/sctk-adwaita (wayland window frame rendering)
   "RUSTSEC-2026-0206", # rustybuzz is unmaintained. Brought in via resvg. TODO(linebender/resvg#922): Remove once the PR lands and is released
+  "RUSTSEC-2026-0370", # zvariant is unmaintained (merged into zbus 6). Brought in via accesskit_unix/atspi
+  "RUSTSEC-2026-0371", # zbus_names is unmaintained (merged into zbus 6). Brought in via accesskit_unix/atspi
+  "RUSTSEC-2026-0372", # zvariant_derive is unmaintained (merged into zbus 6). Brought in via accesskit_unix/atspi
 ]
 
 [bans]

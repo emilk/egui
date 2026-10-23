@@ -236,7 +236,8 @@ impl FontCell {
                 id: glyph_id.to_u32(),
                 x: origin_x as f32,
                 y: origin_y as f32,
-            }));
+            }))
+            .ok()?;
         let mut pixmap = vello_cpu::Pixmap::new(canvas_size, canvas_size);
         ctx.render(&mut pixmap, &mut resources);
 

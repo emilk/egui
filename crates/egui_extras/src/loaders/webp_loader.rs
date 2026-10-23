@@ -85,7 +85,7 @@ impl WebP {
     pub fn byte_len(&self) -> usize {
         size_of::<Self>()
             + match self {
-                Self::Static(image) => image.pixels.len() * size_of::<egui::Color32>(),
+                Self::Static(image) => size_of_val(image.pixels()),
                 Self::Animated(animation) => animation.byte_len(),
             }
     }
@@ -103,9 +103,7 @@ impl AnimatedImage {
             + self
                 .frames
                 .iter()
-                .map(|image| {
-                    image.pixels.len() * size_of::<egui::Color32>() + size_of::<Duration>()
-                })
+                .map(|image| size_of_val(image.pixels()) + size_of::<Duration>())
                 .sum::<usize>()
     }
 
