@@ -674,9 +674,21 @@ impl InputState {
     /// [`Self::consume_key`] will remove events from the vec, meaning those key presses wouldn't
     /// cause a repaint.
     pub(crate) fn wants_repaint_after(&self) -> Option<Duration> {
-        if self.pointer.wants_repaint()
+        // Pointer motion is the one input that can be asked not to schedule a frame by itself
+        // (`RawInput::repaint_on_pointer_move`): it is still delivered on the next frame, but a
+        // still view that only sees the pointer move stays still until something else repaints.
+        let pointer_motion_only = self
+            .pointer
+            .pointer_events
+            .iter()
+            .all(|e| matches!(e, PointerEvent::Moved(_)))
+            && self
+                .events
+                .iter()
+                .all(|e| matches!(e, Event::PointerMoved(_) | Event::MouseMoved(_)));
+        let motion_asks = self.raw.repaint_on_pointer_move || !pointer_motion_only;
+        if ((self.pointer.wants_repaint() || !self.events.is_empty()) && motion_asks)
             || self.wheel.unprocessed_wheel_delta.abs().max_elem() > 0.2
-            || !self.events.is_empty()
             || !self.raw.hovered_files.is_empty()
             || !self.raw.dropped_files.is_empty()
         {
