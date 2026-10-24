@@ -1,7 +1,7 @@
 use crate::{
-    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Role, Sense,
-    TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, emath,
-    epaint, pos2, remap, remap_clamp, vec2,
+    AsIdSalt, Context, Id, IdSalt, InnerResponse, LayerId, NumExt as _, Rangef, Rect, Response,
+    Role, Sense, TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo,
+    WidgetText, emath, epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
 use epaint::StrokeKind;
@@ -92,9 +92,11 @@ impl CollapsingState {
     ) -> Response {
         let size = vec2(ui.spacing().indent, ui.spacing().icon_width);
         let (_id, rect) = ui.allocate_space(size);
-        let response = ui.interact(rect, self.id, Sense::click());
+        let mut response = ui.interact(rect, self.id, header_sense(ui));
         if response.clicked() {
             self.toggle(ui);
+        } else if drag_toggle(ui, &response, self) {
+            response.mark_changed();
         }
 
         let (mut icon_rect, _) = ui.spacing().icon_rectangles(response.rect);
@@ -354,6 +356,94 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
 /// A function that paints an icon indicating if the region is open or not
 pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
 
+/// What a collapsing header senses.
+///
+/// With a mouse, it also senses drags, so that dragging from it toggles the headers next to it
+/// (see [`DragToggle`]) instead of moving the window it is in.
+/// On a touch screen, dragging scrolls instead.
+fn header_sense(ui: &Ui) -> Sense {
+    if ui.input(|i| i.has_touch_screen()) {
+        Sense::click()
+    } else {
+        Sense::click_and_drag()
+    }
+}
+
+/// A drag that started on a collapsing header.
+///
+/// Pressing a header and dragging up or down over the headers next to it
+/// gives them all the state the first one got, like the outliner in Blender.
+/// Only headers at the same indentation (in the same layer) are affected,
+/// so dragging past a parent or a child header leaves it alone.
+#[derive(Clone, Copy, Debug)]
+struct DragToggle {
+    layer_id: LayerId,
+    first_id: Id,
+
+    /// Left edge of the first header: headers at the same level share it.
+    left: f32,
+
+    /// The state the first header got.
+    open: bool,
+}
+
+impl DragToggle {
+    fn id() -> Id {
+        Id::unique("collapsing_header_drag_toggle")
+    }
+}
+
+/// Opens or closes `state` if a drag that started on a header at the same level
+/// passed over `response` this frame.
+///
+/// Returns `true` if `state` changed.
+fn drag_toggle(ui: &Ui, response: &Response, state: &mut CollapsingState) -> bool {
+    let ctx = ui.ctx();
+
+    if response.drag_started() {
+        state.toggle(ui);
+        let drag = DragToggle {
+            layer_id: response.layer_id,
+            first_id: response.id,
+            left: response.rect.left(),
+            open: state.is_open(),
+        };
+        ctx.data_mut(|d| d.insert_temp(DragToggle::id(), drag));
+        return true;
+    }
+
+    let Some(drag) = ctx.data(|d| d.get_temp::<DragToggle>(DragToggle::id())) else {
+        return false;
+    };
+    let same_level =
+        drag.layer_id == response.layer_id && (response.rect.left() - drag.left).abs() < 0.5;
+    if !ctx.is_being_dragged(drag.first_id)
+        || !same_level
+        || !response.enabled()
+        || state.is_open() == drag.open
+    {
+        return false;
+    }
+
+    // Check all the pointer moved over since last frame, so a fast drag skips nothing.
+    let Some((pos, delta)) = ctx.input(|i| Some((i.pointer.latest_pos()?, i.pointer.delta())))
+    else {
+        return false;
+    };
+    if delta.y == 0.0 {
+        return false; // Headers sliding under a still pointer stay as they are.
+    }
+    let previous_y = pos.y - delta.y;
+    let swept = Rangef::new(previous_y.min(pos.y), previous_y.max(pos.y));
+    if response.rect.y_range().intersects(swept) {
+        state.set_open(drag.open);
+        ui.request_repaint();
+        true
+    } else {
+        false
+    }
+}
+
 /// A header which can be collapsed/expanded, revealing a contained [`Ui`] region.
 ///
 /// ```
@@ -369,6 +459,9 @@ pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
 /// ```
 ///
 /// If you want to customize the header contents, see [`CollapsingState::show_header`].
+///
+/// Pressing a header and dragging up or down over the headers at the same level
+/// opens or closes them all, the same way as the first one.
 #[must_use = "You should call .show()"]
 pub struct CollapsingHeader {
     text: WidgetText,
@@ -568,7 +661,7 @@ impl CollapsingHeader {
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         let (_, rect) = ui.allocate_space(desired_size);
 
-        let mut header_response = ui.interact(rect, id, Sense::click());
+        let mut header_response = ui.interact(rect, id, header_sense(ui));
         let text_pos = pos2(
             text_pos.x,
             header_response.rect.center().y - galley.size().y / 2.0,
@@ -582,6 +675,8 @@ impl CollapsingHeader {
             }
         } else if header_response.clicked() {
             state.toggle(ui);
+            header_response.mark_changed();
+        } else if drag_toggle(ui, &header_response, &mut state) {
             header_response.mark_changed();
         }
 
