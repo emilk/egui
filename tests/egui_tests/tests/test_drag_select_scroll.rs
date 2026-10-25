@@ -307,7 +307,7 @@ fn store(state: &SharedState, output: &egui::scroll_area::ScrollAreaOutput<()>) 
 }
 
 #[test]
-fn scrolls_the_scroll_area_being_dragged_in_not_its_neighbour() {
+fn scrolls_the_scroll_area_being_dragged_in_not_its_neighbor() {
     let left: SharedState = Default::default();
     let right: SharedState = Default::default();
     let (l, r) = (Arc::clone(&left), Arc::clone(&right));
@@ -1118,7 +1118,7 @@ fn the_area_keeps_scrolling_steadily_over_the_labels_below_it() {
 }
 
 #[test]
-fn a_neighbouring_list_does_not_stop_the_scrolling() {
+fn a_neighboring_list_does_not_stop_the_scrolling() {
     let left: SharedState = Default::default();
     let right: SharedState = Default::default();
     let (l, r) = (Arc::clone(&left), Arc::clone(&right));
