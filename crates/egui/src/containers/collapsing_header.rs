@@ -380,6 +380,7 @@ pub struct CollapsingHeader<'a> {
     selected: bool,
     show_background: bool,
     icon: Option<IconPainter>,
+    wrap_mode: Option<TextWrapMode>,
 }
 
 impl<'a> CollapsingHeader<'a> {
@@ -387,13 +388,13 @@ impl<'a> CollapsingHeader<'a> {
     ///
     /// The header can be any [`crate::Atom`]s, e.g. text and images.
     ///
-    /// The text of the header is used as an [`Id`] source.
-    /// If the text is unique and static this is fine,
-    /// but if it changes, is missing, or there are several [`CollapsingHeader`] with the same
-    /// title, you need to provide a unique id source with [`Self::id_salt`].
+    /// The contents of the header are used as an [`Id`] source (see [`Atoms::salt`]).
+    /// If they are unique and static this is fine,
+    /// but if they change or there are several [`CollapsingHeader`] with the same title
+    /// you need to provide a unique id source with [`Self::id_salt`].
     pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
         let atoms = atoms.into_atoms();
-        let id_salt = IdSalt::new(atoms.text().unwrap_or_default());
+        let id_salt = atoms.salt();
         Self {
             atoms,
             default_open: false,
@@ -404,6 +405,7 @@ impl<'a> CollapsingHeader<'a> {
             selected: false,
             show_background: false,
             icon: None,
+            wrap_mode: None,
         }
     }
 
@@ -497,6 +499,16 @@ impl<'a> CollapsingHeader<'a> {
         self
     }
 
+    /// What to do with a header wider than the available space. Default: [`TextWrapMode::Extend`].
+    ///
+    /// With [`TextWrapMode::Truncate`] a long title is cut short with an ellipsis,
+    /// so the header never grows wider than its parent. Accessibility tools still get the full title.
+    #[inline]
+    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
+        self.wrap_mode = Some(wrap_mode);
+        self
+    }
+
     /// Use the provided function to render a different [`CollapsingHeader`] icon.
     /// Defaults to a triangle that animates as the [`CollapsingHeader`] opens and closes.
     ///
@@ -543,6 +555,7 @@ impl CollapsingHeader<'_> {
             selectable,
             selected,
             show_background,
+            wrap_mode,
         } = self;
 
         let id = ui.make_persistent_id(id_salt);
@@ -564,7 +577,7 @@ impl CollapsingHeader<'_> {
             .id(id)
             .sense(Sense::click())
             .fallback_font(TextStyle::Button)
-            .wrap_mode(TextWrapMode::Extend)
+            .wrap_mode(wrap_mode.unwrap_or(TextWrapMode::Extend))
             .align2(emath::Align2::LEFT_CENTER)
             .gap(gap)
             .frame(Frame::NONE.inner_margin(margin))
