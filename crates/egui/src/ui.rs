@@ -2343,9 +2343,9 @@ impl Ui {
     ///
     /// The name must be unique within the current parent,
     /// or you need to use [`CollapsingHeader::id_salt`].
-    pub fn collapsing<R>(
+    pub fn collapsing<'a, R>(
         &mut self,
-        heading: impl Into<WidgetText>,
+        heading: impl IntoAtoms<'a>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> CollapsingResponse<R> {
         CollapsingHeader::new(heading).show(self, add_contents)

@@ -1,7 +1,7 @@
 use crate::{
-    AsIdSalt, Context, Id, IdSalt, InnerResponse, NumExt as _, Rect, Response, Role, Sense,
-    TextStyle, TextWrapMode, Ui, UiBuilder, UiKind, UiStackInfo, WidgetInfo, WidgetText, emath,
-    epaint, pos2, remap, remap_clamp, vec2,
+    AsIdSalt, Atom, AtomExt as _, Atoms, Context, Frame, Id, IdSalt, InnerResponse, IntoAtoms,
+    Margin, NumExt as _, Rect, Response, Role, Sense, TextStyle, TextWrapMode, Ui, UiBuilder,
+    UiKind, UiStackInfo, WidgetAtom, WidgetInfo, emath, epaint, pos2, remap, remap_clamp, vec2,
 };
 use emath::GuiRounding as _;
 use epaint::StrokeKind;
@@ -370,8 +370,8 @@ pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
 ///
 /// If you want to customize the header contents, see [`CollapsingState::show_header`].
 #[must_use = "You should call .show()"]
-pub struct CollapsingHeader {
-    text: WidgetText,
+pub struct CollapsingHeader<'a> {
+    atoms: Atoms<'a>,
     default_open: bool,
     open: Option<bool>,
     id_salt: IdSalt,
@@ -382,18 +382,20 @@ pub struct CollapsingHeader {
     icon: Option<IconPainter>,
 }
 
-impl CollapsingHeader {
+impl<'a> CollapsingHeader<'a> {
     /// The [`CollapsingHeader`] starts out collapsed unless you call `default_open`.
     ///
-    /// The label is used as an [`Id`] source.
-    /// If the label is unique and static this is fine,
-    /// but if it changes or there are several [`CollapsingHeader`] with the same title
-    /// you need to provide a unique id source with [`Self::id_salt`].
-    pub fn new(text: impl Into<WidgetText>) -> Self {
-        let text = text.into();
-        let id_salt = IdSalt::new(text.text());
+    /// The header can be any [`crate::Atom`]s, e.g. text and images.
+    ///
+    /// The text of the header is used as an [`Id`] source.
+    /// If the text is unique and static this is fine,
+    /// but if it changes, is missing, or there are several [`CollapsingHeader`] with the same
+    /// title, you need to provide a unique id source with [`Self::id_salt`].
+    pub fn new(atoms: impl IntoAtoms<'a>) -> Self {
+        let atoms = atoms.into_atoms();
+        let id_salt = IdSalt::new(atoms.text().unwrap_or_default());
         Self {
-            text,
+            atoms,
             default_open: false,
             open: None,
             id_salt,
@@ -407,7 +409,7 @@ impl CollapsingHeader {
 
     /// Show a collapsing header where you draw the header contents yourself.
     ///
-    /// Unlike [`Self::new`], which only takes a text label, the header here is an
+    /// Unlike [`Self::new`], which only takes non-interactive atoms, the header here is an
     /// arbitrary closure, so you can put e.g. checkboxes, buttons or several widgets
     /// next to the expand/collapse arrow. Only the arrow toggles the open state.
     ///
@@ -525,7 +527,7 @@ struct Prepared {
     openness: f32,
 }
 
-impl CollapsingHeader {
+impl CollapsingHeader<'_> {
     fn begin(self, ui: &mut Ui) -> Prepared {
         assert!(
             ui.layout().main_dir().is_vertical(),
@@ -533,7 +535,7 @@ impl CollapsingHeader {
         );
         let Self {
             icon,
-            text,
+            mut atoms,
             default_open,
             open,
             id_salt,
@@ -543,36 +545,34 @@ impl CollapsingHeader {
             show_background,
         } = self;
 
-        // TODO(emilk): horizontal layout, with icon and text as labels. Insert background behind using Frame.
-
         let id = ui.make_persistent_id(id_salt);
-        let button_padding = ui.spacing().button_padding;
+        let text = atoms.text().map(String::from);
 
-        let available = ui.available_rect_before_wrap();
-        let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
-        let wrap_width = available.right() - text_pos.x;
-        let galley = text.into_galley(
-            ui,
-            Some(TextWrapMode::Extend),
-            wrap_width,
-            TextStyle::Button,
-        );
-        let text_max_x = text_pos.x + galley.size().x;
-
-        let mut desired_width = text_max_x + button_padding.x - available.left();
+        let spacing = ui.spacing();
+        let gap = spacing.icon_spacing;
+        let mut margin = Margin::from(spacing.button_padding);
+        margin.left = 0;
+        let mut min_size = spacing.interact_size;
         if ui.visuals().collapsing_header_frame {
-            desired_width = desired_width.max(available.width()); // fill full width
+            min_size.x = min_size.x.max(ui.available_rect_before_wrap().width()); // fill full width
         }
 
-        let mut desired_size = vec2(desired_width, galley.size().y + 2.0 * button_padding.y);
-        desired_size = desired_size.at_least(ui.spacing().interact_size);
-        let (_, rect) = ui.allocate_space(desired_size);
+        // Reserve room for the icon, so the text starts at `indent`:
+        atoms.push_left(Atom::default().atom_size(vec2((spacing.indent - gap).at_least(0.0), 0.0)));
 
-        let mut header_response = ui.interact(rect, id, Sense::click());
-        let text_pos = pos2(
-            text_pos.x,
-            header_response.rect.center().y - galley.size().y / 2.0,
-        );
+        let prepared = WidgetAtom::new(atoms)
+            .id(id)
+            .sense(Sense::click())
+            .fallback_font(TextStyle::Button)
+            .wrap_mode(TextWrapMode::Extend)
+            .align2(emath::Align2::LEFT_CENTER)
+            .gap(gap)
+            .frame(Frame::NONE.inner_margin(margin))
+            .min_size(min_size)
+            .allocate(ui);
+
+        let mut header_response = prepared.response.clone();
+        let rect = header_response.rect;
 
         let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
         if let Some(open) = open {
@@ -585,8 +585,9 @@ impl CollapsingHeader {
             header_response.mark_changed();
         }
 
-        header_response.widget_info(|| {
-            WidgetInfo::labeled(Role::DisclosureTriangle, ui.is_enabled(), galley.text())
+        header_response.widget_info(|| match &text {
+            Some(text) => WidgetInfo::labeled(Role::DisclosureTriangle, ui.is_enabled(), text),
+            None => WidgetInfo::new(Role::DisclosureTriangle),
         });
 
         ui.ctx().accesskit_node_builder(header_response.id, |node| {
@@ -635,7 +636,9 @@ impl CollapsingHeader {
                 }
             }
 
-            ui.painter().galley(text_pos, galley, visuals.text_color());
+            let mut prepared = prepared;
+            prepared.container.fallback_text_color = visuals.text_color();
+            prepared.paint(ui);
         }
 
         Prepared {
