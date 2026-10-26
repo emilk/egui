@@ -380,6 +380,7 @@ pub struct CollapsingHeader {
     selected: bool,
     show_background: bool,
     icon: Option<IconPainter>,
+    wrap_mode: Option<TextWrapMode>,
 }
 
 impl CollapsingHeader {
@@ -402,6 +403,7 @@ impl CollapsingHeader {
             selected: false,
             show_background: false,
             icon: None,
+            wrap_mode: None,
         }
     }
 
@@ -495,6 +497,16 @@ impl CollapsingHeader {
         self
     }
 
+    /// What to do with a label wider than the available space. Default: [`TextWrapMode::Extend`].
+    ///
+    /// With [`TextWrapMode::Truncate`] a long label is cut short with an ellipsis,
+    /// so the header never grows wider than its parent. Accessibility tools still get the full label.
+    #[inline]
+    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
+        self.wrap_mode = Some(wrap_mode);
+        self
+    }
+
     /// Use the provided function to render a different [`CollapsingHeader`] icon.
     /// Defaults to a triangle that animates as the [`CollapsingHeader`] opens and closes.
     ///
@@ -541,6 +553,7 @@ impl CollapsingHeader {
             selectable,
             selected,
             show_background,
+            wrap_mode,
         } = self;
 
         // TODO(emilk): horizontal layout, with icon and text as labels. Insert background behind using Frame.
@@ -550,10 +563,10 @@ impl CollapsingHeader {
 
         let available = ui.available_rect_before_wrap();
         let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
-        let wrap_width = available.right() - text_pos.x;
+        let wrap_width = available.right() - text_pos.x - button_padding.x;
         let galley = text.into_galley(
             ui,
-            Some(TextWrapMode::Extend),
+            Some(wrap_mode.unwrap_or(TextWrapMode::Extend)),
             wrap_width,
             TextStyle::Button,
         );
