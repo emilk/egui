@@ -280,8 +280,19 @@ impl Widget for Label {
         let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(Role::Label, ui.is_enabled(), galley.text()));
 
-        if ui.is_rect_visible(response.rect) {
-            if show_tooltip_when_elided && galley.elided {
+        let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);
+        let is_visible = ui.is_rect_visible(response.rect);
+
+        // Selectable labels are also handled when scrolled out of view.
+        // Selections anchored in one such survive scrolling
+        if is_visible
+            || (selectable
+                && ui.is_visible()
+                && !ui.is_sizing_pass()
+                && ui.label_selection_exists
+                && LabelSelectionState::may_track_out_of_view(ui.ctx(), response.id))
+        {
+            if is_visible && show_tooltip_when_elided && galley.elided {
                 // Keep the sections and text, but reset everything else (especially wrapping):
                 let job = crate::text::LayoutJob {
                     sections: galley.job.sections.clone(),
@@ -304,7 +315,6 @@ impl Widget for Label {
                 Stroke::NONE
             };
 
-            let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);
             if selectable {
                 LabelSelectionState::label_text_selection(
                     ui,
