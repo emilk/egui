@@ -1,7 +1,7 @@
 // Unit tests for offscreen painting, with access to the painter's private state.
 use super::*;
 
-fn block_on<F: std::future::Future>(future: F) -> F::Output {
+fn block_on<F: core::future::Future>(future: F) -> F::Output {
     struct WakeThread(std::thread::Thread);
     impl std::task::Wake for WakeThread {
         fn wake(self: Arc<Self>) {
@@ -11,13 +11,13 @@ fn block_on<F: std::future::Future>(future: F) -> F::Output {
             self.0.unpark();
         }
     }
-    let waker = std::task::Waker::from(Arc::new(WakeThread(std::thread::current())));
-    let mut context = std::task::Context::from_waker(&waker);
-    let mut future = std::pin::pin!(future);
+    let waker = core::task::Waker::from(Arc::new(WakeThread(std::thread::current())));
+    let mut context = core::task::Context::from_waker(&waker);
+    let mut future = core::pin::pin!(future);
     loop {
         match future.as_mut().poll(&mut context) {
-            std::task::Poll::Ready(output) => return output,
-            std::task::Poll::Pending => std::thread::park(),
+            core::task::Poll::Ready(output) => return output,
+            core::task::Poll::Pending => std::thread::park(),
         }
     }
 }
@@ -100,7 +100,7 @@ fn hidden_window_capture_without_surface() {
                 let image = rx
                     .recv_timeout(core::time::Duration::from_secs(15))
                     .expect("offscreen callback without another paint");
-                assert_eq!(image.size(), [size[0] as usize, size[1] as usize]);
+                assert_eq!(image.resolution(), [size[0] as usize, size[1] as usize]);
                 assert_eq!(image[(0, 0)], egui::Color32::BLUE);
                 assert_eq!(image[(8, 8)], egui::Color32::RED);
             }
