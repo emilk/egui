@@ -233,12 +233,32 @@ impl Default for RendererOptions {
     }
 }
 
+/// Does the font texture hold subpixel coverage after `delta`, if it did before (`was`)?
+///
+/// A subpixel texel has a color channel above its alpha; grayscale glyphs (all channels equal to
+/// alpha) and premultiplied color glyphs never do. A whole new texture (new
+/// [`epaint::TextOptions`]) starts over; an update only adds glyphs.
+fn font_subpixel_after(was: bool, delta: &epaint::ImageDelta) -> bool {
+    let epaint::ImageData::Color(image) = &delta.image;
+    let subpixel = || {
+        image.pixels().iter().any(|texel| {
+            let [r, g, b, a] = texel.to_array();
+            r.max(g).max(b) > a
+        })
+    };
+    (was && delta.pos.is_some()) || subpixel()
+}
+
 /// Renderer for a egui based GUI.
 pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
 
     /// Draws the font texture, which may hold subpixel (LCD) coverage, where the device can.
     lcd_pipeline: Option<wgpu::RenderPipeline>,
+
+    /// Does the font texture hold subpixel coverage? Only then is [`Self::lcd_pipeline`] used,
+    /// so with subpixel text off, everything is drawn as without it.
+    font_subpixel: bool,
 
     index_buffer: SlicedBuffer,
     vertex_buffer: SlicedBuffer,
@@ -529,6 +549,7 @@ impl Renderer {
         Self {
             pipeline,
             lcd_pipeline,
+            font_subpixel: false,
             vertex_buffer: SlicedBuffer {
                 buffer: create_vertex_buffer(device, VERTEX_BUFFER_START_CAPACITY),
                 slices: Vec::with_capacity(64),
@@ -634,10 +655,9 @@ impl Renderer {
 
                     if let Some(Texture { bind_group, .. }) = self.textures.get(&mesh.texture_id) {
                         // The font texture is the only one with subpixel coverage.
-                        let lcd = self
-                            .lcd_pipeline
-                            .as_ref()
-                            .filter(|_| mesh.texture_id == epaint::TextureId::default());
+                        let lcd = self.lcd_pipeline.as_ref().filter(|_| {
+                            self.font_subpixel && mesh.texture_id == epaint::TextureId::default()
+                        });
                         if lcd.is_some() != lcd_set {
                             render_pass.set_pipeline(lcd.unwrap_or(&self.pipeline));
                             lcd_set = lcd.is_some();
@@ -727,6 +747,10 @@ impl Renderer {
         let data_bytes: &[u8] = match &image_delta.image {
             epaint::ImageData::Color(image) => bytemuck::cast_slice(image.pixels()),
         };
+
+        if id == epaint::TextureId::default() && self.lcd_pipeline.is_some() {
+            self.font_subpixel = font_subpixel_after(self.font_subpixel, image_delta);
+        }
 
         let queue_write_data_to_texture = |texture, origin| {
             profiling::scope!("write_texture");
@@ -1337,3 +1361,33 @@ const _: () = {
     const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Renderer>();
 };
+
+#[cfg(test)]
+mod tests {
+    use super::font_subpixel_after;
+    use epaint::{Color32, ColorImage, ImageDelta, textures::TextureOptions};
+    use std::sync::Arc;
+
+    fn delta(texel: Color32, pos: Option<[usize; 2]>) -> ImageDelta {
+        let image = Arc::new(ColorImage::filled([2, 2], texel));
+        match pos {
+            Some(pos) => ImageDelta::partial(pos, image, TextureOptions::LINEAR),
+            None => ImageDelta::full(image, TextureOptions::LINEAR),
+        }
+    }
+
+    #[test]
+    fn the_subpixel_pipeline_follows_the_font_texture() {
+        let gray = Color32::from_rgba_premultiplied(90, 90, 90, 90);
+        let emoji = Color32::from_rgba_premultiplied(200, 40, 10, 220);
+        let subpixel = Color32::from_rgba_premultiplied(120, 90, 60, 60);
+        // Grayscale and color glyphs never turn it on.
+        assert!(!font_subpixel_after(false, &delta(gray, None)));
+        assert!(!font_subpixel_after(false, &delta(emoji, Some([0, 0]))));
+        // Subpixel glyphs do, and added grayscale glyphs keep it on.
+        assert!(font_subpixel_after(false, &delta(subpixel, Some([0, 0]))));
+        assert!(font_subpixel_after(true, &delta(gray, Some([4, 0]))));
+        // A new atlas (subpixel text turned off) starts over.
+        assert!(!font_subpixel_after(true, &delta(gray, None)));
+    }
+}
