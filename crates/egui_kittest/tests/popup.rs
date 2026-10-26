@@ -179,6 +179,83 @@ fn test_interactive_tooltip() {
     assert!(harness.state().link_clicked);
 }
 
+/// A widget with a plain tooltip and an interactive one shows them stacked,
+/// and the pointer has to cross the plain one to reach the interactive one.
+fn stacked_tooltips(ui: &mut egui::Ui, link_clicked: &mut bool) {
+    ui.label("I have two tooltips")
+        .on_hover_text("Some explanation")
+        .on_hover_ui(|ui| {
+            if ui.link("link").clicked() {
+                *link_clicked = true;
+            }
+        });
+}
+
+#[test]
+fn test_interactive_tooltip_under_a_text_tooltip_jump() {
+    let mut harness = Harness::new_ui_state(stacked_tooltips, false);
+
+    harness.get_by_label_contains("two tooltips").hover();
+    harness.run();
+    harness.get_by_label("link").hover();
+    harness.run();
+    harness.get_by_label("link").click();
+    harness.run();
+
+    assert!(*harness.state());
+}
+
+#[test]
+fn test_interactive_tooltip_under_a_text_tooltip_walk() {
+    // At 60 fps, like a real mouse, so that egui knows which way the pointer is heading:
+    let mut harness = Harness::builder()
+        .with_step_dt(1.0 / 60.0)
+        .build_ui_state(stacked_tooltips, false);
+
+    harness.get_by_label_contains("two tooltips").hover();
+    harness.run_steps(60);
+
+    // Like a hand on a mouse: straight down from the middle of the widget, a few points per frame,
+    // then sideways to the link, which is narrower than the widget.
+    let mut pos = harness
+        .get_by_label_contains("two tooltips")
+        .rect()
+        .center();
+    let link = harness.get_by_label("link").rect().center();
+    for target in [egui::pos2(pos.x, link.y), link] {
+        while pos != target {
+            let to_go = target - pos;
+            pos += to_go.normalized() * to_go.length().min(4.0);
+            harness.hover_at(pos);
+            harness.step();
+            assert!(
+                harness.query_by_label("link").is_some(),
+                "the interactive tooltip closed with the pointer at {pos:?}"
+            );
+        }
+    }
+    harness.get_by_label("link").click();
+    harness.run();
+
+    assert!(*harness.state());
+}
+
+#[test]
+fn test_stacked_tooltips_close_when_the_pointer_leaves() {
+    let mut harness = Harness::new_ui_state(stacked_tooltips, false);
+
+    harness.get_by_label_contains("two tooltips").hover();
+    harness.run();
+    assert!(harness.query_by_label("link").is_some());
+
+    let below_everything = harness.get_by_label("link").rect().max + egui::vec2(100.0, 100.0);
+    harness.hover_at(below_everything);
+    harness.run();
+
+    assert!(harness.query_by_label("link").is_none());
+    assert!(harness.query_by_label("Some explanation").is_none());
+}
+
 fn pointer_button(
     harness: &Harness<'_, impl Sized>,
     pos: Pos2,
