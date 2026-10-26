@@ -74,3 +74,25 @@ fn test_variants(
         results.add(harness.try_snapshot(format!("sides/{name}_{variant_name}")));
     }
 }
+
+/// Truncated labels never get narrower than their ellipsis, so with several of them the
+/// shrinking side can run out of room. What does not fit must not paint over the other side.
+#[test]
+fn shrinking_side_does_not_paint_over_the_other_side() {
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(160.0, 30.0))
+        .build_ui(|ui| {
+            Sides::new().shrink_left().truncate().show(
+                ui,
+                |left| {
+                    left.label("First label");
+                    left.label("Second label");
+                    left.label("Third label");
+                },
+                |right| {
+                    _ = right.button("Wide right button");
+                },
+            );
+        });
+    harness.snapshot("sides/shrink_left_overflow");
+}
