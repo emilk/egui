@@ -345,6 +345,69 @@ pub struct FontFace {
     /// Variable fonts can vary advance widths per axis (HVAR table), so this
     /// must be re-keyed per resolved [`skrifa::instance::Location`].
     advance_width_cache: HashMap<(char, LocationHash), OrderedFloat<f32>>,
+
+    /// The normal track of the face's AAT `trak` table, if it has one.
+    tracking: Option<Tracking>,
+}
+
+/// The normal track (track value 0) of an AAT `trak` table: font units added to the advance of
+/// every glyph, by point size. Apple's system faces (SF Pro, SF Mono) carry one, and CoreText
+/// applies it; without it, text set in them reads looser than in native apps.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Tracking {
+    sizes: Vec<f32>,
+    values: Vec<f32>,
+}
+
+impl Tracking {
+    /// The normal track of a `trak` table's horizontal data. `None` for a malformed table or one
+    /// without a normal track.
+    pub(crate) fn parse(data: &[u8]) -> Option<Self> {
+        let u16_at = |o: usize| data.get(o..o + 2).map(|b| u16::from_be_bytes([b[0], b[1]]));
+        let i32_at = |o: usize| {
+            data.get(o..o + 4)
+                .map(|b| i32::from_be_bytes([b[0], b[1], b[2], b[3]]))
+        };
+        let horiz = u16_at(6)? as usize;
+        if horiz == 0 {
+            return None;
+        }
+        let n_tracks = u16_at(horiz)? as usize;
+        let n_sizes = u16_at(horiz + 2)? as usize;
+        let size_table = usize::try_from(i32_at(horiz + 4)?).ok()?;
+        if n_sizes == 0 {
+            return None;
+        }
+        let normal = (0..n_tracks).find_map(|i| {
+            let entry = horiz + 8 + i * 8;
+            (i32_at(entry)? == 0).then(|| u16_at(entry + 6)).flatten()
+        })? as usize;
+        let sizes = (0..n_sizes)
+            .map(|i| i32_at(size_table + i * 4).map(|v| v as f32 / 65536.0))
+            .collect::<Option<Vec<_>>>()?;
+        let values = (0..n_sizes)
+            .map(|i| u16_at(normal + i * 2).map(|v| v as i16 as f32))
+            .collect::<Option<Vec<_>>>()?;
+        Some(Self { sizes, values })
+    }
+
+    /// Font units for `size` points: linear between the table's sizes, clamped at both ends.
+    pub(crate) fn units(&self, size: f32) -> f32 {
+        let (s, v) = (&self.sizes, &self.values);
+        let (Some(&first), Some(&last)) = (v.first(), v.last()) else {
+            return 0.0;
+        };
+        if size <= s[0] {
+            return first;
+        }
+        for i in 1..s.len() {
+            if size <= s[i] {
+                let t = (size - s[i - 1]) / (s[i] - s[i - 1]);
+                return v[i - 1] + t * (v[i] - v[i - 1]);
+            }
+        }
+        last
+    }
 }
 
 impl FontFace {
@@ -409,6 +472,11 @@ impl FontFace {
         })?;
 
         let shaper_data = harfrust::ShaperData::new(&font.borrow_dependent().skrifa);
+        let tracking = font
+            .borrow_dependent()
+            .skrifa
+            .table_data(skrifa::Tag::new(b"trak"))
+            .and_then(|d| Tracking::parse(d.as_bytes()));
 
         let subpixel_binning = tweak.subpixel_binning.unwrap_or(options.subpixel_binning);
 
@@ -420,6 +488,7 @@ impl FontFace {
             shaper_data,
             glyph_id_cache: Default::default(),
             advance_width_cache: Default::default(),
+            tracking,
         })
     }
 
@@ -610,9 +679,13 @@ impl FontFace {
             .round_ui();
 
         let axes = font_data.skrifa.axes();
-        // Override the default coordinates with ones specified via FontTweak, then the ones specified directly via the
-        // argument (probably from TextFormat).
-        let settings = core::iter::chain(self.tweak.coords.as_ref(), coords.as_ref());
+        let auto_opsz = self.auto_opsz(font_size, coords);
+        // The automatic optical size first, then the coordinates specified via FontTweak, then the
+        // ones specified directly via the argument (probably from TextFormat).
+        let settings = auto_opsz
+            .iter()
+            .chain(self.tweak.coords.as_ref())
+            .chain(coords.as_ref());
         let location = axes.location(settings);
         let location_hash = LocationHash::new(&location);
 
@@ -625,7 +698,37 @@ impl FontFace {
             row_height: ascent - descent + line_gap,
             location,
             location_hash,
+            tracking_units: self
+                .tracking
+                .as_ref()
+                .map_or(0.0, |t| t.units(font_size * self.tweak.scale)),
         }
+    }
+
+    /// The optical size a variable font with an `opsz` axis gets when neither its [`FontTweak`]
+    /// nor the text format sets one: the point size, as CoreText and DirectWrite (and CSS's
+    /// `font-optical-sizing: auto`) do. Shaping and rendering must both use it.
+    pub(crate) fn auto_opsz(
+        &self,
+        font_size: f32,
+        coords: &VariationCoords,
+    ) -> Option<(skrifa::Tag, f32)> {
+        let opsz = skrifa::Tag::new(b"opsz");
+        let explicit = self
+            .tweak
+            .coords
+            .as_ref()
+            .iter()
+            .chain(coords.as_ref())
+            .any(|(t, _)| *t == opsz);
+        let has_axis = self
+            .font
+            .borrow_dependent()
+            .skrifa
+            .axes()
+            .iter()
+            .any(|a| a.tag() == opsz);
+        (!explicit && has_axis).then_some((opsz, font_size * self.tweak.scale))
     }
 
     pub(crate) fn skrifa_font_ref(&self) -> &skrifa::FontRef<'_> {
@@ -685,4 +788,57 @@ pub(crate) struct ShapedGlyph {
 
     /// CJK glyphs skip subpixel positioning to save atlas space.
     pub is_cjk: bool,
+}
+
+#[cfg(test)]
+mod tracking_tests {
+    use super::Tracking;
+
+    /// A `trak` table with a loose track (-1) and the normal track (0) at 9, 13 and 28 pt.
+    fn trak() -> Vec<u8> {
+        let mut t = Vec::new();
+        t.extend(0x0001_0000_u32.to_be_bytes()); // version 1.0
+        t.extend(0_u16.to_be_bytes()); // format
+        t.extend(12_u16.to_be_bytes()); // horizOffset
+        t.extend(0_u16.to_be_bytes()); // vertOffset
+        t.extend(0_u16.to_be_bytes()); // reserved
+        // TrackData at 12: two tracks, three sizes, the size table at 36.
+        t.extend(2_u16.to_be_bytes());
+        t.extend(3_u16.to_be_bytes());
+        t.extend(36_u32.to_be_bytes());
+        // Track entries: track (Fixed), name index, offset of its values.
+        t.extend((-0x0001_0000_i32).to_be_bytes());
+        t.extend(256_u16.to_be_bytes());
+        t.extend(48_u16.to_be_bytes());
+        t.extend(0_i32.to_be_bytes());
+        t.extend(257_u16.to_be_bytes());
+        t.extend(54_u16.to_be_bytes());
+        // Sizes (Fixed): 9, 13, 28.
+        for size in [9_i32, 13, 28] {
+            t.extend((size << 16).to_be_bytes());
+        }
+        // Values of the loose track, then of the normal one.
+        for v in [10_i16, -40, 0, 38, -12, 28] {
+            t.extend(v.to_be_bytes());
+        }
+        t
+    }
+
+    #[test]
+    fn the_normal_track_is_read_and_interpolated() {
+        let t = Tracking::parse(&trak()).expect("a normal track");
+        assert_eq!(t.units(13.0), -12.0);
+        assert_eq!(t.units(20.5), 8.0, "halfway between 13 and 28 pt");
+        assert_eq!(t.units(5.0), 38.0, "clamped below the smallest size");
+        assert_eq!(t.units(40.0), 28.0, "clamped above the largest size");
+    }
+
+    #[test]
+    fn malformed_tables_have_no_tracking() {
+        assert_eq!(Tracking::parse(&[]), None);
+        let mut no_horizontal = trak();
+        no_horizontal[6..8].copy_from_slice(&0_u16.to_be_bytes());
+        assert_eq!(Tracking::parse(&no_horizontal), None);
+        assert_eq!(Tracking::parse(&trak()[..40]), None, "truncated");
+    }
 }
