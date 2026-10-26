@@ -267,8 +267,12 @@ pub(crate) fn copy_readback(source: &[u8]) -> Vec<u8> {
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 #[expect(unsafe_code)]
+#[expect(
+    clippy::cast_ptr_alignment,
+    reason = "loads are 16-byte aligned (checked by the caller); stores are unaligned"
+)]
 unsafe fn copy_readback_streaming(source: &[u8]) -> Vec<u8> {
-    use std::arch::x86_64::{__m128i, _mm_storeu_si128, _mm_stream_load_si128};
+    use core::arch::x86_64::{__m128i, _mm_storeu_si128, _mm_stream_load_si128};
     let mut target = vec![0; source.len()];
     let complete = source.len() / 16 * 16;
     for offset in (0..complete).step_by(16) {
@@ -298,6 +302,25 @@ impl BufferPadding {
         Self {
             unpadded_bytes_per_row,
             padded_bytes_per_row,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn copy_readback_preserves_aligned_unaligned_and_partial_vectors() {
+        #[repr(align(16))]
+        struct Aligned([u8; 512]);
+        let mut bytes = Aligned([0; 512]);
+        for (index, byte) in bytes.0.iter_mut().enumerate() {
+            *byte = (index % 251) as u8;
+        }
+        for offset in 0..16 {
+            for length in [0, 1, 15, 16, 17, 127, 128, 129, 256] {
+                let source = &bytes.0[offset..offset + length];
+                assert_eq!(super::copy_readback(source), source);
+            }
         }
     }
 }
