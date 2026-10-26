@@ -10,7 +10,6 @@ use egui::{Context, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::sync::Arc;
 
 #[cfg(test)]
-#[path = "../../../tests/desktop/offscreen_gpu.rs"]
 mod offscreen_tests;
 
 struct SurfaceState {
@@ -522,7 +521,6 @@ impl Painter {
     /// Uses the last configured viewport size and the renderer's target format.
     /// Like normal painting, this requires an initialized window and render state.
     /// Screenshot callbacks complete even if the compositor never presents again.
-    #[expect(clippy::too_many_arguments)]
     pub fn paint_offscreen_and_update_textures(
         &mut self,
         viewport_id: ViewportId,
