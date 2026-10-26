@@ -208,9 +208,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
 
     #[cfg(feature = "wgpu")]
     if let Some(render_state) = _frame.wgpu_render_state() {
-        let wgpu_adapter_details_ui = |ui: &mut egui::Ui, adapter: &eframe::wgpu::Adapter| {
-            let info = &adapter.get_info();
-
+        let wgpu_adapter_details_ui = |ui: &mut egui::Ui, info: &eframe::wgpu::AdapterInfo| {
             let eframe::wgpu::AdapterInfo {
                 name,
                 vendor,
@@ -286,10 +284,9 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             });
         };
 
-        let wgpu_adapter_ui = |ui: &mut egui::Ui, adapter: &eframe::wgpu::Adapter| {
-            let info = &adapter.get_info();
+        let wgpu_adapter_ui = |ui: &mut egui::Ui, info: &eframe::wgpu::AdapterInfo| {
             ui.label(format!("{:?}", info.backend)).on_hover_ui(|ui| {
-                wgpu_adapter_details_ui(ui, adapter);
+                wgpu_adapter_details_ui(ui, info);
             });
         };
 
@@ -299,16 +296,17 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             ui.end_row();
 
             ui.label("Backend:");
-            wgpu_adapter_ui(ui, &render_state.adapter);
+            let current = render_state.adapter.get_info();
+            wgpu_adapter_ui(ui, &current);
             ui.end_row();
 
             #[cfg(not(target_arch = "wasm32"))]
             if 1 < render_state.available_adapters.len() {
                 ui.label("Others:");
                 ui.vertical(|ui| {
-                    for adapter in &*render_state.available_adapters {
-                        if adapter.get_info() != render_state.adapter.get_info() {
-                            wgpu_adapter_ui(ui, adapter);
+                    for info in &render_state.available_adapters {
+                        if info != &current {
+                            wgpu_adapter_ui(ui, info);
                         }
                     }
                 });
