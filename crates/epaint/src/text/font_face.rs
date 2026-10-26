@@ -13,7 +13,7 @@ use vello_cpu::{color, kurbo};
 use crate::{
     ColorImage, TextOptions,
     text::{
-        FontTweak, GlyphBitmap, VariationCoords,
+        FontTweak, GlyphBitmap, SubpixelOrder, VariationCoords,
         font_data::Blob,
         glyph_atlas::SubpixelBin,
         styled_metrics::{LocationHash, StyledMetrics},
@@ -99,6 +99,7 @@ impl FontCell {
         glyph_id: GlyphId,
         bin: SubpixelBin,
         hinting_target: skrifa::outline::Target,
+        subpixel_order: Option<SubpixelOrder>,
     ) -> Option<GlyphBitmap> {
         let location: skrifa::instance::LocationRef<'_> = (&metrics.location).into();
 
@@ -146,30 +147,31 @@ impl FontCell {
         })?;
 
         let bounds = path.control_box().expand();
-        let width = bounds.width() as u16;
-        let height = bounds.height() as u16;
-        if width == 0 || height == 0 {
+        if bounds.width() == 0.0 || bounds.height() == 0.0 {
             return None;
         }
+        // The LCD filter spreads coverage up to two subpixels sideways: a pixel on each side.
+        let pad = if subpixel_order.is_some() { 1.0 } else { 0.0 };
+        let left = bounds.x0 - pad;
+        let width = (bounds.width() + 2.0 * pad) as u16;
+        let height = bounds.height() as u16;
 
-        let mut ctx = vello_cpu::RenderContext::new(width, height);
-        ctx.set_transform(kurbo::Affine::translate((-bounds.x0, -bounds.y0)));
-        ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
-        ctx.fill_path(&path);
-        let mut dest = vello_cpu::Pixmap::new(width, height);
-        let mut resources = vello_cpu::Resources::new();
-        ctx.render(&mut dest, &mut resources);
-
-        let pixels = dest
-            .data_as_u8_slice()
-            .chunks_exact(4)
-            .map(|px| Color32::from_rgba_premultiplied(px[0], px[1], px[2], px[3]))
-            .collect();
+        let pixels = match subpixel_order {
+            None => fill_path(&path, left, bounds.y0, 1, width, height)
+                .data_as_u8_slice()
+                .chunks_exact(4)
+                .map(|px| Color32::from_rgba_premultiplied(px[0], px[1], px[2], px[3]))
+                .collect(),
+            Some(order) => {
+                let samples = fill_path(&path, left, bounds.y0, 3, width.checked_mul(3)?, height);
+                lcd_coverage(samples.data_as_u8_slice(), width as usize, order)
+            }
+        };
         let image = ColorImage::new([width as usize, height as usize], pixels);
 
         Some(GlyphBitmap {
             image,
-            offset_px: vec2(bounds.x0 as f32, bounds.y0 as f32),
+            offset_px: vec2(left as f32, bounds.y0 as f32),
             is_color: false,
         })
     }
@@ -662,17 +664,83 @@ impl FontFace {
 
     /// Render a glyph to a bitmap: a color glyph if the font has one, else the outline as coverage.
     ///
+    /// With a `subpixel_order`, an outline's coverage is per color channel: see [`lcd_coverage`].
+    ///
     /// Not cached: see [`crate::text::glyph_atlas::GlyphAtlas::allocate_outline`].
     pub(crate) fn rasterize_glyph(
         &mut self,
         metrics: &StyledMetrics,
         glyph_id: GlyphId,
         bin: SubpixelBin,
+        subpixel_order: Option<SubpixelOrder>,
     ) -> Option<GlyphBitmap> {
         let hinting_target = self.tweak.hinting_target.into();
         self.font
-            .rasterize_glyph(metrics, glyph_id, bin, hinting_target)
+            .rasterize_glyph(metrics, glyph_id, bin, hinting_target, subpixel_order)
     }
+}
+
+/// Fill `path` in white into a `width × height` pixmap whose top left is at `(left, top)`,
+/// scaled by `scale_x` horizontally.
+fn fill_path(
+    path: &kurbo::BezPath,
+    left: f64,
+    top: f64,
+    scale_x: u16,
+    width: u16,
+    height: u16,
+) -> vello_cpu::Pixmap {
+    let mut ctx = vello_cpu::RenderContext::new(width, height);
+    ctx.set_transform(
+        kurbo::Affine::scale_non_uniform(scale_x as f64, 1.0)
+            * kurbo::Affine::translate((-left, -top)),
+    );
+    ctx.set_paint(color::OpaqueColor::<color::Srgb>::WHITE);
+    ctx.fill_path(path);
+    let mut dest = vello_cpu::Pixmap::new(width, height);
+    let mut resources = vello_cpu::Resources::new();
+    ctx.render(&mut dest, &mut resources);
+    dest
+}
+
+/// The default LCD filter of `FreeType` (`FT_LCD_FILTER_DEFAULT`), in 256ths.
+const LCD_FILTER: [u32; 5] = [8, 77, 86, 77, 8];
+
+/// Subpixel coverage from a glyph filled at three samples per pixel.
+///
+/// Each sample is smoothed with [`LCD_FILTER`], and each pixel's three samples become its red,
+/// green and blue coverage (in `order`). Alpha is the smallest of the three: a premultiplied
+/// color never has a channel above its alpha, so that's how a renderer tells these texels from
+/// color glyphs (emoji) in the same atlas.
+fn lcd_coverage(rgba: &[u8], width: usize, order: SubpixelOrder) -> Vec<Color32> {
+    let samples = 3 * width;
+    let coverage: Vec<u32> = rgba.chunks_exact(4).map(|px| px[3] as u32).collect();
+    let mut texels = Vec::with_capacity(coverage.len() / 3);
+    for row in coverage.chunks_exact(samples) {
+        let filtered = |i: usize| -> u8 {
+            let sum: u32 = LCD_FILTER
+                .iter()
+                .enumerate()
+                .map(|(k, weight)| {
+                    (i + k)
+                        .checked_sub(2)
+                        .and_then(|j| row.get(j))
+                        .map_or(0, |c| c * weight)
+                })
+                .sum();
+            // At most 255: the weights add up to 256.
+            ((sum + 128) / 256) as u8
+        };
+        for x in 0..width {
+            let (r, g, b) = (filtered(3 * x), filtered(3 * x + 1), filtered(3 * x + 2));
+            let (r, b) = match order {
+                SubpixelOrder::Rgb => (r, b),
+                SubpixelOrder::Bgr => (b, r),
+            };
+            texels.push(Color32::from_rgba_premultiplied(r, g, b, r.min(g).min(b)));
+        }
+    }
+    texels
 }
 
 /// Positioning info for a single glyph, ready for atlas allocation.
@@ -685,4 +753,51 @@ pub(crate) struct ShapedGlyph {
 
     /// CJK glyphs skip subpixel positioning to save atlas space.
     pub is_cjk: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SubpixelOrder, lcd_coverage};
+
+    /// One row of samples, three per pixel, as RGBA bytes with the coverage in alpha.
+    fn row(coverage: &[u8]) -> Vec<u8> {
+        coverage.iter().flat_map(|&c| [c, c, c, c]).collect()
+    }
+
+    #[test]
+    fn lcd_coverage_marks_its_texels() {
+        // A stem covering pixel 2 and the last sample of pixel 1.
+        let samples = row(&[0, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0]);
+        let texels = lcd_coverage(&samples, 5, SubpixelOrder::Rgb);
+        assert_eq!(texels.len(), 5);
+        for texel in &texels {
+            let [r, g, b, a] = texel.to_array();
+            assert_eq!(a, r.min(g).min(b), "alpha is the smallest channel");
+        }
+        // The left edge is bluish (more coverage toward the stem), the right edge reddish.
+        let [r, _, b, a] = texels[1].to_array();
+        assert!(r < b && a < b, "{:?}", texels[1]);
+        let [r, _, b, _] = texels[3].to_array();
+        assert!(b < r, "{:?}", texels[3]);
+        // Empty pixels stay empty.
+        assert_eq!(texels[0].to_array(), [0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn lcd_coverage_bgr_mirrors_rgb() {
+        let samples = row(&[0, 30, 90, 200, 255, 255, 120, 40, 0]);
+        let rgb = lcd_coverage(&samples, 3, SubpixelOrder::Rgb);
+        let bgr = lcd_coverage(&samples, 3, SubpixelOrder::Bgr);
+        for (rgb, bgr) in core::iter::zip(&rgb, &bgr) {
+            let [r, g, b, a] = rgb.to_array();
+            assert_eq!(bgr.to_array(), [b, g, r, a]);
+        }
+    }
+
+    #[test]
+    fn lcd_coverage_of_a_filled_row_is_full() {
+        let texels = lcd_coverage(&row(&[255; 15]), 5, SubpixelOrder::Rgb);
+        // Away from the row's ends, where the filter reaches past it.
+        assert_eq!(texels[2].to_array(), [255, 255, 255, 255]);
+    }
 }
