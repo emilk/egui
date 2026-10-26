@@ -597,8 +597,11 @@ impl Area {
                     *data.get_temp_mut_or::<Pos2>(pivot_at_start_of_drag_id, *pivot_pos)
                 });
 
-                *pivot_pos =
-                    pivot_at_start_of_drag + move_response.total_drag_delta().unwrap_or_default();
+                // PointerGone can temporarily remove coordinates during a held drag.
+                // Keep the current position instead of treating a missing delta as zero.
+                if let Some(delta) = move_response.total_drag_delta() {
+                    *pivot_pos = pivot_at_start_of_drag + delta;
+                }
             } else {
                 ctx.data_mut(|data| data.remove::<Pos2>(pivot_at_start_of_drag_id));
             }
