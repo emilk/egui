@@ -92,7 +92,7 @@ struct WinitAppWrapper<T: WinitApp> {
     /// Windows we asked to redraw, and when to give up waiting for their `RedrawRequested`.
     windows_redraw_deadlines: HashMap<WindowId, Instant>,
 
-    /// A missed frame callback stays outstanding until RedrawRequested arrives.
+    /// A missed frame callback stays outstanding until `RedrawRequested` arrives.
     /// Do not pay the grace period again for every step of an offscreen capture.
     windows_stalled_redraws: HashSet<WindowId>,
 
@@ -224,13 +224,13 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         self.windows_next_repaint_times
             .retain(|window_id, repaint_time| {
                 // Explicit pixel requests are bounded, demand-driven work. Keep
-                // their multi-pass capture handshake responsive; ordinary Bus/PTY
-                // wakes must still obey the stalled-window pacing floor.
+                // their multi-pass capture handshake responsive; ordinary wakes
+                // must still obey the stalled-window pacing floor.
                 if self.winit_app.overdue_pass_mode(*window_id) == PassMode::LogicOnly
-                    && !self
+                    && self
                         .windows_capture_repaint_until
                         .get(window_id)
-                        .is_some_and(|until| now < *until)
+                        .is_none_or(|until| now >= *until)
                     && let Some(floor) = self.windows_direct_repaint_floors.get(window_id)
                 {
                     *repaint_time = (*repaint_time).max(*floor);
@@ -472,25 +472,22 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
 
         // Nb: Make sure this guard is dropped after this function returns.
         event_loop_context::with_event_loop_context(event_loop, move || {
-            let event_result = match event {
-                winit::event::WindowEvent::RedrawRequested => {
-                    self.windows_redraw_deadlines.remove(&window_id);
+            let event_result = if matches!(event, winit::event::WindowEvent::RedrawRequested) {
+                self.windows_redraw_deadlines.remove(&window_id);
+                self.windows_stalled_redraws.remove(&window_id);
+                self.windows_direct_repaint_floors.remove(&window_id);
+                self.windows_capture_repaint_until.remove(&window_id);
+                self.winit_app
+                    .run_ui_and_paint(event_loop, window_id, PassMode::Full)
+            } else {
+                if matches!(event, winit::event::WindowEvent::Destroyed) {
                     self.windows_stalled_redraws.remove(&window_id);
                     self.windows_direct_repaint_floors.remove(&window_id);
                     self.windows_capture_repaint_until.remove(&window_id);
-                    self.winit_app
-                        .run_ui_and_paint(event_loop, window_id, PassMode::Full)
+                    self.windows_redraw_deadlines.remove(&window_id);
+                    self.windows_next_repaint_times.remove(&window_id);
                 }
-                _ => {
-                    if matches!(event, winit::event::WindowEvent::Destroyed) {
-                        self.windows_stalled_redraws.remove(&window_id);
-                        self.windows_direct_repaint_floors.remove(&window_id);
-                        self.windows_capture_repaint_until.remove(&window_id);
-                        self.windows_redraw_deadlines.remove(&window_id);
-                        self.windows_next_repaint_times.remove(&window_id);
-                    }
-                    self.winit_app.window_event(event_loop, window_id, event)
-                }
+                self.winit_app.window_event(event_loop, window_id, event)
             };
 
             self.handle_event_result(event_loop, event_result);
