@@ -2548,6 +2548,7 @@ impl Visuals {
                 color_transfer_function,
                 font_hinting,
                 subpixel_binning,
+                subpixel_order: _,
             } = text_options;
 
             color_transfer_function_ui(ui, color_transfer_function);
