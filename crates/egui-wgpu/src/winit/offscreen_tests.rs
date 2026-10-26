@@ -100,7 +100,7 @@ fn hidden_window_capture_without_surface() {
                 let image = rx
                     .recv_timeout(core::time::Duration::from_secs(15))
                     .expect("offscreen callback without another paint");
-                assert_eq!(image.size, [size[0] as usize, size[1] as usize]);
+                assert_eq!(image.size(), [size[0] as usize, size[1] as usize]);
                 assert_eq!(image[(0, 0)], egui::Color32::BLUE);
                 assert_eq!(image[(8, 8)], egui::Color32::RED);
             }
