@@ -117,6 +117,7 @@ impl CCursorRange {
         galley: &Galley,
         modifiers: &Modifiers,
         key: Key,
+        page_height: f32,
     ) -> bool {
         match key {
             Key::A if modifiers.command => {
@@ -133,10 +134,17 @@ impl CCursorRange {
                 true
             }
 
+            // Leave e.g. Ctrl+PageUp/PageDown to the application (it is often used to switch tabs):
+            Key::PageUp | Key::PageDown if !(modifiers.is_none() || modifiers.shift_only()) => {
+                false
+            }
+
             Key::ArrowLeft
             | Key::ArrowRight
             | Key::ArrowUp
             | Key::ArrowDown
+            | Key::PageUp
+            | Key::PageDown
             | Key::Home
             | Key::End => {
                 move_single_cursor(
@@ -146,6 +154,7 @@ impl CCursorRange {
                     galley,
                     key,
                     modifiers,
+                    page_height,
                 );
                 if !modifiers.shift {
                     self.secondary = self.primary;
@@ -163,6 +172,7 @@ impl CCursorRange {
                     galley,
                     key,
                     modifiers,
+                    page_height,
                 );
                 self.secondary = self.primary;
                 true
@@ -181,6 +191,7 @@ impl CCursorRange {
         event: &Event,
         galley: &Galley,
         _widget_id: Id,
+        page_height: f32,
     ) -> bool {
         match event {
             Event::Key {
@@ -188,7 +199,7 @@ impl CCursorRange {
                 key,
                 pressed: true,
                 ..
-            } => self.on_key_press(os, galley, modifiers, *key),
+            } => self.on_key_press(os, galley, modifiers, *key, page_height),
 
             Event::AccessKitActionRequest(accesskit::ActionRequest {
                 action: accesskit::Action::SetTextSelection,
@@ -266,6 +277,7 @@ fn move_single_cursor(
     galley: &Galley,
     key: Key,
     modifiers: &Modifiers,
+    page_height: f32,
 ) {
     let (new_cursor, new_h_pos) =
         if os == OperatingSystem::Mac && modifiers.ctrl && !modifiers.shift {
@@ -316,6 +328,8 @@ fn move_single_cursor(
                         galley.cursor_down_one_row(cursor, *h_pos)
                     }
                 }
+                Key::PageUp => galley.cursor_page_up(cursor, *h_pos, page_height),
+                Key::PageDown => galley.cursor_page_down(cursor, *h_pos, page_height),
 
                 Key::Home => {
                     if modifiers.ctrl {
