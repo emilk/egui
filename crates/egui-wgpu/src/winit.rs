@@ -9,6 +9,10 @@ use core::num::NonZeroU32;
 use egui::{Context, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::sync::Arc;
 
+#[cfg(test)]
+#[path = "../../../tests/desktop/offscreen_gpu.rs"]
+mod offscreen_tests;
+
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
     alpha_mode: wgpu::CompositeAlphaMode,
@@ -497,6 +501,68 @@ impl Painter {
         capture_data: Vec<egui::ScreenshotCallback>,
         window: &Arc<winit::window::Window>,
     ) -> f32 {
+        let size = self
+            .surfaces
+            .get(&viewport_id)
+            .map_or([0, 0], |surface| [surface.width, surface.height]);
+        self.paint_and_update_textures_impl(
+            viewport_id,
+            size,
+            pixels_per_point,
+            clear_color,
+            clipped_primitives,
+            textures_delta,
+            capture_data,
+            Some(window),
+        )
+    }
+
+    /// Paint without acquiring or presenting a surface texture.
+    ///
+    /// Uses the last configured viewport size and the renderer's target format.
+    /// Like normal painting, this requires an initialized window and render state.
+    /// Screenshot callbacks complete even if the compositor never presents again.
+    #[expect(clippy::too_many_arguments)]
+    pub fn paint_offscreen_and_update_textures(
+        &mut self,
+        viewport_id: ViewportId,
+        pixels_per_point: f32,
+        clear_color: [f32; 4],
+        clipped_primitives: &[epaint::ClippedPrimitive],
+        textures_delta: &mut epaint::textures::TexturesDelta,
+        capture_data: Vec<egui::ScreenshotCallback>,
+    ) {
+        let Some(surface) = self.surfaces.get(&viewport_id) else {
+            if !capture_data.is_empty() {
+                log::error!("Cannot capture viewport {viewport_id:?}: no surface state");
+            }
+            return;
+        };
+        let size = [surface.width, surface.height];
+        self.paint_and_update_textures_impl(
+            viewport_id,
+            size,
+            pixels_per_point,
+            clear_color,
+            clipped_primitives,
+            textures_delta,
+            capture_data,
+            None,
+        );
+    }
+
+    #[expect(clippy::too_many_arguments)]
+    fn paint_and_update_textures_impl(
+        &mut self,
+        viewport_id: ViewportId,
+        size: [u32; 2],
+        pixels_per_point: f32,
+        clear_color: [f32; 4],
+        clipped_primitives: &[epaint::ClippedPrimitive],
+        textures_delta: &mut epaint::textures::TexturesDelta,
+        capture_data: Vec<egui::ScreenshotCallback>,
+        window: Option<&Arc<winit::window::Window>>,
+    ) -> f32 {
         profiling::function_scope!();
 
         /// Guard to ensure that commands are always submitted to the renderer queue
@@ -521,16 +587,18 @@ impl Painter {
             }
         }
 
-        let capture = !capture_data.is_empty();
+        let offscreen = window.is_none();
+        let capture = offscreen || !capture_data.is_empty();
         let mut vsync_sec = 0.0;
 
         // If the previous frame produced `CurrentSurfaceTexture::Lost`, the action match
         // below set `needs_recreate`. Recreate the surface now, before re-borrowing
         // `self.render_state` / `self.surfaces` for the rest of the paint.
-        if self
-            .surfaces
-            .get(&viewport_id)
-            .is_some_and(|s| s.needs_recreate)
+        if let Some(window) = window
+            && self
+                .surfaces
+                .get(&viewport_id)
+                .is_some_and(|s| s.needs_recreate)
             && let Err(err) = self.recreate_surface(viewport_id, window)
         {
             log::error!("Failed to recreate surface for {viewport_id:?}: {err}");
@@ -538,6 +606,9 @@ impl Painter {
         }
 
         let Some(render_state) = self.render_state.as_mut() else {
+            if !capture_data.is_empty() {
+                log::error!("Cannot capture viewport {viewport_id:?}: no render state");
+            }
             return vsync_sec;
         };
 
@@ -546,9 +617,12 @@ impl Painter {
             commands_submitted: false,
         };
 
-        let Some(surface_state) = self.surfaces.get_mut(&viewport_id) else {
+        if size[0] == 0 || size[1] == 0 {
+            if !capture_data.is_empty() {
+                log::error!("Cannot capture viewport {viewport_id:?}: zero-sized viewport");
+            }
             return vsync_sec;
-        };
+        }
 
         let mut encoder =
             render_state
@@ -559,7 +633,7 @@ impl Painter {
 
         // Upload all resources for the GPU.
         let screen_descriptor = renderer::ScreenDescriptor {
-            size_in_pixels: [surface_state.width, surface_state.height],
+            size_in_pixels: size,
             pixels_per_point,
         };
 
@@ -586,51 +660,53 @@ impl Painter {
             )
         };
 
-        if surface_state.needs_reconfigure {
-            Self::configure_surface(surface_state, render_state, &self.config.surface);
-            surface_state.needs_reconfigure = false;
-        }
-
-        let output_frame = {
+        let output_frame = if let Some(surface_state) = self.surfaces.get_mut(&viewport_id)
+            && !offscreen
+        {
+            if surface_state.needs_reconfigure {
+                Self::configure_surface(surface_state, render_state, &self.config.surface);
+                surface_state.needs_reconfigure = false;
+            }
             profiling::scope!("get_current_texture");
             // This is what vsync-waiting happens on my Mac.
             let start = web_time::Instant::now();
             let output_frame = surface_state.surface.get_current_texture();
             vsync_sec += start.elapsed().as_secs_f32();
-            output_frame
-        };
-
-        // `None` when there is no frame to present to. A capture is rendered to its own
-        // texture and copied back to the cpu, so it is served even then — that is how a hidden
-        // window, which the compositor gives no surface texture, is screenshotted at all.
-        let output_frame = match output_frame {
-            wgpu::CurrentSurfaceTexture::Success(frame) => Some(frame),
-            wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
-                surface_state.needs_reconfigure = true;
-                Some(frame)
-            }
-            other => {
-                match (*self.config.on_surface_status)(&other) {
-                    SurfaceErrorAction::Reconfigure => {
-                        Self::configure_surface(surface_state, render_state, &self.config.surface);
-                        self.context.request_repaint_of(viewport_id);
-                    }
-                    SurfaceErrorAction::RecreateSurface => {
-                        // Because of ownership, I could not find an easy way to do a full recovery here,
-                        // as that would involve dropping the old surface and creating a new one.
-                        // For now, we defer the recreation to the beginning of the next frame (which
-                        // we ensure to arrive via `request_repaint_of`). A cleaner solution would be
-                        // to untangle the ownership of `RenderState`.
-                        surface_state.needs_recreate = true;
-                        self.context.request_repaint_of(viewport_id);
-                    }
-                    SurfaceErrorAction::SkipFrame => {}
+            match output_frame {
+                wgpu::CurrentSurfaceTexture::Success(frame) => Some(frame),
+                wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
+                    surface_state.needs_reconfigure = true;
+                    Some(frame)
                 }
-                if !capture {
-                    return vsync_sec;
+                other => {
+                    match (*self.config.on_surface_status)(&other) {
+                        SurfaceErrorAction::Reconfigure => {
+                            Self::configure_surface(
+                                surface_state,
+                                render_state,
+                                &self.config.surface,
+                            );
+                            self.context.request_repaint_of(viewport_id);
+                        }
+                        SurfaceErrorAction::RecreateSurface => {
+                            // Because of ownership, I could not find an easy way to do a full recovery here,
+                            // as that would involve dropping the old surface and creating a new one.
+                            // For now, we defer the recreation to the beginning of the next frame (which
+                            // we ensure to arrive via `request_repaint_of`). A cleaner solution would be
+                            // to untangle the ownership of `RenderState`.
+                            surface_state.needs_recreate = true;
+                            self.context.request_repaint_of(viewport_id);
+                        }
+                        SurfaceErrorAction::SkipFrame => {}
+                    }
+                    if !capture {
+                        return vsync_sec;
+                    }
+                    None
                 }
-                None
             }
+        } else {
+            None
         };
 
         let mut capture_buffer = None;
@@ -647,8 +723,8 @@ impl Painter {
                     }
                     None => (
                         wgpu::Extent3d {
-                            width: surface_state.width,
-                            height: surface_state.height,
+                            width: size[0],
+                            height: size[1],
                             depth_or_array_layers: 1,
                         },
                         render_state.target_format,
@@ -738,7 +814,9 @@ impl Painter {
                 &screen_descriptor,
             );
 
-            if capture && let Some(capture_state) = &mut self.screen_capture_state {
+            if !capture_data.is_empty()
+                && let Some(capture_state) = &mut self.screen_capture_state
+            {
                 capture_buffer = Some(capture_state.copy_textures(
                     &render_state.device,
                     output_frame.as_ref(),
@@ -779,11 +857,20 @@ impl Painter {
 
         if let Some(capture_buffer) = capture_buffer
             && let Some(screen_capture_state) = &mut self.screen_capture_state
+            && !capture_data.is_empty()
         {
             screen_capture_state.read_screen_rgba(capture_buffer, capture_data);
+            #[cfg(not(target_arch = "wasm32"))]
+            if offscreen {
+                // Mapping needs device progress, even when no further frame arrives.
+                // Keep the UI thread responsive while waiting for the GPU readback.
+                poll_offscreen(render_state.device.clone());
+            }
         }
 
-        if let Some(output_frame) = output_frame {
+        if let Some(output_frame) = output_frame
+            && let Some(window) = window
+        {
             window.pre_present_notify();
 
             profiling::scope!("present");
@@ -807,5 +894,33 @@ impl Painter {
     #[expect(clippy::needless_pass_by_ref_mut, clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
+    }
+}
+
+/// One sleeping worker and a bounded queue for the whole process, not a thread
+/// per capture. Polling a device services all its pending mapping callbacks.
+#[cfg(not(target_arch = "wasm32"))]
+fn poll_offscreen(device: wgpu::Device) {
+    static WORKER: std::sync::OnceLock<std::sync::mpsc::SyncSender<wgpu::Device>> =
+        std::sync::OnceLock::new();
+    let sender = WORKER.get_or_init(|| {
+        let (sender, receiver) = std::sync::mpsc::sync_channel::<wgpu::Device>(8);
+        std::thread::Builder::new()
+            .name("egui-readback".into())
+            .spawn(move || {
+                while let Ok(device) = receiver.recv() {
+                    if let Err(err) = device.poll(wgpu::PollType::Wait {
+                        submission_index: None,
+                        timeout: Some(core::time::Duration::from_secs(10)),
+                    }) {
+                        log::error!("Failed to poll offscreen screenshot: {err}");
+                    }
+                }
+            })
+            .expect("start bounded screenshot worker");
+        sender
+    });
+    if let Err(err) = sender.try_send(device) {
+        log::error!("Offscreen screenshot poll queue unavailable: {err}");
     }
 }
