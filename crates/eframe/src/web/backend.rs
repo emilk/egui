@@ -9,7 +9,6 @@ use super::percent_decode;
 // ----------------------------------------------------------------------------
 
 /// Data gathered between frames.
-#[derive(Default)]
 pub(crate) struct WebInput {
     /// Required because we don't get a position on touchend
     pub primary_touch: Option<egui::TouchId>,
@@ -28,6 +27,31 @@ pub(crate) struct WebInput {
 
     /// The raw input to `egui`.
     pub raw: egui::RawInput,
+
+    /// Does the app have focus?
+    ///
+    /// In DOM mode this is derived from `document.activeElement`; in worker mode the
+    /// host page reports it with `{type: "focus"}` messages. Defaults to `true`.
+    pub focused: bool,
+
+    /// Is the app occluded (e.g. its tab is hidden)?
+    ///
+    /// In worker mode the host page reports it with `{type: "visibility"}` messages.
+    pub occluded: bool,
+}
+
+impl Default for WebInput {
+    fn default() -> Self {
+        Self {
+            primary_touch: None,
+            accumulated_scale: 0.0,
+            accumulated_rotation: 0.0,
+            modifiers: egui::Modifiers::default(),
+            raw: egui::RawInput::default(),
+            focused: true,
+            occluded: false,
+        }
+    }
 }
 
 impl WebInput {
@@ -44,9 +68,11 @@ impl WebInput {
         viewport.native_pixels_per_point = Some(super::native_pixels_per_point());
 
         // A hidden browser tab is effectively occluded.
+        // A worker has no `document`; the host page reports occlusion instead.
         let hidden = web_sys::window()
             .and_then(|w| w.document())
-            .is_some_and(|doc| doc.hidden());
+            .is_some_and(|doc| doc.hidden())
+            || self.occluded;
         viewport.occluded = Some(hidden);
 
         raw_input
