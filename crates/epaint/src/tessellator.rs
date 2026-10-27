@@ -1492,6 +1492,15 @@ impl Tessellator {
             return;
         }
 
+        // Invisible widget placeholders must not interrupt batches using another texture.
+        match &shape {
+            Shape::Noop => return,
+            Shape::Rect(rect) if rect.fill == Color32::TRANSPARENT && rect.stroke.is_empty() => {
+                return;
+            }
+            _ => {}
+        }
+
         if let Shape::Vec(shapes) = shape {
             for shape in shapes {
                 self.tessellate_clipped_shape(
@@ -2947,4 +2956,35 @@ fn tessellate_band_stroke_kind() {
         tessellate(StrokeKind::Outside).calc_bounds().y_range(),
         -2.0..=12.0
     );
+}
+
+#[test]
+fn invisible_placeholders_preserve_image_batches_and_visible_frames_keep_order() {
+    let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(16.0, 16.0));
+    let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+    let image = Shape::image(TextureId::Managed(1), rect, uv, Color32::WHITE);
+    for (separator, expected_batches) in [
+        (Shape::Noop, 1),
+        (Shape::rect_filled(rect, 0, Color32::TRANSPARENT), 1),
+        (Shape::rect_filled(rect, 0, Color32::RED), 3),
+        (
+            Shape::rect_stroke(rect, 0, Stroke::new(1.0, Color32::RED), StrokeKind::Inside),
+            3,
+        ),
+    ] {
+        let shapes = [image.clone(), separator, image.clone()]
+            .into_iter()
+            .map(|shape| ClippedShape::new(Rect::EVERYTHING, shape))
+            .collect();
+        let primitives =
+            Tessellator::new(1.0, Default::default(), [1024; 2], vec![]).tessellate_shapes(shapes);
+        assert_eq!(primitives.len(), expected_batches);
+        if expected_batches == 1 {
+            let Primitive::Mesh(mesh) = &primitives[0].primitive else {
+                panic!("expected a mesh");
+            };
+            assert_eq!(mesh.texture_id, TextureId::Managed(1));
+            assert_eq!(mesh.indices.len(), 12);
+        }
+    }
 }
