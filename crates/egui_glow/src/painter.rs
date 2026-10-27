@@ -480,30 +480,42 @@ impl Painter {
     /// copy. Indices are rebased onto the combined vertex buffer, base-vertex draws are not in GLES 3.0.
     fn upload_meshes(&mut self, clipped_primitives: &[egui::ClippedPrimitive]) {
         profiling::function_scope!();
-        self.frame_vertices.clear();
-        self.frame_indices.clear();
-        for primitive in clipped_primitives {
-            if let Primitive::Mesh(mesh) = &primitive.primitive {
-                let base = self.frame_vertices.len() as u32;
-                self.frame_vertices.extend_from_slice(&mesh.vertices);
-                self.frame_indices
-                    .extend(mesh.indices.iter().map(|index| index + base));
-            }
-        }
+        let mut meshes = clipped_primitives
+            .iter()
+            .filter_map(|clipped| match &clipped.primitive {
+                Primitive::Mesh(mesh) => Some(mesh),
+                Primitive::Callback(_) => None,
+            });
+        let (vertices, indices): (&[u8], &[u8]) =
+            if let (Some(only), None) = (meshes.next(), meshes.next()) {
+                (
+                    bytemuck::cast_slice(&only.vertices),
+                    bytemuck::cast_slice(&only.indices),
+                )
+            } else {
+                self.frame_vertices.clear();
+                self.frame_indices.clear();
+                for primitive in clipped_primitives {
+                    if let Primitive::Mesh(mesh) = &primitive.primitive {
+                        let base = self.frame_vertices.len() as u32;
+                        self.frame_vertices.extend_from_slice(&mesh.vertices);
+                        self.frame_indices
+                            .extend(mesh.indices.iter().map(|index| index + base));
+                    }
+                }
+                (
+                    bytemuck::cast_slice(&self.frame_vertices),
+                    bytemuck::cast_slice(&self.frame_indices),
+                )
+            };
         unsafe {
             self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
-            self.gl.buffer_data_u8_slice(
-                glow::ARRAY_BUFFER,
-                bytemuck::cast_slice(&self.frame_vertices),
-                glow::STREAM_DRAW,
-            );
+            self.gl
+                .buffer_data_u8_slice(glow::ARRAY_BUFFER, vertices, glow::STREAM_DRAW);
             self.gl
                 .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
-            self.gl.buffer_data_u8_slice(
-                glow::ELEMENT_ARRAY_BUFFER,
-                bytemuck::cast_slice(&self.frame_indices),
-                glow::STREAM_DRAW,
-            );
+            self.gl
+                .buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, indices, glow::STREAM_DRAW);
         }
     }
 
