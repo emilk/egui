@@ -377,6 +377,55 @@ impl Painter {
         }
     }
 
+    /// Like [`Self::paint_and_update_textures`], but only touches the pixels within `region` (in points):
+    /// clears them to `clear_color` and paints the part of `clipped_primitives` that falls into them.
+    ///
+    /// The rest of the color buffer keeps what it had, so this is meant for a buffer holding an older frame
+    /// that differs from this one only within `region`, see [`egui::epaint::DamageTracker`].
+    pub fn paint_region_and_update_textures(
+        &mut self,
+        screen_size_px: [u32; 2],
+        pixels_per_point: f32,
+        clipped_primitives: &[egui::ClippedPrimitive],
+        textures_delta: &mut egui::TexturesDelta,
+        region: &[Rect],
+        clear_color: [f32; 4],
+    ) {
+        profiling::function_scope!();
+
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for (id, image_deltas) in textures_delta.set.drain() {
+            for image_delta in image_deltas {
+                self.set_texture(id, &image_delta);
+            }
+        }
+
+        for &within in region {
+            unsafe {
+                self.gl.enable(glow::SCISSOR_TEST);
+                set_clip_rect(&self.gl, screen_size_px, pixels_per_point, within);
+                self.gl.clear_color(
+                    clear_color[0],
+                    clear_color[1],
+                    clear_color[2],
+                    clear_color[3],
+                );
+                self.gl.clear(glow::COLOR_BUFFER_BIT);
+            }
+            self.paint_primitives_within(
+                screen_size_px,
+                pixels_per_point,
+                clipped_primitives,
+                Some(within),
+            );
+        }
+
+        #[expect(clippy::iter_over_hash_type)] // Order doesn't matter here
+        for id in textures_delta.free.drain() {
+            self.free_texture(id);
+        }
+    }
+
     /// Main entry-point for painting a frame.
     ///
     /// You should call `target.clear_color(..)` before
@@ -403,6 +452,16 @@ impl Painter {
         pixels_per_point: f32,
         clipped_primitives: &[egui::ClippedPrimitive],
     ) {
+        self.paint_primitives_within(screen_size_px, pixels_per_point, clipped_primitives, None);
+    }
+
+    fn paint_primitives_within(
+        &mut self,
+        screen_size_px: [u32; 2],
+        pixels_per_point: f32,
+        clipped_primitives: &[egui::ClippedPrimitive],
+        within: Option<Rect>,
+    ) {
         profiling::function_scope!();
         self.assert_not_destroyed();
 
@@ -413,6 +472,11 @@ impl Painter {
             primitive,
         } in clipped_primitives
         {
+            let clip_rect = &match within {
+                Some(within) if !clip_rect.intersects(within) => continue,
+                Some(within) => clip_rect.intersect(within),
+                None => *clip_rect,
+            };
             set_clip_rect(&self.gl, screen_size_px, pixels_per_point, *clip_rect);
 
             match primitive {
