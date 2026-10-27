@@ -4824,6 +4824,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_partial_repaint"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
+ "log",
+]
+
+[[package]]
 name = "test_size_pass"
 version = "0.1.0"
 dependencies = [
