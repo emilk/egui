@@ -53,6 +53,27 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             b.iter(|| ctx.tessellate(full_output.shapes.clone(), full_output.pixels_per_point));
         });
 
+        c.bench_function("demo_tessellate_damaged_only", |b| {
+            let mut spinner = full_output.shapes.clone();
+            spinner.push(egui::epaint::ClippedShape::new(
+                egui::Rect::EVERYTHING,
+                egui::epaint::CircleShape::filled(egui::pos2(20.0, 20.0), 8.0, egui::Color32::RED),
+            ));
+            let mut tracker = egui::epaint::DamageTracker::default();
+            let no_textures = egui::TexturesDelta::default();
+            let ppp = full_output.pixels_per_point;
+            tracker.update(&full_output.shapes, ppp, &no_textures);
+            let egui::epaint::Damage::Partial(region) = tracker.update(&spinner, ppp, &no_textures)
+            else {
+                panic!("a small change");
+            };
+            b.iter(|| {
+                let mut shapes = spinner.clone();
+                shapes.retain(|shape| region.may_touch(shape, ppp));
+                ctx.tessellate(shapes, ppp)
+            });
+        });
+
         c.bench_function("demo_damage_tracker_unchanged", |b| {
             let mut tracker = egui::epaint::DamageTracker::default();
             let no_textures = egui::TexturesDelta::default();

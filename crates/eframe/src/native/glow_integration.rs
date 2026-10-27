@@ -883,6 +883,14 @@ impl GlowWinitRunning<'_> {
                 viewport.partial_repaint.reset();
                 None
             };
+            let mut shapes = shapes;
+            match plan.as_ref().map(|plan| &plan.repaint) {
+                Some(Damage::None) => shapes.clear(),
+                Some(Damage::Partial(region)) => {
+                    shapes.retain(|shape| region.may_touch(shape, pixels_per_point));
+                }
+                Some(Damage::Full) | None => {}
+            }
             let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
             {

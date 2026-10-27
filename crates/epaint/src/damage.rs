@@ -69,6 +69,14 @@ impl DamageRegion {
             .fold(Rect::NOTHING, |union, rect| union | *rect)
     }
 
+    /// Whether `clipped` may paint a pixel within the region, by the bounds [`DamageTracker`] uses.
+    ///
+    /// Shapes for which this is false can be left out when only the region is repainted.
+    pub fn may_touch(&self, clipped: &ClippedShape, pixels_per_point: f32) -> bool {
+        let area = painted_area(clipped, pixels_per_point);
+        self.rects.iter().any(|rect| rect.intersects(area))
+    }
+
     fn from_rects(rects: impl IntoIterator<Item = Rect>) -> Option<Self> {
         let mut region = Self {
             rects: SmallVec::new(),
