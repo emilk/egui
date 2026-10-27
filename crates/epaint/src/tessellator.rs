@@ -1467,6 +1467,21 @@ impl Tessellator {
         }
     }
 
+    /// Whether everything `shape` paints, antialiasing and pixel snapping included, lies within `clip_rect`.
+    fn is_inside(&self, shape: &Shape, clip_rect: Rect) -> bool {
+        let bounds = match shape {
+            Shape::Text(text) => text
+                .galley
+                .mesh_bounds
+                .union(text.galley.rect)
+                .rotate_bb(emath::Rot2::from_angle(text.angle))
+                .translate(text.pos.to_vec2()),
+            _ => shape.visual_bounding_rect(),
+        };
+        let margin = self.feathering + 2.0 / self.pixels_per_point;
+        bounds.is_finite() && clip_rect.contains_rect(bounds.expand(margin))
+    }
+
     /// Set the [`Rect`] to use for culling.
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.clip_rect = clip_rect;
@@ -1514,6 +1529,21 @@ impl Tessellator {
             });
             return;
         }
+
+        // A shape the clip rect does not cut can join the current mesh under its clip rect: one draw call less.
+        let clip_rect = match out_primitives.last() {
+            Some(ClippedPrimitive {
+                clip_rect: current,
+                primitive: Primitive::Mesh(mesh),
+            }) if *current != clip_rect
+                && transform == TSTransform::IDENTITY
+                && mesh.texture_id == shape.texture_id()
+                && self.is_inside(&shape, clip_rect.intersect(*current)) =>
+            {
+                *current
+            }
+            _ => clip_rect,
+        };
 
         let start_new_mesh = match out_primitives.last() {
             None => true,
@@ -2946,5 +2976,64 @@ fn tessellate_band_stroke_kind() {
     assert_eq!(
         tessellate(StrokeKind::Outside).calc_bounds().y_range(),
         -2.0..=12.0
+    );
+}
+
+#[test]
+fn shapes_their_clip_rect_does_not_cut_share_one_mesh() {
+    use crate::*;
+
+    let tessellate = |shapes: Vec<ClippedShape>| {
+        Tessellator::new(1.0, Default::default(), [1, 1], vec![]).tessellate_shapes(shapes)
+    };
+    let screen = Rect::from_min_max(pos2(0.0, 0.0), pos2(500.0, 500.0));
+    let cell = |x: f32| Rect::from_min_size(pos2(x, 10.0), vec2(80.0, 40.0));
+    let square = |x: f32| {
+        Shape::rect_filled(
+            Rect::from_min_size(pos2(x, 20.0), vec2(20.0, 20.0)),
+            0.0,
+            Color32::RED,
+        )
+    };
+
+    let inside: Vec<ClippedShape> = (0..5)
+        .flat_map(|i| {
+            let x = 100.0 * i as f32;
+            [
+                ClippedShape::new(screen, square(x + 2.0)),
+                ClippedShape::new(cell(x), square(x + 30.0)),
+            ]
+        })
+        .collect();
+    let primitives = tessellate(inside);
+    assert_eq!(primitives.len(), 1, "nothing is cut, so one draw call");
+    assert_eq!(primitives[0].clip_rect, screen);
+
+    let cut = vec![
+        ClippedShape::new(screen, square(0.0)),
+        ClippedShape::new(cell(100.0), square(170.0)),
+    ];
+    let primitives = tessellate(cut);
+    assert_eq!(
+        primitives.len(),
+        2,
+        "a shape crossing its clip rect keeps it"
+    );
+    assert_eq!(primitives[1].clip_rect, cell(100.0));
+
+    let mut textured = Mesh::with_texture(TextureId::Managed(7));
+    textured.add_rect_with_uv(
+        Rect::from_min_size(pos2(30.0, 20.0), vec2(10.0, 10.0)),
+        Rect::ZERO,
+        Color32::WHITE,
+    );
+    let other_texture = vec![
+        ClippedShape::new(screen, square(0.0)),
+        ClippedShape::new(cell(0.0), Shape::mesh(textured)),
+    ];
+    assert_eq!(
+        tessellate(other_texture).len(),
+        2,
+        "another texture needs its own draw call"
     );
 }
