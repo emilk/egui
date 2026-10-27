@@ -297,21 +297,21 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "arboard"
-version = "3.6.1"
+version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0348a1c054491f4bfe6ab86a7b6ab1e44e45d899005de92f58b3df180b36ddaf"
+checksum = "aeb9553e62312c8756a5979254fc6d7da8bbeb5986a1e17037fab932f7037917"
 dependencies = [
  "clipboard-win",
  "image",
  "log",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
  "parking_lot",
  "percent-encoding",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
  "wl-clipboard-rs",
  "x11rb",
 ]
@@ -471,7 +471,7 @@ checksum = "82f6aeea286b8eb4dd3431a1be1b59d290ace00f5bfd8e2a159bc2a05e2c1667"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -619,7 +619,7 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdeb9d870516001442e364c5220d3574d2da8dc765554b4a617230d33fa58ef5"
 dependencies = [
- "objc2 0.6.4",
+ "objc2 0.6.5",
 ]
 
 [[package]]
@@ -663,13 +663,13 @@ dependencies = [
 
 [[package]]
 name = "bytemuck_derive"
-version = "1.12.0"
+version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc0e56a716f1e132ff6bf4bdac1c944a3fcdc1cae65f70a4a2a1ac3b401d2d1f"
+checksum = "6a1f896587b6f2c069c73d2f0913e2d590c3990285cd2f0b6aa02b786b4c679c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -1209,7 +1209,7 @@ dependencies = [
  "bitflags 2.13.1",
  "block2 0.6.2",
  "libc",
- "objc2 0.6.4",
+ "objc2 0.6.5",
 ]
 
 [[package]]
@@ -1220,7 +1220,7 @@ checksum = "c6232dd377dcc64799954cbd3a9bb882e9cdc1308ccd87b1c098f1fb2eaf82a8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -1285,7 +1285,7 @@ dependencies = [
  "image",
  "js-sys",
  "log",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
  "parking_lot",
@@ -1356,7 +1356,7 @@ dependencies = [
  "document-features",
  "egui",
  "log",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
  "objc2-ui-kit 0.3.2",
@@ -1413,7 +1413,7 @@ dependencies = [
  "jiff",
  "log",
  "mimalloc",
- "rand 0.10.2",
+ "rand 0.10.3",
  "serde",
  "unicode_names2",
 ]
@@ -1574,7 +1574,7 @@ checksum = "7127272f64b3e098f7d81f350d672081b879bff896d219c42370dc858b1af9ff"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -1781,9 +1781,9 @@ dependencies = [
 
 [[package]]
 name = "fearless_simd"
-version = "0.4.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b97b65636e5b9ef369943878ac74335ba1c55c1cb6adbf1e2c293c624248d693"
+checksum = "f4beca3cb2444e3304ac30843cc091f44ed58932353cd492ce740067bfce6b12"
 
 [[package]]
 name = "file_dialog"
@@ -1842,9 +1842,9 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "font-types"
-version = "0.12.4"
+version = "0.12.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e64eb721ca85a34323425f4041adc5d82704d3782d5f8f03793bc012419dce23"
+checksum = "835ae9d781464a79026cde387f9cbc650c9a4909d7cf7e658b127e3c35d2f35d"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1882,14 +1882,14 @@ dependencies = [
 
 [[package]]
 name = "fontique"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6688bc1294fe7117d788937b6c53480169b29c566954af490830d4c09da9516a"
+checksum = "bbf1df16263783918b7da396077521f92b729ef7c429444dfcf03581f1448b77"
 dependencies = [
  "hashbrown 0.17.1",
  "linebender_resource_handle",
  "memmap2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-core-text",
  "objc2-foundation 0.3.2",
@@ -1920,7 +1920,7 @@ checksum = "ea5190182e6915eb873ddbc16e23b711b6eb1f9c00a0d0a3a91b5f6228475225"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -1971,7 +1971,7 @@ checksum = "9fb9654ba8355388abeb8dcb4fc62f511300867002afc858860463bdd9fe0c44"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -2086,9 +2086,9 @@ dependencies = [
 
 [[package]]
 name = "glifo"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "282a26c1e23de04bdab3e34a21b6f877a479b96737792516b9b8b8f69b6661be"
+checksum = "9f1218dedd5348c1b166ec3b8b3cbca49d2f527bd43b3fa072ea5123c523ed3f"
 dependencies = [
  "bytemuck",
  "foldhash 0.2.0",
@@ -2127,7 +2127,7 @@ dependencies = [
  "glutin_glx_sys",
  "glutin_wgl_sys",
  "libloading",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
@@ -2540,9 +2540,9 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "jiff"
-version = "0.2.35"
+version = "0.2.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "668b7183bd07af9a4885f5c35b0cc5c83c4607a913c16b7e17291832910d2dcc"
+checksum = "b2b005715dcbeb0089a3c0dab99f2ff1cc3b2525323552703d648585d342a383"
 dependencies = [
  "defmt",
  "jiff-core",
@@ -2567,9 +2567,9 @@ dependencies = [
 
 [[package]]
 name = "jiff-static"
-version = "0.2.35"
+version = "0.2.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a69dcb3a21cfb32ce1cd056169337ca284af0766dd766e7878819b251a49204"
+checksum = "2cc9817253cf7c7ee4684451bd327e88d6f3658014e54a29198625590650695c"
 dependencies = [
  "jiff-core",
  "proc-macro2",
@@ -3055,9 +3055,9 @@ dependencies = [
 
 [[package]]
 name = "objc2"
-version = "0.6.4"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a12a8ed07aefc768292f076dc3ac8c48f3781c8f2d5851dd3d98950e8c5a89f"
+checksum = "08849bbd4767dfae9457696856ae1c84fe4e0281bbe4a7abff2d0e06fb7981f8"
 dependencies = [
  "objc2-encode",
 ]
@@ -3086,7 +3086,7 @@ checksum = "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c"
 dependencies = [
  "bitflags 2.13.1",
  "block2 0.6.2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
@@ -3136,7 +3136,7 @@ checksum = "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536"
 dependencies = [
  "bitflags 2.13.1",
  "dispatch2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
 ]
 
 [[package]]
@@ -3147,7 +3147,7 @@ checksum = "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807"
 dependencies = [
  "bitflags 2.13.1",
  "dispatch2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-io-surface",
 ]
@@ -3213,7 +3213,7 @@ checksum = "e3e0adef53c21f888deb4fa59fc59f7eb17404926ee8a6f59f5df0fd7f9f3272"
 dependencies = [
  "bitflags 2.13.1",
  "block2 0.6.2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
 ]
 
@@ -3224,7 +3224,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "180788110936d59bab6bd83b6060ffdfffb3b922ba1396b312ae795e1de9d81d"
 dependencies = [
  "bitflags 2.13.1",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
 ]
 
@@ -3260,7 +3260,7 @@ checksum = "a0125f776a10d00af4152d74616409f0d4a2053a6f57fa5b7d6aa2854ac04794"
 dependencies = [
  "bitflags 2.13.1",
  "block2 0.6.2",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-foundation 0.3.2",
 ]
 
@@ -3284,7 +3284,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96c1358452b371bf9f104e21ec536d37a650eb10f7ee379fff67d2e08d537f1f"
 dependencies = [
  "bitflags 2.13.1",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
@@ -3329,7 +3329,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d87d638e33c06f577498cbcc50491496a3ed4246998a7fbba7ccb98b1e7eab22"
 dependencies = [
  "bitflags 2.13.1",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
 ]
@@ -3490,9 +3490,9 @@ dependencies = [
 
 [[package]]
 name = "parlance"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b6937eda350acc1a5d05872c3cbf99fe78619c269096e2be3d4a350058639d5"
+checksum = "73072a9470554c8e794778acece2312661218aaabb635600957d952cf01c716e"
 
 [[package]]
 name = "peniko"
@@ -3947,9 +3947,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.10.2"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
+checksum = "65c9fb96cbc91e3478eaae79a69fcd3f1ae4ad052e471fe6732fff548984b4af"
 dependencies = [
  "chacha20",
  "getrandom 0.4.3",
@@ -3999,7 +3999,7 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40d213455a5f1dc59214213c7330e074ddf8114c9a42411eb890c767357ce135"
 dependencies = [
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
  "objc2-quartz-core 0.3.2",
@@ -4137,7 +4137,7 @@ dependencies = [
  "js-sys",
  "libc",
  "log",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
@@ -4303,9 +4303,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.15"
+version = "0.103.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3c3cf1d8b1e7d4927e2d154c3fcb02979afb9939629c62cd9048d4f07b60ac2"
+checksum = "4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281"
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -4434,7 +4434,7 @@ checksum = "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -4458,7 +4458,7 @@ checksum = "8d3b1629de253c70a0508c3899572da79ca359fdab27c7920ff00406df418906"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -4579,9 +4579,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.16.0"
+version = "1.16.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9be42f50aa861c555654aa3a37f52f4b1074bacf4e48fe0ef7fa584e80f1f0f"
+checksum = "5b3dc8af474f516a851ff4bd12db780f948b9250ad37211e4eec0bccea54e01b"
 dependencies = [
  "serde",
 ]
@@ -4717,9 +4717,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "3.0.5"
+version = "3.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12df2e0110f65b775f769bb17ef989067a1d931b2eb822bd4346631eeada89f9"
+checksum = "d78c8dee4c7bf0e14673097256fed6142ce9d3b85a408189d07482442145823b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4774,7 +4774,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
@@ -4885,7 +4885,7 @@ checksum = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -4995,9 +4995,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.53.1"
+version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
+checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
  "libc",
  "mio",
@@ -5158,9 +5158,9 @@ checksum = "0b993bddc193ae5bd0d623b49ec06ac3e9312875fdae725a975c51db1cc1677f"
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.24"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
+checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 
 [[package]]
 name = "unicode-properties"
@@ -5194,9 +5194,9 @@ checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
 
 [[package]]
 name = "unicode_names2"
-version = "3.1.0"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82c3e18d850bb6ebd57735e5654f0af65e572b05c2397e7b2b1a7c6a792cc29c"
+checksum = "8ba646312acace3c9ec35d7404b58214b6fbf17cbb0d040f35a88407c424447f"
 dependencies = [
  "phf 0.11.3",
  "unicode_names2_generator",
@@ -5204,9 +5204,9 @@ dependencies = [
 
 [[package]]
 name = "unicode_names2_generator"
-version = "3.1.0"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "849744a58c479122ff24910d7ca57f312b62613ef0412dc327776ae6b235d16a"
+checksum = "3afbb72a8cff40859641ae4e56679215a15764e5c155a46f0f534611bdc08e0e"
 dependencies = [
  "phf_codegen",
  "rand 0.8.8",
@@ -5325,9 +5325,9 @@ dependencies = [
 
 [[package]]
 name = "vello_common"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbb2141a2bca6e6d598e471fd4d1d7eed8e020aad6a28187edda07f091a325dd"
+checksum = "73c2fbe53548bcd25c8ff42f75a93770a8611a16b37bee56d7ef7b44e36027f1"
 dependencies = [
  "bytemuck",
  "fearless_simd",
@@ -5341,9 +5341,9 @@ dependencies = [
 
 [[package]]
 name = "vello_cpu"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ace506ca414548966fcf3c283be94eb1cad8254de488791ee698bf438b0890a9"
+checksum = "ed1fec424fbba6acf6cbc78bb526447eb77590d95f40419d598870fe37535212"
 dependencies = [
  "bytemuck",
  "glifo",
@@ -5576,7 +5576,7 @@ dependencies = [
  "jni",
  "log",
  "ndk-context",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
  "url",
@@ -5585,9 +5585,9 @@ dependencies = [
 
 [[package]]
 name = "webpki-roots"
-version = "1.0.9"
+version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dcd9d09a39985f5344844e66b0c530a33843579125f23e21e9f0f220850f22a"
+checksum = "1c1c8e20c8a38fc7d65abfe74eb7280e4aa667e8eec8bc84996d2874810748d9"
 dependencies = [
  "rustls-pki-types",
 ]
@@ -5726,7 +5726,7 @@ dependencies = [
  "naga",
  "naga-types",
  "ndk-sys",
- "objc2 0.6.4",
+ "objc2 0.6.5",
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
@@ -6279,7 +6279,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
  "zbus_names",
  "zvariant",
  "zvariant_utils",
@@ -6394,7 +6394,7 @@ checksum = "34df6fc39dbd26ddc9c10e6a2984476e13acce22e64e4487636ef494369225da"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -6457,7 +6457,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn 3.0.5",
+ "syn 3.0.9",
  "zvariant_utils",
 ]
 
@@ -6470,6 +6470,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde",
- "syn 3.0.5",
+ "syn 3.0.9",
  "winnow",
 ]

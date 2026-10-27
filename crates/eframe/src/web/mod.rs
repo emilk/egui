@@ -266,7 +266,7 @@ fn to_image(image: &egui::ColorImage) -> Result<image::RgbaImage, String> {
     image::RgbaImage::from_raw(
         image.width() as _,
         image.height() as _,
-        bytemuck::cast_slice(&image.pixels).to_vec(),
+        bytemuck::cast_slice(image.pixels()).to_vec(),
     )
     .ok_or_else(|| "Invalid IconData".to_owned())
 }

@@ -225,7 +225,7 @@ impl crate::View for TessellationTest {
                 let mut tessellator = epaint::Tessellator::new(
                     1.0,
                     *tessellation_options,
-                    ui.fonts(|f| f.font_image_size()),
+                    ui.fonts(|f| f.font_image_resolution()),
                     vec![],
                 );
                 tessellator.tessellate_rect(&shape, &mut mesh);

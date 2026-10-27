@@ -229,8 +229,8 @@ impl Fonts {
 
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
-    pub fn font_image_size(&self) -> [usize; 2] {
-        self.fonts.glyphs.atlas().size()
+    pub fn font_image_resolution(&self) -> [usize; 2] {
+        self.fonts.glyphs.atlas().resolution()
     }
 
     /// Do the installed fonts have this glyph?
@@ -345,8 +345,8 @@ impl FontsView<'_> {
 
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
-    pub fn font_image_size(&self) -> [usize; 2] {
-        self.fonts.glyphs.atlas().size()
+    pub fn font_image_resolution(&self) -> [usize; 2] {
+        self.fonts.glyphs.atlas().resolution()
     }
 
     /// Width of this character in points.
