@@ -52,6 +52,18 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("demo_only_tessellate", |b| {
             b.iter(|| ctx.tessellate(full_output.shapes.clone(), full_output.pixels_per_point));
         });
+
+        c.bench_function("demo_damage_tracker_unchanged", |b| {
+            let mut tracker = egui::epaint::DamageTracker::default();
+            let no_textures = egui::TexturesDelta::default();
+            b.iter(|| {
+                tracker.update(
+                    &full_output.shapes,
+                    full_output.pixels_per_point,
+                    &no_textures,
+                )
+            });
+        });
         full_output.drop_without_applying_deltas();
     }
 

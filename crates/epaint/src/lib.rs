@@ -30,6 +30,7 @@ mod brush;
 pub mod color;
 mod corner_radius;
 mod corner_radius_f32;
+pub mod damage;
 mod direction;
 pub mod image;
 mod margin;
@@ -55,6 +56,7 @@ pub use self::{
     color::ColorMode,
     corner_radius::CornerRadius,
     corner_radius_f32::CornerRadiusF32,
+    damage::{Damage, DamageTracker},
     direction::Direction,
     image::{ColorImage, FontColorTransferFunction, ImageData, ImageDelta},
     margin::Margin,
