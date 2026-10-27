@@ -163,6 +163,12 @@ pub use {egui_wgpu, egui_wgpu::SurfaceConfig, egui_wgpu::WgpuConfiguration, egui
 
 mod epi;
 
+#[cfg(any(
+    all(target_arch = "wasm32", feature = "wgpu_no_default_features"),
+    test
+))]
+mod pending_screenshots;
+
 // Re-export everything in `epi` so `eframe` users don't have to care about what `epi` is:
 pub use epi::*;
 
