@@ -96,6 +96,10 @@ pub struct Painter {
 
     textures: HashMap<egui::TextureId, glow::Texture>,
 
+    /// The meshes of a frame are uploaded together, these keep their allocation between frames.
+    frame_vertices: Vec<egui::epaint::Vertex>,
+    frame_indices: Vec<u32>,
+
     next_native_tex_id: u64,
 
     /// Stores outdated OpenGL textures that are yet to be deleted
@@ -265,6 +269,8 @@ impl Painter {
                 vbo,
                 element_array_buffer,
                 textures: Default::default(),
+                frame_vertices: Vec::new(),
+                frame_indices: Vec::new(),
                 next_native_tex_id: 1 << 32,
                 textures_to_destroy: Vec::new(),
                 destroyed: false,
@@ -407,7 +413,9 @@ impl Painter {
         self.assert_not_destroyed();
 
         unsafe { self.prepare_painting(screen_size_px, pixels_per_point) };
+        self.upload_meshes(clipped_primitives);
 
+        let mut first_index = 0;
         for egui::ClippedPrimitive {
             clip_rect,
             primitive,
@@ -417,7 +425,8 @@ impl Painter {
 
             match primitive {
                 Primitive::Mesh(mesh) => {
-                    self.paint_mesh(mesh);
+                    self.paint_mesh(mesh, first_index);
+                    first_index += mesh.indices.len();
                 }
                 Primitive::Callback(callback) => {
                     if callback.rect.is_positive() {
@@ -467,35 +476,48 @@ impl Painter {
         }
     }
 
+    /// One vertex and one index buffer for the whole frame: a buffer upload per mesh costs more in drivers than the
+    /// copy. Indices are rebased onto the combined vertex buffer, base-vertex draws are not in GLES 3.0.
+    fn upload_meshes(&mut self, clipped_primitives: &[egui::ClippedPrimitive]) {
+        profiling::function_scope!();
+        self.frame_vertices.clear();
+        self.frame_indices.clear();
+        for primitive in clipped_primitives {
+            if let Primitive::Mesh(mesh) = &primitive.primitive {
+                let base = self.frame_vertices.len() as u32;
+                self.frame_vertices.extend_from_slice(&mesh.vertices);
+                self.frame_indices
+                    .extend(mesh.indices.iter().map(|index| index + base));
+            }
+        }
+        unsafe {
+            self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
+            self.gl.buffer_data_u8_slice(
+                glow::ARRAY_BUFFER,
+                bytemuck::cast_slice(&self.frame_vertices),
+                glow::STREAM_DRAW,
+            );
+            self.gl
+                .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
+            self.gl.buffer_data_u8_slice(
+                glow::ELEMENT_ARRAY_BUFFER,
+                bytemuck::cast_slice(&self.frame_indices),
+                glow::STREAM_DRAW,
+            );
+        }
+    }
+
     #[inline(never)] // Easier profiling
-    fn paint_mesh(&mut self, mesh: &Mesh) {
+    fn paint_mesh(&mut self, mesh: &Mesh, first_index: usize) {
         debug_assert!(mesh.is_valid(), "Mesh is not valid");
         if let Some(texture) = self.texture(mesh.texture_id) {
             unsafe {
-                self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
-                self.gl.buffer_data_u8_slice(
-                    glow::ARRAY_BUFFER,
-                    bytemuck::cast_slice(&mesh.vertices),
-                    glow::STREAM_DRAW,
-                );
-
-                self.gl
-                    .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_array_buffer));
-                self.gl.buffer_data_u8_slice(
-                    glow::ELEMENT_ARRAY_BUFFER,
-                    bytemuck::cast_slice(&mesh.indices),
-                    glow::STREAM_DRAW,
-                );
-
                 self.gl.bind_texture(glow::TEXTURE_2D, Some(texture));
-            }
-
-            unsafe {
                 self.gl.draw_elements(
                     glow::TRIANGLES,
                     mesh.indices.len() as i32,
                     glow::UNSIGNED_INT,
-                    0,
+                    (first_index * size_of::<u32>()) as i32,
                 );
             }
 
