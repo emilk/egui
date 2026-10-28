@@ -11,6 +11,12 @@ pub struct FontBook {
     filter: String,
     font_id: egui::FontId,
     available_glyphs: BTreeMap<egui::FontFamily, BTreeMap<char, GlyphInfo>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    font_path: String,
+    #[cfg(not(target_arch = "wasm32"))]
+    font_load_message: Option<String>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pending_font_cache_reset: bool,
 }
 
 impl Default for FontBook {
@@ -19,6 +25,12 @@ impl Default for FontBook {
             filter: Default::default(),
             font_id: egui::FontId::proportional(18.0),
             available_glyphs: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            font_path: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            font_load_message: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            pending_font_cache_reset: false,
         }
     }
 }
@@ -60,6 +72,49 @@ impl crate::View for FontBook {
         ui.separator();
 
         egui::introspection::font_id_ui(ui, &mut self.font_id);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if self.pending_font_cache_reset {
+                self.available_glyphs.remove(&self.font_id.family);
+                self.pending_font_cache_reset = false;
+            }
+
+            let load_clicked = ui
+                .horizontal(|ui| {
+                    ui.label("Font path:");
+                    ui.add(egui::TextEdit::singleline(&mut self.font_path).desired_width(240.0));
+                    ui.button("Load font").clicked()
+                })
+                .inner;
+
+            if load_clicked {
+                match std::fs::read(&self.font_path) {
+                    Ok(font_bytes) => {
+                        let family = self.font_id.family.clone();
+                        let font_name = format!("font-book:{}:{family:?}", self.font_path);
+                        ui.ctx().add_font(egui::FontInsert::new(
+                            &font_name,
+                            egui::FontData::from_owned(font_bytes),
+                            vec![egui::InsertFontFamily {
+                                family: family.clone(),
+                                priority: egui::FontPriority::Lowest,
+                            }],
+                        ));
+                        self.font_load_message =
+                            Some(format!("Loaded font as fallback for {family:?}."));
+                        self.pending_font_cache_reset = true;
+                        ui.ctx().request_repaint();
+                    }
+                    Err(error) => {
+                        self.font_load_message = Some(format!("Could not read font file: {error}"));
+                    }
+                }
+            }
+
+            if let Some(message) = &self.font_load_message {
+                ui.label(message);
+            }
+        }
 
         let font_id = self.font_id.clone();
         let available_glyphs = self
@@ -96,7 +151,10 @@ impl crate::View for FontBook {
         let matching_glyphs: Vec<(char, &GlyphInfo)> = available_glyphs
             .iter()
             .filter(|(chr, glyph_info)| {
-                filter.is_empty() || glyph_info.name.contains(filter) || *filter == chr.to_string()
+                filter.is_empty()
+                    || glyph_info.name.contains(filter)
+                    || format!("{:x}", **chr as u32).starts_with(filter.as_str())
+                    || *filter == chr.to_string()
             })
             .map(|(&chr, glyph_info)| (chr, glyph_info))
             .collect();
@@ -106,7 +164,9 @@ impl crate::View for FontBook {
         // Each glyph gets a fixed-size cell so we can calculate what is visible,
         // and only paint those glyphs.
         let spacing = egui::Vec2::splat(2.0);
-        let cell_size = egui::Vec2::splat((1.5 * font_id.size).round());
+        let cell_height = ui.fonts_mut(|fonts| fonts.row_height(&font_id)) * 2.0;
+        let cell_width = (font_id.size * 2.0).max(cell_height);
+        let cell_size = egui::vec2(cell_width, cell_height);
 
         let num_columns = ((ui.available_width() + spacing.x) / (cell_size.x + spacing.x)).floor();
         let num_columns = (num_columns as usize).max(1);
@@ -124,8 +184,29 @@ impl crate::View for FontBook {
                         let start = row * num_columns;
                         let end = (start + num_columns).min(matching_glyphs.len());
                         for &(chr, glyph_info) in &matching_glyphs[start..end] {
+                            let glyph_bounds = ui
+                                .painter()
+                                .layout_no_wrap(
+                                    chr.to_string(),
+                                    font_id.clone(),
+                                    egui::Color32::WHITE,
+                                )
+                                .mesh_bounds;
+                            let glyph_size = glyph_bounds.size();
+                            let scale_x = if glyph_size.x > cell_width {
+                                cell_width / glyph_size.x
+                            } else {
+                                1.0
+                            };
+                            let scale_y = if glyph_size.y > cell_height {
+                                cell_height / glyph_size.y
+                            } else {
+                                1.0
+                            };
+                            let mut glyph_font_id = font_id.clone();
+                            glyph_font_id.size *= scale_x.min(scale_y);
                             let button =
-                                egui::Button::new(egui::RichText::new(chr).font(font_id.clone()))
+                                egui::Button::new(egui::RichText::new(chr).font(glyph_font_id))
                                     .frame(false);
 
                             let tooltip_ui = |ui: &mut egui::Ui| {
