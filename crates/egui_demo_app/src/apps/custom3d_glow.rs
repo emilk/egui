@@ -14,7 +14,7 @@ pub struct Custom3d {
 
 impl Custom3d {
     pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Option<Self> {
-        let gl = cc.gl.as_ref()?;
+        let gl = cc.gl.as_ref()?.clone();
         Some(Self {
             rotating_triangle: Arc::new(Mutex::new(RotatingTriangle::new(gl)?)),
             angle: 0.0,
@@ -45,12 +45,6 @@ impl crate::DemoApp for Custom3d {
             });
         });
     }
-
-    fn on_exit(&mut self, gl: Option<&glow::Context>) {
-        if let Some(gl) = gl {
-            self.rotating_triangle.lock().destroy(gl);
-        }
-    }
 }
 
 impl Custom3d {
@@ -77,16 +71,17 @@ impl Custom3d {
 }
 
 struct RotatingTriangle {
+    gl: Arc<glow::Context>,
     program: glow::Program,
     vertex_array: glow::VertexArray,
 }
 
 #[expect(unsafe_code)] // we need unsafe code to use glow
 impl RotatingTriangle {
-    fn new(gl: &glow::Context) -> Option<Self> {
+    fn new(gl: Arc<glow::Context>) -> Option<Self> {
         use glow::HasContext as _;
 
-        let shader_version = egui_glow::ShaderVersion::get(gl);
+        let shader_version = egui_glow::ShaderVersion::get(&gl);
 
         unsafe {
             let program = gl.create_program().expect("Cannot create program");
@@ -174,17 +169,10 @@ impl RotatingTriangle {
                 .expect("Cannot create vertex array");
 
             Some(Self {
+                gl,
                 program,
                 vertex_array,
             })
-        }
-    }
-
-    fn destroy(&self, gl: &glow::Context) {
-        use glow::HasContext as _;
-        unsafe {
-            gl.delete_program(self.program);
-            gl.delete_vertex_array(self.vertex_array);
         }
     }
 
@@ -198,6 +186,16 @@ impl RotatingTriangle {
             );
             gl.bind_vertex_array(Some(self.vertex_array));
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
+        }
+    }
+}
+
+impl Drop for RotatingTriangle {
+    fn drop(&mut self) {
+        use glow::HasContext as _;
+        unsafe {
+            self.gl.delete_program(self.program);
+            self.gl.delete_vertex_array(self.vertex_array);
         }
     }
 }
