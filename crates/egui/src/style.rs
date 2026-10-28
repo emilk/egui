@@ -1551,7 +1551,7 @@ impl Default for Style {
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
-            url_in_tooltip: false,
+            url_in_tooltip: true,
             always_scroll_the_only_direction: false,
             scroll_animation: ScrollAnimation::default(),
             compact_menu_style: true,
