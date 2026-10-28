@@ -75,6 +75,8 @@ pub struct InputOptions {
 
     /// The new pointer press must come within this many seconds from previous pointer release
     /// for double click (or when this value is doubled, triple click) to count.
+    ///
+    /// Also the maximum time between key presses for [`InputState::key_double_pressed`].
     pub max_double_click_delay: f64,
 
     /// When this modifier is down, all scroll events are treated as zoom events.
@@ -323,6 +325,14 @@ pub struct InputState {
     /// Keys released this frame are NOT considered down.
     pub keys_down: HashSet<Key>,
 
+    /// Last distinct press of each logical key, including consumed presses.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    key_press_times: BTreeMap<Key, f64>,
+
+    /// Signatures of double presses this pass, checked against unconsumed events.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    double_pressed_keys: HashSet<(Key, Modifiers)>,
+
     /// In-order events received this frame
     pub events: Vec<Event>,
 
@@ -355,6 +365,8 @@ impl Default for InputState {
             focused: false,
             modifiers: Default::default(),
             keys_down: Default::default(),
+            key_press_times: Default::default(),
+            double_pressed_keys: Default::default(),
             events: Default::default(),
             options: Default::default(),
         }
@@ -392,6 +404,10 @@ impl InputState {
         let pointer = self.pointer.begin_pass(time, &new, options);
 
         let mut keys_down = self.keys_down;
+        self.double_pressed_keys.clear();
+        if !new.focused {
+            self.key_press_times.clear();
+        }
         let mut modifiers = self.modifiers;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
         let mut rotation_radians = 0.0;
@@ -404,11 +420,19 @@ impl InputState {
                     key,
                     pressed,
                     repeat,
+                    modifiers,
                     ..
                 } => {
                     if *pressed {
                         let first_press = keys_down.insert(*key);
                         *repeat = !first_press;
+                        if first_press
+                            && new.focused
+                            && let Some(last_press) = self.key_press_times.insert(*key, time)
+                            && time - last_press < options.max_double_click_delay
+                        {
+                            self.double_pressed_keys.insert((*key, *modifiers));
+                        }
                     } else {
                         keys_down.remove(key);
                     }
@@ -447,6 +471,8 @@ impl InputState {
                     // So we take the safe route and just clear all the keys and modifiers when
                     // the app loses focus.
                     keys_down.clear();
+                    self.key_press_times.clear();
+                    self.double_pressed_keys.clear();
                     modifiers = Modifiers::default();
                 }
                 _ => {}
@@ -490,6 +516,8 @@ impl InputState {
             focused: new.focused,
             modifiers,
             keys_down,
+            key_press_times: self.key_press_times,
+            double_pressed_keys: self.double_pressed_keys,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
             options,
@@ -766,6 +794,34 @@ impl InputState {
     /// Includes key-repeat events.
     pub fn key_pressed(&self, desired_key: Key) -> bool {
         self.num_presses(desired_key) > 0
+    }
+
+    /// Was the given logical key pressed twice in quick succession?
+    ///
+    /// Returns true on the second press, with a release between presses. Key repeats do not count.
+    /// The time between presses must be less than [`InputOptions::max_double_click_delay`].
+    /// Presses received in one frame have the same time. Each later press in a rapid sequence
+    /// can complete another pair. Other keys and modifiers do not interrupt the sequence.
+    /// Losing window focus resets detection.
+    ///
+    /// This does not consume input or delay [`Self::key_pressed`], which is also true on the
+    /// second press. Consuming the completing press with [`Self::consume_key`] prevents detection,
+    /// but consumed earlier presses still count towards a pair.
+    ///
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// if ctx.input(|input| input.key_double_pressed(egui::Key::Escape)) {
+    ///     // Handle double Escape.
+    /// }
+    /// ```
+    pub fn key_double_pressed(&self, desired_key: Key) -> bool {
+        self.events.iter().any(|event| {
+            matches!(
+                event,
+                Event::Key { key, pressed: true, repeat: false, modifiers, .. }
+                if *key == desired_key && self.double_pressed_keys.contains(&(*key, *modifiers))
+            )
+        })
     }
 
     /// How many times was the given key pressed this frame?
@@ -1644,6 +1700,8 @@ impl InputState {
             focused,
             modifiers,
             keys_down,
+            key_press_times: _,
+            double_pressed_keys: _,
             events,
             options: _,
         } = self;
