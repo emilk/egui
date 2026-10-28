@@ -1467,19 +1467,32 @@ impl Tessellator {
         }
     }
 
-    /// Whether everything `shape` paints, antialiasing and pixel snapping included, lies within `clip_rect`.
-    fn is_inside(&self, shape: &Shape, clip_rect: Rect) -> bool {
+    /// Whether `shape`, clipped to `clip_rect`, can join a mesh clipped to `mesh_clip_rect`.
+    fn mesh_sharing(&self, shape: &Shape, clip_rect: Rect, mesh_clip_rect: Rect) -> MeshSharing {
         let bounds = match shape {
             Shape::Text(text) => text
                 .galley
                 .mesh_bounds
-                .union(text.galley.rect)
                 .rotate_bb(emath::Rot2::from_angle(text.angle))
                 .translate(text.pos.to_vec2()),
             _ => shape.visual_bounding_rect(),
         };
+        if !bounds.is_finite() {
+            return MeshSharing::Never;
+        }
+        // Antialiasing and pixel snapping move the vertices by up to this much.
         let margin = self.feathering + 2.0 / self.pixels_per_point;
-        bounds.is_finite() && clip_rect.contains_rect(bounds.expand(margin))
+        let cut_alike = |bounds: Rect| {
+            clip_rects_cut_alike(bounds, clip_rect, mesh_clip_rect, self.pixels_per_point)
+        };
+        let inner = bounds.shrink(margin);
+        if cut_alike(bounds.expand(margin)) {
+            MeshSharing::Always
+        } else if !inner.is_positive() || cut_alike(inner) {
+            MeshSharing::IfVerticesAllow
+        } else {
+            MeshSharing::Never
+        }
     }
 
     /// Set the [`Rect`] to use for culling.
@@ -1530,20 +1543,60 @@ impl Tessellator {
             return;
         }
 
-        // A shape the clip rect does not cut can join the current mesh under its clip rect: one draw call less.
-        let clip_rect = match out_primitives.last() {
-            Some(ClippedPrimitive {
-                clip_rect: current,
+        // A shape both clip rects cut the same way joins the current mesh: one draw call less.
+        if transform == TSTransform::IDENTITY
+            && let Some(ClippedPrimitive {
+                clip_rect: mesh_clip_rect,
                 primitive: Primitive::Mesh(mesh),
-            }) if *current != clip_rect
-                && transform == TSTransform::IDENTITY
-                && mesh.texture_id == shape.texture_id()
-                && self.is_inside(&shape, clip_rect.intersect(*current)) =>
+            }) = out_primitives.last()
+            && *mesh_clip_rect != clip_rect
+            && mesh.texture_id == shape.texture_id()
+        {
+            let mesh_clip_rect = *mesh_clip_rect;
+            let sharing = self.mesh_sharing(&shape, clip_rect, mesh_clip_rect);
+            if sharing != MeshSharing::Never
+                && let Some(ClippedPrimitive {
+                    primitive: Primitive::Mesh(mesh),
+                    ..
+                }) = out_primitives.last_mut()
             {
-                *current
+                let (first_vertex, first_index) = (mesh.vertices.len(), mesh.indices.len());
+                self.clip_rect = clip_rect;
+                self.tessellate_shape(shape, mesh);
+                if sharing == MeshSharing::Always {
+                    return;
+                }
+
+                let mut vertex_bounds = Rect::NOTHING;
+                for vertex in &mesh.vertices[first_vertex..] {
+                    vertex_bounds.extend_with(vertex.pos);
+                }
+                if vertex_bounds.is_negative()
+                    || clip_rects_cut_alike(
+                        vertex_bounds,
+                        clip_rect,
+                        mesh_clip_rect,
+                        self.pixels_per_point,
+                    )
+                {
+                    return;
+                }
+
+                let mut own_mesh = Mesh::with_texture(mesh.texture_id);
+                own_mesh.vertices = mesh.vertices.split_off(first_vertex);
+                own_mesh.indices = mesh
+                    .indices
+                    .split_off(first_index)
+                    .into_iter()
+                    .map(|index| index - first_vertex as u32)
+                    .collect();
+                out_primitives.push(ClippedPrimitive {
+                    clip_rect,
+                    primitive: Primitive::Mesh(own_mesh),
+                });
+                return;
             }
-            _ => clip_rect,
-        };
+        }
 
         let start_new_mesh = match out_primitives.last() {
             None => true,
@@ -2979,8 +3032,35 @@ fn tessellate_band_stroke_kind() {
     );
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum MeshSharing {
+    Always,
+    IfVerticesAllow,
+    Never,
+}
+
+/// Whether the scissor rects of `a` and `b` let through the same pixels of something within `bounds`.
+///
+/// Backends round clip rect edges to the nearest pixel, so equal rounded edges cut alike, and an edge at or
+/// beyond `bounds` cuts nothing.
+fn clip_rects_cut_alike(bounds: Rect, a: Rect, b: Rect, pixels_per_point: f32) -> bool {
+    let px = |x: f32| (x * pixels_per_point).round();
+    let min_side = |a: f32, b: f32, bound: f32| {
+        let bound = (bound * pixels_per_point).floor();
+        px(a) == px(b) || (px(a) <= bound && px(b) <= bound)
+    };
+    let max_side = |a: f32, b: f32, bound: f32| {
+        let bound = (bound * pixels_per_point).ceil();
+        px(a) == px(b) || (px(a) >= bound && px(b) >= bound)
+    };
+    min_side(a.min.x, b.min.x, bounds.min.x)
+        && min_side(a.min.y, b.min.y, bounds.min.y)
+        && max_side(a.max.x, b.max.x, bounds.max.x)
+        && max_side(a.max.y, b.max.y, bounds.max.y)
+}
+
 #[test]
-fn shapes_their_clip_rect_does_not_cut_share_one_mesh() {
+fn shapes_both_clip_rects_cut_alike_share_one_mesh() {
     use crate::*;
 
     let tessellate = |shapes: Vec<ClippedShape>| {
@@ -3020,6 +3100,49 @@ fn shapes_their_clip_rect_does_not_cut_share_one_mesh() {
         "a shape crossing its clip rect keeps it"
     );
     assert_eq!(primitives[1].clip_rect, cell(100.0));
+    assert!(
+        primitives
+            .iter()
+            .all(|primitive| match &primitive.primitive {
+                Primitive::Mesh(mesh) => mesh.is_valid() && mesh.vertices.len() == 8,
+                Primitive::Callback(_) => false,
+            }),
+        "the shape moved out of the shared mesh with all of its vertices"
+    );
+
+    let mut glyph = Mesh::default();
+    glyph.add_rect_with_uv(
+        Rect::from_min_size(cell(100.0).min, vec2(10.0, 10.0)),
+        Rect::ZERO,
+        Color32::WHITE,
+    );
+    let at_the_edge = vec![
+        ClippedShape::new(screen, square(0.0)),
+        ClippedShape::new(cell(100.0), Shape::mesh(glyph)),
+    ];
+    assert_eq!(
+        tessellate(at_the_edge).len(),
+        1,
+        "a glyph starting exactly at its clip rect is not cut by it"
+    );
+
+    let row = Rect::from_min_max(pos2(0.0, 100.0), pos2(500.0, 200.0));
+    let across_the_left_edge = vec![
+        ClippedShape::new(screen, square(100.0)),
+        ClippedShape::new(
+            row,
+            Shape::rect_filled(
+                Rect::from_min_max(pos2(-10.0, 120.0), pos2(50.0, 140.0)),
+                0.0,
+                Color32::RED,
+            ),
+        ),
+    ];
+    assert_eq!(
+        tessellate(across_the_left_edge).len(),
+        1,
+        "both clip rects cut the shape at the same edge"
+    );
 
     let mut textured = Mesh::with_texture(TextureId::Managed(7));
     textured.add_rect_with_uv(
