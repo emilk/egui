@@ -16,6 +16,7 @@ pub enum Key {
     Tab,
     Backspace,
     Enter,
+
     /// The numeric keypad Enter key, reported as a physical key.
     /// Its logical key remains [`Self::Enter`].
     NumpadEnter,

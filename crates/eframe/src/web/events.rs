@@ -1123,3 +1123,124 @@ fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32
 
     Ok(((width.round() * dpr) as u32, (height.round() * dpr) as u32))
 }
+
+#[cfg(all(test, feature = "glow"))]
+mod tests {
+    use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
+
+    use super::*;
+
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    struct TestApp;
+
+    impl crate::App for TestApp {
+        fn ui(&mut self, _ui: &mut egui::Ui, _frame: &mut crate::Frame) {}
+    }
+
+    #[wasm_bindgen_test]
+    async fn enter_keydown_and_keyup_keep_logical_enter_and_physical_position() {
+        let document = web_sys::window().unwrap().document().unwrap();
+        let canvas: web_sys::HtmlCanvasElement = document
+            .create_element("canvas")
+            .unwrap()
+            .dyn_into()
+            .unwrap();
+        document.body().unwrap().append_child(&canvas).unwrap();
+        let web_runner = WebRunner::new();
+        let text_agent = super::super::text_agent::TextAgent::attach(&web_runner, &canvas).unwrap();
+        let mut runner = AppRunner::new(
+            canvas.clone(),
+            crate::WebOptions {
+                renderer: crate::Renderer::Glow,
+                ..Default::default()
+            },
+            Box::new(|_| Ok(Box::new(TestApp))),
+            text_agent,
+        )
+        .await
+        .unwrap();
+        runner.input.raw.focused = true;
+
+        for (logical, physical, expected_key, expected_physical, ctrl) in [
+            ("Enter", "Enter", egui::Key::Enter, egui::Key::Enter, false),
+            (
+                "Enter",
+                "NumpadEnter",
+                egui::Key::Enter,
+                egui::Key::NumpadEnter,
+                false,
+            ),
+            (
+                "Unidentified",
+                "NumpadEnter",
+                egui::Key::Enter,
+                egui::Key::NumpadEnter,
+                false,
+            ),
+            (
+                "NumpadEnter",
+                "NumpadEnter",
+                egui::Key::Enter,
+                egui::Key::NumpadEnter,
+                false,
+            ),
+            (
+                "a",
+                "NumpadEnter",
+                egui::Key::A,
+                egui::Key::NumpadEnter,
+                false,
+            ),
+            ("\u{0439}", "KeyQ", egui::Key::Q, egui::Key::Q, false),
+            ("Enter", "Enter", egui::Key::Enter, egui::Key::Enter, true),
+        ] {
+            runner.input.raw.events.clear();
+            let init = web_sys::KeyboardEventInit::new();
+            init.set_key(logical);
+            init.set_code(physical);
+            init.set_ctrl_key(ctrl);
+
+            on_keydown(
+                web_sys::KeyboardEvent::new_with_keyboard_event_init_dict("keydown", &init)
+                    .unwrap(),
+                &mut runner,
+            );
+            on_keyup(
+                web_sys::KeyboardEvent::new_with_keyboard_event_init_dict("keyup", &init).unwrap(),
+                &mut runner,
+            );
+
+            let key_events: Vec<_> = runner
+                .input
+                .raw
+                .events
+                .iter()
+                .filter(|event| matches!(event, egui::Event::Key { .. }))
+                .cloned()
+                .collect();
+            let expected: Vec<_> = [true, false]
+                .into_iter()
+                .map(|pressed| egui::Event::Key {
+                    key: expected_key,
+                    physical_key: Some(expected_physical),
+                    pressed,
+                    repeat: false,
+                    modifiers: egui::Modifiers {
+                        ctrl,
+                        command: ctrl,
+                        ..Default::default()
+                    },
+                })
+                .collect();
+            assert_eq!(
+                key_events, expected,
+                "key={logical}, code={physical}, ctrl={ctrl}"
+            );
+        }
+
+        drop(runner);
+        web_runner.destroy();
+        canvas.remove();
+    }
+}

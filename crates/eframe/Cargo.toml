@@ -299,3 +299,8 @@ wgpu = { workspace = true, optional = true }
 # Native dev dependencies for testing
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 directories.workspace = true
+
+# Browser event regression tests.
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test.workspace = true
+web-sys = { workspace = true, features = ["KeyboardEventInit"] }

@@ -1679,15 +1679,10 @@ fn logical_or_physical_key(
     logical: Option<egui::Key>,
     physical: Option<egui::Key>,
 ) -> Option<egui::Key> {
-    logical.or_else(|| {
-        physical.map(|key| {
-            if key == egui::Key::NumpadEnter {
-                egui::Key::Enter
-            } else {
-                key
-            }
-        })
-    })
+    match logical.or(physical) {
+        Some(egui::Key::NumpadEnter) => Some(egui::Key::Enter),
+        key => key,
+    }
 }
 
 #[test]
@@ -1711,6 +1706,10 @@ fn enter_keys_keep_distinct_physical_positions() {
     assert_eq!(
         logical_or_physical_key(None, Some(egui::Key::F1)),
         Some(egui::Key::F1)
+    );
+    assert_eq!(
+        logical_or_physical_key(Some(egui::Key::NumpadEnter), Some(egui::Key::NumpadEnter)),
+        Some(egui::Key::Enter)
     );
 }
 

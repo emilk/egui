@@ -178,28 +178,34 @@ pub(crate) fn logical_or_physical_key(
     logical: Option<egui::Key>,
     physical: Option<egui::Key>,
 ) -> Option<egui::Key> {
-    logical.or_else(|| {
-        physical.map(|key| {
-            if key == egui::Key::NumpadEnter {
-                egui::Key::Enter
-            } else {
-                key
-            }
-        })
-    })
+    match logical.or(physical) {
+        Some(egui::Key::NumpadEnter) => Some(egui::Key::Enter),
+        key => key,
+    }
 }
 
-#[test]
+#[cfg(test)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn enter_keys_keep_distinct_physical_positions() {
-    assert_eq!(translate_key("Enter"), Some(egui::Key::Enter));
-    assert_eq!(translate_key("NumpadEnter"), Some(egui::Key::NumpadEnter));
+    assert_eq!(
+        translate_key("Enter"),
+        Some(egui::Key::Enter),
+        "main Enter must stay Enter"
+    );
+    assert_eq!(
+        translate_key("NumpadEnter"),
+        Some(egui::Key::NumpadEnter),
+        "physical keypad Enter must stay distinct"
+    );
     assert_eq!(
         logical_or_physical_key(None, translate_key("NumpadEnter")),
-        Some(egui::Key::Enter)
+        Some(egui::Key::Enter),
+        "a missing logical key must fall back to logical Enter"
     );
     assert_eq!(
         logical_or_physical_key(translate_key("A"), translate_key("NumpadEnter")),
-        Some(egui::Key::A)
+        Some(egui::Key::A),
+        "an explicit logical remapping must take priority"
     );
 }
 
