@@ -2119,18 +2119,7 @@ fn process_viewport_command(
                 }
             });
         }
-        ViewportCommand::SetTheme(t) => {
-            window.set_theme(match t {
-                egui::SystemTheme::Light => Some(winit::window::Theme::Light),
-                egui::SystemTheme::Dark => Some(winit::window::Theme::Dark),
-                egui::SystemTheme::SystemDefault => None,
-            });
-
-            #[cfg(target_os = "windows")]
-            {
-                refresh_windows_non_client_activation(window);
-            }
-        }
+        ViewportCommand::SetTheme(t) => set_window_theme(window, t),
         ViewportCommand::ContentProtected(v) => window.set_content_protected(v),
         ViewportCommand::CursorPosition(pos) => {
             if let Err(err) = window.set_cursor_position(PhysicalPosition::new(
@@ -2585,6 +2574,18 @@ fn set_maximized_while_hidden(window: &winit::window::Window) {
     if cloaked {
         set_cloaked(false);
     }
+}
+
+/// Applies an egui system theme to a native window, including the Windows non-client refresh.
+pub fn set_window_theme(window: &winit::window::Window, theme: egui::SystemTheme) {
+    window.set_theme(match theme {
+        egui::SystemTheme::Light => Some(winit::window::Theme::Light),
+        egui::SystemTheme::Dark => Some(winit::window::Theme::Dark),
+        egui::SystemTheme::SystemDefault => None,
+    });
+
+    #[cfg(target_os = "windows")]
+    refresh_windows_non_client_activation(window);
 }
 
 #[cfg(target_os = "windows")]
