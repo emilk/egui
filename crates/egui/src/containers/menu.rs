@@ -753,6 +753,15 @@ impl SubMenu {
             let click_close = match menu_config.close_behavior {
                 PopupCloseBehavior::CloseOnClick => clicked_outside || clicked_inside,
                 PopupCloseBehavior::CloseOnClickOutside => clicked_outside,
+                // Only primary clicks close it, so that the release of the secondary press
+                // that opened a context menu does not.
+                PopupCloseBehavior::CloseOnPressOutside => {
+                    let pressed_outside = is_deepest_submenu
+                        && popup_response.response.pressed_elsewhere()
+                        && menu_root_response.pressed_elsewhere();
+                    pressed_outside
+                        || (clicked_inside && response.ctx.input(|i| i.pointer.primary_clicked()))
+                }
                 PopupCloseBehavior::IgnoreClicks => false,
             };
 
