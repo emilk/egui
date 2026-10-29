@@ -79,7 +79,7 @@ pub struct SurfaceConfig {
     /// `None` => Let `wgpu` pick a default (currently `2`).
     pub desired_maximum_frame_latency: Option<u32>,
 
-    /// Call [`winit::window::Window::pre_present_notify`] before presenting.
+    /// Call `winit::window::Window::pre_present_notify` before presenting.
     ///
     /// On Wayland, winit then holds back the window's next redraw until the compositor
     /// sends a frame callback, which paces frames to the display and keeps dragging
