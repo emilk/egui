@@ -117,6 +117,7 @@ impl Painter {
         let SurfaceConfig {
             present_mode,
             desired_maximum_frame_latency,
+            pre_present_notify: _,
         } = *config;
 
         // Transaction presentation can hold a drawable during AppKit live resize. Keep the
@@ -784,7 +785,9 @@ impl Painter {
         }
 
         if let Some(output_frame) = output_frame {
-            window.pre_present_notify();
+            if self.config.surface.pre_present_notify {
+                window.pre_present_notify();
+            }
 
             profiling::scope!("present");
             // wgpu doesn't document where vsync can happen. Maybe here?
