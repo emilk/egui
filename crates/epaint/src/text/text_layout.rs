@@ -1098,15 +1098,13 @@ fn galley_from_rows(
             let format = &job.sections[glyph.section_index as usize].format;
 
             // `font_ascent` is the ascent of the primary face of the family, i.e. the
-            // baseline of the row. Every glyph must be placed on that same baseline,
-            // regardless of which fallback face it came from, or text mixing scripts
-            // (e.g. latin + CJK) would end up on several different baselines.
+            // baseline of this section's row. Every glyph must be placed on that same
+            // baseline, regardless of which fallback face it came from, or text mixing
+            // scripts (e.g. latin + CJK) would end up on several different baselines.
             glyph.pos.y = glyph.font_ascent
-
                 // Apply valign to the difference in height of the entire row,
                 // and the line height of this glyph (which is the font height, unless explicitly set):
                 + format.valign.to_factor() * (max_row_height - glyph.line_height)
-
                 // If the line height was set explicitly (e.g. taller than the font),
                 // we always center the text within that line height, like CSS does.
                 // When `line_height` is not set, this is zero.
@@ -1668,19 +1666,30 @@ mod tests {
         let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
         let mut fonts = fonts.with_pixels_per_point(1.0);
 
+        // The baseline is decided by the primary face alone, so latin-only text gives us
+        // the y position every other glyph in the same section has to share:
+        let latin =
+            fonts.layout_no_wrap("Ag".to_owned(), FontId::proportional(40.0), Color32::WHITE);
+        let expected_y = latin.rows[0].row.glyphs[0].pos.y;
+
         // Latin from the primary face, plus an emoji from a fallback face:
         let galley = fonts.layout_no_wrap(
             "Ag👋".to_owned(),
             FontId::proportional(40.0),
             Color32::WHITE,
         );
-        let baselines: Vec<f32> = galley.rows[0].row.glyphs.iter().map(|g| g.pos.y).collect();
-        let min = baselines.iter().copied().fold(f32::INFINITY, f32::min);
-        let max = baselines.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let glyphs = &galley.rows[0].row.glyphs;
         assert!(
-            max - min < 0.01,
-            "glyphs from different faces are not on the same baseline: {baselines:?}"
+            glyphs.iter().any(|g| g.font_face_ascent != g.font_ascent),
+            "expected a glyph from a fallback face with different metrics, but got none"
         );
+        for glyph in glyphs {
+            assert_eq!(
+                glyph.pos.y, expected_y,
+                "glyph {:?} is not on the baseline of the primary face: {} != {expected_y}",
+                glyph.chr, glyph.pos.y,
+            );
+        }
     }
 
     /// With no font at all we still need one glyph per character and rows with height,
