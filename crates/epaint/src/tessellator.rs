@@ -1515,6 +1515,14 @@ impl Tessellator {
             return;
         }
 
+        if let Shape::Clear(rect) = shape {
+            out_primitives.push(ClippedPrimitive {
+                clip_rect,
+                primitive: Primitive::Clear(transform * rect),
+            });
+            return;
+        }
+
         let start_new_mesh = match out_primitives.last() {
             None => true,
             Some(output_clipped_primitive) => {
@@ -1523,7 +1531,7 @@ impl Tessellator {
                         Primitive::Mesh(output_mesh) => {
                             output_mesh.texture_id != shape.texture_id()
                         }
-                        Primitive::Callback(_) => true,
+                        Primitive::Callback(_) | Primitive::Clear(_) => true,
                     }
             }
         };
@@ -1561,7 +1569,8 @@ impl Tessellator {
 
     /// Tessellate a single [`Shape`] into a [`Mesh`].
     ///
-    /// This call can panic the given shape is of [`Shape::Vec`] or [`Shape::Callback`].
+    /// This call can panic the given shape is of [`Shape::Vec`], [`Shape::Callback`] or
+    /// [`Shape::Clear`].
     /// For that, use [`Self::tessellate_clipped_shape`] instead.
     /// * `shape`: the shape to tessellate.
     /// * `out`: triangles are appended to this.
@@ -1624,6 +1633,9 @@ impl Tessellator {
             Shape::CubicBezier(cubic_shape) => self.tessellate_cubic_bezier(&cubic_shape, out),
             Shape::Callback(_) => {
                 panic!("Shape::Callback passed to Tessellator");
+            }
+            Shape::Clear(_) => {
+                panic!("Shape::Clear passed to Tessellator");
             }
         }
     }
@@ -2509,6 +2521,7 @@ impl Tessellator {
                 && match &p.primitive {
                     Primitive::Mesh(mesh) => !mesh.is_empty(),
                     Primitive::Callback(_) => true,
+                    Primitive::Clear(rect) => rect.intersects(p.clip_rect),
                 }
         });
 
@@ -2548,7 +2561,8 @@ impl Tessellator {
                 | Shape::Mesh(_)
                 | Shape::LineSegment { .. }
                 | Shape::Rect(_)
-                | Shape::Callback(_) => false,
+                | Shape::Callback(_)
+                | Shape::Clear(_) => false,
             }
         }
 

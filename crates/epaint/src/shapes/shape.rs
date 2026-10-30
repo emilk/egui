@@ -75,6 +75,13 @@ pub enum Shape {
 
     /// Backend-specific painting.
     Callback(PaintCallback),
+
+    /// Make the pixels of a rect fully transparent, instead of painting over them.
+    ///
+    /// Everything painted before in the rect is cleared, and what is painted after blends
+    /// over transparency. Useful for showing something behind the egui surface, like a native
+    /// view or an `<iframe>` under the canvas, if the surface is transparent.
+    Clear(Rect),
 }
 
 #[test]
@@ -427,6 +434,7 @@ impl Shape {
             Self::QuadraticBezier(bezier) => bezier.visual_bounding_rect(),
             Self::CubicBezier(bezier) => bezier.visual_bounding_rect(),
             Self::Callback(custom) => custom.rect,
+            Self::Clear(rect) => *rect,
         }
     }
 }
@@ -521,6 +529,9 @@ impl Shape {
             }
             Self::Callback(shape) => {
                 shape.rect = transform * shape.rect;
+            }
+            Self::Clear(rect) => {
+                *rect = transform * *rect;
             }
         }
     }

@@ -188,11 +188,16 @@ pub struct ClippedPrimitive {
     pub primitive: Primitive,
 }
 
-/// A rendering primitive - either a [`Mesh`] or a [`PaintCallback`].
+/// A rendering primitive - a [`Mesh`], a [`PaintCallback`], or a rect to clear.
 #[derive(Clone, Debug)]
 pub enum Primitive {
     Mesh(Mesh),
     Callback(PaintCallback),
+
+    /// Replace the pixels of this rect, in points, with fully transparent ones.
+    ///
+    /// Only the part inside the clip rect is cleared. See [`Shape::Clear`].
+    Clear(emath::Rect),
 }
 
 // ---------------------------------------------------------------------------
