@@ -237,6 +237,9 @@ impl Default for RendererOptions {
 pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
 
+    /// Draws [`Primitive::Clear`]: replaces pixels with transparent black, without blending.
+    clear_pipeline: wgpu::RenderPipeline,
+
     index_buffer: SlicedBuffer,
     vertex_buffer: SlicedBuffer,
 
@@ -462,6 +465,56 @@ impl Renderer {
         )
         };
 
+        let clear_pipeline = {
+            profiling::scope!("create_clear_pipeline");
+            let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("egui_clear"),
+                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("clear.wgsl"))),
+            });
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("egui_clear_pipeline_layout"),
+                bind_group_layouts: &[],
+                immediate_size: 0,
+            });
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("egui_clear_pipeline"),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    entry_point: Some("vs_main"),
+                    module: &module,
+                    buffers: &[],
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                },
+                primitive: wgpu::PrimitiveState::default(),
+                depth_stencil: options
+                    .depth_stencil_format
+                    .map(|format| wgpu::DepthStencilState {
+                        format,
+                        depth_write_enabled: Some(false),
+                        depth_compare: Some(wgpu::CompareFunction::Always),
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
+                multisample: wgpu::MultisampleState {
+                    alpha_to_coverage_enabled: false,
+                    count: options.msaa_samples.max(1),
+                    mask: !0,
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &module,
+                    entry_point: Some("fs_main"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: output_color_format,
+                        blend: None, // Replace what is there.
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                }),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+
         const VERTEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
             (core::mem::size_of::<Vertex>() * 1024) as _;
         const INDEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
@@ -469,6 +522,7 @@ impl Renderer {
 
         Self {
             pipeline,
+            clear_pipeline,
             vertex_buffer: SlicedBuffer {
                 buffer: create_vertex_buffer(device, VERTEX_BUFFER_START_CAPACITY),
                 slices: Vec::with_capacity(64),
@@ -625,6 +679,19 @@ impl Renderer {
                         );
 
                         cbfn.0.paint(info, render_pass, &self.callback_resources);
+                    }
+                }
+                Primitive::Clear(rect) => {
+                    let rect = ScissorRect::new(
+                        &clip_rect.intersect(*rect),
+                        pixels_per_point,
+                        size_in_pixels,
+                    );
+                    if rect.width > 0 && rect.height > 0 {
+                        render_pass.set_scissor_rect(rect.x, rect.y, rect.width, rect.height);
+                        render_pass.set_pipeline(&self.clear_pipeline);
+                        render_pass.draw(0..3, 0..1);
+                        needs_reset = true;
                     }
                 }
             }
@@ -1005,6 +1072,7 @@ impl Renderer {
                         }
                         acc
                     }
+                    Primitive::Clear(_) => acc,
                 }
             })
         };
@@ -1049,7 +1117,7 @@ impl Renderer {
                         self.index_buffer.slices.push(slice);
                         index_offset += size;
                     }
-                    Primitive::Callback(_) => {}
+                    Primitive::Callback(_) | Primitive::Clear(_) => {}
                 }
             }
         }
@@ -1095,7 +1163,7 @@ impl Renderer {
                         self.vertex_buffer.slices.push(slice);
                         vertex_offset += size;
                     }
-                    Primitive::Callback(_) => {}
+                    Primitive::Callback(_) | Primitive::Clear(_) => {}
                 }
             }
         }
