@@ -4225,7 +4225,13 @@ impl Context {
         })
     }
 
-    pub(crate) fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
+    /// Make `parent_id` the accessibility parent of the node with `id`.
+    ///
+    /// This is for nodes that are not a [`Ui`], such as the rows of a table.
+    /// Call it before the node is first created with [`Self::accesskit_node_builder`],
+    /// since that is when a node is attached to its parent.
+    /// A [`Ui`]s parent is set with [`UiBuilder::accessibility_parent`] instead.
+    pub fn register_accesskit_parent(&self, id: Id, parent_id: Id) {
         self.write(|ctx| {
             if let Some(state) = ctx.viewport().this_pass.accesskit_state.as_mut() {
                 state.parent_map.insert(id, parent_id);

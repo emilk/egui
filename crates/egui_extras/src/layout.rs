@@ -1,4 +1,7 @@
-use egui::{IdSalt, Pos2, Rect, Response, Sense, Ui, UiBuilder, emath::GuiRounding as _};
+use egui::{
+    Id, IdSalt, Pos2, Rect, Response, Sense, Ui, UiBuilder, accesskit::Role,
+    emath::GuiRounding as _,
+};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -37,6 +40,18 @@ pub(crate) struct StripLayoutFlags {
 
     /// Used when we want to accurately measure the size of this cell.
     pub(crate) sizing_pass: bool,
+}
+
+/// Where a table cell goes in the accessibility tree.
+#[derive(Clone, Copy)]
+pub(crate) struct CellAccessibility {
+    /// The node of the cell's row.
+    pub(crate) row: Id,
+
+    /// [`Role::Cell`] or [`Role::ColumnHeader`].
+    pub(crate) role: Role,
+
+    pub(crate) column_index: usize,
 }
 
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
@@ -118,6 +133,7 @@ impl<'l> StripLayout<'l> {
         width: CellSize,
         height: CellSize,
         child_ui_id_salt: IdSalt,
+        accessibility: Option<CellAccessibility>,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
@@ -150,7 +166,13 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        let mut child_ui = self.cell(flags, max_rect, child_ui_id_salt, add_cell_contents);
+        let mut child_ui = self.cell(
+            flags,
+            max_rect,
+            child_ui_id_salt,
+            accessibility,
+            add_cell_contents,
+        );
 
         let used_rect = child_ui.min_rect();
 
@@ -207,6 +229,7 @@ impl<'l> StripLayout<'l> {
         flags: StripLayoutFlags,
         max_rect: Rect,
         child_ui_id_salt: IdSalt,
+        accessibility: Option<CellAccessibility>,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
         let child_ui_id = self.ui.scope_id().with(child_ui_id_salt);
@@ -219,8 +242,21 @@ impl<'l> StripLayout<'l> {
         if flags.sizing_pass {
             ui_builder = ui_builder.sizing_pass();
         }
+        if let Some(accessibility) = accessibility {
+            ui_builder = ui_builder
+                .accessibility_parent(accessibility.row)
+                .accessibility_role(accessibility.role);
+        }
 
         let mut child_ui = self.ui.new_child(ui_builder);
+
+        if let Some(accessibility) = accessibility {
+            child_ui
+                .ctx()
+                .accesskit_node_builder(child_ui.unique_id(), |node| {
+                    node.set_column_index(accessibility.column_index);
+                });
+        }
 
         if flags.clip {
             child_ui.shrink_clip_rect(max_rect);
