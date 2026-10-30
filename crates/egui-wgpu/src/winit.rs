@@ -153,7 +153,7 @@ impl Painter {
     }
 
     /// Drop the existing [`wgpu::Surface`] for `viewport_id` and create a fresh one for the
-    /// given window via [`wgpu::Instance::create_surface`], then configure it.
+    /// given window via [`Self::create_surface`], then configure it.
     ///
     /// Used to recover from [`wgpu::CurrentSurfaceTexture::Lost`], where reconfiguring the
     /// existing surface object cannot recover.
@@ -168,7 +168,7 @@ impl Painter {
             return Ok(());
         };
 
-        let surface = self.instance.create_surface(Arc::clone(window))?;
+        let surface = self.create_surface(window)?;
         self.install_surface(
             surface,
             viewport_id,
@@ -177,6 +177,20 @@ impl Painter {
             old_state.resizing,
         );
         Ok(())
+    }
+
+    /// Create the surface of `window`, with [`WgpuConfiguration::create_surface`] if set.
+    fn create_surface(
+        &self,
+        window: &Arc<winit::window::Window>,
+    ) -> Result<wgpu::Surface<'static>, crate::WgpuError> {
+        use winit::raw_window_handle::HasWindowHandle as _;
+
+        Ok(if let Some(create_surface) = &self.config.create_surface {
+            create_surface(&self.instance, window.window_handle()?.as_raw())?
+        } else {
+            self.instance.create_surface(Arc::clone(window))?
+        })
     }
 
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
@@ -210,7 +224,7 @@ impl Painter {
         if let Some(window) = window {
             let size = window.inner_size();
             if !self.surfaces.contains_key(&viewport_id) {
-                let surface = self.instance.create_surface(window)?;
+                let surface = self.create_surface(&window)?;
                 self.add_surface(surface, viewport_id, size).await?;
             }
         } else {
@@ -236,9 +250,15 @@ impl Painter {
         if let Some(window) = window {
             let size = window.inner_size();
             if !self.surfaces.contains_key(&viewport_id) {
-                let surface = unsafe {
-                    self.instance
-                        .create_surface_unsafe(wgpu::SurfaceTargetUnsafe::from_window(&window)?)?
+                let surface = if let Some(create_surface) = &self.config.create_surface {
+                    use winit::raw_window_handle::HasWindowHandle as _;
+                    create_surface(&self.instance, window.window_handle()?.as_raw())?
+                } else {
+                    unsafe {
+                        self.instance.create_surface_unsafe(
+                            wgpu::SurfaceTargetUnsafe::from_window(&window)?,
+                        )?
+                    }
                 };
                 self.add_surface(surface, viewport_id, size).await?;
             }
