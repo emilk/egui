@@ -1098,9 +1098,9 @@ fn galley_from_rows(
             let format = &job.sections[glyph.section_index as usize].format;
 
             // `font_ascent` is the ascent of the primary face of the family, i.e. the
-            // baseline of this section's row. Every glyph must be placed on that same
-            // baseline, regardless of which fallback face it came from, or text mixing
-            // scripts (e.g. latin + CJK) would end up on several different baselines.
+            // baseline of this section's row. Every glyph belongs on that baseline,
+            // whichever fallback face it came from. Text that mixes scripts (latin and
+            // CJK, say) would otherwise end up on several different baselines.
             glyph.pos.y = glyph.font_ascent
                 // Apply valign to the difference in height of the entire row,
                 // and the line height of this glyph (which is the font height, unless explicitly set):
@@ -1654,31 +1654,33 @@ mod tests {
         }
     }
 
-    /// Glyphs from different fallback faces must all sit on the same baseline.
+    /// Glyphs from a fallback face must sit on the baseline of the primary face.
     ///
     /// The y position used to come from the ascent of whichever face the glyph was
-    /// found in, plus a term centering that face's box in the row. Text mixing
-    /// scripts therefore ended up on several different baselines, and a face much
-    /// taller than the primary one (e.g. a CJK fallback) could stick out above the row.
+    /// found in, plus a term centering that face's box in the row. So as soon as a row
+    /// mixed scripts, its glyphs landed on different baselines, and a face much taller
+    /// than the primary one (a CJK fallback, say) was pushed above the row, clipping
+    /// the top of its glyphs.
     #[test]
     #[cfg(feature = "monochrome_emoji_fonts")] // Needs a fallback face with non-latin metrics
     fn glyphs_from_different_faces_share_one_baseline() {
         let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
         let mut fonts = fonts.with_pixels_per_point(1.0);
 
-        // The baseline is decided by the primary face alone, so latin-only text gives us
-        // the y position every other glyph in the same section has to share:
+        // The primary face alone decides the baseline, so latin-only text tells us the
+        // y position that every other glyph in the same section has to share:
         let latin =
             fonts.layout_no_wrap("Ag".to_owned(), FontId::proportional(40.0), Color32::WHITE);
         let expected_y = latin.rows[0].row.glyphs[0].pos.y;
 
-        // Latin from the primary face, plus an emoji from a fallback face:
+        // The same text again, now with an emoji from a fallback face:
         let galley = fonts.layout_no_wrap(
             "Ag👋".to_owned(),
             FontId::proportional(40.0),
             Color32::WHITE,
         );
         let glyphs = &galley.rows[0].row.glyphs;
+        // Without this the test would pass trivially if no fallback face was involved:
         assert!(
             glyphs.iter().any(|g| g.font_face_ascent != g.font_ascent),
             "expected a glyph from a fallback face with different metrics, but got none"
