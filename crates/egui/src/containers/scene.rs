@@ -249,15 +249,14 @@ impl Scene {
     pub fn register_pan_and_zoom(&self, ui: &Ui, resp: &mut Response, to_global: &mut TSTransform) {
         let multi_touch_active = ui.input(|i| i.multi_touch()).is_some();
 
-        let dragged = !multi_touch_active
-            && self.drag_pan_buttons.iter().any(|button| match button {
-                DragPanButtons::PRIMARY => resp.dragged_by(PointerButton::Primary),
-                DragPanButtons::SECONDARY => resp.dragged_by(PointerButton::Secondary),
-                DragPanButtons::MIDDLE => resp.dragged_by(PointerButton::Middle),
-                DragPanButtons::EXTRA_1 => resp.dragged_by(PointerButton::Extra1),
-                DragPanButtons::EXTRA_2 => resp.dragged_by(PointerButton::Extra2),
-                _ => false,
-            });
+        let dragged = !multi_touch_active && self.drag_pan_buttons.iter().any(|button| match button {
+            DragPanButtons::PRIMARY => resp.dragged_by(PointerButton::Primary),
+            DragPanButtons::SECONDARY => resp.dragged_by(PointerButton::Secondary),
+            DragPanButtons::MIDDLE => resp.dragged_by(PointerButton::Middle),
+            DragPanButtons::EXTRA_1 => resp.dragged_by(PointerButton::Extra1),
+            DragPanButtons::EXTRA_2 => resp.dragged_by(PointerButton::Extra2),
+            _ => false,
+        });
         if dragged {
             to_global.translation += to_global.scaling * resp.drag_delta();
             resp.mark_changed();
@@ -298,12 +297,9 @@ impl Scene {
             return;
         }
 
-        let changed = if translation_delta != Vec2::ZERO {
-            *to_global = TSTransform::from_translation(translation_delta) * *to_global;
-            true
-        } else if zoom_delta == 1.0 {
-            false
-        } else {
+        let mut changed = false;
+
+        if zoom_delta != 1.0 {
             // Zoom in on pointer, but only if we are not zoomed in or out too far.
             let zoom_delta = zoom_delta.clamp(
                 self.zoom_range.min / to_global.scaling,
@@ -317,9 +313,14 @@ impl Scene {
 
             // Clamp to exact zoom range.
             to_global.scaling = self.zoom_range.clamp(to_global.scaling);
-            true
-        };
+            changed = true;
+        }
 
+        // Pan:
+        if translation_delta != Vec2::ZERO {
+            *to_global = TSTransform::from_translation(translation_delta) * *to_global;
+            changed = true;
+        }
         if changed {
             resp.mark_changed();
         }
