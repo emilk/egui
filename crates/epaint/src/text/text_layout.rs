@@ -354,10 +354,10 @@ fn emit_cluster_bitmap(
 
     let mut advance_px = 0.0;
     let mut glyphs = Vec::with_capacity(glyph_range.len());
-    for (info, pos) in shaped.infos[glyph_range.clone()]
-        .iter()
-        .zip(&shaped.positions[glyph_range])
-    {
+    for (info, pos) in std::iter::zip(
+        shaped.infos[glyph_range.clone()].iter(),
+        &shaped.positions[glyph_range],
+    ) {
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         if glyph_id == skrifa::GlyphId::NOTDEF {
             return None;
@@ -3287,12 +3287,14 @@ mod tests {
 
         // Left-to-right paragraph: only the Hebrew word is reversed.
         let galley = layout_simple(&mut fonts, "Hello שלום world");
-        let ltr: Vec<usize> = (0..=5).chain([9, 8, 7, 6]).chain(10..=15).collect();
+        let ltr: Vec<usize> =
+            std::iter::chain(std::iter::chain(0..=5, [9, 8, 7, 6]), 10..=15).collect();
         assert_visual_order(&galley.rows[0].row, &ltr);
 
         // Right-to-left paragraph: the words run right to left, the Latin word inside reads left to right.
         let galley = layout_simple(&mut fonts, "שלום Hello עולם");
-        let rtl: Vec<usize> = (10..=14).rev().chain(5..=9).chain((0..=4).rev()).collect();
+        let rtl: Vec<usize> =
+            std::iter::chain(std::iter::chain((10..=14).rev(), 5..=9), (0..=4).rev()).collect();
         assert_visual_order(&galley.rows[0].row, &rtl);
 
         // Each wrapped row is reordered on its own, and keeps its logical chars:
