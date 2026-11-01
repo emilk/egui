@@ -319,14 +319,9 @@ impl Scene {
         }
 
         if translation_delta != Vec2::ZERO {
-            if is_mouse_pan {
-                *to_global = TSTransform::from_translation(translation_delta) * *to_global;
-            } else {
-                to_global.translation += translation_delta;
-            }
+            *to_global = TSTransform::from_translation(translation_delta) * *to_global;
             changed = true;
         }
-
         if changed {
             resp.mark_changed();
         }
