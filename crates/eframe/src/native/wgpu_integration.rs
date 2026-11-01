@@ -93,6 +93,10 @@ pub struct SharedState {
 
     /// Passed on to each [`egui_winit::State`]. See [`NativeOptions::clipboard_shortcuts`].
     clipboard_shortcuts: bool,
+
+    /// Passed on to [`egui_winit::State::init_accesskit`] for child viewports.
+    #[cfg(feature = "accesskit")]
+    event_loop_proxy: EventLoopProxy<UserEvent>,
 }
 
 pub type Viewports = egui::OrderedViewportIdMap<Viewport>;
@@ -117,6 +121,9 @@ pub struct Viewport {
 
     /// `window` and `egui_winit` are initialized together.
     egui_winit: Option<egui_winit::State>,
+
+    /// Child windows start hidden, and are shown once they have painted their first frame.
+    show_after_first_paint: bool,
 }
 
 impl Drop for Viewport {
@@ -165,6 +172,8 @@ impl<'app> WgpuWinitApp<'app> {
             painter,
             viewport_from_window,
             clipboard_shortcuts,
+            #[cfg(feature = "accesskit")]
+            event_loop_proxy,
             ..
         } = &mut *shared;
 
@@ -175,6 +184,8 @@ impl<'app> WgpuWinitApp<'app> {
                 viewport_from_window,
                 painter,
                 *clipboard_shortcuts,
+                #[cfg(feature = "accesskit")]
+                event_loop_proxy,
             );
         }
     }
@@ -187,6 +198,8 @@ impl<'app> WgpuWinitApp<'app> {
             viewport_from_window,
             painter,
             clipboard_shortcuts,
+            #[cfg(feature = "accesskit")]
+            event_loop_proxy,
             ..
         } = &mut *running.shared.borrow_mut();
 
@@ -204,6 +217,8 @@ impl<'app> WgpuWinitApp<'app> {
             viewport_from_window,
             painter,
             *clipboard_shortcuts,
+            #[cfg(feature = "accesskit")]
+            event_loop_proxy,
         );
     }
 
@@ -362,6 +377,7 @@ impl<'app> WgpuWinitApp<'app> {
                 window: Some(window),
                 egui_winit: Some(egui_winit),
                 pending_delta: Default::default(),
+                show_after_first_paint: false,
             },
         );
 
@@ -373,6 +389,8 @@ impl<'app> WgpuWinitApp<'app> {
             focused_viewport: Some(ViewportId::ROOT),
             resized_viewport: None,
             clipboard_shortcuts: self.native_options.clipboard_shortcuts,
+            #[cfg(feature = "accesskit")]
+            event_loop_proxy: self.repaint_proxy.lock().clone(),
         }));
 
         {
@@ -872,6 +890,9 @@ impl WgpuWinitRunning<'_> {
             }
 
             integration.post_rendering(window);
+            if core::mem::take(&mut viewport.show_after_first_paint) {
+                window.set_visible(true);
+            }
 
             vsync_secs
         } else {
@@ -1117,6 +1138,7 @@ impl Viewport {
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
         clipboard_shortcuts: bool,
+        #[cfg(feature = "accesskit")] event_loop_proxy: &EventLoopProxy<UserEvent>,
     ) {
         if self.window.is_some() {
             return; // we already have one
@@ -1125,8 +1147,18 @@ impl Viewport {
         profiling::function_scope!();
 
         let viewport_id = self.ids.this;
+        let is_child = viewport_id != ViewportId::ROOT;
 
-        match egui_winit::create_window(egui_ctx, event_loop, &self.builder) {
+        // Like the root, start hidden until we render the first frame (https://github.com/emilk/egui/pull/3631).
+        // AccessKit requires this too: its adapter must be created before the window is shown.
+        let builder = if is_child {
+            self.builder.clone().with_visible(false)
+        } else {
+            self.builder.clone()
+        };
+        self.show_after_first_paint = is_child && self.builder.visible != Some(false);
+
+        match egui_winit::create_window(egui_ctx, event_loop, &builder) {
             Ok(window) => {
                 windows_id.insert(window.id(), viewport_id);
 
@@ -1147,6 +1179,10 @@ impl Viewport {
                     painter.max_texture_side(),
                 );
                 egui_winit.set_clipboard_shortcuts(clipboard_shortcuts);
+                #[cfg(feature = "accesskit")]
+                if is_child {
+                    egui_winit.init_accesskit(event_loop, &window, event_loop_proxy.clone());
+                }
                 self.egui_winit = Some(egui_winit);
 
                 egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window, true);
@@ -1220,6 +1256,8 @@ fn render_immediate_viewport(
             painter,
             viewport_from_window,
             clipboard_shortcuts,
+            #[cfg(feature = "accesskit")]
+            event_loop_proxy,
             ..
         } = &mut *shared.borrow_mut();
 
@@ -1239,6 +1277,8 @@ fn render_immediate_viewport(
                     viewport_from_window,
                     painter,
                     *clipboard_shortcuts,
+                    #[cfg(feature = "accesskit")]
+                    event_loop_proxy,
                 );
             });
         }
@@ -1315,6 +1355,9 @@ fn render_immediate_viewport(
         vec![],
         window,
     );
+    if core::mem::take(&mut viewport.show_after_first_paint) {
+        window.set_visible(true);
+    }
 
     egui_winit.handle_platform_output(window, platform_output);
 
@@ -1424,6 +1467,7 @@ fn initialize_or_update_viewport<'a>(
                 window: None,
                 egui_winit: None,
                 pending_delta: Default::default(),
+                show_after_first_paint: false,
             })
         }
 
