@@ -222,3 +222,22 @@ impl Default for SmoothHinting {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fallback_align_defaults_to_center() {
+        assert_eq!(FontTweak::default().fallback_align, FallbackAlign::Center);
+    }
+
+    #[test]
+    fn set_baseline_fallback_toggles_the_alignment() {
+        let mut tweak = FontTweak::default();
+        tweak.set_baseline_fallback(true);
+        assert_eq!(tweak.fallback_align, FallbackAlign::Baseline);
+        tweak.set_baseline_fallback(false);
+        assert_eq!(tweak.fallback_align, FallbackAlign::Center);
+    }
+}

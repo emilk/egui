@@ -14,6 +14,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+### ⭐ Added
+* Style inspector (`font_tweak_ui`) can now edit `FontTweak::fallback_align`
+
+
 ## 0.37.0 - Colored emojis! 🚀
 
 ### Highlights ✨

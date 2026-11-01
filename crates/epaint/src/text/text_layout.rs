@@ -2946,7 +2946,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "default_fonts")]
     fn measure_text(
         fonts: &mut FontsImpl,
         text: &str,
