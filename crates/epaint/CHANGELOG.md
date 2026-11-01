@@ -5,6 +5,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+### ⭐ Added
+* Right-to-left (bidi) text layout: UAX #9 embedding levels, RTL runs shaped as RTL, rows placed in visual order, direction-aware hit-testing and selection painting [#8577](https://github.com/emilk/egui/pull/8577)
+
+### 🐛 Fixed
+* Fix `ccursor_previous_word` underflow when the stored cursor is past the text end [#8698](https://github.com/emilk/egui/pull/8698)
+
+
 ## 0.37.0 - 2026-10-15
 ### ⭐ Added
 * Add `epaint::RoundedRect` primitive [#8440](https://github.com/emilk/egui/pull/8440) by [@emilk](https://github.com/emilk)

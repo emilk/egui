@@ -3468,6 +3468,18 @@ mod tests {
         assert_eq!(lines, expected);
     }
 
+    /// Pure-ASCII text must skip all bidi work (`bidi_levels` returns `None`).
+    #[test]
+    fn ascii_text_skips_bidi() {
+        assert!(bidi_levels("Hello, world! 123").is_none());
+        assert!(bidi_levels("").is_none());
+        // Non-ASCII alone does not trigger bidi work; only RTL content does.
+        assert!(bidi_levels("Hello, wörld!").is_none());
+        assert!(bidi_levels("éàü").is_none());
+        assert!(bidi_levels("אבג").is_some());
+        assert!(bidi_levels("abc אב").is_some());
+    }
+
     #[cfg(feature = "default_fonts")]
     fn measure_text(
         fonts: &mut FontsImpl,

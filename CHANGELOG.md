@@ -14,6 +14,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+### 🐛 Fixed
+* Text selection paints each visual stretch of a char range across a direction boundary, and Ctrl+ArrowLeft no longer underflows for a cursor past the text end [#8577](https://github.com/emilk/egui/pull/8577) [#8698](https://github.com/emilk/egui/pull/8698)
+
+
 ## 0.37.0 - Colored emojis! 🚀
 
 ### Highlights ✨
