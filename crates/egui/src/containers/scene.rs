@@ -265,7 +265,6 @@ impl Scene {
         let mut pointer_in_scene = Pos2::ZERO;
         let mut zoom_delta = 1.0;
         let mut translation_delta = Vec2::ZERO;
-        let mut is_mouse_pan = false;
 
         if let Some(multi_touch) = ui.input(|i| i.multi_touch()) {
             pointer_in_scene = to_global.inverse() * multi_touch.center_pos;
@@ -289,7 +288,6 @@ impl Scene {
                 zoom_delta += scroll_delta * scroll_zoom_speed;
             } else {
                 translation_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
-                is_mouse_pan = true;
             }
         }
 
