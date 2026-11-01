@@ -316,6 +316,7 @@ impl Scene {
             changed = true;
         }
 
+        // Pan:
         if translation_delta != Vec2::ZERO {
             *to_global = TSTransform::from_translation(translation_delta) * *to_global;
             changed = true;
