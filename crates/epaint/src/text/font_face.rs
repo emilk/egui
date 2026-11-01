@@ -702,3 +702,37 @@ fn glyph_render_context(width: u16, height: u16) -> vello_cpu::RenderContext {
         },
     )
 }
+
+#[cfg(all(test, feature = "default_fonts"))]
+mod tests {
+    use super::*;
+
+    /// Rasterizing a glyph must not panic when `vello_cpu`'s `multithreading` feature is
+    /// enabled anywhere in the build (this crate's dev-dependencies turn it on):
+    /// `RenderContext::new` would then spawn a thread pool per glyph, which panics in
+    /// `render` without a `flush` first. Fixed by using a single-threaded context.
+    /// See <https://github.com/emilk/egui/pull/8641>.
+    #[test]
+    fn rasterize_glyph_with_vello_multithreading() {
+        let blob: Blob = alloc::sync::Arc::new(epaint_default_fonts::UBUNTU_LIGHT);
+        let mut face = FontFace::new(
+            TextOptions::default(),
+            "Ubuntu-Light".to_owned(),
+            blob,
+            0,
+            FontTweak::default(),
+        )
+        .unwrap();
+        let metrics = face.styled_metrics(1.0, 16.0, &VariationCoords::default());
+        let glyph_id = face.glyph_info('A', &metrics).unwrap().id.unwrap();
+        let bitmap = face
+            .rasterize_glyph(&metrics, glyph_id, SubpixelBin::Zero)
+            .expect("'A' has an outline");
+        let [w, h] = bitmap.image.resolution();
+        assert!(w > 0 && h > 0);
+        assert!(
+            bitmap.image.pixels().iter().any(|px| px.a() > 0),
+            "rasterized glyph should have painted pixels"
+        );
+    }
+}
