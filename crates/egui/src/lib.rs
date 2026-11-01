@@ -440,6 +440,9 @@ pub mod widgets;
 mod callstack;
 pub mod class;
 
+#[cfg(test)]
+mod right_to_left_tests;
+
 pub use accesskit;
 pub use accesskit::Role;
 

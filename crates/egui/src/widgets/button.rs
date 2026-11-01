@@ -311,6 +311,15 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// Set the direction the atoms are laid out along.
+    ///
+    /// Default: [`crate::Direction::LeftToRight`].
+    #[inline]
+    pub(crate) fn direction(mut self, direction: crate::Direction) -> Self {
+        self.layout = self.layout.direction(direction);
+        self
+    }
+
     /// Output the button's [`Atoms`].
     ///
     /// This includes any images you have on the button.

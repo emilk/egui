@@ -192,6 +192,12 @@ pub struct Popup<'a> {
 impl<'a> Popup<'a> {
     /// Create a new popup
     pub fn new(id: Id, ctx: Context, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
+        // Below the anchor, aligned to its start edge.
+        let rect_align = if ctx.global_style().right_to_left {
+            RectAlign::BOTTOM_END
+        } else {
+            RectAlign::BOTTOM_START
+        };
         Self {
             id,
             ctx,
@@ -201,7 +207,7 @@ impl<'a> Popup<'a> {
             info: None,
             kind: PopupKind::Popup,
             layer_id,
-            rect_align: RectAlign::BOTTOM_START,
+            rect_align,
             alternative_aligns: None,
             gap: 0.0,
             width: None,
@@ -283,6 +289,9 @@ impl<'a> Popup<'a> {
     /// Set the [`RectAlign`] of the popup relative to the [`PopupAnchor`].
     /// This is the default position, and will be used if it fits.
     /// See [`Self::align_alternatives`] for more on this.
+    ///
+    /// Default: [`RectAlign::BOTTOM_START`],
+    /// or [`RectAlign::BOTTOM_END`] with [`crate::Style::right_to_left`].
     #[inline]
     pub fn align(mut self, position_align: RectAlign) -> Self {
         self.rect_align = position_align;

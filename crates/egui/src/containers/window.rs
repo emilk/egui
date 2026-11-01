@@ -813,29 +813,52 @@ fn paint_resize_corner(
 ) {
     let cr = window_frame.corner_radius;
 
-    let (corner, radius, corner_response) = if possible.resize_right && possible.resize_bottom {
-        (Align2::RIGHT_BOTTOM, cr.se, i.right & i.bottom)
-    } else if possible.resize_left && possible.resize_bottom {
-        (Align2::LEFT_BOTTOM, cr.sw, i.left & i.bottom)
-    } else if possible.resize_left && possible.resize_top {
-        (Align2::LEFT_TOP, cr.nw, i.left & i.top)
-    } else if possible.resize_right && possible.resize_top {
-        (Align2::RIGHT_TOP, cr.ne, i.right & i.top)
-    } else {
-        // We're not in two directions, but it is still nice to tell the user
-        // we're resizable by painting the resize corner in the expected place
-        // (i.e. for windows only resizable in one direction):
-        if possible.resize_right || possible.resize_bottom {
-            (Align2::RIGHT_BOTTOM, cr.se, i.right & i.bottom)
-        } else if possible.resize_left || possible.resize_bottom {
-            (Align2::LEFT_BOTTOM, cr.sw, i.left & i.bottom)
-        } else if possible.resize_left || possible.resize_top {
-            (Align2::LEFT_TOP, cr.nw, i.left & i.top)
-        } else if possible.resize_right || possible.resize_top {
-            (Align2::RIGHT_TOP, cr.ne, i.right & i.top)
-        } else {
-            return;
-        }
+    // Corners in order of preference, with whether they can resize horizontally and vertically.
+    let mut corners = [
+        (
+            Align2::RIGHT_BOTTOM,
+            cr.se,
+            i.right & i.bottom,
+            possible.resize_right,
+            possible.resize_bottom,
+        ),
+        (
+            Align2::LEFT_BOTTOM,
+            cr.sw,
+            i.left & i.bottom,
+            possible.resize_left,
+            possible.resize_bottom,
+        ),
+        (
+            Align2::LEFT_TOP,
+            cr.nw,
+            i.left & i.top,
+            possible.resize_left,
+            possible.resize_top,
+        ),
+        (
+            Align2::RIGHT_TOP,
+            cr.ne,
+            i.right & i.top,
+            possible.resize_right,
+            possible.resize_top,
+        ),
+    ];
+    if ui.style().right_to_left {
+        // The bottom corner at the end side comes first.
+        corners.swap(0, 1);
+    }
+
+    // If we can't resize in two directions, it is still nice to tell the user
+    // we're resizable by painting the resize corner in the expected place
+    // (i.e. for windows only resizable in one direction):
+    let Some((corner, radius, corner_response, _, _)) = corners
+        .iter()
+        .find(|(_, _, _, x, y)| *x && *y)
+        .or_else(|| corners.iter().find(|(_, _, _, x, y)| *x || *y))
+        .copied()
+    else {
+        return;
     };
 
     // Adjust the corner offset to accommodate for window rounding
@@ -1341,8 +1364,21 @@ fn title_ui(
 
     let expanded = collapsing.openness(ui.ctx()) > 0.0;
 
-    if collapsible {
-        atoms.push_right(Atom::custom(collapse_atom_id, button_allocation_size));
+    let right_to_left = ui.style().right_to_left;
+    let (left_button, right_button) = if right_to_left {
+        (
+            open.is_some().then_some(close_atom_id),
+            collapsible.then_some(collapse_atom_id),
+        )
+    } else {
+        (
+            collapsible.then_some(collapse_atom_id),
+            open.is_some().then_some(close_atom_id),
+        )
+    };
+
+    if let Some(left_button) = left_button {
+        atoms.push_right(Atom::custom(left_button, button_allocation_size));
     }
 
     atoms.push_right(Atom::grow());
@@ -1359,8 +1395,8 @@ fn title_ui(
 
     atoms.push_right(Atom::grow());
 
-    if open.is_some() {
-        atoms.push_right(Atom::custom(close_atom_id, button_allocation_size));
+    if let Some(right_button) = right_button {
+        atoms.push_right(Atom::custom(right_button, button_allocation_size));
     }
 
     let spacing = ui.spacing().item_spacing.x;
@@ -1395,7 +1431,11 @@ fn title_ui(
     // Collapse triangle icon
     if collapsible && let Some(rect) = layout_response.rect(collapse_atom_id) {
         let rect = rect.shrink2(button_shrink);
-        title_click_rect = title_click_rect.with_min_x(rect.max.x);
+        title_click_rect = if right_to_left {
+            title_click_rect.with_max_x(rect.min.x)
+        } else {
+            title_click_rect.with_min_x(rect.max.x)
+        };
         let icon_response = child_ui.interact(
             rect,
             child_ui.auto_id_with("collapse_button"),
@@ -1420,7 +1460,11 @@ fn title_ui(
         && let Some(rect) = layout_response.rect(close_atom_id)
     {
         let rect = rect.shrink2(button_shrink);
-        title_click_rect = title_click_rect.with_max_x(rect.min.x);
+        title_click_rect = if right_to_left {
+            title_click_rect.with_min_x(rect.max.x)
+        } else {
+            title_click_rect.with_max_x(rect.min.x)
+        };
         if close_button(&mut child_ui, rect).clicked() {
             *open = false;
         }
@@ -1627,5 +1671,95 @@ mod tests {
                 "The {name:?} window moved after a restart"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod title_bar_tests {
+    use core::cell::Cell;
+
+    use crate::{
+        Context, Event, Id, LayerId, Modifiers, Order, PointerButton, Pos2, RawInput, Rect, Vec2,
+        Window, vec2,
+    };
+
+    #[derive(Debug, PartialEq)]
+    enum Outcome {
+        Collapsed,
+        Closed,
+    }
+
+    /// Clicks the leftmost title-bar button of a window and reports what happened.
+    fn click_leftmost_title_bar_button(right_to_left: bool) -> Outcome {
+        let ctx = Context::default();
+        ctx.all_styles_mut(|style| style.right_to_left = right_to_left);
+        let window_id = Id::unique("window");
+        let open = Cell::new(true);
+        let collapsed = Cell::new(false);
+        let run = |events: Vec<Event>| {
+            let input = RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))),
+                events,
+                ..Default::default()
+            };
+            ctx.run_ui(input, |ui| {
+                let mut is_open = open.get();
+                let response = Window::new("Window")
+                    .id(window_id)
+                    .open(&mut is_open)
+                    .show(ui.ctx(), |ui| ui.label("Hello"));
+                open.set(is_open);
+                collapsed.set(response.is_some_and(|response| response.inner.is_none()));
+            })
+            .drop_without_applying_deltas();
+        };
+
+        run(vec![]);
+        run(vec![]);
+        let button_size = Vec2::splat(ctx.global_style().spacing.icon_width);
+        let layer_id = LayerId::new(Order::Middle, window_id);
+        let mut buttons: Vec<Rect> = ctx.prev_pass_state(|pass| {
+            pass.widgets
+                .get_layer(layer_id)
+                .filter(|widget| widget.sense.senses_click() && widget.rect.size() == button_size)
+                .map(|widget| widget.rect)
+                .collect()
+        });
+        assert_eq!(
+            buttons.len(),
+            2,
+            "Expected two title-bar buttons: {buttons:?}"
+        );
+        buttons.sort_by(|a, b| a.left().total_cmp(&b.left()));
+
+        let pos = buttons[0].center();
+        let button = |pressed| Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        };
+        run(vec![Event::PointerMoved(pos), button(true)]);
+        run(vec![button(false)]);
+        // Let the collapse animation finish.
+        for _ in 0..30 {
+            run(vec![]);
+        }
+
+        match (open.get(), collapsed.get()) {
+            (true, true) => Outcome::Collapsed,
+            (false, _) => Outcome::Closed,
+            (true, false) => panic!("Clicking the button did nothing"),
+        }
+    }
+
+    #[test]
+    fn collapse_button_on_the_left() {
+        assert_eq!(click_leftmost_title_bar_button(false), Outcome::Collapsed);
+    }
+
+    #[test]
+    fn close_button_on_the_left_right_to_left() {
+        assert_eq!(click_leftmost_title_bar_button(true), Outcome::Closed);
     }
 }

@@ -339,6 +339,17 @@ pub struct Style {
 
     /// Use a more compact style for menus.
     pub compact_menu_style: bool,
+
+    /// Mirror egui's own chrome for right-to-left interfaces.
+    ///
+    /// When `true`, submenus open to the left, vertical scroll bars sit on the left,
+    /// collapsed collapsing-header triangles point left,
+    /// and window title bars put the close button on the left and the collapse button on the right.
+    ///
+    /// This does not change how [`crate::Ui`] lays out widgets; use a right-to-left [`crate::Layout`] for that.
+    ///
+    /// Default: `false`.
+    pub right_to_left: bool,
 }
 
 // Compile-time check that `Style` is `Send + Sync` on every target.
@@ -349,6 +360,16 @@ const _: () = {
 };
 
 impl Style {
+    /// The direction egui lays out the parts of its own widgets in, like a checkbox and its label:
+    /// right to left if [`Self::right_to_left`].
+    pub(crate) fn chrome_direction(&self) -> crate::Direction {
+        if self.right_to_left {
+            crate::Direction::RightToLeft
+        } else {
+            crate::Direction::LeftToRight
+        }
+    }
+
     // TODO(emilk): rename style.interact() to maybe… `style.interactive` ?
     /// Use this style for interactive things.
     /// Note that you must already have a response,
@@ -376,6 +397,12 @@ impl Style {
     /// All known text styles.
     pub fn text_styles(&self) -> Vec<TextStyle> {
         self.text_styles.keys().cloned().collect()
+    }
+
+    /// Set [`Self::right_to_left`]. A method as well as a field, so callers built against egui
+    /// without the field can fall back to a no-op trait method of the same name.
+    pub fn set_right_to_left(&mut self, right_to_left: bool) {
+        self.right_to_left = right_to_left;
     }
 }
 
@@ -1555,6 +1582,7 @@ impl Default for Style {
             always_scroll_the_only_direction: false,
             scroll_animation: ScrollAnimation::default(),
             compact_menu_style: true,
+            right_to_left: false,
         }
     }
 }
@@ -1913,6 +1941,7 @@ impl Style {
             always_scroll_the_only_direction,
             scroll_animation,
             compact_menu_style,
+            right_to_left,
         } = self;
 
         crate::Grid::new("_options").show(ui, |ui| {
@@ -2019,6 +2048,11 @@ impl Style {
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
 
         ui.checkbox(compact_menu_style, "Compact menu style");
+
+        ui.checkbox(right_to_left, "Right-to-left interface")
+            .on_hover_text(
+                "Mirror submenus, scroll bars, collapsing headers and window title bars",
+            );
 
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
             .on_hover_text(
