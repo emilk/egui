@@ -30,6 +30,7 @@ pub struct UiBuilder {
     pub accessibility_parent: Option<Id>,
     pub accessibility_label: Option<String>,
     pub accessibility_role: Option<crate::accesskit::Role>,
+    pub language: Option<String>,
     pub classes: Classes,
 }
 
@@ -221,6 +222,18 @@ impl UiBuilder {
     #[inline]
     pub fn accessibility_role(mut self, role: crate::accesskit::Role) -> Self {
         self.accessibility_role = Some(role);
+        self
+    }
+
+    /// The language of the content of this [`Ui`], as a BCP 47 tag (`"he"`, `"zh-Hant"`),
+    /// when it differs from the language of the user interface
+    /// ([`crate::Context::set_language`]).
+    ///
+    /// It goes on this `Ui`'s node in the accessibility tree, which the widgets inside inherit,
+    /// so a screen reader reads them in that language. Widgets read it with [`Ui::language`].
+    #[inline]
+    pub fn language(mut self, language: impl Into<String>) -> Self {
+        self.language = Some(language.into());
         self
     }
 }
