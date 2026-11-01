@@ -1092,6 +1092,25 @@ impl Response {
         self
     }
 
+    /// The language of this widget's content, as a BCP 47 tag (`"ja"`, `"en-GB"`),
+    /// when it differs from the language around it, e.g. a book title or a name in another script.
+    ///
+    /// A screen reader reads the widget in that language.
+    /// For a whole region, use [`crate::UiBuilder::language`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.label("Привет").accessible_language("ru");
+    /// # });
+    /// ```
+    pub fn accessible_language(self, language: impl Into<String>) -> Self {
+        let language = language.into();
+        self.ctx.accesskit_node_builder(self.id, |builder| {
+            builder.set_language(language);
+        });
+        self
+    }
+
     /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
     /// Make sure the widget senses clicks (e.g. [`crate::Button`] does, [`crate::Label`] does not).

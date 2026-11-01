@@ -2595,6 +2595,25 @@ impl Context {
         self.options_mut(|opt| opt.theme_preference = theme_preference.into());
     }
 
+    /// The language of the user interface, as a BCP 47 tag.
+    ///
+    /// See [`Options::language`].
+    pub fn language(&self) -> Option<String> {
+        self.options(|opt| opt.language.clone())
+    }
+
+    /// Set the language of the user interface, as a BCP 47 tag (`"ar"`, `"pt-BR"`).
+    ///
+    /// See [`Options::language`].
+    ///
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// ctx.set_language(Some("ar".to_owned()));
+    /// ```
+    pub fn set_language(&self, language: Option<String>) {
+        self.options_mut(|opt| opt.language = language);
+    }
+
     /// The currently active [`Style`] used by all subsequent popups, menus, etc.
     pub fn global_style(&self) -> Arc<Style> {
         self.options(|opt| Arc::clone(opt.style()))
@@ -3182,7 +3201,14 @@ impl ContextImpl {
         {
             profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
-            if let Some(state) = state {
+            if let Some(mut state) = state {
+                // Set here rather than when the root node is made, so a language set during
+                // the pass applies to it.
+                if let Some(language) = &self.memory.options.language
+                    && let Some(root) = state.nodes.get_mut(&crate::accesskit_root_id())
+                {
+                    root.set_language(language.clone());
+                }
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 // A widget can have focus without a node, e.g. if it requested focus while invisible.
                 let focus_id = self
