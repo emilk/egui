@@ -1467,7 +1467,7 @@ impl GlutinWindowContext {
 
         // This runs on every frame; report a window only when it is new for this viewport.
         if self.viewport_from_window.insert(window.id(), viewport_id) != Some(viewport_id) {
-            super::viewport_hooks::with(|hooks| hooks.window_created(viewport_id, &window));
+            super::viewport_hooks::with(|hooks| hooks.window_created(viewport_id, window));
         }
         self.window_from_viewport.insert(viewport_id, window.id());
 
