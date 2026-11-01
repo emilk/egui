@@ -5,6 +5,13 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+### Added
+* Added `caret.rs`: visual (on-screen) cursor movement, hit-testing and Home/End with bidi affinity — arrows step one grapheme cluster on screen, Ctrl/Alt+arrows one word, Home/End go to the row ends in reading order (right end first in RTL rows)
+* A paragraph without a strong character (`TextDirection::Auto`) now takes the direction of the paragraph before it, so a new line in RTL text starts on the right
+* `CCursor::prefer_next_row` now also picks which run's edge the cursor is drawn at where the text direction changes, so the cursor keeps its affinity
+
+
 ## 0.37.0 - 2026-10-15
 ### ⭐ Added
 * Add `epaint::RoundedRect` primitive [#8440](https://github.com/emilk/egui/pull/8440) by [@emilk](https://github.com/emilk)
