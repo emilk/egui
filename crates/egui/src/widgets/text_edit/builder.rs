@@ -843,7 +843,14 @@ impl<'t> TextEdit<'t> {
 
         // Don't send `OutputEvent::Clicked` when a user presses the space bar
         response.flags -= response::Flags::FAKE_PRIMARY_CLICKED;
-        let text_clip_rect = inner_rect;
+        // Clip horizontally, where single-line text scrolls, but keep glyphs that overshoot
+        // their row (Thai marks, stacked Vietnamese accents, Arabic marks) visible.
+        let overshoot_top = (galley.rect.top() - galley.mesh_bounds.top()).at_least(0.0);
+        let overshoot_bottom = (galley.mesh_bounds.bottom() - galley.rect.bottom()).at_least(0.0);
+        let text_clip_rect = Rect::from_min_max(
+            inner_rect.min - vec2(0.0, overshoot_top),
+            inner_rect.max + vec2(0.0, overshoot_bottom),
+        );
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
         if interactive && let Some(pointer_pos) = response.interact_pointer_pos() {

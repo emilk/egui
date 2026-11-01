@@ -14,6 +14,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+
+### 🐛 Fixed
+* `TextEdit`: don't clip glyphs that overshoot the row (Thai marks, stacked Vietnamese accents, Arabic marks) — extend the clip rect vertically by the galley's overshoot
+
+
 ## 0.37.0 - Colored emojis! 🚀
 
 ### Highlights ✨
