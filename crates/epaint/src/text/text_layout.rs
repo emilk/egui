@@ -21,7 +21,7 @@ use super::{
     ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
     VariationCoords,
     family::FamilyKey,
-    font_face::{FontFace, GlyphInfo, ShapedGlyph},
+    font_face::{ClusterGlyph, FontFace, GlyphInfo, ShapedCluster, ShapedGlyph},
     glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
 };
 
@@ -109,17 +109,19 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
 
     // For most of this we ignore the y coordinate:
 
+    let bidi_levels = bidi_levels(&job.text);
+
     let mut paragraphs = vec![Paragraph::from_section_index(0)];
     {
         let mut shape_buffer = fonts.take_shape_buffer();
-        for (section_index, section) in job.sections.iter().enumerate() {
+        for section_index in 0..job.sections.len() {
             shape_buffer = layout_section(
                 fonts,
                 shape_buffer,
                 pixels_per_point,
                 &job,
                 section_index as u32,
-                section,
+                bidi_levels.as_deref(),
                 &mut paragraphs,
             );
         }
@@ -137,6 +139,16 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
         replace_last_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
         if let Some(last) = last_row.glyphs.last() {
             last_row.size.x = last.max_x();
+        }
+    }
+
+    // Up to here every glyph sits at its logical position. Now place
+    // right-to-left text where a reader expects it:
+    if bidi_levels.is_some() {
+        for placed_row in &mut rows {
+            if placed_row.row.glyphs.iter().any(Glyph::is_rtl) {
+                reorder_row_visually(point_scale, Arc::make_mut(&mut placed_row.row));
+            }
         }
     }
 
@@ -173,7 +185,9 @@ struct ShapingContext {
     section_index: u32,
     font_metrics: StyledMetrics,
     is_first_glyph_in_section: bool,
-    prev_cluster: Option<u32>,
+
+    /// Bidi embedding level of the run being emitted.
+    bidi_level: u8,
 }
 
 impl ShapingContext {
@@ -197,6 +211,7 @@ impl ShapingContext {
             font_ascent: self.font_metrics.ascent,
             uv_rect,
             is_color,
+            bidi_level: self.bidi_level,
             section_index: self.section_index,
             first_vertex: 0,
         }
@@ -214,6 +229,10 @@ struct TextRun {
     /// Byte range within the section text.
     byte_range: ByteRange,
 
+    /// Bidi embedding level (UAX #9) shared by every char in the run.
+    /// Odd means right-to-left.
+    bidi_level: u8,
+
     /// Set if a priority [`GlyphRasterizer`](crate::text::GlyphRasterizer) rendered this run.
     ///
     /// Such a run is exactly one grapheme cluster, and is not shaped.
@@ -222,10 +241,17 @@ struct TextRun {
 
 /// Emit shaped glyphs from a [`harfrust::GlyphBuffer`] into a [`Paragraph`].
 ///
-/// When a cluster maps multiple characters to fewer glyphs (e.g. flag emojis,
-/// ligatures), zero-width "continuation" glyphs are emitted for the extra
-/// characters so that `glyphs.len() == char_count` — an invariant that all
-/// cursor and selection code relies on.
+/// Every character gets exactly one [`Glyph`] (`glyphs.len() == char_count`),
+/// an invariant all cursor and selection code relies on, whatever the shaper did:
+///
+/// * a cluster with fewer glyphs than characters (flag emojis, ligatures) gets
+///   zero-width "continuation" glyphs for the extra characters;
+/// * a cluster with more glyphs than characters (a letter the font composes
+///   from a base and marks) is drawn as one bitmap, see [`emit_cluster_bitmap`].
+///
+/// The glyphs are emitted in _logical_ order with increasing x, whatever the
+/// run's direction; a right-to-left row is put in visual order later, by
+/// [`reorder_row_visually`], once the rows are known.
 fn layout_shaped_run(
     fonts: &mut FontsImpl,
     run: &TextRun,
@@ -235,28 +261,187 @@ fn layout_shaped_run(
     ctx: &mut ShapingContext,
     paragraph: &mut Paragraph,
 ) {
+    let shaped = ShapedRun {
+        run,
+        text: run_text,
+        face_metrics,
+        infos: glyph_buffer.glyph_infos(),
+        positions: glyph_buffer.glyph_positions(),
+    };
+
+    let mut clusters = logical_clusters(shaped.infos, run.bidi_level % 2 == 1).peekable();
+    while let Some(glyph_range) = clusters.next() {
+        let byte_range = shaped.cluster_bytes(&glyph_range, clusters.peek());
+        let char_count = run_text
+            .get(byte_range.clone())
+            .map_or(0, |cluster_text| cluster_text.chars().count());
+
+        // Apply extra_letter_spacing only at cluster boundaries,
+        // never between glyphs within the same cluster (e.g. base + mark).
+        if !ctx.is_first_glyph_in_section {
+            paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
+        }
+        ctx.is_first_glyph_in_section = false;
+
+        let first_glyph = paragraph.glyphs.len();
+        let as_one_bitmap = if char_count < glyph_range.len() {
+            emit_cluster_bitmap(fonts, &shaped, glyph_range.clone(), ctx, paragraph)
+        } else {
+            None
+        };
+        let emitted = as_one_bitmap
+            .unwrap_or_else(|| emit_cluster_glyphs(fonts, &shaped, glyph_range, ctx, paragraph));
+
+        // Every glyph of a cluster was emitted for the cluster's first char.
+        // Give each its own char, in logical order, so the row's chars are the text.
+        if let Some(cluster_text) = run_text.get(byte_range.clone()) {
+            for (glyph, chr) in
+                iter::zip(&mut paragraph.glyphs[first_glyph..], cluster_text.chars())
+            {
+                glyph.chr = chr;
+            }
+        }
+
+        emit_continuation_glyphs(ctx, paragraph, run_text, byte_range, emitted, face_metrics);
+    }
+}
+
+/// A shaped run being emitted: what every glyph in it shares.
+#[derive(Clone, Copy)]
+struct ShapedRun<'a> {
+    run: &'a TextRun,
+
+    /// The run's text; [`harfrust::GlyphInfo::cluster`] is a byte offset into it.
+    text: &'a str,
+
+    face_metrics: &'a StyledMetrics,
+    infos: &'a [harfrust::GlyphInfo],
+    positions: &'a [harfrust::GlyphPosition],
+}
+
+impl ShapedRun<'_> {
+    /// The bytes of the cluster shaped into `glyph_range`,
+    /// given the cluster after it in logical order (if any).
+    fn cluster_bytes(
+        &self,
+        glyph_range: &Range<usize>,
+        next: Option<&Range<usize>>,
+    ) -> Range<usize> {
+        let start = self.infos[glyph_range.start].cluster as usize;
+        let end = next.map_or(self.text.len(), |next| {
+            self.infos[next.start].cluster as usize
+        });
+        start..end
+    }
+
+    /// The first character of the cluster starting at byte `cluster`.
+    fn char_at(&self, cluster: u32) -> char {
+        self.text
+            .get(cluster as usize..)
+            .and_then(|s| s.chars().next())
+            .unwrap_or('\u{FFFD}') // Unicode Replacement Character
+    }
+}
+
+/// Emit a cluster that has more glyphs than characters as one glyph carrying one bitmap.
+///
+/// Some fonts compose a letter from a base glyph and mark glyphs (Hack's `ǻ`,
+/// Noto Naskh Arabic's `ب`), so one character shapes to several glyphs. Emitting
+/// one [`Glyph`] per shaped glyph would break `glyphs.len() == char_count`, so
+/// the cluster is rendered into one atlas entry ([`FontsImpl::allocate_cluster`])
+/// carried by its first character, with the cluster's whole advance.
+///
+/// `None` if the cluster cannot be drawn that way (a `.notdef` or a color glyph
+/// in it); the caller then falls back to one glyph per shaped glyph.
+fn emit_cluster_bitmap(
+    fonts: &mut FontsImpl,
+    shaped: &ShapedRun<'_>,
+    glyph_range: Range<usize>,
+    ctx: &ShapingContext,
+    paragraph: &mut Paragraph,
+) -> Option<usize> {
+    let px_scale = shaped.face_metrics.px_scale_factor;
+    let chr = shaped.char_at(shaped.infos[glyph_range.start].cluster);
+
+    let mut advance_px = 0.0;
+    let mut glyphs = Vec::with_capacity(glyph_range.len());
+    for (info, pos) in iter::zip(
+        &shaped.infos[glyph_range.clone()],
+        &shaped.positions[glyph_range],
+    ) {
+        let glyph_id = skrifa::GlyphId::new(info.glyph_id);
+        if glyph_id == skrifa::GlyphId::NOTDEF {
+            return None;
+        }
+        glyphs.push(ClusterGlyph {
+            glyph_id,
+            offset_px: vec2(
+                advance_px + pos.x_offset as f32 * px_scale,
+                -(pos.y_offset as f32 * px_scale), // harfrust Y+ up → screen Y+ down
+            ),
+        });
+        advance_px += pos.x_advance as f32 * px_scale;
+    }
+
+    let OutlineGlyph { allocation, x_px } = fonts.allocate_cluster(
+        shaped.run.font_key,
+        shaped.face_metrics,
+        &ShapedCluster {
+            glyphs: &glyphs,
+            h_pos: paragraph.cursor_x_px,
+            is_cjk: is_cjk(chr),
+        },
+    )?;
+
+    paragraph.cursor_x_px += advance_px;
+    paragraph
+        .glyphs
+        .push(ctx.glyph(chr, x_px, advance_px, shaped.face_metrics, allocation));
+    Some(1)
+}
+
+/// Emit one [`Glyph`] per shaped glyph of a cluster, and return how many that was.
+///
+/// Fewer than the cluster's glyphs when the shaper could not map a character:
+/// its combining marks and repeated `.notdef` glyphs are dropped.
+fn emit_cluster_glyphs(
+    fonts: &mut FontsImpl,
+    shaped: &ShapedRun<'_>,
+    glyph_range: Range<usize>,
+    ctx: &ShapingContext,
+    paragraph: &mut Paragraph,
+) -> usize {
+    let ShapedRun {
+        run,
+        text: run_text,
+        face_metrics,
+        infos,
+        positions,
+    } = *shaped;
     let px_scale = face_metrics.px_scale_factor;
+    let mut emitted = 0;
+    let first_glyph = paragraph.glyphs.len();
 
-    // Reset cluster tracking — cluster values are byte offsets within run_text,
-    // so they are not comparable across runs.
-    ctx.prev_cluster = None;
+    // The glyph that stands for the cluster. Not always the first:
+    // a right-to-left shaper puts a cluster's marks before its base.
+    let base = if run.bidi_level % 2 == 1 {
+        glyph_range
+            .clone()
+            .find(|&idx| 0 < positions[idx].x_advance)
+            .unwrap_or(glyph_range.start)
+    } else {
+        glyph_range.start
+    };
 
-    // Track how many glyphs we emit per cluster so we can add zero-width
-    // continuation glyphs when a cluster has more chars than glyphs.
-    let mut cluster_start_byte: usize = 0;
-    let mut cluster_glyph_count: usize = 0;
-
-    for (info, pos) in iter::zip(glyph_buffer.glyph_infos(), glyph_buffer.glyph_positions()) {
+    for idx in glyph_range.clone() {
+        let (info, pos) = (&infos[idx], &positions[idx]);
         let glyph_id = skrifa::GlyphId::new(info.glyph_id);
         let cluster = info.cluster;
         let mut advance_width_px = pos.x_advance as f32 * px_scale;
         let x_offset_px = pos.x_offset as f32 * px_scale;
         let y_offset_px = -(pos.y_offset as f32 * px_scale); // harfrust Y+ up → screen Y+ down
 
-        let chr = run_text
-            .get(cluster as usize..)
-            .and_then(|s| s.chars().next())
-            .unwrap_or('\u{FFFD}'); // Unicode Replacement Character
+        let chr = shaped.char_at(cluster);
 
         // Tab is a layout concept, not a glyph — the shaper doesn't know about tab stops.
         // Override the advance width using the font's configured tab size.
@@ -278,34 +463,11 @@ fn layout_shaped_run(
             advance_width_px = thin_space_width * space_width_px;
         }
 
-        // Apply extra_letter_spacing only at cluster boundaries,
-        // never between glyphs within the same cluster (e.g. base + mark).
-        let is_new_cluster = ctx.prev_cluster.is_none_or(|pc| pc != cluster);
-        if is_new_cluster {
-            if ctx.prev_cluster.is_some() {
-                emit_continuation_glyphs(
-                    ctx,
-                    paragraph,
-                    run_text,
-                    cluster_start_byte..cluster as usize,
-                    cluster_glyph_count,
-                    face_metrics,
-                );
-            }
-            if !ctx.is_first_glyph_in_section {
-                paragraph.cursor_x_px += ctx.extra_letter_spacing * ctx.pixels_per_point;
-            }
-            cluster_start_byte = cluster as usize;
-            cluster_glyph_count = 0;
-            ctx.is_first_glyph_in_section = false;
-        }
-        ctx.prev_cluster = Some(cluster);
-
         let glyph = if glyph_id == skrifa::GlyphId::NOTDEF {
             // The shaper couldn't map this character. Drop combining marks and duplicate
-            // NOTDEF glyphs within the same cluster. The first base character is rasterized,
+            // NOTDEF glyphs within the same cluster. The base character is rasterized,
             // or rendered as the `.notdef` glyph ("tofu") if no rasterizer can handle the cluster.
-            if is_combining_mark(chr) || !is_new_cluster {
+            if is_combining_mark(chr) || idx != base {
                 continue;
             }
 
@@ -383,20 +545,20 @@ fn layout_shaped_run(
             ctx.glyph(chr, x_px, advance_width_px, face_metrics, glyph_alloc)
         };
         paragraph.glyphs.push(glyph);
-        cluster_glyph_count += 1;
+        emitted += 1;
     }
 
-    // Emit continuation glyphs for the last cluster in the run.
-    if ctx.prev_cluster.is_some() {
-        emit_continuation_glyphs(
-            ctx,
-            paragraph,
-            run_text,
-            cluster_start_byte..run_text.len(),
-            cluster_glyph_count,
-            face_metrics,
-        );
+    // A right-to-left shaper puts a cluster's marks before its base. Put the base first,
+    // so it carries the cluster's first char and the marks move with it in
+    // `reorder_row_visually`. Positions are already final, so only the order changes.
+    if run.bidi_level % 2 == 1
+        && let Some(cluster) = paragraph.glyphs.get_mut(first_glyph..)
+        && let Some(base) = cluster.iter().position(|glyph| 0.0 < glyph.advance_width)
+    {
+        cluster.rotate_left(base);
     }
+
+    emitted
 }
 
 /// Put `glyph_info` in the atlas, or nothing at all if it is invisible.
@@ -519,9 +681,10 @@ fn layout_section(
     pixels_per_point: f32,
     job: &LayoutJob,
     section_index: u32,
-    section: &LayoutSection,
+    bidi_levels: Option<&[u8]>,
     out_paragraphs: &mut Vec<Paragraph>,
 ) -> harfrust::UnicodeBuffer {
+    let section = &job.sections[section_index as usize];
     let LayoutSection {
         leading_space,
         byte_range,
@@ -553,12 +716,19 @@ fn layout_section(
         section_index,
         font_metrics,
         is_first_glyph_in_section: paragraph.glyphs.is_empty(),
-        prev_cluster: None,
+        bidi_level: 0,
     };
     let mut runs = Vec::new();
 
+    // Byte offset of the current segment within `job.text`, to look up bidi levels:
+    let mut segment_start = byte_range.start.0;
+
     // Process each paragraph segment (split on newlines — the shaper can't handle them).
     for (seg_idx, segment) in SplitOrWhole::new(section_text, job.break_on_newline).enumerate() {
+        let segment_levels =
+            bidi_levels.map(|levels| &levels[segment_start..segment_start + segment.len()]);
+        segment_start += segment.len() + 1; // skip the `\n` we split on
+
         if 0 < seg_idx {
             paragraph = out_paragraphs.push_mut(Paragraph::from_section_index(section_index));
             paragraph.empty_paragraph_height = line_height;
@@ -569,11 +739,12 @@ fn layout_section(
             continue;
         }
 
-        segment_into_runs(fonts, &ctx, segment, &mut runs);
+        segment_into_runs(fonts, &ctx, segment, segment_levels, &mut runs);
 
         let num_runs = runs.len();
         for (run_idx, run) in runs.iter().enumerate() {
             let run_text = &segment[run.byte_range.as_usize()];
+            ctx.bidi_level = run.bidi_level;
             if let Some(raster) = &run.raster {
                 layout_raster_run(&mut ctx, paragraph, run_text, raster);
                 continue;
@@ -598,7 +769,14 @@ fn layout_section(
                 flags |= harfrust::BufferFlags::END_OF_TEXT;
             }
 
-            let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
+            let glyph_buffer = shape_text(
+                font_face,
+                run_text,
+                run.bidi_level % 2 == 1,
+                &format.coords,
+                shape_buffer,
+                flags,
+            );
 
             layout_shaped_run(
                 fonts,
@@ -910,6 +1088,7 @@ fn replace_last_glyph_with_overflow_character(
         } else {
             0.0 // TODO(emilk): heed paragraph leading_space 😬
         };
+        let bidi_level = row.glyphs.last().map_or(0, |glyph| glyph.bidi_level);
 
         let advance_width_px = match &raster {
             Some(raster) => raster.advance_px,
@@ -957,6 +1136,7 @@ fn replace_last_glyph_with_overflow_character(
                 font_ascent: font_metrics.ascent,
                 uv_rect: replacement_glyph_alloc.uv_rect,
                 is_color: replacement_glyph_alloc.is_color,
+                bidi_level,
                 section_index,
                 first_vertex: 0, // filled in later
             });
@@ -1015,8 +1195,15 @@ fn halign_and_justify_row(
     let num_glyphs_in_range = glyph_range.1 - glyph_range.0;
     assert!(num_glyphs_in_range > 0, "Should have at least one glyph");
 
-    let original_min_x = row.glyphs[glyph_range.0].logical_rect().min.x;
-    let original_max_x = row.glyphs[glyph_range.1 - 1].logical_rect().max.x;
+    // Glyphs are indexed in logical order but placed in visual order
+    // (see `reorder_row_visually`), so measure and shift them by x:
+    let order = visual_order(row);
+    let kept = |i: &usize| glyph_range.0 <= *i && *i < glyph_range.1;
+    let first_kept = order.iter().position(kept).unwrap_or(0);
+    let last_kept = order.iter().rposition(kept).unwrap_or(0);
+
+    let original_min_x = row.glyphs[order[first_kept]].logical_rect().min.x;
+    let original_max_x = row.glyphs[order[last_kept]].logical_rect().max.x;
     let original_width = original_max_x - original_min_x;
 
     let target_width = if justify && num_glyphs_in_range > 1 {
@@ -1057,9 +1244,10 @@ fn halign_and_justify_row(
     }
 
     placed_row.pos.x = point_scale.round_to_pixel(target_min_x);
-    let mut translate_x = -original_min_x - extra_x_per_glyph * glyph_range.0 as f32;
+    let mut translate_x = -original_min_x - extra_x_per_glyph * first_kept as f32;
 
-    for glyph in &mut row.glyphs {
+    for &i in &order {
+        let glyph = &mut row.glyphs[i];
         glyph.pos.x += translate_x;
         glyph.pos.x = point_scale.round_to_pixel(glyph.pos.x);
         translate_x += extra_x_per_glyph;
@@ -1252,7 +1440,8 @@ fn add_row_backgrounds(point_scale: PointScale, job: &LayoutJob, row: &Row, mesh
     let mut run_start = None;
     let mut last_rect = Rect::NAN;
 
-    for glyph in &row.glyphs {
+    for i in visual_order(row) {
+        let glyph = &row.glyphs[i];
         let format = &job.sections[glyph.section_index as usize].format;
         let color = format.background;
         let rect = glyph.logical_rect();
@@ -1357,7 +1546,8 @@ fn add_row_hline(
     let mut line_start = None;
     let mut last_right_x = f32::NAN;
 
-    for glyph in &row.glyphs {
+    for i in visual_order(row) {
+        let glyph = &row.glyphs[i];
         let (stroke, mut y) = stroke_and_y(glyph);
         stroke.round_center_to_pixel(point_scale.pixels_per_point, &mut y);
 
@@ -1494,10 +1684,13 @@ impl RowBreakCandidates {
 /// Clusters that a priority [`GlyphRasterizer`](crate::text::GlyphRasterizer)
 /// handles get a run of their own, with [`TextRun::raster`] set.
 ///
-/// NOTE: Segmentation is by font face, not by Unicode script. A run may
-/// mix scripts (e.g. Latin + Cyrillic) when they share the same font.
-/// This is acceptable for scripts with similar shaping rules, but would
-/// need script-aware splitting once RTL/bidi support is added.
+/// A run also never crosses a change of bidi embedding level (`levels`, one
+/// per byte of `text`, or `None` for text without right-to-left characters),
+/// so each run is shaped in one direction.
+///
+/// NOTE: Segmentation is by font face and direction, not by Unicode script.
+/// A run may mix scripts (e.g. Latin + Cyrillic) when they share the same
+/// font, which is acceptable for scripts with similar shaping rules.
 ///
 /// Results are appended to `out` (which is cleared first) to allow
 /// the caller to reuse the allocation across calls.
@@ -1505,6 +1698,7 @@ fn segment_into_runs(
     fonts: &mut FontsImpl,
     ctx: &ShapingContext,
     text: &str,
+    levels: Option<&[u8]>,
     out: &mut Vec<TextRun>,
 ) {
     use unicode_segmentation::UnicodeSegmentation as _;
@@ -1512,6 +1706,7 @@ fn segment_into_runs(
     out.clear();
 
     for (byte_offset, grapheme_str) in text.grapheme_indices(true) {
+        let bidi_level = levels.map_or(0, |levels| levels[byte_offset]);
         let byte_offset = ByteIndex(byte_offset);
         let byte_end = byte_offset + grapheme_str.len();
 
@@ -1525,6 +1720,7 @@ fn segment_into_runs(
             out.push(TextRun {
                 font_key: FontFaceKey::INVALID,
                 byte_range: byte_offset..byte_end,
+                bidi_level,
                 raster: Some(raster),
             });
             continue;
@@ -1544,6 +1740,7 @@ fn segment_into_runs(
             out.push(TextRun {
                 font_key,
                 byte_range: byte_offset..byte_end,
+                bidi_level,
                 raster: Some(raster),
             });
             continue;
@@ -1552,6 +1749,7 @@ fn segment_into_runs(
         if let Some(last_run) = out.last_mut()
             && last_run.raster.is_none()
             && last_run.font_key == font_key
+            && last_run.bidi_level == bidi_level
         {
             last_run.byte_range.end = byte_end;
             continue;
@@ -1559,8 +1757,165 @@ fn segment_into_runs(
         out.push(TextRun {
             font_key,
             byte_range: byte_offset..byte_end,
+            bidi_level,
             raster: None,
         });
+    }
+}
+
+/// The resolved bidi embedding level (UAX #9) of every byte of `text`,
+/// or `None` when the text has no right-to-left character, which keeps
+/// the common case free of any bidi work.
+///
+/// Paragraph direction is taken from the first strong character (rules P2/P3),
+/// the same as `dir="auto"` in a browser.
+fn bidi_levels(text: &str) -> Option<Vec<u8>> {
+    if text.is_ascii() {
+        return None;
+    }
+    let info = unicode_bidi::BidiInfo::new(text, None);
+    info.has_rtl()
+        .then(|| info.levels.iter().map(|level| level.number()).collect())
+}
+
+/// The clusters of a shaped buffer, as ranges of glyph indices, in _logical_ order.
+///
+/// The shaper returns glyphs in visual order, which for a right-to-left run
+/// is cluster-by-cluster reversed. Walking the clusters backwards restores
+/// logical order while keeping the glyphs inside a cluster (a base and its
+/// marks) in shaper order, because the marks' offsets are relative to the base.
+fn logical_clusters(infos: &[harfrust::GlyphInfo], rtl: bool) -> LogicalClusters<'_> {
+    LogicalClusters {
+        infos,
+        remaining: 0..infos.len(),
+        rtl,
+    }
+}
+
+/// See [`logical_clusters`].
+struct LogicalClusters<'a> {
+    infos: &'a [harfrust::GlyphInfo],
+
+    /// The glyphs not yet yielded, consumed from the front (left-to-right)
+    /// or from the back (right-to-left).
+    remaining: Range<usize>,
+
+    rtl: bool,
+}
+
+impl Iterator for LogicalClusters<'_> {
+    type Item = Range<usize>;
+
+    fn next(&mut self) -> Option<Range<usize>> {
+        let infos = self.infos;
+        let unyielded = &infos[self.remaining.clone()];
+        let (first, last) = (unyielded.first()?, unyielded.last()?);
+        let offset = self.remaining.start;
+
+        if self.rtl {
+            let start = unyielded
+                .iter()
+                .rposition(|info| info.cluster != last.cluster)
+                .map_or(0, |i| i + 1);
+            self.remaining.end = offset + start;
+            Some(offset + start..offset + unyielded.len())
+        } else {
+            let end = unyielded
+                .iter()
+                .position(|info| info.cluster != first.cluster)
+                .unwrap_or(unyielded.len());
+            self.remaining.start = offset + end;
+            Some(offset..offset + end)
+        }
+    }
+}
+
+/// The glyph indices of `row` sorted by where the glyphs are placed.
+///
+/// The identity for left-to-right rows.
+fn visual_order(row: &Row) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..row.glyphs.len()).collect();
+    if row.glyphs.iter().any(Glyph::is_rtl) {
+        order.sort_by(|&a, &b| row.glyphs[a].pos.x.total_cmp(&row.glyphs[b].pos.x));
+    }
+    order
+}
+
+/// Place the glyphs of a row in visual order (UAX #9 rule L2) by rewriting their x.
+///
+/// On entry `row.glyphs` is in logical order with increasing x, as
+/// [`layout_shaped_run`] left it. It stays in logical order, so a glyph's
+/// index is still its char index; only the positions move.
+///
+/// A block is one advancing glyph and the zero-width glyphs after it
+/// (combining marks, the continuation glyphs of a cluster). Blocks move as
+/// units so a mark stays over its base.
+fn reorder_row_visually(point_scale: PointScale, row: &mut Row) {
+    let glyphs = &mut row.glyphs;
+    if glyphs.len() < 2 {
+        return;
+    }
+
+    let mut blocks: Vec<Range<usize>> = Vec::new();
+    for (i, glyph) in glyphs.iter().enumerate() {
+        match blocks.last_mut() {
+            Some(last) if glyph.advance_width <= 0.0 => last.end = i + 1,
+            _ => blocks.push(i..i + 1),
+        }
+    }
+    let levels: Vec<u8> = blocks
+        .iter()
+        .map(|block| glyphs[block.start].bidi_level)
+        .collect();
+    let origins: Vec<f32> = blocks
+        .iter()
+        .map(|block| glyphs[block.start].pos.x)
+        .collect();
+    // A block's width is the distance to the next one, which includes any
+    // extra letter spacing; the last block ends where its glyphs end.
+    let widths: Vec<f32> = blocks
+        .iter()
+        .enumerate()
+        .map(|(b, block)| match origins.get(b + 1) {
+            Some(next_origin) => next_origin - origins[b],
+            None => {
+                glyphs[block.clone()]
+                    .iter()
+                    .map(Glyph::max_x)
+                    .fold(origins[b], f32::max)
+                    - origins[b]
+            }
+        })
+        .collect();
+
+    // L2: from the highest level down to the lowest odd level,
+    // reverse every maximal sequence of blocks at that level or higher.
+    let Some(lowest_odd) = levels.iter().copied().filter(|l| l % 2 == 1).min() else {
+        return;
+    };
+    let highest = levels.iter().copied().max().unwrap_or(0);
+    let mut order: Vec<usize> = (0..blocks.len()).collect();
+    for level in (lowest_odd..=highest).rev() {
+        let mut i = 0;
+        while i < order.len() {
+            if levels[order[i]] < level {
+                i += 1;
+                continue;
+            }
+            let start = i;
+            while i < order.len() && level <= levels[order[i]] {
+                i += 1;
+            }
+            order[start..i].reverse();
+        }
+    }
+
+    let mut pen = origins[0];
+    for &b in &order {
+        for glyph in &mut glyphs[blocks[b].clone()] {
+            glyph.pos.x = point_scale.round_to_pixel(pen + (glyph.pos.x - origins[b]));
+        }
+        pen += widths[b];
     }
 }
 
@@ -1572,6 +1927,7 @@ fn segment_into_runs(
 fn shape_text(
     font_face: &FontFace,
     text: &str,
+    rtl: bool,
     coords: &VariationCoords,
     mut buffer: harfrust::UnicodeBuffer,
     flags: harfrust::BufferFlags,
@@ -1600,6 +1956,14 @@ fn shape_text(
 
     buffer.set_flags(flags);
     buffer.push_str(text);
+    // The direction is decided by the bidi algorithm, per run;
+    // the shaper only guesses the script (and would guess the direction wrong
+    // for digits inside right-to-left text).
+    buffer.set_direction(if rtl {
+        harfrust::Direction::RightToLeft
+    } else {
+        harfrust::Direction::LeftToRight
+    });
     buffer.guess_segment_properties();
 
     shaper.shape(buffer, harfrust::ShapeOptions::new())
@@ -1614,6 +1978,7 @@ mod tests {
 
     use super::{super::*, *};
     use crate::{ColorImage, text::cursor::CCursor};
+    use emath::Rangef;
 
     fn test_fonts() -> FontsImpl {
         FontsImpl::new(TextOptions::default(), FontDefinitions::default())
@@ -1774,6 +2139,41 @@ mod tests {
         definitions
     }
 
+    /// Hack composes `ǻ` from `å` plus an acute: two glyphs for one character.
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn a_letter_the_font_composes_from_several_glyphs_is_one_glyph() {
+        let mut fonts = FontsImpl::new(TextOptions::default(), hack_only());
+        let composed = layout_simple(&mut fonts, "aǻb");
+        let plain = layout_simple(&mut fonts, "aåb");
+
+        let glyphs = &composed.rows[0].row.glyphs;
+        let chars: Vec<char> = glyphs.iter().map(|glyph| glyph.chr).collect();
+        assert_eq!(chars, ['a', 'ǻ', 'b']);
+
+        let letter = &glyphs[1];
+        assert!(!letter.uv_rect.is_nothing(), "the composed letter is drawn");
+        assert!(
+            plain.rows[0].row.glyphs[1].uv_rect.size.y < letter.uv_rect.size.y,
+            "its bitmap covers the acute above the ring"
+        );
+        assert_eq!(
+            composed.size(),
+            plain.size(),
+            "the cluster keeps the shaper's advance"
+        );
+
+        for i in 0..=3 {
+            let cursor = CCursor {
+                index: CharIndex(i),
+                prefer_next_row: false,
+            };
+            let rect = composed.pos_from_cursor(cursor);
+            let back = composed.cursor_from_pos(rect.center().to_vec2());
+            assert_eq!(back.index.0, i, "cursor round-trip at {i}");
+        }
+    }
+
     #[test]
     fn color_raster_glyph_is_not_tinted() {
         let rasterizer = GlyphRasterizer::new("test", |request: &GlyphRasterizerRequest<'_>| {
@@ -1879,7 +2279,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "default_fonts")]
     /// Each test rasterizer needs its own [`GlyphRasterizer::key`], or they would replace each other.
     fn unique_test_key() -> String {
         static COUNTER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
@@ -2189,6 +2588,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     // No bundled font has CJK glyphs, so the line breaks depend on
     // the width of the `.notdef` glyph of the primary font.
     fn test_cjk() {
@@ -2207,6 +2607,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     // No bundled font has CJK glyphs, so the line breaks depend on
     // the width of the `.notdef` glyph of the primary font.
     fn test_pre_cjk() {
@@ -2320,6 +2721,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_end_with_newline() {
         let pixels_per_point = 1.0;
         let mut fonts = test_fonts();
@@ -2555,6 +2957,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default_fonts")]
     fn test_gpos_kerning() {
         // GPOS kerning: pairs like "AV", "VA", "AT" should be tighter than
         // the sum of individual character widths. Without text shaping, egui
@@ -2698,6 +3101,455 @@ mod tests {
         }
     }
 
+    /// The bundled fonts have no Hebrew, so these glyphs are `.notdef`;
+    /// levels, order, glyph count and cursor geometry do not depend on that.
+    #[test]
+    fn bidi_text_keeps_one_glyph_per_char_in_logical_order() {
+        let mut fonts = test_fonts();
+        for text in ["שלום 42 עולם", "abc אבג 12", "אב", "١٢٣ עברית"] {
+            let galley = layout_simple(&mut fonts, text);
+            let row = &galley.rows[0].row;
+            assert_eq!(row.glyphs.len(), text.chars().count(), "{text:?}");
+            assert_eq!(row.text(), text);
+            assert_eq!(galley.end().index.0, text.chars().count());
+        }
+    }
+
+    #[test]
+    fn rtl_rows_are_placed_in_visual_order() {
+        let mut fonts = test_fonts();
+        let x_of = |galley: &Galley, chr: char| {
+            galley.rows[0]
+                .row
+                .glyphs
+                .iter()
+                .find(|g| g.chr == chr)
+                .map(|g| g.pos.x)
+                .unwrap_or_else(|| panic!("no glyph for {chr:?}"))
+        };
+
+        // A right-to-left paragraph: the first word ends up on the right,
+        // and the number inside it still reads left to right.
+        let galley = layout_simple(&mut fonts, "אב 12");
+        let xs = ['1', '2', ' ', 'ב', 'א'].map(|c| x_of(&galley, c));
+        assert!(xs.is_sorted(), "visual order of \"אב 12\": {xs:?}");
+        // The space takes the paragraph direction (UAX #9 N1/N2); the digits do not.
+        for glyph in &galley.rows[0].row.glyphs {
+            assert_eq!(
+                glyph.is_rtl(),
+                matches!(glyph.chr, 'א' | 'ב' | ' '),
+                "{:?}",
+                glyph.chr
+            );
+        }
+
+        // A left-to-right paragraph with a Hebrew word in it:
+        // the word is mirrored, the line is not.
+        let galley = layout_simple(&mut fonts, "ab אב");
+        let xs = ['a', 'b', ' ', 'ב', 'א'].map(|c| x_of(&galley, c));
+        assert!(xs.is_sorted(), "visual order of \"ab אב\": {xs:?}");
+
+        // Plain text is untouched:
+        let galley = layout_simple(&mut fonts, "ab 12");
+        let xs = ['a', 'b', ' ', '1', '2'].map(|c| x_of(&galley, c));
+        assert!(xs.is_sorted(), "{xs:?}");
+    }
+
+    #[test]
+    fn rtl_cursor_sits_on_the_right_side_of_its_glyph() {
+        let mut fonts = test_fonts();
+        let galley = layout_simple(&mut fonts, "אב");
+        let row = &galley.rows[0].row;
+        let [alef, bet] = [&row.glyphs[0], &row.glyphs[1]];
+        assert!(bet.pos.x < alef.pos.x, "bet is drawn left of alef");
+        assert_eq!(row.x_offset(CharIndex(0)), alef.max_x());
+        assert_eq!(row.x_offset(CharIndex(1)), bet.max_x());
+        assert_eq!(row.x_offset(CharIndex(2)), bet.pos.x);
+
+        for i in 0..=2 {
+            let cursor = CCursor {
+                index: CharIndex(i),
+                prefer_next_row: false,
+            };
+            let rect = galley.pos_from_cursor(cursor);
+            let back = galley.cursor_from_pos(rect.center().to_vec2());
+            assert_eq!(back.index.0, i, "cursor round-trip at {i}");
+        }
+    }
+
+    /// Regression test for <https://github.com/emilk/egui/issues/8576>.
+    ///
+    /// The shaper returns a right-to-left run in visual order, with decreasing
+    /// cluster offsets. Such a run must still produce one glyph per character.
+    #[test]
+    fn test_right_to_left_run_glyph_count() {
+        let pixels_per_point = 1.0;
+        let mut fonts = test_fonts();
+        let font_id = FontId::default();
+
+        let cases = [
+            "ب",
+            "بب",
+            "ببب",
+            "אב",
+            "a אבג b",
+            "שלום 42 עולם",
+            // Base char + combining mark inside a right-to-left run
+            "ב\u{05BC}א",
+        ];
+
+        for text in cases {
+            let job = LayoutJob::simple(
+                text.to_owned(),
+                font_id.clone(),
+                Color32::WHITE,
+                f32::INFINITY,
+            );
+            let galley = layout(&mut fonts, pixels_per_point, job.into());
+
+            let total_glyphs: usize = galley.rows.iter().map(|r| r.row.glyphs.len()).sum();
+            let num_chars = text.chars().count();
+
+            assert_eq!(total_glyphs, num_chars, "Glyph count mismatch for {text:?}");
+            assert_eq!(
+                galley.end().index.0,
+                num_chars,
+                "Galley::end().index mismatch for {text:?}",
+            );
+        }
+    }
+
+    /// Arabic-Indic digits belong to the Arabic script, so a shaper left to guess the direction
+    /// shapes them right to left and "٤٥" comes out as "٥٤". Outside right-to-left text the bidi
+    /// algorithm keeps them left to right (<https://github.com/crmne/zapfast/issues/184>).
+    #[test]
+    fn arabic_indic_digits_without_rtl_text_stay_left_to_right() {
+        let mut fonts = test_fonts();
+        for text in ["\u{664}\u{665}", "\u{664}\u{665} messages"] {
+            let galley = layout_simple(&mut fonts, text);
+            let glyphs = &galley.rows[0].row.glyphs;
+            assert_eq!(glyphs.len(), text.chars().count(), "{text:?}");
+            assert_eq!(galley.rows[0].row.text(), text);
+            assert!(
+                glyphs[0].pos.x < glyphs[1].pos.x,
+                "{text:?}: four is drawn left of five"
+            );
+        }
+    }
+
+    /// Asserts that the glyphs at these char indices are placed left to right.
+    #[track_caller]
+    fn assert_visual_order(row: &Row, left_to_right: &[usize]) {
+        let xs: Vec<f32> = left_to_right.iter().map(|&i| row.glyphs[i].pos.x).collect();
+        assert!(
+            xs.is_sorted_by(|a, b| a < b),
+            "{:?}: glyphs {left_to_right:?} are at {xs:?}",
+            row.text()
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn arabic_with_digits_and_brackets() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        let mut layout = |text: &str| {
+            fonts.with_pixels_per_point(1.0).layout_no_wrap(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+            )
+        };
+        let text = "عدد (123) هنا";
+        let galley = layout(text);
+        let row = &galley.rows[0].row;
+        assert_eq!(row.text(), text);
+
+        // The number reads left to right, the words and the brackets right to left:
+        assert_visual_order(row, &[12, 11, 10, 9, 8, 5, 6, 7, 4, 3, 2, 1, 0]);
+
+        // The shaper mirrors a bracket in right-to-left text,
+        // so the logical "(" is drawn as ")" on the right of the number:
+        let ltr = layout("(x)");
+        let image = fonts.image();
+        // Which bracket a bitmap shows, by the side its middle row is inked on.
+        // (Comparing bitmaps directly fails on their different sub-pixel offsets.)
+        let shape = |glyph: &Glyph| {
+            let [x0, y0] = glyph.uv_rect.min.map(usize::from);
+            let [x1, y1] = glyph.uv_rect.max.map(usize::from);
+            let y = usize::midpoint(y0, y1);
+            let ink: Vec<f32> = (x0..x1).map(|x| f32::from(image[(x, y)].a())).collect();
+            let weighted: f32 = ink.iter().enumerate().map(|(i, a)| i as f32 * a).sum();
+            let centroid = weighted / ink.iter().sum::<f32>();
+            if centroid < (ink.len() - 1) as f32 / 2.0 {
+                '('
+            } else {
+                ')'
+            }
+        };
+        assert_eq!(shape(&ltr.rows[0].row.glyphs[0]), '(');
+        assert_eq!(shape(&ltr.rows[0].row.glyphs[2]), ')');
+        assert_eq!(shape(&row.glyphs[4]), ')');
+        assert_eq!(shape(&row.glyphs[8]), '(');
+    }
+
+    #[test]
+    fn mixed_hebrew_and_latin_in_one_paragraph() {
+        let mut fonts = test_fonts();
+
+        // Left-to-right paragraph: only the Hebrew word is reversed.
+        let galley = layout_simple(&mut fonts, "Hello שלום world");
+        let ltr: Vec<usize> = iter::chain(iter::chain(0..=5, [9, 8, 7, 6]), 10..=15).collect();
+        assert_visual_order(&galley.rows[0].row, &ltr);
+
+        // Right-to-left paragraph: the words run right to left, the Latin word inside reads left to right.
+        let galley = layout_simple(&mut fonts, "שלום Hello עולם");
+        let rtl: Vec<usize> =
+            iter::chain(iter::chain((10..=14).rev(), 5..=9), (0..=4).rev()).collect();
+        assert_visual_order(&galley.rows[0].row, &rtl);
+
+        // Each wrapped row is reordered on its own, and keeps its logical chars:
+        let width = layout_simple(&mut fonts, "Hello ").size().x;
+        let job = LayoutJob::simple(
+            "שלום Hello עולם".to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            width + 1.0,
+        );
+        let galley = layout(&mut fonts, 1.0, Arc::new(job));
+        let texts: Vec<String> = galley.rows.iter().map(|row| row.row.text()).collect();
+        assert_eq!(texts, ["שלום ", "Hello ", "עולם"]);
+        assert_visual_order(&galley.rows[0].row, &[4, 3, 2, 1, 0]);
+        // The space after "Hello" is right to left, like the paragraph, so it ends up on the left:
+        assert_visual_order(&galley.rows[1].row, &[5, 0, 1, 2, 3, 4]);
+        assert_visual_order(&galley.rows[2].row, &[3, 2, 1, 0]);
+    }
+
+    /// A click on the left or right half of a glyph puts the cursor on that side of it,
+    /// in the glyph's own direction, also where the direction changes.
+    #[test]
+    fn cursor_hit_testing_across_a_direction_boundary() {
+        let mut fonts = test_fonts();
+        for text in ["abc אבג def", "אבג abc דהו"] {
+            let galley = layout_simple(&mut fonts, text);
+            let row = &galley.rows[0].row;
+            let y = row.size.y / 2.0;
+            for (i, glyph) in row.glyphs.iter().enumerate() {
+                let rect = glyph.logical_rect();
+                let left = galley.cursor_from_pos(vec2(rect.lerp_inside([0.25, 0.5]).x, y));
+                let right = galley.cursor_from_pos(vec2(rect.lerp_inside([0.75, 0.5]).x, y));
+                let (before, after) = if glyph.is_rtl() {
+                    (right, left)
+                } else {
+                    (left, right)
+                };
+                assert_eq!(before.index.0, i, "{text:?}: before {:?}", glyph.chr);
+                assert_eq!(after.index.0, i + 1, "{text:?}: after {:?}", glyph.chr);
+            }
+        }
+    }
+
+    /// A selection that is contiguous in logical order can be split on screen.
+    #[test]
+    fn selection_across_a_direction_boundary() {
+        let mut fonts = test_fonts();
+        let galley = layout_simple(&mut fonts, "abc אבג def");
+        let row = &galley.rows[0].row;
+        let span = |chars: Range<usize>| {
+            let glyphs = &row.glyphs[chars];
+            let min = glyphs.iter().map(|g| g.pos.x).fold(f32::INFINITY, f32::min);
+            let max = glyphs
+                .iter()
+                .map(Glyph::max_x)
+                .fold(f32::NEG_INFINITY, f32::max);
+            Rangef::new(min, max)
+        };
+        let ranges =
+            |chars: Range<usize>| row.x_ranges(CharIndex(chars.start)..CharIndex(chars.end));
+
+        // "abc א" is "abc " on the left and "א" at the right end of the Hebrew word:
+        assert_eq!(ranges(0..5).as_slice(), [span(0..4), span(4..5)]);
+        // The Hebrew word alone:
+        assert_eq!(ranges(4..7).as_slice(), [span(4..7)]);
+        // "בג def" is the left of the Hebrew word, and everything right of it:
+        assert_eq!(ranges(5..11).as_slice(), [span(5..7), span(7..11)]);
+
+        // Left-to-right text: one range, from cursor to cursor.
+        let galley = layout_simple(&mut fonts, "abc def");
+        let row = &galley.rows[0].row;
+        assert_eq!(
+            row.x_ranges(CharIndex(1)..CharIndex(5)).as_slice(),
+            [Rangef::new(
+                row.x_offset(CharIndex(1)),
+                row.x_offset(CharIndex(5))
+            )]
+        );
+    }
+
+    /// The end of a right-to-left row that ends in left-to-right text is after that text.
+    #[test]
+    fn rtl_row_ending_in_ltr_text_has_its_end_cursor_after_it() {
+        let mut fonts = test_fonts();
+        for text in ["ملف PDF", "صفحة 12 من 340"] {
+            let galley = layout_simple(&mut fonts, text);
+            let row = &galley.rows[0].row;
+            let last = row.glyphs.last().unwrap();
+            assert!(!last.is_rtl());
+            assert_eq!(
+                row.x_offset(row.char_count_excluding_newline()),
+                last.max_x(),
+                "{text:?}"
+            );
+        }
+    }
+
+    /// A right-to-left shaper puts a mark before its base. The base must still be drawn
+    /// and carry the char index, and the mark move with it when the row is reordered.
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn rtl_mark_stays_on_its_base() {
+        // Hack has the combining acute but no Hebrew, so alef is drawn as `.notdef`.
+        let mut fonts = FontsImpl::new(TextOptions::default(), hack_only());
+        let galley = layout_simple(&mut fonts, "\u{5D0}\u{301}\u{5D1}");
+        let row = &galley.rows[0].row;
+        let [alef, acute, bet] = [0, 1, 2].map(|i| &row.glyphs[i]);
+        assert!(0.0 < alef.advance_width, "alef carries its own index");
+        assert!(!alef.uv_rect.is_nothing(), "alef is drawn");
+        assert_eq!(acute.advance_width, 0.0);
+        assert!(!acute.uv_rect.is_nothing(), "the acute is drawn");
+        assert!(bet.pos.x < alef.pos.x, "bet is drawn left of alef");
+        let acute_x = acute.pos.x + acute.uv_rect.offset.x;
+        assert!(
+            alef.pos.x <= acute_x && acute_x <= alef.max_x(),
+            "the acute at {acute_x} is over alef at {}..{}",
+            alef.pos.x,
+            alef.max_x()
+        );
+    }
+
+    /// A base and a mark that the font draws as two glyphs of one cluster
+    /// each keep their own char.
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn multi_glyph_cluster_keeps_its_chars() {
+        // Hack has the combining acute, and no precomposed form of either cluster.
+        let mut fonts = FontsImpl::new(TextOptions::default(), hack_only());
+        for text in ["q\u{301}x", "\u{5D0}\u{301}\u{5D1}"] {
+            let galley = layout_simple(&mut fonts, text);
+            assert_eq!(galley.rows[0].row.text(), text);
+        }
+    }
+
+    /// Left and Right step over whole grapheme clusters.
+    #[test]
+    fn cursor_moves_by_grapheme_cluster() {
+        let mut fonts = test_fonts();
+        let text = "e\u{301}👨\u{200D}👩\u{200D}👧🇸🇪1\u{FE0F}\u{20E3}क्षกี่\u{627}\u{651}";
+        let boundaries = [0, 2, 7, 9, 12, 15, 18, 20];
+        let galley = layout_simple(&mut fonts, text);
+
+        let mut cursor = galley.begin();
+        let mut right = vec![cursor.index.0];
+        while cursor != galley.end() {
+            cursor = galley.cursor_right_one_character(&cursor);
+            right.push(cursor.index.0);
+        }
+        assert_eq!(right, boundaries);
+
+        let mut left = vec![cursor.index.0];
+        while cursor != galley.begin() {
+            cursor = galley.cursor_left_one_character(&cursor);
+            left.push(cursor.index.0);
+        }
+        left.reverse();
+        assert_eq!(left, boundaries);
+    }
+
+    /// Hit testing never puts the cursor inside a grapheme cluster,
+    /// in left-to-right and in right-to-left rows.
+    #[test]
+    fn hit_testing_lands_on_cluster_boundaries() {
+        let mut font_sets = vec![test_fonts()];
+        #[cfg(feature = "default_fonts")]
+        font_sets.push(FontsImpl::new(TextOptions::default(), hack_only()));
+
+        let texts = [
+            "\u{628}\u{651}\u{627}\u{64B} \u{5D0}\u{301}\u{5D1}\u{302}\u{303}", // right-to-left
+            "\u{5D0}\u{301} q\u{301}e\u{301} 🇸🇪 \u{5D1}\u{302}",                // mixed directions
+            "q\u{301}e\u{301}🇸🇪1\u{FE0F}\u{20E3}कि",                            // left-to-right
+        ];
+        for fonts in &mut font_sets {
+            for text in texts {
+                let galley = layout_simple(fonts, text);
+                let row = &galley.rows[0];
+                let mut x = row.rect().left() - 5.0;
+                while x < row.rect().right() + 5.0 {
+                    let cursor = galley.cursor_from_pos(vec2(x, row.rect().center().y));
+                    assert!(
+                        grapheme::cluster_around(text, cursor.index).is_none(),
+                        "{text:?}: the cursor at x = {x} is at {}, inside a cluster",
+                        cursor.index
+                    );
+                    x += 0.25;
+                }
+            }
+        }
+    }
+
+    /// Glyph and row positions of left-to-right text: no wrapping, centered and justified.
+    #[test]
+    #[cfg(feature = "default_fonts")]
+    fn ltr_layout_is_unchanged_by_bidi() {
+        let mut fonts = test_fonts();
+        let text = "Hello, wörld! fi ffi 123 (x) — ok\tdone";
+        let mut lines = Vec::new();
+        for (max_width, halign, justify) in [
+            (f32::INFINITY, Align::LEFT, false),
+            (80.0, Align::Center, false),
+            (80.0, Align::LEFT, true),
+        ] {
+            let mut job = LayoutJob::simple(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                max_width,
+            );
+            job.halign = halign;
+            job.justify = justify;
+            let galley = layout(&mut fonts, 1.0, Arc::new(job));
+            for placed_row in &galley.rows {
+                assert!(placed_row.row.glyphs.iter().all(|g| g.bidi_level == 0));
+                let xs: Vec<String> = placed_row
+                    .row
+                    .glyphs
+                    .iter()
+                    .map(|glyph| format!("{:.2}", glyph.pos.x))
+                    .collect();
+                lines.push(format!(
+                    "{:.2},{:.2} {:.2}x{:.2}: {}",
+                    placed_row.pos.x,
+                    placed_row.pos.y,
+                    placed_row.row.size.x,
+                    placed_row.row.size.y,
+                    xs.join(" ")
+                ));
+            }
+        }
+        // As laid out by egui 0.37.0, before bidi:
+        let expected = [
+            "0.00,0.00 233.75x16.00: 0.00 9.00 17.00 21.00 24.00 32.00 36.00 39.00 50.00 58.00 63.00 67.00 75.00 79.00 82.00 91.00 90.00 94.00 108.00 108.00 108.00 111.00 119.00 127.00 134.00 138.00 142.00 149.00 153.00 156.00 170.00 174.00 182.00 189.00 201.00 210.00 218.00 226.00",
+            "-18.00,0.00 35.44x16.00: 0.00 9.00 17.00 21.00 24.00 32.00 36.00",
+            "-35.00,16.00 69.00x16.00: 0.00 11.00 19.00 24.00 28.00 36.00 40.00 43.00 52.00 51.00 55.00 69.00 69.00 69.00",
+            "-29.00,32.00 58.94x16.00: 0.00 8.00 16.00 23.00 27.00 31.00 38.00 42.00 45.00 59.00",
+            "-30.00,48.00 59.69x16.00: 0.00 8.00 15.00 27.00 36.00 44.00 52.00",
+            "0.00,0.00 80.00x16.00: 0.00 18.00 35.00 48.00 60.00 77.00 89.00",
+            "0.00,16.00 80.00x16.00: 0.00 11.00 19.00 24.00 28.00 36.00 40.00 49.00 58.00 57.00 66.00 80.00 80.00 80.00",
+            "0.00,32.00 80.00x16.00: 0.00 10.00 20.00 29.00 38.00 44.00 53.00 59.00 66.00 82.00",
+            "0.00,48.00 59.69x16.00: 0.00 8.00 15.00 27.00 36.00 44.00 52.00",
+        ];
+        assert_eq!(lines, expected);
+    }
+
+    #[cfg(feature = "default_fonts")]
     fn measure_text(
         fonts: &mut FontsImpl,
         text: &str,
