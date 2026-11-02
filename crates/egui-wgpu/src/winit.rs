@@ -167,15 +167,18 @@ impl Painter {
         let Some(old_state) = self.surfaces.remove(&viewport_id) else {
             return Ok(());
         };
+        let SurfaceState {
+            width,
+            height,
+            resizing,
+            ..
+        } = old_state;
+        // Before making the new one: some surfaces can only exist once per window, like one
+        // presenting through a `DirectComposition` target of the window.
+        drop(old_state);
 
         let surface = self.instance.create_surface(Arc::clone(window))?;
-        self.install_surface(
-            surface,
-            viewport_id,
-            old_state.width,
-            old_state.height,
-            old_state.resizing,
-        );
+        self.install_surface(surface, viewport_id, width, height, resizing);
         Ok(())
     }
 
