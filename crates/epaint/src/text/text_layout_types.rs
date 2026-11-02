@@ -4,10 +4,13 @@ use core::{ops::Range, str::FromStr as _};
 use super::{
     cursor::{CCursor, LayoutCursor},
     glyph_atlas::UvRect,
+    grapheme,
     index::{ByteIndex, ByteRange, ByteRangeExt as _, CharIndex},
 };
 use crate::{Color32, FontId, Mesh, Stroke, text::FontsView};
-use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2, pos2, vec2};
+use emath::{
+    Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rangef, Rect, Vec2, pos2, vec2,
+};
 pub use font_types::Tag;
 use smallvec::SmallVec;
 
@@ -78,8 +81,29 @@ pub struct LayoutJob {
     /// Default: `true`.
     pub break_on_newline: bool,
 
+    /// The base direction of each paragraph (UAX #9 paragraph embedding level).
+    ///
+    /// Default: [`TextDirection::Auto`].
+    pub direction: TextDirection,
+
     /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
+    ///
+    /// See [`Self::halign_min_is_start`] for how `Align::LEFT` (`Align::Min`) treats
+    /// right-to-left paragraphs.
     pub halign: Align,
+
+    /// If `true` (default), [`Self::halign`] `Align::Min` aligns each paragraph to its _start_:
+    /// a left-to-right paragraph to the left and a right-to-left one
+    /// (see [`Self::direction`]) to the right.
+    ///
+    /// The right-to-left rows are then flush with the right edge of the widest row,
+    /// and the galley's left edge stays at zero, as for left-aligned text,
+    /// so code that places a galley by its `halign` needs no change.
+    ///
+    /// If `false`, `Align::Min` puts every row on the left.
+    ///
+    /// `Align::Center` and `Align::Max` are not affected by the paragraph direction.
+    pub halign_min_is_start: bool,
 
     /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`].
     pub justify: bool,
@@ -105,7 +129,9 @@ impl Default for LayoutJob {
             wrap: Default::default(),
             first_row_min_height: 0.0,
             break_on_newline: true,
+            direction: TextDirection::Auto,
             halign: Align::LEFT,
+            halign_min_is_start: true,
             justify: false,
             round_output_to_gui: true,
             keep_trailing_whitespace: false,
@@ -313,7 +339,9 @@ impl core::hash::Hash for LayoutJob {
             wrap,
             first_row_min_height,
             break_on_newline,
+            direction,
             halign,
+            halign_min_is_start,
             justify,
             round_output_to_gui,
             keep_trailing_whitespace,
@@ -324,11 +352,37 @@ impl core::hash::Hash for LayoutJob {
         wrap.hash(state);
         emath::OrderedFloat(*first_row_min_height).hash(state);
         break_on_newline.hash(state);
+        direction.hash(state);
         halign.hash(state);
+        halign_min_is_start.hash(state);
         justify.hash(state);
         round_output_to_gui.hash(state);
         keep_trailing_whitespace.hash(state);
     }
+}
+
+// ----------------------------------------------------------------------------
+
+/// The base direction of a paragraph of text: [`LayoutJob::direction`].
+///
+/// It decides where text of mixed direction goes on a row
+/// (in a right-to-left paragraph the first word is on the right),
+/// and which side of a row is its start.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum TextDirection {
+    /// Each paragraph takes the direction of its first strong character (UAX #9 rules P2 and P3),
+    /// the same as `dir="auto"` in HTML. A paragraph without one, such as an empty line
+    /// or a line of digits, takes the direction of the paragraph before it, as in most editors;
+    /// the first paragraph of the text is then left-to-right.
+    #[default]
+    Auto,
+
+    /// Every paragraph is left-to-right.
+    LeftToRight,
+
+    /// Every paragraph is right-to-left.
+    RightToLeft,
 }
 
 // ----------------------------------------------------------------------------
@@ -849,6 +903,15 @@ pub struct Row {
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
 
+    /// Is the paragraph this row belongs to right-to-left?
+    ///
+    /// See [`LayoutJob::direction`].
+    pub rtl_paragraph: bool,
+
+    /// The indices of [`Self::glyphs`] from left to right, computed once during layout.
+    /// Empty when that is the logical order. See [`Self::visual_order`].
+    pub(crate) visual_order: Vec<u32>,
+
     /// Logical size based on font heights etc.
     /// Includes leading and trailing whitespace.
     pub size: Vec2,
@@ -929,6 +992,13 @@ pub struct Glyph {
     /// Whether this glyph carries its own color, e.g. a color emoji.
     pub is_color: bool,
 
+    /// Resolved bidi embedding level of the character (UAX #9).
+    ///
+    /// `0` for plain left-to-right text; odd levels are right-to-left.
+    /// Glyphs stay in logical order in [`Row::glyphs`]; this decides where
+    /// they are placed on the row and which side of them a cursor sits.
+    pub bidi_level: u8,
+
     /// Index into [`LayoutJob::sections`]. Decides color etc.
     ///
     /// Only used during layout, then set to an invalid value in order to
@@ -956,11 +1026,24 @@ impl Glyph {
     pub fn logical_rect(&self) -> Rect {
         Rect::from_min_size(self.pos - vec2(0.0, self.font_ascent), self.size())
     }
+
+    /// Is this glyph part of a right-to-left run?
+    #[inline]
+    pub fn is_rtl(&self) -> bool {
+        self.bidi_level % 2 == 1
+    }
 }
 
 // ----------------------------------------------------------------------------
 
 impl Row {
+    /// The indices of [`Self::glyphs`] in the order they are placed, from left to right.
+    ///
+    /// The glyphs are in logical order; with right-to-left text that differs from this.
+    pub fn visual_order(&self) -> impl DoubleEndedIterator<Item = usize> + Clone + '_ {
+        super::text_layout::visual_indices(&self.visual_order, self.glyphs.len())
+    }
+
     /// The text on this row, excluding the implicit `\n` if any.
     pub fn text(&self) -> String {
         self.glyphs.iter().map(|g| g.chr).collect()
@@ -974,21 +1057,119 @@ impl Row {
 
     /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
+    ///
+    /// In a row with right-to-left text, glyphs are in logical order but positioned
+    /// in visual order (see [`Glyph::bidi_level`]), so this finds the glyph nearest to `desired_x`
+    /// and then decides which side of it the cursor belongs on: for a
+    /// left-to-right glyph the cursor _before_ it is on its left, for a
+    /// right-to-left glyph it is on its right.
+    ///
+    /// The result is always a grapheme cluster boundary.
     pub fn char_at(&self, desired_x: f32) -> CharIndex {
-        for (i, glyph) in self.glyphs.iter().enumerate() {
-            if desired_x < glyph.logical_rect().center().x {
-                return CharIndex(i);
-            }
+        let column = self.nearest_char_boundary(desired_x);
+        if column == CharIndex::ZERO || column == self.char_count_excluding_newline() {
+            return column;
         }
-        self.char_count_excluding_newline()
+        let Some(cluster) = grapheme::cluster_around(&self.text(), column) else {
+            return column;
+        };
+
+        // Snap to the side of the cluster that `desired_x` is on.
+        let glyphs = &self.glyphs[cluster.start.0..cluster.end.0];
+        let left = glyphs.iter().map(|g| g.pos.x).fold(f32::INFINITY, f32::min);
+        let right = glyphs
+            .iter()
+            .map(Glyph::max_x)
+            .fold(f32::NEG_INFINITY, f32::max);
+        let past_center = f32::midpoint(left, right) <= desired_x;
+        if past_center == glyphs[0].is_rtl() {
+            cluster.start
+        } else {
+            cluster.end
+        }
     }
 
-    pub fn x_offset(&self, column: CharIndex) -> f32 {
-        if let Some(glyph) = self.glyphs.get(column.0) {
-            glyph.pos.x
-        } else {
-            self.size.x
+    /// Like [`Self::char_at`], but may land inside a grapheme cluster.
+    fn nearest_char_boundary(&self, desired_x: f32) -> CharIndex {
+        if !self.glyphs.iter().any(Glyph::is_rtl) {
+            // Logical order is visual order here. A scan by glyph center also passes
+            // over the zero-width glyphs a nearest-glyph search would stop inside.
+            for (i, glyph) in self.glyphs.iter().enumerate() {
+                if desired_x < glyph.logical_rect().center().x {
+                    return CharIndex(i);
+                }
+            }
+            return self.char_count_excluding_newline();
         }
+
+        let mut nearest: Option<(f32, usize)> = None;
+        for (i, glyph) in self.glyphs.iter().enumerate() {
+            let rect = glyph.logical_rect();
+            let distance = (rect.min.x - desired_x)
+                .max(desired_x - rect.max.x)
+                .max(0.0);
+            if nearest.is_none_or(|(best, _)| distance < best) {
+                nearest = Some((distance, i));
+            }
+        }
+        let Some((_, i)) = nearest else {
+            return CharIndex(0);
+        };
+        let glyph = &self.glyphs[i];
+        let past_center = glyph.logical_rect().center().x <= desired_x;
+        if past_center == glyph.is_rtl() {
+            CharIndex(i)
+        } else {
+            CharIndex(i + 1)
+        }
+    }
+
+    /// The x coordinate of a cursor placed before the char at `column`
+    /// (or after the last char if `column` is the char count), in row-relative coordinates.
+    ///
+    /// For a right-to-left glyph "before" is its right edge.
+    pub fn x_offset(&self, column: CharIndex) -> f32 {
+        match self.glyphs.get(column.0) {
+            Some(glyph) if glyph.is_rtl() => glyph.max_x(),
+            Some(glyph) => glyph.pos.x,
+            None => match self.glyphs.last() {
+                Some(last) if last.is_rtl() => last.pos.x,
+                // A right-to-left row can end in left-to-right text, placed anywhere on it:
+                Some(last) if self.glyphs.iter().any(Glyph::is_rtl) => last.max_x(),
+                _ => self.size.x,
+            },
+        }
+    }
+
+    /// The x ranges covered by the chars in `chars`, from left to right, in row-relative coordinates.
+    ///
+    /// One range in a left-to-right row, from cursor to cursor. With right-to-left text,
+    /// chars that are contiguous in logical order can be apart on screen, so there is
+    /// one range per stretch of adjacent glyphs.
+    pub fn x_ranges(&self, chars: Range<CharIndex>) -> SmallVec<[Rangef; 1]> {
+        if !self.glyphs.iter().any(Glyph::is_rtl) {
+            let range = Rangef::new(self.x_offset(chars.start), self.x_offset(chars.end));
+            return smallvec::smallvec![range];
+        }
+
+        let mut ranges: SmallVec<[Rangef; 1]> = SmallVec::new();
+        let mut extends_last = false;
+        for i in self.visual_order() {
+            let glyph = &self.glyphs[i];
+            if glyph.advance_width <= 0.0 {
+                continue; // a mark or the rest of a cluster, inside its base
+            }
+            if !(chars.start.0..chars.end.0).contains(&i) {
+                extends_last = false;
+                continue;
+            }
+            match ranges.last_mut() {
+                Some(last) if extends_last => last.max = glyph.max_x(),
+                _ => ranges.push(Rangef::new(glyph.pos.x, glyph.max_x())),
+            }
+            extends_last = true;
+        }
+        ranges
     }
 
     #[inline]
@@ -1125,6 +1306,23 @@ impl Galley {
             merged_galley.intrinsic_size.y += galley.intrinsic_size.y;
         }
 
+        // Each galley aligned its right-to-left rows to its own widest row:
+        if super::text_layout::align_rtl_rows_to_start(
+            &merged_galley.job,
+            &mut merged_galley.rows,
+            pixels_per_point,
+        ) {
+            merged_galley.rect = Rect::ZERO;
+            merged_galley.mesh_bounds = Rect::NOTHING;
+            for placed_row in &merged_galley.rows {
+                merged_galley.rect |= placed_row.rect();
+                merged_galley.mesh_bounds |= placed_row
+                    .visuals
+                    .mesh_bounds
+                    .translate(placed_row.pos.to_vec2());
+            }
+        }
+
         if merged_galley.job.round_output_to_gui {
             merged_galley.round_output_to_gui();
         }
@@ -1176,13 +1374,25 @@ impl Galley {
             return self.end_pos();
         };
 
-        let x = row.x_offset(layout_cursor.column) + row.pos.x;
+        let x = self.caret_x(layout_cursor.row, layout_cursor.column, true);
         Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
     }
 
     /// Returns a 0-width Rect.
+    ///
+    /// Where the text direction changes, the cursor is drawn at the edge of the char it sticks to,
+    /// see [`CCursor::prefer_next_row`].
     pub fn pos_from_cursor(&self, cursor: CCursor) -> Rect {
-        self.pos_from_layout_cursor(&self.layout_from_cursor(cursor))
+        let layout_cursor = self.layout_from_cursor(cursor);
+        let Some(row) = self.rows.get(layout_cursor.row) else {
+            return self.end_pos();
+        };
+        let x = self.caret_x(
+            layout_cursor.row,
+            layout_cursor.column,
+            cursor.prefer_next_row,
+        );
+        Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
     }
 
     /// Cursor at the given position within the galley.
@@ -1221,8 +1431,7 @@ impl Galley {
             if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
                 // char_at is `Row` not `PlacedRow` relative which means we have to subtract the pos.
-                let column = row.char_at(pos.x - row.pos.x);
-                let prefer_next_row = column < row.char_count_excluding_newline();
+                let (column, prefer_next_row) = row.caret_at(pos.x - row.pos.x);
                 cursor = CCursor {
                     index: ccursor_index + column,
                     prefer_next_row,
@@ -1334,21 +1543,22 @@ impl Galley {
 
 /// ## Cursor positions
 impl Galley {
-    #[expect(clippy::unused_self)]
+    /// The cursor one grapheme cluster back, in logical order.
     pub fn cursor_left_one_character(&self, cursor: &CCursor) -> CCursor {
         if cursor.index == CharIndex::ZERO {
             Default::default()
         } else {
             CCursor {
-                index: cursor.index - 1,
+                index: grapheme::previous_boundary(self.text(), cursor.index),
                 prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
             }
         }
     }
 
+    /// The cursor one grapheme cluster forward, in logical order.
     pub fn cursor_right_one_character(&self, cursor: &CCursor) -> CCursor {
         CCursor {
-            index: (cursor.index + 1).min(self.end().index),
+            index: grapheme::next_boundary(self.text(), cursor.index).min(self.end().index),
             prefer_next_row: true, // default to this when navigating. It is more often useful to put cursor at the beginning of a row than at the end.
         }
     }
@@ -1363,22 +1573,24 @@ impl Galley {
         h_pos: Option<f32>,
     ) -> (CCursor, Option<f32>) {
         let layout_cursor = self.layout_from_cursor(*cursor);
-        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_cursor(*cursor).center().x);
         if layout_cursor.row == 0 {
             (CCursor::default(), None)
         } else {
             let new_row = layout_cursor.row - 1;
 
-            let new_layout_cursor = {
-                // keep same X coord
-                // char_at is Row-relative, so subtract the row's position
-                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
-                LayoutCursor {
-                    row: new_row,
-                    column,
-                }
+            // Keep the same x coordinate. `caret_at` is row-relative.
+            let (column, downstream) =
+                self.rows[new_row].caret_at(h_pos - self.rows[new_row].pos.x);
+            let new_cursor = self.cursor_from_layout(LayoutCursor {
+                row: new_row,
+                column,
+            });
+            let new_cursor = CCursor {
+                prefer_next_row: downstream,
+                ..new_cursor
             };
-            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
+            (new_cursor, Some(h_pos))
         }
     }
 
@@ -1388,40 +1600,26 @@ impl Galley {
         h_pos: Option<f32>,
     ) -> (CCursor, Option<f32>) {
         let layout_cursor = self.layout_from_cursor(*cursor);
-        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_layout_cursor(&layout_cursor).center().x);
+        let h_pos = h_pos.unwrap_or_else(|| self.pos_from_cursor(*cursor).center().x);
         if layout_cursor.row + 1 < self.rows.len() {
             let new_row = layout_cursor.row + 1;
 
-            let new_layout_cursor = {
-                // keep same X coord
-                // char_at is Row-relative, so subtract the row's position
-                let column = self.rows[new_row].char_at(h_pos - self.rows[new_row].pos.x);
-                LayoutCursor {
-                    row: new_row,
-                    column,
-                }
+            // Keep the same x coordinate. `caret_at` is row-relative.
+            let (column, downstream) =
+                self.rows[new_row].caret_at(h_pos - self.rows[new_row].pos.x);
+            let new_cursor = self.cursor_from_layout(LayoutCursor {
+                row: new_row,
+                column,
+            });
+            let new_cursor = CCursor {
+                prefer_next_row: downstream,
+                ..new_cursor
             };
 
-            (self.cursor_from_layout(new_layout_cursor), Some(h_pos))
+            (new_cursor, Some(h_pos))
         } else {
             (self.end(), None)
         }
-    }
-
-    pub fn cursor_begin_of_row(&self, cursor: &CCursor) -> CCursor {
-        let layout_cursor = self.layout_from_cursor(*cursor);
-        self.cursor_from_layout(LayoutCursor {
-            row: layout_cursor.row,
-            column: CharIndex::ZERO,
-        })
-    }
-
-    pub fn cursor_end_of_row(&self, cursor: &CCursor) -> CCursor {
-        let layout_cursor = self.layout_from_cursor(*cursor);
-        self.cursor_from_layout(LayoutCursor {
-            row: layout_cursor.row,
-            column: self.rows[layout_cursor.row].char_count_excluding_newline(),
-        })
     }
 
     pub fn cursor_begin_of_paragraph(&self, cursor: &CCursor) -> CCursor {

@@ -1,5 +1,6 @@
 //! Everything related to text, fonts, text layout, cursors etc.
 
+mod caret;
 pub mod cursor;
 mod face_store;
 mod family;
@@ -13,6 +14,7 @@ mod fonts;
 mod galley_cache;
 mod glyph_atlas;
 mod glyph_rasterizer;
+pub mod grapheme;
 mod index;
 mod styled_metrics;
 mod text_layout;

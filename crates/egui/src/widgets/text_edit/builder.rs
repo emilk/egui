@@ -1154,12 +1154,18 @@ impl<'t> TextEdit<'t> {
 }
 
 fn mask_if_password(is_password: bool, text: &str) -> String {
+    /// One bullet per grapheme cluster, so the cursor moves over the masked text
+    /// as over the real text. The rest of each cluster is invisible combining grapheme joiners,
+    /// which keeps every char index the same as in the real text.
     fn mask_password(text: &str) -> String {
-        core::iter::repeat_n(
-            epaint::text::PASSWORD_REPLACEMENT_CHAR,
-            text.chars().count(),
-        )
-        .collect::<String>()
+        use unicode_segmentation::UnicodeSegmentation as _;
+        const JOINER: char = '\u{34F}';
+        let mut masked = String::with_capacity(text.len());
+        for cluster in text.graphemes(true) {
+            masked.push(epaint::text::PASSWORD_REPLACEMENT_CHAR);
+            masked.extend(cluster.chars().skip(1).map(|_| JOINER));
+        }
+        masked
     }
 
     if is_password {
@@ -1540,7 +1546,12 @@ fn insert_replacing_selection(
         let single_line = text_to_insert.replace(['\r', '\n'], " ");
         text.insert_text_at(&mut ccursor, &single_line, char_limit);
     }
-    ccursor
+    // Stick to the inserted text, so that where the direction changes the cursor stays
+    // where the next char typed in that direction goes.
+    CCursor {
+        prefer_next_row: false,
+        ..ccursor
+    }
 }
 
 /// The text of the last [`accesskit::Action::SetValue`] request for this widget, if any.
@@ -1630,5 +1641,32 @@ fn check_for_mutating_key_press(
         }
 
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use epaint::text::{CharIndex, grapheme};
+
+    use super::mask_if_password;
+
+    /// The masked text must have the same chars and grapheme clusters as the real one,
+    /// or the cursor ends up inside a cluster of the buffer.
+    #[test]
+    fn password_mask_keeps_char_indices_and_clusters() {
+        for text in ["e\u{301}a", "ن\u{64E}ص", "👩\u{200D}🚀x", "abc", ""] {
+            let masked = mask_if_password(true, text);
+            let count = text.chars().count();
+            assert_eq!(masked.chars().count(), count, "{text:?}");
+            for i in 0..=count {
+                let i = CharIndex(i);
+                assert_eq!(
+                    grapheme::next_boundary(&masked, i),
+                    grapheme::next_boundary(text, i),
+                    "{text:?} at {i:?}"
+                );
+            }
+        }
+        assert_eq!(mask_if_password(true, "e\u{301}a").matches('•').count(), 2);
     }
 }

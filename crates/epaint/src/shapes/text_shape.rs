@@ -148,6 +148,8 @@ impl TextShape {
             let text::Row {
                 section_index_at_start: _,
                 glyphs: _, // TODO(emilk): would it make sense to transform these?
+                rtl_paragraph: _,
+                visual_order: _,
                 size,
                 visuals,
             } = Arc::make_mut(row);
