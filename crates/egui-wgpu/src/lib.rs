@@ -313,8 +313,8 @@ pub enum SurfaceErrorAction {
     /// Use for [`wgpu::CurrentSurfaceTexture::Outdated`].
     Reconfigure,
 
-    /// Drop the surface, create a new one via [`wgpu::Instance::create_surface`] (or the
-    /// `create_surface` of [`WgpuConfiguration`]), configure it, then skip the current frame.
+    /// Drop the surface, create a new one via [`wgpu::Instance::create_surface`], configure it,
+    /// then skip the current frame.
     ///
     /// Use for [`wgpu::CurrentSurfaceTexture::Lost`], where reconfiguring the same surface
     /// object cannot recover.
@@ -339,32 +339,7 @@ pub struct WgpuConfiguration {
     /// in that case either.
     pub on_surface_status:
         Arc<dyn Fn(&wgpu::CurrentSurfaceTexture) -> SurfaceErrorAction + Send + Sync>,
-
-    /// Creates the surface of each window, instead of [`wgpu::Instance::create_surface`].
-    ///
-    /// For example to present into a `DirectComposition` visual of your own, or to set up the
-    /// window of each viewport.
-    #[cfg(feature = "winit")]
-    pub create_surface: Option<CreateSurfaceFn>,
 }
-
-/// Creates the [`wgpu::Surface`] of a window, see [`WgpuConfiguration::create_surface`].
-///
-/// Gets the viewport the window shows, and the window and display handles as a
-/// [`wgpu::SurfaceTargetUnsafe`]. The window outlives the surface.
-///
-/// `instance.create_surface_unsafe(target)` creates the surface the way egui-wgpu does without
-/// this, so a function that only wants to know about the windows can end with that.
-#[cfg(feature = "winit")]
-pub type CreateSurfaceFn = Arc<
-    dyn Fn(
-            &wgpu::Instance,
-            egui::ViewportId,
-            wgpu::SurfaceTargetUnsafe,
-        ) -> Result<wgpu::Surface<'static>, wgpu::CreateSurfaceError>
-        + Send
-        + Sync,
->;
 
 // Compile-time check that `WgpuConfiguration` is `Send + Sync`.
 // Deliberately not a `#[test]`: tests never run on wasm, but `cargo check` does.
@@ -388,15 +363,11 @@ impl core::fmt::Debug for WgpuConfiguration {
             surface,
             wgpu_setup,
             on_surface_status: _,
-            #[cfg(feature = "winit")]
-            create_surface,
         } = self;
-        let mut f = f.debug_struct("WgpuConfiguration");
-        f.field("surface", &surface)
-            .field("wgpu_setup", &wgpu_setup);
-        #[cfg(feature = "winit")]
-        f.field("create_surface", &create_surface.is_some());
-        f.finish_non_exhaustive()
+        f.debug_struct("WgpuConfiguration")
+            .field("surface", &surface)
+            .field("wgpu_setup", &wgpu_setup)
+            .finish_non_exhaustive()
     }
 }
 
@@ -439,8 +410,6 @@ impl Default for WgpuConfiguration {
                     SurfaceErrorAction::SkipFrame
                 }
             }),
-            #[cfg(feature = "winit")]
-            create_surface: None,
         }
     }
 }
