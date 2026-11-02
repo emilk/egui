@@ -13,16 +13,19 @@ use crate::{
         face_store::FontFaceKey,
         fonts::FontsImpl,
         styled_metrics::StyledMetrics,
-        unicode::{is_cjk, is_cjk_break_allowed, is_combining_mark},
+        unicode::{is_cjk, is_combining_mark},
     },
 };
 
+use unicode_segmentation::UnicodeSegmentation as _;
+
 use super::{
-    ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
-    VariationCoords,
+    ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, LineBreakKind, LineBreaker,
+    PlacedRow, Row, RowVisuals, VariationCoords,
     family::FamilyKey,
     font_face::{FontFace, GlyphInfo, ShapedGlyph},
     glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
+    line_break::is_mandatory_break,
 };
 
 // ----------------------------------------------------------------------------
@@ -131,7 +134,13 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
     let intrinsic_size = calculate_intrinsic_size(point_scale, &job, &paragraphs);
 
     let mut elided = false;
-    let mut rows = rows_from_paragraphs(paragraphs, &job, pixels_per_point, &mut elided);
+    let mut rows = rows_from_paragraphs(
+        paragraphs,
+        &job,
+        pixels_per_point,
+        fonts.line_breaker.as_ref(),
+        &mut elided,
+    );
     if elided && let Some(last_placed) = rows.last_mut() {
         let last_row = Arc::make_mut(&mut last_placed.row);
         replace_last_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
@@ -146,7 +155,13 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
         let num_rows = rows.len();
         for (i, placed_row) in rows.iter_mut().enumerate() {
             let is_last_row = i + 1 == num_rows;
-            let justify_row = justify && !placed_row.ends_with_newline && !is_last_row;
+            let ends_with_hard_break = placed_row
+                .row
+                .glyphs
+                .last()
+                .is_some_and(|glyph| is_mandatory_break(glyph.chr));
+            let justify_row =
+                justify && !placed_row.ends_with_newline && !ends_with_hard_break && !is_last_row;
             halign_and_justify_row(
                 point_scale,
                 placed_row,
@@ -683,6 +698,7 @@ fn rows_from_paragraphs(
     paragraphs: Vec<Paragraph>,
     job: &LayoutJob,
     pixels_per_point: f32,
+    line_breaker: &dyn LineBreaker,
     elided: &mut bool,
 ) -> Vec<PlacedRow> {
     let num_paragraphs = paragraphs.len();
@@ -713,7 +729,18 @@ fn rows_from_paragraphs(
             // `last_glyph.max_x()`, so that side-by-side galleys have the same
             // spacing as characters within a single galley.
             let paragraph_width = paragraph.cursor_x_px / pixels_per_point;
-            if paragraph_width <= job.effective_wrap_width() {
+            let fits = paragraph_width <= job.effective_wrap_width();
+            let may_break_hard =
+                job.break_on_newline && paragraph.glyphs.iter().any(|g| is_mandatory_break(g.chr));
+            // Early-out optimization: don't look for breaks in a paragraph that fits on one row.
+            let breaks = (!fits || may_break_hard)
+                .then(|| break_opportunities(&paragraph, job, line_breaker))
+                .filter(|breaks| !fits || breaks.iter().any(|after| after.hard));
+            if let Some(breaks) = breaks {
+                line_break(&paragraph, &breaks, job, &mut rows, elided);
+                let placed_row = rows.last_mut().unwrap();
+                placed_row.ends_with_newline = !is_last_paragraph;
+            } else {
                 // Early-out optimization: the whole paragraph fits on one row.
                 rows.push(PlacedRow {
                     pos: pos2(0.0, f32::NAN),
@@ -725,10 +752,6 @@ fn rows_from_paragraphs(
                     }),
                     ends_with_newline: !is_last_paragraph,
                 });
-            } else {
-                line_break(&paragraph, job, &mut rows, elided);
-                let placed_row = rows.last_mut().unwrap();
-                placed_row.ends_with_newline = !is_last_paragraph;
             }
         }
     }
@@ -736,8 +759,92 @@ fn rows_from_paragraphs(
     rows
 }
 
+/// Where a row may end after a glyph.
+#[derive(Clone, Copy, Default)]
+struct BreakAfter {
+    /// The lowest penalty of the soft breaks the [`LineBreaker`] found here.
+    penalty: Option<u8>,
+
+    /// The row must end here.
+    hard: bool,
+
+    /// The next glyph starts a new grapheme cluster.
+    cluster_end: bool,
+}
+
+/// What may follow each glyph of `paragraph`: one entry per glyph.
+fn break_opportunities(
+    paragraph: &Paragraph,
+    job: &LayoutJob,
+    line_breaker: &dyn LineBreaker,
+) -> Vec<BreakAfter> {
+    // There is one glyph per char, so the text of the glyphs is the text of the paragraph.
+    let text: String = paragraph.glyphs.iter().map(|glyph| glyph.chr).collect();
+    let glyph_starts: Vec<usize> = text.char_indices().map(|(offset, _)| offset).collect();
+    let glyph_before = |offset: usize| match glyph_starts.binary_search(&offset) {
+        Ok(next_glyph) => next_glyph.checked_sub(1),
+        Err(_) => None, // Not on a char boundary, or the end of the text.
+    };
+
+    let mut after = vec![BreakAfter::default(); glyph_starts.len()];
+    for (offset, _) in text.grapheme_indices(true) {
+        if let Some(glyph) = glyph_before(offset) {
+            after[glyph].cluster_end = true;
+        }
+    }
+
+    let mut breaks = Vec::new();
+    line_breaker.line_breaks(&text, job.language.as_deref(), &mut breaks);
+    for line_break in breaks {
+        let Some(glyph) = glyph_before(line_break.offset) else {
+            continue;
+        };
+        let penalty = match line_break.kind {
+            LineBreakKind::Hard
+                if job.break_on_newline && is_mandatory_break(paragraph.glyphs[glyph].chr) =>
+            {
+                after[glyph].hard = true;
+                continue;
+            }
+            LineBreakKind::Hard => 0,
+            LineBreakKind::Soft { penalty } => penalty,
+        };
+        let entry = &mut after[glyph].penalty;
+        *entry = Some(entry.map_or(penalty, |p| p.min(penalty)));
+    }
+    after
+}
+
+/// The glyphs `range` of `paragraph` as a row, moved left by `row_start_x`.
+fn row_of_glyphs(paragraph: &Paragraph, range: Range<usize>, row_start_x: f32) -> PlacedRow {
+    let glyphs: Vec<Glyph> = paragraph.glyphs[range]
+        .iter()
+        .copied()
+        .map(|mut glyph| {
+            glyph.pos.x -= row_start_x;
+            glyph
+        })
+        .collect();
+
+    let section_index_at_start = glyphs[0].section_index;
+    let paragraph_max_x = glyphs.last().unwrap().max_x();
+
+    PlacedRow {
+        pos: pos2(0.0, f32::NAN),
+        row: Arc::new(Row {
+            section_index_at_start,
+            glyphs,
+            visuals: Default::default(),
+            size: vec2(paragraph_max_x, 0.0),
+        }),
+        ends_with_newline: false,
+    }
+}
+
+/// `breaks` has one entry per glyph of `paragraph`, see [`break_opportunities`].
 fn line_break(
     paragraph: &Paragraph,
+    breaks: &[BreakAfter],
     job: &LayoutJob,
     out_rows: &mut Vec<PlacedRow>,
     elided: &mut bool,
@@ -751,7 +858,7 @@ fn line_break(
     let mut row_start_x = 0.0;
     let mut row_start_idx = 0;
 
-    for i in 0..paragraph.glyphs.len() {
+    for (i, &after) in breaks.iter().enumerate() {
         if job.wrap.max_rows <= out_rows.len() {
             *elided = true;
             break;
@@ -781,28 +888,11 @@ fn line_break(
                 first_row_indentation = 0.0;
             } else if let Some(last_kept_index) = row_break_candidates.get(job.wrap.break_anywhere)
             {
-                let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..=last_kept_index]
-                    .iter()
-                    .copied()
-                    .map(|mut glyph| {
-                        glyph.pos.x -= row_start_x;
-                        glyph
-                    })
-                    .collect();
-
-                let section_index_at_start = glyphs[0].section_index;
-                let paragraph_max_x = glyphs.last().unwrap().max_x();
-
-                out_rows.push(PlacedRow {
-                    pos: pos2(0.0, f32::NAN),
-                    row: Arc::new(Row {
-                        section_index_at_start,
-                        glyphs,
-                        visuals: Default::default(),
-                        size: vec2(paragraph_max_x, 0.0),
-                    }),
-                    ends_with_newline: false,
-                });
+                out_rows.push(row_of_glyphs(
+                    paragraph,
+                    row_start_idx..last_kept_index + 1,
+                    row_start_x,
+                ));
 
                 // Start a new row:
                 row_start_idx = last_kept_index + 1;
@@ -813,7 +903,18 @@ fn line_break(
             }
         }
 
-        row_break_candidates.add(i, &paragraph.glyphs[i..]);
+        if after.hard && i + 1 < paragraph.glyphs.len() {
+            if job.wrap.max_rows <= out_rows.len() {
+                *elided = true;
+                break;
+            }
+            out_rows.push(row_of_glyphs(paragraph, row_start_idx..i + 1, row_start_x));
+            row_start_idx = i + 1;
+            row_start_x = paragraph.glyphs[row_start_idx].pos.x;
+            row_break_candidates.forget_before_idx(row_start_idx);
+        } else {
+            row_break_candidates.add(i, after);
+        }
     }
 
     if row_start_idx < paragraph.glyphs.len() {
@@ -1383,62 +1484,33 @@ fn add_row_hline(
 // ----------------------------------------------------------------------------
 
 /// Keeps track of good places to break a long row of text.
-/// Will focus primarily on spaces, secondarily on things like `-`
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Default)]
 struct RowBreakCandidates {
-    /// Breaking at ` ` or other whitespace
-    /// is always the primary candidate.
-    space: Option<usize>,
+    /// The last soft break of each penalty, by increasing penalty.
+    soft: Vec<(u8, usize)>,
 
-    /// Logograms (single character representing a whole word) or kana (Japanese hiragana and katakana) are good candidates for line break.
-    cjk: Option<usize>,
-
-    /// Breaking anywhere before a CJK character is acceptable too.
-    pre_cjk: Option<usize>,
-
-    /// Breaking at a dash is a super-
-    /// good idea.
-    dash: Option<usize>,
-
-    /// This is nicer for things like URLs, e.g. www.
-    /// example.com.
-    punctuation: Option<usize>,
-
-    /// Breaking after just random character is some
-    /// times necessary.
+    /// The last break between two grapheme clusters, for when a word doesn't fit on a row.
     any: Option<usize>,
 }
 
 impl RowBreakCandidates {
-    fn add(&mut self, index: usize, glyphs: &[Glyph]) {
-        let chr = glyphs[0].chr;
-        const NON_BREAKING_SPACE: char = '\u{A0}';
-        if chr.is_whitespace() && chr != NON_BREAKING_SPACE {
-            self.space = Some(index);
-        } else if is_cjk(chr) && (glyphs.len() == 1 || is_cjk_break_allowed(glyphs[1].chr)) {
-            self.cjk = Some(index);
-        } else if chr == '-' {
-            self.dash = Some(index);
-        } else if chr.is_ascii_punctuation() {
-            self.punctuation = Some(index);
-        } else if glyphs.len() > 1 && is_cjk(glyphs[1].chr) {
-            self.pre_cjk = Some(index);
+    fn add(&mut self, index: usize, after: BreakAfter) {
+        if let Some(penalty) = after.penalty {
+            match self.soft.binary_search_by_key(&penalty, |&(p, _)| p) {
+                Ok(i) => self.soft[i].1 = index,
+                Err(i) => self.soft.insert(i, (penalty, index)),
+            }
         }
-        self.any = Some(index);
-    }
-
-    fn word_boundary(&self) -> Option<usize> {
-        [self.space, self.cjk, self.pre_cjk]
-            .into_iter()
-            .max()
-            .flatten()
+        if after.cluster_end {
+            self.any = Some(index);
+        }
     }
 
     fn has_good_candidate(&self, break_anywhere: bool) -> bool {
         if break_anywhere {
             self.any.is_some()
         } else {
-            self.word_boundary().is_some()
+            self.soft.first().is_some_and(|&(penalty, _)| penalty == 0)
         }
     }
 
@@ -1446,39 +1518,14 @@ impl RowBreakCandidates {
         if break_anywhere {
             self.any
         } else {
-            self.word_boundary()
-                .or(self.dash)
-                .or(self.punctuation)
-                .or(self.any)
+            self.soft.first().map(|&(_, index)| index).or(self.any)
         }
     }
 
     fn forget_before_idx(&mut self, index: usize) {
-        let Self {
-            space,
-            cjk,
-            pre_cjk,
-            dash,
-            punctuation,
-            any,
-        } = self;
-        if space.is_some_and(|s| s < index) {
-            *space = None;
-        }
-        if cjk.is_some_and(|s| s < index) {
-            *cjk = None;
-        }
-        if pre_cjk.is_some_and(|s| s < index) {
-            *pre_cjk = None;
-        }
-        if dash.is_some_and(|s| s < index) {
-            *dash = None;
-        }
-        if punctuation.is_some_and(|s| s < index) {
-            *punctuation = None;
-        }
-        if any.is_some_and(|s| s < index) {
-            *any = None;
+        self.soft.retain(|&(_, i)| index <= i);
+        if self.any.is_some_and(|i| i < index) {
+            self.any = None;
         }
     }
 }
@@ -1507,8 +1554,6 @@ fn segment_into_runs(
     text: &str,
     out: &mut Vec<TextRun>,
 ) {
-    use unicode_segmentation::UnicodeSegmentation as _;
-
     out.clear();
 
     for (byte_offset, grapheme_str) in text.grapheme_indices(true) {
@@ -2714,5 +2759,276 @@ mod tests {
         let glyphs = &galley.rows[0].row.glyphs;
         let details: Vec<_> = glyphs.iter().map(|g| (g.chr, g.advance_width)).collect();
         (galley.size().x, glyphs.len(), details)
+    }
+
+    // ------------------------------------------------------------------------
+    // Line breaking
+
+    /// Allows rows to end only at the given breaks, and remembers the language it was asked about.
+    #[derive(Default)]
+    struct BreakAt {
+        breaks: Vec<LineBreak>,
+        languages: crate::mutex::Mutex<Vec<Option<String>>>,
+    }
+
+    impl BreakAt {
+        fn soft(offsets: &[usize]) -> Self {
+            Self {
+                breaks: offsets
+                    .iter()
+                    .map(|&offset| LineBreak::soft(offset))
+                    .collect(),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl LineBreaker for BreakAt {
+        fn line_breaks(&self, _text: &str, language: Option<&str>, out: &mut Vec<LineBreak>) {
+            self.languages.lock().push(language.map(str::to_owned));
+            out.extend_from_slice(&self.breaks);
+        }
+    }
+
+    /// No fonts, so every grapheme cluster is a box of the same width.
+    fn tofu_fonts(line_breaker: Arc<dyn LineBreaker>) -> FontsImpl {
+        let mut fonts = FontsImpl::new(TextOptions::default(), FontDefinitions::empty());
+        fonts.line_breaker = line_breaker;
+        fonts
+    }
+
+    /// `job.text` wrapped at `glyphs` and a half glyph widths: the text of each row.
+    fn wrapped_rows(fonts: &mut FontsImpl, mut job: LayoutJob, glyphs: u32) -> Vec<String> {
+        let one = layout_simple(fonts, "x").size().x;
+        job.wrap.max_width = one * glyphs as f32 + 0.5 * one;
+        let galley = layout(fonts, 1.0, Arc::new(job));
+        galley.rows.iter().map(|row| row.row.text()).collect()
+    }
+
+    fn simple_job(text: &str) -> LayoutJob {
+        LayoutJob::simple(
+            text.to_owned(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            f32::INFINITY,
+        )
+    }
+
+    /// [`SimpleLineBreaker`] wraps text where epaint always did: these rows are what
+    /// epaint made before line breakers could be swapped.
+    #[test]
+    fn simple_line_breaker_keeps_the_old_breaks() {
+        #[rustfmt::skip]
+        const CASES: &[(&str, bool, u32, &str)] = &[
+            ("The quick brown fox jumps over the lazy dog", false, 3, "The| |qui|ck |bro|wn |fox| |jum|ps |ove|r |the| |laz|y |dog"),
+            ("The quick brown fox jumps over the lazy dog", false, 5, "The |quick| |brown| fox |jumps| |over |the |lazy |dog"),
+            ("The quick brown fox jumps over the lazy dog", false, 7, "The |quick |brown |fox |jumps |over |the |lazy |dog"),
+            ("The quick brown fox jumps over the lazy dog", false, 10, "The quick |brown fox |jumps |over the |lazy dog"),
+            ("The quick brown fox jumps over the lazy dog", true, 3, "The| qu|ick| br|own| fo|x j|ump|s o|ver| th|e l|azy| do|g"),
+            ("The quick brown fox jumps over the lazy dog", true, 5, "The q|uick |brown| fox |jumps| over| the |lazy |dog"),
+            ("The quick brown fox jumps over the lazy dog", true, 7, "The qui|ck brow|n fox j|umps ov|er the |lazy do|g"),
+            ("The quick brown fox jumps over the lazy dog", true, 10, "The quick |brown fox |jumps over| the lazy |dog"),
+            ("well-known self-contained hyphen-ated", false, 3, "wel|l-|kno|wn |sel|f-|con|tai|ned| |hyp|hen|-|ate|d"),
+            ("well-known self-contained hyphen-ated", false, 5, "well-|known| |self-|conta|ined |hyphe|n-|ated"),
+            ("well-known self-contained hyphen-ated", false, 7, "well-|known |self-|contain|ed |hyphen-|ated"),
+            ("well-known self-contained hyphen-ated", false, 10, "well-|known |self-|contained |hyphen-|ated"),
+            ("see www.example.com/path?q=1 or a-b.c", false, 3, "see| |www|.|exa|mpl|e.|com|/|pat|h?|q=|1 |or |a-|b.c"),
+            ("see www.example.com/path?q=1 or a-b.c", false, 5, "see |www.|examp|le.|com/|path?|q=1 |or |a-b.c"),
+            ("see www.example.com/path?q=1 or a-b.c", false, 7, "see |www.|example|.com/|path?q=|1 or |a-b.c"),
+            ("see www.example.com/path?q=1 or a-b.c", false, 10, "see |www.|example.|com/path?|q=1 or |a-b.c"),
+            ("一二三，四五六：七八九？十一二！三四五）六七八", false, 3, "一二|三，四|五六：|七八|九？十|一二！|三四|五）六|七八"),
+            ("一二三，四五六：七八九？十一二！三四五）六七八", false, 5, "一二三，四|五六：七八|九？十一|二！三四|五）六七八"),
+            ("一二三，四五六：七八九？十一二！三四五）六七八", false, 7, "一二三，四五|六：七八九？十|一二！三四五）|六七八"),
+            ("一二三，四五六：七八九？十一二！三四五）六七八", false, 10, "一二三，四五六：七八|九？十一二！三四五）|六七八"),
+            ("一二三，四五六：七八九？十一二！三四五）六七八", true, 3, "一二三|，四五|六：七|八九？|十一二|！三四|五）六|七八"),
+            ("一二三，四五六：七八九？十一二！三四五）六七八", true, 5, "一二三，四|五六：七八|九？十一二|！三四五）|六七八"),
+            ("一二三，四五六：七八九？十一二！三四五）六七八", true, 7, "一二三，四五六|：七八九？十一|二！三四五）六|七八"),
+            ("一二三，四五六：七八九？十一二！三四五）六七八", true, 10, "一二三，四五六：七八|九？十一二！三四五）|六七八"),
+            ("日本語のテキストとEnglish wordsの混在-です", false, 3, "日本語|のテキ|ストと|Eng|lis|h |wor|dsの|混在|-です"),
+            ("日本語のテキストとEnglish wordsの混在-です", false, 5, "日本語のテ|キストと|Engli|sh |words|の混在-で|す"),
+            ("日本語のテキストとEnglish wordsの混在-です", false, 7, "日本語のテキス|トと|English| wordsの|混在-です"),
+            ("日本語のテキストとEnglish wordsの混在-です", false, 10, "日本語のテキストと|English |wordsの混在-で|す"),
+            ("Supercalifragilisticexpialidocious", false, 3, "Sup|erc|ali|fra|gil|ist|ice|xpi|ali|doc|iou|s"),
+            ("Supercalifragilisticexpialidocious", false, 5, "Super|calif|ragil|istic|expia|lidoc|ious"),
+            ("Supercalifragilisticexpialidocious", false, 7, "Superca|lifragi|listice|xpialid|ocious"),
+            ("Supercalifragilisticexpialidocious", false, 10, "Supercalif|ragilistic|expialidoc|ious"),
+            ("a\u{a0}b c\u{a0}d e\u{a0}f\u{a0}g", false, 3, "a\u{a0}b| |c\u{a0}d| |e\u{a0}f|\u{a0}g"),
+            ("a\u{a0}b c\u{a0}d e\u{a0}f\u{a0}g", false, 5, "a\u{a0}b |c\u{a0}d |e\u{a0}f\u{a0}g"),
+            ("a\u{a0}b c\u{a0}d e\u{a0}f\u{a0}g", false, 10, "a\u{a0}b c\u{a0}d |e\u{a0}f\u{a0}g"),
+            ("a\u{a0}b c\u{a0}d e\u{a0}f\u{a0}g", true, 3, "a\u{a0}b| c\u{a0}|d e|\u{a0}f\u{a0}|g"),
+        ];
+        let mut fonts = tofu_fonts(Arc::new(SimpleLineBreaker));
+        for &(text, break_anywhere, glyphs, expected) in CASES {
+            let mut job = simple_job(text);
+            job.wrap.break_anywhere = break_anywhere;
+            let rows = wrapped_rows(&mut fonts, job, glyphs).join("|");
+            assert_eq!(
+                rows, expected,
+                "{text:?} at {glyphs} glyphs, break_anywhere: {break_anywhere}"
+            );
+        }
+    }
+
+    #[test]
+    fn rows_end_only_where_the_line_breaker_allows() {
+        // Allowed: before "def" and before "ghi". Not at the spaces.
+        let text = "abc def ghi jkl";
+        let mut fonts = tofu_fonts(Arc::new(BreakAt::soft(&[4, 8])));
+        assert_eq!(
+            wrapped_rows(&mut fonts, simple_job(text), 9),
+            ["abc def ", "ghi jkl"]
+        );
+        assert_eq!(
+            wrapped_rows(&mut fonts, simple_job(text), 5),
+            ["abc ", "def ", "ghi j", "kl"]
+        );
+
+        // A lower penalty wins over a later break:
+        let mut fonts = tofu_fonts(Arc::new(BreakAt {
+            breaks: vec![LineBreak::soft(4), LineBreak::soft_with_penalty(8, 1)],
+            ..Default::default()
+        }));
+        assert_eq!(
+            wrapped_rows(&mut fonts, simple_job("abc def ghi"), 9),
+            ["abc ", "def ghi"]
+        );
+
+        // Too long a piece breaks between grapheme clusters:
+        let mut fonts = tofu_fonts(Arc::new(BreakAt::soft(&[])));
+        assert_eq!(
+            wrapped_rows(&mut fonts, simple_job("abcdefgh"), 3),
+            ["abc", "def", "gh"]
+        );
+    }
+
+    #[test]
+    fn line_breaker_gets_the_paragraph_and_its_language() {
+        let line_breaker = Arc::new(BreakAt::soft(&[]));
+        let mut fonts = tofu_fonts(Arc::<BreakAt>::clone(&line_breaker));
+        let mut job = simple_job("ภาษาไทย ภาษาไทย");
+        job.language = Some("th".to_owned());
+        wrapped_rows(&mut fonts, job, 5);
+        assert_eq!(*line_breaker.languages.lock(), [Some("th".to_owned())]);
+
+        // A paragraph that fits on one row has no breaks to look for:
+        line_breaker.languages.lock().clear();
+        wrapped_rows(&mut fonts, simple_job("ไทย"), 5);
+        assert!(line_breaker.languages.lock().is_empty());
+    }
+
+    #[test]
+    fn hard_breaks_end_the_row() {
+        let text = "abc\u{2028}def ghi";
+        let after_separator = "abc\u{2028}".len();
+        let line_breaker = Arc::new(BreakAt {
+            breaks: vec![
+                LineBreak::hard(after_separator),
+                LineBreak::hard(text.len()),
+            ],
+            ..Default::default()
+        });
+        let mut fonts = tofu_fonts(line_breaker);
+        // Even when the paragraph fits on one row:
+        assert_eq!(
+            wrapped_rows(&mut fonts, simple_job(text), 20),
+            ["abc\u{2028}", "def ghi"]
+        );
+
+        // Only after a line separator:
+        let mut fonts = tofu_fonts(Arc::new(BreakAt {
+            breaks: vec![LineBreak::hard(2)],
+            ..Default::default()
+        }));
+        assert_eq!(
+            wrapped_rows(&mut fonts, simple_job("abcd\u{2028}"), 20),
+            ["abcd\u{2028}"]
+        );
+        assert_eq!(
+            wrapped_rows(&mut fonts, simple_job("abcd\u{2028}"), 3),
+            ["ab", "cd\u{2028}"]
+        );
+
+        // Only with `break_on_newline`; otherwise it is a soft break:
+        let mut fonts = tofu_fonts(Arc::new(BreakAt {
+            breaks: vec![LineBreak::hard(after_separator)],
+            ..Default::default()
+        }));
+        let mut job = simple_job(text);
+        job.break_on_newline = false;
+        assert_eq!(wrapped_rows(&mut fonts, job.clone(), 20), [text]);
+        assert_eq!(
+            wrapped_rows(&mut fonts, job, 6),
+            ["abc\u{2028}", "def gh", "i"]
+        );
+    }
+
+    /// Is `char_index` the first char of a grapheme cluster of `text`?
+    fn is_cluster_boundary(text: &str, char_index: usize) -> bool {
+        let byte_offset = text
+            .char_indices()
+            .nth(char_index)
+            .map_or(text.len(), |(offset, _)| offset);
+        text.grapheme_indices(true)
+            .any(|(offset, _)| offset == byte_offset)
+    }
+
+    /// With no break opportunity in a word, the row breaks between grapheme clusters:
+    /// never inside an emoji ZWJ sequence, a flag, or a letter with its marks.
+    #[test]
+    fn emergency_breaks_keep_grapheme_clusters_whole() {
+        let texts = [
+            "👨\u{200D}👩\u{200D}👧\u{200D}👦👩\u{200D}🔬🇯🇵🇰🇷👍🏽",
+            "e\u{301}e\u{301}\u{323}a\u{308}o\u{302}\u{301}u\u{328}",
+            "ที่นี่มีน้ำใสสะอาด",
+            "नमस्ते क्षत्रिय",
+            "ကျွန်တော်မြန်မာစာ",
+        ];
+        // With the default fonts, the emoji in a sequence the emoji font has no ligature for
+        // are glyphs of their own, each with its own width.
+        let line_breakers = [
+            Arc::new(SimpleLineBreaker) as Arc<dyn LineBreaker>,
+            Arc::new(BreakAt::soft(&[])),
+        ];
+        for (definitions, line_breaker, whole_text) in [
+            (FontDefinitions::empty(), true),
+            (FontDefinitions::default(), false),
+        ]
+        .into_iter()
+        .flat_map(|(definitions, whole_text)| {
+            line_breakers
+                .clone()
+                .map(move |lb| (definitions.clone(), lb, whole_text))
+        }) {
+            let mut fonts = FontsImpl::new(TextOptions::default(), definitions);
+            fonts.line_breaker = line_breaker;
+            for text in texts {
+                for break_anywhere in [false, true] {
+                    for glyphs in 1..8 {
+                        let mut job = simple_job(text);
+                        job.wrap.break_anywhere = break_anywhere;
+                        let rows = wrapped_rows(&mut fonts, job, glyphs);
+                        let joined = rows.concat();
+                        // Wrapping loses or duplicates no char:
+                        assert_eq!(joined.chars().count(), text.chars().count());
+                        // With tofu fonts each cluster is one glyph plus continuation glyphs
+                        // carrying their own chars, so the rows are the text. With real fonts
+                        // a cluster shaped into several glyphs repeats the cluster's first
+                        // char on each of them at this base (per-glyph chars are the
+                        // grapheme-cluster PR's), so there the rows only preserve the count:
+                        if whole_text {
+                            assert_eq!(joined, text);
+                        }
+                        let mut row_start = 0;
+                        for row in &rows[..rows.len() - 1] {
+                            row_start += row.chars().count();
+                            assert!(
+                                is_cluster_boundary(&joined, row_start),
+                                "{text:?} at {glyphs} glyphs: {rows:?}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 }
