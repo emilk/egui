@@ -59,6 +59,12 @@ pub struct FontTweak {
     ///
     /// Default: `4.0`.
     pub tab_size: f32,
+
+    /// Where glyphs of this font sit vertically when it is a fallback,
+    /// i.e. not the first font of the [`FontFamily`](crate::FontFamily) being laid out.
+    ///
+    /// Default: [`FallbackAlign::Center`].
+    pub fallback_align: FallbackAlign,
 }
 
 impl Default for FontTweak {
@@ -73,8 +79,43 @@ impl Default for FontTweak {
             coords: VariationCoords::default(),
             thin_space_width: 0.5,
             tab_size: 4.0,
+            fallback_align: FallbackAlign::default(),
         }
     }
+}
+
+impl FontTweak {
+    /// Set [`Self::fallback_align`] to [`FallbackAlign::Baseline`] (`true`) or [`FallbackAlign::Center`] (`false`).
+    /// A method as well as a field, so callers built against epaint without the field
+    /// can fall back to a no-op trait method of the same name.
+    pub fn set_baseline_fallback(&mut self, on: bool) {
+        self.fallback_align = if on {
+            FallbackAlign::Baseline
+        } else {
+            FallbackAlign::Center
+        };
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Where the glyphs of a fallback font sit vertically, see [`FontTweak::fallback_align`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum FallbackAlign {
+    /// Center the font's row height in the row height of the family's first font.
+    ///
+    /// Suits emoji and icon fonts, whose glyphs fill their whole row height.
+    /// The row keeps the height of the first font.
+    #[default]
+    Center,
+
+    /// Put the glyphs on the baseline of the family's first font,
+    /// and make the row tall enough for this font's ascent and descent.
+    ///
+    /// Suits fonts for scripts the first font lacks, such as Thai or Arabic,
+    /// whose marks would otherwise sit too high or too low, or be cut off.
+    Baseline,
 }
 
 // ----------------------------------------------------------------------------
@@ -179,5 +220,24 @@ impl Default for SmoothHinting {
             symmetric_rendering: true,
             preserve_linear_metrics: true,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fallback_align_defaults_to_center() {
+        assert_eq!(FontTweak::default().fallback_align, FallbackAlign::Center);
+    }
+
+    #[test]
+    fn set_baseline_fallback_toggles_the_alignment() {
+        let mut tweak = FontTweak::default();
+        tweak.set_baseline_fallback(true);
+        assert_eq!(tweak.fallback_align, FallbackAlign::Baseline);
+        tweak.set_baseline_fallback(false);
+        assert_eq!(tweak.fallback_align, FallbackAlign::Center);
     }
 }

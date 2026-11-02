@@ -24,7 +24,7 @@ pub use {
     font_definitions::{FontDefinitions, FontInsert, FontPriority, InsertFontFamily},
     font_id::{FontFamily, FontId},
     font_provider::{FallbackRequest, FontProvider},
-    font_tweak::{FontTweak, HintingTarget, SmoothHinting},
+    font_tweak::{FallbackAlign, FontTweak, HintingTarget, SmoothHinting},
     fonts::{Fonts, FontsView, MAX_GLYPH_SIZE, MissingGlyphPolicy, ViewportKey},
     glyph_rasterizer::{
         GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, RasterizedGlyph,

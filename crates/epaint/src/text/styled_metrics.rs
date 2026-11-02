@@ -49,6 +49,9 @@ pub struct StyledMetrics {
     /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub row_height: f32,
 
+    /// Where glyphs of this font sit when it is a fallback, from [`crate::text::FontTweak::fallback_align`].
+    pub fallback_align: crate::text::FallbackAlign,
+
     /// Resolved variation coordinates.
     pub location: skrifa::instance::Location,
 
@@ -75,6 +78,7 @@ impl StyledMetrics {
             y_offset_in_points: 0.0,
             ascent,
             row_height: (1.2 * font_size).round_ui().max(ascent),
+            fallback_align: Default::default(),
             location: Default::default(),
             location_hash: Default::default(),
         }

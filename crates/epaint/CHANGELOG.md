@@ -5,6 +5,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+### ⭐ Added
+* Add `FontTweak::fallback_align` / `FallbackAlign`: put fallback fonts on the primary font's baseline (`Baseline`) and grow the row to fit, or keep centering them in the first font's row height (`Center`, default)
+
+
 ## 0.37.0 - 2026-10-15
 ### ⭐ Added
 * Add `epaint::RoundedRect` primitive [#8440](https://github.com/emilk/egui/pull/8440) by [@emilk](https://github.com/emilk)
