@@ -420,6 +420,7 @@ impl EpiIntegration {
 
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
+        super::viewport_hooks::with(|hooks| hooks.raw_input(&self.egui_ctx, &mut raw_input));
         app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
         raw_input
