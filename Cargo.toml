@@ -80,7 +80,7 @@ ahash = { version = "0.8.12", default-features = false, features = [
   "std",
 ] }
 android_logger = "0.15.1"
-arboard = { version = "3.6", default-features = false }
+arboard = { version = "3.7", default-features = false }
 backtrace = "0.3.76"
 bitflags = "2.13"
 bytemuck = "1.25"
@@ -93,7 +93,7 @@ document-features = "0.2.12"
 ehttp = { version = "0.7.1", default-features = false }
 enum-map = "3.1"
 env_logger = { version = "0.11.11", default-features = false }
-font-types = { version = "0.12.4", default-features = false, features = ["std"] }
+font-types = { version = "0.12.7", default-features = false, features = ["std"] }
 fontique = { version = "0.12.0", default-features = false, features = [
   "system",
   "fontconfig-dlopen", # Load libfontconfig at runtime, so builds don't need its headers
