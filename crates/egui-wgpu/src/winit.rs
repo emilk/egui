@@ -11,6 +11,11 @@ use std::sync::Arc;
 
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
+
+    /// Keeps the window alive as long as the surface, for a surface from
+    /// [`crate::WgpuConfiguration::create_surface`], which doesn't.
+    _window: Option<Arc<winit::window::Window>>,
+
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
@@ -168,9 +173,10 @@ impl Painter {
             return Ok(());
         };
 
-        let surface = self.create_surface(window)?;
+        let (surface, surface_window) = self.create_surface(viewport_id, window)?;
         self.install_surface(
             surface,
+            surface_window,
             viewport_id,
             old_state.width,
             old_state.height,
@@ -179,17 +185,23 @@ impl Painter {
         Ok(())
     }
 
-    /// Create the surface of `window`, with [`WgpuConfiguration::create_surface`] if set.
+    /// Create the surface of the `window` of `viewport_id`, with
+    /// [`WgpuConfiguration::create_surface`] if set.
+    ///
+    /// Also returns the window to keep alive as long as the surface, if the surface doesn't.
     fn create_surface(
         &self,
+        viewport_id: ViewportId,
         window: &Arc<winit::window::Window>,
-    ) -> Result<wgpu::Surface<'static>, crate::WgpuError> {
-        use winit::raw_window_handle::HasWindowHandle as _;
-
+    ) -> Result<(wgpu::Surface<'static>, Option<Arc<winit::window::Window>>), crate::WgpuError>
+    {
         Ok(if let Some(create_surface) = &self.config.create_surface {
-            create_surface(&self.instance, window.window_handle()?.as_raw())?
+            // SAFETY: `SurfaceState` keeps the window alive as long as the surface.
+            let target = unsafe { wgpu::SurfaceTargetUnsafe::from_window(&**window)? };
+            let surface = create_surface(&self.instance, viewport_id, target)?;
+            (surface, Some(Arc::clone(window)))
         } else {
-            self.instance.create_surface(Arc::clone(window))?
+            (self.instance.create_surface(Arc::clone(window))?, None)
         })
     }
 
@@ -224,8 +236,9 @@ impl Painter {
         if let Some(window) = window {
             let size = window.inner_size();
             if !self.surfaces.contains_key(&viewport_id) {
-                let surface = self.create_surface(&window)?;
-                self.add_surface(surface, viewport_id, size).await?;
+                let (surface, surface_window) = self.create_surface(viewport_id, &window)?;
+                self.add_surface(surface, surface_window, viewport_id, size)
+                    .await?;
             }
         } else {
             log::warn!("No window - clearing all surfaces");
@@ -250,17 +263,14 @@ impl Painter {
         if let Some(window) = window {
             let size = window.inner_size();
             if !self.surfaces.contains_key(&viewport_id) {
+                // SAFETY: the caller keeps the window alive while it is set.
+                let target = unsafe { wgpu::SurfaceTargetUnsafe::from_window(&window)? };
                 let surface = if let Some(create_surface) = &self.config.create_surface {
-                    use winit::raw_window_handle::HasWindowHandle as _;
-                    create_surface(&self.instance, window.window_handle()?.as_raw())?
+                    create_surface(&self.instance, viewport_id, target)?
                 } else {
-                    unsafe {
-                        self.instance.create_surface_unsafe(
-                            wgpu::SurfaceTargetUnsafe::from_window(&window)?,
-                        )?
-                    }
+                    unsafe { self.instance.create_surface_unsafe(target)? }
                 };
-                self.add_surface(surface, viewport_id, size).await?;
+                self.add_surface(surface, None, viewport_id, size).await?;
             }
         } else {
             log::warn!("No window - clearing all surfaces");
@@ -272,6 +282,7 @@ impl Painter {
     async fn add_surface(
         &mut self,
         surface: wgpu::Surface<'static>,
+        window: Option<Arc<winit::window::Window>>,
         viewport_id: ViewportId,
         size: winit::dpi::PhysicalSize<u32>,
     ) -> Result<(), crate::WgpuError> {
@@ -281,7 +292,7 @@ impl Painter {
                     .await?;
             self.render_state = Some(render_state);
         }
-        self.install_surface(surface, viewport_id, size.width, size.height, false);
+        self.install_surface(surface, window, viewport_id, size.width, size.height, false);
         Ok(())
     }
 
@@ -292,6 +303,7 @@ impl Painter {
     fn install_surface(
         &mut self,
         surface: wgpu::Surface<'static>,
+        window: Option<Arc<winit::window::Window>>,
         viewport_id: ViewportId,
         width: u32,
         height: u32,
@@ -326,6 +338,7 @@ impl Painter {
             viewport_id,
             SurfaceState {
                 surface,
+                _window: window,
                 width,
                 height,
                 alpha_mode,
