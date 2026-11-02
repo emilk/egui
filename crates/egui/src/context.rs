@@ -11,7 +11,7 @@ use epaint::{
     mutex::RwLock,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, FontPriority, Fonts, FontsView, ViewportKey},
+    text::{FontInsert, FontPriority, Fonts, FontsView, LineBreaker, ViewportKey},
     vec2,
 };
 
@@ -405,6 +405,7 @@ struct ContextImpl {
     glyph_rasterizers: Vec<GlyphRasterizer>,
     font_providers: Vec<Arc<dyn FontProvider>>,
     missing_glyph_policy: MissingGlyphPolicy,
+    line_breaker: Option<Arc<dyn LineBreaker>>,
 
     /// Set when the rasterizers or providers change, acted on at the start of the next pass.
     ///
@@ -641,6 +642,9 @@ impl ContextImpl {
             fonts.set_glyph_rasterizers(self.glyph_rasterizers.clone());
             fonts
         });
+        if let Some(line_breaker) = &self.line_breaker {
+            fonts.set_line_breaker(Arc::clone(line_breaker));
+        }
 
         {
             profiling::scope!("Fonts::begin_pass");
@@ -903,6 +907,18 @@ impl Context {
             self.apply_font_changes_now_if_unused();
             self.request_repaint();
         }
+    }
+
+    /// Find where rows of text may end with this [`LineBreaker`],
+    /// e.g. one that knows where Thai words end, or the Japanese kinsoku rules.
+    ///
+    /// The default is [`crate::text::SimpleLineBreaker`].
+    ///
+    /// The line breaker takes effect at the start of the next pass.
+    pub fn set_line_breaker(&self, line_breaker: Arc<dyn LineBreaker>) {
+        self.write(|ctx| ctx.line_breaker = Some(line_breaker));
+        self.apply_font_changes_now_if_unused();
+        self.request_repaint();
     }
 
     /// See [`Self::set_missing_glyph_policy`].
@@ -5175,6 +5191,49 @@ mod test {
             ui.label("after");
         });
         output.drop_without_applying_deltas();
+    }
+
+    /// The line breaker set on the context decides where text wraps, from the next pass on.
+    #[test]
+    fn test_line_breaker_is_used_for_layout() {
+        use crate::text::{LineBreak, LineBreaker};
+        use epaint::{Color32, FontId};
+
+        /// Rows may only end before byte `self.0`.
+        struct OnlyAt(usize);
+
+        impl LineBreaker for OnlyAt {
+            fn line_breaks(&self, _text: &str, _language: Option<&str>, out: &mut Vec<LineBreak>) {
+                out.push(LineBreak::soft(self.0));
+            }
+        }
+
+        fn rows(ctx: &Context) -> Vec<String> {
+            let mut rows = Vec::new();
+            let output = ctx.run_ui(Default::default(), |ui| {
+                let font_id = FontId::default();
+                let width = ui.fonts_mut(|fonts| {
+                    let galley = fonts.layout_no_wrap(
+                        "abc def ".to_owned(),
+                        font_id.clone(),
+                        Color32::WHITE,
+                    );
+                    galley.size().x + 1.0
+                });
+                let galley = ui.fonts_mut(|fonts| {
+                    fonts.layout("abc def ghi".to_owned(), font_id, Color32::WHITE, width)
+                });
+                rows = galley.rows.iter().map(|row| row.row.text()).collect();
+            });
+            output.drop_without_applying_deltas();
+            rows
+        }
+
+        let ctx = Context::default();
+        ctx.set_fonts(FontDefinitions::empty());
+        assert_eq!(rows(&ctx), ["abc def ", "ghi"]);
+        ctx.set_line_breaker(alloc::sync::Arc::new(OnlyAt(3)));
+        assert_eq!(rows(&ctx), ["abc", " def ghi"]);
     }
 
     #[test]

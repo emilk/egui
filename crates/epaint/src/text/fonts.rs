@@ -4,8 +4,8 @@ use crate::{
     Color32, ColorImage, TextureAtlas,
     text::{
         FontDefinitions, FontFamily, FontId, FontInsert, FontPriority, FontProvider, Galley,
-        GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, LayoutJob, RasterizedGlyph,
-        TextOptions, VariationCoords,
+        GlyphBitmap, GlyphRasterizer, GlyphRasterizerRequest, LayoutJob, LineBreaker,
+        RasterizedGlyph, SimpleLineBreaker, TextOptions, VariationCoords,
         face_store::{FaceStore, FontFaceKey},
         family::{Family, FamilyKey},
         font_face::{FontFace, GlyphInfo, ShapedGlyph},
@@ -145,6 +145,29 @@ impl Fonts {
     /// These are not part of [`Self::definitions`].
     pub fn discovered_fonts(&self) -> &[FontInsert] {
         self.fonts.discovered_fonts()
+    }
+
+    /// Find where rows may end with this [`LineBreaker`]. The default is [`SimpleLineBreaker`].
+    #[inline]
+    pub fn with_line_breaker(mut self, line_breaker: Arc<dyn LineBreaker>) -> Self {
+        self.set_line_breaker(line_breaker);
+        self
+    }
+
+    /// Find where rows may end with this [`LineBreaker`]. The default is [`SimpleLineBreaker`].
+    ///
+    /// Setting the one already in use is a no-op, so this is safe to call every frame.
+    pub fn set_line_breaker(&mut self, line_breaker: Arc<dyn LineBreaker>) {
+        if !Arc::ptr_eq(&self.fonts.line_breaker, &line_breaker) {
+            self.fonts.line_breaker = line_breaker;
+            self.galley_caches.clear();
+        }
+    }
+
+    /// See [`Self::set_line_breaker`].
+    #[inline]
+    pub fn line_breaker(&self) -> &Arc<dyn LineBreaker> {
+        &self.fonts.line_breaker
     }
 
     /// What to do with characters that nothing can draw. See [`MissingGlyphPolicy`].
@@ -499,6 +522,8 @@ pub(crate) struct FontsImpl {
 
     missing_glyph_policy: MissingGlyphPolicy,
 
+    pub(crate) line_breaker: Arc<dyn LineBreaker>,
+
     /// Draws the synthetic tofu box for families that have no font at all.
     ///
     /// Kept as a [`GlyphRasterizer`] so its glyphs share the atlas cache with the other rasterized glyphs.
@@ -519,6 +544,7 @@ impl FontsImpl {
             glyph_rasterizers: Vec::new(),
             font_providers: Default::default(),
             missing_glyph_policy: Default::default(),
+            line_breaker: Arc::new(SimpleLineBreaker),
             synthetic_tofu: GlyphRasterizer::new(
                 "epaint::synthetic_tofu",
                 |request: &GlyphRasterizerRequest<'_>| Some(synthetic_tofu(request.font_size_px)),
@@ -892,6 +918,29 @@ fn synthetic_tofu(font_size_px: f32) -> RasterizedGlyph {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn set_line_breaker_with_the_same_arc_keeps_the_galley_cache() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
+        let root = ViewportKey::new(1);
+        let font_id = FontId::proportional(14.0);
+        let line_breaker: Arc<dyn LineBreaker> = Arc::clone(fonts.line_breaker());
+
+        fonts.begin_pass(TextOptions::default(), root);
+        fonts
+            .with_pixels_per_point_for_viewport(1.0, root)
+            .layout_no_wrap("hello".to_owned(), font_id, Color32::WHITE);
+        assert_eq!(fonts.num_galleys_in_cache(), 1);
+
+        // Setting the breaker already in use is a no-op and keeps the cache:
+        fonts.set_line_breaker(Arc::clone(&line_breaker));
+        assert!(Arc::ptr_eq(fonts.line_breaker(), &line_breaker));
+        assert_eq!(fonts.num_galleys_in_cache(), 1);
+
+        // A different breaker clears the cache:
+        fonts.set_line_breaker(Arc::new(SimpleLineBreaker));
+        assert_eq!(fonts.num_galleys_in_cache(), 0);
+    }
 
     #[test]
     fn viewport_passes_do_not_evict_each_others_galleys() {
