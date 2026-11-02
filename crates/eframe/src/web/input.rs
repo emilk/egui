@@ -1,3 +1,11 @@
+use core::cell::{Cell, RefCell};
+use std::rc::Rc;
+
+use js_sys::Reflect;
+use wasm_bindgen::{JsCast as _, JsValue};
+
+use crate::web_keys::{KeyDown, KeyResolver};
+
 use super::{AppRunner, canvas_content_rect};
 
 pub fn pos_from_mouse_event(
@@ -100,77 +108,103 @@ pub fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web
 
 /// The text input from a keyboard event (e.g. `X` when pressing the `X` key).
 pub fn text_from_keyboard_event(event: &web_sys::KeyboardEvent) -> Option<String> {
-    let key = event.key();
-
-    let is_function_key = key.starts_with('F') && key.len() > 1;
-    if is_function_key {
-        return None;
-    }
-
-    let is_control_key = matches!(
-        key.as_str(),
-        "Alt"
-      | "ArrowDown"
-      | "ArrowLeft"
-      | "ArrowRight"
-      | "ArrowUp"
-      | "Backspace"
-      | "BrowserBack"
-      | "BrowserFavorites"
-      | "BrowserForward"
-      | "BrowserHome"
-      | "BrowserRefresh"
-      | "BrowserSearch"
-      | "BrowserStop"
-      | "CapsLock"
-      | "Clear"
-      | "ContextMenu"
-      | "Control"
-      | "Delete"
-      | "Eject"
-      | "End"
-      | "Enter"
-      | "Esc"
-      | "Escape"
-      | "Fn"
-      | "GroupNext" // https://github.com/emilk/egui/issues/510
-      | "Help"
-      | "Home"
-      | "Insert"
-      | "LaunchApp1"
-      | "LaunchApp2"
-      | "LaunchMail"
-      | "MediaPlayPause"
-      | "MediaTrackNext"
-      | "MediaTrackPrevious"
-      | "MediaStop"
-      | "Meta"
-      | "NumLock"
-      | "PageDown"
-      | "PageUp"
-      | "Pause"
-      | "Power"
-      | "PrintScreen"
-      | "ScrollLock"
-      | "Shift"
-      | "Sleep"
-      | "Tab"
-      | "AudioVolumeDown"
-      | "AudioVolumeMute"
-      | "AudioVolumeUp"
-    );
-
-    if is_control_key {
-        return None;
-    }
-
-    Some(key)
+    crate::web_keys::text_from_key(&event.key()).map(ToOwned::to_owned)
 }
 
-/// Web sends all keys as strings, so it is up to us to figure out if it is
-/// a real text input or the name of a key.
-pub fn translate_key(key: &str) -> Option<egui::Key> {
-    egui::Key::from_name(key)
+/// Turns keyboard events into egui keys; see [`KeyResolver`].
+///
+/// Clones share the resolver, so a pending layout-map read can update it.
+#[derive(Clone, Default)]
+pub(crate) struct KeyboardKeys {
+    resolver: Rc<RefCell<KeyResolver>>,
+    layout_map_pending: Rc<Cell<bool>>,
+}
+
+impl KeyboardKeys {
+    pub fn key_down(&self, event: &web_sys::KeyboardEvent) -> KeyDown {
+        let plain = !(event.shift_key()
+            || event.ctrl_key()
+            || event.alt_key()
+            || event.meta_key()
+            || event.get_modifier_state("AltGraph"));
+        let down = self
+            .resolver
+            .borrow_mut()
+            .key_down(&event.key(), &event.code(), plain);
+        if down.query_layout_map {
+            self.read_layout_map();
+        }
+        down
+    }
+
+    /// The logical key and the physical key of a `keyup`.
+    pub fn key_up(&self, event: &web_sys::KeyboardEvent) -> (Option<egui::Key>, Option<egui::Key>) {
+        self.resolver
+            .borrow_mut()
+            .key_up(&event.key(), &event.code())
+    }
+
+    pub fn clear_pressed(&self) {
+        self.resolver.borrow_mut().clear_pressed();
+    }
+
+    /// Read the keyboard layout with `navigator.keyboard.getLayoutMap()`, where the browser has it
+    /// (Chromium). The result arrives asynchronously.
+    pub fn read_layout_map(&self) {
+        if self.layout_map_pending.get() {
+            return;
+        }
+        let Some(promise) = layout_map_promise() else {
+            return;
+        };
+        self.layout_map_pending.set(true);
+
+        let keys = self.clone();
+        js_sys::futures::spawn_local(async move {
+            match promise.await {
+                Ok(map) => {
+                    let letters = layout_map_letters(&map);
+                    keys.resolver
+                        .borrow_mut()
+                        .set_layout_map(letters.iter().map(String::as_str));
+                }
+                Err(err) => {
+                    // E.g. a `SecurityError` in a cross-origin iframe; typed letters decide instead.
+                    log::debug!("getLayoutMap failed: {}", super::string_from_js_value(&err));
+                }
+            }
+            keys.layout_map_pending.set(false);
+        });
+    }
+}
+
+fn layout_map_promise() -> Option<js_sys::Promise> {
+    let navigator = web_sys::window()?.navigator();
+    let keyboard = Reflect::get(&navigator, &JsValue::from_str("keyboard")).ok()?;
+    if keyboard.is_undefined() || keyboard.is_null() {
+        return None;
+    }
+    let get_layout_map = Reflect::get(&keyboard, &JsValue::from_str("getLayoutMap"))
+        .ok()?
+        .dyn_into::<js_sys::Function>()
+        .ok()?;
+    get_layout_map.call0(&keyboard).ok()?.dyn_into().ok()
+}
+
+/// What `KeyA` … `KeyZ` type according to a `KeyboardLayoutMap`.
+fn layout_map_letters(map: &JsValue) -> Vec<String> {
+    let Some(get) = Reflect::get(map, &JsValue::from_str("get"))
+        .ok()
+        .and_then(|get| get.dyn_into::<js_sys::Function>().ok())
+    else {
+        return vec![];
+    };
+    (b'A'..=b'Z')
+        .filter_map(|letter| {
+            let code = format!("Key{}", char::from(letter));
+            get.call1(map, &JsValue::from_str(&code)).ok()?.as_string()
+        })
+        .collect()
 }
 
 pub fn modifiers_from_kb_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {

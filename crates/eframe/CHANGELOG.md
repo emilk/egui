@@ -7,6 +7,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+### ⭐ Added
+* eframe web: named keys (`AltGraph`, `Dead`, …) are no longer typed as text into text fields; letter keys resolve from the key code on non-Latin keyboard layouts so shortcuts work on any layout; `lang` attribute on the hidden IME input and screen-reader speech from `Frame::set_ui_language` / `set_text_input_language`
+
 ## 0.37.0 - 2026-10-15
 ### ⭐ Added
 * Add option to turn off the default clipboard keyboard shortcuts in egui-winit and eframe [#5615](https://github.com/emilk/egui/pull/5615) by [@YgorSouza](https://github.com/YgorSouza)
