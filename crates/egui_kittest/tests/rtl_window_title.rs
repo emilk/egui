@@ -315,5 +315,15 @@ fn title_is_horizontally_centred_between_the_buttons() {
             "rtl = {rtl}: the title galley should be painted strictly between the two \
              buttons (centre {title_center_x:?}, between {lo} and {hi})"
         );
+        // Equal grows split the free space evenly, so the title centre must sit at the
+        // band midpoint: dropping or zeroing one `Atom::grow()` de-centres it by tens of
+        // pixels while it stays strictly between the buttons. A small tolerance absorbs
+        // paint and rounding.
+        assert!(
+            matches!(title_center_x, Some(center) if ((lo + hi) * 0.5 - center).abs() < 2.0),
+            "rtl = {rtl}: the title galley should be centred between the two buttons \
+             (centre {title_center_x:?}, band midpoint {} between {lo} and {hi})",
+            (lo + hi) * 0.5
+        );
     }
 }
