@@ -107,6 +107,7 @@ impl DebugTextPlugin {
                     text::TextWrapping::wrap_at_width(available_width),
                     font_id.clone().into(),
                     Align::TOP,
+                    ctx.language(),
                 );
                 let rect = Align2::LEFT_TOP.anchor_size(pos, galley.size());
                 painter.galley(rect.min - vec2(galley.rect.left(), 0.0), galley, color);

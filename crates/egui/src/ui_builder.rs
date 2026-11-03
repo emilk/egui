@@ -31,6 +31,11 @@ pub struct UiBuilder {
     pub accessibility_label: Option<String>,
     pub accessibility_role: Option<crate::accesskit::Role>,
     pub classes: Classes,
+
+    /// BCP 47 language tag of the text in this subtree, e.g. `"ar-EG"`.
+    ///
+    /// Inherited by child [`Ui`]s; falls back to [`Context::language`] at read time.
+    pub language: Option<String>,
 }
 
 /// Is this [`Ui`] a root or a child of another [`Ui`]?
@@ -163,6 +168,16 @@ impl UiBuilder {
     #[inline]
     pub fn style(mut self, style: impl Into<Arc<Style>>) -> Self {
         self.style = Some(style.into());
+        self
+    }
+
+    /// Set the language text in this [`Ui`] should be laid out in, as a BCP 47 tag.
+    ///
+    /// Otherwise will inherit the language of the parent, falling back to
+    /// [`Context::language`](crate::Context::language).
+    #[inline]
+    pub fn language(mut self, language: impl Into<String>) -> Self {
+        self.language = Some(language.into());
         self
     }
 

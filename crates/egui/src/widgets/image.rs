@@ -711,6 +711,7 @@ pub fn paint_texture_load_result(
             let mut job = LayoutJob {
                 wrap: TextWrapping::truncate_at_width(rect.width()),
                 halign: Align::Center,
+                language: ui.language(),
                 ..Default::default()
             };
             job.append(

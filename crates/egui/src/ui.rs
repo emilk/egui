@@ -71,6 +71,9 @@ pub struct Ui {
     /// This is an optimization, so we don't call [`Ui::remember_min_rect`] multiple times at the
     /// end of a [`Ui::scope`].
     min_rect_already_remembered: bool,
+
+    /// Subtree language override; `None` inherits from [`Context::language`].
+    language: Option<String>,
 }
 
 /// Allow using [`Ui`] like a [`Context`].
@@ -107,6 +110,7 @@ impl Ui {
             accessibility_label,
             accessibility_role,
             classes,
+            language,
         } = ui_builder;
 
         let layer_id = layer_id.unwrap_or_else(LayerId::background);
@@ -161,6 +165,7 @@ impl Ui {
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
+            language,
         };
 
         if let Some(accessibility_parent) = accessibility_parent {
@@ -232,6 +237,7 @@ impl Ui {
             accessibility_label,
             accessibility_role,
             classes,
+            language,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
@@ -307,6 +313,7 @@ impl Ui {
             stack: Arc::new(ui_stack),
             sense,
             min_rect_already_remembered: false,
+            language: language.or_else(|| self.language.clone()),
         };
 
         if disabled {
@@ -454,6 +461,15 @@ impl Ui {
     #[inline]
     pub fn is_rtl(&self) -> bool {
         self.style.right_to_left
+    }
+
+    /// The language text in this `Ui` should be laid out in, as a BCP 47 tag:
+    /// this subtree's [`UiBuilder::language`] override, else [`Context::language`].
+    ///
+    /// Widgets stamp this onto their [`LayoutJob`]s. `None` means unspecified.
+    #[inline]
+    pub fn language(&self) -> Option<String> {
+        self.language.clone().or_else(|| self.ctx().language())
     }
 
     /// The reading-start x for content offset `off` inward from `rect`'s start edge:

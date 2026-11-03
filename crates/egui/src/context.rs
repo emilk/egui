@@ -2630,6 +2630,32 @@ impl Context {
         self.global_style().right_to_left
     }
 
+    /// The language text in this UI should be laid out in, as a BCP 47 tag, e.g. `"ar-EG"`.
+    ///
+    /// Widgets stamp this onto their text [`LayoutJob`]s so that
+    /// line-breaking and shaping can be locale-aware.
+    ///
+    /// Takes effect from the next frame (galleys re-layout because the cache key changed).
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// assert!(ctx.language().is_none());
+    /// ctx.set_language("ar-EG");
+    /// assert_eq!(ctx.language(), Some("ar-EG".to_owned()));
+    /// ```
+    pub fn set_language(&self, language: impl Into<String>) {
+        self.data_mut(|data| data.insert_temp(language_id(), language.into()));
+        self.request_repaint();
+    }
+
+    /// The language text should be laid out in, as a BCP 47 tag, or `None` if not set.
+    ///
+    /// See [`Self::set_language`].
+    pub fn language(&self) -> Option<String> {
+        self.data(|data| data.get_temp::<String>(language_id()))
+    }
+
     /// The currently active [`Style`] used by all subsequent popups, menus, etc.
     pub fn global_style(&self) -> Arc<Style> {
         self.options(|opt| Arc::clone(opt.style()))
@@ -4855,6 +4881,11 @@ const _: () = {
     const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
 };
+
+/// The stable [`Id`] under which [`Context::set_language`] stores the UI language.
+fn language_id() -> Id {
+    Id::unique("egui_ui_language")
+}
 
 /// Check if any [`Rect`] appears with different [`Id`]s between two passes.
 ///
