@@ -633,6 +633,16 @@ impl State {
                     consumed: self.egui_ctx.egui_wants_pointer_input(),
                 }
             }
+
+            // Forward-compat: a consumer may pin a winit revision that extends
+            // `WindowEvent` with new variants (e.g. dependency-side ordered-IME-reset
+            // signals). Ignore unknown variants: no repaint, not consumed.
+            // Unreachable under the pinned winit, hence the expect.
+            #[expect(unreachable_patterns)]
+            _ => EventResponse {
+                repaint: false,
+                consumed: false,
+            },
         }
     }
 
@@ -2682,5 +2692,9 @@ pub fn short_window_event_description(event: &winit::event::WindowEvent) -> &'st
         WindowEvent::ThemeChanged { .. } => "WindowEvent::ThemeChanged",
         WindowEvent::Occluded { .. } => "WindowEvent::Occluded",
         WindowEvent::PanGesture { .. } => "WindowEvent::PanGesture",
+        // Forward-compat with consumer-pinned winit revisions that extend `WindowEvent`
+        // (unreachable under the pinned winit, hence the expect).
+        #[expect(unreachable_patterns)]
+        _ => "WindowEvent",
     }
 }
