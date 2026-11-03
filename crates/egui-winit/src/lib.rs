@@ -2374,7 +2374,16 @@ pub fn create_winit_window_attributes(
         window_attributes = window_attributes.with_window_icon(winit_icon);
     }
 
-    #[cfg(all(feature = "wayland", target_os = "linux"))]
+    #[cfg(all(
+        feature = "wayland",
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        )
+    ))]
     if let Some(app_id) = _app_id {
         use winit::platform::wayland::WindowAttributesExtWayland as _;
         window_attributes = window_attributes.with_name(app_id, "");
@@ -2394,7 +2403,16 @@ pub fn create_winit_window_attributes(
     // The variables are cleared once read, per the startup-notification
     // spec: a token is single-use, and leaving it in the environment would
     // have every later window — and every child process — replay it.
-    #[cfg(all(target_os = "linux", any(feature = "wayland", feature = "x11")))]
+    #[cfg(all(
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ),
+        any(feature = "wayland", feature = "x11")
+    ))]
     {
         use winit::platform::startup_notify::{
             WindowAttributesExtStartupNotify as _, reset_activation_token_env,
@@ -2411,7 +2429,16 @@ pub fn create_winit_window_attributes(
         }
     }
 
-    #[cfg(all(feature = "x11", target_os = "linux"))]
+    #[cfg(all(
+        feature = "x11",
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        )
+    ))]
     {
         use winit::platform::x11::WindowAttributesExtX11 as _;
         if let Some(window_type) = _window_type {
