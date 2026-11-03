@@ -86,7 +86,12 @@ impl Widget for Checkbox<'_> {
         let mut icon_size = Vec2::splat(checkbox_size);
         icon_size.y = icon_size.y.at_least(min_size.y);
         let rect_id = IdSalt::new("checkbox_icon");
-        atoms.push_left(Atom::custom(rect_id, icon_size));
+        // In a right-to-left interface the icon sits on the reading-start (right) side.
+        if ui.is_rtl() {
+            atoms.push_right(Atom::custom(rect_id, icon_size));
+        } else {
+            atoms.push_left(Atom::custom(rect_id, icon_size));
+        }
 
         let text = atoms.text().map(String::from);
 

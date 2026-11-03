@@ -1,6 +1,6 @@
 use crate::{
-    Align2, AsIdSalt, Color32, Context, CursorIcon, Id, IdSalt, NumExt as _, Rect, Response, Sense,
-    Shape, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, pos2, vec2,
+    Align2, AsIdSalt, Color32, Context, CursorIcon, Id, IdSalt, NumExt as _, Pos2, Rect, Response,
+    Sense, Shape, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, pos2, vec2,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -207,7 +207,15 @@ struct Prepared {
 
 impl Resize {
     fn begin(&self, ui: &mut Ui) -> Prepared {
-        let position = ui.available_rect_before_wrap().min;
+        // Anchor the resize rect on the reading-start edge: in a right-to-left interface
+        // the rect grows leftward while the right edge stays fixed.
+        let rtl = ui.is_rtl();
+        let available_rect = ui.available_rect_before_wrap();
+        let anchor = if rtl {
+            available_rect.right_top()
+        } else {
+            available_rect.min
+        };
         let id = self.id.unwrap_or_else(|| {
             let id_salt = self.id_salt.unwrap_or_else(|| IdSalt::new("resize"));
             ui.make_persistent_id(id_salt)
@@ -248,7 +256,13 @@ impl Resize {
             && let Some(pointer_pos) = corner_response.interact_pointer_pos()
         {
             // Respond to the interaction early to avoid frame delay.
-            user_requested_size = Some(pointer_pos - position + 0.5 * corner_response.rect.size());
+            // Under RTL the rect grows leftward from the reading-start (right) edge.
+            let pointer_offset = if rtl {
+                vec2(anchor.x - pointer_pos.x, pointer_pos.y - anchor.y)
+            } else {
+                pointer_pos - anchor
+            };
+            user_requested_size = Some(pointer_offset + 0.5 * corner_response.rect.size());
         }
 
         let is_actively_resizing = user_requested_size.is_some();
@@ -284,9 +298,13 @@ impl Resize {
         // user never sees the squished layout; the measured min then clamps drags.
         let inner_rect = if needs_sizing_pass {
             ui.ctx().request_discard("Resize sizing pass");
-            Rect::from_min_size(position, Vec2::new(self.min_size.x, state.desired_size.y))
+            anchored_rect(
+                anchor,
+                Vec2::new(self.min_size.x, state.desired_size.y),
+                rtl,
+            )
         } else {
-            Rect::from_min_size(position, state.desired_size)
+            anchored_rect(anchor, state.desired_size, rtl)
         };
 
         let mut content_clip_rect = inner_rect;
@@ -336,6 +354,8 @@ impl Resize {
             sizing_pass,
         } = prepared;
 
+        let rtl = ui.is_rtl();
+
         if sizing_pass {
             // Remember the measured minimum so we can clamp the user's drag on subsequent frames.
             // Don't touch `last_content_size`, it should keep reflecting the previously
@@ -369,10 +389,22 @@ impl Resize {
         let corner_response = if let Some(corner_id) = corner_id {
             // We do the corner interaction last to place it on top of the content:
             let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
-            let corner_rect = Rect::from_min_size(
-                content_ui.min_rect().left_top() + size - corner_size,
-                corner_size,
-            );
+            let corner_rect = if rtl {
+                // Mirror only the x anchor so the grip stays inside the container's
+                // bottom-left corner.
+                Rect::from_min_size(
+                    pos2(
+                        content_ui.min_rect().left(),
+                        content_ui.min_rect().top() + size.y - corner_size.y,
+                    ),
+                    corner_size,
+                )
+            } else {
+                Rect::from_min_size(
+                    content_ui.min_rect().left_top() + size - corner_size,
+                    corner_size,
+                )
+            };
             Some(ui.interact(corner_rect, corner_id, Sense::drag()))
         } else {
             None
@@ -395,7 +427,13 @@ impl Resize {
             paint_resize_corner(ui, &corner_response);
 
             if corner_response.hovered() || corner_response.dragged() {
-                ui.set_cursor_icon(CursorIcon::ResizeNwSe);
+                // The grip sits in the bottom-right corner in LTR and the bottom-left
+                // corner in RTL, so the cursor mirrors too.
+                ui.set_cursor_icon(if rtl {
+                    CursorIcon::ResizeNeSw
+                } else {
+                    CursorIcon::ResizeNwSe
+                });
             }
         }
 
@@ -420,9 +458,33 @@ impl Resize {
 use emath::GuiRounding as _;
 use epaint::Stroke;
 
+/// Build the resize rect from its reading-start anchor: in left-to-right interfaces
+/// the anchor is the top-left corner; in right-to-left interfaces it is the top-right
+/// corner and the rect grows leftward.
+fn anchored_rect(anchor: Pos2, size: Vec2, rtl: bool) -> Rect {
+    if rtl {
+        Rect::from_min_max(
+            pos2(anchor.x - size.x, anchor.y),
+            pos2(anchor.x, anchor.y + size.y),
+        )
+    } else {
+        Rect::from_min_size(anchor, size)
+    }
+}
+
 pub fn paint_resize_corner(ui: &Ui, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;
-    paint_resize_corner_with_style(ui, &response.rect, stroke.color, Align2::RIGHT_BOTTOM);
+    paint_resize_corner_with_style(
+        ui,
+        &response.rect,
+        stroke.color,
+        // The grip sits in the bottom-right corner in LTR and the bottom-left corner in RTL.
+        if ui.is_rtl() {
+            Align2::LEFT_BOTTOM
+        } else {
+            Align2::RIGHT_BOTTOM
+        },
+    );
 }
 
 pub fn paint_resize_corner_with_style(

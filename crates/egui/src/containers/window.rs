@@ -1341,11 +1341,9 @@ fn title_ui(
 
     let expanded = collapsing.openness(ui.ctx()) > 0.0;
 
-    if collapsible {
-        atoms.push_right(Atom::custom(collapse_atom_id, button_allocation_size));
-    }
-
-    atoms.push_right(Atom::grow());
+    // In a right-to-left interface the title bar reads right-to-left: the close button
+    // sits at the far (left) end, then the title, then the collapse button.
+    let rtl = ui.is_rtl();
 
     if !auto_sized
         && !title.any_shrink()
@@ -1355,12 +1353,35 @@ fn title_ui(
     {
         first_text.shrink = true;
     }
-    atoms.extend_right(title);
 
-    atoms.push_right(Atom::grow());
+    if rtl {
+        if open.is_some() {
+            atoms.push_right(Atom::custom(close_atom_id, button_allocation_size));
+        }
 
-    if open.is_some() {
-        atoms.push_right(Atom::custom(close_atom_id, button_allocation_size));
+        atoms.push_right(Atom::grow());
+
+        atoms.extend_right(title);
+
+        atoms.push_right(Atom::grow());
+
+        if collapsible {
+            atoms.push_right(Atom::custom(collapse_atom_id, button_allocation_size));
+        }
+    } else {
+        if collapsible {
+            atoms.push_right(Atom::custom(collapse_atom_id, button_allocation_size));
+        }
+
+        atoms.push_right(Atom::grow());
+
+        atoms.extend_right(title);
+
+        atoms.push_right(Atom::grow());
+
+        if open.is_some() {
+            atoms.push_right(Atom::custom(close_atom_id, button_allocation_size));
+        }
     }
 
     let spacing = ui.spacing().item_spacing.x;
@@ -1395,7 +1416,13 @@ fn title_ui(
     // Collapse triangle icon
     if collapsible && let Some(rect) = layout_response.rect(collapse_atom_id) {
         let rect = rect.shrink2(button_shrink);
-        title_click_rect = title_click_rect.with_min_x(rect.max.x);
+        // The carve must mirror the atom order: the collapse button sits at the left
+        // end of the title bar in LTR and at the right end in RTL.
+        title_click_rect = if rtl {
+            title_click_rect.with_max_x(rect.min.x)
+        } else {
+            title_click_rect.with_min_x(rect.max.x)
+        };
         let icon_response = child_ui.interact(
             rect,
             child_ui.auto_id_with("collapse_button"),
@@ -1420,7 +1447,13 @@ fn title_ui(
         && let Some(rect) = layout_response.rect(close_atom_id)
     {
         let rect = rect.shrink2(button_shrink);
-        title_click_rect = title_click_rect.with_max_x(rect.min.x);
+        // The carve must mirror the atom order: the close button sits at the right
+        // end of the title bar in LTR and at the left end in RTL.
+        title_click_rect = if rtl {
+            title_click_rect.with_min_x(rect.max.x)
+        } else {
+            title_click_rect.with_max_x(rect.min.x)
+        };
         if close_button(&mut child_ui, rect).clicked() {
             *open = false;
         }

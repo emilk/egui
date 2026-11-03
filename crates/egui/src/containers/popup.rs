@@ -240,17 +240,25 @@ impl<'a> Popup<'a> {
     }
 
     /// Show a popup when the widget was clicked.
-    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
+    /// Sets the layout to `Layout::top_down_justified(Align::Min)`, or
+    /// `Layout::top_down_justified(Align::Max)` in a right-to-left interface,
+    /// so the rows justify from the reading start.
     pub fn menu(button_response: &Response) -> Self {
+        // In a right-to-left interface the rows justify from the reading start (right).
+        let layout = if button_response.ctx.is_rtl() {
+            Layout::top_down_justified(Align::Max)
+        } else {
+            Layout::top_down_justified(Align::Min)
+        };
         Self::from_toggle_button_response(button_response)
             .kind(PopupKind::Menu)
-            .layout(Layout::top_down_justified(Align::Min))
+            .layout(layout)
             .style(menu_style)
             .gap(0.0)
     }
 
     /// Show a context menu when the widget was secondary clicked.
-    /// Sets the layout to `Layout::top_down_justified(Align::Min)`.
+    /// Sets the layout like [`Self::menu`], depending on the interface direction.
     /// In contrast to [`Self::menu`], this will open at the pointer position.
     pub fn context_menu(response: &Response) -> Self {
         Self::menu(response)
