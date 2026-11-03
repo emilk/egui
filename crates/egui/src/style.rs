@@ -2631,7 +2631,7 @@ impl Visuals {
             ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
             ui.checkbox(
                 indent_has_left_vline,
-                "Paint a vertical line to the left of indented regions",
+                "Draw a vertical line at the reading edge of indented regions",
             );
 
             ui.checkbox(striped, "Default stripes on grids and tables");
