@@ -378,3 +378,63 @@ fn range_slider_fill_mirrors_with_the_shared_geometry() {
     );
     let _ = rtl_widget;
 }
+
+/// A6: the speed a slider hands its `DragValue` is signed: positive left-to-right, negative
+/// under either mirroring mechanism, same magnitude. The sign is intentional — it makes
+/// dragging and stepping the number beside the rail move the value the rail's way, exactly
+/// like an inverted range — so a future "fix" that makes it positive must fail here loudly
+/// (see `SliderGeometry::gradient_at`). Observed through the published accesskit
+/// `numeric_value_step`, which carries the same signed speed the drag and keyboard paths
+/// apply.
+#[test]
+fn slider_drag_value_speed_stays_signed_under_rtl() {
+    fn numeric_value_step(dir: Dir) -> f64 {
+        let ctx = make_ctx(dir);
+        ctx.enable_accesskit();
+        let screen = vec2(400.0, 120.0);
+        let mut value = 0.5_f64;
+        let output = run(&ctx, input(screen), |ui| {
+            rtl_layout(ui, dir, |ui| {
+                ui.add(Slider::new(&mut value, 0.0..=1.0));
+            });
+        });
+        let update = output
+            .platform_output
+            .accesskit_update
+            .expect("the slider should publish an accesskit update");
+        let steps: Vec<f64> = update
+            .nodes
+            .iter()
+            .filter_map(|(_, node)| node.numeric_value_step())
+            .collect();
+        assert_eq!(
+            steps.len(),
+            1,
+            "expected exactly one node with a numeric_value_step (the slider's DragValue), \
+             got {steps:?}"
+        );
+        steps[0]
+    }
+
+    let ltr = numeric_value_step(Dir::Ltr);
+    let flag_rtl = numeric_value_step(Dir::FlagRtl);
+    let layout_rtl = numeric_value_step(Dir::LayoutRtl);
+
+    assert!(
+        ltr > 0.0,
+        "LTR: the DragValue speed must be positive, got {ltr}"
+    );
+    assert!(
+        flag_rtl < 0.0,
+        "RTL (flag): the DragValue speed must stay negative, got {flag_rtl}"
+    );
+    assert!(
+        layout_rtl < 0.0,
+        "RTL (layout): the DragValue speed must stay negative, got {layout_rtl}"
+    );
+    assert!(
+        (ltr.abs() - flag_rtl.abs()).abs() < 1e-6 && (ltr.abs() - layout_rtl.abs()).abs() < 1e-6,
+        "mirroring must flip only the sign, never the magnitude: \
+         ltr {ltr}, flag {flag_rtl}, layout {layout_rtl}"
+    );
+}

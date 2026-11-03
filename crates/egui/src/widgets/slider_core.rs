@@ -168,6 +168,12 @@ impl SliderGeometry {
     /// How much the value changes per point of travel, at `value`.
     ///
     /// The speed of the [`DragValue`] next to the rail, so both gestures move at the same rate.
+    ///
+    /// The result is signed: it is negative whenever moving along the rail toward the reading
+    /// end means moving toward lower values — on right-to-left and vertical rails, and for
+    /// inverted ranges. [`DragValue`] applies this speed signed (so dragging the number in the
+    /// reading direction moves it the rail's way) and publishes it as the accesskit
+    /// `numeric_value_step`; do not make it positive.
     pub fn gradient_at(&self, value: f64) -> f64 {
         let position = self.position_from_value(value);
         self.value_from_position(position + 0.5) - self.value_from_position(position - 0.5)
