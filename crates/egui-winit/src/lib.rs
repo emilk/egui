@@ -2730,6 +2730,10 @@ pub fn short_device_event_description(event: &winit::event::DeviceEvent) -> &'st
         DeviceEvent::Motion { .. } => "DeviceEvent::Motion",
         DeviceEvent::Button { .. } => "DeviceEvent::Button",
         DeviceEvent::Key { .. } => "DeviceEvent::Key",
+        // Forward-compat with consumer-pinned winit revisions that extend `DeviceEvent`
+        // (unreachable under the pinned winit, hence the expect).
+        #[expect(unreachable_patterns)]
+        _ => "DeviceEvent",
     }
 }
 
