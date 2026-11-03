@@ -258,6 +258,14 @@ impl MenuState {
         if index.is_none() && !entering && !from_empty && !focus_first {
             return;
         }
+        // The reading-backward arrow returns focus to the anchor, closing the submenu:
+        // ArrowLeft in LTR, ArrowRight in RTL. SubMenu handles the reading-forward arrow
+        // on its own button before we get here.
+        let close_direction = if ui.is_rtl() {
+            FocusDirection::Right
+        } else {
+            FocusDirection::Left
+        };
         let next = if focus_first {
             entries.first().copied()
         } else {
@@ -271,8 +279,7 @@ impl MenuState {
                     .and_then(|index| entries.get(index))
                     .or_else(|| entries.last())
                     .copied(),
-                FocusDirection::Left => anchor_widget,
-                // SubMenu handles Right on its own button before we get here.
+                _ if direction == close_direction => anchor_widget,
                 _ => None,
             }
         };
@@ -653,12 +660,17 @@ impl SubMenu {
         let clicked_by_pointer = button_response.clicked_by(PointerButton::Primary);
         let clicked_by_keyboard_or_access = clicked && !clicked_by_pointer;
         let focused = button_response.enabled() && button_response.has_focus();
-        let arrow_right =
-            focused && ui.memory(|mem| mem.focus_direction() == FocusDirection::Right);
-        if arrow_right {
+        // The reading-forward arrow opens the submenu: ArrowRight in LTR, ArrowLeft in RTL.
+        let open_direction = if ui.is_rtl() {
+            FocusDirection::Left
+        } else {
+            FocusDirection::Right
+        };
+        let arrow_open = focused && ui.memory(|mem| mem.focus_direction() == open_direction);
+        if arrow_open {
             ui.memory_mut(|mem| mem.move_focus(FocusDirection::None));
         }
-        let enter = arrow_right || (focused && clicked_by_keyboard_or_access);
+        let enter = arrow_open || (focused && clicked_by_keyboard_or_access);
         // Only arrow keys open on focus, so Tab can still move past the submenu.
         let focus_open = focused && parent_arrow_focus == Some(button_response.id);
         let keyboard_open = enter || focus_open || (!was_open && clicked_by_keyboard_or_access);

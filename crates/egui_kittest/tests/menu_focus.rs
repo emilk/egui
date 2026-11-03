@@ -6,7 +6,7 @@ use kittest::Queryable as _;
 #[test]
 fn menu_linear_navigation() {
     for context_menu in [false, true] {
-        let mut harness = navigation_menu(context_menu);
+        let mut harness = navigation_menu(context_menu, false);
         if context_menu {
             harness.get_by_label("Menu").click_secondary();
             harness.run();
@@ -38,7 +38,7 @@ fn menu_linear_navigation() {
 
 #[test]
 fn submenu_navigation() {
-    let mut harness = navigation_menu(false);
+    let mut harness = navigation_menu(false, false);
     open_navigation_menu(&mut harness);
 
     // Arrowing onto a submenu button opens the submenu but keeps focus on the button.
@@ -91,6 +91,74 @@ fn submenu_navigation() {
 }
 
 #[test]
+fn submenu_navigation_follows_the_reading_direction() {
+    // Mirrors `submenu_navigation` step for step in a right-to-left UI, with the
+    // horizontal arrows flipped: the reading-forward arrow (ArrowLeft) opens and
+    // enters submenus, the reading-backward arrow (ArrowRight) closes them, and
+    // Up/Down still move row focus.
+    let mut harness = navigation_menu(false, true);
+    open_navigation_menu(&mut harness);
+
+    // The reading-forward arrow does nothing on a plain row.
+    focus(&mut harness, "First item");
+    press(&mut harness, Key::ArrowLeft);
+    assert!(is_focused(&harness, "First item"));
+
+    // The reading-backward arrow returns to the menu's anchor button.
+    press(&mut harness, Key::ArrowRight);
+    assert!(is_focused(&harness, "Menu"));
+
+    // Arrowing onto a submenu button opens the submenu but keeps focus on the button.
+    focus(&mut harness, "Second item");
+    press(&mut harness, Key::ArrowDown);
+    assert!(is_focused(&harness, "Submenu"));
+    assert!(is_shown(&harness, "First child"));
+
+    // Down still moves row focus (and closing follows the moved focus).
+    press(&mut harness, Key::ArrowDown);
+    assert!(is_focused(&harness, "Last item"));
+    assert!(!is_shown(&harness, "First child"));
+    press(&mut harness, Key::ArrowUp);
+    assert!(is_shown(&harness, "First child"));
+
+    // Reading-forward (Left in RTL) enters the open submenu.
+    press(&mut harness, Key::ArrowLeft);
+    assert!(is_focused(&harness, "First child"));
+
+    // Down still moves row focus, auto-opening the nested submenu on the way.
+    press(&mut harness, Key::ArrowDown);
+    assert!(is_focused(&harness, "Nested submenu"));
+    assert!(is_shown(&harness, "Nested item"));
+
+    // Reading-forward (Left in RTL) enters the nested submenu.
+    press(&mut harness, Key::ArrowLeft);
+    assert!(is_focused(&harness, "Nested item"));
+
+    // Reading-backward (Right in RTL) returns to the submenu button and closes the
+    // nested submenu.
+    press(&mut harness, Key::ArrowRight);
+    assert!(is_focused(&harness, "Nested submenu"));
+    assert!(!is_shown(&harness, "Nested item"));
+
+    // Reading-backward (Right in RTL) again returns to the anchor and closes the submenu.
+    press(&mut harness, Key::ArrowRight);
+    assert!(is_focused(&harness, "Submenu"));
+    assert!(!is_shown(&harness, "First child"));
+
+    // Enter re-enters the submenu, reading-backward (Right) closes it again.
+    press(&mut harness, Key::Enter);
+    assert!(is_focused(&harness, "First child"));
+    press(&mut harness, Key::ArrowRight);
+    assert!(is_focused(&harness, "Submenu"));
+
+    // Reading-forward (Left) re-enters, and Up still moves row focus.
+    press(&mut harness, Key::ArrowLeft);
+    assert!(is_focused(&harness, "First child"));
+    press(&mut harness, Key::ArrowUp);
+    assert!(is_focused(&harness, "Last child"));
+}
+
+#[test]
 fn menu_controls_keep_their_arrow_keys() {
     let mut harness = Harness::new_ui_state(
         |ui, (text, value)| {
@@ -135,7 +203,7 @@ fn menu_controls_keep_their_arrow_keys() {
 #[test]
 fn arrow_navigation_outside_menus() {
     // The background keeps spatial navigation while a menu is open and after it closes.
-    let mut harness = navigation_menu(false);
+    let mut harness = navigation_menu(false, false);
     open_navigation_menu(&mut harness);
     for _ in 0..2 {
         focus(&mut harness, "Behind 10 0");
@@ -263,10 +331,12 @@ fn submenu_in_other_containers() {
     assert!(is_focused(&harness, "Standalone submenu"));
 }
 
-/// A menu over a grid of background buttons. The state collects entries that gained focus.
-fn navigation_menu(context_menu: bool) -> Harness<'static, Vec<String>> {
+/// A menu over a grid of background buttons, optionally in a right-to-left UI.
+/// The state collects entries that gained focus.
+fn navigation_menu(context_menu: bool, rtl: bool) -> Harness<'static, Vec<String>> {
     Harness::builder()
         .with_size(egui::vec2(500.0, 400.0))
+        .with_context_setup(move |ctx| ctx.set_right_to_left(rtl))
         .build_ui_state(
             move |ui, gained: &mut Vec<String>| {
                 for row in 0..12 {
