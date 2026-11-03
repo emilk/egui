@@ -174,9 +174,10 @@ fn collapse_button_sits_on_the_opposite_end_from_close() {
     }
 }
 
-/// B3a: the mirrored carve keeps the close button out of the drag band: a drag
-/// that starts inside the × moves the window not at all, in either direction, and
-/// leaves it open.
+/// B3a: the mirrored carves keep both title-bar buttons out of the drag band: a
+/// drag that starts inside the ×, or inside the collapse triangle (which the
+/// carve cuts out with its own mirrored branch), moves the window not at all, in
+/// either direction, and leaves it open.
 #[test]
 fn drag_on_the_close_button_does_not_move_the_window() {
     for rtl in [false, true] {
@@ -204,6 +205,31 @@ fn drag_on_the_close_button_does_not_move_the_window() {
             ),
             "rtl = {rtl}: a drag starting on the close button must not move the window: \
              {before:?} -> {after:?}"
+        );
+        assert!(
+            harness.query_by_label("Body").is_some(),
+            "rtl = {rtl}: the window should still be open"
+        );
+
+        // The mirrored collapse-button carve gets the same contract: a drag that
+        // starts inside the collapse triangle must not move the window either.
+        // (A carve that cuts at the wrong edge leaves the button inside the drag
+        // band; the band-midpoint drags of B3b would not notice that.)
+        let collapse = harness.get_by_label("Hide").rect();
+        let before = harness.state().window;
+
+        drag(&mut harness, collapse.center(), vec2(40.0, 20.0));
+
+        let after = harness.state().window;
+        assert!(
+            matches!(
+                (&before, &after),
+                (Some(before), Some(after))
+                    if (after.min.x - before.min.x).abs() < 1.0
+                        && (after.min.y - before.min.y).abs() < 1.0
+            ),
+            "rtl = {rtl}: a drag starting on the collapse button must not move the \
+             window: {before:?} -> {after:?}"
         );
         assert!(
             harness.query_by_label("Body").is_some(),
