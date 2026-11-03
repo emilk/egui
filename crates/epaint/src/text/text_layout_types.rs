@@ -29,11 +29,12 @@ impl TextDirection {
     /// First-strong-character inference (UAX #9 `dir=auto`): the first character with a
     /// strong bidi class decides; `None` if the text has no strong character.
     pub fn infer(text: &str) -> Option<Self> {
-        text.chars().find_map(|c| match unicode_bidi::bidi_class(c) {
-            unicode_bidi::BidiClass::L => Some(Self::LeftToRight),
-            unicode_bidi::BidiClass::R | unicode_bidi::BidiClass::AL => Some(Self::RightToLeft),
-            _ => None,
-        })
+        text.chars()
+            .find_map(|c| match unicode_bidi::bidi_class(c) {
+                unicode_bidi::BidiClass::L => Some(Self::LeftToRight),
+                unicode_bidi::BidiClass::R | unicode_bidi::BidiClass::AL => Some(Self::RightToLeft),
+                _ => None,
+            })
     }
 }
 
