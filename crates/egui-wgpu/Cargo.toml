@@ -73,3 +73,6 @@ wgpu = { workspace = true, features = ["wgsl"] }
 
 egui = { workspace = true, optional = true, default-features = false }
 winit = { workspace = true, optional = true, default-features = false }
+
+[dev-dependencies]
+pollster = { workspace = true }
