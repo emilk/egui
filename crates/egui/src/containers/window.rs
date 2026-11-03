@@ -592,6 +592,11 @@ impl Window<'_> {
             area
         };
 
+        // Read before `area.begin` consumes the builder: windows placed with an anchor
+        // re-derive their position from the anchor every frame, so the reading-edge
+        // compensation below must leave them alone.
+        let anchored = area.anchored();
+
         // Apply the previous frame's title-bar drag _before_ `Area::begin`
         // loads the state. We can't apply it inside the content closure because
         // `Area::end` writes the locally-captured `AreaState` back, overwriting
@@ -712,6 +717,13 @@ impl Window<'_> {
             area_content_ui.multiply_opacity(opacity);
         }
 
+        // An in-flight edge drag manages the window position itself (`resize_response`
+        // stores `requested_size` on every drag frame, and `Resize::begin` consumes it
+        // next frame) — the reading-edge compensation below must not fight it.
+        let edge_drag_in_flight =
+            resize::State::load(ctx, resize_id).is_some_and(|state| state.requested_size.is_some());
+        let rtl = area_content_ui.is_rtl();
+
         let content_inner = {
             let outer_response = window_frame.show(&mut area_content_ui, |ui| {
                 resize.show(ui, |ui| {
@@ -787,6 +799,31 @@ impl Window<'_> {
 
             outer_response.inner
         };
+
+        if rtl && !edge_drag_in_flight && !anchored {
+            // Under RTL the window is anchored on its reading-start (right) edge: when
+            // the content-driven size changes, move the left edge instead so the right
+            // edge stays put — compensated in PIVOT space so it is exact for every
+            // x-pivot.
+            //
+            // `state.size` still holds the OLD size here (`Area::end` persists the new
+            // one), and the `left_top_pos`/`set_left_top_pos` accessors fold the pivot
+            // factor `f = pivot.x().to_factor()` through that stale size — a left-edge
+            // write `set_left_top_pos(L - dx)` would store `pivot_pos' = L - dx + f*S_old`
+            // and read back next frame as `L' = L - dx - f*dx`, drifting the right edge
+            // by `-f*dx`. Adjust the persisted pivot position directly instead: next
+            // frame's left edge is `pivot_pos - f*S_new`, so `Δpivot_pos.x = -(1 - f)*dx`
+            // moves the left edge by exactly `-dx` and keeps
+            // `right = pivot_pos + (1 - f)*size` fixed for any pivot.
+            let state = area.state_mut();
+            if let Some(old_size) = state.size
+                && let Some(pivot_pos) = state.pivot_pos.as_mut()
+            {
+                let dx = area_content_ui.min_size().x - old_size.x;
+                let f = state.pivot.x().to_factor();
+                pivot_pos.x -= (1.0 - f) * dx;
+            }
+        }
 
         let full_response = area.end(ctx, area_content_ui);
 

@@ -377,6 +377,11 @@ impl Area {
         }
     }
 
+    /// Was this area placed with [`Area::anchor`] (position re-derived from the anchor each frame)?
+    pub(crate) fn anchored(&self) -> bool {
+        self.anchor.is_some()
+    }
+
     /// If `true`, quickly fade in the area.
     ///
     /// Default: `true`.
