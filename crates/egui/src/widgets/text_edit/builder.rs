@@ -1060,7 +1060,8 @@ impl<'t> TextEdit<'t> {
                         // when the buffer or the selection changed, or the OS explicitly asked
                         // (see `ImeEvent::RequestSurroundingText`); a masked field rebuilds
                         // every frame, so a report cached while it was unmasked can never
-                        // leak; an idle focused frame just clones the cached report.
+                        // leak; an idle focused frame just hands out a cheap `Arc` clone of
+                        // the cached report.
                         let os_requested = ui.input(|i| {
                             i.events.iter().any(|ev| {
                                 matches!(ev, Event::Ime(ImeEvent::RequestSurroundingText))
@@ -1094,7 +1095,7 @@ impl<'t> TextEdit<'t> {
                                     cursor_chars.0.max(cursor_chars.1),
                                 );
                                 let text_str = text.as_str();
-                                Some(crate::output::ImeSurroundingText {
+                                Some(Arc::new(crate::output::ImeSurroundingText {
                                     text: text_str.to_owned(),
                                     selection: byte_index_from_char_index(
                                         text_str,
@@ -1103,10 +1104,11 @@ impl<'t> TextEdit<'t> {
                                     .0
                                         ..byte_index_from_char_index(text_str, CharIndex(end_char))
                                             .0,
-                                })
+                                }))
                             };
                             state.reported_surrounding_text_cursor = Some(cursor_chars);
                         }
+                        // O(1): shares the cached report instead of copying the buffer.
                         let surrounding_text = state.reported_surrounding_text.clone();
 
                         ui.output_mut(|o| {

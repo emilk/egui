@@ -1,5 +1,7 @@
 //! All the data egui returns to the backend at the end of each frame.
 
+use alloc::sync::Arc;
+
 use core::ops::Range;
 
 use epaint::text::CharIndex;
@@ -132,8 +134,11 @@ pub struct IMEOutput {
     /// The text around the caret, reported by the widget that owns IME events.
     ///
     /// `None` for password fields and for widgets that don't support it.
+    ///
+    /// Shared through an [`Arc`](alloc::sync::Arc): the widget hands the same report out on
+    /// every focused frame, so integrations can diff it each frame for free.
     #[cfg_attr(feature = "serde", serde(default))]
-    pub surrounding_text: Option<ImeSurroundingText>,
+    pub surrounding_text: Option<Arc<ImeSurroundingText>>,
 }
 
 /// Commands that the egui integration should execute at the end of a frame.

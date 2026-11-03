@@ -1327,7 +1327,8 @@ impl State {
             }
 
             // TODO(emilk): when winit grows a surrounding-text report API, forward
-            // `ime.surrounding_text` (diffed like `ime_cursor_rect_px`), and map
+            // `ime.surrounding_text` (diffed like `ime_cursor_rect_px`; it is an
+            // `Arc`-shared report, so an unchanged frame can be skipped for free), and map
             // the OS "request surrounding text" event to
             // `ImeEvent::RequestSurroundingText` + a repaint in `on_ime`.
         } else {

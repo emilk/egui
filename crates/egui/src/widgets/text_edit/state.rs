@@ -62,9 +62,10 @@ pub struct TextEditState {
     pub(crate) reported_selection: Option<CCursorRange>,
 
     /// The [`crate::output::ImeSurroundingText`] last handed to the platform, kept so an idle
-    /// focused `TextEdit` doesn't rebuild (and reallocate) it every frame.
+    /// focused `TextEdit` doesn't rebuild (and reallocate) it every frame, and so the
+    /// per-frame handout to [`crate::output::IMEOutput`] is a cheap `Arc` clone.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) reported_surrounding_text: Option<crate::output::ImeSurroundingText>,
+    pub(crate) reported_surrounding_text: Option<Arc<crate::output::ImeSurroundingText>>,
 
     /// The char-index cursor pair the last report was built from, for the
     /// cheap "did the selection move" check.
