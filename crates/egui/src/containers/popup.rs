@@ -192,6 +192,14 @@ pub struct Popup<'a> {
 impl<'a> Popup<'a> {
     /// Create a new popup
     pub fn new(id: Id, ctx: Context, anchor: impl Into<PopupAnchor>, layer_id: LayerId) -> Self {
+        // Below the anchor, hanging from its reading-start edge:
+        // leftmost in a left-to-right interface, rightmost when
+        // [`crate::Style::right_to_left`] is set.
+        let rect_align = if ctx.is_rtl() {
+            RectAlign::BOTTOM_END
+        } else {
+            RectAlign::BOTTOM_START
+        };
         Self {
             id,
             ctx,
@@ -201,7 +209,7 @@ impl<'a> Popup<'a> {
             info: None,
             kind: PopupKind::Popup,
             layer_id,
-            rect_align: RectAlign::BOTTOM_START,
+            rect_align,
             alternative_aligns: None,
             gap: 0.0,
             width: None,
@@ -243,6 +251,10 @@ impl<'a> Popup<'a> {
     /// Sets the layout to `Layout::top_down_justified(Align::Min)`, or
     /// `Layout::top_down_justified(Align::Max)` in a right-to-left interface,
     /// so the rows justify from the reading start.
+    ///
+    /// The popup opens below the button, aligned to its reading-start edge
+    /// ([`RectAlign::BOTTOM_START`], mirrored to [`RectAlign::BOTTOM_END`] in a
+    /// right-to-left interface).
     pub fn menu(button_response: &Response) -> Self {
         // In a right-to-left interface the rows justify from the reading start (right).
         let layout = if button_response.ctx.is_rtl() {
@@ -260,6 +272,10 @@ impl<'a> Popup<'a> {
     /// Show a context menu when the widget was secondary clicked.
     /// Sets the layout like [`Self::menu`], depending on the interface direction.
     /// In contrast to [`Self::menu`], this will open at the pointer position.
+    ///
+    /// The menu hangs from the pointer at its reading-start edge and grows in the
+    /// reading direction, flipping near the screen edge to stay inside the screen
+    /// (see [`crate::Style::right_to_left`]).
     pub fn context_menu(response: &Response) -> Self {
         Self::menu(response)
             .open_memory(if response.secondary_clicked() {
@@ -291,6 +307,10 @@ impl<'a> Popup<'a> {
     /// Set the [`RectAlign`] of the popup relative to the [`PopupAnchor`].
     /// This is the default position, and will be used if it fits.
     /// See [`Self::align_alternatives`] for more on this.
+    ///
+    /// Default: [`RectAlign::BOTTOM_START`],
+    /// or [`RectAlign::BOTTOM_END`] in a right-to-left interface
+    /// (see [`crate::Style::right_to_left`]).
     #[inline]
     pub fn align(mut self, position_align: RectAlign) -> Self {
         self.rect_align = position_align;

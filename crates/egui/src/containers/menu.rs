@@ -587,6 +587,10 @@ impl SubMenu {
     ///
     /// This does some heuristics to check if the `button_response` was the last thing in the
     /// menu that was hovered/clicked, and if so, shows the submenu.
+    ///
+    /// The submenu opens on the parent row's reading-direction side: to the right in a
+    /// left-to-right UI, to the left when [`crate::Style::right_to_left`] is set; the body
+    /// mirrors accordingly.
     pub fn show<R>(
         self,
         ui: &Ui,
