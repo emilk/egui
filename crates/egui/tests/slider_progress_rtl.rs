@@ -20,8 +20,10 @@ use egui::{
 enum Dir {
     /// No flag, default layout: today's behaviour, byte-identical.
     Ltr,
+
     /// The interface-direction flag, set before the first frame, in a plain body.
     FlagRtl,
+
     /// An explicit right-to-left layout with the flag off.
     LayoutRtl,
 }
