@@ -127,7 +127,8 @@ pub struct Layout {
 
 impl Default for Layout {
     fn default() -> Self {
-        // TODO(emilk): Get from `Style` instead.
+        // TODO(emilk): Get from `Style` instead. (`Style::right_to_left` mirrors nested rows of
+        // vertical `Align::Min` bodies at the `Placer` level; see `Placer::prefer_right_to_left`.)
         Self::top_down(Align::LEFT) // This is a very euro-centric default.
     }
 }
@@ -313,6 +314,12 @@ impl Layout {
         self.main_dir().is_vertical()
     }
 
+    /// Prefer placing nested content from the right?
+    ///
+    /// True when the layout itself runs right-to-left, or when it is vertical with
+    /// `Align::Max` cross alignment. The interface-direction term lives in
+    /// `Placer::prefer_right_to_left`, which also mirrors nested rows of vertical
+    /// `Align::Min` bodies when `Style::right_to_left` is set.
     pub fn prefer_right_to_left(&self) -> bool {
         self.main_dir == Direction::RightToLeft
             || self.main_dir.is_vertical() && self.cross_align == Align::Max

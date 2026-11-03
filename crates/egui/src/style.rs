@@ -339,6 +339,13 @@ pub struct Style {
 
     /// Use a more compact style for menus.
     pub compact_menu_style: bool,
+
+    /// Mirror egui-owned widget chrome and default placements for a right-to-left interface
+    /// language (Arabic, Hebrew, Persian, Urdu): collapsing-header triangles point left,
+    /// checkbox/radio icons swap sides, window title bars put the close button on the left,
+    /// submenus open reading-end first. Set it through [`crate::Context::set_right_to_left`];
+    /// content geometry (canvases, sliders, numeric fields) stays left-to-right.
+    pub right_to_left: bool,
 }
 
 // Compile-time check that `Style` is `Send + Sync` on every target.
@@ -1555,6 +1562,7 @@ impl Default for Style {
             always_scroll_the_only_direction: false,
             scroll_animation: ScrollAnimation::default(),
             compact_menu_style: true,
+            right_to_left: false,
         }
     }
 }
@@ -1913,6 +1921,7 @@ impl Style {
             always_scroll_the_only_direction,
             scroll_animation,
             compact_menu_style,
+            right_to_left,
         } = self;
 
         crate::Grid::new("_options").show(ui, |ui| {
@@ -2006,6 +2015,14 @@ impl Style {
                     .speed(0.02)
                     .suffix(" s"),
             );
+            ui.end_row();
+
+            ui.label("Right-to-left");
+            ui.checkbox(right_to_left, "Mirror widget chrome")
+                .on_hover_text(
+                    "Mirror egui-owned widget chrome (triangles, icons, title bars, menus) \
+                     for right-to-left interface languages",
+                );
             ui.end_row();
         });
 

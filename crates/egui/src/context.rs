@@ -2595,6 +2595,41 @@ impl Context {
         self.options_mut(|opt| opt.theme_preference = theme_preference.into());
     }
 
+    /// Draw the interface right-to-left in **all** theme styles,
+    /// so that an appearance (light/dark) switch cannot revert the direction.
+    ///
+    /// This mirrors egui-owned widget chrome and default placements for
+    /// right-to-left interface languages (Arabic, Hebrew, Persian, Urdu);
+    /// see [`Style::right_to_left`] for what is mirrored.
+    ///
+    /// Takes effect from the next frame.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.set_right_to_left(true); // e.g. when the UI language is Arabic
+    /// assert!(ctx.is_rtl());
+    /// ```
+    pub fn set_right_to_left(&self, right_to_left: bool) {
+        self.all_styles_mut(|style| style.right_to_left = right_to_left);
+    }
+
+    /// Is the interface drawn right-to-left?
+    ///
+    /// This reads the currently active global style.
+    /// Use [`crate::Ui::is_rtl`] to query the direction of a specific [`crate::Ui`].
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// assert!(!ctx.is_rtl());
+    /// ctx.set_right_to_left(true);
+    /// assert!(ctx.is_rtl());
+    /// ```
+    pub fn is_rtl(&self) -> bool {
+        self.global_style().right_to_left
+    }
+
     /// The currently active [`Style`] used by all subsequent popups, menus, etc.
     pub fn global_style(&self) -> Arc<Style> {
         self.options(|opt| Arc::clone(opt.style()))

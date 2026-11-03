@@ -1,4 +1,4 @@
-use crate::{Layout, Painter, Pos2, Rect, Region, Vec2, grid, vec2};
+use crate::{Align, Layout, Painter, Pos2, Rect, Region, Vec2, grid, vec2};
 use emath::GuiRounding as _;
 
 #[cfg(debug_assertions)]
@@ -48,8 +48,9 @@ impl Placer {
     }
 
     #[inline(always)]
-    pub(crate) fn prefer_right_to_left(&self) -> bool {
+    pub(crate) fn prefer_right_to_left(&self, ui_is_rtl: bool) -> bool {
         self.layout.prefer_right_to_left()
+            || ui_is_rtl && self.layout.is_vertical() && self.layout.cross_align == Align::Min
     }
 
     #[inline(always)]
@@ -295,5 +296,78 @@ impl Placer {
             self.layout
                 .paint_text_at_cursor(painter, &self.region, stroke, text);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Placer;
+    use crate::{Align, Direction, Layout, Rect, pos2};
+
+    fn placer(layout: Layout) -> Placer {
+        Placer::new(
+            Rect::from_min_size(pos2(0.0, 0.0), crate::vec2(100.0, 100.0)),
+            layout,
+        )
+    }
+
+    /// The RTL term applies only to vertical `Align::Min` layouts,
+    /// and `rtl = false` matches the old pure-layout answers.
+    #[test]
+    fn prefer_right_to_left_truth_table() {
+        let layouts = [
+            Layout::left_to_right(Align::Center),
+            Layout::right_to_left(Align::Center),
+            Layout::top_down(Align::Min),
+            Layout::top_down(Align::Center),
+            Layout::top_down(Align::Max),
+            Layout::top_down_justified(Align::Min),
+            Layout::top_down_justified(Align::Max),
+        ];
+
+        for layout in layouts {
+            let placer = placer(layout);
+
+            // With the flag off, the answer is exactly the old pure-layout one:
+            assert_eq!(
+                placer.prefer_right_to_left(false),
+                layout.prefer_right_to_left(),
+                "{layout:?} with ui_is_rtl=false"
+            );
+
+            // With the flag on, only vertical `Align::Min` layouts gain the RTL term:
+            let expected = layout.prefer_right_to_left()
+                || layout.is_vertical() && layout.cross_align == Align::Min;
+            assert_eq!(
+                placer.prefer_right_to_left(true),
+                expected,
+                "{layout:?} with ui_is_rtl=true"
+            );
+        }
+    }
+
+    #[test]
+    fn right_to_left_interface_mirrors_nested_rows_of_vertical_bodies() {
+        // `ui.vertical` uses this exact layout:
+        let body = Layout::top_down(Align::Min);
+        assert!(placer(body).prefer_right_to_left(true));
+        assert!(!placer(body).prefer_right_to_left(false));
+
+        // Horizontal rows are never mirrored by the interface term:
+        let row = Layout::left_to_right(Align::Center);
+        assert!(!placer(row).prefer_right_to_left(true));
+
+        // A layout that already runs right-to-left is right-to-left either way:
+        let rtl_row = Layout::right_to_left(Align::Center);
+        assert!(placer(rtl_row).prefer_right_to_left(true));
+        assert!(placer(rtl_row).prefer_right_to_left(false));
+
+        // Vertical `Align::Max` is right-to-left regardless of the interface direction:
+        let max_body = Layout::top_down_justified(Align::Max);
+        assert!(placer(max_body).prefer_right_to_left(true));
+        assert!(placer(max_body).prefer_right_to_left(false));
+
+        // Sanity: `Direction::RightToLeft` main dir is what makes the pure-layout term true.
+        assert_eq!(rtl_row.main_dir, Direction::RightToLeft);
     }
 }

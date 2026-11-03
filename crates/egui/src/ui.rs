@@ -118,11 +118,20 @@ impl Ui {
 
         let max_rect = max_rect.unwrap_or_else(|| ctx.content_rect());
         let clip_rect = max_rect;
-        let layout = layout.unwrap_or_default();
+        let mut layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.global_style());
         let sense = sense.unwrap_or_else(Sense::hover);
         let classes = classes.with_class(class::ROOT);
+
+        // In a right-to-left interface, measure sizing passes anchored on the reading
+        // start: with `Align::Max` cross alignment the sizing pass seeds the root
+        // `min_rect` at the far edge of the offered area, which balloons the measured
+        // size of areas (popups, menus, windows) to the offered width. This is the
+        // root-`Ui` part of the canonicalization in `Ui::new_child`.
+        if sizing_pass && style.right_to_left && layout.cross_align == Align::Max {
+            layout.cross_align = Align::Min;
+        }
 
         // A root `Ui` has no parent to derive a unique id from,
         // so the caller must provide a globally unique id, which serves as both:
@@ -245,6 +254,15 @@ impl Ui {
             // so that we measure the only the space we _need_.
             layout.cross_justify = false;
             if layout.cross_align == Align::Center {
+                layout.cross_align = Align::Min;
+            }
+            // In a right-to-left interface, keep the sizing measurement anchored on the reading
+            // start: with `Align::Max` the sizing pass seeds the child's `min_rect` at the far
+            // edge of the offered area, so the measurement is reading-end-anchored and
+            // offered-width-dependent for anything that consumes the child's `min_rect().min`
+            // (e.g. a `Resize` container's cursor advance). The size itself stays natural.
+            // The show pass keeps the mirrored alignment.
+            if style.right_to_left && layout.cross_align == Align::Max {
                 layout.cross_align = Align::Min;
             }
         }
@@ -417,6 +435,24 @@ impl Ui {
     /// Reset to the default style set in [`Context`].
     pub fn reset_style(&mut self) {
         self.style = self.ctx().global_style();
+    }
+
+    /// Is the interface drawn right-to-left?
+    ///
+    /// This reads the [`Style`] of this [`Ui`], so a per-`Ui` override with
+    /// [`Self::style_mut`] works. Use [`Context::is_rtl`] to read the global setting.
+    ///
+    /// Example:
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// assert!(!ui.is_rtl());
+    /// ui.style_mut().right_to_left = true;
+    /// assert!(ui.is_rtl());
+    /// # });
+    /// ```
+    #[inline]
+    pub fn is_rtl(&self) -> bool {
+        self.style.right_to_left
     }
 
     /// The current spacing options for this [`Ui`].
@@ -2447,7 +2483,7 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         let initial_size = self.available_size_before_wrap();
-        let layout = if self.placer.prefer_right_to_left() {
+        let layout = if self.placer.prefer_right_to_left(self.is_rtl()) {
             Layout::right_to_left(Align::Center)
         } else {
             Layout::left_to_right(Align::Center)
@@ -2462,7 +2498,7 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         let initial_size = self.available_size_before_wrap();
-        let layout = if self.placer.prefer_right_to_left() {
+        let layout = if self.placer.prefer_right_to_left(self.is_rtl()) {
             Layout::right_to_left(Align::Center)
         } else {
             Layout::left_to_right(Align::Center)
@@ -2503,7 +2539,7 @@ impl Ui {
             self.spacing().interact_size.y, // Assume there will be something interactive on the horizontal layout
         );
 
-        let layout = if self.placer.prefer_right_to_left() {
+        let layout = if self.placer.prefer_right_to_left(self.is_rtl()) {
             Layout::right_to_left(Align::Center)
         } else {
             Layout::left_to_right(Align::Center)
