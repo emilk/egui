@@ -864,6 +864,14 @@ impl Ui {
 
     /// Set the maximum width of the ui.
     /// You won't be able to shrink it below the current minimum size.
+    ///
+    /// The span is anchored at the layout's horizontal alignment
+    /// ([`Layout::horizontal_align`]): a vertical body claims from its
+    /// `cross_align` edge — under a right-to-left interface that is the
+    /// reading-start (right) edge for the [`Align::Max`] bodies popups and
+    /// menus use, and the same edge the body's content starts on for
+    /// [`Align::Min`] bodies. The anchor does not depend on the interface
+    /// direction, so measured sizes are direction-independent.
     pub fn set_max_width(&mut self, width: f32) {
         self.placer.set_max_width(width);
     }
@@ -885,6 +893,14 @@ impl Ui {
 
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
+    ///
+    /// The span is anchored at the layout's horizontal alignment
+    /// ([`Layout::horizontal_align`]): a vertical body claims from its
+    /// `cross_align` edge — under a right-to-left interface that is the
+    /// reading-start (right) edge for the [`Align::Max`] bodies popups and
+    /// menus use, and the same edge the body's content starts on for
+    /// [`Align::Min`] bodies. The anchor does not depend on the interface
+    /// direction, so measured sizes are direction-independent.
     pub fn set_min_width(&mut self, width: f32) {
         debug_assert!(
             0.0 <= width,
@@ -948,6 +964,14 @@ impl Ui {
     }
 
     /// `ui.set_width_range(min..=max);` is equivalent to `ui.set_min_width(min); ui.set_max_width(max);`.
+    ///
+    /// The span is anchored at the layout's horizontal alignment
+    /// ([`Layout::horizontal_align`]): a vertical body claims from its
+    /// `cross_align` edge — under a right-to-left interface that is the
+    /// reading-start (right) edge for the [`Align::Max`] bodies popups and
+    /// menus use, and the same edge the body's content starts on for
+    /// [`Align::Min`] bodies. The anchor does not depend on the interface
+    /// direction, so measured sizes are direction-independent.
     pub fn set_width_range(&mut self, width: impl Into<Rangef>) {
         let width = width.into();
         self.set_min_width(width.min);
@@ -962,6 +986,14 @@ impl Ui {
     }
 
     /// Set both the minimum and maximum width.
+    ///
+    /// The span is anchored at the layout's horizontal alignment
+    /// ([`Layout::horizontal_align`]): a vertical body claims from its
+    /// `cross_align` edge — under a right-to-left interface that is the
+    /// reading-start (right) edge for the [`Align::Max`] bodies popups and
+    /// menus use, and the same edge the body's content starts on for
+    /// [`Align::Min`] bodies. The anchor does not depend on the interface
+    /// direction, so measured sizes are direction-independent.
     pub fn set_width(&mut self, width: f32) {
         self.set_min_width(width);
         self.set_max_width(width);

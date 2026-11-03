@@ -240,6 +240,20 @@ impl Placer {
             .next_widget_space_ignore_wrap_justify(&self.region, size)
     }
 
+    // Anchoring of the width setters (`set_max_width` / `set_min_width`):
+    // they claim their span with the layout-derived anchor
+    // (`Layout::horizontal_align`) — a vertical body claims from its
+    // `cross_align` edge — in every pass and every interface direction. The
+    // anchor must stay layout-derived: `Layout::region_from_max_rect` seeds
+    // `min_rect` as a zero-size rect at the `cross_align` edge,
+    // `Region::expand_to_include_x` unions any claim into it, and the
+    // `region.max_rect |= region.min_rect` guard below re-anchors every
+    // result to the body's content edge — so a claim from any other edge
+    // would only balloon the measured size to the offered span. In
+    // `Align::Max` bodies under a right-to-left interface (the popup/menu
+    // bodies) the layout-derived anchor already IS the reading edge, so
+    // reading-edge capping works there. The regression pins live in
+    // `crates/egui/tests/reading_edge_width.rs`.
     /// Set the maximum width of the ui.
     /// You won't be able to shrink it below the current minimum size.
     pub(crate) fn set_max_width(&mut self, width: f32) {
