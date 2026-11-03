@@ -502,6 +502,29 @@ impl InputState {
         self.raw.viewport()
     }
 
+    /// Is the currently active keyboard layout a Latin (QWERTY-family) layout?
+    ///
+    /// `None` when the integration doesn't report it. See
+    /// [`RawInput::keyboard_layout_is_latin`].
+    #[inline]
+    pub fn keyboard_layout_is_latin(&self) -> Option<bool> {
+        self.raw.keyboard_layout_is_latin
+    }
+
+    /// The character the user's Latin keyboard layout produces for the given key
+    /// position, if the integration reports Latin-layout data.
+    ///
+    /// On a non-Latin active layout this is the reliable source for letter shortcuts:
+    /// the layout-typed key is not a Latin letter. See [`RawInput::latin_layout_chars`].
+    #[inline]
+    pub fn latin_layout_char(&self, key: Key) -> Option<char> {
+        self.raw
+            .latin_layout_chars
+            .iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, c)| *c)
+    }
+
     /// Returns the region of the screen that is safe for content rendering
     ///
     /// Returns the `viewport_rect` with the `safe_area_insets` removed.
