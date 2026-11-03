@@ -5,7 +5,7 @@ use crate::{
 };
 use alloc::sync::Arc;
 use core::ops::{Deref, DerefMut};
-use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2};
+use emath::{Align2, GuiRounding as _, NumExt as _, Rect, Vec2, vec2};
 use epaint::text::TextWrapMode;
 use epaint::{Color32, Galley};
 use smallvec::SmallVec;
@@ -625,6 +625,7 @@ impl<'atom> SizedContainerAtom<'atom> {
 
             match sized.kind {
                 SizedAtomKind::Text(galley) => {
+                    let paint_pos = item_rect.min - vec2(galley.rect.left(), 0.0);
                     if let Some(response) = selection_response {
                         // Route through the label selection machinery, which also
                         // paints the galley. `Stroke::NONE` keeps the rendering
@@ -632,14 +633,13 @@ impl<'atom> SizedContainerAtom<'atom> {
                         LabelSelectionState::label_text_selection(
                             ui,
                             response,
-                            item_rect.min,
+                            paint_pos,
                             galley,
                             fallback_text_color,
                             Stroke::NONE,
                         );
                     } else {
-                        ui.painter()
-                            .galley(item_rect.min, galley, fallback_text_color);
+                        ui.painter().galley(paint_pos, galley, fallback_text_color);
                     }
                 }
                 SizedAtomKind::Image { image, size: _ } => {

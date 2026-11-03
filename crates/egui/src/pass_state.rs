@@ -3,7 +3,7 @@ use ahash::HashMap;
 use crate::{Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects, id::IdSet, style};
 
 #[cfg(debug_assertions)]
-use crate::{Align2, Color32, FontId, NumExt as _, Painter, pos2};
+use crate::{Align2, Color32, FontId, NumExt as _, Painter, pos2, vec2};
 
 /// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]
@@ -153,7 +153,7 @@ impl DebugRect {
                 .left()
                 .at_most(content_rect.right() - galley.size().x)
                 .at_least(0.0);
-            let text_pos = pos2(x, y);
+            let text_pos = pos2(x, y) - vec2(galley.rect.left(), 0.0);
 
             let text_bg_color = Color32::from_black_alpha(180);
             let text_rect_stroke_color = if is_clicking {

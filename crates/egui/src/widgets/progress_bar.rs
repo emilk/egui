@@ -216,7 +216,8 @@ impl Widget for ProgressBar {
                     TextStyle::Button,
                 );
                 let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y * 0.5)
-                    + vec2(ui.spacing().item_spacing.x, 0.0);
+                    + vec2(ui.spacing().item_spacing.x, 0.0)
+                    - vec2(galley.rect.left(), 0.0);
                 let text_color = visuals
                     .override_text_color
                     .unwrap_or(visuals.selection.stroke.color);

@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 
 use crate::{
     Align, Direction, FontSelection, Galley, Pos2, Response, Role, Sense, Stroke, TextWrapMode, Ui,
-    Widget, WidgetInfo, WidgetText, epaint, pos2, text_selection::LabelSelectionState,
+    Widget, WidgetInfo, WidgetText, epaint, pos2, text_selection::LabelSelectionState, vec2,
 };
 
 /// Static text.
@@ -213,7 +213,7 @@ impl Label {
             }
             let galley = ui.fonts_mut(|fonts| fonts.layout_job(layout_job));
 
-            let pos = pos2(ui.max_rect().left(), ui.cursor().top());
+            let pos = pos2(ui.max_rect().left(), ui.cursor().top()) - vec2(galley.rect.left(), 0.0);
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
             // collect a response from many rows:
             let rect = galley.rows[0]

@@ -6,7 +6,7 @@
 
 use crate::{
     Align, Align2, Color32, Context, FontFamily, FontId, Plugin, Rect, Shape, Ui, Vec2, WidgetText,
-    text,
+    text, vec2,
 };
 
 /// Print this text next to the cursor at the end of the pass.
@@ -90,7 +90,11 @@ impl DebugTextPlugin {
                     ctx.fonts_mut(|f| f.layout(location, font_id.clone(), color, f32::INFINITY));
                 let location_rect =
                     Align2::RIGHT_TOP.anchor_size(pos - 4.0 * Vec2::X, location_galley.size());
-                painter.galley(location_rect.min, location_galley, color);
+                painter.galley(
+                    location_rect.min - vec2(location_galley.rect.left(), 0.0),
+                    location_galley,
+                    color,
+                );
                 bounding_rect |= location_rect;
             }
 
@@ -105,7 +109,7 @@ impl DebugTextPlugin {
                     Align::TOP,
                 );
                 let rect = Align2::LEFT_TOP.anchor_size(pos, galley.size());
-                painter.galley(rect.min, galley, color);
+                painter.galley(rect.min - vec2(galley.rect.left(), 0.0), galley, color);
                 bounding_rect |= rect;
             }
 

@@ -8,7 +8,7 @@ use epaint::{
 
 use crate::{
     Color32, Context, FontId,
-    emath::{Align2, Pos2, Rangef, Rect, Vec2},
+    emath::{Align2, Pos2, Rangef, Rect, Vec2, vec2},
     layers::{LayerId, PaintList, ShapeIdx},
 };
 
@@ -307,7 +307,7 @@ impl Painter {
             Color32::from_white_alpha(150)
         };
         self.add(Shape::rect_filled(frame_rect, 0.0, bg_color));
-        self.galley(rect.min, galley, color);
+        self.galley(rect.min - vec2(galley.rect.left(), 0.0), galley, color);
         frame_rect
     }
 }
@@ -476,7 +476,7 @@ impl Painter {
     ) -> Rect {
         let galley = self.layout_no_wrap(text.to_string(), font_id, text_color);
         let rect = anchor.anchor_size(pos, galley.size());
-        self.galley(rect.min, galley, text_color);
+        self.galley(rect.min - vec2(galley.rect.left(), 0.0), galley, text_color);
         rect
     }
 

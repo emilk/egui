@@ -575,7 +575,7 @@ impl CollapsingHeader {
         let text_pos = pos2(
             text_pos.x,
             header_response.rect.center().y - galley.size().y / 2.0,
-        );
+        ) - vec2(galley.rect.left(), 0.0);
 
         let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
         if let Some(open) = open {
