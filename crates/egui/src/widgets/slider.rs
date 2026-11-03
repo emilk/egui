@@ -559,10 +559,16 @@ impl Slider<'_> {
                 .unwrap_or_else(|| ui.visuals().slider_trailing_fill);
 
             if trailing_fill {
-                // The fill runs from the start of the rail to the handle. A range slider hands
-                // the same function two handles instead.
+                // The fill runs from the reading start of the rail to the handle. A range slider
+                // hands the same function two handles instead.
                 let span = match self.core.orientation {
-                    SliderOrientation::Horizontal => Rangef::new(rail_rect.left(), center.x),
+                    SliderOrientation::Horizontal => {
+                        if geom.is_rtl {
+                            Rangef::new(center.x, rail_rect.right())
+                        } else {
+                            Rangef::new(rail_rect.left(), center.x)
+                        }
+                    }
                     SliderOrientation::Vertical => Rangef::new(center.y, rail_rect.bottom()),
                 };
                 slider_core::paint_fill(ui, rail_rect, span, self.core.orientation);

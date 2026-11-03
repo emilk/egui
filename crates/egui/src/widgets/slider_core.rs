@@ -5,9 +5,9 @@
 use core::ops::RangeInclusive;
 
 use crate::{
-    DragValue, EventFilter, Id, Key, NumExt as _, Pos2, Rangef, Rect, Response, TextStyle, Ui,
-    Vec2, WidgetText, emath, epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape,
-    vec2,
+    Direction, DragValue, EventFilter, Id, Key, NumExt as _, Pos2, Rangef, Rect, Response,
+    TextStyle, Ui, Vec2, WidgetText, emath, epaint, lerp, pos2, remap, remap_clamp, style,
+    style::HandleShape, vec2,
 };
 
 use super::drag_value::clamp_value_to_range;
@@ -62,6 +62,14 @@ pub struct SliderGeometry {
 
     /// The space the widget was given, handles included.
     pub rect: Rect,
+
+    /// Mirror the rail for a right-to-left reading direction: on a horizontal rail the
+    /// smallest value then sits at the right end, and the fill grows from there.
+    ///
+    /// Read from the [`Ui`] in [`SliderCore::geometry`]: true when the interface direction
+    /// ([`Ui::is_rtl`]) or the layout itself ([`crate::Layout::main_dir`]) runs right-to-left.
+    /// A vertical rail is unaffected: its high end is already at the top.
+    pub is_rtl: bool,
 }
 
 impl SliderGeometry {
@@ -82,6 +90,11 @@ impl SliderGeometry {
             HandleShape::Rect { aspect_ratio } => handle_radius * aspect_ratio,
         };
         match self.orientation {
+            SliderOrientation::Horizontal if self.is_rtl => {
+                // Mirror the rail: in a right-to-left reading direction the smallest value
+                // sits at the right end, so the fill grows from the right edge.
+                self.rect.x_range().shrink(handle_radius).flipped()
+            }
             SliderOrientation::Horizontal => self.rect.x_range().shrink(handle_radius),
             // The vertical case has to be flipped because the largest slider value maps to the
             // lowest y value (which is at the top)
@@ -281,6 +294,7 @@ impl SliderCore<'_> {
             range: self.range.clone(),
             spec: self.spec.clone(),
             rect,
+            is_rtl: ui.is_rtl() || ui.layout().main_dir() == Direction::RightToLeft,
         }
     }
 
@@ -742,7 +756,7 @@ mod tests {
     use crate::widgets::slider::SliderOrientation;
     use crate::{Rect, pos2};
 
-    fn geometry(orientation: SliderOrientation) -> SliderGeometry {
+    fn geometry(orientation: SliderOrientation, is_rtl: bool) -> SliderGeometry {
         SliderGeometry {
             orientation,
             handle_shape: crate::style::HandleShape::Circle,
@@ -753,6 +767,7 @@ mod tests {
                 largest_finite: f64::INFINITY,
             },
             rect: Rect::from_min_max(pos2(0.0, 0.0), pos2(200.0, 20.0)),
+            is_rtl,
         }
     }
 
@@ -760,20 +775,55 @@ mod tests {
     fn value_position_round_trip() {
         // Vertical sliders run the other way, which is easy to get wrong in only one direction.
         for orientation in [SliderOrientation::Horizontal, SliderOrientation::Vertical] {
-            let geom = geometry(orientation);
-            for value in [0.0, 1.0, 50.0, 99.0, 100.0] {
-                let round_tripped = geom.value_from_position(geom.position_from_value(value));
-                assert!(
-                    (round_tripped - value).abs() < 0.1,
-                    "{orientation:?}: {value} came back as {round_tripped}"
-                );
+            for is_rtl in [false, true] {
+                let geom = geometry(orientation, is_rtl);
+                for value in [0.0, 1.0, 50.0, 99.0, 100.0] {
+                    let round_tripped = geom.value_from_position(geom.position_from_value(value));
+                    assert!(
+                        (round_tripped - value).abs() < 0.1,
+                        "{orientation:?} (is_rtl = {is_rtl}): {value} came back as {round_tripped}"
+                    );
+                }
             }
         }
     }
 
     #[test]
+    fn vertical_rail_is_unaffected_by_the_direction() {
+        // The vertical case is already flipped (its high end is at the top), so mirroring
+        // it again would invert vertical sliders under the direction.
+        assert_eq!(
+            geometry(SliderOrientation::Vertical, false).position_range(),
+            geometry(SliderOrientation::Vertical, true).position_range(),
+            "the vertical position range must not re-flip under the direction"
+        );
+    }
+
+    #[test]
+    fn horizontal_rtl_flips_the_position_range() {
+        let geom = geometry(SliderOrientation::Horizontal, true);
+        let positions = geom.position_range();
+        assert!(
+            positions.min > positions.max,
+            "RTL: the mirrored range should run right-to-left, got {positions:?}"
+        );
+        assert_eq!(geom.value_from_position(positions.min), 0.0);
+        assert_eq!(geom.value_from_position(positions.max), 100.0);
+        assert_eq!(geom.position_from_value(0.0), positions.min);
+        assert_eq!(geom.position_from_value(100.0), positions.max);
+        assert!(
+            !geom.position_grows_with_value(),
+            "RTL: the value grows towards the smaller screen coordinate, so an accesskit \
+             Increment keeps raising the value while ArrowRight moves the handle right"
+        );
+
+        // The left-to-right geometry keeps growing with the value:
+        assert!(geometry(SliderOrientation::Horizontal, false).position_grows_with_value());
+    }
+
+    #[test]
     fn rail_ends_map_to_range_ends() {
-        let geom = geometry(SliderOrientation::Horizontal);
+        let geom = geometry(SliderOrientation::Horizontal, false);
         let positions = geom.position_range();
         assert_eq!(geom.value_from_position(positions.min), 0.0);
         assert_eq!(geom.value_from_position(positions.max), 100.0);

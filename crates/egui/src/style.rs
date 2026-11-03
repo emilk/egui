@@ -343,8 +343,9 @@ pub struct Style {
     /// Mirror egui-owned widget chrome and default placements for a right-to-left interface
     /// language (Arabic, Hebrew, Persian, Urdu): collapsing-header triangles point left,
     /// checkbox/radio icons swap sides, window title bars put the close button on the left,
-    /// submenus open reading-end first. Set it through [`crate::Context::set_right_to_left`];
-    /// content geometry (canvases, sliders, numeric fields) stays left-to-right.
+    /// submenus open reading-end first, slider and progress-bar fills grow from the reading
+    /// start. Set it through [`crate::Context::set_right_to_left`]; content geometry
+    /// (canvases, numeric fields) stays left-to-right.
     pub right_to_left: bool,
 }
 
@@ -2021,7 +2022,7 @@ impl Style {
             ui.checkbox(right_to_left, "Mirror widget chrome")
                 .on_hover_text(
                     "Mirror egui-owned widget chrome (triangles, icons, title bars, menus) \
-                     for right-to-left interface languages",
+                     and slider/progress fills for right-to-left interface languages",
                 );
             ui.end_row();
         });

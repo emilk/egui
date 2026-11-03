@@ -1,6 +1,6 @@
 use crate::{
-    Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Role, Sense, Shape, Stroke,
-    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, lerp, vec2,
+    Color32, CornerRadius, Direction, NumExt as _, Pos2, Rect, Response, Rgba, Role, Sense, Shape,
+    Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, lerp, pos2, vec2,
 };
 
 enum ProgressBarText {
@@ -138,11 +138,22 @@ impl Widget for ProgressBar {
             let corner_radius = corner_radius.unwrap_or_else(|| half_height.into());
             ui.painter()
                 .rect_filled(outer_rect, corner_radius, visuals.extreme_bg_color);
-            let min_width =
-                2.0 * f32::max(corner_radius.sw as _, corner_radius.nw as _).at_most(half_height);
+            let rtl = ui.is_rtl() || ui.layout().main_dir() == Direction::RightToLeft;
+            let min_width = if rtl {
+                // The fill's rounded cap sits on the reading-start edge; keep it visible there.
+                2.0 * f32::max(corner_radius.ne as _, corner_radius.se as _).at_most(half_height)
+            } else {
+                2.0 * f32::max(corner_radius.sw as _, corner_radius.nw as _).at_most(half_height)
+            };
             let filled_width = (outer_rect.width() * progress).at_least(min_width);
-            let inner_rect =
-                Rect::from_min_size(outer_rect.min, vec2(filled_width, outer_rect.height()));
+            let inner_rect = if rtl {
+                Rect::from_min_max(
+                    pos2(outer_rect.right() - filled_width, outer_rect.top()),
+                    pos2(outer_rect.right(), outer_rect.bottom()),
+                )
+            } else {
+                Rect::from_min_size(outer_rect.min, vec2(filled_width, outer_rect.height()))
+            };
 
             let (dark, bright) = (0.7, 1.0);
             let color_factor = if animate {
