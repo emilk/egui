@@ -2909,8 +2909,7 @@ mod tests {
         let font_id = FontId::proportional(14.0);
 
         // Inferred (direction: None) strong-RTL text right-anchors:
-        let mut job =
-            LayoutJob::simple_singleline("نص عربي…".into(), font_id.clone(), Color32::WHITE);
+        let job = LayoutJob::simple_singleline("نص عربي…".into(), font_id.clone(), Color32::WHITE);
         assert_eq!(job.direction, None);
         let galley = layout(&mut fonts, pixels_per_point, job.into());
         assert_eq!(galley.rows.len(), 1);
