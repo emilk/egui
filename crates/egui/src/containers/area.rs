@@ -2,7 +2,7 @@
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
-use emath::GuiRounding as _;
+use emath::{GuiRounding as _, RectAlign};
 
 use crate::{
     Align2, Context, Id, InnerResponse, LayerId, Layout, NumExt as _, Order, Pos2, Rect, Response,
@@ -412,6 +412,79 @@ impl Area {
     pub fn sizing_pass(mut self, resize: bool) -> Self {
         self.sizing_pass = resize;
         self
+    }
+}
+
+impl Area {
+    /// Find the pivot and position that place an area of `size` with its `pivot` corner
+    /// at `anchor`, fully inside `screen_rect`.
+    ///
+    /// Like [`crate::Popup`], the preferred side is kept when it fits; otherwise the flipped
+    /// side is tried ([`emath::RectAlign::symmetries`]). If no side fits (the area is larger
+    /// than `screen_rect`, or the anchor is pinned at its far edge) the rect is clamped inside.
+    ///
+    /// The search covers the preferred alignment and its symmetries only — unlike
+    /// [`crate::Popup::get_best_align`] it does not fall back to [`emath::RectAlign::MENU_ALIGNS`],
+    /// because the caller asked for the area to stay anchored (with its `pivot` corner) at
+    /// `anchor`, not to jump to a different edge.
+    ///
+    /// The returned position is the position of the *pivot* (what [`Self::fixed_pos`] expects),
+    /// not the top-left corner — feed the pair straight back into `.pivot(pivot).fixed_pos(pos)`.
+    ///
+    /// The function is direction-agnostic: an interface reading right-to-left passes the
+    /// mirrored preferred pivot (e.g. [`Align2::RIGHT_TOP`] instead of [`Align2::LEFT_TOP`]).
+    ///
+    /// Degenerate inputs never panic: a `screen_rect` with NaN bounds returns `(pivot, anchor)`
+    /// unchanged; other values outside the domain of `f32::clamp` (inverted or single-NaN
+    /// bounds, NaN or negative `size`) yield clamped or degenerate geometry, never a panic.
+    ///
+    /// ```
+    /// # use egui::{pos2, vec2, Area, Align2, Id, Order};
+    /// # egui::__run_test_ctx(|ctx| {
+    /// let anchor = pos2(790.0, 100.0); // e.g. the pointer position
+    /// let (pivot, pos) =
+    ///     Area::fit_pos(anchor, vec2(200.0, 140.0), Align2::LEFT_TOP, ctx.content_rect());
+    /// Area::new(Id::unique("fit_pos_example"))
+    ///     .order(Order::Foreground)
+    ///     .pivot(pivot)
+    ///     .fixed_pos(pos)
+    ///     .show(ctx, |ui| ui.set_min_size(vec2(200.0, 140.0)));
+    /// # });
+    /// ```
+    pub fn fit_pos(anchor: Pos2, size: Vec2, pivot: Align2, screen_rect: Rect) -> (Align2, Pos2) {
+        // Degenerate screen rects (unmeasured viewports) must not panic: `f32::clamp`
+        // asserts `min <= max`, which NaN bounds violate.
+        if screen_rect.any_nan() {
+            return (pivot, anchor);
+        }
+        let screen_rect = Rect::from_two_pos(screen_rect.min, screen_rect.max); // normalize inverted rects
+
+        let anchor_rect = Rect::from_min_size(anchor, Vec2::ZERO);
+        let preferred = RectAlign::from_align2(pivot);
+
+        let best = RectAlign::find_best_align(
+            core::iter::chain(core::iter::once(preferred), preferred.symmetries()),
+            screen_rect,
+            anchor_rect,
+            0.0,
+            size,
+        )
+        .unwrap_or(preferred); // find_best_align never returns None when given alternatives
+
+        let mut pos = best.align_rect(&anchor_rect, size, 0.0).min;
+        // No side fits: clamp what's left. The `.max` keeps the upper bound >= the lower one
+        // when `size` is larger than `screen_rect` (or NaN), so `clamp` cannot assert.
+        pos.x = pos.x.clamp(
+            screen_rect.min.x,
+            (screen_rect.max.x - size.x).max(screen_rect.min.x),
+        );
+        pos.y = pos.y.clamp(
+            screen_rect.min.y,
+            (screen_rect.max.y - size.y).max(screen_rect.min.y),
+        );
+
+        let rect = Rect::from_min_size(pos, size);
+        (best.child(), best.child().pos_in_rect(&rect))
     }
 }
 
@@ -834,4 +907,142 @@ fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerI
         }
     }
     best_pos
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Align2, Context, Id, Pos2, RawInput, Rect, Vec2, pos2, vec2};
+
+    use super::Area;
+
+    fn screen() -> Rect {
+        Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))
+    }
+
+    /// Show an area of `size` best-fit at `anchor` with the preferred `pivot`, and return
+    /// the rect it actually landed on (single `run_ui` frame; `Area::end` corrects the
+    /// response rect to the measured size in the same frame).
+    fn shown_rect(anchor: Pos2, size: Vec2, pivot: Align2) -> Rect {
+        let ctx = Context::default();
+        let (pivot, pos) = Area::fit_pos(anchor, size, pivot, screen());
+        let mut rect = None;
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(screen()),
+                ..Default::default()
+            },
+            |ui| {
+                let response = Area::new(Id::unique("test"))
+                    .pivot(pivot)
+                    .fixed_pos(pos)
+                    .show(ui.ctx(), |ui| {
+                        ui.set_min_size(size);
+                    });
+                rect = Some(response.response.rect);
+            },
+        );
+        output.drop_without_applying_deltas();
+        rect.expect("run_ui callback ran")
+    }
+
+    #[test]
+    fn fit_pos_keeps_the_preferred_side_when_it_fits() {
+        let (pivot, pos) = Area::fit_pos(
+            pos2(400.0, 300.0),
+            vec2(200.0, 140.0),
+            Align2::LEFT_TOP,
+            screen(),
+        );
+        assert_eq!(pivot, Align2::LEFT_TOP);
+        assert_eq!(pos, pos2(400.0, 300.0));
+    }
+
+    // The issue reproduction: a 200x140 area with a LEFT_TOP pivot at x=790 on an
+    // 800-wide screen used to extend to x=990 with nothing in the Area API to correct it.
+    #[test]
+    fn fit_pos_flips_to_the_left_near_the_right_edge() {
+        let (pivot, pos) = Area::fit_pos(
+            pos2(790.0, 100.0),
+            vec2(200.0, 140.0),
+            Align2::LEFT_TOP,
+            screen(),
+        );
+        assert_eq!(pivot, Align2::RIGHT_TOP);
+        assert_eq!(pos, pos2(790.0, 100.0)); // right edge stays at the anchor, grows leftward
+        let rect = shown_rect(pos2(790.0, 100.0), vec2(200.0, 140.0), Align2::LEFT_TOP);
+        assert_eq!(
+            rect,
+            Rect::from_min_size(pos2(590.0, 100.0), vec2(200.0, 140.0))
+        );
+    }
+
+    #[test]
+    fn fit_pos_flips_upward_near_the_bottom_edge() {
+        let (pivot, _) = Area::fit_pos(
+            pos2(400.0, 590.0),
+            vec2(200.0, 140.0),
+            Align2::LEFT_TOP,
+            screen(),
+        );
+        assert_eq!(pivot, Align2::LEFT_BOTTOM);
+    }
+
+    #[test]
+    fn fit_pos_flipped_side_is_clamped_too() {
+        // Anchor at the very right edge: flipping alone is not enough, the clamp must pull
+        // the rect back inside (the PhotoCraft brush-picker case).
+        let rect = shown_rect(pos2(800.0, 300.0), vec2(200.0, 140.0), Align2::LEFT_TOP);
+        assert!(
+            screen().contains_rect(rect),
+            "{rect:?} must stay inside the screen"
+        );
+    }
+
+    #[test]
+    fn fit_pos_clamps_when_no_side_fits() {
+        let rect = shown_rect(pos2(790.0, 590.0), vec2(900.0, 700.0), Align2::LEFT_TOP);
+        assert_eq!(
+            rect.min,
+            screen().min,
+            "no side fits: clamped to the screen corner"
+        );
+    }
+
+    #[test]
+    fn fit_pos_never_panics_on_degenerate_input() {
+        let nan_rect = Rect::from_min_size(pos2(f32::NAN, 0.0), vec2(800.0, 600.0));
+        assert_eq!(
+            Area::fit_pos(
+                pos2(100.0, 100.0),
+                vec2(200.0, 140.0),
+                Align2::LEFT_TOP,
+                nan_rect
+            ),
+            (Align2::LEFT_TOP, pos2(100.0, 100.0)),
+            "NaN screen bounds return the request unchanged"
+        );
+        let inverted = Rect::from_min_max(pos2(800.0, 600.0), Pos2::ZERO);
+        let (_, pos) = Area::fit_pos(
+            pos2(400.0, 300.0),
+            vec2(200.0, 140.0),
+            Align2::LEFT_TOP,
+            inverted,
+        );
+        assert!(
+            pos.is_finite(),
+            "inverted screen rect clamps, never panics: {pos:?}"
+        );
+        let _ = Area::fit_pos(
+            pos2(400.0, 300.0),
+            vec2(f32::NAN, 140.0),
+            Align2::LEFT_TOP,
+            screen(),
+        );
+        let _ = Area::fit_pos(
+            pos2(400.0, 300.0),
+            vec2(-200.0, 140.0),
+            Align2::LEFT_TOP,
+            screen(),
+        );
+    }
 }
