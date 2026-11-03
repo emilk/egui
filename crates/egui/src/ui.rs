@@ -124,12 +124,12 @@ impl Ui {
         let sense = sense.unwrap_or_else(Sense::hover);
         let classes = classes.with_class(class::ROOT);
 
-        // In a right-to-left interface, measure sizing passes anchored on the reading
-        // start: with `Align::Max` cross alignment the sizing pass seeds the root
-        // `min_rect` at the far edge of the offered area, which balloons the measured
-        // size of areas (popups, menus, windows) to the offered width. This is the
-        // root-`Ui` part of the canonicalization in `Ui::new_child`.
-        if sizing_pass && style.right_to_left && layout.cross_align == Align::Max {
+        // The sizing measurement must not depend on the reading direction: with `Align::Max`
+        // cross alignment the sizing pass seeds the root `min_rect` at the far edge of the
+        // offered area, so the measured span is offered-width-dependent. Measure like
+        // `Align::Min` in both directions; the show pass keeps the caller's alignment.
+        // This is the root-`Ui` part of the canonicalization in `Ui::new_child`.
+        if sizing_pass && layout.cross_align == Align::Max {
             layout.cross_align = Align::Min;
         }
 
@@ -256,13 +256,14 @@ impl Ui {
             if layout.cross_align == Align::Center {
                 layout.cross_align = Align::Min;
             }
-            // In a right-to-left interface, keep the sizing measurement anchored on the reading
-            // start: with `Align::Max` the sizing pass seeds the child's `min_rect` at the far
-            // edge of the offered area, so the measurement is reading-end-anchored and
-            // offered-width-dependent for anything that consumes the child's `min_rect().min`
-            // (e.g. a `Resize` container's cursor advance). The size itself stays natural.
-            // The show pass keeps the mirrored alignment.
-            if style.right_to_left && layout.cross_align == Align::Max {
+            // The sizing measurement must not depend on the reading direction: with
+            // `Align::Max` the sizing pass seeds the child's `min_rect` at the far edge of
+            // the offered area, so the measurement is reading-end-anchored and
+            // offered-width-dependent for anything that consumes the child's
+            // `min_rect().min` (e.g. a `Resize` container's cursor advance). The size
+            // itself stays natural. Measure like `Align::Min` in both directions; the show
+            // pass keeps the mirrored alignment.
+            if layout.cross_align == Align::Max {
                 layout.cross_align = Align::Min;
             }
         }

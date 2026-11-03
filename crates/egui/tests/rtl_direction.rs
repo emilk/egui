@@ -464,9 +464,9 @@ fn triangle_apex_points_reading_start_when_closed() {
     }
 }
 
-/// A7: the sizing pass measures a right-to-left cross-`Align::Max` body anchored on the
-/// reading-start edge: `min_rect().left()` equals the offered rect's left edge (the same
-/// measurement an explicit `Align::Min` body gets) and is offered-width-independent.
+/// A7: the sizing pass measures a cross-`Align::Max` body anchored on the reading-start
+/// edge in both directions: `min_rect().left()` equals the offered rect's left edge (the
+/// same measurement an explicit `Align::Min` body gets) and is offered-width-independent.
 #[test]
 fn sizing_pass_measures_from_reading_start_edge() {
     fn measure(rtl: bool, cross_align: Align, offered_width: f32) -> Rect {
@@ -515,13 +515,24 @@ fn sizing_pass_measures_from_reading_start_edge() {
          (Max {rtl_narrow:?}, Min {rtl_min:?})"
     );
 
-    // LTR counterpart (flag off): the cross-Max sizing measurement stays right-anchored
-    // in the offered rect, exactly as before:
-    let ltr = measure(false, Align::Max, 400.0);
-    let offered_right = 50.0 + 400.0;
+    // LTR counterpart (flag off): the cross-Max sizing measurement is now
+    // direction-independent — left-anchored, offered-width-independent, and equal to the
+    // explicit `Align::Min` measurement, exactly like the RTL case:
+    let ltr_max = measure(false, Align::Max, 400.0);
+    let ltr_max_wide = measure(false, Align::Max, 800.0);
+    let ltr_min = measure(false, Align::Min, 400.0);
     assert!(
-        (ltr.left() - (offered_right - ltr.width())).abs() <= 0.5,
-        "LTR: the cross-Max sizing measurement should stay reading-end anchored, got {ltr:?}"
+        (ltr_max.left() - 50.0).abs() <= 0.5,
+        "LTR: the cross-Max sizing pass should anchor on the reading-start (left) edge, \
+         got min_rect {ltr_max:?}"
+    );
+    assert!(
+        (ltr_max.left() - ltr_max_wide.left()).abs() <= 0.5,
+        "LTR: the sizing measurement must be offered-width-independent"
+    );
+    assert!(
+        (ltr_max.left() - ltr_min.left()).abs() <= 0.5,
+        "LTR: cross-Max sizing should measure like cross-Min"
     );
 }
 
