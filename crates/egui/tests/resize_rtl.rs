@@ -488,7 +488,10 @@ fn resize_state_persists_across_direction_flip() {
 
 /// A8: a resizable `Window` keeps its reading-start edge fixed while its size
 /// changes: under RTL the right edge stays put and the left edge moves by the
-/// width delta; under LTR the left edge stays put. Also asserts there is no
+/// width delta; under LTR the left edge stays put. Covers growth, the no-drift
+/// case, content shrink (windows never auto-shrink with their content, so the
+/// window must stay exactly put), and a genuine negative width delta via the
+/// max-size clamp (screen narrower than the window). Also asserts there is no
 /// drift once the size is unchanged across frames.
 #[test]
 fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
@@ -497,40 +500,51 @@ fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
     // ~500 points wide when not wrapped — much wider than the 200-point window.
     const WIDE: &str = "wwwwwwwwww wwwwwwwwww wwwwwwwwww wwwwwwwwww wwwwwwwwww";
 
+    fn input_on(screen: Rect) -> RawInput {
+        RawInput {
+            screen_rect: Some(screen),
+            ..Default::default()
+        }
+    }
+
     /// The window is placed so the wide state fits on screen in both directions:
     /// under RTL the window grows leftward (placed near the right edge), under
     /// LTR rightward (placed near the left edge).
-    fn frame(ctx: &Context, rtl: bool, wide: bool) -> Rect {
+    fn frame(ctx: &Context, rtl: bool, wide: bool, screen_w: f32) -> Rect {
         let pos = if rtl {
             pos2(450.0, 50.0)
         } else {
             pos2(100.0, 50.0)
         };
         let mut rect = Rect::NOTHING;
-        run(ctx, input(SCREEN), |_ui| {
-            let show = |ui: &mut Ui| {
-                if wide {
-                    ui.add(egui::Label::new(WIDE).wrap_mode(egui::TextWrapMode::Extend));
-                } else {
-                    ui.label(NARROW);
+        run(
+            ctx,
+            input_on(Rect::from_min_size(Pos2::ZERO, vec2(screen_w, SCREEN.y))),
+            |_ui| {
+                let show = |ui: &mut Ui| {
+                    if wide {
+                        ui.add(egui::Label::new(WIDE).wrap_mode(egui::TextWrapMode::Extend));
+                    } else {
+                        ui.label(NARROW);
+                    }
+                };
+                if let Some(response) = Window::new("rtl win")
+                    .resizable(true)
+                    .default_size(vec2(200.0, 100.0))
+                    .default_pos(pos)
+                    .show(ctx, show)
+                {
+                    rect = response.response.rect;
                 }
-            };
-            if let Some(response) = Window::new("rtl win")
-                .resizable(true)
-                .default_size(vec2(200.0, 100.0))
-                .default_pos(pos)
-                .show(ctx, show)
-            {
-                rect = response.response.rect;
-            }
-        });
+            },
+        );
         rect
     }
 
-    fn settle(ctx: &Context, rtl: bool, wide: bool) -> Rect {
-        let mut prev = frame(ctx, rtl, wide);
+    fn settle(ctx: &Context, rtl: bool, wide: bool, screen_w: f32) -> Rect {
+        let mut prev = frame(ctx, rtl, wide, screen_w);
         for _ in 0..8 {
-            let next = frame(ctx, rtl, wide);
+            let next = frame(ctx, rtl, wide, screen_w);
             if same_rect(next, prev) {
                 return next;
             }
@@ -542,12 +556,12 @@ fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
     // RTL: content-driven growth keeps the right (reading-start) edge fixed:
     let ctx = Context::default();
     ctx.set_right_to_left(true);
-    let before = settle(&ctx, true, false);
+    let before = settle(&ctx, true, false, SCREEN.x);
     assert!(
         before.is_positive(),
         "the window should be laid out (got {before:?})"
     );
-    let after = settle(&ctx, true, true);
+    let after = settle(&ctx, true, true, SCREEN.x);
     assert!(
         after.width() > before.width() + 20.0,
         "the window should grow with its content (before {before:?}, after {after:?})"
@@ -564,18 +578,31 @@ fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
     );
 
     // No drift once the size is unchanged across frames:
-    let extra1 = frame(&ctx, true, true);
-    let extra2 = frame(&ctx, true, true);
+    let extra1 = frame(&ctx, true, true, SCREEN.x);
+    let extra2 = frame(&ctx, true, true, SCREEN.x);
     assert!(
         same_rect(extra1, after) && same_rect(extra2, after),
         "RTL: an unchanged size must not drift the window \
          (settled {after:?}, extra1 {extra1:?}, extra2 {extra2:?})"
     );
 
+    // Content shrink: a window never auto-shrinks with its content (upstream
+    // `Resize` semantics: the desired size is sticky), and under RTL the content is
+    // laid out against the reading-start edge while the parent's `min_rect` is
+    // seeded on the old reading-end edge, so the persisted width can only grow.
+    // The window must therefore stay exactly where it was — the reading-start
+    // (right) edge fixed, no drift of any kind:
+    let shrunk = settle(&ctx, true, false, SCREEN.x);
+    assert!(
+        same_rect(shrunk, after),
+        "RTL: narrowing the content must not move or resize the window \
+         (wide {after:?}, narrow {shrunk:?})"
+    );
+
     // LTR counterpart: the left edge stays fixed and the right edge moves:
     let ctx = Context::default();
-    let before = settle(&ctx, false, false);
-    let after = settle(&ctx, false, true);
+    let before = settle(&ctx, false, false, SCREEN.x);
+    let after = settle(&ctx, false, true, SCREEN.x);
     assert!(
         after.width() > before.width() + 20.0,
         "the window should grow with its content (before {before:?}, after {after:?})"
@@ -590,4 +617,94 @@ fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
         "LTR: the window's right edge must move by the width delta \
          (before {before:?}, after {after:?})"
     );
+
+    // Content shrink counterpart: the desired size is sticky in both directions,
+    // so the window must stay exactly where it was — the reading-start (left)
+    // edge fixed, no drift of any kind:
+    let shrunk = settle(&ctx, false, false, SCREEN.x);
+    assert!(
+        same_rect(shrunk, after),
+        "LTR: narrowing the content must not move or resize the window \
+         (wide {after:?}, narrow {shrunk:?})"
+    );
+
+    // Genuine negative width delta, via the max-size clamp: a screen narrower than
+    // the window clamps the window's max width (with constraining off, so the
+    // clamp is the only thing acting on the window). Under LTR the window shrinks
+    // with the reading-start (left) edge fixed and the right edge moving left by
+    // exactly the width delta. Under RTL the window's persisted width is monotonic
+    // (see the content-shrink note above: the clamp shrinks the offered rect, but
+    // the laid-out min stays at the old width), so nothing may move at all.
+    for (rtl, pos) in [(true, pos2(650.0, 50.0)), (false, pos2(100.0, 50.0))] {
+        let ctx = Context::default();
+        ctx.set_right_to_left(rtl);
+
+        fn clamp_frame(ctx: &Context, screen_w: f32, pos: Pos2) -> Rect {
+            let mut rect = Rect::NOTHING;
+            run(
+                ctx,
+                input_on(Rect::from_min_size(Pos2::ZERO, vec2(screen_w, 500.0))),
+                |_ui| {
+                    if let Some(response) = Window::new("rtl win clamp")
+                        .resizable(true)
+                        .constrain(false)
+                        .default_size(vec2(200.0, 100.0))
+                        .default_pos(pos)
+                        .show(ctx, |ui| {
+                            ui.label(NARROW);
+                        })
+                    {
+                        rect = response.response.rect;
+                    }
+                },
+            );
+            rect
+        }
+
+        fn clamp_settle(ctx: &Context, screen_w: f32, pos: Pos2) -> Rect {
+            let mut prev = clamp_frame(ctx, screen_w, pos);
+            for _ in 0..8 {
+                let next = clamp_frame(ctx, screen_w, pos);
+                if same_rect(next, prev) {
+                    return next;
+                }
+                prev = next;
+            }
+            prev
+        }
+
+        let wide_screen = clamp_settle(&ctx, 700.0, pos);
+        assert!(
+            wide_screen.is_positive() && wide_screen.width() > 150.0,
+            "the window should be laid out wider than the narrow screen \
+             (rtl {rtl}, got {wide_screen:?})"
+        );
+        let clamped = clamp_settle(&ctx, 150.0, pos);
+        if rtl {
+            assert!(
+                same_rect(clamped, wide_screen),
+                "RTL: clamping the max size must not move or resize the window \
+                 (wide screen {wide_screen:?}, narrow screen {clamped:?})"
+            );
+        } else {
+            assert!(
+                clamped.width() < wide_screen.width() - 20.0,
+                "LTR: clamping the max size must shrink the window \
+                 (wide screen {wide_screen:?}, narrow screen {clamped:?})"
+            );
+            assert!(
+                (clamped.left() - wide_screen.left()).abs() <= 1.0,
+                "LTR: the window's reading-start (left) edge must stay fixed while the \
+                 max-size clamp shrinks it \
+                 (wide screen {wide_screen:?}, narrow screen {clamped:?})"
+            );
+            let delta = wide_screen.width() - clamped.width();
+            assert!(
+                (clamped.right() - (wide_screen.right() - delta)).abs() <= 1.0,
+                "LTR: the window's right edge must move left by the width delta while \
+                 the max-size clamp shrinks it \
+                 (wide screen {wide_screen:?}, narrow screen {clamped:?})"
+            );
+        }
+    }
 }

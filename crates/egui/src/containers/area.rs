@@ -382,6 +382,14 @@ impl Area {
         self.anchor.is_some()
     }
 
+    /// Was this area placed with [`Area::fixed_pos`] or [`Area::current_pos`]?
+    ///
+    /// `Area::begin` re-applies that position every frame, overwriting whatever
+    /// was persisted in the state.
+    pub(crate) fn has_new_pos(&self) -> bool {
+        self.new_pos.is_some()
+    }
+
     /// If `true`, quickly fade in the area.
     ///
     /// Default: `true`.

@@ -596,6 +596,10 @@ impl Window<'_> {
         // re-derive their position from the anchor every frame, so the reading-edge
         // compensation below must leave them alone.
         let anchored = area.anchored();
+        // Same for windows placed with an explicit position: `Area::begin` re-pins
+        // the pivot position from it every frame, so the compensation below would
+        // be silently discarded.
+        let has_new_pos = area.has_new_pos();
 
         // Apply the previous frame's title-bar drag _before_ `Area::begin`
         // loads the state. We can't apply it inside the content closure because
@@ -800,12 +804,17 @@ impl Window<'_> {
             outer_response.inner
         };
 
-        if rtl && !edge_drag_in_flight && !anchored {
+        if rtl && !edge_drag_in_flight && !anchored && !has_new_pos {
             // Under RTL the window is anchored on its reading-start (right) edge: when
             // the content-driven size changes, move the left edge instead so the right
             // edge stays put — compensated in PIVOT space so it is exact for every
             // x-pivot.
             //
+            // Skipped for windows placed with `.fixed_pos()`/`.current_pos()` (like the
+            // `anchored` gate): `Area::begin` re-pins `pivot_pos` from that position
+            // every frame, so the persisted mutation below would be silently discarded
+            // and such windows still grow rightward under RTL. We make that limitation
+            // explicit instead of compensating into a value that is thrown away.
             // `state.size` still holds the OLD size here (`Area::end` persists the new
             // one), and the `left_top_pos`/`set_left_top_pos` accessors fold the pivot
             // factor `f = pivot.x().to_factor()` through that stale size — a left-edge
