@@ -11,6 +11,32 @@ use emath::{Align, GuiRounding as _, NumExt as _, OrderedFloat, Pos2, Rect, Vec2
 pub use font_types::Tag;
 use smallvec::SmallVec;
 
+/// The base reading direction of a paragraph of text.
+///
+/// Used by [`LayoutJob`] to anchor and elide text that reads
+/// right-to-left (Arabic, Hebrew, …).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum TextDirection {
+    /// The text reads left-to-right (the historic default).
+    #[default]
+    LeftToRight,
+    /// The text reads right-to-left.
+    RightToLeft,
+}
+
+impl TextDirection {
+    /// First-strong-character inference (UAX #9 `dir=auto`): the first character with a
+    /// strong bidi class decides; `None` if the text has no strong character.
+    pub fn infer(text: &str) -> Option<Self> {
+        text.chars().find_map(|c| match unicode_bidi::bidi_class(c) {
+            unicode_bidi::BidiClass::L => Some(Self::LeftToRight),
+            unicode_bidi::BidiClass::R | unicode_bidi::BidiClass::AL => Some(Self::RightToLeft),
+            _ => None,
+        })
+    }
+}
+
 /// Describes the task of laying out text.
 ///
 /// This supports mixing different fonts, color and formats (underline etc).
@@ -81,6 +107,18 @@ pub struct LayoutJob {
     /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
     pub halign: Align,
 
+    /// The paragraph's base reading direction.
+    ///
+    /// If `None`, the direction is inferred from the first strong character
+    /// (UAX #9 `dir=auto`), falling back to [`TextDirection::LeftToRight`] —
+    /// the historic behaviour for LTR-resolving text.
+    /// Pin `Some(TextDirection::LeftToRight)` to force the old anchoring for RTL content.
+    ///
+    /// Note that layout normalizes the job: a returned galley's job carries the
+    /// resolved direction and the reading-start `halign`.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub direction: Option<TextDirection>,
+
     /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`].
     pub justify: bool,
 
@@ -94,6 +132,14 @@ pub struct LayoutJob {
     /// If `true`, trailing whitespace is included in the row width used for alignment.
     /// This is desirable for text editors where the user expects to see their spaces.
     pub keep_trailing_whitespace: bool,
+
+    /// BCP 47 language tag of the text, e.g. `"en"` or `"ar-EG"`.
+    ///
+    /// Pure metadata for line-breaking and shaping backends:
+    /// it does not change layout on its own.
+    /// egui widgets fill it in from the ambient UI language (`Context::language`) when unset.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub language: Option<String>,
 }
 
 impl Default for LayoutJob {
@@ -109,6 +155,8 @@ impl Default for LayoutJob {
             justify: false,
             round_output_to_gui: true,
             keep_trailing_whitespace: false,
+            direction: None,
+            language: None,
         }
     }
 }
@@ -317,6 +365,8 @@ impl core::hash::Hash for LayoutJob {
             justify,
             round_output_to_gui,
             keep_trailing_whitespace,
+            direction,
+            language,
         } = self;
 
         text.hash(state);
@@ -328,6 +378,8 @@ impl core::hash::Hash for LayoutJob {
         justify.hash(state);
         round_output_to_gui.hash(state);
         keep_trailing_whitespace.hash(state);
+        direction.hash(state);
+        language.hash(state);
     }
 }
 
