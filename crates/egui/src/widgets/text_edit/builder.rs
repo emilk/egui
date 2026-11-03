@@ -16,7 +16,9 @@ use crate::{
     response,
     text_edit::state::TextEditCursorPurpose,
     text_selection::{
-        self, CCursorRange, text_cursor_state::cursor_rect, visuals::paint_text_selection,
+        self, CCursorRange,
+        text_cursor_state::{byte_index_from_char_index, cursor_rect},
+        visuals::paint_text_selection,
     },
     vec2,
     widget_style::TextEditStyle,
@@ -1153,6 +1155,29 @@ impl<'t> TextEdit<'t> {
     }
 }
 
+/// Converts byte counts around the selection's byte offsets into character
+/// counts, saturating at the string bounds and flooring to UTF-8 character
+/// boundaries so a count that ends mid-character leaves that character intact.
+///
+/// `start_byte` and `end_byte` are char-boundary byte offsets into `text`
+/// (produced by `byte_index_from_char_index`), so the slicing below cannot
+/// panic: the floored start is always `<= start_byte` and the floored end is
+/// always `>= end_byte` and `<= text.len()`.
+fn surrounding_bytes_to_chars(
+    text: &str,
+    start_byte: usize,
+    end_byte: usize,
+    before_bytes: usize,
+    after_bytes: usize,
+) -> (usize, usize) {
+    let before_start = text.floor_char_boundary(start_byte.saturating_sub(before_bytes));
+    let after_end = text.floor_char_boundary(end_byte.saturating_add(after_bytes));
+    (
+        text[before_start..start_byte].chars().count(),
+        text[end_byte..after_end].chars().count(),
+    )
+}
+
 fn mask_if_password(is_password: bool, text: &str) -> String {
     fn mask_password(text: &str) -> String {
         core::iter::repeat_n(
@@ -1482,6 +1507,25 @@ fn events(
                     } => Some(CursorMutation::ImeCompositionCursorRange(
                         text.delete_surrounding_chars(cursor_range, *before_chars, *after_chars),
                     )),
+                    ImeEvent::DeleteSurroundingBytes {
+                        before_bytes,
+                        after_bytes,
+                    } => {
+                        let [min, max] = cursor_range.sorted_cursors();
+                        let text_str = text.as_str();
+                        let start_byte = byte_index_from_char_index(text_str, min.index).0;
+                        let end_byte = byte_index_from_char_index(text_str, max.index).0;
+                        let (before_chars, after_chars) = surrounding_bytes_to_chars(
+                            text_str,
+                            start_byte,
+                            end_byte,
+                            *before_bytes,
+                            *after_bytes,
+                        );
+                        Some(CursorMutation::ImeCompositionCursorRange(
+                            text.delete_surrounding_chars(cursor_range, before_chars, after_chars),
+                        ))
+                    }
                 }
             }
 
