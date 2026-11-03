@@ -1,6 +1,6 @@
 use crate::{
-    AtomKind, AtomPaintArgs, Atoms, Direction, FontSelection, Frame, IdSalt, Image, IntoAtoms,
-    Response, SizedAtom, SizedAtomKind, Stroke, Ui, WidgetAtom,
+    Align, AtomKind, AtomPaintArgs, Atoms, Direction, FontSelection, Frame, IdSalt, Image,
+    IntoAtoms, Response, SizedAtom, SizedAtomKind, Stroke, Ui, WidgetAtom,
     text_selection::LabelSelectionState,
 };
 use alloc::sync::Arc;
@@ -38,6 +38,24 @@ fn main_cross_rect(direction: Direction, aligned_rect: Rect, min_main: f32, max_
     }
 }
 
+/// The direction atom rows read in for this [`Ui`].
+///
+/// Right-to-left when the layout itself runs right-to-left (or is vertical with
+/// `Align::Max` cross alignment, which [`crate::Layout::prefer_right_to_left`]
+/// already reports as right-to-left), or when
+/// [`crate::Style::right_to_left`] is set inside a vertical `Align::Min` body —
+/// the exact terms of `Placer::prefer_right_to_left`.
+pub(crate) fn atoms_direction(ui: &Ui) -> Direction {
+    let layout = ui.layout();
+    if layout.prefer_right_to_left()
+        || ui.is_rtl() && layout.is_vertical() && layout.cross_align == Align::Min
+    {
+        Direction::RightToLeft
+    } else {
+        Direction::LeftToRight
+    }
+}
+
 /// The custom atom rects collected while painting, keyed by atom salt.
 ///
 /// There should rarely be more than one.
@@ -71,7 +89,7 @@ pub struct ContainerAtom<'a> {
     max_size: Vec2,
     wrap_mode: Option<TextWrapMode>,
     align2: Option<Align2>,
-    direction: Direction,
+    direction: Option<Direction>,
 }
 
 impl Default for ContainerAtom<'_> {
@@ -92,7 +110,7 @@ impl<'a> ContainerAtom<'a> {
             max_size: Vec2::INFINITY,
             wrap_mode: None,
             align2: None,
-            direction: Direction::LeftToRight,
+            direction: None,
         }
     }
 
@@ -120,6 +138,11 @@ impl<'a> ContainerAtom<'a> {
             fallback_font,
             direction,
         } = self;
+
+        // Follow the reading direction of the surrounding layout — the same terms
+        // `Placer::prefer_right_to_left` uses to mirror nested rows (placer.rs:51-53).
+        // An explicit `.direction(...)` wins.
+        let direction = direction.unwrap_or_else(|| atoms_direction(ui));
 
         let fallback_font = fallback_font.unwrap_or_default();
 
@@ -326,8 +349,12 @@ shared_container_builders! {
     }
 
     /// Set the direction the atoms are laid out along.
+    ///
+    /// Defaults to the reading direction of the surrounding layout
+    /// ([`crate::Layout::prefer_right_to_left`]; also mirrors with
+    /// [`crate::Style::right_to_left`] the way nested rows do).
     fn direction(self, direction: Direction) {
-        self.direction = direction;
+        self.direction = Some(direction);
     }
 
     /// Set the [`Frame`].
@@ -668,5 +695,53 @@ impl<'a> Deref for SizedContainerAtom<'a> {
 impl DerefMut for SizedContainerAtom<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.sized_atoms
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::atoms_direction;
+    use crate::{Align, Context, Direction, Layout, RawInput, Rect, placer::Placer, pos2, vec2};
+
+    /// `atoms_direction` must answer the exact question `Placer::prefer_right_to_left`
+    /// answers when mirroring nested rows: the same 7-layout truth table, with and
+    /// without the interface flag.
+    #[test]
+    fn atoms_direction_matches_placer_truth_table() {
+        let layouts = [
+            Layout::left_to_right(Align::Center),
+            Layout::right_to_left(Align::Center),
+            Layout::top_down(Align::Min),
+            Layout::top_down(Align::Center),
+            Layout::top_down(Align::Max),
+            Layout::top_down_justified(Align::Min),
+            Layout::top_down_justified(Align::Max),
+        ];
+
+        for layout in layouts {
+            for rtl in [false, true] {
+                let ctx = Context::default();
+                ctx.set_right_to_left(rtl);
+                // `textures_delta` must be handled before the output is dropped (epaint
+                // debug-asserts on unapplied deltas); these tests never render.
+                let mut output = ctx.run_ui(RawInput::default(), |ui| {
+                    ui.with_layout(layout, |ui| {
+                        // The comparison side is a locally constructed `Placer` fed the
+                        // surrounding layout and the interface flag; a `Ui`'s own placer
+                        // is private to the `ui` module and is not read here.
+                        let placer = Placer::new(
+                            Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0)),
+                            *ui.layout(),
+                        );
+                        assert_eq!(
+                            atoms_direction(ui) == Direction::RightToLeft,
+                            placer.prefer_right_to_left(ui.is_rtl()),
+                            "{layout:?} with right_to_left = {rtl}"
+                        );
+                    });
+                });
+                output.textures_delta.clear();
+            }
+        }
     }
 }

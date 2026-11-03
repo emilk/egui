@@ -1429,7 +1429,13 @@ fn title_ui(
         .gap(spacing)
         .fallback_font(TextStyle::Heading)
         .wrap_mode(TextWrapMode::Truncate)
-        .frame(Frame::NONE.inner_margin(frame.inner_margin));
+        .frame(Frame::NONE.inner_margin(frame.inner_margin))
+        // The title bar mirrors its atom list itself (the `rtl` branch above) and keys the
+        // hit-test carve on the same `rtl`; keep the container LTR so the mirror is applied
+        // exactly once now that `ContainerAtom::measure` defaults from the surrounding layout
+        // (the child ui inherits the window's vertical `Align::Min` layout, which resolves
+        // right-to-left under `Style::right_to_left`).
+        .direction(Direction::LeftToRight);
 
     let frame = frame.inner_margin(0); // Only applied to the atoms; done above.
 
