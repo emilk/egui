@@ -4,7 +4,9 @@ use emath::OrderedFloat;
 use nohash_hasher::IntMap;
 
 use crate::text::{
-    ByteIndex, Galley, LayoutJob, LayoutSection, fonts::FontsImpl, text_layout::layout,
+    ByteIndex, Galley, LayoutJob, LayoutSection,
+    fonts::FontsImpl,
+    text_layout::{layout, normalize_reading_direction},
 };
 
 /// A laid-out [`Galley`], and what we need to know to evict it.
@@ -88,6 +90,9 @@ impl GalleyCache {
                 galley
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
+                // Resolve the base direction once from the whole job text and pin it,
+                // so every paragraph child inherits the same base direction:
+                normalize_reading_direction(&mut job);
                 let job = Arc::new(job);
                 if allow_split_paragraphs && should_cache_each_paragraph_individually(&job) {
                     let (child_galleys, child_hashes) =
@@ -178,6 +183,8 @@ impl GalleyCache {
                 },
                 round_output_to_gui: job.round_output_to_gui,
                 keep_trailing_whitespace: job.keep_trailing_whitespace,
+                direction: job.direction,
+                language: job.language.clone(),
             };
 
             // Add overlapping sections:

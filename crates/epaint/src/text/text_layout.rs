@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     ByteRangeExt as _, Galley, Glyph, LayoutJob, LayoutSection, PlacedRow, Row, RowVisuals,
-    VariationCoords,
+    TextDirection, VariationCoords,
     family::FamilyKey,
     font_face::{FontFace, GlyphInfo, ShapedGlyph},
     glyph_atlas::{GlyphAllocation, OutlineGlyph, RasterGlyphAllocation},
@@ -83,6 +83,24 @@ impl Paragraph {
     }
 }
 
+/// Resolve the job's base direction once: explicit, else first-strong, else LTR.
+fn resolved_direction(job: &LayoutJob) -> TextDirection {
+    job.direction
+        .unwrap_or_else(|| TextDirection::infer(&job.text).unwrap_or_default())
+}
+
+/// Pin the resolved base direction and make `halign` the reading-start anchor:
+/// for a right-to-left paragraph the default `Align::LEFT` ("start") anchors the
+/// row's RIGHT edge. `Align::Center`/`Align::RIGHT` keep their literal meaning.
+/// Idempotent; called before caching/splitting so every consumer sees a coherent job.
+pub(crate) fn normalize_reading_direction(job: &mut LayoutJob) {
+    let direction = resolved_direction(job);
+    job.direction = Some(direction);
+    if direction == TextDirection::RightToLeft && job.halign == Align::LEFT {
+        job.halign = Align::RIGHT;
+    }
+}
+
 /// Layout text into a [`Galley`].
 ///
 /// In most cases you should use [`crate::FontsView::layout_job`] instead
@@ -91,6 +109,9 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
     profiling::function_scope!();
 
     job.debug_sanity_check();
+
+    let mut job = job;
+    normalize_reading_direction(Arc::make_mut(&mut job));
 
     if job.wrap.max_rows == 0 {
         // Early-out: no text
@@ -134,7 +155,11 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
     let mut rows = rows_from_paragraphs(paragraphs, &job, pixels_per_point, &mut elided);
     if elided && let Some(last_placed) = rows.last_mut() {
         let last_row = Arc::make_mut(&mut last_placed.row);
-        replace_last_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
+        if resolved_direction(&job) == TextDirection::RightToLeft {
+            replace_first_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
+        } else {
+            replace_last_glyph_with_overflow_character(fonts, pixels_per_point, &job, last_row);
+        }
         if let Some(last) = last_row.glyphs.last() {
             last_row.size.x = last.max_x();
         }
@@ -972,6 +997,145 @@ fn replace_last_glyph_with_overflow_character(
     }
 }
 
+/// Replaces the glyph run at the visual LEFT of the row with the overflow character (e.g. `…`).
+///
+/// The right-to-left twin of [`replace_last_glyph_with_overflow_character`].
+/// For runs the shaper emits in visual (RTL) order the visual-left run is the logical end
+/// of the text, so the text's beginning survives; for the synthetic tofu path (no fonts)
+/// glyphs are in logical order — the contract is the visual one.
+///
+/// Called before we have any Y coordinates.
+fn replace_first_glyph_with_overflow_character(
+    fonts: &mut FontsImpl,
+    pixels_per_point: f32,
+    job: &LayoutJob,
+    row: &mut Row,
+) {
+    let Some(overflow_character) = job.wrap.overflow_character else {
+        return;
+    };
+
+    // How many glyphs to drop from the front of the row. We scan forward without
+    // removing anything (the survivors keep their positions) and do a single
+    // `drain` once the overflow glyph fits.
+    let mut drop = 0_usize;
+
+    loop {
+        // The overflow glyph goes immediately before the first survivor, and inherits
+        // its section (the glyph immediately right of the insertion point):
+        let section_index = row
+            .glyphs
+            .get(drop)
+            .map(|g| g.section_index)
+            .unwrap_or(row.section_index_at_start);
+        let section = &job.sections[section_index as usize];
+        let extra_letter_spacing = section.format.extra_letter_spacing;
+        let family = fonts.family_key(&section.format.font_id.family);
+        let font_size = section.format.font_id.size;
+
+        let font_metrics =
+            fonts.family_metrics(family, pixels_per_point, font_size, &section.format.coords);
+
+        // A priority rasterizer may override the overflow character, just like any other glyph:
+        let mut utf8 = [0_u8; 4];
+        let raster = fonts.rasterize_cluster(
+            FontPriority::Highest,
+            family,
+            overflow_character.encode_utf8(&mut utf8),
+            pixels_per_point,
+            font_size,
+        );
+
+        let (face_key, font_face_metrics, glyph_info) = if raster.is_some() {
+            (
+                FontFaceKey::INVALID,
+                font_metrics.clone(),
+                GlyphInfo::INVISIBLE,
+            )
+        } else {
+            let face_key = fonts.resolve_face(family, overflow_character);
+            let font_face_metrics = fonts
+                .face(face_key)
+                .map(|face| {
+                    face.styled_metrics(pixels_per_point, font_size, &section.format.coords)
+                })
+                .unwrap_or_default();
+            let (_, glyph_info) = fonts.glyph_info(family, overflow_character, &font_face_metrics);
+            (face_key, font_face_metrics, glyph_info)
+        };
+
+        let advance_width_px = match &raster {
+            Some(raster) => raster.advance_px,
+            None => glyph_info.advance_width_unscaled.0 * font_face_metrics.px_scale_factor,
+        };
+        let replacement_glyph_width = advance_width_px / pixels_per_point;
+
+        // Where the overflow glyph would sit: immediately before the first survivor:
+        let overflow_glyph_x = match row.glyphs.get(drop) {
+            Some(first) => first.pos.x - extra_letter_spacing - replacement_glyph_width,
+            None => 0.0, // TODO(emilk): heed paragraph leading_space 😬
+        };
+
+        // Check if we're within width budget - the whole row after placement:
+        let row_width = match row.glyphs.last() {
+            Some(last) => last.max_x() - overflow_glyph_x,
+            None => replacement_glyph_width,
+        };
+        let fits = row_width <= job.effective_wrap_width() || drop >= row.glyphs.len();
+
+        if fits {
+            // We are done: trim the replaced run and insert the overflow glyph at the front.
+
+            row.glyphs.drain(0..drop);
+
+            let OutlineGlyph {
+                allocation: replacement_glyph_alloc,
+                x_px,
+            } = match &raster {
+                Some(raster) => OutlineGlyph {
+                    allocation: raster.allocation,
+                    x_px: (overflow_glyph_x * pixels_per_point).round() as i32,
+                },
+                None => allocate_glyph_info(
+                    fonts,
+                    face_key,
+                    &font_face_metrics,
+                    glyph_info,
+                    overflow_glyph_x * pixels_per_point,
+                    overflow_character,
+                ),
+            };
+
+            let line_height = section
+                .format
+                .line_height
+                .unwrap_or(font_metrics.row_height);
+
+            row.glyphs.insert(
+                0,
+                Glyph {
+                    chr: overflow_character,
+                    pos: pos2(x_px as f32 / pixels_per_point, f32::NAN),
+                    advance_width: advance_width_px / pixels_per_point,
+                    line_height,
+                    font_face_height: font_face_metrics.row_height,
+                    font_face_ascent: font_face_metrics.ascent,
+                    font_height: font_metrics.row_height,
+                    font_ascent: font_metrics.ascent,
+                    uv_rect: replacement_glyph_alloc.uv_rect,
+                    is_color: replacement_glyph_alloc.is_color,
+                    section_index,
+                    first_vertex: 0, // filled in later
+                },
+            );
+            return;
+        }
+
+        // We didn't fit - drop the first glyph and try again.
+        drop += 1;
+    }
+}
+
 /// Horizontally aligned the text on a row.
 ///
 /// Ignores the Y coordinate.
@@ -1610,10 +1774,10 @@ fn shape_text(
 #[cfg(test)]
 mod tests {
     use alloc::sync::Arc;
-    use core::iter;
+    use core::{hash::Hash as _, hash::Hasher as _, iter};
 
     use super::{super::*, *};
-    use crate::{ColorImage, text::cursor::CCursor};
+    use crate::{ColorImage, text::cursor::CCursor, text::galley_cache::GalleyCache};
 
     fn test_fonts() -> FontsImpl {
         FontsImpl::new(TextOptions::default(), FontDefinitions::default())
@@ -2714,5 +2878,211 @@ mod tests {
         let glyphs = &galley.rows[0].row.glyphs;
         let details: Vec<_> = glyphs.iter().map(|g| (g.chr, g.advance_width)).collect();
         (galley.size().x, glyphs.len(), details)
+    }
+
+    #[test]
+    fn first_strong_inference_matches_uax9_dir_auto() {
+        // First strong character is RTL (digits are weak, class EN):
+        assert_eq!(
+            TextDirection::infer("12 نص"),
+            Some(TextDirection::RightToLeft)
+        );
+        // First strong character is LTR:
+        assert_eq!(
+            TextDirection::infer("Layer نص"),
+            Some(TextDirection::LeftToRight)
+        );
+        // No strong character at all (only weak/neutral ones):
+        assert_eq!(TextDirection::infer("123"), None);
+        assert_eq!(TextDirection::infer(""), None);
+        assert_eq!(TextDirection::infer("..."), None);
+    }
+
+    fn tofu_fonts() -> FontsImpl {
+        FontsImpl::new(TextOptions::default(), FontDefinitions::empty())
+    }
+
+    #[test]
+    fn rtl_default_halign_anchors_the_reading_start() {
+        let mut fonts = tofu_fonts();
+        let pixels_per_point = 2.0;
+        let font_id = FontId::proportional(14.0);
+
+        // Inferred (direction: None) strong-RTL text right-anchors:
+        let mut job =
+            LayoutJob::simple_singleline("نص عربي…".into(), font_id.clone(), Color32::WHITE);
+        assert_eq!(job.direction, None);
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+        assert_eq!(galley.rows.len(), 1);
+        // The row grows leftward from the anchor:
+        assert!(galley.rect.left() < 0.0, "left: {}", galley.rect.left());
+        // The right edge sits at the anchor (tolerance of half a physical pixel):
+        assert!(
+            galley.rect.right() <= 1e-3,
+            "right: {}",
+            galley.rect.right()
+        );
+
+        // An explicit LTR pin keeps the old leftward-from-zero anchoring:
+        let mut job =
+            LayoutJob::simple_singleline("نص عربي…".into(), font_id.clone(), Color32::WHITE);
+        job.direction = Some(TextDirection::LeftToRight);
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+        assert_eq!(galley.rows.len(), 1);
+        assert_eq!(galley.rect.left(), 0.0);
+
+        // Pinning works without inference: explicit RTL on Latin text right-anchors:
+        let mut job = LayoutJob::simple_singleline("Hello".into(), font_id, Color32::WHITE);
+        job.direction = Some(TextDirection::RightToLeft);
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+        assert_eq!(galley.rows.len(), 1);
+        assert!(galley.rect.left() < 0.0, "left: {}", galley.rect.left());
+        assert!(
+            galley.rect.right() <= 1e-3,
+            "right: {}",
+            galley.rect.right()
+        );
+    }
+
+    #[test]
+    fn rtl_elision_replaces_the_visual_left_run() {
+        let mut fonts = tofu_fonts();
+        let pixels_per_point = 2.0;
+        let font_id = FontId::proportional(14.0);
+
+        let mut job = LayoutJob::simple_singleline(
+            "نص عربي طويل جدا".into(),
+            font_id.clone(),
+            Color32::WHITE,
+        );
+        job.wrap.max_width = 30.0;
+        job.wrap.max_rows = 1;
+        job.wrap.overflow_character = Some('…');
+        let max_width = job.wrap.max_width;
+
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+        assert_eq!(galley.rows.len(), 1);
+        let glyphs = &galley.rows[0].row.glyphs;
+        // The overflow character is at the visual LEFT of the row:
+        assert_eq!(glyphs.first().map(|g| g.chr), Some('…'));
+        // Some of the content survives:
+        assert!(glyphs.len() > 1);
+        // The row stays within the wrap budget:
+        assert!(galley.size().x <= max_width, "size: {:?}", galley.size());
+
+        // LTR counterpart: the overflow character is the LAST glyph.
+        let mut job =
+            LayoutJob::simple_singleline("long latin text".into(), font_id, Color32::WHITE);
+        job.wrap.max_width = 30.0;
+        job.wrap.max_rows = 1;
+        job.wrap.overflow_character = Some('…');
+
+        let galley = layout(&mut fonts, pixels_per_point, job.into());
+        assert_eq!(galley.rows.len(), 1);
+        let glyphs = &galley.rows[0].row.glyphs;
+        assert_eq!(glyphs.last().map(|g| g.chr), Some('…'));
+        assert!(glyphs.len() > 1);
+    }
+
+    #[test]
+    fn direction_none_ltr_content_is_backwards_compatible() {
+        let mut fonts = tofu_fonts();
+        let pixels_per_point = 2.0;
+
+        for text in ["Hello world", "123", ""] {
+            let mut job = LayoutJob::simple(
+                text.to_owned(),
+                FontId::proportional(14.0),
+                Color32::WHITE,
+                100.0,
+            );
+            let none_galley = layout(&mut fonts, pixels_per_point, job.clone().into());
+
+            job.direction = Some(TextDirection::LeftToRight);
+            let ltr_galley = layout(&mut fonts, pixels_per_point, job.into());
+
+            similar_asserts::assert_eq!(
+                format!("{:#.1?}", none_galley),
+                format!("{:#.1?}", ltr_galley)
+            );
+        }
+    }
+
+    #[test]
+    fn layout_job_hash_and_eq_distinguish_direction_and_language() {
+        fn hash(job: &LayoutJob) -> u64 {
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            job.hash(&mut hasher);
+            hasher.finish()
+        }
+
+        let mut a = LayoutJob::simple(
+            "text".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            100.0,
+        );
+        let mut b = a.clone();
+        assert_eq!(a, b);
+        assert_eq!(hash(&a), hash(&b));
+
+        // Differing only in direction:
+        b.direction = Some(TextDirection::RightToLeft);
+        assert_ne!(a, b);
+        assert_ne!(hash(&a), hash(&b));
+        a.direction = Some(TextDirection::RightToLeft);
+        b.direction = None;
+        assert_ne!(a, b);
+        assert_ne!(hash(&a), hash(&b));
+
+        // Reset direction, test language:
+        a.direction = None;
+        b.language = Some("th".into());
+        assert_ne!(a, b);
+        assert_ne!(hash(&a), hash(&b));
+        a.language = Some("th".into());
+        assert_eq!(a, b);
+        assert_eq!(hash(&a), hash(&b));
+        b.language = Some("ja".into());
+        assert_ne!(a, b);
+        assert_ne!(hash(&a), hash(&b));
+    }
+
+    #[test]
+    fn galley_cache_distinguishes_direction_and_language() {
+        let mut fonts = tofu_fonts();
+
+        let mut job = LayoutJob::simple(
+            "text".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            100.0,
+        );
+        let mut cache = GalleyCache::default();
+        let a = cache.layout(&mut fonts, 2.0, job.clone(), false);
+        job.language = Some("th".into());
+        let b = cache.layout(&mut fonts, 2.0, job.clone(), false);
+        assert!(
+            !Arc::ptr_eq(&a, &b),
+            "language must invalidate the cache key"
+        );
+
+        let c = cache.layout(&mut fonts, 2.0, job, false);
+        assert!(Arc::ptr_eq(&b, &c), "identical jobs should hit the cache");
+
+        let mut job = LayoutJob::simple(
+            "text".into(),
+            FontId::proportional(14.0),
+            Color32::WHITE,
+            100.0,
+        );
+        let mut cache = GalleyCache::default();
+        let a = cache.layout(&mut fonts, 2.0, job.clone(), false);
+        job.direction = Some(TextDirection::LeftToRight);
+        let b = cache.layout(&mut fonts, 2.0, job, false);
+        assert!(
+            !Arc::ptr_eq(&a, &b),
+            "direction (None vs explicit LTR) must invalidate the cache key"
+        );
     }
 }
