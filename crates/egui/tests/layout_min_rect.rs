@@ -188,3 +188,49 @@ fn rtl_measurement_is_direction_independent() {
         "the widget must be measured identically under RTL, got {rect:?}"
     );
 }
+
+/// A7 guard: the grid arm of the measurement fold — a grid body keeps folding its
+/// cell-derived frame, so a widget narrower (and shorter) than its cell must not make
+/// the grid cell report a content-tight `min_rect` (the `else frame_rect` arm of
+/// `Placer::advance_after_rects`; grids are the one non-horizontal layout that keeps
+/// folding, because there the frame is the cell size, not a placement-only stretch).
+#[test]
+fn grid_cell_min_rect_keeps_the_cell_frame() {
+    let ctx = Context::default();
+    let mut cell = Rect::NOTHING;
+    let mut min_col_width = 0.0;
+    let mut min_row_height = 0.0;
+
+    // Two frames: the first (discarded, invisible sizing) pass seeds the grid's
+    // column/row state, and only afterwards are cells sized from it.
+    for _ in 0..2 {
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), SCREEN)),
+                ..Default::default()
+            },
+            |ui| {
+                egui::CentralPanel::default().show(ui, |ui| {
+                    egui::Grid::new("probe").show(ui, |ui| {
+                        min_col_width = ui.spacing().interact_size.x;
+                        min_row_height = ui.spacing().interact_size.y;
+                        ui.allocate_exact_size(vec2(10.0, 5.0), Sense::hover());
+                        cell = ui.min_rect();
+                    });
+                });
+            },
+        );
+        output.drop_without_applying_deltas();
+    }
+
+    assert_eq!(
+        cell.width(),
+        min_col_width,
+        "a grid cell must keep the cell-derived (frame-folded) width, not its content width"
+    );
+    assert_eq!(
+        cell.height(),
+        min_row_height,
+        "a grid cell must keep the cell-derived (frame-folded) height, not its content height"
+    );
+}
