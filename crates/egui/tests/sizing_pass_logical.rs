@@ -86,6 +86,68 @@ fn sizing_pass_min_rect_is_direction_independent() {
     }
 }
 
+/// A21.5: the root-`Ui` half of the sizing-pass canonicalization ([`Ui::new`]) also holds
+/// in LTR, where it newly fires: a vertical cross-`Align::Max` root body over an offered
+/// rect measures the rows' natural width anchored at the offered rect's left edge,
+/// offered-width independent, like its cross-`Align::Min` counterpart. This mirrors the
+/// child-path probe above, but builds the body with [`Ui::new`] instead of
+/// [`Ui::new_child`] (the root path is the one the areas' content `Ui`s take).
+#[test]
+fn root_sizing_pass_min_rect_is_left_anchored_in_ltr() {
+    /// Measure a cross-`cross_align` root (`Ui::new`) sizing-pass body in an
+    /// `offered_width`-wide rect, returning the offered rect and the measured
+    /// `min_rect`.
+    fn measure(cross_align: Align, offered_width: f32) -> (Rect, Rect) {
+        let ctx = Context::default();
+        let mut offered = Rect::NOTHING;
+        let mut min_rect = Rect::NOTHING;
+        run_frames(&ctx, 1, |ui| {
+            offered = Rect::from_min_size(ui.cursor().min, vec2(offered_width, 200.0));
+            let mut root = Ui::new(
+                ctx.clone(),
+                Id::unique("root-sizing-probe"),
+                UiBuilder::new()
+                    .max_rect(offered)
+                    .layout(Layout::top_down(cross_align))
+                    .sizing_pass(),
+            );
+            let _ = root.button("Undo");
+            let _ = root.button("Preferences");
+            min_rect = root.min_rect();
+        });
+        (offered, min_rect)
+    }
+
+    let (offered, max_narrow) = measure(Align::Max, 300.0);
+    let (_, max_wide) = measure(Align::Max, 500.0);
+    let (_, min_narrow) = measure(Align::Min, 300.0);
+
+    assert!(
+        max_narrow.width() < 200.0,
+        "the cross-Max root sizing pass should measure the rows' natural width, \
+         not the offered width: {max_narrow:?}"
+    );
+    assert!(
+        (max_narrow.min.x - offered.min.x).abs() <= 0.5,
+        "the cross-Max root sizing pass should anchor the measurement on the left edge \
+         of the offered rect {offered:?}, got {max_narrow:?}"
+    );
+    assert!(
+        (max_narrow.min.x - max_wide.min.x).abs() <= 0.5
+            && (max_narrow.max.x - max_wide.max.x).abs() <= 0.5
+            && (max_narrow.top() - max_wide.top()).abs() <= 0.5
+            && (max_narrow.bottom() - max_wide.bottom()).abs() <= 0.5,
+        "the cross-Max root sizing measurement must be offered-width-independent \
+         (300 px offer {max_narrow:?}, 500 px offer {max_wide:?})"
+    );
+    assert!(
+        (max_narrow.min.x - min_narrow.min.x).abs() <= 0.5
+            && (max_narrow.max.x - min_narrow.max.x).abs() <= 0.5,
+        "cross-Max root sizing should measure like cross-Min \
+         (Max {max_narrow:?}, Min {min_narrow:?})"
+    );
+}
+
 /// A21.2: a menu popup's persisted [`AreaState::size`] width matches in both directions:
 /// the RTL sizing pass must not lock a direction-dependent width into the area state
 /// that every steady frame reuses.
