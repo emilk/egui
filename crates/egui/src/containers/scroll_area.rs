@@ -26,7 +26,11 @@ struct ScrollingToTarget {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct State {
-    /// Positive offset means scrolling down/right.
+    /// Positive offset means scrolling away from the reading start:
+    /// down/right in left-to-right interfaces, toward the reading end
+    /// (visually leftward) in right-to-left ones.
+    ///
+    /// The valid range is `0..=max_offset` in both directions.
     ///
     /// This can be outside of the valid range while the user is
     /// rubber-banding past the edge of the content (see [`crate::style::KineticScrollStyle::rubber_band`]).
@@ -52,7 +56,8 @@ pub struct State {
 
     /// Velocity of the offset, used for kinetic scrolling and rubber-banding.
     ///
-    /// Positive means the offset is increasing, i.e. the content is scrolling down/right.
+    /// Positive means the offset is increasing, i.e. the content is scrolling
+    /// toward the reading end (down/right in left-to-right interfaces).
     #[cfg_attr(feature = "serde", serde(skip))]
     vel: Vec2,
 
@@ -114,7 +119,9 @@ impl State {
 
     /// The scroll offset, clamped to the valid range `0..=max_offset`.
     ///
-    /// Positive means scrolled down/right.
+    /// Positive means scrolled away from the reading start
+    /// (down/right in left-to-right interfaces, toward the reading end
+    /// in right-to-left ones).
     ///
     /// This differs from [`Self::unclamped_offset`] only while the user is rubber-banding
     /// past the edge of the content.
@@ -129,7 +136,7 @@ impl State {
     /// rubber-banding past the edge of the content
     /// (see [`crate::style::KineticScrollStyle::rubber_band`]).
     ///
-    /// Positive means scrolled down/right.
+    /// Positive means scrolled away from the reading start.
     /// This is where the content is actually drawn.
     pub fn unclamped_offset(&self) -> Vec2 {
         self.offset
@@ -137,7 +144,7 @@ impl State {
 
     /// How far past the edge of the content we are, in ui points.
     ///
-    /// Negative means past the start (top/left), positive means past the end (bottom/right).
+    /// Negative means past the reading start, positive means past the reading end.
     /// Zero when not rubber-banding.
     pub fn overscroll(&self) -> Vec2 {
         self.offset - self.clamped_offset()
@@ -147,6 +154,30 @@ impl State {
     pub fn offset(&self) -> Vec2 {
         self.clamped_offset()
     }
+}
+
+/// Should this scroll area mirror horizontally for a right-to-left interface?
+///
+/// True when the interface direction flag is set ([`crate::Style::right_to_left`]),
+/// or when the surrounding layout itself runs right-to-left (a per-layout RTL
+/// body does not set the flag). Read once at `begin` from the outer [`Ui`]; the
+/// content ui inherits both style and layout from it (`Ui::new_child`), so this
+/// predicts the content's reading direction unless the closure overrides
+/// `style_mut`/`set_layout` inside — that override is the caller's business,
+/// like for every other container.
+fn reads_right_to_left(ui: &Ui) -> bool {
+    ui.is_rtl() || ui.layout().main_dir == Direction::RightToLeft
+}
+
+/// Mirror a rect about the vertical axis `x = 0`, so that a right-to-left
+/// scroll area can reuse the left-to-right geometry math unchanged.
+fn mirrored_x(rect: Rect) -> Rect {
+    Rect::from_min_max(pos2(-rect.max.x, rect.min.y), pos2(-rect.min.x, rect.max.y))
+}
+
+/// [`mirrored_x`] for one axis' range.
+fn mirrored_x_range(range: Rangef) -> Rangef {
+    Rangef::new(-range.max, -range.min)
 }
 
 /// Is `ui` inside another [`ScrollArea`]?
@@ -556,7 +587,8 @@ impl ScrollArea {
 
     /// Set the horizontal and vertical scroll offset position.
     ///
-    /// Positive offset means scrolling down/right.
+    /// Positive offset means scrolling toward the reading end
+    /// (down/right in left-to-right interfaces).
     ///
     /// See also: [`Self::vertical_scroll_offset`], [`Self::horizontal_scroll_offset`],
     /// [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
@@ -570,7 +602,8 @@ impl ScrollArea {
 
     /// Set the vertical scroll offset position.
     ///
-    /// Positive offset means scrolling down.
+    /// Positive offset means scrolling toward the reading end
+    /// (down in left-to-right interfaces).
     ///
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
@@ -582,7 +615,8 @@ impl ScrollArea {
 
     /// Set the horizontal scroll offset position.
     ///
-    /// Positive offset means scrolling right.
+    /// Positive offset means scrolling toward the reading end
+    /// (right in left-to-right interfaces, visually leftward in right-to-left ones).
     ///
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
@@ -709,6 +743,9 @@ impl ScrollArea {
     /// it will remain focused on whatever content viewport the user left it on. If the scroll
     /// handle is dragged all the way to the right it will again become stuck and remain there
     /// until manually pulled from the end position.
+    ///
+    /// The machinery is direction-relative: under a right-to-left interface this sticks to the
+    /// horizontal *reading end*, which is the left side (the builder name stays physical).
     #[inline]
     pub fn stick_to_right(mut self, stick: bool) -> Self {
         self.stick_to_end[0] = stick;
@@ -737,6 +774,11 @@ struct Prepared {
     /// Does this `ScrollArea` have horizontal/vertical scrolling enabled?
     direction_enabled: Vec2b,
 
+    /// The interface reads right-to-left: horizontal content is anchored at the
+    /// reading-start (right) edge, and the vertical scroll bar sits on the
+    /// reading-end (left) edge.
+    rtl: bool,
+
     /// Smoothly interpolated boolean of whether or not to show the scroll bars.
     show_bars_factor: Vec2,
 
@@ -760,7 +802,7 @@ struct Prepared {
     content_ui: Ui,
 
     /// Relative coordinates: the offset and size of the view of the inner UI.
-    /// `viewport.min == ZERO` means we scrolled to the top.
+    /// `viewport.min == ZERO` means we scrolled to the reading start.
     viewport: Rect,
 
     scroll_source: ScrollSource,
@@ -809,6 +851,8 @@ impl ScrollArea {
         } = self;
 
         let ctx = ui.ctx().clone();
+
+        let rtl = reads_right_to_left(ui);
 
         let id_salt = id_salt.unwrap_or_else(|| IdSalt::new("scroll_area"));
         let id = ui.make_persistent_id(id_salt);
@@ -859,7 +903,18 @@ impl ScrollArea {
             inner_size
         };
 
-        let inner_rect = Rect::from_min_size(available_outer.min, inner_size);
+        let inner_rect = if rtl && current_bar_use.x != 0.0 {
+            // Vertical scroll bar on the reading-end (left) edge under RTL: the exact mirror
+            // of the LTR expression below — same `inner_size` (which may be capped by
+            // `max_size` or floored at `min_scrolled_size`), anchored at the reading-start
+            // (right) edge.
+            Rect::from_min_size(
+                pos2(available_outer.max.x - inner_size.x, available_outer.min.y),
+                inner_size,
+            )
+        } else {
+            Rect::from_min_size(available_outer.min, inner_size)
+        };
 
         let mut content_max_size = inner_size;
 
@@ -875,7 +930,23 @@ impl ScrollArea {
             }
         }
 
-        let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
+        let content_max_rect = if rtl {
+            // Right-to-left: the reading start (the content's right edge) is pinned to
+            // the viewport's right edge; scrolling forward (offset.x growing towards
+            // `max_offset.x`) slides the content rightward, revealing its trailing end.
+            Rect::from_min_max(
+                pos2(
+                    inner_rect.max.x + state.offset.x - content_max_size.x,
+                    inner_rect.min.y - state.offset.y,
+                ),
+                pos2(
+                    inner_rect.max.x + state.offset.x,
+                    inner_rect.min.y - state.offset.y + content_max_size.y,
+                ),
+            )
+        } else {
+            Rect::from_min_size(inner_rect.min - state.offset, content_max_size)
+        };
 
         // Round to pixels to avoid widgets appearing to "float" when scrolling fractional amounts:
         let content_max_rect = content_max_rect
@@ -899,6 +970,10 @@ impl ScrollArea {
                 if direction_enabled[d] {
                     content_clip_rect.min[d] = inner_rect.min[d];
                     content_clip_rect.max[d] = inner_rect.max[d];
+                } else if rtl && d == 0 {
+                    // Vertical scroll bar on the reading-end (left) edge under RTL:
+                    // crop the bar strip from the clip's left side instead of the right.
+                    content_clip_rect.min[d] = ui.clip_rect().min[d] + current_bar_use[d];
                 } else {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
@@ -964,8 +1039,11 @@ impl ScrollArea {
             for d in 0..2 {
                 if direction_enabled[d] {
                     let physics = &axis_physics[d];
-                    // Offset has an inverted coordinate system compared to the pointer:
-                    state.offset[d] = physics.drag(state.offset[d], -pointer_delta[d]);
+                    // Offset has an inverted coordinate system compared to the pointer — except
+                    // along a right-to-left horizontal axis, where offset and pointer move
+                    // together:
+                    let drag_sign = if rtl && d == 0 { 1.0 } else { -1.0 };
+                    state.offset[d] = physics.drag(state.offset[d], drag_sign * pointer_delta[d]);
                     rubber_banding[d] = physics.is_rubber_banding(state.offset[d]);
                     state.scroll_stuck_to_end[d] = false;
                     state.offset_target[d] = None;
@@ -980,6 +1058,11 @@ impl ScrollArea {
                 // Offset has an inverted coordinate system compared to the pointer:
                 state.vel =
                     -(direction_enabled.to_vec2() * ui.input(|input| input.pointer.velocity()));
+                if rtl {
+                    // …except along a right-to-left horizontal axis, where offset and
+                    // pointer move together:
+                    state.vel.x = -state.vel.x;
+                }
             }
 
             // While the fingers are still on the trackpad,
@@ -1038,6 +1121,7 @@ impl ScrollArea {
             state,
             auto_shrink,
             direction_enabled,
+            rtl,
             show_bars_factor,
             current_bar_use,
             scroll_bar_visibility,
@@ -1120,7 +1204,8 @@ impl ScrollArea {
     /// This can be used to only paint the visible part of the contents.
     ///
     /// `add_contents` is given the viewport rectangle, which is the relative view of the content.
-    /// So if the passed rect has min = zero, then show the top left content (the user has not scrolled).
+    /// So if the passed rect has min = zero, then show the reading-start content
+    /// (top-left in left-to-right interfaces, top-right in right-to-left ones).
     pub fn show_viewport<R>(
         self,
         ui: &mut Ui,
@@ -1169,6 +1254,7 @@ impl Prepared {
             inner_rect,
             auto_shrink,
             direction_enabled,
+            rtl,
             mut show_bars_factor,
             current_bar_use,
             scroll_bar_visibility,
@@ -1205,8 +1291,14 @@ impl Prepared {
                     )
                 });
 
-                // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-                let mut delta = -scroll_delta;
+                // PassState::scroll_delta is inverted from the way we apply the delta, so we
+                // need to negate it — except along a right-to-left horizontal axis, where
+                // offset and content move together.
+                let mut delta = if rtl && d == 0 {
+                    scroll_delta
+                } else {
+                    -scroll_delta
+                };
                 let mut animation = scroll_animation;
 
                 if let Some(target) = scroll_target {
@@ -1215,8 +1307,29 @@ impl Prepared {
                         align,
                         animation: animation_update,
                     } = target;
-                    let min = content_ui.min_rect().min[d];
-                    let clip_rect = content_ui.clip_rect();
+                    // Under RTL the horizontal axis behaves exactly like the LTR one in a frame
+                    // mirrored about x = 0 (content anchored at the reading start, growing
+                    // reading-forward), and the offset has the same meaning there — so mirror
+                    // the three horizontal screen-space inputs and run the LTR math unchanged.
+                    // Align sides mirror with the reading direction: in the mirrored frame the
+                    // factor-0 lerp start is the target's reading-start (right) edge against the
+                    // clip's right edge, so `Align::LEFT` aligns right edges under RTL.
+                    let mirror = rtl && d == 0;
+                    let min = if mirror {
+                        -content_ui.min_rect().max[d]
+                    } else {
+                        content_ui.min_rect().min[d]
+                    };
+                    let clip_rect = if mirror {
+                        mirrored_x(content_ui.clip_rect())
+                    } else {
+                        content_ui.clip_rect()
+                    };
+                    let range = if mirror {
+                        mirrored_x_range(range)
+                    } else {
+                        range
+                    };
                     let visible_range = min..=min + clip_rect.size()[d];
                     let (start, end) = (range.min, range.max);
                     let clip_start = clip_rect.min[d];
@@ -1296,10 +1409,28 @@ impl Prepared {
                 };
             }
 
-            Rect::from_min_size(inner_rect.min, inner_size)
+            let inner_rect = if rtl {
+                // Keep the reading-start (right) edge anchored when the area shrinks.
+                Rect::from_min_max(
+                    pos2(inner_rect.max.x - inner_size.x, inner_rect.min.y),
+                    pos2(inner_rect.max.x, inner_rect.min.y + inner_size.y),
+                )
+            } else {
+                Rect::from_min_size(inner_rect.min, inner_size)
+            };
+
+            inner_rect
         };
 
-        let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
+        let outer_rect = if rtl {
+            // Vertical bar (and its reserved space) on the reading-end (left) edge.
+            Rect::from_min_max(
+                pos2(inner_rect.min.x - current_bar_use.x, inner_rect.min.y),
+                pos2(inner_rect.max.x, inner_rect.max.y + current_bar_use.y),
+            )
+        } else {
+            Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use)
+        };
 
         let limit_rect = if ui.spacing().scroll.floating {
             outer_rect
@@ -1334,11 +1465,16 @@ impl Prepared {
             for d in 0..2 {
                 if direction_enabled[d] {
                     let scroll_delta = ui.input(|input| {
+                        let mut smooth = input.smooth_scroll_delta();
+                        if rtl && d == 0 {
+                            // Under RTL the horizontal offset grows as the content moves right.
+                            smooth.x = -smooth.x;
+                        }
                         if always_scroll_enabled_direction {
                             // no bidirectional scrolling; allow horizontal scrolling without pressing shift
-                            input.smooth_scroll_delta()[0] + input.smooth_scroll_delta()[1]
+                            smooth[0] + smooth[1]
                         } else {
-                            input.smooth_scroll_delta()[d]
+                            smooth[d]
                         }
                     });
                     let scroll_delta = scroll_delta * wheel_scroll_multiplier[d];
@@ -1399,7 +1535,7 @@ impl Prepared {
         // Reserve the scroll area before painting fades, because fade painting uses ui.min_rect().
         ui.advance_cursor_after_rect(outer_rect);
 
-        paint_fade_areas_impl(ui, inner_rect, content_size, state.offset);
+        paint_fade_areas_impl(ui, inner_rect, content_size, state.offset, rtl);
 
         // Paint the bars:
         let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
@@ -1424,17 +1560,28 @@ impl Prepared {
             let outer_margin = show_factor * scroll_style.bar_outer_margin;
 
             // bottom of a horizontal scroll (d==0).
-            // right of a vertical scroll (d==1).
-            let mut max_cross = outer_rect.max[1 - d] - outer_margin;
+            // right of a vertical scroll (d==1) — or left of it under a right-to-left interface.
+            let bar_hugs_low_cross = rtl && d == 1;
+            let mut max_cross = if bar_hugs_low_cross {
+                // Under a right-to-left interface the vertical bar hugs the low cross side,
+                // so this holds its outer (minimum) cross edge instead of its maximum one.
+                outer_rect.min[1 - d] + outer_margin
+            } else {
+                outer_rect.max[1 - d] - outer_margin
+            };
 
-            if ui.clip_rect().max[1 - d] - outer_margin < max_cross {
-                // Move the scrollbar so it is visible. This is needed in some cases.
-                // For instance:
-                // * When we have a vertical-only scroll area in a top level panel,
-                //   and that panel is not wide enough for the contents.
-                // * When one ScrollArea is nested inside another, and the outer
-                //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
-                //   is outside the clip rectangle.
+            // Move the scrollbar so it is visible. This is needed in some cases.
+            // For instance:
+            // * When we have a vertical-only scroll area in a top level panel,
+            //   and that panel is not wide enough for the contents.
+            // * When one ScrollArea is nested inside another, and the outer
+            //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
+            //   is outside the clip rectangle.
+            if bar_hugs_low_cross {
+                if ui.clip_rect().min[1 - d] + outer_margin > max_cross {
+                    max_cross = ui.clip_rect().min[1 - d] + outer_margin;
+                }
+            } else if ui.clip_rect().max[1 - d] - outer_margin < max_cross {
                 max_cross = ui.clip_rect().max[1 - d] - outer_margin;
             }
 
@@ -1450,6 +1597,11 @@ impl Prepared {
                 Rect::from_x_y_ranges(
                     scroll_bar_rect.x_range(),
                     Rangef::new(max_cross - full_width, max_cross),
+                )
+            } else if bar_hugs_low_cross {
+                Rect::from_x_y_ranges(
+                    Rangef::new(max_cross, max_cross + full_width),
+                    scroll_bar_rect.y_range(),
                 )
             } else {
                 Rect::from_x_y_ranges(
@@ -1487,8 +1639,13 @@ impl Prepared {
                         is_hovering_bar_area_t,
                     );
 
-                let min_cross = max_cross - width;
-                Rangef::new(min_cross, max_cross)
+                if bar_hugs_low_cross {
+                    Rangef::new(max_cross, max_cross + width)
+                } else {
+                    Rangef::new(max_cross - width, max_cross)
+                }
+            } else if bar_hugs_low_cross {
+                Rangef::new(max_cross, inner_rect.min[1 - d] - inner_margin)
             } else {
                 let min_cross = inner_rect.max[1 - d] + inner_margin;
                 Rangef::new(min_cross, max_cross)
@@ -1516,11 +1673,20 @@ impl Prepared {
                 }
                 .max(scroll_style.handle_min_length);
 
-                let handle_start_point = remap_clamp(
-                    offset[d],
-                    0.0..=max_offset[d],
-                    scroll_bar_rect.min[d]..=(scroll_bar_rect.max[d] - handle_size),
-                );
+                let handle_start_point = if rtl && d == 0 {
+                    // offset 0 (the reading start) puts the handle at the right end of the bar.
+                    remap_clamp(
+                        offset[d],
+                        0.0..=max_offset[d],
+                        (scroll_bar_rect.max[d] - handle_size)..=scroll_bar_rect.min[d],
+                    )
+                } else {
+                    remap_clamp(
+                        offset[d],
+                        0.0..=max_offset[d],
+                        scroll_bar_rect.min[d]..=(scroll_bar_rect.max[d] - handle_size),
+                    )
+                };
 
                 if d == 0 {
                     Rect::from_min_max(
@@ -1559,6 +1725,9 @@ impl Prepared {
                     scroll_bar_rect.min[d]..=(scroll_bar_rect.max[d] - handle_rect.size()[d]);
                 state.offset[d] = if handle_travel.start() == handle_travel.end() {
                     0.0
+                } else if rtl && d == 0 {
+                    // Dragging the handle towards the reading end (left) increases the offset.
+                    remap(new_handle_top, handle_travel, max_offset[d]..=0.0)
                 } else {
                     remap(new_handle_top, handle_travel, 0.0..=max_offset[d])
                 };
@@ -1703,7 +1872,7 @@ impl Prepared {
 
 /// Paint fade-out gradients at the top and/or bottom of a scroll area to
 /// indicate that more content is available beyond the visible region.
-fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: Vec2) {
+fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: Vec2, rtl: bool) {
     let crate::style::ScrollFadeStyle {
         strength,
         size: fade_size,
@@ -1750,9 +1919,18 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
         ));
     }
 
+    // Which side currently hides content: left under LTR once scrolled right,
+    // right under RTL once scrolled past the reading start, and the opposite
+    // side until the far end is reached.
+    let (left_fade_amount, right_fade_amount) = if rtl {
+        (overflow.x - offset.x, offset.x)
+    } else {
+        (offset.x, overflow.x - offset.x)
+    };
+
     // Left fade: animate opacity based on how far we've scrolled right.
-    if 0.0 < offset.x {
-        let t = (offset.x / fade_size).clamp(0.0, 1.0) * strength;
+    if 0.0 < left_fade_amount {
+        let t = (left_fade_amount / fade_size).clamp(0.0, 1.0) * strength;
         let bg_faded = bg.gamma_multiply(t);
         let rect = Rect::from_min_max(
             paint_rect.left_top(),
@@ -1766,9 +1944,8 @@ fn paint_fade_areas_impl(ui: &Ui, inner_rect: Rect, content_size: Vec2, offset: 
     }
 
     // Right fade: animate opacity based on distance from the right edge.
-    let distance_from_right = overflow.x - offset.x;
-    if 0.0 < distance_from_right {
-        let t = (distance_from_right / fade_size).clamp(0.0, 1.0) * strength;
+    if 0.0 < right_fade_amount {
+        let t = (right_fade_amount / fade_size).clamp(0.0, 1.0) * strength;
         let bg_faded = bg.gamma_multiply(t);
         let rect = Rect::from_min_max(
             pos2(paint_rect.right() - fade_size, paint_rect.top()),
@@ -1795,5 +1972,35 @@ mod tests {
         };
         assert_eq!(state.clamped_offset(), Vec2::new(0.0, 100.0));
         assert_eq!(state.overscroll(), Vec2::new(-10.0, 50.0));
+    }
+
+    #[test]
+    fn mirrored_x_round_trips() {
+        let rect = Rect::from_min_max(pos2(-37.5, 12.0), pos2(105.25, 94.0));
+
+        // Mirroring twice is the identity:
+        assert_eq!(mirrored_x(mirrored_x(rect)), rect);
+
+        // A single mirror swaps the min/max x (and keeps y):
+        let mirrored = mirrored_x(rect);
+        assert_eq!(mirrored.min.x, -rect.max.x);
+        assert_eq!(mirrored.max.x, -rect.min.x);
+        assert_eq!(mirrored.min.y, rect.min.y);
+        assert_eq!(mirrored.max.y, rect.max.y);
+        assert_eq!(mirrored.width(), rect.width());
+        assert_eq!(mirrored.height(), rect.height());
+    }
+
+    #[test]
+    fn mirrored_x_range_round_trips() {
+        let range = Rangef::new(-12.5, 83.0);
+
+        // Mirroring twice is the identity:
+        assert_eq!(mirrored_x_range(mirrored_x_range(range)), range);
+
+        // A single mirror swaps min/max and negates:
+        let mirrored = mirrored_x_range(range);
+        assert_eq!(mirrored.min, -range.max);
+        assert_eq!(mirrored.max, -range.min);
     }
 }
