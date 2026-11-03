@@ -203,6 +203,13 @@ struct Prepared {
     state: State,
     content_ui: Ui,
     sizing_pass: bool,
+
+    /// The reading-start edge the container is anchored on: the top-left corner in
+    /// left-to-right interfaces, the top-right corner in right-to-left ones. Everything
+    /// in [`Resize::end`] that reports the container's geometry is built from this,
+    /// not from `content_ui.min_rect()`, which is anchored on the content's first
+    /// widget (and so is wrong whenever the container is wider than its content).
+    anchor: Pos2,
 }
 
 impl Resize {
@@ -335,6 +342,7 @@ impl Resize {
             state,
             content_ui,
             sizing_pass: needs_sizing_pass,
+            anchor,
         }
     }
 
@@ -352,6 +360,7 @@ impl Resize {
             mut state,
             content_ui,
             sizing_pass,
+            anchor,
         } = prepared;
 
         let rtl = ui.is_rtl();
@@ -382,7 +391,14 @@ impl Resize {
                 size[d] = state.last_content_size[d];
             }
         }
-        ui.advance_cursor_after_rect(Rect::from_min_size(content_ui.min_rect().min, size));
+        // The container rect, anchored on the reading-start edge. `content_ui.min_rect()`
+        // is anchored where the content's first widget was seeded (the reading-start edge
+        // only when the parent is Min-aligned on the cross axis), so the cursor advance,
+        // grip, stroke and debug rects below must all be built from the anchored rect
+        // instead — otherwise they are misplaced whenever the container is wider than
+        // its content (e.g. a `Resize` in a right-to-left row).
+        let content_rect = anchored_rect(anchor, size, rtl);
+        ui.advance_cursor_after_rect(content_rect);
 
         // ------------------------------
 
@@ -393,17 +409,11 @@ impl Resize {
                 // Mirror only the x anchor so the grip stays inside the container's
                 // bottom-left corner.
                 Rect::from_min_size(
-                    pos2(
-                        content_ui.min_rect().left(),
-                        content_ui.min_rect().top() + size.y - corner_size.y,
-                    ),
+                    pos2(content_rect.left(), content_rect.bottom() - corner_size.y),
                     corner_size,
                 )
             } else {
-                Rect::from_min_size(
-                    content_ui.min_rect().left_top() + size - corner_size,
-                    corner_size,
-                )
+                Rect::from_min_size(content_rect.right_bottom() - corner_size, corner_size)
             };
             Some(ui.interact(corner_rect, corner_id, Sense::drag()))
         } else {
@@ -413,8 +423,7 @@ impl Resize {
         // ------------------------------
 
         if self.with_stroke && corner_response.is_some() {
-            let rect = Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size);
-            let rect = rect.expand(2.0); // breathing room for content
+            let rect = content_rect.expand(2.0); // breathing room for content
             ui.painter().add(Shape::rect_stroke(
                 rect,
                 3.0,
@@ -442,12 +451,12 @@ impl Resize {
         #[cfg(debug_assertions)]
         if ui.global_style().debug.show_resize {
             ui.debug_painter().debug_rect(
-                Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
+                Rect::from_min_size(content_rect.left_top(), state.desired_size),
                 Color32::GREEN,
                 "desired_size",
             );
             ui.debug_painter().debug_rect(
-                Rect::from_min_size(content_ui.min_rect().left_top(), state.last_content_size),
+                Rect::from_min_size(content_rect.left_top(), state.last_content_size),
                 Color32::LIGHT_BLUE,
                 "last_content_size",
             );
