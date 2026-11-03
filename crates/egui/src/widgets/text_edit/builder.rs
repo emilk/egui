@@ -1058,8 +1058,9 @@ impl<'t> TextEdit<'t> {
                         // The text the platform IME should see: the unmasked buffer and the
                         // sorted cursor/selection as byte offsets. The report is rebuilt only
                         // when the buffer or the selection changed, or the OS explicitly asked
-                        // (see `ImeEvent::RequestSurroundingText`); an idle focused frame just
-                        // clones the cached report.
+                        // (see `ImeEvent::RequestSurroundingText`); a masked field rebuilds
+                        // every frame, so a report cached while it was unmasked can never
+                        // leak; an idle focused frame just clones the cached report.
                         let os_requested = ui.input(|i| {
                             i.events.iter().any(|ev| {
                                 matches!(ev, Event::Ime(ImeEvent::RequestSurroundingText))
@@ -1069,7 +1070,8 @@ impl<'t> TextEdit<'t> {
                             let [min, max] = cursor_range.sorted_cursors();
                             (min.index.0, max.index.0)
                         };
-                        let up_to_date = !os_requested
+                        let up_to_date = !password
+                            && !os_requested
                             && !response.changed()
                             && state.reported_surrounding_text_cursor == Some(cursor_chars)
                             && state

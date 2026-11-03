@@ -164,6 +164,34 @@ fn password_fields_report_none() {
 }
 
 #[test]
+fn password_toggle_discards_the_cached_report() {
+    let ctx = Context::default();
+    let mut text = "hunter2".to_owned();
+
+    // Focused and unmasked: the plaintext report is built and cached.
+    let ime = run_edit(&ctx, &mut text, 1.0, vec![], false)
+        .platform_output
+        .ime
+        .expect("focused TextEdit reports IMEOutput");
+    let cached = ime
+        .surrounding_text
+        .expect("plaintext report cached while unmasked");
+    assert_eq!(cached.text, "hunter2");
+
+    // Flip `.password(true)` on the same live state: buffer, caret and focus
+    // are unchanged and no request event arrives, so only the password flag
+    // can make the cached report stale. The next frame must not hand the
+    // platform IME the plaintext cached while the field was unmasked.
+    let ime = run_edit(&ctx, &mut text, 2.0, vec![], true)
+        .platform_output
+        .ime
+        .expect("still focused");
+    assert_eq!(ime.purpose, IMEPurpose::Password);
+    // Never leak plaintext through the IME channel.
+    assert!(ime.surrounding_text.is_none());
+}
+
+#[test]
 fn request_event_refreshes_the_report() {
     let ctx = Context::default();
     let mut text = "abc".to_owned();
