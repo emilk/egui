@@ -779,6 +779,9 @@ impl State {
         //     }
         // }
 
+        // TODO: when we update to winit >= 0.31, forward
+        // `Ime::DeleteSurrounding { before_bytes, after_bytes }` to
+        // `ImeEvent::DeleteSurroundingBytes` (byte-exact IME deletion).
         match ime {
             // [`winit::event::Ime::Enabled`] means different things in X11 and
             // Wayland, but it doesn't matter to us.
@@ -1305,6 +1308,11 @@ impl State {
                     },
                 );
             }
+
+            // TODO: when winit grows a surrounding-text report API, forward
+            // `ime.surrounding_text` (diffed like `ime_cursor_rect_px`), and map
+            // the OS "request surrounding text" event to
+            // `ImeEvent::RequestSurroundingText` + a repaint in `on_ime`.
         } else {
             self.ime_cursor_rect_px = None;
         }
