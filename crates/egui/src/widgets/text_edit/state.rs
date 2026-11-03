@@ -60,6 +60,16 @@ pub struct TextEditState {
     /// The selection last sent with [`crate::OutputCommand::TextSelectionSettled`].
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) reported_selection: Option<CCursorRange>,
+
+    /// The [`crate::output::ImeSurroundingText`] last handed to the platform, kept so an idle
+    /// focused `TextEdit` doesn't rebuild (and reallocate) it every frame.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) reported_surrounding_text: Option<crate::output::ImeSurroundingText>,
+
+    /// The char-index cursor pair the last report was built from, for the
+    /// cheap "did the selection move" check.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) reported_surrounding_text_cursor: Option<(usize, usize)>,
 }
 
 impl TextEditState {

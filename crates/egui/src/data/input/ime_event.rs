@@ -50,6 +50,15 @@ pub enum ImeEvent {
         after_bytes: usize,
     },
 
+    /// The platform IME asked the application for the text surrounding the
+    /// caret (e.g. Wayland `text-input-v3`, Windows IMM32 query).
+    ///
+    /// Sent by the integration; the widget that owns IME events answers by
+    /// reporting [`crate::output::ImeSurroundingText`] through
+    /// [`crate::output::IMEOutput::surrounding_text`] on its next frame.
+    /// Integrations should request a repaint when emitting this.
+    RequestSurroundingText,
+
     /// Notifies when the IME was disabled.
     #[deprecated = "No longer used by egui"]
     Disabled,

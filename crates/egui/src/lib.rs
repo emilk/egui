@@ -498,8 +498,9 @@ pub use self::{
             TouchPhase, ViewportEvent, ViewportInfo,
         },
         output::{
-            self, CursorIcon, CustomCursorImage, FullOutput, LogicOutput, OpenUrl, OutputCommand,
-            PlatformOutput, UserAttentionType, WidgetInfo, role_description,
+            self, CursorIcon, CustomCursorImage, FullOutput, ImeSurroundingText, LogicOutput,
+            OpenUrl, OutputCommand, PlatformOutput, UserAttentionType, WidgetInfo,
+            role_description,
         },
     },
     drag_and_drop::DragAndDrop,

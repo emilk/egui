@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 
 use emath::{Rect, TSTransform};
-use epaint::text::{Galley, LayoutJob, TextWrapMode, cursor::CCursor};
+use epaint::text::{CharIndex, Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 
 use crate::{
     Align, Align2, AsIdSalt, AtomExt as _, AtomKind, Atoms, Color32, Context, CursorIcon, Event,
@@ -1054,6 +1054,59 @@ impl<'t> TextEdit<'t> {
                             .ctx()
                             .layer_transform_to_global(ui.layer_id())
                             .unwrap_or_default();
+
+                        // The text the platform IME should see: the unmasked buffer and the
+                        // sorted cursor/selection as byte offsets. The report is rebuilt only
+                        // when the buffer or the selection changed, or the OS explicitly asked
+                        // (see `ImeEvent::RequestSurroundingText`); an idle focused frame just
+                        // clones the cached report.
+                        let os_requested = ui.input(|i| {
+                            i.events.iter().any(|ev| {
+                                matches!(ev, Event::Ime(ImeEvent::RequestSurroundingText))
+                            })
+                        });
+                        let cursor_chars = {
+                            let [min, max] = cursor_range.sorted_cursors();
+                            (min.index.0, max.index.0)
+                        };
+                        let up_to_date = !os_requested
+                            && !response.changed()
+                            && state.reported_surrounding_text_cursor == Some(cursor_chars)
+                            && state
+                                .reported_surrounding_text
+                                .as_ref()
+                                .is_some_and(|prev| {
+                                    let bytes = prev.text.as_bytes();
+                                    let new_bytes = text.as_str().as_bytes();
+                                    bytes.len() == new_bytes.len()
+                                        && bytes.first() == new_bytes.first()
+                                        && bytes.last() == new_bytes.last()
+                                });
+                        if !up_to_date {
+                            // Never leak plaintext through the IME channel.
+                            state.reported_surrounding_text = if password {
+                                None
+                            } else {
+                                let (start_char, end_char) = (
+                                    cursor_chars.0.min(cursor_chars.1),
+                                    cursor_chars.0.max(cursor_chars.1),
+                                );
+                                let text_str = text.as_str();
+                                Some(crate::output::ImeSurroundingText {
+                                    text: text_str.to_owned(),
+                                    selection: byte_index_from_char_index(
+                                        text_str,
+                                        CharIndex(start_char),
+                                    )
+                                    .0
+                                        ..byte_index_from_char_index(text_str, CharIndex(end_char))
+                                            .0,
+                                })
+                            };
+                            state.reported_surrounding_text_cursor = Some(cursor_chars);
+                        }
+                        let surrounding_text = state.reported_surrounding_text.clone();
+
                         ui.output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
                                 purpose: if password {
@@ -1064,6 +1117,7 @@ impl<'t> TextEdit<'t> {
                                 rect: to_global * inner_rect,
                                 cursor_rect: to_global * primary_cursor_rect,
                                 should_interrupt_composition: false,
+                                surrounding_text,
                             });
                         });
                     }
@@ -1438,8 +1492,13 @@ fn events(
                 }
 
                 match ime_event {
+                    // `RequestSurroundingText` carries no payload: the
+                    // surrounding-text report is refreshed in the IME-output
+                    // block below.
                     #[expect(deprecated)]
-                    ImeEvent::Enabled | ImeEvent::Disabled => None,
+                    ImeEvent::Enabled | ImeEvent::Disabled | ImeEvent::RequestSurroundingText => {
+                        None
+                    }
                     // Ignore `Preedit`/`Commit` events with empty text when
                     // there is no active IME composition.
                     //

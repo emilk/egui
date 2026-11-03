@@ -238,7 +238,7 @@ impl InputState {
         if self.ime_output == ime {
             return Ok(());
         }
-        self.ime_output = ime;
+        self.ime_output = ime.clone();
 
         let Some(ime) = ime else { return Ok(()) };
 

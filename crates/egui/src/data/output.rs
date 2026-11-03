@@ -92,10 +92,27 @@ pub struct LogicOutput {
     pub viewport_commands: OrderedViewportIdMap<Vec<crate::ViewportCommand>>,
 }
 
+/// The text surrounding the IME caret, and the caret or selection within it.
+///
+/// Offsets are UTF-8 bytes, the units the platform text-input protocols use
+/// (Wayland `text-input-v3.set_surrounding_text`, Windows IMM32).
+/// An empty range is a caret, not an empty selection.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ImeSurroundingText {
+    /// The text the IME is composing into. Not necessarily the whole document:
+    /// integrations may cap this when forwarding, but the offsets are always
+    /// into this string.
+    pub text: String,
+
+    /// The cursor or selection, as byte offsets into [`Self::text`].
+    pub selection: core::ops::Range<usize>,
+}
+
 /// Information about text being edited.
 ///
 /// Useful for IME.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IMEOutput {
     /// IME's purpose.
@@ -111,6 +128,12 @@ pub struct IMEOutput {
 
     /// Whether any ongoing IME composition should be interrupted.
     pub should_interrupt_composition: bool,
+
+    /// The text around the caret, reported by the widget that owns IME events.
+    ///
+    /// `None` for password fields and for widgets that don't support it.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub surrounding_text: Option<ImeSurroundingText>,
 }
 
 /// Commands that the egui integration should execute at the end of a frame.
@@ -239,7 +262,11 @@ impl PlatformOutput {
         self.cursor_image = cursor_image;
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
-        self.ime = ime.or(self.ime);
+        self.ime = if ime.is_some() {
+            ime
+        } else {
+            core::mem::take(&mut self.ime)
+        };
         self.num_completed_passes += num_completed_passes;
         self.request_discard_reasons
             .append(&mut request_discard_reasons);
