@@ -47,6 +47,10 @@ use crate::{
 /// # });
 /// ```
 ///
+/// Under a right-to-left interface, directional glyphs either swap to a mirror-partner
+/// glyph (an app-side table) or draw flipped in place with [`Self::mirrored_x`]; glyphs
+/// naming physical space stay unmirrored.
+///
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
 pub struct Image<'a> {
@@ -213,6 +217,20 @@ impl<'a> Image<'a> {
     #[inline]
     pub fn uv(mut self, uv: impl Into<Rect>) -> Self {
         self.image_options.uv = uv.into();
+        self
+    }
+
+    /// Draw the image mirrored horizontally: the UV rect flipped about x
+    /// (`(1, 0)…(0, 1)` instead of `(0, 0)…(1, 1)`).
+    ///
+    /// For glyphs that point along the reading direction in a right-to-left interface and have
+    /// no mirror-partner glyph to swap to. Glyphs that name physical space (undo/redo, media
+    /// transport, canvas-alignment edges, vertical chevrons) must NOT be mirrored. The icon
+    /// catalog and the swap/flip/keep tables are per-app policy; egui supplies only this mirror
+    /// primitive. A later explicit [`Self::uv`] call overrides this, as with any builder.
+    #[inline]
+    pub fn mirrored_x(mut self) -> Self {
+        self.image_options.uv = Rect::from_min_max(pos2(1.0, 0.0), pos2(0.0, 1.0));
         self
     }
 
