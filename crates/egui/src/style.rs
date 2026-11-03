@@ -1210,7 +1210,8 @@ pub struct Visuals {
     /// Show a background behind collapsing headers.
     pub collapsing_header_frame: bool,
 
-    /// Draw a vertical line left of indented region, in e.g. [`crate::CollapsingHeader`].
+    /// Draw a vertical line at the reading edge of indented regions (on the left in
+    /// left-to-right layouts), in e.g. [`crate::CollapsingHeader`].
     pub indent_has_left_vline: bool,
 
     /// Whether or not Grids and Tables should be striped by default
