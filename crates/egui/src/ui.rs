@@ -456,6 +456,92 @@ impl Ui {
         self.style.right_to_left
     }
 
+    /// The reading-start x for content offset `off` inward from `rect`'s start edge:
+    /// `rect.left() + off` left-to-right, `rect.right() - off` right-to-left.
+    ///
+    /// Hand-painted chrome (chevrons, header rules, fills) anchored through this mirrors with
+    /// the interface direction. See also [`Self::reading_start_x_w`] when the width of the
+    /// anchored element is known, and [`Self::reading_end_x`] for the end edge.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 20.0));
+    /// assert!((ui.reading_start_x(rect, 7.0) - (rect.left() + 7.0)).abs() < 1e-4);
+    /// # });
+    /// ```
+    #[inline]
+    pub fn reading_start_x(&self, rect: Rect, off: f32) -> f32 {
+        if self.is_rtl() {
+            rect.right() - off
+        } else {
+            rect.left() + off
+        }
+    }
+
+    /// The min-x of a `w`-wide element hugging `rect`'s reading-start edge with margin `off`:
+    /// `rect.left() + off` left-to-right, `rect.right() - off - w` right-to-left, so the element
+    /// grows inward from the start edge in both directions.
+    ///
+    /// Use with [`Rect::from_min_size`] when the element's size is known before its anchor
+    /// (a progress fill, a thumbnail column).
+    #[inline]
+    pub fn reading_start_x_w(&self, rect: Rect, off: f32, w: f32) -> f32 {
+        if self.is_rtl() {
+            rect.right() - off - w
+        } else {
+            rect.left() + off
+        }
+    }
+
+    /// The reading-end x for content offset `off` inward from `rect`'s end edge:
+    /// `rect.right() - off` left-to-right, `rect.left() + off` right-to-left.
+    #[inline]
+    pub fn reading_end_x(&self, rect: Rect, off: f32) -> f32 {
+        if self.is_rtl() {
+            rect.left() + off
+        } else {
+            rect.right() - off
+        }
+    }
+
+    /// [`Align2`] for [`Painter::text`](crate::Painter::text) hugging the reading-start edge:
+    /// `LEFT_CENTER` left-to-right, `RIGHT_CENTER` right-to-left.
+    ///
+    /// Composes with [`Self::reading_start_x`].
+    #[inline]
+    pub fn start_align2(&self) -> Align2 {
+        if self.is_rtl() {
+            Align2::RIGHT_CENTER
+        } else {
+            Align2::LEFT_CENTER
+        }
+    }
+
+    /// [`Align2`] for [`Painter::text`](crate::Painter::text) hugging the reading-end edge
+    /// (a shortcut hint): `RIGHT_CENTER` left-to-right, `LEFT_CENTER` right-to-left.
+    #[inline]
+    pub fn end_align2(&self) -> Align2 {
+        if self.is_rtl() {
+            Align2::LEFT_CENTER
+        } else {
+            Align2::RIGHT_CENTER
+        }
+    }
+
+    /// `1.0`, or `-1.0` right-to-left: multiply an x offset written for left-to-right by it.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 20.0));
+    /// let x = ui.reading_start_x(rect, 0.0) + ui.forward() * 8.0; // 8 px into the reading direction
+    /// assert!((x - (rect.left() + 8.0)).abs() < 1e-4);
+    /// # });
+    /// ```
+    #[inline]
+    pub fn forward(&self) -> f32 {
+        if self.is_rtl() { -1.0 } else { 1.0 }
+    }
+
     /// The current spacing options for this [`Ui`].
     /// Short for `ui.style().spacing`.
     #[inline]
