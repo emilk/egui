@@ -7,13 +7,16 @@
 //! boundary, before any widget sees it; A2 an IME preedit range past the cut is
 //! dropped; A3 short text and non-text events pass through untouched; A4 an explicit
 //! `char_limit` finishes the frame with a bounded value and never lays out more;
-//! A5 the default `char_limit` is the event cap.
+//! A5 the default `char_limit` is the event cap — both on a pasted event (already
+//! cut in `begin_pass`) and on the accesskit `SetValue` path, which the begin-pass
+//! cap deliberately leaves uncapped, so there the field's own default limit is the
+//! only bound.
 
 use core::cell::Cell;
 
 use egui::{
     CentralPanel, Color32, Context, Event, FullOutput, Id, ImeEvent, RawInput, TextBuffer,
-    TextEdit, TextStyle, Ui, epaint::text::LayoutJob, pos2,
+    TextEdit, TextStyle, Ui, accesskit, epaint::text::LayoutJob, pos2,
 };
 
 const MAX: usize = egui::MAX_TEXT_EVENT_CHARS;
@@ -196,6 +199,60 @@ fn char_limit_defaults_to_the_event_cap() {
     assert!(
         max_seen.get() <= MAX,
         "the layouter saw {} characters; the cap must bound layout",
+        max_seen.get()
+    );
+}
+
+/// A5, mechanism: with no explicit limit, the field's default `char_limit` — not the
+/// begin-pass cap — is what bounds an oversized insert on the one text path
+/// `cap_text_events` deliberately skips: an accesskit `SetValue` request
+/// ([`Event::AccessKitActionRequest`] with [`accesskit::ActionData::Value`]; assistive
+/// technologies set the whole value without focusing the field first, so this does not
+/// wait for focus). Such an event is stored verbatim — `cap_text_events` matches only
+/// the typed/pasted/IME variants — so the value reaches the widget intact and the only
+/// thing trimming it is the field's `char_limit`, applied inside `insert_text_at`
+/// *before* the post-insert layout.
+///
+/// Discriminator: this test FAILS if the `char_limit` default were `usize::MAX` —
+/// the insert would then not be trimmed at all, leaving `MAX + 1` characters in the
+/// field and in the layouter — unlike `char_limit_defaults_to_the_event_cap`, whose
+/// oversized paste is already cut to the cap in `InputState::begin_pass` before any
+/// widget sees it.
+#[test]
+fn char_limit_bounds_the_accesskit_set_value_path() {
+    let id = Id::unique("accesskit_set_value_default_limit");
+    let mut s = String::new();
+    let max_seen = Cell::new(0usize);
+    let ctx = Context::default();
+
+    // Frame 1: add the field with the default limit (focus is granted as in the
+    // other tests, but the SetValue path does not need it).
+    run_edit(&ctx, id, &mut s, 1.0, vec![], None, &max_seen);
+
+    // Frame 2: an oversized SetValue, bigger than the event cap itself, delivered
+    // the way an integration forwards an accesskit action.
+    let oversized = "a".repeat(MAX + 1);
+    let request = accesskit::ActionRequest {
+        action: accesskit::Action::SetValue,
+        target_tree: accesskit::TreeId::ROOT,
+        target_node: id.accesskit_id(),
+        data: Some(accesskit::ActionData::Value(oversized.into())),
+    };
+    run_edit(
+        &ctx,
+        id,
+        &mut s,
+        2.0,
+        vec![Event::AccessKitActionRequest(request)],
+        None,
+        &max_seen,
+    );
+
+    assert_eq!(s.chars().count(), MAX);
+    assert!(
+        max_seen.get() <= MAX,
+        "the layouter saw {} characters; the default char_limit must trim the \
+         accesskit insert before layout",
         max_seen.get()
     );
 }
