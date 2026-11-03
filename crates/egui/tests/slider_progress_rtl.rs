@@ -1,0 +1,372 @@
+//! Regression tests for slider and progress-bar right-to-left mirroring: the horizontal
+//! slider rail, the slider/range-slider fill and the progress-bar fill grow from the
+//! reading-start (right) edge under a right-to-left reading direction, while the pointer
+//! keeps its physical mapping.
+//!
+//! Both mirroring mechanisms are exercised: [`egui::Context::set_right_to_left`] (the
+//! interface-direction flag) and [`egui::Layout::right_to_left`] with the flag off. The
+//! flag is set before the first frame, so it reaches the first mirrored pass. Every
+//! mirrored case also asserts its left-to-right counterpart, so this file doubles as the
+//! LTR-unchanged regression. No snapshot assertions; geometry and painted shapes only.
+
+use egui::epaint::{RectShape, Shape};
+use egui::{
+    Align, Color32, Context, Event, FullOutput, Layout, Modifiers, PointerButton, Pos2,
+    ProgressBar, RangeSlider, RawInput, Rect, Slider, Ui, Vec2, pos2, vec2,
+};
+
+/// Which mirroring mechanism a test case runs under.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Dir {
+    /// No flag, default layout: today's behaviour, byte-identical.
+    Ltr,
+    /// The interface-direction flag, set before the first frame, in a plain body.
+    FlagRtl,
+    /// An explicit right-to-left layout with the flag off.
+    LayoutRtl,
+}
+
+fn make_ctx(dir: Dir) -> Context {
+    let ctx = Context::default();
+    if dir == Dir::FlagRtl {
+        // Set before the first frame, so the flag reaches the first mirrored pass.
+        ctx.set_right_to_left(true);
+    }
+    ctx
+}
+
+/// Run `add_contents`, wrapped in an explicit right-to-left layout for [`Dir::LayoutRtl`].
+fn rtl_layout<R>(ui: &mut Ui, dir: Dir, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    if dir == Dir::LayoutRtl {
+        ui.with_layout(Layout::right_to_left(Align::TOP), add_contents)
+            .inner
+    } else {
+        add_contents(ui)
+    }
+}
+
+fn input(size: Vec2) -> RawInput {
+    RawInput {
+        screen_rect: Some(Rect::from_min_size(Pos2::ZERO, size)),
+        ..Default::default()
+    }
+}
+
+fn input_at(size: Vec2, time: f64, events: Vec<Event>) -> RawInput {
+    RawInput {
+        screen_rect: Some(Rect::from_min_size(Pos2::ZERO, size)),
+        time: Some(time),
+        events,
+        ..Default::default()
+    }
+}
+
+/// Run one ui pass and discard the texture deltas (these tests never render).
+fn run(ctx: &Context, input: RawInput, run_ui: impl FnMut(&mut Ui)) -> FullOutput {
+    let mut output = ctx.run_ui(input, run_ui);
+    output.textures_delta.clear();
+    output
+}
+
+fn pointer_press(pos: Pos2, pressed: bool) -> Event {
+    Event::PointerButton {
+        pos,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers: Modifiers::NONE,
+    }
+}
+
+fn click(ctx: &Context, size: Vec2, pos: Pos2, mut show_ui: impl FnMut(&mut Ui)) {
+    run(
+        ctx,
+        input_at(size, 1.0, vec![Event::PointerMoved(pos)]),
+        |ui| show_ui(ui),
+    );
+    run(
+        ctx,
+        input_at(size, 1.1, vec![pointer_press(pos, true)]),
+        |ui| show_ui(ui),
+    );
+    run(
+        ctx,
+        input_at(size, 1.2, vec![pointer_press(pos, false)]),
+        |ui| show_ui(ui),
+    );
+}
+
+/// All rects painted in `color` that sit inside `widget`.
+fn rects_in(output: &FullOutput, widget: Rect, color: Color32) -> Vec<Rect> {
+    output
+        .shapes
+        .iter()
+        .filter_map(|clipped| match &clipped.shape {
+            Shape::Rect(RectShape { rect, fill, .. })
+                if *fill == color && widget.contains_rect(*rect) =>
+            {
+                Some(*rect)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// The painted rail: the `widgets.inactive.bg_fill` rect that spans the widget's width.
+///
+/// The rail is as wide as the allocation; the handle rects in the same colour are narrow.
+fn rail_of(output: &FullOutput, widget: Rect, rail_color: Color32) -> Rect {
+    let rails: Vec<Rect> = rects_in(output, widget, rail_color)
+        .into_iter()
+        .filter(|rect| (rect.width() - widget.width()).abs() < 0.5)
+        .collect();
+    assert_eq!(rails.len(), 1, "expected exactly one rail, got {rails:?}");
+    rails[0]
+}
+
+/// A1/A2: under either mirroring mechanism, a slider's trailing fill hugs the rail's
+/// reading-start (right) edge; left-to-right keeps hugging the left edge.
+#[test]
+fn slider_fill_hugs_the_reading_start_edge() {
+    fn painted_slider(dir: Dir) -> (Rect, Rect, Rect) {
+        let ctx = make_ctx(dir);
+        let screen = vec2(400.0, 120.0);
+        let mut value = 0.25_f64;
+        let mut widget = Rect::NOTHING;
+        let mut colors = (Color32::BLACK, Color32::BLACK);
+        let output = run(&ctx, input(screen), |ui| {
+            colors = (
+                ui.visuals().selection.bg_fill,
+                ui.visuals().widgets.inactive.bg_fill,
+            );
+            widget = rtl_layout(ui, dir, |ui| {
+                ui.add(
+                    Slider::new(&mut value, 0.0..=1.0)
+                        .trailing_fill(true)
+                        .show_value(false),
+                )
+                .rect
+            });
+        });
+        let rail = rail_of(&output, widget, colors.1);
+        let fills = rects_in(&output, widget, colors.0);
+        assert_eq!(
+            fills.len(),
+            1,
+            "expected exactly one fill (dir = {dir:?}), got {fills:?}"
+        );
+        (widget, rail, fills[0])
+    }
+
+    for dir in [Dir::Ltr, Dir::FlagRtl, Dir::LayoutRtl] {
+        let (widget, rail, fill) = painted_slider(dir);
+        assert!(
+            rail.contains_rect(fill),
+            "{dir:?}: the fill should sit on the rail (fill {fill:?}, rail {rail:?})"
+        );
+        assert!(
+            fill.width() < rail.width(),
+            "{dir:?}: 25 % should not fill the whole rail (fill {fill:?}, rail {rail:?})"
+        );
+        match dir {
+            Dir::Ltr => {
+                assert_eq!(
+                    fill.left(),
+                    rail.left(),
+                    "LTR: the fill should hug the rail's left edge (fill {fill:?}, rail {rail:?})"
+                );
+                assert!(
+                    fill.right() < rail.center().x,
+                    "LTR: 25 % should stay on the left half (fill {fill:?}, rail {rail:?})"
+                );
+            }
+            Dir::FlagRtl | Dir::LayoutRtl => {
+                assert_eq!(
+                    fill.right(),
+                    rail.right(),
+                    "RTL: the fill should hug the rail's right edge (fill {fill:?}, rail {rail:?})"
+                );
+                assert!(
+                    fill.left() > rail.center().x,
+                    "RTL: 25 % should sit on the right half (fill {fill:?}, rail {rail:?})"
+                );
+            }
+        }
+        let _ = widget;
+    }
+}
+
+/// A3: the same physical press x picks ~75 % of the range left-to-right and ~25 %
+/// right-to-left: the value↔x map mirrors, the pointer is not remapped.
+#[test]
+fn slider_pointer_maps_physical_x_through_the_mirrored_range() {
+    fn press_at(rtl: bool) -> f64 {
+        let ctx = make_ctx(if rtl { Dir::FlagRtl } else { Dir::Ltr });
+        let screen = vec2(400.0, 120.0);
+        let mut value = 0.0_f64;
+        let mut widget = Rect::NOTHING;
+        // Frame 1 lays the widget out and captures where its rail sits:
+        run(&ctx, input(screen), |ui| {
+            widget = ui
+                .add(
+                    Slider::new(&mut value, 0.0..=100.0)
+                        .smart_aim(false)
+                        .show_value(false),
+                )
+                .rect;
+        });
+        // Press at 75 % across the widget: the same physical x in both directions.
+        let press = pos2(widget.left() + 0.75 * widget.width(), widget.center().y);
+        click(&ctx, screen, press, |ui| {
+            ui.add(
+                Slider::new(&mut value, 0.0..=100.0)
+                    .smart_aim(false)
+                    .show_value(false),
+            );
+        });
+        value
+    }
+
+    let ltr = press_at(false);
+    assert!(
+        70.0 < ltr && ltr < 80.0,
+        "LTR: a press 75 % across the rail should pick ~75 % of the range, got {ltr}"
+    );
+
+    let rtl = press_at(true);
+    assert!(
+        20.0 < rtl && rtl < 30.0,
+        "RTL: the same physical press should pick ~25 % of the range, got {rtl}"
+    );
+}
+
+/// A4: the progress fill hugs the reading-start edge under both mirroring mechanisms, spans
+/// progress × bar width, fills the whole bar at 1.0, and at 0.0 only the corner-radius cap
+/// remains, at the reading-start edge.
+#[test]
+fn progress_fill_hugs_the_reading_start_edge_and_clamps() {
+    fn painted_progress(dir: Dir, progress: f32) -> (Rect, Rect) {
+        let ctx = make_ctx(dir);
+        let screen = vec2(400.0, 120.0);
+        let mut widget = Rect::NOTHING;
+        let mut fill_color = Color32::BLACK;
+        let output = run(&ctx, input(screen), |ui| {
+            fill_color = ui.visuals().selection.bg_fill;
+            widget = rtl_layout(ui, dir, |ui| ui.add(ProgressBar::new(progress)).rect);
+        });
+        let fills = rects_in(&output, widget, fill_color);
+        assert_eq!(
+            fills.len(),
+            1,
+            "expected exactly one fill (dir = {dir:?}, progress = {progress}), got {fills:?}"
+        );
+        (widget, fills[0])
+    }
+
+    for dir in [Dir::Ltr, Dir::FlagRtl, Dir::LayoutRtl] {
+        // At 25 % the fill is a quarter of the bar, anchored at the reading start:
+        let (outer, fill) = painted_progress(dir, 0.25);
+        assert!(
+            (fill.width() - 0.25 * outer.width()).abs() < 0.5,
+            "{dir:?}: 25 % progress should fill 25 % of the bar (fill {fill:?}, bar {outer:?})"
+        );
+        match dir {
+            Dir::Ltr => assert_eq!(
+                fill.left(),
+                outer.left(),
+                "LTR: the fill should hug the bar's left edge (fill {fill:?}, bar {outer:?})"
+            ),
+            Dir::FlagRtl | Dir::LayoutRtl => assert_eq!(
+                fill.right(),
+                outer.right(),
+                "RTL: the fill should hug the bar's right edge (fill {fill:?}, bar {outer:?})"
+            ),
+        }
+
+        // At 100 % the fill spans the whole bar in every direction:
+        let (outer, fill) = painted_progress(dir, 1.0);
+        assert_eq!(
+            fill.left(),
+            outer.left(),
+            "{dir:?}: full progress fills from the start"
+        );
+        assert_eq!(
+            fill.right(),
+            outer.right(),
+            "{dir:?}: full progress fills to the end"
+        );
+
+        // At 0 % only the min-width cap remains, at the reading-start edge:
+        let (outer, fill) = painted_progress(dir, 0.0);
+        match dir {
+            Dir::Ltr => assert_eq!(
+                fill.left(),
+                outer.left(),
+                "LTR: the cap should hug the bar's left edge (fill {fill:?}, bar {outer:?})"
+            ),
+            Dir::FlagRtl | Dir::LayoutRtl => assert_eq!(
+                fill.right(),
+                outer.right(),
+                "RTL: the cap should hug the bar's right edge (fill {fill:?}, bar {outer:?})"
+            ),
+        }
+        assert!(
+            0.0 < fill.width() && fill.width() <= outer.height(),
+            "{dir:?}: only the corner-radius cap should remain (fill {fill:?}, bar {outer:?})"
+        );
+    }
+}
+
+/// A5: the range slider's fill spans the two handles, so the shared mirrored geometry
+/// carries it: low = 0, high = 25 paints the reading-start quarter in both directions.
+#[test]
+fn range_slider_fill_mirrors_with_the_shared_geometry() {
+    fn painted_range_slider(rtl: bool) -> (Rect, Rect, Rect) {
+        let ctx = make_ctx(if rtl { Dir::FlagRtl } else { Dir::Ltr });
+        let screen = vec2(400.0, 120.0);
+        let mut low = 0.0_f64;
+        let mut high = 25.0_f64;
+        let mut widget = Rect::NOTHING;
+        let mut colors = (Color32::BLACK, Color32::BLACK);
+        let output = run(&ctx, input(screen), |ui| {
+            colors = (
+                ui.visuals().selection.bg_fill,
+                ui.visuals().widgets.inactive.bg_fill,
+            );
+            widget = ui
+                .add(RangeSlider::new(&mut low, &mut high, 0.0..=100.0).show_value(false))
+                .rect;
+        });
+        let rail = rail_of(&output, widget, colors.1);
+        let fills = rects_in(&output, widget, colors.0);
+        assert_eq!(
+            fills.len(),
+            1,
+            "expected exactly one fill (rtl = {rtl}), got {fills:?}"
+        );
+        (widget, rail, fills[0])
+    }
+
+    let (ltr_widget, ltr_rail, ltr_fill) = painted_range_slider(false);
+    assert_eq!(
+        ltr_fill.left(),
+        ltr_rail.left(),
+        "LTR: the fill should hug the rail's left edge (fill {ltr_fill:?}, rail {ltr_rail:?})"
+    );
+    assert!(
+        ltr_fill.right() < ltr_rail.center().x,
+        "LTR: the low-to-high span should stay on the left half (fill {ltr_fill:?}, rail {ltr_rail:?})"
+    );
+    let _ = ltr_widget;
+
+    let (rtl_widget, rtl_rail, rtl_fill) = painted_range_slider(true);
+    assert_eq!(
+        rtl_fill.right(),
+        rtl_rail.right(),
+        "RTL: the fill should hug the rail's right edge (fill {rtl_fill:?}, rail {rtl_rail:?})"
+    );
+    assert!(
+        rtl_fill.left() > rtl_rail.center().x,
+        "RTL: the low-to-high span should sit on the right half (fill {rtl_fill:?}, rail {rtl_rail:?})"
+    );
+    let _ = rtl_widget;
+}
