@@ -187,7 +187,18 @@ impl Placer {
             );
         }
 
-        self.expand_to_include_rect(frame_rect); // e.g. for centered layouts: pretend we used whole frame
+        // The reported `min_rect` must hug the content. A frame stretched to the available
+        // width (vertical layouts with `Align::Center` cross alignment, or justified ones —
+        // see `Layout::next_frame_ignore_wrap`) is placement-only and must not widen the
+        // minimum size; for every other vertical layout the frame already equals the widget
+        // rect. Horizontal layouts and grids keep folding the frame: there the frame is
+        // load-bearing (row height / cell size), not a measurement defect.
+        let measured_rect = if self.grid.is_none() && self.layout.is_vertical() {
+            widget_rect
+        } else {
+            frame_rect
+        };
+        self.expand_to_include_rect(measured_rect);
 
         self.region.sanity_check();
     }
@@ -302,7 +313,7 @@ impl Placer {
 #[cfg(test)]
 mod tests {
     use super::Placer;
-    use crate::{Align, Direction, Layout, Rect, pos2};
+    use crate::{Align, Direction, Layout, Rect, Vec2, pos2};
 
     fn placer(layout: Layout) -> Placer {
         Placer::new(
@@ -369,5 +380,43 @@ mod tests {
 
         // Sanity: `Direction::RightToLeft` main dir is what makes the pure-layout term true.
         assert_eq!(rtl_row.main_dir, Direction::RightToLeft);
+    }
+
+    /// The reported `min_rect` hugs the widget for vertical layouts — even cross-`Center`,
+    /// whose frame is stretched to the available width and is placement-only — while
+    /// horizontal layouts keep folding the frame, whose cross extent is the row height.
+    #[test]
+    fn advance_after_rects_min_rect_hugs_widget_for_vertical_center() {
+        // Vertical cross-Center: the frame is stretched to the available width,
+        // but the reported minimum must stay content-tight:
+        let mut placer = Placer::new(
+            Rect::from_min_size(pos2(0.0, 0.0), crate::vec2(300.0, 100.0)),
+            Layout::top_down(Align::Center),
+        );
+        let frame = placer.next_space(crate::vec2(50.0, 10.0), Vec2::ZERO);
+        assert_eq!(
+            frame.width(),
+            300.0,
+            "the frame is stretched to the available width"
+        );
+        let widget = placer.justify_and_align(frame, crate::vec2(50.0, 10.0));
+        placer.advance_after_rects(frame, widget, Vec2::ZERO);
+        assert_eq!(placer.min_rect().width(), 50.0);
+
+        // Horizontal cross-Center: the frame is stretched to the available height, and the
+        // reported minimum must keep that frame (a widget fold would shrink every row):
+        let mut placer = Placer::new(
+            Rect::from_min_size(pos2(0.0, 0.0), crate::vec2(300.0, 20.0)),
+            Layout::left_to_right(Align::Center),
+        );
+        let frame = placer.next_space(crate::vec2(50.0, 15.0), Vec2::ZERO);
+        assert_eq!(
+            frame.height(),
+            20.0,
+            "the frame is stretched to the available height"
+        );
+        let widget = placer.justify_and_align(frame, crate::vec2(50.0, 15.0));
+        placer.advance_after_rects(frame, widget, Vec2::ZERO);
+        assert_eq!(placer.min_rect().height(), 20.0);
     }
 }
