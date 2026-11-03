@@ -8,6 +8,10 @@
 //! flag is set before the first frame, so it reaches the first mirrored pass. Every
 //! mirrored case also asserts its left-to-right counterpart, so this file doubles as the
 //! LTR-unchanged regression. No snapshot assertions; geometry and painted shapes only.
+//!
+//! The sliders key their chrome on either mechanism. The progress bar is widget chrome
+//! that follows the interface reading direction only (the flag), so under an explicit
+//! right-to-left layout with the flag off it keeps its left-to-right paint.
 
 use egui::epaint::{RectShape, Shape};
 use egui::{
@@ -241,9 +245,9 @@ fn slider_pointer_maps_physical_x_through_the_mirrored_range() {
     );
 }
 
-/// A4: the progress fill hugs the reading-start edge under both mirroring mechanisms, spans
-/// progress × bar width, fills the whole bar at 1.0, and at 0.0 only the corner-radius cap
-/// remains, at the reading-start edge.
+/// A4: the progress fill hugs the reading-start edge under the interface flag (its chrome
+/// follows the flag, not the local layout), spans progress × bar width, fills the whole bar
+/// at 1.0, and at 0.0 only the corner-radius cap remains, at the reading-start edge.
 #[test]
 fn progress_fill_hugs_the_reading_start_edge_and_clamps() {
     fn painted_progress(dir: Dir, progress: f32) -> (Rect, Rect) {
@@ -271,13 +275,15 @@ fn progress_fill_hugs_the_reading_start_edge_and_clamps() {
             (fill.width() - 0.25 * outer.width()).abs() < 0.5,
             "{dir:?}: 25 % progress should fill 25 % of the bar (fill {fill:?}, bar {outer:?})"
         );
+        // The progress bar's chrome follows the interface flag only, so an explicit
+        // right-to-left layout with the flag off paints like left-to-right:
         match dir {
-            Dir::Ltr => assert_eq!(
+            Dir::Ltr | Dir::LayoutRtl => assert_eq!(
                 fill.left(),
                 outer.left(),
-                "LTR: the fill should hug the bar's left edge (fill {fill:?}, bar {outer:?})"
+                "flag off: the fill should hug the bar's left edge (fill {fill:?}, bar {outer:?})"
             ),
-            Dir::FlagRtl | Dir::LayoutRtl => assert_eq!(
+            Dir::FlagRtl => assert_eq!(
                 fill.right(),
                 outer.right(),
                 "RTL: the fill should hug the bar's right edge (fill {fill:?}, bar {outer:?})"
@@ -300,12 +306,12 @@ fn progress_fill_hugs_the_reading_start_edge_and_clamps() {
         // At 0 % only the min-width cap remains, at the reading-start edge:
         let (outer, fill) = painted_progress(dir, 0.0);
         match dir {
-            Dir::Ltr => assert_eq!(
+            Dir::Ltr | Dir::LayoutRtl => assert_eq!(
                 fill.left(),
                 outer.left(),
-                "LTR: the cap should hug the bar's left edge (fill {fill:?}, bar {outer:?})"
+                "flag off: the cap should hug the bar's left edge (fill {fill:?}, bar {outer:?})"
             ),
-            Dir::FlagRtl | Dir::LayoutRtl => assert_eq!(
+            Dir::FlagRtl => assert_eq!(
                 fill.right(),
                 outer.right(),
                 "RTL: the cap should hug the bar's right edge (fill {fill:?}, bar {outer:?})"

@@ -1,6 +1,6 @@
 use crate::{
-    Color32, CornerRadius, Direction, NumExt as _, Pos2, Rect, Response, Rgba, Role, Sense, Shape,
-    Stroke, TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, lerp, pos2, vec2,
+    Color32, CornerRadius, NumExt as _, Pos2, Rect, Response, Rgba, Role, Sense, Shape, Stroke,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, lerp, pos2, vec2,
 };
 
 enum ProgressBarText {
@@ -138,7 +138,9 @@ impl Widget for ProgressBar {
             let corner_radius = corner_radius.unwrap_or_else(|| half_height.into());
             ui.painter()
                 .rect_filled(outer_rect, corner_radius, visuals.extreme_bg_color);
-            let rtl = ui.is_rtl() || ui.layout().main_dir() == Direction::RightToLeft;
+            // The painted chrome follows the interface reading direction, not the local
+            // layout direction: inside a vertical body a `main_dir` check would never fire.
+            let rtl = ui.is_rtl();
             let min_width = if rtl {
                 // The fill's rounded cap sits on the reading-start edge; keep it visible there.
                 2.0 * f32::max(corner_radius.ne as _, corner_radius.se as _).at_most(half_height)
@@ -146,14 +148,15 @@ impl Widget for ProgressBar {
                 2.0 * f32::max(corner_radius.sw as _, corner_radius.nw as _).at_most(half_height)
             };
             let filled_width = (outer_rect.width() * progress).at_least(min_width);
-            let inner_rect = if rtl {
-                Rect::from_min_max(
-                    pos2(outer_rect.right() - filled_width, outer_rect.top()),
-                    pos2(outer_rect.right(), outer_rect.bottom()),
-                )
-            } else {
-                Rect::from_min_size(outer_rect.min, vec2(filled_width, outer_rect.height()))
-            };
+            // Fill hugs the reading-start edge: left-anchored in LTR (unchanged), right-anchored
+            // under RTL. The value still grows left-to-right; only the painted chrome mirrors.
+            let inner_rect = Rect::from_min_size(
+                pos2(
+                    ui.reading_start_x_w(outer_rect, 0.0, filled_width),
+                    outer_rect.top(),
+                ),
+                vec2(filled_width, outer_rect.height()),
+            );
 
             let (dark, bright) = (0.7, 1.0);
             let color_factor = if animate {
@@ -177,13 +180,22 @@ impl Widget for ProgressBar {
                 let start_angle = time * core::f64::consts::TAU;
                 let end_angle = start_angle + 240f64.to_radians() * time.sin();
                 let circle_radius = half_height - 2.0;
+                let forward = ui.forward();
+                // The arc orbits the fill's progress-front edge (the reading-start side of the
+                // fill under RTL) and sweeps the mirrored way, so the loading indicator mirrors
+                // about the bar's centre line with the interface direction.
+                let orbit_center = if rtl {
+                    inner_rect.left_center()
+                } else {
+                    inner_rect.right_center()
+                };
                 let points: Vec<Pos2> = (0..n_points)
                     .map(|i| {
                         let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);
                         let (sin, cos) = angle.sin_cos();
-                        inner_rect.right_center()
-                            + circle_radius * vec2(cos as f32, sin as f32)
-                            + vec2(-half_height, 0.0)
+                        orbit_center
+                            + circle_radius * vec2(cos as f32 * forward, sin as f32)
+                            + vec2(-half_height * forward, 0.0)
                     })
                     .collect();
                 ui.painter()
