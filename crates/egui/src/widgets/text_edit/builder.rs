@@ -6,9 +6,9 @@ use epaint::text::{CharIndex, Galley, LayoutJob, TextWrapMode, cursor::CCursor};
 use crate::{
     Align, Align2, AsIdSalt, AtomExt as _, AtomKind, Atoms, Color32, Context, CursorIcon, Event,
     EventFilter, FontSelection, Frame, IMEPurpose, Id, IdSalt, ImeEvent, IntoAtoms,
-    IntoSizedResult, Key, KeyboardShortcut, Margin, Modifiers, NumExt as _, Response, Sense,
-    SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom, WidgetInfo,
-    WidgetWithState,
+    IntoSizedResult, Key, KeyboardShortcut, MAX_TEXT_EVENT_CHARS, Margin, Modifiers, NumExt as _,
+    Response, Sense, SizedAtomKind, TextBuffer, TextStyle, Ui, Vec2, Widget, WidgetAtom,
+    WidgetInfo, WidgetWithState,
     class::{ClassName, Classes, HasClasses},
     epaint,
     os::OperatingSystem,
@@ -158,7 +158,7 @@ impl<'t> TextEdit<'t> {
             min_size: Vec2::ZERO,
             align: None,
             clip_text: false,
-            char_limit: usize::MAX,
+            char_limit: MAX_TEXT_EVENT_CHARS,
             return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
             background_color: None,
             classes: Classes::default(),
@@ -396,9 +396,10 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Sets the limit for the amount of characters can be entered
+    /// Sets the limit for the number of characters that can be entered.
     ///
-    /// This only works for singleline [`TextEdit`]
+    /// Inserted text is trimmed to this limit before it is stored (and before the text is
+    /// laid out). Defaults to [`MAX_TEXT_EVENT_CHARS`].
     #[inline]
     pub fn char_limit(mut self, limit: usize) -> Self {
         self.char_limit = limit;

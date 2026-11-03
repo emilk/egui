@@ -508,7 +508,10 @@ pub use self::{
     grid::Grid,
     id::{Id, IdMap, IdSet},
     id_salt::{AsIdSalt, IdSalt, IdSaltMap, IdSaltSet},
-    input_state::{InputOptions, InputState, MultiTouchInfo, PointerState, SurrenderFocusOn},
+    input_state::{
+        InputOptions, InputState, MAX_TEXT_EVENT_CHARS, MultiTouchInfo, PointerState,
+        SurrenderFocusOn,
+    },
     layers::{LayerId, Order},
     layout::Layout,
     load::SizeHint,

@@ -8,8 +8,8 @@ use crate::{
 };
 use crate::{
     data::input::{
-        Event, EventFilter, KeyboardShortcut, Modifiers, NUM_POINTER_BUTTONS, PointerButton,
-        RawInput, TouchDeviceId, ViewportInfo,
+        Event, EventFilter, ImeEvent, KeyboardShortcut, Modifiers, NUM_POINTER_BUTTONS,
+        PointerButton, RawInput, TouchDeviceId, ViewportInfo,
     },
     input_state::wheel_state::WheelState,
 };
@@ -361,6 +361,58 @@ impl Default for InputState {
     }
 }
 
+/// The most characters one typed, pasted or IME-committed text event may carry into egui.
+///
+/// A megabyte of characters: far beyond any legitimate single event, yet bounded so a
+/// hostile clipboard or IME string cannot blow up the next frame. Events longer than
+/// this are truncated to that many characters (at a character boundary) in
+/// [`InputState::begin_pass`], before any widget sees them.
+/// See <https://github.com/emilk/egui/issues/2150>.
+pub const MAX_TEXT_EVENT_CHARS: usize = 1 << 20;
+
+/// Cuts every text-carrying event to [`MAX_TEXT_EVENT_CHARS`] characters (at a
+/// character boundary), so no text widget — whatever its own limit — has to lay out
+/// a multi-gigabyte paste. Short events and non-text events pass through untouched.
+fn cap_text_events(events: &mut [Event]) {
+    fn cut(text: &mut String) -> bool {
+        // Fast path: at most one character per byte, so this string needs no cutting.
+        if text.len() <= MAX_TEXT_EVENT_CHARS {
+            return false;
+        }
+        let Some((end, _)) = text.char_indices().nth(MAX_TEXT_EVENT_CHARS) else {
+            return false;
+        };
+        text.truncate(end); // `end` is a char boundary
+        true
+    }
+    for event in events {
+        match event {
+            Event::Text(text)
+            | Event::Paste(text)
+            | Event::Ime(ImeEvent::Commit(text))
+            | Event::MiddleClickPaste { text, .. } => {
+                cut(text);
+            }
+            // The highlighted range indexes the old text; past the cut it would
+            // point nowhere, so drop it (a missing highlight beats an invalid one).
+            Event::Ime(ImeEvent::Preedit {
+                text,
+                active_range_chars,
+            }) => {
+                let truncated = cut(text);
+                if truncated
+                    && active_range_chars
+                        .as_ref()
+                        .is_some_and(|r| r.end > MAX_TEXT_EVENT_CHARS)
+                {
+                    *active_range_chars = None;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 impl InputState {
     #[must_use]
     pub fn begin_pass(
@@ -452,6 +504,9 @@ impl InputState {
                 _ => {}
             }
         }
+
+        // Bound the damage a hostile clipboard/IME event can do this frame (#2150):
+        cap_text_events(&mut new.events);
 
         let mut smooth_scroll_delta = Vec2::ZERO;
 
@@ -1774,5 +1829,63 @@ impl PointerState {
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
         ui.label(format!("last_move_time: {last_move_time:#?}"));
         ui.label(format!("pointer_events: {pointer_events:?}"));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// #2150: every text-carrying event is cut to the cap at a character boundary;
+    /// short text and non-text events pass through untouched.
+    #[test]
+    fn cap_text_events_cuts_each_text_event_at_a_char_boundary() {
+        let long = "é".repeat(MAX_TEXT_EVENT_CHARS + 5);
+        let mut events = vec![
+            Event::Paste(long.clone()),
+            Event::Text(long.clone()),
+            Event::Ime(ImeEvent::Commit(long.clone())),
+            Event::Ime(ImeEvent::Preedit {
+                text: long.clone(),
+                active_range_chars: Some(0..MAX_TEXT_EVENT_CHARS + 2),
+            }),
+            Event::MiddleClickPaste {
+                pos: crate::Pos2::ZERO,
+                text: long.clone(),
+            },
+            Event::Text("ok".into()),
+            Event::Copy,
+        ];
+        cap_text_events(&mut events);
+
+        for e in &events[..4] {
+            let (Event::Paste(t)
+            | Event::Text(t)
+            | Event::Ime(ImeEvent::Commit(t) | ImeEvent::Preedit { text: t, .. })) = e
+            else {
+                panic!("{e:?}")
+            };
+            assert_eq!(t.chars().count(), MAX_TEXT_EVENT_CHARS, "{e:?}");
+        }
+
+        // The highlighted range indexes the pre-truncation text; past the cut it is dropped.
+        assert!(
+            matches!(
+                &events[3],
+                Event::Ime(ImeEvent::Preedit {
+                    active_range_chars: None,
+                    ..
+                })
+            ),
+            "the range past the cut is dropped"
+        );
+
+        let Event::MiddleClickPaste { text, .. } = &events[4] else {
+            panic!("{:?}", events[4])
+        };
+        assert_eq!(text.chars().count(), MAX_TEXT_EVENT_CHARS);
+
+        assert_eq!(events[5], Event::Text("ok".into()));
+        assert_eq!(events[6], Event::Copy);
     }
 }
