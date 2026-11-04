@@ -844,9 +844,12 @@ impl Window<'_> {
             //
             // Skipped for windows placed with `.fixed_pos()`/`.current_pos()` (like the
             // `anchored` gate): `Area::begin` re-pins `pivot_pos` from that position
-            // every frame, so the persisted mutation below would be silently discarded
-            // and such windows still grow rightward under RTL. We make that limitation
-            // explicit instead of compensating into a value that is thrown away.
+            // every frame, so a compensation here would be silently discarded. For the
+            // default mirrored pivot the re-pin itself pins the reading-start edge, so
+            // explicit-position windows already grow reading-forward with that edge
+            // fixed; explicit non-default pivots keep their explicit semantics (an
+            // explicit pivot wins in both directions). Without an explicit position the
+            // compensation below holds the reading-start edge for any pivot.
             // `state.size` still holds the OLD size here (`Area::end` persists the new
             // one), and the `left_top_pos`/`set_left_top_pos` accessors fold the pivot
             // factor `f = pivot.x().to_factor()` through that stale size — a left-edge
