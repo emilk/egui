@@ -11,7 +11,7 @@
 //! harness's popups are flag-driven (`Popup::open(bool)`), not Memory-driven, so the
 //! Memory popup registry is never written and `is_id_open` would always read false.
 
-use std::cell::{Cell, RefCell};
+use core::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use egui::{
@@ -73,7 +73,6 @@ fn popup_area_rect(ctx: &Context, popup_id: Id) -> Rect {
 /// intersection with the scroll band.
 #[derive(Clone, Copy)]
 struct CapturedRow {
-    index: usize,
     id: Id,
     rect: Rect,
     interact_rect: Rect,
@@ -95,7 +94,7 @@ struct Harness {
     open_item: Rc<RefCell<Option<Id>>>,
     /// The rows as laid out on the last pass.
     rows: Rc<RefCell<Vec<CapturedRow>>>,
-    /// The ScrollArea's vertical scroll offset, read at construction each pass.
+    /// The `ScrollArea`'s vertical scroll offset, read at construction each pass.
     scroll_offset: Rc<Cell<f32>>,
     /// The body Ui's `item_spacing` (the y axis is zeroed after capture, so rows touch).
     item_spacing: Rc<RefCell<Vec2>>,
@@ -128,13 +127,13 @@ impl Harness {
         self.body_ran.set(false);
         let time = self.next_time.get() + 0.1;
         self.next_time.set(time);
-        let open_flag = self.open_flag.clone();
-        let body_ran = self.body_ran.clone();
-        let open_item = self.open_item.clone();
-        let rows = self.rows.clone();
-        let scroll_offset = self.scroll_offset.clone();
-        let item_spacing = self.item_spacing.clone();
-        let popup_id = self.popup_id.clone();
+        let open_flag = Rc::clone(&self.open_flag);
+        let body_ran = Rc::clone(&self.body_ran);
+        let open_item = Rc::clone(&self.open_item);
+        let rows = Rc::clone(&self.rows);
+        let scroll_offset = Rc::clone(&self.scroll_offset);
+        let item_spacing = Rc::clone(&self.item_spacing);
+        let popup_id = Rc::clone(&self.popup_id);
         let with_header = self.with_header;
         let input = input_at(SCREEN, time, events);
         run(&self.ctx, input, move |ui| {
@@ -169,7 +168,6 @@ impl Harness {
                                 })
                                 .response;
                             captured.push(CapturedRow {
-                                index: i,
                                 id: response.id,
                                 rect: response.rect,
                                 interact_rect: response.interact_rect,
@@ -287,7 +285,17 @@ fn hidden_menu_row_does_not_open_its_submenu() {
             hidden.interact_rect
         );
 
-        for _ in 0..3 {
+        h.pass(vec![Event::PointerMoved(point)]);
+        // Precondition: the hover must actually register at the off-screen point. egui
+        // stores any `PointerMoved` position verbatim (`hover_pos` = `latest_pos`), but if
+        // pointer handling ever starts dropping or clamping off-screen positions, the
+        // hover would never land on the hidden row and this test would pass vacuously.
+        assert_eq!(
+            h.ctx.pointer_hover_pos(),
+            Some(point),
+            "{dir}: the hover must register at the off-screen point"
+        );
+        for _ in 0..2 {
             h.pass(vec![Event::PointerMoved(point)]);
         }
 
@@ -489,9 +497,16 @@ fn an_open_submenu_is_not_closed_by_the_guard() {
         );
 
         let point = row.rect.center();
-        for _ in 0..2 {
-            h.pass(vec![Event::PointerMoved(point)]);
-        }
+        h.pass(vec![Event::PointerMoved(point)]);
+        // Precondition: the hover must actually register at the off-screen point, or the
+        // pin below would pass vacuously if pointer handling ever dropped off-screen
+        // positions (the guard's `was_open` clause would simply never be exercised).
+        assert_eq!(
+            h.ctx.pointer_hover_pos(),
+            Some(point),
+            "{dir}: the hover must register at the off-screen point"
+        );
+        h.pass(vec![Event::PointerMoved(point)]);
 
         assert_eq!(
             h.open_item(),
@@ -501,7 +516,7 @@ fn an_open_submenu_is_not_closed_by_the_guard() {
     }
 }
 
-/// AC3 clause pin: with a fixed header row above the ScrollArea, the clip band is inset
+/// AC3 clause pin: with a fixed header row above the `ScrollArea`, the clip band is inset
 /// within the menu rect, so the hidden open row's rect lies over the header — inside the
 /// popup. Hovering it must not close the open submenu. Passes pre- and post-fix, and
 /// fails if the `was_open ||` clause is ever dropped: without it, `is_hovered` drops and
