@@ -432,13 +432,16 @@ impl MenuBar {
         // TODO(lucasmerlin): It'd be nice if we had a ui.horizontal_builder or something
         // So we don't need the nested scope here
         ui.horizontal(|ui| {
+            let layout = if ui.placer().prefer_right_to_left(ui.is_rtl()) {
+                Layout::right_to_left(Align::Center)
+            } else {
+                Layout::left_to_right(Align::Center)
+            };
             ui.scope_builder(
-                UiBuilder::new()
-                    .layout(Layout::left_to_right(Align::Center))
-                    .ui_stack_info(
-                        UiStackInfo::new(UiKind::Menu)
-                            .with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
-                    ),
+                UiBuilder::new().layout(layout).ui_stack_info(
+                    UiStackInfo::new(UiKind::Menu)
+                        .with_tag_value(MenuConfig::MENU_CONFIG_TAG, config),
+                ),
                 |ui| {
                     style.apply(ui.style_mut());
 

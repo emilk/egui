@@ -7,8 +7,8 @@
 //! doubles as the LTR-unchanged regression. No snapshot assertions; geometry only.
 
 use egui::{
-    Context, Event, FullOutput, Id, Modifiers, PointerButton, Popup, Pos2, RawInput, Rect, Sense,
-    Ui, Vec2, containers::menu::SubMenu, pos2, vec2,
+    Context, Event, FullOutput, Id, MenuBar, Modifiers, PointerButton, Popup, Pos2, RawInput, Rect,
+    Sense, Ui, Vec2, containers::menu::SubMenu, pos2, vec2,
 };
 
 /// All tests run on this screen. Wide enough that the mid-screen and interior
@@ -554,5 +554,59 @@ fn context_menu_flips_at_screen_edge_in_both_directions() {
         (ltr.max.x - 750.0).abs() < 2.0,
         "LTR: the popup should grow leftward from the reading-end edge \
          (popup {ltr:?})"
+    );
+}
+
+/// The [`MenuBar`] bar itself mirrors: under RTL the first menu button
+/// anchors at the bar's reading-start (right) edge and the buttons run
+/// right-to-left; under LTR the first button anchors at the left edge and the
+/// row reads left-to-right.
+#[test]
+fn menu_bar_anchors_at_the_reading_start_edge_under_rtl() {
+    fn bar_rects(rtl: bool) -> (Rect, Rect, Rect) {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+
+        let bar = core::cell::RefCell::new(Rect::NOTHING);
+        let first = core::cell::RefCell::new(Rect::NOTHING);
+        let second = core::cell::RefCell::new(Rect::NOTHING);
+
+        let mut show = |ui: &mut Ui| {
+            MenuBar::new().ui(ui, |ui| {
+                *bar.borrow_mut() = ui.max_rect();
+                *first.borrow_mut() = ui.menu_button("File", |_| {}).response.rect;
+                *second.borrow_mut() = ui.menu_button("Edit", |_| {}).response.rect;
+            });
+        };
+        run(&ctx, input_at(SCREEN, 0.0, vec![]), &mut show); // invisible sizing pass
+        run(&ctx, input_at(SCREEN, 0.1, vec![]), &mut show); // show pass
+
+        (*bar.borrow(), *first.borrow(), *second.borrow())
+    }
+
+    let (rtl_bar, rtl_first, rtl_second) = bar_rects(true);
+    assert!(
+        rtl_first.right() >= rtl_bar.right() - 2.0,
+        "RTL: the first menu button should anchor at the bar's reading-start \
+         (right) edge (bar {rtl_bar:?}, first {rtl_first:?})"
+    );
+    assert!(
+        rtl_second.right() < rtl_first.left(),
+        "RTL: the second menu button should sit to the LEFT of the first \
+         (first {rtl_first:?}, second {rtl_second:?})"
+    );
+
+    let (ltr_bar, ltr_first, ltr_second) = bar_rects(false);
+    assert!(
+        ltr_first.left() <= ltr_bar.left() + 2.0,
+        "LTR: the first menu button should anchor at the bar's left edge \
+         (bar {ltr_bar:?}, first {ltr_first:?})"
+    );
+    assert!(
+        ltr_second.left() > ltr_first.right(),
+        "LTR: the second menu button should sit to the RIGHT of the first \
+         (first {ltr_first:?}, second {ltr_second:?})"
     );
 }
