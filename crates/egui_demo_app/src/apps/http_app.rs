@@ -1,4 +1,5 @@
 use egui::Image;
+use egui_demo_lib::i18n;
 use poll_promise::Promise;
 
 struct Resource {
@@ -74,7 +75,7 @@ impl crate::DemoApp for HttpApp {
 
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("HTTP requests made using ");
+                ui.label(i18n::t("HTTP requests made using "));
                 ui.hyperlink_to("ehttp", "https://www.github.com/emilk/ehttp");
                 ui.label(".");
             });
@@ -104,7 +105,11 @@ impl crate::DemoApp for HttpApp {
                             // This should only happen if the fetch API isn't available or something similar.
                             ui.colored_label(
                                 ui.visuals().error_fg_color,
-                                if error.is_empty() { "Error" } else { error },
+                                if error.is_empty() {
+                                    i18n::t("Error")
+                                } else {
+                                    error
+                                },
                             );
                         }
                     }
@@ -120,7 +125,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &eframe::Frame, url: &mut String) -> bool {
     let mut trigger_fetch = false;
 
     ui.horizontal(|ui| {
-        let label = ui.label("URL:");
+        let label = ui.label(i18n::t("URL:"));
         trigger_fetch |= ui
             .add(egui::TextEdit::singleline(url).desired_width(f32::INFINITY))
             .labelled_by(label.id)
@@ -128,18 +133,20 @@ fn ui_url(ui: &mut egui::Ui, frame: &eframe::Frame, url: &mut String) -> bool {
     });
 
     if frame.is_web() {
-        ui.label("HINT: paste the url of this page into the field above!");
+        ui.label(i18n::t(
+            "HINT: paste the url of this page into the field above!",
+        ));
     }
 
     ui.horizontal(|ui| {
-        if ui.button("Source code for this example").clicked() {
+        if ui.button(i18n::t("Source code for this example")).clicked() {
             *url = format!(
                 "https://raw.githubusercontent.com/emilk/egui/main/{}",
                 file!()
             );
             trigger_fetch = true;
         }
-        if ui.button("Random image").clicked() {
+        if ui.button(i18n::t("Random image")).clicked() {
             let seed = ui.input(|i| i.time);
             let side = 640;
             *url = format!("https://picsum.photos/seed/{seed}/{side}");
@@ -177,7 +184,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
     egui::ScrollArea::vertical()
         .auto_shrink(false)
         .show(ui, |ui| {
-            egui::CollapsingHeader::new("Response headers")
+            egui::CollapsingHeader::new(i18n::t("Response headers"))
                 .default_open(false)
                 .show(ui, |ui| {
                     egui::Grid::new("response_headers")
@@ -194,7 +201,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
             ui.separator();
 
             if let Some(text) = &text {
-                let tooltip = "Click to copy the response body";
+                let tooltip = i18n::t("Click to copy the response body");
                 if ui.button("📋").on_hover_text(tooltip).clicked() {
                     ui.copy_text(text.clone());
                 }
@@ -208,7 +215,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
             } else if let Some(text) = &text {
                 ui.add(egui::Label::new(text).selectable(true));
             } else {
-                ui.monospace("[binary]");
+                ui.monospace(i18n::t("[binary]"));
             }
         });
 }

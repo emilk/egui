@@ -64,12 +64,19 @@ impl FractalClock {
 
     fn options_ui(&mut self, ui: &mut Ui, seconds_since_midnight: Option<f64>) {
         if seconds_since_midnight.is_some() {
-            ui.label(format!(
-                "Local time: {:02}:{:02}:{:02}.{:03}",
+            // The values are pre-formatted in Rust (format specs never enter a catalogue);
+            // the `{time}` placeholder is filled by `i18n::fmt`.
+            let time = format!(
+                "{:02}:{:02}:{:02}.{:03}",
                 (self.time % (24.0 * 60.0 * 60.0) / 3600.0).floor(),
                 (self.time % (60.0 * 60.0) / 60.0).floor(),
                 (self.time % 60.0).floor(),
                 (self.time % 1.0 * 100.0).floor()
+            );
+            #[expect(clippy::literal_string_with_formatting_args)]
+            ui.label(egui_demo_lib::i18n::fmt(
+                egui_demo_lib::i18n::t("Local time: {time}"),
+                &[("time", time.as_str())],
             ));
         } else {
             ui.label("The fractal_clock clock is not showing the correct time");
@@ -90,7 +97,8 @@ impl FractalClock {
         ui.add(Slider::new(&mut self.luminance_factor, 0.0..=1.0).text("luminance factor"));
         ui.add(Slider::new(&mut self.width_factor, 0.0..=1.0).text("width factor"));
 
-        egui::reset_button(ui, self, "Reset");
+        // "Reset" here resets the clock's settings to their defaults.
+        egui::reset_button(ui, self, egui_demo_lib::i18n::t("Reset"));
 
         ui.hyperlink_to(
             "Inspired by a screensaver by Rob Mayoff",
