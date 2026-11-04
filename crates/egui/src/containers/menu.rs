@@ -10,10 +10,10 @@
 
 use crate::style::StyleModifier;
 use crate::{
-    Atom, AtomExt as _, AtomKind, AtomPaintArgs, Button, Color32, Context, FocusDirection,
-    FontSelection, Frame, Id, InnerResponse, IntoAtoms, IntoSizedResult, Layout, PointerButton,
-    Popup, PopupCloseBehavior, PopupKind, Response, SetOpenCommand, SizedAtomKind, Style,
-    TextStyle, Ui, UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _, WidgetText,
+    Atom, AtomExt as _, AtomKind, AtomPaintArgs, Button, Color32, Context, FocusDirection, Frame,
+    Id, InnerResponse, IntoAtoms, IntoSizedResult, Layout, PointerButton, Popup,
+    PopupCloseBehavior, PopupKind, Response, SetOpenCommand, SizedAtomKind, Style, TextStyle, Ui,
+    UiBuilder, UiKind, UiStack, UiStackInfo, Widget as _, WidgetText,
 };
 use alloc::sync::Arc;
 use emath::{Align, Rect, RectAlign, Vec2, vec2};
@@ -68,27 +68,9 @@ pub fn menu_item_button<'a>(
     } else {
         Atom::default().atom_size(vec2(column_width, 0.0))
     };
-    let label = if ui.is_rtl() {
-        // Pin the paragraph direction so a Latin-first label still reads as a
-        // right-to-left row. The fallback font stays the default one: the
-        // widget style, not the button text style, decides what a plain
-        // button label resolves to, and the row must match it. The language
-        // is stamped like the plain galley path does.
-        let mut job = Arc::unwrap_or_clone(label.into_layout_job(
-            ui.ctx(),
-            ui.style(),
-            FontSelection::default(),
-            ui.text_valign(),
-        ));
-        // Only pin jobs that don't carry an explicit direction of their own.
-        if job.direction.is_none() {
-            job.direction = Some(epaint::text::TextDirection::RightToLeft);
-        }
-        job.language = job.language.take().or_else(|| ui.language());
-        WidgetText::LayoutJob(Arc::new(job))
-    } else {
-        label
-    };
+    // The label's base direction and language are stamped from the interface by
+    // `WidgetText::into_galley_impl` (via `Button`), so a Latin-first label still
+    // reads as a right-to-left row; an explicit direction on the label still wins.
     with_shortcut(Button::new((column, label)))
 }
 
