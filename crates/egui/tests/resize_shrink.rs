@@ -602,8 +602,9 @@ fn shrink_stops_at_content_minimum_width_anchored_edge_fixed() {
 /// plain `Resize` whose sizing pass is the final pass, pinning that frame's
 /// render at the requested size (which the sizing-pass seed alone already
 /// guarantees there); and T9
-/// (`mid_drag_content_outgrowth_stays_at_the_requested_size`) pins the gated
-/// re-pin itself, on drag frames whose fresh measurement exceeds the request.
+/// (`mid_drag_height_grows_live_to_the_content_measurement`) pins the drag
+/// frames themselves: the width stays at the request while the height grows
+/// live to the fresh measurement.
 /// A plain `Resize` with a width-filling separator is the smallest reproducible
 /// shape.
 #[test]
@@ -722,8 +723,8 @@ fn first_drag_frame_reports_the_requested_shrink_even_without_a_second_pass() {
 /// must keep the shrunk size instead of bouncing back to the pre-drag size.
 /// This test pins the sizing-pass seed in `Resize::end` (the stale measurement
 /// must not re-pin through the window render or the idle grow-to-content); the
-/// gated re-pin itself is pinned by T9
-/// (`mid_drag_content_outgrowth_stays_at_the_requested_size`).
+/// gated width re-pin is pinned by T9
+/// (`mid_drag_height_grows_live_to_the_content_measurement`).
 #[test]
 fn window_edge_drag_requested_shrink_survives_a_final_sizing_pass() {
     const SCREEN: Vec2 = vec2(700.0, 500.0);
@@ -857,9 +858,9 @@ fn window_edge_drag_requested_shrink_survives_a_final_sizing_pass() {
 /// request. The sizing-pass seed (which pins `last_content_size` at the
 /// requested size before the size loop) makes the grow-only re-pin in `end` a
 /// no-op on this frame; while the drag stays in flight the active-resize gate
-/// keeps the re-pin off on the later drag frames, where the fresh measurement
-/// can exceed the request — that gate is pinned by T9
-/// (`mid_drag_content_outgrowth_stays_at_the_requested_size`). The shrunk size
+/// keeps the width re-pin off on the later drag frames, where the fresh
+/// measurement can exceed the request — that gate is pinned by T9
+/// (`mid_drag_height_grows_live_to_the_content_measurement`). The shrunk size
 /// must survive the release: the release frame re-applies the request (the
 /// corner response it reads is from the drag frame) and re-measures the
 /// content at the requested rect, so the idle grow-to-content in `begin` has
@@ -988,33 +989,34 @@ fn sizing_pass_final_reports_the_requested_shrink_on_a_plain_resize() {
 const TALL_WRAPPED_TEXT: &str = "wrapped text grows taller as the container narrows, so \
 the fresh measurement on the drag frames exceeds the requested height";
 
-/// The T9 body: wrapped text whose measured height exceeds the requested
-/// height once the container is drag-narrowed, which is the value the
-/// grow-only re-pin would feed back into the rendered size if the
-/// active-resize gate let it.
+/// The T9 body: wrapped text whose measured height exceeds the settled height
+/// once the container is drag-narrowed.
 fn outgrowing_wrapped_text(ui: &mut Ui) {
     ui.label(TALL_WRAPPED_TEXT.repeat(3));
 }
 
-/// T9: the active-resize gate in `Resize::end` on the drag frames themselves:
-/// while the corner grip is dragged, content that measures larger than the
-/// request at the requested rect — wrapped text that gets taller as the
-/// container narrows — must not re-pin the rendered size up to the fresh
-/// measurement: the rendered size stays at the request for the whole drag,
-/// with the reading-start edge fixed. With the gate removed, the grow-only
-/// `desired_size` re-pin reads the taller fresh measurement and grows the
-/// container back mid-drag, so the drag-frame assertions fail. The other
-/// shapes cannot catch this: on the sizing-pass frame the seed makes the
-/// re-pin a no-op (T8's frame), the window path never runs the re-pin (T7's
-/// path), and width-filling content never measures larger than the request
-/// (T6's shape).
-/// After the release the idle grow-to-content grows the height back to the
-/// measured content height — the documented self-healing of the during-drag
-/// overflow — so only the width is asserted post-release.
+/// T9: the container height grows live to the content's measurement while a
+/// resize drag is in flight. Content that measures taller at the narrowed
+/// width — wrapped text that gets taller as the container narrows — must grow
+/// the rendered height on the drag frames themselves, with the reading-start
+/// edge and the top edge fixed. On non-sizing frames the remembered
+/// `last_content_size` is the fresh measurement at the current frame's
+/// requested rect, so the drag-time grow-only re-pin of the height tracks what
+/// the content needs now; only the width re-pin stays gated off while the drag
+/// is in flight, so the user-driven width keeps exactly the requested size.
+/// With the height re-pin gated off too (the pre-issue-04 behavior), the
+/// rendered height stayed at the request for the whole drag and the pending
+/// growth snapped in on release — that snap is the symptom pinned away here:
+/// the release and the idle frames must find the height already grown, and the
+/// width shrink must survive.
+/// The sibling
+/// `mid_drag_height_shrink_of_height_filling_content_survives` pins the other
+/// half of the trade: content that fills the offered height (whose fresh
+/// measurement equals the request) still follows a user-driven height shrink.
 #[test]
-fn mid_drag_content_outgrowth_stays_at_the_requested_size() {
+fn mid_drag_height_grows_live_to_the_content_measurement() {
     // Tall enough that the settled wrapped text (several hundred points high
-    // at the start width) and its drag-frame overflow both fit on screen, so
+    // at the start width) and its drag-frame growth both fit on screen, so
     // the corner grip is never clipped away from the pointer:
     const SCREEN: Vec2 = vec2(400.0, 500.0);
     const START_SIZE: Vec2 = vec2(200.0, 100.0);
@@ -1026,7 +1028,7 @@ fn mid_drag_content_outgrowth_stays_at_the_requested_size() {
             ctx.set_right_to_left(true);
         }
 
-        let id = Id::unique("mid_drag_outgrowth_stays_at_request");
+        let id = Id::unique("mid_drag_height_grows_live");
 
         let container = |events: Vec<Event>, time: f64| {
             let output = run(&ctx, input_at(SCREEN, time, events), |ui| {
@@ -1075,24 +1077,24 @@ fn mid_drag_content_outgrowth_stays_at_the_requested_size() {
         time += 0.1;
         container(vec![pointer_press(grip_center, true)], time);
 
-        // The drag frames: the wrapped text measures taller at the narrowed
-        // width, but the rendered size must stay at the request — the height
-        // must not grow to the fresh measurement while the drag is in flight.
+        // The drag frame: the width must report the requested shrink, while
+        // the height must already have grown live to the wrapped content's
+        // measurement at the narrowed width.
         time += 0.1;
         let moved = grip_center + delta;
         let dragging = container(vec![Event::PointerMoved(moved)], time);
         let expected_width = prev.width() - DELTA;
-        let expected_height = prev.height();
         assert!(
             (dragging.width() - expected_width).abs() <= 1.0,
-            "rtl = {rtl}: the drag frame must report the requested shrink \
+            "rtl = {rtl}: the drag frame must report the requested width shrink \
              (expected ~{expected_width}, got {dragging:?})"
         );
         assert!(
-            (dragging.height() - expected_height).abs() <= 1.0,
+            dragging.height() >= prev.height() + 1.0,
             "rtl = {rtl}: while the drag is in flight the wrapped content's \
-             taller fresh measurement must not re-pin the rendered height up \
-             from the requested {expected_height} (got {dragging:?})"
+             taller measurement must grow the rendered height live from the \
+             settled height {} (got {dragging:?})",
+            prev.height()
         );
         if rtl {
             assert!(
@@ -1107,32 +1109,184 @@ fn mid_drag_content_outgrowth_stays_at_the_requested_size() {
                  the drag frame (settled {prev:?}, dragging {dragging:?})"
             );
         }
+        assert!(
+            (dragging.top() - prev.top()).abs() <= 1.0,
+            "rtl = {rtl}: the top edge must stay fixed while the height grows \
+             (settled {prev:?}, dragging {dragging:?})"
+        );
 
         // A later drag frame with the pointer still down at the same spot: the
-        // rendered size must still stay at the request.
+        // grown height must be stable (the wrapped content's measurement at
+        // the narrowed width does not depend on the container height).
         time += 0.1;
         let holding = container(vec![], time);
         assert!(
             (holding.width() - expected_width).abs() <= 1.0
-                && (holding.height() - expected_height).abs() <= 1.0,
-            "rtl = {rtl}: with the drag still in flight the rendered size must \
-             stay at the request, not grow to the content measurement \
-             (dragging {dragging:?}, holding {holding:?})"
+                && (holding.height() - dragging.height()).abs() <= 1.0,
+            "rtl = {rtl}: with the drag still in flight the grown height must be \
+             stable at the content measurement (dragging {dragging:?}, holding \
+             {holding:?})"
         );
 
-        // Release: the width shrink survives; the height grows back to the
-        // measured content height (the documented during-drag overflow
-        // self-heals through the idle grow-to-content), which is deliberately
-        // not asserted here.
+        // Release: the width shrink survives, and the height must already be at
+        // the during-drag growth — the correction happened live, with no snap
+        // on release:
         time += 0.1;
         container(vec![pointer_press(moved, false)], time);
-        time += 0.1;
-        let released = container(vec![], time);
+        for i in 0..3 {
+            time += 0.1;
+            let idle = container(vec![], time);
+            assert!(
+                (idle.width() - expected_width).abs() <= 1.0,
+                "rtl = {rtl}: the width shrink must survive the release \
+                 (dragging {dragging:?}, idle frame {i} {idle:?})"
+            );
+            assert!(
+                (idle.height() - dragging.height()).abs() <= 1.0,
+                "rtl = {rtl}: the height must stay at the during-drag growth \
+                 after the release — no snap (dragging {dragging:?}, idle frame \
+                 {i} {idle:?})"
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// The T9-guard body: empty space that fills up the offered rect (the "freely
+/// resized" demo shape), whose fresh measurement equals whatever height the
+/// container offers.
+fn height_filling_body(ui: &mut Ui) {
+    ui.allocate_space(ui.available_size());
+}
+
+/// T9 guard for the user-driven height: content that fills the offered height
+/// measures exactly the requested height on the drag frames, so the drag-time
+/// height re-pin is a no-op there — a diagonal shrink drag must shrink both
+/// the width and the height live, with the reading-start and top edges fixed,
+/// and the shrunk size must survive the release. This is the half of the
+/// active-resize trade the live height growth must not take away: the grow-only
+/// re-pin must never fight the user's shrink of adaptive content (the
+/// pre-issue-04 gate's capability, pinned here with the gate narrowed to the
+/// width only).
+#[test]
+fn mid_drag_height_shrink_of_height_filling_content_survives() {
+    const SCREEN: Vec2 = vec2(400.0, 500.0);
+    const START_SIZE: Vec2 = vec2(200.0, 300.0);
+    const DELTA_X: f32 = 40.0;
+    const DELTA_Y: f32 = 60.0;
+
+    for (rtl, delta) in [
+        (false, vec2(-DELTA_X, -DELTA_Y)),
+        (true, vec2(DELTA_X, -DELTA_Y)),
+    ] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+
+        let id = Id::unique("mid_drag_height_shrink_filling");
+
+        let container = |events: Vec<Event>, time: f64| {
+            let output = run(&ctx, input_at(SCREEN, time, events), |ui| {
+                CentralPanel::default().show(ui, |ui| {
+                    egui::Resize::default()
+                        .id(id)
+                        .default_size(START_SIZE)
+                        .show(ui, height_filling_body);
+                });
+            });
+            container_rect_from_shapes(&output)
+        };
+
+        // Settle at the start size, then grab the grip:
+        let mut time = 0.0;
+        let mut prev = container(vec![], time);
+        for _ in 0..8 {
+            time += 0.1;
+            let next = container(vec![], time);
+            if same_rect(next, prev) {
+                break;
+            }
+            prev = next;
+        }
         assert!(
-            (released.width() - expected_width).abs() <= 1.0,
-            "rtl = {rtl}: the width shrink must survive the release \
-             (dragging {dragging:?}, released {released:?})"
+            prev.is_positive(),
+            "rtl = {rtl}: the container should be laid out (got {prev:?})"
         );
+
+        // The grip sits at the reading-end bottom corner (bottom-right in LTR,
+        // bottom-left in RTL); read its real rect from the corner response.
+        let grip_center = ctx
+            .read_response(id.with("__resize_corner"))
+            .map(|corner| corner.rect.center())
+            .filter(|center| prev.contains(*center))
+            .unwrap_or_else(|| {
+                if rtl {
+                    pos2(prev.left() + 8.0, prev.bottom() - 8.0)
+                } else {
+                    pos2(prev.right() - 8.0, prev.bottom() - 8.0)
+                }
+            });
+        time += 1.0;
+        container(vec![Event::PointerMoved(grip_center)], time);
+        time += 0.1;
+        container(vec![pointer_press(grip_center, true)], time);
+
+        // The drag frame: both dimensions must follow the request live — the
+        // filling content's fresh measurement equals the request, so the
+        // height re-pin must not grow it back:
+        time += 0.1;
+        let moved = grip_center + delta;
+        let dragging = container(vec![Event::PointerMoved(moved)], time);
+        let expected_width = prev.width() - DELTA_X;
+        let expected_height = prev.height() - DELTA_Y;
+        assert!(
+            (dragging.width() - expected_width).abs() <= 1.0,
+            "rtl = {rtl}: the drag frame must report the requested width shrink \
+             (expected ~{expected_width}, got {dragging:?})"
+        );
+        assert!(
+            (dragging.height() - expected_height).abs() <= 1.0,
+            "rtl = {rtl}: the drag frame must report the requested height shrink \
+             of height-filling content (expected ~{expected_height}, got \
+             {dragging:?})"
+        );
+        if rtl {
+            assert!(
+                (dragging.right() - prev.right()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (right) edge must stay fixed on \
+                 the drag frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        } else {
+            assert!(
+                (dragging.left() - prev.left()).abs() <= 1.0,
+                "rtl = {rtl}: the reading-start (left) edge must stay fixed on \
+                 the drag frame (settled {prev:?}, dragging {dragging:?})"
+            );
+        }
+        assert!(
+            (dragging.top() - prev.top()).abs() <= 1.0,
+            "rtl = {rtl}: the top edge must follow the height shrink \
+             (settled {prev:?}, dragging {dragging:?})"
+        );
+
+        // Release: the shrunk size must survive the release and the idle
+        // frames (the filling content re-measures at the requested rect, so
+        // the idle grow-to-content has nothing larger to feed back):
+        time += 0.1;
+        container(vec![pointer_press(moved, false)], time);
+        for i in 0..3 {
+            time += 0.1;
+            let idle = container(vec![], time);
+            assert!(
+                (idle.width() - expected_width).abs() <= 1.0
+                    && (idle.height() - expected_height).abs() <= 1.0,
+                "rtl = {rtl}: the shrunk size of height-filling content must \
+                 survive the release (dragging {dragging:?}, idle frame {i} \
+                 {idle:?})"
+            );
+        }
     }
 }
 

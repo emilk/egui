@@ -213,17 +213,17 @@ struct Prepared {
 
     /// Whether a resize drag is in flight this frame: the pointer is dragging the
     /// corner grip, or a [`crate::Window`] edge drag stored a `requested_size` that
-    /// this frame's `begin` consumed. While it is, `end` must not re-pin
-    /// `desired_size` up to `last_content_size` — the user asked for a smaller size,
-    /// and the stale content size (measured before the drag, or one frame behind it)
-    /// would clamp the shrink back up.
+    /// this frame's `begin` consumed. While it is, `end` must not re-pin the width
+    /// up to `last_content_size` — the user asked for a (possibly smaller) width,
+    /// and a measurement of width-filling content (which equals the offered rect)
+    /// would clamp the shrink back up. The height re-pins on drag frames too: on
+    /// non-sizing frames `last_content_size` is the fresh measurement at the
+    /// requested rect, so content that needs more height at the dragged size grows
+    /// the container live instead of snapping on release.
     ///
-    /// Accepted trade-off: honoring the requested size means that while the drag is in
-    /// flight, content that outgrows it (e.g. wrapped text getting taller as the container
-    /// narrows) paints past the container rect — the clip rect deliberately still covers the
-    /// previous size — until the release frame's idle re-pin grows the container back.
-    /// Transient and self-healing, and [`crate::Window`]s are unaffected (they render at
-    /// `last_content_size`).
+    /// [`crate::Window`]s are unaffected either way (they render at
+    /// `last_content_size`, and the sizing-pass seed pins that at the requested
+    /// size on the frames that consume a fresh request).
     actively_resizing: bool,
 }
 
@@ -402,8 +402,9 @@ impl Resize {
         // that measurement must not become the remembered content size. What the container
         // will present next is the `desired_size` computed in `begin`: the user's request as
         // clamped by `min_size`/`max_size` — the `min_content_width` clamp cannot have
-        // applied (its absence is what made this a sizing pass), and the re-pin below is
-        // gated off on this frame (a sizing pass only ever runs while a drag is in flight).
+        // applied (its absence is what made this a sizing pass), the width re-pin below
+        // is gated off on this frame (a sizing pass only ever runs while a drag is in
+        // flight), and the height re-pin is a no-op against this seed.
         // Seeding it here means both the render below and the idle grow-to-content in
         // `begin` work from the requested size, so the stale pre-drag measurement cannot
         // feed the requested shrink back up when the drag ends within the sizing pass (e.g.
@@ -422,16 +423,20 @@ impl Resize {
                 // We show how large we are,
                 // so we must follow the contents:
 
-                // Grow-only re-pin, on idle frames only: while a drag is in flight the
-                // user asked for a (possibly smaller) size and the clamp above it in
-                // `begin` already bounded it, so re-pinning to `last_content_size` would
-                // feed the shrink back up — on the later drag frames the fresh
-                // measurement at the requested rect can exceed the request (e.g. wrapped
-                // content growing taller while narrowing), and re-pinning would grow the
+                // Grow-only re-pin to what the content measures. On idle frames it runs
+                // for both dimensions so the container always grows to fit its content.
+                // While a drag is in flight only the height (d == 1) re-pins, and it
+                // re-pins live: on non-sizing frames `last_content_size` is the fresh
+                // measurement at the current frame's requested rect (assigned above),
+                // so content that needs more room at the dragged size — wrapped text
+                // growing taller as the container narrows — grows the container during
+                // the drag instead of snapping on release. The width (d == 0) stays
+                // pinned to the user's request: the user drives it, `begin`'s
+                // `min_content_width` clamp bounds it, and re-pinning it could grow the
                 // container back mid-drag. On the sizing-pass frame the seed above pins
                 // `last_content_size` at the request, so the re-pin is a no-op there
-                // either way. Idle frames keep growing to fit the content.
-                if !actively_resizing {
+                // either way.
+                if !actively_resizing || d == 1 {
                     state.desired_size[d] = state.desired_size[d].max(state.last_content_size[d]);
                 }
 
