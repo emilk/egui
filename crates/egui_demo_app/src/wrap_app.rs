@@ -385,7 +385,7 @@ impl WrapApp {
             .show_collapsible(ui, &mut is_open, |ui| {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
-                    ui.heading("💻 Backend");
+                    ui.heading(i18n::t("💻 Backend"));
                 });
 
                 ui.separator();

@@ -365,7 +365,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(375.0, 667.0)),
-                        "📱 iPhone SE 2nd Gen",
+                        i18n::t("📱 iPhone SE 2nd Gen"),
                     );
                     ui.selectable_value(
                         &mut size,
@@ -375,12 +375,12 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1280.0, 720.0)),
-                        "🖥️ Desktop 720p",
+                        i18n::t("🖥️ Desktop 720p"),
                     );
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1920.0, 1080.0)),
-                        "🖥️ Desktop 1080p",
+                        i18n::t("🖥️ Desktop 1080p"),
                     );
                 });
 
