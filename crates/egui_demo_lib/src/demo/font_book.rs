@@ -47,9 +47,13 @@ impl crate::View for FontBook {
 
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            ui.label("On web, the browser draws missing glyphs instead. ");
-            ui.label("On native, eframe falls back to looking for a matching system font. ");
-            ui.label("Bundle fonts with ");
+            ui.label(crate::i18n::t(
+                "On web, the browser draws missing glyphs instead. ",
+            ));
+            ui.label(crate::i18n::t(
+                "On native, eframe falls back to looking for a matching system font. ",
+            ));
+            ui.label(crate::i18n::t("Bundle fonts with "));
             ui.add(egui::Hyperlink::from_label_and_url(
                 egui::RichText::new("Context::add_font").text_style(egui::TextStyle::Monospace),
                 "https://docs.rs/egui/latest/egui/struct.Context.html#method.add_font",
@@ -78,14 +82,14 @@ impl crate::View for FontBook {
             &[("characters", &characters), ("fonts", &fonts)],
         ))
         .show(ui, |ui| {
-            ui.label("In fallback order:");
+            ui.label(crate::i18n::t("In fallback order:"));
             for name in fonts_in_family {
                 ui.label(egui::RichText::new(name).text_style(egui::TextStyle::Monospace));
             }
         });
 
         ui.horizontal(|ui| {
-            let label = ui.label("Filter:");
+            let label = ui.label(crate::i18n::t("Filter:"));
             ui.add(egui::TextEdit::singleline(&mut self.filter).desired_width(120.0))
                 .labelled_by(label.id);
             self.filter = self.filter.to_lowercase();

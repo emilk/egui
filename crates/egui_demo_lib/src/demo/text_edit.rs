@@ -18,7 +18,7 @@ pub struct TextEditDemo {
 impl Default for TextEditDemo {
     fn default() -> Self {
         Self {
-            text: "Edit this text".to_owned(),
+            text: crate::i18n::t("Edit this text").to_owned(),
             halign: None,
             valign: egui::Align::TOP,
         }
@@ -56,23 +56,23 @@ impl crate::View for TextEditDemo {
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            ui.label("Advanced usage of ");
+            ui.label(crate::i18n::t("Advanced usage of "));
             ui.code("TextEdit");
             ui.label(".");
         });
 
         ui.horizontal(|ui| {
-            ui.label("Horizontal align:");
+            ui.label(crate::i18n::t("Horizontal align:"));
             ui.selectable_value(halign, None, "Auto");
-            ui.selectable_value(halign, Some(egui::Align::LEFT), "Left");
-            ui.selectable_value(halign, Some(egui::Align::Center), "Center");
-            ui.selectable_value(halign, Some(egui::Align::RIGHT), "Right");
+            ui.selectable_value(halign, Some(egui::Align::LEFT), crate::i18n::t("Left"));
+            ui.selectable_value(halign, Some(egui::Align::Center), crate::i18n::t("Center"));
+            ui.selectable_value(halign, Some(egui::Align::RIGHT), crate::i18n::t("Right"));
         });
         ui.horizontal(|ui| {
-            ui.label("Vertical align:");
-            ui.selectable_value(valign, egui::Align::TOP, "Top");
-            ui.selectable_value(valign, egui::Align::Center, "Center");
-            ui.selectable_value(valign, egui::Align::BOTTOM, "Bottom");
+            ui.label(crate::i18n::t("Vertical align:"));
+            ui.selectable_value(valign, egui::Align::TOP, crate::i18n::t("Top"));
+            ui.selectable_value(valign, egui::Align::Center, crate::i18n::t("Center"));
+            ui.selectable_value(valign, egui::Align::BOTTOM, crate::i18n::t("Bottom"));
         });
 
         let clear_id = egui::IdSalt::new("clear_button");
@@ -92,7 +92,7 @@ impl crate::View for TextEditDemo {
         });
 
         let output = egui::TextEdit::multiline(text)
-            .hint_text("Type something!")
+            .hint_text(crate::i18n::t("Type something!"))
             // Atoms are centered by default, so we need to pass the right align here:
             .prefix("🔎".atom_align(Align2::new(Align::LEFT, *valign)))
             .suffix(
@@ -110,7 +110,7 @@ impl crate::View for TextEditDemo {
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            ui.label("Selected text: ");
+            ui.label(crate::i18n::t("Selected text: "));
             if let Some(text_cursor_range) = output.cursor_range {
                 let selected_text = text_cursor_range.slice_str(text);
                 ui.code(selected_text);
@@ -121,7 +121,9 @@ impl crate::View for TextEditDemo {
 
         ui.add_enabled(
             anything_selected,
-            egui::Label::new("Press ctrl+Y to toggle the case of selected text (cmd+Y on Mac)"),
+            egui::Label::new(crate::i18n::t(
+                "Press ctrl+Y to toggle the case of selected text (cmd+Y on Mac)",
+            )),
         );
 
         if output.response.has_focus()
@@ -142,9 +144,9 @@ impl crate::View for TextEditDemo {
         }
 
         ui.horizontal(|ui| {
-            ui.label("Move cursor to the:");
+            ui.label(crate::i18n::t("Move cursor to the:"));
 
-            if ui.button("start").clicked() {
+            if ui.button(crate::i18n::t("start")).clicked() {
                 let text_edit_id = output.response.id;
                 if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
                     let ccursor = egui::text::CCursor::new(0);
@@ -156,7 +158,7 @@ impl crate::View for TextEditDemo {
                 }
             }
 
-            if ui.button("end").clicked() {
+            if ui.button(crate::i18n::t("end")).clicked() {
                 let text_edit_id = output.response.id;
                 if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
                     let ccursor = egui::text::CCursor::end_of_str(text);

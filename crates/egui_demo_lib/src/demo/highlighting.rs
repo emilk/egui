@@ -26,11 +26,14 @@ impl crate::View for Highlighting {
             ui.add(crate::egui_github_link_file!());
         });
 
-        ui.label("This demo demonstrates highlighting a widget.");
+        ui.label(crate::i18n::t(
+            "This demo demonstrates highlighting a widget.",
+        ));
         ui.add_space(4.0);
-        let label_response = ui.label("Hover me to highlight the button!");
+        let label_response = ui.label(crate::i18n::t("Hover me to highlight the button!"));
         ui.add_space(4.0);
-        let mut button_response = ui.button("Hover the button to highlight the label!");
+        let mut button_response =
+            ui.button(crate::i18n::t("Hover the button to highlight the label!"));
 
         if label_response.hovered() {
             button_response = button_response.highlight();
