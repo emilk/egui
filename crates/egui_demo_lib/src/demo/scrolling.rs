@@ -432,7 +432,13 @@ impl crate::View for ScrollStickTo {
             self.n_items,
             |ui, row_range| {
                 for row in row_range {
-                    let text = format!("This is row {}", row + 1);
+                    let row_text = (row + 1).to_string();
+                    // The `{row}` placeholder is filled by `i18n::fmt`, not by `format!`.
+                    #[expect(clippy::literal_string_with_formatting_args)]
+                    let text = crate::i18n::fmt(
+                        crate::i18n::t("This is row {row}"),
+                        &[("row", row_text.as_str())],
+                    );
                     ui.label(text);
                 }
             },

@@ -312,6 +312,7 @@
 	Content length	طول المحتوى
 	A lot of rows, but only the visible ones are laid out, so performance is still good:	صفوف كثيرة، لكن الصفوف المرئية فقط هي التي تُرتَّب، فيبقى الأداء جيدًا:
 	A lot of rows, but only the visible ones are painted, so performance is still good:	صفوف كثيرة، لكن الصفوف المرئية فقط هي التي تُرسَم، فيبقى الأداء جيدًا:
+	This is row {row}	هذا هو الصف {row}
 	This is row {}/{}	هذا هو الصف {}/{}
 	This is row {}/{}, indented by {} pixels	هذا هو الصف {}/{}، مُزاح بمقدار {} بكسل
 	This shows how you can scroll to a specific item or pixel offset	يوضح هذا كيف يمكنك التمرير إلى عنصر محدد أو إزاحة محددة بالبكسل
