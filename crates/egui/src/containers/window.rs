@@ -661,7 +661,7 @@ impl Window<'_> {
             CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), default_open);
 
         let is_collapsed = with_title_bar && !collapsing.is_open();
-        let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
+        let possible = PossibleInteractions::new(&area, &resize, is_collapsed, ctx.is_rtl());
 
         let resize = resize.resizable(false); // We resize it manually
         let mut resize = resize.id(resize_id);
@@ -917,12 +917,12 @@ struct PossibleInteractions {
 }
 
 impl PossibleInteractions {
-    fn new(area: &Area, resize: &Resize, is_collapsed: bool) -> Self {
+    fn new(area: &Area, resize: &Resize, is_collapsed: bool, rtl: bool) -> Self {
         let movable = area.is_enabled() && area.is_movable();
         let resizable = resize
             .is_resizable()
             .and(area.is_enabled() && !is_collapsed);
-        let pivot = area.get_pivot();
+        let pivot = area.get_pivot(rtl);
         Self {
             resize_left: resizable.x && (movable || pivot.x() != Align::LEFT),
             resize_right: resizable.x && (movable || pivot.x() != Align::RIGHT),

@@ -116,7 +116,12 @@ pub struct Area {
     order: Order,
     default_pos: Option<Pos2>,
     default_size: Vec2,
-    pivot: Align2,
+    /// The pivot the user explicitly set with [`Self::pivot`], or `None` for the default.
+    ///
+    /// The default pivot is mirrored to the reading direction
+    /// ([`Style::right_to_left`]): `RIGHT_TOP` in a right-to-left interface,
+    /// `LEFT_TOP` otherwise, so areas widen towards the reading end.
+    pivot: Option<Align2>,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
     fade_in: bool,
@@ -147,7 +152,7 @@ impl Area {
             default_pos: None,
             default_size: Vec2::NAN,
             new_pos: None,
-            pivot: Align2::LEFT_TOP,
+            pivot: None,
             anchor: None,
             fade_in: true,
             layout: Layout::default(),
@@ -338,10 +343,12 @@ impl Area {
     /// then [`Self::fixed_pos`] will set the position of the right-top
     /// corner of the area.
     ///
-    /// Default: [`Align2::LEFT_TOP`].
+    /// Default: [`Align2::LEFT_TOP`], mirrored to [`Align2::RIGHT_TOP`]
+    /// in a right-to-left interface ([`Style::right_to_left`]),
+    /// so areas widen towards the reading end.
     #[inline]
     pub fn pivot(mut self, pivot: Align2) -> Self {
-        self.pivot = pivot;
+        self.pivot = Some(pivot);
         self
     }
 
@@ -369,11 +376,15 @@ impl Area {
         self.movable(false)
     }
 
-    pub(crate) fn get_pivot(&self) -> Align2 {
+    /// The pivot in effect: the [`Self::anchor`] pivot if anchored,
+    /// the explicitly set [`Self::pivot`] if there is one, and otherwise
+    /// the default, mirrored to the reading direction (`rtl`):
+    /// `RIGHT_TOP` in a right-to-left interface, `LEFT_TOP` otherwise.
+    pub(crate) fn get_pivot(&self, rtl: bool) -> Align2 {
         if let Some((pivot, _)) = self.anchor {
             pivot
         } else {
-            Align2::LEFT_TOP
+            self.pivot.unwrap_or_else(|| default_pivot(rtl))
         }
     }
 
@@ -560,6 +571,18 @@ impl Area {
             accessibility_role,
         } = self;
 
+        // An explicit pivot wins; the default pivot follows the reading direction
+        // so areas widen towards the reading end. Anchored areas are placed by
+        // their anchor, so their state pivot stays the plain default.
+        let rtl = ctx.is_rtl();
+        let pivot = if let Some(pivot) = pivot {
+            pivot
+        } else if anchor.is_none() {
+            default_pivot(rtl)
+        } else {
+            Align2::LEFT_TOP
+        };
+
         let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.content_rect());
 
         let layer_id = LayerId::new(order, id);
@@ -593,7 +616,8 @@ impl Area {
             state.pivot_pos = Some(new_pos);
         }
         state.pivot_pos.get_or_insert_with(|| {
-            default_pos.unwrap_or_else(|| automatic_area_position(ctx, constrain_rect, layer_id))
+            default_pos
+                .unwrap_or_else(|| automatic_area_position(ctx, constrain_rect, layer_id, rtl))
         });
 
         let size = *state.size.get_or_insert_with(|| {
@@ -730,6 +754,17 @@ impl Area {
     }
 }
 
+/// The default [`Area`] pivot, mirrored to the reading direction: `RIGHT_TOP`
+/// in a right-to-left interface, `LEFT_TOP` otherwise, so areas widen towards
+/// the reading end.
+fn default_pivot(rtl: bool) -> Align2 {
+    if rtl {
+        Align2::RIGHT_TOP
+    } else {
+        Align2::LEFT_TOP
+    }
+}
+
 pub(crate) fn round_area_position(ctx: &Context, pos: Pos2) -> Pos2 {
     // We round a lot of rendering to pixels, so we round the whole
     // area positions to pixels too, so avoid widgets appearing to float
@@ -851,8 +886,13 @@ fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
     }
 }
 
-fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerId) -> Pos2 {
-    let mut existing: Vec<Rect> = ctx.memory(|mem| {
+fn automatic_area_position(
+    ctx: &Context,
+    constrain_rect: Rect,
+    layer_id: LayerId,
+    rtl: bool,
+) -> Pos2 {
+    let existing: Vec<Rect> = ctx.memory(|mem| {
         mem.areas()
             .visible_windows()
             .filter(|(id, _)| id != &layer_id) // ignore ourselves
@@ -860,6 +900,37 @@ fn automatic_area_position(ctx: &Context, constrain_rect: Rect, layer_id: LayerI
             .map(|(_, state)| state.rect())
             .collect()
     });
+
+    // The packing below computes a left-top position for the default
+    // `LEFT_TOP` pivot. In a right-to-left interface, mirror the horizontal
+    // axis, run the same packing, and mirror the result back, so new areas
+    // appear at the reading-start edge and widen leftward.
+    if rtl {
+        let mirrored = existing
+            .iter()
+            .map(|&rect| mirror_rect_x(rect, constrain_rect))
+            .collect();
+        let pos = automatic_area_position_in(constrain_rect, mirrored);
+        return pos2(mirror_x(pos.x, constrain_rect), pos.y);
+    }
+
+    automatic_area_position_in(constrain_rect, existing)
+}
+
+/// Mirror a rect horizontally within `within`.
+fn mirror_rect_x(rect: Rect, within: Rect) -> Rect {
+    let left = mirror_x(rect.right(), within);
+    let right = mirror_x(rect.left(), within);
+    Rect::from_min_max(pos2(left, rect.top()), pos2(right, rect.bottom()))
+}
+
+/// Mirror an x coordinate horizontally within `within`.
+fn mirror_x(x: f32, within: Rect) -> f32 {
+    within.left() + within.right() - x
+}
+
+/// Place a new area so it doesn't overlap the (sorted) existing ones.
+fn automatic_area_position_in(constrain_rect: Rect, mut existing: Vec<Rect>) -> Pos2 {
     existing.sort_by_key(|r| r.left().round() as i32);
 
     let spacing = 16.0;
