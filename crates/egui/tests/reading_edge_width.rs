@@ -5,10 +5,11 @@
 //!
 //! The setters claim their span with the layout-derived anchor
 //! ([`egui::Layout::horizontal_align`]): a vertical body claims from its
-//! `cross_align` edge, and the anchor does not depend on the interface
-//! direction, so measured sizes (widths) are direction-independent. These
-//! tests pin that decision: a vertical `Align::Min` body measures the claim
-//! (never the offered span) in both directions, and bodies whose layout is
+//! effective `cross_align` edge — mirrored to the reading-start edge for a
+//! vertical `Align::Min` body under a right-to-left interface — so the
+//! measured sizes (widths) stay direction-independent. These tests pin that
+//! decision: a vertical `Align::Min` body measures the claim (never the
+//! offered span) in both directions, and bodies whose layout is
 //! reading-start-pinned under a right-to-left interface (the `Align::Max`
 //! bodies popups and menus use) cap at the reading edge.
 //!
@@ -150,12 +151,23 @@ fn min_width_measures_the_claim_in_both_directions() {
             "rtl = {rtl}: the wide body should measure the 220-wide claim, \
              not the 400-wide offered span, got {min_rect:?}"
         );
-        assert_eq!(
-            min_rect.left(),
-            max_rect.left(),
-            "rtl = {rtl}: the measurement should start on the body's content \
-             (near) edge, got min_rect {min_rect:?}, max_rect {max_rect:?}"
-        );
+        // The near edge follows the body's effective cross align: the left
+        // edge under LTR, mirrored to the reading-start (right) edge under RTL.
+        if rtl {
+            assert_eq!(
+                min_rect.right(),
+                max_rect.right(),
+                "rtl = {rtl}: the measurement should start on the body's content \
+                 (near) edge, got min_rect {min_rect:?}, max_rect {max_rect:?}"
+            );
+        } else {
+            assert_eq!(
+                min_rect.left(),
+                max_rect.left(),
+                "rtl = {rtl}: the measurement should start on the body's content \
+                 (near) edge, got min_rect {min_rect:?}, max_rect {max_rect:?}"
+            );
+        }
     }
 }
 

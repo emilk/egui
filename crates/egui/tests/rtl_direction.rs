@@ -465,8 +465,10 @@ fn triangle_apex_points_reading_start_when_closed() {
 }
 
 /// A7: the sizing pass measures a cross-`Align::Max` body anchored on the reading-start
-/// edge in both directions: `min_rect().left()` equals the offered rect's left edge (the
-/// same measurement an explicit `Align::Min` body gets) and is offered-width-independent.
+/// edge: `min_rect()` hugs the offered rect's reading-start edge (left under LTR; under
+/// RTL the mirrored body anchors on the right edge), the measured span is
+/// offered-width-independent, and it equals the measurement of an explicit
+/// `Align::Min` body in both directions.
 #[test]
 fn sizing_pass_measures_from_reading_start_edge() {
     fn measure(rtl: bool, cross_align: Align, offered_width: f32) -> Rect {
@@ -489,21 +491,19 @@ fn sizing_pass_measures_from_reading_start_edge() {
         min_rect
     }
 
-    // RTL: the sizing measurement is anchored on the reading start and does not depend
-    // on the offered width:
+    // RTL: the sizing measurement anchors on the reading start (the offered rect's
+    // right edge, mirrored back to `Max` after the canonicalization) and its span
+    // does not depend on the offered width:
     let rtl_narrow = measure(true, Align::Max, 400.0);
     let rtl_wide = measure(true, Align::Max, 800.0);
     assert!(
-        (rtl_narrow.left() - 50.0).abs() <= 0.5,
-        "RTL: the cross-Max sizing pass should anchor on the reading-start (left) edge, \
+        (rtl_narrow.right() - 450.0).abs() <= 0.5,
+        "RTL: the cross-Max sizing pass should anchor on the reading-start (right) edge, \
          got min_rect {rtl_narrow:?}"
     );
     assert!(
-        (rtl_narrow.left() - rtl_wide.left()).abs() <= 0.5
-            && (rtl_narrow.right() - rtl_wide.right()).abs() <= 0.5
-            && (rtl_narrow.top() - rtl_wide.top()).abs() <= 0.5
-            && (rtl_narrow.bottom() - rtl_wide.bottom()).abs() <= 0.5,
-        "RTL: the sizing measurement must be offered-width-independent \
+        (rtl_narrow.width() - rtl_wide.width()).abs() <= 0.5,
+        "RTL: the sizing measurement span must be offered-width-independent \
          (narrow {rtl_narrow:?}, wide {rtl_wide:?})"
     );
 

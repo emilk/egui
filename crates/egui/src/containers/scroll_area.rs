@@ -8,9 +8,9 @@ use emath::GuiRounding as _;
 use epaint::{Color32, Direction, Margin, Shape};
 
 use crate::{
-    AsIdSalt, Context, CursorIcon, Id, IdSalt, MouseWheelSource, NumExt as _, Pos2, Rangef, Rect,
-    Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo, emath,
-    epaint, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
+    Align, AsIdSalt, Context, CursorIcon, Id, IdSalt, MouseWheelSource, NumExt as _, Pos2, Rangef,
+    Rect, Response, Role, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b, WidgetInfo,
+    emath, epaint, lerp, pass_state, pos2, remap, remap_clamp, style::KineticScrollStyle,
 };
 
 use super::scroll_physics::{AxisPhysics, WheelScroll, scroll_bounds};
@@ -905,14 +905,15 @@ impl ScrollArea {
 
         // The horizontal geometry follows the reading direction only where the reading
         // direction actually governs it: a horizontally scrolling axis (whose content is
-        // anchored at the reading start and grows reading-forward), or a vertical scroll
-        // bar reserving its strip on the reading-end edge. A vertical-only scroll area
-        // with no bar strip must place and measure itself like any other widget — from
-        // the layout cursor — so its parent measures the same size in both directions:
-        // right-anchoring its rect would leave an empty span between the parent layout's
-        // min-rect seed point and the rect, ballooning the measured width (the popup and
-        // menu sizing passes measure in the logical, unmirrored layout).
-        let rtl_x = rtl && (direction_enabled[0] || current_bar_use.x != 0.0);
+        // anchored at the reading start and grows reading-forward), a vertical scroll
+        // bar reserving its strip on the reading-end edge, or a parent whose vertical
+        // `Align::Max` layout seeds its `min_rect` on the reading-start edge — there the
+        // rects below must anchor on that same edge, or the empty span between the seed
+        // and the rect balloons the parent's measured width to the offered span.
+        let parent_seeds_reading_start =
+            ui.layout().is_vertical() && ui.layout().cross_align == Align::Max;
+        let rtl_x =
+            rtl && (direction_enabled[0] || current_bar_use.x != 0.0 || parent_seeds_reading_start);
         // NOTE: two known residuals around this predicate: (1) a vertical-only RTL
         // area with a reserved bar strip right-anchors through the `current_bar_use.x`
         // term even when the content is narrow and the x axis auto-shrinks; (2) with
@@ -1413,9 +1414,14 @@ impl Prepared {
             }
         });
 
-        // Same predicate as in `begin`: only a horizontally scrolling axis or a reserved
-        // vertical bar strip follows the reading direction (see `rtl_x` there).
-        let rtl_x = rtl && (direction_enabled[0] || current_bar_use.x != 0.0);
+        // Same predicate as in `begin`: only a horizontally scrolling axis, a reserved
+        // vertical bar strip, or a parent seeding its `min_rect` on the reading-start
+        // edge follows the reading direction (see `rtl_x` there). The content ui
+        // inherits the parent's layout, so it answers for the parent here.
+        let parent_seeds_reading_start =
+            content_ui.layout().is_vertical() && content_ui.layout().cross_align == Align::Max;
+        let rtl_x =
+            rtl && (direction_enabled[0] || current_bar_use.x != 0.0 || parent_seeds_reading_start);
 
         let inner_rect = {
             // At this point this is the available size for the inner rect.

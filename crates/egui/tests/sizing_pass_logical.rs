@@ -27,8 +27,9 @@ fn run_frames(ctx: &Context, n: usize, mut f: impl FnMut(&mut Ui)) {
 
 /// A21.1: a sizing pass with a cross-`Align::Max` body (the mirrored-body shape)
 /// measures the rows' natural width anchored on the reading-start edge, in both
-/// directions: the measurement must not depend on the reading direction, the offered
-/// width, or the cross alignment.
+/// directions: the measured width must not depend on the reading direction, the offered
+/// width, or the cross alignment; the anchor edge follows the reading start (the left
+/// edge under LTR, the right edge under RTL).
 #[test]
 fn sizing_pass_min_rect_is_direction_independent() {
     /// Measure a cross-`cross_align` sizing-pass body in an `offered_width`-wide rect,
@@ -64,16 +65,21 @@ fn sizing_pass_min_rect_is_direction_independent() {
             "{direction}: the cross-Max sizing pass should measure the rows' natural width, \
              not the offered width: {max_narrow:?}"
         );
+        if rtl {
+            assert!(
+                (max_narrow.max.x - offered.max.x).abs() <= 0.5,
+                "{direction}: the cross-Max sizing pass should anchor the measurement on the \
+                 reading-start (right) edge of the offered rect {offered:?}, got {max_narrow:?}"
+            );
+        } else {
+            assert!(
+                (max_narrow.min.x - offered.min.x).abs() <= 0.5,
+                "{direction}: the cross-Max sizing pass should anchor the measurement on the \
+                 reading-start (left) edge of the offered rect {offered:?}, got {max_narrow:?}"
+            );
+        }
         assert!(
-            (max_narrow.min.x - offered.min.x).abs() <= 0.5,
-            "{direction}: the cross-Max sizing pass should anchor the measurement on the \
-             reading-start (left) edge of the offered rect {offered:?}, got {max_narrow:?}"
-        );
-        assert!(
-            (max_narrow.min.x - max_wide.min.x).abs() <= 0.5
-                && (max_narrow.max.x - max_wide.max.x).abs() <= 0.5
-                && (max_narrow.top() - max_wide.top()).abs() <= 0.5
-                && (max_narrow.bottom() - max_wide.bottom()).abs() <= 0.5,
+            (max_narrow.width() - max_wide.width()).abs() <= 0.5,
             "{direction}: the cross-Max sizing measurement must be offered-width-independent \
              (300 px offer {max_narrow:?}, 500 px offer {max_wide:?})"
         );
@@ -238,7 +244,9 @@ fn visible_frame_keeps_the_mirrored_layout() {
 
 /// A21.4: the sizing-pass canonicalization mutates only the child's local layout copy:
 /// the direction flag and the caller's layout are untouched during and after the pass,
-/// so there is nothing to restore.
+/// so there is nothing to restore. Under RTL the construction-time mirror resolves the
+/// vertical `Align::Min` root body (and the canonicalized `Align::Max` child, after its
+/// canonicalization) to the effective `Align::Max` the placer carries.
 #[test]
 fn sizing_pass_canonicalization_does_not_leak() {
     let ctx = Context::default();
@@ -247,13 +255,14 @@ fn sizing_pass_canonicalization_does_not_leak() {
     run_frames(&ctx, 1, |ui| {
         assert_eq!(
             ui.layout().cross_align(),
-            Align::Min,
-            "the parent body should start with a cross-Min layout"
+            Align::Max,
+            "the vertical Align::Min parent body should carry the mirrored cross alignment"
         );
         let parent_align_before = ui.layout().cross_align();
 
-        // (a) During an RTL cross-Max sizing pass the canonicalization is active (the
-        // child measures like Align::Min) and the direction flag is NOT cleared:
+        // (a) During an RTL cross-Max sizing pass the child's layout is a local copy —
+        // canonicalized to `Min` for the measurement frame, then mirrored back — and
+        // the direction flag is NOT cleared:
         let mut sizing = ui.new_child(
             UiBuilder::new()
                 .max_rect(Rect::from_min_size(ui.cursor().min, vec2(300.0, 200.0)))
@@ -262,8 +271,8 @@ fn sizing_pass_canonicalization_does_not_leak() {
         );
         assert_eq!(
             sizing.layout().cross_align(),
-            Align::Min,
-            "the sizing pass should canonicalize the cross alignment while measuring"
+            Align::Max,
+            "the sizing child should resolve to the mirrored effective cross alignment"
         );
         assert!(
             sizing.is_rtl(),

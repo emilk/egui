@@ -173,7 +173,9 @@ fn horizontal_row_measurement_unchanged() {
 }
 
 /// A6: the same centered measurement holds under a right-to-left UI — the fold must not
-/// key on the direction flag.
+/// key on the direction flag. The widget stays centered in the desired region, whose
+/// anchor mirrors with the interface direction (the region right-hugs under RTL, so its
+/// center is the LTR center mirrored about the screen center).
 #[test]
 fn rtl_measurement_is_direction_independent() {
     let mut is_rtl = false;
@@ -184,8 +186,8 @@ fn rtl_measurement_is_direction_independent() {
     assert!(is_rtl, "the direction flag must have taken effect");
     assert_eq!(rect.width(), 50.0);
     assert!(
-        (rect.center().x - 158.0).abs() < 0.5,
-        "the widget must be measured identically under RTL, got {rect:?}"
+        (rect.center().x - (SCREEN.x - 158.0)).abs() < 0.5,
+        "the widget must stay centered in the mirrored desired region, got {rect:?}"
     );
 }
 

@@ -327,13 +327,40 @@ impl Placer {
 #[cfg(test)]
 mod tests {
     use super::Placer;
-    use crate::{Align, Direction, Layout, Rect, Vec2, pos2};
+    use crate::{Align, Context, Direction, Layout, RawInput, Rect, UiBuilder, Vec2, pos2};
 
     fn placer(layout: Layout) -> Placer {
         Placer::new(
             Rect::from_min_size(pos2(0.0, 0.0), crate::vec2(100.0, 100.0)),
             layout,
         )
+    }
+
+    /// A `Ui` built under a right-to-left interface resolves the effective
+    /// cross align of a vertical `Align::Min` body to `Max` at construction;
+    /// under a left-to-right interface it stays `Min`.
+    #[test]
+    fn ui_construction_resolves_the_effective_cross_align_of_vertical_min_bodies() {
+        for (rtl, expected) in [(false, Align::Min), (true, Align::Max)] {
+            let ctx = Context::default();
+            ctx.set_right_to_left(rtl);
+            let output = ctx.run_ui(
+                RawInput {
+                    screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), Vec2::splat(200.0))),
+                    ..Default::default()
+                },
+                |ui| {
+                    assert_eq!(ui.layout().cross_align(), expected, "root ui, rtl = {rtl}");
+                    let child = ui.new_child(UiBuilder::new().layout(Layout::top_down(Align::Min)));
+                    assert_eq!(
+                        child.layout().cross_align(),
+                        expected,
+                        "child ui, rtl = {rtl}"
+                    );
+                },
+            );
+            output.drop_without_applying_deltas();
+        }
     }
 
     /// The RTL term applies only to vertical `Align::Min` layouts,

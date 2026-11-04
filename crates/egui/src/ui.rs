@@ -133,8 +133,18 @@ impl Ui {
         // offered area, so the measured span is offered-width-dependent. Measure like
         // `Align::Min` in both directions; the show pass keeps the caller's alignment.
         // This is the root-`Ui` part of the canonicalization in `Ui::new_child`.
+        // Under a right-to-left interface the mirror below turns this `Min` back into `Max`,
+        // so only LTR measures like `Min`.
         if sizing_pass && layout.cross_align == Align::Max {
             layout.cross_align = Align::Min;
+        }
+
+        // A vertical `Align::Min` body under a right-to-left interface anchors its
+        // bare content on the reading-start (right) edge, the same term that mirrors
+        // its nested rows. Resolved once here so placement, galley halign, the
+        // min_rect seed and the width setters all follow one effective cross align.
+        if style.right_to_left && layout.is_vertical() && layout.cross_align == Align::Min {
+            layout.cross_align = Align::Max;
         }
 
         // A root `Ui` has no parent to derive a unique id from,
@@ -269,6 +279,8 @@ impl Ui {
             // `min_rect().min` (e.g. a `Resize` container's cursor advance). The size
             // itself stays natural. Measure like `Align::Min` in both directions; the show
             // pass keeps the mirrored alignment.
+            // Under a right-to-left interface the mirror below turns this `Min` back into `Max`,
+            // so only LTR measures like `Min`.
             if layout.cross_align == Align::Max {
                 layout.cross_align = Align::Min;
             }
@@ -288,6 +300,14 @@ impl Ui {
         let next_auto_id_salt = unique_id.value().wrapping_add(1);
 
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
+
+        // A vertical `Align::Min` body under a right-to-left interface anchors its
+        // bare content on the reading-start (right) edge, the same term that mirrors
+        // its nested rows. Resolved once here so placement, galley halign, the
+        // min_rect seed and the width setters all follow one effective cross align.
+        if style.right_to_left && layout.is_vertical() && layout.cross_align == Align::Min {
+            layout.cross_align = Align::Max;
+        }
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {

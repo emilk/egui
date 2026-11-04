@@ -225,8 +225,8 @@ fn narrow_row_content(row: &Cell<Rect>) -> impl Fn(&mut Ui) + Copy {
 }
 
 /// Body content that records its widget rect into the cell: a plain label,
-/// left-anchored in the window body under RTL (plain widgets do not mirror;
-/// only nested rows do).
+/// anchored on the body's effective cross-align edge (left under LTR, the
+/// reading-start edge under RTL, like every bare widget in the body).
 fn plain_label_content(label: &Cell<Rect>) -> impl Fn(&mut Ui) + Copy {
     move |ui: &mut Ui| {
         let response = ui.label("hi");
@@ -1257,17 +1257,18 @@ fn title_less_rtl_window_has_no_painted_content_at_the_reading_end_edge() {
 
 // ---------------------------------------------------------------------------
 
-/// T12: composition guard for a plain-label body: a plain `ui.label` stays
-/// left-anchored under RTL (only nested rows mirror), so the title-less RTL
-/// window must keep its full offered width to contain the label, stable across
-/// idle frames, and the LTR twin contains it likewise.
+/// T12: composition guard for a plain-label body: a plain `ui.label` mirrors
+/// with the body under RTL and right-hugs the reading-start edge, so the
+/// title-less RTL window hugs its content width, stable across idle frames,
+/// and the LTR twin contains the label likewise.
 #[test]
 fn plain_label_content_stays_inside_the_title_less_rtl_window() {
     const SCREEN: Vec2 = vec2(700.0, 500.0);
     const START_SIZE: Vec2 = vec2(340.0, 420.0);
     const POS: Pos2 = pos2(650.0, 50.0);
 
-    // RTL: the label paints inside the window, and the window is stable:
+    // RTL: the label hugs the reading-start (right) inner edge, and the window
+    // hugs the label's width:
     let rtl = WindowHarness::new(true, SCREEN);
     let label = Cell::new(Rect::NOTHING);
     let content = plain_label_content(&label);
@@ -1284,6 +1285,19 @@ fn plain_label_content_stays_inside_the_title_less_rtl_window() {
     assert!(
         Rect::from_min_size(Pos2::ZERO, SCREEN).contains_rect(settled),
         "RTL: the settled window must fit on screen (settled {settled:?})"
+    );
+    let margin = rtl.ctx.style_of(rtl.ctx.theme()).spacing.window_margin.left as f32;
+    assert!(
+        (label.get().right() - (settled.right() - margin)).abs() <= 2.0,
+        "RTL: the plain label must hug the reading-start (right) inner edge \
+         (window {settled:?}, label {:?}, margin {margin})",
+        label.get()
+    );
+    assert!(
+        (settled.width() - (label.get().width() + 2.0 * margin)).abs() <= 2.0,
+        "RTL: the window must hug the label width plus the frame margins \
+         (settled {settled:?}, label {:?}, margin {margin})",
+        label.get()
     );
     assert!(
         rect_within(label.get(), settled, 1.0),
