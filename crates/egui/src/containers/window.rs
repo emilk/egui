@@ -613,7 +613,7 @@ impl Window<'_> {
         // `Area::begin` would then apply is undone right after `begin` for
         // `WindowDrag::TitleBar`.
         let title_drag_mode = effective_drag == WindowDrag::TitleBar;
-        let pivot_pos_before_begin = if title_drag_mode {
+        let pre_begin_state = if title_drag_mode {
             if let Some(resp) = ctx.read_response(area.id.with("__title_click"))
                 && resp.dragged()
             {
@@ -628,7 +628,7 @@ impl Window<'_> {
                     });
                 }
             }
-            area::AreaState::load(ctx, area.id).and_then(|s| s.pivot_pos)
+            area::AreaState::load(ctx, area.id)
         } else {
             None
         };
@@ -674,11 +674,18 @@ impl Window<'_> {
         // already accounted for the title drag. We then re-run the same
         // constrain+round step `Area::begin` does so the title-bar drag
         // can't escape `constrain_rect` or reintroduce sub-pixel jitter.
-        if let Some(pre_begin_pivot) = pivot_pos_before_begin {
+        if let Some(pre_begin) = pre_begin_state
+            && let Some(pre_begin_pivot_pos) = pre_begin.pivot_pos
+        {
             let constrain = area.constrain();
             let constrain_rect = area.constrain_rect();
             let state = area.state_mut();
-            state.pivot_pos = Some(pre_begin_pivot);
+            // The pre-begin point is encoded in the pre-begin pivot's space; when
+            // `begin` changed the pivot it already re-expressed that point, so
+            // only restore it when the pivot is unchanged.
+            if state.pivot == pre_begin.pivot {
+                state.pivot_pos = Some(pre_begin_pivot_pos);
+            }
             if constrain {
                 state.set_left_top_pos(
                     Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min,

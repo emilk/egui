@@ -626,6 +626,7 @@ impl Area {
             sizing_pass = true;
             state.size = None;
         }
+        let old_pivot = state.pivot;
         state.pivot = pivot;
         if let Some(new_pos) = new_pos {
             state.pivot_pos = Some(new_pos);
@@ -657,6 +658,26 @@ impl Area {
         });
 
         let constrain = constrain && !restored_without_size;
+
+        // The stored pivot position was encoded in the previous pivot's space; when the
+        // pivot changes (the default pivot follows the interface direction), re-express
+        // it so the area's left-top stays where it was. Without a known size the stored
+        // point is treated as the old left-top (the default pivots anchor a corner).
+        // A caller re-asserting an explicit position re-pins below and wins, as today.
+        if pivot != old_pivot
+            && new_pos.is_none()
+            && let Some(pivot_pos) = state.pivot_pos
+        {
+            let size = state.size.unwrap_or_default();
+            let left_top = pos2(
+                pivot_pos.x - old_pivot.x().to_factor() * size.x,
+                pivot_pos.y - old_pivot.y().to_factor() * size.y,
+            );
+            state.pivot_pos = Some(pos2(
+                left_top.x + pivot.x().to_factor() * size.x,
+                left_top.y + pivot.y().to_factor() * size.y,
+            ));
+        }
 
         // We should never be interactable during a sizing pass, since then we are shown at a different
         // size which might interfere with hover state of the hovered widget causing popup feedback loops.
