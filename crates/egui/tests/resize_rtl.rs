@@ -588,12 +588,14 @@ fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
          (settled {after:?}, extra1 {extra1:?}, extra2 {extra2:?})"
     );
 
-    // Content shrink: a window never auto-shrinks with its content (upstream
-    // `Resize` semantics: the desired size is sticky), and under RTL the content is
-    // laid out against the reading-start edge while the parent's `min_rect` is
-    // seeded on the old reading-end edge, so the persisted width can only grow.
-    // The window must therefore stay exactly where it was — the reading-start
-    // (right) edge fixed, no drift of any kind:
+    // Content shrink: a window never auto-shrinks with its content — on idle
+    // frames the inner `Resize` keeps its sticky `desired_size` (grow-only via
+    // the max against the fresh measurement) and the width-filling title-bar
+    // chrome keeps the fresh measurement at the offered width, so the persisted
+    // width cannot drop. The reading-start seed is what allows clamp and drag
+    // shrinks; plain content narrowing is neither, so the window must stay
+    // exactly where it was — the reading-start (right) edge fixed, no drift of
+    // any kind:
     let shrunk = settle(&ctx, true, false, SCREEN.x);
     assert!(
         same_rect(shrunk, after),

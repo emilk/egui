@@ -88,7 +88,7 @@ impl AreaState {
     /// differs from the persisted one — an interactive resize, where the pivot
     /// corner is the un-dragged reading edge and must stay fixed while the drag
     /// changes the size.
-    pub fn set_rect_pivot_pos(&mut self, rect: Rect) {
+    pub(crate) fn set_rect_pivot_pos(&mut self, rect: Rect) {
         self.pivot_pos = Some(pos2(
             rect.left() + self.pivot.x().to_factor() * rect.width(),
             rect.top() + self.pivot.y().to_factor() * rect.height(),

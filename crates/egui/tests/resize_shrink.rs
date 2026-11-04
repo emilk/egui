@@ -284,13 +284,11 @@ fn shrink_survives_idle_frames_without_growing_back() {
 /// T3: an over-shrink drag clamps to exactly the configured minimum *width*
 /// (+- 1 rounding) with the anchored (reading-start) edge fixed in both
 /// directions — the floor is the constant min, never the current size.
-/// Deviation from the plan's T3, measured at the base HEAD and kept: a
-/// `Window` renders at its content's measured height (its inner `Resize` runs
+/// A `Window` renders at its content's measured height (its inner `Resize` runs
 /// `with_stroke(false)` + `resizable(false)`, so `Resize::end` reports
 /// `last_content_size`), so the configured `min_size.y` never binds — the
-/// window's height settles at the content height (74 < 150 here) in BOTH
-/// directions, before and after this candidate. The width floor binds because
-/// the body claims the offered width; it is the floor this test pins. The
+/// window's height is content-bound in BOTH directions. The width floor binds
+/// because the body claims the offered width; it is the floor this test pins. The
 /// both-dimension floor on plain `Resize` containers is covered by
 /// `resize_rtl.rs` `min_size_floor_identical_in_both_directions` (A5).
 #[test]
