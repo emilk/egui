@@ -63,6 +63,15 @@ monochrome_emoji_fonts = ["default_fonts", "epaint_default_fonts/monochrome_emoj
 ## This can help performance for graphics-intense applications.
 rayon = ["dep:rayon"]
 
+## Bundle word dictionaries for line-breaking the scripts that are written without
+## spaces (Thai, Lao, Khmer, Myanmar; UAX #14 class SA). Adds ~4.2 MB to the binary
+## (measure the real number on landing and update this comment).
+##
+## Without this feature [`text::TextWrapping::line_breaker`] still works, but the default
+## breaker reports no word boundaries; enable the feature (the way `eframe` enables
+## `default_fonts`) or install your own [`text::LineBreaker`] implementation.
+sea_dictionary = []
+
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = [
   "dep:serde",

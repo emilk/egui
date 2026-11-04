@@ -669,7 +669,7 @@ pub enum TextWrapMode {
 }
 
 /// Controls the text wrapping and elision of a [`LayoutJob`].
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextWrapping {
     /// Wrap text so that no row is wider than this.
@@ -713,6 +713,52 @@ pub struct TextWrapping {
     ///
     /// If not set, no character will be used (but the text will still be elided).
     pub overflow_character: Option<char>,
+
+    /// Source of word boundaries for scripts that are written without spaces
+    /// (Thai, Lao, Khmer, Myanmar).
+    ///
+    /// These scripts need dictionary-based line breaking ([UAX #14] class SA).
+    /// `None` (the default) uses the built-in breaker: the bundled dictionary
+    /// when the `sea_dictionary` feature is enabled, otherwise no extra break
+    /// opportunities (behaviour identical to egui 0.37). Applications with their
+    /// own segmenter (ICU, `HarfBuzz`, OS text services) install it here.
+    ///
+    /// The breaker is consulted once per layout with the full
+    /// [`LayoutJob::text`]; see [`crate::text::LineBreaker`] for the range contract.
+    ///
+    /// The breaker takes part in the galley-cache key by identity, so install it
+    /// once and keep reusing the same `Arc` — recreating it every frame forfeits
+    /// galley caching.
+    ///
+    /// [UAX #14]: https://www.unicode.org/reports/tr14/#SA
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub line_breaker: Option<Arc<dyn crate::text::LineBreaker>>,
+}
+
+impl core::fmt::Debug for TextWrapping {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TextWrapping")
+            .field("max_width", &self.max_width)
+            .field("max_rows", &self.max_rows)
+            .field("break_anywhere", &self.break_anywhere)
+            .field("overflow_character", &self.overflow_character)
+            .field("line_breaker", &self.line_breaker.is_some())
+            .finish()
+    }
+}
+
+impl PartialEq for TextWrapping {
+    fn eq(&self, other: &Self) -> bool {
+        self.max_width == other.max_width
+            && self.max_rows == other.max_rows
+            && self.break_anywhere == other.break_anywhere
+            && self.overflow_character == other.overflow_character
+            && match (&self.line_breaker, &other.line_breaker) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                (None, None) => true,
+                (Some(_), None) | (None, Some(_)) => false,
+            }
+    }
 }
 
 impl core::hash::Hash for TextWrapping {
@@ -723,11 +769,23 @@ impl core::hash::Hash for TextWrapping {
             max_rows,
             break_anywhere,
             overflow_character,
+            line_breaker,
         } = self;
         emath::OrderedFloat(*max_width).hash(state);
         max_rows.hash(state);
         break_anywhere.hash(state);
         overflow_character.hash(state);
+        match line_breaker {
+            None => 0_u8.hash(state),
+            Some(breaker) => {
+                1_u8.hash(state);
+                // Hash the breaker by identity: two different breakers with
+                // otherwise-identical jobs must not share a cache key. The
+                // galley cache additionally pins and verifies this identity
+                // (see `CachedGalley::breaker` in `galley_cache.rs`).
+                (Arc::as_ptr(breaker).cast::<u8>() as usize).hash(state);
+            }
+        }
     }
 }
 
@@ -738,6 +796,7 @@ impl Default for TextWrapping {
             max_rows: usize::MAX,
             break_anywhere: false,
             overflow_character: Some('…'),
+            line_breaker: None,
         }
     }
 }

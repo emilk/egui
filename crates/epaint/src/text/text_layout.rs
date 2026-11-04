@@ -68,6 +68,12 @@ struct Paragraph {
 
     pub glyphs: Vec<Glyph>,
 
+    /// Byte offset of the first char of each glyph's shaping cluster, in
+    /// `LayoutJob::text`. Same length as `glyphs` while
+    /// [`ShapingContext::track_cluster_bytes`] is set; empty (no allocation)
+    /// otherwise.
+    pub cluster_byte_starts: Vec<usize>,
+
     /// In case of an empty paragraph ("\n"), use this as height.
     pub empty_paragraph_height: f32,
 }
@@ -78,8 +84,19 @@ impl Paragraph {
             cursor_x_px: 0.0,
             section_index_at_start,
             glyphs: vec![],
+            cluster_byte_starts: vec![],
             empty_paragraph_height: 0.0,
         }
+    }
+
+    /// Push a glyph together with the byte offset of its cluster's first char
+    /// in `LayoutJob::text`. The offset is only recorded when tracking
+    /// (see [`ShapingContext::track_cluster_bytes`]).
+    fn push_glyph(&mut self, ctx: &ShapingContext, glyph: Glyph, cluster_start: usize) {
+        if ctx.track_cluster_bytes {
+            self.cluster_byte_starts.push(cluster_start);
+        }
+        self.glyphs.push(glyph);
     }
 }
 
@@ -130,6 +147,14 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
 
     // For most of this we ignore the y coordinate:
 
+    // Word boundaries for scripts written without spaces. Engaged only when
+    // someone can use them: a custom breaker is installed, or the bundled
+    // dictionary is compiled in and the text may contain Southeast-Asian
+    // characters — and the text can actually wrap (`line_break` is only
+    // called for overflowing paragraphs).
+    let track_cluster_bytes = job.effective_wrap_width().is_finite()
+        && (job.wrap.line_breaker.is_some() || may_have_sea_text(&job.text));
+
     let mut paragraphs = vec![Paragraph::from_section_index(0)];
     {
         let mut shape_buffer = fonts.take_shape_buffer();
@@ -139,6 +164,7 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
                 shape_buffer,
                 pixels_per_point,
                 &job,
+                track_cluster_bytes,
                 section_index as u32,
                 section,
                 &mut paragraphs,
@@ -151,8 +177,26 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
 
     let intrinsic_size = calculate_intrinsic_size(point_scale, &job, &paragraphs);
 
+    // Consulted with the full job text; ranges are byte offsets into it.
+    let word_ranges = if track_cluster_bytes {
+        let breaker = job
+            .wrap
+            .line_breaker
+            .clone()
+            .unwrap_or_else(crate::text::line_breaker::default_breaker);
+        breaker.word_boundaries(&job.text)
+    } else {
+        Vec::new()
+    };
+
     let mut elided = false;
-    let mut rows = rows_from_paragraphs(paragraphs, &job, pixels_per_point, &mut elided);
+    let mut rows = rows_from_paragraphs(
+        paragraphs,
+        &job,
+        pixels_per_point,
+        &word_ranges,
+        &mut elided,
+    );
     if elided && let Some(last_placed) = rows.last_mut() {
         let last_row = Arc::make_mut(&mut last_placed.row);
         if resolved_direction(&job) == TextDirection::RightToLeft {
@@ -187,6 +231,19 @@ pub(crate) fn layout(fonts: &mut FontsImpl, pixels_per_point: f32, job: Arc<Layo
     galley_from_rows(point_scale, job, rows, elided, intrinsic_size)
 }
 
+/// Cheap pre-filter for the `sea_dictionary` default breaker: every
+/// Southeast-Asian script block is above U+0800, so any candidate char's
+/// UTF-8 encoding starts with a byte >= 0xE0. Constant-folded to `false`
+/// without the feature.
+fn may_have_sea_text(text: &str) -> bool {
+    if cfg!(feature = "sea_dictionary") {
+        text.bytes().any(|b| b >= 0xE0)
+    } else {
+        let _ = text;
+        false
+    }
+}
+
 /// Shared context for emitting shaped glyphs into a [`Paragraph`].
 struct ShapingContext {
     /// The family of the section being shaped.
@@ -199,6 +256,12 @@ struct ShapingContext {
     font_metrics: StyledMetrics,
     is_first_glyph_in_section: bool,
     prev_cluster: Option<u32>,
+
+    /// Record per-glyph cluster byte offsets (see `Paragraph`).
+    track_cluster_bytes: bool,
+
+    /// Byte offset of the current newline-split segment in `LayoutJob::text`.
+    segment_base: usize,
 }
 
 impl ShapingContext {
@@ -315,6 +378,7 @@ fn layout_shaped_run(
                     cluster_start_byte..cluster as usize,
                     cluster_glyph_count,
                     face_metrics,
+                    ctx.segment_base + run.byte_range.as_usize().start + cluster_start_byte,
                 );
             }
             if !ctx.is_first_glyph_in_section {
@@ -407,7 +471,14 @@ fn layout_shaped_run(
 
             ctx.glyph(chr, x_px, advance_width_px, face_metrics, glyph_alloc)
         };
-        paragraph.glyphs.push(glyph);
+        // All glyphs of one cluster carry the cluster's start (see the
+        // continuation glyphs below): a word boundary is then applied after
+        // the whole cluster, so a cluster is never visually cut.
+        paragraph.push_glyph(
+            ctx,
+            glyph,
+            ctx.segment_base + run.byte_range.as_usize().start + cluster as usize,
+        );
         cluster_glyph_count += 1;
     }
 
@@ -420,6 +491,7 @@ fn layout_shaped_run(
             cluster_start_byte..run_text.len(),
             cluster_glyph_count,
             face_metrics,
+            ctx.segment_base + run.byte_range.as_usize().start + cluster_start_byte,
         );
     }
 }
@@ -479,6 +551,7 @@ fn layout_raster_run(
     paragraph: &mut Paragraph,
     run_text: &str,
     raster: &RasterGlyphAllocation,
+    cluster_start: usize,
 ) {
     let Some(chr) = run_text.chars().next() else {
         return;
@@ -490,7 +563,7 @@ fn layout_raster_run(
 
     let face_metrics = ctx.font_metrics.clone();
     let glyph = raster_glyph(ctx, paragraph, chr, raster, &face_metrics);
-    paragraph.glyphs.push(glyph);
+    paragraph.push_glyph(ctx, glyph, cluster_start);
     emit_continuation_glyphs(
         ctx,
         paragraph,
@@ -498,6 +571,7 @@ fn layout_raster_run(
         0..run_text.len(),
         1,
         &face_metrics,
+        cluster_start,
     );
 }
 
@@ -507,6 +581,10 @@ fn layout_raster_run(
 /// This preserves the invariant `glyphs.len() == char_count` that all cursor
 /// and text-selection code depends on. Continuation glyphs have
 /// [`GlyphAllocation::default()`] so [`tessellate_glyphs`] skips them entirely.
+///
+/// Continuation glyphs belong to the same cluster as the glyphs before them,
+/// so they carry its `cluster_start` too: a word boundary that would fall
+/// between two glyphs of one cluster is applied after the whole cluster.
 fn emit_continuation_glyphs(
     ctx: &ShapingContext,
     paragraph: &mut Paragraph,
@@ -514,6 +592,7 @@ fn emit_continuation_glyphs(
     cluster_bytes: Range<usize>,
     cluster_glyph_count: usize,
     face_metrics: &StyledMetrics,
+    cluster_start: usize,
 ) {
     let Some(cluster_text) = run_text.get(cluster_bytes) else {
         return;
@@ -526,23 +605,29 @@ fn emit_continuation_glyphs(
     let physical_x = paragraph.cursor_x_px.round() as i32;
 
     for chr in cluster_text.chars().skip(cluster_glyph_count) {
-        paragraph.glyphs.push(ctx.glyph(
-            chr,
-            physical_x,
-            0.0,
-            face_metrics,
-            GlyphAllocation::default(),
-        ));
+        paragraph.push_glyph(
+            ctx,
+            ctx.glyph(
+                chr,
+                physical_x,
+                0.0,
+                face_metrics,
+                GlyphAllocation::default(),
+            ),
+            cluster_start,
+        );
     }
 }
 
 // Ignores the Y coordinate.
 #[must_use]
+#[expect(clippy::too_many_arguments)]
 fn layout_section(
     fonts: &mut FontsImpl,
     mut shape_buffer: harfrust::UnicodeBuffer,
     pixels_per_point: f32,
     job: &LayoutJob,
+    track_cluster_bytes: bool,
     section_index: u32,
     section: &LayoutSection,
     out_paragraphs: &mut Vec<Paragraph>,
@@ -579,11 +664,21 @@ fn layout_section(
         font_metrics,
         is_first_glyph_in_section: paragraph.glyphs.is_empty(),
         prev_cluster: None,
+        track_cluster_bytes,
+        segment_base: byte_range.as_usize().start,
     };
     let mut runs = Vec::new();
 
     // Process each paragraph segment (split on newlines — the shaper can't handle them).
+    let section_base = byte_range.as_usize().start;
+    let mut segment_offset = 0usize;
     for (seg_idx, segment) in SplitOrWhole::new(section_text, job.break_on_newline).enumerate() {
+        let segment_base = section_base + segment_offset;
+        // The `+ 1` accounts for the `'\n'` after every yielded segment,
+        // including the empty ones skipped below (consecutive newlines).
+        segment_offset += segment.len() + 1;
+        ctx.segment_base = segment_base;
+
         if 0 < seg_idx {
             paragraph = out_paragraphs.push_mut(Paragraph::from_section_index(section_index));
             paragraph.empty_paragraph_height = line_height;
@@ -600,7 +695,8 @@ fn layout_section(
         for (run_idx, run) in runs.iter().enumerate() {
             let run_text = &segment[run.byte_range.as_usize()];
             if let Some(raster) = &run.raster {
-                layout_raster_run(&mut ctx, paragraph, run_text, raster);
+                let cluster_start = ctx.segment_base + run.byte_range.as_usize().start;
+                layout_raster_run(&mut ctx, paragraph, run_text, raster, cluster_start);
                 continue;
             }
             let Some(font_face) = fonts.face(run.font_key) else {
@@ -708,6 +804,7 @@ fn rows_from_paragraphs(
     paragraphs: Vec<Paragraph>,
     job: &LayoutJob,
     pixels_per_point: f32,
+    word_ranges: &[Range<usize>],
     elided: &mut bool,
 ) -> Vec<PlacedRow> {
     let num_paragraphs = paragraphs.len();
@@ -751,7 +848,7 @@ fn rows_from_paragraphs(
                     ends_with_newline: !is_last_paragraph,
                 });
             } else {
-                line_break(&paragraph, job, &mut rows, elided);
+                line_break(&paragraph, job, word_ranges, &mut rows, elided);
                 let placed_row = rows.last_mut().unwrap();
                 placed_row.ends_with_newline = !is_last_paragraph;
             }
@@ -764,6 +861,7 @@ fn rows_from_paragraphs(
 fn line_break(
     paragraph: &Paragraph,
     job: &LayoutJob,
+    word_ranges: &[Range<usize>],
     out_rows: &mut Vec<PlacedRow>,
     elided: &mut bool,
 ) {
@@ -771,6 +869,9 @@ fn line_break(
 
     // Keeps track of good places to insert row break if we exceed `wrap_width`.
     let mut row_break_candidates = RowBreakCandidates::default();
+
+    // Index into `word_ranges`: the next dictionary-word end not yet registered.
+    let mut word_idx = 0;
 
     let mut first_row_indentation = paragraph.glyphs[0].pos.x;
     let mut row_start_x = 0.0;
@@ -839,6 +940,37 @@ fn line_break(
         }
 
         row_break_candidates.add(i, &paragraph.glyphs[i..]);
+
+        // Translate breaker byte ranges into glyph indices with an ascending
+        // pointer walk: no slicing by breaker-provided offsets, so hostile
+        // ranges can degrade break quality but never panic.
+        if !word_ranges.is_empty() {
+            debug_assert_eq!(
+                paragraph.cluster_byte_starts.len(),
+                paragraph.glyphs.len(),
+                "cluster tracking must cover every glyph when a breaker is engaged"
+            );
+            // `word_ranges` is only non-empty when cluster tracking was on, so
+            // the indexed vector has an entry per glyph (guarded by the assert
+            // above).
+            while let Some(word_end) = word_ranges.get(word_idx).map(|word_range| word_range.end) {
+                let this_start = paragraph.cluster_byte_starts[i];
+                if this_start >= word_end {
+                    // The word ended before this glyph (its last glyph may have
+                    // been dropped by the shaper); move on to the next word.
+                    word_idx += 1;
+                    continue;
+                }
+                let next_start = paragraph.cluster_byte_starts.get(i + 1).copied();
+                if next_start.is_none_or(|next| next >= word_end) {
+                    // This glyph is the last one whose cluster starts inside
+                    // the word: register "may break after it" and advance.
+                    row_break_candidates.word = Some(i);
+                    word_idx += 1;
+                }
+                break;
+            }
+        }
     }
 
     if row_start_idx < paragraph.glyphs.len() {
@@ -1560,6 +1692,11 @@ struct RowBreakCandidates {
     /// Breaking anywhere before a CJK character is acceptable too.
     pre_cjk: Option<usize>,
 
+    /// End of a dictionary word in a script that is written without spaces
+    /// (Thai, Lao, Khmer, Myanmar). Breaking after it is as good as after a
+    /// space.
+    word: Option<usize>,
+
     /// Breaking at a dash is a super-
     /// good idea.
     dash: Option<usize>,
@@ -1592,7 +1729,7 @@ impl RowBreakCandidates {
     }
 
     fn word_boundary(&self) -> Option<usize> {
-        [self.space, self.cjk, self.pre_cjk]
+        [self.space, self.cjk, self.pre_cjk, self.word]
             .into_iter()
             .max()
             .flatten()
@@ -1622,6 +1759,7 @@ impl RowBreakCandidates {
             space,
             cjk,
             pre_cjk,
+            word,
             dash,
             punctuation,
             any,
@@ -1634,6 +1772,9 @@ impl RowBreakCandidates {
         }
         if pre_cjk.is_some_and(|s| s < index) {
             *pre_cjk = None;
+        }
+        if word.is_some_and(|s| s < index) {
+            *word = None;
         }
         if dash.is_some_and(|s| s < index) {
             *dash = None;
@@ -1817,6 +1958,147 @@ mod tests {
                     "a row starts with {first:?} at {glyphs} glyphs wide"
                 );
             }
+        }
+    }
+
+    /// An application-installed breaker that forces a word boundary at a fixed
+    /// byte offset, to prove the hook works without any feature.
+    struct ForceAt(usize);
+
+    impl LineBreaker for ForceAt {
+        fn word_boundaries(&self, text: &str) -> Vec<Range<usize>> {
+            let word = 0..self.0.min(text.len());
+            vec![word]
+        }
+    }
+
+    /// A breaker returning canned ranges, hostile ones included
+    /// (see `hostile_breaker_ranges_are_safe`).
+    struct Ranges(Vec<Range<usize>>);
+
+    impl LineBreaker for Ranges {
+        fn word_boundaries(&self, _text: &str) -> Vec<Range<usize>> {
+            self.0.clone()
+        }
+    }
+
+    /// A custom [`LineBreaker`] drives row breaks for arbitrary scripts, not
+    /// just Southeast-Asian ones (no feature required).
+    #[test]
+    fn custom_line_breaker_is_used() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Tofu);
+        let mut fonts = fonts.with_pixels_per_point(2.0);
+        let font_id = FontId::proportional(14.0);
+        let text = "abcdefghij";
+        let one = fonts
+            .layout_no_wrap("a".to_owned(), font_id.clone(), Color32::WHITE)
+            .size()
+            .x;
+        // Every width that fits the forced word plus a fraction, so the first
+        // overflow decision happens at or after the forced word end.
+        for n in 4..8 {
+            let width = one * n as f32 + 0.5 * one;
+            let mut job =
+                LayoutJob::simple(text.to_owned(), font_id.clone(), Color32::WHITE, width);
+            job.wrap.line_breaker = Some(Arc::new(ForceAt(4)));
+            let galley = fonts.layout_job(job);
+            let row_texts: Vec<String> = galley.rows.iter().map(|p| p.row.text()).collect();
+            assert!(
+                row_texts.iter().any(|t| t == "abcd"),
+                "no row is \"abcd\" at width {width}: {row_texts:?}"
+            );
+        }
+    }
+
+    /// Two layouts with the same breaker `Arc` hit the galley cache:
+    /// the cache key includes breaker identity (and the cache pins it).
+    #[test]
+    fn same_breaker_arc_hits_the_cache() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Tofu);
+        let mut fonts = fonts.with_pixels_per_point(2.0);
+        let font_id = FontId::proportional(14.0);
+        let breaker: Arc<dyn LineBreaker> = Arc::new(ForceAt(4));
+
+        let job = || {
+            let mut job = LayoutJob::simple(
+                "abcdefghij".to_owned(),
+                font_id.clone(),
+                Color32::WHITE,
+                100.0,
+            );
+            job.wrap.line_breaker = Some(Arc::clone(&breaker));
+            job
+        };
+        let a = fonts.layout_job(job());
+        let b = fonts.layout_job(job());
+        assert!(
+            Arc::ptr_eq(&a, &b),
+            "the same breaker Arc must hit the galley cache"
+        );
+    }
+
+    /// Swapping in a different breaker must re-layout: the cache key includes
+    /// breaker identity, so no stale galley can be served.
+    #[test]
+    fn swapping_the_breaker_relayouts() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Tofu);
+        let mut fonts = fonts.with_pixels_per_point(2.0);
+        let font_id = FontId::proportional(14.0);
+        let text = "abcdefghij";
+        let one = fonts
+            .layout_no_wrap("a".to_owned(), font_id.clone(), Color32::WHITE)
+            .size()
+            .x;
+        let width = one * 8.0 + 0.5 * one;
+
+        let job = |breaker: Arc<dyn LineBreaker>| {
+            let mut job =
+                LayoutJob::simple(text.to_owned(), font_id.clone(), Color32::WHITE, width);
+            job.wrap.line_breaker = Some(breaker);
+            job
+        };
+        let galley4 = fonts.layout_job(job(Arc::new(ForceAt(4))));
+        let galley6 = fonts.layout_job(job(Arc::new(ForceAt(6))));
+
+        let row_texts4: Vec<String> = galley4.rows.iter().map(|p| p.row.text()).collect();
+        let row_texts6: Vec<String> = galley6.rows.iter().map(|p| p.row.text()).collect();
+        assert_ne!(row_texts4, row_texts6);
+    }
+
+    /// A hostile breaker (empty, inverted, overlapping, unsorted, zero-length
+    /// or out-of-bounds ranges) must never panic and never slice the text by
+    /// attacker-controlled offsets.
+    #[test]
+    fn hostile_breaker_ranges_are_safe() {
+        let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::empty())
+            .with_missing_glyph_policy(MissingGlyphPolicy::Tofu);
+        let mut fonts = fonts.with_pixels_per_point(2.0);
+        let font_id = FontId::proportional(14.0);
+        let text = "abcdefghij";
+        let one = fonts
+            .layout_no_wrap("a".to_owned(), font_id.clone(), Color32::WHITE)
+            .size()
+            .x;
+
+        let cases: Vec<Vec<Range<usize>>> = vec![
+            vec![],
+            vec![0..0],
+            vec![text.len()..0],                    // inverted
+            vec![0..usize::MAX],                    // out of bounds
+            vec![1..1],                             // empty
+            vec![0..4, 2..6],                       // overlapping
+            vec![Range { start: 6, end: 2 }, 0..4], // unsorted
+        ];
+        for ranges in cases {
+            let mut job =
+                LayoutJob::simple(text.to_owned(), font_id.clone(), Color32::WHITE, one * 4.0);
+            job.wrap.line_breaker = Some(Arc::new(Ranges(ranges.clone())));
+            let galley = fonts.layout_job(job);
+            let total_glyphs: usize = galley.rows.iter().map(|p| p.row.glyphs.len()).sum();
+            assert_eq!(total_glyphs, text.chars().count(), "ranges: {ranges:?}");
         }
     }
 

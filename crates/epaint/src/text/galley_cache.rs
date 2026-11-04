@@ -4,7 +4,7 @@ use emath::OrderedFloat;
 use nohash_hasher::IntMap;
 
 use crate::text::{
-    ByteIndex, Galley, LayoutJob, LayoutSection,
+    ByteIndex, Galley, LayoutJob, LayoutSection, LineBreaker,
     fonts::FontsImpl,
     text_layout::{layout, normalize_reading_direction},
 };
@@ -18,6 +18,14 @@ struct CachedGalley {
     /// Their `last_used`s should be updated alongside this one to make sure they're
     /// not evicted.
     children: Option<Arc<[u64]>>,
+
+    /// The breaker this galley was laid out with, held by strong reference.
+    ///
+    /// The cache key includes the breaker's allocation address (see
+    /// [`crate::text::TextWrapping::line_breaker`]); this strong reference pins that
+    /// address for as long as the entry lives, so a new breaker can only be
+    /// allocated at it after this entry is gone.
+    breaker: Option<Arc<dyn LineBreaker>>,
 
     galley: Arc<Galley>,
 }
@@ -65,29 +73,49 @@ impl GalleyCache {
             job.wrap.max_width = job.wrap.max_width.round();
         }
 
+        let job_breaker = job.wrap.line_breaker.clone();
+
         let hash = crate::util::hash((&job, OrderedFloat(pixels_per_point))); // TODO(emilk): even faster hasher?
 
         let galley = match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {
-                // The job was found in cache - no need to re-layout.
                 let cached = entry.into_mut();
-                cached.last_used = self.generation;
+                if same_breaker(cached.breaker.as_ref(), job_breaker.as_ref()) {
+                    // The job was found in cache - no need to re-layout.
+                    cached.last_used = self.generation;
 
-                let galley = Arc::clone(&cached.galley);
-                if let Some(children) = &cached.children {
-                    // The point of `allow_split_paragraphs` is to split large jobs into paragraph,
-                    // and then cache each paragraph individually.
-                    // That way, if we edit a single paragraph, only that paragraph will be re-layouted.
-                    // For that to work we need to keep all the child/paragraph
-                    // galleys alive while the parent galley is alive:
-                    for child_hash in Arc::clone(children).iter() {
-                        if let Some(cached_child) = self.cache.get_mut(child_hash) {
-                            cached_child.last_used = self.generation;
+                    let galley = Arc::clone(&cached.galley);
+                    if let Some(children) = &cached.children {
+                        // The point of `allow_split_paragraphs` is to split large jobs into paragraph,
+                        // and then cache each paragraph individually.
+                        // That way, if we edit a single paragraph, only that paragraph will be re-layouted.
+                        // For that to work we need to keep all the child/paragraph
+                        // galleys alive while the parent galley is alive:
+                        for child_hash in Arc::clone(children).iter() {
+                            if let Some(cached_child) = self.cache.get_mut(child_hash) {
+                                cached_child.last_used = self.generation;
+                            }
                         }
                     }
-                }
 
-                galley
+                    galley
+                } else {
+                    // Only reachable on a 64-bit hash collision: a recycled
+                    // breaker address can never hit a live entry (see
+                    // `CachedGalley::breaker`), and a different live breaker
+                    // hashes differently. Serve nothing stale — re-layout and
+                    // replace. The plain (unsplit) path is fine here: this
+                    // fires at most once per collision.
+                    let job = Arc::new(job);
+                    let galley = Arc::new(layout(fonts, pixels_per_point, job));
+                    *cached = CachedGalley {
+                        last_used: self.generation,
+                        children: None,
+                        breaker: job_breaker,
+                        galley: Arc::clone(&galley),
+                    };
+                    galley
+                }
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
                 // Resolve the base direction once from the whole job text and pin it,
@@ -109,6 +137,7 @@ impl GalleyCache {
                         CachedGalley {
                             last_used: self.generation,
                             children: Some(child_hashes.into()),
+                            breaker: job_breaker.clone(),
                             galley: Arc::clone(&galley),
                         },
                     );
@@ -119,6 +148,7 @@ impl GalleyCache {
                     entry.insert(CachedGalley {
                         last_used: self.generation,
                         children: None,
+                        breaker: job_breaker.clone(),
                         galley: Arc::clone(&galley),
                     });
                     galley
@@ -170,6 +200,7 @@ impl GalleyCache {
                 text: job.text[start..end].to_owned(),
                 wrap: crate::text::TextWrapping {
                     max_rows: max_rows_remaining,
+                    line_breaker: job.wrap.line_breaker.clone(),
                     ..job.wrap
                 },
                 sections: Vec::new(),
@@ -273,13 +304,24 @@ fn should_cache_each_paragraph_individually(job: &LayoutJob) -> bool {
     job.break_on_newline && job.wrap.max_rows == usize::MAX && job.text.contains('\n')
 }
 
+/// `Arc` identity of two optional breakers.
+fn same_breaker(a: Option<&Arc<dyn LineBreaker>>, b: Option<&Arc<dyn LineBreaker>>) -> bool {
+    match (a, b) {
+        (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
 #[cfg(feature = "default_fonts")]
 #[cfg(test)]
 mod tests {
     use core::f32;
 
     use super::*;
-    use crate::text::{FontDefinitions, FontFamily, FontId, TextOptions, TextWrapping};
+    use crate::text::{
+        FontDefinitions, FontFamily, FontId, NoopLineBreaker, TextOptions, TextWrapping,
+    };
     use crate::{Stroke, text::TextFormat};
     use ecolor::Color32;
     use emath::Align;
@@ -431,6 +473,27 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn same_breaker_identity() {
+        let a: Option<Arc<dyn LineBreaker>> = Some(Arc::new(NoopLineBreaker));
+        let b = a.clone();
+        let c: Option<Arc<dyn LineBreaker>> = Some(Arc::new(NoopLineBreaker));
+        let n: Option<Arc<dyn LineBreaker>> = None;
+        assert!(
+            same_breaker(a.as_ref(), b.as_ref()),
+            "clones of one Arc are the same breaker"
+        );
+        assert!(
+            !same_breaker(a.as_ref(), c.as_ref()),
+            "two distinct Arcs of the same type are different breakers"
+        );
+        assert!(
+            !same_breaker(a.as_ref(), n.as_ref()),
+            "Some and None differ"
+        );
+        assert!(same_breaker(n.as_ref(), n.as_ref()));
     }
 
     #[test]

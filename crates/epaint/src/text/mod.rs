@@ -14,6 +14,7 @@ mod galley_cache;
 mod glyph_atlas;
 mod glyph_rasterizer;
 mod index;
+mod line_breaker;
 mod styled_metrics;
 mod text_layout;
 mod text_layout_types;
@@ -31,6 +32,7 @@ pub use {
         has_emoji_presentation,
     },
     index::{ByteIndex, ByteRange, ByteRangeExt, CharIndex, CharRange, CharRangeExt},
+    line_breaker::{LineBreaker, NoopLineBreaker},
     text_layout_types::*,
 };
 
