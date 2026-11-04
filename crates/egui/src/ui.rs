@@ -2877,11 +2877,22 @@ impl Ui {
         let spacing = self.spacing().item_spacing.x;
         let total_spacing = spacing * (num_columns as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (num_columns as f32);
-        let top_left = self.cursor().min;
+        let cursor = self.cursor();
+        let top_left = cursor.min;
+        // Columns are enumerated from the reading-start edge, like `Grid` cells
+        // (see `Grid::next_cell`): the first column hugs that edge under RTL.
+        let rtl = self.placer().prefer_right_to_left(self.is_rtl());
 
         let mut columns: Vec<Self> = (0..num_columns)
             .map(|col_idx| {
-                let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+                let pos_x = if rtl {
+                    cursor.max.x
+                        - ((col_idx + 1) as f32) * column_width
+                        - (col_idx as f32) * spacing
+                } else {
+                    top_left.x + (col_idx as f32) * (column_width + spacing)
+                };
+                let pos = pos2(pos_x, top_left.y);
                 let child_rect = Rect::from_min_max(
                     pos,
                     pos2(pos.x + column_width, self.max_rect().right_bottom().y),
@@ -2935,10 +2946,19 @@ impl Ui {
         let spacing = self.spacing().item_spacing.x;
         let total_spacing = spacing * (NUM_COL as f32 - 1.0);
         let column_width = (self.available_width() - total_spacing) / (NUM_COL as f32);
-        let top_left = self.cursor().min;
+        let cursor = self.cursor();
+        let top_left = cursor.min;
+        // Columns are enumerated from the reading-start edge, like `Grid` cells
+        // (see `Grid::next_cell`): the first column hugs that edge under RTL.
+        let rtl = self.placer().prefer_right_to_left(self.is_rtl());
 
         let mut columns = core::array::from_fn(|col_idx| {
-            let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+            let pos_x = if rtl {
+                cursor.max.x - ((col_idx + 1) as f32) * column_width - (col_idx as f32) * spacing
+            } else {
+                top_left.x + (col_idx as f32) * (column_width + spacing)
+            };
+            let pos = pos2(pos_x, top_left.y);
             let child_rect = Rect::from_min_max(
                 pos,
                 pos2(pos.x + column_width, self.max_rect().right_bottom().y),
