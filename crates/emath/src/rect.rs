@@ -1,6 +1,9 @@
 use alloc::fmt;
 
-use crate::{Div, Mul, NumExt as _, Pos2, Rangef, Rot2, Vec2, fast_midpoint, lerp, pos2, vec2};
+use crate::{
+    Div, Mul, NumExt as _, Pos2, Rangef, ReadingDirection, Rot2, Vec2, fast_midpoint, lerp, pos2,
+    vec2,
+};
 use core::ops::{BitOr, BitOrAssign};
 
 /// A rectangular region of space.
@@ -142,6 +145,38 @@ impl Rect {
         let mut rect = Self::EVERYTHING;
         rect.set_right(right_x);
         rect
+    }
+
+    /// A [`Rect`] that contains every point that comes *after* the given X
+    /// coordinate in reading order: everything to the right of it under
+    /// left-to-right reading, everything to the left of it under
+    /// right-to-left reading.
+    ///
+    /// The physical [`Self::everything_right_of`] / [`Self::everything_left_of`]
+    /// remain the right choice for things that always read left-to-right no
+    /// matter the locale, like canvases, graphs and numeric fields.
+    #[inline]
+    pub fn everything_after_x(x: f32, dir: ReadingDirection) -> Self {
+        match dir {
+            ReadingDirection::Ltr => Self::everything_right_of(x),
+            ReadingDirection::Rtl => Self::everything_left_of(x),
+        }
+    }
+
+    /// A [`Rect`] that contains every point that comes *before* the given X
+    /// coordinate in reading order: everything to the left of it under
+    /// left-to-right reading, everything to the right of it under
+    /// right-to-left reading.
+    ///
+    /// The physical [`Self::everything_right_of`] / [`Self::everything_left_of`]
+    /// remain the right choice for things that always read left-to-right no
+    /// matter the locale, like canvases, graphs and numeric fields.
+    #[inline]
+    pub fn everything_before_x(x: f32, dir: ReadingDirection) -> Self {
+        match dir {
+            ReadingDirection::Ltr => Self::everything_left_of(x),
+            ReadingDirection::Rtl => Self::everything_right_of(x),
+        }
     }
 
     /// A [`Rect`] that contains every point below a certain y coordinate
@@ -719,6 +754,68 @@ impl Rect {
         let bottom = Self::from_min_max(Pos2::new(self.min.x, split_y), self.max);
         (top, bottom)
     }
+
+    /// Split the rectangle in two halves at the given fraction `t` of its
+    /// width, in reading order. `t` is expected to be in the (0,1) range.
+    ///
+    /// [`Split::start`] is the half that comes first in reading order for
+    /// `dir` and [`Split::end`] the other half, so the meaning of the fields
+    /// never silently swaps with the reading direction the way the halves of
+    /// a positional `(left, right)` tuple would.
+    ///
+    /// The physical [`Self::split_left_right_at_fraction`] remains the right
+    /// choice for things that always read left-to-right no matter the locale,
+    /// like canvases, graphs and numeric fields.
+    ///
+    /// See also [`Self::split_inline_at_x`].
+    #[inline]
+    pub fn split_inline_at_fraction(self, dir: ReadingDirection, t: f32) -> Split {
+        self.split_inline_at_x(dir, lerp(self.min.x..=self.max.x, t))
+    }
+
+    /// Split the rectangle in two halves at the given `x` coordinate,
+    /// in reading order.
+    ///
+    /// [`Split::start`] is the half that comes first in reading order for
+    /// `dir` and [`Split::end`] the other half.
+    ///
+    /// The physical [`Self::split_left_right_at_x`] remains the right choice
+    /// for things that always read left-to-right no matter the locale, like
+    /// canvases, graphs and numeric fields.
+    ///
+    /// See also [`Self::split_inline_at_fraction`].
+    #[inline]
+    pub fn split_inline_at_x(self, dir: ReadingDirection, split_x: f32) -> Split {
+        let (left, right) = self.split_left_right_at_x(split_x);
+        match dir {
+            ReadingDirection::Ltr => Split {
+                start: left,
+                end: right,
+            },
+            ReadingDirection::Rtl => Split {
+                start: right,
+                end: left,
+            },
+        }
+    }
+}
+
+/// The two halves of a [`Rect`] split along a vertical line, in reading order.
+///
+/// Returned by [`Rect::split_inline_at_fraction`] and [`Rect::split_inline_at_x`].
+///
+/// The halves are named for their position in reading order, not their physical
+/// position: [`Split::start`] is the half a reader encounters first for the
+/// [`ReadingDirection`] used (the left half under left-to-right reading, the
+/// right half under right-to-left reading), and [`Split::end`] the other half.
+/// Prefer these named fields over a positional tuple, whose meaning would
+/// silently swap with the reading direction.
+pub struct Split {
+    /// The half of the rectangle that comes first in reading order.
+    pub start: Rect,
+
+    /// The half of the rectangle that comes last in reading order.
+    pub end: Rect,
 }
 
 impl Rect {
@@ -1006,5 +1103,79 @@ mod tests {
 
         // Mirroring the container within itself yields the container.
         assert_eq!(container.mirror_horizontally_within(container), container);
+    }
+
+    #[test]
+    fn test_everything_after_before_x() {
+        // Under LTR the reading-order helpers must equal their physical twins.
+        assert_eq!(
+            Rect::everything_after_x(10.0, ReadingDirection::Ltr),
+            Rect::everything_right_of(10.0)
+        );
+        assert_eq!(
+            Rect::everything_before_x(10.0, ReadingDirection::Ltr),
+            Rect::everything_left_of(10.0)
+        );
+
+        // Under RTL they are swapped.
+        assert_eq!(
+            Rect::everything_after_x(10.0, ReadingDirection::Rtl),
+            Rect::everything_left_of(10.0)
+        );
+        assert_eq!(
+            Rect::everything_before_x(10.0, ReadingDirection::Rtl),
+            Rect::everything_right_of(10.0)
+        );
+
+        // Together they partition the plane in reading order.
+        let after = Rect::everything_after_x(10.0, ReadingDirection::Ltr);
+        let before = Rect::everything_before_x(10.0, ReadingDirection::Ltr);
+        assert_eq!(after.left(), 10.0);
+        assert_eq!(before.right(), 10.0);
+    }
+
+    #[test]
+    fn test_split_inline() {
+        let r = Rect::from_min_max(pos2(10.0, 0.0), pos2(30.0, 5.0));
+
+        // Under LTR the reading-order split equals the physical one.
+        let split_ltr = r.split_inline_at_x(ReadingDirection::Ltr, 15.0);
+        let (left, right) = r.split_left_right_at_x(15.0);
+        assert_eq!(split_ltr.start, left);
+        assert_eq!(split_ltr.end, right);
+
+        // Under RTL the halves are swapped.
+        let split_rtl = r.split_inline_at_x(ReadingDirection::Rtl, 15.0);
+        assert_eq!(split_rtl.start, right);
+        assert_eq!(split_rtl.end, left);
+
+        // The halves are adjacent in both directions: they share the split
+        // boundary (the reading-start half's right edge under LTR, its left
+        // edge under RTL).
+        for split in [&split_ltr, &split_rtl] {
+            assert!(
+                split.start.right() == split.end.left() || split.start.left() == split.end.right()
+            );
+            assert_eq!(split.start.union(split.end), r);
+            assert_eq!(split.start.height(), r.height());
+            assert_eq!(split.end.height(), r.height());
+        }
+        // Under LTR specifically the reading-order halves sit in reading order:
+        assert_eq!(split_ltr.start.right(), split_ltr.end.left());
+        // Under RTL the reading order runs the other way:
+        assert_eq!(split_rtl.start.left(), split_rtl.end.right());
+
+        // The fraction variant splits at t of the width.
+        let split_at_half = r.split_inline_at_fraction(ReadingDirection::Ltr, 0.5);
+        assert_eq!(split_at_half.start, r.split_left_right_at_fraction(0.5).0);
+        assert_eq!(split_at_half.end, r.split_left_right_at_fraction(0.5).1);
+        assert_eq!(split_at_half.start.right(), 20.0);
+
+        // t = 0 and t = 1 degenerate to a zero-width half on the
+        // reading-start side.
+        let split_at_start = r.split_inline_at_fraction(ReadingDirection::Ltr, 0.0);
+        assert_eq!(split_at_start.start.width(), 0.0);
+        let split_at_end = r.split_inline_at_fraction(ReadingDirection::Rtl, 0.0);
+        assert_eq!(split_at_end.end.width(), 0.0);
     }
 }
