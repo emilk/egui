@@ -11,7 +11,7 @@
 
 use egui::epaint::Shape;
 use egui::{
-    Align, Context, FullOutput, Label, Layout, Pos2, RawInput, Rect, RichText, Ui, Vec2,
+    Align, Context, FullOutput, Label, Layout, Pos2, RawInput, Rect, RichText, TextEdit, Ui, Vec2,
     WidgetText, vec2,
 };
 use egui::{epaint::text::TextDirection, text::LayoutJob};
@@ -176,6 +176,34 @@ fn explicit_job_direction_wins_over_the_interface() {
         "the row anchors at the reading-start edge in an RTL interface: rect {:?}",
         entry.1
     );
+}
+
+/// In a right-to-left interface the `TextEdit` default layouter stamps the same
+/// right-to-left base direction, so edited text matches the label path; without
+/// the flag the direction stays first-strong.
+#[test]
+fn text_edit_default_layouter_follows_the_interface_direction() {
+    for (rtl, want_direction) in [
+        (false, Some(TextDirection::LeftToRight)),
+        (true, Some(TextDirection::RightToLeft)),
+    ] {
+        let ctx = Context::default();
+        if rtl {
+            ctx.set_right_to_left(true);
+        }
+        let mut value = MIXED.to_owned();
+        let output = run(&ctx, input(SCREEN), |ui| {
+            ui.add(TextEdit::singleline(&mut value).desired_width(200.0));
+        });
+
+        let texts = painted_texts(&output);
+        let entry = painted_text(&texts, MIXED)
+            .unwrap_or_else(|| panic!("the edited text should paint (rtl = {rtl}), got {texts:?}"));
+        assert_eq!(
+            entry.2, want_direction,
+            "the TextEdit default layouter follows the interface flag (rtl = {rtl})"
+        );
+    }
 }
 
 /// The `into_galley_impl` `LayoutJob` arm keeps the stamp from clobbering an
