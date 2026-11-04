@@ -1,8 +1,8 @@
-use jiff::civil::{Date, Weekday};
+use jiff::civil::Date;
 
 use egui::{Align, Button, Color32, ComboBox, Direction, Id, Layout, RichText, Ui, Vec2};
 
-use super::{button::DatePickerButtonState, month_data};
+use super::{button::DatePickerButtonState, month_data, DateLocale};
 
 use crate::{Column, Size, StripBuilder, TableBuilder};
 
@@ -35,6 +35,7 @@ pub(crate) struct DatePickerPopup<'a> {
     pub start_end_years: Option<core::ops::RangeInclusive<i16>>,
     pub reverse_years: bool,
     pub year_scroll_to: Option<i16>,
+    pub locale: DateLocale,
 }
 
 impl DatePickerPopup<'_> {
@@ -54,7 +55,7 @@ impl DatePickerPopup<'_> {
             ui.data_mut(|data| data.insert_persisted(id, popup_state.clone()));
         }
 
-        let weeks = month_data(popup_state.year, popup_state.month);
+        let weeks = month_data(popup_state.year, popup_state.month, self.locale.first_weekday);
         let (mut close, mut saved) = (false, false);
         let height = 20.0;
         let spacing = 2.0;
@@ -126,14 +127,14 @@ impl DatePickerPopup<'_> {
                             });
                             strip.cell(|ui| {
                                 ComboBox::from_id_salt("date_picker_month")
-                                    .selected_text(month_name(popup_state.month))
+                                    .selected_text(month_name(&self.locale, popup_state.month))
                                     .show_ui(ui, |ui| {
                                         for month in 1i8..=12 {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.month,
                                                     month,
-                                                    month_name(month),
+                                                    month_name(&self.locale, month),
                                                 )
                                                 .changed()
                                             {
@@ -292,14 +293,23 @@ impl DatePickerPopup<'_> {
                                         ui.with_layout(
                                             Layout::centered_and_justified(Direction::TopDown),
                                             |ui| {
-                                                ui.label("Week");
+                                                ui.label(self.locale.week_label.clone());
                                             },
                                         );
                                     });
                                 }
 
-                                //TODO(elwerene): Locale
-                                for name in ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] {
+                                // Weekday names are locale data, rotated so the first column
+                                // is `locale.first_weekday`. Which edge column 0 is drawn on is
+                                // `StripLayout`'s business (see `egui_extras` layout.rs), so the
+                                // cells themselves are deliberately not reversed here.
+                                let first = self.locale.first_weekday.to_monday_zero_offset() as usize;
+                                let weekday_names: Vec<String> = (0..7)
+                                    .map(|offset| {
+                                        self.locale.weekday_names[(first + offset) % 7].clone()
+                                    })
+                                    .collect();
+                                for name in weekday_names {
                                     header.col(|ui| {
                                         ui.with_layout(
                                             Layout::centered_and_justified(Direction::TopDown),
@@ -329,10 +339,10 @@ impl DatePickerPopup<'_> {
                                                             && popup_state.day == day.day()
                                                         {
                                                             ui.visuals().selection.bg_fill
-                                                        } else if (matches!(
-                                                            day.weekday(),
-                                                            Weekday::Saturday | Weekday::Sunday
-                                                        )) && self.highlight_weekends
+                                                        } else if self.locale
+                                                            .weekend
+                                                            .contains(&day.weekday())
+                                                            && self.highlight_weekends
                                                         {
                                                             if ui.visuals().dark_mode {
                                                                 Color32::DARK_RED
@@ -439,20 +449,14 @@ impl DatePickerPopup<'_> {
     }
 }
 
-fn month_name(i: i8) -> &'static str {
-    match i {
-        1 => "January",
-        2 => "February",
-        3 => "March",
-        4 => "April",
-        5 => "May",
-        6 => "June",
-        7 => "July",
-        8 => "August",
-        9 => "September",
-        10 => "October",
-        11 => "November",
-        12 => "December",
-        _ => panic!("Unknown month: {i}"),
-    }
+/// Look up the month name in the locale. The month comes from persisted state
+/// (`DatePickerPopupState::month` is a bare `i8`), so out-of-range values fall
+/// back to the first month's name instead of panicking.
+fn month_name(locale: &DateLocale, month: i8) -> String {
+    let index = usize::try_from(month.saturating_sub(1)).unwrap_or(0);
+    locale
+        .month_names
+        .get(index)
+        .cloned()
+        .unwrap_or_else(|| locale.month_names[0].clone())
 }

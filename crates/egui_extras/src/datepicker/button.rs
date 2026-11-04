@@ -1,4 +1,5 @@
 use super::popup::DatePickerPopup;
+use super::DateLocale;
 use core::ops::RangeInclusive;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
 use jiff::civil::Date;
@@ -23,6 +24,7 @@ pub struct DatePickerButton<'a> {
     start_end_years: Option<RangeInclusive<i16>>,
     reverse_years: bool,
     year_scroll_to: Option<i16>,
+    locale: DateLocale,
 }
 
 impl<'a> DatePickerButton<'a> {
@@ -40,6 +42,7 @@ impl<'a> DatePickerButton<'a> {
             start_end_years: None,
             reverse_years: false,
             year_scroll_to: None,
+            locale: DateLocale::default(),
         }
     }
 
@@ -126,6 +129,15 @@ impl<'a> DatePickerButton<'a> {
         self.year_scroll_to = Some(year);
         self
     }
+
+    /// Set the locale used by the date picker popup: weekday and month names,
+    /// the first day of the week, the weekend days, the "Week" label and the
+    /// reading direction. (Default: `DateLocale::default()`)
+    #[inline]
+    pub fn locale(mut self, locale: DateLocale) -> Self {
+        self.locale = locale;
+        self
+    }
 }
 
 impl Widget for DatePickerButton<'_> {
@@ -136,7 +148,15 @@ impl Widget for DatePickerButton<'_> {
             .unwrap_or_default();
 
         let mut text = if self.show_icon {
-            RichText::new(format!("{} 📆", self.selection.strftime(&self.format)))
+            if self.locale.rtl {
+                // Under RTL the icon leads so the glyph stays at the visual
+                // reading start. Superseded by epaint bidi support
+                // (https://github.com/emilk/egui/pull/8818 and
+                // https://github.com/emilk/egui/pull/8822) once that lands.
+                RichText::new(format!("📆 {}", self.selection.strftime(&self.format)))
+            } else {
+                RichText::new(format!("{} 📆", self.selection.strftime(&self.format)))
+            }
         } else {
             RichText::new(format!("{}", self.selection.strftime(&self.format)))
         };
@@ -156,16 +176,37 @@ impl Widget for DatePickerButton<'_> {
 
         if button_state.picker_visible {
             let width = 333.0;
-            let mut pos = button_response.rect.left_bottom();
-            let width_with_padding = width
-                + ui.style().spacing.item_spacing.x
-                + ui.style().spacing.window_margin.leftf()
-                + ui.style().spacing.window_margin.rightf();
-            if pos.x + width_with_padding > ui.clip_rect().right() {
-                pos.x = button_response.rect.right() - width_with_padding;
-            }
+            let margin = ui.style().spacing.window_margin;
+            let item_spacing = ui.style().spacing.item_spacing.x;
+            let mut pos = if self.locale.rtl {
+                // RTL: the popup hangs off the button's right (reading-start)
+                // edge and extends toward the reading end — the mirror of the
+                // LTR `left_bottom()` anchor below.
+                button_response.rect.right_bottom() - egui::vec2(width, 0.0)
+            } else {
+                button_response.rect.left_bottom()
+            };
+            let width_with_padding = width + item_spacing + margin.leftf() + margin.rightf();
+            if self.locale.rtl {
+                if pos.x - item_spacing - margin.leftf() - margin.rightf() < ui.clip_rect().left() {
+                    // Left-edge overflow: flip to the button's other side, the
+                    // mirror of the LTR flip below.
+                    pos.x = button_response.rect.left()
+                        + item_spacing
+                        + margin.leftf()
+                        + margin.rightf();
+                }
+                pos.x = pos
+                    .x
+                    .min(ui.clip_rect().right() - margin.rightf() - width)
+                    .max(margin.leftf());
+            } else {
+                if pos.x + width_with_padding > ui.clip_rect().right() {
+                    pos.x = button_response.rect.right() - width_with_padding;
+                }
 
-            pos.x = pos.x.max(ui.style().spacing.window_margin.leftf());
+                pos.x = pos.x.max(margin.leftf());
+            }
 
             //TODO(elwerene): Better positioning
 
@@ -194,6 +235,7 @@ impl Widget for DatePickerButton<'_> {
                                 start_end_years: self.start_end_years,
                                 reverse_years: self.reverse_years,
                                 year_scroll_to: self.year_scroll_to,
+                                locale: self.locale,
                             }
                             .draw(ui)
                         })

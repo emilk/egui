@@ -27,7 +27,7 @@ mod svg_glyph;
 mod table;
 
 #[cfg(feature = "datepicker")]
-pub use crate::datepicker::DatePickerButton;
+pub use crate::datepicker::{DateLocale, DatePickerButton};
 
 pub(crate) use crate::layout::StripLayout;
 pub use crate::sizing::Size;
