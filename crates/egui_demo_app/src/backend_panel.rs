@@ -367,7 +367,11 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                         Some(egui::vec2(375.0, 667.0)),
                         "📱 iPhone SE 2nd Gen",
                     );
-                    ui.selectable_value(&mut size, Some(egui::vec2(393.0, 852.0)), "📱 iPhone 15");
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(393.0, 852.0)),
+                        i18n::t("📱 iPhone 15"),
+                    );
                     ui.selectable_value(
                         &mut size,
                         Some(egui::vec2(1280.0, 720.0)),
@@ -529,11 +533,11 @@ impl EguiWindows {
             .resizable(true)
             .default_width(520.0)
             .show(ctx, |ui| {
-                ui.label(
+                ui.label(i18n::t(
                     "Recent output events from egui. \
             These are emitted when you interact with widgets, or move focus between them with TAB. \
             They can be hooked up to a screen reader on supported platforms.",
-                );
+                ));
 
                 ui.separator();
 

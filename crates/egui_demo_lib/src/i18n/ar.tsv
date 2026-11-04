@@ -830,3 +830,11 @@
 	Type here	اكتب هنا
 	↔️ freely resized	↔️ تغيير حر للحجم
 	This window has empty space that fills up the available space, preventing auto-shrink.	في هذه النافذة مساحة فارغة تمتلئ بالمساحة المتاحة، ما يمنع التقليص التلقائي.
+# app windows — the T2 wiring sweep (fractal_clock local time, the glow 3D sentence,
+# image_viewer UV header and slider labels, backend_panel iPhone preset)
+	Local time: {time}	التوقيت المحلي: {time}
+	 (OpenGL).	 (عبر OpenGL).
+	UV	إحداثيات UV
+	width	العرض
+	height	الارتفاع
+	📱 iPhone 15	📱 آيفون 15

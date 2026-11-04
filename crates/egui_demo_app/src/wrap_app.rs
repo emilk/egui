@@ -70,9 +70,9 @@ impl DemoApp for ColorTestApp {
     fn demo_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ui, |ui| {
             if frame.is_web() {
-                ui.label(
-                        "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
-                    );
+                ui.label(i18n::t(
+                    "NOTE: Some old browsers stuck on WebGL1 without sRGB support will not pass the color test.",
+                ));
                 ui.separator();
             }
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {

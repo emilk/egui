@@ -107,18 +107,20 @@ impl crate::DemoApp for Custom3d {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("The triangle is being painted using ");
+                    ui.label(egui_demo_lib::i18n::t("The triangle is being painted using "));
                     ui.hyperlink_to("WGPU", "https://wgpu.rs");
-                    ui.label(" (Portable Rust graphics API awesomeness)");
+                    ui.label(egui_demo_lib::i18n::t(
+                        " (Portable Rust graphics API awesomeness)",
+                    ));
                 });
-                ui.label(
+                ui.label(egui_demo_lib::i18n::t(
                     "It's not a very impressive demo, but it shows you can embed 3D inside of egui.",
-                );
+                ));
 
                 egui::Frame::canvas(ui.style()).show(ui, |ui| {
                     self.custom_painting(ui);
                 });
-                ui.label("Drag to rotate!");
+                ui.label(egui_demo_lib::i18n::t("Drag to rotate!"));
                 ui.add(egui_demo_lib::egui_github_link_file!());
             });
         });

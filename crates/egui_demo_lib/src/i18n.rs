@@ -1000,6 +1000,16 @@ mod tests {
         " (Portable Rust graphics API awesomeness)",
         "It's not a very impressive demo, but it shows you can embed 3D inside of egui.",
         "Drag to rotate!",
+        // apps/fractal_clock.rs — the local-time readout (the value is pre-formatted in Rust)
+        "Local time: {time}",
+        // apps/custom3d_glow.rs — the tail of the 3D sentence in the glow variant
+        " (OpenGL).",
+        // apps/image_viewer.rs — the UV section header and the generic slider labels
+        "UV",
+        "width",
+        "height",
+        // backend_panel.rs — the iPhone 15 viewport preset, missed by the first pass
+        "📱 iPhone 15",
         // main.rs — window title
         "egui demo app",
         // lib.rs — the source-code hyperlink macro
