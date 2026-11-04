@@ -632,11 +632,9 @@ fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
 
     // Genuine negative width delta, via the max-size clamp: a screen narrower than
     // the window clamps the window's max width (with constraining off, so the
-    // clamp is the only thing acting on the window). Under LTR the window shrinks
-    // with the reading-start (left) edge fixed and the right edge moving left by
-    // exactly the width delta. Under RTL the window's persisted width is monotonic
-    // (see the content-shrink note above: the clamp shrinks the offered rect, but
-    // the laid-out min stays at the old width), so nothing may move at all.
+    // clamp is the only thing acting on the window). In both directions the window
+    // shrinks with the reading-start edge fixed and the far edge moving by
+    // exactly the width delta.
     for (rtl, pos) in [(true, pos2(650.0, 50.0)), (false, pos2(100.0, 50.0))] {
         let ctx = Context::default();
         ctx.set_right_to_left(rtl);
@@ -684,8 +682,21 @@ fn resizable_window_keeps_reading_start_edge_fixed_under_rtl() {
         let clamped = clamp_settle(&ctx, 150.0, pos);
         if rtl {
             assert!(
-                same_rect(clamped, wide_screen),
-                "RTL: clamping the max size must not move or resize the window \
+                clamped.width() < wide_screen.width() - 20.0,
+                "RTL: clamping the max size must shrink the window \
+                 (wide screen {wide_screen:?}, narrow screen {clamped:?})"
+            );
+            assert!(
+                (clamped.right() - wide_screen.right()).abs() <= 1.0,
+                "RTL: the window's reading-start (right) edge must stay fixed while the \
+                 max-size clamp shrinks it \
+                 (wide screen {wide_screen:?}, narrow screen {clamped:?})"
+            );
+            let delta = wide_screen.width() - clamped.width();
+            assert!(
+                (clamped.left() - (wide_screen.left() + delta)).abs() <= 1.0,
+                "RTL: the window's left edge must move right by the width delta while \
+                 the max-size clamp shrinks it \
                  (wide screen {wide_screen:?}, narrow screen {clamped:?})"
             );
         } else {
