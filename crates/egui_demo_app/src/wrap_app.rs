@@ -451,6 +451,16 @@ impl WrapApp {
 
         egui::widgets::global_theme_preference_buttons(ui);
 
+        // Demo toggle for the reading direction and UI language (issue #14):
+        // flip to Arabic/RTL to exercise right-to-left widgets such as the
+        // date picker popup. Fork-side only; not upstreamable.
+        let mut rtl = ui.ctx().is_rtl();
+        if ui.toggle_value(&mut rtl, "↔ RTL · العربية").changed() {
+            ui.ctx().set_right_to_left(rtl);
+            ui.ctx()
+                .set_language(if rtl { "ar-EG" } else { "en" });
+        }
+
         ui.separator();
 
         ui.menu_button(i18n::t("🌐 Language"), |ui| {
