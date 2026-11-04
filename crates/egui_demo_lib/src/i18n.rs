@@ -508,11 +508,10 @@ mod tests {
         "Custom widget",
         "It's easy to create your own widgets!\nThis toggle switch is just 15 lines of code.",
         "Search egui docs for",
-        // Whitelist: strings that legitimately read the same in Arabic, with the reason.
-        // (none — every scoped key has a real translation)
     ];
 
-    /// Untranslated placeholder rows (translation == key), each with a reason. Must stay empty.
+    /// Scoped keys whose translation legitimately equals the key (technology names),
+    /// each with its reason inline; every other scoped key must have a real translation.
     fn identity_whitelist() -> &'static [&'static str] {
         &["⬇️ HTTP"] // a technology name that reads the same in Arabic
     }
