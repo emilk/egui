@@ -297,7 +297,7 @@ impl DemoWindows {
     }
 
     fn desktop_ui(&mut self, ui: &mut egui::Ui) {
-        egui::Panel::right("egui_demo_panel")
+        egui::Panel::end("egui_demo_panel")
             .resizable(false)
             .default_size(160.0)
             .min_size(160.0)
