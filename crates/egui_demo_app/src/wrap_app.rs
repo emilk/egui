@@ -457,8 +457,7 @@ impl WrapApp {
         let mut rtl = ui.ctx().is_rtl();
         if ui.toggle_value(&mut rtl, "↔ RTL · العربية").changed() {
             ui.ctx().set_right_to_left(rtl);
-            ui.ctx()
-                .set_language(if rtl { "ar-EG" } else { "en" });
+            ui.ctx().set_language(if rtl { "ar-EG" } else { "en" });
         }
 
         ui.separator();

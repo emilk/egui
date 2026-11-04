@@ -2,7 +2,7 @@ use jiff::civil::Date;
 
 use egui::{Align, Button, Color32, ComboBox, Direction, Id, Layout, RichText, Ui, Vec2};
 
-use super::{button::DatePickerButtonState, month_data, DateLocale};
+use super::{DateLocale, button::DatePickerButtonState, month_data};
 
 use crate::{Column, Size, StripBuilder, TableBuilder};
 
@@ -55,7 +55,11 @@ impl DatePickerPopup<'_> {
             ui.data_mut(|data| data.insert_persisted(id, popup_state.clone()));
         }
 
-        let weeks = month_data(popup_state.year, popup_state.month, self.locale.first_weekday);
+        let weeks = month_data(
+            popup_state.year,
+            popup_state.month,
+            self.locale.first_weekday,
+        );
         let (mut close, mut saved) = (false, false);
         let height = 20.0;
         let spacing = 2.0;
@@ -303,7 +307,8 @@ impl DatePickerPopup<'_> {
                                 // is `locale.first_weekday`. Which edge column 0 is drawn on is
                                 // `StripLayout`'s business (see `egui_extras` layout.rs), so the
                                 // cells themselves are deliberately not reversed here.
-                                let first = self.locale.first_weekday.to_monday_zero_offset() as usize;
+                                let first =
+                                    self.locale.first_weekday.to_monday_zero_offset() as usize;
                                 let weekday_names: Vec<String> = (0..7)
                                     .map(|offset| {
                                         self.locale.weekday_names[(first + offset) % 7].clone()
@@ -339,7 +344,8 @@ impl DatePickerPopup<'_> {
                                                             && popup_state.day == day.day()
                                                         {
                                                             ui.visuals().selection.bg_fill
-                                                        } else if self.locale
+                                                        } else if self
+                                                            .locale
                                                             .weekend
                                                             .contains(&day.weekday())
                                                             && self.highlight_weekends

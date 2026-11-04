@@ -1,5 +1,5 @@
-use super::popup::DatePickerPopup;
 use super::DateLocale;
+use super::popup::DatePickerPopup;
 use core::ops::RangeInclusive;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
 use jiff::civil::Date;

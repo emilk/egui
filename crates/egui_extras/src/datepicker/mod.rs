@@ -217,10 +217,31 @@ mod tests {
     #[test]
     fn constructed_locale_round_trips_its_fields() {
         let locale = DateLocale {
-            weekday_names: ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
-                .map(str::to_owned),
-            month_names: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
-                .map(str::to_owned),
+            weekday_names: [
+                "الاثنين",
+                "الثلاثاء",
+                "الأربعاء",
+                "الخميس",
+                "الجمعة",
+                "السبت",
+                "الأحد",
+            ]
+            .map(str::to_owned),
+            month_names: [
+                "يناير",
+                "فبراير",
+                "مارس",
+                "أبريل",
+                "مايو",
+                "يونيو",
+                "يوليو",
+                "أغسطس",
+                "سبتمبر",
+                "أكتوبر",
+                "نوفمبر",
+                "ديسمبر",
+            ]
+            .map(str::to_owned),
             first_weekday: Weekday::Saturday,
             weekend: [Weekday::Friday, Weekday::Saturday],
             week_label: "الأسبوع".to_owned(),
@@ -264,12 +285,18 @@ mod tests {
             Weekday::Friday,
         ] {
             let weeks = month_data(2026, 11, first_weekday);
-            let days: Vec<Date> = weeks.iter().flat_map(|week| week.days.iter().copied()).collect();
+            let days: Vec<Date> = weeks
+                .iter()
+                .flat_map(|week| week.days.iter().copied())
+                .collect();
             assert_eq!(days.len() % 7, 0, "every row is a full week");
             for pair in days.windows(2) {
                 assert_eq!(pair[1], pair[0].tomorrow().unwrap(), "days are consecutive");
             }
-            assert!(days.iter().any(|day| day.month() == 11), "the month is covered");
+            assert!(
+                days.iter().any(|day| day.month() == 11),
+                "the month is covered"
+            );
         }
     }
 }
