@@ -774,22 +774,34 @@ impl WidgetText {
         self.map_rich_text(|text| text.background_color(background_color))
     }
 
+    /// Layout the text as a [`LayoutJob`], resolving fonts like
+    /// [`Self::into_galley_impl`] does: the style overrides win over
+    /// `fallback_font`, and the row height accounts for
+    /// [`Style::spacing`][crate::style::Spacing]'s `extra_text_line_spacing`.
     pub fn into_layout_job(
         self,
+        ctx: &crate::Context,
         style: &Style,
         fallback_font: FontSelection,
         default_valign: Align,
     ) -> Arc<LayoutJob> {
         match self {
-            Self::Text(text) => Arc::new(LayoutJob::simple_format(
-                text,
-                TextFormat {
-                    font_id: FontSelection::Default.resolve(style),
-                    color: crate::Color32::PLACEHOLDER,
-                    valign: default_valign,
-                    ..Default::default()
-                },
-            )),
+            Self::Text(text) => {
+                // We want the style overrides to take precedence over the fallback font
+                let font_id = FontSelection::default().resolve_with_fallback(style, fallback_font);
+                let line_height = ctx
+                    .fonts_mut(|f| f.row_height(&font_id) + style.spacing.extra_text_line_spacing);
+                Arc::new(LayoutJob::simple_format(
+                    text,
+                    TextFormat {
+                        font_id,
+                        color: crate::Color32::PLACEHOLDER,
+                        valign: default_valign,
+                        line_height: Some(line_height),
+                        ..Default::default()
+                    },
+                ))
+            }
             Self::RichText(text) => Arc::new(Arc::unwrap_or_clone(text).into_layout_job(
                 style,
                 fallback_font,

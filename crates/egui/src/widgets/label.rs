@@ -181,6 +181,7 @@ impl Label {
 
         let valign = ui.text_valign();
         let mut layout_job = Arc::unwrap_or_clone(self.text.into_layout_job(
+            ui.ctx(),
             ui.style(),
             FontSelection::Default,
             valign,

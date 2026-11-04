@@ -503,6 +503,47 @@ fn ltr_rows_paint_like_a_plain_button_label() {
     );
 }
 
+/// Under a custom style whose button text style differs from the body text
+/// style, an RTL row's label still lays out exactly like a plain button label:
+/// same font, same line height, same ink bounds. Mirrored LTR (where an
+/// unchecked row is a plain button by construction).
+#[test]
+fn row_label_lays_out_like_a_plain_button_under_a_custom_text_style() {
+    for rtl in [true, false] {
+        let output = popup_output(rtl, &mut |ui: &mut Ui| {
+            ui.style_mut().text_styles.insert(
+                egui::TextStyle::Button,
+                egui::FontId::new(20.0, egui::FontFamily::Monospace),
+            );
+            ui.style_mut().spacing.extra_text_line_spacing = 3.0;
+            ui.add(menu_item_button(ui, "خيار", false, None as Option<&str>));
+            let _ = ui.button("خيار");
+        });
+
+        let galleys = painted_galleys_texts(&output);
+        let rows: Vec<_> = galleys.iter().filter(|(text, _)| text == "خيار").collect();
+        assert_eq!(
+            rows.len(),
+            2,
+            "the row and the plain button should both paint their label, got {:?}",
+            rows.iter().map(|(text, _)| text).collect::<Vec<_>>()
+        );
+        let (row, plain) = (rows[0], rows[1]);
+        assert_eq!(
+            row.1.job.sections[0].format.font_id, plain.1.job.sections[0].format.font_id,
+            "the row label should use the plain button's font"
+        );
+        assert_eq!(
+            row.1.job.sections[0].format.line_height, plain.1.job.sections[0].format.line_height,
+            "the row label should use the plain button's line height"
+        );
+        assert_eq!(
+            row.1.mesh_bounds, plain.1.mesh_bounds,
+            "the row's ink bounds should match the plain button label's"
+        );
+    }
+}
+
 /// (job text, galley) for every text shape painted this pass.
 fn painted_galleys_texts(
     output: &FullOutput,
