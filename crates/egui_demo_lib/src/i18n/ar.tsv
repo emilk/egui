@@ -838,3 +838,17 @@
 	width	العرض
 	height	الارتفاع
 	📱 iPhone 15	📱 آيفون 15
+# demo stragglers (exhaustive sweep of crates/egui_demo_lib/src/demo/*.rs)
+# screenshot.rs
+	This demo showcases how to take screenshots via 	يعرض هذا العرض التوضيحي كيفية التقاط لقطات الشاشة عبر 
+	📷 Take Screenshot	📷 التقاط لقطة شاشة
+	Capture continuously	التقاط مستمر
+	No screenshot taken yet.	لم يتم التقاط أي لقطة شاشة بعد.
+# scrolling.rs — the two offsets are pre-formatted in Rust; `px` is a unit symbol and stays
+	Scroll offset: {current_scroll}/{max_scroll} px	إزاحة التمرير: {current_scroll}/{max_scroll} px
+# misc_demo_window.rs — box-painting sliders
+# misc_demo_window.rs — color-component readouts; the model names stay Latin
+	sRGBA: {r} {g} {b} {a}	sRGBA: {r} {g} {b} {a}
+	sRGBA with premultiplied alpha: {r} {g} {b} {a}	sRGBA مع ألفا مضروبة مسبقًا: {r} {g} {b} {a}
+	Linear RGBA: {r} {g} {b} {a}	Linear RGBA: {r} {g} {b} {a}
+	Linear RGBA with premultiplied alpha: {r} {g} {b} {a}	Linear RGBA مع ألفا مضروبة مسبقًا: {r} {g} {b} {a}

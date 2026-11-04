@@ -183,19 +183,19 @@ fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: e
         .num_columns(2)
         .striped(true)
         .show(ui, |ui| {
-            ui.label("Name");
+            ui.label(crate::i18n::t("Name"));
             ui.label(glyph_info.name.clone());
             ui.end_row();
 
-            ui.label("Hex");
+            ui.label(crate::i18n::t("Hex"));
             ui.label(format!("{:X}", chr as u32));
             ui.end_row();
 
-            ui.label("Width");
+            ui.label(crate::i18n::t("Width"));
             ui.label(format!("{:.1} pts", resp.rect.width()));
             ui.end_row();
 
-            ui.label("Fonts");
+            ui.label(crate::i18n::t("Fonts"));
             ui.label(
                 format!("{:?}", glyph_info.fonts)
                     .trim_start_matches('[')
@@ -227,7 +227,8 @@ fn char_name(chr: char) -> String {
     special_char_name(chr)
         .map(|s| s.to_owned())
         .or_else(|| unicode_names2::name(chr).map(|name| name.to_string().to_lowercase()))
-        .unwrap_or_else(|| "unknown".to_owned())
+        // The fallback is shown in the character table, so it translates.
+        .unwrap_or_else(|| crate::i18n::t("unknown").to_owned())
 }
 
 fn special_char_name(chr: char) -> Option<&'static str> {

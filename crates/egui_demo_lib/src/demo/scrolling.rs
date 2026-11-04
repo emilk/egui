@@ -397,8 +397,15 @@ impl crate::View for ScrollTo {
             .inner;
         ui.separator();
 
-        ui.label(format!(
-            "Scroll offset: {current_scroll:.0}/{max_scroll:.0} px"
+        // The two offsets are pre-formatted in Rust (format specs never enter a catalogue);
+        // the translated template is filled by `i18n::fmt`, not by `format!`.
+        #[expect(clippy::literal_string_with_formatting_args)]
+        ui.label(crate::i18n::fmt(
+            crate::i18n::t("Scroll offset: {current_scroll}/{max_scroll} px"),
+            &[
+                ("current_scroll", format!("{current_scroll:.0}").as_str()),
+                ("max_scroll", format!("{max_scroll:.0}").as_str()),
+            ],
         ));
 
         ui.separator();
