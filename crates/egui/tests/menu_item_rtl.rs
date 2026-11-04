@@ -224,10 +224,10 @@ fn ltr_rows_keep_the_plain_button_and_indent_checked_ones() {
         option_labels[0]
     );
     // The unchecked row's label paints exactly where the plain button's label
-    // paints (same x, same width; the rows sit at different y):
+    // paints (same x, same width, same height; the rows sit at different y):
     let (row, plain) = (option_labels[1], option_labels[2]);
     assert!(
-        row.min.x == plain.min.x && row.width() == plain.width(),
+        row.min.x == plain.min.x && row.width() == plain.width() && row.height() == plain.height(),
         "LTR: the unchecked row should be pixel-identical to a plain button \
          (row {row:?}, plain {plain:?})"
     );

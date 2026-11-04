@@ -605,8 +605,9 @@ impl<'a> Popup<'a> {
 
     /// Show the popup.
     ///
-    /// Returns `None` if the popup is not open or anchor is `PopupAnchor::Pointer` and there is
-    /// no pointer.
+    /// Returns `None` if the popup is not open, anchor is `PopupAnchor::Pointer` and there
+    /// is no pointer, or the pointer-fixed anchor has neither a stored position nor an
+    /// anchor widget.
     pub fn show<R>(self, content: impl FnOnce(&mut Ui) -> R) -> Option<InnerResponse<R>> {
         let id = self.id;
         // When the popup was just opened with a click we don't want to immediately close it based
@@ -644,7 +645,7 @@ impl<'a> Popup<'a> {
         }
 
         let best_align = self.get_best_align();
-        let anchor_rect = self.anchor_rect()?;
+        let anchor_rect = self.anchor_rect();
 
         let Popup {
             id,
@@ -678,6 +679,10 @@ impl<'a> Popup<'a> {
                     .insert(id)
             });
         }
+
+        // A popup without an anchor rect never renders, but still counts as open
+        // (e.g. tooltip suppression reads `open_popups`).
+        let anchor_rect = anchor_rect?;
 
         let (pivot, anchor) = best_align.pivot_pos(&anchor_rect, gap);
 

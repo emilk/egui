@@ -8,8 +8,8 @@
 //! No snapshot assertions; geometry only, read from the popup's area rect.
 
 use egui::{
-    Context, Event, Id, Modifiers, PointerButton, Popup, Pos2, RawInput, Rect, Sense,
-    SetOpenCommand, Ui, Vec2, pos2, vec2,
+    Context, Event, Id, Key, LayerId, Modifiers, Order, PointerButton, Popup, PopupAnchor, Pos2,
+    RawInput, Rect, Sense, SetOpenCommand, Ui, Vec2, pos2, vec2,
 };
 
 /// The context menu popup's area rect after opening it with a secondary click on
@@ -139,7 +139,6 @@ fn keyboard_menu_rect(right_to_left: bool, screen: Vec2, widget_rect: Rect) -> O
     let ctx = Context::default();
     ctx.set_right_to_left(right_to_left);
 
-    let _id = Id::unique("rtl-keyboard-menu-anchor");
     let mut popup_id = Id::NULL;
 
     let mut show = |ui: &mut Ui| {
@@ -339,4 +338,140 @@ fn keyboard_opened_menu_on_a_narrow_screen_stays_finite_and_clamped() {
         rect.intersects(screen),
         "the popup should overlap the screen (popup {rect:?}, screen {screen:?})"
     );
+}
+
+// ---------------------------------------------------------------------------
+
+/// A popup that cannot compute an anchor rect (a pointer-fixed popup with
+/// neither a stored position nor an anchor widget, or a pointer-anchored popup
+/// with no pointer) renders nothing but still counts as an open popup, so
+/// tooltips stay suppressed while it is stuck.
+#[test]
+fn anchorless_popups_stay_registered_as_open() {
+    let screen = Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0));
+
+    for anchor in [PopupAnchor::PointerFixed, PopupAnchor::Pointer] {
+        let ctx = Context::default();
+        let popup_id = Id::unique("rtl-anchorless-popup");
+        let layer_id = LayerId::new(Order::Foreground, Id::unique("rtl-anchorless-layer"));
+
+        let mut show = |ui: &mut Ui| {
+            Popup::new(popup_id, ui.ctx().clone(), anchor, layer_id).show(|ui| {
+                ui.label("row");
+            });
+        };
+        for time in [0.0, 0.1] {
+            let output = ctx.run_ui(
+                RawInput {
+                    screen_rect: Some(screen),
+                    time: Some(time),
+                    ..Default::default()
+                },
+                &mut show,
+            );
+            output.drop_without_applying_deltas();
+        }
+
+        assert!(
+            ctx.memory(|memory| memory.area_rect(popup_id)).is_none(),
+            "the anchorless {anchor:?} popup should render nothing"
+        );
+        assert!(
+            ctx.any_popup_open(),
+            "the anchorless {anchor:?} popup should stay registered as open, so \
+             tooltips stay suppressed while it is stuck"
+        );
+    }
+}
+
+/// A submenu opened from the keyboard of a keyboard-opened context menu
+/// (arrow down to focus the row, Enter to open it) opens on the reading side
+/// of its row: to the right in a left-to-right interface, mirrored to the
+/// left when [`egui::Style::right_to_left`] is set.
+#[test]
+fn keyboard_opened_context_menu_opens_a_submenu_on_the_reading_side() {
+    for (right_to_left, reading_side_is_left) in [(false, false), (true, true)] {
+        let dir = if right_to_left { "RTL" } else { "LTR" };
+        let ctx = Context::default();
+        ctx.set_right_to_left(right_to_left);
+
+        let screen = Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0));
+        let widget = Rect::from_min_size(pos2(300.0, 200.0), vec2(40.0, 20.0));
+
+        let row_id = core::cell::RefCell::new(Id::NULL);
+        let row_rect = core::cell::RefCell::new(Rect::NOTHING);
+        let mut popup_id = Id::NULL;
+
+        let mut show = |ui: &mut Ui| {
+            let response = ui.allocate_rect(widget, Sense::click());
+            let popup = Popup::menu(&response)
+                .at_pointer_fixed()
+                .open_memory(Some(SetOpenCommand::Bool(true)));
+            popup_id = popup.get_id();
+            popup.show(|ui| {
+                let row = ui.menu_button("Sub", |ui| {
+                    let _ = ui.button("Item");
+                });
+                *row_id.borrow_mut() = row.response.id;
+                *row_rect.borrow_mut() = row.response.rect;
+            });
+        };
+
+        let input = |time: f64, events: Vec<Event>| RawInput {
+            screen_rect: Some(screen),
+            time: Some(time),
+            events,
+            ..Default::default()
+        };
+        let key = |key: Key, pressed: bool| Event::Key {
+            key,
+            pressed,
+            modifiers: Modifiers::NONE,
+            repeat: false,
+            physical_key: None,
+        };
+
+        // Sizing pass and show pass, no pointer anywhere (a keyboard open).
+        for time in [0.0, 0.1] {
+            let output = ctx.run_ui(input(time, vec![]), &mut show);
+            output.drop_without_applying_deltas();
+        }
+        // Arrow down focuses the first row, Enter opens its submenu; the last
+        // frame is the submenu's show pass.
+        for (time, events) in [
+            (0.2, vec![key(Key::ArrowDown, true)]),
+            (0.3, vec![key(Key::ArrowDown, false)]),
+            (0.4, vec![key(Key::Enter, true)]),
+            (0.5, vec![key(Key::Enter, false)]),
+            (0.6, vec![]),
+        ] {
+            let output = ctx.run_ui(input(time, events), &mut show);
+            output.drop_without_applying_deltas();
+        }
+
+        let submenu_id =
+            egui::containers::menu::SubMenu::id_from_widget_id(row_id.borrow().to_owned());
+        let submenu = ctx
+            .memory(|memory| memory.area_rect(submenu_id))
+            .unwrap_or_else(|| panic!("{dir}: the submenu should have been shown"));
+        let row = row_rect.borrow().to_owned();
+        assert!(
+            !row.is_negative(),
+            "{dir}: the row should have been laid out"
+        );
+
+        if reading_side_is_left {
+            assert!(
+                submenu.max.x <= row.min.x + 2.0,
+                "{dir}: the submenu should open on the reading-end (left) side of \
+                 its row (submenu {submenu:?}, row {row:?})"
+            );
+        } else {
+            assert!(
+                submenu.min.x >= row.max.x - 2.0,
+                "{dir}: the submenu should open on the reading-end (right) side of \
+                 its row (submenu {submenu:?}, row {row:?})"
+            );
+        }
+    }
 }
