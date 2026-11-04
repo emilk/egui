@@ -852,3 +852,10 @@
 	sRGBA with premultiplied alpha: {r} {g} {b} {a}	sRGBA مع ألفا مضروبة مسبقًا: {r} {g} {b} {a}
 	Linear RGBA: {r} {g} {b} {a}	Linear RGBA: {r} {g} {b} {a}
 	Linear RGBA with premultiplied alpha: {r} {g} {b} {a}	Linear RGBA مع ألفا مضروبة مسبقًا: {r} {g} {b} {a}
+# easy_mark_editor.rs — the EasyMark editor chrome; the markup literals in the hotkey grid and
+# the EasyMark sample document stay English (they are markup, not chrome)
+	Hotkeys	مفاتيح الاختصار
+	Show rendered	إظهار النتيجة المصيَّرة
+	Highlight editor	تمييز المحرر
+	EasyMark source	مصدر EasyMark
+	two spaces	فراغان

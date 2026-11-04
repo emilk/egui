@@ -1148,6 +1148,13 @@ mod tests {
         "sRGBA with premultiplied alpha: {r} {g} {b} {a}",
         "Linear RGBA: {r} {g} {b} {a}",
         "Linear RGBA with premultiplied alpha: {r} {g} {b} {a}",
+        // partition P4 (craft/i18n-ar-w4-p2): the EasyMark editor chrome (easy_mark_editor.rs);
+        // the markup literals in its hotkey grid and the sample document stay English
+        "Hotkeys",
+        "Show rendered",
+        "Highlight editor",
+        "EasyMark source",
+        "two spaces",
     ];
 
     /// Scoped keys whose translation legitimately equals the key (technology names),
